@@ -24,7 +24,7 @@ public sealed class TenancyTests
         // to the default tenant. A single-tenant setup requires no configuration.
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
+        (await ReadTenantAsync(host, header: "tenant-b")).ShouldBe("default");
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class TenancyTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options => options.Enabled = true));
 
-        (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
+        (await ReadTenantAsync(host, header: "tenant-b")).ShouldBe("default");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class TenancyTests
                 options.AllowHeaderResolution = true;
             }));
 
-        (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("kiraci-b");
+        (await ReadTenantAsync(host, header: "tenant-b")).ShouldBe("tenant-b");
     }
 
     [Fact]
@@ -75,15 +75,15 @@ public sealed class TenancyTests
             {
                 options.Enabled = true;
                 options.AllowHeaderResolution = true;
-                options.AllowedTenants.Add("kiraci-a");
+                options.AllowedTenants.Add("tenant-a");
             }));
 
         using var rejected = await host.Client.SendAsync(
-            Request(HttpMethod.Get, "/agentprism/api/tenants/current", "kiraci-b", body: null));
+            Request(HttpMethod.Get, "/agentprism/api/tenants/current", "tenant-b", body: null));
 
         rejected.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        (await ReadTenantAsync(host, header: "kiraci-a")).ShouldBe("kiraci-a");
+        (await ReadTenantAsync(host, header: "tenant-a")).ShouldBe("tenant-a");
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class TenancyTests
             // back to the header.
             configureServices: static services => TestAuthenticationHandler.Add(services));
 
-        (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
+        (await ReadTenantAsync(host, header: "tenant-b")).ShouldBe("default");
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class TenancyTests
             }));
 
         using var created = await host.Client.SendAsync(
-            Request(HttpMethod.Put, "/agentprism/api/mcp-servers/secret", "kiraci-a", new
+            Request(HttpMethod.Put, "/agentprism/api/mcp-servers/secret", "tenant-a", new
             {
                 endpoint = "https://mcp.example.com/mcp",
                 enabled = true,
@@ -128,7 +128,7 @@ public sealed class TenancyTests
         created.EnsureSuccessStatusCode();
 
         using var mine = await host.Client.SendAsync(
-            Request(HttpMethod.Get, "/agentprism/api/mcp-servers", "kiraci-a", body: null));
+            Request(HttpMethod.Get, "/agentprism/api/mcp-servers", "tenant-a", body: null));
 
         (await mine.Content.ReadFromJsonAsync<List<McpServerDefinition>>())
             .ShouldNotBeNull()
@@ -136,7 +136,7 @@ public sealed class TenancyTests
             .Name.ShouldBe("secret");
 
         using var theirs = await host.Client.SendAsync(
-            Request(HttpMethod.Get, "/agentprism/api/mcp-servers", "kiraci-b", body: null));
+            Request(HttpMethod.Get, "/agentprism/api/mcp-servers", "tenant-b", body: null));
 
         (await theirs.Content.ReadFromJsonAsync<List<McpServerDefinition>>())
             .ShouldNotBeNull()
@@ -158,20 +158,20 @@ public sealed class TenancyTests
         await store.AddAsync(new ToolApprovalRule
         {
             Id = AgentPrismId.NewId(),
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
             ToolName = "cancel_order",
             CreatedAt = DateTimeOffset.UtcNow,
         });
 
         using var mine = await host.Client.SendAsync(
-            Request(HttpMethod.Get, "/agentprism/api/approvals/rules", "kiraci-a", body: null));
+            Request(HttpMethod.Get, "/agentprism/api/approvals/rules", "tenant-a", body: null));
 
         (await mine.Content.ReadFromJsonAsync<List<ToolApprovalRule>>())
             .ShouldNotBeNull()
             .Count.ShouldBe(1);
 
         using var theirs = await host.Client.SendAsync(
-            Request(HttpMethod.Get, "/agentprism/api/approvals/rules", "kiraci-b", body: null));
+            Request(HttpMethod.Get, "/agentprism/api/approvals/rules", "tenant-b", body: null));
 
         (await theirs.Content.ReadFromJsonAsync<List<ToolApprovalRule>>())
             .ShouldNotBeNull()

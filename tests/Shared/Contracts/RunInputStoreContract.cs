@@ -3,41 +3,43 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IRunInputStore"/> sozlesmesinin davranis testleri (Faz 47).
+/// Behavior tests for the <see cref="IRunInputStore"/> contract (phase 47).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bellek ici depo ile uc SQL saglayicisi ayni senaryolari gecmelidir.
+/// The in-memory store and the three SQL providers must pass the same
+/// scenarios.
 /// </para>
 /// <para>
-/// 🚨 En degerli test <see cref="Polimorfik_icerik_ANAHTAR_SIRASI_korunarak_geri_okunur"/>
-/// olanidir: <c>messages</c> sutunu <c>jsonb</c> yazilirsa PostgreSQL nesne
-/// anahtarlarini yeniden siralar, <c>$type</c> ayraci ilk ozellik olmaktan
-/// cikar ve okuma <c>JsonException</c> ile duser (K-027). Derleme de diger
-/// testler de bunu yakalamaz.
+/// 🚨 The most valuable test is
+/// <see cref="Polymorphic_content_round_trips_with_KEY_ORDER_preserved"/>:
+/// if the <c>messages</c> column is written as <c>jsonb</c>, PostgreSQL
+/// reorders the object keys, the <c>$type</c> discriminator stops being the
+/// first property, and the read fails with a <c>JsonException</c> (K-027).
+/// Neither the build nor the other tests catch this.
 /// </para>
 /// </remarks>
 public abstract class RunInputStoreContract : IAsyncLifetime
 {
     private const string Tenant = "test";
 
-    /// <summary>Sinanan girdi deposu.</summary>
+    /// <summary>The input store under test.</summary>
     protected IRunInputStore Store { get; private set; } = null!;
 
-    /// <summary>Test icin bos bir girdi deposu uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
+    /// <summary>Produces an empty input store for testing.</summary>
+    /// <returns>A store ready for use.</returns>
     protected abstract ValueTask<IRunInputStore> CreateStoreAsync();
 
     /// <summary>
-    /// Girdi yazilmadan once, verilen kimlikte bir calistirma satiri acar.
+    /// Opens a run row at the given id before an input is written.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="runId">The run id.</param>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// SQL uygulamalarinda <c>run_inputs.run_id</c> <c>runs</c> tablosuna
-    /// yabanci anahtardir; bellek ici uygulamada boyle bir bag yoktur ve kanca
-    /// hicbir sey yapmaz.
+    /// In the SQL implementations, <c>run_inputs.run_id</c> is a foreign key
+    /// into the <c>runs</c> table; the in-memory implementation has no such
+    /// link, and the hook does nothing.
     /// </remarks>
     protected virtual ValueTask PrepareRunAsync(Guid runId, string tenantId) => default;
 
@@ -51,16 +53,16 @@ public abstract class RunInputStoreContract : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Hook for the derived class to release its own resources.</summary>
+    /// <returns>The completion task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
     [Fact]
-    public async Task Yazilan_girdi_aynen_geri_okunur()
+    public async Task Written_input_round_trips_exactly()
     {
         var runId = await NewRunAsync();
 
-        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "istanbul hava durumu")]));
+        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "istanbul weather")]));
 
         var read = await Store.GetAsync(Tenant, runId);
 
@@ -69,45 +71,46 @@ public abstract class RunInputStoreContract : IAsyncLifetime
         read.TenantId.ShouldBe(Tenant);
         read.Messages.Count.ShouldBe(1);
         read.Messages[0].Role.ShouldBe(ChatRole.User);
-        read.Messages[0].Text.ShouldBe("istanbul hava durumu");
+        read.Messages[0].Text.ShouldBe("istanbul weather");
     }
 
     [Fact]
-    public async Task Kaydi_olmayan_calistirma_null_doner()
+    public async Task Run_without_a_record_returns_null()
         => (await Store.GetAsync(Tenant, AgentPrismId.NewId())).ShouldBeNull();
 
     [Fact]
-    public async Task Ikinci_yazim_YOK_SAYILIR()
+    public async Task Second_write_is_IGNORED()
     {
         var runId = await NewRunAsync();
 
-        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "ilk")]));
-        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "ikinci")]));
+        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "first")]));
+        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "second")]));
 
-        // 🚨 Kuyruga alinan bir calistirma (Faz 46) AYNI kimlikle iki kez baslar;
-        // girdi degismemelidir.
+        // 🚨 A queued run (phase 46) starts twice with the SAME id; the input
+        // must not change.
         var read = await Store.GetAsync(Tenant, runId);
 
-        read!.Messages[0].Text.ShouldBe("ilk");
+        read!.Messages[0].Text.ShouldBe("first");
     }
 
     [Fact]
-    public async Task Polimorfik_icerik_ANAHTAR_SIRASI_korunarak_geri_okunur()
+    public async Task Polymorphic_content_round_trips_with_KEY_ORDER_preserved()
     {
         var runId = await NewRunAsync();
 
-        // Metin + goruntu referansi + tool sonucu: ucu de AYRI birer AIContent
-        // turudur ve `$type` ayraci olmadan geri okunamaz.
+        // Text + image reference + tool result: all three are SEPARATE
+        // AIContent types and cannot be read back without the `$type`
+        // discriminator.
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.System, "Kisa yanit ver."),
+            new(ChatRole.System, "Give a short answer."),
             new(
                 ChatRole.User,
                 [
-                    new TextContent("bu goruntuyu acikla"),
-                    new UriContent("https://ornek/gorsel.png", "image/png"),
+                    new TextContent("explain this image"),
+                    new UriContent("https://example/image.png", "image/png"),
                 ]),
-            new(ChatRole.Tool, [new FunctionResultContent("call-1", "23 derece")]),
+            new(ChatRole.Tool, [new FunctionResultContent("call-1", "23 degrees")]),
         };
 
         await Store.SaveAsync(Record(runId, messages));
@@ -120,24 +123,25 @@ public abstract class RunInputStoreContract : IAsyncLifetime
 
         var user = read.Messages[1];
 
-        user.Contents.OfType<TextContent>().Single().Text.ShouldBe("bu goruntuyu acikla");
+        user.Contents.OfType<TextContent>().Single().Text.ShouldBe("explain this image");
         user.Contents.OfType<UriContent>().Single().MediaType.ShouldBe("image/png");
 
         var toolResult = read.Messages[2].Contents.OfType<FunctionResultContent>().Single();
 
         toolResult.CallId.ShouldBe("call-1");
-        toolResult.Result?.ToString().ShouldBe("23 derece");
+        toolResult.Result?.ToString().ShouldBe("23 degrees");
     }
 
     [Fact]
-    public async Task Baska_kiracinin_girdisi_okunamaz()
+    public async Task Another_tenants_input_cannot_be_read()
     {
         var runId = await NewRunAsync("tenant-a");
 
         await Store.SaveAsync(
-            Record(runId, [new ChatMessage(ChatRole.User, "gizli")], tenantId: "tenant-a"));
+            Record(runId, [new ChatMessage(ChatRole.User, "secret")], tenantId: "tenant-a"));
 
-        // "Yok" ile "baskasinin" cagiran icin AYNI sonuctur; varlik sizmaz.
+        // "Does not exist" and "belongs to someone else" are the SAME result
+        // to the caller; existence does not leak.
         (await Store.GetAsync("tenant-b", runId)).ShouldBeNull();
         (await Store.GetAsync("tenant-a", runId)).ShouldNotBeNull();
     }

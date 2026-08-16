@@ -6,7 +6,7 @@ namespace AgentPrism.Core.UnitTests.Evaluation;
 public sealed class EvalCheckRegistryTests
 {
     [Fact]
-    public void Bos_veya_tanimsiz_yuk_bos_liste_dondurur()
+    public void Empty_or_undefined_payload_returns_an_empty_list()
     {
         var registry = new EvalCheckRegistry([]);
 
@@ -15,7 +15,7 @@ public sealed class EvalCheckRegistryTests
     }
 
     [Fact]
-    public void Dizi_olmayan_yuk_hata_firlatir()
+    public void Payload_that_is_not_an_array_throws()
     {
         var registry = new EvalCheckRegistry([]);
         var spec = Parse("""{"kind":"nonEmpty"}""");
@@ -24,7 +24,7 @@ public sealed class EvalCheckRegistryTests
     }
 
     [Fact]
-    public void Kind_alani_olmayan_tanim_hata_firlatir()
+    public void Definition_without_a_kind_field_throws()
     {
         var registry = new EvalCheckRegistry([]);
         var spec = Parse("""[{"minLength":10}]""");
@@ -33,93 +33,94 @@ public sealed class EvalCheckRegistryTests
     }
 
     [Fact]
-    public void Bilinmeyen_denetim_turu_hata_firlatir()
+    public void Unknown_check_kind_throws()
     {
         var registry = new EvalCheckRegistry([]);
-        var spec = Parse("""[{"kind":"boyleBirSeyYok"}]""");
+        var spec = Parse("""[{"kind":"noSuchThing"}]""");
 
         Should.Throw<AgentPrismException>(() => registry.BuildChecks(spec));
     }
 
     [Fact]
-    public void NonEmpty_dogru_esik_ile_calisir()
+    public void NonEmpty_works_with_the_correct_threshold()
     {
         var registry = new EvalCheckRegistry([]);
         var checks = registry.BuildChecks(Parse("""[{"kind":"nonEmpty","minLength":5}]"""));
 
         checks.Count.ShouldBe(1);
-        checks[0].Invoke(new EvalItem("soru", "kisa")).Passed.ShouldBeFalse();
-        checks[0].Invoke(new EvalItem("soru", "yeterince uzun cevap")).Passed.ShouldBeTrue();
+        checks[0].Invoke(new EvalItem("question", "no")).Passed.ShouldBeFalse();
+        checks[0].Invoke(new EvalItem("question", "a long enough answer")).Passed.ShouldBeTrue();
     }
 
     [Fact]
-    public void ContainsExpected_beklenen_ciktiya_gore_calisir()
+    public void ContainsExpected_works_based_on_the_expected_output()
     {
         var registry = new EvalCheckRegistry([]);
         var checks = registry.BuildChecks(Parse("""[{"kind":"containsExpected","caseSensitive":false}]"""));
 
-        var item = new EvalItem("soru", "Cevap IADE sureci hakkinda") { ExpectedOutput = "iade" };
+        var item = new EvalItem("question", "Answer about the RETURN process") { ExpectedOutput = "return" };
 
         checks[0].Invoke(item).Passed.ShouldBeTrue();
     }
 
     [Fact]
-    public void ContainsExpected_bos_ExpectedOutput_ile_daima_basarisiz_olur()
+    public void ContainsExpected_always_fails_with_an_empty_ExpectedOutput()
     {
-        // Faz 45 Acik Soru 2: terfi eden bir vaka (Failed/NegativeScore) bos
-        // ExpectedOutput tasir. Olculdu: EvalChecks.ContainsExpected null/bos
-        // ExpectedOutput'ta FIRLATMAZ, sessizce PASSED=false doner — bu yuzden
-        // boyle bir vaka `containsExpected` iceren bir takimda HER ZAMAN
-        // basarisiz gorunur (docs/45-URETIMDEN-EVAL-KUMESI.md, secenek B).
+        // Phase 45 Open Question 2: a promoted case (Failed/NegativeScore)
+        // carries an empty ExpectedOutput. Measured: EvalChecks.ContainsExpected
+        // does NOT throw on a null/empty ExpectedOutput, it silently returns
+        // PASSED=false — so such a case ALWAYS appears failed in a suite
+        // containing `containsExpected` (docs/45-URETIMDEN-EVAL-KUMESI.md,
+        // option B).
         var registry = new EvalCheckRegistry([]);
         var checks = registry.BuildChecks(Parse("""[{"kind":"containsExpected"}]"""));
 
-        var item = new EvalItem("soru", "herhangi bir cikti") { ExpectedOutput = null };
+        var item = new EvalItem("question", "any output") { ExpectedOutput = null };
 
         checks[0].Invoke(item).Passed.ShouldBeFalse();
     }
 
     [Fact]
-    public void Keywords_verilen_kelimeleri_arar()
+    public void Keywords_searches_for_the_given_words()
     {
         var registry = new EvalCheckRegistry([]);
-        var checks = registry.BuildChecks(Parse("""[{"kind":"keywords","values":["iade","kargo"]}]"""));
+        var checks = registry.BuildChecks(Parse("""[{"kind":"keywords","values":["return","shipping"]}]"""));
 
-        checks[0].Invoke(new EvalItem("soru", "iade ve kargo sureci")).Passed.ShouldBeTrue();
-        checks[0].Invoke(new EvalItem("soru", "alakasiz cevap")).Passed.ShouldBeFalse();
+        checks[0].Invoke(new EvalItem("question", "return and shipping process")).Passed.ShouldBeTrue();
+        checks[0].Invoke(new EvalItem("question", "irrelevant answer")).Passed.ShouldBeFalse();
     }
 
     [Fact]
-    public void ToolCalled_gecersiz_mod_hata_firlatir()
+    public void ToolCalled_with_an_invalid_mode_throws()
     {
         var registry = new EvalCheckRegistry([]);
-        var spec = Parse("""[{"kind":"toolCalled","tools":["get_order_status"],"mode":"herseyi"}]""");
+        var spec = Parse("""[{"kind":"toolCalled","tools":["get_order_status"],"mode":"everything"}]""");
 
         Should.Throw<AgentPrismException>(() => registry.BuildChecks(spec));
     }
 
     [Fact]
-    public void Ozel_denetim_kaydi_kullanilabilir()
+    public void Custom_check_registration_can_be_used()
     {
         EvalCheck custom = item =>
-            new EvalCheckResult(string.Equals(item.Response, "beklenen", StringComparison.Ordinal), "ozel", "ozelKontrol");
-        var registry = new EvalCheckRegistry([new AgentPrismEvalCheckRegistration("ozelKontrol", custom)]);
+            new EvalCheckResult(string.Equals(item.Response, "expected", StringComparison.Ordinal), "custom", "customCheck");
+        var registry = new EvalCheckRegistry([new AgentPrismEvalCheckRegistration("customCheck", custom)]);
 
-        var checks = registry.BuildChecks(Parse("""[{"kind":"ozelKontrol"}]"""));
+        var checks = registry.BuildChecks(Parse("""[{"kind":"customCheck"}]"""));
 
         checks.Count.ShouldBe(1);
-        checks[0].Invoke(new EvalItem("soru", "beklenen")).Passed.ShouldBeTrue();
+        checks[0].Invoke(new EvalItem("question", "expected")).Passed.ShouldBeTrue();
     }
 
     [Fact]
-    public void Ayni_ozel_denetim_iki_kez_kaydedilirse_hata_firlatir()
+    public void Registering_the_same_custom_check_twice_throws()
     {
-        EvalCheck custom = _ => new EvalCheckResult(true, "ozel", "ozelKontrol");
+        EvalCheck custom = _ => new EvalCheckResult(true, "custom", "customCheck");
 
         Should.Throw<AgentPrismException>(() => new EvalCheckRegistry(
         [
-            new AgentPrismEvalCheckRegistration("ozelKontrol", custom),
-            new AgentPrismEvalCheckRegistration("ozelKontrol", custom),
+            new AgentPrismEvalCheckRegistration("customCheck", custom),
+            new AgentPrismEvalCheckRegistration("customCheck", custom),
         ]));
     }
 

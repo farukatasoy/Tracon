@@ -23,9 +23,9 @@ public sealed class McpResourceTrimmingTests
     [Fact]
     public void Does_not_cut_through_the_middle_of_a_multi_byte_character()
     {
-        // 'ş' is 2 bytes in UTF-8. If the limit lands exactly in the middle
+        // 'é' is 2 bytes in UTF-8. If the limit lands exactly in the middle
         // (byte 3), it must back off until a valid boundary is found.
-        var text = "abş"; // a(1) b(1) ş(2) = 4 bytes
+        var text = "abé"; // a(1) b(1) é(2) = 4 bytes
 
         var (trimmed, truncated) = McpResourceTrimming.Trim(text, maxBytes: 3);
 

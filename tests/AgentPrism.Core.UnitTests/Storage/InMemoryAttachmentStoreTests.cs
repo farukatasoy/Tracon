@@ -1,15 +1,15 @@
 namespace AgentPrism.Core.UnitTests.Storage;
 
 /// <summary>
-/// <see cref="InMemoryAttachmentStore"/>'a ozgu davranis: harici depolamaya
-/// devretme. Tenant yalitimi, listeleme ve silme gibi paylasilan davranis
-/// <c>AttachmentStoreContract</c> icinde (PostgreSql.IntegrationTests) hem bu
-/// depo hem <c>PostgresAttachmentStore</c> uzerinde kosulur.
+/// Behavior specific to <see cref="InMemoryAttachmentStore"/>: delegating to
+/// external storage. Shared behavior such as tenant isolation, listing, and
+/// deletion runs in <c>AttachmentStoreContract</c> (PostgreSql.IntegrationTests)
+/// against both this store and <c>PostgresAttachmentStore</c>.
 /// </summary>
 public sealed class InMemoryAttachmentStoreTests
 {
     [Fact]
-    public async Task Harici_depo_kayitliysa_icerik_orada_yasar()
+    public async Task When_external_storage_is_registered_content_lives_there()
     {
         var storage = new FakeAttachmentStorage();
         var store = new InMemoryAttachmentStore(storage);

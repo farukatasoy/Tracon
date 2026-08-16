@@ -235,7 +235,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Model.ResponseFormat.Schema.ShouldNotBeNull();
         loaded.Model.ResponseFormat.Schema!.Value.GetProperty("type").GetString().ShouldBe("object");
         loaded.Model.ResponseFormat.SchemaName.ShouldBe("invoice");
-        loaded.Model.ResponseFormat.SchemaDescription.ShouldBe("Bir fatura ozetinin semasi.");
+        loaded.Model.ResponseFormat.SchemaDescription.ShouldBe("Schema of an invoice summary.");
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
         loaded.CallableAgentNames.ShouldBe(["researcher"]);
         loaded.Harness.ShouldNotBeNull();
@@ -245,7 +245,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Compaction.Strategy.ShouldBe(CompactionStrategyKind.Summarization);
         loaded.Compaction.TriggerTokens.ShouldBe(8_000);
         loaded.Compaction.MinimumPreservedGroups.ShouldBe(4);
-        loaded.Compaction.SummarizationPrompt.ShouldBe("kisa ve oz ozetle");
+        loaded.Compaction.SummarizationPrompt.ShouldBe("summarize briefly and concisely");
         loaded.Compaction.SummarizationModel.ShouldNotBeNull();
         loaded.Compaction.SummarizationModel!.Provider.ShouldBe("echo");
         loaded.Compaction.SummarizationModel.Model.ShouldBe("echo-summarizer");
@@ -253,42 +253,42 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Memory.EnableFileMemory.ShouldBeTrue();
         loaded.Memory.EnableTodo.ShouldBeTrue();
         loaded.Memory.EnableTextSearch.ShouldBeTrue();
-        loaded.Metadata["owner"].GetString().ShouldBe("platform-ekibi");
+        loaded.Metadata["owner"].GetString().ShouldBe("platform-team");
         loaded.Metadata["priority"].GetInt32().ShouldBe(3);
     }
 
     [Fact]
-    public async Task Kiraci_digerinin_tanimini_geri_alamaz()
+    public async Task Tenant_cannot_roll_back_another_tenants_definition()
     {
         AmbientTenant.TenantId = TenantA;
-        await Store.SaveAsync(TestData.Definition("gizli"));
-        await Store.SaveAsync(TestData.Definition("gizli") with { Instructions = "ikinci" });
+        await Store.SaveAsync(TestData.Definition("secret"));
+        await Store.SaveAsync(TestData.Definition("secret") with { Instructions = "second" });
 
         AmbientTenant.TenantId = TenantB;
-        await Should.ThrowAsync<AgentPrismException>(async () => await Store.RollbackAsync("gizli", 1));
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.RollbackAsync("secret", 1));
 
         AmbientTenant.TenantId = TenantA;
-        (await Store.RollbackAsync("gizli", 1)).Version.ShouldBe(3);
+        (await Store.RollbackAsync("secret", 1)).Version.ShouldBe(3);
     }
 
     [Fact]
-    public async Task Her_kiracinin_surum_sayaci_kendine_aittir()
+    public async Task Each_tenants_version_counter_is_its_own()
     {
-        // IsolationTests.cs'ten tasindi (Faz 41).
+        // Moved from IsolationTests.cs (Phase 41).
         AmbientTenant.TenantId = TenantA;
-        await Store.SaveAsync(TestData.Definition("destek") with { Instructions = "a talimati" });
+        await Store.SaveAsync(TestData.Definition("support") with { Instructions = "tenant a instructions" });
 
         AmbientTenant.TenantId = TenantB;
-        await Store.SaveAsync(TestData.Definition("destek") with { Instructions = "b talimati" });
+        await Store.SaveAsync(TestData.Definition("support") with { Instructions = "tenant b instructions" });
 
         AmbientTenant.TenantId = TenantA;
-        var first = (await Store.GetAsync("destek")).ShouldNotBeNull();
-        first.Instructions.ShouldBe("a talimati");
+        var first = (await Store.GetAsync("support")).ShouldNotBeNull();
+        first.Instructions.ShouldBe("tenant a instructions");
         first.Version.ShouldBe(1);
 
         AmbientTenant.TenantId = TenantB;
-        var second = (await Store.GetAsync("destek")).ShouldNotBeNull();
-        second.Instructions.ShouldBe("b talimati");
+        var second = (await Store.GetAsync("support")).ShouldNotBeNull();
+        second.Instructions.ShouldBe("tenant b instructions");
         second.Version.ShouldBe(1);
     }
 }

@@ -3,47 +3,48 @@ using AgentPrism.Workflows.UnitTests.Fakes;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Grafin derlenmis workflow'dan cikarilmasi.
+/// Extraction of the graph from a compiled workflow.
 /// </summary>
 /// <remarks>
-/// En kritik sozlesme <strong>dugum kimlikleridir</strong>: arayuz dugumleri
-/// calistirma olaylarindaki <c>ExecutorInvoked</c> / <c>ExecutorCompleted</c>
-/// metinleriyle eslestirip renklendirir. Kimlikler kayarsa graf cizilir ama
-/// hicbir zaman renklenmez - sessiz bir bozulma.
+/// The most critical contract is <strong>node ids</strong>: the UI matches
+/// nodes against the <c>ExecutorInvoked</c> / <c>ExecutorCompleted</c> text in
+/// run events to color them. If the ids drift, the graph still renders but
+/// never gets colored - a silent breakage.
 /// </remarks>
 public sealed class WorkflowGraphReaderTests
 {
     [Fact]
-    public async Task Sequential_grafi_agent_dugumlerini_ve_ciktiyi_tasir()
+    public async Task Sequential_graph_carries_agent_nodes_and_output()
     {
-        var host = new WorkflowTestHost("ozetleyici", "cevirmen");
+        var host = new WorkflowTestHost("summarizer", "translator");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["ozetleyici", "cevirmen"],
+            AgentNames = ["summarizer", "translator"],
         });
 
-        var graph = (await host.CreateRunner().GetGraphAsync("zincir"))!;
+        var graph = (await host.CreateRunner().GetGraphAsync("chain"))!;
 
-        graph.Name.ShouldBe("zincir");
+        graph.Name.ShouldBe("chain");
         graph.Mermaid.ShouldNotBeNullOrWhiteSpace();
 
         var agents = graph.Nodes.Where(node => node.Kind == WorkflowNodeKind.Agent).ToList();
 
         agents.Count.ShouldBe(2);
         agents.Select(node => node.AgentName).Order(StringComparer.Ordinal)
-            .ShouldBe(["cevirmen", "ozetleyici"]);
+            .ShouldBe(["summarizer", "translator"]);
 
-        // Hazir desen bir cikti dugumu ekler; kullanicinin tanimda yazmadigi
-        // bu dugum grafta gorunmezse calistirma olaylari eslesmezdi.
+        // The built-in pattern adds an output node; if this node the user
+        // never wrote in the definition were missing from the graph, run
+        // events would not match.
         graph.Nodes.ShouldContain(node => node.Kind == WorkflowNodeKind.Output);
 
         graph.StartExecutorId.ShouldNotBeNullOrWhiteSpace();
         graph.Nodes.ShouldContain(node => string.Equals(node.Id, graph.StartExecutorId, StringComparison.Ordinal));
 
-        // Her kenarin iki ucu da graftaki bir dugume isaret etmelidir.
+        // Both ends of every edge must point to a node in the graph.
         var ids = graph.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
 
         graph.Edges.ShouldNotBeEmpty();
@@ -51,27 +52,27 @@ public sealed class WorkflowGraphReaderTests
     }
 
     [Fact]
-    public async Task Dugum_kimlikleri_calistirma_olaylariyla_ESLESIR()
+    public async Task Node_ids_MATCH_run_events()
     {
-        var host = new WorkflowTestHost("ozetleyici", "cevirmen");
+        var host = new WorkflowTestHost("summarizer", "translator");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["ozetleyici", "cevirmen"],
+            AgentNames = ["summarizer", "translator"],
         });
 
         var runner = host.CreateRunner();
-        var graph = (await runner.GetGraphAsync("zincir"))!;
+        var graph = (await runner.GetGraphAsync("chain"))!;
         var ids = graph.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
 
         var invoked = new List<string>();
 
         await foreach (var runEvent in runner.RunStreamingAsync(new WorkflowRunRequest
         {
-            WorkflowName = "zincir",
-            Message = "girdi",
+            WorkflowName = "chain",
+            Message = "input",
         }))
         {
             if (runEvent.Type == RunEventType.ExecutorInvoked && runEvent.Text is { Length: > 0 } id)
@@ -85,12 +86,12 @@ public sealed class WorkflowGraphReaderTests
     }
 
     [Fact]
-    public async Task Dis_istek_portu_ayri_bir_dugum_turudur()
+    public async Task External_request_port_is_a_separate_node_kind()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        var graph = (await runner.GetGraphAsync("onay-akisi"))!;
+        var graph = (await runner.GetGraphAsync("approval-flow"))!;
 
         var port = graph.Nodes.Single(node => node.Kind == WorkflowNodeKind.RequestPort);
 
@@ -98,29 +99,29 @@ public sealed class WorkflowGraphReaderTests
     }
 
     [Fact]
-    public async Task Concurrent_grafi_dagitici_ve_birlestirici_dugumleri_gosterir()
+    public async Task Concurrent_graph_shows_fan_out_and_fan_in_nodes()
     {
-        var host = new WorkflowTestHost("bir", "iki");
+        var host = new WorkflowTestHost("one", "two");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "esz",
+            Name = "concurrent",
             Kind = WorkflowKind.Concurrent,
-            AgentNames = ["bir", "iki"],
+            AgentNames = ["one", "two"],
         });
 
-        var graph = (await host.CreateRunner().GetGraphAsync("esz"))!;
+        var graph = (await host.CreateRunner().GetGraphAsync("concurrent"))!;
 
         graph.Nodes.Count(node => node.Kind == WorkflowNodeKind.Agent).ShouldBe(2);
         graph.Nodes.ShouldContain(node => node.Kind == WorkflowNodeKind.Orchestration);
 
-        // Dagitim ve birlestirme kenar turlerinden okunur; arayuz oklari buna
-        // gore cizer.
+        // Fan-out and fan-in are read from the edge kinds; the UI draws its
+        // arrows accordingly.
         graph.Edges.ShouldContain(edge => edge.Kind == WorkflowEdgeKind.FanOut);
         graph.Edges.ShouldContain(edge => edge.Kind == WorkflowEdgeKind.FanIn);
     }
 
     [Fact]
-    public async Task Olmayan_workflow_icin_graf_yoktur()
-        => (await new WorkflowTestHost().CreateRunner().GetGraphAsync("yok")).ShouldBeNull();
+    public async Task A_nonexistent_workflow_has_no_graph()
+        => (await new WorkflowTestHost().CreateRunner().GetGraphAsync("missing")).ShouldBeNull();
 }

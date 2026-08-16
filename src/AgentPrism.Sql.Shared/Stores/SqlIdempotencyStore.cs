@@ -25,7 +25,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
 
     /// <summary>Creates a new SQL idempotency store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlIdempotencyStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

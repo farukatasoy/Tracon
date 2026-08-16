@@ -8,7 +8,7 @@ namespace AgentPrism.Core.UnitTests.Compilation;
 public sealed class AgentDefinitionCompilerTests
 {
     [Fact]
-    public void Harness_ayari_yoksa_sade_sohbet_agenti_uretilir()
+    public void Plain_chat_agent_is_produced_when_no_harness_setting_is_present()
     {
         var compiler = CreateCompiler();
 
@@ -19,7 +19,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Harness_ayari_varsa_harness_agenti_uretilir()
+    public void Harness_agent_is_produced_when_a_harness_setting_is_present()
     {
         var compiler = CreateCompiler();
 
@@ -33,7 +33,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Model_ayarlari_sohbet_seceneklerine_aktarilir()
+    public void Model_settings_are_carried_to_the_chat_options()
     {
         var client = new FakeChatClient();
         var provider = new FakeModelProvider(client);
@@ -60,7 +60,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Kayitli_tool_adlari_cozulur()
+    public void Registered_tool_names_are_resolved()
     {
         var registry = TestData.Registry(TestData.Tool("get_order"), TestData.Tool("search"));
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), registry);
@@ -71,36 +71,36 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Bilinmeyen_tool_adi_derlemeyi_durdurur()
+    public void Unknown_tool_name_stops_compilation()
     {
         var registry = TestData.Registry(TestData.Tool("get_order"));
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), registry);
 
         var exception = Should.Throw<AgentPrismCompilationException>(
-            () => compiler.Compile(TestData.Definition(toolNames: ["get_order", "silinmis_tool"])));
+            () => compiler.Compile(TestData.Definition(toolNames: ["get_order", "deleted_tool"])));
 
         exception.AgentName.ShouldBe("test-agent");
-        exception.Message.ShouldContain("silinmis_tool");
-        // Hata mesaji kullaniciya ne yapacagini soylemeli.
+        exception.Message.ShouldContain("deleted_tool");
+        // The error message should tell the user what to do.
         exception.Message.ShouldContain("get_order");
         exception.Message.ShouldContain("AddTool");
     }
 
     [Fact]
-    public void Bilinmeyen_saglayici_derlemeyi_durdurur()
+    public void Unknown_provider_stops_compilation()
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(), TestData.Registry());
 
-        var definition = TestData.Definition() with { Model = TestData.Binding(provider: "yok-boyle") };
+        var definition = TestData.Definition() with { Model = TestData.Binding(provider: "no-such-provider") };
 
         var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
 
-        exception.Message.ShouldContain("yok-boyle");
+        exception.Message.ShouldContain("no-such-provider");
         exception.Message.ShouldContain("UseOpenAI");
     }
 
     [Fact]
-    public void Akil_yurutme_cabasi_sohbet_seceneklerine_aktarilir()
+    public void Reasoning_effort_is_carried_to_the_chat_options()
     {
         var client = new FakeChatClient();
         var compiler = new AgentDefinitionCompiler(
@@ -120,7 +120,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Akil_yurutme_cabasi_verilmezse_ayar_bos_kalir()
+    public void Reasoning_setting_stays_empty_when_effort_is_not_given()
     {
         var compiler = CreateCompiler();
 
@@ -131,27 +131,27 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Gecersiz_akil_yurutme_cabasi_derlemeyi_durdurur()
+    public void Invalid_reasoning_effort_stops_compilation()
     {
-        // Sessizce yok saymak yanlis olurdu: bu ayar hem maliyeti hem gecikmeyi
-        // degistirir; yanlis yazilmis bir deger fark edilmeden calisirsa kullanici
-        // bekledigi davranisi alamaz ve sebebini goremez.
+        // Silently ignoring this would be wrong: this setting changes both cost
+        // and latency; if a misspelled value runs unnoticed, the user does not
+        // get the expected behavior and cannot see why.
         var compiler = CreateCompiler();
 
         var definition = TestData.Definition() with
         {
-            Model = TestData.Binding() with { ReasoningEffort = "cok-yuksek" },
+            Model = TestData.Binding() with { ReasoningEffort = "very-high" },
         };
 
         var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
 
         exception.AgentName.ShouldBe("test-agent");
-        exception.Message.ShouldContain("cok-yuksek");
+        exception.Message.ShouldContain("very-high");
         exception.Message.ShouldContain(nameof(ReasoningEffort.Medium));
     }
 
     [Fact]
-    public void Null_tanim_reddedilir()
+    public void Null_definition_is_rejected()
     {
         var compiler = CreateCompiler();
 
@@ -159,7 +159,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Sikistirma_ayari_yoksa_baglam_saglayicisi_eklenmez()
+    public void No_context_provider_is_added_without_a_compaction_setting()
     {
         var compiler = CreateCompiler();
 
@@ -175,10 +175,10 @@ public sealed class AgentDefinitionCompilerTests
     [InlineData(CompactionStrategyKind.ToolResult)]
     [InlineData(CompactionStrategyKind.Summarization)]
     [InlineData(CompactionStrategyKind.Pipeline)]
-    public void Tetikleyicisiz_strateji_derlemeyi_durdurur(CompactionStrategyKind strategy)
+    public void Strategy_without_a_trigger_stops_compilation(CompactionStrategyKind strategy)
     {
-        // Sessizce yok saymak yanlis olurdu: tetikleyicisiz bir strateji hicbir
-        // zaman calismaz ve kullanici sebebini goremez (K-034 deseniyle ayni).
+        // Silently ignoring this would be wrong: a strategy without a trigger
+        // never runs, and the user cannot see why (same pattern as K-034).
         var compiler = CreateCompiler();
 
         var definition = TestData.Definition() with
@@ -193,7 +193,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void ContextWindow_max_pencere_olmadan_derlemeyi_durdurur()
+    public void ContextWindow_without_a_max_window_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -208,7 +208,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void ContextWindow_stratejisi_tetikleyici_gerektirmez()
+    public void ContextWindow_strategy_does_not_require_a_trigger()
     {
         var compiler = CreateCompiler();
 
@@ -234,7 +234,7 @@ public sealed class AgentDefinitionCompilerTests
     [InlineData(CompactionStrategyKind.ToolResult)]
     [InlineData(CompactionStrategyKind.Summarization)]
     [InlineData(CompactionStrategyKind.Pipeline)]
-    public void Gecerli_tetikleyiciyle_her_strateji_kuruluyor(CompactionStrategyKind strategy)
+    public void Every_strategy_is_set_up_with_a_valid_trigger(CompactionStrategyKind strategy)
     {
         var compiler = CreateCompiler();
 
@@ -250,7 +250,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Pipeline_sabit_sirada_uc_strateji_icerir()
+    public void Pipeline_contains_three_strategies_in_a_fixed_order()
     {
         var compiler = CreateCompiler();
 
@@ -259,7 +259,7 @@ public sealed class AgentDefinitionCompilerTests
             Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Pipeline, TriggerMessages = 20 },
         };
 
-#pragma warning disable MAAI001 // Microsoft.Agents.AI.Compaction.* "evaluation purposes only" — yapisal dogrulama icin.
+#pragma warning disable MAAI001 // Microsoft.Agents.AI.Compaction.* is "evaluation purposes only" — for structural validation.
         var strategy = compiler.BuildCompactionStrategy(definition);
         var pipeline = strategy!.Inner.ShouldBeOfType<PipelineCompactionStrategy>();
 
@@ -270,12 +270,12 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Ozetleme_modeli_agent_ayarindan_cozulur()
+    public void Summarization_model_is_resolved_from_the_agent_setting()
     {
         var mainClient = new FakeChatClient();
         var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
         var summarizerClient = new FakeChatClient();
-        var summarizerProvider = new FakeModelProvider(summarizerClient, name: "agent-secti");
+        var summarizerProvider = new FakeModelProvider(summarizerClient, name: "agent-selected");
 
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(agentModelProvider, summarizerProvider),
@@ -287,7 +287,7 @@ public sealed class AgentDefinitionCompilerTests
             {
                 Strategy = CompactionStrategyKind.Summarization,
                 TriggerMessages = 20,
-                SummarizationModel = new ModelBinding { Provider = "agent-secti", Model = "m" },
+                SummarizationModel = new ModelBinding { Provider = "agent-selected", Model = "m" },
             },
         };
 
@@ -298,17 +298,17 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Ozetleme_modeli_agent_ayari_yoksa_yardimci_modele_duser()
+    public void Summarization_model_falls_back_to_the_utility_model_when_the_agent_setting_is_absent()
     {
         var mainClient = new FakeChatClient();
         var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
         var utilityClient = new FakeChatClient();
-        var utilityProvider = new FakeModelProvider(utilityClient, name: "yardimci");
+        var utilityProvider = new FakeModelProvider(utilityClient, name: "utility");
 
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(agentModelProvider, utilityProvider),
             TestData.Registry(),
-            utilityModel: new ModelBinding { Provider = "yardimci", Model = "m" });
+            utilityModel: new ModelBinding { Provider = "utility", Model = "m" });
 
         var definition = TestData.Definition() with
         {
@@ -321,7 +321,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Ozetleme_modeli_hicbiri_yoksa_agentin_kendi_modeline_duser()
+    public void Summarization_model_falls_back_to_the_agents_own_model_when_neither_is_set()
     {
         var mainClient = new FakeChatClient();
         var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
@@ -335,12 +335,13 @@ public sealed class AgentDefinitionCompilerTests
 
         compiler.Compile(definition);
 
-        // Ozetleme cagrisi da agent'in kendi saglayicisini kullandi (ayrica cozulen bir baglanti yok).
+        // The summarization call also used the agent's own provider (there is
+        // no separately resolved binding).
         agentModelProvider.LastBinding.ShouldNotBeNull();
     }
 
     [Fact]
-    public void Dosya_bellegi_istenip_depo_kayitli_degilse_derlemeyi_durdurur()
+    public void File_memory_requested_without_a_registered_store_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -355,9 +356,9 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Todo_ve_metin_aramasi_dosya_deposu_kayitliyken_kuruluyor()
+    public void Todo_and_text_search_are_set_up_when_a_file_store_is_registered()
     {
-#pragma warning disable MAAI001 // InMemoryAgentFileStore "evaluation purposes only" — yalniz test kurulumu icin.
+#pragma warning disable MAAI001 // InMemoryAgentFileStore is "evaluation purposes only" — for test setup only.
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),
@@ -377,7 +378,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Mcp_kaynaklari_istenip_fabrika_kayitli_degilse_derlemeyi_durdurur()
+    public void Mcp_resources_requested_without_a_registered_factory_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -393,7 +394,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Mcp_kaynaklari_fabrika_kayitliyken_baglama_ekleniyor()
+    public void Mcp_resources_are_added_to_the_context_when_the_factory_is_registered()
     {
         var factory = new FakeMcpResourceContextProviderFactory();
         var compiler = new AgentDefinitionCompiler(
@@ -415,7 +416,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Anlamsal_arama_istenip_depo_kayitli_degilse_derlemeyi_durdurur()
+    public void Vector_search_requested_without_a_registered_store_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -431,7 +432,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Anlamsal_arama_istenip_gomu_ureticisi_kayitli_degilse_derlemeyi_durdurur()
+    public void Vector_search_requested_without_a_registered_embedding_generator_stops_compilation()
     {
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
@@ -449,7 +450,7 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Anlamsal_arama_ikisi_de_kayitliyken_tool_baglanir()
+    public void Vector_search_tool_is_wired_up_when_both_are_registered()
     {
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
@@ -471,10 +472,10 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void Anlamsal_arama_kiraci_cozulemezse_derlemeyi_durdurur()
+    public void Vector_search_stops_compilation_when_the_tenant_cannot_be_resolved()
     {
-        // tenantContext verilmiyor VE definition.TenantId bos — kiraci hicbir
-        // kaynaktan cozulemez.
+        // tenantContext is not supplied AND definition.TenantId is empty — the
+        // tenant cannot be resolved from any source.
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(new FakeModelProvider()),
             TestData.Registry(),

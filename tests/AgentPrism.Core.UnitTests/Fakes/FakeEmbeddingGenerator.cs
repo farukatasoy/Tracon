@@ -3,9 +3,8 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/> sahtesi. Gercek bir
-/// model cagirmaz; her metin icin sabit uzunlukta, deterministik olmayan
-/// (ama boyutu dogru) bir vektor uretir.
+/// A fake <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/>. Calls no real
+/// model; it returns a correctly-sized all-zero vector for every text.
 /// </summary>
 internal sealed class FakeEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
 {

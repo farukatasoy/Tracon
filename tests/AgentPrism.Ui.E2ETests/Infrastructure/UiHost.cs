@@ -22,7 +22,7 @@ internal static class ScriptedModels
     /// <summary>Model for the "support" code agent: calls the order status tool first, then echoes.</summary>
     public const string Support = "scripted-support";
 
-    /// <summary>Model for the "yonlendirici" code agent: delegates via background task tools, then echoes.</summary>
+    /// <summary>Model for the "router" code agent: delegates via background task tools, then echoes.</summary>
     public const string Router = "scripted-router";
 
     /// <summary>Model for the "approval-agent" code agent: calls a tool that requests approval, then echoes its result (Phase 55).</summary>
@@ -133,7 +133,7 @@ internal sealed class UiHost : IAsyncDisposable
             })
             .AddAgent(new AgentDefinition
             {
-                Name = "yonlendirici",
+                Name = "router",
                 DisplayName = "Router",
                 Description = "Code agent that hands work off to the support agent.",
                 Instructions = "Call the support agent if needed.",
@@ -164,20 +164,20 @@ internal sealed class UiHost : IAsyncDisposable
             // a port waiting on human input. The UI tests verify graph rendering
             // through the first and the pending-request card through the second.
             .AddWorkflow(
-                "ozetle-ve-cevir",
+                "summarize-and-translate",
                 static services => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential(
-                    "ozetle-ve-cevir",
+                    "summarize-and-translate",
                     [
-                        services.GetWorkflowAgent("ozetle-ve-cevir", "support"),
-                        services.GetWorkflowAgent("ozetle-ve-cevir", "yonlendirici"),
+                        services.GetWorkflowAgent("summarize-and-translate", "support"),
+                        services.GetWorkflowAgent("summarize-and-translate", "router"),
                     ]),
                 "Two-step chain.")
             .AddWorkflow("approval-flow", static _ => ApprovalWorkflow.Build(), "Flow that waits for human approval.");
 
         var app = builder.Build();
 
-        // Port 0: isletim sistemi bos bir port secer. Sabit bir port, paralel
-        // kosan testlerde carpisir.
+        // Port 0: the operating system picks a free port. A fixed port would
+        // collide across tests running in parallel.
         app.Urls.Add("http://127.0.0.1:0");
 
         app.MapAgentPrism(prefix, options =>
@@ -193,26 +193,26 @@ internal sealed class UiHost : IAsyncDisposable
         GuardUiAssets(app);
 
         var address = app.Urls.FirstOrDefault()
-            ?? throw new InvalidOperationException("Kestrel bir adres bildirmedi.");
+            ?? throw new InvalidOperationException("Kestrel did not report an address.");
 
         return new UiHost(app, provider, address.TrimEnd('/'), '/' + prefix.Trim('/'));
     }
 
     /// <summary>
-    /// Arayuz varliklari gercekten gomulu mu — degilse HEMEN ve ACIK bir
-    /// mesajla dusur.
+    /// Checks whether the UI assets are actually embedded — if not, fail
+    /// IMMEDIATELY with a CLEAR message.
     /// </summary>
     /// <remarks>
-    /// 🚨 Bu bir kolaylik degil, bir <strong>zaman asimi kalkani</strong>dir.
-    /// <c>-p:AgentPrismFrontendEnabled=false</c> ile derlenen bir cozumde (hizli
-    /// ic dongu) veya Node.js bulunmayan bir ortamda <c>AgentPrism.UI</c> hicbir
-    /// varlik gommez. Bu kalkan olmadan her E2E testi bos bir sayfada
-    /// "waiting for heading Dashboard" diyerek 30 saniye bekler; 41 testte bu
-    /// <strong>~20 dakika</strong> eder ve hicbir hata mesaji gercek sebebi
-    /// soylemez. Olculdu: Faz 41'de ayni belirti (o zaman sebep senkronizasyon
-    /// kopyalariydi) 19 dakika kaybettirdi; Faz 47'de bu kez sebep eksik bir
-    /// derleme bayragiydi. Kalkan iki sebebi de ayni anda ve saniyeler icinde
-    /// gorunur kilar.
+    /// 🚨 This is not a convenience, it is a <strong>timeout shield</strong>.
+    /// In a solution built with <c>-p:AgentPrismFrontendEnabled=false</c> (fast
+    /// inner loop) or in an environment without Node.js, <c>AgentPrism.UI</c>
+    /// embeds no assets at all. Without this shield, every E2E test waits 30
+    /// seconds on a blank page saying "waiting for heading Dashboard"; across
+    /// 41 tests that adds up to <strong>~20 minutes</strong>, and no error
+    /// message states the real cause. Measured: in Phase 41 the same symptom
+    /// (caused that time by synchronization copies) wasted 19 minutes; in
+    /// Phase 47 the cause was a missing build flag instead. The shield makes
+    /// both causes visible at once and within seconds.
     /// </remarks>
     private static void GuardUiAssets(WebApplication app)
     {
@@ -224,12 +224,12 @@ internal sealed class UiHost : IAsyncDisposable
         }
 
         throw new InvalidOperationException(
-            "Arayuz varliklari gomulu degil; E2E testleri bos bir sayfaya bakardi ve her biri " +
-            "30 saniye zaman asimina ugrardi. Cozumu ARAYUZ ACIK derleyin: " +
-            "`dotnet build AgentPrism.slnx -c Release` (yani `-p:AgentPrismFrontendEnabled=false` " +
-            "OLMADAN). Ayrica `find src -name \"* 2.*\" -not -path \"*/node_modules/*\"` bos " +
-            "donmelidir: senkronizasyon kopyalari gomulu varlik listesini zehirler ve ayni " +
-            "belirtiyi uretir.");
+            "UI assets are not embedded; E2E tests would stare at a blank page and each " +
+            "would hit a 30-second timeout. The fix is to build WITH THE UI ENABLED: " +
+            "`dotnet build AgentPrism.slnx -c Release` (that is, WITHOUT " +
+            "`-p:AgentPrismFrontendEnabled=false`). Also, `find src -name \"* 2.*\" -not -path \"*/node_modules/*\"` " +
+            "must return empty: synchronization copies poison the embedded asset list and " +
+            "produce the same symptom.");
     }
 
     /// <inheritdoc />

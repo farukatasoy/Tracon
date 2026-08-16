@@ -3,16 +3,17 @@ using System.Text.Json;
 namespace AgentPrism.Core.UnitTests.Compilation;
 
 /// <summary>
-/// <see cref="AgentResponseFormat.Schema"/> icin MEMORY.md'nin struct tuzagini
-/// dogrular: atanmamis bir <see cref="JsonElement"/> alani <c>default</c> kalirsa
-/// <c>ValueKind = Undefined</c> olur ve seri hale getirme onu iceren liste ucunun
-/// TAMAMINI cokertir. Sozlesme <c>Schema</c>'yi <c>JsonElement?</c> yaptigi icin
-/// atanmamis alan <see langword="null"/>'dur, <c>Undefined</c> degil.
+/// Verifies the struct trap from MEMORY.md for <see cref="AgentResponseFormat.Schema"/>:
+/// an unassigned <see cref="JsonElement"/> field stays <c>default</c>, which is
+/// <c>ValueKind = Undefined</c>, and serialization then collapses the ENTIRE
+/// list containing it. Because the contract makes <c>Schema</c> a
+/// <c>JsonElement?</c>, the unassigned field is <see langword="null"/>, not
+/// <c>Undefined</c>.
 /// </summary>
 public sealed class ResponseFormatJsonElementTests
 {
     [Fact]
-    public void Sema_atanmamis_AgentResponseFormat_liste_ucunu_cokertmez()
+    public void AgentResponseFormat_with_an_unassigned_schema_does_not_collapse_the_list()
     {
         var bindings = new List<ModelBinding>
         {
@@ -36,7 +37,7 @@ public sealed class ResponseFormatJsonElementTests
     }
 
     [Fact]
-    public void Bos_AgentResponseFormat_serilestirmede_null_sema_uretir()
+    public void Empty_AgentResponseFormat_produces_a_null_schema_on_serialization()
     {
         var format = new AgentResponseFormat { Kind = AgentResponseFormatKind.Json };
 

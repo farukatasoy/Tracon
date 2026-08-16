@@ -1,13 +1,14 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IApiKeyStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IApiKeyStore"/> contract.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu sozlesmede ham anahtar deger yalnizca <see cref="IApiKeyStore.CreateAsync"/>'in
-/// dondurdugu <see cref="ApiKeyCreationResult.PlaintextKey"/>'de gorunur; hicbir
-/// okuma yolu (<see cref="IApiKeyStore.ListAsync"/>, <see cref="IApiKeyStore.FindByHashAsync"/>)
-/// ham degeri veya ozeti dondurmez (bolum 53.2).
+/// 🚨 In this contract, the raw key value is visible only in the
+/// <see cref="ApiKeyCreationResult.PlaintextKey"/> returned by
+/// <see cref="IApiKeyStore.CreateAsync"/>; no read path
+/// (<see cref="IApiKeyStore.ListAsync"/>, <see cref="IApiKeyStore.FindByHashAsync"/>)
+/// returns the raw value or its hash (section 53.2).
 /// </remarks>
 public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore>
 {
@@ -38,7 +39,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
         => await Store.RevokeAsync(tenantId, (Guid)key);
 
     [Fact]
-    public async Task Kaydedilen_anahtar_geri_okunur()
+    public async Task Saved_key_is_read_back()
     {
         await Store.CreateAsync(Draft(Tenant, "ci", [ApiKeyScope.RunsRead, ApiKeyScope.AgentsRead]));
 
@@ -54,7 +55,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Ham_deger_ozetiyle_bulunur()
+    public async Task Found_by_hash_of_the_raw_value()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));
         var hash = ApiKeyGenerator.ComputeHash(created.PlaintextKey);
@@ -66,17 +67,17 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Bilinmeyen_ozet_bulunamaz()
+    public async Task Unknown_hash_is_not_found()
     {
         await Store.CreateAsync(Draft(Tenant, "ci"));
 
-        var randomHash = ApiKeyGenerator.ComputeHash("ap_baska_deger_hicbir_zaman_kaydedilmedi");
+        var randomHash = ApiKeyGenerator.ComputeHash("ap_other_value_never_saved");
 
         (await Store.FindByHashAsync(randomHash)).ShouldBeNull();
     }
 
     [Fact]
-    public async Task Iptal_edilen_anahtar_revoked_at_tasir_ve_pasif_gorunur()
+    public async Task Revoked_key_carries_RevokedAt_and_appears_inactive()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));
 
@@ -89,7 +90,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Ayni_anahtar_ikinci_kez_iptal_edilemez()
+    public async Task Same_key_cannot_be_revoked_twice()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));
 
@@ -98,7 +99,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Baska_kiracinin_anahtarini_iptal_edemez()
+    public async Task Cannot_revoke_another_tenants_key()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));
 
@@ -109,7 +110,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Son_kullanim_damgasi_guncellenir()
+    public async Task Last_used_timestamp_is_updated()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "ci"));
         var usedAt = new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero);
@@ -121,7 +122,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Sure_sonu_geri_okunur()
+    public async Task Expiration_is_read_back()
     {
         var expiresAt = new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -132,7 +133,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Aktif_kapsam_sistem_genelinde_bulunur()
+    public async Task Active_scope_is_found_system_wide()
     {
         (await Store.HasActiveScopeAsync(ApiKeyScope.ExternalInvoke)).ShouldBeFalse();
 
@@ -143,7 +144,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Iptal_edilen_anahtarin_kapsami_artik_aktif_sayilmaz()
+    public async Task Revoked_keys_scope_is_no_longer_active()
     {
         var created = await Store.CreateAsync(Draft(Tenant, "mcp", [ApiKeyScope.ExternalInvoke]));
         await Store.RevokeAsync(Tenant, created.Record.Id);
@@ -152,7 +153,7 @@ public abstract class ApiKeyStoreContract : TenantIsolationContract<IApiKeyStore
     }
 
     [Fact]
-    public async Task Baska_kiracinin_anahtari_ozetle_bulununca_dogru_kiraciyi_verir()
+    public async Task Finding_another_tenants_key_by_hash_returns_the_correct_tenant()
     {
         var created = await Store.CreateAsync(Draft("other", "ci"));
         var hash = ApiKeyGenerator.ComputeHash(created.PlaintextKey);

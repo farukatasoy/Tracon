@@ -3,14 +3,14 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Attachments;
 
 /// <summary>
-/// <see cref="AttachmentTypeGuard"/>'in sihirli bayt denetimi, boyut siniri ve
-/// beyaz liste davranisi.
+/// <see cref="AttachmentTypeGuard"/>'s magic-byte check, size limit, and
+/// allow-list behavior.
 /// </summary>
 public sealed class AttachmentTypeGuardTests
 {
     [Theory]
     [MemberData(nameof(KnownSignatures))]
-    public void Bilinen_imzalar_dogru_turle_eslesir(byte[] data, string expectedMediaType)
+    public void Known_signatures_match_the_correct_type(byte[] data, string expectedMediaType)
     {
         var guard = CreateGuard();
 
@@ -21,7 +21,7 @@ public sealed class AttachmentTypeGuardTests
     }
 
     [Fact]
-    public void Bos_icerik_reddedilir()
+    public void Empty_content_is_rejected()
     {
         var guard = CreateGuard();
 
@@ -29,7 +29,7 @@ public sealed class AttachmentTypeGuardTests
     }
 
     [Fact]
-    public void Boyut_sinirini_asan_icerik_reddedilir()
+    public void Content_over_the_size_limit_is_rejected()
     {
         var guard = CreateGuard(options => options.MaxBytes = 10);
 
@@ -40,21 +40,22 @@ public sealed class AttachmentTypeGuardTests
     }
 
     [Fact]
-    public void Bilinmeyen_imza_reddedilir()
+    public void Unknown_signature_is_rejected()
     {
         var guard = CreateGuard();
 
-        // "MZ" Windows yurutulebilir baslangicidir; hicbir beyaz liste kuralinda yok.
+        // "MZ" is the Windows executable header; it is not in any allow-list rule.
         var result = guard.Validate([0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
 
         result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
-    public void Istemcinin_bildirdigi_tur_yok_sayilir_sihirli_bayt_esas_alinir()
+    public void Client_reported_type_is_ignored_the_magic_bytes_are_authoritative()
     {
-        // Istemci "image/png" iddia etse bile icerik gercekte JPEG imzasi
-        // tasiyorsa dogru tur (JPEG) donmelidir; Content-Type kanit sayilmaz.
+        // Even if the client claims "image/png", if the content actually carries
+        // a JPEG signature, the correct type (JPEG) must be returned; Content-Type
+        // is not treated as evidence.
         var guard = CreateGuard();
 
         var result = guard.Validate(Jpeg());
@@ -63,7 +64,7 @@ public sealed class AttachmentTypeGuardTests
     }
 
     [Fact]
-    public void Beyaz_listeden_cikarilan_tur_taninsa_bile_reddedilir()
+    public void A_type_removed_from_the_allow_list_is_rejected_even_when_recognized()
     {
         var guard = CreateGuard(options =>
         {
@@ -81,7 +82,7 @@ public sealed class AttachmentTypeGuardTests
     [InlineData("audio/wav")]
     [InlineData("audio/ogg")]
     [InlineData("audio/mpeg")]
-    public void Audio_joker_kurali_alt_turleri_kapsar(string mediaType)
+    public void Audio_wildcard_rule_covers_subtypes(string mediaType)
     {
         var guard = CreateGuard();
 
@@ -128,9 +129,9 @@ public sealed class AttachmentTypeGuardTests
     private static byte[] Webp()
         => "RIFF"u8.ToArray().Concat(new byte[4]).Concat("WEBP"u8.ToArray()).Concat(new byte[4]).ToArray();
 
-    private static byte[] Pdf() => "%PDF-1.7\n%merhaba\n"u8.ToArray();
+    private static byte[] Pdf() => "%PDF-1.7\n%hello\n"u8.ToArray();
 
-    private static byte[] PlainText() => "Merhaba dunya, bu bir metin dosyasidir.\n"u8.ToArray();
+    private static byte[] PlainText() => "Hello world, this is a text file.\n"u8.ToArray();
 
     private static byte[] Wav()
         => "RIFF"u8.ToArray().Concat(new byte[4]).Concat("WAVE"u8.ToArray()).Concat(new byte[4]).ToArray();

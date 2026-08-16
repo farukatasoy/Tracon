@@ -1,84 +1,84 @@
 namespace AgentPrism.Core.UnitTests.Voice;
 
 /// <summary>
-/// Kiraci basina es zamanli konusma baglantisi sinirini dogrular.
+/// Validates the per-tenant concurrent voice connection limit.
 /// </summary>
 public sealed class VoiceConnectionLimiterTests
 {
     [Fact]
-    public void Sinir_dolunca_yeni_baglanti_REDDEDILIR()
+    public void New_connection_is_rejected_once_the_limit_is_full()
     {
         var limiter = new VoiceConnectionLimiter(2);
 
-        using var first = limiter.TryAcquire("kiraci-a").ShouldNotBeNull();
-        using var second = limiter.TryAcquire("kiraci-a").ShouldNotBeNull();
+        using var first = limiter.TryAcquire("tenant-a").ShouldNotBeNull();
+        using var second = limiter.TryAcquire("tenant-a").ShouldNotBeNull();
 
-        limiter.TryAcquire("kiraci-a").ShouldBeNull();
-        limiter.CountFor("kiraci-a").ShouldBe(2);
+        limiter.TryAcquire("tenant-a").ShouldBeNull();
+        limiter.CountFor("tenant-a").ShouldBe(2);
     }
 
     [Fact]
-    public void Sinir_KIRACI_BASINADIR()
+    public void Limit_is_per_tenant()
     {
         var limiter = new VoiceConnectionLimiter(1);
 
-        using var first = limiter.TryAcquire("kiraci-a").ShouldNotBeNull();
+        using var first = limiter.TryAcquire("tenant-a").ShouldNotBeNull();
 
-        limiter.TryAcquire("kiraci-b").ShouldNotBeNull().Dispose();
+        limiter.TryAcquire("tenant-b").ShouldNotBeNull().Dispose();
     }
 
     [Fact]
-    public void Bertaraf_edilen_yer_serbest_kalir()
+    public void Disposed_slot_is_freed()
     {
         var limiter = new VoiceConnectionLimiter(1);
 
-        var lease = limiter.TryAcquire("kiraci-a").ShouldNotBeNull();
-        limiter.TryAcquire("kiraci-a").ShouldBeNull();
+        var lease = limiter.TryAcquire("tenant-a").ShouldNotBeNull();
+        limiter.TryAcquire("tenant-a").ShouldBeNull();
 
         lease.Dispose();
 
-        limiter.CountFor("kiraci-a").ShouldBe(0);
-        limiter.TryAcquire("kiraci-a").ShouldNotBeNull().Dispose();
+        limiter.CountFor("tenant-a").ShouldBe(0);
+        limiter.TryAcquire("tenant-a").ShouldNotBeNull().Dispose();
     }
 
     [Fact]
-    public void Ikinci_bertaraf_sayaci_EKSIYE_dusurmez()
+    public void Second_dispose_does_not_drive_the_counter_negative()
     {
         var limiter = new VoiceConnectionLimiter(1);
-        var lease = limiter.TryAcquire("kiraci-a").ShouldNotBeNull();
+        var lease = limiter.TryAcquire("tenant-a").ShouldNotBeNull();
 
         lease.Dispose();
         lease.Dispose();
 
-        limiter.CountFor("kiraci-a").ShouldBe(0);
+        limiter.CountFor("tenant-a").ShouldBe(0);
     }
 
     [Fact]
-    public void Yarisan_istekler_siniri_ASMAZ()
+    public void Concurrent_requests_do_not_exceed_the_limit()
     {
-        // 🚨 Karsilastir-ve-degistir olmadan iki istek ayni degeri okur ve
-        // ikisi de siniri asmayan bir sonuc gorurdu.
+        // 🚨 Without compare-and-swap, two requests could read the same value
+        // and both see a result that does not exceed the limit.
         var limiter = new VoiceConnectionLimiter(10);
         var leases = new VoiceConnectionLease?[64];
 
-        Parallel.For(0, leases.Length, index => leases[index] = limiter.TryAcquire("kiraci-a"));
+        Parallel.For(0, leases.Length, index => leases[index] = limiter.TryAcquire("tenant-a"));
 
         leases.Count(static lease => lease is not null).ShouldBe(10);
-        limiter.CountFor("kiraci-a").ShouldBe(10);
+        limiter.CountFor("tenant-a").ShouldBe(10);
 
         foreach (var lease in leases)
         {
             lease?.Dispose();
         }
 
-        limiter.CountFor("kiraci-a").ShouldBe(0);
+        limiter.CountFor("tenant-a").ShouldBe(0);
     }
 
     [Fact]
-    public void Sifir_veya_negatif_sinir_EN_AZ_BIRE_yukseltilir()
+    public void Zero_or_negative_limit_is_raised_to_at_least_one()
     {
-        // Sifir sinir yetenegi sessizce kapatirdi; yanlis yapilandirma
-        // gorunmez bir kesintiye donusmemelidir.
+        // A zero limit would silently disable the capability; misconfiguration
+        // must not turn into an invisible outage.
         new VoiceConnectionLimiter(0).Limit.ShouldBe(1);
         new VoiceConnectionLimiter(-5).Limit.ShouldBe(1);
     }

@@ -2,13 +2,13 @@ using AgentPrism.Core.UnitTests.Fakes;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
-/// <summary>Cevrimici degerlendirme pencere ozetinin testleri (Faz 49).</summary>
+/// <summary>Tests for the online evaluation window summary (Phase 49).</summary>
 public sealed class OnlineEvalSummaryServiceTests
 {
     private const string Tenant = "acme";
 
     [Fact]
-    public async Task Asgari_ornek_sayisina_ulasilmadan_webhook_tetiklenmez()
+    public async Task Webhook_does_not_fire_before_the_minimum_sample_size_is_reached()
     {
         var (service, _, publisher, _) = Build(options => options.MinSampleSize = 5);
 
@@ -21,7 +21,7 @@ public sealed class OnlineEvalSummaryServiceTests
     }
 
     [Fact]
-    public async Task Esik_altinda_ve_asgari_ornek_sayisi_asilinca_webhook_tetiklenir()
+    public async Task Webhook_fires_when_below_threshold_and_the_minimum_sample_size_is_exceeded()
     {
         var (service, _, publisher, _) = Build(options =>
         {
@@ -43,7 +43,7 @@ public sealed class OnlineEvalSummaryServiceTests
     }
 
     [Fact]
-    public async Task Ortalama_esigin_ustundeyse_webhook_tetiklenmez()
+    public async Task Webhook_does_not_fire_when_the_average_is_above_the_threshold()
     {
         var (service, _, publisher, _) = Build(options =>
         {
@@ -57,7 +57,7 @@ public sealed class OnlineEvalSummaryServiceTests
     }
 
     [Fact]
-    public async Task Pencere_disina_cikan_ornekler_ozetten_dusulur()
+    public async Task Samples_outside_the_window_are_dropped_from_the_summary()
     {
         var (service, _, _, clock) = Build(options => options.EvaluationWindow = TimeSpan.FromHours(1));
 
@@ -71,7 +71,7 @@ public sealed class OnlineEvalSummaryServiceTests
     }
 
     [Fact]
-    public async Task Yargic_maliyeti_judge_onekli_eval_calistirmalarindan_toplanir()
+    public async Task Judge_cost_is_aggregated_from_judge_prefixed_eval_runs()
     {
         var (service, runs, _, now) = Build();
         var clock = now;
@@ -79,9 +79,9 @@ public sealed class OnlineEvalSummaryServiceTests
         await SeedJudgeRunAsync(runs, "judge:model", 0.05m, "USD", clock.GetUtcNow());
         await SeedJudgeRunAsync(runs, "judge:model", 0.03m, "USD", clock.GetUtcNow());
 
-        // Farkli bir suite'in vaka calistirmasi (Faz 18) — "judge:" onekini
-        // TASIMAZ; yargic maliyetine karismamalidir.
-        await SeedJudgeRunAsync(runs, "musteri-destek-agent", 100m, "USD", clock.GetUtcNow());
+        // A different suite's case run (Phase 18) — does NOT carry the
+        // "judge:" prefix; must not be mixed into judge cost.
+        await SeedJudgeRunAsync(runs, "customer-support-agent", 100m, "USD", clock.GetUtcNow());
 
         var summary = await service.GetSummaryAsync(Tenant);
 

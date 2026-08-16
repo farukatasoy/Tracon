@@ -4,10 +4,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.SqlServer.IntegrationTests;
 
-/// <summary>Migration calistiricisinin SQL Server uzerindeki davranisi.</summary>
+/// <summary>The behavior of the migration runner on SQL Server.</summary>
 public sealed class MigrationRunnerTests(SqlServerFixture fixture)
 {
-    /// <summary>Gomulu migration sayisi.</summary>
+    /// <summary>The count of embedded migrations.</summary>
     private static int EmbeddedMigrationCount { get; } = typeof(MigrationRunner).Assembly
         .GetManifestResourceNames()
         .Count(static name =>
@@ -15,7 +15,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             && name.EndsWith(".sql", StringComparison.Ordinal));
 
     [Fact]
-    public async Task Ilk_kosuda_sema_ve_tablolar_olusur()
+    public async Task First_run_creates_the_schema_and_tables()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -27,25 +27,25 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             $"SELECT COUNT(*) FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id " +
             $"WHERE s.name = '{context.SchemaName}';");
 
-        // 0001_initial PostgreSQL'in 0001-0013 birikimini kurar: 35 tablo +
-        // migration defteri = 36. 0002_retention 2 tablo daha ekler (Faz 25):
-        // retention_policies, retention_runs. Sayi PostgreSQL tarafiyla ayni
-        // olmalidir; iki saglayici ayni veri modelini tasir.
+        // 0001_initial sets up PostgreSQL's 0001-0013 accumulation: 35 tables +
+        // migration ledger = 36. 0002_retention adds 2 more tables (Phase 25):
+        // retention_policies, retention_runs. The count should match the
+        // PostgreSQL side; both providers carry the same data model.
         //
-        // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
-        // ekleyen kisi tabloyu fark etmis olur.
-        // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
-        // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
-        // Faz 42 `singleton_leases` tablosunu ekledi: 40 -> 41.
-        // Faz 43 `idempotency_keys` tablosunu ekledi: 41 -> 42.
-        // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
-        // Faz 53 `api_keys` tablosunu ekledi: 43 -> 44.
-        // Faz 55 `pending_approvals` tablosunu ekledi: 44 -> 45.
+        // The number is DELIBERATELY a constant: adding a new table breaks this
+        // test, so whoever adds it notices the table.
+        // Phase 29 added the `voice_sessions` table: 38 -> 39.
+        // Phase 31 added the `run_scores` table: 39 -> 40.
+        // Phase 42 added the `singleton_leases` table: 40 -> 41.
+        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
+        // Phase 47 added the `run_inputs` table: 42 -> 43.
+        // Phase 53 added the `api_keys` table: 43 -> 44.
+        // Phase 55 added the `pending_approvals` table: 44 -> 45.
         tableCount.ShouldBe(45);
     }
 
     [Fact]
-    public async Task Ikinci_kosu_hicbir_sey_uygulamaz()
+    public async Task Second_run_applies_nothing()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -55,7 +55,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public async Task Uygulanan_migration_deftere_yazilir()
+    public async Task Applied_migration_is_written_to_the_ledger()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
@@ -71,13 +71,13 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public async Task Degistirilmis_migration_hata_verir()
+    public async Task Modified_migration_throws()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
-        // Defterdeki ozeti bozmak, dosyanin degistirilmesiyle ayni sonucu verir.
+        // Corrupting the ledger's checksum has the same effect as modifying the file.
         await context.ExecuteAsync(
-            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'BOZUK' WHERE id = 1;");
+            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'CORRUPTED' WHERE id = 1;");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await context.Migrations.ApplyAsync());
@@ -86,11 +86,11 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// Bes es zamanli calistirici <c>sp_getapplock</c> ile sirayla gecer ve
-    /// migration'lar toplamda yalnizca bir kez uygulanir.
+    /// Five concurrent runners serialize through <c>sp_getapplock</c>, and the
+    /// migrations are applied only once in total.
     /// </summary>
     [Fact]
-    public async Task Bes_es_zamanli_kosuda_migration_tek_kez_uygulanir()
+    public async Task Five_concurrent_runs_apply_migrations_only_once()
     {
         var schemaName = SqlServerTestContext.NewSchemaName();
         var contexts = new List<SqlServerTestContext>();
@@ -105,8 +105,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             var results = await Task.WhenAll(contexts.Select(static async context =>
                 await context.Migrations.ApplyAsync().AsTask()));
 
-            // Tam olarak bir calistirici uygular; digerleri kilidi bekler ve
-            // defteri dolu bulur.
+            // Exactly one runner applies them; the others wait for the lock and
+            // find the ledger already full.
             results.Count(count => count == EmbeddedMigrationCount).ShouldBe(1);
             results.Sum().ShouldBe(EmbeddedMigrationCount);
         }
@@ -120,12 +120,12 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// K-389: migration kilidi semaya kapsanmistir. A semasinin kilidi acikken
-    /// B semasinin kilidi HEMEN alinabilmelidir; global kilitte olsa B en cok
-    /// <c>LockTimeoutMilliseconds</c> (30 sn) beklerdi.
+    /// K-389: the migration lock is scoped to the schema. While schema A's
+    /// lock is held, schema B's lock must be acquirable IMMEDIATELY; with a
+    /// global lock, B would wait up to <c>LockTimeoutMilliseconds</c> (30 s).
     /// </summary>
     [Fact]
-    public async Task Farkli_semalarin_migration_kilitleri_birbirini_engellemez()
+    public async Task Different_schemas_migration_locks_do_not_block_each_other()
     {
         var dialectA = new SqlServerDialect(SqlServerTestContext.NewSchemaName());
         var dialectB = new SqlServerDialect(SqlServerTestContext.NewSchemaName());
@@ -153,10 +153,11 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public void Gecersiz_sema_adi_reddedilir()
+    public void Invalid_schema_name_is_rejected()
     {
-        // Buyuk harf, tirnak ve nokta reddedilir: sema adi SQL metnine dogrudan
-        // gomulur ve enjeksiyon yuzeyi burada kapanir (K-029).
+        // Uppercase, quotes, and a period are rejected: the schema name is
+        // embedded directly into SQL text, and the injection surface is closed
+        // here (K-029).
         foreach (var invalid in new[] { "Agent", "agent-prism", "agent.prism", "agent prism", "dbo';--" })
         {
             Should.Throw<AgentPrismException>(() => new SqlServerDialect(invalid));
@@ -164,7 +165,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public async Task Ozel_sema_adi_kullanilir()
+    public async Task Custom_schema_name_is_used()
     {
         var schemaName = SqlServerTestContext.NewSchemaName();
 
@@ -178,10 +179,10 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public void Migration_calistiricisi_dogru_derlemeden_okur()
+    public void Migration_runner_reads_from_the_correct_assembly()
     {
-        // Migration kaynak oneki saglayiciya ozgudur; PostgreSQL'in dosyalarini
-        // SQL Server'a uygulamak sessizce yanlis sema kurardi.
+        // The migration resource prefix is provider-specific; applying
+        // PostgreSQL's files to SQL Server would silently set up the wrong schema.
         var dialect = new SqlServerDialect("agentprism");
 
         dialect.MigrationResourcePrefix.ShouldBe("AgentPrism.SqlServer.Migrations.");
@@ -191,7 +192,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
     }
 
     [Fact]
-    public void Migration_calistiricisi_gecersiz_sema_ile_kurulamaz()
+    public void Migration_runner_cannot_be_constructed_with_an_invalid_schema()
     {
         var exception = Should.Throw<AgentPrismException>(() =>
             new MigrationRunner(

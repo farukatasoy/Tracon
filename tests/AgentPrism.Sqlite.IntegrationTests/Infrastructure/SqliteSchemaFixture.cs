@@ -3,38 +3,38 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Bir sozlesme test sinifinin paylastigi tek tablo oneki. Onek sinif basina
-/// bir kez olusturulur; her test kendi verisini
-/// <see cref="SqliteTestContext.ResetDataAsync"/> ile sifirlar.
+/// The single table prefix shared by one contract test class. The prefix is
+/// created once per class; each test resets its own data with
+/// <see cref="SqliteTestContext.ResetDataAsync"/>.
 /// </summary>
-/// <param name="database">Calisan SQLite veritabani dosyasi.</param>
+/// <param name="database">The running SQLite database file.</param>
 /// <remarks>
-/// 🚨 Onek sinif basina tek oldugu icin migration'lar SQLite'in TEK dosyasina
-/// paralel yazar; <see cref="SqliteDialect"/>'in oneke kapsanan kilit dosyasi
-/// (K-389) bu es zamanli migration'lari sirayla gecirir — ayri bir kilitleme
-/// mekanizmasi burada gerekmez.
+/// 🚨 Because the prefix is one per class, migrations write to SQLite's SINGLE
+/// file in parallel; <see cref="SqliteDialect"/>'s prefix-scoped lock file
+/// (K-389) serializes these concurrent migrations — no separate locking
+/// mechanism is needed here.
 /// </remarks>
 public sealed class SqliteSchemaFixture(SqliteFixture database) : IAsyncLifetime
 {
-    /// <summary>Sinifin butun testlerinin paylastigi degistirilebilir kiraci baglami.</summary>
+    /// <summary>Gets the mutable tenant context shared by all tests in the class.</summary>
     public MutableTenantContext Tenant { get; } = new("tenant-a");
 
-    /// <summary>Sinifin tablo oneki baglami.</summary>
+    /// <summary>Gets the class's table prefix context.</summary>
     internal SqliteTestContext Context { get; private set; } = null!;
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
         => Context = await SqliteTestContext.CreateAsync(database, Tenant);
 
-    /// <summary>Onekteki tum verileri sifirlar; tablolar ve migration defteri kalir.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Resets all data in the prefix; the tables and the migration ledger remain.</summary>
+    /// <returns>The completion task.</returns>
     public ValueTask ResetAsync() => Context.ResetDataAsync();
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see cref="InitializeAsync"/> basarisiz olursa <see cref="Context"/> hic
-    /// atanmaz; bu durumda gercek hatayi bir <see cref="NullReferenceException"/>
-    /// ile gizlememek icin dispose sessizce atlanir.
+    /// If <see cref="InitializeAsync"/> fails, <see cref="Context"/> is never
+    /// assigned; disposal is skipped silently in that case, so the real error
+    /// is not masked by a <see cref="NullReferenceException"/>.
     /// </remarks>
     public async ValueTask DisposeAsync()
     {

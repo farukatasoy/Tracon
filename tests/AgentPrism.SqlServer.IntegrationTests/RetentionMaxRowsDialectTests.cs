@@ -1,20 +1,21 @@
 namespace AgentPrism.SqlServer.IntegrationTests;
 
 /// <summary>
-/// <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'in SQL Server SQL
-/// uretiminin testleri (Faz 36, <c>MaxRows</c>). Canli veritabani gerektirmez —
-/// <see cref="SqlServerDialect"/> yalniz SQL metni kurar.
+/// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s SQL
+/// Server SQL generation (Phase 36, <c>MaxRows</c>). Requires no live database
+/// — <see cref="SqlServerDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests
 {
     private readonly SqlServerDialect _dialect = new("agentprism");
 
     /// <summary>
-    /// 🚨 K-026 tuzagi: SQL Server'da <c>OFFSET</c>/<c>FETCH</c>, <c>ORDER BY</c>
-    /// OLMADAN hata verir. Bu sablon her zaman bir <c>ORDER BY</c> tasimalidir.
+    /// 🚨 K-026 pitfall: in SQL Server, <c>OFFSET</c>/<c>FETCH</c> throws
+    /// WITHOUT an <c>ORDER BY</c>. This template must always carry an
+    /// <c>ORDER BY</c>.
     /// </summary>
     [Fact]
-    public void Uretilen_sql_order_by_offset_fetch_ve_null_elemeyi_tasir()
+    public void Generated_sql_carries_order_by_offset_fetch_and_null_filtering()
     {
         var sql = _dialect.BuildRetentionFindNthRowCutoffSql("agentprism.run_events", "created_at", extraPredicate: null);
 
@@ -27,7 +28,7 @@ public sealed class RetentionMaxRowsDialectTests
 
     [Theory]
     [MemberData(nameof(AllTargets))]
-    public void Her_hedef_registry_ustunden_hatasiz_cozulur(string target)
+    public void Every_target_resolves_without_error_via_the_registry(string target)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
 

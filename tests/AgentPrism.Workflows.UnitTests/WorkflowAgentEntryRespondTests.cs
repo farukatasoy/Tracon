@@ -3,24 +3,23 @@ using AgentPrism.Workflows.UnitTests.Fakes;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// MT-WF-062: bir <c>respond</c> cagrisi, kontrol noktasindan devam etmek
-/// yerine grafin GIRIS dugumunu (bir agent-host oldugunda) SIFIRDAN yeniden
-/// tetikliyordu.
+/// MT-WF-062: a <c>respond</c> call re-triggered the graph's ENTRY node (when it
+/// is an agent-host) FROM SCRATCH, instead of resuming from the checkpoint.
 /// </summary>
 public sealed class WorkflowAgentEntryRespondTests
 {
     [Fact]
-    public async Task Giris_dugumu_agent_ise_respond_onu_yeniden_calistirmaz()
+    public async Task Respond_does_not_rerun_the_entry_node_when_it_is_an_agent()
     {
-        var host = new WorkflowTestHost("ozetleyici");
-        var summarizer = await host.Resolver.ResolveAsync("ozetleyici");
+        var host = new WorkflowTestHost("summarizer");
+        var summarizer = await host.Resolver.ResolveAsync("summarizer");
 
         var runner = host.CreateRunner(
             configure: null,
             services: null,
             AgentApprovalWorkflow.Registration(summarizer!));
 
-        await Collect(runner, "ozetleyici-onay-akisi", "rapor metni");
+        await Collect(runner, "summarizer-approval-flow", "report text");
 
         var first = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
             .Single(run => run.Kind == RunKind.Workflow);
@@ -39,12 +38,11 @@ public sealed class WorkflowAgentEntryRespondTests
             resumed.Add(runEvent);
         }
 
-        // Kok kusur: 'respond' 'ozetleyici'yi SIFIRDAN yeniden calistirirdi -
-        // ikinci bir agent-turu 'runs' satiri VE karsiliksiz ikinci bir
-        // WorkflowRequest uretirdi, akis yine AwaitingInput ile biterdi
-        // (asagidaki iki iddia de bunu yakalar).
+        // Root defect: 'respond' would rerun 'summarizer' FROM SCRATCH - producing a
+        // second agent-kind 'runs' row AND an unanswered second WorkflowRequest, so
+        // the run would end in AwaitingInput again (both assertions below catch this).
         var agentRuns = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
-            .Where(run => run.Kind == RunKind.Agent && string.Equals(run.AgentName, "ozetleyici", StringComparison.Ordinal))
+            .Where(run => run.Kind == RunKind.Agent && string.Equals(run.AgentName, "summarizer", StringComparison.Ordinal))
             .ToList();
 
         agentRuns.ShouldHaveSingleItem();
@@ -54,7 +52,7 @@ public sealed class WorkflowAgentEntryRespondTests
 
         second.Status.ShouldBe(RunStatus.Completed);
 
-        resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("onaylandi");
+        resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("approved");
     }
 
     private static async Task Collect(WorkflowRunner runner, string name, string message)

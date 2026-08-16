@@ -26,7 +26,7 @@ public sealed class WebhookHttpClient : IDisposable
 
     /// <summary>Initializes the production client.</summary>
     /// <param name="optionsMonitor">The webhook options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
     public WebhookHttpClient(IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
@@ -73,7 +73,7 @@ public sealed class WebhookHttpClient : IDisposable
     /// <param name="timeout">The timeout specific to this request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The response.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="request"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     public async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         TimeSpan timeout,

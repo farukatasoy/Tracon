@@ -105,7 +105,7 @@ public sealed class ToolApprovalTests
     {
         var store = new InMemoryToolApprovalRuleStore();
 
-        await store.AddAsync(Rule("cancel_order", agentName: "baska-agent", argumentsHash: null));
+        await store.AddAsync(Rule("cancel_order", agentName: "another-agent", argumentsHash: null));
 
         var evaluator = CreateEvaluator(store);
 
@@ -121,7 +121,7 @@ public sealed class ToolApprovalTests
 
         var evaluator = CreateEvaluator(store);
 
-        (await evaluator.IsAutoApprovedAsync("herhangi-bir-agent", Call("cancel_order"))).ShouldBeTrue();
+        (await evaluator.IsAutoApprovedAsync("any-agent", Call("cancel_order"))).ShouldBeTrue();
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class ToolApprovalTests
 
         await store.AddAsync(Rule("cancel_order", agentName: null, argumentsHash: null) with
         {
-            TenantId = "baska-kiraci",
+            TenantId = "other-tenant",
         });
 
         var evaluator = CreateEvaluator(store);
@@ -196,7 +196,7 @@ public sealed class ToolApprovalTests
         var store = new InMemoryToolApprovalRuleStore();
         var rule = await store.AddAsync(Rule("cancel_order", "support", null));
 
-        (await store.DeleteAsync("baska-kiraci", rule.Id)).ShouldBeFalse();
+        (await store.DeleteAsync("other-tenant", rule.Id)).ShouldBeFalse();
         (await store.DeleteAsync("default", rule.Id)).ShouldBeTrue();
     }
 

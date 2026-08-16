@@ -1,21 +1,22 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IRunScoreStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IRunScoreStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile uc SQL saglayicisi ayni senaryolari gecmelidir. Kritik
-/// kural: ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez
-/// puanladiginda satir <strong>guncellenir</strong>, yeni satir acilmaz --
-/// yazar bos ise (kimliksiz kurulum) bu kural uygulanmaz.
+/// The in-memory store and the three SQL providers must pass the same
+/// scenarios. Critical rule: when the same author scores the same target (a
+/// run or a message) a second time, the row is <strong>updated</strong>, not
+/// duplicated -- this rule does not apply when the author is empty (an
+/// anonymous setup).
 /// </remarks>
 public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreStore>
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Puan bir calistirmaya asilidir; ayirt edici anahtar calistirma
-    /// kimligidir. Iki kiraci ayni calistirma kimligini kullanir: sizinti
-    /// olursa B kiracisi A'nin puanini gorurdu.
+    /// A score is attached to a run; the distinguishing key is the run id.
+    /// Two tenants use the same run id: if isolation leaked, tenant B would
+    /// see tenant A's score.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -42,7 +43,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     private static readonly DateTimeOffset Created = new(2026, 8, 6, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Yazilan_puan_geri_okunur()
+    public async Task Written_score_is_read_back()
     {
         var runId = AgentPrismId.NewId();
         var score = Score(runId);
@@ -56,13 +57,13 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         loaded.RunId.ShouldBe(runId);
         loaded.Kind.ShouldBe(RunScoreKind.Binary);
         loaded.Value.ShouldBe(1);
-        loaded.Comment.ShouldBe("dogru cevap");
+        loaded.Comment.ShouldBe("correct answer");
         loaded.Source.ShouldBe("human");
-        loaded.Author.ShouldBe("operator@ornek");
+        loaded.Author.ShouldBe("operator@example");
     }
 
     [Fact]
-    public async Task Mesaj_kimligi_bos_ise_puan_tum_calistirmaya_aittir()
+    public async Task Score_with_no_message_id_belongs_to_the_whole_run()
     {
         var runId = AgentPrismId.NewId();
 
@@ -72,22 +73,22 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     }
 
     [Fact]
-    public async Task Ayni_yazar_ayni_hedefi_ikinci_kez_puanladiginda_satir_GUNCELLENIR()
+    public async Task Same_author_scoring_the_same_target_twice_UPDATES_the_row()
     {
         var runId = AgentPrismId.NewId();
 
         var first = await Store.UpsertAsync(Score(runId) with { Value = 0 });
-        var second = await Store.UpsertAsync(Score(runId) with { Value = 1, Comment = "guncellendi" });
+        var second = await Store.UpsertAsync(Score(runId) with { Value = 1, Comment = "updated" });
 
         second.Id.ShouldBe(first.Id);
 
         var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
         loaded.Value.ShouldBe(1);
-        loaded.Comment.ShouldBe("guncellendi");
+        loaded.Comment.ShouldBe("updated");
     }
 
     [Fact]
-    public async Task Farkli_yazarlar_ayni_hedefi_bagimsiz_puanlar()
+    public async Task Different_authors_score_the_same_target_independently()
     {
         var runId = AgentPrismId.NewId();
 
@@ -98,7 +99,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     }
 
     [Fact]
-    public async Task Farkli_mesajlar_bagimsiz_puanlanir()
+    public async Task Different_messages_are_scored_independently()
     {
         var runId = AgentPrismId.NewId();
 
@@ -110,10 +111,10 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     }
 
     [Fact]
-    public async Task Yazar_bos_ise_HER_cagri_yeni_satir_acar()
+    public async Task Empty_author_makes_EVERY_call_open_a_new_row()
     {
-        // Kimliksiz kurulumda (author null) benzersizlik kurali uygulanmaz --
-        // acik soru 4 (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md).
+        // With an anonymous setup (author null), the uniqueness rule does not
+        // apply -- open question 4 (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md).
         var runId = AgentPrismId.NewId();
 
         await Store.UpsertAsync(Score(runId) with { Author = null });
@@ -123,19 +124,19 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     }
 
     [Fact]
-    public async Task Baska_kiracinin_puani_gorunmez()
+    public async Task Another_tenants_score_is_not_visible()
     {
         var runId = AgentPrismId.NewId();
 
         await Store.UpsertAsync(Score(runId));
-        await Store.UpsertAsync(Score(runId) with { TenantId = "baska", Author = "baska-yazar" });
+        await Store.UpsertAsync(Score(runId) with { TenantId = "other", Author = "other-author" });
 
         (await Store.ListAsync(Tenant, runId)).Count.ShouldBe(1);
-        (await Store.ListAsync("baska", runId)).Count.ShouldBe(1);
+        (await Store.ListAsync("other", runId)).Count.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Puan_silinir()
+    public async Task Score_is_deleted()
     {
         var runId = AgentPrismId.NewId();
         var saved = await Store.UpsertAsync(Score(runId));
@@ -147,19 +148,19 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     }
 
     [Fact]
-    public async Task Baska_kiracinin_puani_silinemez()
+    public async Task Another_tenants_score_cannot_be_deleted()
     {
         var runId = AgentPrismId.NewId();
         var saved = await Store.UpsertAsync(Score(runId));
 
-        var deleted = await Store.DeleteAsync("baska", saved.Id);
+        var deleted = await Store.DeleteAsync("other", saved.Id);
 
         deleted.ShouldBeFalse();
         (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Olmayan_puanin_silinmesi_false_doner()
+    public async Task Deleting_a_nonexistent_score_returns_false()
         => (await Store.DeleteAsync(Tenant, AgentPrismId.NewId())).ShouldBeFalse();
 
     private static RunScore Score(Guid runId)
@@ -170,9 +171,9 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
             MessageId = "msg-1",
             Kind = RunScoreKind.Binary,
             Value = 1,
-            Comment = "dogru cevap",
+            Comment = "correct answer",
             Source = "human",
-            Author = "operator@ornek",
+            Author = "operator@example",
             CreatedAt = Created,
         };
 }

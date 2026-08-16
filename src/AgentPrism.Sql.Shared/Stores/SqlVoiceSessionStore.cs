@@ -14,7 +14,7 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
 
     /// <summary>Creates a new voice session store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlVoiceSessionStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

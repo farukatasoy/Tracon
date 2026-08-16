@@ -5,22 +5,22 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.SqlServer.IntegrationTests;
 
 /// <summary>
-/// SQL Server'a ozgu tip ve davranis farklarinin testleri.
+/// Tests for type and behavior differences specific to SQL Server.
 /// </summary>
 /// <remarks>
-/// Sozlesme testleri davranis <em>esitligini</em> korur. Buradaki testler ise
-/// yalnizca SQL Server tarafinda var olan tuzaklari kapatir; PostgreSQL'de
-/// karsiliklari yoktur.
+/// The contract tests preserve behavioral <em>equality</em>. The tests here,
+/// on the other hand, close pitfalls that exist only on the SQL Server side;
+/// PostgreSQL has no counterpart to them.
 /// </remarks>
 public sealed class SqlServerDialectTests(SqlServerFixture fixture)
 {
     /// <summary>
-    /// 🚨 Ondalik parametre kesinlik verilmeden gonderilirse SQL Server
-    /// <c>decimal(18,0)</c> varsayar ve ondalik kismi SESSIZCE atar. Maliyet
-    /// tutarlari tam sayiya yuvarlanirdi.
+    /// 🚨 If a decimal parameter is sent without precision, SQL Server assumes
+    /// <c>decimal(18,0)</c> and SILENTLY drops the fractional part. Cost
+    /// amounts would round to whole numbers.
     /// </summary>
     [Fact]
-    public async Task Maliyet_ondaligi_kesilmeden_gidip_gelir()
+    public async Task Cost_decimal_round_trips_without_truncation()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
@@ -46,16 +46,16 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// Zaman damgalari UTC yazilir ve UTC okunur. <c>datetimeoffset</c> stored
-    /// ofseti korur; yazma tarafi her zaman UTC'ye cevirdigi icin okunan ofset
-    /// sifir olmalidir.
+    /// Timestamps are written as UTC and read back as UTC. <c>datetimeoffset</c>
+    /// preserves the stored offset; since the write side always converts to
+    /// UTC, the offset read back must be zero.
     /// </summary>
     [Fact]
-    public async Task Zaman_damgasi_utc_olarak_gidip_gelir()
+    public async Task Timestamp_round_trips_as_UTC()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
-        // Bilerek UTC OLMAYAN bir ofsetle yazilir.
+        // Deliberately written with an offset that is NOT UTC.
         var startedAt = new DateTimeOffset(2026, 3, 15, 12, 30, 45, TimeSpan.FromHours(3));
         var runId = AgentPrismId.NewId();
 
@@ -69,23 +69,23 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
     }
 
     /// <summary>
-    /// Polimorfik JSON bozulmadan doner. K-027'nin anahtar siralama sorunu SQL
-    /// Server'da yoktur; bu test bunun gercekten boyle oldugunu kanitlar.
+    /// Polymorphic JSON round-trips unchanged. K-027's key-ordering issue does
+    /// not exist on SQL Server; this test proves that this is really the case.
     /// </summary>
     [Fact]
-    public async Task Polimorfik_json_bozulmadan_gidip_gelir()
+    public async Task Polymorphic_JSON_round_trips_unchanged()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
-        // `$type` ayraci tasiyan, ic ice bir yuk. jsonb olsaydi anahtar sirasi
-        // bozulur ve okuma JsonException verirdi.
+        // A nested payload carrying the `$type` discriminator. If this were
+        // jsonb, key order would be lost and reading would throw JsonException.
         const string state = """
-            {"$type":"agentprism.test","b":1,"aaaaaaaaaaaa":{"$type":"inner","z":"son","a":"ilk"}}
+            {"$type":"agentprism.test","b":1,"aaaaaaaaaaaa":{"$type":"inner","z":"last","a":"first"}}
             """;
 
         var record = new SessionRecord
         {
-            Id = "oturum-json",
+            Id = "session-json",
             AgentName = "test-agent",
             State = JsonDocument.Parse(state).RootElement,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -94,25 +94,25 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
 
         await context.Sessions.SaveAsync(record);
 
-        var loaded = await context.Sessions.GetAsync("oturum-json");
+        var loaded = await context.Sessions.GetAsync("session-json");
 
         loaded.ShouldNotBeNull();
 
         var raw = loaded.State.GetRawText();
 
-        // Ilk ozellik hala `$type` olmalidir.
+        // The first property must still be `$type`.
         raw.TrimStart().ShouldStartWith("{\"$type\"");
         loaded.State.GetProperty("aaaaaaaaaaaa").GetProperty("$type").GetString().ShouldBe("inner");
     }
 
     /// <summary>
-    /// 🚨 SQL Server'in <c>uniqueidentifier</c> siralamasi bayt sirasina gore
-    /// DEGILDIR; uuid v7 kimlikler kumelenmis bir anahtarda zaman sirali
-    /// gorunmez. Bu yuzden yogun yazilan tablolarda birincil anahtar
-    /// NONCLUSTERED'dir ve kumelenmis indeks zaman sutununa kuruludur (K-185).
+    /// 🚨 SQL Server's <c>uniqueidentifier</c> ordering is NOT byte-order
+    /// based; uuid v7 identifiers do not appear time-ordered in a clustered
+    /// key. So in high-write tables the primary key is NONCLUSTERED, and the
+    /// clustered index is built on the time column instead (K-185).
     /// </summary>
     [Fact]
-    public async Task Yogun_tablolarda_birincil_anahtar_kumelenmemistir()
+    public async Task High_write_tables_primary_key_is_not_clustered()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
@@ -129,17 +129,17 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
                   AND i.type_desc = 'CLUSTERED';
                 """);
 
-            clusteredOnPrimaryKey.ShouldBe(0, $"'{table}' tablosunun birincil anahtari kumelenmis olmamalidir.");
+            clusteredOnPrimaryKey.ShouldBe(0, $"'{table}''s primary key must not be clustered.");
         }
     }
 
     /// <summary>
-    /// Calistirmalar zaman sirali okunur. Kumelenmis indeks
-    /// <c>(started_at, id)</c> uzerindedir; siralama uuid'in bayt sirasina
-    /// baglanmamalidir.
+    /// Runs are read back sorted by time. The clustered index is on
+    /// <c>(started_at, id)</c>; the ordering must not depend on the uuid's
+    /// byte order.
     /// </summary>
     [Fact]
-    public async Task Calistirmalar_baslangic_zamanina_gore_sirali_doner()
+    public async Task Runs_are_returned_sorted_by_start_time()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
@@ -157,17 +157,17 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
 
         var page = await context.Runs.QueryRunsAsync(new RunQuery { Take = 50 });
 
-        // Sorgu yeniden eskiye siralar.
+        // The query sorts newest to oldest.
         expected.Reverse();
         page.Select(static run => run.Id).ShouldBe(expected);
     }
 
     /// <summary>
-    /// Dizi sutunlari JSON olarak tasinir ve tam eslesme ile aranir; ekli bir
-    /// son ek ('run.completed.v2') yanlislikla eslesmemelidir.
+    /// Array columns are stored as JSON and searched with an exact match; an
+    /// appended suffix ('run.completed.v2') must not match by mistake.
     /// </summary>
     [Fact]
-    public async Task Olay_dizisi_tam_eslesme_ile_aranir()
+    public async Task Event_array_is_searched_with_exact_match()
     {
         await using var context = await SqlServerTestContext.CreateAsync(fixture);
 
@@ -175,7 +175,7 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
         {
             Id = AgentPrismId.NewId(),
             TenantId = "default",
-            Name = "tam-eslesme",
+            Name = "exact-match",
             Url = "https://example.test/hook",
             Events = ["run.completed.v2"],
             CreatedAt = DateTimeOffset.UtcNow,

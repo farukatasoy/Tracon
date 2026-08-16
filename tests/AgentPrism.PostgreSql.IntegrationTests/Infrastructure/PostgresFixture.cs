@@ -4,28 +4,29 @@ using Testcontainers.PostgreSql;
 namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tum entegrasyon testlerinin paylastigi tek kullanimlik PostgreSQL container'i.
+/// The disposable PostgreSQL container shared by all integration tests.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Hicbir test uzak veya paylasilan bir sunucuya baglanmaz.</strong> Testcontainers
-/// her calistirmada yerel bir container ayaga kaldirir ve sonunda yok eder.
+/// <strong>No test connects to a remote or shared server.</strong> Testcontainers
+/// starts a local container on every run and tears it down afterward.
 /// </para>
 /// <para>
-/// Container tum derleme icin bir kez baslar; sema sozlesme test SINIFI basina
-/// paylasilir (bkz. <see cref="PostgresSchemaFixture"/>, <see cref="PostgresTestContext"/>),
-/// testler arasi izolasyon veri sifirlamayla saglanir (K-390). Migrasyon
-/// kilidi de artik veritabani genelinde degil semaya kapsanmistir (K-389); bu
-/// ikisi birlikte sinif fixture'lerinin migrasyonlarinin PARALEL kosmasini
-/// saglar.
+/// The container starts once for the whole assembly; the schema is shared per
+/// contract test CLASS (see <see cref="PostgresSchemaFixture"/>,
+/// <see cref="PostgresTestContext"/>), and isolation between tests is achieved
+/// by resetting data (K-390). The migration lock is also now scoped to the
+/// schema rather than the whole database (K-389); together these two let class
+/// fixtures run their migrations in PARALLEL.
 /// </para>
 /// <para>
-/// 🚨 Imaj <c>postgres:18-alpine</c> DEGIL, <c>pgvector/pgvector:pg18</c>'dir
-/// (Faz 51). Migration 0024 <c>CREATE EXTENSION IF NOT EXISTS vector;</c> calistirir
-/// ve bu HER testte (yalniz vektor testlerinde degil) uygulanir; duz Postgres imaji
-/// uzantiyi tasimadigi icin migration seti butun test paketinde patlardi.
-/// <c>pgvector/pgvector</c> imaji `postgres` resmi imajinin ustune yalniz bu
-/// uzantiyi ekler, baska bir davranis farki yaratmaz.
+/// 🚨 The image is <c>pgvector/pgvector:pg18</c>, NOT <c>postgres:18-alpine</c>
+/// (Phase 51). Migration 0024 runs <c>CREATE EXTENSION IF NOT EXISTS vector;</c>,
+/// and it applies on EVERY test (not just vector tests); since the plain
+/// Postgres image does not carry the extension, the migration set would blow up
+/// across the whole test suite. The <c>pgvector/pgvector</c> image adds only
+/// this extension on top of the official <c>postgres</c> image and creates no
+/// other behavioral difference.
 /// </para>
 /// </remarks>
 public sealed class PostgresFixture : IAsyncLifetime
@@ -35,24 +36,24 @@ public sealed class PostgresFixture : IAsyncLifetime
         .WithCleanUp(true)
         .Build();
 
-    /// <summary>Calisan container'in baglanti dizesi.</summary>
+    /// <summary>Gets the connection string of the running container.</summary>
     public string ConnectionString => _container.GetConnectionString();
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>vector</c> uzantisi container basladiktan hemen sonra, herhangi bir
-    /// sema sinif fixture'i migrate olmadan ONCE burada olusturulur. Migration
-    /// 0024'un kendi <c>CREATE EXTENSION IF NOT EXISTS vector;</c> ifadesi de
-    /// idempotenttir ve tek basina dogrudur, ama <c>pg_extension</c> katalogu
-    /// VERITABANI GENELINDE paylasilir — onlarca sema sinif fixture'i (bkz.
-    /// <see cref="PostgresSchemaFixture"/>) ilk migration'ini es zamanli
-    /// calistirdiginda hepsi ayni satiri olusturmaya calisir ve benzersizlik
-    /// ihlaline (SQLSTATE 23505) duser. <c>MigrationRunner.ApplyOneAsync</c> bu
-    /// ihlali yeniden dener (K-389) ama gercekci uretim senaryosu (bir
-    /// veritabanina uzantiyi BIR KEZ, kurulum aninda kurmak) burada taklit
-    /// edilerek yaris tamamen onlenir — testin yapay "29 sema ayni anda ilk
-    /// kez migrate olur" sartlarinin urettigi bir yaris, gercek dagitimda
-    /// olmazdi.
+    /// 🚨 The <c>vector</c> extension is created here right after the container
+    /// starts, BEFORE any schema class fixture migrates. Migration 0024's own
+    /// <c>CREATE EXTENSION IF NOT EXISTS vector;</c> statement is also
+    /// idempotent and correct on its own, but the <c>pg_extension</c> catalog is
+    /// shared DATABASE-WIDE — when dozens of schema class fixtures (see
+    /// <see cref="PostgresSchemaFixture"/>) run their first migration
+    /// concurrently, all of them try to create the same row and hit a
+    /// uniqueness violation (SQLSTATE 23505). <c>MigrationRunner.ApplyOneAsync</c>
+    /// retries that violation (K-389), but the realistic production scenario
+    /// (installing the extension on a database ONCE, at setup time) is mirrored
+    /// here, which avoids the race entirely — a race produced only by the
+    /// test's artificial "29 schemas migrate for the first time at once"
+    /// conditions, one that would not occur in a real deployment.
     /// </remarks>
     public async ValueTask InitializeAsync()
     {

@@ -5,44 +5,44 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
-/// <summary>Yerlesik model tabanli yargicin testleri (Faz 49).</summary>
+/// <summary>Tests for the built-in model-based judge (Phase 49).</summary>
 public sealed class ModelRunJudgeTests
 {
     private const string Tenant = "acme";
     private const string Agent = "support";
 
     [Fact]
-    public void Name_model_dir()
+    public void Name_is_model()
         => Build(new FakeChatClient()).Judge.Name.ShouldBe("model");
 
     [Fact]
-    public async Task Gecerli_json_dogru_ayristirilir()
+    public async Task Valid_json_is_parsed_correctly()
     {
-        var chatClient = new FakeChatClient(_ => Response("""{"score":73,"reason":"iyi cevap"}"""));
+        var chatClient = new FakeChatClient(_ => Response("""{"score":73,"reason":"good answer"}"""));
         var (judge, runs) = Build(chatClient);
 
         var judgment = await judge.JudgeAsync(Context());
 
         judgment.Score.ShouldBe(73);
-        judgment.Reason.ShouldBe("iyi cevap");
+        judgment.Reason.ShouldBe("good answer");
     }
 
     [Fact]
-    public async Task Null_score_null_olarak_kalir()
+    public async Task Null_score_stays_null()
     {
-        var chatClient = new FakeChatClient(_ => Response("""{"score":null,"reason":"belirsiz"}"""));
+        var chatClient = new FakeChatClient(_ => Response("""{"score":null,"reason":"unclear"}"""));
         var (judge, _) = Build(chatClient);
 
         var judgment = await judge.JudgeAsync(Context());
 
         judgment.Score.ShouldBeNull();
-        judgment.Reason.ShouldBe("belirsiz");
+        judgment.Reason.ShouldBe("unclear");
     }
 
     [Fact]
-    public async Task Bozuk_json_hata_firlatmaz_null_puan_doner()
+    public async Task Malformed_json_does_not_throw_returns_a_null_score()
     {
-        var chatClient = new FakeChatClient(_ => Response("bu JSON degil"));
+        var chatClient = new FakeChatClient(_ => Response("this is not JSON"));
         var (judge, _) = Build(chatClient);
 
         var judgment = await judge.JudgeAsync(Context());
@@ -52,9 +52,9 @@ public sealed class ModelRunJudgeTests
     }
 
     [Fact]
-    public async Task Araligi_asan_puan_kirpilir()
+    public async Task Score_over_the_range_is_clamped()
     {
-        var chatClient = new FakeChatClient(_ => Response("""{"score":150,"reason":"asiri"}"""));
+        var chatClient = new FakeChatClient(_ => Response("""{"score":150,"reason":"excessive"}"""));
         var (judge, _) = Build(chatClient);
 
         var judgment = await judge.JudgeAsync(Context());
@@ -63,9 +63,9 @@ public sealed class ModelRunJudgeTests
     }
 
     [Fact]
-    public async Task Yargicin_kendi_calistirmasi_RunKind_Eval_ile_kaydedilir()
+    public async Task Judges_own_run_is_recorded_with_RunKind_Eval()
     {
-        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"tamam"}"""));
+        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"ok"}"""));
         var (judge, runs) = Build(chatClient);
 
         await judge.JudgeAsync(Context());
@@ -79,9 +79,9 @@ public sealed class ModelRunJudgeTests
     }
 
     [Fact]
-    public async Task Istem_yapilandirilmis_cikti_semasi_ister()
+    public async Task Prompt_requests_a_structured_output_schema()
     {
-        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"tamam"}"""));
+        var chatClient = new FakeChatClient(_ => Response("""{"score":80,"reason":"ok"}"""));
         var (judge, _) = Build(chatClient);
 
         await judge.JudgeAsync(Context());
@@ -97,8 +97,8 @@ public sealed class ModelRunJudgeTests
         RunId = Guid.NewGuid(),
         TenantId = Tenant,
         AgentName = Agent,
-        Input = [new ChatMessage(ChatRole.User, "soru")],
-        Output = "cevap",
+        Input = [new ChatMessage(ChatRole.User, "question")],
+        Output = "answer",
     };
 
     private static (ModelRunJudge Judge, InMemoryRunStore Runs) Build(FakeChatClient chatClient)
@@ -109,7 +109,7 @@ public sealed class ModelRunJudgeTests
         {
             Model = new ModelBinding { Provider = "test", Model = "cheap-model" },
         };
-        options.Criteria.Add("Yanit dogru mu?");
+        options.Criteria.Add("Is the answer correct?");
 
         var judge = new ModelRunJudge(
             new FixedModelProviderRegistry(chatClient),

@@ -3,10 +3,11 @@ using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 namespace AgentPrism.Sqlite.IntegrationTests;
 
 /// <summary>
-/// <see cref="IRetentionStore.FindRowLimitCutoffAsync"/>'in SQLite uygulamasinin
-/// gercek veritabanina karsi testleri (Faz 36, <c>MaxRows</c>). PostgreSQL
-/// icin <c>RetentionDataPlaneTests</c> (AgentPrism.PostgreSql.IntegrationTests)
-/// ile AYNI uc senaryoyu kapsar; davranis esitligini kanitlar.
+/// Tests of the SQLite implementation of
+/// <see cref="IRetentionStore.FindRowLimitCutoffAsync"/> against a real
+/// database (Phase 36, <c>MaxRows</c>). Covers the SAME three scenarios as
+/// <c>RetentionDataPlaneTests</c> (AgentPrism.PostgreSql.IntegrationTests) for
+/// PostgreSQL; proves behavioral equality.
 /// </summary>
 public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsyncLifetime
 {
@@ -19,7 +20,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     public async ValueTask DisposeAsync() => await _context.DisposeAsync();
 
     [Fact]
-    public async Task MaxRows_esigi_dogru_hesaplanir_ve_hedefi_N_satirda_birakir()
+    public async Task MaxRows_cutoff_is_computed_correctly_and_leaves_the_target_at_N_rows()
     {
         var runId = await SeedRunAsync();
 
@@ -43,7 +44,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     [Fact]
-    public async Task MaxRows_esigi_tablo_sinirin_altindaysa_null_doner()
+    public async Task MaxRows_cutoff_returns_null_when_the_table_is_below_the_limit()
     {
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow);
@@ -54,12 +55,13 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     /// <summary>
-    /// <c>workflow_checkpoints</c> icin esik, hedefin KENDI sutunundan degil
-    /// BAGLI CALISTIRMANIN <c>completed_at</c>'inden (korele alt sorgu)
-    /// hesaplanir — bkz. <c>RetentionTargetRegistry.RowLimitOrderExpression</c>.
+    /// For <c>workflow_checkpoints</c>, the cutoff is computed not from the
+    /// target's OWN column but from the LINKED RUN's <c>completed_at</c> (a
+    /// correlated subquery) — see
+    /// <c>RetentionTargetRegistry.RowLimitOrderExpression</c>.
     /// </summary>
     [Fact]
-    public async Task MaxRows_esigi_iliskili_tablo_uzerinden_dogru_hesaplanir()
+    public async Task MaxRows_cutoff_is_computed_correctly_through_a_related_table()
     {
         var run1 = await SeedRunAsync(completedAt: DateTimeOffset.UtcNow.AddDays(-10));
         var run2 = await SeedRunAsync(completedAt: DateTimeOffset.UtcNow.AddDays(-5));
@@ -82,15 +84,16 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     }
 
     /// <summary>
-    /// 🚨 Faz 36'nin yan bulgusu: <c>attachments</c>'in <c>WherePredicate</c>'i
-    /// (Faz 25) BARE hedef adini ("attachments") korelasyon olarak kullaniyordu;
-    /// SQLite'ta gercek FROM'lu nesne oneklidir ("t_...attachments") ve bare ad
-    /// hicbir zaman eslesmiyordu — <c>NOT EXISTS</c> her zaman DOGRU degerlendi
-    /// ve sahipli ekler de silinmeye aday sayildi. Registry'deki duzeltmeyle
-    /// (tam nitelendirilmis korelasyon) birlikte bu test kanit tasir.
+    /// 🚨 A side finding from Phase 36: the <c>WherePredicate</c> for
+    /// <c>attachments</c> (Phase 25) used the BARE target name ("attachments")
+    /// as the correlation; in SQLite the actual FROM'd object is prefixed
+    /// ("t_...attachments") and the bare name never matched — <c>NOT EXISTS</c>
+    /// always evaluated to TRUE, and owned attachments were also considered
+    /// eligible for deletion. This test carries the evidence for the fix in
+    /// the registry (fully qualified correlation).
     /// </summary>
     [Fact]
-    public async Task Attachments_sahipli_ek_silinmez_sahipsiz_ek_silinir()
+    public async Task Attachments_owned_attachment_is_kept_orphaned_attachment_is_deleted()
     {
         var sessionId = Guid.NewGuid().ToString();
         const string emptyJsonState = "'{}'";
@@ -143,7 +146,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
     private async Task SeedRunEventAsync(Guid runId, int seq, DateTimeOffset createdAt)
         => await _context.ExecuteAsync($"""
             INSERT INTO {_context.TablePrefix}run_events (run_id, seq, type, text, created_at)
-            VALUES ('{runId}', {seq}, 0, 'olay', '{Iso(createdAt)}');
+            VALUES ('{runId}', {seq}, 0, 'event', '{Iso(createdAt)}');
             """);
 
     private async Task SeedWorkflowCheckpointAsync(Guid runId)

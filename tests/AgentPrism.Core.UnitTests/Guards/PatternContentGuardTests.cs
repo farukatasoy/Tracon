@@ -5,141 +5,142 @@ using AgentPrism.Core.UnitTests.Fakes;
 namespace AgentPrism.Core.UnitTests.Guards;
 
 /// <summary>
-/// Yerlesik desen tabanli guard'in kararlarini dogrular.
+/// Verifies the decisions of the built-in pattern-based guard.
 /// </summary>
 /// <remarks>
-/// En onemli testler <strong>yanlis pozitif</strong> testleridir: kontrol basamagi
-/// dogrulamasi olmadan bir siparis numarasi kart sayilir ve guard ilk gunde
-/// kapatilir.
+/// The most important tests are the <strong>false positive</strong> tests:
+/// without check-digit validation an order number would be counted as a card
+/// number, and the guard would be disabled on day one.
 /// </remarks>
 public sealed class PatternContentGuardTests
 {
     [Fact]
-    public async Task Hicbir_kural_tanimli_degilse_hicbir_sey_denetlenmez()
+    public async Task Nothing_is_inspected_when_no_rule_is_defined()
     {
         var guard = Guard();
 
-        var result = await Inspect(guard, "kart numaram 4539578763621486, e-posta ali@ornek.com");
+        var result = await Inspect(guard, "my card number is 4539578763621486, email ali@example.com");
 
         result.Action.ShouldBe(ContentGuardAction.Allow);
     }
 
     [Fact]
-    public async Task Yasak_sozcuk_engellenir()
+    public async Task Denied_term_is_blocked()
     {
-        var guard = Guard(options => options.DeniedTerms.Add("gizli-proje"));
+        var guard = Guard(options => options.DeniedTerms.Add("secret-project"));
 
-        var result = await Inspect(guard, "GIZLI-PROJE hakkinda bilgi ver");
+        var result = await Inspect(guard, "tell me about SECRET-PROJECT");
 
         result.Action.ShouldBe(ContentGuardAction.Block);
         result.RuleName.ShouldBe("denied-term");
     }
 
     [Fact]
-    public async Task Engelleme_sebebi_yasak_sozcugu_tasimaz()
+    public async Task Block_reason_does_not_carry_the_denied_term()
     {
-        // 🚨 Yasak sozcuk listesi de kurumsal bir sirdir: "gizli-proje" bir kod
-        // adi olabilir ve sebep metni ProblemDetails icinde istemciye doner.
-        var guard = Guard(options => options.DeniedTerms.Add("gizli-proje"));
+        // 🚨 The denied-term list is itself a corporate secret: "secret-project"
+        // could be a code name, and the reason text is returned to the client
+        // inside ProblemDetails.
+        var guard = Guard(options => options.DeniedTerms.Add("secret-project"));
 
-        var result = await Inspect(guard, "gizli-proje nedir");
+        var result = await Inspect(guard, "what is secret-project");
 
         result.Reason.ShouldNotBeNull();
-        result.Reason!.ShouldNotContain("gizli-proje", Case.Insensitive);
+        result.Reason!.ShouldNotContain("secret-project", Case.Insensitive);
     }
 
     [Fact]
-    public async Task Gecerli_kart_numarasi_maskelenir()
+    public async Task Valid_card_number_is_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.CreditCard);
 
-        // 4539578763621486 gecerli bir Luhn dizisidir.
-        var result = await Inspect(guard, "kart numaram 4539578763621486");
+        // 4539578763621486 is a valid Luhn sequence.
+        var result = await Inspect(guard, "my card number is 4539578763621486");
 
         result.Action.ShouldBe(ContentGuardAction.Mask);
-        result.MaskedText.ShouldBe("kart numaram [redacted]");
+        result.MaskedText.ShouldBe("my card number is [redacted]");
         result.RuleName.ShouldBe("credit-card");
     }
 
     [Fact]
-    public async Task Gruplanmis_kart_numarasi_da_maskelenir()
+    public async Task Grouped_card_number_is_also_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.CreditCard);
 
-        var result = await Inspect(guard, "kart: 4539 5787 6362 1486");
+        var result = await Inspect(guard, "card: 4539 5787 6362 1486");
 
-        result.MaskedText.ShouldBe("kart: [redacted]");
+        result.MaskedText.ShouldBe("card: [redacted]");
     }
 
     [Fact]
-    public async Task Gecersiz_Luhn_kontrollu_on_alti_hane_maskelenmez()
+    public async Task Sixteen_digits_failing_the_Luhn_check_are_not_masked()
     {
-        // 🚨 Siparis numarasi vakasi. Bu test dusmezse guard kullanilamaz.
+        // 🚨 The order-number case. If this test fails, the guard is unusable.
         var guard = Guard(options => options.MaskedPii = PiiPatterns.CreditCard);
 
-        var result = await Inspect(guard, "siparis numaram 1234567812345678");
+        var result = await Inspect(guard, "my order number is 1234567812345678");
 
         result.Action.ShouldBe(ContentGuardAction.Allow);
     }
 
     [Fact]
-    public async Task Gecerli_TC_kimlik_numarasi_maskelenir()
+    public async Task Valid_Turkish_national_id_is_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.TurkishNationalId);
 
-        // 10000000146 kontrol basamagi kurallarina uyar.
-        var result = await Inspect(guard, "kimlik no 10000000146");
+        // 10000000146 satisfies the check-digit rules.
+        var result = await Inspect(guard, "id number 10000000146");
 
         result.Action.ShouldBe(ContentGuardAction.Mask);
-        result.MaskedText.ShouldBe("kimlik no [redacted]");
+        result.MaskedText.ShouldBe("id number [redacted]");
         result.RuleName.ShouldBe("turkish-national-id");
     }
 
     [Fact]
-    public async Task Rastgele_on_bir_hane_maskelenmez()
+    public async Task Random_eleven_digits_are_not_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.TurkishNationalId);
 
-        var result = await Inspect(guard, "takip numarasi 12345678901");
+        var result = await Inspect(guard, "tracking number 12345678901");
 
         result.Action.ShouldBe(ContentGuardAction.Allow);
     }
 
     [Fact]
-    public async Task Sifirla_baslayan_on_bir_hane_maskelenmez()
+    public async Task Eleven_digits_starting_with_zero_are_not_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.TurkishNationalId);
 
-        var result = await Inspect(guard, "kod 01234567890");
+        var result = await Inspect(guard, "code 01234567890");
 
         result.Action.ShouldBe(ContentGuardAction.Allow);
     }
 
     [Fact]
-    public async Task E_posta_maskelenir()
+    public async Task Email_is_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.Email);
 
-        var result = await Inspect(guard, "bana ali.veli@ornek.com.tr adresinden yaz");
+        var result = await Inspect(guard, "email me at ali.veli@example.com.tr");
 
-        result.MaskedText.ShouldBe("bana [redacted] adresinden yaz");
+        result.MaskedText.ShouldBe("email me at [redacted]");
     }
 
     [Fact]
-    public async Task Iban_maskelenir()
+    public async Task Iban_is_masked()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.Iban);
 
-        var result = await Inspect(guard, "hesap TR330006100519786457841326 numarali");
+        var result = await Inspect(guard, "account number TR330006100519786457841326");
 
-        result.MaskedText.ShouldBe("hesap [redacted] numarali");
+        result.MaskedText.ShouldBe("account number [redacted]");
     }
 
     [Theory]
-    [InlineData("anahtar sk-abcdefghijklmnopqrstuvwx")]
+    [InlineData("key sk-abcdefghijklmnopqrstuvwx")]
     [InlineData("token ghp_abcdefghijklmnopqrstuvwxyz01")]
-    [InlineData("erisim AKIAIOSFODNN7EXAMPLE")]
-    public async Task Saglayici_anahtari_maskelenir(string text)
+    [InlineData("access AKIAIOSFODNN7EXAMPLE")]
+    public async Task Provider_api_key_is_masked(string text)
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.ProviderApiKey);
 
@@ -151,35 +152,35 @@ public sealed class PatternContentGuardTests
     }
 
     [Fact]
-    public async Task Birden_cok_aile_eslesirse_kural_adlari_birlestirilir()
+    public async Task Rule_names_are_combined_when_multiple_families_match()
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.Email | PiiPatterns.CreditCard);
 
-        var result = await Inspect(guard, "ali@ornek.com ve 4539578763621486");
+        var result = await Inspect(guard, "ali@example.com and 4539578763621486");
 
-        result.MaskedText.ShouldBe("[redacted] ve [redacted]");
+        result.MaskedText.ShouldBe("[redacted] and [redacted]");
         result.RuleName.ShouldNotBeNull();
         result.RuleName!.ShouldContain("email", Case.Sensitive);
         result.RuleName.ShouldContain("credit-card", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Yasak_sozcuk_maskelemeden_once_denetlenir()
+    public async Task Denied_term_is_checked_before_masking()
     {
-        // Block > Mask: ikisi de eslesiyorsa engelleme kazanir.
+        // Block > Mask: when both match, blocking wins.
         var guard = Guard(options =>
         {
-            options.DeniedTerms.Add("gizli");
+            options.DeniedTerms.Add("secret");
             options.MaskedPii = PiiPatterns.CreditCard;
         });
 
-        var result = await Inspect(guard, "gizli kart 4539578763621486");
+        var result = await Inspect(guard, "secret card 4539578763621486");
 
         result.Action.ShouldBe(ContentGuardAction.Block);
     }
 
     [Fact]
-    public async Task Maske_metni_yapilandirilabilir()
+    public async Task Mask_text_is_configurable()
     {
         var guard = Guard(options =>
         {
@@ -187,17 +188,18 @@ public sealed class PatternContentGuardTests
             options.MaskReplacement = "<PII>";
         });
 
-        var result = await Inspect(guard, "ali@ornek.com");
+        var result = await Inspect(guard, "ali@example.com");
 
         result.MaskedText.ShouldBe("<PII>");
     }
 
     [Fact]
-    public async Task Patolojik_girdi_calistirmayi_kilitlemez()
+    public async Task Pathological_input_does_not_hang_the_run()
     {
-        // Her desen 1000 ms zaman asimi tasir; ReDoS'a karsi tek savunma budur.
-        // Bu test asilmayi degil, sicak yolun makul surede DONMESINI olcer:
-        // desen ya eslesir ya zaman asimina ugrar, ama sonsuza kadar donmez.
+        // Every pattern carries a 1000 ms timeout; this is the only defense
+        // against ReDoS. This test does not measure whether it throws, it
+        // measures that the hot path RETURNS in a reasonable time: a pattern
+        // either matches or times out, but it never spins forever.
         var guard = Guard(options => options.MaskedPii =
             PiiPatterns.Email | PiiPatterns.Iban | PiiPatterns.CreditCard |
             PiiPatterns.TurkishNationalId | PiiPatterns.ProviderApiKey);
@@ -211,7 +213,7 @@ public sealed class PatternContentGuardTests
         }
         catch (RegexMatchTimeoutException)
         {
-            // Kabul edilebilir sonuc: zaman asimi calistirmayi dusurur, kilitlemez.
+            // An acceptable outcome: the timeout fails the run, it does not hang it.
         }
 
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));

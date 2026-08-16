@@ -8,18 +8,18 @@ namespace AgentPrism.Core.UnitTests.Evaluation;
 
 public sealed class EvalJobHandlerTests
 {
-    private const string TenantId = "kiraci";
-    private const string AgentName = "musteri-destek-agent";
+    private const string TenantId = "tenant";
+    private const string AgentName = "customer-support-agent";
 
     [Fact]
-    public void Kind_Eval_dir()
+    public void Kind_is_Eval()
     {
         var handler = CreateHandler(new InMemoryEvalStore(), new MapAgent());
         handler.Kind.ShouldBe(JobKind.Eval);
     }
 
     [Fact]
-    public async Task Takim_bulunamazsa_istisna_firlatir_ve_calisan_denenmez()
+    public async Task Missing_suite_throws_and_the_run_is_never_attempted()
     {
         var evalStore = new InMemoryEvalStore();
         var handler = CreateHandler(evalStore, new MapAgent());
@@ -29,13 +29,13 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Kosu_kaydi_yoksa_istisna_firlatir()
+    public async Task Missing_run_record_throws()
     {
         var evalStore = new InMemoryEvalStore();
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
         var handler = CreateHandler(evalStore, new MapAgent());
 
-        // Kosu kaydi olusturulmadan dogrudan yurutuluyor.
+        // Executed directly without creating a run record.
         var context = new JobContext
         {
             Job = Job(suite, Guid.NewGuid(), []),
@@ -48,14 +48,14 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Tum_vakalar_gecince_kosu_tamamlanir()
+    public async Task Run_completes_when_all_cases_pass()
     {
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
         var handler = CreateHandler(evalStore, agent);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
-        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("birinci soru"), CaseInput("ikinci soru")]);
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("first question"), CaseInput("second question")]);
 
         var reported = new List<JobItemResult>();
         var jobId = Guid.NewGuid();
@@ -83,18 +83,18 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Denetimi_gecmeyen_vaka_basarisiz_raporlanir()
+    public async Task Case_that_fails_the_check_is_reported_as_failed()
     {
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
-        agent.Responses["kotu soru"] = "alakasiz";
+        agent.Responses["bad question"] = "irrelevant";
         var handler = CreateHandler(evalStore, agent);
 
         var suite = await evalStore.SaveSuiteAsync(
             Suite(Checks("""[{"kind":"containsExpected","caseSensitive":false}]""")));
         var cases = await evalStore.ReplaceCasesAsync(
             suite.Id,
-            [new EvalCase { SuiteId = suite.Id, Seq = 0, Query = "kotu soru", ExpectedOutput = "beklenen-kelime" }]);
+            [new EvalCase { SuiteId = suite.Id, Seq = 0, Query = "bad question", ExpectedOutput = "expected-word" }]);
 
         var jobId = Guid.NewGuid();
         var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
@@ -118,14 +118,14 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Iptal_edilen_kosu_cancelled_olarak_kapanir()
+    public async Task Cancelled_run_closes_as_cancelled()
     {
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
         var handler = CreateHandler(evalStore, agent);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
-        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("birinci"), CaseInput("ikinci")]);
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("first"), CaseInput("second")]);
         var jobId = Guid.NewGuid();
         var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
 
@@ -153,16 +153,16 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Numrepetitions_bir_tekrar_basarisizsa_vaka_basarisiz_sayilir()
+    public async Task NumRepetitions_case_is_counted_failed_when_one_repetition_fails()
     {
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
-        var responses = new Queue<string>(["yeterince uzun cevap", "ks"]);
+        var responses = new Queue<string>(["a long enough answer", "sh"]);
         agent.ResponseFactory = _ => responses.Dequeue();
         var handler = CreateHandler(evalStore, agent);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":5}]""")));
-        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("soru")]);
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("question")]);
         var jobId = Guid.NewGuid();
         var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
         var reported = new List<JobItemResult>();
@@ -183,7 +183,7 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Payloaddaki_surum_pinlenir_ve_o_surume_karsi_calisir()
+    public async Task Version_in_the_payload_is_pinned_and_run_against_that_version()
     {
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
@@ -191,7 +191,7 @@ public sealed class EvalJobHandlerTests
         var handler = new EvalJobHandler(evalStore, catalog, new EvalCheckRegistry([]), NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
-        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("soru")]);
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("question")]);
         var jobId = Guid.NewGuid();
         var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
         var reported = new List<JobItemResult>();
@@ -205,8 +205,8 @@ public sealed class EvalJobHandlerTests
 
         await handler.ExecuteAsync(context);
 
-        // Katalogun guncel surumu 7 olsa da, payload'daki 3 pinlenir: eval bir
-        // varyanta degil, sabit bir surume karsi calisir.
+        // Even though the catalog's current version is 7, the 3 in the payload
+        // is pinned: eval runs against a fixed version, not a moving target.
         catalog.LastRequestedVersion.ShouldBe(3);
 
         var completed = await evalStore.GetRunAsync(TenantId, run.Id);
@@ -226,7 +226,7 @@ public sealed class EvalJobHandlerTests
     private static EvalSuite Suite(JsonElement checks) => new()
     {
         TenantId = TenantId,
-        Name = "musteri-destek-takimi",
+        Name = "customer-support-suite",
         AgentName = AgentName,
         Checks = checks,
     };
@@ -261,7 +261,7 @@ public sealed class EvalJobHandlerTests
         Kind = JobKind.Eval,
         TargetName = suite?.AgentName ?? AgentName,
         Status = JobStatus.Running,
-        Payload = Payload(suite?.Name ?? "yok-boyle-takim"),
+        Payload = Payload(suite?.Name ?? "no-such-suite"),
         TotalItems = items.Count,
         ScheduledFor = DateTimeOffset.UtcNow,
         CreatedAt = DateTimeOffset.UtcNow,
@@ -320,7 +320,7 @@ public sealed class EvalJobHandlerTests
         public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
             => new(string.Equals(agentName, AgentName, StringComparison.Ordinal) ? agent : null);
 
-        /// <summary>Son <see cref="ResolveAsync(string, int?, CancellationToken)"/> cagrisinin surumu.</summary>
+        /// <summary>The version from the last <see cref="ResolveAsync(string, int?, CancellationToken)"/> call.</summary>
         public int? LastRequestedVersion { get; private set; }
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
@@ -330,7 +330,7 @@ public sealed class EvalJobHandlerTests
         }
     }
 
-    /// <summary>Girdiye gore yapilandirilabilir cevap ureten en kucuk sahte agent.</summary>
+    /// <summary>The smallest fake agent that produces a configurable response based on input.</summary>
     private sealed class MapAgent : AIAgent
     {
         public Dictionary<string, string> Responses { get; } = new(StringComparer.Ordinal);
@@ -341,7 +341,7 @@ public sealed class EvalJobHandlerTests
 
         public override string Name => AgentName;
 
-        public override string? Description => "test icin";
+        public override string? Description => "for testing";
 
         protected override Task<AgentResponse> RunCoreAsync(
             IEnumerable<ChatMessage> messages,
@@ -353,7 +353,7 @@ public sealed class EvalJobHandlerTests
             Calls.Add(query);
 
             var text = ResponseFactory?.Invoke(query)
-                ?? (Responses.TryGetValue(query, out var configured) ? configured : $"yeterince uzun cevap: {query}");
+                ?? (Responses.TryGetValue(query, out var configured) ? configured : $"long enough answer: {query}");
 
             return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, text)));
         }

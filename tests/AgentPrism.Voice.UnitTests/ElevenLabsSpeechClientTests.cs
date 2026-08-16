@@ -5,38 +5,38 @@ using Shouldly;
 namespace AgentPrism.Voice.UnitTests;
 
 /// <summary>
-/// ElevenLabs istemcisinin HTTP sozlesmesini sahte bir isleyiciyle dogrular.
-/// Gercek saglayiciya HICBIR test cikmaz.
+/// Verifies the ElevenLabs client's HTTP contract with a fake handler.
+/// NO test reaches the real provider.
 /// </summary>
 public sealed class ElevenLabsSpeechClientTests
 {
-    /// <summary>Gecerli bir MP3 basligi: ID3 etiketi + en az bir bayt.</summary>
+    /// <summary>A valid MP3 header: ID3 tag + at least one byte.</summary>
     private static readonly byte[] Mp3Bytes = [0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
     [Fact]
-    public async Task Seslendirme_dogru_yola_ve_basliga_gider()
+    public async Task Synthesis_goes_to_the_right_path_and_header()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
-        using var client = CreateClient(handler, options => options.ApiKey = "SAHTE-ANAHTAR-123");
+        using var client = CreateClient(handler, options => options.ApiKey = "FAKE-KEY-123");
 
-        _ = await client.SynthesizeAsync(new SpeechRequest { Text = "merhaba" }, TestContext.Current.CancellationToken);
+        _ = await client.SynthesizeAsync(new SpeechRequest { Text = "hello" }, TestContext.Current.CancellationToken);
 
         var request = handler.Requests.ShouldHaveSingleItem();
         request.Method.ShouldBe(HttpMethod.Post);
-        request.Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/ses-1");
+        request.Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/voice-1");
         request.Uri.Query.ShouldContain("output_format=mp3_44100_128");
 
-        // 🚨 Kimlik dogrulama basligi `xi-api-key`; `Authorization: Bearer` DEGIL.
+        // 🚨 The authentication header is `xi-api-key`; NOT `Authorization: Bearer`.
         request.Headers.ShouldContainKey("xi-api-key");
         request.Headers.ShouldNotContainKey("Authorization");
 
         request.ContentType.ShouldBe("application/json");
         request.Body.ShouldNotBeNull();
-        request.Body.ShouldContain("\"text\":\"merhaba\"");
+        request.Body.ShouldContain("\"text\":\"hello\"");
     }
 
     [Fact]
-    public async Task Akisli_seslendirme_stream_yoluna_gider_ve_parcalari_dondurur()
+    public async Task Streaming_synthesis_goes_to_the_stream_path_and_returns_chunks()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
         using var client = CreateClient(handler);
@@ -44,24 +44,24 @@ public sealed class ElevenLabsSpeechClientTests
         var chunks = new List<int>();
 
         await foreach (var chunk in client.SynthesizeStreamingAsync(
-                           new SpeechRequest { Text = "merhaba" },
+                           new SpeechRequest { Text = "hello" },
                            TestContext.Current.CancellationToken))
         {
             chunks.Add(chunk.Length);
         }
 
         chunks.Sum().ShouldBe(Mp3Bytes.Length);
-        handler.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/ses-1/stream");
+        handler.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/voice-1/stream");
     }
 
     [Fact]
-    public async Task Ses_listesi_v2_ucundan_okunur_ve_ada_gore_siralanir()
+    public async Task Voice_list_is_read_from_the_v2_endpoint_and_sorted_by_name()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
             """
             {"voices":[
-              {"voice_id":"b","name":"Zeynep","category":"premade"},
-              {"voice_id":"a","name":"Ahmet","category":"cloned"}
+              {"voice_id":"b","name":"Zoe","category":"premade"},
+              {"voice_id":"a","name":"Amy","category":"cloned"}
             ]}
             """));
 
@@ -69,20 +69,20 @@ public sealed class ElevenLabsSpeechClientTests
 
         var voices = await client.ListVoicesAsync(TestContext.Current.CancellationToken);
 
-        // 🚨 v2: `/v1/voices` eski yuzeydir.
+        // 🚨 v2: `/v1/voices` is the legacy surface.
         handler.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe("/v2/voices");
 
         voices.Count.ShouldBe(2);
-        voices[0].Name.ShouldBe("Ahmet");
-        voices[1].Name.ShouldBe("Zeynep");
+        voices[0].Name.ShouldBe("Amy");
+        voices[1].Name.ShouldBe("Zoe");
         voices[1].VoiceId.ShouldBe("b");
     }
 
     [Fact]
-    public async Task Cozum_multipart_govdeyle_gonderilir()
+    public async Task Transcript_is_sent_with_a_multipart_body()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
-            """{"text":"merhaba dunya","language_code":"tr","language_probability":0.98,"audio_duration_secs":3.5}"""));
+            """{"text":"hello world","language_code":"en","language_probability":0.98,"audio_duration_secs":3.5}"""));
 
         using var client = CreateClient(handler);
         using var audio = new MemoryStream(Mp3Bytes);
@@ -95,25 +95,25 @@ public sealed class ElevenLabsSpeechClientTests
         var request = handler.Requests.ShouldHaveSingleItem();
         request.Uri.AbsolutePath.ShouldBe("/v1/speech-to-text");
 
-        // 🚨 Uc JSON govdesi KABUL ETMEZ; multipart zorunludur.
+        // 🚨 The endpoint does NOT accept a JSON body; multipart is required.
         request.ContentType.ShouldBe("multipart/form-data");
         request.Body.ShouldNotBeNull();
         request.Body.ShouldContain("model_id");
 
-        transcript.Text.ShouldBe("merhaba dunya");
-        transcript.LanguageCode.ShouldBe("tr");
+        transcript.Text.ShouldBe("hello world");
+        transcript.LanguageCode.ShouldBe("en");
         transcript.AudioDuration.ShouldBe(TimeSpan.FromSeconds(3.5));
     }
 
     [Fact]
-    public async Task Ses_kimligi_yoksa_hata_acik_olur()
+    public async Task Error_is_explicit_when_there_is_no_voice_id()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
         using var client = CreateClient(handler, options => options.DefaultVoiceId = null);
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await client.SynthesizeAsync(
-                new SpeechRequest { Text = "merhaba" },
+                new SpeechRequest { Text = "hello" },
                 TestContext.Current.CancellationToken));
 
         exception.Message.ShouldContain("DefaultVoiceId");
@@ -121,42 +121,42 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
-    public async Task Basarisiz_yanit_govdeyi_hataya_TASIMAZ()
+    public async Task Failed_response_body_does_NOT_carry_over_into_the_error()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
         {
-            // Saglayicinin govdesi istegi (ve bazen anahtar parcasini) yankilar.
-            Content = new StringContent("""{"detail":"invalid api key SAHTE-ANAHTAR-123 for gizli-metin"}"""),
+            // The provider's body echoes the request (and sometimes a piece of the key).
+            Content = new StringContent("""{"detail":"invalid api key FAKE-KEY-123 for secret-text"}"""),
         });
 
-        using var client = CreateClient(handler, options => options.ApiKey = "SAHTE-ANAHTAR-123");
+        using var client = CreateClient(handler, options => options.ApiKey = "FAKE-KEY-123");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await client.SynthesizeAsync(
-                new SpeechRequest { Text = "gizli-metin" },
+                new SpeechRequest { Text = "secret-text" },
                 TestContext.Current.CancellationToken));
 
         exception.Message.ShouldContain("401");
-        exception.Message.ShouldNotContain("SAHTE-ANAHTAR-123");
-        exception.Message.ShouldNotContain("gizli-metin");
+        exception.Message.ShouldNotContain("FAKE-KEY-123");
+        exception.Message.ShouldNotContain("secret-text");
     }
 
     [Fact]
-    public async Task Saglayici_karakter_bildirmezse_olcum_TAHMIN_isaretlenir()
+    public async Task Usage_is_marked_ESTIMATED_when_the_provider_does_not_report_a_character_count()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
         using var client = CreateClient(handler);
 
         var audio = await client.SynthesizeAsync(
-            new SpeechRequest { Text = "yedi harf" },
+            new SpeechRequest { Text = "seven chars" },
             TestContext.Current.CancellationToken);
 
         audio.UsageSource.ShouldBe(SpeechUsageSource.Estimated);
-        audio.CharactersBilled.ShouldBe("yedi harf".Length);
+        audio.CharactersBilled.ShouldBe("seven chars".Length);
     }
 
     [Fact]
-    public async Task Saglayici_karakter_bildirirse_olcum_SAGLAYICI_isaretlenir()
+    public async Task Usage_is_marked_PROVIDER_when_the_provider_reports_a_character_count()
     {
         var handler = new StubHttpMessageHandler(_ =>
         {
@@ -168,7 +168,7 @@ public sealed class ElevenLabsSpeechClientTests
         using var client = CreateClient(handler);
 
         var audio = await client.SynthesizeAsync(
-            new SpeechRequest { Text = "merhaba" },
+            new SpeechRequest { Text = "hello" },
             TestContext.Current.CancellationToken);
 
         audio.UsageSource.ShouldBe(SpeechUsageSource.Provider);
@@ -176,10 +176,10 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
-    public async Task Saglik_denetimi_ses_listesini_okur_ve_ucret_uretmez()
+    public async Task Health_check_reads_the_voice_list_and_produces_no_charge()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
-            """{"voices":[{"voice_id":"a","name":"Ahmet"}]}"""));
+            """{"voices":[{"voice_id":"a","name":"Amy"}]}"""));
 
         using var client = CreateClient(handler);
 
@@ -191,7 +191,7 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
-    public async Task Saglik_denetimi_basarisizken_ne_anahtar_ne_adres_sizdirir()
+    public async Task Health_check_leaks_neither_key_nor_address_when_it_fails()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)
         {
@@ -202,35 +202,35 @@ public sealed class ElevenLabsSpeechClientTests
             handler,
             options =>
             {
-                options.ApiKey = "SAHTE-ANAHTAR-123";
-                options.Endpoint = new Uri("https://gizli-sunucu.ornek/");
+                options.ApiKey = "FAKE-KEY-123";
+                options.Endpoint = new Uri("https://secret-server.example/");
             });
 
         var health = await client.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         health.IsHealthy.ShouldBeFalse();
         health.Detail.ShouldNotBeNull();
-        health.Detail.ShouldNotContain("SAHTE-ANAHTAR-123");
-        health.Detail.ShouldNotContain("gizli-sunucu");
+        health.Detail.ShouldNotContain("FAKE-KEY-123");
+        health.Detail.ShouldNotContain("secret-server");
     }
 
     [Fact]
-    public void Bicim_MIME_turune_dogru_cevrilir()
+    public void Format_is_converted_to_the_correct_MIME_type()
     {
         ElevenLabsSpeechClient.MediaTypeForFormat("mp3_44100_128").ShouldBe("audio/mpeg");
         ElevenLabsSpeechClient.MediaTypeForFormat("opus_48000_128").ShouldBe("audio/ogg");
         ElevenLabsSpeechClient.MediaTypeForFormat("wav_44100").ShouldBe("audio/wav");
 
-        // Bilinmeyen bicim sessizce yanlis bir tur DEGIL, saklanamaz bir tur verir.
+        // An unknown format yields a type that cannot hide, NOT a silently wrong one.
         ElevenLabsSpeechClient.MediaTypeForFormat("pcm_16000").ShouldBe("application/octet-stream");
     }
 
     [Fact]
-    public void Taban_adres_egik_cizgisiz_verilse_de_son_parca_korunur()
+    public void Trailing_segment_is_kept_even_when_the_base_address_has_no_trailing_slash()
     {
-        var combined = ElevenLabsSpeechClient.Combine(new Uri("https://ornek.test/vekil"), "v2/voices");
+        var combined = ElevenLabsSpeechClient.Combine(new Uri("https://example.test/proxy"), "v2/voices");
 
-        combined.ToString().ShouldBe("https://ornek.test/vekil/v2/voices");
+        combined.ToString().ShouldBe("https://example.test/proxy/v2/voices");
     }
 
     private static ElevenLabsSpeechClient CreateClient(
@@ -239,8 +239,8 @@ public sealed class ElevenLabsSpeechClientTests
     {
         var options = new VoiceOptions
         {
-            ApiKey = "SAHTE-ANAHTAR",
-            DefaultVoiceId = "ses-1",
+            ApiKey = "FAKE-KEY",
+            DefaultVoiceId = "voice-1",
         };
 
         configure?.Invoke(options);

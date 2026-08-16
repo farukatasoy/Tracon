@@ -6,17 +6,17 @@ using Microsoft.Extensions.Primitives;
 namespace AgentPrism.Mcp.UnitTests;
 
 /// <summary>
-/// HATA-006 / MT-CORE-006: aktif baglanti reddi ("connection refused") ile
-/// gercek zaman asimi ayni sekilde ele alinmalidir — ikisi de
-/// <see cref="McpRefreshOutcome.HadUnreachableServers"/>'i <see langword="true"/>
-/// yapmalidir. Once bu kusur, yalniz zaman asiminda calisiyordu; aktif red
-/// sessizce "basarili" bir tazeleme sayiliyordu (o sunucunun tool'lari
-/// sadece listeden dusuyordu, bir sinyal uretmiyordu).
+/// HATA-006 / MT-CORE-006: an active connection refusal ("connection refused") and
+/// a real timeout must be handled the same way — both must make
+/// <see cref="McpRefreshOutcome.HadUnreachableServers"/> <see langword="true"/>.
+/// Previously, this defect only fired on timeout; an active refusal was
+/// silently counted as a "successful" refresh (that server's tools just
+/// dropped off the list, producing no signal).
 /// </summary>
 public sealed class McpToolCatalogReachabilityTests
 {
     [Fact]
-    public async Task Baglanti_reddedilen_sunucu_HadUnreachableServers_true_yapar()
+    public async Task Server_with_refused_connection_makes_HadUnreachableServers_true()
     {
         var servers = new InMemoryMcpServerStore();
 
@@ -25,9 +25,9 @@ public sealed class McpToolCatalogReachabilityTests
             {
                 Id = Guid.NewGuid(),
                 TenantId = "default",
-                Name = "olu-mcp",
-                // 🚨 Hicbir sey dinlemiyor: baglanti isletim sistemi tarafindan
-                // ANINDA reddedilir (ECONNREFUSED) — zaman asimini beklemez.
+                Name = "dead-mcp",
+                // 🚨 Nothing is listening: the connection is refused
+                // IMMEDIATELY by the operating system (ECONNREFUSED) — it does not wait for a timeout.
                 Endpoint = new Uri("http://127.0.0.1:59999/mcp"),
             },
             CancellationToken.None);
@@ -48,7 +48,7 @@ public sealed class McpToolCatalogReachabilityTests
     }
 
     [Fact]
-    public async Task Kayitli_sunucu_yokken_HadUnreachableServers_false_kalir()
+    public async Task HadUnreachableServers_stays_false_when_no_server_is_registered()
     {
         var catalog = new McpToolCatalog(
             new InMemoryMcpServerStore(),
@@ -66,9 +66,9 @@ public sealed class McpToolCatalogReachabilityTests
     }
 
     /// <summary>
-    /// Hicbir anahtar tasimayan sahte yapilandirma. MCP kesfi kayitli anahtar
-    /// gerektirmedigi surece bu tip yalniz bir kurucu bagimliligini doldurmak
-    /// icindir (bkz. <c>McpDiscoverySingletonTests</c>).
+    /// A fake configuration that carries no keys. As long as MCP discovery does not
+    /// require a registered key, this type only exists to fill a constructor dependency
+    /// (see <c>McpDiscoverySingletonTests</c>).
     /// </summary>
     private sealed class EmptyConfiguration : IConfiguration
     {

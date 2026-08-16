@@ -2,21 +2,21 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
-/// <summary>Cevrimici degerlendirme is isleyicisinin testleri (Faz 49).</summary>
+/// <summary>Tests for the online evaluation job handler (Phase 49).</summary>
 public sealed class OnlineEvalJobHandlerTests
 {
     private const string Tenant = "acme";
     private const string Agent = "support";
 
     [Fact]
-    public void Kind_OnlineEval_dir()
+    public void Kind_is_OnlineEval()
     {
         var handler = BuildHandler(new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant)), new InMemoryRunInputStore(), new InMemoryRunScoreStore(), []);
         handler.Kind.ShouldBe(JobKind.OnlineEval);
     }
 
     [Fact]
-    public async Task Calistirma_bulunamazsa_hata_uretmez_ve_puan_yazmaz()
+    public async Task Missing_run_produces_no_error_and_writes_no_score()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var scores = new InMemoryRunScoreStore();
@@ -32,7 +32,7 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Run_inputs_kaydi_yoksa_orneklenmez_hata_uretmez()
+    public async Task No_sampling_and_no_error_when_run_inputs_record_is_missing()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var runId = await SeedRunAsync(runs, withOutput: true);
@@ -48,7 +48,7 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Kayitli_yargic_yoksa_hicbir_sey_yazilmaz()
+    public async Task Nothing_is_written_when_no_judge_is_registered()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
@@ -65,7 +65,7 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Cikti_okunamiyorsa_puan_yazilmaz()
+    public async Task No_score_is_written_when_the_output_cannot_be_read()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
@@ -82,7 +82,7 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Puan_dogru_alanlarla_yazilir()
+    public async Task Score_is_written_with_the_correct_fields()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
@@ -93,7 +93,7 @@ public sealed class OnlineEvalJobHandlerTests
             runs,
             inputs,
             scores,
-            [new ScriptedJudge("model", static _ => new RunJudgment { Score = 42, Reason = "gerekce" })]);
+            [new ScriptedJudge("model", static _ => new RunJudgment { Score = 42, Reason = "reason" })]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -103,13 +103,13 @@ public sealed class OnlineEvalJobHandlerTests
         var saved = (await scores.ListAsync(Tenant, runId)).Single();
         saved.Kind.ShouldBe(RunScoreKind.Numeric);
         saved.Value.ShouldBe(42);
-        saved.Comment.ShouldBe("gerekce");
+        saved.Comment.ShouldBe("reason");
         saved.Source.ShouldBe("judge:model");
         saved.Author.ShouldBe("judge:model");
     }
 
     [Fact]
-    public async Task Karar_verilemeyen_yargic_sessiz_sifir_yazmaz()
+    public async Task Judge_that_cannot_decide_does_not_silently_write_zero()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
@@ -120,7 +120,7 @@ public sealed class OnlineEvalJobHandlerTests
             runs,
             inputs,
             scores,
-            [new ScriptedJudge("model", static _ => new RunJudgment { Score = null, Reason = "belirsiz" })]);
+            [new ScriptedJudge("model", static _ => new RunJudgment { Score = null, Reason = "unclear" })]);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(ExecutionContext(runId, reported));
@@ -129,14 +129,14 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
-    public async Task Bir_yargic_hata_verirse_is_geri_adimli_yeniden_denenir_digeri_yine_de_yazar()
+    public async Task Job_is_retried_with_backoff_when_one_judge_fails_and_the_other_still_writes()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
         var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
 
-        var okJudge = new ScriptedJudge("iyi", static _ => new RunJudgment { Score = 70 });
-        var badJudge = new ScriptedJudge("kotu", static _ => throw new InvalidOperationException("model coktu"));
+        var okJudge = new ScriptedJudge("good", static _ => new RunJudgment { Score = 70 });
+        var badJudge = new ScriptedJudge("bad", static _ => throw new InvalidOperationException("model crashed"));
 
         var scores = new InMemoryRunScoreStore();
         var handler = BuildHandler(runs, inputs, scores, [okJudge, badJudge]);
@@ -148,16 +148,16 @@ public sealed class OnlineEvalJobHandlerTests
         exception.RetryAfter.ShouldNotBeNull();
         exception.RetryAfter!.Value.ShouldBeGreaterThan(TimeSpan.Zero);
 
-        // Basarili yargicin puani, is yeniden denense de KAYITLIDIR.
+        // The successful judge's score is RECORDED even though the job is retried.
         var saved = (await scores.ListAsync(Tenant, runId)).Single();
-        saved.Source.ShouldBe("judge:iyi");
+        saved.Source.ShouldBe("judge:good");
 
-        // Is basarisiz oldugu icin oge hic raporlanmadi (Pending kalir).
+        // Because the job failed, the item was never reported (stays Pending).
         reported.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task JudgeRunAsync_ikinci_kez_cagrilinca_ayni_yargicin_satiri_guncellenir_ikiye_katlanmaz()
+    public async Task JudgeRunAsync_called_twice_updates_the_same_judges_row_instead_of_duplicating()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
         var inputs = new InMemoryRunInputStore();
@@ -197,7 +197,7 @@ public sealed class OnlineEvalJobHandlerTests
             {
                 RunId = runId,
                 TenantId = Tenant,
-                Messages = [new ChatMessage(ChatRole.User, "merhaba")],
+                Messages = [new ChatMessage(ChatRole.User, "hello")],
                 CreatedAt = now,
             });
         }
@@ -210,7 +210,7 @@ public sealed class OnlineEvalJobHandlerTests
                 Sequence = 0,
                 Type = RunEventType.MessageCompleted,
                 Timestamp = now,
-                Text = "cevap metni",
+                Text = "answer text",
             });
         }
 

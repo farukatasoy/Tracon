@@ -3,25 +3,25 @@ using Testcontainers.MsSql;
 namespace AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tum entegrasyon testlerinin paylastigi tek kullanimlik SQL Server container'i.
+/// The disposable SQL Server container shared by all integration tests.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Hicbir test uzak veya paylasilan bir sunucuya baglanmaz.</strong>
-/// Testcontainers her calistirmada yerel bir container ayaga kaldirir ve sonunda
-/// yok eder.
+/// <strong>No test connects to a remote or shared server.</strong>
+/// Testcontainers starts a local container on every run and tears it down
+/// afterward.
 /// </para>
 /// <para>
-/// Container tum derleme icin bir kez baslar; sema sozlesme test SINIFI basina
-/// paylasilir (bkz. <see cref="SqlServerSchemaFixture"/>, <see cref="SqlServerTestContext"/>),
-/// testler arasi izolasyon veri sifirlamayla saglanir (K-390). Migrasyon
-/// kilidi de artik veritabani genelinde degil semaya kapsanmistir (K-389); bu
-/// ikisi birlikte 29 sinif fixture'inin migrasyonlarinin PARALEL kosmasini
-/// saglar.
+/// The container starts once for the whole assembly; the schema is shared per
+/// contract test CLASS (see <see cref="SqlServerSchemaFixture"/>,
+/// <see cref="SqlServerTestContext"/>), and isolation between tests is
+/// achieved by resetting data (K-390). The migration lock is also now scoped
+/// to the schema rather than the whole database (K-389); together these two
+/// let the 29 class fixtures run their migrations in PARALLEL.
 /// </para>
 /// <para>
-/// 🚨 SQL Server container'i ~2 GB bellek ister; PostgreSQL imajindan belirgin
-/// olarak agirdir. CI is tanimlarinda kaynak siniri kontrol edilmelidir.
+/// 🚨 The SQL Server container needs ~2 GB of memory; it is noticeably heavier
+/// than the PostgreSQL image. Check the resource limit in CI job definitions.
 /// </para>
 /// </remarks>
 public sealed class SqlServerFixture : IAsyncLifetime
@@ -31,7 +31,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
             .WithCleanUp(true)
             .Build();
 
-    /// <summary>Calisan container'in baglanti dizesi.</summary>
+    /// <summary>Gets the connection string of the running container.</summary>
     public string ConnectionString => _container.GetConnectionString();
 
     /// <inheritdoc />

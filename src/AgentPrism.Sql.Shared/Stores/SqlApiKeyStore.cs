@@ -17,7 +17,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
     /// <summary>Creates a new API key store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="timeProvider">The time source. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlApiKeyStore(SqlStoreContext context, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(context);

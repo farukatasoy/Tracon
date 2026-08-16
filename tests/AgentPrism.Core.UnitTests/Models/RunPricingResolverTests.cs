@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Models;
 
-/// <summary>Maliyet cozumlemesinin fiyat sirasini ve yuvarlama davranisini dogrular.</summary>
+/// <summary>Verifies the price precedence order and rounding behavior of cost resolution.</summary>
 public sealed class RunPricingResolverTests
 {
     [Fact]
-    public void Model_veya_kullanim_yoksa_null_doner()
+    public void Returns_null_when_there_is_no_model_or_usage()
     {
         var resolver = CreateResolver();
 
@@ -16,7 +16,7 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Katalog_fiyati_yapilandirma_fiyatindan_once_gelir()
+    public void Catalog_price_takes_precedence_over_configuration_price()
     {
         var provider = new FakeModelProvider(name: "openai", models:
         [
@@ -46,7 +46,7 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Katalogda_fiyat_yoksa_yapilandirma_kullanilir()
+    public void Configuration_is_used_when_the_catalog_has_no_price()
     {
         var provider = new FakeModelProvider(name: "openai", models:
         [
@@ -75,7 +75,7 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Fiyat_hicbir_yerde_yoksa_maliyet_null_sifir_degil()
+    public void Cost_is_null_not_zero_when_no_price_exists_anywhere()
     {
         var provider = new FakeModelProvider(name: "openai", models: [new ModelDescriptor { Name = "gpt-x" }]);
         var resolver = CreateResolver(providers: [provider]);
@@ -89,20 +89,20 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Bilinmeyen_model_de_unknown_doner()
+    public void Unknown_model_also_returns_Unknown()
     {
         var resolver = CreateResolver();
 
-        var cost = resolver.Resolve("openai", "hic-boyle-model-yok", Usage(1, 1));
+        var cost = resolver.Resolve("openai", "no-such-model", Usage(1, 1));
 
         cost.ShouldNotBeNull();
         cost.Source.ShouldBe(PricingSource.Unknown);
     }
 
     [Fact]
-    public void Saglayici_verilmezse_katalogda_alfabetik_ilk_eslesen_kullanilir()
+    public void First_alphabetical_catalog_match_is_used_when_no_provider_is_given()
     {
-        var first = new FakeModelProvider(name: "alfa-provider", models:
+        var first = new FakeModelProvider(name: "alpha-provider", models:
         [
             new ModelDescriptor { Name = "shared-model", InputCostPerMillionTokens = 1m },
         ]);
@@ -119,7 +119,7 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Saglayici_verilmezse_yapilandirmada_alfabetik_ilk_eslesen_kullanilir()
+    public void First_alphabetical_configuration_match_is_used_when_no_provider_is_given()
     {
         var resolver = CreateResolver(pricing: new AgentPrismPricingOptions
         {
@@ -129,7 +129,7 @@ public sealed class RunPricingResolverTests
                 {
                     ["shared-model"] = new() { InputCostPerMillionTokens = 999m },
                 },
-                ["alfa-provider"] = new Dictionary<string, ModelPriceOverride>(StringComparer.OrdinalIgnoreCase)
+                ["alpha-provider"] = new Dictionary<string, ModelPriceOverride>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["shared-model"] = new() { InputCostPerMillionTokens = 3m },
                 },
@@ -143,7 +143,7 @@ public sealed class RunPricingResolverTests
     }
 
     [Fact]
-    public void Girdi_ve_cikti_fiyati_birbirinden_bagimsiz_hesaplanir()
+    public void Input_and_output_price_are_computed_independently()
     {
         var provider = new FakeModelProvider(name: "openai", models:
         [

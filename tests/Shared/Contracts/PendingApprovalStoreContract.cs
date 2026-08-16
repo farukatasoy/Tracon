@@ -1,27 +1,29 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IPendingApprovalStore"/> sozlesmesinin davranis testleri (Faz 55).
+/// Behavior tests for the <see cref="IPendingApprovalStore"/> contract (phase 55).
 /// </summary>
 /// <remarks>
-/// Bekleyen bir onay istegi bir <strong>guvenlik kaydidir</strong>: bir kiracinin
-/// operatoru baska kiracinin onayini goremez ve VEREMEZ. <see cref="TryDeleteAsync"/>
-/// kancasi buradaki mutasyon islemine — <see cref="IPendingApprovalStore.DecideAsync"/> —
-/// baglanir; anlami "silme" degil "karar verme"dir, ama iki yonlu yalitim
-/// denetiminin ihtiyaci ayni sekle sahiptir.
+/// A pending approval request is a <strong>security record</strong>: one
+/// tenant's operator cannot see, and must NOT be able to decide, another
+/// tenant's approval. The <see cref="TryDeleteAsync"/> hook is wired to the
+/// mutation operation here — <see cref="IPendingApprovalStore.DecideAsync"/> —
+/// its meaning is "decide", not "delete", but the two-way isolation check
+/// needs the same shape.
 /// </remarks>
 public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPendingApprovalStore>
 {
     /// <summary>
-    /// Bir onay istegi yazilmadan once, verilen kimlikte bir calistirma satiri acar.
+    /// Opens a run row at the given id before an approval request is written.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="runId">The run id.</param>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// SQL uygulamalarinda <c>pending_approvals.run_id</c> <c>runs</c> tablosuna
-    /// yabanci anahtardir (<c>RunInputStoreContract.PrepareRunAsync</c> ile AYNI
-    /// desen); bellek ici uygulamada boyle bir bag yoktur ve kanca hicbir sey yapmaz.
+    /// In the SQL implementations, <c>pending_approvals.run_id</c> is a
+    /// foreign key into the <c>runs</c> table (the SAME pattern as
+    /// <c>RunInputStoreContract.PrepareRunAsync</c>); the in-memory
+    /// implementation has no such link, and the hook does nothing.
     /// </remarks>
     protected virtual ValueTask PrepareRunAsync(Guid runId, string tenantId) => default;
 
@@ -56,17 +58,17 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     {
         AmbientTenant.TenantId = tenantId;
 
-        return await Store.DecideAsync((Guid)key, approved: true, "operator@ornek", Now);
+        return await Store.DecideAsync((Guid)key, approved: true, "operator@example", Now);
     }
 
     [Fact]
-    public async Task Olusturulan_istek_gecici_okunur()
+    public async Task Created_request_is_read_back()
     {
-        var approval = await ApprovalAsync("kiraci-a", "siparis-iptal");
+        var approval = await ApprovalAsync("tenant-a", "cancel-order");
 
         await Store.CreateAsync(approval);
 
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
         var loaded = await Store.GetAsync(approval.Id);
 
@@ -77,16 +79,16 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     }
 
     [Fact]
-    public async Task Listeleme_yalniz_bekleyen_istekleri_dondurur()
+    public async Task Listing_returns_only_pending_requests()
     {
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
-        var pending = await ApprovalAsync("kiraci-a", "bekleyen");
-        var decided = await ApprovalAsync("kiraci-a", "karara-baglanmis");
+        var pending = await ApprovalAsync("tenant-a", "pending");
+        var decided = await ApprovalAsync("tenant-a", "decided");
 
         await Store.CreateAsync(pending);
         await Store.CreateAsync(decided);
-        await Store.DecideAsync(decided.Id, approved: true, "operator@ornek", Now);
+        await Store.DecideAsync(decided.Id, approved: true, "operator@example", Now);
 
         var listed = (await Store.ListPendingAsync()).ShouldHaveSingleItem();
 
@@ -94,15 +96,15 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     }
 
     [Fact]
-    public async Task Karar_durumu_ve_aktoru_gunceller()
+    public async Task Deciding_updates_status_and_actor()
     {
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
-        var approval = await ApprovalAsync("kiraci-a", "siparis-iptal");
+        var approval = await ApprovalAsync("tenant-a", "cancel-order");
         await Store.CreateAsync(approval);
 
         var decidedAt = Now;
-        var applied = await Store.DecideAsync(approval.Id, approved: true, "operator@ornek", decidedAt);
+        var applied = await Store.DecideAsync(approval.Id, approved: true, "operator@example", decidedAt);
 
         applied.ShouldBeTrue();
 
@@ -110,32 +112,32 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
 
         loaded.ShouldNotBeNull();
         loaded.Status.ShouldBe(ApprovalStatus.Approved);
-        loaded.DecidedBy.ShouldBe("operator@ornek");
+        loaded.DecidedBy.ShouldBe("operator@example");
         loaded.DecidedAt.ShouldBe(decidedAt);
     }
 
     [Fact]
-    public async Task Ikinci_karar_reddedilir()
+    public async Task Second_decision_is_rejected()
     {
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
-        var approval = await ApprovalAsync("kiraci-a", "siparis-iptal");
+        var approval = await ApprovalAsync("tenant-a", "cancel-order");
         await Store.CreateAsync(approval);
 
-        (await Store.DecideAsync(approval.Id, approved: true, "operator-1@ornek", Now)).ShouldBeTrue();
-        (await Store.DecideAsync(approval.Id, approved: false, "operator-2@ornek", Now)).ShouldBeFalse();
+        (await Store.DecideAsync(approval.Id, approved: true, "operator-1@example", Now)).ShouldBeTrue();
+        (await Store.DecideAsync(approval.Id, approved: false, "operator-2@example", Now)).ShouldBeFalse();
 
-        // Ilk karar korunur; ikinci deneme UZERINE YAZMAZ.
-        (await Store.GetAsync(approval.Id))!.DecidedBy.ShouldBe("operator-1@ornek");
+        // The first decision is preserved; the second attempt does NOT overwrite it.
+        (await Store.GetAsync(approval.Id))!.DecidedBy.ShouldBe("operator-1@example");
     }
 
     [Fact]
-    public async Task Suresi_dolan_istek_kapatilir_ve_dondurulur()
+    public async Task Expired_request_is_closed_and_returned()
     {
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
-        var expired = (await ApprovalAsync("kiraci-a", "suresi-dolan")) with { ExpiresAt = Now - TimeSpan.FromMinutes(1) };
-        var fresh = (await ApprovalAsync("kiraci-a", "taze")) with { ExpiresAt = Now + TimeSpan.FromHours(1) };
+        var expired = (await ApprovalAsync("tenant-a", "expired")) with { ExpiresAt = Now - TimeSpan.FromMinutes(1) };
+        var fresh = (await ApprovalAsync("tenant-a", "fresh")) with { ExpiresAt = Now + TimeSpan.FromHours(1) };
 
         await Store.CreateAsync(expired);
         await Store.CreateAsync(fresh);
@@ -149,13 +151,13 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     }
 
     [Fact]
-    public async Task Sure_sonu_taramasi_max_sinirini_asmaz()
+    public async Task Expiry_scan_does_not_exceed_the_max_limit()
     {
-        AmbientTenant.TenantId = "kiraci-a";
+        AmbientTenant.TenantId = "tenant-a";
 
         for (var i = 0; i < 3; i++)
         {
-            var approval = (await ApprovalAsync("kiraci-a", $"suresi-dolan-{i}")) with
+            var approval = (await ApprovalAsync("tenant-a", $"expired-{i}")) with
             {
                 ExpiresAt = Now - TimeSpan.FromMinutes(1),
             };

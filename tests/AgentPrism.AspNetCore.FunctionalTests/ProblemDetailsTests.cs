@@ -18,8 +18,8 @@ public sealed class ProblemDetailsTests
 {
     public static TheoryData<string, HttpStatusCode> ManagementErrors => new()
     {
-        { "/agentprism/api/agents/yok-boyle", HttpStatusCode.NotFound },
-        { "/agentprism/api/sessions/yok-boyle", HttpStatusCode.NotFound },
+        { "/agentprism/api/agents/no-such-thing", HttpStatusCode.NotFound },
+        { "/agentprism/api/sessions/no-such-thing", HttpStatusCode.NotFound },
         { "/agentprism/api/runs/00000000-0000-0000-0000-000000000001", HttpStatusCode.NotFound },
     };
 
@@ -63,7 +63,7 @@ public sealed class ProblemDetailsTests
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents", UriKind.Relative),
-            new { name = "eksik-model" });
+            new { name = "missing-model" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
@@ -76,7 +76,7 @@ public sealed class ProblemDetailsTests
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/v1/responses", UriKind.Relative),
-            new { model = "yok-boyle", input = "merhaba" });
+            new { model = "no-such-thing", input = "hello" });
 
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
 

@@ -106,14 +106,14 @@ public sealed class RunFeedbackEndpointTests
             RunId = runId,
             AgentName = "test-agent",
             StartedAt = DateTimeOffset.UtcNow,
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
         });
 
         // "doesn't exist" and "belongs to another tenant" must return the
         // SAME 404; a separate message would leak the entity's existence.
-        using var missing = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(AgentPrismId.NewId()), "kiraci-b",
+        using var missing = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(AgentPrismId.NewId()), "tenant-b",
             new { kind = "Binary", value = 1 });
-        using var wrongTenant = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(runId), "kiraci-b",
+        using var wrongTenant = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(runId), "tenant-b",
             new { kind = "Binary", value = 1 });
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -123,7 +123,7 @@ public sealed class RunFeedbackEndpointTests
         var wrongTenantBody = await AgentPrismTestHost.ReadJsonAsync(wrongTenant);
         missingBody.GetProperty("title").GetString().ShouldBe(wrongTenantBody.GetProperty("title").GetString());
 
-        using var ownTenant = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(runId), "kiraci-a",
+        using var ownTenant = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(runId), "tenant-a",
             new { kind = "Binary", value = 1 });
 
         ownTenant.StatusCode.ShouldBe(HttpStatusCode.OK);

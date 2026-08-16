@@ -66,9 +66,13 @@ public sealed class SourceLanguageTests
         "src/AgentPrism.UI/frontend/src/locales/tr.ts",
     ];
 
-    /// <summary>The language picker labels its own entry in its own language.</summary>
+    /// <summary>
+    /// The language picker labels its own entry in its own language, and the
+    /// localization end-to-end test asserts the actual translated heading
+    /// text from <c>locales/tr.ts</c> (K-228) — both are legitimate Turkish.
+    /// </summary>
     private static readonly Regex AllowedLinePattern = new(
-        @"shell\.language\.tr",
+        @"shell\.language\.tr|Gösterge Paneli",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 

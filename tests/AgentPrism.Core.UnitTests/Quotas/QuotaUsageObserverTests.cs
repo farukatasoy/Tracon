@@ -5,10 +5,10 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Quotas;
 
 /// <summary>
-/// <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c> gozlemlenen
-/// olcerlerinin Faz 35 sozlesmesini dogrular: varsayilan kapalidir, aciksa
-/// deger kota kaydiyla eslesir, ardisik yoklamalar onbellek araligi icinde
-/// veritabanina gitmez.
+/// Validates the phase 35 contract of the <c>agentprism.quota.usage</c>/
+/// <c>agentprism.quota.limit</c> observable gauges: disabled by default; when
+/// enabled, the value matches the quota record; and consecutive polls within
+/// the cache interval do not hit the database.
 /// </summary>
 public sealed class QuotaUsageObserverTests
 {
@@ -16,7 +16,7 @@ public sealed class QuotaUsageObserverTests
     private const string Agent = "support";
 
     [Fact]
-    public void Kapaliyken_hicbir_olcum_uretilmez_ve_depoya_gidilmez()
+    public void No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
     {
         var tenants = new InMemoryTenantStore();
         var store = new CountingQuotaStore(new InMemoryQuotaStore());
@@ -32,14 +32,14 @@ public sealed class QuotaUsageObserverTests
         collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
         collector.Trigger(AgentPrismDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
 
-        // EnableQuotaUsageGauge kapaliyken onbellege HIC dokunulmaz: ne kiraci
-        // listesi ne kota sayaci sorgulanir.
+        // While EnableQuotaUsageGauge is disabled, the cache is NEVER touched:
+        // neither the tenant list nor the quota counters are queried.
         store.ListCalls.ShouldBe(0);
         store.UsageCalls.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Aciklandiginda_deger_kota_kaydiyla_esler()
+    public async Task Value_matches_the_quota_record_when_enabled()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
         var (store, tenants) = await SeedAsync(clock, maxRuns: 100, maxTokens: 5000);
@@ -77,7 +77,7 @@ public sealed class QuotaUsageObserverTests
     }
 
     [Fact]
-    public async Task Devre_disi_kural_gostergede_gorunmez()
+    public async Task Disabled_rule_does_not_appear_in_the_gauge()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10, enabled: false);
@@ -96,7 +96,7 @@ public sealed class QuotaUsageObserverTests
     }
 
     [Fact]
-    public async Task Ardisik_on_yoklama_bir_veritabani_sorgusu_uretir()
+    public async Task Ten_consecutive_polls_produce_one_database_query()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
@@ -125,7 +125,7 @@ public sealed class QuotaUsageObserverTests
 
         store.UsageCalls.ShouldBe(1);
 
-        // Onbellek araligi doldu: bir sonraki yoklama YENI bir sorgu uretmelidir.
+        // The cache interval elapsed: the next poll must produce a NEW query.
         clock.Advance(TimeSpan.FromSeconds(31));
         collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName);
 
@@ -133,7 +133,7 @@ public sealed class QuotaUsageObserverTests
     }
 
     [Fact]
-    public async Task Etiket_kumesi_sinirsiz_alan_tasimaz()
+    public async Task Tag_set_does_not_carry_an_unbounded_field()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
@@ -150,8 +150,8 @@ public sealed class QuotaUsageObserverTests
 
         var measurement = collector.Trigger(AgentPrismDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
-        // 🚨 experiment_id/variant/run.id gibi sinirsiz buyuyen bir alan
-        // BURAYA asla girmemelidir (K-146).
+        // 🚨 An unbounded-cardinality field like experiment_id/variant/run.id
+        // must NEVER be added HERE (K-146).
         measurement.Tags.Keys.ShouldBe(
             [
                 AgentPrismDiagnostics.Tags.TenantId,
@@ -227,7 +227,7 @@ public sealed class QuotaUsageObserverTests
             periodStarts);
     }
 
-    /// <summary>Cagri sayacini tutan <see cref="IQuotaStore"/> dekoratoru.</summary>
+    /// <summary><see cref="IQuotaStore"/> decorator that tracks call counts.</summary>
     private sealed class CountingQuotaStore(IQuotaStore inner) : IQuotaStore
     {
         public int ListCalls { get; private set; }
@@ -265,8 +265,9 @@ public sealed class QuotaUsageObserverTests
     }
 
     /// <summary>
-    /// Belirli bir <c>Meter</c>'in ObservableGauge olcumlerini, her tetiklemede
-    /// <c>RecordObservableInstruments</c> cagirarak toplayan basit dinleyici.
+    /// Simple listener that collects a given <c>Meter</c>'s ObservableGauge
+    /// measurements by calling <c>RecordObservableInstruments</c> on each
+    /// trigger.
     /// </summary>
     private sealed class GaugeCollector : IDisposable
     {
@@ -289,7 +290,7 @@ public sealed class QuotaUsageObserverTests
             _listener.Start();
         }
 
-        /// <summary>Gozlemlenen aletleri yoklar ve verilen isimdeki olcumleri dondurur.</summary>
+        /// <summary>Polls the observable instruments and returns the measurements with the given name.</summary>
         public List<(double Value, Dictionary<string, object?> Tags)> Trigger(string name)
         {
             _measurements.Clear();

@@ -3,9 +3,10 @@ using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="IRetentionStore"/>'un PostgreSQL uygulamasinin sayma/silme/arsiv
-/// okuma davranisi. Faz 25'in DoD'sindeki gercek kanit gereksinimini karsilar:
-/// eski satirlar duser, <c>runs</c> ozeti ve <c>audit_log</c> KORUNUR.
+/// The counting/deletion/archive-read behavior of the PostgreSQL
+/// implementation of <see cref="IRetentionStore"/>. Meets the real evidence
+/// requirement in Phase 25's DoD: old rows are dropped, while the <c>runs</c>
+/// summary and <c>audit_log</c> are PRESERVED.
 /// </summary>
 public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -18,7 +19,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     public async ValueTask DisposeAsync() => await _context.DisposeAsync();
 
     [Fact]
-    public async Task Eski_run_events_silinir_yeniler_kalir()
+    public async Task Old_run_events_are_deleted_new_ones_remain()
     {
         var runId = await SeedRunAsync();
         var cutoff = DateTimeOffset.UtcNow.AddDays(-30);
@@ -40,7 +41,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Silme_parti_parti_calisir()
+    public async Task Delete_works_batch_by_batch()
     {
         var runId = await SeedRunAsync();
         var cutoff = DateTimeOffset.UtcNow;
@@ -62,7 +63,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Run_events_silinirken_runs_ozeti_korunur()
+    public async Task Runs_summary_is_preserved_while_run_events_are_deleted()
     {
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow.AddDays(-60));
@@ -76,7 +77,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Saklama_audit_log_hedefi_beyaz_listede_yoktur_ve_asla_silinmez()
+    public async Task Retention_audit_log_target_is_not_whitelisted_and_is_never_deleted()
     {
         var before = await _context.ScalarAsync<long>($"SELECT COUNT(*) FROM {_context.SchemaName}.audit_log;");
 
@@ -85,9 +86,9 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             VALUES (gen_random_uuid(), 'test', 'test-actor', 'agent.create', 'agent:demo', now() - interval '400 days');
             """);
 
-        // 'audit_log' RetentionTargets beyaz listesinde YOKTUR; IRetentionStore
-        // bilinmeyen hedefte ArgumentException firlatir — bu, denemenin bile
-        // mumkun olmadigini kanitlar.
+        // 'audit_log' is NOT in the RetentionTargets whitelist; IRetentionStore
+        // throws ArgumentException for an unknown target — this proves that even
+        // attempting it is impossible.
         await Should.ThrowAsync<ArgumentException>(async ()
             => await _context.RetentionData.CountOlderThanAsync("audit_log", tenantId: null, DateTimeOffset.UtcNow));
 
@@ -97,24 +98,24 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Arsiv_okuma_satirlari_JSON_olarak_dondurur_ve_silmez()
+    public async Task Archive_read_returns_rows_as_JSON_and_does_not_delete()
     {
         var runId = await SeedRunAsync();
-        await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow.AddDays(-60), text: "merhaba");
+        await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow.AddDays(-60), text: "hello");
 
         var cutoff = DateTimeOffset.UtcNow;
         var rows = await _context.RetentionData.ReadForArchiveAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
 
         rows.Count.ShouldBe(1);
-        rows[0].Json.ShouldContain("merhaba");
+        rows[0].Json.ShouldContain("hello");
         rows[0].Json.ShouldContain(runId.ToString());
 
-        // Okuma SILMEZ.
+        // Reading does NOT DELETE.
         (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunEvents, tenantId: null, cutoff)).ShouldBe(1);
     }
 
     [Fact]
-    public async Task Tamamlanmis_is_silinir_bekleyen_is_kalir()
+    public async Task Completed_job_is_deleted_pending_job_remains()
     {
         var pendingId = await SeedJobAsync(status: 0, completedAt: null);
         var completedId = await SeedJobAsync(status: 3, completedAt: DateTimeOffset.UtcNow.AddDays(-60));
@@ -136,12 +137,13 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// 🚨 Faz 36'nin ana kanit gereksinimi: <c>MaxRows</c> esigi, en yeniden
-    /// sayarak N. satirin OWN sutunundan dogru hesaplanir ve o esik MEVCUT
-    /// parti silme mekanizmasina beslenince tabloyu tam olarak N satirda birakir.
+    /// 🚨 Phase 36's core evidence requirement: the <c>MaxRows</c> threshold is
+    /// computed correctly from the OWN column of the Nth row, counting from the
+    /// newest, and feeding that threshold into the EXISTING batch deletion
+    /// mechanism leaves the table at exactly N rows.
     /// </summary>
     [Fact]
-    public async Task MaxRows_esigi_dogru_hesaplanir_ve_hedefi_N_satirda_birakir()
+    public async Task MaxRows_threshold_is_computed_correctly_and_leaves_the_target_at_N_rows()
     {
         var runId = await SeedRunAsync();
 
@@ -165,7 +167,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task MaxRows_esigi_tablo_sinirin_altindaysa_null_doner()
+    public async Task MaxRows_threshold_returns_null_when_the_table_is_below_the_limit()
     {
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow);
@@ -176,15 +178,15 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
     }
 
     /// <summary>
-    /// <c>workflow_checkpoints</c> icin MaxRows esigi, hedefin KENDI sutunundan
-    /// degil BAGLI CALISTIRMANIN <c>completed_at</c>'inden (korele alt sorgu)
-    /// hesaplanir — <see cref="RetentionTargetRegistry"/>'nin
-    /// <c>RowLimitOrderExpression</c>'i. Bu, WherePredicate'in gercekten
-    /// karsilastirdigi sutunla ayni olmalidir; aksi halde esik hicbir satiri
-    /// silmezdi.
+    /// For <c>workflow_checkpoints</c>, the MaxRows threshold is computed not
+    /// from the target's OWN column but from the LINKED RUN's
+    /// <c>completed_at</c> (a correlated subquery) —
+    /// <see cref="RetentionTargetRegistry"/>'s <c>RowLimitOrderExpression</c>.
+    /// This must be the same column the WherePredicate actually compares
+    /// against; otherwise the threshold would delete no rows.
     /// </summary>
     [Fact]
-    public async Task MaxRows_esigi_iliskili_tablo_uzerinden_dogru_hesaplanir()
+    public async Task MaxRows_threshold_is_computed_correctly_via_a_related_table()
     {
         var run1 = await SeedRunAsync(completedAt: DateTimeOffset.UtcNow.AddDays(-10));
         var run2 = await SeedRunAsync(completedAt: DateTimeOffset.UtcNow.AddDays(-5));
@@ -203,8 +205,8 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             cutoff!.Value,
             batchSize: 100);
 
-        // Yalniz run1 ve run2'ye ait checkpoint'ler run3'ten (en yeni) daha
-        // ESKIDIR ve wherePredicate'in EXISTS kosulunu saglar.
+        // Only the checkpoints belonging to run1 and run2 are OLDER than run3
+        // (the newest) and satisfy the wherePredicate's EXISTS condition.
         deleted.ShouldBe(2);
     }
 
@@ -235,7 +237,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             """);
     }
 
-    private async Task SeedRunEventAsync(Guid runId, int seq, DateTimeOffset createdAt, string text = "olay")
+    private async Task SeedRunEventAsync(Guid runId, int seq, DateTimeOffset createdAt, string text = "event")
         => await _context.ExecuteAsync($"""
             INSERT INTO {_context.SchemaName}.run_events (run_id, seq, type, text, created_at)
             VALUES ('{runId}', {seq}, 0, '{text}', '{createdAt.UtcDateTime:O}');
