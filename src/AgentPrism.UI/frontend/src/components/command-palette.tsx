@@ -285,7 +285,7 @@ function usePaletteCommands(
       id: 'action:theme',
       group: t('palette.group.action'),
       label: t('palette.toggleTheme'),
-      keywords: 'theme dark light tema',
+      keywords: 'theme dark light',
       perform: () => {
         setThemePreference(resolved === 'dark' ? 'light' : 'dark');
         onClose();
@@ -301,7 +301,7 @@ function usePaletteCommands(
         id: `action:locale:${candidate}`,
         group: t('palette.group.action'),
         label: t('palette.switchLanguage', { language: t(`shell.language.${candidate}`) }),
-        keywords: `language dil ${candidate}`,
+        keywords: `language ${candidate}`,
         perform: () => {
           setLocale(candidate);
           onClose();
@@ -313,7 +313,7 @@ function usePaletteCommands(
       id: 'action:shortcuts',
       group: t('palette.group.action'),
       label: t('palette.showShortcuts'),
-      keywords: 'keyboard shortcuts kısayol klavye',
+      keywords: 'keyboard shortcuts',
       hint: '?',
       perform: () => {
         onClose();
