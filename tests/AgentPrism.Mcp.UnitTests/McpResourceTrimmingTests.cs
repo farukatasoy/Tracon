@@ -3,16 +3,16 @@ namespace AgentPrism.Mcp.UnitTests;
 public sealed class McpResourceTrimmingTests
 {
     [Fact]
-    public void Sinirin_altindaki_metin_kirpilmaz()
+    public void Text_below_the_limit_is_not_trimmed()
     {
-        var (text, truncated) = McpResourceTrimming.Trim("merhaba dunya", maxBytes: 1024);
+        var (text, truncated) = McpResourceTrimming.Trim("hello world", maxBytes: 1024);
 
-        text.ShouldBe("merhaba dunya");
+        text.ShouldBe("hello world");
         truncated.ShouldBeFalse();
     }
 
     [Fact]
-    public void Sinirin_ustundeki_metin_kirpilir()
+    public void Text_above_the_limit_is_trimmed()
     {
         var (text, truncated) = McpResourceTrimming.Trim("0123456789", maxBytes: 5);
 
@@ -21,32 +21,32 @@ public sealed class McpResourceTrimmingTests
     }
 
     [Fact]
-    public void Cok_baytli_karakterin_ortasindan_kesmez()
+    public void Does_not_cut_through_the_middle_of_a_multi_byte_character()
     {
-        // 'ş' UTF-8'de 2 bayttir. Sinir tam ortasina denk gelirse (3. bayt),
-        // gecerli bir sinir bulunana kadar geri cekilmelidir.
-        var text = "abş"; // a(1) b(1) ş(2) = 4 bayt
+        // 'ş' is 2 bytes in UTF-8. If the limit lands exactly in the middle
+        // (byte 3), it must back off until a valid boundary is found.
+        var text = "abş"; // a(1) b(1) ş(2) = 4 bytes
 
         var (trimmed, truncated) = McpResourceTrimming.Trim(text, maxBytes: 3);
 
         trimmed.ShouldBe("ab");
         truncated.ShouldBeTrue();
 
-        // Sonuc HER ZAMAN gecerli UTF-8 olmalidir.
+        // The result must ALWAYS be valid UTF-8.
         System.Text.Encoding.UTF8.GetByteCount(trimmed).ShouldBeLessThanOrEqualTo(3);
     }
 
     [Fact]
-    public void Sifir_sinir_bos_metin_dondurur()
+    public void Zero_limit_returns_empty_text()
     {
-        var (text, truncated) = McpResourceTrimming.Trim("bir seyler", maxBytes: 0);
+        var (text, truncated) = McpResourceTrimming.Trim("some text", maxBytes: 0);
 
         text.ShouldBe(string.Empty);
         truncated.ShouldBeTrue();
     }
 
     [Fact]
-    public void Bos_metin_kirpilmis_sayilmaz()
+    public void Empty_text_does_not_count_as_trimmed()
     {
         var (text, truncated) = McpResourceTrimming.Trim(string.Empty, maxBytes: 100);
 

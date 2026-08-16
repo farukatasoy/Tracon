@@ -2,11 +2,11 @@ using System.Globalization;
 
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>APG0001-APG0007 tanilarinin her birini ayri ayri dogrular.</summary>
+/// <summary>Verifies each of the APG0001-APG0007 diagnostics individually.</summary>
 public sealed class DiagnosticTests
 {
     [Fact]
-    public void APG0001_ayni_tool_adi_iki_metotta_kullanilirsa_verilir()
+    public void APG0001_is_reported_when_the_same_tool_name_is_used_on_two_methods()
     {
         const string Source = """
             using AgentPrism;
@@ -15,14 +15,14 @@ public sealed class DiagnosticTests
 
             internal static class ToolsA
             {
-                [AgentPrismTool("cakisma", "Birinci.")]
-                public static string Birinci() => "a";
+                [AgentPrismTool("conflict", "First.")]
+                public static string First() => "a";
             }
 
             internal static class ToolsB
             {
-                [AgentPrismTool("cakisma", "Ikinci.")]
-                public static string Ikinci() => "b";
+                [AgentPrismTool("conflict", "Second.")]
+                public static string Second() => "b";
             }
             """;
 
@@ -32,7 +32,7 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void APG0002_gecersiz_tool_adi_verilir()
+    public void APG0002_is_reported_for_an_invalid_tool_name()
     {
         const string Source = """
             using AgentPrism;
@@ -41,8 +41,8 @@ public sealed class DiagnosticTests
 
             internal static class Tools
             {
-                [AgentPrismTool("gecersiz ad!", "Aciklama.")]
-                public static string Getir() => "x";
+                [AgentPrismTool("invalid name!", "Description.")]
+                public static string Get() => "x";
             }
             """;
 
@@ -53,19 +53,19 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void APG0003_desteklenmeyen_parametre_tipi_verilir()
+    public void APG0003_is_reported_for_an_unsupported_parameter_type()
     {
         const string Source = """
             using AgentPrism;
 
             namespace MyApp;
 
-            internal sealed class KarmasikTip { public string? Ad { get; set; } }
+            internal sealed class ComplexType { public string? Name { get; set; } }
 
             internal static class Tools
             {
-                [AgentPrismTool("olustur", "Olusturur.")]
-                public static void Olustur(KarmasikTip veri) { }
+                [AgentPrismTool("create", "Creates.")]
+                public static void Create(ComplexType data) { }
             }
             """;
 
@@ -73,11 +73,11 @@ public sealed class DiagnosticTests
 
         var diagnostics = result.DiagnosticsWithId("APG0003");
         diagnostics.Count.ShouldBe(1);
-        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("KarmasikTip");
+        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("ComplexType");
     }
 
     [Fact]
-    public void APG0004_generic_metot_reddedilir()
+    public void APG0004_a_generic_method_is_rejected()
     {
         const string Source = """
             using AgentPrism;
@@ -86,8 +86,8 @@ public sealed class DiagnosticTests
 
             internal static class Tools
             {
-                [AgentPrismTool("donustur", "Donusturur.")]
-                public static T Donustur<T>(T deger) => deger;
+                [AgentPrismTool("convert", "Converts.")]
+                public static T Convert<T>(T value) => value;
             }
             """;
 
@@ -97,7 +97,7 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void APG0005_AddGeneratedTools_cagrilir_ama_isaretli_metot_yoksa_verilir()
+    public void APG0005_is_reported_when_AddGeneratedTools_is_called_but_no_method_is_marked()
     {
         const string Source = """
             using AgentPrism;
@@ -120,7 +120,7 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void APG0005_AddGeneratedTools_cagrilmazsa_isaretli_metot_yokken_sessizdir()
+    public void APG0005_is_silent_when_AddGeneratedTools_is_not_called_and_no_method_is_marked()
     {
         const string Source = """
             namespace MyApp;
@@ -138,7 +138,7 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void APG0006_aciklama_eksikse_uyari_verir_ama_uretimi_engellemez()
+    public void APG0006_warns_when_the_description_is_missing_but_does_not_block_generation()
     {
         const string Source = """
             using AgentPrism;
@@ -147,8 +147,8 @@ public sealed class DiagnosticTests
 
             internal static class Tools
             {
-                [AgentPrismTool("adsiz_aciklama")]
-                public static string Getir() => "x";
+                [AgentPrismTool("nameless_description")]
+                public static string Get() => "x";
             }
             """;
 
@@ -158,12 +158,12 @@ public sealed class DiagnosticTests
         diagnostics.Count.ShouldBe(1);
         diagnostics[0].Severity.ShouldBe(Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
 
-        // Uyari uretimi ENGELLEMEZ - wrapper dosyasi yine olusur.
+        // The warning does NOT block generation - the wrapper file is still created.
         result.GeneratedFiles().Count.ShouldBe(2);
     }
 
     [Fact]
-    public void APG0007_ornek_metodu_reddedilir_ve_mesaj_K218ye_isaret_eder()
+    public void APG0007_an_instance_method_is_rejected_and_the_message_points_to_K218()
     {
         const string Source = """
             using AgentPrism;
@@ -172,8 +172,8 @@ public sealed class DiagnosticTests
 
             internal sealed class Tools
             {
-                [AgentPrismTool("getir", "Getirir.")]
-                public string Getir() => "x";
+                [AgentPrismTool("get", "Gets.")]
+                public string Get() => "x";
             }
             """;
 
@@ -185,20 +185,20 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void Islenemeyen_bir_sinif_sessizce_atlanmaz_her_zaman_bir_tani_uretir()
+    public void An_unprocessable_class_is_never_skipped_silently_it_always_produces_a_diagnostic()
     {
-        // 52.5: sessiz atlama yasak - APG0003/4/7 dogrulayan testler zaten bunu
-        // kanitliyor, burada engelleyici HER kategori icin en az bir tani
-        // uretildigini tek yerde teyit ediyoruz.
+        // 52.5: silent skipping is forbidden - the tests verifying APG0003/4/7 already
+        // prove this; here we confirm in one place that at least one blocking diagnostic
+        // is produced for EVERY category.
         const string Source = """
             using AgentPrism;
 
             namespace MyApp;
 
-            internal sealed class BozukTool
+            internal sealed class BrokenTool
             {
-                [AgentPrismTool("kotu")]
-                public string Getir(string id) => id;
+                [AgentPrismTool("bad")]
+                public string Get(string id) => id;
             }
             """;
 
