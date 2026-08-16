@@ -27,15 +27,20 @@ rolled back, and A/B tested. That is the whole reason for the shape.
 
 ## Where agents come from
 
-The catalog merges several sources, in priority order:
+The catalog merges two sources, in priority order:
 
 ```mermaid
 flowchart LR
-    C["Code<br/>AddAgent(...)"] --> CAT["IAgentCatalog"]
-    M["MAF bridge<br/>agents registered with MAF"] --> CAT
+    accTitle: Agent catalog sources
+    accDescr: Code registrations and database definitions merge into one catalog, with code definitions winning name collisions.
+    C["Code<br/>AddAgent(definition) or AddAgent(name, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
     CAT --> R["ResolveAsync(name)"]
 ```
+
+`AddAgent(name, factory)` is a code registration too — the factory returns a MAF
+`AIAgent` directly, built however you want, and the catalog still applies AgentPrism's
+decorators (recording, telemetry, approval) when it resolves the agent.
 
 On a name clash the higher-priority source wins and the other is dropped from the
 list. **Code wins.** That is why the API refuses to store a definition under a name a
@@ -43,14 +48,16 @@ code agent already uses: the stored definition would never resolve, and a silent
 shadow is worse than a `409`.
 
 A code-defined agent has no stored definition and no version history — its history is
-your source history. The API reports that distinctly: asking for its definition
-returns a `404` whose title says "no editable definition", not "not found". The
-console uses the same signal to decide whether to offer an edit form.
+your source history. The API reports that distinctly: `GET /api/agents/{name}` still
+returns `200`, with `definition` set to `null` and `isEditable` set to `false`. The
+console checks `isEditable` to decide whether to offer an edit form.
 
 ## Compiling a definition
 
 ```mermaid
 flowchart LR
+    accTitle: Agent definition compilation
+    accDescr: A saved definition resolves its model, tools, skills, and callable agents, then produces the Microsoft Agent Framework AIAgent.
     D["AgentDefinition"] --> M["Model provider registry<br/>→ IChatClient"]
     D --> T["Tool registry<br/>→ AIFunction[]"]
     D --> S["Skill catalog"]
@@ -101,6 +108,8 @@ waits, and reads the result.
 
 ```mermaid
 flowchart TD
+    accTitle: Callable agent task execution
+    accDescr: A root run starts a bounded child-agent task, persists child results, and returns the result to the root agent through a generated tool.
     P["root run · depth 0"] --> T["start task"]
     T --> CI["child invoker<br/>depth · budget · tenant checks"]
     CI -->|"allowed"| CR["child run · depth 1<br/>its own run row"]

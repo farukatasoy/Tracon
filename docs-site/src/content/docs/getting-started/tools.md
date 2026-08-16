@@ -45,9 +45,10 @@ agentPrism.AddAgent(new AgentDefinition
 });
 ```
 
-An unknown tool name fails at compile time for the agent — the definition does not
-compile and the agent will not resolve. You find out when you save it, not on the
-first run.
+An unknown tool name fails **definition compilation**, not C# compilation. A database
+definition is rejected when you validate or save it. A code definition is compiled
+when the catalog first resolves it and does not resolve until the registration is
+fixed. In either case, the model never receives a tool name AgentPrism cannot bind.
 
 ### The other two ways
 
@@ -63,16 +64,20 @@ your tools live in an assembly you do not compile.
 ## The rule that trips people up
 
 :::danger[A tool sees an empty service provider]
-MAF hands a tool an **empty** `IServiceProvider` at call time. Resolving a dependency
-inside a tool body fails — and it fails at run time, in a model call, not at startup.
+`AddTool(delegate)` and `AddToolsFrom<T>()` build the tool with
+`AIFunctionFactory.Create`, which binds an `IServiceProvider` parameter from
+`AIFunctionArguments.Services`. MAF always supplies that as an **empty** provider.
+Resolving a dependency inside a tool body fails — and it fails at run time, in a model
+call, not at startup.
 
 Take dependencies at **registration**:
 
 ```csharp
 // Wrong — services is empty when the model calls this
-[AgentPrismTool("get_order_status", "…")]
 public static string GetOrderStatus(string orderId, IServiceProvider services)
     => services.GetRequiredService<IOrderRepository>().Find(orderId).Status;
+
+agentPrism.AddTool(GetOrderStatus);
 
 // Right — the dependency is captured when the tool is registered
 var repository = app.Services.GetRequiredService<IOrderRepository>();
@@ -82,8 +87,14 @@ agentPrism.AddTool(AIFunctionFactory.Create(
     "Returns the shipping status of an order."), requiresApproval: false);
 ```
 
-The same applies to instance-method tools picked up by scanning: the instance has to
-come from somewhere, and at call time nothing can supply it.
+`[AgentPrismTool]` catches the same mistake earlier: the source generator does not
+support an `IServiceProvider` parameter, so the method fails to compile instead of
+failing on the first call.
+
+The same problem reaches instance methods picked up by `AddToolsFrom<T>()` — the
+instance has to come from somewhere, and MAF cannot supply it. AgentPrism rejects an
+instance method there too, but at scan time, when `AddToolsFrom<T>()` runs at startup,
+not on the first call.
 :::
 
 ## Tools that need a human

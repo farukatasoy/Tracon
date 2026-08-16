@@ -24,6 +24,7 @@ if (!existsSync(dist)) {
 
 const pages = collect(dist).filter((file) => file.endsWith('.html'));
 const broken = [];
+const anchorsByFile = new Map();
 let checked = 0;
 
 for (const page of pages) {
@@ -32,14 +33,20 @@ for (const page of pages) {
   for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     const target = match[1];
 
-    if (!target.startsWith(base)) {
-      continue; // external, anchor-only, or protocol-relative
+    if (!target.startsWith(base) && !target.startsWith('#')) {
+      continue; // external or protocol-relative
     }
 
     checked += 1;
 
-    if (!resolves(target)) {
+    const resolved = resolveTarget(target, page);
+    if (!resolved.file) {
       broken.push(`${page.slice(dist.length) || '/'} → ${target}`);
+      continue;
+    }
+
+    if (resolved.fragment && !hasAnchor(resolved.file, resolved.fragment)) {
+      broken.push(`${page.slice(dist.length) || '/'} → ${target} (missing anchor)`);
     }
   }
 }
@@ -55,21 +62,69 @@ if (broken.length > 0) {
 
 console.log(`Links: ${checked} internal reference(s) across ${pages.length} pages, none broken.`);
 
-/** A URL under the base maps to a file, or to the index.html of a directory. */
-function resolves(url) {
-  const path = decodeURIComponent(url.slice(base.length).split('#')[0].split('?')[0]);
+/** A URL maps to a concrete HTML or asset file and an optional anchor. */
+function resolveTarget(url, currentPage) {
+  const [pathAndQuery, rawFragment] = url.split('#', 2);
+  const fragment = safeDecode(rawFragment ?? '');
+
+  if (url.startsWith('#')) {
+    return { file: currentPage, fragment };
+  }
+
+  const path = safeDecode(pathAndQuery.slice(base.length).split('?')[0]);
 
   if (path === '') {
-    return existsSync(join(dist, 'index.html'));
+    const file = join(dist, 'index.html');
+    return { file: existsSync(file) ? file : null, fragment };
   }
 
   const candidate = join(dist, path);
 
   if (existsSync(candidate)) {
-    return statSync(candidate).isDirectory() ? existsSync(join(candidate, 'index.html')) : true;
+    if (statSync(candidate).isDirectory()) {
+      const index = join(candidate, 'index.html');
+      return { file: existsSync(index) ? index : null, fragment };
+    }
+
+    return { file: candidate, fragment };
   }
 
-  return existsSync(`${candidate}.html`) || existsSync(join(candidate, 'index.html'));
+  if (existsSync(`${candidate}.html`)) {
+    return { file: `${candidate}.html`, fragment };
+  }
+
+  const index = join(candidate, 'index.html');
+  return { file: existsSync(index) ? index : null, fragment };
+}
+
+function hasAnchor(file, fragment) {
+  if (!file.endsWith('.html')) {
+    return false;
+  }
+
+  if (!anchorsByFile.has(file)) {
+    const html = readFileSync(file, 'utf8');
+    anchorsByFile.set(
+      file,
+      new Set(
+        [...html.matchAll(/\s(?:id|name)="([^"]+)"/g)].map((match) => decodeHtml(match[1])),
+      ),
+    );
+  }
+
+  return anchorsByFile.get(file).has(fragment);
+}
+
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function decodeHtml(value) {
+  return value.replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#39;', "'");
 }
 
 function collect(directory) {

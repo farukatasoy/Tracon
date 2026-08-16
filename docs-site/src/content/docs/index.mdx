@@ -1,15 +1,19 @@
 ---
-title: AgentPrism
-description: An agent control plane for .NET, built on the Microsoft Agent Framework. Define agents, run them, and see exactly what they did.
+title: Agent control plane for .NET
+description: Build on Microsoft Agent Framework, then add durable runs, tools, workflows, evals, governance, protocols, and an embedded console.
 template: splash
 hero:
   tagline: |
-    Define agents, run them, and see exactly what they did — a control plane for the
-    Microsoft Agent Framework that drops into an ASP.NET Core application.
+    Build on Microsoft Agent Framework. Add the control plane your agents need to be
+    observable, testable, governable, and safe to operate — inside your ASP.NET Core app.
   actions:
     - text: Get started
-      link: /AgentPrism/getting-started/
+      link: /AgentPrism/getting-started/first-agent/
       icon: right-arrow
+    - text: Explore capabilities
+      link: /AgentPrism/capabilities/
+      icon: open-book
+      variant: minimal
     - text: View on GitHub
       link: https://github.com/farukatasoy/AgentPrism
       icon: external
@@ -18,22 +22,29 @@ hero:
 
 import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
+<div class="trust-strip" role="list" aria-label="Product characteristics">
+  <span role="listitem"><strong>17</strong> NuGet packages</span>
+  <span role="listitem"><strong>143</strong> generated HTTP operations</span>
+  <span role="listitem"><strong>27</strong> embedded console screens</span>
+  <span role="listitem"><strong>0</strong> required infrastructure to start</span>
+</div>
+
 <CardGrid>
-  <Card title="One call, whole control plane" icon="rocket">
-    `MapAgentPrism` adds 143 HTTP operations and an embedded management console to an
-    existing application. Nothing is exposed to the network until you say so.
+  <Card title="A control plane, not another agent abstraction" icon="puzzle">
+    Keep using MAF's `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction`.
+    AgentPrism adds the operational layer around them without replacing their model.
   </Card>
-  <Card title="Every run is recorded" icon="approve-check">
-    There is no code path that runs an agent without writing a run row. Status,
-    timings, tokens, cost, tool calls, and the event stream — all queryable.
+  <Card title="Evidence for every important decision" icon="approve-check">
+    Default-on runs capture events, tool calls, traces, tokens, cost, errors, and
+    child-agent trees. Store failure never gets permission to stop product work.
   </Card>
-  <Card title="No database required" icon="setting">
-    Configure nothing and every store runs in memory. Add PostgreSQL, SQL Server, or
-    SQLite when the runs need to outlive the process.
+  <Card title="From empty folder to production topology" icon="rocket">
+    Start in memory. Add PostgreSQL, SQL Server, or SQLite; workers, scheduling,
+    health, OpenTelemetry, quotas, retention, and tenant isolation when you need them.
   </Card>
-  <Card title="MAF, not a wrapper" icon="puzzle">
-    `AIAgent`, `AgentSession`, and `AIFunction` are used directly and appear in the
-    public API as themselves. Anything you know how to do with MAF keeps working.
+  <Card title="One agent, every useful surface" icon="seti:c-sharp">
+    Call it from .NET, the management API, OpenAI Responses or Chat Completions.
+    Publish selected agents as MCP tools or A2A endpoints with explicit budgets.
   </Card>
 </CardGrid>
 
@@ -44,9 +55,20 @@ import { Card, CardGrid, Code } from '@astrojs/starlight/components';
   title="Program.cs"
   code={`var builder = WebApplication.CreateBuilder(args);
 
-builder.AddAgentPrism()
-       .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
-       .UseUI();
+var agentPrism = builder.AddAgentPrism()
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
+    .UseUI();
+
+agentPrism.AddAgent(new AgentDefinition
+{
+    Name = "support",
+    Instructions = "Resolve customer issues clearly and safely.",
+    Model = new ModelBinding
+    {
+        Provider = OpenAIProviderNames.ChatCompletions,
+        Model = "your-model"
+    }
+});
 
 var app = builder.Build();
 
@@ -57,29 +79,44 @@ app.Run();`}
 Run it and open `/agentprism`. Create an agent, talk to it in the playground, then
 open the run and read it back event by event.
 
-## Where to go next
+<figure class="product-shot">
+  <a href="/AgentPrism/screenshots/dashboard.png">
+    <img
+      src="/AgentPrism/screenshots/dashboard.png"
+      alt="AgentPrism dashboard with run volume, error rate, token cost, and recent activity"
+      width="2880"
+      height="1800"
+      loading="lazy"
+      decoding="async"
+    />
+  </a>
+  <figcaption>The embedded console reads the same API you can automate.</figcaption>
+</figure>
+
+## Choose your path
 
 <CardGrid>
-  <Card title="Getting started" icon="open-book">
-    Install, write a first agent, give it a tool, make it durable, and lock it down.
-    Start at [What AgentPrism is](/AgentPrism/getting-started/).
+  <Card title="Build an agent" icon="open-book">
+    Go from install to a real provider, a code-defined tool, persistence, and a
+    deterministic test. [Start the five-minute guide](/AgentPrism/getting-started/first-agent/).
   </Card>
-  <Card title="Concepts" icon="information">
-    How the pieces fit: [architecture](/AgentPrism/concepts/),
-    [runs](/AgentPrism/concepts/runs/), [tools](/AgentPrism/concepts/tools/),
-    [governance](/AgentPrism/concepts/governance/).
+  <Card title="Integrate an existing client" icon="list-format">
+    Use OpenAI Responses or Chat Completions, manage agents over HTTP, or publish
+    a selected agent through MCP or A2A. [Choose a surface](/AgentPrism/guides/openai-api/).
   </Card>
-  <Card title="HTTP API" icon="list-format">
-    [143 operations](/AgentPrism/http-api/), each with what it does and what it
-    returns. The OpenAPI document is published too.
+  <Card title="Operate the platform" icon="setting">
+    Design storage, migrations, workers, health, telemetry, security, quotas,
+    retention, and recovery. [Use the production guide](/AgentPrism/guides/production/).
   </Card>
-  <Card title="API reference" icon="seti:c-sharp">
-    [Every public type](/AgentPrism/api/), generated from the shipped assemblies and
-    their XML documentation.
+  <Card title="Evaluate the fit" icon="information">
+    See every feature, its package and surface, its default state, and its production
+    boundary. [Open the capability map](/AgentPrism/capabilities/).
   </Card>
 </CardGrid>
 
 :::caution[Pre-release]
-AgentPrism has not shipped a `1.0`. The Microsoft Agent Framework hosting packages it
-builds on are themselves in preview, and the public API is still moving.
+AgentPrism has not shipped `1.0`. The ASP.NET Core package depends on preview Microsoft
+Agent Framework hosting packages, and public APIs can still move between previews. Pin
+package versions and validate an upgrade before production — see [Versions and
+upgrades](/AgentPrism/reference/versioning/).
 :::
