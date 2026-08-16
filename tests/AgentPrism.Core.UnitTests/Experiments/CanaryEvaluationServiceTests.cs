@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Experiments;
 
 /// <summary>
-/// <see cref="CanaryEvaluationService"/> sozlesmesi — otomatik geri alma, kademeli
-/// artirma, K1 varsayilani, K-089 denetim izi ve tekil koşum (Faz 56).
+/// <see cref="CanaryEvaluationService"/> contract: automatic rollback, gradual
+/// ramp-up, K1 default, K-089 audit trail, and singleton execution (Phase 56).
 /// </summary>
 public sealed class CanaryEvaluationServiceTests
 {
@@ -13,7 +13,7 @@ public sealed class CanaryEvaluationServiceTests
     private const string AgentName = "agent-a";
 
     [Fact]
-    public async Task AutoRollbackEnabled_kapaliyken_hicbir_deney_taranmaz_ve_durdurulmaz()
+    public async Task AutoRollbackEnabled_disabled_scans_and_stops_no_experiment()
     {
         var experiments = new CountingExperimentStore(new InMemoryExperimentStore());
         var runs = new InMemoryRunStore();
@@ -37,7 +37,7 @@ public sealed class CanaryEvaluationServiceTests
     }
 
     [Fact]
-    public async Task Kanarya_kontrolden_esik_kadar_kotuyse_otomatik_geri_alinir()
+    public async Task Canary_worse_than_control_by_threshold_triggers_automatic_rollback()
     {
         var experiments = new InMemoryExperimentStore();
         var runs = new InMemoryRunStore();
@@ -65,7 +65,7 @@ public sealed class CanaryEvaluationServiceTests
     }
 
     [Fact]
-    public async Task Denetim_izi_yazilamazsa_geri_alma_uygulanmaz()
+    public async Task Rollback_is_not_applied_when_audit_log_write_fails()
     {
         var experiments = new CountingExperimentStore(new InMemoryExperimentStore());
         var runs = new InMemoryRunStore();
@@ -88,16 +88,16 @@ public sealed class CanaryEvaluationServiceTests
     }
 
     [Fact]
-    public async Task Kademeli_artirma_agirligi_bir_adim_ilerletir_ve_var_olan_atamalari_degistirmez()
+    public async Task Gradual_ramp_advances_weight_by_one_step_and_keeps_existing_assignments()
     {
         var experiments = new InMemoryExperimentStore();
         var runs = new InMemoryRunStore();
         var auditLog = new InMemoryAuditLog();
 
-        // 🚨 Tek adimli liste bilerek secildi: RampInterval=Zero ve hizli
-        // ScanInterval ile birden fazla tur atlanabilir; birden fazla adim
-        // olsaydi test testin kendi zamanlamasina bagimli hale gelirdi. Tek
-        // adimda ramp 25'te SABITLENIR (25'ten buyuk baska adim yok).
+        // 🚨 A single-step list is deliberate: with RampInterval=Zero and a fast
+        // ScanInterval, multiple rounds could be skipped; with more than one step
+        // the test would depend on its own timing. With one step the ramp is
+        // PINNED at 25 (no other step above 25 exists).
         const int rampedCanaryWeight = 25;
 
         var experiment = await CreateRunningCanaryExperimentAsync(
@@ -108,18 +108,18 @@ public sealed class CanaryEvaluationServiceTests
             canaryWeight: 5,
             controlWeight: 95);
 
-        // Ikisi de saglikli: eskik asilmiyor, ramp'e devam edilmeli.
+        // Both are healthy: the threshold is not exceeded, the ramp should continue.
         await SeedRunsAsync(runs, experiment.Id, "canary", completed: 5, failed: 0);
         await SeedRunsAsync(runs, experiment.Id, "control", completed: 20, failed: 0);
 
-        // Ramp'ten ONCE: sabit iki anahtarin hangi kola dustugunu olc.
-        // Kanarya araligi rampla yalniz BUYUR (bkz. ExperimentAssignmentResolver.
-        // OrderForAssignment), bu yuzden mevcut (ramp oncesi) deneyle bulunan bir
-        // kanarya anahtari guvenlidir. Kontrol anahtari ise ramp SONRASI kontrol
-        // araliginda da kalmalidir; aksi halde [5,25) araligina dusen bir anahtar
-        // FindAssignmentKey tarafindan "control" olarak bulunur ama ramp sirasinda
-        // kanaryaya kayar — deney kimligi her kosuda farkli oldugu icin hash de
-        // degisir ve bu test rastgele (~%21 ihtimalle) basarisiz olurdu.
+        // BEFORE the ramp: measure which arm two fixed keys land in.
+        // The canary range only GROWS with the ramp (see ExperimentAssignmentResolver.
+        // OrderForAssignment), so a canary key found with the current (pre-ramp)
+        // experiment is safe. The control key must also stay in the control range
+        // AFTER the ramp; otherwise a key landing in the [5,25) range would be found
+        // as "control" by FindAssignmentKey but would shift to canary during the
+        // ramp — since the experiment id differs on every run, the hash also
+        // changes, and this test would fail at random (~21% chance).
         var canaryKey = FindAssignmentKey(experiment, "canary");
         var controlKey = FindAssignmentKey(WithCanaryWeight(experiment, rampedCanaryWeight), "control");
 
@@ -141,13 +141,13 @@ public sealed class CanaryEvaluationServiceTests
         advanced.Variants.Single(static v => string.Equals(v.Name, "canary", StringComparison.Ordinal)).Weight.ShouldBe(rampedCanaryWeight);
         advanced.Variants.Single(static v => string.Equals(v.Name, "control", StringComparison.Ordinal)).Weight.ShouldBe(100 - rampedCanaryWeight);
 
-        // 🚨 56.4: agirlik degisse de var olan oturumlar kolunu DEGISTIRMEMELIDIR.
+        // 🚨 56.4: even if the weight changes, existing sessions must NOT switch arms.
         ExperimentAssignmentResolver.SelectVariant(advanced, canaryKey).Name.ShouldBe("canary");
         ExperimentAssignmentResolver.SelectVariant(advanced, controlKey).Name.ShouldBe("control");
     }
 
     [Fact]
-    public async Task Iki_ornekte_degerlendirme_yalniz_birinde_kosar()
+    public async Task Evaluation_runs_on_only_one_of_two_instances()
     {
         var innerExperiments = new InMemoryExperimentStore();
         var runs = new InMemoryRunStore();
@@ -271,7 +271,7 @@ public sealed class CanaryEvaluationServiceTests
         });
     }
 
-    /// <summary>Verilen kolu ureten ilk atama anahtarini bulur (deterministik hash taramasi).</summary>
+    /// <summary>Finds the first assignment key that produces the given arm (deterministic hash scan).</summary>
     private static string FindAssignmentKey(Experiment experiment, string variantName)
     {
         for (var i = 0; i < 1000; i++)
@@ -284,10 +284,10 @@ public sealed class CanaryEvaluationServiceTests
             }
         }
 
-        throw new InvalidOperationException($"'{variantName}' kolunu ureten bir anahtar bulunamadi.");
+        throw new InvalidOperationException($"No key found that produces the '{variantName}' arm.");
     }
 
-    /// <summary>Kanarya kolunu verilen agirliga sabitleyip digerini tamamlayan bir prob deneyi dondurur.</summary>
+    /// <summary>Returns a probe experiment that pins the canary arm to the given weight and completes the rest with the other arm.</summary>
     private static Experiment WithCanaryWeight(Experiment experiment, int canaryWeight)
     {
         var canaryVariant = experiment.Canary!.CanaryVariant;
@@ -308,7 +308,7 @@ public sealed class CanaryEvaluationServiceTests
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
 
-    /// <summary>Sabit bir deger dondüren, degisikligi izlemeyen sahte <see cref="IOptionsMonitor{T}"/>.</summary>
+    /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
         where T : class
     {
@@ -322,16 +322,15 @@ public sealed class CanaryEvaluationServiceTests
     private sealed class ThrowingAuditLog : IAuditLog
     {
         public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("denetim izi deposuna erisilemedi");
+            => throw new InvalidOperationException("could not reach audit log store");
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => new(Array.Empty<AuditEntry>());
     }
 
     /// <summary>
-    /// <see cref="IExperimentStore.ListRunningWithCanaryAsync"/> ve
-    /// <see cref="IExperimentStore.RollbackCanaryAsync"/> cagri sayaclarini tutan,
-    /// digerlerini ic depoya devreden sarmalayici.
+    /// Wrapper that tracks call counts for <see cref="IExperimentStore.ListRunningWithCanaryAsync"/>
+    /// and <see cref="IExperimentStore.RollbackCanaryAsync"/>, delegating everything else to the inner store.
     /// </summary>
     private sealed class CountingExperimentStore(IExperimentStore inner) : IExperimentStore
     {

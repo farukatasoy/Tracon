@@ -1,88 +1,88 @@
 namespace AgentPrism.Core.UnitTests.Voice;
 
 /// <summary>
-/// Akan metnin seslendirilebilir parcalara bolunmesini dogrular.
+/// Verifies that streaming text is split into speakable chunks.
 /// </summary>
 /// <remarks>
-/// Gecikmenin kaynagi bu boludur: ilk parca ne kadar erken cikarsa kullanici
-/// sesi o kadar erken duyar.
+/// This split is the source of latency: the earlier the first chunk comes out,
+/// the earlier the user hears audio.
 /// </remarks>
 public sealed class VoiceSpeechSegmenterTests
 {
     [Fact]
-    public void Cumle_sonunda_parca_uretilir()
+    public void Chunk_is_produced_at_end_of_sentence()
     {
         var segmenter = new VoiceSpeechSegmenter();
 
-        segmenter.Append("Merhaba, nasil").ShouldBeEmpty();
+        segmenter.Append("Hello, how").ShouldBeEmpty();
 
-        var ready = segmenter.Append(" yardimci olabilirim? Sonraki cumle");
+        var ready = segmenter.Append(" can I help you? Next sentence");
 
         ready.Count.ShouldBe(1);
-        ready[0].ShouldBe("Merhaba, nasil yardimci olabilirim?");
+        ready[0].ShouldBe("Hello, how can I help you?");
     }
 
     [Fact]
-    public void Cumle_sonu_karakteri_METNIN_SONUNDA_ise_beklenir()
+    public void Sentence_end_character_AT_END_OF_TEXT_is_awaited()
     {
-        // "3." veya bir kisaltma da nokta ile biter; sonraki karakter gelmeden
-        // cumle sonu oldugu bilinemez.
+        // "3." or an abbreviation also ends with a period; without the next
+        // character arriving, it cannot be known whether it is a sentence end.
         var segmenter = new VoiceSpeechSegmenter();
 
-        segmenter.Append("Siparis numaranız 12345.").ShouldBeEmpty();
-        segmenter.Append(" Kargoya verildi.").Count.ShouldBe(1);
+        segmenter.Append("Your order number is 12345.").ShouldBeEmpty();
+        segmenter.Append(" It has shipped.").Count.ShouldBe(1);
     }
 
     [Fact]
-    public void Cok_kisa_parca_SONRAKI_ile_birlestirilir()
+    public void Very_short_chunk_is_merged_with_the_NEXT_one()
     {
-        // "Evet." tek basina seslendirilirse ses kopuk cikar.
+        // "Yes." spoken alone sounds choppy.
         var segmenter = new VoiceSpeechSegmenter();
 
-        segmenter.Append("Evet. ").ShouldBeEmpty();
+        segmenter.Append("Yes. ").ShouldBeEmpty();
 
-        var ready = segmenter.Append("Siparisiniz hazir. ");
+        var ready = segmenter.Append("Your order is ready. ");
 
         ready.Count.ShouldBe(1);
-        ready[0].ShouldBe("Evet. Siparisiniz hazir.");
+        ready[0].ShouldBe("Yes. Your order is ready.");
     }
 
     [Fact]
-    public void Noktalama_hic_gelmezse_uzunluk_sinirinda_bolunur()
+    public void Splits_at_length_limit_when_punctuation_never_arrives()
     {
-        // Noktalama kullanmayan bir model aksi halde hic bolunmez ve ilk ses
-        // yanitin sonunu beklerdi.
+        // A model that does not use punctuation would otherwise never split
+        // and would wait for the end of the response for the first audio.
         var segmenter = new VoiceSpeechSegmenter();
-        var ready = segmenter.Append(string.Join(' ', Enumerable.Repeat("kelime", 80)));
+        var ready = segmenter.Append(string.Join(' ', Enumerable.Repeat("word", 80)));
 
         ready.ShouldNotBeEmpty();
         ready[0].Length.ShouldBeLessThanOrEqualTo(240);
-        ready[0].ShouldEndWith("kelime");
+        ready[0].ShouldEndWith("word");
     }
 
     [Fact]
-    public void Flush_kalani_dondurur_ve_tamponu_bosaltir()
+    public void Flush_returns_the_remainder_and_empties_the_buffer()
     {
         var segmenter = new VoiceSpeechSegmenter();
 
-        segmenter.Append("Yarim kalan bir cumle");
+        segmenter.Append("An unfinished sentence");
 
-        segmenter.Flush().ShouldBe("Yarim kalan bir cumle");
+        segmenter.Flush().ShouldBe("An unfinished sentence");
         segmenter.Flush().ShouldBeNull();
     }
 
     [Fact]
-    public void Satir_sonu_da_bir_parca_sinirıdır()
+    public void Line_break_is_also_a_chunk_boundary()
     {
         var segmenter = new VoiceSpeechSegmenter();
-        var ready = segmenter.Append("Birinci madde budur\nIkinci madde");
+        var ready = segmenter.Append("This is the first item\nSecond item");
 
         ready.Count.ShouldBe(1);
-        ready[0].ShouldBe("Birinci madde budur");
+        ready[0].ShouldBe("This is the first item");
     }
 
     [Fact]
-    public void Bos_parca_yok_sayilir()
+    public void Empty_chunk_is_ignored()
     {
         var segmenter = new VoiceSpeechSegmenter();
 

@@ -3,24 +3,24 @@ namespace AgentPrism.Core.UnitTests.Experiments;
 public sealed class ExperimentAssignmentResolverTests
 {
     [Fact]
-    public async Task Calisan_deney_yoksa_null_doner()
+    public async Task Returns_null_when_no_running_experiment()
     {
         var store = new InMemoryExperimentStore();
         var resolver = new ExperimentAssignmentResolver(store);
 
-        var assignment = await resolver.ResolveAsync("default", "agent", "oturum-1");
+        var assignment = await resolver.ResolveAsync("default", "agent", "session-1");
 
         assignment.ShouldBeNull();
     }
 
     [Fact]
-    public async Task Calisan_deney_varsa_atama_doner()
+    public async Task Returns_assignment_when_running_experiment_exists()
     {
         var store = new InMemoryExperimentStore();
         var experiment = await CreateRunningExperimentAsync(store);
         var resolver = new ExperimentAssignmentResolver(store);
 
-        var assignment = await resolver.ResolveAsync("default", "agent", "oturum-1");
+        var assignment = await resolver.ResolveAsync("default", "agent", "session-1");
 
         assignment.ShouldNotBeNull();
         assignment!.ExperimentId.ShouldBe(experiment.Id);
@@ -28,17 +28,17 @@ public sealed class ExperimentAssignmentResolverTests
     }
 
     [Fact]
-    public void Ayni_anahtar_her_zaman_ayni_varyanti_uretir()
+    public void Same_key_always_produces_same_variant()
     {
         var experiment = Experiment(
             new ExperimentVariant { Name = "control", Version = 1, Weight = 50 },
             new ExperimentVariant { Name = "v2", Version = 2, Weight = 50 });
 
-        var first = ExperimentAssignmentResolver.SelectVariant(experiment, "sabit-anahtar");
+        var first = ExperimentAssignmentResolver.SelectVariant(experiment, "fixed-key");
 
         for (var i = 0; i < 100; i++)
         {
-            ExperimentAssignmentResolver.SelectVariant(experiment, "sabit-anahtar").Name.ShouldBe(first.Name);
+            ExperimentAssignmentResolver.SelectVariant(experiment, "fixed-key").Name.ShouldBe(first.Name);
         }
     }
 
@@ -46,7 +46,7 @@ public sealed class ExperimentAssignmentResolverTests
     [InlineData(50, 50)]
     [InlineData(30, 70)]
     [InlineData(10, 90)]
-    public void Agirlik_dagilimi_yaklasik_dogrudur(int weightA, int weightB)
+    public void Weight_distribution_is_approximately_correct(int weightA, int weightB)
     {
         var experiment = Experiment(
             new ExperimentVariant { Name = "a", Version = 1, Weight = weightA },
@@ -57,7 +57,7 @@ public sealed class ExperimentAssignmentResolverTests
 
         for (var i = 0; i < sampleSize; i++)
         {
-            var variant = ExperimentAssignmentResolver.SelectVariant(experiment, $"anahtar-{i}");
+            var variant = ExperimentAssignmentResolver.SelectVariant(experiment, $"key-{i}");
 
             if (string.Equals(variant.Name, "a", StringComparison.Ordinal))
             {
@@ -70,28 +70,29 @@ public sealed class ExperimentAssignmentResolverTests
     }
 
     [Fact]
-    public void Agirlik_toplami_100e_ulasmazsa_son_varyanta_dusulur()
+    public void Falls_back_to_last_variant_when_weights_do_not_sum_to_100()
     {
-        // Kayit aninda dogrulandigi icin bu normalde olusmaz; savunma amacli
-        // geri donus davranisi test edilir.
+        // Normally this cannot happen because it is validated at save time;
+        // the defensive fallback behavior is tested here.
         var experiment = Experiment(
             new ExperimentVariant { Name = "a", Version = 1, Weight = 1 },
             new ExperimentVariant { Name = "b", Version = 2, Weight = 1 });
 
-        // Kova hicbir varyantin araligina girmeyecek kadar yuksek bir anahtar
-        // dener; dongu son varyanti geri doner.
-        var variant = ExperimentAssignmentResolver.SelectVariant(experiment, "herhangi-bir-anahtar");
+        // Tries a key whose bucket is too high to fall into any variant's range;
+        // the loop returns the last variant.
+        var variant = ExperimentAssignmentResolver.SelectVariant(experiment, "any-key");
 
         variant.Name.ShouldBeOneOf("a", "b");
     }
 
     [Fact]
-    public void Kanarya_araligi_fiziksel_sıradan_bagimsiz_hesaplanir()
+    public void Canary_range_is_computed_independent_of_physical_order()
     {
-        // control ILK sirada (agirlik 95), canary IKINCI (agirlik 5) -- fiziksel
-        // sira control-once. Kanarya kurali TANIMLI oldugunda bucket hesaplamasi
-        // yine de kanaryayi [0, 5) araligina, control'u [5, 100) araligina koymali
-        // -- 56.4'un "var olan oturumlar kolunu degistirmez" garantisinin temeli.
+        // control is FIRST (weight 95), canary is SECOND (weight 5) -- physical
+        // order is control-first. When the canary rule is DEFINED, bucket
+        // computation must still place canary in the [0, 5) range and control in
+        // the [5, 100) range -- this is the basis of 56.4's "does not switch
+        // existing sessions' arm" guarantee.
         var experiment = Experiment(
             new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },
             new ExperimentVariant { Name = "canary", Version = 2, Weight = 5 }) with
@@ -99,7 +100,7 @@ public sealed class ExperimentAssignmentResolverTests
             Canary = new CanaryPolicy { CanaryVariant = "canary", MinSampleSize = 20 },
         };
 
-        // Ayni deney, kanarya SIRAYA konmus (fiziksel sira artik onemsiz olmali).
+        // Same experiment, with canary placed FIRST (physical order should no longer matter).
         var reordered = experiment with
         {
             Variants =
@@ -111,7 +112,7 @@ public sealed class ExperimentAssignmentResolverTests
 
         for (var i = 0; i < 200; i++)
         {
-            var key = $"anahtar-{i}";
+            var key = $"key-{i}";
 
             ExperimentAssignmentResolver.SelectVariant(experiment, key).Name
                 .ShouldBe(ExperimentAssignmentResolver.SelectVariant(reordered, key).Name);
@@ -119,7 +120,7 @@ public sealed class ExperimentAssignmentResolverTests
     }
 
     [Fact]
-    public void Kanarya_agirligi_buyudukce_onceden_kanaryaya_dusen_anahtar_kontrole_kaymaz()
+    public void Key_previously_falling_into_canary_does_not_shift_to_control_as_canary_weight_grows()
     {
         var narrow = Experiment(
             new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },
@@ -139,7 +140,7 @@ public sealed class ExperimentAssignmentResolverTests
 
         for (var i = 0; i < 200; i++)
         {
-            var key = $"anahtar-{i}";
+            var key = $"key-{i}";
 
             if (string.Equals(ExperimentAssignmentResolver.SelectVariant(narrow, key).Name, "canary", StringComparison.Ordinal))
             {
@@ -153,7 +154,7 @@ public sealed class ExperimentAssignmentResolverTests
         {
             Id = Guid.NewGuid(),
             TenantId = "default",
-            Name = "test-deneyi",
+            Name = "test-experiment",
             AgentName = "agent",
             Variants = variants,
             Status = ExperimentStatus.Running,
