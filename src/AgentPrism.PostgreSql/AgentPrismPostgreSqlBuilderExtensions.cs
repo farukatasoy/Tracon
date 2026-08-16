@@ -9,15 +9,15 @@ using Npgsql;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism zincirine PostgreSQL kaliciligini ekleyen uzantilar.</summary>
+/// <summary>Extensions that add PostgreSQL persistence to the AgentPrism chain.</summary>
 public static class AgentPrismPostgreSqlBuilderExtensions
 {
-    /// <summary>Baglanti dizesi vererek PostgreSQL kaliciligini acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="connectionString">PostgreSQL baglanti dizesi.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="connectionString"/> bos ise.</exception>
+    /// <summary>Enables PostgreSQL persistence given a connection string.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="connectionString">The PostgreSQL connection string.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
     public static IAgentPrismBuilder UsePostgreSql(this IAgentPrismBuilder builder, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -27,15 +27,15 @@ public static class AgentPrismPostgreSqlBuilderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:PostgreSql</c> bolumunden okuyarak PostgreSQL kaliciligini acar.
+    /// Enables PostgreSQL persistence, reading settings from the <c>AgentPrism:PostgreSql</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section settings are read from. Usually
     /// <c>configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName)</c>.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UsePostgreSql(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection)
@@ -46,23 +46,23 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         return builder.UsePostgreSql(options => Bind(configurationSection, options));
     }
 
-    /// <summary>Ayarlari kodda vererek PostgreSQL kaliciligini acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Enables PostgreSQL persistence with settings given in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The settings mutator.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Depolar <c>TryAdd</c> ile degil <see cref="ServiceCollectionDescriptorExtensions.Replace"/>
-    /// ile kaydedilir. Sebep: <c>AddAgentPrism()</c> bellek ici depolari zaten
-    /// <c>TryAddSingleton</c> ile kaydetmis olur ve zincirde <em>once</em> calisir;
-    /// bu cagrida <c>TryAdd</c> kullanmak sessizce hicbir sey yapmazdi.
+    /// Stores are registered with <see cref="ServiceCollectionDescriptorExtensions.Replace"/>,
+    /// not <c>TryAdd</c>. Reason: <c>AddAgentPrism()</c> has already registered the
+    /// in-memory stores with <c>TryAddSingleton</c> and runs <em>before</em> this
+    /// call in the chain; using <c>TryAdd</c> here would silently do nothing.
     /// </para>
     /// <para>
-    /// Uzerine yazma burada dogrudur cunku <c>UsePostgreSql()</c> tuketicinin
-    /// <strong>acik</strong> tercihidir. "TryAdd ile kaydet" kurali AgentPrism'in
-    /// varsayilanlari icindir, acik cagrilar icin degil.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-025.
+    /// Overwriting is correct here because <c>UsePostgreSql()</c> is the
+    /// consumer's <strong>explicit</strong> choice. The "register with TryAdd"
+    /// rule is for AgentPrism's defaults, not for explicit calls.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-025.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UsePostgreSql(
@@ -80,16 +80,17 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             IValidateOptions<AgentPrismPostgreSqlOptions>,
             AgentPrismPostgreSqlOptionsValidator>());
 
-        // Tek veri kaynagi; Npgsql havuzu kendi yonetir.
+        // A single data source; the Npgsql pool manages itself.
         services.TryAddSingleton(static provider => NpgsqlDataSourceFactory.Create(
             provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
             provider.GetService<ILoggerFactory>()));
 
-        // Paylasilan depo katmaninin baglami. Saglayiciya ozgu her sey burada
-        // toplanir; depolar Npgsql tipi gormez (Faz 23, K-176).
-        // Depo kayitlariyla ayni kural: son cagri kazanir. TryAdd olsaydi ikinci
-        // bir saglayici kaydedildiginde depolar yeni saglayiciya, baglam eskisine
-        // bakardi ve ikisi sessizce ayrisirdi.
+        // The context for the shared store layer. Everything provider-specific
+        // is collected here; the stores never see an Npgsql type (Phase 23, K-176).
+        // Same rule as the store registrations: the last call wins. If this were
+        // TryAdd, registering a second provider would leave the stores pointing
+        // at the new provider while the context still pointed at the old one,
+        // and the two would silently diverge.
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
@@ -102,9 +103,10 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
                 ProviderName = "PostgreSQL",
-                // Faz 51: migration 0024'un {dimension} yer tutucusu. Sabit sema
-                // yer tutucusundan (schema) AYRI tutulur cunku kurulum aninda
-                // AgentPrismKnowledgeOptions'tan gelir, saglayici basli degildir.
+                // Phase 51: the {dimension} placeholder of migration 0024. Kept
+                // SEPARATE from the fixed schema placeholder (schema) because it
+                // comes from AgentPrismKnowledgeOptions at startup, not headed by
+                // the provider.
                 MigrationTemplateValues = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["dimension"] = knowledgeOptions.Dimensions.ToString(CultureInfo.InvariantCulture),
@@ -112,9 +114,9 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             };
         }));
 
-        // Isaret birikir (TryAdd degil): birden fazla saglayici kayitliysa
-        // MigrationHostedService acilista uyarir ve /api/diagnostics bunu bildirir.
-        // Gerekce: K-183.
+        // The marker accumulates (not TryAdd): if more than one provider is
+        // registered, MigrationHostedService warns at startup and
+        // /api/diagnostics reports it. Rationale: K-183.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
 
         services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
@@ -122,20 +124,22 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
 
-        // Teshis (Faz 33): kazanan saglayicinin MigrationRunner'i ISqlPersistenceDiagnostics
-        // olarak da cozulur; ayni ornek, ek bir SQL baglantisi uretmez.
+        // Diagnostics (Phase 33): the winning provider's MigrationRunner is also
+        // resolved as ISqlPersistenceDiagnostics; the same instance produces no
+        // extra SQL connection.
         services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
-        // Denetim izi defteri de bellek icinin yerini alir.
+        // The audit trail ledger also replaces the in-memory one.
         services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 
-        // Bellek ici depolarin yerini alir. TryAdd burada ise yaramaz.
+        // Replaces the in-memory stores. TryAdd would not work here.
         //
-        // Yazma yapan bes deponun tumu, Faz 9'un denetim izi dekoratorleriyle
-        // sarilarak kaydedilir; boylece denetim izi bellek ici veya PostgreSQL
-        // fark etmeksizin ayni sekilde calisir. Gerekce: AgentPrism.Core'daki
-        // AddAgentPrism() kaydiyla ayni desen (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+        // All five write-performing stores are registered wrapped in Phase 9's
+        // audit-trail decorators, so the audit trail behaves the same way
+        // whether the store is in-memory or PostgreSQL. Rationale: same pattern
+        // as the AddAgentPrism() registration in AgentPrism.Core
+        // (docs/09-YONETISIM-VE-DENETIM-IZI.md).
         services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),
@@ -146,8 +150,8 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(
             ServiceDescriptor.Singleton<IAgentSkillStore, SqlAgentSkillStore>());
 
-        // Script calistirma izinleri de denetim izi dekoratoru ile sarilir:
-        // izin vermek, sunucuda kod calistirma yetkisi vermektir.
+        // Script run grants are also wrapped in the audit-trail decorator:
+        // granting permission means granting the right to run code on the server.
         services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
             static provider => new AuditingSkillScriptGrantStore(
                 ActivatorUtilities.CreateInstance<SqlSkillScriptGrantStore>(provider),
@@ -156,10 +160,10 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
-        // Workflow tanimlari ve kontrol noktalari (Faz 15). Tanim deposu denetim
-        // izi dekoratoruyle sarilir; kontrol noktasi deposu sarilmaz: nokta bir
-        // kullanici karari degil, yurutmenin yan urunudur ve her super-step'te
-        // yazilir - denetim izini doldururdu.
+        // Workflow definitions and checkpoints (Phase 15). The definition store
+        // is wrapped in the audit-trail decorator; the checkpoint store is not:
+        // a checkpoint is not a user decision, it is a byproduct of execution
+        // and is written on every super-step — it would flood the audit trail.
         services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
             static provider => new AuditingWorkflowDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlWorkflowDefinitionStore>(provider),
@@ -169,80 +173,85 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
-        // Is kuyrugu ve zamanlama depolari (Faz 17). Ikisi de sarilmaz: kuyruk
-        // kendi durum makinesini (Pending/Leased/Running/...) tasir, workflow
-        // kontrol noktasi deposu ile ayni gerekce.
+        // Job queue and schedule stores (Phase 17). Neither is wrapped: the
+        // queue carries its own state machine (Pending/Leased/Running/...),
+        // same rationale as the workflow checkpoint store.
         services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
         services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
 
-        // Degerlendirme (eval) takim/vaka/kosu deposu (Faz 18). Sarilmaz: is
-        // kuyrugu depolariyla ayni gerekce, kendi durum makinesini tasir.
+        // Eval suite/case/run store (Phase 18). Not wrapped: same rationale as
+        // the job queue stores, it carries its own state machine.
         services.Replace(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
 
-        // Kota ve webhook depolari (Faz 21).
+        // Quota and webhook stores (Phase 21).
         //
-        // 🚨 Cok ornekli bir dagitimda kota icin bu depo ZORUNLUDUR: bellek ici
-        // sayac her surecte ayridir ve kota, ornek sayisina bolunur.
+        // 🚨 In a multi-instance deployment this store is REQUIRED for quotas:
+        // the in-memory counter is separate per process, and the quota ends up
+        // divided by the instance count.
         //
-        // Ikisi de denetim izi dekoratoruyle SARILMAZ. Gerekce ayridir:
-        // kota kurallari ve abonelikler yonetici kararidir (sarilmayi hak
-        // eder), ama tuketim sayaci ve teslim gecmisi yurutmenin yan urunudur
-        // ve her calistirmada yazilir — denetim izini gurultuye bogardi. Ikisi
-        // ayni sozlesmede yasadigi icin sarmalamak "ya hep ya hic"tir; yonetici
-        // eylemleri HTTP katmaninda ayrica denetim izine yazilir.
+        // Neither is wrapped in the audit-trail decorator. The rationale
+        // differs: quota rules and subscriptions are administrator decisions
+        // (they deserve wrapping), but the consumption counter and delivery
+        // history are byproducts of execution and are written on every run —
+        // it would flood the audit trail with noise. Since both live in the
+        // same contract, wrapping is "all or nothing"; administrator actions
+        // are written to the audit trail separately at the HTTP layer.
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
-        // Kiraci bazli API anahtarlari (Faz 53). Sarilmaz: kota/webhook
-        // depolariyla ayni gerekce, yonetici eylemleri HTTP katmaninda ayrica
-        // denetim izine yazilir.
+        // Tenant-scoped API keys (Phase 53). Not wrapped: same rationale as the
+        // quota/webhook stores, administrator actions are written to the audit
+        // trail separately at the HTTP layer.
         services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
-        // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu (kontrol
-        // duzlemi) denetim izi dekoratoruyle SARILMAZ: webhook/kota depolariyla
-        // ayni gerekce (yonetici eylemleri HTTP katmaninda ayrica yazilir).
-        // Veri duzlemi (IRetentionStore) yalniz bir SQL saglayicisi acikken
-        // anlamlidir; bellek ici NullRetentionStore'un yerini burada alir.
+        // Retention and archival (Phase 25). The policy/run store (control
+        // plane) is NOT wrapped in the audit-trail decorator: same rationale as
+        // the webhook/quota stores (administrator actions are written
+        // separately at the HTTP layer). The data plane (IRetentionStore) is
+        // meaningful only while a SQL provider is enabled; it replaces the
+        // in-memory NullRetentionStore here.
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
-        // Tek yurutucu secimi (Faz 42). Bellek ici InMemorySingletonLeaseStore'un
-        // yerini alir; cok ornekli bir dagitimda kira paylasimi ancak burada
-        // anlamlidir.
+        // Single-executor election (Phase 42). Replaces the in-memory
+        // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
+        // a multi-instance deployment.
         services.Replace(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
-        // Konusma kaydi (Faz 29). Yalniz UseVoiceConversation() cagrildiysa bir
-        // sey yazar; cagrilmadiysa depo bos kalir. Denetim izi dekoratoruyle
-        // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
+        // Call recording (Phase 29). Writes only if UseVoiceConversation() was
+        // called; the store stays empty otherwise. NOT wrapped in the
+        // audit-trail decorator: the record is not an administrator decision,
+        // it is a byproduct of execution.
         services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
-        // Calistirma/mesaj puanlari (Faz 31). Denetim izi dekoratoruyle
-        // SARILMAZ: kota/webhook depolariyla ayni gerekce -- bir puan
-        // yonetici karari degil, kullanicidan gelen geri bildirimdir.
+        // Run/message scores (Phase 31). NOT wrapped in the audit-trail
+        // decorator: same rationale as the quota/webhook stores — a score is
+        // not an administrator decision, it is feedback coming from a user.
         services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
-        // Idempotency-Key destegi (Faz 43). Bellek ici InMemoryIdempotencyStore'un
-        // yerini alir; cok ornekli bir dagitimda tekillestirme ancak burada
-        // anlamlidir.
+        // Idempotency-Key support (Phase 43). Replaces the in-memory
+        // InMemoryIdempotencyStore; deduplication is only meaningful here in a
+        // multi-instance deployment.
         services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
-        // Calistirma girdileri (Faz 47). Bellek ici InMemoryRunInputStore'un
-        // yerini alir; yeniden oynatma ancak girdi kalicilastiginda surec
-        // yeniden basladiktan sonra da calisir.
+        // Run inputs (Phase 47). Replaces the in-memory InMemoryRunInputStore;
+        // replay keeps working after the process restarts only once the input
+        // is persisted.
         services.Replace(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
-        // Asenkron onay kutusu (Faz 55).
+        // Asynchronous approval inbox (Phase 55).
         services.Replace(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
 
-        // Konusma dallandirma (Faz 47). Bellek ici karsiligi YOKTUR: MAF'in
-        // InMemoryChatHistoryProvider'i gecmisi oturum durumunun opak blogunda
-        // tutar ve belirli bir sira numarasina kadar kopyalanamaz. Kayit yalniz
-        // burada yapilir; kayitsiz kurulumda uc 501 doner.
+        // Conversation branching (Phase 47). There is NO in-memory
+        // counterpart: MAF's InMemoryChatHistoryProvider keeps history in an
+        // opaque blob of session state and cannot be copied up to a given
+        // sequence number. Recording only happens here; without a registered
+        // store the endpoint returns 501.
         services.TryAddSingleton<IConversationBranchStore, SqlConversationBranchStore>();
 
-        // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
-        // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
-        // yurutmenin yan urunu degil.
+        // A/B experiments (Phase 19). Wrapped in the audit-trail decorator for
+        // the same rationale as IAgentDefinitionStore: an admin's deliberate
+        // decision, not a byproduct of execution.
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),
@@ -279,12 +288,12 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingTenantStore>>())));
 
-        // Sohbet gecmisi. AgentDefinitionCompiler bunu derledigi her agent'a baglar;
-        // kayitli degilse MAF'in bellek ici varsayilani kullanilir.
+        // Chat history. AgentDefinitionCompiler wires this into every agent it
+        // compiles; if not registered, MAF falls back to its in-memory default.
         services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
 
-        // Ekler. IAttachmentStorage kayitliysa (S3/Blob) icerik orada yasar; bu
-        // depo yalnizca ustveriyi tutar.
+        // Attachments. When IAttachmentStorage is registered (S3/Blob), the
+        // content lives there; this store only holds the metadata.
         services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
@@ -295,9 +304,9 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
 
-        // Vektor tabanli anlamsal arama (Faz 51). K4: TEK somut uygulama.
-        // TryAdd: bir tuketici kendi IVectorSearchStore'unu (SQL Server/SQLite
-        // icin) onceden kaydetmisse onunki kazanir.
+        // Vector-based semantic search (Phase 51). K4: the ONLY concrete
+        // implementation. TryAdd: if a consumer has already registered their
+        // own IVectorSearchStore (for SQL Server/SQLite), theirs wins.
         services.TryAddSingleton<IVectorSearchStore>(static provider => new PgVectorSearchStore(
             provider.GetRequiredService<NpgsqlDataSource>(),
             provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
@@ -307,12 +316,12 @@ public static class AgentPrismPostgreSqlBuilderExtensions
     }
 
     /// <summary>
-    /// Yapilandirma bolumunu ayar nesnesine elle baglar.
+    /// Binds the configuration section to the settings object by hand.
     /// </summary>
     /// <remarks>
-    /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
-    /// Yeni bir ayar eklendiginde bu metoda da eklenmelidir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
+    /// This method must also be updated when a new setting is added.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismPostgreSqlOptions options)
     {

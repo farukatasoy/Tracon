@@ -5,36 +5,36 @@ using NpgsqlTypes;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlDialect"/> soyutlamasinin PostgreSQL uygulamasi.
+/// The PostgreSQL implementation of the <see cref="SqlDialect"/> abstraction.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Paylasilan depo kodunun gordugu tek Npgsql temas noktasi budur. Davranis
-/// Faz 2'de kurulan halinden <strong>degismemistir</strong>: ayni
-/// <see cref="NpgsqlDbType"/> degerleri, ayni UTC cevirimi.
+/// This is the only Npgsql touch point the shared store code sees. Behavior
+/// is <strong>unchanged</strong> from what was set up in Phase 2: the same
+/// <see cref="NpgsqlDbType"/> values, the same UTC conversion.
 /// </para>
 /// <para>
-/// <c>EnableDynamicJson()</c> kullanilmadigi icin <c>json</c> ve <c>jsonb</c>
-/// alanlari metin olarak tasinir; bu yuzden yuk zaten seri hale getirilmis bir
-/// <see cref="string"/> olarak gelir.
+/// Because <c>EnableDynamicJson()</c> is not used, <c>json</c> and <c>jsonb</c>
+/// fields are carried as text; the payload therefore arrives already as a
+/// serialized <see cref="string"/>.
 /// </para>
 /// </remarks>
 internal sealed class PostgresDialect : SqlDialect
 {
-    /// <summary>Benzersizlik kisiti ihlali SQLSTATE kodu.</summary>
+    /// <summary>SQLSTATE code for a uniqueness constraint violation.</summary>
     private const string UniqueViolation = "23505";
 
-    /// <summary>Yabanci anahtar kisiti ihlali SQLSTATE kodu.</summary>
+    /// <summary>SQLSTATE code for a foreign key constraint violation.</summary>
     private const string ForeignKeyViolation = "23503";
 
-    /// <summary>Gecersiz duzenli ifade SQLSTATE kodu.</summary>
+    /// <summary>SQLSTATE code for an invalid regular expression.</summary>
     private const string InvalidRegularExpression = "2201B";
 
     private readonly PostgresQueries _queries;
     private readonly long _advisoryLockKey;
 
-    /// <summary>Yeni bir PostgreSQL diyalekti olusturur.</summary>
-    /// <param name="schemaName">Dogrulanacak sema adi.</param>
+    /// <summary>Creates a new PostgreSQL dialect.</summary>
+    /// <param name="schemaName">The schema name to validate.</param>
     public PostgresDialect(string schemaName)
     {
         _queries = new PostgresQueries(schemaName);
@@ -49,10 +49,10 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// Kilit anahtari semaya kapsanmistir (K-389): <see cref="MigrationLockKey"/>,
-    /// bagimsiz AgentPrism kurulumlari ayni veritabanini farkli semalarla
-    /// paylastiginda birbirinin acilisini bloklamamalari icin sema adindan
-    /// deterministik bir anahtar turetir.
+    /// The lock key is scoped to the schema (K-389): <see cref="MigrationLockKey"/>
+    /// derives a deterministic key from the schema name so that independent
+    /// AgentPrism deployments sharing the same database with different
+    /// schemas don't block each other's startup.
     /// </remarks>
     public override async ValueTask AcquireMigrationLockAsync(
         DbConnection connection,
@@ -139,8 +139,8 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// PostgreSQL <c>DELETE ... LIMIT</c> tanimaz; <c>ctid</c> alt sorgusuyla
-    /// bir parti secilir. Siralama YOKTUR — parti sirasi onemli degildir.
+    /// PostgreSQL does not support <c>DELETE ... LIMIT</c>; a batch is selected
+    /// with a <c>ctid</c> subquery. There is NO ordering — batch order does not matter.
     /// </remarks>
     public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
         => $"""
@@ -167,7 +167,7 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// <c>timestamptz</c> sutunu <see cref="DateTime"/> (<c>Kind = Utc</c>) bekler.
+    /// The <c>timestamptz</c> column expects a <see cref="DateTime"/> (<c>Kind = Utc</c>).
     /// </remarks>
     public override void AddTimestamp(DbCommand command, string name, DateTimeOffset? value)
         => AddNpgsql(command, name, NpgsqlDbType.TimestampTz, value?.UtcDateTime);

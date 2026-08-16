@@ -3,12 +3,12 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismPostgreSqlOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismPostgreSqlOptions"/> settings at application startup.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. <c>AgentPrism.PostgreSql</c> AOT uyumlu kalmalidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is hand-written; <c>ValidateDataAnnotations()</c> relies on
+/// reflection and produces <c>IL2026</c>. <c>AgentPrism.PostgreSql</c> must stay
+/// AOT-compatible. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<AgentPrismPostgreSqlOptions>
 {
@@ -23,30 +23,30 @@ public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<Agen
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.ConnectionString)} cannot be empty. " +
-                $"Baglanti dizesini `UsePostgreSql(...)` cagrisinda verin veya " +
-                $"'{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                $"Give it in the `UsePostgreSql(...)` call, or " +
+                $"define the '{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
+                "setting in `dotnet user-secrets`.");
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.SchemaName))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.SchemaName)} gecerli bir " +
-                "tirnaksiz PostgreSQL tanimlayicisi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.SchemaName}'.");
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.SchemaName)} is not a valid " +
+                "unquoted PostgreSQL identifier. It must start with a lowercase letter or underscore; contain lowercase " +
+                $"letters, digits, and underscores; and be at most 63 characters. Actual value: '{options.SchemaName}'.");
         }
         else if (string.Equals(options.SchemaName, "public", StringComparison.Ordinal))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.SchemaName)} 'public' olamaz. " +
-                "AgentPrism tuketicinin public semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.");
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.SchemaName)} cannot be 'public'. " +
+                "AgentPrism never touches the consumer's public schema. Rationale: docs/KARARLAR.md, decision K-013.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
+                $"must be between 0 and 3600. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null

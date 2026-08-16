@@ -1,19 +1,19 @@
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in kullandigi <see cref="SqlServerDataSource"/> ornegini kurar.
+/// Sets up the <see cref="SqlServerDataSource"/> instance AgentPrism uses.
 /// </summary>
 /// <remarks>
-/// Tek bir veri kaynagi kullanilir ve DI icinde singleton olarak yasar.
-/// <c>Microsoft.Data.SqlClient</c> baglanti havuzunu kendi yonetir; ayrica bir
-/// havuz katmani eklenmez.
+/// A single data source is used and lives as a singleton in DI.
+/// <c>Microsoft.Data.SqlClient</c> manages its own connection pool; no extra
+/// pooling layer is added.
 /// </remarks>
 internal static class SqlServerDataSourceFactory
 {
-    /// <summary>Ayarlardan bir veri kaynagi olusturur.</summary>
-    /// <param name="options">SQL Server ayarlari.</param>
-    /// <returns>Kullanima hazir veri kaynagi.</returns>
-    /// <exception cref="AgentPrismException">Baglanti dizesi tanimli degilse.</exception>
+    /// <summary>Creates a data source from settings.</summary>
+    /// <param name="options">The SQL Server settings.</param>
+    /// <returns>A ready-to-use data source.</returns>
+    /// <exception cref="AgentPrismException">The connection string is not defined.</exception>
     public static SqlServerDataSource Create(AgentPrismSqlServerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -21,9 +21,10 @@ internal static class SqlServerDataSourceFactory
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             throw new AgentPrismException(
-                "SQL Server baglanti dizesi tanimli degil. `UseSqlServer(connectionString)` cagrisinda verin " +
-                $"veya '{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                "The SQL Server connection string is not defined. Give it in the " +
+                $"`UseSqlServer(connectionString)` call, or define the " +
+                $"'{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
+                "setting in `dotnet user-secrets`.");
         }
 
         return new SqlServerDataSource(options.ConnectionString);
