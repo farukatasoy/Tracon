@@ -4,13 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// <see cref="AgentPrismDiagnosticsCollector"/>'in bellek ici, SQL ve cift kayit
-/// (K-183) durumlarinda dogru rapor urettigini dogrular (Faz 33).
+/// Verifies that <see cref="AgentPrismDiagnosticsCollector"/> produces the correct
+/// report for in-memory, SQL, and duplicate-registration (K-183) cases (Phase 33).
 /// </summary>
 public sealed class DiagnosticsCollectorTests
 {
     [Fact]
-    public async Task Bellek_ici_kurulum_InMemory_ve_saglikli_raporlanir()
+    public async Task In_memory_setup_reports_InMemory_and_healthy()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
@@ -30,7 +30,7 @@ public sealed class DiagnosticsCollectorTests
     }
 
     [Fact]
-    public async Task Denetlenmemis_saglayici_Unknown_ve_devre_kapali_raporlanir()
+    public async Task Unaudited_provider_reports_Unknown_and_circuit_closed()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
@@ -46,13 +46,13 @@ public sealed class DiagnosticsCollectorTests
     }
 
     [Fact]
-    public async Task Tek_SQL_saglayicisi_kayitliysa_adi_ve_migration_durumu_yansir()
+    public async Task Single_registered_SQL_provider_reflects_name_and_migration_status()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism();
         services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
         services.AddSingleton<ISqlPersistenceDiagnostics>(
-            new FakeSqlPersistenceDiagnostics("PostgreSQL", canConnect: true, pendingMigrations: ["003_ekle"]));
+            new FakeSqlPersistenceDiagnostics("PostgreSQL", canConnect: true, pendingMigrations: ["003_add"]));
 
         await using var provider = services.BuildServiceProvider();
         var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
@@ -63,11 +63,11 @@ public sealed class DiagnosticsCollectorTests
         report.RegisteredPersistenceProviders.ShouldBe(1);
         report.CanConnect.ShouldBeTrue();
         report.MigrationsUpToDate.ShouldBeFalse();
-        report.PendingMigrations.ShouldBe(["003_ekle"]);
+        report.PendingMigrations.ShouldBe(["003_add"]);
     }
 
     [Fact]
-    public async Task Baglanti_kurulamayan_SQL_saglayicisi_CanConnect_false_doner()
+    public async Task SQL_provider_that_cannot_connect_returns_CanConnect_false()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism();
@@ -85,11 +85,11 @@ public sealed class DiagnosticsCollectorTests
     }
 
     [Fact]
-    public async Task Cift_SQL_kaydi_K183_sayaci_ikiyi_gosterir()
+    public async Task Duplicate_SQL_registration_K183_counter_shows_two()
     {
-        // İki Use*() cagrisini taklit eder: isaret BIRIKIR, kazanan (ISqlPersistenceDiagnostics,
-        // Replace ile kaydedilir) tekildir. Gercek kosuda MigrationHostedService bunun icin
-        // acilista uyari loglar (K-183); bu test /api/diagnostics'in ayni bilgiyi gordugunu kanitlar.
+        // Simulates two Use*() calls: the marker ACCUMULATES, the winner (ISqlPersistenceDiagnostics,
+        // registered with Replace) is singular. In a real run MigrationHostedService logs a
+        // startup warning for this (K-183); this test proves /api/diagnostics sees the same info.
         var services = new ServiceCollection();
         services.AddAgentPrism();
         services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
@@ -107,7 +107,7 @@ public sealed class DiagnosticsCollectorTests
     }
 
     [Fact]
-    public async Task Ayni_yapilandirma_anahtari_birden_fazla_saglayicidan_gelirse_tek_satir_raporlanir()
+    public async Task Same_configuration_key_from_multiple_providers_reports_single_row()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism()
@@ -123,12 +123,12 @@ public sealed class DiagnosticsCollectorTests
     }
 
     [Fact]
-    public async Task Tool_ve_agent_sayilari_raporlanir()
+    public async Task Tool_and_agent_counts_are_reported()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism()
             .AddModelProvider(new FakeModelProvider())
-            .AddTool((int a, int b) => a + b, "topla", "iki sayiyi toplar");
+            .AddTool((int a, int b) => a + b, "add", "adds two numbers");
 
         await using var provider = services.BuildServiceProvider();
         var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
@@ -140,16 +140,16 @@ public sealed class DiagnosticsCollectorTests
     }
 
     /// <summary>
-    /// Katalog okunamadiginda rapor COKMEZ; <c>AgentCount</c> bos gelir ama
-    /// migration bilgisi korunur.
+    /// When the catalog cannot be read, the report does NOT crash; <c>AgentCount</c>
+    /// comes back empty but migration info is preserved.
     /// </summary>
     /// <remarks>
-    /// Teshis ucunun birincil kullanim ani semanin HENUZ hazir olmadigi andir
-    /// (<c>AutoApplyMigrations=false</c>). Olculdu: MT-PG-051 — uc tam da
-    /// ihtiyac duyuldugu anda HTTP 500 donuyordu.
+    /// The primary use moment for the diagnostics endpoint is exactly when the schema
+    /// is NOT yet ready (<c>AutoApplyMigrations=false</c>). Measured: MT-PG-051 — the
+    /// endpoint returned HTTP 500 at the exact moment it was needed.
     /// </remarks>
     [Fact]
-    public async Task Katalog_okunamazsa_rapor_uretilir_ve_AgentCount_bos_gelir()
+    public async Task Unreadable_catalog_still_produces_report_and_AgentCount_is_empty()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().AddModelProvider(new FakeModelProvider());

@@ -8,15 +8,15 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// Telemetri toplama ve ornekleme davranisi.
+/// Telemetry collection and sampling behavior.
 /// </summary>
 public sealed class ObservabilityTests
 {
     [Fact]
-    public void Metrik_adlari_kararli_kalir()
+    public void Metric_names_stay_stable()
     {
-        // Bu adlar tuketicinin gosterge panolarinda ve uyari kurallarinda yazilidir.
-        // Degistirmek kirici bir degisikliktir; test bunu gorunur kilar.
+        // These names are written into consumers' dashboards and alert rules.
+        // Changing them is a breaking change; this test makes that visible.
         AgentPrismDiagnostics.ActivitySourceName.ShouldBe("AgentPrism");
         AgentPrismDiagnostics.MeterName.ShouldBe("AgentPrism");
         AgentPrismDiagnostics.RunCounterName.ShouldBe("agentprism.runs");
@@ -27,7 +27,7 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public void Calistirma_metrikleri_yayilir()
+    public void Run_metrics_are_emitted()
     {
         using var meterFactory = new TestMeterFactory();
         using var metrics = new AgentPrismMetrics(meterFactory);
@@ -36,25 +36,25 @@ public sealed class ObservabilityTests
         metrics.RecordRun(
             "support",
             RunStatus.Completed,
-            "kiraci-a",
+            "tenant-a",
             "gpt-5.4-mini",
             TimeSpan.FromSeconds(2),
             new RunUsage { InputTokens = 10, OutputTokens = 4, TotalTokens = 14 });
 
         collector.LongValues(AgentPrismDiagnostics.RunCounterName).ShouldBe([1]);
 
-        // Sureler SANIYE cinsindendir: OpenTelemetry semantic convention'i bunu
-        // zorunlu kilar ve milisaniye yazmak hazir panolari bozardi.
+        // Durations are in SECONDS: the OpenTelemetry semantic convention requires
+        // this, and writing milliseconds would break pre-built dashboards.
         collector.DoubleValues(AgentPrismDiagnostics.RunDurationName).ShouldBe([2.0]);
 
         collector.LongValues(AgentPrismDiagnostics.TokenCounterName).ShouldBe([10, 4]);
     }
 
     [Fact]
-    public void Model_bilinmiyorsa_etiket_bos_gecilmez()
+    public void Unknown_model_does_not_leave_tag_empty()
     {
-        // Eksik etiket OpenTelemetry'de AYRI bir zaman serisi uretir ve
-        // toplamalar sessizce ikiye bolunur.
+        // A missing tag produces a SEPARATE time series in OpenTelemetry, and
+        // aggregations silently split in two.
         using var meterFactory = new TestMeterFactory();
         using var metrics = new AgentPrismMetrics(meterFactory);
         using var collector = new MetricCollector(meterFactory.Meter);
@@ -62,7 +62,7 @@ public sealed class ObservabilityTests
         metrics.RecordRun(
             "support",
             RunStatus.Completed,
-            "kiraci-a",
+            "tenant-a",
             modelId: null,
             TimeSpan.FromSeconds(1),
             new RunUsage { InputTokens = 5 });
@@ -77,7 +77,7 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public void Tool_metrikleri_sure_yoksa_histograma_yazmaz()
+    public void Tool_metrics_do_not_write_histogram_without_duration()
     {
         using var meterFactory = new TestMeterFactory();
         using var metrics = new AgentPrismMetrics(meterFactory);
@@ -90,7 +90,7 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public async Task Span_kalicilastirma_kapaliyken_dinleyici_kurulmaz()
+    public async Task No_listener_is_set_up_while_span_persistence_is_disabled()
     {
         var store = new InMemoryTraceStore();
 
@@ -104,11 +104,11 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public async Task Hatali_calistirmanin_spanleri_ornekleme_disinda_yazilir()
+    public async Task Failed_run_spans_are_written_outside_sampling()
     {
         var store = new InMemoryTraceStore();
 
-        // Basari orani sifir: yalnizca hata korumasi span yazdirabilir.
+        // Success ratio is zero: only failure protection can write a span.
         using var collector = CreateCollector(store, options =>
         {
             options.SuccessSampleRatio = 0;
@@ -120,7 +120,7 @@ public sealed class ObservabilityTests
 
         collector.BeginRun(traceId).ShouldBeTrue();
 
-        // Etkinlik kok span'i tamponlanmis olmali; toplayici onu yazmalidir.
+        // The activity's root span must have been buffered; the collector must write it.
         var activity = StartActivityInTrace(traceId);
         activity?.Stop();
 
@@ -133,7 +133,7 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public async Task Basarili_calistirma_ornekleme_disinda_yazilmaz()
+    public async Task Successful_run_is_not_written_outside_sampling()
     {
         var store = new InMemoryTraceStore();
 
@@ -154,32 +154,32 @@ public sealed class ObservabilityTests
     }
 
     [Fact]
-    public async Task Izlenmeyen_trace_tampon_birakmaz()
+    public async Task Untracked_trace_leaves_no_buffer()
     {
-        // Sizinti korumasi: BeginRun cagrilmamis bir trace icin CompleteRunAsync
-        // sessizce false donmelidir.
+        // Leak protection: for a trace where BeginRun was never called, CompleteRunAsync
+        // must silently return false.
         var store = new InMemoryTraceStore();
 
         using var collector = CreateCollector(store, static _ => { });
 
-        (await collector.CompleteRunAsync("bilinmeyen", AgentPrismId.NewId(), "default", RunStatus.Completed))
+        (await collector.CompleteRunAsync("unknown", AgentPrismId.NewId(), "default", RunStatus.Completed))
             .ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Ic_spanler_kok_spanin_cocugu_olur()
+    public async Task Inner_spans_become_children_of_root_span()
     {
-        // 🚨 Regresyon korumasi. Activity.Current bir AsyncLocal'dir: kok span
-        // bir async yardimci metotta acilirsa atama cagirana GERI AKMAZ ve ic
-        // span'ler kok span'in cocugu degil KARDESI olur. Bu yasandi; waterfall
-        // gorunumu duz bir liste cizdi.
+        // 🚨 Regression protection. Activity.Current is an AsyncLocal: if the root
+        // span is opened in an async helper method, the assignment does NOT flow back
+        // to the caller, and inner spans become SIBLINGS of the root span, not children.
+        // This happened; the waterfall view rendered a flat list.
         var traceStore = new InMemoryTraceStore();
         var runStore = new InMemoryRunStore();
 
         using var collector = CreateCollector(traceStore, static options => options.SuccessSampleRatio = 1);
 
-        // Sarmalanan agent, calistirma sirasinda kendi span'ini acar. Kok span
-        // dogru kurulmussa bu span onun cocugu olmalidir.
+        // The wrapped agent opens its own span during the run. If the root span
+        // was set up correctly, this span must be its child.
         var inner = new ActivityStartingAgent(new FakeChatClient());
 
         var agent = new RunRecordingAgent(
@@ -190,7 +190,7 @@ public sealed class ObservabilityTests
             NullLogger<RunRecordingAgent>.Instance,
             traceCollector: collector);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         var run = (await runStore.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         var trace = await traceStore.GetTraceByRunAsync(run.Id);
@@ -221,16 +221,16 @@ public sealed class ObservabilityTests
     }
 
     /// <summary>
-    /// Toplayicinin dinledigi kaynaktan bir etkinlik acar ve kapatir; trace
-    /// kimligini dondurur.
+    /// Opens and closes an activity from the source the collector listens to;
+    /// returns the trace id.
     /// </summary>
     private static string StartAndStopActivity()
     {
         using var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
         using var activity = source.StartActivity("test.root");
 
-        // Dinleyici yoksa Activity null olur; testin anlamli olmasi icin bir
-        // kimlik uretilir ve senaryo yine de yurutulur.
+        // Activity is null if there is no listener; an id is generated so the
+        // test remains meaningful and the scenario still runs.
         return activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
     }
 
@@ -252,12 +252,11 @@ public sealed class ObservabilityTests
     }
 
     /// <summary>
-    /// Calistirma sirasinda AgentPrism kaynagindan kendi span'ini acan agent.
+    /// Agent that opens its own span from the AgentPrism source during a run.
     /// </summary>
     /// <remarks>
-    /// Microsoft Agent Framework'un <c>OpenTelemetryAgent</c> sarmalayicisinin
-    /// yaptigi seyin en kucuk taklidi; hiyerarsiyi test etmek icin gercek bir
-    /// model cagrisina gerek yoktur.
+    /// The smallest imitation of what Microsoft Agent Framework's <c>OpenTelemetryAgent</c>
+    /// wrapper does; a real model call is not needed to test the hierarchy.
     /// </remarks>
     private sealed class ActivityStartingAgent : Microsoft.Agents.AI.DelegatingAIAgent
     {
@@ -276,8 +275,8 @@ public sealed class ObservabilityTests
             Microsoft.Agents.AI.AgentRunOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            // Span, ic cagridan ONCE ve ayni metot govdesinde acilir; kapanmasi
-            // icin gorev beklenir (MA0100).
+            // The span is opened BEFORE the inner call, in the same method body; the
+            // task is awaited so it closes (MA0100).
             using var activity = Source.StartActivity(SpanName);
 
             return await base.RunCoreAsync(messages, session, options, cancellationToken)
@@ -286,15 +285,15 @@ public sealed class ObservabilityTests
     }
 
     /// <summary>
-    /// Testin kendi <see cref="AgentPrismMetrics"/> ornegine ozel, tekil kimlikli
-    /// bir <see cref="Meter"/> uretir.
+    /// Produces a <see cref="Meter"/> with a unique identity, private to the test's
+    /// own <see cref="AgentPrismMetrics"/> instance.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="MeterListener"/> sureç genelinde calisir: isme gore filtreleme
-    /// (<c>instrument.Meter.Name == "AgentPrism"</c>) paralel kosan baska bir test
-    /// sinifinin AYNI isimli ama FARKLI <see cref="Meter"/> orneginin olcumlerini de
-    /// yakalar. Testler ayni derlemede varsayilan olarak paralel kostugu icin bu
-    /// gercek bir çapraz-test sizintisiydi, kurgusal degil.
+    /// 🚨 <see cref="MeterListener"/> runs process-wide: filtering by name
+    /// (<c>instrument.Meter.Name == "AgentPrism"</c>) also catches measurements from
+    /// a DIFFERENT <see cref="Meter"/> instance with the SAME name in another test
+    /// class running in parallel. Since tests in the same assembly run in parallel by
+    /// default, this was a real cross-test leak, not a hypothetical one.
     /// </remarks>
     private sealed class TestMeterFactory : IMeterFactory
     {
@@ -306,9 +305,9 @@ public sealed class ObservabilityTests
     }
 
     /// <summary>
-    /// Belirli bir <c>Meter</c> <strong>orneginin</strong> olcumlerini toplayan
-    /// basit dinleyici. Filtre isme degil, referansa gore yapilir (yukaridaki
-    /// <see cref="TestMeterFactory"/> notuna bakiniz).
+    /// Simple listener that collects measurements of a specific <c>Meter</c>
+    /// <strong>instance</strong>. Filtering is by reference, not by name (see the
+    /// <see cref="TestMeterFactory"/> note above).
     /// </summary>
     private sealed class MetricCollector : IDisposable
     {

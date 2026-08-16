@@ -7,19 +7,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// <c>agentprism.run.cost</c> sayacinin Faz 35 sozlesmesini dogrular: fiyat
-/// tanimliyken yayilir, etiket kumesi kararlidir, agac toplamini ICERMEZ (K-151).
+/// Verifies the Phase 35 contract of the <c>agentprism.run.cost</c> counter: it is
+/// emitted when a price is defined, the tag set is stable, and it does NOT include
+/// the subtree total (K-151).
 /// </summary>
 /// <remarks>
-/// Testler <see cref="RunRecordingAgent"/> uzerinden UCTAN UCA calisir, yalniz
-/// <see cref="AgentPrismMetrics.RecordCost"/>'u yalitilmis cagirmaz — Faz 20'nin
-/// dersi (K-157): bir parametre eklemek onu KULLANMAKLA ayni sey degildir,
-/// aradaki katman atlanirsa birim testleri bunu yakalamaz.
+/// The tests run END TO END through <see cref="RunRecordingAgent"/>; they do not
+/// call <see cref="AgentPrismMetrics.RecordCost"/> in isolation — the lesson from
+/// Phase 20 (K-157): adding a parameter is not the same as USING it, and if the
+/// layer in between is skipped, unit tests will not catch it.
 /// </remarks>
 public sealed class RunCostMetricTests
 {
     [Fact]
-    public async Task Fiyat_tanimliyken_maliyet_yayilir_ve_etiketler_kararlidir()
+    public async Task Cost_is_emitted_and_tags_are_stable_when_price_is_defined()
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
@@ -27,7 +28,7 @@ public sealed class RunCostMetricTests
         using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
-        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "done")) { Usage = usage });
 
         var provider = new FakeModelProvider(client, name: "fake", models:
         [
@@ -52,9 +53,9 @@ public sealed class RunCostMetricTests
             modelProvider: "fake",
             pricingResolver: resolver);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
-        // 2$/M girdi * 1.000.000 + 4$/M cikti * 500.000 = 2 + 2 = 4.
+        // $2/M input * 1,000,000 + $4/M output * 500,000 = 2 + 2 = 4.
         collector.DoubleValues(AgentPrismDiagnostics.RunCostCounterName).ShouldBe([4.0]);
 
         var tags = collector.Tags(AgentPrismDiagnostics.RunCostCounterName).ShouldHaveSingleItem();
@@ -64,12 +65,12 @@ public sealed class RunCostMetricTests
         tags[AgentPrismDiagnostics.Tags.TenantId].ShouldBe("test");
         tags[AgentPrismDiagnostics.Tags.Currency].ShouldBe("USD");
 
-        // 🚨 run.id ASLA etiket olmaz: her calistirma yeni bir zaman serisi acardi.
+        // 🚨 run.id is NEVER a tag: every run would open a new time series.
         tags.ShouldNotContainKey(AgentPrismDiagnostics.Tags.RunId);
     }
 
     [Fact]
-    public async Task Fiyat_tanimsizsa_hicbir_maliyet_yayilmaz()
+    public async Task No_cost_is_emitted_when_price_is_undefined()
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
@@ -77,7 +78,7 @@ public sealed class RunCostMetricTests
         using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
-        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "done")) { Usage = usage });
 
         var provider = new FakeModelProvider(client, name: "fake", models: [new ModelDescriptor { Name = "unpriced-model" }]);
         var resolver = new RunPricingResolver(new ModelProviderRegistry([provider]), Options.Create(new AgentPrismOptions()));
@@ -95,28 +96,28 @@ public sealed class RunCostMetricTests
             modelProvider: "fake",
             pricingResolver: resolver);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
-        // Bilinmeyen fiyati sifir olarak yaymak gercek harcamayi kucuk gosterirdi;
-        // hicbir olcum uretilmemesi dogru davranistir.
+        // Emitting an unknown price as zero would understate the real spend;
+        // producing no measurement at all is the correct behavior.
         collector.DoubleValues(AgentPrismDiagnostics.RunCostCounterName).ShouldBeEmpty();
     }
 
     /// <summary>
-    /// 🚨 K-151 regresyon korumasi: kok + iki alt calistirmada sayac
-    /// yalnizca UC bagimsiz olcum uretir ve toplami agac toplamini DEGIL,
-    /// uc calistirmanin KENDI maliyetlerinin toplamini verir.
+    /// 🚨 K-151 regression protection: for a root + two sub-runs, the counter
+    /// produces only THREE independent measurements, and their sum gives the
+    /// three runs' OWN costs, NOT the subtree total.
     /// </summary>
     [Fact]
-    public async Task Kok_ve_iki_alt_calistirmada_sayac_agac_toplamini_cift_saymaz()
+    public async Task Root_and_two_sub_runs_counter_does_not_double_count_subtree_total()
     {
         var store = new InMemoryRunStore();
         using var meterFactory = new TestMeterFactory();
         using var metrics = new AgentPrismMetrics(meterFactory);
         using var collector = new MetricCollector(meterFactory.Meter);
 
-        // Cagri sirasina gore azalan token: kok en cok, alt calistirmalar daha az
-        // harcar. Fiyat 2$/M girdi, cikti yok.
+        // Tokens decreasing by call order: root spends the most, sub-runs spend
+        // less. Price is $2/M input, no output.
         var usagesByCall = new Queue<UsageDetails>(
         [
             new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 0, TotalTokenCount = 1_000_000 },
@@ -124,7 +125,7 @@ public sealed class RunCostMetricTests
             new UsageDetails { InputTokenCount = 250_000, OutputTokenCount = 0, TotalTokenCount = 250_000 },
         ]);
 
-        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usagesByCall.Dequeue() });
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "done")) { Usage = usagesByCall.Dequeue() });
 
         var provider = new FakeModelProvider(client, name: "fake", models:
         [
@@ -148,17 +149,17 @@ public sealed class RunCostMetricTests
 
         var rootRunId = AgentPrismId.NewId();
 
-        // Kok: 2$/M * 1.000.000 = 2.0
-        await agent.RunAsync("kok istegi", options: new AgentPrismRunOptions { RunId = rootRunId });
+        // Root: $2/M * 1,000,000 = 2.0
+        await agent.RunAsync("root request", options: new AgentPrismRunOptions { RunId = rootRunId });
 
-        // Alt 1: 2$/M * 500.000 = 1.0
+        // Sub 1: $2/M * 500,000 = 1.0
         await agent.RunAsync(
-            "alt istegi 1",
+            "sub request 1",
             options: new AgentPrismRunOptions { ParentRunId = rootRunId, RootRunId = rootRunId, Depth = 1 });
 
-        // Alt 2: 2$/M * 250.000 = 0.5
+        // Sub 2: $2/M * 250,000 = 0.5
         await agent.RunAsync(
-            "alt istegi 2",
+            "sub request 2",
             options: new AgentPrismRunOptions { ParentRunId = rootRunId, RootRunId = rootRunId, Depth = 1 });
 
         var costs = collector.DoubleValues(AgentPrismDiagnostics.RunCostCounterName);
@@ -166,8 +167,8 @@ public sealed class RunCostMetricTests
         costs.Count.ShouldBe(3);
         costs.ShouldBe([2.0, 1.0, 0.5], ignoreOrder: true);
 
-        // Toplam UC calistirmanin KENDI maliyetidir; agac toplami (kok +
-        // altlarin agac toplami tekrar sayilmis hali) OLMAMALIDIR.
+        // The sum is the three runs' OWN cost; it must NOT be the subtree total
+        // (root + subs' subtree total counted again).
         costs.Sum().ShouldBe(3.5);
     }
 
@@ -177,13 +178,13 @@ public sealed class RunCostMetricTests
     }
 
     /// <summary>
-    /// Testin kendi <see cref="AgentPrismMetrics"/> ornegine ozel, tekil kimlikli
-    /// bir <see cref="Meter"/> uretir.
+    /// Produces a <see cref="Meter"/> with a unique identity, private to the test's
+    /// own <see cref="AgentPrismMetrics"/> instance.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="MeterListener"/> sureç genelinde calisir: isme gore filtreleme
-    /// paralel kosan baska bir test sinifinin AYNI isimli ama FARKLI <see cref="Meter"/>
-    /// orneginin olcumlerini de yakalar (bkz. <c>ObservabilityTests.TestMeterFactory</c>).
+    /// 🚨 <see cref="MeterListener"/> runs process-wide: filtering by name also catches
+    /// measurements from a DIFFERENT <see cref="Meter"/> instance with the SAME name in
+    /// another test class running in parallel (see <c>ObservabilityTests.TestMeterFactory</c>).
     /// </remarks>
     private sealed class TestMeterFactory : IMeterFactory
     {
@@ -195,8 +196,8 @@ public sealed class RunCostMetricTests
     }
 
     /// <summary>
-    /// Belirli bir <c>Meter</c> <strong>orneginin</strong> olcumlerini toplayan
-    /// basit dinleyici. Filtre isme degil, referansa gore yapilir.
+    /// Simple listener that collects measurements of a specific <c>Meter</c>
+    /// <strong>instance</strong>. Filtering is by reference, not by name.
     /// </summary>
     private sealed class MetricCollector : IDisposable
     {

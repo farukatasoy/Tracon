@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Compilation;
 
 /// <summary>
-/// F-60 tanim dogrulama ucunun Core parcasi: gercek derleme yolunu tekrar eden,
-/// hicbir sey kaydetmeyen ve hicbir model cagirmayan denetim.
+/// Core part of the F-60 definition validation endpoint: a check that repeats
+/// the real compilation path, registers nothing, and calls no model.
 /// </summary>
 public sealed class AgentDefinitionValidatorTests
 {
     [Fact]
-    public async Task Gecerli_tanim_hicbir_mesaj_uretmez()
+    public async Task Valid_definition_produces_no_message()
     {
         var (validator, _, _) = CreateValidator();
 
@@ -24,11 +24,11 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_saglayici_unknown_model_uretir()
+    public async Task Unknown_provider_produces_unknown_model()
     {
         var (validator, _, _) = CreateValidator();
 
-        var definition = TestData.Definition() with { Model = TestData.Binding(provider: "yok-boyle") };
+        var definition = TestData.Definition() with { Model = TestData.Binding(provider: "no-such") };
         var report = await validator.ValidateAsync(definition);
 
         report.Valid.ShouldBeFalse();
@@ -38,11 +38,11 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_tool_unknown_tool_uretir()
+    public async Task Unknown_tool_produces_unknown_tool()
     {
         var (validator, _, _) = CreateValidator();
 
-        var definition = TestData.Definition(toolNames: ["yok-boyle"]);
+        var definition = TestData.Definition(toolNames: ["no-such"]);
         var report = await validator.ValidateAsync(definition);
 
         report.Valid.ShouldBeFalse();
@@ -52,11 +52,11 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_skill_unknown_skill_uretir()
+    public async Task Unknown_skill_produces_unknown_skill()
     {
         var (validator, _, _) = CreateValidator();
 
-        var definition = TestData.Definition() with { SkillNames = ["yok-boyle"] };
+        var definition = TestData.Definition() with { SkillNames = ["no-such"] };
         var report = await validator.ValidateAsync(definition);
 
         report.Valid.ShouldBeFalse();
@@ -66,7 +66,7 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Kendini_cagiran_tanim_cycle_uretir()
+    public async Task Self_referencing_definition_produces_cycle()
     {
         var descriptors = new[]
         {
@@ -88,14 +88,14 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Uc_ayri_hata_uc_mesaj_doner_ilkinde_durmaz()
+    public async Task Three_separate_errors_return_three_messages_does_not_stop_at_first()
     {
         var (validator, _, _) = CreateValidator();
 
-        var definition = TestData.Definition(toolNames: ["yok-tool"]) with
+        var definition = TestData.Definition(toolNames: ["no-such-tool"]) with
         {
-            Model = TestData.Binding(provider: "yok-saglayici"),
-            SkillNames = ["yok-skill"],
+            Model = TestData.Binding(provider: "no-such-provider"),
+            SkillNames = ["no-such-skill"],
         };
 
         var report = await validator.ValidateAsync(definition);
@@ -107,7 +107,7 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Gecersiz_saglayici_ayari_invalid_setting_uretir()
+    public async Task Invalid_provider_setting_produces_invalid_setting()
     {
         var (validator, _, _) = CreateValidator(providers: [new ThrowingModelProvider()]);
 
@@ -119,7 +119,7 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Ulasilamayan_mcp_sunucusu_inconclusive_uretir_valid_dusurmez()
+    public async Task Unreachable_mcp_server_produces_inconclusive_does_not_drop_valid()
     {
         var refresher = new FakeMcpToolRefresher(hang: true);
         var (validator, _, _) = CreateValidator(
@@ -128,8 +128,8 @@ public sealed class AgentDefinitionValidatorTests
 
         var report = await validator.ValidateAsync(TestData.Definition(toolNames: ["mcp-tool"]));
 
-        // MCP sunucusuna ulasilamadi ile tool adi yanlis ayni sey degildir:
-        // Valid dusurulmez, yalniz Inconclusive isaretlenir.
+        // An unreachable MCP server is not the same as a wrong tool name:
+        // Valid is not dropped, only Inconclusive is set.
         report.Valid.ShouldBeTrue();
         report.Inconclusive.ShouldBeTrue();
         var message = report.Messages.ShouldHaveSingleItem();
@@ -138,13 +138,13 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir()
+    public async Task Actively_refused_unreachable_MCP_server_also_produces_inconclusive()
     {
-        // HATA-006 / MT-CORE-006: "connection refused" ZAMAN ASIMINA ugramaz —
-        // McpToolCatalog.RefreshAsync bunun icin bir istisna FIRLATMAZ, yalniz
-        // HadUnreachableServers=true doner. Eskiden bu, TryRefreshMcpAsync'in
-        // yalniz istisna yakalayan catch bloklarindan kacip sessizce
-        // "basarili" sayiliyor ve eksik tool unknown_tool'a duşuyordu.
+        // HATA-006 / MT-CORE-006: "connection refused" does NOT time out —
+        // McpToolCatalog.RefreshAsync does NOT throw an exception for this, it only
+        // returns HadUnreachableServers=true. This used to escape the catch blocks
+        // in TryRefreshMcpAsync that only catch exceptions, and was silently
+        // counted as "success", so the missing tool fell through to unknown_tool.
         var refresher = new FakeMcpToolRefresher(unreachable: true);
         var (validator, _, _) = CreateValidator(mcpRefresher: refresher);
 
@@ -158,7 +158,7 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Mcp_tazeleme_eksik_tool_u_cozerse_hata_uretilmez()
+    public async Task Mcp_refresh_resolving_missing_tool_produces_no_error()
     {
         var registry = new MutableToolRegistry();
         var refresher = new FakeMcpToolRefresher(onRefresh: () => registry.Add(TestData.Tool("mcp-tool")));
@@ -172,12 +172,12 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
-    public async Task Dogrulama_hicbir_model_cagirmaz_ve_katalogu_degistirmez()
+    public async Task Validation_calls_no_model_and_does_not_change_catalog()
     {
         var client = new FakeChatClient();
         var descriptors = new[]
         {
-            new AgentDescriptor { Name = "diger", Origin = AgentDefinitionOrigin.Database, SourceName = "database" },
+            new AgentDescriptor { Name = "other", Origin = AgentDefinitionOrigin.Database, SourceName = "database" },
         };
         var (validator, catalog, _) = CreateValidator(providers: [new FakeModelProvider(client)], descriptors: descriptors);
 
@@ -214,7 +214,7 @@ public sealed class AgentDefinitionValidatorTests
         return (validator, catalog, compiler);
     }
 
-    /// <summary>Her cagride <see cref="AgentPrismException"/> firlatan sahte saglayici.</summary>
+    /// <summary>Fake provider that throws <see cref="AgentPrismException"/> on every call.</summary>
     private sealed class ThrowingModelProvider : IModelProvider
     {
         public string Name => "fake";
@@ -223,13 +223,13 @@ public sealed class AgentDefinitionValidatorTests
 
         public IChatClient CreateChatClient(ModelBinding binding)
             => throw new AgentPrismException(
-                $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} icinde su anahtarlar taninmiyor: bogus.");
+                $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} contains unrecognized keys: bogus.");
     }
 
     /// <summary>
-    /// Calisma aninda tool eklenebilen defter. Gercek <see cref="ToolRegistry"/>
-    /// derlemede sabitlenir; bu sahte, arka planda tazelenen bir MCP tool
-    /// onbellegini taklit eder.
+    /// Registry that allows adding tools at run time. The real <see cref="ToolRegistry"/>
+    /// is fixed at compile time; this fake simulates an MCP tool cache that is
+    /// refreshed in the background.
     /// </summary>
     private sealed class MutableToolRegistry : IToolRegistry
     {
@@ -243,7 +243,7 @@ public sealed class AgentDefinitionValidatorTests
         public bool TryGet(string name, [NotNullWhen(true)] out AIFunction? tool) => _tools.TryGetValue(name, out tool);
     }
 
-    /// <summary>Taze MCP tarama isteklerini denetleyen sahte tazeleyici.</summary>
+    /// <summary>Fake refresher that controls fresh MCP scan requests.</summary>
     private sealed class FakeMcpToolRefresher(bool hang = false, bool unreachable = false, Action? onRefresh = null) : IMcpToolRefresher
     {
         public async ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)

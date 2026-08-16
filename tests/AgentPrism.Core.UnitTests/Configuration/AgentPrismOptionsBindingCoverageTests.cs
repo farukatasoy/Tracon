@@ -7,28 +7,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Configuration;
 
 /// <summary>
-/// <c>AgentPrismOptions</c> elle baglanir (K-021, AOT). Bu, "yeni alan eklendi
-/// ama <c>Bind()</c>'a eklenmedi" kusurunu yapisal kilar — ayni kusur bagimsiz
-/// uc kez bulundu: <c>RunRecording.RecordRunInput</c> (K-406),
-/// <c>Observability.IncludeAgentVersionTag</c> (MT-OBS-036) ve
-/// <c>Validation.McpTimeout</c> (K-253 — tanimlanip hic baglanmamis).
+/// <c>AgentPrismOptions</c> is bound by hand (K-021, AOT). This structurally locks
+/// out the "new field added but not added to <c>Bind()</c>" defect — the same
+/// defect was found independently three times: <c>RunRecording.RecordRunInput</c>
+/// (K-406), <c>Observability.IncludeAgentVersionTag</c> (MT-OBS-036), and
+/// <c>Validation.McpTimeout</c> (K-253 — defined but never bound).
 /// </summary>
 /// <remarks>
-/// Bu test <c>AgentPrismOptions</c> agacindaki HER skalar (bool/int/long/double/
-/// decimal/string/TimeSpan/enum) alanı tek bir yapilandirma kumesiyle doldurup
-/// geri okuyarak <c>Bind()</c>'in gercekten her alani islediginin kalici
-/// kanitidir — tek tek regresyon testi eklemek yerine, gelecekte eklenen bir
-/// alan Bind()'a eklenmeyi unutulursa bu test kirilir.
+/// This test fills EVERY scalar (bool/int/long/double/decimal/string/TimeSpan/enum)
+/// field in the <c>AgentPrismOptions</c> tree with a single configuration set and
+/// reads it back, serving as durable proof that <c>Bind()</c> really processes
+/// every field — instead of adding individual regression tests, this test breaks
+/// if a future field is forgotten in Bind().
 /// </remarks>
 public sealed class AgentPrismOptionsBindingCoverageTests
 {
     /// <summary>
-    /// Sozluk/koleksiyon tipli alanlar (<c>Providers</c>, <c>Voice</c>,
+    /// Dictionary/collection-typed fields (<c>Providers</c>, <c>Voice</c>,
     /// <c>AllowedMediaTypes</c>, <c>SkillRoots</c>, <c>Interpreters</c>,
-    /// <c>EnvironmentAllowList</c>) ve ozel donusum yapan <c>Pricing</c>/
-    /// <c>UtilityModel</c> kendi bagimsiz testleriyle (BindPricing/BindUtilityModel
-    /// senaryolari, Aile O saglayici testleri) zaten kapsanir; bu genel tarayici
-    /// yalniz "duz" (property adi = yapilandirma anahtari) baglamayi dogrular.
+    /// <c>EnvironmentAllowList</c>) and the custom-conversion <c>Pricing</c>/
+    /// <c>UtilityModel</c> fields are already covered by their own independent
+    /// tests (BindPricing/BindUtilityModel scenarios, family O provider tests);
+    /// this generic scanner only verifies "flat" (property name = config key) binding.
     /// </summary>
     private static readonly HashSet<string> ExcludedPaths = new(StringComparer.Ordinal)
     {
@@ -41,7 +41,7 @@ public sealed class AgentPrismOptionsBindingCoverageTests
     };
 
     [Fact]
-    public void AgentPrismOptions_agacindaki_her_skalar_alan_yapilandirmadan_baglanir()
+    public void Every_scalar_field_in_AgentPrismOptions_tree_is_bound_from_configuration()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal);
         var expectations = new List<(string Path, PropertyInfo Property, object Expected)>();
@@ -63,7 +63,7 @@ public sealed class AgentPrismOptionsBindingCoverageTests
 
             if (!Equals(actual, expected))
             {
-                failures.Add($"'{path}': beklenen '{expected}', gelen '{actual}' — Bind()'da unutulmus olabilir.");
+                failures.Add($"'{path}': expected '{expected}', got '{actual}' — may have been forgotten in Bind().");
             }
         }
 
@@ -113,8 +113,8 @@ public sealed class AgentPrismOptionsBindingCoverageTests
             }
 
             throw new InvalidOperationException(
-                $"'{path}' ({property.PropertyType}) ne skalar ne bilinen bir ic-ayar tipi. " +
-                "Bind() kapsamina alinmali (leaf) veya ExcludedPaths'e gerekceyle eklenmeli.");
+                $"'{path}' ({property.PropertyType}) is neither a scalar nor a known nested-options type. " +
+                "It must be brought into Bind() scope (leaf) or added to ExcludedPaths with a reason.");
         }
     }
 
@@ -213,6 +213,6 @@ public sealed class AgentPrismOptionsBindingCoverageTests
             return (next.ToString()!, next);
         }
 
-        throw new NotSupportedException($"Sentinel turu desteklenmiyor: {underlying}");
+        throw new NotSupportedException($"Sentinel type not supported: {underlying}");
     }
 }

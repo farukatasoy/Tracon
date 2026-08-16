@@ -3,13 +3,13 @@ using System.Text.Json;
 namespace AgentPrism.Core.UnitTests.Compilation;
 
 /// <summary>
-/// Eski kayitlar <c>responseFormat</c> anahtarini taşımaz (bu faz oncesi yazilmis
-/// tanimlar). Seri halden cikarma <see langword="null"/> uretmeli, istisna atmamali.
+/// Old records do not carry a <c>responseFormat</c> key (definitions written before
+/// this phase). Deserialization must produce <see langword="null"/>, not throw.
 /// </summary>
 public sealed class ResponseFormatSerializationTests
 {
     [Fact]
-    public void ResponseFormat_anahtari_olmayan_eski_json_null_uretir()
+    public void Old_json_without_ResponseFormat_key_produces_null()
     {
         const string json = """{"provider":"openai","model":"gpt-5"}""";
 
@@ -20,14 +20,14 @@ public sealed class ResponseFormatSerializationTests
     }
 
     [Fact]
-    public void Eski_AgentDefinition_json_kaynak_uretilmis_baglamla_okunur()
+    public void Old_AgentDefinition_json_is_read_with_source_generated_context()
     {
-        // AgentPrismCoreJsonContext, AgentPrism.PostgreSql/SqlServer/Sqlite'in
-        // jsonb sutununa yazilan gercek yoldur (karar K-006). Bu faz oncesi
-        // yazilmis bir satirin JSON'unda "responseFormat" anahtari hic yoktur.
+        // AgentPrismCoreJsonContext is the real path written to the jsonb column
+        // of AgentPrism.PostgreSql/SqlServer/Sqlite (decision K-006). The JSON of a
+        // row written before this phase never has a "responseFormat" key.
         const string json = """
             {
-              "name": "eski-agent",
+              "name": "old-agent",
               "instructions": "test",
               "model": { "provider": "openai", "model": "gpt-5" },
               "toolNames": [],
