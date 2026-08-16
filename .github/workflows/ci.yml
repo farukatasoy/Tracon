@@ -161,3 +161,93 @@ jobs:
           --api-key "${{ secrets.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+
+  # ---------------------------------------------------------------------------
+  # Dokuman sitesi (docs-site/) -> GitHub Pages
+  #
+  # Site AYRI bir yayin hattidir: `dotnet build`'e baglanmaz ve pakete girmez.
+  # Yine de .NET derlemesine ihtiyac duyar -- API referansi DocFX ile derlenmis
+  # assembly + XML dokumanindan uretilir (MSBuild devrede degil, K-4xx).
+  # Arayuz varliklari gerekmez, bu yuzden AgentPrismFrontendEnabled=false ile
+  # npm/Vite adimlari atlanir.
+  #
+  # Ekran goruntuleri docs-site/public/screenshots altinda COMMIT'LIDIR; E2E
+  # kosumundan uretilirler (DocumentationScreenshotTests). Bu is Playwright
+  # calistirmaz.
+  # ---------------------------------------------------------------------------
+  pages:
+    name: Dokuman sitesini yayinla
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Astro 7 >= 22.12 ister; arayuzun Vite 7'si ^20.19 ile de calisiyordu.
+      # Iki hat ayni surumu kullanir.
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: NuGet paketlerini onbellekle
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Assembly ve XML dokumanini uret
+        run: |
+          dotnet restore AgentPrism.slnx
+          dotnet build AgentPrism.slnx -c Release --no-restore -p:AgentPrismFrontendEnabled=false
+
+      - name: DocFX aracini geri yukle
+        run: dotnet tool restore
+
+      - name: Site bagimliliklari
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Siteyi derle
+        working-directory: docs-site
+        run: npm run build
+
+      # Uretilen sitede kirik ic baglanti olmamalidir. API referansi uid'lerden,
+      # HTTP API sayfalari etiketlerden baglanti kurar; bir yeniden adlandirma
+      # sessizce baglanti kirar.
+      - name: Ic baglantilari denetle
+        working-directory: docs-site
+        run: node scripts/check-links.mjs
+
+      - name: Pages yapilandirmasi
+        uses: actions/configure-pages@v5
+
+      - name: Site ciktisini yukle
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/dist
+
+      - name: Pages'e yayinla
+        id: deployment
+        uses: actions/deploy-pages@v4

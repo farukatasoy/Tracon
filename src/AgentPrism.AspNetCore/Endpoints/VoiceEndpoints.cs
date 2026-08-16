@@ -57,7 +57,13 @@ internal static class VoiceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismVoiceList")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Lists the available voices.");
+            .WithSummary("Lists the available voices.")
+            .WithDescription(
+                "The list comes from the configured speech provider, not from AgentPrism; the " +
+                "identifiers it returns are the values the speak endpoint and the agent's " +
+                "'speak' tool accept. When the speech layer was never enabled with UseVoice(), " +
+                "the response is 501 rather than 404, so a missing configuration is not mistaken " +
+                "for a wrong address.");
 
         builder.MapGet("/api/voice/sessions", ListSessionsAsync)
             .RequireRole(roles.Reader)

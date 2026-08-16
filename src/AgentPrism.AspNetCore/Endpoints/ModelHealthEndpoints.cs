@@ -54,6 +54,12 @@ internal static class ModelHealthEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismModelHealth")
             .WithTags("AgentPrism", "Models")
-            .WithSummary("Returns the cached health status of a single provider.");
+            .WithSummary("Returns the cached health status of a single provider.")
+            .WithDescription(
+                "The status is served from the cache; add '?refresh=true' to force a fresh check. " +
+                "A check reads the provider's model list and never runs a completion, so it costs " +
+                "nothing. An unregistered provider name returns 404 — which is different from a " +
+                "registered provider that reports Unknown because it implements no health check. " +
+                "Error details never carry an API key or an endpoint address.");
     }
 }

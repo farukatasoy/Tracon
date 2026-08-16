@@ -1,0 +1,18 @@
+# DocFX API filter for the AgentPrism reference.
+#
+# The reference documents what a consumer of the NuGet packages can call.
+# Everything a consumer cannot reach, or must not depend on, is excluded here.
+apiRules:
+  # Compiler-generated members of records (Deconstruct, PrintMembers, <Clone>$)
+  # and the EditorBrowsable(Never) members are noise in a reference page.
+  - exclude:
+      uidRegex: ^.*\.PrintMembers$
+  - exclude:
+      hasAttribute:
+        uid: System.ComponentModel.EditorBrowsableAttribute
+        ctorArguments:
+          - System.ComponentModel.EditorBrowsableState.Never
+  # The source generator ships inside the AgentPrism.Core package but is an
+  # MSBuild analyzer; it has no callable surface (IsPackable=false).
+  - exclude:
+      uidRegex: ^AgentPrism\.Generators

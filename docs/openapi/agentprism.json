@@ -1,12 +1,14 @@
 {
   "openapi": "3.1.1",
   "info": {
-    "title": "AgentPrism.AspNetCore.FunctionalTests | v1",
-    "version": "1.0.0"
+    "title": "AgentPrism HTTP API",
+    "description": "The control plane AgentPrism maps into an ASP.NET Core application. Every path below is relative to the prefix passed to MapAgentPrism, which is \u0027/agentprism\u0027 in this document. The AgentPrism packages do not generate this document themselves; it is produced by calling AddOpenApi() in the host application, so the title, the version, and the server list in YOUR document come from YOUR application.",
+    "version": "v1"
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://localhost:5081",
+      "description": "The address the \u0060dotnet new agentprism-api\u0060 template listens on by default."
     }
   ],
   "paths": {
@@ -40,6 +42,7 @@
           "Agents"
         ],
         "summary": "Lists all agents defined in code and in the database.",
+        "description": "The list merges every registered agent source into a single view, ordered by name. When two sources hold the same name, the source with the higher priority wins and the other one is dropped from the list \u2014 code definitions win over database definitions. The response is not paged; the number of agents is bounded by the control plane, not by traffic. Each entry carries the origin, so a client can tell an editable definition from a code-defined one.",
         "operationId": "AgentPrismListAgents",
         "responses": {
           "200": {
@@ -63,6 +66,7 @@
           "Agents"
         ],
         "summary": "Creates a new agent definition.",
+        "description": "The definition is fully validated before it is stored: the model binding, every tool, skill, and callable agent must already exist, and the call graph must be free of cycles. A failed check returns 400 and nothing is written. A name that another definition already uses returns 409; a name that a code-defined agent already uses also returns 409, because code wins name conflicts and the stored definition would never resolve. On success the response is 201 with the saved definition at version 1 and a Location header pointing at it.",
         "operationId": "AgentPrismCreateAgent",
         "requestBody": {
           "content": {
@@ -105,6 +109,7 @@
           "Agents"
         ],
         "summary": "Returns an agent\u0027s catalog summary and its persisted definition, if any.",
+        "description": "A code-defined agent resolves through the catalog but has no stored definition; for it \u0027definition\u0027 is null and \u0027isEditable\u0027 is false. \u0027isEditable\u0027 is the single field a client checks before offering an edit form \u2014 it is true only when the agent\u0027s origin is the database.",
         "operationId": "AgentPrismGetAgent",
         "parameters": [
           {
@@ -135,6 +140,7 @@
           "Agents"
         ],
         "summary": "Updates an agent definition and produces a new version.",
+        "description": "An agent\u0027s name is immutable: when the path name and the body name differ the response is 400. A code-defined name returns 409 \u2014 code definitions are validated at compile time and are changed by changing the application. The same existence and call-graph checks as create apply, and a failed check writes nothing. Every successful save appends a version rather than overwriting; the previous content stays readable through the version history.",
         "operationId": "AgentPrismUpdateAgent",
         "parameters": [
           {
@@ -185,6 +191,7 @@
           "Agents"
         ],
         "summary": "Deletes an agent definition and its version history.",
+        "description": "The delete removes the current definition together with every stored version; it is not a soft delete and there is no rollback afterwards. A code-defined name returns 409. A name with no stored definition returns 404, so the call is not idempotent across repeats. Runs already recorded for the agent are kept \u2014 the run history does not depend on the definition still existing.",
         "operationId": "AgentPrismDeleteAgent",
         "parameters": [
           {
@@ -210,6 +217,7 @@
           "Agents"
         ],
         "summary": "Compiles a definition without saving it and without calling any model.",
+        "description": "A validation failure is NOT an HTTP error. When the body is well-formed the response is always 200 and the outcome is carried in the report\u0027s \u0027valid\u0027 field, with one message per finding. 400 is returned only when the body itself cannot be read or the required name/model fields are missing \u2014 that is the single case a pipeline needs in order to tell a transport error from a rejected definition. No model provider is contacted and nothing is written.",
         "operationId": "AgentPrismValidateAgent",
         "requestBody": {
           "content": {
@@ -252,6 +260,7 @@
           "Agents"
         ],
         "summary": "Lists a definition\u0027s version history, newest first.",
+        "description": "Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The agent must have a current stored definition; a code-defined or deleted name returns 404. Code agents have no version history at all \u2014 their history is the application\u0027s source history.",
         "operationId": "AgentPrismListAgentVersions",
         "parameters": [
           {
@@ -287,6 +296,7 @@
           "Agents"
         ],
         "summary": "Writes a definition as a new version with the content of a previous version.",
+        "description": "A rollback moves forward, not backward: the old content is appended as a NEW version and the history is never rewritten, so the rollback itself stays auditable and can be rolled back in turn. An unknown version number returns 404; a code-defined name returns 409.",
         "operationId": "AgentPrismRollbackAgent",
         "parameters": [
           {
@@ -329,6 +339,7 @@
           "Agents"
         ],
         "summary": "Returns two definition versions as raw JSON; the diff is computed in the UI.",
+        "description": "The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as \u0027left\u0027 and \u0027right\u0027 so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found.",
         "operationId": "AgentPrismGetAgentVersionDiff",
         "parameters": [
           {
@@ -381,7 +392,7 @@
           "Agents"
         ],
         "summary": "Runs an agent for trial purposes and streams the response via SSE.",
-        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE \u2014 Phase 43\u0027s deduplication contract requires a non-streaming response (docs/43-IDEMPOTENCY-KEY.md). A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 (Phase 46, docs/46-DAYANIKLI-CALISTIRMA.md). If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and runs.error_type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block appears as an SSE \u0027error\u0027 event (Phase 48, docs/48-GUARDRAILS.md).",
+        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 with a \u0027Location\u0027 header. If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and the run\u0027s error type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block arrives as an SSE \u0027error\u0027 event instead.",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -532,6 +543,7 @@
           "Attachments"
         ],
         "summary": "Lists attachments.",
+        "description": "Only descriptors are returned \u2014 file name, media type, size, and content hash \u2014 never the bytes; fetch those from the download endpoint. \u0027sessionId\u0027 narrows the list to one session, and attachments uploaded without a session are reachable only without that filter. Paging is offset based: \u0027skip\u0027 defaults to 0, \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to 1..200 instead of being rejected.",
         "operationId": "AgentPrismListAttachments",
         "parameters": [
           {
@@ -590,6 +602,7 @@
           "Attachments"
         ],
         "summary": "Streams the raw content of an attachment.",
+        "description": "The response carries the attachment\u0027s own stored media type, an ETag holding the content\u0027s SHA-256, and \u0027Content-Disposition: attachment\u0027 together with \u0027X-Content-Type-Options: nosniff\u0027 \u2014 a browser therefore downloads the bytes instead of rendering them, so uploaded HTML can never execute in the console\u0027s origin. The token travels in the Authorization header, so a browser cannot use this URL directly as an image or audio element source; fetch the bytes and wrap them in an object URL instead.",
         "operationId": "AgentPrismDownloadAttachment",
         "parameters": [
           {
@@ -631,6 +644,7 @@
           "Attachments"
         ],
         "summary": "Deletes an attachment.",
+        "description": "The bytes are removed immediately; there is no soft delete. Messages that already reference the attachment keep the reference and it stops resolving, so delete an attachment only when its conversation no longer needs to be replayed. Deleting the owning session removes its attachments as well, which is usually the call to reach for. An unknown id returns 404.",
         "operationId": "AgentPrismDeleteAttachment",
         "parameters": [
           {
@@ -657,6 +671,7 @@
           "Skills"
         ],
         "summary": "Lists the tenant\u0027s skills.",
+        "description": "Skills are scoped to the calling tenant; a skill defined for another tenant is never returned. Each entry is complete \u2014 instructions, resources, and scripts come with it, so a client does not need a second call per skill. The response is not paged.",
         "operationId": "AgentPrismListSkills",
         "responses": {
           "200": {
@@ -682,6 +697,7 @@
           "Skills"
         ],
         "summary": "Returns a single skill and its resources.",
+        "description": "The response carries the skill\u0027s instructions together with every resource and script attached to it, including their content. Names are compared exactly, case included; an unknown name returns 404.",
         "operationId": "AgentPrismGetSkill",
         "parameters": [
           {
@@ -712,6 +728,7 @@
           "Skills"
         ],
         "summary": "Creates or updates a skill.",
+        "description": "The call replaces the whole skill: resources and scripts that the body omits are removed. A first save answers 201, a later one 200. The path name and the body name must be identical (400 otherwise). Name, description, and compatibility follow the skill frontmatter rules, and instructions, resources, and scripts are each bounded by the configured size limits. A script may be SAVED even when script execution is turned off \u2014 saving and running are separate permissions \u2014 but an extension with no registered interpreter is rejected, because such a script could never run and would leave dead data behind.",
         "operationId": "AgentPrismSaveSkill",
         "parameters": [
           {
@@ -762,6 +779,7 @@
           "Skills"
         ],
         "summary": "Deletes a skill and its cascading resources.",
+        "description": "Resources and scripts are removed with the skill. Agent definitions that still name the skill are NOT rewritten, and they stop resolving: compiling such an agent fails with \u0027the skill was not found\u0027 until the reference is removed or the skill is recreated. Check the agents that use a skill before deleting it. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteSkill",
         "parameters": [
           {
@@ -787,6 +805,7 @@
           "Governance"
         ],
         "summary": "Lists the tenant\u0027s script run grants.",
+        "description": "A grant is permission to execute code on the server, so this list is the authoritative answer to \u0027what may run here\u0027. A grant with no script name covers every script in that skill; one with a script name covers only that script. Entries may carry an expiry, and an expired grant no longer authorizes a run. Grants are also a retention target, so old ones are cleaned up.",
         "operationId": "AgentPrismListSkillScriptGrants",
         "responses": {
           "200": {
@@ -810,6 +829,7 @@
           "Governance"
         ],
         "summary": "Grants run permission to a skill script.",
+        "description": "Granting while script execution is switched off returns 409 rather than succeeding: a grant that reads as active but never allows a run would be misleading. Omit \u0027scriptName\u0027 to cover every script in the skill. \u0027expiresAt\u0027 is optional but must be in the future when given (400 otherwise); without it the grant does not expire. Every change is written to the audit trail.",
         "operationId": "AgentPrismGrantSkillScript",
         "requestBody": {
           "content": {
@@ -842,6 +862,7 @@
           "Governance"
         ],
         "summary": "Revokes a script run grant.",
+        "description": "Revoking takes effect on the next run; a script already executing is not stopped. The optional \u0027?scriptName=\u0027 must match how the grant was created \u2014 revoking one script does not remove a skill-wide grant, and the skill-wide grant keeps authorizing that script until it too is revoked. When no matching active grant exists the response is 404.",
         "operationId": "AgentPrismRevokeSkillScript",
         "parameters": [
           {
@@ -874,6 +895,7 @@
           "Sessions"
         ],
         "summary": "Lists sessions from most recently updated to oldest.",
+        "description": "Paging is offset based: \u0027skip\u0027 defaults to 0 and \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to the 1..200 range rather than rejected, so an out-of-range value never fails the request. \u0027agentName\u0027 narrows the list to one agent. Because the order is by last update, a session that changes while a client pages can move between pages; use the session id, not the position, as the identity.",
         "operationId": "AgentPrismListSessions",
         "parameters": [
           {
@@ -932,6 +954,7 @@
           "Sessions"
         ],
         "summary": "Returns a session\u0027s metadata and chat history.",
+        "description": "\u0027messages\u0027 is the readable chat history and is null when the configured session storage cannot expose one \u2014 with an in-memory setup the history lives inside an opaque state blob. \u0027state\u0027 always carries that raw provider state. Messages come back in sequence order, so the index of a message is the sequence number the branch endpoint expects.",
         "operationId": "AgentPrismGetSession",
         "parameters": [
           {
@@ -962,6 +985,7 @@
           "Sessions"
         ],
         "summary": "Deletes a session.",
+        "description": "Attachments linked to the session are deleted with it, and this call is the only way they are cleaned up: an attachment may be uploaded before any session exists, so the link is deliberately not a database foreign key. The attachments are removed only after the session itself is found, so a 404 leaves no side effect. Runs recorded under the session are kept \u2014 run history does not depend on the session still existing.",
         "operationId": "AgentPrismDeleteSession",
         "parameters": [
           {
@@ -1188,6 +1212,7 @@
           "Runs"
         ],
         "summary": "Returns the entire tree a run belongs to, starting from the root.",
+        "description": "The tree is always resolved from the ROOT, whichever member is asked for: a request naming a child run still returns the whole tree, because without the sibling branches a client cannot tell where in the tree that run sits. Each entry carries its parent, so the shape is rebuilt on the client. At most 200 runs are returned; a tree larger than that is truncated rather than paged.",
         "operationId": "AgentPrismGetRunTree",
         "parameters": [
           {
@@ -1224,6 +1249,7 @@
           "Runs"
         ],
         "summary": "Returns the summary of a single run.",
+        "description": "The summary carries status, timings, token counts, and \u2014 when pricing is configured \u2014 cost; it does not carry the conversation. Read the messages from the events endpoint, and the recorded input from the input endpoint. A run row is written when the run starts, so a run that is still going is readable here with a non-terminal status.",
         "operationId": "AgentPrismGetRun",
         "parameters": [
           {
@@ -1360,6 +1386,7 @@
           "Runs"
         ],
         "summary": "Lists all scores for a run.",
+        "description": "Both human scores and scores written by automatic evaluators appear in one list; the source is a field on each entry, not a separate endpoint. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that the run exists. A run with no scores returns an empty list, not 404.",
         "operationId": "AgentPrismListRunFeedback",
         "parameters": [
           {
@@ -1396,6 +1423,7 @@
           "Runs"
         ],
         "summary": "Deletes a score.",
+        "description": "The deletion is recorded in the audit trail, so removing a score is itself traceable. The run must belong to the calling tenant; otherwise the response is 404. An unknown score id also returns 404, so repeating the call is not idempotent. Aggregate statistics computed from scores are recalculated on the next read rather than adjusted here.",
         "operationId": "AgentPrismDeleteRunFeedback",
         "parameters": [
           {
@@ -1465,7 +1493,7 @@
           "Runs"
         ],
         "summary": "Returns the summaries of two runs side by side.",
-        "description": "The diff is NOT computed on the server; the endpoint returns the two summaries and the UI shows the comparison (the same pattern as the definition-version diff in Phase 19).",
+        "description": "The diff is NOT computed on the server; the endpoint returns the two summaries and the UI shows the comparison \u2014 the same pattern as the agent definition version diff.",
         "operationId": "AgentPrismCompareRuns",
         "parameters": [
           {
@@ -1612,6 +1640,7 @@
           "Workflows"
         ],
         "summary": "Lists workflows defined in code and stored in the database.",
+        "description": "What the list contains depends on whether the workflow engine is registered. With the engine, both code-defined and stored workflows appear, because only the engine can see the ones built in code. Without it, only stored definitions are listed \u2014 managing definitions does not require the engine, but running them does.",
         "operationId": "AgentPrismListWorkflows",
         "responses": {
           "200": {
@@ -1637,6 +1666,7 @@
           "Workflows"
         ],
         "summary": "Returns a single workflow definition.",
+        "description": "Only stored definitions are editable and only they are returned here. A code-defined workflow is listed and can be run but has no stored definition, so it answers 404 with a distinct \u0027No editable definition\u0027 title \u2014 different from the plain not-found title used for a name that does not exist at all. Read the structure of a code-defined workflow from the graph endpoint instead.",
         "operationId": "AgentPrismGetWorkflow",
         "parameters": [
           {
@@ -1667,6 +1697,7 @@
           "Workflows"
         ],
         "summary": "Creates or updates a workflow definition.",
+        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.",
         "operationId": "AgentPrismSaveWorkflow",
         "parameters": [
           {
@@ -1707,6 +1738,7 @@
           "Workflows"
         ],
         "summary": "Deletes a workflow definition.",
+        "description": "Only a stored definition can be deleted; a code-defined workflow is removed by changing the application, and asking for one here returns 404. Runs and checkpoints already recorded are kept, so past executions stay readable, but a checkpoint cannot be resumed once the definition it needs is gone.",
         "operationId": "AgentPrismDeleteWorkflow",
         "parameters": [
           {
@@ -1837,6 +1869,7 @@
           "Workflows"
         ],
         "summary": "Lists the checkpoints of a workflow run.",
+        "description": "Checkpoints are the points a run can be resumed from; each entry\u0027s id is what the resume endpoint takes. A run belonging to another tenant is reported as 404 rather than 403, so the API does not confirm that it exists. An empty list means the run wrote no checkpoint \u2014 checkpointing is a property of how the workflow was built, not something this endpoint can turn on. Checkpoints are subject to retention, so an old run may have none left.",
         "operationId": "AgentPrismListWorkflowCheckpoints",
         "parameters": [
           {
@@ -1873,6 +1906,7 @@
           "Workflows"
         ],
         "summary": "Resumes from a checkpoint and streams events over SSE.",
+        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error.",
         "operationId": "AgentPrismResumeWorkflow",
         "parameters": [
           {
@@ -2025,6 +2059,7 @@
           "Scheduling"
         ],
         "summary": "Lists a tenant\u0027s schedules.",
+        "description": "Enabled and disabled schedules are returned together; \u0027enabled\u0027 tells them apart. Each entry carries \u0027nextRunAt\u0027 as computed at the last save and \u0027lastRunAt\u0027 from the last execution, which is the quickest way to see that a schedule has stopped firing. A schedule with no cron expression never fires on its own and exists only to be triggered by hand.",
         "operationId": "AgentPrismListSchedules",
         "responses": {
           "200": {
@@ -2050,6 +2085,7 @@
           "Scheduling"
         ],
         "summary": "Gets a single schedule.",
+        "description": "The response is the definition, including the stored payload the schedule fires with; the jobs it produced are read from the job endpoints, filtered by this schedule\u0027s id. Names are scoped to the calling tenant, and an unknown name returns 404.",
         "operationId": "AgentPrismGetSchedule",
         "parameters": [
           {
@@ -2121,6 +2157,7 @@
           "Scheduling"
         ],
         "summary": "Deletes a schedule.",
+        "description": "The schedule stops firing, but jobs it already queued are not withdrawn \u2014 cancel those individually if they must not run. Job history keeps pointing at the deleted schedule\u0027s id, so past executions stay traceable. To pause a schedule instead, save it with \u0027enabled: false\u0027. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteSchedule",
         "parameters": [
           {
@@ -2146,6 +2183,7 @@
           "Scheduling"
         ],
         "summary": "Runs a schedule immediately, without waiting for the cron schedule.",
+        "description": "The job is queued, not executed inline: the response is the queued job record, so poll the job endpoint for the outcome. The body is optional \u2014 without one the schedule\u0027s stored payload is used, and a body\u0027s payload overrides it for this run only without changing the schedule. A trigger fires even when the schedule is disabled, and it does not move \u0027nextRunAt\u0027. The payload\u0027s item count is capped by the same limit that applies on save.",
         "operationId": "AgentPrismTriggerSchedule",
         "parameters": [
           {
@@ -2187,6 +2225,7 @@
           "Scheduling"
         ],
         "summary": "Lists jobs, filtered by kind, status, or schedule.",
+        "description": "Every queued unit of work shares this queue \u2014 scheduled runs, retention cleanups, webhook deliveries, and queued agent runs \u2014 so filter by \u0027kind\u0027 to narrow it. \u0027scheduleId\u0027 returns the executions of one schedule. Job items are not included here; read them from the single-job endpoint. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50.",
         "operationId": "AgentPrismListJobs",
         "parameters": [
           {
@@ -2260,6 +2299,7 @@
           "Scheduling"
         ],
         "summary": "Gets a job and its items.",
+        "description": "This is the endpoint to poll after queuing work: it carries the job\u0027s status and attempt count together with its items, each with its own status, so partial progress is visible while the job is still running. A failed job keeps its error text here rather than only in the logs. An unknown id, or one belonging to another tenant, returns 404.",
         "operationId": "AgentPrismGetJob",
         "parameters": [
           {
@@ -2320,6 +2360,7 @@
           "Evals"
         ],
         "summary": "Lists a tenant\u0027s eval suites.",
+        "description": "Each entry is a suite\u0027s definition \u2014 the agent under test and its check definitions \u2014 without the cases or the past runs; read those from the cases and runs endpoints. The response is not paged.",
         "operationId": "AgentPrismListEvalSuites",
         "responses": {
           "200": {
@@ -2345,6 +2386,7 @@
           "Evals"
         ],
         "summary": "Gets a single eval suite.",
+        "description": "The suite carries its checks, which are stored together with it rather than as separate rows, because a suite\u0027s checks are always read and written as one unit. Cases and runs are separate endpoints. Suites are scoped to the calling tenant, and an unknown name returns 404.",
         "operationId": "AgentPrismGetEvalSuite",
         "parameters": [
           {
@@ -2416,6 +2458,7 @@
           "Evals"
         ],
         "summary": "Deletes an eval suite (together with its cases and runs).",
+        "description": "The cases and every past eval run cascade with the suite, so the score history used to compare agent versions disappears with it \u2014 export it first if it matters. The agent runs those evals produced stay in the run history and are still readable there. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteEvalSuite",
         "parameters": [
           {
@@ -2441,6 +2484,7 @@
           "Evals"
         ],
         "summary": "Lists a suite\u0027s cases.",
+        "description": "Cases come back in their stored order, and that order is their identity: a case is addressed by its sequence number, so reordering the list changes which case a past result refers to. An unknown suite name returns 404, while a suite with no cases returns an empty list.",
         "operationId": "AgentPrismListEvalCases",
         "parameters": [
           {
@@ -2474,6 +2518,7 @@
           "Evals"
         ],
         "summary": "Replaces all of a suite\u0027s cases with the given list.",
+        "description": "This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Sequence numbers are assigned from the body\u0027s order, which means reordering the list re-numbers the cases and past results then line up with different cases. Every case needs a non-empty \u0027query\u0027; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.",
         "operationId": "AgentPrismSaveEvalCases",
         "parameters": [
           {
@@ -2520,6 +2565,7 @@
           "Evals"
         ],
         "summary": "Deletes all of a suite\u0027s cases.",
+        "description": "The suite itself survives with its checks intact; only the cases go. Past eval runs and their per-case results are kept, but they then point at cases that no longer exist. The call is idempotent \u2014 clearing an already empty suite still answers 204. An unknown suite name returns 404.",
         "operationId": "AgentPrismClearEvalCases",
         "parameters": [
           {
@@ -2648,6 +2694,7 @@
           "Evals"
         ],
         "summary": "Lists a suite\u0027s past runs.",
+        "description": "Each entry is one execution of the whole suite with its aggregate outcome; the per-case results live behind the single eval-run endpoint. Comparing entries over time is how a regression between agent versions is spotted. Paging is offset based, with \u0027skip\u0027 defaulting to 0 and \u0027take\u0027 to 50. An unknown suite name returns 404.",
         "operationId": "AgentPrismListEvalRuns",
         "parameters": [
           {
@@ -2707,6 +2754,7 @@
           "Evals"
         ],
         "summary": "Gets a single eval run and its per-case results.",
+        "description": "This is the endpoint to poll after triggering a suite: the eval run is queued and processed in the background, and its results fill in as cases complete. Each result names the agent run it came from, so a failing check can be traced to the exact conversation. Per-case results are a retention target, so an old eval run may keep its summary while its details are gone. An unknown id, or one belonging to another tenant, returns 404.",
         "operationId": "AgentPrismGetEvalRun",
         "parameters": [
           {
@@ -2800,6 +2848,7 @@
           "Experiments"
         ],
         "summary": "Lists a tenant\u0027s A/B experiments.",
+        "description": "Experiments in every state are returned \u2014 Draft, Running, and Stopped \u2014 because a stopped experiment is still the record its results are read from. At most one of them per agent can be Running. The entries carry the variant weights, so a client can show the traffic split without a second call.",
         "operationId": "AgentPrismListExperiments",
         "responses": {
           "200": {
@@ -2825,6 +2874,7 @@
           "Experiments"
         ],
         "summary": "Gets a single A/B experiment.",
+        "description": "The response is the experiment\u0027s definition \u2014 arms, weights, status \u2014 not its outcome; read the per-arm counts from the results endpoint and the canary rule from the canary endpoint. Experiments are scoped to the calling tenant, and a name that belongs to another tenant is reported as 404.",
         "operationId": "AgentPrismGetExperiment",
         "parameters": [
           {
@@ -2896,6 +2946,7 @@
           "Experiments"
         ],
         "summary": "Deletes an experiment. A running experiment must be stopped first.",
+        "description": "Deleting a Running experiment returns 409; stop it first, so traffic is never left splitting against a definition that no longer exists. Runs already assigned to an arm keep their assignment and stay readable, but the per-arm results endpoint disappears with the experiment \u2014 export the results before deleting. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteExperiment",
         "parameters": [
           {
@@ -2954,6 +3005,7 @@
           "Experiments"
         ],
         "summary": "Stops the experiment; new runs go to the current version.",
+        "description": "Stopping affects only new runs: a run already in flight keeps the arm it was assigned, and the recorded results stay intact and readable afterwards. Stopping an experiment that is not Running returns 409, and so does an unknown name \u2014 this endpoint does not distinguish the two. Once stopped, the agent\u0027s own current version serves all traffic again, and the same agent becomes free for another experiment.",
         "operationId": "AgentPrismStopExperiment",
         "parameters": [
           {
@@ -3144,7 +3196,7 @@
           "Agents"
         ],
         "summary": "Returns run counts, token totals, and the error rate.",
-        "description": "The summary is computed in the store itself. Cost (Phase 20) is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero.",
+        "description": "The summary is computed in the store itself. Cost is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero.",
         "operationId": "AgentPrismStats",
         "parameters": [
           {
@@ -3196,7 +3248,7 @@
           "Agents"
         ],
         "summary": "Per-bucket time series of runs, errors, tokens, and cost.",
-        "description": "Empty buckets are returned too. The default range is the last 24 hours, the default bucket is an hour. At most 500 buckets; exceeding that returns 400. Unlike /api/stats, this endpoint does NOT exclude Eval/Workflow runs by default (see docs/KARARLAR.md K-152); it can be filtered with ?kind=.",
+        "description": "Empty buckets are returned too. The default range is the last 24 hours, the default bucket is an hour. At most 500 buckets; exceeding that returns 400. Unlike /api/stats, this endpoint does NOT exclude Eval/Workflow runs by default; it can be filtered with ?kind=.",
         "operationId": "AgentPrismStatsTimeSeries",
         "parameters": [
           {
@@ -3315,7 +3367,7 @@
           "Agents"
         ],
         "summary": "Recalculates the cost of all runs based on the current pricing source.",
-        "description": "This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins (see docs/KARARLAR.md K-154). Requires Admin; the call is written to the audit trail.",
+        "description": "This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins. Requires Admin; the call is written to the audit trail.",
         "operationId": "AgentPrismRecalculateCosts",
         "responses": {
           "200": {
@@ -3338,6 +3390,7 @@
           "Governance"
         ],
         "summary": "Lists a tenant\u0027s quota rules.",
+        "description": "Rules are definitions, not counters \u2014 read the counters from the usage endpoint. A rule with no agent name applies to the whole tenant, and a tenant-wide rule and an agent-specific rule can both be in force at once. A rule with \u0027enabled: false\u0027 is kept but not enforced. An agent with no matching rule is unlimited.",
         "operationId": "AgentPrismListQuotas",
         "responses": {
           "200": {
@@ -3394,6 +3447,7 @@
           "Governance"
         ],
         "summary": "Deletes a quota rule.",
+        "description": "Removing the last rule that covers an agent makes it unlimited, which is why the removal is written to the audit trail with the rule\u0027s previous values. Usage counters already recorded are not deleted; they simply stop being enforced. To keep the limits but stop enforcing them, save the rule with \u0027enabled: false\u0027 instead. An unknown id returns 404.",
         "operationId": "AgentPrismDeleteQuota",
         "parameters": [
           {
@@ -3485,6 +3539,7 @@
           "Webhooks"
         ],
         "summary": "Gets a single subscription.",
+        "description": "As in the list, no signing secret is returned \u2014 only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. An unknown name returns 404.",
         "operationId": "AgentPrismGetWebhook",
         "parameters": [
           {
@@ -3556,6 +3611,7 @@
           "Webhooks"
         ],
         "summary": "Deletes a subscription and its delivery history.",
+        "description": "The delivery history cascades with the subscription, so export it first if it is needed for an audit; there is no way to recover it afterwards. Events raised after the delete match no subscription and are simply not delivered. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteWebhook",
         "parameters": [
           {
@@ -3614,6 +3670,7 @@
           "Webhooks"
         ],
         "summary": "Lists a subscription\u0027s delivery history.",
+        "description": "This is a history table, not a queue: scheduling and retry live in the job queue. There is one entry per event, carrying the latest status, the attempt count, and the endpoint\u0027s last response code \u2014 a retry updates that entry rather than adding another. Filter with \u0027?status=\u0027 to find failures. Paging is offset based \u2014 \u0027skip\u0027 defaults to 0, \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to 1..200 instead of being rejected. An unknown subscription name returns 404.",
         "operationId": "AgentPrismListWebhookDeliveries",
         "parameters": [
           {
@@ -3764,6 +3821,7 @@
           "Approvals"
         ],
         "summary": "Lists the tenant\u0027s pending approval requests.",
+        "description": "Only requests still awaiting a decision are returned; a decided request leaves the list and stays readable by id. A request appears here when a queued run (\u0027Prefer: respond-async\u0027) stops on a tool call that needs approval \u2014 a run driven synchronously carries its approval in the response stream instead and never reaches this mailbox. Each entry carries an expiry, which is an absolute point in the future rather than an elapsed duration.",
         "operationId": "AgentPrismListPendingApprovals",
         "responses": {
           "200": {
@@ -3789,6 +3847,7 @@
           "Approvals"
         ],
         "summary": "Returns a single pending approval request.",
+        "description": "Unlike the list, this reads a request in any state, so it is how a client polls the outcome after deciding: the response then carries who decided, when, and which way. The request holds the tool call\u0027s arguments as recorded, which is what an approver reviews before deciding. An unknown id returns 404.",
         "operationId": "AgentPrismGetPendingApproval",
         "parameters": [
           {
@@ -3866,6 +3925,7 @@
           "Retention"
         ],
         "summary": "Lists a tenant\u0027s retention policies.",
+        "description": "Only targets that have an explicit policy appear here. A target missing from the list is not cleaned up at all \u2014 absence means \u0027keep forever\u0027, not \u0027use a default\u0027. A policy is also kept while switched off, so \u0027enabled: false\u0027 is a configured-but-paused policy and is different from having none.",
         "operationId": "AgentPrismListRetentionPolicies",
         "responses": {
           "200": {
@@ -3891,6 +3951,7 @@
           "Retention"
         ],
         "summary": "Shows how many rows would be deleted if run now. Does NOT delete.",
+        "description": "Run this before every cleanup: it is the only way to see the size of a deletion before it happens. The counts are computed against the data as it is right now, so they are an estimate \u2014 rows written between the preview and the run are included by the run. Without \u0027?target=\u0027 every configured target is previewed; an unknown target name returns 400. Nothing is written and no job is queued.",
         "operationId": "AgentPrismPreviewRetention",
         "parameters": [
           {
@@ -3957,6 +4018,7 @@
           "Retention"
         ],
         "summary": "Lists past cleanup runs.",
+        "description": "Each entry records one executed cleanup \u2014 the target, when it ran, and how many rows it removed \u2014 which is how a deletion is accounted for after the fact. Filter to one target with \u0027?target=\u0027. Paging is offset based: \u0027skip\u0027 defaults to 0, \u0027take\u0027 to 50, and \u0027take\u0027 is clamped to 1..200 instead of being rejected. This history is not itself cleaned up by any policy \u2014 it is the permanent record of what was deleted.",
         "operationId": "AgentPrismRetentionHistory",
         "parameters": [
           {
@@ -4015,6 +4077,7 @@
           "Retention"
         ],
         "summary": "Gets the retention policy for a single target.",
+        "description": "Two different failures are reported differently: an unrecognized target name returns 400 and lists the valid targets, while a valid target with no policy configured returns 404. Read that 404 as \u0027this data is never cleaned up\u0027.",
         "operationId": "AgentPrismGetRetentionPolicy",
         "parameters": [
           {
@@ -4045,6 +4108,7 @@
           "Retention"
         ],
         "summary": "Creates or updates the retention policy for a target.",
+        "description": "\u0027maxAgeDays\u0027 and \u0027maxRows\u0027 are independent limits and both may be set; each must be at least 1 when given, and leaving both unset means the policy removes nothing. Saving does not delete anything by itself \u2014 the cleanup runs from the queue, so preview first. Every save is written to the audit trail with the previous and the new values. An unrecognized target returns 400.",
         "operationId": "AgentPrismSaveRetentionPolicy",
         "parameters": [
           {
@@ -4085,6 +4149,7 @@
           "Retention"
         ],
         "summary": "Deletes the retention policy for a target.",
+        "description": "Removing a policy stops the cleanup for that target; it deletes no data and restores none that was already deleted. To pause a cleanup while keeping the limits, save the policy with \u0027enabled: false\u0027 instead. The removal is written to the audit trail. An unrecognized target returns 400, a target with no policy returns 404.",
         "operationId": "AgentPrismDeleteRetentionPolicy",
         "parameters": [
           {
@@ -4171,6 +4236,7 @@
           "Knowledge"
         ],
         "summary": "Lists the sources in a collection.",
+        "description": "The response is a flat list of source identifiers, not the chunks or their text: a source is the unit a document was uploaded and is deleted as. An unknown collection is not an error \u2014 it simply has no sources and returns an empty list. Knowledge storage requires PostgreSQL; without it the response is 501.",
         "operationId": "AgentPrismListKnowledgeDocuments",
         "parameters": [
           {
@@ -4216,6 +4282,7 @@
           "Knowledge"
         ],
         "summary": "Deletes all chunks of a source.",
+        "description": "Every chunk and embedding produced from the source is removed; re-uploading the document is the only way back, and it costs a fresh round of embedding calls. The call is idempotent: an unknown source id still answers 204, because the requested end state \u2014 no such source \u2014 already holds. Knowledge storage requires PostgreSQL; without it the response is 501.",
         "operationId": "AgentPrismDeleteKnowledgeDocument",
         "parameters": [
           {
@@ -4259,6 +4326,7 @@
           "Knowledge"
         ],
         "summary": "Performs a semantic search in a collection (for diagnostics and calibration).",
+        "description": "This runs the same retrieval an agent performs, so it is how a retrieval problem is separated from a prompt problem: if the right chunk does not come back here, the agent was never going to see it. The query is embedded, which costs one embedding call per request. Each hit carries its distance \u2014 smaller is closer \u2014 along with the chunk text and its metadata, so a relevance threshold can be calibrated from real values. Knowledge storage requires PostgreSQL; without it the response is 501.",
         "operationId": "AgentPrismSearchKnowledge",
         "parameters": [
           {
@@ -4349,6 +4417,7 @@
           "Models"
         ],
         "summary": "Returns the cached health status of a single provider.",
+        "description": "The status is served from the cache; add \u0027?refresh=true\u0027 to force a fresh check. A check reads the provider\u0027s model list and never runs a completion, so it costs nothing. An unregistered provider name returns 404 \u2014 which is different from a registered provider that reports Unknown because it implements no health check. Error details never carry an API key or an endpoint address.",
         "operationId": "AgentPrismModelHealth",
         "parameters": [
           {
@@ -4411,6 +4480,7 @@
           "Voice"
         ],
         "summary": "Lists the available voices.",
+        "description": "The list comes from the configured speech provider, not from AgentPrism; the identifiers it returns are the values the speak endpoint and the agent\u0027s \u0027speak\u0027 tool accept. When the speech layer was never enabled with UseVoice(), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.",
         "operationId": "AgentPrismVoiceList",
         "responses": {
           "200": {
@@ -4703,6 +4773,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a tenant record.",
+        "description": "The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) \u2014 it is the same text stored as \u0027tenant_id\u0027 on every other row. An empty display name falls back to the slug.",
         "operationId": "AgentPrismSaveTenant",
         "parameters": [
           {
@@ -4836,6 +4907,7 @@
           "Governance"
         ],
         "summary": "Deletes a remote MCP server.",
+        "description": "The registration is removed, so the tools it contributed stop being offered to agents. Agent definitions that name those tools are not rewritten and will fail validation on their next save \u2014 check which agents use the server before removing it. No request is made to the remote server itself. An unknown name returns 404.",
         "operationId": "AgentPrismDeleteMcpServer",
         "parameters": [
           {
@@ -5096,6 +5168,7 @@
           "Governance"
         ],
         "summary": "Lists persistent \u0027don\u0027t ask again\u0027 approval rules.",
+        "description": "Each rule pre-approves a tool call so it never reaches the approval mailbox again, which makes this list a standing grant worth reviewing. A rule with no agent name applies to every agent in the tenant. When it carries an arguments hash the rule matches only that exact call; without one it matches every call to that tool. Rules do not expire \u2014 remove one to start asking again.",
         "operationId": "AgentPrismListApprovalRules",
         "responses": {
           "200": {
@@ -5148,7 +5221,7 @@
           "Governance"
         ],
         "summary": "Lists audit entries, filterable by actor, action, entity, and date range.",
-        "description": "Filterable by actor, action, entity, and date range. Runs (an agent processing a message) are not written to this log; the runs table already keeps the full record. The one exception is the \u0027content.blocked\u0027 action (Phase 48): an IContentGuard\u0027s block decision is a GOVERNANCE decision, not a run detail, and must remain traceable even after the run record is deleted by retention policy. The entry carries only the guard and rule name, never the blocked TEXT.",
+        "description": "Filterable by actor, action, entity, and date range. Runs (an agent processing a message) are not written to this log; the runs table already keeps the full record. The one exception is the \u0027content.blocked\u0027 action: an IContentGuard\u0027s block decision is a GOVERNANCE decision, not a run detail, and must remain traceable even after the run record is deleted by retention policy. The entry carries only the guard and rule name, never the blocked TEXT.",
         "operationId": "AgentPrismListAudit",
         "parameters": [
           {
@@ -5225,6 +5298,7 @@
           "Governance"
         ],
         "summary": "Returns a single entity\u0027s change history, newest first.",
+        "description": "The path segment is the full entity key as it was recorded, in the form \u0027\u003Ctype\u003E:\u003Cid\u003E\u0027 \u2014 for example \u0027quota:\u003Cguid\u003E\u0027 or \u0027retention:runs\u0027. It is matched as written, not as a prefix. Entries carry the before and the after state, so one request answers \u0027who changed this and to what\u0027. There is no paging: \u0027?limit=\u0027 defaults to 100 and is clamped to 1..500, and only the newest entries are returned. An entity with no history returns an empty list, not 404.",
         "operationId": "AgentPrismGetEntityAudit",
         "parameters": [
           {
@@ -5421,6 +5495,7 @@
           "OpenAI"
         ],
         "summary": "Returns a conversation\u0027s metadata.",
+        "description": "A conversation identifier is a reservation, so an id that has never carried a call is still valid and answers 200 with the current time as its creation time. 404 therefore means \u0027not yours\u0027, not \u0027never used\u0027: an identifier owned by another tenant is reported as missing rather than forbidden, so the API does not confirm that it exists.",
         "operationId": "AgentPrismOpenAIGetConversation",
         "parameters": [
           {
@@ -5461,6 +5536,7 @@
           "OpenAI"
         ],
         "summary": "Deletes a conversation and the session underneath it.",
+        "description": "Following the OpenAI shape, the response is 200 with a \u0027deleted\u0027 flag rather than 204: the flag is false when the identifier was valid but no session had been created for it yet, so a client can tell a real deletion from a no-op. An identifier owned by another tenant returns 404.",
         "operationId": "AgentPrismOpenAIDeleteConversation",
         "parameters": [
           {
@@ -5503,6 +5579,7 @@
           "OpenAI"
         ],
         "summary": "Lists a conversation\u0027s messages in the OpenAI item format.",
+        "description": "Items come back oldest first, and one stored message can expand into several items \u2014 a reply plus its tool calls, for example. \u0027?limit=\u0027 trims the list from the end and sets \u0027has_more\u0027 to true, which is computed from the real total before trimming, so a truncated list never looks complete. There is no cursor paging: \u0027first_id\u0027 and \u0027last_id\u0027 describe the returned window only. A conversation with no history returns an empty list, and an identifier owned by another tenant returns 404.",
         "operationId": "AgentPrismOpenAIListConversationItems",
         "parameters": [
           {
@@ -14622,8 +14699,20 @@
         },
         "description": "Request to save a workflow definition."
       }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "description": "The token configured through AgentPrismEndpointOptions, or an API key issued from /api/keys. The header is compared in constant time. When no token is configured the endpoints are reachable from loopback only, so an unauthenticated local run still works.",
+        "scheme": "bearer"
+      }
     }
   },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
   "tags": [
     {
       "name": "AgentPrism"

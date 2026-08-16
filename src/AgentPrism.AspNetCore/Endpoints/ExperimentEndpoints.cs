@@ -28,14 +28,24 @@ internal static class ExperimentEndpoints
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismListExperiments")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Lists a tenant's A/B experiments.");
+            .WithSummary("Lists a tenant's A/B experiments.")
+            .WithDescription(
+                "Experiments in every state are returned — Draft, Running, and Stopped — because " +
+                "a stopped experiment is still the record its results are read from. At most one " +
+                "of them per agent can be Running. The entries carry the variant weights, so a " +
+                "client can show the traffic split without a second call.");
 
         builder.MapGet("/api/experiments/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Gets a single A/B experiment.");
+            .WithSummary("Gets a single A/B experiment.")
+            .WithDescription(
+                "The response is the experiment's definition — arms, weights, status — not its " +
+                "outcome; read the per-arm counts from the results endpoint and the canary rule " +
+                "from the canary endpoint. Experiments are scoped to the calling tenant, and a " +
+                "name that belongs to another tenant is reported as 404.");
 
         builder.MapPut("/api/experiments/{name}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -53,7 +63,13 @@ internal static class ExperimentEndpoints
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismDeleteExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Deletes an experiment. A running experiment must be stopped first.");
+            .WithSummary("Deletes an experiment. A running experiment must be stopped first.")
+            .WithDescription(
+                "Deleting a Running experiment returns 409; stop it first, so traffic is never " +
+                "left splitting against a definition that no longer exists. Runs already " +
+                "assigned to an arm keep their assignment and stay readable, but the per-arm " +
+                "results endpoint disappears with the experiment — export the results before " +
+                "deleting. An unknown name returns 404.");
 
         builder.MapPost("/api/experiments/{name}/start", StartAsync)
             .RequireRole(roles.Admin)
@@ -68,7 +84,14 @@ internal static class ExperimentEndpoints
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismStopExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Stops the experiment; new runs go to the current version.");
+            .WithSummary("Stops the experiment; new runs go to the current version.")
+            .WithDescription(
+                "Stopping affects only new runs: a run already in flight keeps the arm it was " +
+                "assigned, and the recorded results stay intact and readable afterwards. " +
+                "Stopping an experiment that is not Running returns 409, and so does an unknown " +
+                "name — this endpoint does not distinguish the two. Once stopped, the " +
+                "agent's own current version serves all traffic again, and the same agent " +
+                "becomes free for another experiment.");
 
         builder.MapGet("/api/experiments/{name}/results", GetResultsAsync)
             .RequireRole(roles.Reader)

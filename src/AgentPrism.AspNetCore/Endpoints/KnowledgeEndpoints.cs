@@ -39,6 +39,12 @@ internal static class KnowledgeEndpoints
             .WithName("AgentPrismListKnowledgeDocuments")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Lists the sources in a collection.")
+            .WithDescription(
+                "The response is a flat list of source identifiers, not the chunks or their " +
+                "text: a source is the unit a document was uploaded and is deleted as. An " +
+                "unknown collection is not an error — it simply has no sources and returns an " +
+                "empty list. Knowledge storage requires PostgreSQL; without it the response " +
+                "is 501.")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapDelete("/api/knowledge/{collection}/documents/{sourceId}", DeleteAsync)
@@ -47,6 +53,12 @@ internal static class KnowledgeEndpoints
             .WithName("AgentPrismDeleteKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Deletes all chunks of a source.")
+            .WithDescription(
+                "Every chunk and embedding produced from the source is removed; re-uploading " +
+                "the document is the only way back, and it costs a fresh round of embedding " +
+                "calls. The call is idempotent: an unknown source id still answers 204, because " +
+                "the requested end state — no such source — already holds. Knowledge storage " +
+                "requires PostgreSQL; without it the response is 501.")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapPost("/api/knowledge/{collection}/search", SearchAsync)
@@ -55,6 +67,14 @@ internal static class KnowledgeEndpoints
             .WithName("AgentPrismSearchKnowledge")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Performs a semantic search in a collection (for diagnostics and calibration).")
+            .WithDescription(
+                "This runs the same retrieval an agent performs, so it is how a retrieval " +
+                "problem is separated from a prompt problem: if the right chunk does not come " +
+                "back here, the agent was never going to see it. The query is embedded, which " +
+                "costs one embedding call per request. Each hit carries its distance — smaller " +
+                "is closer — along with the chunk text and its metadata, so a relevance " +
+                "threshold can be calibrated from real values. Knowledge storage requires " +
+                "PostgreSQL; without it the response is 501.")
             .Accepts<SearchKnowledgeRequest>("application/json")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }

@@ -24,6 +24,7 @@ dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi.
 | MAF genişleme noktası | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) |
 | Geçmişte neden öyle yapıldı? | [`docs/arsiv/`](docs/arsiv/) — yalnız grep'le |
 | Paketler, kurulum, faz durumu | [`README.md`](README.md) |
+| Kullanıcıya dönük ürün metni | [`docs-site/`](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
 
 **`docs/KARARLAR.md` ve `docs/arsiv/*` hiçbir zaman baştan sona okunmaz.**
 İndeksten satır numarasını bul, `sed -n 'N,Np'` ile o satırı oku. Aramak
@@ -94,7 +95,7 @@ taşınır.
 
 ### Faz durumu
 
-**Faz 0–58 tamam** (Faz 7 hariç, K-068); **59 planlandı**. Durum tablosu
+**Faz 0–59 tamam** (Faz 7 hariç, K-068). Durum tablosu
 [`README.md`](README.md)'de; faz sırası, migration numaraları ve açık kalemler
 tur yol haritalarındadır ([ikinci](docs/IKINCI-FAZ-YOL-HARITASI.md) ·
 [üçüncü](docs/UCUNCU-FAZ-YOL-HARITASI.md)), seçilmemiş kalemler
@@ -153,6 +154,15 @@ Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 Genel .NET kuralları `.editorconfig`'dedir. Aşağıdakiler analyzer'ın
 yakalayamadığı, projeye özgü kurallardır.
+
+**🚨 `docs/` ile `docs-site/` iki ayrı şeydir.** `docs/` Türkçe geliştirme
+günlüğüdür (faz dokümanları, kararlar, hafıza). `docs-site/` İngilizce **ürün
+dokümantasyonudur** ve `farukatasoy.github.io/AgentPrism` adresinde yayınlanır. Aynı
+içeriği iki yere yazma: kullanıcıya dönük anlatı siteye, geliştirme kaydı `docs/`'a.
+Site ayrı bir yayın hattıdır — `dotnet build`'e bağlanmaz, pakete girmez, Node
+**22.12+** ister. API referansı ve HTTP API sayfaları **üretilir** (`npm run
+generate`) ve commit edilmez; ekran görüntüleri E2E koşumundan üretilir
+(`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir.
 
 **🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
 Kod, yorum, XML dokümanı, `exception`/log/`ProblemDetails` metni, migration

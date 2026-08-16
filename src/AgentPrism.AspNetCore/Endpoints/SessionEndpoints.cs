@@ -41,21 +41,40 @@ internal static class SessionEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListSessions")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Lists sessions from most recently updated to oldest.");
+            .WithSummary("Lists sessions from most recently updated to oldest.")
+            .WithDescription(
+                "Paging is offset based: 'skip' defaults to 0 and 'take' to 50, and 'take' is " +
+                "clamped to the 1..200 range rather than rejected, so an out-of-range value never " +
+                "fails the request. 'agentName' narrows the list to one agent. Because the order " +
+                "is by last update, a session that changes while a client pages can move between " +
+                "pages; use the session id, not the position, as the identity.");
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetSession")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Returns a session's metadata and chat history.");
+            .WithSummary("Returns a session's metadata and chat history.")
+            .WithDescription(
+                "'messages' is the readable chat history and is null when the configured session " +
+                "storage cannot expose one — with an in-memory setup the history lives inside an " +
+                "opaque state blob. 'state' always carries that raw provider state. Messages come " +
+                "back in sequence order, so the index of a message is the sequence number the " +
+                "branch endpoint expects.");
 
         builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteSession")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Deletes a session.");
+            .WithSummary("Deletes a session.")
+            .WithDescription(
+                "Attachments linked to the session are deleted with it, and this call is the only " +
+                "way they are cleaned up: an attachment may be uploaded before any session exists, " +
+                "so the link is deliberately not a database foreign key. The attachments are " +
+                "removed only after the session itself is found, so a 404 leaves no side effect. " +
+                "Runs recorded under the session are kept — run history does not depend on the " +
+                "session still existing.");
 
         builder.MapPost("/api/sessions/{sessionId}/branch", BranchSessionAsync)
             .RequireRole(roles.Operator)

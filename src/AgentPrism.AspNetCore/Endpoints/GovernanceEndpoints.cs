@@ -166,6 +166,13 @@ internal static class GovernanceEndpoints
             .WithName("AgentPrismSaveTenant")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Adds or updates a tenant record.")
+            .WithDescription(
+                "The record is a display name for a tenant key that already works without it; " +
+                "creating one does not create the tenant and deleting one does not remove its " +
+                "data. The slug comes from the path and must be at most 64 characters of " +
+                "letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the " +
+                "same text stored as 'tenant_id' on every other row. An empty display name " +
+                "falls back to the slug.")
             .Accepts<TenantRequest>("application/json");
 
         builder.MapDelete("/api/tenants/{slug}", async Task<Results<NoContent, ProblemHttpResult>> (
@@ -275,7 +282,13 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteMcpServer")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Deletes a remote MCP server.");
+            .WithSummary("Deletes a remote MCP server.")
+            .WithDescription(
+                "The registration is removed, so the tools it contributed stop being offered to " +
+                "agents. Agent definitions that name those tools are not rewritten and will fail " +
+                "validation on their next save — check which agents use the server before " +
+                "removing it. No request is made to the remote server itself. An unknown name " +
+                "returns 404.");
 
         builder.MapPost("/api/mcp-servers/refresh", async Task<Results<Ok<McpRefreshResponse>, ProblemHttpResult>> (
                 IMcpToolRefresher? refresher,
@@ -551,7 +564,13 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListApprovalRules")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Lists persistent 'don't ask again' approval rules.");
+            .WithSummary("Lists persistent 'don't ask again' approval rules.")
+            .WithDescription(
+                "Each rule pre-approves a tool call so it never reaches the approval mailbox " +
+                "again, which makes this list a standing grant worth reviewing. A rule with no " +
+                "agent name applies to every agent in the tenant. When it carries an arguments " +
+                "hash the rule matches only that exact call; without one it matches every call " +
+                "to that tool. Rules do not expire — remove one to start asking again.");
 
         builder.MapDelete("/api/approvals/rules/{ruleId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
                 Guid ruleId,

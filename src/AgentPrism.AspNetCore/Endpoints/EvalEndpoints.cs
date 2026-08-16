@@ -30,14 +30,23 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalSuites")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Lists a tenant's eval suites.");
+            .WithSummary("Lists a tenant's eval suites.")
+            .WithDescription(
+                "Each entry is a suite's definition — the agent under test and its check " +
+                "definitions — without the cases or the past runs; read those from the cases and " +
+                "runs endpoints. The response is not paged.");
 
         builder.MapGet("/api/evals/{name}", GetSuiteAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetEvalSuite")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Gets a single eval suite.");
+            .WithSummary("Gets a single eval suite.")
+            .WithDescription(
+                "The suite carries its checks, which are stored together with it rather than as " +
+                "separate rows, because a suite's checks are always read and written as one " +
+                "unit. Cases and runs are separate endpoints. Suites are scoped to the calling " +
+                "tenant, and an unknown name returns 404.");
 
         builder.MapPut("/api/evals/{name}", SaveSuiteAsync)
             .RequireRole(roles.Admin)
@@ -53,14 +62,24 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismDeleteEvalSuite")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Deletes an eval suite (together with its cases and runs).");
+            .WithSummary("Deletes an eval suite (together with its cases and runs).")
+            .WithDescription(
+                "The cases and every past eval run cascade with the suite, so the score history " +
+                "used to compare agent versions disappears with it — export it first if it " +
+                "matters. The agent runs those evals produced stay in the run history and are " +
+                "still readable there. An unknown name returns 404.");
 
         builder.MapGet("/api/evals/{name}/cases", ListCasesAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Lists a suite's cases.");
+            .WithSummary("Lists a suite's cases.")
+            .WithDescription(
+                "Cases come back in their stored order, and that order is their identity: a case " +
+                "is addressed by its sequence number, so reordering the list changes which case " +
+                "a past result refers to. An unknown suite name returns 404, while a suite with " +
+                "no cases returns an empty list.");
 
         builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
             .RequireRole(roles.Admin)
@@ -68,6 +87,13 @@ internal static class EvalEndpoints
             .WithName("AgentPrismSaveEvalCases")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Replaces all of a suite's cases with the given list.")
+            .WithDescription(
+                "This is a full replacement, not an append: cases missing from the body are " +
+                "removed, so send the complete list every time. Sequence numbers are assigned " +
+                "from the body's order, which means reordering the list re-numbers the cases and " +
+                "past results then line up with different cases. Every case needs a non-empty " +
+                "'query'; one that does not fails the whole request with 400 and nothing is " +
+                "written. An unknown suite name returns 404.")
             .Accepts<IReadOnlyList<EvalCaseInput>>("application/json");
 
         builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
@@ -75,7 +101,12 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismClearEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Deletes all of a suite's cases.");
+            .WithSummary("Deletes all of a suite's cases.")
+            .WithDescription(
+                "The suite itself survives with its checks intact; only the cases go. Past eval " +
+                "runs and their per-case results are kept, but they then point at cases that no " +
+                "longer exist. The call is idempotent — clearing an already empty suite still " +
+                "answers 204. An unknown suite name returns 404.");
 
         builder.MapPost("/api/evals/{name}/cases/from-run/{runId:guid}", PromoteRunToCaseAsync)
             .RequireRole(roles.Operator)
@@ -105,14 +136,27 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalRuns")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Lists a suite's past runs.");
+            .WithSummary("Lists a suite's past runs.")
+            .WithDescription(
+                "Each entry is one execution of the whole suite with its aggregate outcome; the " +
+                "per-case results live behind the single eval-run endpoint. Comparing entries " +
+                "over time is how a regression between agent versions is spotted. Paging is " +
+                "offset based, with 'skip' defaulting to 0 and 'take' to 50. An unknown suite " +
+                "name returns 404.");
 
         builder.MapGet("/api/evals/runs/{id:guid}", GetRunAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetEvalRun")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Gets a single eval run and its per-case results.");
+            .WithSummary("Gets a single eval run and its per-case results.")
+            .WithDescription(
+                "This is the endpoint to poll after triggering a suite: the eval run is queued " +
+                "and processed in the background, and its results fill in as cases complete. " +
+                "Each result names the agent run it came from, so a failing check can be traced " +
+                "to the exact conversation. Per-case results are a retention target, so an old " +
+                "eval run may keep its summary while its details are gone. An unknown id, or one " +
+                "belonging to another tenant, returns 404.");
 
         builder.MapGet("/api/evaluation/online", GetOnlineEvaluationSummaryAsync)
             .RequireRole(roles.Reader)

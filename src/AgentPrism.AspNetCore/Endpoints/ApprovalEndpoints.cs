@@ -37,14 +37,26 @@ internal static class ApprovalEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListPendingApprovals")
             .WithTags("AgentPrism", "Approvals")
-            .WithSummary("Lists the tenant's pending approval requests.");
+            .WithSummary("Lists the tenant's pending approval requests.")
+            .WithDescription(
+                "Only requests still awaiting a decision are returned; a decided request leaves " +
+                "the list and stays readable by id. A request appears here when a queued run " +
+                "('Prefer: respond-async') stops on a tool call that needs approval — a run " +
+                "driven synchronously carries its approval in the response stream instead and " +
+                "never reaches this mailbox. Each entry carries an expiry, which is an absolute " +
+                "point in the future rather than an elapsed duration.");
 
         builder.MapGet("/api/approvals/{id:guid}", GetAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetPendingApproval")
             .WithTags("AgentPrism", "Approvals")
-            .WithSummary("Returns a single pending approval request.");
+            .WithSummary("Returns a single pending approval request.")
+            .WithDescription(
+                "Unlike the list, this reads a request in any state, so it is how a client polls " +
+                "the outcome after deciding: the response then carries who decided, when, and " +
+                "which way. The request holds the tool call's arguments as recorded, which is " +
+                "what an approver reviews before deciding. An unknown id returns 404.");
 
         builder.MapPost("/api/approvals/{id:guid}/decide", DecideAsync)
             .RequireRole(roles.Operator)

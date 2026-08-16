@@ -88,3 +88,17 @@ src/AgentPrism.UI/wwwroot/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+## ---------------------------------------------------------------------------
+## Dokuman sitesi (docs-site/) ve API referansi (docfx/)
+## Site AYRI bir yayin hattidir; `dotnet build`'e baglanmaz.
+## Uretilen icerik commit EDILMEZ - kaynak assembly'ler ve OpenAPI snapshot'idir.
+## ---------------------------------------------------------------------------
+docs-site/dist/
+docs-site/.astro/
+docs-site/src/content/docs/api/
+docs-site/src/content/docs/http-api/
+docs-site/src/generated/
+docs-site/public/openapi/
+docfx/api-md/
+docfx/_site/

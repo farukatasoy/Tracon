@@ -43,14 +43,26 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgents")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Lists all agents defined in code and in the database.");
+            .WithSummary("Lists all agents defined in code and in the database.")
+            .WithDescription(
+                "The list merges every registered agent source into a single view, ordered by " +
+                "name. When two sources hold the same name, the source with the higher priority " +
+                "wins and the other one is dropped from the list — code definitions win over " +
+                "database definitions. The response is not paged; the number of agents is " +
+                "bounded by the control plane, not by traffic. Each entry carries the origin, " +
+                "so a client can tell an editable definition from a code-defined one.");
 
         builder.MapGet("/api/agents/{name}", GetAgentAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Returns an agent's catalog summary and its persisted definition, if any.");
+            .WithSummary("Returns an agent's catalog summary and its persisted definition, if any.")
+            .WithDescription(
+                "A code-defined agent resolves through the catalog but has no stored definition; " +
+                "for it 'definition' is null and 'isEditable' is false. 'isEditable' is the single " +
+                "field a client checks before offering an edit form — it is true only when the " +
+                "agent's origin is the database.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
             .RequireRole(roles.Admin)
@@ -58,6 +70,14 @@ internal static class AgentEndpoints
             .WithName("AgentPrismCreateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Creates a new agent definition.")
+            .WithDescription(
+                "The definition is fully validated before it is stored: the model binding, every " +
+                "tool, skill, and callable agent must already exist, and the call graph must be " +
+                "free of cycles. A failed check returns 400 and nothing is written. A name that " +
+                "another definition already uses returns 409; a name that a code-defined agent " +
+                "already uses also returns 409, because code wins name conflicts and the stored " +
+                "definition would never resolve. On success the response is 201 with the saved " +
+                "definition at version 1 and a Location header pointing at it.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -67,6 +87,13 @@ internal static class AgentEndpoints
             .WithName("AgentPrismValidateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Compiles a definition without saving it and without calling any model.")
+            .WithDescription(
+                "A validation failure is NOT an HTTP error. When the body is well-formed the " +
+                "response is always 200 and the outcome is carried in the report's 'valid' field, " +
+                "with one message per finding. 400 is returned only when the body itself cannot " +
+                "be read or the required name/model fields are missing — that is the single case " +
+                "a pipeline needs in order to tell a transport error from a rejected definition. " +
+                "No model provider is contacted and nothing is written.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -76,6 +103,13 @@ internal static class AgentEndpoints
             .WithName("AgentPrismUpdateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Updates an agent definition and produces a new version.")
+            .WithDescription(
+                "An agent's name is immutable: when the path name and the body name differ the " +
+                "response is 400. A code-defined name returns 409 — code definitions are validated " +
+                "at compile time and are changed by changing the application. The same existence " +
+                "and call-graph checks as create apply, and a failed check writes nothing. Every " +
+                "successful save appends a version rather than overwriting; the previous content " +
+                "stays readable through the version history.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -84,14 +118,25 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Deletes an agent definition and its version history.");
+            .WithSummary("Deletes an agent definition and its version history.")
+            .WithDescription(
+                "The delete removes the current definition together with every stored version; it " +
+                "is not a soft delete and there is no rollback afterwards. A code-defined name " +
+                "returns 409. A name with no stored definition returns 404, so the call is not " +
+                "idempotent across repeats. Runs already recorded for the agent are kept — the " +
+                "run history does not depend on the definition still existing.");
 
         builder.MapGet("/api/agents/{name}/versions", ListVersionsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgentVersions")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Lists a definition's version history, newest first.");
+            .WithSummary("Lists a definition's version history, newest first.")
+            .WithDescription(
+                "Every entry is a full definition snapshot, not a delta, so a single entry is " +
+                "enough to inspect or restore a past state. The agent must have a current stored " +
+                "definition; a code-defined or deleted name returns 404. Code agents have no " +
+                "version history at all — their history is the application's source history.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
             .RequireRole(roles.Admin)
@@ -99,6 +144,11 @@ internal static class AgentEndpoints
             .WithName("AgentPrismRollbackAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Writes a definition as a new version with the content of a previous version.")
+            .WithDescription(
+                "A rollback moves forward, not backward: the old content is appended as a NEW " +
+                "version and the history is never rewritten, so the rollback itself stays " +
+                "auditable and can be rolled back in turn. An unknown version number returns 404; " +
+                "a code-defined name returns 409.")
             .Accepts<AgentRollbackRequest>("application/json");
 
         builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
@@ -106,7 +156,12 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgentVersionDiff")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Returns two definition versions as raw JSON; the diff is computed in the UI.");
+            .WithSummary("Returns two definition versions as raw JSON; the diff is computed in the UI.")
+            .WithDescription(
+                "The server does no diffing and takes no position on how a change should be " +
+                "displayed; it returns both snapshots verbatim as 'left' and 'right' so the client " +
+                "chooses the presentation. The two version numbers may be given in any order. When " +
+                "either version is missing the response is 404 and names the one that was not found.");
 
         builder.MapPost("/api/agents/{name}/run", async (
                 string name,
@@ -179,14 +234,13 @@ internal static class AgentEndpoints
                 "If the quota is exceeded, the run does not start and a 429 is returned; the " +
                 "ProblemDetails carries which quota was exceeded and when the counter resets. A " +
                 "request carrying the 'Idempotency-Key' header runs with a single JSON response " +
-                "(non-streaming) instead of SSE — Phase 43's deduplication contract requires a " +
-                "non-streaming response (docs/43-IDEMPOTENCY-KEY.md). A request carrying the " +
-                "'Prefer: respond-async' header queues the run and returns '202 Accepted' + " +
-                "'Location' (Phase 46, docs/46-DAYANIKLI-CALISTIRMA.md). If a registered " +
-                "IContentGuard blocks the content, the non-streaming response returns '422' and " +
-                "runs.error_type becomes 'content_blocked'; in the STREAMING response the status " +
-                "code has already been sent, so the block appears as an SSE 'error' event " +
-                "(Phase 48, docs/48-GUARDRAILS.md).")
+                "(non-streaming) instead of SSE, because a replayed response cannot be " +
+                "reconstructed from a stream. A request carrying the 'Prefer: respond-async' " +
+                "header queues the run and returns '202 Accepted' with a 'Location' header. If a " +
+                "registered IContentGuard blocks the content, the non-streaming response returns " +
+                "'422' and the run's error type becomes 'content_blocked'; in the STREAMING " +
+                "response the status code has already been sent, so the block arrives as an SSE " +
+                "'error' event instead.")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.

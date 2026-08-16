@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="AgentPrism">
+  <title>AgentPrism</title>
+  <!-- A prism: white light enters, a spectrum leaves. The same mark the console uses. -->
+  <defs>
+    <linearGradient id="spectrum" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e5484d" />
+      <stop offset="25%" stop-color="#f5a524" />
+      <stop offset="50%" stop-color="#46a758" />
+      <stop offset="75%" stop-color="#3b7dd8" />
+      <stop offset="100%" stop-color="#8e4ec6" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#10151f" />
+  <path d="M16 6.5 26 25H6z" fill="none" stroke="#f4f6fb" stroke-width="2.2" stroke-linejoin="round" />
+  <rect x="8.5" y="27.2" width="15" height="2.4" rx="1.2" fill="url(#spectrum)" />
+</svg>

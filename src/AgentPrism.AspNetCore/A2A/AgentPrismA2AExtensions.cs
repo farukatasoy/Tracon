@@ -123,8 +123,27 @@ public static class AgentPrismA2AExtensions
             var agentGroup = group.MapGroup(agentPath);
             var card = BuildAgentCard(agentName, descriptor, pattern + agentPath);
 
-            agentGroup.MapA2A(handler, "/").WithName($"AgentPrismA2A_{agentName}");
-            agentGroup.MapWellKnownAgentCard(card, "").WithName($"AgentPrismA2AAgentCard_{agentName}");
+            agentGroup.MapA2A(handler, "/")
+                .WithName($"AgentPrismA2A_{agentName}")
+                .WithSummary($"Invokes the '{agentName}' agent over the agent-to-agent protocol.")
+                .WithDescription(
+                    "The body is a JSON-RPC message in the A2A shape; this is not the management " +
+                    "API's run endpoint and does not stream. A valid API key carrying the " +
+                    "'external:invoke' scope is required — exposing an agent to other agents is a " +
+                    "separate permission from running it from the console. The run is recorded " +
+                    "like any other, so it appears in the run history with its tokens and cost. " +
+                    "A tool call that needs approval cannot be answered over this surface and " +
+                    "ends the run instead of waiting.");
+
+            agentGroup.MapWellKnownAgentCard(card, "")
+                .WithName($"AgentPrismA2AAgentCard_{agentName}")
+                .WithSummary($"Returns the A2A agent card describing the '{agentName}' agent.")
+                .WithDescription(
+                    "The card is how another agent discovers what this one accepts and returns: " +
+                    "its name, description, version, supported input and output modes, and " +
+                    "declared capabilities. It is generated from the agent's own catalog entry, " +
+                    "so editing the agent's description changes the card. Streaming and push " +
+                    "notifications are declared unsupported.");
         }
 
         return group;

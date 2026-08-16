@@ -1,0 +1,47 @@
+/* AgentPrism documentation site — a light touch on top of Starlight's defaults. */
+
+:root {
+  --sl-color-accent-low: #16233a;
+  --sl-color-accent: #3b7dd8;
+  --sl-color-accent-high: #b9d3f5;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d6e4fa;
+  --sl-color-accent: #1d5fbf;
+  --sl-color-accent-high: #10305f;
+}
+
+/* The generated API pages open with "Namespace … · Assembly …". It is provenance,
+   not prose, so it should not compete with the summary underneath it. */
+.sl-markdown-content > p > em:first-child {
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+  font-style: normal;
+}
+
+/* A reference page is a long list of members. Give each one a visible boundary. */
+.sl-markdown-content h3 {
+  border-top: 1px solid var(--sl-color-gray-5);
+  padding-top: 1.25rem;
+}
+
+/* Wide tables and long signatures scroll inside themselves rather than pushing the
+   page sideways. A generated method signature is regularly wider than the column. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+}
+
+.sl-markdown-content pre {
+  overflow-x: auto;
+}
+
+/* The embedded OpenAPI reference needs the full viewport height to be usable. */
+.api-reference-frame {
+  block-size: calc(100vh - 12rem);
+  min-block-size: 32rem;
+  inline-size: 100%;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+}
