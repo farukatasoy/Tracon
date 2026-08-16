@@ -1,62 +1,62 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>UseGoogle()</c> cagrisinin kaydettigi saglayici adi ve
-/// <see cref="ModelBinding.ProviderSettings"/> anahtarlari.
+/// Provider name registered by the <c>UseGoogle()</c> call, and the
+/// <see cref="ModelBinding.ProviderSettings"/> keys.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu adlar <strong>kararlidir</strong>. Agent tanimlari veritabaninda bu adlarla
-/// saklanir; degistirmek kayitli tanimlari bozar.
+/// These names are <strong>stable</strong>. Agent definitions are stored in the
+/// database with these names; changing them breaks stored definitions.
 /// </para>
 /// <para>
-/// Ad <c>gemini</c> degil <c>google</c>'dir: ayni paket ileride Vertex AI'yi de
-/// kapsayabilir ve model ailesinin adina kilitlenmemelidir.
+/// The name is <c>google</c>, not <c>gemini</c>: the same package may cover
+/// Vertex AI in the future and must not be locked to the model family's name.
 /// </para>
 /// </remarks>
 public static class GoogleProviderNames
 {
-    /// <summary>Gemini Developer API kullanan saglayici: <c>google</c>.</summary>
+    /// <summary>Provider using the Gemini Developer API: <c>google</c>.</summary>
     public const string Google = "google";
 
-    /// <summary>Saglayiciya ozgu ayarlarin oneki: <c>google</c>.</summary>
+    /// <summary>Prefix for provider-specific settings: <c>google</c>.</summary>
     public const string SettingsPrefix = "google";
 
-    /// <summary>Taciz esigi: <c>google.safety.harassment</c> (metin).</summary>
+    /// <summary>Harassment threshold: <c>google.safety.harassment</c> (text).</summary>
     public const string SafetyHarassmentSetting = "google.safety.harassment";
 
-    /// <summary>Nefret soylemi esigi: <c>google.safety.hateSpeech</c> (metin).</summary>
+    /// <summary>Hate speech threshold: <c>google.safety.hateSpeech</c> (text).</summary>
     public const string SafetyHateSpeechSetting = "google.safety.hateSpeech";
 
-    /// <summary>Cinsel icerik esigi: <c>google.safety.sexuallyExplicit</c> (metin).</summary>
+    /// <summary>Sexually explicit content threshold: <c>google.safety.sexuallyExplicit</c> (text).</summary>
     public const string SafetySexuallyExplicitSetting = "google.safety.sexuallyExplicit";
 
-    /// <summary>Tehlikeli icerik esigi: <c>google.safety.dangerousContent</c> (metin).</summary>
+    /// <summary>Dangerous content threshold: <c>google.safety.dangerousContent</c> (text).</summary>
     public const string SafetyDangerousContentSetting = "google.safety.dangerousContent";
 
-    /// <summary>Sivil butunluk esigi: <c>google.safety.civicIntegrity</c> (metin).</summary>
+    /// <summary>Civic integrity threshold: <c>google.safety.civicIntegrity</c> (text).</summary>
     public const string SafetyCivicIntegritySetting = "google.safety.civicIntegrity";
 
     /// <summary>
-    /// Dusunme butcesi: <c>google.thinking.budgetTokens</c> (tam sayi).
+    /// Thinking budget: <c>google.thinking.budgetTokens</c> (integer).
     /// </summary>
     /// <remarks>
-    /// Gecerli aralik <c>[-1, 65535]</c>'tir; <c>-1</c> "modele birak" anlamina gelir
-    /// ve <c>0</c> dusunmeyi kapatir. Aralik disi bir deger istegi reddettirir —
-    /// olculdu (2026-08-05).
+    /// The valid range is <c>[-1, 65535]</c>; <c>-1</c> means "leave it to the
+    /// model" and <c>0</c> turns thinking off. An out-of-range value causes the
+    /// request to be rejected — measured (2026-08-05).
     /// </remarks>
     public const string ThinkingBudgetTokensSetting = "google.thinking.budgetTokens";
 
     /// <summary>
-    /// Dusunme ozetinin yanitta dondurulup dondurulmeyecegi:
-    /// <c>google.thinking.includeThoughts</c> (mantiksal).
+    /// Whether the thinking summary is returned in the response:
+    /// <c>google.thinking.includeThoughts</c> (boolean).
     /// </summary>
     public const string ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts";
 
-    /// <summary>Bu saglayicinin destekledigi tum ayar anahtarlari.</summary>
+    /// <summary>All setting keys this provider supports.</summary>
     /// <remarks>
-    /// Bu listede olmayan bir anahtar sessizce yok sayilmaz; derleme hatasi verir
-    /// ve hata mesaji bu listeyi yazar.
+    /// A key absent from this list is not silently ignored; it raises a compile
+    /// error, and the error message prints this list.
     /// </remarks>
     public static IReadOnlyList<string> SupportedSettings { get; } =
     [

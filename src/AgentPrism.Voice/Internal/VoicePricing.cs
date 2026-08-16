@@ -3,13 +3,13 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>AgentPrism:Pricing:Voice</c> bolumunden bir ses cagrisinin maliyetini
-/// hesaplar.
+/// Computes the cost of a voice call from the <c>AgentPrism:Pricing:Voice</c>
+/// section.
 /// </summary>
 /// <remarks>
-/// AgentPrism fiyat <strong>uydurmaz</strong> (K-032). Yapilandirmada karsilik
-/// yoksa maliyet <see langword="null"/> kalir — sifir <strong>degil</strong>.
-/// Sifir yazmak "bu cagri bedavaydi" demek olurdu.
+/// AgentPrism <strong>never invents</strong> a price (K-032). When the
+/// configuration has no match, the cost stays <see langword="null"/> —
+/// <strong>not</strong> zero. Writing zero would say "this call was free."
 /// </remarks>
 internal sealed class VoicePricing : IVoicePricingReader
 {
@@ -30,8 +30,8 @@ internal sealed class VoicePricing : IVoicePricingReader
 
     /// <inheritdoc />
     /// <remarks>
-    /// Yapilandirilmis saglayici ve sentez modeli kullanilir. HTTP katmani model
-    /// adini bilmez ve bilmemelidir.
+    /// Uses the configured provider and synthesis model. The HTTP layer does
+    /// not know the model name and should not.
     /// </remarks>
     public decimal? ForCharacters(decimal characters)
         => ForCharacters(
@@ -39,21 +39,21 @@ internal sealed class VoicePricing : IVoicePricingReader
             _voiceOptions.Value.SynthesisModelId ?? ElevenLabsSpeechClient.DefaultSynthesisModel,
             characters);
 
-    /// <summary>Karakter bazli bir cagrinin maliyetini hesaplar.</summary>
-    /// <param name="provider">Ses saglayicisinin adi.</param>
-    /// <param name="model">Kullanilan model.</param>
-    /// <param name="characters">Faturalanan karakter sayisi.</param>
-    /// <returns>Tutar; fiyat tanimsizsa <see langword="null"/>.</returns>
+    /// <summary>Computes the cost of a character-based call.</summary>
+    /// <param name="provider">Name of the voice provider.</param>
+    /// <param name="model">Model used.</param>
+    /// <param name="characters">Number of billed characters.</param>
+    /// <returns>The amount; <see langword="null"/> when the price is undefined.</returns>
     public decimal? ForCharacters(string provider, string? model, decimal characters)
         => Find(provider, model)?.PerMillionCharacters is { } rate
             ? rate * characters / 1_000_000m
             : null;
 
-    /// <summary>Sure bazli bir cagrinin maliyetini hesaplar.</summary>
-    /// <param name="provider">Ses saglayicisinin adi.</param>
-    /// <param name="model">Kullanilan model.</param>
-    /// <param name="duration">Cozulen sesin suresi.</param>
-    /// <returns>Tutar; fiyat tanimsizsa <see langword="null"/>.</returns>
+    /// <summary>Computes the cost of a duration-based call.</summary>
+    /// <param name="provider">Name of the voice provider.</param>
+    /// <param name="model">Model used.</param>
+    /// <param name="duration">Duration of the transcribed audio.</param>
+    /// <returns>The amount; <see langword="null"/> when the price is undefined.</returns>
     public decimal? ForDuration(string provider, string? model, TimeSpan duration)
         => Find(provider, model)?.PerMinute is { } rate
             ? rate * (decimal)duration.TotalMinutes

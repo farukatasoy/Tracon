@@ -1,57 +1,59 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in Google Gemini saglayici ayarlari.</summary>
+/// <summary>AgentPrism's Google Gemini provider settings.</summary>
 /// <remarks>
 /// <para>
-/// Bu tip bilincli olarak bir <c>class</c>'tir, <c>record</c> degil: <c>record</c>'un
-/// urettigi <c>ToString</c> tum ozellikleri yazar ve tek bir gunluk satiri API
-/// anahtarini ifsa ederdi. Gerekce: <c>docs/KARARLAR.md</c>, karar K-035.
+/// This type is deliberately a <c>class</c>, not a <c>record</c>: a <c>record</c>'s
+/// generated <c>ToString</c> would print every property, exposing the API key in a
+/// single log line. Rationale: <c>docs/KARARLAR.md</c>, decision K-035.
 /// </para>
 /// <para>
-/// Dogrulama <see cref="GoogleProviderOptionsValidator"/> icinde elle yapilir;
-/// <c>DataAnnotations</c> yansimaya dayanir ve AOT uyumunu bozar (karar K-006).
+/// Validation is done by hand in <see cref="GoogleProviderOptionsValidator"/>;
+/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility
+/// (decision K-006).
 /// </para>
 /// </remarks>
 public sealed class GoogleProviderOptions
 {
-    /// <summary>Ayarlarin okundugu yapilandirma bolumunun tam yolu.</summary>
+    /// <summary>Full path of the configuration section settings are read from.</summary>
     public const string SectionName = "AgentPrism:Providers:Google";
 
-    /// <summary>Gemini Developer API anahtari.</summary>
+    /// <summary>Gemini Developer API key.</summary>
     /// <remarks>
-    /// <strong>Bu deger bir sirdir ve dosyaya yazilmaz.</strong> <c>dotnet user-secrets</c>,
-    /// ortam degiskeni veya bir sir yoneticisi kullanin. Anahtar hicbir kosulda
-    /// veritabanina yazilmaz, API'den donmez ve arayuzde gosterilmez.
+    /// <strong>This value is a secret and is not written to a file.</strong> Use
+    /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager. The
+    /// key is never written to the database, never returned by the API, and never
+    /// shown in the UI, under any condition.
     /// </remarks>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// <see cref="ModelBinding.Model"/> bos birakildiginda kullanilacak model adi.
+    /// Model name used when <see cref="ModelBinding.Model"/> is left empty.
     /// </summary>
     public string? DefaultModel { get; set; }
 
     /// <summary>
-    /// Istek adresi. <see langword="null"/> ise Google'in kendi adresi
-    /// (<c>https://generativelanguage.googleapis.com</c>) kullanilir.
+    /// Request address. When <see langword="null"/>, Google's own address
+    /// (<c>https://generativelanguage.googleapis.com</c>) is used.
     /// </summary>
     public Uri? Endpoint { get; set; }
 
     /// <summary>
-    /// Kullanilacak API surumu. <see langword="null"/> ise SDK varsayilani gecerlidir.
-    /// Ornek: <c>v1beta</c>.
+    /// API version to use. When <see langword="null"/>, the SDK default applies.
+    /// Example: <c>v1beta</c>.
     /// </summary>
     public string? ApiVersion { get; set; }
 
-    /// <summary>Tek bir istegin ust sure siniri. <see langword="null"/> ise kitaplik varsayilani kullanilir.</summary>
+    /// <summary>Upper time limit for a single request. When <see langword="null"/>, the library default is used.</summary>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
-    /// Arayuze gosterilecek model katalogu.
+    /// Model catalog shown in the UI.
     /// </summary>
     /// <remarks>
-    /// AgentPrism yerlesik bir model listesi tasimaz; katalog tamamen buradan gelir.
-    /// Bu liste bir <em>dogrulama listesi degildir</em>: burada bulunmayan bir model
-    /// adi da kullanilabilir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-032.
+    /// AgentPrism carries no built-in model list; the catalog comes entirely from
+    /// here. This list <em>is not a validation list</em>: a model name absent from
+    /// it can still be used. Rationale: <c>docs/KARARLAR.md</c>, decision K-032.
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 }

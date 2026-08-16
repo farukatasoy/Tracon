@@ -2,112 +2,116 @@ using Azure.Core;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in Azure OpenAI saglayici ayarlari.</summary>
+/// <summary>AgentPrism's Azure OpenAI provider options.</summary>
 /// <remarks>
 /// <para>
-/// Bu tip bilincli olarak bir <c>class</c>'tir, <c>record</c> degil: <c>record</c>'un
-/// urettigi <c>ToString</c> tum ozellikleri yazar ve tek bir gunluk satiri API
-/// anahtarini ifsa ederdi. Gerekce: <c>docs/KARARLAR.md</c>, karar K-035.
+/// This type is deliberately a <c>class</c>, not a <c>record</c>: the
+/// <c>ToString</c> a <c>record</c> generates writes every property, and a
+/// single log line would expose the API key. Rationale: <c>docs/KARARLAR.md</c>,
+/// decision K-035.
 /// </para>
 /// <para>
-/// Dogrulama <see cref="AzureOpenAIProviderOptionsValidator"/> icinde elle yapilir;
-/// <c>DataAnnotations</c> yansimaya dayanir ve AOT uyumunu bozar (karar K-006).
+/// Validation is done by hand inside <see cref="AzureOpenAIProviderOptionsValidator"/>;
+/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility (decision K-006).
 /// </para>
 /// </remarks>
 public sealed class AzureOpenAIProviderOptions
 {
-    /// <summary>Ayarlarin okundugu yapilandirma bolumunun tam yolu.</summary>
+    /// <summary>The full path of the configuration section options are read from.</summary>
     public const string SectionName = "AgentPrism:Providers:AzureOpenAI";
 
     /// <summary>
-    /// Azure OpenAI kaynaginin adresi. Ornek:
-    /// <c>https://benim-kaynagim.openai.azure.com/</c>.
+    /// The Azure OpenAI resource's address. Example:
+    /// <c>https://my-resource.openai.azure.com/</c>.
     /// </summary>
     /// <remarks>
-    /// Zorunludur; Azure'un tek bir genel adresi yoktur, her kaynagin kendi adresi
-    /// vardir. Adres bir sir degildir ama kurumsal bir topolojiyi acik eder; hata
-    /// mesajlarinda ve saglik denetimi detayinda <strong>gosterilmez</strong>.
+    /// Required; Azure has no single global address, each resource has its own.
+    /// The address is not a secret, but it exposes an organization's topology;
+    /// it is <strong>not shown</strong> in error messages or health-check detail.
     /// </remarks>
     public Uri? Endpoint { get; set; }
 
-    /// <summary>Azure OpenAI kaynaginin API anahtari.</summary>
+    /// <summary>The Azure OpenAI resource's API key.</summary>
     /// <remarks>
     /// <para>
-    /// <strong>Bu deger bir sirdir ve dosyaya yazilmaz.</strong> <c>dotnet user-secrets</c>,
-    /// ortam degiskeni veya bir sir yoneticisi kullanin.
+    /// <strong>This value is a secret and is not written to a file.</strong> Use
+    /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager.
     /// </para>
     /// <para>
-    /// <see cref="CredentialFactory"/> verilmisse bu alan <strong>kullanilmaz</strong>.
-    /// Ikisinden en az biri doldurulmalidir.
+    /// When <see cref="CredentialFactory"/> is given, this field is
+    /// <strong>not used</strong>. At least one of the two must be filled in.
     /// </para>
     /// </remarks>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Microsoft Entra kimligini ureten fabrika. Verilirse API anahtari yerine bu
-    /// kullanilir.
+    /// The factory that produces a Microsoft Entra credential. When given, this
+    /// is used instead of the API key.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>Fabrika bilincli olarak tuketiciden gelir.</strong> Yonetilen
-    /// kimlik icin gereken <c>DefaultAzureCredential</c> tipi <c>Azure.Identity</c>
-    /// paketindedir; o paket kucuk degildir ve <c>Microsoft.Identity.Client</c>
-    /// zincirini de getirir. <c>AgentPrism.Azure</c> onu bagimlilik olarak almaz;
-    /// yalnizca <c>Azure.Core</c> soyutlamasina baglanir ve kimligi tuketicinin
-    /// secmesine birakir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-210.
+    /// 🚨 <strong>The factory deliberately comes from the consumer.</strong> The
+    /// <c>DefaultAzureCredential</c> type needed for a managed credential lives
+    /// in the <c>Azure.Identity</c> package; that package is not small and pulls
+    /// in the <c>Microsoft.Identity.Client</c> chain too. <c>AgentPrism.Azure</c>
+    /// does not take it as a dependency; it only binds to the <c>Azure.Core</c>
+    /// abstraction and leaves the credential choice to the consumer. Rationale:
+    /// <c>docs/KARARLAR.md</c>, decision K-210.
     /// </para>
     /// <example>
     /// <code>
-    /// // Tuketicinin projesinde: &lt;PackageReference Include="Azure.Identity" /&gt;
+    /// // In the consumer's project: &lt;PackageReference Include="Azure.Identity" /&gt;
     /// options.CredentialFactory = static () =&gt; new DefaultAzureCredential();
     /// </code>
     /// </example>
     /// <para>
-    /// Fabrika istemci kurulurken <strong>bir kez</strong> cagrilir. Donen
-    /// <see cref="TokenCredential"/> token yenilemesini kendi yonetir.
+    /// The factory is called <strong>once</strong> while the client is built.
+    /// The returned <see cref="TokenCredential"/> manages token renewal itself.
     /// </para>
     /// </remarks>
     public Func<TokenCredential>? CredentialFactory { get; set; }
 
     /// <summary>
-    /// <see cref="ModelBinding.Model"/> bos birakildiginda kullanilacak
-    /// <strong>deployment</strong> adi.
+    /// The <strong>deployment</strong> name used when <see cref="ModelBinding.Model"/>
+    /// is left empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 Azure'da cagrilan sey model adi degil, <strong>deployment adidir</strong>.
-    /// Ayni model farkli adlarla konuslandirilabilir ve deployment adini kaynagi
-    /// kuran kisi secer. Ayrinti: <see cref="AzureOpenAIChatClientFactory"/>.
+    /// 🚨 What Azure calls is not a model name, it is a <strong>deployment
+    /// name</strong>. The same model can be deployed under different names, and
+    /// the person who sets up the resource chooses the deployment name. Detail:
+    /// <see cref="AzureOpenAIChatClientFactory"/>.
     /// </remarks>
     public string? DefaultDeployment { get; set; }
 
     /// <summary>
-    /// Entra kimligiyle istenecek token kapsami (audience).
-    /// <see langword="null"/> ise Azure genel bulutu kullanilir.
+    /// The token scope (audience) requested with the Entra credential.
+    /// The Azure public cloud is used when <see langword="null"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Yalnizca <see cref="CredentialFactory"/> yolunu etkiler; API anahtari
-    /// yolunda kullanilmaz. Egemen bulutlar (Azure Government, Azure China) farkli
-    /// bir kapsam ister.
+    /// Affects only the <see cref="CredentialFactory"/> path; it is not used on
+    /// the API key path. Sovereign clouds (Azure Government, Azure China)
+    /// require a different scope.
     /// </para>
     /// <para>
-    /// Genel bulut degeri: <c>https://cognitiveservices.azure.com/.default</c>.
+    /// Public cloud value: <c>https://cognitiveservices.azure.com/.default</c>.
     /// Azure Government: <c>https://cognitiveservices.azure.us/.default</c>.
     /// </para>
     /// </remarks>
     public string? Audience { get; set; }
 
-    /// <summary>Tek bir istegin ust sure siniri. <see langword="null"/> ise kitaplik varsayilani kullanilir.</summary>
+    /// <summary>The upper time limit for a single request. The library default is used when <see langword="null"/>.</summary>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
-    /// Arayuze gosterilecek model katalogu. Girdilerin <c>Name</c> alani
-    /// <strong>deployment adidir</strong>.
+    /// The model catalog shown to the UI. Each entry's <c>Name</c> field is the
+    /// <strong>deployment name</strong>.
     /// </summary>
     /// <remarks>
-    /// AgentPrism yerlesik bir model listesi tasimaz; katalog tamamen buradan gelir.
-    /// Bu liste bir <em>dogrulama listesi degildir</em>: burada bulunmayan bir
-    /// deployment adi da kullanilabilir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-032.
+    /// AgentPrism carries no built-in model list; the catalog comes entirely
+    /// from here. This list is <em>not a validation list</em>: a deployment name
+    /// absent from it can still be used. Rationale: <c>docs/KARARLAR.md</c>,
+    /// decision K-032.
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 }

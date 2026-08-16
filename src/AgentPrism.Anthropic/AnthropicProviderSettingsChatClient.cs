@@ -7,27 +7,28 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="ModelBinding.ProviderSettings"/> icindeki <c>anthropic.*</c> ayarlarini
-/// her istege uygular.
+/// Applies the <c>anthropic.*</c> settings from <see cref="ModelBinding.ProviderSettings"/>
+/// to every request.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ayarlar <c>Microsoft.Extensions.AI</c>'in resmi kacis kapisi olan
-/// <see cref="ChatOptions.RawRepresentationFactory"/> uzerinden gonderilir: fabrika
-/// bir <see cref="MessageCreateParams"/> uretir ve Anthropic adaptoru istegi bu
-/// nesnenin uzerine kurar. Olculdu (2026-08-05): adaptor bizim yazdigimiz alanlari
-/// <strong>korur</strong> ve yalnizca <c>messages</c>/<c>system</c>/<c>tools</c>
-/// gibi kendi urettigi alanlari ekler — bu yuzden <c>model</c> ve <c>max_tokens</c>
-/// degerlerini burada yazmak zorunludur, aksi halde istek bizim yer tutucumuzla gider.
+/// Settings are sent through <c>Microsoft.Extensions.AI</c>'s official escape
+/// hatch, <see cref="ChatOptions.RawRepresentationFactory"/>: the factory produces
+/// a <see cref="MessageCreateParams"/> and the Anthropic adapter builds the
+/// request on top of that object. Measured (2026-08-05): the adapter
+/// <strong>keeps</strong> the fields we write and only adds the fields it
+/// produces itself, such as <c>messages</c>/<c>system</c>/<c>tools</c> — so writing
+/// <c>model</c> and <c>max_tokens</c> here is required, otherwise the request goes
+/// out with our placeholder values.
 /// </para>
 /// <para>
-/// Dekorator <c>UseFunctionInvocation()</c>'in <strong>icinde</strong> durur; tool
-/// dongusunun her turu ayni ayarlarla gider.
+/// The decorator sits <strong>inside</strong> <c>UseFunctionInvocation()</c>; every
+/// turn of the tool loop goes out with the same settings.
 /// </para>
 /// <para>
-/// Cagiranin <see cref="ChatOptions"/> ornegi <strong>degistirilmez</strong>. Derlenmis
-/// bir agent tek bir <see cref="ChatOptions"/> ornegini tum cagrilarda paylasir;
-/// uzerine yazmak es zamanli calistirmalari birbirine karistirirdi.
+/// The caller's <see cref="ChatOptions"/> instance is <strong>never mutated</strong>.
+/// A compiled agent shares a single <see cref="ChatOptions"/> instance across all
+/// calls; writing over it would mix up concurrent runs.
 /// </para>
 /// </remarks>
 internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
@@ -51,7 +52,7 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
         _thinkingBudgetTokens = thinkingBudgetTokens;
     }
 
-    /// <summary>Baglantida uygulanacak bir ayar var mi.</summary>
+    /// <summary>Gets whether there is a setting to apply to the binding.</summary>
     internal static bool HasSettings(bool promptCaching, int? thinkingBudgetTokens)
         => promptCaching || thinkingBudgetTokens is not null;
 
@@ -73,9 +74,9 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
     {
         var copy = options?.Clone() ?? new ChatOptions();
 
-        // Cagiran kendi ham gosterimini vermisse ona dokunulmaz: bu, tuketicinin
-        // bilincli olarak devraldigi bir yoldur ve ustune yazmak sessizce
-        // davranisini degistirirdi.
+        // Left untouched when the caller has already given its own raw
+        // representation: this is a path the consumer deliberately took over, and
+        // writing over it would silently change its behavior.
         copy.RawRepresentationFactory ??= _ => BuildParams(copy);
 
         return copy;
@@ -92,8 +93,8 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
                 options.MaxOutputTokens ?? _defaultMaxOutputTokens,
                 AnthropicRawJsonContext.Default.Int32),
 
-            // Adaptor gercek mesajlari buraya yazar; anahtarin varligi SDK'nin
-            // istemci tarafi dogrulamasi icin gereklidir ("'messages' cannot be absent").
+            // The adapter writes the actual messages here; the key's presence is
+            // required for the SDK's client-side validation ("'messages' cannot be absent").
             ["messages"] = JsonSerializer.SerializeToElement(
                 Array.Empty<string>(),
                 AnthropicRawJsonContext.Default.StringArray),
@@ -120,22 +121,22 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
     }
 }
 
-/// <summary><c>cache_control</c> govde parcasi.</summary>
+/// <summary>The <c>cache_control</c> body fragment.</summary>
 internal sealed record AnthropicCacheControlPayload(
     [property: JsonPropertyName("type")] string Type);
 
-/// <summary><c>thinking</c> govde parcasi.</summary>
+/// <summary>The <c>thinking</c> body fragment.</summary>
 internal sealed record AnthropicThinkingPayload(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("budget_tokens")] int BudgetTokens);
 
 /// <summary>
-/// Ham istek govdesine yazilan kucuk parcalarin kaynak ureteci baglami.
+/// The source generator context for the small fragments written into the raw request body.
 /// </summary>
 /// <remarks>
-/// SDK'nin kendi model tipleri yerine bu kucuk kayitlar serilestirilir: yansimaya
-/// dayanan <c>JsonSerializer</c> asiri yuklemeleri <c>IL2026</c>/<c>IL3050</c> uretir
-/// ve <c>AgentPrism.Anthropic</c> AOT uyumlu isaretlidir (karar K-006).
+/// These small records are serialized instead of the SDK's own model types:
+/// reflection-based <c>JsonSerializer</c> overloads produce <c>IL2026</c>/<c>IL3050</c>,
+/// and <c>AgentPrism.Anthropic</c> is marked AOT compatible (decision K-006).
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.General)]
 [JsonSerializable(typeof(string))]

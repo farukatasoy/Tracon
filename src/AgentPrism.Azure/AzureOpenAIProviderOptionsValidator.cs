@@ -3,17 +3,18 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AzureOpenAIProviderOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AzureOpenAIProviderOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. <c>AgentPrism.Azure</c> AOT uyumlu kalmalidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is written by hand; <c>ValidateDataAnnotations()</c> relies on
+/// reflection and produces <c>IL2026</c>. <c>AgentPrism.Azure</c> must stay AOT
+/// compatible. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </para>
 /// <para>
-/// <strong>Hata mesajlari API anahtarini ve uc adresini icermez.</strong> Dogrulama
-/// mesajlari gunluge ve baslangic istisnasina gider.
+/// <strong>Error messages contain neither the API key nor the endpoint
+/// address.</strong> Validation messages go to the log and to the startup
+/// exception.
 /// </para>
 /// </remarks>
 public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<AzureOpenAIProviderOptions>
@@ -29,28 +30,29 @@ public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azure
         {
             (failures ??= []).Add(
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Endpoint)} cannot be empty. " +
-                "Azure OpenAI'in tek bir genel adresi yoktur; her kaynagin kendi adresi vardir. " +
-                $"'{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.Endpoint)}' " +
-                "ayarini 'https://<kaynak-adi>.openai.azure.com/' bicimiyle verin.");
+                "Azure OpenAI has no single global address; each resource has its own address. " +
+                $"Give the '{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.Endpoint)}' " +
+                "option in the form 'https://<resource-name>.openai.azure.com/'.");
         }
         else if (!options.Endpoint.IsAbsoluteUri)
         {
-            // Adres degerin kendisi mesaja YAZILMAZ: kurumsal kaynak adi bir
-            // topolojiyi acik eder ve dogrulama mesajlari gunluge gider.
+            // The address value itself is NOT written into the message: an
+            // organization's resource name exposes a topology, and validation
+            // messages go to the log.
             (failures ??= []).Add(
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Endpoint)} " +
-                "mutlak bir adres olmalidir.");
+                "must be an absolute address.");
         }
 
         if (string.IsNullOrWhiteSpace(options.ApiKey) && options.CredentialFactory is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.ApiKey)} veya " +
+                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.ApiKey)} or " +
                 $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)} " +
-                "doldurulmalidir. Anahtari `UseAzureOpenAI(endpoint, apiKey)` cagrisinda verin, " +
-                $"'{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.ApiKey)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin veya yonetilen kimlik icin " +
-                $"{nameof(AzureOpenAIProviderOptions.CredentialFactory)} verin.");
+                "must be filled in. Give the key in the `UseAzureOpenAI(endpoint, apiKey)` call, " +
+                $"define the '{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.ApiKey)}' " +
+                "option inside `dotnet user-secrets`, or give a " +
+                $"{nameof(AzureOpenAIProviderOptions.CredentialFactory)} for a managed credential.");
         }
 
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)

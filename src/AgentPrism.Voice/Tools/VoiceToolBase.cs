@@ -5,33 +5,34 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// Ses tool'larinin ortak tabani: bagimlilik cozumu ve sema tasima.
+/// Common base for voice tools: dependency resolution and schema handling.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Tool'lar <c>AIFunctionFactory</c> ile DEGIL, elle turetilerek yazilir.
-/// Fabrika yansima kullanir ve <c>[RequiresUnreferencedCode]</c> +
-/// <c>[RequiresDynamicCode]</c> tasir; paket AOT uyumlu isaretli oldugu icin bu
-/// yol kapalidir. JSON semasi da bu yuzden elle yazilir — uc tool'un toplam uc
-/// parametresi vardir, maliyeti dusuktur.
+/// 🚨 Tools are hand-derived, NOT written with <c>AIFunctionFactory</c>.
+/// The factory uses reflection and carries <c>[RequiresUnreferencedCode]</c> +
+/// <c>[RequiresDynamicCode]</c>; that path is closed because the package is
+/// marked AOT compatible. The JSON schema is hand-written for the same
+/// reason — the three tools have three parameters in total, so the cost is low.
 /// </para>
 /// <para>
-/// 🚨 <strong>Bagimliliklar KURULUM aninda alinir, cagri aninda degil.</strong>
-/// <c>AIFunctionArguments.Services</c> AgentPrism'in boru hattinda
-/// <strong>kullanilamaz</strong>: olculdu (2026-08-05, ornek uygulama) —
-/// Microsoft Agent Framework tool'a <c>Microsoft.Extensions.AI.EmptyServiceProvider</c>
-/// gecirir ve hicbir servis cozulmez. Hata yalnizca GERCEK bir tool cagrisinda
-/// gorunur; birim testi sahte bir saglayici gecirdigi icin yakalamaz.
-/// Ayrinti: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G4.
+/// 🚨 <strong>Dependencies are taken at SETUP time, not at call time.</strong>
+/// <c>AIFunctionArguments.Services</c> <strong>cannot be used</strong> in
+/// AgentPrism's pipeline: measured (2026-08-05, sample application) —
+/// Microsoft Agent Framework passes the tool a
+/// <c>Microsoft.Extensions.AI.EmptyServiceProvider</c> and no service resolves.
+/// The error appears only on a REAL tool call; a unit test passes a fake
+/// provider and does not catch it.
+/// Details: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G4.
 /// </para>
 /// </remarks>
 internal abstract class VoiceToolBase : AIFunction
 {
     private readonly IServiceProvider _services;
 
-    /// <summary>Semayi ve servis saglayiciyi alir.</summary>
-    /// <param name="services">Kurulum anindaki servis saglayici.</param>
-    /// <param name="schema">Argumanlarin JSON semasi.</param>
+    /// <summary>Takes the schema and the service provider.</summary>
+    /// <param name="services">The service provider at setup time.</param>
+    /// <param name="schema">JSON schema of the arguments.</param>
     protected VoiceToolBase(IServiceProvider services, string schema)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -43,35 +44,35 @@ internal abstract class VoiceToolBase : AIFunction
     /// <inheritdoc />
     public override JsonElement JsonSchema { get; }
 
-    /// <summary>Bir servisi cozer.</summary>
-    /// <typeparam name="T">Servis tipi.</typeparam>
-    /// <returns>Cozulen servis.</returns>
+    /// <summary>Resolves a service.</summary>
+    /// <typeparam name="T">Service type.</typeparam>
+    /// <returns>The resolved service.</returns>
     /// <remarks>
-    /// Kok saglayicidan cozulur. Tool'un ihtiyac duydugu servislerin tamami
+    /// Resolved from the root provider. All services the tool needs
     /// (<c>IAttachmentStore</c>, <c>ITenantContext</c>, <c>AttachmentTypeGuard</c>)
-    /// singleton'dir; kiraci bilgisi <c>ITenantContext</c> icindeki
-    /// <c>IHttpContextAccessor</c> uzerinden gelir, kapsamdan degil.
+    /// are singletons; tenant information comes from <c>IHttpContextAccessor</c>
+    /// inside <c>ITenantContext</c>, not from a scope.
     /// </remarks>
     protected T Resolve<T>()
         where T : notnull
         => _services.GetRequiredService<T>();
 
-    /// <summary>Zorunlu bir metin argumanini okur.</summary>
-    /// <param name="arguments">Cagri argumanlari.</param>
-    /// <param name="name">Arguman adi.</param>
-    /// <returns>Deger.</returns>
-    /// <exception cref="AgentPrismException">Arguman yoksa veya bos ise.</exception>
+    /// <summary>Reads a required text argument.</summary>
+    /// <param name="arguments">Call arguments.</param>
+    /// <param name="name">Argument name.</param>
+    /// <returns>The value.</returns>
+    /// <exception cref="AgentPrismException">When the argument is missing or empty.</exception>
     protected static string RequireText(AIFunctionArguments arguments, string name)
         => OptionalText(arguments, name)
-           ?? throw new AgentPrismException($"'{name}' argumani zorunludur ve cannot be empty.");
+           ?? throw new AgentPrismException($"The '{name}' argument is required and cannot be empty.");
 
-    /// <summary>Istege bagli bir metin argumanini okur.</summary>
-    /// <param name="arguments">Cagri argumanlari.</param>
-    /// <param name="name">Arguman adi.</param>
-    /// <returns>Deger; yoksa <see langword="null"/>.</returns>
+    /// <summary>Reads an optional text argument.</summary>
+    /// <param name="arguments">Call arguments.</param>
+    /// <param name="name">Argument name.</param>
+    /// <returns>The value; <see langword="null"/> when absent.</returns>
     /// <remarks>
-    /// Deger bir <see cref="JsonElement"/> olarak gelebilir: model argumanlari
-    /// JSON'dan gelir ve baglayici tur bilgisi olmadan cozer.
+    /// The value can arrive as a <see cref="JsonElement"/>: model arguments
+    /// come from JSON and the binder resolves them without static type info.
     /// </remarks>
     protected static string? OptionalText(AIFunctionArguments arguments, string name)
     {
@@ -93,7 +94,7 @@ internal abstract class VoiceToolBase : AIFunction
 }
 
 /// <summary>
-/// Tool semalarini AOT uyumlu cozmek icin kaynak uretilmis baglam.
+/// Source-generated context for resolving tool schemas in an AOT-compatible way.
 /// </summary>
 [System.Text.Json.Serialization.JsonSerializable(typeof(JsonElement))]
 internal sealed partial class VoiceToolJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

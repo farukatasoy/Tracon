@@ -4,25 +4,26 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>GET {endpoint}/{apiVersion}/models</c> ucuna giderek Gemini saglayicisinin
-/// erisilebilirligini denetler.
+/// Checks the reachability of the Gemini provider by calling
+/// <c>GET {endpoint}/{apiVersion}/models</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu uc model adlarini doner ve <strong>ucret uretmez</strong> — model cagrisi
-/// yapilmaz. Desen <c>OpenAIProviderHealthCheck</c> ile aynidir
-/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3).
+/// This endpoint returns model names and <strong>incurs no cost</strong> — no
+/// model call is made. The pattern matches <c>OpenAIProviderHealthCheck</c>
+/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3).
 /// </para>
 /// <para>
-/// Kimlik dogrulamasi <c>x-goog-api-key</c> basligi ile yapilir. Anahtarin sorgu
-/// dizesine (<c>?key=</c>) konmasi da mumkundur ama <strong>bilerek
-/// kullanilmaz</strong>: sorgu dizeleri vekil sunucu ve erisim gunluklerine duz
-/// metin olarak yazilir.
+/// Authentication uses the <c>x-goog-api-key</c> header. Putting the key in the
+/// query string (<c>?key=</c>) is also possible but is <strong>deliberately
+/// not used</strong>: query strings are written as plain text into proxy and
+/// access logs.
 /// </para>
 /// <para>
-/// Yanit bicimi OpenAI'dan farklidir: dizi <c>models</c> altindadir ve her ogenin
-/// adi <c>models/gemini-3.6-flash</c> gibi bir kaynak yoludur. Onek temizlenir,
-/// cunku <see cref="ModelBinding.Model"/> alani onegi tasimaz.
+/// The response shape differs from OpenAI's: the array is under <c>models</c>,
+/// and each entry's name is a resource path like <c>models/gemini-3.6-flash</c>.
+/// The prefix is stripped, because the <see cref="ModelBinding.Model"/> field does
+/// not carry it.
 /// </para>
 /// </remarks>
 internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProviderOptions options)
@@ -33,7 +34,7 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
     private const int MaxReportedModels = 200;
     private const string ModelResourcePrefix = "models/";
 
-    /// <summary>Adres verilmediginde kullanilan API surumu.</summary>
+    /// <summary>API version used when no address is given.</summary>
     internal const string DefaultApiVersion = "v1beta";
 
     private static readonly HttpClient SharedHttpClient = new();
@@ -83,15 +84,16 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Zaman asimi.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
         }
         catch (HttpRequestException exception)
         {
             stopwatch.Stop();
 
-            // exception.Message baglanti reddi gibi durumlarda hedef adresi (host:port)
-            // govdeye gomer. HttpRequestError adres tasimayan bir kategori adidir (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Baglanti hatasi ({exception.HttpRequestError}).");
+            // exception.Message embeds the target address (host:port) in the body in
+            // cases like a connection refusal. HttpRequestError is a category name
+            // that carries no address (.NET 8+).
+            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }
         catch (JsonException)
         {
@@ -100,7 +102,7 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
             {
                 ProviderName = providerName,
                 Status = ModelProviderHealthStatus.Degraded,
-                Detail = "Yanit gecerli JSON degil.",
+                Detail = "Response is not valid JSON.",
                 Latency = stopwatch.Elapsed,
                 CheckedAt = checkedAt,
             };
@@ -118,9 +120,9 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
         };
 
     /// <summary>
-    /// Taban adres, API surumu ve <c>models</c> parcasini birlestirir.
+    /// Joins the base address, API version, and the <c>models</c> segment.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri ag cagrisi yapmadan bu birlestirmeyi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify this join without making a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri? baseEndpoint, string? apiVersion)
     {
         var effective = baseEndpoint ?? DefaultGoogleEndpoint;
@@ -137,10 +139,10 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
     }
 
     /// <summary>
-    /// <c>{"models":[{"name":"models/gemini-..."}]}</c> govdesinden model adlarini
-    /// okur ve <c>models/</c> onegini temizler.
+    /// Reads model names from a <c>{"models":[{"name":"models/gemini-..."}]}</c> body
+    /// and strips the <c>models/</c> prefix.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri hazir bir yanit govdesiyle ayristirmayi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify parsing against a fixed response body.</remarks>
     internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

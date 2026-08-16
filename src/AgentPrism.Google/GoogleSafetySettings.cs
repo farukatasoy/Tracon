@@ -3,13 +3,13 @@ using Google.GenAI.Types;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>google.safety.*</c> ayarlarini Gemini'nin <see cref="SafetySetting"/>
-/// listesine cevirir.
+/// Translates <c>google.safety.*</c> settings into Gemini's <see cref="SafetySetting"/>
+/// list.
 /// </summary>
 /// <remarks>
-/// Esik degeri taninmazsa <strong>sessizce yok sayilmaz</strong>: gecerli degerleri
-/// listeleyen bir hata atilir. Yanlis yazilmis bir esik, guvenlik davranisini
-/// kullanicinin bilmedigi bicimde degistirirdi.
+/// An unrecognized threshold value is <strong>not silently ignored</strong>: an
+/// error listing the valid values is thrown. A misspelled threshold would change
+/// safety behavior in a way the user is unaware of.
 /// </remarks>
 internal static class GoogleSafetySettings
 {
@@ -22,10 +22,10 @@ internal static class GoogleSafetySettings
         (GoogleProviderNames.SafetyCivicIntegritySetting, HarmCategory.HarmCategoryCivicIntegrity),
     ];
 
-    /// <summary>Baglantidaki guvenlik esiklerini okur.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <returns>Tanimlanmis esikler. Hicbiri verilmemisse bos liste.</returns>
-    /// <exception cref="AgentPrismException">Bir esik degeri taninmiyorsa.</exception>
+    /// <summary>Reads the safety thresholds from the binding.</summary>
+    /// <param name="binding">Model binding.</param>
+    /// <returns>Defined thresholds. Empty list when none are given.</returns>
+    /// <exception cref="AgentPrismException">A threshold value is not recognized.</exception>
     public static IReadOnlyList<SafetySetting> Read(ModelBinding binding)
     {
         List<SafetySetting>? settings = null;
@@ -58,7 +58,7 @@ internal static class GoogleSafetySettings
         }
 
         throw new AgentPrismException(
-            $"'{setting}' ayarinin degeri taninmiyor: '{value}'. Gecerli degerler: " +
+            $"'{setting}' has an unrecognized value: '{value}'. Valid values: " +
             $"{string.Join(", ", HarmBlockThreshold.AllValues.Select(static candidate => candidate.Value))}.");
     }
 }

@@ -1,6 +1,6 @@
 # AgentPrism.Anthropic
 
-AgentPrism icin Anthropic (Claude) saglayici adaptoru.
+Anthropic (Claude) provider adapter for AgentPrism.
 
 ```csharp
 builder.AddAgentPrism()
@@ -11,7 +11,7 @@ builder.AddAgentPrism()
        });
 ```
 
-Kaydedilen saglayici adi: **`anthropic`** (`AnthropicProviderNames.Anthropic`).
+Registered provider name: **`anthropic`** (`AnthropicProviderNames.Anthropic`).
 
 ```csharp
 Model = new ModelBinding
@@ -22,38 +22,38 @@ Model = new ModelBinding
 }
 ```
 
-Uretilen her `IChatClient` `AgentPrism.OpenAI` ile ayni boru hattindan gecer:
-`UseFunctionInvocation()` tool cagri dongusunu Microsoft Agent Framework'e birakir,
-`UseOpenTelemetry()` span'leri `AgentPrism` kaynagi altinda uretir. Devre kesici ve
-icerik filtresi tespiti `ModelProviderRegistry` duzeyindedir; bu paket ikisini de
-ek kod yazmadan alir.
+Every produced `IChatClient` goes through the same pipeline as `AgentPrism.OpenAI`:
+`UseFunctionInvocation()` leaves the tool-call loop to the Microsoft Agent Framework,
+`UseOpenTelemetry()` produces spans under the `AgentPrism` source. Circuit-breaker and
+content-filter detection live at the `ModelProviderRegistry` level; this package gets
+both without extra code.
 
-## Kullanilan SDK
+## SDK used
 
-Resmi [`Anthropic`](https://www.nuget.org/packages/Anthropic) paketi (sahip:
-Anthropic, MIT). Paket kendi `AsIChatClient` adaptorunu tasir, bu yuzden mesaj
-eslemesi, akis, tool cagrisi ve kullanim sayaclari AgentPrism'de yazilmaz.
-Gecisli bagimliliklari yalnizca `Microsoft.Extensions.AI.Abstractions`,
-`System.Net.ServerSentEvents`, `System.Text.Json` ve `System.IO.Pipelines`'dir.
+The official [`Anthropic`](https://www.nuget.org/packages/Anthropic) package (owner:
+Anthropic, MIT). The package carries its own `AsIChatClient` adapter, so message
+mapping, streaming, tool calling and usage counters are not written in AgentPrism.
+Its transitive dependencies are only `Microsoft.Extensions.AI.Abstractions`,
+`System.Net.ServerSentEvents`, `System.Text.Json` and `System.IO.Pipelines`.
 
-Paket AOT uyumludur (`IsAotCompatible=true`, sifir uyari).
+The package is AOT compatible (`IsAotCompatible=true`, zero warnings).
 
-## `max_tokens` zorunludur
+## `max_tokens` is required
 
-🚨 Anthropic Messages API'sinde `max_tokens` **zorunlu** bir alandir; OpenAI'da
-oldugu gibi atlanamaz. `ModelBinding.MaxOutputTokens` bos birakilirsa
-`AnthropicProviderOptions.DefaultMaxOutputTokens` (varsayilan **4096**) kullanilir.
+🚨 In the Anthropic Messages API, `max_tokens` is a **required** field; it cannot
+be omitted the way it can in OpenAI. When `ModelBinding.MaxOutputTokens` is left
+empty, `AnthropicProviderOptions.DefaultMaxOutputTokens` (default **4096**) is used.
 
-## Saglayiciya ozgu ayarlar
+## Provider-specific settings
 
-`ModelBinding.ProviderSettings` sozlugu ile agent basina verilir. **Bu listede
-olmayan bir anahtar sessizce yok sayilmaz** — derleme hatasi verir ve mesaj
-desteklenen anahtarlari yazar.
+Given per agent through the `ModelBinding.ProviderSettings` dictionary. **A key
+absent from this list is not silently ignored** — it fails compilation and the
+message lists the supported keys.
 
-| Anahtar | Tip | Varsayilan | Aciklama |
+| Key | Type | Default | Description |
 |---|---|---|---|
-| `anthropic.promptCaching` | mantiksal | `false` | Istege `cache_control: {"type":"ephemeral"}` ekler |
-| `anthropic.thinking.budgetTokens` | tam sayi | yok | Genisletilmis dusunme butcesi |
+| `anthropic.promptCaching` | boolean | `false` | Adds `cache_control: {"type":"ephemeral"}` to the request |
+| `anthropic.thinking.budgetTokens` | integer | none | Extended thinking budget |
 
 ```csharp
 Model = new ModelBinding
@@ -68,35 +68,36 @@ Model = new ModelBinding
 }
 ```
 
-### Bilinen davranis farklari
+### Known behavior differences
 
-- **Dusunme acikken sicaklik 1 olmalidir.** `anthropic.thinking.budgetTokens`
-  verildiginde `ModelBinding.Temperature` ya bos birakilmali ya da `1` olmalidir;
-  baska bir deger istegi `invalid_request_error` ile reddettirir.
-- **Dusunme butcesi `MaxOutputTokens`'tan kucuk olmalidir.**
-- **Prompt caching bir esik ister.** Kisa istemler onbellege alinmaz; ust duzey
-  `cache_control` istegin tamamini tek bir onbellek birimi sayar, bu yuzden
-  degisen bir kullanici mesaji onbellegi yeniden olusturur. Etki yanittaki
-  `CacheCreationInputTokens` / `CacheReadInputTokens` sayaclarinda gorulur.
-- **Sistem mesaji ayri bir alandir.** Anthropic `system` alanini mesaj listesinin
-  disinda tasir; donusumu SDK adaptoru yapar, AgentPrism'in bir isi yoktur.
+- **Temperature must be 1 while thinking is on.** When `anthropic.thinking.budgetTokens`
+  is given, `ModelBinding.Temperature` must be either left empty or set to `1`;
+  any other value gets the request rejected with `invalid_request_error`.
+- **The thinking budget must be smaller than `MaxOutputTokens`.**
+- **Prompt caching requires a threshold.** Short prompts are not cached; the
+  top-level `cache_control` treats the entire request as a single cache unit, so a
+  changed user message re-creates the cache. The effect is visible in the
+  `CacheCreationInputTokens` / `CacheReadInputTokens` counters on the response.
+- **The system message is a separate field.** Anthropic carries the `system`
+  field outside the message list; the SDK adapter does the conversion, AgentPrism
+  has no work to do here.
 
-## Saglik denetimi
+## Health check
 
-`GET {endpoint}/models` ucuna gider, **ucret uretmez**. Kimlik dogrulama
-`x-api-key` basligi ile yapilir ve `anthropic-version: 2023-06-01` basligi
-zorunludur. Hata detayi HTTP durum kodu ve kisa nedenle sinirlidir; API anahtari
-veya uc adresi **sizmaz**.
+Calls `GET {endpoint}/models`, **incurs no cost**. Authentication is done through
+the `x-api-key` header and the `anthropic-version: 2023-06-01` header is required.
+The error detail is limited to the HTTP status code and a short reason; the API
+key or the endpoint address **never leaks**.
 
 ```
 GET /agentprism/api/models/health/anthropic
 ```
 
-## Model katalogu
+## Model catalog
 
-AgentPrism yerlesik model listesi tasimaz (karar K-032). Katalog tamamen
-yapilandirmadan gelir ve **bir dogrulama listesi degildir** — burada olmayan bir
-model adi da kullanilabilir.
+AgentPrism carries no built-in model list (decision K-032). The catalog comes
+entirely from configuration and is **not a validation list** — a model name
+absent from it can still be used.
 
 ```json
 {
@@ -117,4 +118,4 @@ model adi da kullanilabilir.
 }
 ```
 
-`ApiKey` **asla** bu dosyaya yazilmaz — `dotnet user-secrets` kullanilir.
+`ApiKey` is **never** written to this file — use `dotnet user-secrets`.

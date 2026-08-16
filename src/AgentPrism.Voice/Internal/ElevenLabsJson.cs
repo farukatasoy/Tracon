@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>ElevenLabs metinden ses istegi govdesi.</summary>
+/// <summary>Body of an ElevenLabs text-to-speech request.</summary>
 internal sealed class ElevenLabsSynthesisRequest
 {
     [JsonPropertyName("text")]
@@ -16,7 +16,7 @@ internal sealed class ElevenLabsSynthesisRequest
     public string? LanguageCode { get; set; }
 }
 
-/// <summary>ElevenLabs sesten metin yaniti.</summary>
+/// <summary>ElevenLabs speech-to-text response.</summary>
 internal sealed class ElevenLabsTranscriptionResponse
 {
     [JsonPropertyName("text")]
@@ -32,14 +32,14 @@ internal sealed class ElevenLabsTranscriptionResponse
     public double? AudioDurationSeconds { get; set; }
 }
 
-/// <summary>ElevenLabs ses listesi yaniti.</summary>
+/// <summary>ElevenLabs voice list response.</summary>
 internal sealed class ElevenLabsVoicesResponse
 {
     [JsonPropertyName("voices")]
     public List<ElevenLabsVoice>? Voices { get; set; }
 }
 
-/// <summary>Listedeki tek bir ses.</summary>
+/// <summary>A single voice in the list.</summary>
 internal sealed class ElevenLabsVoice
 {
     [JsonPropertyName("voice_id")]
@@ -53,12 +53,12 @@ internal sealed class ElevenLabsVoice
 }
 
 /// <summary>
-/// ElevenLabs govdeleri icin kaynak uretilmis seri hale getirme baglami.
+/// Source-generated serialization context for ElevenLabs bodies.
 /// </summary>
 /// <remarks>
-/// 🚨 Yansimaya dayali <c>JsonSerializer</c> asiri yuklemeleri AOT uyumlulugunu
-/// bozar (<c>IL2026</c>/<c>IL3050</c>). Paket AOT uyumlu isaretlidir; her
-/// seri hale getirme bu baglamdan gecer.
+/// 🚨 Reflection-based <c>JsonSerializer</c> overloads break AOT compatibility
+/// (<c>IL2026</c>/<c>IL3050</c>). The package is marked AOT compatible; every
+/// serialization goes through this context.
 /// </remarks>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ElevenLabsSynthesisRequest))]

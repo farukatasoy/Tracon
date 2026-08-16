@@ -1,30 +1,30 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Saglayici ayarlarindaki model tanimlarindan arayuze gosterilecek katalogu kurar.
+/// Builds the catalog shown in the UI from the model definitions in provider settings.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism yerlesik bir model listesi tasimaz</strong> (karar K-032).
-/// Bu, Gemini'de somut bir bedel olarak yasandi: olculdu (2026-08-05),
-/// <c>gemini-2.5-flash</c> cagrisi <em>"This model is no longer available to new
-/// users"</em> dondu. Koda gomulu bir liste yayinlandigi gun bile yanlis olabilir.
+/// <strong>AgentPrism carries no built-in model list</strong> (decision K-032).
+/// This had a concrete cost with Gemini: measured (2026-08-05), a call to
+/// <c>gemini-2.5-flash</c> returned <em>"This model is no longer available to new
+/// users"</em>. A list embedded in code can be wrong the very day it ships.
 /// </para>
 /// <para>
-/// Katalog <em>bir dogrulama listesi degildir</em>: burada bulunmayan bir model adi
-/// da kullanilabilir. Katalog yalnizca arayuzun model secim ekranini ve maliyet
-/// hesabini besler.
+/// The catalog <em>is not a validation list</em>: a model name absent from it can
+/// still be used. The catalog only feeds the UI's model selection screen and cost
+/// estimates.
 /// </para>
 /// </remarks>
 public static class GoogleModelCatalog
 {
-    /// <summary>Ayarlardaki model tanimlarindan katalogu kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Ada gore siralanmis model listesi. Tanim yoksa bos liste.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Builds the catalog from the model definitions in settings.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <returns>Model list sorted by name. Empty list when there are no definitions.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Ayni ad birden cok kez tanimlanmissa son tanim kazanir. Karsilastirma
-    /// buyuk/kucuk harfe duyarli degildir. Adsiz girdiler yok sayilir.
+    /// When the same name is defined more than once, the last definition wins.
+    /// Comparison is case-insensitive. Unnamed entries are ignored.
     /// </remarks>
     public static IReadOnlyList<ModelDescriptor> Build(GoogleProviderOptions options)
     {

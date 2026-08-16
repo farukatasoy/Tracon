@@ -3,14 +3,14 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="VoiceOptions"/> degerlerini uygulama BASLARKEN dogrular.
+/// Validates <see cref="VoiceOptions"/> values while the application STARTS.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilir: <c>ValidateDataAnnotations()</c> yansima kullanir ve
-/// AOT uyumlulugunu bozar (bkz. <c>docs/hafiza/build-ve-analyzer.md</c>).
+/// Validation is hand-written: <c>ValidateDataAnnotations()</c> uses reflection and
+/// breaks AOT compatibility (see <c>docs/hafiza/build-ve-analyzer.md</c>).
 /// <para>
-/// 🚨 Hata mesaji API anahtarini <strong>tasimaz</strong>. Anahtarin yanlis
-/// oldugunu soylerken degerini yazmak, hatayi gorene sirri da vermek olurdu.
+/// 🚨 The error message <strong>never carries</strong> the API key. Writing the value
+/// while saying the key is wrong would hand the secret to whoever sees the error.
 /// </para>
 /// </remarks>
 public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
@@ -24,55 +24,55 @@ public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 
         if (string.IsNullOrWhiteSpace(options.Provider))
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: saglayici adi cannot be empty.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: provider name cannot be empty.");
         }
         else if (!string.Equals(options.Provider, VoiceProviderNames.ElevenLabs, StringComparison.OrdinalIgnoreCase))
         {
             (failures ??= []).Add(
-                $"{nameof(VoiceOptions)}: '{options.Provider}' saglayicisi taninmiyor. " +
-                $"Yerlesik saglayici: '{VoiceProviderNames.ElevenLabs}'. " +
-                "Kendi uygulamanizi kaydetmek icin ISpeechSynthesizer/ISpeechTranscriber servislerini " +
-                "UseVoice cagrisindan ONCE kaydedin; kayitli bir uygulama korunur.");
+                $"{nameof(VoiceOptions)}: provider '{options.Provider}' is not recognized. " +
+                $"Built-in provider: '{VoiceProviderNames.ElevenLabs}'. " +
+                "To register your own implementation, register the ISpeechSynthesizer/ISpeechTranscriber " +
+                "services BEFORE calling UseVoice; a registered implementation is preserved.");
         }
 
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
             (failures ??= []).Add(
-                $"{nameof(VoiceOptions)}: API anahtari verilmedi. " +
-                "Anahtar bir sirdir: `dotnet user-secrets set \"AgentPrism:Voice:ApiKey\" \"...\"`.");
+                $"{nameof(VoiceOptions)}: no API key was given. " +
+                "The key is a secret: `dotnet user-secrets set \"AgentPrism:Voice:ApiKey\" \"...\"`.");
         }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: adres mutlak olmalidir.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: the address must be absolute.");
         }
 
         if (options.MaxCharactersPerRequest <= 0)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: karakter siniri must be greater than zero.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: character limit must be greater than zero.");
         }
 
         if (options.MaxConcurrentRequests <= 0)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: eszamanli istek siniri must be greater than zero.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: concurrent request limit must be greater than zero.");
         }
 
         if (string.IsNullOrWhiteSpace(options.OutputFormat))
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: cikti bicimi cannot be empty.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: output format cannot be empty.");
         }
         else if (!IsStorableFormat(options.OutputFormat))
         {
             (failures ??= []).Add(
-                $"{nameof(VoiceOptions)}: '{options.OutputFormat}' bicimi ek olarak saklanamaz. " +
-                "Ham PCM ve u-law ciktilari dosya basligi tasimaz; ek deposu turu sihirli bayttan " +
-                $"dogrular ve boyle bir icerigi reddeder. Konteyner tasiyan bir bicim kullanin " +
-                $"(ornegin '{VoiceOptions.DefaultOutputFormat}').");
+                $"{nameof(VoiceOptions)}: format '{options.OutputFormat}' cannot be stored as an attachment. " +
+                "Raw PCM and u-law outputs carry no file header; the attachment store checks the type from " +
+                $"the magic byte and rejects such content. Use a format that carries a container " +
+                $"(for example '{VoiceOptions.DefaultOutputFormat}').");
         }
 
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: zaman asimi must be greater than zero.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: timeout must be greater than zero.");
         }
 
         return failures is null
@@ -81,14 +81,14 @@ public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
     }
 
     /// <summary>
-    /// Bicimin ek deposuna yazilabilecek bir konteyner tasiyip tasimadigini soyler.
+    /// States whether the format carries a container the attachment store can write.
     /// </summary>
-    /// <param name="outputFormat">Saglayicinin bicim adi.</param>
-    /// <returns>Saklanabilirse <see langword="true"/>.</returns>
+    /// <param name="outputFormat">The provider's format name.</param>
+    /// <returns><see langword="true"/> when storable.</returns>
     /// <remarks>
-    /// <c>internal</c>: birim testleri ag cagrisi olmadan dogrular. Kural
-    /// bicim adinin onekine bakar — saglayicilar <c>mp3_44100_128</c>,
-    /// <c>pcm_16000</c>, <c>ulaw_8000</c> gibi adlar kullanir.
+    /// <c>internal</c>: unit tests verify this without a network call. The rule
+    /// looks at the format name's prefix — providers use names like
+    /// <c>mp3_44100_128</c>, <c>pcm_16000</c>, <c>ulaw_8000</c>.
     /// </remarks>
     internal static bool IsStorableFormat(string outputFormat)
         => !outputFormat.StartsWith("pcm", StringComparison.OrdinalIgnoreCase)

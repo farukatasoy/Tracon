@@ -5,25 +5,27 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Ayarlardan bir <see cref="AnthropicClient"/> kurar ve model baglantilarindan
-/// <see cref="IChatClient"/> uretir.
+/// Builds an <see cref="AnthropicClient"/> from settings and produces
+/// <see cref="IChatClient"/> instances from model bindings.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Fabrika <strong>HAM</strong> bir istemci doner. Ortak boru hatti
-/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, icerik guard'i,
-/// devre kesici, ek cozme) <c>ModelProviderRegistry.CreateChatClient</c> icinde
-/// kurulur — Faz 48'de oraya tasindi. Gerekce: dongu burada kurulunca defterin
-/// sardigi hicbir halka tool cagri turlarini goremiyordu.
+/// 🚨 The factory returns a <strong>RAW</strong> client. The shared pipeline
+/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content guard,
+/// the circuit breaker, usage resolution) is built inside
+/// <c>ModelProviderRegistry.CreateChatClient</c> — moved there in Phase 48.
+/// Rationale: when the loop was built here, none of the layers the registry
+/// wrapped around it could see the tool-call turns.
 /// </para>
 /// <para>
-/// <see cref="AnthropicClient"/> bir kez kurulur ve paylasilir; HTTP baglanti
-/// havuzunu kendi yonetir. Her derlemede yeni bir istemci kurmak havuzu parcalar.
+/// <see cref="AnthropicClient"/> is built once and shared; it manages its own HTTP
+/// connection pool. Building a new client per call would fragment the pool.
 /// </para>
 /// <para>
-/// 🚨 Anthropic Messages API'si <c>max_tokens</c> alanini <strong>zorunlu</strong>
-/// tutar. <see cref="ModelBinding.MaxOutputTokens"/> bos birakilirsa
-/// <see cref="AnthropicProviderOptions.DefaultMaxOutputTokens"/> kullanilir.
+/// 🚨 The Anthropic Messages API treats <c>max_tokens</c> as
+/// <strong>required</strong>. When <see cref="ModelBinding.MaxOutputTokens"/> is
+/// left empty, <see cref="AnthropicProviderOptions.DefaultMaxOutputTokens"/> is
+/// used instead.
 /// </para>
 /// </remarks>
 public sealed class AnthropicChatClientFactory
@@ -33,28 +35,28 @@ public sealed class AnthropicChatClientFactory
     private readonly int _defaultMaxOutputTokens;
     private readonly ILoggerFactory? _loggerFactory;
 
-    /// <summary>Ayarlardan yeni bir fabrika kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <param name="loggerFactory">Uretilen istemcilere verilecek gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException"><see cref="AnthropicProviderOptions.ApiKey"/> bos ise.</exception>
+    /// <summary>Builds a new factory from settings.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
     public AnthropicChatClientFactory(AnthropicProviderOptions options, ILoggerFactory? loggerFactory = null)
         : this(CreateClient(options), options.DefaultModel, options.DefaultMaxOutputTokens, loggerFactory)
     {
     }
 
-    /// <summary>Hazir bir istemciden yeni bir fabrika kurar.</summary>
-    /// <param name="client">Kullanilacak Anthropic istemcisi.</param>
-    /// <param name="defaultModel">Model adi verilmediginde kullanilacak model.</param>
+    /// <summary>Builds a new factory from an already-constructed client.</summary>
+    /// <param name="client">The Anthropic client to use.</param>
+    /// <param name="defaultModel">The model to use when no model name is given.</param>
     /// <param name="defaultMaxOutputTokens">
-    /// <see cref="ModelBinding.MaxOutputTokens"/> verilmediginde kullanilacak ust sinir.
+    /// The upper bound used when <see cref="ModelBinding.MaxOutputTokens"/> is not given.
     /// </param>
-    /// <param name="loggerFactory">Uretilen istemcilere verilecek gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="client"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> pozitif degilse.</exception>
+    /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> is not positive.</exception>
     /// <remarks>
-    /// Kimlik dogrulamasini kendi yoneten kurulumlar (ornegin Bedrock/Vertex kimligi
-    /// veya token yenileyen bir saglayici) bu kurucuyu kullanir.
+    /// Setups that manage their own authentication (for example Bedrock/Vertex
+    /// identity, or a provider that refreshes tokens) use this constructor.
     /// </remarks>
     public AnthropicChatClientFactory(
         IAnthropicClient client,
@@ -71,13 +73,13 @@ public sealed class AnthropicChatClientFactory
         _loggerFactory = loggerFactory;
     }
 
-    /// <summary>Verilen baglanti icin bir sohbet istemcisi uretir.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <returns>Boru hattindan gecirilmis sohbet istemcisi.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="binding"/> <see langword="null"/> ise.</exception>
+    /// <summary>Produces a chat client for the given binding.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <returns>A chat client that has passed through the pipeline.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
-    /// Model adi cozulemezse veya <see cref="ModelBinding.ProviderSettings"/> icinde
-    /// taninmayan bir anahtar varsa.
+    /// The model name cannot be resolved, or <see cref="ModelBinding.ProviderSettings"/>
+    /// contains an unrecognized key.
     /// </exception>
     public IChatClient CreateChatClient(ModelBinding binding)
     {
@@ -85,12 +87,12 @@ public sealed class AnthropicChatClientFactory
 
         var model = Trim(binding.Model) ?? _defaultModel
             ?? throw new AgentPrismException(
-                "Model adi bos ve varsayilan model tanimli degil. Agent tanimindaki " +
-                $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} alanini doldurun veya " +
-                $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.DefaultModel)}' ayarini verin.");
+                $"Model name is empty and no default model is defined. Fill in the " +
+                $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field in the agent definition, or set " +
+                $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.DefaultModel)}'.");
 
-        // Taninmayan anahtar burada reddedilir; hata AgentDefinitionCompiler
-        // tarafindan AgentPrismCompilationException'a sarilir ve derleme durur.
+        // An unrecognized key is rejected here; the error is wrapped by
+        // AgentDefinitionCompiler into AgentPrismCompilationException and compilation stops.
         ModelProviderSettings.Validate(
             binding,
             AnthropicProviderNames.SettingsPrefix,
@@ -113,8 +115,8 @@ public sealed class AnthropicChatClientFactory
 
         IChatClient inner = _client.AsIChatClient(model, _defaultMaxOutputTokens);
 
-        // Ayar yoksa dekorator hic eklenmez: sade yol her istekte bir ChatOptions
-        // kopyasi ve bir ham govde uretmemelidir.
+        // No decorator is added when there is no setting: the plain path must not
+        // allocate a ChatOptions copy and a raw body on every request.
         if (AnthropicProviderSettingsChatClient.HasSettings(promptCaching, thinkingBudget))
         {
             inner = new AnthropicProviderSettingsChatClient(
@@ -128,11 +130,11 @@ public sealed class AnthropicChatClientFactory
         return inner;
     }
 
-    /// <summary>Ayarlardan bir Anthropic istemcisi kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Kurulmus istemci.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException"><see cref="AnthropicProviderOptions.ApiKey"/> bos ise.</exception>
+    /// <summary>Builds an Anthropic client from settings.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <returns>The constructed client.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
     public static AnthropicClient CreateClient(AnthropicProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -140,9 +142,9 @@ public sealed class AnthropicChatClientFactory
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
             throw new AgentPrismException(
-                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} bos. " +
-                "Anahtari `UseAnthropic(apiKey)` cagrisinda verin veya " +
-                $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}' ayarini tanimlayin.");
+                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} is empty. " +
+                "Provide the key through the `UseAnthropic(apiKey)` call, or set " +
+                $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}'.");
         }
 
         var clientOptions = new Anthropic.Core.ClientOptions
@@ -152,8 +154,8 @@ public sealed class AnthropicChatClientFactory
             MaxRetries = options.MaxRetries,
         };
 
-        // BaseUrl null kabul etmez; verilmediginde SDK'nin kendi varsayilani
-        // (https://api.anthropic.com) gecerli kalmalidir.
+        // BaseUrl does not accept null; when it is not given, the SDK's own default
+        // (https://api.anthropic.com) must stay in effect.
         if (options.Endpoint is { } endpoint)
         {
             clientOptions.BaseUrl = endpoint.ToString();

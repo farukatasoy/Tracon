@@ -7,21 +7,21 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism zincirine Azure OpenAI saglayicisini ekleyen uzantilar.</summary>
+/// <summary>Extensions that add the Azure OpenAI provider to the AgentPrism chain.</summary>
 public static class AzureOpenAIProviderExtensions
 {
-    /// <summary>Adres ve API anahtari vererek Azure OpenAI saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="endpoint">Azure OpenAI kaynaginin adresi.</param>
-    /// <param name="apiKey">Kaynagin API anahtari.</param>
-    /// <param name="configure">Ek ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> veya <paramref name="endpoint"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="apiKey"/> bos ise.</exception>
+    /// <summary>Adds the Azure OpenAI provider by giving an endpoint and API key.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="endpoint">The Azure OpenAI resource's address.</param>
+    /// <param name="apiKey">The resource's API key.</param>
+    /// <param name="configure">An extra option modifier.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="endpoint"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
     /// <remarks>
-    /// Yonetilen kimlik kullanmak icin bu asiri yukleme yerine
+    /// To use a managed credential, use
     /// <see cref="UseAzureOpenAI(IAgentPrismBuilder, Action{AzureOpenAIProviderOptions})"/>
-    /// kullanin ve <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> verin.
+    /// instead of this overload, and give <see cref="AzureOpenAIProviderOptions.CredentialFactory"/>.
     /// </remarks>
     public static IAgentPrismBuilder UseAzureOpenAI(
         this IAgentPrismBuilder builder,
@@ -42,21 +42,21 @@ public static class AzureOpenAIProviderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Providers:AzureOpenAI</c> bolumunden okuyarak Azure
-    /// OpenAI saglayicisini ekler.
+    /// Adds the Azure OpenAI provider by reading options from the
+    /// <c>AgentPrism:Providers:AzureOpenAI</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section to read options from. Typically
     /// <c>configuration.GetSection(AzureOpenAIProviderOptions.SectionName)</c>.
     /// </param>
     /// <param name="configure">
-    /// Yapilandirma baglandiktan sonra calisan ek degistirici. Yapilandirmadan
-    /// okunamayan tek ayar olan
-    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> burada verilir.
+    /// An extra modifier that runs after configuration is bound. The one option
+    /// that cannot be read from configuration,
+    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/>, is given here.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> veya <paramref name="configurationSection"/> <see langword="null"/> ise.</exception>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configurationSection"/> is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseAzureOpenAI(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection,
@@ -72,19 +72,19 @@ public static class AzureOpenAIProviderExtensions
         });
     }
 
-    /// <summary>Ayarlari kodda vererek Azure OpenAI saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Adds the Azure OpenAI provider by giving options in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The option modifier.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Bu cagri tek bir saglayici kaydeder: <see cref="AzureOpenAIProviderNames.AzureOpenAI"/>.
+    /// This call registers exactly one provider: <see cref="AzureOpenAIProviderNames.AzureOpenAI"/>.
     /// </para>
     /// <para>
-    /// Kayit <c>AddModelProvider(...)</c> ile yapilir; mevcut hicbir servis
-    /// <em>degistirilmez</em> (karar K-025). Birden cok kez cagrilirsa ayarlar
-    /// birlestirilir; saglayici yalnizca bir kez kaydedilir.
+    /// Registration happens through <c>AddModelProvider(...)</c>; no existing
+    /// service is <em>replaced</em> (decision K-025). When called more than
+    /// once, the options are merged; the provider is registered only once.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseAzureOpenAI(
@@ -102,13 +102,14 @@ public static class AzureOpenAIProviderExtensions
             IValidateOptions<AzureOpenAIProviderOptions>,
             AzureOpenAIProviderOptionsValidator>());
 
-        // Ikinci cagri ayarlari birlestirir ama saglayiciyi tekrar kaydetmez;
-        // aksi halde ModelProviderRegistry "ayni ad birden cok kez kaydedilmis"
-        // hatasi verirdi ve sebebi kullaniciya kapali kalirdi.
+        // A second call merges options but does not register the provider
+        // again; otherwise ModelProviderRegistry would throw an "already
+        // registered under this name" error and the cause would stay hidden
+        // from the user.
         var alreadyRegistered = services.Any(
             static descriptor => descriptor.ServiceType == typeof(AzureOpenAIChatClientFactory));
 
-        // Tek istemci, tek HTTP baglanti havuzu.
+        // One client, one HTTP connection pool.
         services.TryAddSingleton(static provider => new AzureOpenAIChatClientFactory(
             provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value,
             provider.GetService<ILoggerFactory>()));
@@ -133,18 +134,18 @@ public static class AzureOpenAIProviderExtensions
         return builder;
     }
 
-    /// <summary>Yapilandirma bolumunu ayar nesnesine elle baglar.</summary>
+    /// <summary>Manually binds a configuration section onto the options object.</summary>
     /// <remarks>
     /// <para>
-    /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
-    /// Yeni bir ayar eklendiginde bu metoda ve
-    /// <see cref="AzureOpenAIProviderOptionsValidator"/> icine de eklenmelidir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
+    /// When a new option is added, it must also be added to this method and to
+    /// <see cref="AzureOpenAIProviderOptionsValidator"/>. Rationale: <c>docs/KARARLAR.md</c>,
+    /// decision K-021.
     /// </para>
     /// <para>
-    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> bilincli olarak
-    /// baglanmaz: bir delegate yapilandirmadan okunamaz ve kimlik secimi kodda
-    /// yapilan bir karardir.
+    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> is deliberately
+    /// not bound: a delegate cannot be read from configuration, and choosing a
+    /// credential is a decision made in code.
     /// </para>
     /// </remarks>
     internal static void Bind(IConfiguration section, AzureOpenAIProviderOptions options)

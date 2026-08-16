@@ -4,23 +4,23 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="ModelBinding.ProviderSettings"/> icindeki <c>google.*</c> ayarlarini
-/// her istege uygular.
+/// Applies the <c>google.*</c> settings from <see cref="ModelBinding.ProviderSettings"/>
+/// to every request.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ayarlar <c>Microsoft.Extensions.AI</c>'in resmi kacis kapisi olan
-/// <see cref="ChatOptions.RawRepresentationFactory"/> uzerinden gonderilir: fabrika
-/// bir <see cref="GenerateContentConfig"/> uretir ve Google adaptoru istegi bu
-/// nesnenin uzerine kurar. Olculdu (2026-08-05): adaptor bizim yazdigimiz
-/// <c>SafetySettings</c> ve <c>ThinkingConfig</c> alanlarini <strong>korur</strong>
-/// ve tool tanimlarini uzerine ekler — tool cagrisi ile guvenlik esikleri ayni
-/// istekte birlikte calisir.
+/// Settings are sent through <c>Microsoft.Extensions.AI</c>'s official escape
+/// hatch, <see cref="ChatOptions.RawRepresentationFactory"/>: the factory builds a
+/// <see cref="GenerateContentConfig"/> and the Google adapter builds the request on
+/// top of this object. Measured (2026-08-05): the adapter <strong>preserves</strong>
+/// the <c>SafetySettings</c> and <c>ThinkingConfig</c> fields we write and adds tool
+/// definitions on top — tool calling and safety thresholds work together in the
+/// same request.
 /// </para>
 /// <para>
-/// Cagiranin <see cref="ChatOptions"/> ornegi <strong>degistirilmez</strong>. Derlenmis
-/// bir agent tek bir <see cref="ChatOptions"/> ornegini tum cagrilarda paylasir;
-/// uzerine yazmak es zamanli calistirmalari birbirine karistirirdi.
+/// The caller's <see cref="ChatOptions"/> instance is <strong>not mutated</strong>.
+/// A compiled agent shares a single <see cref="ChatOptions"/> instance across all
+/// calls; overwriting it would mix up concurrent runs.
 /// </para>
 /// </remarks>
 internal sealed class GoogleProviderSettingsChatClient : DelegatingChatClient
@@ -41,7 +41,7 @@ internal sealed class GoogleProviderSettingsChatClient : DelegatingChatClient
         _includeThoughts = includeThoughts;
     }
 
-    /// <summary>Baglantida uygulanacak bir ayar var mi.</summary>
+    /// <summary>Whether the binding has a setting to apply.</summary>
     internal static bool HasSettings(
         IReadOnlyList<SafetySetting> safetySettings,
         int? thinkingBudgetTokens,
@@ -66,8 +66,8 @@ internal sealed class GoogleProviderSettingsChatClient : DelegatingChatClient
     {
         var copy = options?.Clone() ?? new ChatOptions();
 
-        // Cagiran kendi ham gosterimini vermisse ona dokunulmaz: bu, tuketicinin
-        // bilincli olarak devraldigi bir yoldur.
+        // Left untouched when the caller already gave its own raw representation:
+        // this is a path the consumer deliberately takes over.
         copy.RawRepresentationFactory ??= _ => BuildConfig();
 
         return copy;

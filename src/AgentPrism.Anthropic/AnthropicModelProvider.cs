@@ -4,18 +4,18 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Anthropic (Claude) icin <see cref="IModelProvider"/> uygulamasi.
+/// <see cref="IModelProvider"/> implementation for Anthropic (Claude).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Saglayici, katalogda bulunmayan bir model adini <strong>reddetmez</strong>.
-/// Anthropic yeni bir model yayinladiginda AgentPrism'in yeni bir surumu beklenmez;
-/// katalog doluysa yalnizca bilgilendirme amacli bir gunluk kaydi birakilir
-/// (karar K-032).
+/// The provider does <strong>not reject</strong> a model name that is absent from
+/// the catalog. AgentPrism does not need a new release when Anthropic ships a new
+/// model; when the catalog is non-empty, only an informational log entry is
+/// written (decision K-032).
 /// </para>
 /// <para>
-/// Devre kesici ve icerik filtresi tespiti bu tipin <em>disinda</em>,
-/// <c>ModelProviderRegistry</c> duzeyindedir; bu paket ikisini de bedava alir.
+/// Circuit-breaker and content-filter detection live <em>outside</em> this type,
+/// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// </para>
 /// </remarks>
 public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
@@ -26,18 +26,18 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
     private readonly AnthropicProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
-    /// <summary>Yeni bir saglayici olusturur.</summary>
-    /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
-    /// <param name="chatClientFactory">Sohbet istemcisi fabrikasi.</param>
-    /// <param name="models">Bu saglayicinin sundugu modeller.</param>
-    /// <param name="logger">Gunlukleyici.</param>
+    /// <summary>Creates a new provider.</summary>
+    /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
+    /// <param name="chatClientFactory">Chat client factory.</param>
+    /// <param name="models">The models this provider offers.</param>
+    /// <param name="logger">Logger.</param>
     /// <param name="healthCheckOptions">
-    /// Verilirse <see cref="CheckHealthAsync"/> bu ayarlardaki adres ve anahtarla
-    /// <c>GET {endpoint}/models</c> ucuna gider. <see langword="null"/> ise saglik
-    /// durumu her zaman <see cref="ModelProviderHealthStatus.Unknown"/> doner.
+    /// When given, <see cref="CheckHealthAsync"/> calls <c>GET {endpoint}/models</c>
+    /// using the address and key in these settings. When <see langword="null"/>,
+    /// health status always returns <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AnthropicModelProvider(
         string name,
         AnthropicChatClientFactory chatClientFactory,
@@ -70,8 +70,8 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        // Katalog bossa karsilastirilacak bir sey yoktur; her cagride gunluk yazmak
-        // gurultu olurdu (karar K-032).
+        // There is nothing to compare against when the catalog is empty; logging on
+        // every call would be noise (decision K-032).
         if (_knownModels.Count > 0
             && !string.IsNullOrWhiteSpace(binding.Model)
             && !_knownModels.Contains(binding.Model))
@@ -109,7 +109,7 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
         {
             Key = key,
             Resolved = resolved,
-            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
         };
     }
 
@@ -118,8 +118,8 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
         if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation(
-                "'{Model}' modeli '{Provider}' katalogunda yok; istek yine de gonderiliyor. " +
-                "Model bilgisini kataloga eklemek icin AgentPrism:Providers:Anthropic:Models ayarini kullanin.",
+                "Model '{Model}' is not in the '{Provider}' catalog; the request is sent anyway. " +
+                "Use the AgentPrism:Providers:Anthropic:Models setting to add the model to the catalog.",
                 model,
                 Name);
         }

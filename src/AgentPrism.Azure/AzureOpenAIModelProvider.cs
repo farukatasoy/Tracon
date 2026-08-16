@@ -3,22 +3,21 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>
-/// Azure OpenAI icin <see cref="IModelProvider"/> uygulamasi.
-/// </summary>
+/// <summary>The <see cref="IModelProvider"/> implementation for Azure OpenAI.</summary>
 /// <remarks>
 /// <para>
-/// Saglayici, katalogda bulunmayan bir deployment adini <strong>reddetmez</strong>.
-/// Deployment adlarini Azure kaynagini kuran kisi secer ve yeni bir deployment
-/// acildiginda AgentPrism'in yapilandirmasinin guncellenmesi beklenmez; katalog
-/// doluysa yalnizca bilgilendirme amacli bir gunluk kaydi birakilir (karar K-032).
+/// The provider <strong>does not reject</strong> a deployment name absent from
+/// the catalog. Deployment names are chosen by whoever sets up the Azure
+/// resource, and AgentPrism's configuration is not expected to be updated when
+/// a new deployment is opened; when the catalog is non-empty, only an
+/// informational log entry is left (decision K-032).
 /// </para>
 /// <para>
-/// Devre kesici ve icerik filtresi tespiti bu tipin <em>disinda</em>,
-/// <c>ModelProviderRegistry</c> duzeyindedir; bu paket ikisini de bedava alir.
-/// Azure'un kendi icerik filtresi bir yaniti bostan kestiginde
-/// <c>ContentFilterDetectingChatClient</c> bunu <c>content_filtered</c> olarak
-/// kaydeder — bu pakette ek kod yoktur (karar K-206).
+/// Circuit-breaker and content-filter detection live <em>outside</em> this type,
+/// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
+/// When Azure's own content filter cuts a response short,
+/// <c>ContentFilterDetectingChatClient</c> records it as <c>content_filtered</c>
+/// — there is no extra code in this package for it (decision K-206).
 /// </para>
 /// </remarks>
 public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
@@ -29,18 +28,19 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     private readonly AzureOpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
-    /// <summary>Yeni bir saglayici olusturur.</summary>
-    /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
-    /// <param name="chatClientFactory">Sohbet istemcisi fabrikasi.</param>
-    /// <param name="models">Bu saglayicinin sundugu deployment'lar.</param>
-    /// <param name="logger">Gunlukleyici.</param>
+    /// <summary>Creates a new provider.</summary>
+    /// <param name="name">The provider name. <see cref="ModelBinding.Provider"/> in agent definitions matches this value.</param>
+    /// <param name="chatClientFactory">The chat client factory.</param>
+    /// <param name="models">The deployments this provider offers.</param>
+    /// <param name="logger">The logger.</param>
     /// <param name="healthCheckOptions">
-    /// Verilirse <see cref="CheckHealthAsync"/> bu ayarlardaki adres ve kimlikle
-    /// <c>GET {endpoint}/openai/models</c> ucuna gider. <see langword="null"/> ise
-    /// saglik durumu her zaman <see cref="ModelProviderHealthStatus.Unknown"/> doner.
+    /// When given, <see cref="CheckHealthAsync"/> calls the
+    /// <c>GET {endpoint}/openai/models</c> endpoint using this option's address
+    /// and credential. When <see langword="null"/>, health status always returns
+    /// <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AzureOpenAIModelProvider(
         string name,
         AzureOpenAIChatClientFactory chatClientFactory,
@@ -73,8 +73,8 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        // Katalog bossa karsilastirilacak bir sey yoktur; her cagride gunluk yazmak
-        // gurultu olurdu (karar K-032).
+        // When the catalog is empty there is nothing to compare against; logging
+        // on every call would be noise (decision K-032).
         if (_knownDeployments.Count > 0
             && !string.IsNullOrWhiteSpace(binding.Model)
             && !_knownDeployments.Contains(binding.Model))
@@ -114,7 +114,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
             Resolved = resolved,
             Hint = resolved
                 ? null
-                : $"dotnet user-secrets set \"{key}\" \"<anahtar>\" veya AzureOpenAIProviderOptions.CredentialFactory atayin",
+                : $"dotnet user-secrets set \"{key}\" \"<key>\" or assign AzureOpenAIProviderOptions.CredentialFactory",
         };
     }
 
@@ -123,9 +123,9 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation(
-                "'{Deployment}' adi '{Provider}' katalogunda yok; istek yine de gonderiliyor. " +
-                "Azure'da bu alan MODEL adi degil DEPLOYMENT adi bekler. Tanimi kataloga eklemek " +
-                "icin AgentPrism:Providers:AzureOpenAI:Models ayarini kullanin.",
+                "The name '{Deployment}' is not in the '{Provider}' catalog; the request is being sent anyway. " +
+                "On Azure, this field expects a DEPLOYMENT name, not a MODEL name. To add the definition " +
+                "to the catalog, use the AgentPrism:Providers:AzureOpenAI:Models option.",
                 deployment,
                 Name);
         }

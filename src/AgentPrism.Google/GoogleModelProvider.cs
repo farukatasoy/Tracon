@@ -4,18 +4,18 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Google Gemini icin <see cref="IModelProvider"/> uygulamasi.
+/// <see cref="IModelProvider"/> implementation for Google Gemini.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Saglayici, katalogda bulunmayan bir model adini <strong>reddetmez</strong>
-/// (karar K-032); katalog doluysa yalnizca bilgilendirme amacli bir gunluk kaydi
-/// birakilir.
+/// The provider <strong>does not reject</strong> a model name absent from the
+/// catalog (decision K-032); when the catalog is non-empty, only an informational
+/// log entry is left.
 /// </para>
 /// <para>
-/// Devre kesici ve icerik filtresi tespiti bu tipin <em>disinda</em>,
-/// <c>ModelProviderRegistry</c> duzeyindedir. Gemini'nin guvenlik filtresi bos yanit
-/// dondurdugunde calistirma <c>content_filtered</c> hatasiyla kaydedilir.
+/// Circuit breaking and content-filter detection live <em>outside</em> this type,
+/// at the <c>ModelProviderRegistry</c> level. When Gemini's safety filter returns
+/// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
 public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
@@ -26,18 +26,18 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
     private readonly GoogleProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
-    /// <summary>Yeni bir saglayici olusturur.</summary>
-    /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
-    /// <param name="chatClientFactory">Sohbet istemcisi fabrikasi.</param>
-    /// <param name="models">Bu saglayicinin sundugu modeller.</param>
-    /// <param name="logger">Gunlukleyici.</param>
+    /// <summary>Creates a new provider.</summary>
+    /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
+    /// <param name="chatClientFactory">Chat client factory.</param>
+    /// <param name="models">Models this provider offers.</param>
+    /// <param name="logger">Logger.</param>
     /// <param name="healthCheckOptions">
-    /// Verilirse <see cref="CheckHealthAsync"/> bu ayarlardaki adres ve anahtarla
-    /// model listesi ucuna gider. <see langword="null"/> ise saglik durumu her zaman
-    /// <see cref="ModelProviderHealthStatus.Unknown"/> doner.
+    /// When given, <see cref="CheckHealthAsync"/> calls the model list endpoint with
+    /// the address and key from these settings. When <see langword="null"/>, health
+    /// status is always <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public GoogleModelProvider(
         string name,
         GoogleChatClientFactory chatClientFactory,
@@ -107,7 +107,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         {
             Key = key,
             Resolved = resolved,
-            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
         };
     }
 
@@ -116,8 +116,8 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation(
-                "'{Model}' modeli '{Provider}' katalogunda yok; istek yine de gonderiliyor. " +
-                "Model bilgisini kataloga eklemek icin AgentPrism:Providers:Google:Models ayarini kullanin.",
+                "Model '{Model}' is not in the '{Provider}' catalog; sending the request anyway. " +
+                "Use the AgentPrism:Providers:Google:Models setting to add model info to the catalog.",
                 model,
                 Name);
         }

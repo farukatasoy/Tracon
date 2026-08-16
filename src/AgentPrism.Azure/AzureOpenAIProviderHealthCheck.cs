@@ -5,45 +5,47 @@ using Azure.Core;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>GET {endpoint}/openai/models?api-version=...</c> ucuna giderek Azure OpenAI
-/// kaynaginin erisilebilirligini denetler.
+/// Checks whether an Azure OpenAI resource is reachable by calling
+/// <c>GET {endpoint}/openai/models?api-version=...</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu uc kaynagin erisebildigi modelleri doner ve <strong>ucret uretmez</strong> —
-/// model cagrisi yapilmaz. Desen <c>OpenAIProviderHealthCheck</c> ve
-/// <c>AnthropicProviderHealthCheck</c> ile birebir aynidir.
+/// This endpoint returns the models the resource can reach and <strong>incurs
+/// no cost</strong> — no model call is made. The pattern is identical to
+/// <c>OpenAIProviderHealthCheck</c> and <c>AnthropicProviderHealthCheck</c>.
 /// </para>
 /// <para>
-/// 🚨 <strong>Donen liste model listesidir, deployment listesi degildir.</strong>
-/// Agent tanimlarinda kullanilacak ad deployment adidir ve bu ucta gorunmez.
-/// Denetimin kanitladigi sey sudur: adres dogru, kimlik gecerli ve kaynak ayakta.
-/// Deployment adinin dogrulugu ilk gercek cagrida anlasilir.
+/// 🚨 <strong>The returned list is a model list, not a deployment list.</strong>
+/// The name used in agent definitions is the deployment name, and it does not
+/// appear on this endpoint. What the check proves is: the address is correct,
+/// the credential is valid, and the resource is up. Whether the deployment name
+/// is correct is only found out on the first real call.
 /// </para>
 /// <para>
-/// SDK yerine dogrudan <see cref="HttpClient"/> kullanilir: denetim yolunun hata
-/// detayinin sir ve adres tasimadigi burada tam olarak denetlenebilir, ayrica
-/// <c>internal static</c> yardimcilar ag cagrisi olmadan test edilebilir.
+/// <see cref="HttpClient"/> is used directly instead of the SDK: this lets the
+/// check fully control whether the error detail on the check path carries a
+/// secret or an address, and lets the <c>internal static</c> helpers be tested
+/// without a network call.
 /// </para>
 /// <para>
-/// Kimlik dogrulamasi iki yoldan biriyle yapilir: API anahtari icin <c>api-key</c>
-/// basligi (Azure'da <c>Authorization: Bearer</c> degildir), yonetilen kimlik icin
-/// <see cref="TokenCredential"/> uzerinden alinan bir <c>Bearer</c> token.
+/// Authentication happens one of two ways: an <c>api-key</c> header for the API
+/// key (on Azure this is not <c>Authorization: Bearer</c>), or a <c>Bearer</c>
+/// token obtained through <see cref="TokenCredential"/> for a managed credential.
 /// </para>
 /// </remarks>
 internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
 {
     /// <summary>
-    /// Denetimin kullandigi Azure OpenAI veri duzlemi API surumu.
+    /// The Azure OpenAI data-plane API version the check uses.
     /// </summary>
     /// <remarks>
-    /// Kullandigimiz <c>Azure.AI.OpenAI</c> surumunun sohbet istegi icin urettigi
-    /// surumle ayni tutulur (olculdu, 2026-08-05:
-    /// <c>?api-version=2024-10-21</c>). Yukseltmek bilincli bir karardir.
+    /// Kept identical to the version the <c>Azure.AI.OpenAI</c> version we use
+    /// produces for a chat request (measured 2026-08-05:
+    /// <c>?api-version=2024-10-21</c>). Upgrading it is a deliberate decision.
     /// </remarks>
     internal const string ApiVersion = "2024-10-21";
 
-    /// <summary>Azure genel bulutunda Entra token kapsami.</summary>
+    /// <summary>The Entra token scope on the Azure public cloud.</summary>
     internal const string DefaultAudience = "https://cognitiveservices.azure.com/.default";
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
@@ -55,12 +57,12 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
     private readonly AzureOpenAIProviderOptions _options;
     private readonly TokenCredential? _credential;
 
-    /// <summary>Yeni bir saglik denetimi kurar.</summary>
-    /// <param name="providerName">Saglayici adi.</param>
-    /// <param name="options">Saglayici ayarlari.</param>
+    /// <summary>Builds a new health check.</summary>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="options">The provider options.</param>
     /// <remarks>
-    /// Kimlik fabrikasi burada <strong>bir kez</strong> cagrilir; her denetimde
-    /// yeni bir kimlik nesnesi kurmak token onbellegini bosa cikarirdi.
+    /// The credential factory is called <strong>once</strong> here; building a
+    /// new credential object on every check would waste the token cache.
     /// </remarks>
     public AzureOpenAIProviderHealthCheck(string providerName, AzureOpenAIProviderOptions options)
     {
@@ -77,7 +79,7 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
 
         if (_options.Endpoint is null)
         {
-            return Unhealthy(checkedAt, TimeSpan.Zero, "Kaynak adresi tanimli degil.");
+            return Unhealthy(checkedAt, TimeSpan.Zero, "The resource address is not defined.");
         }
 
         using var timeoutSource = new CancellationTokenSource(_options.Timeout ?? DefaultTimeout);
@@ -98,7 +100,7 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
             }
             else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
             {
-                // Azure OpenAI anahtar dogrulamasini `api-key` basligi ile yapar.
+                // Azure OpenAI authenticates a key through the `api-key` header.
                 request.Headers.Add("api-key", _options.ApiKey);
             }
 
@@ -127,15 +129,16 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Zaman asimi.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
         }
         catch (HttpRequestException exception)
         {
             stopwatch.Stop();
 
-            // exception.Message baglanti reddi gibi durumlarda hedef adresi (host:port)
-            // govdeye gomer. HttpRequestError adres tasimayan bir kategori adidir (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Baglanti hatasi ({exception.HttpRequestError}).");
+            // exception.Message embeds the target address (host:port) into the
+            // body in cases like connection refused. HttpRequestError is a
+            // category name that carries no address (.NET 8+).
+            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }
         catch (JsonException)
         {
@@ -144,7 +147,7 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
             {
                 ProviderName = _providerName,
                 Status = ModelProviderHealthStatus.Degraded,
-                Detail = "Yanit gecerli JSON degil.",
+                Detail = "The response is not valid JSON.",
                 Latency = stopwatch.Elapsed,
                 CheckedAt = checkedAt,
             };
@@ -162,14 +165,15 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
         };
 
     /// <summary>
-    /// Kaynak adresini <c>openai/models?api-version=...</c> ile birlestirir.
+    /// Combines the resource address with <c>openai/models?api-version=...</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Taban adres egik cizgi ile bitmiyorsa <see cref="Uri"/> son parcayi DEGISTIRIR
-    /// (dosya gibi davranir); bu yuzden birlestirmeden once normalize edilir.
+    /// When the base address does not end with a slash, <see cref="Uri"/>
+    /// REPLACES the last segment (it behaves like a file); it is therefore
+    /// normalized before combining.
     /// </para>
-    /// <para><c>internal</c>: birim testleri ag cagrisi yapmadan bu birlestirmeyi dogrular.</para>
+    /// <para><c>internal</c>: unit tests verify this combination without a network call.</para>
     /// </remarks>
     internal static Uri BuildModelsEndpoint(Uri baseEndpoint)
     {
@@ -184,9 +188,9 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
     }
 
     /// <summary>
-    /// <c>{"data":[{"id":"gpt-..."}]}</c> govdesinden model kimliklerini okur.
+    /// Reads model ids from a <c>{"data":[{"id":"gpt-..."}]}</c> body.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri hazir bir yanit govdesiyle ayristirmayi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify parsing against a prepared response body.</remarks>
     internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
