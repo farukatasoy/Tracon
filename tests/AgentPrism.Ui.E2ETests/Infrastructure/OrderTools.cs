@@ -2,26 +2,26 @@ using System.ComponentModel;
 
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
 
-/// <summary>Testlerde kullanilan tek tool.</summary>
+/// <summary>The only tool used in the tests.</summary>
 /// <remarks>
-/// Tool'lar yalnizca kodda tanimlanir. Bu sinif, arayuzun tool listesini ve tool
-/// kartini dogrulayabilmesi icin gercek bir kayit saglar.
+/// Tools are declared only in code. This class provides a real registration so
+/// the UI can validate its tool list and tool card.
 /// </remarks>
 internal static class OrderTools
 {
-    /// <summary>Bir siparisin durumunu dondurur.</summary>
-    /// <param name="orderId">Siparis numarasi.</param>
-    /// <returns>Insan tarafindan okunabilir durum metni.</returns>
-    [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
-    [Description("Bir siparisin kargo durumunu dondurur.")]
-    public static string GetOrderStatus([Description("Siparis numarasi")] string orderId)
-        => $"{orderId} siparisi kargoya verildi.";
+    /// <summary>Returns the status of an order.</summary>
+    /// <param name="orderId">Order number.</param>
+    /// <returns>A human-readable status message.</returns>
+    [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
+    [Description("Returns the shipping status of an order.")]
+    public static string GetOrderStatus([Description("Order number")] string orderId)
+        => $"Order {orderId} has shipped.";
 
-    /// <summary>Bir siparisi iptal eder. Onay ister (Faz 55 E2E testi icin).</summary>
-    /// <param name="orderId">Siparis numarasi.</param>
-    /// <returns>Insan tarafindan okunabilir sonuc metni.</returns>
-    [AgentPrismTool("cancel_order", "Bir siparisi iptal eder.", RequiresApproval = true)]
-    [Description("Bir siparisi iptal eder.")]
-    public static string CancelOrder([Description("Siparis numarasi")] string orderId)
-        => $"{orderId} siparisi iptal edildi.";
+    /// <summary>Cancels an order. Requires approval (for the phase 55 E2E test).</summary>
+    /// <param name="orderId">Order number.</param>
+    /// <returns>A human-readable result message.</returns>
+    [AgentPrismTool("cancel_order", "Cancels an order.", RequiresApproval = true)]
+    [Description("Cancels an order.")]
+    public static string CancelOrder([Description("Order number")] string orderId)
+        => $"Order {orderId} has been canceled.";
 }

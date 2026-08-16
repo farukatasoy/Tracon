@@ -4,14 +4,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Yalitilmis bir tablo oneki kurar ve depolari hazirlar.
+/// Sets up an isolated table prefix and prepares the stores.
 /// </summary>
 /// <remarks>
-/// Bir tablo oneki genellikle bir sozlesme test SINIFI tarafindan paylasilir
-/// (bkz. <see cref="SqliteSchemaFixture"/>); testler arasi izolasyon
-/// <see cref="ResetDataAsync"/> ile saglanir, ayri onek ile degil.
-/// <c>TablePrefix</c> ayarinin varsayilan olmayan bir onekte dogru calistigi
-/// <c>MigrationRunnerTests</c>'te ayrica dogrulanir.
+/// A table prefix is usually shared by a contract test CLASS (see
+/// <see cref="SqliteSchemaFixture"/>); isolation between tests is provided by
+/// <see cref="ResetDataAsync"/>, not by a separate prefix per test.
+/// <c>MigrationRunnerTests</c> separately verifies that the <c>TablePrefix</c> setting works
+/// correctly with a non-default prefix.
 /// </remarks>
 internal sealed class SqliteTestContext : IAsyncDisposable
 {
@@ -68,124 +68,124 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
-    /// <summary>Bu baglamin veri kaynagi.</summary>
+    /// <summary>This context's data source.</summary>
     public SqliteDataSource DataSource { get; }
 
-    /// <summary>Paylasilan depo katmaninin baglami.</summary>
+    /// <summary>The shared store layer's context.</summary>
     public SqlStoreContext StoreContext { get; }
 
-    /// <summary>Bu baglamin ayarlari.</summary>
+    /// <summary>This context's settings.</summary>
     public AgentPrismSqliteOptions Options { get; }
 
-    /// <summary>Bu baglamin kiraci baglami.</summary>
+    /// <summary>This context's tenant context.</summary>
     public ITenantContext TenantContext { get; }
 
-    /// <summary>Agent tanim deposu.</summary>
+    /// <summary>Agent definition store.</summary>
     public SqlAgentDefinitionStore AgentDefinitions { get; }
 
-    /// <summary>Calistirma deposu.</summary>
+    /// <summary>Run store.</summary>
     public SqlRunStore Runs { get; }
 
-    /// <summary>Oturum deposu.</summary>
+    /// <summary>Session store.</summary>
     public SqlSessionStore Sessions { get; }
 
-    /// <summary>Span deposu.</summary>
+    /// <summary>Span store.</summary>
     public SqlTraceStore Traces { get; }
 
-    /// <summary>Kalici onay kurali deposu.</summary>
+    /// <summary>Persistent approval rule store.</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
 
-    /// <summary>Bekleyen onay istegi deposu (Faz 55).</summary>
+    /// <summary>Pending approval request store (Phase 55).</summary>
     public SqlPendingApprovalStore PendingApprovals { get; }
 
-    /// <summary>MCP sunucu deposu.</summary>
+    /// <summary>MCP server store.</summary>
     public SqlMcpServerStore McpServers { get; }
 
-    /// <summary>Kiraci kaydi deposu.</summary>
+    /// <summary>Tenant registry store.</summary>
     public SqlTenantStore Tenants { get; }
 
-    /// <summary>Sohbet gecmisi saglayicisi.</summary>
+    /// <summary>Chat history provider.</summary>
     public SqlChatHistoryProvider ChatHistory { get; }
 
-    /// <summary>Denetim izi defteri.</summary>
+    /// <summary>Audit log ledger.</summary>
     public SqlAuditLog AuditLog { get; }
 
-    /// <summary>Script calistirma izni deposu.</summary>
+    /// <summary>Script execution grant store.</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
-    /// <summary>Calisma ani skill deposu (Faz 10).</summary>
+    /// <summary>Runtime skill store (Phase 10).</summary>
     public SqlAgentSkillStore AgentSkills { get; }
 
-    /// <summary>Ek deposu.</summary>
+    /// <summary>Attachment store.</summary>
     public SqlAttachmentStore Attachments { get; }
 
-    /// <summary>Kalici agent dosya belleği.</summary>
+    /// <summary>Persistent agent file storage.</summary>
     public SqlAgentFileStore AgentFiles { get; }
 
-    /// <summary>Workflow tanim deposu.</summary>
+    /// <summary>Workflow definition store.</summary>
     public SqlWorkflowDefinitionStore Workflows { get; }
 
-    /// <summary>Workflow kontrol noktasi deposu.</summary>
+    /// <summary>Workflow checkpoint store.</summary>
     public SqlWorkflowCheckpointStore WorkflowCheckpoints { get; }
 
-    /// <summary>Is kuyrugu deposu.</summary>
+    /// <summary>Job queue store.</summary>
     public SqlJobStore Jobs { get; }
 
-    /// <summary>Zamanlama deposu.</summary>
+    /// <summary>Schedule store.</summary>
     public SqlJobScheduleStore JobSchedules { get; }
 
-    /// <summary>Eval takim/vaka/kosu deposu.</summary>
+    /// <summary>Eval suite/case/run store.</summary>
     public SqlEvalStore Evals { get; }
 
-    /// <summary>A/B deneyi deposu.</summary>
+    /// <summary>A/B experiment store.</summary>
     public SqlExperimentStore Experiments { get; }
 
-    /// <summary>Kota deposu.</summary>
+    /// <summary>Quota store.</summary>
     public SqlQuotaStore Quotas { get; }
 
-    /// <summary>Webhook deposu.</summary>
+    /// <summary>Webhook store.</summary>
     public SqlWebhookStore Webhooks { get; }
 
-    /// <summary>Kiraci bazli API anahtari deposu (Faz 53).</summary>
+    /// <summary>Tenant-scoped API key store (Phase 53).</summary>
     public SqlApiKeyStore ApiKeys { get; }
 
-    /// <summary>Saklama politikasi ve kosu gecmisi deposu (Faz 25).</summary>
+    /// <summary>Retention policy and run history store (Phase 25).</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }
 
-    /// <summary>Saklama veri duzlemi (sayma/silme/arsiv okuma) (Faz 25).</summary>
+    /// <summary>Retention data plane (count/delete/archive read) (Phase 25).</summary>
     public SqlRetentionStore RetentionData { get; }
 
-    /// <summary>Konusma kaydi deposu (Faz 29).</summary>
+    /// <summary>Voice session store (Phase 29).</summary>
     public SqlVoiceSessionStore VoiceSessions { get; }
 
-    /// <summary>Calistirma/mesaj puani deposu (Faz 31).</summary>
+    /// <summary>Run/message score store (Phase 31).</summary>
     public SqlRunScoreStore RunScores { get; }
 
-    /// <summary>Tek yurutucu secimi kira deposu (Faz 42).</summary>
+    /// <summary>Single-executor election lease store (Phase 42).</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
 
-    /// <summary>Idempotency deposu (Faz 43).</summary>
+    /// <summary>Idempotency store (Phase 43).</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }
 
-    /// <summary>Calistirma girdi deposu (Faz 47).</summary>
+    /// <summary>Run input store (Phase 47).</summary>
     public SqlRunInputStore RunInputs { get; }
 
-    /// <summary>Konusma dallandirma deposu (Faz 47).</summary>
+    /// <summary>Conversation branching store (Phase 47).</summary>
     public SqlConversationBranchStore ConversationBranches { get; }
 
-    /// <summary>Migration calistiricisi.</summary>
+    /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
 
-    /// <summary>Kullanilan tablo oneki.</summary>
+    /// <summary>The table prefix in use.</summary>
     public string TablePrefix => Options.TablePrefix;
 
     /// <summary>
-    /// Yeni bir yalitilmis tablo oneki kurar, migration'lari uygular ve depolari hazirlar.
+    /// Sets up a new isolated table prefix, applies migrations, and prepares the stores.
     /// </summary>
-    /// <param name="fixture">Calisan SQLite veritabani dosyasi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
-    /// <returns>Kullanima hazir baglam.</returns>
+    /// <param name="fixture">The running SQLite database file.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="applyMigrations">Whether migrations should be applied immediately.</param>
+    /// <returns>A context ready for use.</returns>
     public static ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
         string tenantId = "default",
@@ -193,14 +193,13 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
 
     /// <summary>
-    /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
-    /// ayni depo ornegi uzerinde kiraci degistirdigi icin bu asiri yuklemeyi
-    /// kullanir (Faz 41).
+    /// Setup with an externally supplied tenant context. Used because the tenant isolation
+    /// contract needs to switch tenants on the same store instance (Phase 41).
     /// </summary>
-    /// <param name="fixture">Calisan SQLite dosyasi.</param>
-    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
-    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
-    /// <returns>Kullanima hazir baglam.</returns>
+    /// <param name="fixture">The running SQLite file.</param>
+    /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <param name="applyMigrations">Whether migrations should be applied immediately.</param>
+    /// <returns>A context ready for use.</returns>
     public static async ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
         ITenantContext tenantContext,
@@ -219,21 +218,21 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     }
 
     /// <summary>
-    /// Var olan bir tablo onekine baglanan ikinci bir baglam kurar.
-    /// Es zamanlilik ve kiraci yalitimi testleri icin kullanilir.
+    /// Sets up a second context connecting to an existing table prefix. Used for concurrency
+    /// and tenant isolation tests.
     /// </summary>
-    /// <param name="fixture">Calisan SQLite veritabani dosyasi.</param>
-    /// <param name="tablePrefix">Kullanilacak tablo oneki.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <returns>Ayni onege bakan yeni baglam.</returns>
+    /// <param name="fixture">The running SQLite database file.</param>
+    /// <param name="tablePrefix">The table prefix to use.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <returns>A new context pointing at the same prefix.</returns>
     public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, string tenantId = "default")
         => Create(fixture, tablePrefix, new FixedTenantContext(tenantId));
 
-    /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
-    /// <param name="fixture">Calisan SQLite dosyasi.</param>
-    /// <param name="tablePrefix">Kullanilacak tablo oneki.</param>
-    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
-    /// <returns>Ayni arka uca bakan yeni baglam.</returns>
+    /// <summary>Setup with an externally supplied tenant context.</summary>
+    /// <param name="fixture">The running SQLite file.</param>
+    /// <param name="tablePrefix">The table prefix to use.</param>
+    /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <returns>A new context pointing at the same backend.</returns>
     public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(fixture);
@@ -251,24 +250,24 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         return new SqliteTestContext(dataSource, options, tenantContext);
     }
 
-    /// <summary>Yeni ve benzersiz bir test tablo oneki uretir.</summary>
-    /// <returns>Kucuk harflerden olusan gecerli bir tanimlayici, alt cizgiyle biter.</returns>
+    /// <summary>Generates a new, unique test table prefix.</summary>
+    /// <returns>A valid identifier made of lowercase letters, ending with an underscore.</returns>
     public static string NewTablePrefix()
         => "t_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..16] + "_";
 
-    /// <summary>Baglamdaki ham SQL'i calistirir.</summary>
-    /// <param name="sql">Calistirilacak SQL.</param>
-    /// <returns>Etkilenen satir sayisi.</returns>
+    /// <summary>Executes raw SQL on this context.</summary>
+    /// <param name="sql">The SQL to execute.</param>
+    /// <returns>The number of affected rows.</returns>
     public async ValueTask<int> ExecuteAsync(string sql)
     {
         await using var command = DataSource.CreateCommand(sql);
         return await command.ExecuteNonQueryAsync();
     }
 
-    /// <summary>Tek deger donduren ham SQL calistirir.</summary>
-    /// <typeparam name="T">Beklenen tip.</typeparam>
-    /// <param name="sql">Calistirilacak SQL.</param>
-    /// <returns>Ilk satirin ilk sutunu.</returns>
+    /// <summary>Executes raw SQL that returns a single value.</summary>
+    /// <typeparam name="T">The expected type.</typeparam>
+    /// <param name="sql">The SQL to execute.</param>
+    /// <returns>The first column of the first row.</returns>
     public async ValueTask<T?> ScalarAsync<T>(string sql)
     {
         await using var command = DataSource.CreateCommand(sql);
@@ -277,11 +276,11 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         return result is T value ? value : default;
     }
 
-    /// <summary>Test tablolarini birakir.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Drops the test tables.</summary>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// SQLite'ta sema kavrami yoktur; her test oneki kendi tablo kumesini
-    /// birakir ki tek dosyada yuzlerce test tablosu birikmesin.
+    /// SQLite has no schema concept; each test prefix drops its own set of tables so that
+    /// hundreds of test tables do not accumulate in a single file.
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
@@ -318,15 +317,15 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     }
 
     /// <summary>
-    /// Onekteki tum veri tablolarini tek transaction icinde bosaltir; tablolar
-    /// ve <c>__migrations</c> defteri KALIR.
+    /// Empties all data tables in the prefix within a single transaction; the tables and the
+    /// <c>__migrations</c> ledger REMAIN.
     /// </summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// <c>PRAGMA defer_foreign_keys = ON</c> transaction suresince FOREIGN KEY
-    /// denetimini islem sonuna erteler; boylece silme sirasi onemli olmadan
-    /// tum tablolar tek transaction'da bosaltilabilir. Tablo listesi
-    /// katalogdan (<see cref="ReadTableNamesAsync"/>) okunur, sabit yazilmaz.
+    /// <c>PRAGMA defer_foreign_keys = ON</c> defers FOREIGN KEY checking to the end of the
+    /// transaction, so all tables can be emptied in a single transaction regardless of delete
+    /// order. The table list is read from the catalog (<see cref="ReadTableNamesAsync"/>), not
+    /// hardcoded.
     /// </remarks>
     public async ValueTask ResetDataAsync()
     {
