@@ -3,14 +3,14 @@ using Microsoft.Agents.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// Sabit bir ozet listesi dondüren sahte katalog. <see cref="ResolveAsync(string, CancellationToken)"/>
-/// hicbir zaman gercek bir agent uretmez — cagri grafigi ve dogrulama testleri
-/// yalnizca <see cref="ListAsync"/>'e ihtiyac duyar.
+/// A fake catalog that returns a fixed descriptor list. <see cref="ResolveAsync(string, CancellationToken)"/>
+/// never produces a real agent — the call graph and validation tests only need
+/// <see cref="ListAsync"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="IServiceProvider"/> de uygular: <see cref="CallableAgentResolver"/>
-/// katalogu <c>IServiceProvider.GetRequiredService&lt;IAgentCatalog&gt;()</c> ile
-/// gec cozer; bu tip ayni ornegi ikisi icin de sunar.
+/// Also implements <see cref="IServiceProvider"/>: <see cref="CallableAgentResolver"/>
+/// resolves the catalog lazily via <c>IServiceProvider.GetRequiredService&lt;IAgentCatalog&gt;()</c>;
+/// this type serves the same instance for both.
 /// </remarks>
 internal sealed class FakeAgentCatalog(IReadOnlyList<AgentDescriptor> descriptors) : IAgentCatalog, IServiceProvider
 {

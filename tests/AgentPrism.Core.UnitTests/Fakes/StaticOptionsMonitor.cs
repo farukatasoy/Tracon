@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Testlerde degismeyen tek bir ayar degeri dondüren sahte izleyici.</summary>
+/// <summary>A fake monitor that returns a single, unchanging settings value in tests.</summary>
 internal sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
 {
     public T CurrentValue => value;
