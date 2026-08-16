@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismSqlServerOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismSqlServerOptions"/> settings at application startup.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is hand-written; <c>ValidateDataAnnotations()</c> relies on reflection.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<AgentPrismSqlServerOptions>
 {
@@ -22,30 +22,30 @@ public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<Agent
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.ConnectionString)} cannot be empty. " +
-                $"Baglanti dizesini `UseSqlServer(...)` cagrisinda verin veya " +
-                $"'{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                $"Give it in the `UseSqlServer(...)` call, or " +
+                $"define the '{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
+                "setting in `dotnet user-secrets`.");
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.SchemaName))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.SchemaName)} gecerli bir " +
-                "AgentPrism sema adi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.SchemaName}'.");
+                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.SchemaName)} is not a valid " +
+                "AgentPrism schema name. It must start with a lowercase letter or underscore; contain lowercase " +
+                $"letters, digits, and underscores; and be at most 63 characters. Actual value: '{options.SchemaName}'.");
         }
         else if (string.Equals(options.SchemaName, "dbo", StringComparison.Ordinal))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.SchemaName)} 'dbo' olamaz. " +
-                "AgentPrism tuketicinin varsayilan semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.");
+                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.SchemaName)} cannot be 'dbo'. " +
+                "AgentPrism never touches the consumer's default schema. Rationale: docs/KARARLAR.md, decision K-013.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
+                $"must be between 0 and 3600. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null

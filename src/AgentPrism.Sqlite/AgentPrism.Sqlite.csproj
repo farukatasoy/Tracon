@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin SQLite kalicilik katmani. Tek dosyalik kurulum: demo, gomulu senaryolar ve gercek SQL davranisiyla test icin. Gomulu SQL migration'lari ile gelir. Tek yazicilidir; cok ornekli dagitimda kullanilmaz.</Description>
+    <Description>SQLite persistence layer for AgentPrism. Single-file setup: for demos, embedded scenarios, and testing with real SQL behavior. Ships with embedded SQL migrations. Single-writer; not for use in a multi-instance deployment.</Description>
     <PackageTags>$(CommonPackageTags);sqlite;persistence;embedded</PackageTags>
   </PropertyGroup>
 
   <!--
-    AOT durumu OLCULMEDI (Faz 24 acilisi). SQLitePCLRaw yerel kutuphane tasir;
-    bu genellikle yayinlama (publish) davranisini etkiler. Olculene kadar bayrak
-    guvenli tarafta birakilir. Gerekce: docs/KARARLAR.md, karar K-190;
-    durum tablosu MIMARI.md bolum 9.
+    AOT status NOT MEASURED (Phase 24 opening). SQLitePCLRaw carries a native
+    library; this usually affects publish behavior. The flag stays on the
+    safe side until measured. Rationale: docs/KARARLAR.md, decision K-190;
+    status table MIMARI.md section 9.
   -->
   <PropertyGroup Label="Trim / AOT">
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
@@ -22,22 +22,22 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <!--
-      CVE zorlamasi (bkz. Directory.Packages.props). Gecisli sabitleme kapali
-      oldugu icin (K-007) surum bilincli tek bir PackageReference ile zorlanir.
+      CVE pinning (see Directory.Packages.props). Since transitive pinning is
+      off (K-007), a version is forced with a single deliberate PackageReference.
     -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
   </ItemGroup>
 
-  <ItemGroup Label="Gomulu SQL migration'lari (Faz 24)">
+  <ItemGroup Label="Embedded SQL migrations (Phase 24)">
     <EmbeddedResource Include="Migrations/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Paylasilan kaynak (Faz 23). AgentPrism.Sql.Shared bir paket DEGILDIR; ayni
-    dosyalar AgentPrism.PostgreSql ve AgentPrism.SqlServer tarafindan da
-    derlenir. Gerekce: K-176.
+    Shared source (Phase 23). AgentPrism.Sql.Shared is NOT a package; the same
+    files also compile into AgentPrism.PostgreSql and AgentPrism.SqlServer.
+    Rationale: K-176.
   -->
-  <ItemGroup Label="Paylasilan SQL kaynagi (Faz 23)">
+  <ItemGroup Label="Shared SQL source (Phase 23)">
     <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 

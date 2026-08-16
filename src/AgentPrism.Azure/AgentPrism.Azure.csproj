@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin Azure OpenAI saglayici adaptoru. Deployment tabanli model cozumu, API anahtari veya Microsoft Entra kimligi ile kimlik dogrulama, model katalogu ve saglik denetimi.</Description>
+    <Description>Azure OpenAI provider adapter for AgentPrism. Deployment-based model resolution, authentication with an API key or Microsoft Entra identity, model catalog, and health checks.</Description>
     <PackageTags>$(CommonPackageTags);azure;azure-openai;entra;provider</PackageTags>
   </PropertyGroup>
 
@@ -10,17 +10,18 @@
   </ItemGroup>
 
   <!--
-    Azure.AI.OpenAI, Azure'un RESMI adaptorudur ve OpenAI SDK'sinin ustune yalnizca
-    yonlendirmeyi ekler: POST {endpoint}/openai/deployments/{deployment}/chat/completions
-    ?api-version=... Mesaj eslemesi, akis, tool cagrisi ve kullanim sayaclari
-    OpenAI SDK'sinin kendi kodundan gelir; AgentPrism hicbirini yazmaz.
+    Azure.AI.OpenAI is Azure's OFFICIAL adapter and only adds routing on top of
+    the OpenAI SDK: POST {endpoint}/openai/deployments/{deployment}/chat/completions
+    ?api-version=... Message mapping, streaming, tool calls, and usage counters
+    all come from the OpenAI SDK's own code; AgentPrism writes none of them.
 
-    Azure.Core public API'de gectigi icin dogrudan yazilir (bkz. Directory.Packages.props).
+    Azure.Core is written directly because it appears in the public API (see
+    Directory.Packages.props).
   -->
   <ItemGroup>
     <PackageReference Include="Azure.AI.OpenAI" />
     <PackageReference Include="Azure.Core" />
-    <!-- ChatClient -> IChatClient adaptoru (`AsIChatClient`) bu paketten gelir. -->
+    <!-- The ChatClient -> IChatClient adapter (`AsIChatClient`) comes from this package. -->
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
   </ItemGroup>
 

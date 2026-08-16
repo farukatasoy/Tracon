@@ -28,11 +28,11 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
     private readonly NpgsqlDataSource _dataSource;
     private readonly string _schema;
 
-    /// <summary>Yeni bir vektor arama deposu olusturur.</summary>
-    /// <param name="dataSource">PostgreSQL veri kaynagi.</param>
-    /// <param name="postgresOptions">Sema adini tasiyan PostgreSQL ayarlari.</param>
-    /// <param name="knowledgeOptions">Gomu boyutunu tasiyan bilgi tabani ayarlari.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new vector search store.</summary>
+    /// <param name="dataSource">The PostgreSQL data source.</param>
+    /// <param name="postgresOptions">The PostgreSQL settings carrying the schema name.</param>
+    /// <param name="knowledgeOptions">The knowledge base settings carrying the embedding dimensions.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public PgVectorSearchStore(
         NpgsqlDataSource dataSource,
         AgentPrismPostgreSqlOptions postgresOptions,
@@ -68,8 +68,8 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
             if (chunk.Embedding.Length != Dimensions)
             {
                 throw new ArgumentException(
-                    $"Parca {chunk.Index} gomu uzunlugu ({chunk.Embedding.Length}) depo boyutuyla " +
-                    $"({Dimensions}) eslesmiyor.",
+                    $"Chunk {chunk.Index} embedding length ({chunk.Embedding.Length}) does not match the " +
+                    $"store dimensions ({Dimensions}).",
                     nameof(chunks));
             }
         }
@@ -251,7 +251,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
         }
     }
 
-    /// <summary>Gomuyu <c>pgvector</c>'un metin bicimine cevirir: <c>[0.1,0.2,...]</c>.</summary>
+    /// <summary>Converts the embedding to <c>pgvector</c>'s text form: <c>[0.1,0.2,...]</c>.</summary>
     private static string FormatVector(ReadOnlyMemory<float> vector)
     {
         var span = vector.Span;
@@ -273,8 +273,8 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
     }
 
     /// <summary>
-    /// Duz bir string->string sozlugu <c>jsonb</c> metnine cevirir. Yansima
-    /// KULLANMAZ (<see cref="Utf8JsonWriter"/> DOM tabanlidir) — AOT guvenli.
+    /// Converts a plain string->string dictionary to <c>jsonb</c> text. Does NOT
+    /// use reflection (<see cref="Utf8JsonWriter"/> is DOM-based) — AOT-safe.
     /// </summary>
     private static string SerializeMetadata(IReadOnlyDictionary<string, string>? metadata)
     {

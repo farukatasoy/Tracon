@@ -6,68 +6,69 @@ using Microsoft.Data.SqlClient;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlDialect"/> soyutlamasinin SQL Server uygulamasi.
+/// The SQL Server implementation of the <see cref="SqlDialect"/> abstraction.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Paylasilan depo kodunun gordugu tek <c>Microsoft.Data.SqlClient</c> temas
-/// noktasi budur.
+/// This is the only <c>Microsoft.Data.SqlClient</c> touch point the shared
+/// store code sees.
 /// </para>
 /// <para>
-/// Iki tuzak burada kapanir:
+/// Two traps are closed here:
 /// </para>
 /// <list type="number">
 ///   <item><description>
-///     🚨 <strong>Ondalik kesme.</strong> Tipi verilmemis bir
-///     <see cref="decimal"/> parametresini SQL Server <c>decimal(18,0)</c> sayar
-///     ve ondalik kismi <em>sessizce atar</em> — para tutarlari tam sayiya
-///     yuvarlanirdi. Butun ondalik sutunlar <c>decimal(20,10)</c>'dur ve
-///     parametreye ayni kesinlik acikca yazilir.
+///     🚨 <strong>Decimal truncation.</strong> SQL Server treats an untyped
+///     <see cref="decimal"/> parameter as <c>decimal(18,0)</c> and
+///     <em>silently drops</em> the fractional part — money amounts would be
+///     rounded to whole numbers. Every decimal column is <c>decimal(20,10)</c>,
+///     and the same precision is written to the parameter explicitly.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Dizi tasima.</strong> SQL Server'da dizi parametresi yoktur;
-///     diziler JSON metni olarak gonderilir ve SQL tarafinda <c>OPENJSON</c> ile
-///     acilir. Karsilik gelen okuma da JSON cozer.
+///     <strong>Array transport.</strong> SQL Server has no array parameter;
+///     arrays are sent as JSON text and opened on the SQL side with
+///     <c>OPENJSON</c>. The corresponding read also parses JSON.
 ///   </description></item>
 /// </list>
 /// </remarks>
 internal sealed class SqlServerDialect : SqlDialect
 {
-    /// <summary>Butun ondalik sutunlarin kesinligi (<c>decimal(20,10)</c>).</summary>
+    /// <summary>Precision of every decimal column (<c>decimal(20,10)</c>).</summary>
     private const byte DecimalPrecision = 20;
 
-    /// <summary>Butun ondalik sutunlarin olcegi (<c>decimal(20,10)</c>).</summary>
+    /// <summary>Scale of every decimal column (<c>decimal(20,10)</c>).</summary>
     private const byte DecimalScale = 10;
 
-    /// <summary>Benzersizlik kisiti ihlali hata numaralari.</summary>
-    /// <remarks>2601 benzersiz indeks, 2627 benzersiz kisit icindir.</remarks>
+    /// <summary>Error numbers for a uniqueness constraint violation.</summary>
+    /// <remarks>2601 is for a unique index, 2627 is for a unique constraint.</remarks>
     private static readonly int[] UniqueViolations = [2601, 2627];
 
-    /// <summary>Yabanci anahtar kisiti ihlali hata numarasi.</summary>
+    /// <summary>Error number for a foreign key constraint violation.</summary>
     private const int ForeignKeyViolation = 547;
 
-    /// <summary>Migration kilidinin kaynak adi on eki.</summary>
+    /// <summary>The resource name prefix for the migration lock.</summary>
     /// <remarks>
-    /// Deger AgentPrism'e ozgudur ve <strong>degistirilmemelidir</strong>. Kilit
-    /// SEMAYA kapsanmistir (K-389): <c>SchemaName</c> iki bagimsiz AgentPrism
-    /// kurulumunun tek veritabanini paylasmasini saglamak icin var, ve kilidin
-    /// korudugu kaynak da tam olarak semadir — ikisini ayni ad altinda kilitlemek
-    /// bagimsiz kurulumlar arasinda gereksiz bir acilis bagimliligi yaratirdi.
-    /// Yuvarlanan bir yukseltmede eski bir replika bu ad degisikliginden once
-    /// baslarsa en kotu sonuc o tek replikanin <c>__migrations</c> benzersizlik
-    /// kisitina carpip yeniden baslamasidir, sema bozulmaz (migration'lar kendi
-    /// transaction'inda kosar).
+    /// The value is specific to AgentPrism and <strong>must not change</strong>.
+    /// The lock is SCOPED TO THE SCHEMA (K-389): <c>SchemaName</c> exists so
+    /// two independent AgentPrism deployments can share one database, and the
+    /// resource the lock protects is exactly the schema — locking both under
+    /// the same name would create an unnecessary startup dependency between
+    /// independent deployments. In a rolling upgrade, if an old replica
+    /// starts before this name change, the worst outcome is that single
+    /// replica hitting the <c>__migrations</c> uniqueness constraint and
+    /// restarting; the schema is not corrupted (migrations run in their own
+    /// transaction).
     /// </remarks>
     private const string MigrationLockResourcePrefix = "AgentPrism.Migrations:";
 
-    /// <summary>Kilit bekleme ust suresi (milisaniye).</summary>
+    /// <summary>The upper wait time for the lock (milliseconds).</summary>
     private const int LockTimeoutMilliseconds = 30000;
 
     private readonly SqlServerQueries _queries;
     private readonly string _migrationLockResource;
 
-    /// <summary>Yeni bir SQL Server diyalekti olusturur.</summary>
-    /// <param name="schemaName">Dogrulanacak sema adi.</param>
+    /// <summary>Creates a new SQL Server dialect.</summary>
+    /// <param name="schemaName">The schema name to validate.</param>
     public SqlServerDialect(string schemaName)
     {
         _queries = new SqlServerQueries(schemaName);
@@ -82,9 +83,9 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// <c>sp_getapplock</c> oturum kapsaminda alinir. Donus degeri negatifse kilit
-    /// alinamamistir; sessizce devam etmek iki replikanin ayni migration'i ayni
-    /// anda uygulamasina izin verirdi.
+    /// <c>sp_getapplock</c> is taken at session scope. A negative return value
+    /// means the lock was not acquired; silently continuing would let two
+    /// replicas apply the same migration at the same time.
     /// </remarks>
     public override async ValueTask AcquireMigrationLockAsync(
         DbConnection connection,
@@ -116,9 +117,9 @@ internal sealed class SqlServerDialect : SqlDialect
             if (result.Value is int code && code < 0)
             {
                 throw new AgentPrismException(
-                    $"AgentPrism migration kilidi alinamadi (sp_getapplock donus degeri {code}). " +
-                    $"Kilit en cok {LockTimeoutMilliseconds} ms beklenir; baska bir ornek uzun " +
-                    "suren bir migration uyguluyor olabilir.");
+                    $"Could not acquire the AgentPrism migration lock (sp_getapplock returned {code}). " +
+                    $"The lock is waited on for at most {LockTimeoutMilliseconds} ms; another instance may " +
+                    "be applying a long-running migration.");
             }
         }
     }
@@ -145,7 +146,7 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     public override string? DescribeDatabaseError(Exception exception)
         => exception is SqlException sql
-            ? $"{sql.Message.TrimEnd()} (hata {sql.Number}, durum {sql.State})"
+            ? $"{sql.Message.TrimEnd()} (error {sql.Number}, state {sql.State})"
             : null;
 
     /// <inheritdoc />
@@ -157,14 +158,14 @@ internal sealed class SqlServerDialect : SqlDialect
         => exception is SqlException { Number: ForeignKeyViolation };
 
     /// <inheritdoc />
-    /// <remarks>SQL Server duzenli ifadeyi hic sunucuya gondermez; bu yola girmez.</remarks>
+    /// <remarks>SQL Server never sends a regular expression to the server; this path is never hit.</remarks>
     public override bool IsInvalidRegexError(Exception exception) => false;
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQL Server'da <c>json</c> ile <c>jsonb</c> ayrimi yoktur; ikisi de
-    /// <c>nvarchar(max)</c>'tir. K-027'nin anahtar siralamasi sorunu burada
-    /// <em>kendiliginden yoktur</em>: metin oldugu gibi saklanir.
+    /// SQL Server has no <c>json</c>/<c>jsonb</c> distinction; both are
+    /// <c>nvarchar(max)</c>. K-027's key-ordering problem <em>does not exist
+    /// here by construction</em>: the text is stored as-is.
     /// </remarks>
     public override void AddJson(DbCommand command, string name, string? value)
         => AddTyped(command, name, DbType.String, value);
@@ -199,9 +200,9 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQL Server'da <c>interval</c> tipi yoktur. Zaman serisi sorgusu araligi
-    /// <c>bucket_unit</c> metninden turetir; bu parametre yalnizca paylasilan
-    /// imzayi karsilamak icin dakika olarak gonderilir.
+    /// SQL Server has no <c>interval</c> type. The time-series query derives
+    /// the bucket from the <c>bucket_unit</c> text; this parameter is sent in
+    /// minutes only to satisfy the shared signature.
     /// </remarks>
     public override void AddInterval(DbCommand command, string name, TimeSpan value)
         => AddTyped(command, name, DbType.Int32, (int)value.TotalMinutes);
@@ -223,17 +224,17 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// <c>datetimeoffset(7)</c> sutunu <see cref="DateTimeOffset"/> alir. Deger
-    /// her zaman UTC'ye cevrilerek yazilir; boylece okunan ofset sifirdir ve
-    /// PostgreSQL <c>timestamptz</c> davranisiyla ayni olur.
+    /// The <c>datetimeoffset(7)</c> column takes a <see cref="DateTimeOffset"/>.
+    /// The value is always converted to UTC before writing, so the offset
+    /// read back is zero, matching PostgreSQL's <c>timestamptz</c> behavior.
     /// </remarks>
     public override void AddTimestamp(DbCommand command, string name, DateTimeOffset? value)
         => AddTyped(command, name, DbType.DateTimeOffset, value?.ToUniversalTime());
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Kesinlik ve olcek acikca verilir; verilmezse SQL Server
-    /// <c>decimal(18,0)</c> varsayar ve ondalik kismi sessizce keser.
+    /// 🚨 Precision and scale are given explicitly; if not, SQL Server
+    /// assumes <c>decimal(18,0)</c> and silently truncates the fractional part.
     /// </remarks>
     public override void AddDecimal(DbCommand command, string name, decimal? value)
     {
@@ -247,8 +248,8 @@ internal sealed class SqlServerDialect : SqlDialect
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // varbinary(max) icin uzunluk -1 verilir; verilmezse SqlClient degerin
-        // uzunluguna gore boyut cikarir ve 8000 baytin uzerinde hata olusur.
+        // Length -1 is given for varbinary(max); without it, SqlClient infers
+        // the size from the value's length and errors above 8000 bytes.
         var parameter = new SqlParameter(name, SqlDbType.VarBinary, -1)
         {
             Value = (object?)value ?? DBNull.Value,
@@ -272,17 +273,17 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// <c>DELETE TOP (n)</c> T-SQL'e ozgudur ve bir alt sorgu gerektirmez.
-    /// <c>TOP (0)</c> hata VERMEZ (OFFSET/FETCH'in aksine) — ayri bir sifir
-    /// koruma satiri gerekmez.
+    /// <c>DELETE TOP (n)</c> is T-SQL-specific and needs no subquery.
+    /// <c>TOP (0)</c> does NOT error (unlike OFFSET/FETCH) — no separate
+    /// zero-guard line is needed.
     /// </remarks>
     public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
         => $"DELETE TOP (@batchSize) FROM {table} WHERE {wherePredicate};";
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>OFFSET</c>/<c>FETCH</c> <c>ORDER BY</c> OLMADAN hata verir
-    /// (K-026 tuzagi); bu sorgu her zaman bir <c>ORDER BY</c> tasir.
+    /// 🚨 <c>OFFSET</c>/<c>FETCH</c> errors WITHOUT an <c>ORDER BY</c>
+    /// (the K-026 trap); this query always carries an <c>ORDER BY</c>.
     /// </remarks>
     public override string BuildRetentionFindNthRowCutoffSql(
         string table,

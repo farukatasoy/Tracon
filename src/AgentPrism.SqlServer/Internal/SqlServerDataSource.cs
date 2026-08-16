@@ -4,28 +4,29 @@ using Microsoft.Data.SqlClient;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="Microsoft.Data.SqlClient"/> icin bir <see cref="DbDataSource"/> uyarlayicisi.
+/// A <see cref="DbDataSource"/> adapter for <see cref="Microsoft.Data.SqlClient"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Npgsql <c>NpgsqlDataSource</c> tipini kendisi saglar; <c>Microsoft.Data.SqlClient</c>
-/// bir <see cref="DbDataSource"/> uygulamasi <strong>sunmaz</strong>. Paylasilan depo
-/// katmani veri kaynagini bu taban tip uzerinden tanidigi icin ince bir uyarlayici
-/// yazilir.
+/// Npgsql provides its own <c>NpgsqlDataSource</c> type; <c>Microsoft.Data.SqlClient</c>
+/// <strong>does not offer</strong> a <see cref="DbDataSource"/> implementation.
+/// Since the shared store layer knows the data source through this base type,
+/// a thin adapter is written.
 /// </para>
 /// <para>
-/// Baglanti havuzu <c>SqlClient</c>'in kendi havuzudur; burada ek bir havuz katmani
-/// yoktur. Taban sinifin <see cref="DbDataSource.CreateCommand(string)"/> uygulamasi
-/// komut calistirildiginda havuzdan bir baglanti alir ve komut birakildiginda geri
-/// verir — <c>NpgsqlDataSource</c> ile ayni sozlesme.
+/// The connection pool is <c>SqlClient</c>'s own pool; there is no extra
+/// pooling layer here. The base class's <see cref="DbDataSource.CreateCommand(string)"/>
+/// implementation takes a connection from the pool when a command is run and
+/// returns it when the command is disposed — the same contract as
+/// <c>NpgsqlDataSource</c>.
 /// </para>
 /// </remarks>
 internal sealed class SqlServerDataSource : DbDataSource
 {
     private readonly string _connectionString;
 
-    /// <summary>Yeni bir veri kaynagi olusturur.</summary>
-    /// <param name="connectionString">SQL Server baglanti dizesi.</param>
+    /// <summary>Creates a new data source.</summary>
+    /// <param name="connectionString">The SQL Server connection string.</param>
     public SqlServerDataSource(string connectionString)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);

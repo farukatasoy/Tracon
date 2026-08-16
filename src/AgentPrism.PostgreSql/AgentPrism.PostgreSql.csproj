@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin PostgreSQL kalicilik katmani. Agent tanimlari, oturumlar, konusmalar, calistirmalar ve olaylar ayri bir 'agentprism' semasinda saklanir. Gomulu SQL migration'lari ile gelir.</Description>
+    <Description>PostgreSQL persistence layer for AgentPrism. Agent definitions, sessions, conversations, runs, and events are stored in a separate 'agentprism' schema. Ships with embedded SQL migrations.</Description>
     <PackageTags>$(CommonPackageTags);postgresql;postgres;npgsql;persistence</PackageTags>
   </PropertyGroup>
 
@@ -13,17 +13,17 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
-  <ItemGroup Label="Gomulu SQL migration'lari (Faz 2)">
+  <ItemGroup Label="Embedded SQL migrations (Phase 2)">
     <EmbeddedResource Include="Migrations/**/*.sql" />
   </ItemGroup>
 
   <!--
-    Paylasilan kaynak (Faz 23). AgentPrism.Sql.Shared bir paket DEGILDIR ve kendi
-    csproj dosyasi yoktur; dosyalar buraya ve AgentPrism.SqlServer'a dogrudan
-    derlenir. Boylece depo mantigi tek yerde yasar ama ucuncu bir NuGet paketi
-    yayinlanmaz. Gerekce: docs/KARARLAR.md, karar K-176.
+    Shared source (Phase 23). AgentPrism.Sql.Shared is NOT a package and has no
+    csproj file of its own; its files compile directly here and into
+    AgentPrism.SqlServer. This way store logic lives in one place without
+    publishing a third NuGet package. Rationale: docs/KARARLAR.md, decision K-176.
   -->
-  <ItemGroup Label="Paylasilan SQL kaynagi (Faz 23)">
+  <ItemGroup Label="Shared SQL source (Phase 23)">
     <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 

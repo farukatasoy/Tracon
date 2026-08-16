@@ -1,46 +1,47 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in SQL Server kalicilik katmani ayarlari.</summary>
+/// <summary>Settings for AgentPrism's SQL Server persistence layer.</summary>
 /// <remarks>
-/// Dogrulama <see cref="AgentPrismSqlServerOptionsValidator"/> icinde elle yapilir;
-/// <c>DataAnnotations</c> kullanilmaz. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is done by hand in <see cref="AgentPrismSqlServerOptionsValidator"/>;
+/// <c>DataAnnotations</c> is not used. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismSqlServerOptions
 {
-    /// <summary>Ayarlarin okundugu yapilandirma bolumunun tam yolu.</summary>
+    /// <summary>The full path of the configuration section settings are read from.</summary>
     public const string SectionName = "AgentPrism:SqlServer";
 
     /// <summary>
-    /// SQL Server baglanti dizesi.
+    /// The SQL Server connection string.
     /// </summary>
     /// <remarks>
-    /// <strong>Bu deger bir sirdir ve dosyaya yazilmaz.</strong> <c>dotnet user-secrets</c>,
-    /// ortam degiskeni veya bir sir yoneticisi kullanin.
+    /// <strong>This value is a secret and is never written to a file.</strong> Use
+    /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager.
     /// </remarks>
     public string? ConnectionString { get; set; }
 
     /// <summary>
-    /// AgentPrism tablolarinin olusturulacagi sema. Tuketicinin <c>dbo</c> semasina
-    /// hicbir kosulda dokunulmaz.
+    /// The schema AgentPrism's tables are created in. The consumer's <c>dbo</c>
+    /// schema is never touched, under any circumstances.
     /// </summary>
     /// <remarks>
-    /// SQL Server daha genis bir tanimlayici kumesine izin verse de AgentPrism
-    /// <em>ayni kati kurali</em> uygular: kucuk harf veya alt cizgi ile baslar,
-    /// kucuk harf, rakam ve alt cizgi icerir, en cok 63 karakterdir. Boylece ayni
-    /// sema adi PostgreSQL ile SQL Server arasinda degistirilmeden tasinabilir.
+    /// Even though SQL Server allows a wider set of identifiers, AgentPrism
+    /// enforces the <em>same strict rule</em>: starts with a lowercase letter
+    /// or underscore, contains lowercase letters, digits, and underscores, at
+    /// most 63 characters. This way the same schema name carries over between
+    /// PostgreSQL and SQL Server without changes.
     /// </remarks>
     public string SchemaName { get; set; } = "agentprism";
 
     /// <summary>
-    /// Uygulama baslarken bekleyen migration'lar otomatik uygulansin mi.
+    /// Whether pending migrations are applied automatically at application startup.
     /// </summary>
     /// <remarks>
-    /// Uretimde <see langword="false"/> yapilip <see cref="MigrationRunner"/> ayri bir
-    /// dagitim adiminda calistirilabilir. Boylece uzun suren bir migration uygulama
-    /// baslangicini kilitlemez.
+    /// Can be set to <see langword="false"/> in production and <see cref="MigrationRunner"/>
+    /// run as a separate deployment step, so a long-running migration does not
+    /// block application startup.
     /// </remarks>
     public bool AutoApplyMigrations { get; set; } = true;
 
-    /// <summary>Tek bir SQL komutunun ust sure siniri (saniye). 0 sinirsiz demektir.</summary>
+    /// <summary>The upper time limit for a single SQL command (seconds). 0 means unlimited.</summary>
     public int CommandTimeoutSeconds { get; set; } = 30;
 }

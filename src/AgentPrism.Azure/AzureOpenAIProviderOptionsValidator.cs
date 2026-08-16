@@ -68,7 +68,7 @@ public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azure
             {
                 (failures ??= []).Add(
                     $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Models)}[{index}] " +
-                    "icin deployment adi cannot be empty.");
+                    "deployment name cannot be empty.");
             }
         }
 
