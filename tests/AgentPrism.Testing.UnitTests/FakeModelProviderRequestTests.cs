@@ -8,30 +8,30 @@ public sealed class FakeModelProviderRequestTests
     private static readonly ModelBinding Binding = new() { Provider = "fake", Model = "fake-model" };
 
     [Fact]
-    public async Task Gelen_istekler_mesaj_ve_secenekleri_dogru_kaydeder()
+    public async Task Incoming_requests_record_the_message_and_options_correctly()
     {
         using var provider = new FakeModelProvider().EchoesUserMessage();
         var client = provider.CreateChatClient(Binding);
         var options = new ChatOptions { Temperature = 0.5f };
 
-        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "merhaba")], options);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")], options);
 
         var request = provider.Requests.ShouldHaveSingleItem();
 
-        request.Messages.ShouldContain(message => message.Role == ChatRole.User && message.Text == "merhaba");
+        request.Messages.ShouldContain(message => message.Role == ChatRole.User && message.Text == "hello");
         request.Options.ShouldBe(options);
         request.IsStreaming.ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Akisli_cagri_IsStreaming_true_kaydeder()
+    public async Task Streaming_call_records_IsStreaming_true()
     {
         using var provider = new FakeModelProvider().EchoesUserMessage();
         var client = provider.CreateChatClient(Binding);
 
-        await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "merhaba")]))
+        await foreach (var _ in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hello")]))
         {
-            // Akisi tuketmek yeterli; icerik bu testin konusu degil.
+            // Draining the stream is enough; content is not this test's concern.
         }
 
         var request = provider.Requests.ShouldHaveSingleItem();
@@ -39,15 +39,15 @@ public sealed class FakeModelProviderRequestTests
     }
 
     [Fact]
-    public async Task En_yeni_istek_listenin_sonuncusudur()
+    public async Task Newest_request_is_last_in_the_list()
     {
         using var provider = new FakeModelProvider().EchoesUserMessage();
         var client = provider.CreateChatClient(Binding);
 
-        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "birinci")]);
-        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "ikinci")]);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "first")]);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "second")]);
 
         provider.Requests.Count.ShouldBe(2);
-        provider.Requests[^1].Messages.ShouldContain(message => message.Text == "ikinci");
+        provider.Requests[^1].Messages.ShouldContain(message => message.Text == "second");
     }
 }

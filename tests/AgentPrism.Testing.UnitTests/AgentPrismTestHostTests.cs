@@ -6,7 +6,7 @@ namespace AgentPrism.Testing.UnitTests;
 public sealed class AgentPrismTestHostTests
 {
     [Fact]
-    public async Task Varsayilan_kurulum_hicbir_ek_yapilandirma_olmadan_ayaga_kalkar()
+    public async Task Default_setup_starts_without_any_extra_configuration()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -16,7 +16,7 @@ public sealed class AgentPrismTestHostTests
     }
 
     [Fact]
-    public async Task Farkli_bir_onek_verilirse_o_onekten_yanit_verir()
+    public async Task Responds_from_a_different_prefix_when_one_is_given()
     {
         await using var host = await AgentPrismTestHost.StartAsync(options => options.Prefix = "/panel");
 
@@ -26,7 +26,7 @@ public sealed class AgentPrismTestHostTests
     }
 
     [Fact]
-    public async Task DisposeAsync_uygulamayi_durdurur()
+    public async Task DisposeAsync_stops_the_application()
     {
         var host = await AgentPrismTestHost.StartAsync();
         var client = host.Client;
@@ -37,23 +37,23 @@ public sealed class AgentPrismTestHostTests
     }
 
     [Fact]
-    public async Task RunAsync_kayitli_bir_agenti_calistirir_ve_kaydini_dondurur()
+    public async Task RunAsync_runs_a_registered_agent_and_returns_its_record()
     {
         await using var host = await AgentPrismTestHost.StartAsync(options =>
         {
             options.ModelProvider = new FakeModelProvider().EchoesUserMessage();
             options.ConfigureAgentPrism = builder => builder.AddAgent(new AgentDefinition
             {
-                Name = "yardimci",
-                Instructions = "Kisa yanit ver.",
+                Name = "assistant",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = options.ModelProvider.Name, Model = "fake-model" },
                 Origin = AgentDefinitionOrigin.Code,
             });
         });
 
-        var run = await host.RunAsync("yardimci", "merhaba");
+        var run = await host.RunAsync("assistant", "hello");
 
         run.ShouldHaveCompleted();
-        run.Record.AgentName.ShouldBe("yardimci");
+        run.Record.AgentName.ShouldBe("assistant");
     }
 }

@@ -3,23 +3,25 @@ using System.Text.RegularExpressions;
 namespace AgentPrism.Templates.Tests.Infrastructure;
 
 /// <summary>
-/// Tum sablon testlerinin paylastigi tek kullanimlik kurulum: cozumu paketler
-/// (yerel bir NuGet feed'i olarak <c>artifacts/package/release</c> dolar),
-/// paket surumunu cozer ve sablonu <c>dotnet new install</c> ile kurar.
+/// The one-time setup shared by all template tests: packs the solution
+/// (populating <c>artifacts/package/release</c> as a local NuGet feed),
+/// resolves the package version, and installs the template with
+/// <c>dotnet new install</c>.
 /// </summary>
 /// <remarks>
-/// AgentPrism nuget.org'da yayinlanmadigi icin (Faz 7 beklemede, K-068) uretilen
-/// projelerin <c>AgentPrism</c> paket referansi yalnizca bu yerel feed'den
-/// cozulebilir. Sablonun kendi varsayilan surum degeri (<c>*-*</c>, kayan
-/// on-surum) nuget.org gibi tam bir feed varsayar; test yalitimi icin burada
-/// PAKETLENEN surum acikca cozulup her `dotnet new` cagrisina verilir.
+/// Because AgentPrism is not published on nuget.org (Phase 7 pending, K-068),
+/// the generated projects' <c>AgentPrism</c> package reference can only resolve
+/// from this local feed. The template's own default version value (<c>*-*</c>,
+/// a floating pre-release) assumes a full feed like nuget.org; for test
+/// isolation, the PACKED version is resolved explicitly here and passed to
+/// every `dotnet new` call.
 /// </remarks>
 public sealed class TemplateFixture : IAsyncLifetime
 {
     private static readonly TimeSpan PackTimeout = TimeSpan.FromMinutes(20);
     private static readonly TimeSpan InstallTimeout = TimeSpan.FromMinutes(2);
 
-    /// <summary>Cozumdeki tum AgentPrism paketlerinin paylastigi surum.</summary>
+    /// <summary>The version shared by all AgentPrism packages in the solution.</summary>
     public string Version { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
@@ -31,13 +33,13 @@ public sealed class TemplateFixture : IAsyncLifetime
 
         if (packResult.ExitCode != 0)
         {
-            throw new InvalidOperationException($"'dotnet pack' basarisiz oldu:{Environment.NewLine}{packResult.Combined}");
+            throw new InvalidOperationException($"'dotnet pack' failed:{Environment.NewLine}{packResult.Combined}");
         }
 
         Version = ResolveMetaPackageVersion();
 
-        // Onceki bir kosudan kalmis olabilecek kaydi once kaldir - sessizce
-        // eski bir surumle calismak yerine acik hata vermek tercih edilir.
+        // Remove any registration left over from a previous run first - an
+        // explicit error is preferred over silently running with a stale version.
         await ProcessRunner.RunAsync("dotnet", $"new uninstall \"{RepoPaths.TemplatesProjectDirectory}\"", timeout: InstallTimeout);
 
         var installResult = await ProcessRunner.RunAsync(
@@ -47,7 +49,7 @@ public sealed class TemplateFixture : IAsyncLifetime
 
         if (installResult.ExitCode != 0)
         {
-            throw new InvalidOperationException($"'dotnet new install' basarisiz oldu:{Environment.NewLine}{installResult.Combined}");
+            throw new InvalidOperationException($"'dotnet new install' failed:{Environment.NewLine}{installResult.Combined}");
         }
     }
 
@@ -57,8 +59,8 @@ public sealed class TemplateFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Verilen dizine, yerel paket feed'ini (<c>artifacts/package/release</c>)
-    /// nuget.org ile birlikte tanimlayan bir <c>NuGet.config</c> yazar.
+    /// Writes a <c>NuGet.config</c> to the given directory that declares the
+    /// local package feed (<c>artifacts/package/release</c>) alongside nuget.org.
     /// </summary>
     public static async Task WriteLocalNuGetConfigAsync(string directory)
     {
