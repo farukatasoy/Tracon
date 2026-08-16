@@ -6,27 +6,28 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Icerik guard'inin HTTP yuzeyindeki davranisi (Faz 48).</summary>
+/// <summary>The content guard's behavior on the HTTP surface (Phase 48).</summary>
 /// <remarks>
-/// 🚨 <c>422</c> yalnizca <strong>akissiz</strong> dalda mumkundur. Akisli dal
-/// varsayilandir ve SSE basliklari calistirma baslamadan gonderilir; guard model
-/// boru hattinda oldugu icin karar durum kodu yazildiktan SONRA olusur. Akissiz
-/// dal <c>Idempotency-Key</c> basligiyla secilir (Faz 43).
+/// 🚨 <c>422</c> is possible only on the <strong>non-streaming</strong> branch. The
+/// streaming branch is the default, and SSE headers are sent before the run
+/// starts; because the guard sits in the model pipeline, the decision forms
+/// AFTER the status code is written. The non-streaming branch is selected with
+/// the <c>Idempotency-Key</c> header (Phase 43).
 /// </remarks>
 public sealed class ContentGuardEndpointTests
 {
-    private const string DeniedTerm = "gizli-proje";
+    private const string DeniedTerm = "secret-project";
     private const string CardNumber = "4539578763621486";
 
     private static readonly Uri Run = new("/agentprism/api/agents/kod-agent/run", UriKind.Relative);
     private static readonly Uri Audit = new("/agentprism/api/audit?action=content.blocked", UriKind.Relative);
 
     [Fact]
-    public async Task Girise_takilan_engelleme_422_doner()
+    public async Task Block_hitting_the_input_returns_422()
     {
         await using var host = await StartAsync();
 
-        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"{DeniedTerm} nedir" });
+        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"what is {DeniedTerm}" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
 
@@ -40,24 +41,24 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task ProblemDetails_engellenen_metni_tasimaz()
+    public async Task ProblemDetails_does_not_carry_the_blocked_text()
     {
-        // 🚨 Yasak sozcuk listesi kurumsal bir sirdir; yanit govdesine yazmak onu
-        // istemciye sizdirirdi.
+        // 🚨 The denied-term list is a corporate secret; writing it into the
+        // response body would leak it to the client.
         await using var host = await StartAsync();
 
         using var response = await PostBufferedAsync(
             host,
-            new AgentRunRequest { Message = $"{DeniedTerm} kod adiyla anilan urun" });
+            new AgentRunRequest { Message = $"the product code-named {DeniedTerm}" });
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         body.ShouldNotContain(DeniedTerm, Case.Insensitive);
-        body.ShouldNotContain("kod adiyla anilan urun", Case.Insensitive);
+        body.ShouldNotContain("the product code-named", Case.Insensitive);
     }
 
     [Fact]
-    public async Task Engelleme_calistirma_kaydina_content_blocked_yazar()
+    public async Task Block_writes_content_blocked_to_the_run_record()
     {
         await using var host = await StartAsync();
 
@@ -78,10 +79,10 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task Engelleme_devre_kesiciyi_acmaz()
+    public async Task Block_does_not_trip_the_circuit_breaker()
     {
-        // 🚨 On engelleme ust uste geldiginde saglayici KAPANMAMALIDIR: bir
-        // politika karari bir kesintiye donusmemeli.
+        // 🚨 The provider must NOT TRIP when pre-blocks stack up repeatedly: a
+        // policy decision must not turn into an outage.
         await using var host = await StartAsync();
 
         for (var attempt = 0; attempt < 10; attempt++)
@@ -91,9 +92,10 @@ public sealed class ContentGuardEndpointTests
             response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
         }
 
-        // Davranissal dogrulama: zararsiz bir istek hâlâ gecmeli. Devre acilmis
-        // olsaydi bu istek AgentPrismProviderUnavailableException ile duserdi.
-        using var afterwards = await PostBufferedAsync(host, new AgentRunRequest { Message = "zararsiz istem" });
+        // Behavioral verification: a harmless request must still pass. If the
+        // circuit had tripped, this request would fail with
+        // AgentPrismProviderUnavailableException.
+        using var afterwards = await PostBufferedAsync(host, new AgentRunRequest { Message = "harmless prompt" });
 
         afterwards.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -104,11 +106,11 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task Denetim_izi_kural_adini_yazar_metni_yazmaz()
+    public async Task Audit_log_writes_the_rule_name_not_the_text()
     {
         await using var host = await StartAsync();
 
-        using (var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"{DeniedTerm} detaylari" }))
+        using (var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"details of {DeniedTerm}" }))
         {
             response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
         }
@@ -126,13 +128,13 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task Maskeleme_calistirmayi_kesmez_ve_olay_yazar()
+    public async Task Masking_does_not_interrupt_the_run_and_writes_an_event()
     {
         await using var host = await StartAsync();
 
         using (var response = await PostBufferedAsync(
             host,
-            new AgentRunRequest { Message = $"kart numaram {CardNumber}" }))
+            new AgentRunRequest { Message = $"my card number is {CardNumber}" }))
         {
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
@@ -151,14 +153,15 @@ public sealed class ContentGuardEndpointTests
 
         events.ShouldContain("ContentMasked", Case.Sensitive);
 
-        // 🚨 Guard'in KENDI olayi icerik tasimaz. Olcum: ContentMasked satirini
-        // ayikla ve kart numarasini arama.
+        // 🚨 The guard's OWN event carries no content. Measurement: extract the
+        // ContentMasked lines and search for the card number.
         //
-        // 🚨 Akisin BUTUNU icin ayni sey soylenemez ve bu bilincli bir sinirdir:
-        // RunStarted olayi kullanicinin ham istemini tasir (Faz 45, uretimden eval
-        // vakasi terfisinin tek kaynagi). Maskeleme MODEL SINIRINDA bir kontroldur;
-        // AgentPrism'in kendi kayitlarini geriye donuk temizlemez. O ayri bir istir
-        // (saklama/redaksiyon) ve bu fazin kapsami disindadir.
+        // 🚨 The SAME cannot be said for the WHOLE stream, and this is a deliberate
+        // boundary: the RunStarted event carries the user's raw prompt (Phase 45,
+        // the sole source of production-to-eval case promotion). Masking is a
+        // control AT THE MODEL BOUNDARY; it does not retroactively clean
+        // AgentPrism's own records. That is a separate task (retention/redaction)
+        // and out of scope for this phase.
         var maskedLines = events
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Where(static line => line.Contains("ContentMasked", StringComparison.Ordinal))
@@ -173,13 +176,13 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task Guard_kapaliyken_davranis_degismez()
+    public async Task Behavior_is_unchanged_when_the_guard_is_off()
     {
-        // Varsayilan kurulum hicbir guard kaydetmez: K1'in kapisi kaydin kendisidir.
+        // The default setup registers no guard at all: the K1 gate is the registration itself.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"{DeniedTerm} nedir" });
+        using var response = await PostBufferedAsync(host, new AgentRunRequest { Message = $"what is {DeniedTerm}" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -187,12 +190,12 @@ public sealed class ContentGuardEndpointTests
     }
 
     [Fact]
-    public async Task Akisli_dalda_engelleme_SSE_hata_olayi_olur()
+    public async Task Block_on_the_streaming_branch_becomes_an_SSE_error_event()
     {
-        // 🚨 Plandan sapma: akisli yolda 422 fiziksel olarak imkansizdir. SSE
-        // basliklari calistirma baslamadan gonderilir ve durum kodu 200'dur.
-        // Engelleme akista bir 'error' olayi olarak gorunur; calistirma kaydi
-        // yine content_blocked yazar.
+        // 🚨 Deviation from the plan: 422 is physically impossible on the streaming
+        // path. SSE headers are sent before the run starts, and the status code is
+        // 200. The block appears in the stream as an 'error' event; the run record
+        // still gets content_blocked written to it.
         await using var host = await StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
@@ -218,9 +221,9 @@ public sealed class ContentGuardEndpointTests
             }));
 
     /// <summary>
-    /// Akissiz dala girer. <c>Idempotency-Key</c> basligi tasiyan istek SSE
-    /// yerine tek bir JSON yanitla calisir (Faz 43) ve yalniz o dalda bir durum
-    /// kodu donebilir.
+    /// Enters the non-streaming branch. A request carrying the
+    /// <c>Idempotency-Key</c> header runs with a single JSON response instead
+    /// of SSE (Phase 43), and a status code can only be returned on that branch.
     /// </summary>
     private static async Task<HttpResponseMessage> PostBufferedAsync(AgentPrismTestHost host, AgentRunRequest body)
     {

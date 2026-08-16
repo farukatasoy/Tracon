@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Faz 50: AgentPrism agent'larini disa acan MCP sunucusu.
+/// Phase 50: the MCP server that exposes AgentPrism agents.
 /// </summary>
 public sealed class McpServerEndpointTests
 {
     [Fact]
-    public async Task Bos_beyaz_liste_hicbir_tool_dondurmez()
+    public async Task Empty_allowlist_returns_no_tools()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -26,7 +26,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Beyaz_listedeki_agent_tool_olarak_gorunur()
+    public async Task Allowlisted_agent_appears_as_a_tool()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -42,7 +42,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task ToolsCall_agenti_calistirir_ve_runs_satiri_uretir()
+    public async Task ToolsCall_runs_the_agent_and_produces_a_runs_row()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -54,17 +54,17 @@ public sealed class McpServerEndpointTests
             host.Client,
             "/agentprism/mcp",
             "tools/call",
-            new { name = "agentprism_kod-agent", arguments = new { message = "merhaba" } });
+            new { name = "agentprism_kod-agent", arguments = new { message = "hello" } });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var result = body!.Value.GetProperty("result");
 
-        // basarili yanitta IsError null'dir ve JSON'a hic yazilmaz.
+        // On a successful response, IsError is null and is never written to JSON.
         (!result.TryGetProperty("isError", out var isError) || !isError.GetBoolean()).ShouldBeTrue();
 
         var text = result.GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull();
-        text.ShouldContain("merhaba", Case.Sensitive);
+        text.ShouldContain("hello", Case.Sensitive);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
         var all = await runs.QueryRunsAsync(new RunQuery());
@@ -73,7 +73,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_tool_reddedilir()
+    public async Task Unknown_tool_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -85,24 +85,25 @@ public sealed class McpServerEndpointTests
             host.Client,
             "/agentprism/mcp",
             "tools/call",
-            new { name = "agentprism_kod-agent", arguments = new { message = "merhaba" } });
+            new { name = "agentprism_kod-agent", arguments = new { message = "hello" } });
 
         var result = body!.Value.GetProperty("result");
         result.GetProperty("isError").GetBoolean().ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Onay_gerektiren_tool_tasiyan_agent_disa_acilamaz()
+    public async Task Agent_carrying_a_tool_that_requires_approval_cannot_be_exposed()
     {
-        // Guard artik Map* aninda senkron degil, McpApprovalGuardFilter icinde
-        // arka planda calisir (bkz. AgentPrismMcpServerExtensions) — hata bu
-        // yuzden MapAgentPrismMcpServer()'dan degil, ILK istekten firlar.
+        // The guard is no longer synchronous at Map* time; it now runs in the
+        // background inside McpApprovalGuardFilter (see AgentPrismMcpServerExtensions)
+        // — that is why the error is thrown from the FIRST request, not from
+        // MapAgentPrismMcpServer().
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
                 .AddTool(
                     (Func<string, string>)CancelOrder,
                     name: "cancel_order",
-                    description: "Bir siparisi iptal eder.",
+                    description: "Cancels an order.",
                     requiresApproval: true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
@@ -115,15 +116,15 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Bos_sqlite_veritabaninda_MapAgentPrismMcpServer_cokmez()
+    public async Task MapAgentPrismMcpServer_does_not_crash_on_an_empty_sqlite_database()
     {
-        // Regresyon: MapAgentPrismMcpServer() onceden Map* aninda (migration'lar
-        // baslamadan ONCE) katalogu SENKRON okuyordu; tamamen bos (dosyasi HENUZ
-        // olusmamis) bir veritabaninda "no such table" ile cokerdi. Guard
-        // McpApprovalGuardFilter'a tasindiktan sonra Map* artik DB'ye hic
-        // dokunmuyor. `:memory:` KULLANILMAZ: paylasilan onbellek olmadan her
-        // yeni baglanti kendi izole bos veritabanini acar, gercek "bos dosya"
-        // durumunu taklit etmez.
+        // Regression: MapAgentPrismMcpServer() used to read the catalog
+        // SYNCHRONOUSLY at Map* time (BEFORE migrations started); on a
+        // completely empty database (file NOT YET created) it crashed with
+        // "no such table". Now that the guard moved into McpApprovalGuardFilter,
+        // Map* never touches the DB at all. `:memory:` is NOT used: without a
+        // shared cache, each new connection opens its own isolated empty
+        // database, which does not mimic the real "empty file" scenario.
         var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-mcp-empty-db-{Guid.NewGuid():N}.db");
 
         try
@@ -150,7 +151,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Derinlik_siniri_alt_cagriyi_engeller()
+    public async Task Depth_limit_blocks_a_sub_call()
     {
         const string RouterModel = "router-model";
         const string ResearcherModel = "researcher-model";
@@ -162,39 +163,39 @@ public sealed class McpServerEndpointTests
         {
             var provider = new AgentPrism.Testing.FakeModelProvider("routing")
                 .ForModel(RouterModel, cfg => cfg
-                    .CallsTool(StartTask, new { agentName = "arastirmaci", input = "alt gorev", description = "alt gorev" })
+                    .CallsTool(StartTask, new { agentName = "researcher", input = "sub task", description = "sub task" })
                     .CallsTool(WaitForCompletion, new { taskIds = new[] { 1 } })
                     .CallsTool(GetResults, new { taskId = 1 })
-                    .EchoesLastToolResult("Devredildi: ", inputTokens: 4, outputTokens: 6))
-                .ForModel(ResearcherModel, cfg => cfg.RespondsWith("Alt gorev tamam", inputTokens: 4, outputTokens: 6));
+                    .EchoesLastToolResult("Delegated: ", inputTokens: 4, outputTokens: 6))
+                .ForModel(ResearcherModel, cfg => cfg.RespondsWith("Sub task done", inputTokens: 4, outputTokens: 6));
 
             builder.AddModelProvider(provider);
 
             builder.AddAgent(new AgentDefinition
             {
-                Name = "arastirmaci",
-                Description = "Arastirma yapar.",
-                Instructions = "Arastir.",
+                Name = "researcher",
+                Description = "Does research.",
+                Instructions = "Research.",
                 Model = new ModelBinding { Provider = "routing", Model = ResearcherModel },
                 Origin = AgentDefinitionOrigin.Code,
             });
 
             builder.AddAgent(new AgentDefinition
             {
-                Name = "yonlendirici",
-                Description = "Isi devreder.",
-                Instructions = "Devret.",
+                Name = "router",
+                Description = "Delegates the work.",
+                Instructions = "Delegate.",
                 Model = new ModelBinding { Provider = "routing", Model = RouterModel },
-                CallableAgentNames = ["arastirmaci"],
+                CallableAgentNames = ["researcher"],
                 Origin = AgentDefinitionOrigin.Code,
             });
 
-            // MaxDepth=0: dis cagrinin KENDISI kok (Depth 0); bir tek alt
-            // cagri bile Depth 1 uretir ve 0 sinirini asar. Boylece "disaridan
-            // cagrilan agent alt agent cagiramaz" acikca dogrulanir.
+            // MaxDepth=0: the outer call ITSELF is the root (Depth 0); even a
+            // single sub-call produces Depth 1 and exceeds the limit of 0. This
+            // clearly verifies "an externally called agent cannot call a sub-agent".
             builder.UseMcpServer(o =>
             {
-                o.ExposedAgents.Add("yonlendirici");
+                o.ExposedAgents.Add("router");
                 o.Budget = new AgentRunBudget { MaxDepth = 0 };
             });
         },
@@ -204,7 +205,7 @@ public sealed class McpServerEndpointTests
             host.Client,
             "/agentprism/mcp",
             "tools/call",
-            new { name = "agentprism_yonlendirici", arguments = new { message = "baslat" } });
+            new { name = "agentprism_router", arguments = new { message = "start" } });
 
         var text = body!.Value.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull();
         text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
@@ -214,7 +215,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task AllowRemoteAccess_acikken_MCP_acilmaz()
+    public async Task MCP_cannot_be_opened_while_AllowRemoteAccess_is_on()
     {
         await Should.ThrowAsync<InvalidOperationException>(() => AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -225,7 +226,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Kimliksiz_istek_reddedilir()
+    public async Task Unauthenticated_request_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -240,7 +241,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Dogru_token_ile_istek_kabul_edilir()
+    public async Task Request_with_the_correct_token_is_accepted()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -255,7 +256,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Cagri_denetim_izine_yazilir()
+    public async Task Call_is_written_to_the_audit_log()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -267,7 +268,7 @@ public sealed class McpServerEndpointTests
             host.Client,
             "/agentprism/mcp",
             "tools/call",
-            new { name = "agentprism_kod-agent", arguments = new { message = "merhaba" } });
+            new { name = "agentprism_kod-agent", arguments = new { message = "hello" } });
 
         var auditLog = host.Services.GetRequiredService<IAuditLog>();
         var entries = await auditLog.QueryAsync(new AuditQuery { Action = "external.call" });
@@ -278,7 +279,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Dinamik_katalog_yeni_agent_sunucu_yeniden_kurulmadan_gorunur()
+    public async Task Dynamic_catalog_shows_a_new_agent_without_restarting_the_server()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder.UseMcpServer(o => o.ExposedAgents.Add("db-agent")),
@@ -299,7 +300,7 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
-    public async Task Kiraci_yalitimi_korunur()
+    public async Task Tenant_isolation_is_preserved()
     {
         const string TenantHeader = "X-AgentPrism-Tenant";
 
@@ -318,25 +319,25 @@ public sealed class McpServerEndpointTests
         {
             Content = JsonContent.Create(TestData.Request()),
         };
-        createRequest.Headers.Add(TenantHeader, "kiraci-a");
+        createRequest.Headers.Add(TenantHeader, "tenant-a");
 
         using var createResponse = await host.Client.SendAsync(createRequest);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        // Kiraci a kendi agent'ini gorur.
+        // Tenant a sees its own agent.
         var mine = Tools((await McpTestClient.SendAsync(
-            host.Client, "/agentprism/mcp", "tools/list", tenantHeader: "kiraci-a")).Body!.Value);
+            host.Client, "/agentprism/mcp", "tools/list", tenantHeader: "tenant-a")).Body!.Value);
         mine.GetArrayLength().ShouldBe(1);
 
-        // Kiraci b hicbir sey gormez — kiraci basligi kimlik kaniti degildir
-        // ama HttpTenantContext'in kendisi zaten baska bir kiracinin verisini
-        // baska bir kiraciya gostermez (TenancyTests ile ayni sinir).
+        // Tenant b sees nothing — the tenant header is not proof of identity,
+        // but HttpTenantContext itself never shows one tenant's data to
+        // another tenant anyway (the same boundary as TenancyTests).
         var theirs = Tools((await McpTestClient.SendAsync(
-            host.Client, "/agentprism/mcp", "tools/list", tenantHeader: "kiraci-b")).Body!.Value);
+            host.Client, "/agentprism/mcp", "tools/list", tenantHeader: "tenant-b")).Body!.Value);
         theirs.GetArrayLength().ShouldBe(0);
     }
 
-    private static string CancelOrder(string orderId) => $"iptal edildi: {orderId}";
+    private static string CancelOrder(string orderId) => $"canceled: {orderId}";
 
     private static System.Text.Json.JsonElement Tools(System.Text.Json.JsonElement body)
         => body.GetProperty("result").GetProperty("tools");

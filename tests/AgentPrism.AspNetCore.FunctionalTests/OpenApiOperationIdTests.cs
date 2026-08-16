@@ -3,16 +3,17 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Belgedeki <c>operationId</c> degerlerinin benzersiz oldugunu dogrular (Faz 40).
+/// Verifies that the <c>operationId</c> values in the document are unique (Phase 40).
 /// </summary>
 /// <remarks>
-/// Bir istemci ureteci her <c>operationId</c>'yi bir metot adina cevirir; iki uc
-/// ayni kimligi tasirsa uretecin metodlarindan biri digerini sessizce ezer.
+/// A client generator converts each <c>operationId</c> into a method name; if
+/// two endpoints carry the same id, one of the generator's methods silently
+/// overwrites the other.
 /// </remarks>
 public sealed class OpenApiOperationIdTests
 {
     [Fact]
-    public async Task Tum_operationId_degerleri_benzersiz()
+    public async Task All_operationId_values_are_unique()
     {
         await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);
 
@@ -25,7 +26,7 @@ public sealed class OpenApiOperationIdTests
         foreach (var (path, method, operation) in OpenApiTestHelpers.EnumerateOperations(document))
         {
             operation.TryGetProperty("operationId", out var idElement).ShouldBeTrue(
-                $"{method.ToUpperInvariant()} {path} bir operationId tasimiyor.");
+                $"{method.ToUpperInvariant()} {path} has no operationId.");
 
             ids.Add(idElement.GetString()!);
         }
@@ -37,6 +38,6 @@ public sealed class OpenApiOperationIdTests
             .ToList();
 
         duplicates.ShouldBeEmpty(
-            customMessage: $"Yinelenen operationId degerleri: {string.Join(", ", duplicates)}");
+            customMessage: $"Duplicate operationId values: {string.Join(", ", duplicates)}");
     }
 }

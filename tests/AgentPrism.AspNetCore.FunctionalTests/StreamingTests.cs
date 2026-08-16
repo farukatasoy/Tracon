@@ -8,12 +8,12 @@ using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// SSE akislarini dogrular: deneme calistirmasi ve calistirma olaylari.
+/// Verifies the SSE streams: the run-agent stream and the run events stream.
 /// </summary>
 public sealed class StreamingTests
 {
     [Fact]
-    public async Task Deneme_calistirmasi_guncellemeleri_akitir()
+    public async Task Run_streams_updates()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -33,7 +33,7 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Deneme_calistirmasi_ters_vekil_arabellegini_kapatir()
+    public async Task Run_disables_reverse_proxy_buffering()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -44,31 +44,31 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Oturumlu_calistirma_gecmisi_tasir()
+    public async Task A_run_with_a_session_carries_history()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        using (var first = await PostRunAsync(host, new AgentRunRequest { Message = "ilk", SessionId = "s-1" }))
+        using (var first = await PostRunAsync(host, new AgentRunRequest { Message = "first", SessionId = "s-1" }))
         {
             await SseReader.ReadAllAsync(await first.Content.ReadAsStreamAsync());
         }
 
-        using (var second = await PostRunAsync(host, new AgentRunRequest { Message = "ikinci", SessionId = "s-1" }))
+        using (var second = await PostRunAsync(host, new AgentRunRequest { Message = "second", SessionId = "s-1" }))
         {
             await SseReader.ReadAllAsync(await second.Content.ReadAsStreamAsync());
         }
 
-        // Ikinci cagrida modele giden mesajlar ilk turu de icermelidir.
+        // The messages sent to the model on the second call must also include the first turn.
         var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
 
         echo.Requests[^1].Messages
             .Select(static message => message.Text)
-            .ShouldContain(static text => string.Equals(text, "ilk", StringComparison.Ordinal));
+            .ShouldContain(static text => string.Equals(text, "first", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Olmayan_agent_akis_baslamadan_404_doner()
+    public async Task Nonexistent_agent_returns_404_before_the_stream_starts()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -81,7 +81,7 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Bos_mesaj_reddedilir()
+    public async Task Empty_message_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -91,10 +91,10 @@ public sealed class StreamingTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // --- Calistirma olaylari akisi ---
+    // --- Run events stream ---
 
     [Fact]
-    public async Task Calistirma_olaylari_sirali_akitilir()
+    public async Task Run_events_are_streamed_in_order()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -111,13 +111,13 @@ public sealed class StreamingTests
         frames[0].Event.ShouldBe("run.started");
         frames[^1].Event.ShouldBe("run.completed");
 
-        // Sira numaralari bosluksuz ve artan olmalidir.
+        // Sequence numbers must be contiguous and increasing.
         var ids = frames.Select(static frame => long.Parse(frame.Id!, System.Globalization.CultureInfo.InvariantCulture)).ToList();
         ids.ShouldBe(Enumerable.Range(0, ids.Count).Select(static i => (long)i).ToList());
     }
 
     [Fact]
-    public async Task Last_Event_ID_ile_kaldigi_yerden_devam_eder()
+    public async Task Resumes_where_it_left_off_via_Last_Event_ID()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -135,7 +135,7 @@ public sealed class StreamingTests
 
         all.Count.ShouldBeGreaterThan(2);
 
-        // Istemci 1 numarali olaya kadar aldi; akis 2'den devam etmelidir.
+        // The client received up through event number 1; the stream must resume from 2.
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/agentprism/api/runs/{runId}/events");
         request.Headers.Add("Last-Event-ID", "1");
 
@@ -148,7 +148,7 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirmanin_olaylari_404_doner()
+    public async Task Nonexistent_runs_events_return_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -164,7 +164,7 @@ public sealed class StreamingTests
             new Uri("/agentprism/api/agents/kod-agent/run", UriKind.Relative),
             request);
 
-    /// <summary>Bir calistirma yapar ve olusan calistirma kaydinin kimligini dondurur.</summary>
+    /// <summary>Makes a run and returns the resulting run record's id.</summary>
     private static async Task<Guid> RunAndGetRunIdAsync(AgentPrismTestHost host)
     {
         using (var run = await PostRunAsync(host, new AgentRunRequest { Message = "merhaba" }))
@@ -181,7 +181,7 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Calistirma_kaydi_ozette_sayilir()
+    public async Task Run_record_is_counted_in_the_summary()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -198,7 +198,7 @@ public sealed class StreamingTests
     }
 
     [Fact]
-    public async Task Bos_depoda_ozet_sifir_ve_hata_orani_bos_doner()
+    public async Task Empty_store_returns_a_zero_summary_and_a_null_error_rate()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

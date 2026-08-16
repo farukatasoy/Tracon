@@ -4,25 +4,25 @@ using System.Text.Json;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// MCP Streamable HTTP tasimasi uzerinden JSON-RPC istegi gonderen kucuk bir test
-/// istemcisi.
+/// A small test client that sends a JSON-RPC request over the MCP Streamable
+/// HTTP transport.
 /// </summary>
 /// <remarks>
-/// Sunucu yanitini ya tek bir JSON govdesi ya da bir SSE cercevesi olarak
-/// dondurebilir (MCP spesifikasyonu); bu yardimci ikisini de cozer.
+/// The server may return its response either as a single JSON body or as an
+/// SSE frame (per the MCP specification); this helper resolves both.
 /// </remarks>
 internal static class McpTestClient
 {
-    /// <summary>Bir <c>tools/list</c> veya <c>tools/call</c> istegi gonderir.</summary>
-    /// <param name="client">HTTP istemcisi.</param>
-    /// <param name="path">MCP ucu.</param>
-    /// <param name="method">JSON-RPC metodu.</param>
-    /// <param name="params">Istek parametreleri; yoksa <see langword="null"/>.</param>
-    /// <param name="token">Bearer token; yoksa <see langword="null"/>.</param>
+    /// <summary>Sends a <c>tools/list</c> or <c>tools/call</c> request.</summary>
+    /// <param name="client">The HTTP client.</param>
+    /// <param name="path">The MCP endpoint.</param>
+    /// <param name="method">The JSON-RPC method.</param>
+    /// <param name="params">The request parameters; <see langword="null"/> if none.</param>
+    /// <param name="token">The bearer token; <see langword="null"/> if none.</param>
     /// <param name="tenantHeader">
-    /// <c>X-AgentPrism-Tenant</c> basligina yazilacak deger; yoksa <see langword="null"/>.
+    /// The value to write into the <c>X-AgentPrism-Tenant</c> header; <see langword="null"/> if none.
     /// </param>
-    /// <returns>Ham HTTP yaniti ve cozumlenmis JSON-RPC govdesi.</returns>
+    /// <returns>The raw HTTP response and the resolved JSON-RPC body.</returns>
     public static async Task<(HttpResponseMessage Response, JsonElement? Body)> SendAsync(
         HttpClient client,
         string path,

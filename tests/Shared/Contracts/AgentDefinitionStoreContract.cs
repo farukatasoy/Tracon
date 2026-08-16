@@ -3,18 +3,20 @@ using System.Text.Json;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IAgentDefinitionStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IAgentDefinitionStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bu testler <strong>her uygulama icin</strong> calistirilir. Bellek ici depo ile
-/// PostgreSQL deposu arasindaki davranis farki hatadir; bu sinif o farki yakalar.
+/// These tests run against <strong>every implementation</strong>. A behavior
+/// difference between the in-memory store and the PostgreSQL store is a bug;
+/// this class catches that difference.
 /// </remarks>
 public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAgentDefinitionStore>
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
-    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// The tenant is not a parameter on the interface; it is read from
+    /// <see cref="ITenantContext"/>. Each hook therefore sets the active
+    /// tenant first.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -29,8 +31,8 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         AmbientTenant.TenantId = tenantId;
         var name = (string)key;
 
-        // Uc okuma yolu da ayni yalitimi tasimalidir: tekil okuma, surum
-        // okumasi ve surum gecmisi.
+        // All three read paths must carry the same isolation: the single
+        // read, the version read, and the version history.
         if (await Store.GetAsync(name) is null)
         {
             (await Store.ListVersionsAsync(name)).ShouldBeEmpty();
@@ -57,20 +59,20 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Kayit_surumu_artirir_ve_gecmisi_saklar()
+    public async Task SaveAsync_increments_version_and_keeps_history()
     {
-        var first = await Store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
-        var second = await Store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+        var first = await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first" });
+        var second = await Store.SaveAsync(TestData.Definition("a") with { Instructions = "second" });
 
         first.Version.ShouldBe(1);
         second.Version.ShouldBe(2);
 
-        (await Store.GetAsync("a"))!.Instructions.ShouldBe("ikinci");
+        (await Store.GetAsync("a"))!.Instructions.ShouldBe("second");
         (await Store.ListVersionsAsync("a")).Count.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Kayit_kaynagi_veritabani_olarak_isaretlenir()
+    public async Task SaveAsync_marks_origin_as_database()
     {
         var saved = await Store.SaveAsync(TestData.Definition("a") with { Origin = AgentDefinitionOrigin.Code });
 
@@ -78,7 +80,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Surum_gecmisi_yeniden_eskiye_siralanir()
+    public async Task ListVersionsAsync_orders_newest_to_oldest()
     {
         await Store.SaveAsync(TestData.Definition("a"));
         await Store.SaveAsync(TestData.Definition("a"));
@@ -90,23 +92,23 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Geri_alma_eski_surumu_yeni_surum_olarak_kaydeder()
+    public async Task RollbackAsync_saves_the_old_version_as_a_new_version()
     {
-        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
-        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "second" });
 
         var restored = await Store.RollbackAsync("a", version: 1);
 
         restored.Version.ShouldBe(3);
-        restored.Instructions.ShouldBe("birinci");
+        restored.Instructions.ShouldBe("first");
 
-        // Geri alma gecmisi silmez.
+        // Rollback does not delete history.
         (await Store.ListVersionsAsync("a")).Count.ShouldBe(3);
-        (await Store.GetAsync("a"))!.Instructions.ShouldBe("birinci");
+        (await Store.GetAsync("a"))!.Instructions.ShouldBe("first");
     }
 
     [Fact]
-    public async Task Olmayan_surume_geri_alma_hata_verir()
+    public async Task RollbackAsync_to_a_missing_version_throws()
     {
         await Store.SaveAsync(TestData.Definition("a"));
 
@@ -114,11 +116,11 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Olmayan_agenta_geri_alma_hata_verir()
-        => await Should.ThrowAsync<AgentPrismException>(async () => await Store.RollbackAsync("yok", version: 1));
+    public async Task RollbackAsync_for_a_missing_agent_throws()
+        => await Should.ThrowAsync<AgentPrismException>(async () => await Store.RollbackAsync("missing", version: 1));
 
     [Fact]
-    public async Task Silme_tum_surumleri_kaldirir()
+    public async Task DeleteAsync_removes_all_versions()
     {
         await Store.SaveAsync(TestData.Definition("a"));
         await Store.SaveAsync(TestData.Definition("a"));
@@ -130,24 +132,24 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Olmayan_tanim_null_doner()
-        => (await Store.GetAsync("yok")).ShouldBeNull();
+    public async Task GetAsync_for_a_missing_definition_returns_null()
+        => (await Store.GetAsync("missing")).ShouldBeNull();
 
     [Fact]
-    public async Task Belirli_surum_getirilebilir()
+    public async Task GetVersionAsync_returns_the_requested_version()
     {
-        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
-        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "first" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "second" });
 
         var first = await Store.GetVersionAsync("a", 1);
         var second = await Store.GetVersionAsync("a", 2);
 
-        first!.Instructions.ShouldBe("birinci");
-        second!.Instructions.ShouldBe("ikinci");
+        first!.Instructions.ShouldBe("first");
+        second!.Instructions.ShouldBe("second");
     }
 
     [Fact]
-    public async Task Olmayan_surum_null_doner()
+    public async Task GetVersionAsync_for_a_missing_version_returns_null()
     {
         await Store.SaveAsync(TestData.Definition("a"));
 
@@ -155,11 +157,11 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Olmayan_agentin_surumu_null_doner()
-        => (await Store.GetVersionAsync("yok", 1)).ShouldBeNull();
+    public async Task GetVersionAsync_for_a_missing_agent_returns_null()
+        => (await Store.GetVersionAsync("missing", 1)).ShouldBeNull();
 
     [Fact]
-    public async Task Listeleme_ada_gore_siralar()
+    public async Task ListAsync_orders_by_name()
     {
         await Store.SaveAsync(TestData.Definition("gamma"));
         await Store.SaveAsync(TestData.Definition("alpha"));
@@ -171,7 +173,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     [Fact]
-    public async Task Tanimin_tum_alanlari_gidip_gelir()
+    public async Task SaveAsync_round_trips_all_definition_fields()
     {
         var original = TestData.Definition("full") with
         {
@@ -181,36 +183,36 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
                 Model = "echo-1",
                 Temperature = 0.5f,
 
-                // Saglayiciya ozgu ayarlar da jsonb icinde tasinir (Faz 26).
+                // Provider-specific settings also travel inside jsonb (phase 26).
                 ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["anthropic.promptCaching"] = TestData.State("true"),
                     ["anthropic.thinking.budgetTokens"] = TestData.State("2048"),
                 },
 
-                // Yapilandirilmis cikti semasi da jsonb icinde tasinir (Faz 38).
+                // The structured output schema also travels inside jsonb (phase 38).
                 ResponseFormat = new AgentResponseFormat
                 {
                     Kind = AgentResponseFormatKind.JsonSchema,
                     Schema = TestData.State("""{"type":"object","properties":{"total":{"type":"number"}}}"""),
                     SchemaName = "invoice",
-                    SchemaDescription = "Bir fatura ozetinin semasi.",
+                    SchemaDescription = "Schema of an invoice summary.",
                 },
             },
-            CallableAgentNames = ["arastirmaci"],
+            CallableAgentNames = ["researcher"],
             Harness = new HarnessSettings { MaxContextWindowTokens = 4096, DisableWebSearch = true },
             Compaction = new CompactionSettings
             {
                 Strategy = CompactionStrategyKind.Summarization,
                 TriggerTokens = 8_000,
                 MinimumPreservedGroups = 4,
-                SummarizationPrompt = "kisa ve oz ozetle",
+                SummarizationPrompt = "summarize briefly and concisely",
                 SummarizationModel = new ModelBinding { Provider = "echo", Model = "echo-summarizer" },
             },
             Memory = new MemorySettings { EnableFileMemory = true, EnableTodo = true, EnableTextSearch = true },
             Metadata = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
-                ["owner"] = TestData.State("\"platform-ekibi\""),
+                ["owner"] = TestData.State("\"platform-team\""),
                 ["priority"] = TestData.State("3"),
             },
         };
@@ -235,7 +237,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Model.ResponseFormat.SchemaName.ShouldBe("invoice");
         loaded.Model.ResponseFormat.SchemaDescription.ShouldBe("Bir fatura ozetinin semasi.");
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
-        loaded.CallableAgentNames.ShouldBe(["arastirmaci"]);
+        loaded.CallableAgentNames.ShouldBe(["researcher"]);
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);
         loaded.Harness.DisableWebSearch.ShouldBeTrue();

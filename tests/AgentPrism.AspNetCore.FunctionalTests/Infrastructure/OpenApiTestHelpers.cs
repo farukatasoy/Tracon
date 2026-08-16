@@ -3,14 +3,14 @@ using System.Text.Json;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// OpenAPI belgesindeki uc listesini dolasmak icin ortak yardimcilar (Faz 40).
+/// Shared helpers for walking the operation list in an OpenAPI document (Phase 40).
 /// </summary>
 internal static class OpenApiTestHelpers
 {
     private static readonly string[] HttpMethodNames =
         ["get", "post", "put", "delete", "patch", "head", "options", "trace"];
 
-    /// <summary>Belgedeki her (yol, metot, operasyon) uclusunu dondurur.</summary>
+    /// <summary>Returns every (path, method, operation) triple in the document.</summary>
     public static IEnumerable<(string Path, string Method, JsonElement Operation)> EnumerateOperations(
         JsonElement document)
     {
@@ -28,7 +28,7 @@ internal static class OpenApiTestHelpers
         }
     }
 
-    /// <summary>Belgedeki bir operasyonu <c>operationId</c> ile bulur.</summary>
+    /// <summary>Finds an operation in the document by its <c>operationId</c>.</summary>
     public static JsonElement FindByOperationId(JsonElement document, string operationId)
     {
         foreach (var (_, _, operation) in EnumerateOperations(document))
@@ -40,6 +40,6 @@ internal static class OpenApiTestHelpers
             }
         }
 
-        throw new InvalidOperationException($"'{operationId}' operationId'sine sahip bir uc bulunamadi.");
+        throw new InvalidOperationException($"No operation found with operationId '{operationId}'.");
     }
 }

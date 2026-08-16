@@ -7,15 +7,15 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>POST /api/evals/{name}/cases/from-run/{runId}</c> uctan uca testleri
-/// (Faz 45, F-53).
+/// End-to-end tests for <c>POST /api/evals/{name}/cases/from-run/{runId}</c>
+/// (Phase 45, F-53).
 /// </summary>
 public sealed class RunToCasePromotionEndpointTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
     [Fact]
-    public async Task Basarili_calistirma_referans_olarak_terfi_edilir_ve_denetim_kaydi_yazilir()
+    public async Task Successful_run_is_promoted_as_a_reference_and_an_audit_record_is_written()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -40,7 +40,7 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_calistirma_ikinci_kez_terfi_edilirse_200_doner_ve_ikinci_vaka_olusmaz()
+    public async Task Promoting_the_same_run_a_second_time_returns_200_and_creates_no_second_case()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -63,18 +63,18 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Basarisiz_calistirma_terfi_edilir_ve_expectedOutput_bostur()
+    public async Task Failed_run_is_promoted_and_expectedOutput_is_empty()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder
                 .AddModelProvider(new ThrowingModelProvider())
-                .AddAgent(TestData.Definition(name: "kirik-agent") with
+                .AddAgent(TestData.Definition(name: "broken-agent") with
                 {
                     Model = new ModelBinding { Provider = "throws", Model = "throws-1" },
                 }));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-3", agentName: "kirik-agent", expectFailure: true);
-        await SaveSuiteAsync(host, "kirik-agent");
+        var runId = await RunAsync(host, "merhaba", "oturum-3", agentName: "broken-agent", expectFailure: true);
+        await SaveSuiteAsync(host, "broken-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(runId), content: null);
 
@@ -85,7 +85,7 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Olumsuz_puanli_calistirma_terfi_edilir_ve_expectedOutput_bostur()
+    public async Task Negatively_scored_run_is_promoted_and_expectedOutput_is_empty()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -109,13 +109,13 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Cok_turlu_calistirma_409_ile_reddedilir()
+    public async Task Multi_turn_run_is_rejected_with_409()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "birinci tur", "oturum-5");
-        var secondRunId = await RunAsync(host, "ikinci tur", "oturum-5");
+        await RunAsync(host, "first turn", "oturum-5");
+        var secondRunId = await RunAsync(host, "second turn", "oturum-5");
         await SaveSuiteAsync(host, "kod-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(secondRunId), content: null);
@@ -124,10 +124,11 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Oturumsuz_calistirma_da_terfi_edilebilir()
+    public async Task A_sessionless_run_can_also_be_promoted()
     {
-        // Sorgu run_events'ten (RunStarted.Text) okunur, oturumdan degil (Faz 45):
-        // oturumsuz (sessionId verilmeyen) bir calistirma da terfi edilebilmelidir.
+        // The query is read from run_events (RunStarted.Text), not from the
+        // session (Phase 45): a sessionless run (no sessionId given) must
+        // also be promotable.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
@@ -142,10 +143,10 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Olay_akisi_bos_calistirma_sorgusuz_kabul_edilir_422_doner()
+    public async Task A_run_with_an_empty_event_stream_is_accepted_without_a_query_returns_422()
     {
-        // RunStarted olayi olmadan (elle tohumlanan eski/bozuk bir kayit) query
-        // okunamaz; bu, NoQuery yolunun hala erisilebilir oldugunu dogrular.
+        // Without a RunStarted event (a hand-seeded legacy/broken record) the
+        // query cannot be read; this verifies the NoQuery path is still reachable.
         await using var host = await AgentPrismTestHost.StartAsync();
         await SaveSuiteAsync(host, "test-agent");
 
@@ -173,7 +174,7 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_terfi_edilemez_AYNI_404_doner()
+    public async Task Another_tenants_run_cannot_be_promoted_returns_the_SAME_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder =>
@@ -201,7 +202,7 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Ne_basarisiz_ne_tamamlanmis_calistirma_acik_sourceKind_ister()
+    public async Task A_run_neither_failed_nor_completed_requires_an_explicit_sourceKind()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await SaveSuiteAsync(host, "test-agent");
@@ -230,7 +231,7 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_takim_404_doner()
+    public async Task Nonexistent_suite_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -277,7 +278,7 @@ public sealed class RunToCasePromotionEndpointTests
         response.EnsureSuccessStatusCode();
     }
 
-    /// <summary>Bir calistirma yapar ve olusan calistirma kaydinin kimligini dondurur.</summary>
+    /// <summary>Makes a run and returns the resulting run record's id.</summary>
     private static async Task<Guid> RunAsync(
         AgentPrismTestHost host,
         string message,
@@ -293,15 +294,15 @@ public sealed class RunToCasePromotionEndpointTests
 
         if (expectFailure)
         {
-            // Hatalar da SSE akisinda bir olay olarak tasinir; akisin tamami
-            // okunmalidir ki calistirma kapansin.
+            // Errors are also carried as an event in the SSE stream; the
+            // whole stream must be read for the run to close.
             try
             {
                 await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
             }
             catch
             {
-                // Beklenen: akis bir hata olayiyla kapanir.
+                // Expected: the stream closes with an error event.
             }
         }
         else
@@ -346,7 +347,7 @@ public sealed class RunToCasePromotionEndpointTests
         return await host.Client.SendAsync(request);
     }
 
-    /// <summary>Her cagriya <see cref="InvalidOperationException"/> firlatan sohbet istemcisi.</summary>
+    /// <summary>A chat client that throws <see cref="InvalidOperationException"/> on every call.</summary>
     private sealed class ThrowingModelProvider : IModelProvider
     {
         public string Name => "throws";
@@ -359,11 +360,11 @@ public sealed class RunToCasePromotionEndpointTests
         {
             public Task<ChatResponse> GetResponseAsync(
                 IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("test: model kasitli olarak basarisiz oluyor.");
+                => throw new InvalidOperationException("test: model deliberately fails.");
 
             public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
                 IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
-                => throw new InvalidOperationException("test: model kasitli olarak basarisiz oluyor.");
+                => throw new InvalidOperationException("test: model deliberately fails.");
 
             public object? GetService(Type serviceType, object? serviceKey = null) => null;
 

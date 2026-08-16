@@ -8,22 +8,22 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Faz 35 — <c>agentprism.run.cost</c> gercek DI kaydi ve gercek HTTP istegi
-/// uzerinden uctan uca dogrulanir.
+/// Phase 35 — <c>agentprism.run.cost</c> is verified end to end through a real
+/// DI registration and a real HTTP request.
 /// </summary>
 /// <remarks>
-/// <c>AgentPrism.Core.UnitTests</c> tarafindaki birim testleri
-/// <see cref="RunRecordingAgent"/>'i elle kurar; bu, <c>AddAgentPrism()</c>'in
-/// gercek kayit zincirinde (metrik, saglayici, calistirma kaydi sarmalayicisi)
-/// bir tel kopuklugunu KACIRABILIR (Faz 28 dersi: "bir prob programi gercek
-/// boru hattini kanitlamaz"). Bu test o zinciri <c>TestHost</c> ile GERCEKTEN
-/// kurar ve <see cref="MeterListener"/> AYNI surecte oldugu icin
-/// <see cref="AgentPrismMetrics"/>'in urettigi olcumu gorebilir.
+/// The unit tests in <c>AgentPrism.Core.UnitTests</c> wire up
+/// <see cref="RunRecordingAgent"/> by hand; this CAN MISS a wiring break in
+/// <c>AddAgentPrism()</c>'s real registration chain (metric, provider, run
+/// recording wrapper) (Phase 28 lesson: "a probe program does not prove the
+/// real pipeline"). This test builds that chain FOR REAL with <c>TestHost</c>
+/// and, because <see cref="MeterListener"/> runs in the SAME process, can see
+/// the measurement <see cref="AgentPrismMetrics"/> produces.
 /// </remarks>
 public sealed class RunCostMetricEndToEndTests
 {
     [Fact]
-    public async Task Gercek_DI_zincirinde_calistirma_maliyeti_yayilir()
+    public async Task Run_cost_is_published_through_the_real_DI_chain()
     {
         using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
 
@@ -35,8 +35,8 @@ public sealed class RunCostMetricEndToEndTests
             builder.AddAgent(new AgentDefinition
             {
                 Name = "priced",
-                DisplayName = "Fiyatli Agent",
-                Instructions = "Kisa yanit ver.",
+                DisplayName = "Priced Agent",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = "priced-fake", Model = "priced-model" },
                 Origin = AgentDefinitionOrigin.Code,
             });
@@ -48,19 +48,19 @@ public sealed class RunCostMetricEndToEndTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // SSE akisi tumuyle tuketilmeden CompleteAsync (ve dolayisiyla
-        // RecordCost) calismis olmayabilir.
+        // CompleteAsync (and therefore RecordCost) may not have run yet
+        // unless the SSE stream is fully consumed.
         await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
         var measurement = collector.DoubleMeasurements(AgentPrismDiagnostics.RunCostCounterName).ShouldHaveSingleItem();
 
-        // 2$/M girdi * 1.000.000 + 4$/M cikti * 500.000 = 4.0
+        // $2/M input * 1,000,000 + $4/M output * 500,000 = 4.0
         measurement.Value.ShouldBe(4.0);
         measurement.Tags[AgentPrismDiagnostics.Tags.AgentName].ShouldBe("priced");
         measurement.Tags[AgentPrismDiagnostics.Tags.ModelId].ShouldBe("priced-model");
     }
 
-    /// <summary>Sabit fiyatli, aga cikmayan sahte saglayici.</summary>
+    /// <summary>A fixed-price fake provider that never reaches the network.</summary>
     private sealed class PricedEchoModelProvider : IModelProvider, IDisposable
     {
         private readonly PricedChatClient _client = new();
@@ -115,12 +115,12 @@ public sealed class RunCostMetricEndToEndTests
 
             public void Dispose()
             {
-                // Sahte istemcinin serbest birakilacak kaynagi yok.
+                // The fake client has no resources to release.
             }
         }
     }
 
-    /// <summary>Belirli bir <c>Meter</c>'in olcumlerini toplayan basit dinleyici.</summary>
+    /// <summary>A simple listener that collects the measurements of a given <c>Meter</c>.</summary>
     private sealed class MetricCollector : IDisposable
     {
         private readonly MeterListener _listener = new();

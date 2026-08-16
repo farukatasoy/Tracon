@@ -6,17 +6,17 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Hata sozlesmesini dogrular.
+/// Verifies the error contract.
 /// </summary>
 /// <remarks>
-/// Iki farkli sozlesme <strong>bilerek</strong> vardir: yonetim API'si
-/// (<c>/api/*</c>) <c>ProblemDetails</c> dondurur, OpenAI uyumlu uclar
-/// (<c>/v1/*</c>) OpenAI'in <c>{"error":{...}}</c> bicimini dondurur. Ikincisi
-/// olmadan stok OpenAI SDK'lari hatayi cozumleyemez.
+/// Two different contracts exist <strong>by design</strong>: the management API
+/// (<c>/api/*</c>) returns <c>ProblemDetails</c>, while the OpenAI-compatible
+/// endpoints (<c>/v1/*</c>) return OpenAI's <c>{"error":{...}}</c> shape. Without
+/// the latter, stock OpenAI SDKs cannot parse the error.
 /// </remarks>
 public sealed class ProblemDetailsTests
 {
-    public static TheoryData<string, HttpStatusCode> YonetimHatalari => new()
+    public static TheoryData<string, HttpStatusCode> ManagementErrors => new()
     {
         { "/agentprism/api/agents/yok-boyle", HttpStatusCode.NotFound },
         { "/agentprism/api/sessions/yok-boyle", HttpStatusCode.NotFound },
@@ -24,8 +24,8 @@ public sealed class ProblemDetailsTests
     };
 
     [Theory]
-    [MemberData(nameof(YonetimHatalari))]
-    public async Task Yonetim_hatalari_ProblemDetails_dondurur(string path, HttpStatusCode expected)
+    [MemberData(nameof(ManagementErrors))]
+    public async Task Management_errors_return_ProblemDetails(string path, HttpStatusCode expected)
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -42,7 +42,7 @@ public sealed class ProblemDetailsTests
     }
 
     [Fact]
-    public async Task Erisim_reddi_de_ProblemDetails_dondurur()
+    public async Task Access_denial_also_returns_ProblemDetails()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -57,7 +57,7 @@ public sealed class ProblemDetailsTests
     }
 
     [Fact]
-    public async Task Gecersiz_tanim_ProblemDetails_dondurur()
+    public async Task Invalid_definition_returns_ProblemDetails()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -70,7 +70,7 @@ public sealed class ProblemDetailsTests
     }
 
     [Fact]
-    public async Task OpenAI_uclari_ProblemDetails_DEGIL_OpenAI_bicimi_dondurur()
+    public async Task OpenAI_endpoints_return_OpenAI_format_NOT_ProblemDetails()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

@@ -6,17 +6,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Eval takimi/vaka/kosu uclarinin bellek ici davranis testleri (Faz 18).</summary>
+/// <summary>In-memory behavior tests for the eval suite/case/run endpoints (Phase 18).</summary>
 public sealed class EvalEndpointTests
 {
     private static readonly Uri Suites = new("/agentprism/api/evals", UriKind.Relative);
-    private static readonly Uri Suite = new("/agentprism/api/evals/musteri-destek-takimi", UriKind.Relative);
-    private static readonly Uri Cases = new("/agentprism/api/evals/musteri-destek-takimi/cases", UriKind.Relative);
-    private static readonly Uri Run = new("/agentprism/api/evals/musteri-destek-takimi/run", UriKind.Relative);
-    private static readonly Uri Runs = new("/agentprism/api/evals/musteri-destek-takimi/runs", UriKind.Relative);
+    private static readonly Uri Suite = new("/agentprism/api/evals/customer-support-suite", UriKind.Relative);
+    private static readonly Uri Cases = new("/agentprism/api/evals/customer-support-suite/cases", UriKind.Relative);
+    private static readonly Uri Run = new("/agentprism/api/evals/customer-support-suite/run", UriKind.Relative);
+    private static readonly Uri Runs = new("/agentprism/api/evals/customer-support-suite/runs", UriKind.Relative);
 
     [Fact]
-    public async Task Takim_olusturulur_guncellenir_ve_silinir()
+    public async Task Suite_is_created_updated_and_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -24,14 +24,14 @@ public sealed class EvalEndpointTests
         {
             created.StatusCode.ShouldBe(HttpStatusCode.OK);
             var body = await AgentPrismTestHost.ReadJsonAsync(created);
-            body.GetProperty("agentName").GetString().ShouldBe("musteri-destek-agent");
+            body.GetProperty("agentName").GetString().ShouldBe("customer-support-agent");
         }
 
-        using (var updated = await host.Client.PutAsJsonAsync(Suite, Request() with { Description = "guncellendi" }))
+        using (var updated = await host.Client.PutAsJsonAsync(Suite, Request() with { Description = "updated" }))
         {
             updated.StatusCode.ShouldBe(HttpStatusCode.OK);
             (await AgentPrismTestHost.ReadJsonAsync(updated)).GetProperty("description").GetString()
-                .ShouldBe("guncellendi");
+                .ShouldBe("updated");
         }
 
         using (var listed = await host.Client.GetAsync(Suites))
@@ -47,19 +47,19 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_denetim_turu_reddedilir()
+    public async Task Unknown_check_kind_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
             Suite,
-            Request() with { Checks = JsonDocument.Parse("""[{"kind":"boyleBirSeyYok"}]""").RootElement });
+            Request() with { Checks = JsonDocument.Parse("""[{"kind":"noSuchThing"}]""").RootElement });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Agent_adi_bos_ise_reddedilir()
+    public async Task Empty_agent_name_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -69,17 +69,17 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Var_olmayan_takim_404_doner()
+    public async Task Nonexistent_suite_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/evals/yok", UriKind.Relative));
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/evals/none", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Vakalar_degistirilir_ve_temizlenir()
+    public async Task Cases_are_replaced_and_cleared()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await host.Client.PutAsJsonAsync(Suite, Request());
@@ -88,8 +88,8 @@ public sealed class EvalEndpointTests
                    Cases,
                    new object[]
                    {
-                       new { query = "birinci soru", expectedOutput = "beklenen" },
-                       new { query = "ikinci soru", expectedTools = new[] { "get_order_status" } },
+                       new { query = "first question", expectedOutput = "expected" },
+                       new { query = "second question", expectedTools = new[] { "get_order_status" } },
                    }))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -112,7 +112,7 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Vakasiz_takim_calistirilamaz()
+    public async Task Suite_without_cases_cannot_be_run()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await host.Client.PutAsJsonAsync(Suite, Request());
@@ -123,13 +123,13 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Kosu_tetiklenir_is_uretir_ve_listelenebilir()
+    public async Task Run_is_triggered_produces_a_job_and_can_be_listed()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         await host.Client.PutAsJsonAsync(Suite, Request());
-        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });
 
         using var triggered = await host.Client.PostAsJsonAsync(Run, new { });
 
@@ -181,8 +181,8 @@ public sealed class EvalEndpointTests
         var suite = await evalStore.SaveSuiteAsync(new EvalSuite
         {
             TenantId = "default",
-            Name = "musteri-destek-takimi",
-            AgentName = "musteri-destek-agent",
+            Name = "customer-support-suite",
+            AgentName = "customer-support-agent",
             Checks = JsonDocument.Parse("""[{"kind":"nonEmpty"}]""").RootElement,
         });
         await evalStore.ReplaceCasesAsync(suite.Id, [new EvalCase { SuiteId = suite.Id, Seq = 0, Query = "soru" }]);
@@ -230,7 +230,7 @@ public sealed class EvalEndpointTests
     public async Task Kod_kaynakli_agentta_surum_secilemez()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition(name: "musteri-destek-agent")),
+            static builder => builder.AddAgent(TestData.Definition(name: "customer-support-agent")),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         await host.Client.PutAsJsonAsync(Suite, Request());
@@ -242,24 +242,24 @@ public sealed class EvalEndpointTests
         (await triggered.Content.ReadAsStringAsync()).ShouldContain("version history");
     }
 
-    /// <summary>"musteri-destek-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>
+    /// <summary>"customer-support-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>
     private static async Task CreateVersionedAgentAsync(AgentPrismTestHost host)
     {
         using var created = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents", UriKind.Relative),
-            TestData.Request(name: "musteri-destek-agent", instructions: "ilk"));
+            TestData.Request(name: "customer-support-agent", instructions: "ilk"));
         created.EnsureSuccessStatusCode();
 
         using var updated = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/agents/musteri-destek-agent", UriKind.Relative),
-            TestData.Request(name: "musteri-destek-agent", instructions: "ikinci"));
+            new Uri("/agentprism/api/agents/customer-support-agent", UriKind.Relative),
+            TestData.Request(name: "customer-support-agent", instructions: "ikinci"));
         updated.EnsureSuccessStatusCode();
     }
 
     private static EvalSuiteSaveRequest Request()
         => new()
         {
-            AgentName = "musteri-destek-agent",
+            AgentName = "customer-support-agent",
             Checks = JsonDocument.Parse("""[{"kind":"nonEmpty","minLength":1}]""").RootElement,
         };
 }

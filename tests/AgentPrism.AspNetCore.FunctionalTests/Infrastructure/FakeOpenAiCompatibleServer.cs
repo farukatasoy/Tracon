@@ -6,14 +6,14 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// Gercek bir yerel HTTP sunucusu (<c>127.0.0.1</c>, rastgele port) uzerinden
-/// minimal bir OpenAI uyumlu API taklit eder.
+/// Fakes a minimal OpenAI-compatible API over a real local HTTP server
+/// (<c>127.0.0.1</c>, random port).
 /// </summary>
 /// <remarks>
-/// Ollama bu makinede kurulu degil; F-05'in "yerel, anahtarsiz sunucu" mekanizmasini
-/// (baglanti + kimliksiz istek) gercek bir soket uzerinden dogrulamak icin bu
-/// yerine gecen sunucu kullanilir. Bkz. <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>,
-/// bolum 8.2 ve DoD notu.
+/// Ollama is not installed on this machine; this stand-in server verifies
+/// F-05's "local, keyless server" mechanism (connect + unauthenticated request)
+/// over a real socket. See <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.2
+/// and its DoD note.
 /// </remarks>
 internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
 {
@@ -25,30 +25,30 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
         BaseAddress = baseAddress;
     }
 
-    /// <summary>Sunucunun taban adresi (<c>http://127.0.0.1:{port}/v1</c>).</summary>
+    /// <summary>The server's base address (<c>http://127.0.0.1:{port}/v1</c>).</summary>
     public Uri BaseAddress { get; }
 
-    /// <summary><c>/v1/chat/completions</c> ucuna gelen isteklerdeki Authorization baslik degerleri.</summary>
+    /// <summary>The Authorization header values received on requests to <c>/v1/chat/completions</c>.</summary>
     public List<string?> ReceivedAuthorizationHeaders { get; } = [];
 
-    /// <summary><c>/v1/chat/completions</c> ucunun kac kez cagrildigi.</summary>
+    /// <summary>How many times <c>/v1/chat/completions</c> was called.</summary>
     public int ChatCompletionCallCount { get; private set; }
 
-    /// <summary><c>/v1/models</c> ucunun kac kez cagrildigi.</summary>
+    /// <summary>How many times <c>/v1/models</c> was called.</summary>
     public int ModelsCallCount { get; private set; }
 
     /// <summary>
-    /// <c>/v1/chat/completions</c> cagrisinda donulecek HTTP durum kodu.
-    /// Varsayilan 200; hata senaryolarini denemek icin degistirilebilir.
+    /// The HTTP status code to return from <c>/v1/chat/completions</c>.
+    /// Defaults to 200; can be changed to exercise error scenarios.
     /// </summary>
     public int ChatCompletionStatusCode { get; set; } = StatusCodes.Status200OK;
 
     /// <summary>
-    /// <c>/v1/models</c> cagrisinda donulecek HTTP durum kodu. Varsayilan 200.
+    /// The HTTP status code to return from <c>/v1/models</c>. Defaults to 200.
     /// </summary>
     public int ModelsStatusCode { get; set; } = StatusCodes.Status200OK;
 
-    /// <summary>Sunucuyu baslatir ve rastgele bir loopback portuna baglar.</summary>
+    /// <summary>Starts the server and binds it to a random loopback port.</summary>
     public static async Task<FakeOpenAiCompatibleServer> StartAsync()
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -89,7 +89,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
                     new
                     {
                         index = 0,
-                        message = new { role = "assistant", content = "merhaba yerelden" },
+                        message = new { role = "assistant", content = "hello from local" },
                         finish_reason = "stop",
                     },
                 },

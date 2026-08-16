@@ -5,16 +5,16 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Aile H (HATA-S2-003/HATA-S3-005) regresyon testleri: akissiz calistirma
-/// uclarinin dar istisna filtresi gercek saglayici SDK istisnalarini kacirip
-/// ASP.NET Core'un genel isleyicisine sizdiriyordu — istemci beklenen
-/// <c>502</c>/<c>upstream_error</c> yerine ciplak <c>500</c> aliyordu. K-296/K-384
-/// bu kalibi akisli (SSE) kardes yollarda zaten duzeltmisti; burada duzeltilen
-/// UC akissiz yol da AYNI <see cref="ThrowingModelProvider"/> ile dogrulanir.
+/// Family H (HATA-S2-003/HATA-S3-005) regression tests: the narrow exception
+/// filter on the non-streaming run endpoints let real provider SDK exceptions
+/// escape and leak into ASP.NET Core's generic handler — the client got a bare
+/// <c>500</c> instead of the expected <c>502</c>/<c>upstream_error</c>. K-296/K-384
+/// already fixed this pattern on the sibling streaming (SSE) paths; the three
+/// non-streaming paths fixed here are verified with the SAME <see cref="ThrowingModelProvider"/>.
 /// </summary>
 public sealed class ProviderOutageErrorHandlingTests
 {
-    private const string AgentName = "kirik-agent";
+    private const string AgentName = "broken-agent";
     private const string IdempotencyHeader = "Idempotency-Key";
 
     private static void ConfigureBrokenAgent(IAgentPrismBuilder builder)
@@ -24,13 +24,13 @@ public sealed class ProviderOutageErrorHandlingTests
             .AddAgent(new AgentDefinition
             {
                 Name = AgentName,
-                Instructions = "Kisa yanit ver.",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = "kirik", Model = "kirik-1" },
             });
     }
 
     [Fact]
-    public async Task Akissiz_calistirma_ucu_saglayici_hatasinda_502_ProblemDetails_doner()
+    public async Task Non_streaming_run_endpoint_returns_502_ProblemDetails_on_provider_error()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureBrokenAgent);
 
@@ -52,7 +52,7 @@ public sealed class ProviderOutageErrorHandlingTests
     }
 
     [Fact]
-    public async Task Responses_ucu_saglayici_hatasinda_502_upstream_error_doner()
+    public async Task Responses_endpoint_returns_502_upstream_error_on_provider_error()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureBrokenAgent);
 
@@ -67,7 +67,7 @@ public sealed class ProviderOutageErrorHandlingTests
     }
 
     [Fact]
-    public async Task ChatCompletions_ucu_saglayici_hatasinda_502_upstream_error_doner()
+    public async Task ChatCompletions_endpoint_returns_502_upstream_error_on_provider_error()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureBrokenAgent);
 

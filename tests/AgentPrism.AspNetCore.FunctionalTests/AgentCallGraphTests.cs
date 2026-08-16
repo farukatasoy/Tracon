@@ -6,14 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Cagri grafiginin HTTP yuzeyi: kaydetme anindaki denetim ve calistirma agaci uclari.
+/// The HTTP surface of the call graph: validation at save time and the run tree endpoints.
 /// </summary>
 public sealed class AgentCallGraphTests
 {
     private static readonly Uri Agents = new("/agentprism/api/agents", UriKind.Relative);
 
     [Fact]
-    public async Task Kendini_cagiran_tanim_reddedilir()
+    public async Task Self_calling_definition_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -28,7 +28,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_agent_adi_reddedilir()
+    public async Task Unknown_agent_name_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -43,7 +43,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Dolayli_dongu_reddedilir()
+    public async Task Indirect_cycle_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -51,7 +51,7 @@ public sealed class AgentCallGraphTests
         await CreateAsync(host, "b");
         await UpdateAsync(host, "b", ["a"]);
 
-        // b -> a zinciri hazir. a -> b eklenirse dongu kapanir.
+        // The chain b -> a is ready. Adding a -> b closes the cycle.
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/agents/a", UriKind.Relative),
             TestData.Request(name: "a") with { CallableAgentNames = ["b"] });
@@ -63,7 +63,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Gecerli_grafik_kaydedilir_ve_katalogda_gorunur()
+    public async Task Valid_graph_is_saved_and_appears_in_the_catalog()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -84,7 +84,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Runs_listesi_varsayilan_olarak_yalniz_kokleri_doner()
+    public async Task Runs_list_returns_only_roots_by_default()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -105,14 +105,14 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Agac_ucu_alt_calistirmadan_da_tum_agaci_doner()
+    public async Task Tree_endpoint_returns_the_whole_tree_even_from_a_child_run()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var (rootId, childId) = await RecordTreeAsync(host);
 
-        // Alt calistirmanin detayindan gelen istek de tum agaci dondurur:
-        // kullanici kardes dallari gormeden agacin neresinde oldugunu anlayamaz.
+        // A request coming from a child run's detail also returns the whole tree:
+        // the user cannot tell where they are in the tree without seeing sibling branches.
         using var response = await host.Client.GetAsync(
             new Uri($"/agentprism/api/runs/{childId}/tree", UriKind.Relative));
 
@@ -123,11 +123,11 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_doner()
+    public async Task Session_filter_with_includeChildren_also_returns_child_runs()
     {
-        // HATA-S2-001 / MT-API-060: SessionId yalniz KOK calistirmada set
-        // edilir (K-217). Dogrudan esitlik filtresi "includeChildren=true" ile
-        // birlikte verildiginde alt calistirmayi hicbir zaman eslestirmezdi.
+        // HATA-S2-001 / MT-API-060: SessionId is set only on the ROOT run
+        // (K-217). A direct equality filter combined with "includeChildren=true"
+        // used to never match a child run.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var runs = host.Services.GetRequiredService<IRunStore>();
@@ -139,7 +139,7 @@ public sealed class AgentCallGraphTests
             RunId = rootId,
             AgentName = "yonlendirici",
             StartedAt = DateTimeOffset.UtcNow,
-            SessionId = "api-agac-01",
+            SessionId = "api-tree-01",
         });
 
         await runs.StartRunAsync(new RunStartInfo
@@ -153,12 +153,12 @@ public sealed class AgentCallGraphTests
         });
 
         using var rootOnly = await host.Client.GetAsync(
-            new Uri("/agentprism/api/runs?sessionId=api-agac-01", UriKind.Relative));
+            new Uri("/agentprism/api/runs?sessionId=api-tree-01", UriKind.Relative));
 
         (await IdsAsync(rootOnly)).ShouldBe([rootId.ToString()]);
 
         using var withChildren = await host.Client.GetAsync(
-            new Uri("/agentprism/api/runs?sessionId=api-agac-01&includeChildren=true", UriKind.Relative));
+            new Uri("/agentprism/api/runs?sessionId=api-tree-01&includeChildren=true", UriKind.Relative));
 
         (await IdsAsync(withChildren)).ShouldBe(
             [rootId.ToString(), childId.ToString()],
@@ -166,12 +166,12 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task ErrorType_filtresi_baglanir_ve_filtreler()
+    public async Task ErrorType_filter_binds_and_filters()
     {
         // HATA-S3-007 / MT-GUARD-064: RunEndpoints.MapGet("/api/runs", ...)
-        // eskiden "errorType" adinda bir parametre baglamiyordu; ASP.NET Core
-        // bilinmeyen sorgu parametresini sessizce yok sayiyor, sonuc HER ZAMAN
-        // filtresizmis gibi donuyordu.
+        // used to not bind a parameter named "errorType"; ASP.NET Core
+        // silently ignores an unknown query parameter, so the result ALWAYS
+        // came back as if unfiltered.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var runs = host.Services.GetRequiredService<IRunStore>();
@@ -184,7 +184,7 @@ public sealed class AgentCallGraphTests
             RunId = blockedId,
             Status = RunStatus.Failed,
             CompletedAt = DateTimeOffset.UtcNow,
-            Error = new RunError { Type = "content_blocked", Message = "engellendi" },
+            Error = new RunError { Type = "content_blocked", Message = "blocked" },
         });
 
         await runs.StartRunAsync(new RunStartInfo { RunId = otherId, AgentName = "a", StartedAt = DateTimeOffset.UtcNow });
@@ -193,7 +193,7 @@ public sealed class AgentCallGraphTests
             RunId = otherId,
             Status = RunStatus.Failed,
             CompletedAt = DateTimeOffset.UtcNow,
-            Error = new RunError { Type = "upstream_error", Message = "saglayici hatasi" },
+            Error = new RunError { Type = "upstream_error", Message = "provider error" },
         });
 
         using var filtered = await host.Client.GetAsync(
@@ -203,7 +203,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirmanin_agaci_404_doner()
+    public async Task Tree_of_a_nonexistent_run_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -214,7 +214,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public async Task Kok_kaydi_alt_calistirma_sayisini_ve_agac_toplamini_tasir()
+    public async Task Root_record_carries_child_run_count_and_tree_totals()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -228,16 +228,16 @@ public sealed class AgentCallGraphTests
         json.GetProperty("childRunCount").GetInt32().ShouldBe(1);
         json.GetProperty("depth").GetInt32().ShouldBe(0);
 
-        // Agac toplami kokun kendi kullanimini da icerir; ikisi toplanmaz.
+        // The tree total also includes the root's own usage; the two are not added together.
         json.GetProperty("usage").GetProperty("totalTokens").GetInt64().ShouldBe(10);
         json.GetProperty("treeUsage").GetProperty("totalTokens").GetInt64().ShouldBe(30);
     }
 
-    /// <summary>Iki satirli bir calistirma agacini dogrudan depoya yazar.</summary>
+    /// <summary>Writes a two-row run tree directly to the store.</summary>
     /// <remarks>
-    /// Gercek bir model cagrisi yapilmaz: bu testlerin dogruladigi sey HTTP
-    /// yuzeyidir, alt agent cagrisinin kendisi degil. Cagri yolu
-    /// <c>ChildAgentInvokerTests</c> icinde test edilir.
+    /// No actual model call is made: what these tests verify is the HTTP
+    /// surface, not the child agent call itself. The call path is tested
+    /// in <c>ChildAgentInvokerTests</c>.
     /// </remarks>
     private static async Task<(Guid RootId, Guid ChildId)> RecordTreeAsync(AgentPrismTestHost host)
     {

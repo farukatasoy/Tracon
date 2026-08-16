@@ -4,16 +4,16 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Core.UnitTests.Approvals;
 
 /// <summary>
-/// Tool onayi: defterin sarmalamasi ve kalici kurallarin uygulanmasi.
+/// Tool approval: registry wrapping and enforcement of persisted rules.
 /// </summary>
 public sealed class ToolApprovalTests
 {
     [Fact]
-    public void Onay_isteyen_tool_defterde_sarmalanir()
+    public void Approval_required_tool_is_wrapped_by_the_registry()
     {
-        // Sarmalama BURADA yapilmalidir: defter, "bir agent yalnizca kayitli bir
-        // tool'a isaret edebilir" kuralinin zorlandigi tek yerdir. Baska bir kod
-        // yolunun sarmalamayi atlamasi mumkun olmamalidir.
+        // Wrapping MUST happen HERE: the registry is the only place where the
+        // rule "an agent can only reference a registered tool" is enforced. No
+        // other code path should be able to skip the wrapping.
         var registry = new ToolRegistry(
         [
             new AgentPrismToolRegistration(Function("safe_tool")),
@@ -28,10 +28,10 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public void Sarmalama_adi_ve_aciklamayi_korur()
+    public void Wrapping_preserves_name_and_description()
     {
-        // ApprovalRequiredAIFunction bir DelegatingAIFunction'dir; sarmalama
-        // modelin gordugu sozlesmeyi degistirmemelidir.
+        // ApprovalRequiredAIFunction is a DelegatingAIFunction; wrapping it
+        // must not change the contract the model sees.
         var registry = new ToolRegistry(
         [
             new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
@@ -47,7 +47,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public void Kaynak_bilgisi_tanima_tasinir()
+    public void Source_information_is_carried_to_the_descriptor()
     {
         var registry = new ToolRegistry(
         [
@@ -60,7 +60,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Kural_yoksa_otomatik_onay_verilmez()
+    public async Task No_rule_means_no_automatic_approval()
     {
         var evaluator = CreateEvaluator(new InMemoryToolApprovalRuleStore());
 
@@ -68,7 +68,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Arguman_kapsamsiz_kural_her_cagriyi_onaylar()
+    public async Task Argument_unscoped_rule_approves_every_call()
     {
         var store = new InMemoryToolApprovalRuleStore();
 
@@ -83,7 +83,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Arguman_kapsamli_kural_yalnizca_ayni_argumanla_eslesir()
+    public async Task Argument_scoped_rule_matches_only_the_same_arguments()
     {
         var store = new InMemoryToolApprovalRuleStore();
         var call = Call("cancel_order", ("orderId", "ORD-1"));
@@ -101,7 +101,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Baska_agentin_kurali_gecmez()
+    public async Task Another_agents_rule_does_not_pass()
     {
         var store = new InMemoryToolApprovalRuleStore();
 
@@ -113,7 +113,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Agent_kapsamsiz_kural_tum_agentlari_kapsar()
+    public async Task Agent_unscoped_rule_covers_all_agents()
     {
         var store = new InMemoryToolApprovalRuleStore();
 
@@ -125,10 +125,10 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_kurali_gecmez()
+    public async Task Another_tenants_rule_does_not_pass()
     {
-        // Kiraci siniri: bir kiracinin verdigi onay baska bir kiracinin
-        // cagrisini calistiramaz.
+        // Tenant boundary: an approval granted by one tenant must not run
+        // another tenant's call.
         var store = new InMemoryToolApprovalRuleStore();
 
         await store.AddAsync(Rule("cancel_order", agentName: null, argumentsHash: null) with
@@ -142,19 +142,19 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Depo_hatasi_onay_vermez()
+    public async Task Store_failure_does_not_grant_approval()
     {
-        // Guvenli taraf: kural okunamiyorsa cagri kullaniciya sorulur.
+        // Fail safe: if the rule cannot be read, the call is asked of the user.
         var evaluator = CreateEvaluator(new ThrowingRuleStore());
 
         (await evaluator.IsAutoApprovedAsync("support", Call("cancel_order"))).ShouldBeFalse();
     }
 
     [Fact]
-    public void Arguman_parmak_izi_anahtar_sirasindan_bagimsizdir()
+    public void Argument_fingerprint_is_independent_of_key_order()
     {
-        // Sozluk sirasi calistirmalar arasinda degisebilir; degisirse
-        // "bir daha sorma" kurali hicbir zaman eslesmezdi.
+        // Dictionary order can change between runs; if it did, the
+        // "don't ask again" rule would never match.
         var first = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["b"] = 2, ["a"] = 1 });
 
@@ -165,12 +165,13 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public void Farkli_argumanlar_farkli_parmak_izi_uretir()
+    public void Different_arguments_produce_different_fingerprints()
     {
         var first = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "1", ["b"] = "2" });
 
-        // Ayrac olmasaydi "a=1" + "b=2" ile "a=1b=" + "2" ayni izi uretebilirdi.
+        // Without a separator, "a=1" + "b=2" and "a=1b=" + "2" could produce
+        // the same fingerprint.
         var second = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "1b=2" });
 
@@ -178,7 +179,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Ayni_kapsam_ikinci_kez_eklenmez()
+    public async Task Same_scope_is_not_added_twice()
     {
         var store = new InMemoryToolApprovalRuleStore();
 
@@ -190,7 +191,7 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_kurali_silinemez()
+    public async Task Another_tenants_rule_cannot_be_deleted()
     {
         var store = new InMemoryToolApprovalRuleStore();
         var rule = await store.AddAsync(Rule("cancel_order", "support", null));
@@ -220,7 +221,7 @@ public sealed class ToolApprovalTests
             arguments.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
 
     private static AIFunction Function(string name)
-        => AIFunctionFactory.Create(() => "ok", name, $"{name} aciklamasi");
+        => AIFunctionFactory.Create(() => "ok", name, $"{name} description");
 
     private sealed class FixedTenantContext : ITenantContext
     {
@@ -232,17 +233,17 @@ public sealed class ToolApprovalTests
         public ValueTask<IReadOnlyList<ToolApprovalRule>> ListAsync(
             string tenantId,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store is unreachable");
 
         public ValueTask<ToolApprovalRule> AddAsync(
             ToolApprovalRule rule,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store is unreachable");
 
         public ValueTask<bool> DeleteAsync(
             string tenantId,
             Guid ruleId,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store is unreachable");
     }
 }

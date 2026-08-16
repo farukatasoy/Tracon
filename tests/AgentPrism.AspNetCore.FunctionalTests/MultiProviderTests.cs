@@ -6,28 +6,29 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// OpenAI, Anthropic, Google ve Azure OpenAI saglayicilarinin <strong>ayni
-/// uygulamada</strong> kayitli olmasi ve yonetim uclarinda birlikte gorunmesi.
+/// The OpenAI, Anthropic, Google, and Azure OpenAI providers being registered
+/// <strong>in the same application</strong> and appearing together on the
+/// management endpoints.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ad cakismasi, kayit sirasi ve <c>ModelProviderRegistry</c>'nin "ayni ad iki kez"
-/// korumasi yalnizca saglayicilar birlikte kurulunca ortaya cikar; her paketin
-/// kendi birim testi bunu goremez.
+/// Name collisions, registration order, and <c>ModelProviderRegistry</c>'s
+/// "same name twice" guard only surface when the providers are set up
+/// together; each package's own unit tests cannot see this.
 /// </para>
 /// <para>
-/// <strong>Gercek model cagrisi yapan test yoktur</strong> (Faz 3'ten beri gecerli
-/// karar). Ag gerektiren dogrulama elle yapilir; kaniti
-/// <c>docs/26-ANTHROPIC-VE-GEMINI.md</c> ve <c>docs/27-AZURE-FOUNDRY.md</c>
-/// icindedir.
+/// <strong>No test calls a real model</strong> (a decision in force since
+/// Phase 3). Verification that requires the network is done manually; the
+/// evidence is in <c>docs/26-ANTHROPIC-VE-GEMINI.md</c> and
+/// <c>docs/27-AZURE-FOUNDRY.md</c>.
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests
 {
-    private const string TestKey = "fonksiyonel-test-anahtari";
+    private const string TestKey = "functional-test-key";
 
     [Fact]
-    public async Task Dort_saglayici_ayni_anda_kayitli_olur()
+    public async Task Four_providers_are_registered_at_the_same_time()
     {
         await using var host = await StartAsync();
 
@@ -47,7 +48,7 @@ public sealed class MultiProviderTests
     }
 
     [Fact]
-    public async Task Katalog_her_saglayici_icin_kendi_modellerini_gosterir()
+    public async Task Catalog_shows_each_providers_own_models()
     {
         await using var host = await StartAsync();
 
@@ -57,16 +58,16 @@ public sealed class MultiProviderTests
         Models(providers, AnthropicProviderNames.Anthropic).ShouldBe(["claude-sonnet-5"]);
         Models(providers, GoogleProviderNames.Google).ShouldBe(["gemini-3.6-flash"]);
 
-        // Azure'da katalogdaki ad bir MODEL adi degil, DEPLOYMENT adidir.
-        Models(providers, AzureOpenAIProviderNames.AzureOpenAI).ShouldBe(["uretim-gpt"]);
+        // On Azure, the name in the catalog is not a MODEL name, it is the DEPLOYMENT name.
+        Models(providers, AzureOpenAIProviderNames.AzureOpenAI).ShouldBe(["production-gpt"]);
     }
 
     [Fact]
-    public async Task Saglik_ucu_bes_saglayiciyi_da_listeler()
+    public async Task Health_endpoint_lists_all_five_providers()
     {
         await using var host = await StartAsync();
 
-        // Onbellek bos: hicbir denetim tetiklenmez, aga cikilmaz.
+        // The cache is empty: no check is triggered, no network call is made.
         using var response = await host.Client.GetAsync(new Uri("/agentprism/api/models/health", UriKind.Relative));
         response.EnsureSuccessStatusCode();
 
@@ -81,7 +82,7 @@ public sealed class MultiProviderTests
     }
 
     [Fact]
-    public async Task Yonetim_uclarinin_hicbirinde_anahtar_gorunmez()
+    public async Task No_management_endpoint_reveals_the_key()
     {
         await using var host = await StartAsync();
 
@@ -97,14 +98,14 @@ public sealed class MultiProviderTests
     }
 
     [Fact]
-    public async Task Saglayiciya_ozgu_ayarli_agent_kaydedilir_ve_geri_okunur()
+    public async Task Agent_with_provider_specific_settings_is_saved_and_read_back()
     {
         await using var host = await StartAsync();
 
         var payload = JsonSerializer.Serialize(new
         {
-            name = "gemini-destek",
-            instructions = "Sen bir destek asistanisin.",
+            name = "gemini-support",
+            instructions = "You are a support assistant.",
             model = new
             {
                 provider = GoogleProviderNames.Google,
@@ -123,11 +124,12 @@ public sealed class MultiProviderTests
 
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        using var read = await host.Client.GetAsync(new Uri("/agentprism/api/agents/gemini-destek", UriKind.Relative));
+        using var read = await host.Client.GetAsync(new Uri("/agentprism/api/agents/gemini-support", UriKind.Relative));
         read.EnsureSuccessStatusCode();
 
-        // Sozlesme uctan uca tasinir: HTTP -> depo -> HTTP. Yanit hem ozeti
-        // (descriptor) hem tam tanimi (definition) tasir; ikisi de ayari gostermelidir.
+        // The contract carries end to end: HTTP -> store -> HTTP. The response
+        // carries both the summary (descriptor) and the full definition; both
+        // must show the setting.
         var body = await AgentPrismTestHost.ReadJsonAsync(read);
 
         body.GetProperty("descriptor").GetProperty("model").GetProperty("providerSettings")
@@ -140,7 +142,7 @@ public sealed class MultiProviderTests
     }
 
     [Fact]
-    public async Task Taninmayan_saglayici_ayari_calistirmayi_anlasilir_bicimde_reddeder()
+    public async Task Unrecognized_provider_setting_rejects_running_with_a_clear_message()
     {
         await using var host = await StartAsync();
 
@@ -152,35 +154,35 @@ public sealed class MultiProviderTests
             Model = "claude-sonnet-5",
             ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
             {
-                ["anthropic.yokBoyleAyar"] = JsonSerializer.SerializeToElement(true),
+                ["anthropic.noSuchSetting"] = JsonSerializer.SerializeToElement(true),
             },
         }));
 
-        exception.Message.ShouldContain("anthropic.yokBoyleAyar");
+        exception.Message.ShouldContain("anthropic.noSuchSetting");
         exception.Message.ShouldContain(AnthropicProviderNames.PromptCachingSetting);
     }
 
     [Fact]
-    public async Task Azure_saglayicisi_hicbir_ayar_kabul_etmedigini_soyler()
+    public async Task Azure_provider_states_that_it_accepts_no_settings_at_all()
     {
         await using var host = await StartAsync();
 
         var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
 
-        // Azure'un ek alan yazma yolu kullandigimiz OpenAI SDK surumuyle kirik
-        // oldugu icin bu saglayici hicbir ayar sunmaz (K-211). Sessizce yok
-        // saymak yerine acikca soyler.
+        // Because Azure's extra-field-writing path is broken with the OpenAI
+        // SDK version we use, this provider offers no settings at all (K-211).
+        // It states this explicitly instead of silently ignoring the setting.
         var exception = Should.Throw<AgentPrismException>(() => registry.CreateChatClient(new ModelBinding
         {
             Provider = AzureOpenAIProviderNames.AzureOpenAI,
-            Model = "uretim-gpt",
+            Model = "production-gpt",
             ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
             {
-                ["azure-openai.yokBoyleAyar"] = JsonSerializer.SerializeToElement(true),
+                ["azure-openai.noSuchSetting"] = JsonSerializer.SerializeToElement(true),
             },
         }));
 
-        exception.Message.ShouldContain("azure-openai.yokBoyleAyar");
+        exception.Message.ShouldContain("azure-openai.noSuchSetting");
         exception.Message.ShouldContain("supports no extra settings");
     }
 
@@ -204,9 +206,9 @@ public sealed class MultiProviderTests
                 options.DefaultModel = "gemini-3.6-flash";
                 options.Models.Add(new ModelDescriptor { Name = "gemini-3.6-flash" });
             })
-            .UseAzureOpenAI(new Uri("https://test-kaynagi.openai.azure.com/"), TestKey, options =>
+            .UseAzureOpenAI(new Uri("https://test-resource.openai.azure.com/"), TestKey, options =>
             {
-                options.DefaultDeployment = "uretim-gpt";
-                options.Models.Add(new ModelDescriptor { Name = "uretim-gpt" });
+                options.DefaultDeployment = "production-gpt";
+                options.Models.Add(new ModelDescriptor { Name = "production-gpt" });
             }));
 }

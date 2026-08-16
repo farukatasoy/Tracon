@@ -1,34 +1,34 @@
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
-/// <summary>Testlerde tekrar eden nesneleri uretir.</summary>
+/// <summary>Produces objects reused across tests.</summary>
 internal static class TestData
 {
-    /// <summary>Yankilayan saglayiciya bagli bir model.</summary>
+    /// <summary>A model bound to the echo provider.</summary>
     public static ModelBinding Model() => new() { Provider = "echo", Model = "echo-1" };
 
-    /// <summary>Kodda tanimlanabilir bir agent tanimi.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <returns>Tanim.</returns>
+    /// <summary>An agent definition that can be defined in code.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <returns>The definition.</returns>
     public static AgentDefinition Definition(string name = "kod-agent")
         => new()
         {
             Name = name,
-            DisplayName = "Kod Agent'i",
-            Description = "Testlerde kullanilan kod agent'i.",
-            Instructions = "Kisa yanit ver.",
+            DisplayName = "Code Agent",
+            Description = "The code agent used in tests.",
+            Instructions = "Reply briefly.",
             Model = Model(),
             Origin = AgentDefinitionOrigin.Code,
         };
 
-    /// <summary>Yonetim API'sine gonderilebilir bir tanim istegi govdesi.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="instructions">Sistem talimati.</param>
-    /// <returns>JSON'a cevrilebilir istek.</returns>
-    public static AgentDefinitionRequest Request(string name = "db-agent", string instructions = "Kisa yanit ver.")
+    /// <summary>A definition request body that can be sent to the management API.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="instructions">The system instructions.</param>
+    /// <returns>The request, ready to serialize to JSON.</returns>
+    public static AgentDefinitionRequest Request(string name = "db-agent", string instructions = "Reply briefly.")
         => new()
         {
             Name = name,
-            DisplayName = "Veritabani Agent'i",
+            DisplayName = "Database Agent",
             Instructions = instructions,
             Model = Model(),
         };

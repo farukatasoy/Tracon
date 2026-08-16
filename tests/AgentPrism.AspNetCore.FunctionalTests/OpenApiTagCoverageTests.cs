@@ -3,18 +3,18 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Belgedeki her ucun en az iki etiket tasidigini dogrular (Faz 40, bolum 40.3).
+/// Verifies that every endpoint in the document carries at least two tags (Phase 40, section 40.3).
 /// </summary>
 /// <remarks>
-/// Etiketlerin ilki her zaman <c>AgentPrism</c>'dir — bir tuketicinin kendi
-/// uclariyla karisan bir belgede AgentPrism uclarini bu etiketle ayirmasi icindir.
-/// Ikincisi alan etiketidir (<c>Agents</c>, <c>Runs</c>, ...) ve dosya sinirina gore
-/// verilir; bir istemci ureteci bunu ayri sinif/modul olarak kullanir.
+/// The first tag is always <c>AgentPrism</c> — this lets a consumer whose own
+/// endpoints mix into the same document separate AgentPrism endpoints by this tag.
+/// The second is the domain tag (<c>Agents</c>, <c>Runs</c>, ...) and is assigned by
+/// file boundary; a client generator uses it as a separate class/module.
 /// </remarks>
 public sealed class OpenApiTagCoverageTests
 {
     [Fact]
-    public async Task Her_ucun_en_az_iki_etiketi_var_ve_ilki_AgentPrism()
+    public async Task Every_endpoint_has_at_least_two_tags_and_the_first_is_AgentPrism()
     {
         await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);
 
@@ -37,7 +37,7 @@ public sealed class OpenApiTagCoverageTests
         }
 
         invalid.ShouldBeEmpty(
-            customMessage: "Eksik veya yanlis sirali etiketli uclar (beklenen: [\"AgentPrism\", <alan>]): " +
+            customMessage: "Endpoints with missing or wrongly ordered tags (expected: [\"AgentPrism\", <domain>]): " +
                            string.Join("; ", invalid));
     }
 }

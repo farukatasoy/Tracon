@@ -4,43 +4,43 @@ using System.Text.Json;
 
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
-/// <summary>Sunucudan alinmis bir konusma cercevesi.</summary>
-/// <param name="Type">Olay adi; ikili cercevede <see langword="null"/>.</param>
-/// <param name="Json">JSON govdesi; ikili cercevede <see langword="null"/>.</param>
-/// <param name="Audio">Ses baytlari; metin cercevesinde <see langword="null"/>.</param>
+/// <summary>A conversation frame received from the server.</summary>
+/// <param name="Type">The event name; <see langword="null"/> in a binary frame.</param>
+/// <param name="Json">The JSON body; <see langword="null"/> in a binary frame.</param>
+/// <param name="Audio">The audio bytes; <see langword="null"/> in a text frame.</param>
 internal readonly record struct VoiceEvent(string? Type, JsonElement? Json, byte[]? Audio)
 {
-    /// <summary>Cerceve ikili mi.</summary>
+    /// <summary>Whether the frame is binary.</summary>
     public bool IsAudio => Audio is not null;
 
-    /// <summary>Bir metin alanini okur.</summary>
-    /// <param name="name">Alan adi.</param>
-    /// <returns>Deger; alan yoksa <see langword="null"/>.</returns>
+    /// <summary>Reads a text field.</summary>
+    /// <param name="name">The field name.</param>
+    /// <returns>The value; <see langword="null"/> if the field is absent.</returns>
     public string? Text(string name)
         => Json?.TryGetProperty(name, out var value) == true ? value.GetString() : null;
 
-    /// <summary>Bir mantiksal alani okur.</summary>
-    /// <param name="name">Alan adi.</param>
-    /// <returns>Deger; alan yoksa <see langword="null"/>.</returns>
+    /// <summary>Reads a boolean field.</summary>
+    /// <param name="name">The field name.</param>
+    /// <returns>The value; <see langword="null"/> if the field is absent.</returns>
     public bool? Flag(string name)
         => Json?.TryGetProperty(name, out var value) == true ? value.GetBoolean() : null;
 }
 
 /// <summary>
-/// Konusma protokolunu konusan kucuk bir test istemcisi.
+/// A small test client that speaks the voice conversation protocol.
 /// </summary>
 /// <remarks>
-/// Tarayicinin yaptigi isin sunucuya bakan yarisini yapar: denetim mesajlarini
-/// JSON metin cercevesi, sesi ikili cerceve olarak gonderir ve olaylari sirayla
-/// okur.
+/// Plays the server-facing half of what the browser does: sends control
+/// messages as a JSON text frame, audio as a binary frame, and reads events
+/// in order.
 /// </remarks>
 internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    /// <summary>Bir denetim mesaji gonderir.</summary>
-    /// <param name="payload">JSON'a cevrilecek nesne.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Sends a control message.</summary>
+    /// <param name="payload">The object to serialize to JSON.</param>
+    /// <returns>The completion task.</returns>
     public Task SendControlAsync(object payload)
         => socket.SendAsync(
             Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload, Json)),
@@ -48,9 +48,9 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
             endOfMessage: true,
             TestContext.Current.CancellationToken);
 
-    /// <summary>Bir ses parcasi gonderir.</summary>
-    /// <param name="audio">Ham baytlar.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Sends an audio chunk.</summary>
+    /// <param name="audio">The raw bytes.</param>
+    /// <returns>The completion task.</returns>
     public Task SendAudioAsync(byte[] audio)
         => socket.SendAsync(
             audio,
@@ -58,11 +58,11 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
             endOfMessage: true,
             TestContext.Current.CancellationToken);
 
-    /// <summary>Adi verilen olay gelene kadar okur.</summary>
-    /// <param name="type">Beklenen olay adi.</param>
-    /// <param name="collected">Bu arada gelen tum cerceveler.</param>
-    /// <returns>Beklenen olay.</returns>
-    /// <exception cref="InvalidOperationException">Olay gelmeden soket kapanirsa.</exception>
+    /// <summary>Reads frames until the named event arrives.</summary>
+    /// <param name="type">The expected event name.</param>
+    /// <param name="collected">All frames received in the meantime.</param>
+    /// <returns>The expected event.</returns>
+    /// <exception cref="InvalidOperationException">The socket closed before the event arrived.</exception>
     public async Task<VoiceEvent> WaitForAsync(string type, List<VoiceEvent>? collected = null)
     {
         while (true)
@@ -72,8 +72,8 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
             if (next is not { } received)
             {
                 throw new InvalidOperationException(
-                    $"'{type}' olayi gelmeden baglanti kapandi. Gelenler: " +
-                    string.Join(", ", collected?.Select(static frame => frame.Type ?? "<ses>") ?? []));
+                    $"The connection closed before the '{type}' event arrived. Received: " +
+                    string.Join(", ", collected?.Select(static frame => frame.Type ?? "<audio>") ?? []));
             }
 
             collected?.Add(received);
@@ -85,8 +85,8 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
         }
     }
 
-    /// <summary>Tek bir cerceve okur.</summary>
-    /// <returns>Cerceve; soket kapandiysa <see langword="null"/>.</returns>
+    /// <summary>Reads a single frame.</summary>
+    /// <returns>The frame; <see langword="null"/> if the socket closed.</returns>
     public async Task<VoiceEvent?> ReceiveAsync()
     {
         var buffer = new byte[16 * 1024];
@@ -134,7 +134,7 @@ internal sealed class VoiceConversationClient(WebSocket socket) : IAsyncDisposab
             }
             catch (WebSocketException)
             {
-                // Sunucu once kapatmis olabilir.
+                // The server may have already closed.
             }
         }
 

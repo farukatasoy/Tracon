@@ -6,9 +6,9 @@
 
   <ItemGroup>
     <!--
-      Yalniz test icin: AgentPrism:ContentGuard bolumunun gercekten baglandigini
-      dogrulamak bir IConfiguration ornegi ister. AgentPrism.Core yalnizca
-      Configuration.Abstractions'a baglanir ve oyle kalmalidir.
+      Test-only: verifying that the AgentPrism:ContentGuard section actually
+      binds requires an IConfiguration instance. AgentPrism.Core depends only
+      on Configuration.Abstractions and must stay that way.
     -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>

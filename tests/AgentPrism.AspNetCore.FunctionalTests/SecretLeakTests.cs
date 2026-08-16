@@ -5,29 +5,31 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Bearer token'in AgentPrism'in disariya verdigi hicbir ciktida gorunmedigini
-/// dogrular.
+/// Verifies that the bearer token never appears in any output AgentPrism
+/// gives out.
 /// </summary>
 /// <remarks>
-/// Korunan sinir sudur: token yalnizca gelen istegin basligiyla karsilastirilir.
-/// Ayar nesnesi, <c>/api/meta</c> ciktisi, hata yanitlari ve gunluk satirlari
-/// token'i <strong>hicbir kosulda</strong> tasiyamaz.
+/// The protected boundary is this: the token is compared only against the
+/// incoming request's header. The options object, the <c>/api/meta</c>
+/// output, error responses, and log lines must <strong>never, under any
+/// condition,</strong> carry the token.
 /// </remarks>
 public sealed class SecretLeakTests
 {
-    private const string Token = "cok-gizli-token-DENEME-91af3c";
+    private const string Token = "very-secret-token-TEST-91af3c";
 
     [Fact]
-    public void Ayar_nesnesi_kendi_ToString_metodunu_tanimlamaz()
+    public void Options_object_does_not_define_its_own_ToString_method()
     {
-        // Ayar nesnesi record OLMAMALIDIR: derleyicinin urettigi ToString tum
-        // ozellikleri yazar ve token'i ilk gunluk satirinda ifsa ederdi.
+        // The options object must NOT be a record: the compiler-generated
+        // ToString would print every property and leak the token in the
+        // very first log line.
         typeof(AgentPrismEndpointOptions).GetMethod(nameof(ToString), Type.EmptyTypes)!
             .DeclaringType.ShouldBe(typeof(object));
     }
 
     [Fact]
-    public async Task Meta_ciktisi_token_icermez()
+    public async Task Meta_output_does_not_contain_the_token()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -38,13 +40,13 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Reddedilen_istegin_yaniti_token_icermez()
+    public async Task Rejected_requests_response_does_not_contain_the_token()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "yanlis");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "wrong");
 
         using var response = await host.Client.SendAsync(request);
 
@@ -52,7 +54,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Gunluk_satirlari_token_icermez()
+    public async Task Log_lines_do_not_contain_the_token()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -74,7 +76,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Kod_agentinin_calistirilmasi_token_sizdirmaz()
+    public async Task Running_a_code_agent_does_not_leak_the_token()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -86,7 +88,7 @@ public sealed class SecretLeakTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/agents/kod-agent/run")
         {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "merhaba", SessionId = "s-gizli" }),
+            Content = JsonContent.Create(new AgentRunRequest { Message = "merhaba", SessionId = "s-secret" }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
@@ -96,8 +98,8 @@ public sealed class SecretLeakTests
             (await response.Content.ReadAsStringAsync()).ShouldNotContain(Token);
         }
 
-        // Oturum durumu, calistirma kayitlari ve gunlukler de temiz olmalidir.
-        using var sessionRequest = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/sessions/s-gizli");
+        // Session state, run records, and logs must also be clean.
+        using var sessionRequest = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/sessions/s-secret");
         sessionRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
         using (var session = await host.Client.SendAsync(sessionRequest))
@@ -116,10 +118,10 @@ public sealed class SecretLeakTests
         host.Logs.AllText.ShouldNotContain(Token);
     }
 
-    // --- Faz 53: API anahtari ---
+    // --- Phase 53: API key ---
 
     [Fact]
-    public async Task Ham_api_anahtari_listelemede_gorunmez()
+    public async Task Raw_api_key_does_not_appear_in_the_listing()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -131,7 +133,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Ham_api_anahtari_denetim_izinde_gorunmez()
+    public async Task Raw_api_key_does_not_appear_in_the_audit_trail()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -143,7 +145,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Ham_api_anahtari_reddedilen_istegin_yanitinda_gorunmez()
+    public async Task Raw_api_key_does_not_appear_in_the_rejected_requests_response()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -163,7 +165,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public async Task Ham_api_anahtari_gunluk_satirlarinda_gorunmez()
+    public async Task Raw_api_key_does_not_appear_in_log_lines()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

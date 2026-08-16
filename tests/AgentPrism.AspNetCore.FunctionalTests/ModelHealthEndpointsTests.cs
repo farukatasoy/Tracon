@@ -8,23 +8,23 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>/api/models/health</c> uclarini, <c>/api/models</c>'in durum alanini ve devre
-/// kesicinin saglik ucuna yansimasini dogrular.
+/// Verifies the <c>/api/models/health</c> endpoints, the status field on
+/// <c>/api/models</c>, and how the circuit breaker is reflected on the health endpoint.
 /// </summary>
 /// <remarks>
-/// Ollama bu makinede kurulu degil; F-05'in yerel/anahtarsiz baglanti mekanizmasi
-/// <see cref="FakeOpenAiCompatibleServer"/> ile gercek bir soket uzerinden
-/// dogrulanir. Gercek OpenAI/OpenRouter cagrisi yapan test <strong>yoktur</strong> —
-/// ag gerektiren dogrulama elle yapilir (Faz 3'teki ayni kararla tutarli:
-/// <c>docs/03-SAGLAYICI-VE-DERLEYICI.md</c>).
+/// Ollama is not installed on this machine; F-05's local/keyless connection
+/// mechanism is verified over a real socket with <see cref="FakeOpenAiCompatibleServer"/>.
+/// No test calls a real OpenAI/OpenRouter <strong>at all</strong> — verification
+/// that requires the network is done manually (consistent with the same
+/// decision in Phase 3: <c>docs/03-SAGLAYICI-VE-DERLEYICI.md</c>).
 /// </remarks>
 public sealed class ModelHealthEndpointsTests
 {
     [Fact]
-    public async Task Saglik_kontrolu_uygulamayan_saglayici_Unknown_doner()
+    public async Task Provider_that_does_not_implement_a_health_check_returns_Unknown()
     {
-        // AgentPrismTestHost varsayilan olarak "echo" saglayicisini kaydeder;
-        // o IModelProviderHealthCheck uygulamaz — bu bir hata degildir.
+        // AgentPrismTestHost registers the "echo" provider by default; it does
+        // not implement IModelProviderHealthCheck — that is not an error.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(new Uri("/agentprism/api/models/health/echo", UriKind.Relative));
@@ -35,23 +35,23 @@ public sealed class ModelHealthEndpointsTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_saglayici_404_doner()
+    public async Task Unknown_provider_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/models/health/yok-boyle", UriKind.Relative));
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/models/health/no-such-provider", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Models_ucu_onbellekten_okur_ilk_cagriya_kadar_aga_gitmez()
+    public async Task Models_endpoint_reads_from_cache_and_does_not_hit_the_network_until_the_first_check()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder.UseOpenAICompatible("local-test", o => o.Endpoint = server.BaseAddress));
 
-        // Henuz hic denetim yapilmadi: /api/models onbellekten okur, aga gitmez.
+        // No check has run yet: /api/models reads from cache, it does not hit the network.
         using (var models = await host.Client.GetAsync(new Uri("/agentprism/api/models", UriKind.Relative)))
         {
             var body = await AgentPrismTestHost.ReadJsonAsync(models);
@@ -62,7 +62,7 @@ public sealed class ModelHealthEndpointsTests
 
         server.ModelsCallCount.ShouldBe(0);
 
-        // Gercek bir denetim tetikle.
+        // Trigger a real check.
         using (var health = await host.Client.GetAsync(new Uri("/agentprism/api/models/health/local-test", UriKind.Relative)))
         {
             var body = await AgentPrismTestHost.ReadJsonAsync(health);
@@ -73,7 +73,7 @@ public sealed class ModelHealthEndpointsTests
 
         server.ModelsCallCount.ShouldBe(1);
 
-        // /api/models artik onbellekten Healthy gorur, YINE aga gitmez.
+        // /api/models now sees Healthy from cache, STILL does not hit the network.
         using (var modelsAfter = await host.Client.GetAsync(new Uri("/agentprism/api/models", UriKind.Relative)))
         {
             var body = await AgentPrismTestHost.ReadJsonAsync(modelsAfter);
@@ -86,7 +86,7 @@ public sealed class ModelHealthEndpointsTests
     }
 
     [Fact]
-    public async Task Refresh_true_onbellegi_atlar_ve_yeniden_denetler()
+    public async Task Refresh_true_skips_the_cache_and_re_checks()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         await using var host = await AgentPrismTestHost.StartAsync(
@@ -102,17 +102,17 @@ public sealed class ModelHealthEndpointsTests
         {
         }
 
-        server.ModelsCallCount.ShouldBe(1); // onbellekten dondu
+        server.ModelsCallCount.ShouldBe(1); // returned from cache
 
         using (await host.Client.GetAsync(new Uri("/agentprism/api/models/health/local-test?refresh=true", UriKind.Relative)))
         {
         }
 
-        server.ModelsCallCount.ShouldBe(2); // onbellek atlandi
+        server.ModelsCallCount.ShouldBe(2); // cache was skipped
     }
 
     [Fact]
-    public async Task Sunucu_hata_dondurunce_Unhealthy_ve_detay_adres_sizdirmaz()
+    public async Task Server_error_returns_Unhealthy_and_the_detail_does_not_leak_the_address()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         server.ModelsStatusCode = StatusCodes.Status503ServiceUnavailable;
@@ -132,10 +132,10 @@ public sealed class ModelHealthEndpointsTests
     }
 
     [Fact]
-    public async Task Baglanamayan_saglayicinin_detayinda_ne_anahtar_ne_adres_gorunur()
+    public async Task Unreachable_providers_detail_contains_neither_the_key_nor_the_address()
     {
-        const string secret = "cok-gizli-openrouter-anahtari-DENEME";
-        // Kapali/ayrilmis bir port (1): gercek bir baglanti reddi uretir.
+        const string secret = "super-secret-openrouter-key-TEST";
+        // A closed/reserved port (1): produces a real connection refusal.
         var deadEndpoint = new Uri("http://127.0.0.1:1");
 
         await using var host = await AgentPrismTestHost.StartAsync(
@@ -162,12 +162,12 @@ public sealed class ModelHealthEndpointsTests
     }
 
     [Fact]
-    public async Task Ardisik_hatada_devre_acilir_ve_saglik_ucu_bunu_yansitir()
+    public async Task Consecutive_failures_open_the_circuit_and_the_health_endpoint_reflects_it()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
-        // 400 (bilerek 500 DEGIL): System.ClientModel'in varsayilan yeniden deneme
-        // ilkesi 5xx/408/429'u otomatik tekrar dener, bu da ham istek sayisini
-        // ongorulemez hale getirirdi. 400 yeniden denenmez; sayim deterministik kalir.
+        // 400 (deliberately NOT 500): System.ClientModel's default retry policy
+        // automatically retries 5xx/408/429, which would make the raw request
+        // count unpredictable. 400 is not retried; the count stays deterministic.
         server.ChatCompletionStatusCode = StatusCodes.Status400BadRequest;
 
         await using var host = await AgentPrismTestHost.StartAsync(
@@ -180,7 +180,7 @@ public sealed class ModelHealthEndpointsTests
 
         var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
         var binding = new ModelBinding { Provider = "local-test", Model = "fake-local-model" };
-        ChatMessage[] messages = [new ChatMessage(ChatRole.User, "merhaba")];
+        ChatMessage[] messages = [new ChatMessage(ChatRole.User, "hello")];
 
         for (var i = 0; i < 2; i++)
         {
@@ -188,7 +188,7 @@ public sealed class ModelHealthEndpointsTests
             await Should.ThrowAsync<Exception>(() => chatClient.GetResponseAsync(messages));
         }
 
-        // Esik asildi: ucuncu deneme saglayiciya HIC GITMEZ.
+        // The threshold was exceeded: the third attempt NEVER reaches the provider.
         using (var chatClient = registry.CreateChatClient(binding))
         {
             await Should.ThrowAsync<AgentPrismProviderUnavailableException>(() => chatClient.GetResponseAsync(messages));

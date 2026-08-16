@@ -7,12 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Ek yukleme, indirme, listeleme ve silme uclarinin HTTP sozlesmesi.
+/// The HTTP contract of the attachment upload, download, list, and delete endpoints.
 /// </summary>
 public sealed class AttachmentEndpointTests
 {
     [Fact]
-    public async Task Gecerli_gorsel_yuklenir_ve_201_doner()
+    public async Task Valid_image_is_uploaded_and_returns_201()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -29,18 +29,18 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_tur_reddedilir()
+    public async Task Unknown_type_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        // Hicbir bilinen imzayla eslesmeyen rastgele baytlar.
+        // Random bytes that match no known signature.
         using var response = await UploadAsync(host, [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Bos_dosya_reddedilir()
+    public async Task Empty_file_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -50,7 +50,7 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Boyut_sinirini_asan_dosya_reddedilir()
+    public async Task File_exceeding_the_size_limit_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.Configure<AgentPrismOptions>(
@@ -62,7 +62,7 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Indirme_dogru_baslik_ve_icerikle_doner()
+    public async Task Download_returns_with_the_correct_header_and_content()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -83,7 +83,7 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Listeleme_yuklenen_ekleri_dondurur()
+    public async Task Listing_returns_uploaded_attachments()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -99,7 +99,7 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Silme_bir_kez_basarili_ikinci_seferde_404_doner()
+    public async Task Delete_succeeds_once_returns_404_the_second_time()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -114,7 +114,7 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_ekine_erisilemez()
+    public async Task Another_tenants_attachment_cannot_be_accessed()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -124,7 +124,7 @@ public sealed class AttachmentEndpointTests
             }));
 
         using var uploadRequest = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/attachments");
-        uploadRequest.Headers.Add("X-AgentPrism-Tenant", "kiraci-a");
+        uploadRequest.Headers.Add("X-AgentPrism-Tenant", "tenant-a");
 
         using var content = new MultipartFormDataContent();
         content.Add(new ByteArrayContent(Png()), "file", "test.png");
@@ -136,7 +136,7 @@ public sealed class AttachmentEndpointTests
         using var getRequest = new HttpRequestMessage(
             HttpMethod.Get,
             new Uri($"/agentprism/api/attachments/{id}", UriKind.Relative));
-        getRequest.Headers.Add("X-AgentPrism-Tenant", "kiraci-b");
+        getRequest.Headers.Add("X-AgentPrism-Tenant", "tenant-b");
 
         using var response = await host.Client.SendAsync(getRequest);
 
@@ -144,16 +144,16 @@ public sealed class AttachmentEndpointTests
     }
 
     [Fact]
-    public async Task Oturum_silinince_ekleri_de_gider()
+    public async Task Attachments_go_away_when_the_session_is_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var uploaded = await UploadAsync(host, Png(), sessionId: "s-cascade");
         var id = (await AgentPrismTestHost.ReadJsonAsync(uploaded)).GetProperty("id").GetGuid();
 
-        // Oturum satiri, bu ege atif eden bir calistirma hic yapilmadan da,
-        // dogrudan depo uzerinden olusturulur; gercek akista oturum ilk
-        // calistirmada acilir.
+        // The session row is created directly through the store, without any run
+        // ever referencing this attachment; in the real flow, the session opens
+        // on the first run.
         var sessions = host.Services.GetRequiredService<ISessionStore>();
 
         await sessions.SaveAsync(new SessionRecord
