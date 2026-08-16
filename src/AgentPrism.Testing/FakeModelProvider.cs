@@ -4,22 +4,22 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Testing;
 
 /// <summary>
-/// Aga cikmayan, yapilandirilabilir sahte model saglayicisi.
+/// Configurable, non-networked fake model provider.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Beş fluent metot (<see cref="RespondsWith(string[])"/>, <see cref="EchoesUserMessage"/>,
-/// <see cref="CallsTool"/>, <see cref="ForModel"/>, <see cref="WithModel"/>)
-/// AgentPrism'in test paketlerinde bugun bes ayri dosyaya kopyalanmis sahte
-/// saglayici davranisinin tumunu kapsar. Gerekce: docs/39-TEST-PAKETI.md.
+/// Five fluent methods (<see cref="RespondsWith(string[])"/>, <see cref="EchoesUserMessage"/>,
+/// <see cref="CallsTool"/>, <see cref="ForModel"/>, <see cref="WithModel"/>) cover
+/// all the fake provider behavior that is today duplicated across five separate
+/// files in AgentPrism's test suites. Rationale: docs/39-TEST-PAKETI.md.
 /// </para>
 /// <para>
-/// Her modelin kendi <strong>sirali yanit kuyrugu</strong> vardir
-/// (<see cref="ForModel"/> ile secilir; secilmezse varsayilan kuyruk kullanilir).
-/// Bir cagri sıradaki adimi coker; kuyruk tukendiginde her sonraki cagri
-/// <see cref="EchoesUserMessage"/> ile ayarlanan yankiyi ya da sabit bir
-/// yanit dondurur. Bu davranis saglayicinin omru boyunca kalicidir — mesaj
-/// gecmisi taranarak "hangi tool zaten cagrildi" cikarilmaz.
+/// Each model has its own <strong>ordered response queue</strong> (selected with
+/// <see cref="ForModel"/>; the default queue is used when none is selected). A
+/// call pops the next step in the queue; once the queue is drained, every
+/// subsequent call returns either the echo set with <see cref="EchoesUserMessage"/>
+/// or a fixed response. This behavior is lasting for the provider's lifetime —
+/// it does not infer "which tool was already called" by scanning message history.
 /// </para>
 /// </remarks>
 /// <example>
@@ -39,8 +39,8 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
 
     private FakeModelScript _current;
 
-    /// <summary>Yeni bir sahte saglayici olusturur.</summary>
-    /// <param name="name">Saglayici adi.</param>
+    /// <summary>Creates a new fake provider.</summary>
+    /// <param name="name">Provider name.</param>
     public FakeModelProvider(string name = "fake")
     {
         Name = name;
@@ -55,7 +55,7 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
         ? _models
         : [new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 }];
 
-    /// <summary>Saglayiciya ulasan istekler; en yeni sonuncudur.</summary>
+    /// <summary>Requests that reached this provider; the newest is last.</summary>
     public IReadOnlyList<FakeModelRequest> Requests
     {
         get
@@ -67,9 +67,9 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
         }
     }
 
-    /// <summary>Bu saglayiciya bir model tanimlar.</summary>
-    /// <param name="descriptor">Model tanimi.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Registers a model on this provider.</summary>
+    /// <param name="descriptor">Model descriptor.</param>
+    /// <returns>The chain, for continued configuration.</returns>
     public FakeModelProvider WithModel(ModelDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
@@ -80,11 +80,11 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
-    /// Sirayla dondurulecek yanitlari sıraya ekler. Kuyruk tukendiginde
-    /// <see cref="EchoesUserMessage"/> ayarlanmadiysa sabit bir yanit dondurulur.
+    /// Enqueues responses to return in order. Once the queue is drained, a fixed
+    /// response is returned unless <see cref="EchoesUserMessage"/> was set.
     /// </summary>
-    /// <param name="responses">Sirayla dondurulecek metinler.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="responses">Texts to return in order.</param>
+    /// <returns>The chain, for continued configuration.</returns>
     public FakeModelProvider RespondsWith(params string[] responses)
     {
         ArgumentNullException.ThrowIfNull(responses);
@@ -98,13 +98,13 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
-    /// Sıraya, belirli bir token kullanimi bildiren tek bir metin yaniti ekler.
+    /// Enqueues a single text response that reports a specific token usage.
     /// </summary>
-    /// <param name="response">Dondurulecek metin.</param>
-    /// <param name="inputTokens">Bildirilecek girdi token sayisi.</param>
-    /// <param name="outputTokens">Bildirilecek cikti token sayisi.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <remarks>Maliyet/kullanim metriklerini uctan uca test eden senaryolar icindir.</remarks>
+    /// <param name="response">Text to return.</param>
+    /// <param name="inputTokens">Input token count to report.</param>
+    /// <param name="outputTokens">Output token count to report.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <remarks>For scenarios that test cost/usage metrics end to end.</remarks>
     public FakeModelProvider RespondsWith(string response, int inputTokens, int outputTokens)
     {
         ArgumentNullException.ThrowIfNull(response);
@@ -119,9 +119,9 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
-    /// Kuyruk tukendiginde gelen son kullanici mesajini yankilamaya baslar.
+    /// Starts echoing the last incoming user message once the queue is drained.
     /// </summary>
-    /// <returns>Zincirin devami.</returns>
+    /// <returns>The chain, for continued configuration.</returns>
     public FakeModelProvider EchoesUserMessage()
     {
         _current.Fallback = FakeFallbackKind.EchoUserMessage;
@@ -130,16 +130,16 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
-    /// Kuyruk tukendiginde, gecmisteki SON tool sonucunu yankilamaya baslar.
+    /// Starts echoing the LAST tool result in history once the queue is drained.
     /// </summary>
-    /// <param name="prefix">Sonucun basina eklenecek metin.</param>
-    /// <param name="inputTokens">Verilirse, her yanitla birlikte bildirilecek girdi token sayisi.</param>
-    /// <param name="outputTokens">Verilirse, her yanitla birlikte bildirilecek cikti token sayisi.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="prefix">Text prepended to the result.</param>
+    /// <param name="inputTokens">If given, the input token count reported with every response.</param>
+    /// <param name="outputTokens">If given, the output token count reported with every response.</param>
+    /// <returns>The chain, for continued configuration.</returns>
     /// <remarks>
-    /// Bir tool zincirinin (<see cref="CallsTool"/> ile kurulan) son adiminda,
-    /// nihai yanitin GERCEKTEN tool'un dondurdugu sonuca bagli olmasi gereken
-    /// senaryolar icindir — ornek: bir alt agent'a devir sonucu.
+    /// For the last step of a tool chain (set up with <see cref="CallsTool"/>),
+    /// where the final response must genuinely depend on the result the tool
+    /// returned — e.g. a hand-off result to a sub-agent.
     /// </remarks>
     public FakeModelProvider EchoesLastToolResult(string prefix = "", int? inputTokens = null, int? outputTokens = null)
     {
@@ -154,13 +154,13 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
         return this;
     }
 
-    /// <summary>Sıraya bir tool cagrisi ekler.</summary>
-    /// <param name="toolName">Cagrilacak tool'un adi.</param>
+    /// <summary>Enqueues a tool call.</summary>
+    /// <param name="toolName">Name of the tool to call.</param>
     /// <param name="arguments">
-    /// Cagri argumanlari. <see cref="IDictionary{TKey, TValue}"/> degilse ozellikleri
-    /// yansima ile okunur (anonim tip icin uygundur).
+    /// Call arguments. If not an <see cref="IDictionary{TKey, TValue}"/>, its
+    /// properties are read through reflection (works for anonymous types).
     /// </param>
-    /// <returns>Zincirin devami.</returns>
+    /// <returns>The chain, for continued configuration.</returns>
     public FakeModelProvider CallsTool(string toolName, object? arguments = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
@@ -171,13 +171,13 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
-    /// Belirli bir model adi icin ayri bir yanit kuyrugu tanimlar. <paramref name="configure"/>
-    /// govdesindeki <see cref="RespondsWith(string[])"/>/<see cref="EchoesUserMessage"/>/<see cref="CallsTool"/>
-    /// cagrilari yalniz bu modelin kuyrugunu etkiler.
+    /// Defines a separate response queue for a specific model name. Calls to
+    /// <see cref="RespondsWith(string[])"/>/<see cref="EchoesUserMessage"/>/<see cref="CallsTool"/>
+    /// inside the <paramref name="configure"/> body affect only that model's queue.
     /// </summary>
-    /// <param name="modelId">Model adi.</param>
-    /// <param name="configure">Bu modelin kuyrugunu dolduran yapilandirma.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="modelId">Model name.</param>
+    /// <param name="configure">Configuration that fills this model's queue.</param>
+    /// <returns>The chain, for continued configuration.</returns>
     public FakeModelProvider ForModel(string modelId, Action<FakeModelProvider> configure)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
@@ -216,17 +216,17 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
 
         var script = _scripts.TryGetValue(binding.Model, out var forModel) ? forModel : _default;
 
-        // 🚨 HAM istemci donulur. Tool cagri dongusu (UseFunctionInvocation) ve
-        // telemetri Faz 48'de ModelProviderRegistry'ye tasindi; her IModelProvider
-        // artik ham istemci dondurur ve boru hattini defter kurar. Burada da
-        // kurmak dongunun ic ice gecmesine yol acardi.
+        // 🚨 Returns the RAW client. The tool-call loop (UseFunctionInvocation)
+        // and telemetry moved to ModelProviderRegistry in Phase 48; every
+        // IModelProvider now returns a raw client and the pipeline wraps it.
+        // Wrapping here too would nest the pipeline inside itself.
         return new FakeChatClient(script, Record);
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        // Sahte saglayicinin serbest birakilacak kaynagi yok.
+        // The fake provider has no resource to release.
     }
 
     private void Record(FakeModelRequest request)

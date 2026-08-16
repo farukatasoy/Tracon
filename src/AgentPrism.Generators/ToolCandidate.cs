@@ -3,30 +3,30 @@ using Microsoft.CodeAnalysis;
 
 namespace AgentPrism.Generators;
 
-/// <summary>Tek bir tanı (id, konum, mesaj argumanlari) - onbelleklenebilir.</summary>
+/// <summary>Describes a single diagnostic (id, location, message arguments) - cacheable.</summary>
 internal sealed record DiagnosticInfo(string Id, SourceLocation Location, EquatableArray<string> Args)
 {
     public static DiagnosticInfo Create(string id, Location location, params string[] args)
         => new(id, SourceLocation.From(location), ImmutableArray.Create(args));
 }
 
-/// <summary>Metodun donus degeri nasil ele alinir.</summary>
+/// <summary>Describes how a method's return value is handled.</summary>
 internal enum ReturnKind
 {
-    /// <summary><see langword="void"/> - sonuc <see langword="null"/> doner.</summary>
+    /// <summary><see langword="void"/> - the result returns <see langword="null"/>.</summary>
     None,
 
-    /// <summary>Es zamanli deger dondurur.</summary>
+    /// <summary>Returns a synchronous value.</summary>
     Value,
 
-    /// <summary><c>Task</c>/<c>ValueTask</c> - <see langword="await"/> edilir, sonuc yok.</summary>
+    /// <summary><c>Task</c>/<c>ValueTask</c> - awaited, no result.</summary>
     AsyncNone,
 
-    /// <summary><c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> - <see langword="await"/> edilir, sonuc doner.</summary>
+    /// <summary><c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c> - awaited, returns a result.</summary>
     AsyncValue,
 }
 
-/// <summary>Basariyla siniflandirilmis, uretilebilir bir tool.</summary>
+/// <summary>A successfully classified, emittable tool.</summary>
 internal sealed record ToolEmitModel(
     string ContainingTypeDisplay,
     string MethodName,
@@ -37,12 +37,8 @@ internal sealed record ToolEmitModel(
     EquatableArray<ParameterModel> Parameters,
     string GeneratedClassName);
 
-/// <summary>
-/// <c>[AgentPrismTool]</c> ile isaretli tek bir metodun analiz sonucu. Ya
-/// <see cref="Emit"/> doludur (uretilebilir) ya da <see cref="Diagnostics"/>
-/// engelleyici bir hata icerir (ikisi ayni anda olabilir - APG0006 bir uyaridir
-/// ve engellemez).
-/// </summary>
+/// <summary>The analysis result for a single method marked with <c>[AgentPrismTool]</c>.</summary>
+/// <remarks>Either <see cref="Emit"/> is populated (emittable) or <see cref="Diagnostics"/> contains a blocking error (both can hold at once - APG0006 is a warning and does not block).</remarks>
 internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<DiagnosticInfo> Diagnostics, ToolEmitModel? Emit)
 {
     private const string TaskMetadataName = "System.Threading.Tasks.Task";
@@ -122,11 +118,8 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         return new ToolCandidate(SourceLocation.From(location), diagnostics.ToImmutable(), emit);
     }
 
-    /// <summary>
-    /// Uretilen sarmalayici sinif icin belirlenimci (yalnizca bu adayin kendi
-    /// imzasina bagli, siraya BAGIMSIZ) bir ad uretir. Asiri yuklemeler ayni
-    /// metot adini paylasabilir; imzanin FNV-1a ozeti coguskuyu onler.
-    /// </summary>
+    /// <summary>Generates a deterministic name for the emitted wrapper class - dependent only on this candidate's own signature, INDEPENDENT of order.</summary>
+    /// <remarks>Overloads can share the same method name; the FNV-1a hash of the signature prevents collisions.</remarks>
     private static string GeneratedClassName(IMethodSymbol method)
     {
         var signature = method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) +
