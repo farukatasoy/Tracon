@@ -8,12 +8,12 @@ namespace AgentPrism.Core.UnitTests.Recording;
 public sealed class RunRecordingAgentTests
 {
     [Fact]
-    public async Task Basarili_calistirma_olay_sirasini_yazar()
+    public async Task Successful_run_writes_the_event_sequence()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient());
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Completed);
@@ -25,12 +25,12 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Olay_sira_numaralari_bosluksuz_artar()
+    public async Task Event_sequence_numbers_increase_without_gaps()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient());
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -44,20 +44,20 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Tool_cagrilari_olaya_donusur()
+    public async Task Tool_calls_turn_into_events()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(_ => new ChatResponse(
         [
             new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", "get_order", new Dictionary<string, object?>(StringComparer.Ordinal) { ["id"] = 42 })]),
-            new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", "kargoda")]),
-            new ChatMessage(ChatRole.Assistant, "Siparisiniz kargoda."),
+            new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", "in transit")]),
+            new ChatMessage(ChatRole.Assistant, "Your order is in transit."),
         ]));
 
         var agent = CreateAgent(store, client);
 
-        await agent.RunAsync("siparisim nerede");
+        await agent.RunAsync("where is my order");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         var events = await ReadEventsAsync(store, run.Id);
@@ -69,29 +69,29 @@ public sealed class RunRecordingAgentTests
 
         var invoked = events.Where(static e => e.Type == RunEventType.ToolInvoked).ShouldHaveSingleItem();
         invoked.ToolCallId.ShouldBe("call-1");
-        invoked.Payload.ShouldBe("kargoda");
+        invoked.Payload.ShouldBe("in transit");
     }
 
     [Fact]
-    public async Task Akisli_calistirma_metin_parcalarini_yazar()
+    public async Task Streaming_run_writes_text_deltas()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(streamingUpdates:
         [
-            new ChatResponseUpdate(ChatRole.Assistant, "Mer"),
-            new ChatResponseUpdate(ChatRole.Assistant, "haba"),
+            new ChatResponseUpdate(ChatRole.Assistant, "He"),
+            new ChatResponseUpdate(ChatRole.Assistant, "llo"),
         ]);
 
         var agent = CreateAgent(store, client);
 
         var received = new List<string>();
-        await foreach (var update in agent.RunStreamingAsync("selam"))
+        await foreach (var update in agent.RunStreamingAsync("hi"))
         {
             received.Add(update.Text);
         }
 
-        received.ShouldBe(["Mer", "haba"]);
+        received.ShouldBe(["He", "llo"]);
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Completed);
@@ -102,48 +102,48 @@ public sealed class RunRecordingAgentTests
             .Select(static e => e.Text)
             .ToList();
 
-        deltas.ShouldBe(["Mer", "haba"]);
+        deltas.ShouldBe(["He", "llo"]);
     }
 
     [Fact]
-    public async Task Calistirma_hatasi_kaydedilir_ve_yeniden_atilir()
+    public async Task Run_failure_is_recorded_and_rethrown()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
-        var client = new FakeChatClient(_ => throw new InvalidOperationException("model patladi"));
+        var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
         var agent = CreateAgent(store, client);
 
-        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("merhaba"));
+        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("hello"));
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
-        run.Error!.Message.ShouldBe("model patladi");
+        run.Error!.Message.ShouldBe("model crashed");
         run.Error.Type.ShouldBe("System.InvalidOperationException");
     }
 
     [Fact]
-    public async Task Basarili_calistirmada_hata_siniflandirici_hic_cagrilmaz()
+    public async Task Error_classifier_is_never_called_on_a_successful_run()
     {
-        // Siniflandirma sicak yoldadir ve yalniz hata yolunda calisir; basarili
-        // bir calistirmada tahsis uretmemelidir (docs/44-HATA-SINIFLANDIRMA.md).
+        // Classification is on the hot path and runs only on the error path;
+        // it must not allocate on a successful run (docs/44-HATA-SINIFLANDIRMA.md).
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var spy = new SpyRunErrorClassifier();
         var agent = CreateAgent(store, new FakeChatClient(), spy);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         spy.CallCount.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Hatali_calistirmada_siniflandirici_sonucu_kayda_yazilir()
+    public async Task Classifier_result_is_written_to_the_record_on_a_failed_run()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var spy = new SpyRunErrorClassifier();
-        var client = new FakeChatClient(_ => throw new InvalidOperationException("model patladi"));
+        var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
         var agent = CreateAgent(store, client, spy);
 
-        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("merhaba"));
+        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("hello"));
 
         spy.CallCount.ShouldBe(1);
 
@@ -154,11 +154,12 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Guvenlik_filtresiyle_bos_donen_yanit_content_filtered_olarak_kaydedilir()
+    public async Task Content_filtered_empty_response_is_recorded_as_content_filtered()
     {
-        // Sessiz bos yanit hata ayiklamasi en zor durumdur: kullanici bos bir cevap
-        // gorur ve kayitta hicbir iz kalmaz. Kayit tipi makine tarafindan okunabilir
-        // olmalidir ki uyari kurallari derleme adina degil bu ada dayanabilsin.
+        // A silent empty response is the hardest case to debug: the user sees an
+        // empty reply and the record leaves no trace. The record type must
+        // therefore be machine-readable, so alert rules can rely on it instead
+        // of guessing from the message text.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(_ => new ChatResponse
@@ -169,7 +170,7 @@ public sealed class RunRecordingAgentTests
 
         var agent = CreateAgent(store, client);
 
-        await Should.ThrowAsync<AgentPrismContentFilteredException>(async () => await agent.RunAsync("selam"));
+        await Should.ThrowAsync<AgentPrismContentFilteredException>(async () => await agent.RunAsync("hi"));
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Failed);
@@ -178,7 +179,7 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Akisli_guvenlik_filtresi_de_content_filtered_olarak_kaydedilir()
+    public async Task Streaming_content_filter_is_also_recorded_as_content_filtered()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
@@ -191,9 +192,9 @@ public sealed class RunRecordingAgentTests
 
         await Should.ThrowAsync<AgentPrismContentFilteredException>(async () =>
         {
-            await foreach (var _ in agent.RunStreamingAsync("selam"))
+            await foreach (var _ in agent.RunStreamingAsync("hi"))
             {
-                // Cerceveler tuketilir; hata akisin sonunda gelir.
+                // Frames are consumed; the error arrives at the end of the stream.
             }
         });
 
@@ -203,31 +204,31 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Depo_hatasi_calistirmayi_kesmez()
+    public async Task Store_failure_does_not_interrupt_the_run()
     {
-        // Gozlemlenebilirlik, islevselligi bozmamalidir.
+        // Observability must not break functionality.
         var store = new ThrowingRunStore();
         var agent = CreateAgent(store, new FakeChatClient());
 
-        var response = await agent.RunAsync("merhaba");
+        var response = await agent.RunAsync("hello");
 
         response.Text.ShouldBe("tamam");
         store.StartAttempts.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Kayit_kapaliyken_hicbir_olay_yazilmaz()
+    public async Task No_event_is_written_while_recording_is_disabled()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient(), new AgentPrismRunRecordingOptions { Enabled = false });
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         (await store.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Sikistirma_tetiklenince_HistoryCompacted_olayi_yazilir()
+    public async Task HistoryCompacted_event_is_written_when_compaction_triggers()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());

@@ -7,13 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Gercek zamanli konusma ucunu (<c>/api/voice/sessions/{id}/stream</c>) dogrular.
+/// Verifies the real-time conversation endpoint (<c>/api/voice/sessions/{id}/stream</c>).
 /// </summary>
 /// <remarks>
-/// Test projesi <c>AgentPrism.Voice</c>'a referans <strong>VERMEZ</strong>:
-/// konusma katmani yalnizca <see cref="ISpeechTranscriber"/> ve
-/// <see cref="ISpeechSynthesizer"/> soyutlamalarini bilir. ElevenLabs bir
-/// uygulamadir (K-215).
+/// The test project <strong>does NOT</strong> reference <c>AgentPrism.Voice</c>:
+/// the conversation layer knows only the <see cref="ISpeechTranscriber"/> and
+/// <see cref="ISpeechSynthesizer"/> abstractions. ElevenLabs is an
+/// implementation (K-215).
 /// </remarks>
 public sealed class VoiceConversationTests
 {
@@ -21,11 +21,12 @@ public sealed class VoiceConversationTests
     private const string StreamPath = "/agentprism/api/voice/sessions/oturum-1/stream";
 
     [Fact]
-    public async Task UseVoiceConversation_cagrilmadiysa_HICBIR_uc_acilmaz()
+    public async Task NO_endpoint_opens_when_UseVoiceConversation_was_not_called()
     {
-        // 🚨 Bu fazin en onemli testi: barindirma modelini degistiren bir
-        // yetenek sessizce acilmaz. Uc 501 ("var ama kapali") DEGIL, 404
-        // ("boyle bir adres yok") doner — cunku gercekten yoktur.
+        // 🚨 The most important test in this phase: a capability that changes
+        // the hosting model must not open silently. The endpoint returns 404
+        // ("no such address"), NOT 501 ("exists but disabled") — because it
+        // genuinely does not exist.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(new Uri(StreamPath, UriKind.Relative));

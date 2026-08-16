@@ -5,15 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>GET /api/diagnostics</c> ucunu dogrular (Faz 33, F-62): varsayilan kapali,
-/// Admin rolu ister, hicbir <c>secret</c> deger sizdirmaz.
+/// Verifies the <c>GET /api/diagnostics</c> endpoint (Phase 33, F-62): off by
+/// default, requires the Admin role, leaks no <c>secret</c> value.
 /// </summary>
 public sealed class DiagnosticsEndpointTests
 {
     private static readonly Uri Diagnostics = new("/agentprism/api/diagnostics", UriKind.Relative);
 
     [Fact]
-    public async Task Varsayilan_kapaliyken_uc_hic_baglanmaz()
+    public async Task Endpoint_does_not_map_at_all_while_off_by_default()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -23,7 +23,7 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
-    public async Task Acikken_temel_alanlari_dondurur()
+    public async Task Returns_basic_fields_when_enabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
@@ -39,13 +39,13 @@ public sealed class DiagnosticsEndpointTests
         body.GetProperty("migrationsUpToDate").GetBoolean().ShouldBeTrue();
         body.GetProperty("uiEmbedded").GetBoolean().ShouldBeFalse();
 
-        // AgentPrismTestHost varsayilan olarak "echo" saglayicisini kaydeder.
+        // AgentPrismTestHost registers the "echo" provider by default.
         body.GetProperty("modelProviders").EnumerateArray()
             .ShouldContain(static p => string.Equals(p.GetProperty("name").GetString(), "echo", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Admin_policy_basarisizsa_403_alir()
+    public async Task Gets_403_when_the_Admin_policy_fails()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true,
@@ -59,7 +59,7 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
-    public async Task Admin_policy_basariliysa_200_alir()
+    public async Task Gets_200_when_the_Admin_policy_succeeds()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true,
@@ -73,9 +73,9 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
-    public async Task Bilinen_API_anahtari_yanitin_hicbir_yerinde_gecmez()
+    public async Task Known_API_key_does_not_appear_anywhere_in_the_response()
     {
-        const string secret = "cok-gizli-openai-anahtari-DENEME-4f9a";
+        const string secret = "super-secret-openai-key-TEST-4f9a";
 
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
         await using var host = await AgentPrismTestHost.StartAsync(

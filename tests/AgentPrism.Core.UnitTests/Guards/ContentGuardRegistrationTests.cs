@@ -5,17 +5,18 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.Core.UnitTests.Guards;
 
 /// <summary>
-/// Icerik denetiminin DI kaydini dogrular.
+/// Verifies the DI registration of content inspection.
 /// </summary>
 /// <remarks>
-/// 🚨 En onemli test ilkidir: <c>AddAgentPrism()</c> tek basina hicbir guard
-/// kaydetmez. K1'in (sifir surpriz) kapisi bir bayrak degil, <em>kaydin
-/// kendisidir</em>; bu test o kapinin kapali dogdugunu olcer.
+/// 🚨 The most important test comes first: <c>AddAgentPrism()</c> alone
+/// registers no guard. K1's (zero surprise) gate is not a flag, it is
+/// <em>the registration itself</em>; this test measures that the gate is
+/// born closed.
 /// </remarks>
 public sealed class ContentGuardRegistrationTests
 {
     [Fact]
-    public void Varsayilan_kurulumda_hicbir_guard_kayitli_degildir()
+    public void No_guard_is_registered_in_the_default_setup()
     {
         using var provider = Build(services => services.AddAgentPrism());
 
@@ -24,7 +25,7 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void AddPatternContentGuard_yerlesik_guard_i_kaydeder()
+    public void AddPatternContentGuard_registers_the_built_in_guard()
     {
         using var provider = Build(services => services.AddAgentPrism().AddPatternContentGuard());
 
@@ -33,14 +34,14 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void AddPatternContentGuard_ayarlari_kodda_alir()
+    public void AddPatternContentGuard_takes_settings_from_code()
     {
         using var provider = Build(services => services
             .AddAgentPrism()
             .AddPatternContentGuard(options =>
             {
                 options.MaskedPii = PiiPatterns.CreditCard;
-                options.DeniedTerms.Add("gizli-proje");
+                options.DeniedTerms.Add("secret-project");
             }));
 
         var options = provider.GetRequiredService<
@@ -48,11 +49,11 @@ public sealed class ContentGuardRegistrationTests
 
         options.MaskedPii.ShouldBe(PiiPatterns.CreditCard);
         options.DeniedTerms.ShouldContain(
-            static term => string.Equals(term, "gizli-proje", StringComparison.Ordinal));
+            static term => string.Equals(term, "secret-project", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Iki_kez_cagirmak_guard_i_iki_kez_eklemez()
+    public void Calling_it_twice_does_not_add_the_guard_twice()
     {
         using var provider = Build(services => services
             .AddAgentPrism()
@@ -63,13 +64,13 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void Yapilandirma_bolumu_varsa_yerlesik_guard_kaydedilir()
+    public void When_the_configuration_section_is_present_the_built_in_guard_is_registered()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["AgentPrism:ContentGuard:Pattern:MaskedPii"] = "Email,CreditCard",
-                ["AgentPrism:ContentGuard:Pattern:DeniedTerms:0"] = "gizli-proje",
+                ["AgentPrism:ContentGuard:Pattern:DeniedTerms:0"] = "secret-project",
                 ["AgentPrism:ContentGuard:BufferStreamingOutput"] = "false",
             })
             .Build();
@@ -84,13 +85,13 @@ public sealed class ContentGuardRegistrationTests
 
         pattern.MaskedPii.ShouldBe(PiiPatterns.Email | PiiPatterns.CreditCard);
         pattern.DeniedTerms.ShouldContain(
-            static term => string.Equals(term, "gizli-proje", StringComparison.Ordinal));
+            static term => string.Equals(term, "secret-project", StringComparison.Ordinal));
 
         provider.GetRequiredService<ContentGuardPipeline>().Options.BufferStreamingOutput.ShouldBeFalse();
     }
 
     [Fact]
-    public void Yapilandirma_bolumu_yoksa_guard_kaydedilmez()
+    public void When_the_configuration_section_is_absent_no_guard_is_registered()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -106,7 +107,7 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void Tuketicinin_kendi_guard_i_kaydedilebilir()
+    public void A_consumers_own_guard_can_be_registered()
     {
         using var provider = Build(services => services
             .AddAgentPrism()
@@ -116,7 +117,7 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void Yerlesik_ve_ozel_guard_birlikte_kayitli_olabilir()
+    public void The_built_in_guard_and_a_custom_guard_can_be_registered_together()
     {
         using var provider = Build(services => services
             .AddAgentPrism()
@@ -127,10 +128,11 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void Defter_guard_boru_hattini_DI_dan_alir()
+    public void The_registry_picks_up_the_guard_pipeline_from_DI()
     {
-        // Kayit zincirinin gercekten baglandigini olcer: bir onceki fazlarda
-        // "derleme yesilligi hicbir sey kanitlamaz" dersi bunun icin var.
+        // Measures that the registration chain is actually wired up: this
+        // exists because of a lesson from earlier phases — "a green build
+        // proves nothing".
         using var provider = Build(services =>
         {
             services.AddAgentPrism().AddPatternContentGuard();
@@ -145,7 +147,7 @@ public sealed class ContentGuardRegistrationTests
     }
 
     [Fact]
-    public void Guard_yokken_defter_denetim_sarmalayicisini_eklemez()
+    public void Without_a_guard_the_registry_does_not_add_the_inspection_decorator()
     {
         using var provider = Build(services =>
         {
@@ -159,7 +161,7 @@ public sealed class ContentGuardRegistrationTests
 
         chatClient.GetService(typeof(ContentGuardingChatClient)).ShouldBeNull();
 
-        // Boru hattinin geri kalani yerinde: tasima hicbir seyi kaybetmedi.
+        // The rest of the pipeline is intact: the decorator did not lose anything.
         chatClient.GetService(typeof(Microsoft.Extensions.AI.FunctionInvokingChatClient)).ShouldNotBeNull();
     }
 

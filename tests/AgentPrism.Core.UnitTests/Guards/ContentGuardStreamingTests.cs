@@ -4,28 +4,29 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Guards;
 
 /// <summary>
-/// Akisli yanitta cikis denetiminin tamponlanmasini dogrular.
+/// Verifies that output inspection buffers a streaming response.
 /// </summary>
 /// <remarks>
-/// Akisin dogal sinirini olcer: bir cerceve istemciye gonderildikten sonra geri
-/// alinamaz. Bu yuzden cikis guard'i acikken akis tamponlanir; kismi bir cerceve
-/// uzerinde desen eslesmez.
+/// Measures the natural limit of streaming: once a frame is sent to the caller
+/// it cannot be taken back. That is why the stream is buffered while output
+/// inspection is on; a pattern does not match against a partial frame.
 /// </remarks>
 public sealed class ContentGuardStreamingTests
 {
     private static readonly IReadOnlyList<ChatResponseUpdate> SplitCardNumber =
     [
-        new ChatResponseUpdate(ChatRole.Assistant, "kart numarasi 4539"),
+        new ChatResponseUpdate(ChatRole.Assistant, "card number 4539"),
         new ChatResponseUpdate(ChatRole.Assistant, "5787"),
         new ChatResponseUpdate(ChatRole.Assistant, "6362"),
-        new ChatResponseUpdate(ChatRole.Assistant, "1486 idi"),
+        new ChatResponseUpdate(ChatRole.Assistant, "1486 was"),
     ];
 
     [Fact]
-    public async Task Tamponlanan_akista_cercevelere_bolunmus_desen_kacmaz()
+    public async Task A_pattern_split_across_frames_does_not_slip_through_a_buffered_stream()
     {
-        // 🚨 Fazin akis kararinin gerekcesi: hicbir cerceve tek basina
-        // "4539578763621486" icermez. Tamponlanmadan desen KACARDI.
+        // 🚨 The rationale for this phase's streaming decision: no single frame
+        // by itself contains "4539578763621486". Without buffering, the pattern
+        // WOULD have slipped through.
         using var chatClient = Guarded(
             new FakeChatClient(streamingUpdates: SplitCardNumber),
             new AgentPrismContentGuardOptions(),
@@ -36,23 +37,24 @@ public sealed class ContentGuardStreamingTests
         await Should.ThrowAsync<AgentPrismContentBlockedException>(async () =>
         {
             await foreach (var _ in chatClient.GetStreamingResponseAsync(
-                [new ChatMessage(ChatRole.User, "kart numarasi neydi")],
+                [new ChatMessage(ChatRole.User, "what was the card number")],
                 cancellationToken: TestContext.Current.CancellationToken))
             {
                 seen++;
             }
         });
 
-        // 🚨 Hicbir cerceve istemciye gitmedi: tampon karar verilmeden bosalmaz.
+        // 🚨 No frame reached the caller: the buffer does not drain before a decision is made.
         seen.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Tamponlama_kapaliyken_bolunmus_desen_kacar()
+    public async Task With_buffering_disabled_a_split_pattern_slips_through()
     {
-        // Ayarin ne satin aldigini olcer. Bu davranis bir kusur degil, acik bir
-        // tercihtir: sessizce yarim denetim yapmak denetim yapmamaktan kotudur,
-        // bu yuzden secim gizli degil ayar olarak durur.
+        // Measures what the setting buys. This behavior is not a defect, it is
+        // an explicit trade-off: silently doing half an inspection is worse
+        // than doing none, so the choice stands as a visible setting, not a
+        // hidden one.
         using var chatClient = Guarded(
             new FakeChatClient(streamingUpdates: SplitCardNumber),
             new AgentPrismContentGuardOptions { BufferStreamingOutput = false },
@@ -61,7 +63,7 @@ public sealed class ContentGuardStreamingTests
         var seen = 0;
 
         await foreach (var _ in chatClient.GetStreamingResponseAsync(
-            [new ChatMessage(ChatRole.User, "kart numarasi neydi")],
+            [new ChatMessage(ChatRole.User, "what was the card number")],
             cancellationToken: TestContext.Current.CancellationToken))
         {
             seen++;
@@ -71,7 +73,7 @@ public sealed class ContentGuardStreamingTests
     }
 
     [Fact]
-    public async Task Tamponlanan_akista_maskeleme_toplam_metni_korur()
+    public async Task Masking_preserves_the_total_text_of_a_buffered_stream()
     {
         using var chatClient = Guarded(
             new FakeChatClient(streamingUpdates: SplitCardNumber),
@@ -81,33 +83,33 @@ public sealed class ContentGuardStreamingTests
         var text = string.Empty;
 
         await foreach (var update in chatClient.GetStreamingResponseAsync(
-            [new ChatMessage(ChatRole.User, "kart numarasi neydi")],
+            [new ChatMessage(ChatRole.User, "what was the card number")],
             cancellationToken: TestContext.Current.CancellationToken))
         {
             text += update.Text;
         }
 
-        text.ShouldBe("kart numarasi [redacted] idi");
+        text.ShouldBe("card number [redacted] was");
     }
 
     [Fact]
-    public async Task Tamponlanan_akista_metin_disi_icerik_korunur()
+    public async Task Non_text_content_is_preserved_in_a_buffered_stream()
     {
-        // Kullanim sayaci ve tool cagrilari yerinde kalmalidir: kayit ve maliyet
-        // hesabi onlara dayanir.
+        // Usage counters and tool calls must stay intact: recording and cost
+        // accounting depend on them.
         using var chatClient = Guarded(
             new FakeChatClient(streamingUpdates:
             [
-                new ChatResponseUpdate(ChatRole.Assistant, "yasak metin"),
+                new ChatResponseUpdate(ChatRole.Assistant, "forbidden text"),
                 new ChatResponseUpdate(ChatRole.Assistant, [new UsageContent(new UsageDetails { InputTokenCount = 7 })]),
             ]),
             new AgentPrismContentGuardOptions(),
-            StubContentGuard.Masking("yasak", "***"));
+            StubContentGuard.Masking("forbidden", "***"));
 
         var updates = new List<ChatResponseUpdate>();
 
         await foreach (var update in chatClient.GetStreamingResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hello")],
             cancellationToken: TestContext.Current.CancellationToken))
         {
             updates.Add(update);
@@ -118,14 +120,14 @@ public sealed class ContentGuardStreamingTests
             .ShouldHaveSingleItem()
             .Details.InputTokenCount.ShouldBe(7);
 
-        string.Concat(updates.Select(static update => update.Text)).ShouldBe("*** metin");
+        string.Concat(updates.Select(static update => update.Text)).ShouldBe("*** text");
     }
 
     [Fact]
-    public async Task Cikis_denetimi_kapaliyken_akis_tamponlanmaz()
+    public async Task When_output_inspection_is_disabled_the_stream_is_not_buffered()
     {
-        // Canlilik korunur: cerceveler geldigi gibi akar.
-        var guard = StubContentGuard.Blocking("asla-eslesmez");
+        // Liveness is preserved: frames flow through as they arrive.
+        var guard = StubContentGuard.Blocking("never-matches");
 
         using var chatClient = Guarded(
             new FakeChatClient(streamingUpdates: SplitCardNumber),
@@ -135,7 +137,7 @@ public sealed class ContentGuardStreamingTests
         var seen = 0;
 
         await foreach (var _ in chatClient.GetStreamingResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hello")],
             cancellationToken: TestContext.Current.CancellationToken))
         {
             seen++;
@@ -146,22 +148,22 @@ public sealed class ContentGuardStreamingTests
     }
 
     [Fact]
-    public async Task Akisli_yolda_giris_de_denetlenir()
+    public async Task Input_is_also_inspected_on_the_streaming_path()
     {
         var inner = new FakeChatClient(streamingUpdates: SplitCardNumber);
 
         using var chatClient = Guarded(
             inner,
             new AgentPrismContentGuardOptions(),
-            StubContentGuard.Blocking("gizli-proje"));
+            StubContentGuard.Blocking("secret-project"));
 
         await Should.ThrowAsync<AgentPrismContentBlockedException>(async () =>
         {
             await foreach (var _ in chatClient.GetStreamingResponseAsync(
-                [new ChatMessage(ChatRole.User, "gizli-proje nedir")],
+                [new ChatMessage(ChatRole.User, "what is secret-project")],
                 cancellationToken: TestContext.Current.CancellationToken))
             {
-                // Hicbir cerceve beklenmiyor.
+                // No frame is expected.
             }
         });
 

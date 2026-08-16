@@ -6,19 +6,19 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Faz 9 — rol tabanli yetkilendirme ve denetim izi.
+/// Phase 9 — role-based authorization and the audit trail.
 /// </summary>
 public sealed class RoleAndAuditTests
 {
     private static readonly Uri Agents = new("/agentprism/api/agents", UriKind.Relative);
 
-    // --- Rol modeli: policy kayitli degilse eski davranis ---
+    // --- Role model: legacy behavior when no policy is registered ---
 
     [Fact]
-    public async Task Rol_policy_kayitli_degilse_tum_uclar_calisir()
+    public async Task All_endpoints_work_when_no_role_policy_is_registered()
     {
-        // Hicbir AgentPrism.Reader/Operator/Admin policy'si kaydedilmedi.
-        // K-042'nin ayni gerekcesi: rol modeli, guncelleyen kurulumlari kirmamalidir.
+        // No AgentPrism.Reader/Operator/Admin policy was registered.
+        // Same rationale as K-042: the role model must not break upgrading setups.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var list = await host.Client.GetAsync(Agents);
@@ -32,10 +32,10 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Admin_policy_basarisizsa_yazma_engellenir_ama_okuma_calisir()
+    public async Task Write_is_blocked_but_read_works_when_admin_policy_fails()
     {
-        // Yalnizca Admin policy'si kayitli; Reader hicbir zaman kayitli degil.
-        // Rol ayrimini VE fallback'i ayni testte gosterir.
+        // Only the Admin policy is registered; Reader is never registered.
+        // Shows both the role split AND the fallback in the same test.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
                 .AddAuthorizationBuilder()
@@ -49,7 +49,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Admin_policy_basariliysa_yazma_calisir()
+    public async Task Write_works_when_admin_policy_succeeds()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -61,7 +61,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Operator_calistirma_baslatabilir_ama_admin_ucuna_erisemez()
+    public async Task Operator_can_start_a_run_but_cannot_access_the_admin_endpoint()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: static builder => builder.AddAgent(TestData.Definition()),
@@ -79,10 +79,10 @@ public sealed class RoleAndAuditTests
         create.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- RequireRolePolicies: uretim guvenligi ---
+    // --- RequireRolePolicies: production safety ---
 
     [Fact]
-    public async Task RequireRolePolicies_acikken_eksik_policy_acilista_hata_verir()
+    public async Task RequireRolePolicies_enabled_fails_startup_when_a_policy_is_missing()
     {
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             () => AgentPrismTestHost.StartAsync(
@@ -94,7 +94,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task RequireRolePolicies_acikken_ucu_policy_tanimliysa_basarili_acilir()
+    public async Task RequireRolePolicies_enabled_starts_successfully_when_all_policies_are_defined()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.RequireRolePolicies = true,
@@ -111,7 +111,7 @@ public sealed class RoleAndAuditTests
     // --- /api/audit ---
 
     [Fact]
-    public async Task Audit_ucu_admin_policy_ile_korunur()
+    public async Task Audit_endpoint_is_protected_by_the_admin_policy()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -124,7 +124,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Agent_yazma_islemleri_denetim_izine_dusuyor()
+    public async Task Agent_write_operations_land_in_the_audit_trail()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -151,7 +151,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Entity_gecmisi_ucu_tek_varligi_dondurur()
+    public async Task Entity_history_endpoint_returns_a_single_entity()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -168,10 +168,10 @@ public sealed class RoleAndAuditTests
         entries.ShouldHaveSingleItem().GetProperty("entity").GetString().ShouldBe("agent:db-agent");
     }
 
-    // --- /api/stats/recalculate-costs (Faz 20) ---
+    // --- /api/stats/recalculate-costs (Phase 20) ---
 
     [Fact]
-    public async Task Recalculate_costs_admin_policy_ile_korunur()
+    public async Task Recalculate_costs_is_protected_by_the_admin_policy()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -186,7 +186,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Recalculate_costs_basarili_olunca_denetim_izine_dusuyor()
+    public async Task Recalculate_costs_lands_in_the_audit_trail_on_success()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -208,10 +208,10 @@ public sealed class RoleAndAuditTests
         entries.ShouldContain(static action => string.Equals(action, "stats.recalculate-costs", StringComparison.Ordinal));
     }
 
-    // --- /api/meta rol bilgisi ---
+    // --- /api/meta role information ---
 
     [Fact]
-    public async Task Meta_policy_kayitli_degilse_rolleri_acik_bildirir()
+    public async Task Meta_reports_all_roles_open_when_no_policy_is_registered()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -224,7 +224,7 @@ public sealed class RoleAndAuditTests
     }
 
     [Fact]
-    public async Task Meta_admin_policy_basarisizsa_canAdminister_false_doner()
+    public async Task Meta_returns_canAdminister_false_when_admin_policy_fails()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)

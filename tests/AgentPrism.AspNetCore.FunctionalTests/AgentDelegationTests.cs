@@ -5,50 +5,52 @@ using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Bir agent'in baska bir agent'i gercekten cagirdigi uctan uca senaryo.
+/// End-to-end scenario where one agent genuinely calls another agent.
 /// </summary>
 /// <remarks>
-/// Senaryo iki agent'la kurulur: <c>yonlendirici</c> isi <c>arastirmaci</c>'ya
-/// devreder. Model saglayicisi aga cikmaz ama Microsoft Agent Framework'un
-/// gercek arka plan gorev tool'larini cagirir; sahte bir kisayol kullanilmaz.
-/// Iki agent AYNI saglayicinin FARKLI modellerini kullanir; her modelin kendi
-/// bagimsiz yanit kuyrugu vardir (<see cref="FakeModelProvider.ForModel"/>),
-/// bu yuzden birbirlerinin sirasini bozmazlar.
+/// The scenario is set up with two agents: <c>yonlendirici</c> hands the work
+/// off to <c>arastirmaci</c>. The model provider does not go over the network,
+/// but it does call Microsoft Agent Framework's actual background task tools;
+/// no fake shortcut is used. The two agents use DIFFERENT models of the SAME
+/// provider; each model has its own independent response queue
+/// (<see cref="FakeModelProvider.ForModel"/>), so they do not disturb each
+/// other's order.
 /// </remarks>
 public sealed class AgentDelegationTests
 {
     private const string RouterModel = "router-model";
     private const string ResearcherModel = "researcher-model";
 
-    // Microsoft Agent Framework'un arka plan gorev tool'lari.
+    // Microsoft Agent Framework's background task tools.
     private const string StartTask = "background_agents_start_task";
     private const string WaitForCompletion = "background_agents_wait_for_first_completion";
     private const string GetResults = "background_agents_get_task_results";
 
     [Fact]
-    public async Task Akissiz_cagri_iki_ayri_calistirma_satiri_uretir()
+    public async Task Non_streaming_call_produces_two_separate_run_rows()
     {
         await using var host = await StartAsync();
 
         var agent = await ResolveRouterAsync(host);
-        var response = await agent.RunAsync("baslat");
+        var response = await agent.RunAsync("start");
 
-        response.Text.ShouldContain("Devredildi", Case.Sensitive);
+        response.Text.ShouldContain("Delegated", Case.Sensitive);
 
         await AssertTreeAsync(host);
     }
 
     [Fact]
-    public async Task Akisli_cagri_da_iki_ayri_calistirma_satiri_uretir()
+    public async Task Streaming_call_also_produces_two_separate_run_rows()
     {
-        // 🚨 Akisli yol ayrica test edilir. Kapsam bir AsyncLocal'de yasar ve bir
-        // async iterator govdesinde yapilan atama `yield return` sinirini asmaz;
-        // yalnizca akissiz yolu test etmek bu regresyonu kacirirdi.
+        // 🚨 The streaming path is tested separately. The scope lives in an
+        // AsyncLocal, and an assignment made inside an async iterator body does
+        // not cross the `yield return` boundary; testing only the non-streaming
+        // path would miss this regression.
         await using var host = await StartAsync();
 
         var agent = await ResolveRouterAsync(host);
 
-        await foreach (var update in agent.RunStreamingAsync("baslat"))
+        await foreach (var update in agent.RunStreamingAsync("start"))
         {
             _ = update;
         }
@@ -57,12 +59,12 @@ public sealed class AgentDelegationTests
     }
 
     [Fact]
-    public async Task Kok_calistirmaya_alt_calistirma_ozet_olaylari_yazilir()
+    public async Task Child_run_summary_events_are_written_to_the_root_run()
     {
         await using var host = await StartAsync();
 
         var agent = await ResolveRouterAsync(host);
-        await agent.RunAsync("baslat");
+        await agent.RunAsync("start");
 
         var runs = host.Services.GetRequiredService<IRunStore>();
         var root = (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
@@ -74,26 +76,26 @@ public sealed class AgentDelegationTests
             types.Add(runEvent.Type);
         }
 
-        // Alt calistirmanin TAM akisi aynalanmaz; yalnizca basladigi ve bittigi
-        // bildirilir. Aynalama olay hacmini agac boyunca katlardi.
+        // The FULL stream of the child run is not mirrored; only its start and
+        // end are reported. Mirroring would multiply event volume across the tree.
         types.ShouldContain(RunEventType.ChildRunStarted);
         types.ShouldContain(RunEventType.ChildRunCompleted);
         types.Count(static type => type == RunEventType.RunStarted).ShouldBe(1);
     }
 
     [Fact]
-    public async Task Derinlik_siniri_sifirsa_alt_cagri_yapilamaz()
+    public async Task No_child_call_can_be_made_when_the_depth_limit_is_zero()
     {
         await using var host = await StartAsync(maxDepth: 0);
 
         var agent = await ResolveRouterAsync(host);
-        var response = await agent.RunAsync("baslat");
+        var response = await agent.RunAsync("start");
 
         response.Text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
 
-        // Alt calistirma HIC baslamaz; reddedilen cagri satir uretmez.
+        // The child run NEVER starts; a rejected call produces no row.
         (await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
     }
 
@@ -123,7 +125,7 @@ public sealed class AgentDelegationTests
         child.RootRunId.ShouldBe(root.Id);
         child.Status.ShouldBe(RunStatus.Completed);
 
-        // Agac toplami her iki calistirmanin tokenlerini birlestirir.
+        // The tree total combines the tokens of both runs.
         root.TreeUsage!.TotalTokens.ShouldBe(20);
         root.Usage!.TotalTokens.ShouldBe(10);
     }
@@ -134,22 +136,23 @@ public sealed class AgentDelegationTests
             {
                 var provider = new FakeModelProvider("routing")
                     .ForModel(RouterModel, cfg => cfg
-                        .CallsTool(StartTask, new { agentName = "arastirmaci", input = "alt gorev", description = "alt gorev" })
+                        .CallsTool(StartTask, new { agentName = "arastirmaci", input = "sub task", description = "sub task" })
                         .CallsTool(WaitForCompletion, new { taskIds = new[] { 1 } })
                         .CallsTool(GetResults, new { taskId = 1 })
-                        // Nihai yanit GERCEKTEN son tool sonucunu yansitir - derinlik
-                        // siniri asildiginda testin bekledigi hata metni de buradan gecer.
-                        .EchoesLastToolResult("Devredildi: ", inputTokens: 4, outputTokens: 6))
+                        // The final response GENUINELY reflects the last tool result - the
+                        // error text the test expects when the depth limit is exceeded also
+                        // comes from here.
+                        .EchoesLastToolResult("Delegated: ", inputTokens: 4, outputTokens: 6))
                     .ForModel(ResearcherModel, cfg => cfg
-                        .RespondsWith("Alt gorev tamam", inputTokens: 4, outputTokens: 6));
+                        .RespondsWith("Sub task done", inputTokens: 4, outputTokens: 6));
 
                 builder.AddModelProvider(provider);
 
                 builder.AddAgent(new AgentDefinition
                 {
                     Name = "arastirmaci",
-                    Description = "Arastirma yapar.",
-                    Instructions = "Arastir.",
+                    Description = "Performs research.",
+                    Instructions = "Research.",
                     Model = Binding(ResearcherModel),
                     Origin = AgentDefinitionOrigin.Code,
                 });
@@ -157,8 +160,8 @@ public sealed class AgentDelegationTests
                 builder.AddAgent(new AgentDefinition
                 {
                     Name = "yonlendirici",
-                    Description = "Isi devreder.",
-                    Instructions = "Devret.",
+                    Description = "Delegates the work.",
+                    Instructions = "Delegate.",
                     Model = Binding(RouterModel),
                     CallableAgentNames = ["arastirmaci"],
                     Origin = AgentDefinitionOrigin.Code,

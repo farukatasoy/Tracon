@@ -4,16 +4,16 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Script calistirma izni uclarinin davranis testleri.</summary>
+/// <summary>Behavior tests for the script execution grant endpoints.</summary>
 public sealed class SkillScriptGrantTests
 {
     private static readonly Uri Grants = new("/agentprism/api/skill-script-grants", UriKind.Relative);
 
     [Fact]
-    public async Task Script_calistirma_kapaliyken_izin_verilemez()
+    public async Task Grant_cannot_be_given_while_script_execution_is_disabled()
     {
-        // Izin verildigini gosterip calistirmayi reddetmek yanilticidir; uc
-        // durumu 409 ile acikca bildirir.
+        // Showing that the grant was given and then rejecting execution
+        // would be misleading; the endpoint reports the state explicitly with 409.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(Grants, Request());
@@ -22,7 +22,7 @@ public sealed class SkillScriptGrantTests
     }
 
     [Fact]
-    public async Task Izin_verilir_listelenir_ve_iptal_edilir()
+    public async Task Grant_is_given_listed_and_revoked()
     {
         await using var host = await StartWithScriptsAsync();
 
@@ -44,7 +44,7 @@ public sealed class SkillScriptGrantTests
     }
 
     [Fact]
-    public async Task Gecmiste_biten_izin_reddedilir()
+    public async Task Grant_expired_in_the_past_is_rejected()
     {
         await using var host = await StartWithScriptsAsync();
 
@@ -56,7 +56,7 @@ public sealed class SkillScriptGrantTests
     }
 
     [Fact]
-    public async Task Yorumlayicisi_olmayan_uzantili_script_kaydedilemez()
+    public async Task Script_with_an_extension_that_has_no_interpreter_cannot_be_saved()
     {
         await using var host = await StartWithScriptsAsync();
 
@@ -65,8 +65,8 @@ public sealed class SkillScriptGrantTests
             new AgentSkillRequest
             {
                 Name = "invoice-analysis",
-                Description = "Faturalari inceler.",
-                Instructions = "Faturalari dikkatle incele.",
+                Description = "Analyzes invoices.",
+                Instructions = "Examine invoices carefully.",
                 Scripts =
                 [
                     new AgentSkillScriptDefinition

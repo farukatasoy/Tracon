@@ -4,12 +4,12 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Islenmis <c>docs/openapi/agentprism.json</c> dosyasinin calisan barindiricinin
-/// urettigi belgeyle ayni kaldigini dogrular (Faz 40, bolum 40.4).
+/// Verifies that the committed <c>docs/openapi/agentprism.json</c> file stays
+/// identical to the document produced by the running host (Phase 40, section 40.4).
 /// </summary>
 /// <remarks>
-/// Bu desen, dokumanin koddan sapmasini derleme kapisina cevirir. Dosyayi
-/// yenilemek icin:
+/// This pattern turns the document drifting from the code into a build gate.
+/// To refresh the file:
 /// <c>AGENTPRISM_OPENAPI_REFRESH=1 dotnet test tests/AgentPrism.AspNetCore.FunctionalTests
 /// -c Release --filter FullyQualifiedName~OpenApiSnapshotTests</c>.
 /// </remarks>
@@ -20,7 +20,7 @@ public sealed class OpenApiSnapshotTests
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
     [Fact]
-    public async Task Belge_islenmis_anlik_goruntuyle_ayni()
+    public async Task Document_matches_the_committed_snapshot()
     {
         var current = await GenerateAsync();
 
@@ -31,14 +31,14 @@ public sealed class OpenApiSnapshotTests
         }
 
         File.Exists(SnapshotPath).ShouldBeTrue(
-            $"'{SnapshotPath}' yok. Once '{RefreshEnvVar}=1' ile uretin (bkz. sinif aciklamasi).");
+            $"'{SnapshotPath}' does not exist. Generate it first with '{RefreshEnvVar}=1' (see the class description).");
 
         var committed = await File.ReadAllTextAsync(SnapshotPath);
 
         current.ShouldBe(
             committed,
-            customMessage: "OpenAPI belgesi 'docs/openapi/agentprism.json' ile farkli. Uc ustverisi " +
-                           $"degisti; yenilemek icin: {RefreshEnvVar}=1 dotnet test " +
+            customMessage: "The OpenAPI document differs from 'docs/openapi/agentprism.json'. Endpoint " +
+                           $"metadata changed; to refresh: {RefreshEnvVar}=1 dotnet test " +
                            "tests/AgentPrism.AspNetCore.FunctionalTests -c Release " +
                            "--filter FullyQualifiedName~OpenApiSnapshotTests");
     }
@@ -71,6 +71,6 @@ public sealed class OpenApiSnapshotTests
         }
 
         return dir?.FullName
-            ?? throw new InvalidOperationException("AgentPrism.slnx bulunamadi.");
+            ?? throw new InvalidOperationException("AgentPrism.slnx not found.");
     }
 }

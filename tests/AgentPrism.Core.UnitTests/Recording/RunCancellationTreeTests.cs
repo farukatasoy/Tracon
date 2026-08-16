@@ -1,14 +1,14 @@
 namespace AgentPrism.Core.UnitTests.Recording;
 
 /// <summary>
-/// Agac cascade davranisini <see cref="RunCancellationRegistry"/> seviyesinde
-/// dogrular: kok iptali alt calistirmalara yayilir, alt calistirmanin tek
-/// basina iptali ne koku ne kardes dallari etkiler.
+/// Verifies tree cascade behavior at the <see cref="RunCancellationRegistry"/>
+/// level: canceling the root propagates to child runs, while canceling a
+/// single child affects neither the root nor its sibling branches.
 /// </summary>
 public sealed class RunCancellationTreeTests
 {
     [Fact]
-    public void Kok_iptali_tum_alt_calistirmalari_iptal_eder()
+    public void Root_cancellation_cancels_all_child_runs()
     {
         var registry = new RunCancellationRegistry();
         var rootId = AgentPrismId.NewId();
@@ -32,12 +32,12 @@ public sealed class RunCancellationTreeTests
         child1Cts.IsCancellationRequested.ShouldBeTrue();
         child2Cts.IsCancellationRequested.ShouldBeTrue();
 
-        // Ayni RootRunId'yi paylasmayan baska bir agac etkilenmez.
+        // A different tree that does not share the same RootRunId is unaffected.
         unrelatedCts.IsCancellationRequested.ShouldBeFalse();
     }
 
     [Fact]
-    public void Alt_calistirmanin_tek_basina_iptali_koku_ve_kardes_dali_etkilemez()
+    public void Canceling_a_single_child_run_does_not_affect_the_root_or_sibling_branches()
     {
         var registry = new RunCancellationRegistry();
         var rootId = AgentPrismId.NewId();

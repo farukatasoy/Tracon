@@ -4,13 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Calistirma iptali ucunun testleri (Faz 32).</summary>
+/// <summary>Tests for the run cancellation endpoint (Phase 32).</summary>
 public sealed class CancelRunEndpointTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
     [Fact]
-    public async Task Defterde_kayitli_calistirma_202_doner_ve_kaynak_iptal_edilir()
+    public async Task Run_registered_in_the_ledger_returns_202_and_the_source_is_canceled()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host, RunStatus.Running);
@@ -26,7 +26,7 @@ public sealed class CancelRunEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirma_iptal_edilmeye_calisilinca_404_doner()
+    public async Task Attempting_to_cancel_a_nonexistent_run_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -36,11 +36,11 @@ public sealed class CancelRunEndpointTests
     }
 
     [Fact]
-    public async Task Calisan_ama_defterde_olmayan_calistirma_409_doner()
+    public async Task Run_that_is_running_but_absent_from_the_ledger_returns_409()
     {
-        // Baska bir ornekte yurutuluyor ya da surec calistirma sirasinda
-        // yeniden baslamis: ikisinde de 'runs' Running gorunur ama bu surecin
-        // bellek ici defterinde hicbir kayit yoktur.
+        // Either it is executing in a different instance, or the process
+        // restarted mid-run: in both cases 'runs' shows Running, but this
+        // process's in-memory ledger has no record of it.
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host, RunStatus.Running);
 
@@ -50,7 +50,7 @@ public sealed class CancelRunEndpointTests
     }
 
     [Fact]
-    public async Task Bitmis_calistirma_409_doner()
+    public async Task Finished_run_returns_409()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host, RunStatus.Completed);
@@ -61,7 +61,7 @@ public sealed class CancelRunEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_iptal_edilemez_AYNI_404_doner()
+    public async Task Another_tenants_run_cannot_be_canceled_returns_the_SAME_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -78,13 +78,13 @@ public sealed class CancelRunEndpointTests
             RunId = runId,
             AgentName = "test-agent",
             StartedAt = DateTimeOffset.UtcNow,
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
         });
 
-        // "yok" ile "baska kiraciya ait" AYNI 404'u dondurmelidir; ayni gerekce
-        // RunFeedbackEndpointTests'teki gibi -- varlik sizdirmamak icin.
-        using var missing = await SendAsTenant(host, CancelUri(AgentPrismId.NewId()), "kiraci-b");
-        using var wrongTenant = await SendAsTenant(host, CancelUri(runId), "kiraci-b");
+        // "missing" and "belongs to another tenant" must return the SAME 404;
+        // the same rationale as in RunFeedbackEndpointTests -- to avoid leaking existence.
+        using var missing = await SendAsTenant(host, CancelUri(AgentPrismId.NewId()), "tenant-b");
+        using var wrongTenant = await SendAsTenant(host, CancelUri(runId), "tenant-b");
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         wrongTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);

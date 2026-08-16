@@ -7,41 +7,41 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
 
 /// <summary>
-/// <see cref="UiHost"/>'un sahte saglayicisindaki model adlari. Uc ayri model,
-/// uc ayri bagimsiz yanit kuyrugu tasir (<see cref="FakeModelProvider.ForModel"/>);
-/// aralarinda paylasilan durum yoktur.
+/// Model names in <see cref="UiHost"/>'s fake provider. Three separate models
+/// carry three separate, independent response queues (<see cref="FakeModelProvider.ForModel"/>);
+/// no state is shared between them.
 /// </summary>
 internal static class ScriptedModels
 {
-    /// <summary>Saglayici adi.</summary>
+    /// <summary>Provider name.</summary>
     public const string ProviderName = "scripted";
 
-    /// <summary>Arayuzden olusturulan ad-hoc agent'larin kullandigi varsayilan model: yalniz yankilar.</summary>
+    /// <summary>The default model used by ad-hoc agents created from the UI: it only echoes.</summary>
     public const string Default = "scripted-1";
 
-    /// <summary>"support" kod agent'inin modeli: once siparis durumu tool'unu cagirir, sonra yankilar.</summary>
+    /// <summary>Model for the "support" code agent: calls the order status tool first, then echoes.</summary>
     public const string Support = "scripted-support";
 
-    /// <summary>"yonlendirici" kod agent'inin modeli: arka plan gorev tool'lariyla devreder, sonra yankilar.</summary>
+    /// <summary>Model for the "yonlendirici" code agent: delegates via background task tools, then echoes.</summary>
     public const string Router = "scripted-router";
 
-    /// <summary>"onay-agent" kod agent'inin modeli: onay isteyen bir tool cagirir, sonra sonucunu yankilar (Faz 55).</summary>
+    /// <summary>Model for the "approval-agent" code agent: calls a tool that requests approval, then echoes its result (Phase 55).</summary>
     public const string Approval = "scripted-approval";
 }
 
 /// <summary>
-/// AgentPrism'i gercek bir Kestrel sunucusunda ayaga kaldirir.
+/// Brings up AgentPrism on a real Kestrel server.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 4'un <c>TestServer</c> deseni buraya tasinamaz: <c>TestServer</c> gercek
-/// bir soket acmaz ve bir tarayici ona baglanamaz. Bu yuzden test kendi
-/// <see cref="WebApplication"/> ornegini isletim sisteminin verdigi bir portta
-/// baslatir.
+/// Phase 4's <c>TestServer</c> pattern cannot be reused here: <c>TestServer</c>
+/// does not open a real socket, so a browser cannot connect to it. The test
+/// therefore starts its own <see cref="WebApplication"/> instance on a port
+/// assigned by the operating system.
 /// </para>
 /// <para>
-/// Depolar bellek icidir ve model saglayicisi aga cikmaz; test hicbir dis
-/// bagimlilik istemez.
+/// Stores are in-memory and the model provider never reaches the network; the
+/// test has no external dependencies.
 /// </para>
 /// </remarks>
 internal sealed class UiHost : IAsyncDisposable
@@ -57,22 +57,22 @@ internal sealed class UiHost : IAsyncDisposable
         Prefix = prefix;
     }
 
-    /// <summary>Sunucunun kok adresi. Ornek: <c>http://127.0.0.1:53412</c>.</summary>
+    /// <summary>The server's root address. Example: <c>http://127.0.0.1:53412</c>.</summary>
     public string BaseAddress { get; }
 
-    /// <summary>AgentPrism'in baglandigi yol oneki.</summary>
+    /// <summary>The path prefix AgentPrism is bound to.</summary>
     public string Prefix { get; }
 
-    /// <summary>Arayuzun adresi.</summary>
+    /// <summary>The UI's address.</summary>
     public string UiAddress => BaseAddress + Prefix;
 
-    /// <summary>Bir sunucu baslatir.</summary>
-    /// <param name="prefix">Yol oneki.</param>
-    /// <param name="authToken">Bearer token. Verilirse token katmani acilir.</param>
+    /// <summary>Starts a server.</summary>
+    /// <param name="prefix">Path prefix.</param>
+    /// <param name="authToken">Bearer token. If given, the token layer is enabled.</param>
     /// <param name="configureServices">
-    /// Ek servis kaydi (ornek: rol policy'lerini test etmek icin authentication/authorization).
+    /// Extra service registration (e.g. authentication/authorization to test role policies).
     /// </param>
-    /// <returns>Calisan sunucu.</returns>
+    /// <returns>The running server.</returns>
     public static async Task<UiHost> StartAsync(
         string prefix = "/agentprism",
         string? authToken = null,
@@ -93,15 +93,15 @@ internal sealed class UiHost : IAsyncDisposable
             .ForModel(ScriptedModels.Router, cfg => cfg
                 .CallsTool(
                     "background_agents_start_task",
-                    new { agentName = "support", input = "ORD-7 nerede", description = "siparis durumu arastirmasi" })
+                    new { agentName = "support", input = "Where is ORD-7", description = "order status investigation" })
                 .CallsTool("background_agents_wait_for_first_completion", new { taskIds = new[] { 1 } })
                 .EchoesUserMessage())
             .ForModel(ScriptedModels.Approval, cfg => cfg
                 .CallsTool("cancel_order", new { orderId = "ORD-7" })
                 .EchoesLastToolResult());
 
-        // Ses uclarinin ihtiyaci yalnizca bu soyutlamalardir; AgentPrism.Voice
-        // paketine referans YOKTUR. Tek ornek ikisine birden baglanir.
+        // Voice endpoints need only these abstractions; there is NO reference
+        // to the AgentPrism.Voice package. A single instance backs both.
         builder.Services.AddSingleton<StubSpeechSynthesizer>();
         builder.Services.AddSingleton<ISpeechSynthesizer>(
             static provider => provider.GetRequiredService<StubSpeechSynthesizer>());
@@ -114,15 +114,15 @@ internal sealed class UiHost : IAsyncDisposable
             .UseUI()
             .UseWorkflows()
 
-            // Konusma katmani (Faz 29). Cagrilmazsa WebSocket ucu hic acilmaz;
-            // E2E testi bu yuzden acikca acar.
+            // Voice conversation layer (Phase 29). If not called, the WebSocket
+            // endpoint never opens; the E2E test therefore enables it explicitly.
             .UseVoiceConversation()
             .AddAgent(new AgentDefinition
             {
                 Name = "support",
                 DisplayName = "Support assistant",
-                Description = "Testlerde kullanilan kod agent'i.",
-                Instructions = "Kisa yanit ver.",
+                Description = "Code agent used in tests.",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding
                 {
                     Provider = ScriptedModels.ProviderName,
@@ -135,8 +135,8 @@ internal sealed class UiHost : IAsyncDisposable
             {
                 Name = "yonlendirici",
                 DisplayName = "Router",
-                Description = "Isi support agent'ina devreden kod agent'i.",
-                Instructions = "Gerekirse support agent'ini cagir.",
+                Description = "Code agent that hands work off to the support agent.",
+                Instructions = "Call the support agent if needed.",
                 Model = new ModelBinding
                 {
                     Provider = ScriptedModels.ProviderName,
@@ -147,10 +147,10 @@ internal sealed class UiHost : IAsyncDisposable
             })
             .AddAgent(new AgentDefinition
             {
-                Name = "onay-agent",
+                Name = "approval-agent",
                 DisplayName = "Approval agent",
-                Description = "Onay isteyen bir tool tasiyan, E2E testlerinde kullanilan kod agent'i (Faz 55).",
-                Instructions = "Kisa yanit ver.",
+                Description = "Code agent used in E2E tests that carries a tool requiring approval (Phase 55).",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding
                 {
                     Provider = ScriptedModels.ProviderName,
@@ -160,9 +160,9 @@ internal sealed class UiHost : IAsyncDisposable
                 Origin = AgentDefinitionOrigin.Code,
             })
 
-            // Kodda tanimli iki workflow: biri duz bir zincir, digeri insan
-            // girdisi bekleyen bir port. Arayuz testleri graf cizimini birinci,
-            // bekleyen istek kartini ikinci uzerinden dogrular.
+            // Two workflows defined in code: one is a plain chain, the other is
+            // a port waiting on human input. The UI tests verify graph rendering
+            // through the first and the pending-request card through the second.
             .AddWorkflow(
                 "ozetle-ve-cevir",
                 static services => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential(
@@ -171,8 +171,8 @@ internal sealed class UiHost : IAsyncDisposable
                         services.GetWorkflowAgent("ozetle-ve-cevir", "support"),
                         services.GetWorkflowAgent("ozetle-ve-cevir", "yonlendirici"),
                     ]),
-                "Iki adimli zincir.")
-            .AddWorkflow("onay-akisi", static _ => ApprovalWorkflow.Build(), "Insan onayi bekleyen akis.");
+                "Two-step chain.")
+            .AddWorkflow("approval-flow", static _ => ApprovalWorkflow.Build(), "Flow that waits for human approval.");
 
         var app = builder.Build();
 

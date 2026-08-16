@@ -8,20 +8,19 @@ using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Bir calistirmaya onceden yuklenmis eklerin baglanmasi.
+/// Attaching previously uploaded attachments to a run.
 /// </summary>
 /// <remarks>
-/// Bu testlerin dogruladigi kural, fazin merkezi tasarim karari (bkz.
-/// <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1): sohbet gecmisinde ek kucuk bir
-/// referans olarak yasar, ancak model cagrisindan hemen once gercek baytlara
-/// cozulur. <see cref="FakeModelProvider.Requests"/> modele GERCEKTEN neyin
-/// ulastigini gosterir; bir <see cref="DataContent"/> gormek cozumun
-/// calistigini kanitlar.
+/// The rule these tests verify is the phase's central design decision (see
+/// <c>docs/14-COK-MODLULUK.md</c>, section 14.1): in chat history, an attachment
+/// lives as a small reference, but it resolves to real bytes right before the
+/// model call. <see cref="FakeModelProvider.Requests"/> shows what ACTUALLY
+/// reached the model; seeing a <see cref="DataContent"/> proves the resolution worked.
 /// </remarks>
 public sealed class AttachmentRunTests
 {
     [Fact]
-    public async Task Eke_atfeden_calistirma_modele_gercek_icerigi_gonderir()
+    public async Task Run_referencing_an_attachment_sends_the_actual_content_to_the_model()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -32,7 +31,7 @@ public sealed class AttachmentRunTests
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents/kod-agent/run", UriKind.Relative),
-            new AgentRunRequest { Message = "bu resmi tanimla", AttachmentIds = [attachmentId] });
+            new AgentRunRequest { Message = "describe this image", AttachmentIds = [attachmentId] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
@@ -48,27 +47,27 @@ public sealed class AttachmentRunTests
         content.Data.ToArray().ShouldBe(data);
         content.MediaType.ShouldBe("image/png");
 
-        // Ilgisiz saglayicilarin okuyamayacagi bir referans (UriContent) ASLA
-        // modele ulasmamalidir; hepsi DataContent'e cozulmus olmalidir.
+        // A reference (UriContent) that unrelated providers cannot read must NEVER
+        // reach the model; everything must be resolved to DataContent.
         lastRequest.SelectMany(static message => message.Contents).OfType<UriContent>().ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Olmayan_ek_akis_baslamadan_400_doner()
+    public async Task Nonexistent_attachment_returns_400_before_the_stream_starts()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents/kod-agent/run", UriKind.Relative),
-            new AgentRunRequest { Message = "merhaba", AttachmentIds = [Guid.NewGuid()] });
+            new AgentRunRequest { Message = "hello", AttachmentIds = [Guid.NewGuid()] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]
-    public async Task Baska_kiracinin_eki_calistirmada_kullanilamaz()
+    public async Task Another_tenants_attachment_cannot_be_used_in_a_run()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder =>
@@ -82,7 +81,7 @@ public sealed class AttachmentRunTests
             });
 
         using var uploadRequest = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/attachments");
-        uploadRequest.Headers.Add("X-AgentPrism-Tenant", "kiraci-a");
+        uploadRequest.Headers.Add("X-AgentPrism-Tenant", "tenant-a");
 
         using var uploadContent = new MultipartFormDataContent
         {
@@ -97,9 +96,9 @@ public sealed class AttachmentRunTests
         using var runRequest = new HttpRequestMessage(
             HttpMethod.Post,
             "/agentprism/api/agents/kod-agent/run");
-        runRequest.Headers.Add("X-AgentPrism-Tenant", "kiraci-b");
+        runRequest.Headers.Add("X-AgentPrism-Tenant", "tenant-b");
         runRequest.Content = JsonContent.Create(
-            new AgentRunRequest { Message = "merhaba", AttachmentIds = [attachmentId] });
+            new AgentRunRequest { Message = "hello", AttachmentIds = [attachmentId] });
 
         using var response = await host.Client.SendAsync(runRequest);
 

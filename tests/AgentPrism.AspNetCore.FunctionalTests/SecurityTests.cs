@@ -8,16 +8,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Uc katmanli erisim korumasinin her katmanini ayri ayri dogrular.
+/// Verifies each layer of the three-layer access protection separately.
 /// </summary>
 public sealed class SecurityTests
 {
-    private const string Token = "cok-gizli-token-DENEME-4c1f8a";
+    private const string Token = "very-secret-token-TEST-4c1f8a";
 
-    // --- 1. katman: loopback kisiti ---
+    // --- Layer 1: loopback restriction ---
 
     [Fact]
-    public async Task Uzak_ip_varsayilan_olarak_reddedilir()
+    public async Task Remote_ip_is_rejected_by_default()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -30,7 +30,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Loopback_ip_gecer()
+    public async Task Loopback_ip_passes()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -43,7 +43,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task IPv6_loopback_gecer()
+    public async Task IPv6_loopback_passes()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -56,9 +56,9 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task IPv6ya_eslenmis_IPv4_loopback_gecer()
+    public async Task IPv4_loopback_mapped_to_IPv6_passes()
     {
-        // ::ffff:127.0.0.1 — IPAddress.IsLoopback bu bicimi tek basina tanimaz.
+        // ::ffff:127.0.0.1 — IPAddress.IsLoopback does not recognize this form on its own.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
@@ -70,7 +70,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Uzak_erisim_acikken_uzak_ip_gecer()
+    public async Task Remote_ip_passes_when_remote_access_is_enabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AllowRemoteAccess = true);
@@ -84,13 +84,14 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Kabuk_loopback_disi_istekte_hala_yuklenir_HATA_S4_003()
+    public async Task Shell_still_loads_on_a_non_loopback_request_HATA_S4_003()
     {
-        // MT-UI-008: kabuk loopback kisitindan da muaf olmali — degilse loopback
-        // disi bir istemci JS paketini hic indiremez, AccessGate hicbir zaman
-        // calisamaz ve kullanici "Erisim reddedildi" karti yerine ham
-        // ProblemDetails JSON'iyla kalir. Veri uclari (asagidaki ikinci istek)
-        // korumali kalmalidir; gercek red mesaji oradan gelir.
+        // MT-UI-008: the shell must also be exempt from the loopback
+        // restriction — otherwise a non-loopback client can never download
+        // the JS bundle, AccessGate never runs, and the user is left with
+        // raw ProblemDetails JSON instead of the "Access denied" card. The
+        // data endpoints (the second request below) must remain protected;
+        // the real denial message comes from there.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.AddSingleton<IAgentPrismUiProvider, FakeUiProvider>());
 
@@ -109,10 +110,10 @@ public sealed class SecurityTests
         dataResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- 2. katman: bearer token ---
+    // --- Layer 2: bearer token ---
 
     [Fact]
-    public async Task Token_isteniyorken_bassiz_istek_reddedilir()
+    public async Task Headerless_request_is_rejected_when_a_token_is_required()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -124,13 +125,13 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Yanlis_token_reddedilir()
+    public async Task Wrong_token_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "yanlis-token");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "wrong-token");
 
         using var response = await host.Client.SendAsync(request);
 
@@ -138,10 +139,10 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Ayni_uzunlukta_yanlis_token_reddedilir()
+    public async Task Wrong_token_of_the_same_length_is_rejected()
     {
-        // Sabit zamanli karsilastirmanin uzunluk esitliginde de dogru sonuc
-        // verdigini gosterir: son karakter farkli.
+        // Shows the constant-time comparison also gives the right result
+        // when the lengths match: only the last character differs.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
 
@@ -156,7 +157,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Dogru_token_gecer()
+    public async Task Correct_token_passes()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -170,7 +171,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Bearer_disinda_bir_sema_reddedilir()
+    public async Task A_scheme_other_than_Bearer_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -183,10 +184,10 @@ public sealed class SecurityTests
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    // --- 3. katman: authorization policy ---
+    // --- Layer 3: authorization policy ---
 
     [Fact]
-    public async Task Basarisiz_policy_erisimi_engeller()
+    public async Task Failing_policy_blocks_access()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.RequireAuthorization("AgentPrismAdmin"),
@@ -200,7 +201,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Basarili_policy_erisime_izin_verir()
+    public async Task Succeeding_policy_allows_access()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.RequireAuthorization("AgentPrismAdmin"),
@@ -213,10 +214,10 @@ public sealed class SecurityTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // --- Meta ucunun muafiyeti ---
+    // --- Meta endpoint's exemption ---
 
     [Fact]
-    public async Task Meta_ucu_token_istenirken_bile_aciktir()
+    public async Task Meta_endpoint_is_open_even_when_a_token_is_required()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);
@@ -227,10 +228,11 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Meta_ucu_uzak_ipten_de_aciktir()
+    public async Task Meta_endpoint_is_open_from_a_remote_ip_too()
     {
-        // Arayuz hangi kimlik yontemini kullanacagini ogrenemezse hicbir zaman
-        // oturum acamaz. Bu yuzden meta ucu loopback kisitindan da muaftir.
+        // If the UI can never discover which identity method to use, it can
+        // never sign in. So the meta endpoint is also exempt from the
+        // loopback restriction.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/meta");
@@ -242,7 +244,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task Meta_ucu_basarisiz_policy_altinda_da_aciktir()
+    public async Task Meta_endpoint_is_open_even_under_a_failing_policy()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.RequireAuthorization("AgentPrismAdmin"),
@@ -256,7 +258,7 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public async Task OpenAI_uyumlu_uclar_da_korunur()
+    public async Task OpenAI_compatible_endpoints_are_also_protected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.AuthToken = Token);

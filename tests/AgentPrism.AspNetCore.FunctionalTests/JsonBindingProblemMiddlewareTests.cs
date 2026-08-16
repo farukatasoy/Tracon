@@ -6,31 +6,32 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Govde baglamasi bir <c>JsonException</c>'a carpinca genel <c>500</c> yerine
-/// bu kutuphanenin kendi <c>400</c> <c>ProblemDetails</c> sozlesmesine dustugunu
-/// dogrular (HATA-S2-006, HATA-S2-007).
+/// Verifies that when body binding hits a <c>JsonException</c>, the library falls
+/// into its own <c>400</c> <c>ProblemDetails</c> contract instead of a generic
+/// <c>500</c> (HATA-S2-006, HATA-S2-007).
 /// </summary>
 /// <remarks>
-/// Uc endpoint kasitli secildi: biri eskiden <c>[FromBody]</c> ile otomatik
-/// baglama kullaniyordu (<c>ApiKeyEndpoints</c>), biri <c>[FromBody]</c>
-/// OZNITELIGI OLMADAN ortuk baglama kullaniyordu (<c>GovernanceEndpoints</c> —
-/// HATA-S2-007'nin grep tabanli "<c>[FromBody]</c> kullanan 10 dosya" tahmini
-/// bu yuzden bu ucu kacirmisti), biri ise sayisal alan tipi uyusmazligidir
-/// (enum disi bir JSON hatasi sinifi). Ucu de artik <c>RequestBodyBinding.ReadAsync</c>
-/// ile govdeyi elle okur — bu ortamdan (Development/Production) BAGIMSIZ calisir;
-/// <c>JsonBindingProblemMiddleware</c> yalniz elle okumayi unutan gelecekteki bir
-/// uc icin (yalniz Development'ta) savunma katmanidir.
+/// Three endpoints were deliberately chosen: one used to use automatic binding
+/// via <c>[FromBody]</c> (<c>ApiKeyEndpoints</c>), one used implicit binding
+/// WITHOUT the <c>[FromBody]</c> ATTRIBUTE (<c>GovernanceEndpoints</c> — this is
+/// exactly why HATA-S2-007's grep-based estimate of "10 files using
+/// <c>[FromBody]</c>" missed this endpoint), and one is a numeric field type
+/// mismatch (a JSON error class outside the enum case). All three now read the
+/// body by hand through <c>RequestBodyBinding.ReadAsync</c> — this works
+/// INDEPENDENTLY of environment (Development/Production); <c>JsonBindingProblemMiddleware</c>
+/// is only a defense layer (Development-only) for a future endpoint that forgets
+/// to read the body by hand.
 /// </remarks>
 public sealed class JsonBindingProblemMiddlewareTests
 {
     [Fact]
-    public async Task Taninmayan_enum_degeri_api_anahtari_govdesinde_400_doner()
+    public async Task Unrecognized_enum_value_in_api_key_body_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
             "/agentprism/api/api-keys",
-            new { name = "gecersiz", scopes = new[] { "runs:hepsi" } });
+            new { name = "invalid", scopes = new[] { "runs:all" } });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
@@ -41,16 +42,16 @@ public sealed class JsonBindingProblemMiddlewareTests
     }
 
     [Fact]
-    public async Task Taninmayan_enum_degeri_ortuk_baglamada_da_400_doner()
+    public async Task Unrecognized_enum_value_in_implicit_binding_also_returns_400()
     {
-        // GovernanceEndpoints.SaveAsync govdeyi [FromBody] OZNITELIGI OLMADAN
-        // (ortuk baglama) alir; HATA-S2-006'nin "[FromBody] kullanan 10 dosya"
-        // tahmini bu yuzden bu ucu kacirmisti (HATA-S2-007).
+        // GovernanceEndpoints.SaveAsync takes the body WITHOUT the [FromBody]
+        // ATTRIBUTE (implicit binding); this is exactly why HATA-S2-006's
+        // estimate of "10 files using [FromBody]" missed this endpoint (HATA-S2-007).
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/mcp-servers/stdio-denemesi", UriKind.Relative),
-            new { endpoint = "stdio://bir-komut", transport = "Stdio" });
+            new Uri("/agentprism/api/mcp-servers/stdio-test", UriKind.Relative),
+            new { endpoint = "stdio://some-command", transport = "Stdio" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
@@ -61,10 +62,10 @@ public sealed class JsonBindingProblemMiddlewareTests
     }
 
     [Fact]
-    public async Task Sayisal_alana_metin_gonderilirse_saklama_ucu_da_400_doner()
+    public async Task Text_sent_to_a_numeric_field_also_returns_400_on_the_retention_endpoint()
     {
-        // Kusur sinifi enum'a ozgu degildir: herhangi bir tur uyusmazligi ayni
-        // JsonException -> BadHttpRequestException zincirini tetikler.
+        // The defect class is not enum-specific: any type mismatch triggers the
+        // same JsonException -> BadHttpRequestException chain.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var content = new StringContent(

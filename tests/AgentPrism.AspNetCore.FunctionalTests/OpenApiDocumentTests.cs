@@ -3,21 +3,21 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// AgentPrism uclarinin OpenAPI belgesinde gorundugunu dogrular.
+/// Verifies that AgentPrism's endpoints appear in the OpenAPI document.
 /// </summary>
 /// <remarks>
-/// <c>AgentPrism.AspNetCore</c> bilerek <c>Microsoft.AspNetCore.OpenApi</c>
-/// paketine <strong>bagimli degildir</strong>; bir kutuphane tuketicinin
-/// bagimlilik grafigine OpenAPI uretimi dayatmamalidir. Bunun yerine uclar
-/// paylasilan cerceveden gelen ustveriyi (<c>WithName</c>, <c>WithTags</c>,
-/// <c>WithSummary</c>, <c>WithDescription</c>) tasir; tuketici kendi uygulamasinda
-/// <c>AddOpenApi()</c> cagirdiginda belge kendiliginden olusur. Bu test tam olarak
-/// o senaryoyu kurar.
+/// <c>AgentPrism.AspNetCore</c> deliberately does <strong>not depend</strong> on
+/// the <c>Microsoft.AspNetCore.OpenApi</c> package; a library must not force
+/// OpenAPI generation onto a consumer's dependency graph. Instead, the
+/// endpoints carry metadata from the shared framework (<c>WithName</c>,
+/// <c>WithTags</c>, <c>WithSummary</c>, <c>WithDescription</c>); when the
+/// consumer calls <c>AddOpenApi()</c> in their own application, the document
+/// is produced automatically. This test sets up exactly that scenario.
 /// </remarks>
 public sealed class OpenApiDocumentTests
 {
     [Fact]
-    public async Task Belge_uretilir_ve_AgentPrism_uclarini_icerir()
+    public async Task Document_is_generated_and_contains_AgentPrisms_endpoints()
     {
         await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);
 
@@ -36,7 +36,7 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public async Task Belge_ozet_ve_etiket_ustverisini_tasir()
+    public async Task Document_carries_summary_and_tag_metadata()
     {
         await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);
 
@@ -53,15 +53,15 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public async Task Ozel_prefix_belgede_de_gecerlidir()
+    public async Task Custom_prefix_also_applies_in_the_document()
     {
-        await using var host = await AgentPrismTestHost.StartAsync(prefix: "/yonetim", withOpenApi: true);
+        await using var host = await AgentPrismTestHost.StartAsync(prefix: "/management", withOpenApi: true);
 
         using var response = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
 
         (await AgentPrismTestHost.ReadJsonAsync(response))
             .GetProperty("paths")
-            .TryGetProperty("/yonetim/api/meta", out _)
+            .TryGetProperty("/management/api/meta", out _)
             .ShouldBeTrue();
     }
 }

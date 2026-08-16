@@ -5,16 +5,16 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>/api/api-keys</c> uclarinin CRUD davranisi (Faz 53).
+/// CRUD behavior of the <c>/api/api-keys</c> endpoints (Phase 53).
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testlerin korudugu kural: ham anahtar deger yalnizca olusturma
-/// yanitinda doner; hicbir listeleme cagrisi onu bir daha vermez (bolum 53.2).
+/// 🚨 The rule these tests guard: the raw key value is returned only in the
+/// creation response; no listing call ever returns it again (section 53.2).
 /// </remarks>
 public sealed class ApiKeyEndpointTests
 {
     [Fact]
-    public async Task Olusturma_ham_degeri_bir_kez_dondurur()
+    public async Task Creation_returns_the_raw_value_once()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -33,7 +33,7 @@ public sealed class ApiKeyEndpointTests
     }
 
     [Fact]
-    public async Task Listeleme_ham_deger_veya_ozet_dondurmez()
+    public async Task Listing_does_not_return_the_raw_value_or_a_digest()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -50,7 +50,7 @@ public sealed class ApiKeyEndpointTests
     }
 
     [Fact]
-    public async Task Bos_ad_reddedilir()
+    public async Task Empty_name_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -62,7 +62,7 @@ public sealed class ApiKeyEndpointTests
     }
 
     [Fact]
-    public async Task Bos_kapsam_listesi_reddedilir()
+    public async Task Empty_scope_list_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -74,19 +74,19 @@ public sealed class ApiKeyEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_kapsam_reddedilir()
+    public async Task Unknown_scope_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
             "/agentprism/api/api-keys",
-            new { name = "ci", scopes = new[] { "runs:hepsi" } });
+            new { name = "ci", scopes = new[] { "runs:all" } });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Iptal_edilen_anahtar_listede_pasif_gorunur()
+    public async Task Revoked_key_appears_inactive_in_the_list()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -104,7 +104,7 @@ public sealed class ApiKeyEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_anahtar_iptali_404_doner()
+    public async Task Revoking_a_nonexistent_key_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

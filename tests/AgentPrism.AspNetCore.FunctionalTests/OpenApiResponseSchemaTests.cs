@@ -3,16 +3,17 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Onceden yanit semasi bildirmeyen on bir <c>Task&lt;IResult&gt;</c> ucunun artik
-/// en az bir sema bildirdigini dogrular (Faz 40, bolum 40.2).
+/// Verifies that the eleven <c>Task&lt;IResult&gt;</c> endpoints that used to
+/// report no response schema now report at least one (Phase 40, section 40.2).
 /// </summary>
 /// <remarks>
-/// Faz 40 oncesi olculen durum: bu on bir uc <c>responses</c> altinda hicbir
-/// giris tasimiyordu (bkz. <c>docs/40-OPENAPI-YAYINI.md</c>, "Bugun ne calismiyor").
+/// State measured before Phase 40: these eleven endpoints carried no entry
+/// under <c>responses</c> at all (see <c>docs/40-OPENAPI-YAYINI.md</c>, "What
+/// doesn't work today").
 /// </remarks>
 public sealed class OpenApiResponseSchemaTests
 {
-    /// <summary>Faz 40 oncesi hicbir yanit semasi bildirmeyen on bir ucun operationId'leri.</summary>
+    /// <summary>The operationIds of the eleven endpoints that reported no response schema before Phase 40.</summary>
     public static TheoryData<string> HamTaskIResultOperationIds { get; } = new()
     {
         "AgentPrismRunAgent",
@@ -29,7 +30,7 @@ public sealed class OpenApiResponseSchemaTests
     };
 
     [Fact]
-    public async Task Belgedeki_her_uc_en_az_bir_yanit_semasi_bildirir()
+    public async Task Every_endpoint_in_the_document_reports_at_least_one_response_schema()
     {
         var document = await FetchDocumentAsync();
 
@@ -44,12 +45,12 @@ public sealed class OpenApiResponseSchemaTests
             }
         }
 
-        missing.ShouldBeEmpty(customMessage: $"Yanit semasi olmayan uclar: {string.Join(", ", missing)}");
+        missing.ShouldBeEmpty(customMessage: $"Endpoints with no response schema: {string.Join(", ", missing)}");
     }
 
     [Theory]
     [MemberData(nameof(HamTaskIResultOperationIds))]
-    public async Task Onceden_sema_uretmeyen_uc_artik_en_az_bir_sema_bildirir(string operationId)
+    public async Task Endpoint_that_used_to_report_no_schema_now_reports_at_least_one(string operationId)
     {
         var document = await FetchDocumentAsync();
 
@@ -58,11 +59,11 @@ public sealed class OpenApiResponseSchemaTests
         var responses = operation.GetProperty("responses");
 
         responses.EnumerateObject().Count().ShouldBeGreaterThan(
-            0, customMessage: $"'{operationId}' hala hicbir yanit semasi bildirmiyor.");
+            0, customMessage: $"'{operationId}' still reports no response schema.");
     }
 
     [Fact]
-    public async Task Agent_run_ucu_hem_SSE_hem_ProblemDetails_hatalarini_bildirir()
+    public async Task Agent_run_endpoint_reports_both_SSE_and_ProblemDetails_errors()
     {
         var document = await FetchDocumentAsync();
 
@@ -70,20 +71,20 @@ public sealed class OpenApiResponseSchemaTests
         var responses = operation.GetProperty("responses");
 
         responses.GetProperty("200").GetProperty("content").TryGetProperty("text/event-stream", out _)
-            .ShouldBeTrue("Basari yaniti SSE olarak bildirilmeli.");
+            .ShouldBeTrue("The success response must be reported as SSE.");
 
         foreach (var status in new[] { "400", "404", "429" })
         {
             responses.TryGetProperty(status, out var problemResponse).ShouldBeTrue(
-                $"'{status}' yaniti bildirilmemis.");
+                $"The '{status}' response is not reported.");
 
             problemResponse.GetProperty("content").TryGetProperty("application/problem+json", out _)
-                .ShouldBeTrue($"'{status}' yaniti ProblemDetails olarak bildirilmemis.");
+                .ShouldBeTrue($"The '{status}' response is not reported as ProblemDetails.");
         }
     }
 
     [Fact]
-    public async Task Responses_ucu_hem_JSON_hem_SSE_basari_yanitini_bildirir()
+    public async Task Responses_endpoint_reports_both_JSON_and_SSE_success_responses()
     {
         var document = await FetchDocumentAsync();
 
@@ -91,10 +92,10 @@ public sealed class OpenApiResponseSchemaTests
         var content = operation.GetProperty("responses").GetProperty("200").GetProperty("content");
 
         content.TryGetProperty("application/json", out _)
-            .ShouldBeTrue("Akissiz JSON yaniti bildirilmemis.");
+            .ShouldBeTrue("The non-streaming JSON response is not reported.");
 
         content.TryGetProperty("text/event-stream", out _)
-            .ShouldBeTrue("Akisli SSE yaniti bildirilmemis.");
+            .ShouldBeTrue("The streaming SSE response is not reported.");
     }
 
     private static async Task<System.Text.Json.JsonElement> FetchDocumentAsync()

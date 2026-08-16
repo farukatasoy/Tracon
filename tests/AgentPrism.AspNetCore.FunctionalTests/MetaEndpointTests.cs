@@ -7,22 +7,22 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>/api/meta</c> ucunun sozlesmesini dogrular.
+/// Verifies the contract of the <c>/api/meta</c> endpoint.
 /// </summary>
 public sealed class MetaEndpointTests
 {
     [Fact]
-    public async Task Meta_surum_prefix_ve_kimlik_yontemini_bildirir()
+    public async Task Meta_reports_version_prefix_and_authentication_method()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options =>
             {
-                options.AuthToken = "gizli";
-                options.RequireAuthorization("Yonetici");
+                options.AuthToken = "secret";
+                options.RequireAuthorization("Administrator");
             },
             configureServices: static services => TestAuthenticationHandler.Add(services)
                 .AddAuthorizationBuilder()
-                .AddPolicy("Yonetici", static policy => policy.RequireAssertion(static _ => true)));
+                .AddPolicy("Administrator", static policy => policy.RequireAssertion(static _ => true)));
 
         using var response = await host.Client.GetAsync(new Uri("/agentprism/api/meta", UriKind.Relative));
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
@@ -38,18 +38,18 @@ public sealed class MetaEndpointTests
     }
 
     [Fact]
-    public async Task Meta_ozel_prefixi_bildirir()
+    public async Task Meta_reports_a_custom_prefix()
     {
-        await using var host = await AgentPrismTestHost.StartAsync(prefix: "/yonetim");
+        await using var host = await AgentPrismTestHost.StartAsync(prefix: "/management");
 
-        using var response = await host.Client.GetAsync(new Uri("/yonetim/api/meta", UriKind.Relative));
+        using var response = await host.Client.GetAsync(new Uri("/management/api/meta", UriKind.Relative));
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        json.GetProperty("prefix").GetString().ShouldBe("/yonetim");
+        json.GetProperty("prefix").GetString().ShouldBe("/management");
     }
 
     [Fact]
-    public async Task Meta_bellek_ici_depolari_kalici_olmayan_olarak_bildirir()
+    public async Task Meta_reports_in_memory_stores_as_non_persistent()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -63,10 +63,10 @@ public sealed class MetaEndpointTests
     }
 
     [Fact]
-    public async Task Meta_tuketicinin_kendi_deposunu_bildirir()
+    public async Task Meta_reports_the_consumers_own_store()
     {
-        // K4: tuketicinin kaydi kazanir. /api/meta bunu gorunur kilar; boylece
-        // kalicilik sessizce devre disi kalmis olsa bile fark edilir.
+        // K4: the consumer's registration wins. /api/meta makes this visible,
+        // so persistence being silently disabled is still noticed.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services =>
                 services.TryAddSingleton<IRunStore, CustomRunStore>());
@@ -79,31 +79,32 @@ public sealed class MetaEndpointTests
     }
 
     [Fact]
-    public async Task Meta_sir_icermez()
+    public async Task Meta_contains_no_secret()
     {
-        const string Secret = "cok-gizli-token-DENEME-7b2e";
+        const string Secret = "super-secret-token-TEST-7b2e";
 
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options =>
             {
                 options.AuthToken = Secret;
-                options.RequireAuthorization("Cok-Ozel-Policy-Adi");
+                options.RequireAuthorization("Very-Special-Policy-Name");
             },
             configureServices: static services => TestAuthenticationHandler.Add(services)
                 .AddAuthorizationBuilder()
-                .AddPolicy("Cok-Ozel-Policy-Adi", static policy => policy.RequireAssertion(static _ => true)));
+                .AddPolicy("Very-Special-Policy-Name", static policy => policy.RequireAssertion(static _ => true)));
 
         using var response = await host.Client.GetAsync(new Uri("/agentprism/api/meta", UriKind.Relative));
         var body = await response.Content.ReadAsStringAsync();
 
         body.ShouldNotContain(Secret);
 
-        // Policy ADI da donmez: arayuz o adla bir sey yapamaz ve ad, kimlik
-        // dogrulamasi olmayan bir uctan sizan yapilandirma ayrintisidir.
-        body.ShouldNotContain("Cok-Ozel-Policy-Adi", Case.Sensitive);
+        // The policy NAME does not come back either: the UI cannot do anything
+        // with that name, and it is a configuration detail that would leak
+        // from an unauthenticated endpoint.
+        body.ShouldNotContain("Very-Special-Policy-Name", Case.Sensitive);
     }
 
-    /// <summary>Tuketicinin kendi deposunu taklit eden bos uygulama.</summary>
+    /// <summary>An empty implementation that fakes the consumer's own store.</summary>
     private sealed class CustomRunStore : IRunStore
     {
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)

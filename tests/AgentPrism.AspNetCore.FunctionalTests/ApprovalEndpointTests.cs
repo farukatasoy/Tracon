@@ -3,17 +3,18 @@ using System.Net.Http.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
-// Gerekce RunReplayEndpointTests.cs'deki ile aynidir (K-269): paketteki
-// AgentPrism.Testing.AgentPrismTestHost ile bu projenin kendi AgentPrismTestHost'u
-// AYNI ada sahiptir; blanket `using AgentPrism.Testing;` CS0104 verirdi.
+// The rationale is the same as in RunReplayEndpointTests.cs (K-269): the
+// package's AgentPrism.Testing.AgentPrismTestHost and this project's own
+// AgentPrismTestHost SHARE the same name; a blanket `using AgentPrism.Testing;`
+// would produce CS0104.
 using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Asenkron onay kutusu uclarinin testleri (Faz 55).</summary>
+/// <summary>Tests for the asynchronous approval inbox endpoints (Phase 55).</summary>
 public sealed class ApprovalEndpointTests
 {
-    private const string AgentName = "onay-agent";
+    private const string AgentName = "approval-agent";
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
     private static readonly Uri Run = new($"/agentprism/api/agents/{AgentName}/run", UriKind.Relative);
@@ -30,33 +31,35 @@ public sealed class ApprovalEndpointTests
     private static void ConfigureApprovalAgent(IAgentPrismBuilder builder)
     {
         builder
-            .AddModelProvider(new FakeModelProvider("onay-model")
+            .AddModelProvider(new FakeModelProvider("approval-model")
                 .CallsTool("cancel_order", new { orderId = "ORD-7" })
                 .EchoesLastToolResult())
             .AddTool(
-                (Func<string, string>)(orderId => $"{orderId} iptal edildi."),
+                (Func<string, string>)(orderId => $"{orderId} canceled."),
                 name: "cancel_order",
-                description: "Bir siparisi iptal eder.",
+                description: "Cancels an order.",
                 requiresApproval: true)
             .AddAgent(new AgentDefinition
             {
                 Name = AgentName,
-                Instructions = "Kisa yanit ver.",
-                Model = new ModelBinding { Provider = "onay-model", Model = "onay-1" },
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding { Provider = "approval-model", Model = "approval-1" },
                 ToolNames = ["cancel_order"],
             });
     }
 
     /// <summary>
-    /// Bir calistirma beklenen duruma gelene kadar yoklar.
+    /// Polls a run until it reaches the expected status.
     /// </summary>
     /// <remarks>
-    /// 🚨 Sure dolarsa BURADA patlar. Onceki hâli son gordugu durumu sessizce
-    /// dondururdu; cagiran onu denetlemedigi yerlerde (bkz. satir 140, 192) test
-    /// devam eder ve ILGISIZ bir iddiada ("bekleyen onay listesi bos") patlardi.
-    /// Tam cozum kosumunda olculdu: 16 test projesi paralel kosarken 5 sn yetmiyor,
-    /// tek basina 447/447 gecen paket toplu kosumda 1 hata veriyordu. Sure 30 sn'ye
-    /// cikarildi (yuk altinda genis, saglikli bir kosumda yine milisaniyeler surer).
+    /// 🚨 If the timeout expires, it fails HERE. The earlier version silently
+    /// returned the last status it saw; where the caller did not check it (see
+    /// lines 140, 192), the test continued and failed on an UNRELATED assertion
+    /// ("pending approval list is empty"). Measured with the full suite running:
+    /// 5 sec is not enough with 16 test projects running in parallel; the
+    /// package, which passes 447/447 alone, produced 1 failure in the batch run.
+    /// The timeout was raised to 30 sec (still takes only milliseconds under a
+    /// healthy run, generously, even under load).
     /// </remarks>
     private static async Task<string> WaitForStatusAsync(AgentPrismTestHost host, Guid runId, string expected)
     {
@@ -71,7 +74,7 @@ public sealed class ApprovalEndpointTests
 
             if (string.Equals(status, expected, StringComparison.Ordinal))
             {
-                // `expected` null degildir; esitlik saglandiysa `status` da degildir.
+                // `expected` is not null; if equality held, `status` is not null either.
                 return status!;
             }
 
@@ -79,17 +82,17 @@ public sealed class ApprovalEndpointTests
         }
 
         throw new InvalidOperationException(
-            $"Calistirma {runId} 30 saniyede '{expected}' durumuna gelmedi; son gorulen durum: '{status}'.");
+            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
     }
 
     [Fact]
-    public async Task Kuyruga_alinan_calistirma_onay_ister_konsoldan_onaylanir_ve_tamamlanir()
+    public async Task Queued_run_requests_approval_is_approved_from_the_console_and_completes()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             ConfigureApprovalAgent,
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
-        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-1" });
+        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-1" });
 
         accepted.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
@@ -116,11 +119,11 @@ public sealed class ApprovalEndpointTests
         decided.GetProperty("status").GetString().ShouldBe("Approved");
         decided.GetProperty("decidedBy").GetString().ShouldNotBeNullOrEmpty();
 
-        // Eski calistirma AwaitingApproval olarak KALIR (K-014); yeni bir
-        // calistirma ayni oturumla surer ve Completed olur.
+        // The old run REMAINS AwaitingApproval (K-014); a new run continues with
+        // the same session and becomes Completed.
         (await WaitForStatusAsync(host, originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
-        using var runningJobs = await host.Client.GetAsync(new Uri("/agentprism/api/runs?sessionId=oturum-1", UriKind.Relative));
+        using var runningJobs = await host.Client.GetAsync(new Uri("/agentprism/api/runs?sessionId=session-1", UriKind.Relative));
         var runs = (await AgentPrismTestHost.ReadJsonAsync(runningJobs)).EnumerateArray().ToList();
 
         runs.Count.ShouldBe(2);
@@ -141,13 +144,13 @@ public sealed class ApprovalEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_onaya_ikinci_karar_409_alir()
+    public async Task Second_decision_on_the_same_approval_gets_409()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             ConfigureApprovalAgent,
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
-        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-2" });
+        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-2" });
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         await WaitForStatusAsync(host, runId, "AwaitingApproval");
@@ -169,7 +172,7 @@ public sealed class ApprovalEndpointTests
     }
 
     [Fact]
-    public async Task Reader_rolu_karar_veremez()
+    public async Task Reader_role_cannot_make_a_decision()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             ConfigureApprovalAgent,
@@ -185,7 +188,7 @@ public sealed class ApprovalEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_onayi_gorunmez()
+    public async Task Another_tenants_approval_is_not_visible()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder =>
@@ -199,7 +202,7 @@ public sealed class ApprovalEndpointTests
             },
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
-        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-3" });
+        using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-3" });
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         await WaitForStatusAsync(host, runId, "AwaitingApproval");
@@ -211,7 +214,7 @@ public sealed class ApprovalEndpointTests
         using var otherTenantGet = new HttpRequestMessage(
             HttpMethod.Get,
             new Uri($"/agentprism/api/approvals/{approvalId}", UriKind.Relative));
-        otherTenantGet.Headers.Add(TenantHeader, "baska-kiraci");
+        otherTenantGet.Headers.Add(TenantHeader, "other-tenant");
 
         using var getResponse = await host.Client.SendAsync(otherTenantGet);
 
@@ -223,7 +226,7 @@ public sealed class ApprovalEndpointTests
         {
             Content = JsonContent.Create(new ApprovalDecisionRequest { Approved = true }),
         };
-        otherTenantDecide.Headers.Add(TenantHeader, "baska-kiraci");
+        otherTenantDecide.Headers.Add(TenantHeader, "other-tenant");
 
         using var decideResponse = await host.Client.SendAsync(otherTenantDecide);
 
@@ -231,19 +234,19 @@ public sealed class ApprovalEndpointTests
     }
 
     /// <summary>
-    /// HATA-S2-004/MT-MCP-023: onceden yalniz kuyruktan kosan (<c>Prefer:
-    /// respond-async</c>) calistirmalar bu durumu yansitiyordu; senkron/akissiz
-    /// yol ayni onay bekleyen tool cagrisini sessizce <c>Completed</c> olarak
-    /// kapatiyordu (bkz. RunRecordingAgent.RunCoreAsync).
+    /// HATA-S2-004/MT-MCP-023: previously, only runs going through the queue
+    /// (<c>Prefer: respond-async</c>) reflected this state; the synchronous/
+    /// non-streaming path silently closed the same awaiting-approval tool call
+    /// as <c>Completed</c> (see RunRecordingAgent.RunCoreAsync).
     /// </summary>
     [Fact]
-    public async Task Senkron_akissiz_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir()
+    public async Task Synchronous_non_streaming_run_closes_as_AwaitingApproval_when_it_requests_approval()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureApprovalAgent);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Run)
         {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-senkron-akissiz" }),
+            Content = JsonContent.Create(new AgentRunRequest { Message = "cancel the order", SessionId = "session-sync-non-streaming" }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
 
@@ -258,21 +261,21 @@ public sealed class ApprovalEndpointTests
             .ShouldBe("AwaitingApproval");
     }
 
-    /// <summary>Ayni kusurun akisli (SSE) varyanti — RunRecordingAgent.RunCoreStreamingAsync.</summary>
+    /// <summary>The streaming (SSE) variant of the same defect — RunRecordingAgent.RunCoreStreamingAsync.</summary>
     [Fact]
-    public async Task Senkron_akisli_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir()
+    public async Task Synchronous_streaming_run_closes_as_AwaitingApproval_when_it_requests_approval()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureApprovalAgent);
 
         using var response = await host.Client.PostAsJsonAsync(
             Run,
-            new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-senkron-akisli" });
+            new AgentRunRequest { Message = "cancel the order", SessionId = "session-sync-streaming" });
 
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
         await response.Content.ReadAsStringAsync();
 
         using var runningJobs = await host.Client.GetAsync(
-            new Uri("/agentprism/api/runs?sessionId=oturum-senkron-akisli", UriKind.Relative));
+            new Uri("/agentprism/api/runs?sessionId=session-sync-streaming", UriKind.Relative));
         var run = (await AgentPrismTestHost.ReadJsonAsync(runningJobs)).EnumerateArray().ShouldHaveSingleItem();
 
         run.GetProperty("status").GetString().ShouldBe("AwaitingApproval");

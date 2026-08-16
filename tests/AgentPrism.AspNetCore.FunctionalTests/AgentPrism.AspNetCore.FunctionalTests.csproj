@@ -7,48 +7,50 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
     <!--
-      AgentPrism.AspNetCore kendisi saglayicidan bagimsizdir (K-008'in doganal
-      sonucu). Bu proje AspNetCore + OpenAI birlesimini (gercek dunya kullanimi)
-      test ettigi icin OpenAI paketini dogrudan referans eder.
+      AgentPrism.AspNetCore is itself provider-independent (a natural
+      consequence of K-008). This project tests the AspNetCore + OpenAI
+      combination (real-world usage), so it references the OpenAI package
+      directly.
     -->
     <ProjectReference Include="../../src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <!--
-      Faz 26: uc saglayicinin AYNI uygulamada kayitli olmasi ve /api/models
-      ciktisinda birlikte gorunmesi burada dogrulanir. Ad cakismasi ve kayit
-      sirasi hatalari yalnizca birlikte kurulunca ortaya cikar.
+      Phase 26: this verifies that three providers registered in the SAME
+      application appear together in the /api/models output. Name collision
+      and registration-order errors only surface when they are set up together.
     -->
     <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
     <!--
-      Workflow uclari, motor kayitli VE kayitsizken iki farkli davranis gosterir
-      (calistirma 501 doner, tanim yonetimi calisir). Iki yolu da test etmek icin
-      motor paketine ihtiyac var; AgentPrism.AspNetCore'un kendisi bu pakete
-      referans VERMEZ - kural DependencyDirectionTests ile korunur.
+      The workflow endpoints show two different behaviors depending on whether
+      the engine is registered (run returns 501, definition management works).
+      Testing both paths needs the engine package; AgentPrism.AspNetCore itself
+      does NOT reference this package - that rule is guarded by
+      DependencyDirectionTests.
     -->
     <ProjectReference Include="../../src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
-    <!-- Sahte model saglayicisi (FakeModelProvider): Faz 39, K-007 gerekcesi bolum 39.1. -->
+    <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007, section 39.1. -->
     <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
     <!--
-      Bos (migration'siz) bir SQLite veritabaninda MapAgentPrismMcpServer/
-      MapAgentPrismA2A'nin cokmedigini dogrulamak icin gercek bir SQL
-      saglayicisi gerekir; diger tum testler bellek ici depolarla calisir.
+      Verifying that MapAgentPrismMcpServer/MapAgentPrismA2A do not crash on
+      an empty (unmigrated) SQLite database needs an actual SQL provider; all
+      other tests run with in-memory stores.
     -->
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!--
-      Microsoft.AspNetCore.Mvc.Testing yerine TestHost kullaniliyor.
-      WebApplicationFactory<T> bir GIRIS NOKTASI derlemesi ister; AgentPrism bir
-      kutuphanedir ve boyle bir derlemesi yoktur. Testleri ornek uygulamaya
-      baglamak, kutuphane davranisini ornegin yapilandirmasina bagimli kilardi.
-      TestHost ile her test kendi barindiricisini kurar.
+      TestHost is used instead of Microsoft.AspNetCore.Mvc.Testing.
+      WebApplicationFactory<T> requires an ENTRY POINT assembly; AgentPrism is
+      a library and has no such assembly. Tying the tests to a sample app would
+      make library behavior depend on the sample's configuration. With
+      TestHost, each test sets up its own host.
     -->
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
-    <!-- OpenAPI belgesinin gercekten uretildigini dogrulamak icin. -->
+    <!-- To verify that the OpenAPI document is actually generated. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!-- CVE zorlamasi; gerekce Directory.Packages.props icinde. -->
+    <!-- CVE pin; rationale in Directory.Packages.props. -->
     <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 

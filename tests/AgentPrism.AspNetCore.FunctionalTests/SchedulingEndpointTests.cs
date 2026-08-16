@@ -6,14 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Zamanlama ve is kuyrugu uclarinin bellek ici davranis testleri (Faz 17).</summary>
+/// <summary>In-memory behavior tests for the scheduling and job queue endpoints (Phase 17).</summary>
 public sealed class SchedulingEndpointTests
 {
     private static readonly Uri Schedules = new("/agentprism/api/schedules", UriKind.Relative);
     private static readonly Uri Jobs = new("/agentprism/api/jobs", UriKind.Relative);
 
     [Fact]
-    public async Task Zamanlama_olusturulur_guncellenir_ve_silinir()
+    public async Task Schedule_is_created_updated_and_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -29,11 +29,11 @@ public sealed class SchedulingEndpointTests
 
         using (var updated = await host.Client.PutAsJsonAsync(
                    new Uri("/agentprism/api/schedules/gece-raporu", UriKind.Relative),
-                   Request() with { TargetName = "yeni-hedef" }))
+                   Request() with { TargetName = "new-target" }))
         {
             updated.StatusCode.ShouldBe(HttpStatusCode.OK);
             (await AgentPrismTestHost.ReadJsonAsync(updated)).GetProperty("targetName").GetString()
-                .ShouldBe("yeni-hedef");
+                .ShouldBe("new-target");
         }
 
         using (var listed = await host.Client.GetAsync(Schedules))
@@ -51,7 +51,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Gecersiz_cron_reddedilir()
+    public async Task Invalid_cron_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -63,19 +63,19 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Gecersiz_saat_dilimi_reddedilir()
+    public async Task Invalid_time_zone_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/schedules/gece-raporu", UriKind.Relative),
-            Request() with { TimeZone = "Bolge/Yok" });
+            Request() with { TimeZone = "Not/A_Zone" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Oge_sayisi_sinir_asarsa_kayit_reddedilir()
+    public async Task Save_is_rejected_when_item_count_exceeds_the_limit()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.UseScheduling(o => o.MaxItemsPerJob = 1));
@@ -88,7 +88,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Var_olmayan_zamanlama_404_doner()
+    public async Task Nonexistent_schedule_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -98,7 +98,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Tetikleme_is_olusturur_ve_ogelerini_uretir()
+    public async Task Trigger_creates_a_job_and_generates_its_items()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -126,7 +126,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Is_iptal_edilir_ve_ikinci_iptal_409_doner()
+    public async Task Job_is_canceled_and_a_second_cancel_returns_409()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -149,7 +149,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Var_olmayan_is_404_doner()
+    public async Task Nonexistent_job_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -159,7 +159,7 @@ public sealed class SchedulingEndpointTests
     }
 
     [Fact]
-    public async Task Operator_tetikleyebilir_ama_zamanlama_kaydedemez()
+    public async Task Operator_can_trigger_but_cannot_save_a_schedule()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -167,8 +167,9 @@ public sealed class SchedulingEndpointTests
                 .AddPolicy(AgentPrismPolicies.Operator, static policy => policy.RequireAssertion(static _ => true))
                 .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => false)));
 
-        // Zamanlama HTTP yetkilendirmesini atlayarak dogrudan depoya yazilir:
-        // bu testte Admin ucu kapali, o yuzden zamanlama baska bir yoldan tohumlanir.
+        // The schedule is written directly to the store, bypassing HTTP
+        // authorization: the Admin endpoint is closed in this test, so the
+        // schedule is seeded through another path.
         await host.Services.GetRequiredService<IJobScheduleStore>().SaveAsync(
             new JobSchedule
             {

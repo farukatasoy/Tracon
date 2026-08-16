@@ -6,30 +6,29 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Kiraci cozumleme ve yalitim.
+/// Tenant resolution and isolation.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testlerin korudugu kural: <strong>baslik kimlik kaniti degildir</strong>.
-/// Claim yapilandirilmissa baslik hic okunmamalidir; aksi halde kimlik
-/// dogrulamasindan gecmis bir kullanici bir baslik ekleyerek baska bir kiracinin
-/// verisine erisebilirdi.
+/// 🚨 The rule these tests protect: <strong>the header is not proof of identity</strong>.
+/// When a claim is configured, the header must never be read; otherwise an
+/// authenticated user could access another tenant's data by adding a header.
 /// </remarks>
 public sealed class TenancyTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
     [Fact]
-    public async Task Kapaliyken_baslik_yok_sayilir()
+    public async Task Header_is_ignored_when_disabled()
     {
-        // Varsayilan davranis: cok kiracililik kapali, her istek varsayilan
-        // kiraciya duser. Tek kiracili kurulum hicbir ayar istemez.
+        // Default behavior: multi-tenancy is disabled, every request falls
+        // to the default tenant. A single-tenant setup requires no configuration.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
     }
 
     [Fact]
-    public async Task Baslik_cozumu_acikca_acilmadikca_calismaz()
+    public async Task Header_resolution_does_not_work_unless_explicitly_enabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options => options.Enabled = true));
@@ -38,7 +37,7 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public async Task Baslik_cozumu_acikken_kiraci_okunur()
+    public async Task Tenant_is_read_when_header_resolution_is_enabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -51,7 +50,7 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public async Task Gecersiz_bicimli_kiraci_varsayilana_duser()
+    public async Task Malformed_tenant_falls_back_to_default()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -60,16 +59,17 @@ public sealed class TenancyTests
                 options.AllowHeaderResolution = true;
             }));
 
-        (await ReadTenantAsync(host, header: "kiraci b/../yonetici")).ShouldBe("default");
+        (await ReadTenantAsync(host, header: "tenant b/../admin")).ShouldBe("default");
     }
 
     [Fact]
-    public async Task Beyaz_liste_disindaki_kiraci_varsayilana_DUSMEZ()
+    public async Task A_tenant_outside_the_allowlist_does_NOT_fall_back_to_default()
     {
-        // Beyaz liste doluyken listede olmayan bir deger varsayilan kiraciya
-        // dusmemelidir: dusmek, yetkisiz bir istegin varsayilan kiracinin
-        // verisini gormesi demekti. Istek SESSIZCE varsayilana dusmek yerine
-        // 403 ile REDDEDILIR (AgentPrismEndpointFilter.CheckTenancyWhitelist).
+        // When the allowlist is populated, a value not on the list must not
+        // fall back to the default tenant: falling back would mean an
+        // unauthorized request could see the default tenant's data. The
+        // request is REJECTED with 403 instead of SILENTLY falling back
+        // (AgentPrismEndpointFilter.CheckTenancyWhitelist).
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
             {
@@ -87,11 +87,11 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public async Task Claim_ayarliyken_baslik_hic_okunmaz()
+    public async Task Header_is_never_read_when_a_claim_is_configured()
     {
-        // Guvenligin kalbi burasi. Claim yapilandirilmissa baslik gormezden
-        // gelinir; kimlik dogrulamasindan gecmis bir kullanici baslik ekleyerek
-        // kiraci degistiremez.
+        // This is the heart of the security guarantee. When a claim is
+        // configured, the header is ignored; an authenticated user cannot
+        // switch tenants by adding a header.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
             {
@@ -99,15 +99,16 @@ public sealed class TenancyTests
                 options.ClaimType = "tenant_id";
                 options.AllowHeaderResolution = true;
             }),
-            // Kullanicida 'tenant_id' claim'i YOKTUR: claim ayarliyken cozumleme
-            // varsayilana dusmeli, basliga geri DONMEMELIDIR.
+            // The user has NO 'tenant_id' claim: with a claim configured,
+            // resolution must fall back to the default and must NOT fall
+            // back to the header.
             configureServices: static services => TestAuthenticationHandler.Add(services));
 
         (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
     }
 
     [Fact]
-    public async Task Kiraci_verisi_baska_kiraciya_sizmaz()
+    public async Task Tenant_data_does_not_leak_to_another_tenant()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -117,7 +118,7 @@ public sealed class TenancyTests
             }));
 
         using var created = await host.Client.SendAsync(
-            Request(HttpMethod.Put, "/agentprism/api/mcp-servers/gizli", "kiraci-a", new
+            Request(HttpMethod.Put, "/agentprism/api/mcp-servers/secret", "kiraci-a", new
             {
                 endpoint = "https://mcp.example.com/mcp",
                 enabled = true,
@@ -132,7 +133,7 @@ public sealed class TenancyTests
         (await mine.Content.ReadFromJsonAsync<List<McpServerDefinition>>())
             .ShouldNotBeNull()
             .ShouldHaveSingleItem()
-            .Name.ShouldBe("gizli");
+            .Name.ShouldBe("secret");
 
         using var theirs = await host.Client.SendAsync(
             Request(HttpMethod.Get, "/agentprism/api/mcp-servers", "kiraci-b", body: null));
@@ -143,7 +144,7 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public async Task Onay_kurali_baska_kiraciya_sizmaz()
+    public async Task Approval_rule_does_not_leak_to_another_tenant()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -178,15 +179,15 @@ public sealed class TenancyTests
     }
 
     [Fact]
-    public void Kiraci_kimligi_bicimi_dogrulanir()
+    public void Tenant_id_format_is_validated()
     {
         HttpTenantContext.IsValidTenantId("acme").ShouldBeTrue();
-        HttpTenantContext.IsValidTenantId("acme-1.uretim_2").ShouldBeTrue();
+        HttpTenantContext.IsValidTenantId("acme-1.prod_2").ShouldBeTrue();
 
         HttpTenantContext.IsValidTenantId(null).ShouldBeFalse();
         HttpTenantContext.IsValidTenantId("").ShouldBeFalse();
-        HttpTenantContext.IsValidTenantId("bosluk var").ShouldBeFalse();
-        HttpTenantContext.IsValidTenantId("yol/gecisi").ShouldBeFalse();
+        HttpTenantContext.IsValidTenantId("has space").ShouldBeFalse();
+        HttpTenantContext.IsValidTenantId("path/traversal").ShouldBeFalse();
         HttpTenantContext.IsValidTenantId(new string('a', 65)).ShouldBeFalse();
     }
 

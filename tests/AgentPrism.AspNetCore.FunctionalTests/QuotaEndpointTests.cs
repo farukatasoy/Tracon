@@ -6,14 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Kota uclarinin ve <c>429</c> davranisinin testleri (Faz 21).</summary>
+/// <summary>Tests for the quota endpoints and <c>429</c> behavior (Phase 21).</summary>
 public sealed class QuotaEndpointTests
 {
     private static readonly Uri Quotas = new("/agentprism/api/quotas", UriKind.Relative);
     private static readonly Uri Usage = new("/agentprism/api/quotas/usage", UriKind.Relative);
 
     [Fact]
-    public async Task Kota_olusturulur_listelenir_ve_silinir()
+    public async Task Quota_is_created_listed_and_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -48,7 +48,7 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_kapsam_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Same_scope_saved_a_second_time_overwrites()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -70,7 +70,7 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Sinirsiz_kota_reddedilir()
+    public async Task Unlimited_quota_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -85,7 +85,7 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Negatif_sinir_reddedilir()
+    public async Task Negative_limit_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -95,7 +95,7 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Kullanim_ucu_donem_sifirlanma_zamanlarini_dondurur()
+    public async Task Usage_endpoint_returns_period_reset_times()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -110,14 +110,14 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Kota_asilinca_calistirma_429_ve_ProblemDetails_doner()
+    public async Task Run_returns_429_and_ProblemDetails_when_quota_is_exceeded()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        // Sifira yakin bir kota: ilk calistirma bile reddedilmelidir.
-        // Kotaya ulasmak icin once sayaci elle doldururuz — gercek bir
-        // calistirma yapmak yerine tuketimi dogrudan yazmak testi hizli ve
-        // saglayicidan bagimsiz tutar.
+        // A near-zero quota: even the first run must be rejected.
+        // We fill the counter by hand to reach the quota — writing the
+        // consumption directly instead of making a real run keeps the test
+        // fast and independent of the provider.
         using (var created = await host.Client.PutAsJsonAsync(Quotas, Request(maxRuns: 1)))
         {
             created.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -139,7 +139,7 @@ public sealed class QuotaEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
 
-        // Retry-After istemcinin ne zaman tekrar deneyecegini soyler.
+        // Retry-After tells the client when to retry.
         response.Headers.RetryAfter.ShouldNotBeNull();
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
@@ -152,7 +152,7 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Kota_altinda_calistirma_reddedilmez()
+    public async Task Run_is_not_rejected_when_under_quota()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -169,10 +169,10 @@ public sealed class QuotaEndpointTests
     }
 
     [Fact]
-    public async Task Kural_yokken_hicbir_calistirma_reddedilmez()
+    public async Task No_run_is_rejected_when_no_rule_exists()
     {
-        // Varsayilan kota YOKTUR: yukseltme yapan bir kurulum beklenmedik 429
-        // gormemelidir.
+        // There is NO default quota: an upgrading setup must not see an
+        // unexpected 429.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(

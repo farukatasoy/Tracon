@@ -4,13 +4,13 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Attachments;
 
 /// <summary>
-/// <see cref="AttachmentResolvingChatClient"/>'in ek referanslarini model
-/// cagrisindan hemen once gercek icerige cozdugunu dogrular.
+/// Verifies that <see cref="AttachmentResolvingChatClient"/> resolves attachment
+/// references to their actual content right before the model call.
 /// </summary>
 public sealed class AttachmentResolvingChatClientTests
 {
     [Fact]
-    public async Task Ek_referansi_gercek_icerige_cozulur()
+    public async Task Attachment_reference_resolves_to_actual_content()
     {
         var store = new InMemoryAttachmentStore();
         var saved = await store.SaveAsync(new AttachmentContent
@@ -25,7 +25,7 @@ public sealed class AttachmentResolvingChatClientTests
         var client = new AttachmentResolvingChatClient(inner, store, new FixedTenantContext("tenant-a"));
 
         var uri = AttachmentUriReference.Create("/agentprism", saved.Id);
-        var message = new ChatMessage(ChatRole.User, [new TextContent("bak"), new UriContent(uri, "image/png")]);
+        var message = new ChatMessage(ChatRole.User, [new TextContent("look"), new UriContent(uri, "image/png")]);
 
         await client.GetResponseAsync([message]);
 
@@ -38,13 +38,13 @@ public sealed class AttachmentResolvingChatClientTests
     }
 
     [Fact]
-    public async Task Ek_icermeyen_mesaj_degistirilmeden_gecer()
+    public async Task Message_without_attachments_passes_through_unchanged()
     {
         var store = new InMemoryAttachmentStore();
         var inner = new CapturingChatClient();
         var client = new AttachmentResolvingChatClient(inner, store, new FixedTenantContext("tenant-a"));
 
-        var message = new ChatMessage(ChatRole.User, "merhaba");
+        var message = new ChatMessage(ChatRole.User, "hello");
 
         await client.GetResponseAsync([message]);
 
@@ -52,7 +52,7 @@ public sealed class AttachmentResolvingChatClientTests
     }
 
     [Fact]
-    public async Task Bulunamayan_veya_baska_kiraciya_ait_ek_hata_uretir()
+    public async Task Missing_or_other_tenants_attachment_throws()
     {
         var store = new InMemoryAttachmentStore();
         var inner = new CapturingChatClient();
@@ -65,7 +65,7 @@ public sealed class AttachmentResolvingChatClientTests
     }
 
     [Fact]
-    public async Task Akisli_cagrida_da_cozulur()
+    public async Task Streaming_call_also_resolves()
     {
         var store = new InMemoryAttachmentStore();
         var saved = await store.SaveAsync(new AttachmentContent
@@ -105,7 +105,7 @@ public sealed class AttachmentResolvingChatClientTests
             CancellationToken cancellationToken = default)
         {
             LastMessages = [.. messages];
-            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")));
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")));
         }
 
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -115,14 +115,14 @@ public sealed class AttachmentResolvingChatClientTests
         {
             LastMessages = [.. messages];
             await Task.Yield();
-            yield return new ChatResponseUpdate(ChatRole.Assistant, "tamam");
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "ok");
         }
 
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
         public void Dispose()
         {
-            // Sahte istemcinin serbest birakilacak kaynagi yok.
+            // The fake client has no resources to release.
         }
     }
 }

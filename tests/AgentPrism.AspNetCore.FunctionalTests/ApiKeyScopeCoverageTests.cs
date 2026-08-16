@@ -5,56 +5,57 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Regresyon citi (Aile F, manuel kabul testi kapanisi): korumali gruptaki HER
-/// API ucu bir <c>ApiKeyScopeRequirement</c> tasimalidir — yorumlu, sabit
-/// sayida bir izin listesi disinda.
+/// Regression fence (Family F, manual acceptance test closure): EVERY API
+/// endpoint in the protected group must carry an <c>ApiKeyScopeRequirement</c>
+/// — except for a small, annotated, fixed-size exemption list.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu test 21 dosyalik "kapsam denetimi yok" bosluguna (HATA-S2-009,
-/// HATA-S2-011, HATA-S3-009) geri donusu engeller. Yeni bir uc eklenip
-/// <c>RequireApiKeyScope</c> unutulursa bu test derleme zamaninda degil ama
-/// ilk CI kosumunda kirilir — sessiz bosluk yeniden acilmaz.
+/// 🚨 This test blocks a return to the 21-file "no scope enforcement" gap
+/// (HATA-S2-009, HATA-S2-011, HATA-S3-009). If a new endpoint is added and
+/// <c>RequireApiKeyScope</c> is forgotten, this test breaks not at compile
+/// time but on the first CI run — the silent gap does not reopen.
 /// </remarks>
 public sealed class ApiKeyScopeCoverageTests
 {
     /// <summary>
-    /// Bearer token denetiminden GECEN ama <c>ApiKeyScopeRequirement</c>
-    /// tasimayan uclar (docs/manuel-test/KAPANIS-PLANI.md §7.2 + Aile F
-    /// notu). Her biri gerekcelidir; listeye eklemek bilincli bir karardir.
-    /// Varsayilan test barindiricisinda HER ZAMAN esler (UI saglayicisi ve
-    /// konusma surucusu kayitli degilken UI kabugu ve konusma ucu hic
-    /// baglanmaz — bu ikisi <see cref="ConditionallyMappedExemptRoutePatterns"/>'de).
+    /// Endpoints that PASS bearer token validation but do NOT carry an
+    /// <c>ApiKeyScopeRequirement</c> (docs/manuel-test/KAPANIS-PLANI.md §7.2 +
+    /// Family F note). Each one is justified; adding to the list is a
+    /// deliberate decision. These ALWAYS map in the default test host (the UI
+    /// shell and the voice endpoint never connect at all when the UI provider
+    /// and the voice driver are not registered — those two are in
+    /// <see cref="ConditionallyMappedExemptRoutePatterns"/>).
     /// </summary>
     private static readonly HashSet<string> ExemptRoutePatterns = new(StringComparer.Ordinal)
     {
-        // Kimlik dogrulama olmadan erisilir; hicbir hassas veri tasimaz.
+        // Reachable without authentication; carries no sensitive data.
         "/agentprism/api/meta",
-        // Saglayicinin yonlendirdigi tarayici bearer token tasiyamaz.
+        // A browser redirected by the provider cannot carry a bearer token.
         "/agentprism/api/mcp-servers/{name}/oauth/callback",
-        // Cagiranin kendi kimliginin tarifi; kapsam eklemek her dar kapsamli
-        // anahtarin acilis yoklamasini gereksiz yere kirar.
+        // Describes the caller's own identity; adding a scope would needlessly
+        // break every narrowly scoped key's startup probe.
         "/agentprism/api/tenants/current",
     };
 
     /// <summary>
-    /// UI saglayicisi veya konusma surucusu kayitliyken ORTAYA CIKAN muaf
-    /// uclar. Varsayilan test barindiricisi ikisini de kaydetmedigi icin bu
-    /// satirlar <see cref="Muafiyet_listesindeki_her_satir_gercekten_haritada_var"/>
-    /// icin denenmez — yalnizca ilk testin (var-olursa-muaf) kapsam disinda
-    /// tutulmasi icin kullanilir.
+    /// Exempt endpoints that APPEAR only when the UI provider or the voice
+    /// driver is registered. Because the default test host registers neither,
+    /// these rows are not tried by
+    /// <see cref="Every_row_in_the_exemption_list_actually_exists_in_the_map"/>
+    /// — they exist only to keep the first test (exempt-if-present) out of scope.
     /// </summary>
     private static readonly HashSet<string> ConditionallyMappedExemptRoutePatterns = new(StringComparer.Ordinal)
     {
-        // SPA kabugu: <script src> Authorization gonderemez, kabuk veri tasimaz.
+        // SPA shell: <script src> cannot send an Authorization header; the shell carries no data.
         "/agentprism/",
         "/agentprism/{**path}",
-        // Token'i statik AuthToken'a karsi KENDISI dogrular; API anahtarlari
-        // bu ucu bugun hic acamaz (metadata eklemek inert olurdu).
+        // Validates the token ITSELF against the static AuthToken; API keys
+        // cannot open this endpoint at all today (adding metadata would be inert).
         "/agentprism/api/voice/sessions/{sessionId}/stream",
     };
 
     [Fact]
-    public async Task Korumali_gruptaki_her_uc_kapsam_tasir_veya_acikca_muaftir()
+    public async Task Every_endpoint_in_the_protected_group_carries_a_scope_or_is_explicitly_exempt()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
@@ -72,9 +73,9 @@ public sealed class ApiKeyScopeCoverageTests
 
             var rawText = routeEndpoint.RoutePattern.RawText ?? string.Empty;
 
-            // Yalnizca AgentPrism API ucu adaylarini denetle: "/api/" veya
-            // "/v1/" segmenti tasiyanlar. SPA kabugu ve varlik rotalari ayri
-            // muafiyet satirlariyla acikca ele alinir.
+            // Only check candidate AgentPrism API endpoints: those carrying an
+            // "/api/" or "/v1/" segment. The SPA shell and asset routes are
+            // handled explicitly by separate exemption rows.
             if (!rawText.Contains("/api/", StringComparison.Ordinal)
                 && !rawText.Contains("/v1/", StringComparison.Ordinal))
             {
@@ -96,12 +97,13 @@ public sealed class ApiKeyScopeCoverageTests
     }
 
     [Fact]
-    public async Task Muafiyet_listesindeki_her_satir_gercekten_haritada_var()
+    public async Task Every_row_in_the_exemption_list_actually_exists_in_the_map()
     {
-        // Ters yon: listedeki bir satir artik hic eslesmiyorsa (rota tasindi/
-        // silindi), muafiyet sessizce anlamsizlasir — bunu da yakala. Yalniz
-        // HER zaman esen 3 satir denenir; UI kabugu ve konusma ucu bu
-        // barindiricida hic baglanmadigi icin kapsam disidir.
+        // The reverse direction: if a row in the list no longer matches anything
+        // (the route moved/was deleted), the exemption silently becomes
+        // meaningless — catch that too. Only the 3 rows that ALWAYS map are
+        // tried; the UI shell and the voice endpoint are out of scope because
+        // they never connect on this host.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
 

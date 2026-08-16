@@ -5,27 +5,27 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Calistirma/mesaj puani uclarinin testleri (Faz 31).</summary>
+/// <summary>Tests for the run/message score endpoints (Phase 31).</summary>
 public sealed class RunFeedbackEndpointTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
     [Fact]
-    public async Task Puan_yazilir_ve_okunur()
+    public async Task Score_is_written_and_read()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host);
 
         using var saved = await host.Client.PostAsJsonAsync(
             FeedbackUri(runId),
-            new { kind = "Binary", value = 1, comment = "dogru cevap" });
+            new { kind = "Binary", value = 1, comment = "correct answer" });
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var body = await AgentPrismTestHost.ReadJsonAsync(saved);
         body.GetProperty("kind").GetString().ShouldBe("Binary");
         body.GetProperty("value").GetInt32().ShouldBe(1);
-        body.GetProperty("comment").GetString().ShouldBe("dogru cevap");
+        body.GetProperty("comment").GetString().ShouldBe("correct answer");
         body.GetProperty("source").GetString().ShouldBe("human");
 
         using var listed = await host.Client.GetAsync(FeedbackUri(runId));
@@ -34,11 +34,12 @@ public sealed class RunFeedbackEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_yazar_ikinci_kez_yazinca_satir_sayisi_ARTMAZ()
+    public async Task Row_count_does_NOT_grow_when_the_same_author_writes_a_second_time()
     {
-        // Kimlik dogrulanmis bir aktor gerekir: dogrulanmamis istekte Author
-        // her zaman null'dur ve tasarim geregi (acik soru 4) her cagri yeni
-        // satir acar -- "ayni yazar" senaryosu ancak kimlikli istekte test edilir.
+        // Requires an authenticated actor: on an unauthenticated request,
+        // Author is always null and, by design (open question 4), every call
+        // opens a new row -- the "same author" scenario is only testable on
+        // an authenticated request.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services));
         var runId = await SeedRunAsync(host);
@@ -65,7 +66,7 @@ public sealed class RunFeedbackEndpointTests
     [InlineData("Binary", -1)]
     [InlineData("Stars", 0)]
     [InlineData("Stars", 6)]
-    public async Task Sinir_disi_deger_400_doner(string kind, int value)
+    public async Task Out_of_range_value_returns_400(string kind, int value)
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host);
@@ -76,7 +77,7 @@ public sealed class RunFeedbackEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirma_puanlanmaya_calisilinca_404_doner()
+    public async Task Scoring_a_nonexistent_run_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -88,7 +89,7 @@ public sealed class RunFeedbackEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_puanlanamaz_AYNI_404_doner()
+    public async Task Another_tenants_run_cannot_be_scored_returns_the_SAME_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -108,8 +109,8 @@ public sealed class RunFeedbackEndpointTests
             TenantId = "kiraci-a",
         });
 
-        // "yok" ile "baska kiraciya ait" AYNI 404'u dondurmelidir; ayri bir
-        // mesaj varlik sizdirirdi.
+        // "doesn't exist" and "belongs to another tenant" must return the
+        // SAME 404; a separate message would leak the entity's existence.
         using var missing = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(AgentPrismId.NewId()), "kiraci-b",
             new { kind = "Binary", value = 1 });
         using var wrongTenant = await SendAsTenant(host, HttpMethod.Post, FeedbackUri(runId), "kiraci-b",
@@ -129,7 +130,7 @@ public sealed class RunFeedbackEndpointTests
     }
 
     [Fact]
-    public async Task Puan_silinir()
+    public async Task Score_is_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host);
@@ -151,7 +152,7 @@ public sealed class RunFeedbackEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_puanin_silinmesi_404_doner()
+    public async Task Deleting_a_nonexistent_score_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedRunAsync(host);

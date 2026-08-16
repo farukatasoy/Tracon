@@ -4,10 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Hiz sinirinin testleri (Faz 21).</summary>
+/// <summary>Tests for the rate limit (Phase 21).</summary>
 /// <remarks>
-/// Hiz siniri <strong>kotadan ayri</strong> bir mekanizmadir: saniye/dakika
-/// olceginde, bellekte calisir (K-158).
+/// The rate limit is a mechanism <strong>separate from the quota</strong>: it
+/// operates in memory, at second/minute granularity (K-158).
 /// </remarks>
 public sealed class RateLimitTests
 {
@@ -15,9 +15,9 @@ public sealed class RateLimitTests
     private static readonly Uri Agents = new("/agentprism/api/agents", UriKind.Relative);
 
     [Fact]
-    public async Task Varsayilan_olarak_kapalidir()
+    public async Task Disabled_by_default()
     {
-        // 🚨 Yukseltme yapan bir kurulum beklenmedik 429 gormemelidir (K-165).
+        // 🚨 An upgrading setup must not see an unexpected 429 (K-165).
         await using var host = await AgentPrismTestHost.StartAsync();
 
         for (var index = 0; index < 50; index++)
@@ -29,7 +29,7 @@ public sealed class RateLimitTests
     }
 
     [Fact]
-    public async Task Acikken_sinir_asilinca_429_doner()
+    public async Task Returns_429_when_enabled_and_limit_is_exceeded()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.Configure<AgentPrismRateLimitOptions>(
@@ -57,10 +57,10 @@ public sealed class RateLimitTests
     }
 
     [Fact]
-    public async Task Meta_ucu_hiz_sinirindan_etkilenmez()
+    public async Task Meta_endpoint_is_unaffected_by_the_rate_limit()
     {
-        // Meta grubu filtresizdir: arayuz kimlik yontemini her zaman
-        // ogrenebilmelidir.
+        // The meta group is unfiltered: the UI must always be able to
+        // discover the identity method.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.Configure<AgentPrismRateLimitOptions>(
                 static options =>

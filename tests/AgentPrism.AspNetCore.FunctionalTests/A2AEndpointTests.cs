@@ -5,11 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Faz 50: AgentPrism agent'larini disa acan A2A sunucusu.</summary>
+/// <summary>Phase 50: the A2A server that exposes AgentPrism agents.</summary>
 public sealed class A2AEndpointTests
 {
     [Fact]
-    public async Task Agent_karti_yayimlanir()
+    public async Task Agent_card_is_published()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -26,7 +26,7 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Mesaj_gonderme_agenti_calistirir_ve_runs_satiri_uretir()
+    public async Task Sending_a_message_runs_the_agent_and_produces_a_runs_row()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -34,7 +34,7 @@ public sealed class A2AEndpointTests
                 .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
             configureAfterMap: app => app.MapAgentPrismA2A());
 
-        var (response, body) = await SendMessageAsync(host.Client, "kod-agent", "merhaba");
+        var (response, body) = await SendMessageAsync(host.Client, "kod-agent", "hello");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK, body?.ToString());
 
@@ -45,7 +45,7 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Beyaz_listede_olmayan_agent_yayimlanmaz()
+    public async Task An_agent_not_on_the_allow_list_is_not_published()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -60,11 +60,11 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Calisma_aninda_eklenen_agent_A2Ada_gorunmez()
+    public async Task An_agent_added_at_runtime_does_not_appear_in_A2A()
     {
-        // 🚨 A2A'nin olculmus kisiti: ExposedAgents kayit ANINDA sabitlenir.
-        // MCP'nin aksine, sonradan eklenen bir agent icin YENI bir A2A sunucusu
-        // olusturulmadan gorunmesi mumkun degildir (bolum 50.5).
+        // 🚨 A measured constraint of A2A: ExposedAgents is fixed AT REGISTRATION
+        // time. Unlike MCP, an agent added later cannot appear without building
+        // a NEW A2A server (section 50.5).
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder.UseA2A(o => o.ExposedAgents.Add("db-agent")),
             configureAfterMap: app => app.MapAgentPrismA2A());
@@ -77,16 +77,17 @@ public sealed class A2AEndpointTests
         using var response = await host.Client.GetAsync(
             new Uri("/agentprism/a2a/db-agent/.well-known/agent-card.json", UriKind.Relative));
 
-        // Kayit ANINDA "db-agent" henuz katalogda yoktu; proxy yine de kurulmustur
-        // (ad SABIT beyaz listeden geldi) ama kart URUTULMUSTU ve calisir durumdadir -
-        // KISIT calisma aninda EKLENEN bir agent'in GORUNMEMESI degil, LISTEYE
-        // SONRADAN eklenemez OLMASIdIR. Bu test o sinirin var oldugunu belgeler:
-        // beyaz listeye "sonradan-eklenen" bir ad eklemenin YOLU yoktur.
+        // At registration time "db-agent" was not yet in the catalog; the proxy was
+        // still set up (the name came from the FIXED allow list), and the card was
+        // ALREADY PRODUCED and works - the CONSTRAINT is not that an agent ADDED
+        // at runtime fails to appear, but that the allow list itself CANNOT be
+        // extended afterward. This test documents that boundary: there is no WAY
+        // to add an "added-later" name to the allow list.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task AllowRemoteAccess_acikken_A2A_acilmaz()
+    public async Task A2A_does_not_start_when_AllowRemoteAccess_is_on()
     {
         await Should.ThrowAsync<InvalidOperationException>(() => AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -97,17 +98,18 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Onay_gerektiren_tool_tasiyan_agent_A2Ada_disa_acilamaz()
+    public async Task An_agent_carrying_a_tool_that_requires_approval_cannot_be_exposed_via_A2A()
     {
-        // Guard artik Map* aninda senkron degil, A2AApprovalGuardFilter icinde
-        // arka planda calisir (bkz. AgentPrismA2AExtensions) — hata bu yuzden
-        // MapAgentPrismA2A()'dan degil, ILK istekten firlar.
+        // The guard no longer runs synchronously at Map* time; it runs in the
+        // background inside A2AApprovalGuardFilter (see AgentPrismA2AExtensions)
+        // — that is why the error comes from the FIRST request, not from
+        // MapAgentPrismA2A().
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
                 .AddTool(
                     (Func<string, string>)CancelOrder,
                     name: "cancel_order",
-                    description: "Bir siparisi iptal eder.",
+                    description: "Cancels an order.",
                     requiresApproval: true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
@@ -120,15 +122,15 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Bos_sqlite_veritabaninda_MapAgentPrismA2A_cokmez()
+    public async Task MapAgentPrismA2A_does_not_crash_on_an_empty_sqlite_database()
     {
-        // Regresyon: MapAgentPrismA2A() onceden Map* aninda (migration'lar
-        // baslamadan ONCE) katalogu SENKRON okuyordu; tamamen bos (dosyasi HENUZ
-        // olusmamis) bir veritabaninda "no such table" ile cokerdi. Guard
-        // A2AApprovalGuardFilter'a tasindiktan sonra Map* artik DB'ye hic
-        // dokunmuyor (agent karti icin kalan okuma da bir DB hatasinda geri
-        // donuse dusuyor). `:memory:` KULLANILMAZ: paylasilan onbellek olmadan
-        // her yeni baglanti kendi izole bos veritabanini acar.
+        // Regression: MapAgentPrismA2A() used to read the catalog SYNCHRONOUSLY
+        // at Map* time (BEFORE migrations start); it crashed with "no such table"
+        // on a completely empty database (file NOT YET created). After the guard
+        // moved to A2AApprovalGuardFilter, Map* no longer touches the DB at all
+        // (the remaining read for the agent card also falls back gracefully on a
+        // DB error). `:memory:` is NOT USED: without a shared cache, each new
+        // connection opens its own isolated, empty database.
         var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-a2a-empty-db-{Guid.NewGuid():N}.db");
 
         try
@@ -157,7 +159,7 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
-    public async Task Cagri_denetim_izine_yazilir()
+    public async Task The_call_is_written_to_the_audit_log()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
@@ -165,7 +167,7 @@ public sealed class A2AEndpointTests
                 .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
             configureAfterMap: app => app.MapAgentPrismA2A());
 
-        await SendMessageAsync(host.Client, "kod-agent", "merhaba");
+        await SendMessageAsync(host.Client, "kod-agent", "hello");
 
         var auditLog = host.Services.GetRequiredService<IAuditLog>();
         var entries = await auditLog.QueryAsync(new AuditQuery { Action = "external.call" });
@@ -175,16 +177,17 @@ public sealed class A2AEndpointTests
         entry.After.ShouldNotBeNull().ShouldContain("\"protocol\":\"a2a\"", Case.Sensitive);
     }
 
-    private static string CancelOrder(string orderId) => $"iptal edildi: {orderId}";
+    private static string CancelOrder(string orderId) => $"canceled: {orderId}";
 
     private static async Task<(HttpResponseMessage Response, System.Text.Json.JsonElement? Body)> SendMessageAsync(
         HttpClient client,
         string agentName,
         string text)
     {
-        // Govde elle degil, SDK'nin KENDI tipleri ve kendi JsonSerializerOptions'i
-        // (A2AJsonUtilities.DefaultOptions) ile uretilir — alan adi/kasa varsayimi
-        // yapmak yerine sozlesmenin GERCEK kaynagina guvenilir.
+        // The body is not built by hand; it is produced with the SDK's OWN types
+        // and its own JsonSerializerOptions (A2AJsonUtilities.DefaultOptions) —
+        // this relies on the ACTUAL source of the contract instead of assuming
+        // field names/casing.
         var sendMessageRequest = new A2A.SendMessageRequest
         {
             Message = new A2A.Message
