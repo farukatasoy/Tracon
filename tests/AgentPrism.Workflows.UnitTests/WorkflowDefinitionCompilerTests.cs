@@ -3,90 +3,91 @@ using AgentPrism.Workflows.UnitTests.Fakes;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Tanimdan graf derlemesi. Bes desenin tamami gercekten kurulabilmelidir;
-/// Microsoft Agent Framework'un builder API'si tahmin edilemez ve bir desenin
-/// kurulmadigi ancak calistirma aninda anlasilirdi.
+/// Compiling a graph from a definition. All five patterns must actually build;
+/// the Microsoft Agent Framework builder API is unpredictable, and a pattern
+/// that fails to build would otherwise only surface at run time.
 /// </summary>
 public sealed class WorkflowDefinitionCompilerTests
 {
     [Fact]
-    public async Task Sequential_derlenir()
+    public async Task Sequential_compiles()
     {
-        var host = new WorkflowTestHost("yazar", "editor", "kontrol");
+        var host = new WorkflowTestHost("writer", "editor", "reviewer");
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor", "kontrol"],
+            AgentNames = ["writer", "editor", "reviewer"],
         });
 
-        workflow.Name.ShouldBe("zincir");
+        workflow.Name.ShouldBe("chain");
 
-        // Uc agent + cikti toplayicisi. MAF hazir desenin sonuna kendi
-        // toplayici executor'unu ekler; sayi bu yuzden agent sayisindan buyuktur.
+        // Three agents + an output collector. MAF appends its own collector
+        // executor to the end of the prebuilt pattern; that is why the count
+        // is greater than the agent count.
         workflow.ReflectExecutors().Count.ShouldBeGreaterThanOrEqualTo(3);
     }
 
     [Fact]
-    public async Task Concurrent_derlenir()
+    public async Task Concurrent_compiles()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {
-            Name = "paralel",
+            Name = "parallel",
             Kind = WorkflowKind.Concurrent,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
-        workflow.Name.ShouldBe("paralel");
+        workflow.Name.ShouldBe("parallel");
     }
 
     [Fact]
-    public async Task Handoff_derlenir()
+    public async Task Handoff_compiles()
     {
-        var host = new WorkflowTestHost("destek", "uzman");
+        var host = new WorkflowTestHost("support", "expert");
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {
-            Name = "devret",
+            Name = "handoff",
             Kind = WorkflowKind.Handoff,
-            AgentNames = ["destek", "uzman"],
-            HandoffInstructions = "Teknik soru gelirse uzmana devret.",
+            AgentNames = ["support", "expert"],
+            HandoffInstructions = "Hand off to the expert for technical questions.",
             MaxIterations = 4,
         });
 
-        workflow.Name.ShouldBe("devret");
+        workflow.Name.ShouldBe("handoff");
     }
 
     [Fact]
-    public async Task GroupChat_derlenir()
+    public async Task GroupChat_compiles()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {
-            Name = "sohbet",
+            Name = "chat",
             Kind = WorkflowKind.GroupChat,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
             MaxIterations = 2,
         });
 
-        workflow.Name.ShouldBe("sohbet");
+        workflow.Name.ShouldBe("chat");
     }
 
     [Fact]
-    public async Task Magentic_derlenir()
+    public async Task Magentic_compiles()
     {
-        var host = new WorkflowTestHost("yonetici", "yazar", "editor");
+        var host = new WorkflowTestHost("manager", "writer", "editor");
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {
             Name = "magentic",
             Kind = WorkflowKind.Magentic,
-            AgentNames = ["yazar", "editor"],
-            ManagerAgentName = "yonetici",
+            AgentNames = ["writer", "editor"],
+            ManagerAgentName = "manager",
             MaxIterations = 2,
         });
 
@@ -94,20 +95,20 @@ public sealed class WorkflowDefinitionCompilerTests
     }
 
     [Fact]
-    public async Task Ayni_tanim_iki_kez_derlenirse_EXECUTOR_KIMLIKLERI_AYNI_KALIR()
+    public async Task Compiling_the_same_definition_twice_KEEPS_EXECUTOR_IDS_THE_SAME()
     {
-        // 🚨 Kontrol noktasindan sürdürme buna baglidir. Microsoft Agent
-        // Framework executor kimliklerini agent ORNEGINDEN turetir; kimlikler
-        // her derlemede degisirse MAF kontrol noktasini reddeder
-        // ("The specified checkpoint is not compatible with the workflow").
-        // Olculdu (Faz 15): yeni agent ornekleriyle kurulan graf uyumsuz cikti.
-        var host = new WorkflowTestHost("yazar", "editor");
+        // 🚨 Resuming from a checkpoint depends on this. Microsoft Agent
+        // Framework derives executor ids from the agent INSTANCE; if the ids
+        // change on every compile, MAF rejects the checkpoint ("The specified
+        // checkpoint is not compatible with the workflow"). Measured
+        // (Phase 15): a graph built with fresh agent instances came out incompatible.
+        var host = new WorkflowTestHost("writer", "editor");
 
         var definition = new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         };
 
         var first = await host.Compiler.CompileAsync(definition);
@@ -118,31 +119,31 @@ public sealed class WorkflowDefinitionCompilerTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_agent_adi_anlasilir_hata_verir()
+    public async Task Unknown_agent_name_fails_with_a_clear_error()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
             await host.Compiler.CompileAsync(new WorkflowDefinition
             {
-                Name = "zincir",
+                Name = "chain",
                 Kind = WorkflowKind.Sequential,
-                AgentNames = ["yazar", "olmayan-agent"],
+                AgentNames = ["writer", "missing-agent"],
             }));
 
-        exception.Message.ShouldContain("'olmayan-agent'", Case.Sensitive);
+        exception.Message.ShouldContain("'missing-agent'", Case.Sensitive);
         exception.Message.ShouldContain("no such agent exists in the catalog", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Gecersiz_tanim_derlenmeden_reddedilir()
+    public async Task Invalid_definition_is_rejected_before_compiling()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
             await host.Compiler.CompileAsync(new WorkflowDefinition
             {
-                Name = "zincir",
+                Name = "chain",
                 Kind = WorkflowKind.Sequential,
                 AgentNames = [],
             }));

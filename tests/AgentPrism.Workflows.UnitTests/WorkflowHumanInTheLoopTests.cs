@@ -3,19 +3,19 @@ using AgentPrism.Workflows.UnitTests.Fakes;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Insan girdisi bekleyen calistirmanin tam dongusu: bekle, listele, yanitla, bit.
+/// The full cycle of a run waiting on human input: wait, list, respond, finish.
 /// </summary>
 public sealed class WorkflowHumanInTheLoopTests
 {
     [Fact]
-    public async Task Bekleyen_istek_calistirmayi_AwaitingInput_yapar()
+    public async Task Pending_request_makes_the_run_AwaitingInput()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        var events = await Collect(runner, "onay-akisi", "raporu yayinla");
+        var events = await Collect(runner, "approval-flow", "publish the report");
 
-        // Akisin son olayi hata degil, bekleme bildirmelidir.
+        // The flow's last event must report waiting, not an error.
         events[^1].Type.ShouldBe(RunEventType.RunAwaitingInput);
         events.ShouldContain(runEvent => runEvent.Type == RunEventType.WorkflowRequest);
 
@@ -26,29 +26,29 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     [Fact]
-    public async Task Bekleyen_istek_kontrol_noktasi_yazar()
+    public async Task Pending_request_writes_a_checkpoint()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
 
-        // Kontrol noktasi olmadan yanit verilemezdi: yurutme durumu yalnizca
-        // orada yasar.
+        // Without a checkpoint there would be nowhere to resume execution
+        // state from when a response comes in.
         var checkpoints = await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, run.Id);
 
         checkpoints.ShouldNotBeEmpty();
     }
 
     [Fact]
-    public async Task Bekleyen_istek_listelenir_ve_sorusunu_tasir()
+    public async Task Pending_request_is_listed_and_carries_its_prompt()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
         var pending = await runner.ListPendingRequestsAsync(run.Id);
@@ -59,67 +59,67 @@ public sealed class WorkflowHumanInTheLoopTests
         request.PortId.ShouldBe(ApprovalWorkflow.PortId);
         request.RequestId.ShouldNotBeNullOrWhiteSpace();
 
-        // Yanit tipi bool oldugu icin arayuz evet/hayir sormalidir.
+        // The response type is bool, so the UI must ask a yes/no question.
         request.Form.ShouldBe(WorkflowRequestForm.Boolean);
         request.Prompt.ShouldNotBeNull();
-        request.Prompt!.ShouldContain("raporu yayinla", Case.Sensitive);
+        request.Prompt!.ShouldContain("publish the report", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Yanit_verilince_calistirma_tamamlanir()
+    public async Task Once_a_response_is_given_the_run_completes()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
         var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
 
         var resumed = await CollectResponse(runner, first.Id, pending.RequestId, approved: true);
 
-        // Sürdürme YENI bir satir acar; eski satir gecmise donuk degistirilmez.
+        // Resuming opens a NEW row; the old row is never mutated retroactively.
         var runs = await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 });
         var second = runs.Single(run => run.Id != first.Id);
 
         second.Status.ShouldBe(RunStatus.Completed);
-        second.WorkflowName.ShouldBe("onay-akisi");
+        second.WorkflowName.ShouldBe("approval-flow");
 
         var output = resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput);
 
-        output.Text.ShouldBe("onaylandi");
+        output.Text.ShouldBe("approved");
     }
 
     [Fact]
-    public async Task Ret_yaniti_da_yurutmeye_akar()
+    public async Task A_rejection_response_also_flows_through_execution()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
         var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
 
         var resumed = await CollectResponse(runner, first.Id, pending.RequestId, approved: false);
 
-        resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("reddedildi");
+        resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("rejected");
     }
 
     [Fact]
-    public async Task Yanitlanan_calistirma_artik_bekleyen_istek_gostermez()
+    public async Task Answered_run_no_longer_shows_a_pending_request()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
         var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
 
         await CollectResponse(runner, first.Id, pending.RequestId, approved: true);
 
-        // Ikinci satir tamamlandi; bekleyen istegi yoktur.
+        // The second row is completed; it has no pending request.
         var second = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 }))
             .Single(run => run.Id != first.Id);
 
@@ -127,62 +127,62 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_istek_kimligi_reddedilir()
+    public async Task Unknown_request_id_is_rejected()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
 
-        // Sessizce sürdürulseydi calistirma yine bekleyerek biterdi ve kullanici
-        // yanitinin neden ise yaramadigini goremezdi.
+        // If this resumed silently, the run would still end up waiting and the
+        // user would never see why their response had no effect.
         var error = await Should.ThrowAsync<AgentPrismException>(
-            async () => await CollectResponse(runner, run.Id, "yok-boyle-bir-istek", approved: true));
+            async () => await CollectResponse(runner, run.Id, "no-such-request", approved: true));
 
-        error.Message.ShouldContain("yok-boyle-bir-istek", Case.Sensitive);
+        error.Message.ShouldContain("no-such-request", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Beklemeyen_calistirma_yanitlanamaz()
+    public async Task A_run_that_is_not_waiting_cannot_be_answered()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar"],
+            AgentNames = ["writer"],
         });
 
         var runner = host.CreateRunner();
 
-        await Collect(runner, "zincir", "girdi");
+        await Collect(runner, "chain", "input");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
 
         var error = await Should.ThrowAsync<AgentPrismException>(
-            async () => await CollectResponse(runner, run.Id, "herhangi", approved: true));
+            async () => await CollectResponse(runner, run.Id, "any", approved: true));
 
         error.Message.ShouldContain("is not awaiting human input", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_yanitlanamaz()
+    public async Task Another_tenants_run_cannot_be_answered()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
         var pending = (await runner.ListPendingRequestsAsync(run.Id)).Single();
 
-        host.TenantContext.TenantId = "baska-kiraci";
+        host.TenantContext.TenantId = "other-tenant";
 
-        // "Yetkisiz" bile denmez: baska bir kiracinin calistirmasinin var oldugu
-        // bilgisi de sizdirilmaz.
+        // Not even "unauthorized" is said: whether another tenant's run exists
+        // at all must not be leaked either.
         var error = await Should.ThrowAsync<AgentPrismException>(
             async () => await CollectResponse(runner, run.Id, pending.RequestId, approved: true));
 
@@ -190,7 +190,7 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     [Fact]
-    public async Task Kontrol_noktasi_kapaliyken_bekleme_hata_verir()
+    public async Task Waiting_fails_when_checkpointing_is_disabled()
     {
         var host = new WorkflowTestHost();
 
@@ -199,10 +199,10 @@ public sealed class WorkflowHumanInTheLoopTests
             services: null,
             ApprovalWorkflow.Registration());
 
-        var events = await Collect(runner, "onay-akisi", "raporu yayinla");
+        var events = await Collect(runner, "approval-flow", "publish the report");
 
-        // Sürdürulemeyecek bir beklemeyi "bekliyor" diye gostermek, kullaniciyi
-        // hic gelmeyecek bir devam icin bekletirdi.
+        // Reporting a wait that can never be resumed as "waiting" would leave
+        // the user waiting for a continuation that never comes.
         events[^1].Type.ShouldBe(RunEventType.RunFailed);
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
@@ -212,7 +212,7 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     [Fact]
-    public async Task Bekleyen_calistirmanin_kontrol_noktalari_temizlik_ayarinda_bile_KALIR()
+    public async Task Checkpoints_of_a_pending_run_SURVIVE_even_with_cleanup_enabled()
     {
         var host = new WorkflowTestHost();
 
@@ -221,11 +221,11 @@ public sealed class WorkflowHumanInTheLoopTests
             services: null,
             ApprovalWorkflow.Registration());
 
-        await Collect(runner, "onay-akisi", "raporu yayinla");
+        await Collect(runner, "approval-flow", "publish the report");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
 
-        // Silinselerdi yanit verilecek bir yer kalmazdi.
+        // If they were deleted, there would be nowhere left to resume to.
         (await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, run.Id)).ShouldNotBeEmpty();
     }
 

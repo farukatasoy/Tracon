@@ -5,22 +5,23 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Workflows.UnitTests.Fakes;
 
 /// <summary>
-/// Insan girdisi bekleyen bir graf, ama giris dugumu <see cref="ApprovalWorkflow"/>'un
-/// aksine duz bir <c>BindAsExecutor</c> DEGIL, gercek dunyadaki
-/// <c>ozetle-ve-onayla</c> ile ayni sekilde bir <see cref="AIAgentBinding"/>'dir.
+/// A graph that waits for human input, but whose entry node is NOT a plain
+/// <c>BindAsExecutor</c> like <see cref="ApprovalWorkflow"/> — it is an
+/// <see cref="AIAgentBinding"/>, the same way a real-world
+/// <c>summarize-and-approve</c> workflow would be.
 /// </summary>
 /// <remarks>
-/// MT-WF-062 (HATA): bir <c>respond</c> cagrisi giris dugumunu SIFIRDAN yeniden
-/// tetikliyordu. <see cref="ApprovalWorkflow"/>'un duz executor'u bunu hic
-/// yakalamaz — yalniz <c>TurnToken</c> ile tetiklenen bir agent-host dugumu
-/// (bu sinif) kok nedeni gorunur kilar.
+/// MT-WF-062 (defect): a <c>respond</c> call re-triggered the entry node FROM
+/// SCRATCH. The plain executor in <see cref="ApprovalWorkflow"/> never catches
+/// this — only an agent-host node triggered by a <c>TurnToken</c> (this class)
+/// makes the root cause visible.
 /// </remarks>
 internal static class AgentApprovalWorkflow
 {
-    /// <summary>Dis istek portunun kimligi.</summary>
-    public const string PortId = "yayin-onayi";
+    /// <summary>The id of the external request port.</summary>
+    public const string PortId = "publish-approval";
 
-    /// <summary>Grafi kurar. <paramref name="summarizer"/> giris dugumudur.</summary>
+    /// <summary>Builds the graph. <paramref name="summarizer"/> is the entry node.</summary>
     public static Workflow Build(AIAgent summarizer)
     {
         var port = RequestPort.Create<string, bool>(PortId);
@@ -28,16 +29,16 @@ internal static class AgentApprovalWorkflow
 
         var ask = ExecutorBindingExtensions.BindAsExecutor(
             static (List<ChatMessage> messages) =>
-                "Bu ozet yayinlansin mi?" + Environment.NewLine + Environment.NewLine +
+                "Should this summary be published?" + Environment.NewLine + Environment.NewLine +
                 (messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
                  ?? string.Empty),
-            id: "onay-sorusu");
+            id: "approval-question");
 
         var publish = ExecutorBindingExtensions.BindAsExecutor(
             static (bool approved) => approved
-                ? "onaylandi"
-                : "reddedildi",
-            id: "yayin");
+                ? "approved"
+                : "rejected",
+            id: "publish");
 
         var summarizeBinding = new AIAgentBinding(
             summarizer,
@@ -53,11 +54,11 @@ internal static class AgentApprovalWorkflow
             .AddEdge(ask, portBinding)
             .AddEdge(portBinding, publish)
             .WithOutputFrom(publish)
-            .WithName("ozetleyici-onay-akisi")
+            .WithName("summarizer-approval-flow")
             .Build();
     }
 
-    /// <summary>Kosucuya verilecek kod kaydi.</summary>
-    public static CodeWorkflowRegistration Registration(AIAgent summarizer, string name = "ozetleyici-onay-akisi")
-        => new(name, "Ozetler, sonra insan onayi bekler.", _ => Build(summarizer));
+    /// <summary>The code registration to hand to the runner.</summary>
+    public static CodeWorkflowRegistration Registration(AIAgent summarizer, string name = "summarizer-approval-flow")
+        => new(name, "Summarizes, then waits for human approval.", _ => Build(summarizer));
 }

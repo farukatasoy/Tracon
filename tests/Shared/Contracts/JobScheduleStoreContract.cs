@@ -1,7 +1,7 @@
 
 namespace AgentPrism.StoreContracts;
 
-/// <summary><see cref="IJobScheduleStore"/> sozlesmesinin davranis testleri.</summary>
+/// <summary>Behavior tests for the <see cref="IJobScheduleStore"/> contract.</summary>
 public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobScheduleStore>
 {
     /// <inheritdoc />
@@ -24,7 +24,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
         => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
-    public async Task SaveAsync_yeni_zamanlamaya_kimlik_atar()
+    public async Task SaveAsync_assigns_an_id_to_a_new_schedule()
     {
         var saved = await Store.SaveAsync(TestData.Schedule());
 
@@ -32,48 +32,48 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     }
 
     [Fact]
-    public async Task SaveAsync_ayni_ad_icin_kimligi_korur_ve_gunceller()
+    public async Task SaveAsync_keeps_the_id_and_updates_for_the_same_name()
     {
         var first = await Store.SaveAsync(TestData.Schedule());
-        var second = await Store.SaveAsync(TestData.Schedule() with { TargetName = "yeni-hedef" });
+        var second = await Store.SaveAsync(TestData.Schedule() with { TargetName = "new-target" });
 
         second.Id.ShouldBe(first.Id);
 
-        var fetched = await Store.GetAsync("default", "gece-raporu");
-        fetched!.TargetName.ShouldBe("yeni-hedef");
+        var fetched = await Store.GetAsync("default", "night-report");
+        fetched!.TargetName.ShouldBe("new-target");
     }
 
     [Fact]
-    public async Task GetAsync_baska_kiracidan_null_doner()
+    public async Task GetAsync_returns_null_for_another_tenant()
     {
-        await Store.SaveAsync(TestData.Schedule(tenantId: "kiraci-a"));
+        await Store.SaveAsync(TestData.Schedule(tenantId: "tenant-a"));
 
-        (await Store.GetAsync("kiraci-b", "gece-raporu")).ShouldBeNull();
+        (await Store.GetAsync("tenant-b", "night-report")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task DeleteAsync_var_olani_siler()
+    public async Task DeleteAsync_removes_an_existing_schedule()
     {
         await Store.SaveAsync(TestData.Schedule());
 
-        (await Store.DeleteAsync("default", "gece-raporu")).ShouldBeTrue();
-        (await Store.GetAsync("default", "gece-raporu")).ShouldBeNull();
+        (await Store.DeleteAsync("default", "night-report")).ShouldBeTrue();
+        (await Store.GetAsync("default", "night-report")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task ListAsync_yalnizca_o_kiraciyi_getirir()
+    public async Task ListAsync_returns_only_that_tenant()
     {
-        await Store.SaveAsync(TestData.Schedule(tenantId: "kiraci-a", name: "s1"));
-        await Store.SaveAsync(TestData.Schedule(tenantId: "kiraci-b", name: "s2"));
+        await Store.SaveAsync(TestData.Schedule(tenantId: "tenant-a", name: "s1"));
+        await Store.SaveAsync(TestData.Schedule(tenantId: "tenant-b", name: "s2"));
 
-        var list = await Store.ListAsync("kiraci-a");
+        var list = await Store.ListAsync("tenant-a");
 
         list.ShouldHaveSingleItem();
         list[0].Name.ShouldBe("s1");
     }
 
     [Fact]
-    public async Task ListDueAsync_yalnizca_etkin_ve_zamani_gelmis_olanlari_getirir()
+    public async Task ListDueAsync_returns_only_enabled_and_due_schedules()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -88,7 +88,7 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
     }
 
     [Fact]
-    public async Task TryClaimNextRunAsync_beklenen_deger_uyusmazsa_basarisiz_olur()
+    public async Task TryClaimNextRunAsync_fails_when_the_expected_value_does_not_match()
     {
         var now = DateTimeOffset.UtcNow;
         var saved = await Store.SaveAsync(TestData.Schedule() with { NextRunAt = now });
@@ -96,11 +96,11 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
         var claimed = await Store.TryClaimNextRunAsync(saved.Id, now.AddMinutes(-1), now.AddHours(1), now);
 
         claimed.ShouldBeFalse();
-        (await Store.GetAsync("default", "gece-raporu"))!.NextRunAt.ShouldBe(now);
+        (await Store.GetAsync("default", "night-report"))!.NextRunAt.ShouldBe(now);
     }
 
     [Fact]
-    public async Task TryClaimNextRunAsync_ikinci_iddia_cakismayi_engeller()
+    public async Task TryClaimNextRunAsync_a_second_claim_prevents_the_conflict()
     {
         var now = DateTimeOffset.UtcNow;
         var saved = await Store.SaveAsync(TestData.Schedule() with { NextRunAt = now });

@@ -8,12 +8,12 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Workflows.UnitTests.Fakes;
 
 /// <summary>
-/// Gercek bir model olmadan workflow calistirmayi mumkun kilan en kucuk kurulum.
+/// The smallest setup that makes it possible to run a workflow without a real model.
 /// </summary>
 /// <remarks>
-/// Agent'lar <see cref="EchoAgent"/>'tir ve kendilerine gelen son mesaji
-/// isaretleyip geri dondururler. Boylece Sequential zincirinde her halkanin
-/// bir oncekinin ciktisini gordugu <em>metinden</em> dogrulanabilir.
+/// The agents are <see cref="EchoAgent"/>s and tag and return the last message
+/// they receive. This lets a Sequential chain be verified <em>from the text
+/// itself</em> — each link sees the previous one's output.
 /// </remarks>
 internal sealed class WorkflowTestHost
 {
@@ -28,8 +28,8 @@ internal sealed class WorkflowTestHost
 
         foreach (var name in agentNames)
         {
-            // Her agent kayit sarmalayicisiyla sarilir: gercek katalogda da oyle
-            // gelir ve alt calistirma satirlari ancak boyle olusur.
+            // Every agent is wrapped in the run-recording wrapper: the real
+            // catalog does the same, and child run rows only get created this way.
             _agents[name] = new RunRecordingAgent(
                 new EchoAgent(name),
                 RunStore,
@@ -53,17 +53,17 @@ internal sealed class WorkflowTestHost
 
     public CallableAgentResolver Resolver { get; }
 
-    /// <summary>Kimligi kararli agent sarmalayicilarinin onbellegi.</summary>
+    /// <summary>Cache of agent wrappers with a stable id.</summary>
     public WorkflowAgentCache AgentCache { get; }
 
     public WorkflowDefinitionCompiler Compiler { get; }
 
-    /// <summary>Bir kosucu kurar. Kod workflow'lari istege baglidir.</summary>
+    /// <summary>Builds a runner. Code workflows are optional.</summary>
     /// <remarks>
-    /// <paramref name="services"/> yalnizca kod workflow fabrikalarina gecirilir.
-    /// <c>GetWorkflowAgent</c> kullanan bir fabrika gercek bir kap ister; bos
-    /// bir saglayici verildiginde fabrika patlar ve calistirma sessizce
-    /// bos gorunur.
+    /// <paramref name="services"/> is only passed to code workflow factories.
+    /// A factory that uses <c>GetWorkflowAgent</c> needs a real container; when
+    /// an empty provider is given the factory blows up and the run silently
+    /// looks empty.
     /// </remarks>
     public WorkflowRunner CreateRunner(
         Action<AgentPrismWorkflowOptions>? configure = null,
@@ -90,7 +90,7 @@ internal sealed class WorkflowTestHost
             NullLogger<WorkflowRunner>.Instance);
     }
 
-    /// <summary>Bir tanimi kiraciya kaydeder.</summary>
+    /// <summary>Saves a definition for the tenant.</summary>
     public ValueTask<WorkflowDefinition> SaveAsync(WorkflowDefinition definition)
         => DefinitionStore.SaveAsync(TenantContext.TenantId, definition);
 
@@ -117,7 +117,7 @@ internal sealed class WorkflowTestHost
                 .. agents.Keys.Select(static name => new AgentDescriptor
                 {
                     Name = name,
-                    Description = $"{name} rolunu ustlenir.",
+                    Description = $"Plays the role of {name}.",
                     Origin = AgentDefinitionOrigin.Database,
                     SourceName = "database",
                 }),
@@ -131,12 +131,12 @@ internal sealed class WorkflowTestHost
     }
 }
 
-/// <summary>Kendisine gelen son mesaji isaretleyip geri donduren agent.</summary>
+/// <summary>Agent that tags and returns the last message it receives.</summary>
 internal sealed class EchoAgent(string name) : AIAgent
 {
     public override string Name => name;
 
-    public override string Description => $"{name} rolunu ustlenir.";
+    public override string Description => $"Plays the role of {name}.";
 
     protected override Task<AgentResponse> RunCoreAsync(
         IEnumerable<ChatMessage> messages,

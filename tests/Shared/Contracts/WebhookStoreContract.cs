@@ -1,12 +1,12 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IWebhookStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IWebhookStore"/> contract.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu sozlesmede bir <strong>sir alani yoktur</strong>. Depo yalnizca
-/// sirrin okunacagi yapilandirma anahtarinin adini tasir (K-059); testler bunu
-/// dogrular.
+/// 🚨 This contract has no <strong>secret field</strong>. The store only carries
+/// the name of the configuration key the secret is read from (K-059); tests
+/// verify this.
 /// </remarks>
 public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookStore>
 {
@@ -26,8 +26,8 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     {
         var subscription = await Store.GetSubscriptionAsync(tenantId, (string)key);
 
-        // Olay eslesmesi de kiraciya kilitlidir; aksi halde bir kiracinin olayi
-        // digerinin uc noktasina teslim edilirdi.
+        // Event matching is also locked to the tenant; otherwise one tenant's event
+        // would be delivered to another tenant's endpoint.
         var matches = await Store.FindForEventAsync(tenantId, "run.completed");
         matches.Any(item => item.Id == subscription?.Id).ShouldBe(subscription is not null);
 
@@ -40,7 +40,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         var deliveries = await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = tenantId });
         var subscriptions = await Store.ListSubscriptionsAsync(tenantId);
 
-        // Teslimat gecmisi de abonelikle ayni kiraci sinirini tasimalidir.
+        // Delivery history must also respect the same tenant boundary as the subscription.
         deliveries.Count.ShouldBe(subscriptions.Count);
 
         return subscriptions.Count;
@@ -53,7 +53,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     private const string Tenant = "test";
 
     [Fact]
-    public async Task Kaydedilen_abonelik_geri_okunur()
+    public async Task Saved_subscription_is_read_back()
     {
         await Store.SaveSubscriptionAsync(Subscription(
             events: ["run.completed", "run.failed"],
@@ -69,7 +69,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Basliklar_korunur()
+    public async Task Headers_are_preserved()
     {
         await Store.SaveSubscriptionAsync(Subscription(
             headers: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -87,7 +87,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Ayni_ad_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Saving_the_same_name_a_second_time_overwrites_it()
     {
         await Store.SaveSubscriptionAsync(Subscription(url: "https://one.example.com/hook"));
         await Store.SaveSubscriptionAsync(Subscription(url: "https://two.example.com/hook"));
@@ -99,7 +99,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Olaya_abone_olanlar_bulunur()
+    public async Task Subscribers_for_an_event_are_found()
     {
         await Store.SaveSubscriptionAsync(Subscription(name: "a", events: ["run.completed"]));
         await Store.SaveSubscriptionAsync(Subscription(name: "b", events: ["run.failed"]));
@@ -112,7 +112,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Devre_disi_abonelik_olay_aramasinda_cikmaz()
+    public async Task Disabled_subscription_does_not_appear_in_event_search()
     {
         await Store.SaveSubscriptionAsync(
             Subscription(name: "a", events: ["run.completed"], enabled: false));
@@ -121,19 +121,19 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Olay_adi_tam_eslesir()
+    public async Task Event_name_matches_exactly()
     {
         await Store.SaveSubscriptionAsync(Subscription(events: ["run.completed"]));
 
-        // 'run.completed' araniyor; 'run.complete' veya 'run.completed.v2'
-        // eslesmemelidir.
+        // Searching for 'run.completed'; 'run.complete' or 'run.completed.v2'
+        // must not match.
         (await Store.FindForEventAsync(Tenant, "run.complete")).ShouldBeEmpty();
         (await Store.FindForEventAsync(Tenant, "run.completed.v2")).ShouldBeEmpty();
         (await Store.FindForEventAsync(Tenant, "run.completed")).Count.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_aboneligi_gorunmez()
+    public async Task Another_tenants_subscription_is_not_visible()
     {
         await Store.SaveSubscriptionAsync(Subscription());
 
@@ -143,7 +143,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Silinen_abonelik_geri_okunmaz()
+    public async Task Deleted_subscription_is_not_read_back()
     {
         await Store.SaveSubscriptionAsync(Subscription());
 
@@ -152,7 +152,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Abonelik_silinince_teslimleri_de_silinir()
+    public async Task Deleting_a_subscription_also_deletes_its_deliveries()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         await Store.CreateDeliveryAsync(Delivery(subscription.Id));
@@ -165,7 +165,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Teslim_kaydi_geri_okunur()
+    public async Task Delivery_record_is_read_back()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var delivery = await Store.CreateDeliveryAsync(Delivery(subscription.Id));
@@ -179,7 +179,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Basarili_teslim_sonucu_yazilir()
+    public async Task Successful_delivery_result_is_recorded()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var delivery = await Store.CreateDeliveryAsync(Delivery(subscription.Id));
@@ -204,7 +204,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Basarisiz_teslim_teslim_zamani_yazmaz()
+    public async Task Failed_delivery_does_not_record_a_delivery_time()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var delivery = await Store.CreateDeliveryAsync(Delivery(subscription.Id));
@@ -228,7 +228,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Teslimler_duruma_gore_suzulur()
+    public async Task Deliveries_are_filtered_by_status()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var first = await Store.CreateDeliveryAsync(Delivery(subscription.Id));
@@ -253,18 +253,18 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Basarisizlik_sayaci_artar_ve_esikte_abonelik_kapanir()
+    public async Task Failure_counter_increments_and_disables_the_subscription_at_the_threshold()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var now = DateTimeOffset.UtcNow;
 
-        // Esik 3: ilk iki basarisizlik kapatmaz.
+        // Threshold 3: the first two failures do not disable it.
         (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 3, now)).ShouldBeFalse();
         (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 3, now)).ShouldBeFalse();
 
         (await Store.GetSubscriptionAsync(Tenant, "orders"))!.Enabled.ShouldBeTrue();
 
-        // Ucuncusu kapatir ve bunu bildirir.
+        // The third one disables it and reports that.
         (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 3, now)).ShouldBeTrue();
 
         var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
@@ -274,7 +274,7 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
-    public async Task Basarili_teslim_sayaci_sifirlar()
+    public async Task Successful_delivery_resets_the_counter()
     {
         var subscription = await Store.SaveSubscriptionAsync(Subscription());
         var now = DateTimeOffset.UtcNow;
