@@ -133,7 +133,7 @@ public sealed class OpenAIChatClientFactoryTests
 
     [Fact]
     public void Null_client_is_rejected()
-        => Should.Throw<ArgumentNullException>(() => new OpenAIChatClientFactory(client: null!));
+        => Should.Throw<ArgumentNullException>(() => OpenAIChatClientFactory.FromClient(client: null!));
 
     [Fact]
     public void Null_options_is_rejected()

@@ -121,7 +121,7 @@ public sealed class AnthropicChatClientFactoryTests
     {
         // The Anthropic Messages API requires the max_tokens field; zero would
         // break a request at run time.
-        Should.Throw<ArgumentOutOfRangeException>(() => new AnthropicChatClientFactory(
+        Should.Throw<ArgumentOutOfRangeException>(() => AnthropicChatClientFactory.FromClient(
             AnthropicChatClientFactory.CreateClient(TestData.Options()),
             TestData.Model,
             defaultMaxOutputTokens: 0));

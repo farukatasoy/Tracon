@@ -20,7 +20,7 @@ internal sealed class FakeAgentCatalog(IReadOnlyList<AgentDescriptor> descriptor
     public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
         => new(descriptors);
 
-    public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+    public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
         => new((AIAgent?)null);
 
     public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)

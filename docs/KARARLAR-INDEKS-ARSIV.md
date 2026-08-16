@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (305 kalem)
+## Arşivlenen Kararlar (309 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -24,7 +24,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-013 | 58 | Ayrı `agentprism` PostgreSQL şeması |
 | K-014 | 59 | `run_events` append-only |
 | K-015 | 60 | Birincil anahtarlar `uuid` v7 |
-| K-016 | 61 | Public API takibi Faz 7'ye ertelendi |
+| K-016 | 61 | Public API takibi Faz 7'ye ertelendi 🔁 |
 | K-017 | 62 | Sürümleme MinVer ile git etiketinden |
 | K-019 | 63 | Agent kaynakları `IAgentSource` ile soyutlandı |
 | K-020 | 64 | `MAAI001` bastırması tek dosyada toplandı |
@@ -76,7 +76,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-065 | 110 | Ses: hedef gerçek zamanlı konuşma katmanı 👤 |
 | K-066 | 111 | Skill'lerde script çalıştırma kabul edildi; K2'nin ikinci bilinçli istisnası 👤 |
 | K-067 | 112 | Alt agent çalıştırması ayrı bir `runs` satırıdır 👤 |
-| K-068 | 113 | Faz 7 (yayın) sıradan çıkarıldı; zamanı belirsiz 👤 |
+| K-068 | 113 | Faz 7 (yayın) sıradan çıkarıldı; zamanı belirsiz 👤🔁 |
 | K-069 | 114 | `UseOpenAICompatible(ad, ...)` ayrı ad, `UseOpenAI` aşırı yüklemesi değil 👤 |
 | K-070 | 115 | Model sağlayıcı devre kesici varsayılan olarak açık 👤 |
 | K-071 | 116 | Sağlayıcı sağlık denetimi arka planda varsayılan olarak koşmaz 👤 |
@@ -314,3 +314,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-303 | 348 | "Olumsuz puan" otomatik terfi tetikleyicisi olarak `Binary` için `Value == 0`, `Stars` için `Value <= 2` (5 üzerinden) tanımlandı |
 | K-304 | 349 | Kuyruğa alınan (`Prefer: respond-async`) bir çalıştırmanın `runs` satırı, işçinin gerçek yürütme satırıyla AYNI birincil anahtarı paylaşır; `IRunStore.StartRunAsync` bu yüzden bir UPSERT'tir |
 | K-305 | 350 | Kuyruğa alınan bir çalıştırmada `JobRecord.Id` ile `RunRecord.Id` bilinçli olarak AYNI değeri taşır |
+| K-306 | 351 | `AgentPrismAsyncRunOptions.MaxAttempts` varsayılanı `1`'dir (kullanıcı kararı) 👤 |
+| K-307 | 352 | `AgentPrismAsyncRunOptions.Enabled` varsayılanı `true`'dur (kullanıcı kararı) 👤 |
+| K-308 | 353 | Çalıştırmanın girdisi AYRI bir `run_inputs` tablosunda ve `json` sütununda saklanır; `runs`'a sütun EKLENMEZ |
+| K-309 | 354 | Varsayılan tool modu `ReplayTools`; kayıtlı sonucu olmayan bir çağrı yeniden oynatmayı DURDURUR ve `422` döner |

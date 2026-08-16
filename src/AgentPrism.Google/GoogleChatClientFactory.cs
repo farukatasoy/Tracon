@@ -45,16 +45,15 @@ public sealed class GoogleChatClientFactory : IDisposable
     /// <param name="client">Google GenAI client to use.</param>
     /// <param name="defaultModel">Model to use when no model name is given.</param>
     /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    /// <returns>The new factory.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// Setups that manage their own authentication (for example, a Vertex AI
-    /// service account) use this constructor. The lifetime of a client passed
+    /// service account) use this factory method. The lifetime of a client passed
     /// this way belongs to the <em>caller</em>; the factory does not close it.
     /// </remarks>
-    public GoogleChatClientFactory(Client client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
-        : this(client, defaultModel, loggerFactory, ownsClient: false)
-    {
-    }
+    public static GoogleChatClientFactory FromClient(Client client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
+        => new(client, defaultModel, loggerFactory, ownsClient: false);
 
     private GoogleChatClientFactory(Client client, string? defaultModel, ILoggerFactory? loggerFactory, bool ownsClient)
     {

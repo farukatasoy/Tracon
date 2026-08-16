@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 59 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir ve [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism). `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–59 bitti; kod dili birleştirme, doküman düzeni ve ürün dokümantasyon sitesi tamamlandı.
+> **Durum:** Faz 60 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir, [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism) ve **public API kapısı** (`EnablePublicApiTracking`) yayın kararından bağımsız olarak açıktır — kayıtsız bir yüzey değişikliği derlemeyi kırar. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–60 bitti; kod dili birleştirme, doküman düzeni, ürün dokümantasyon sitesi ve public API kapısı tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -227,8 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–59 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
-**59 planlandı.**
+**Faz 0–60 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|
@@ -236,9 +235,10 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 2 | [21–30](docs/IKINCI-FAZ-YOL-HARITASI.md) | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
 | 3 | [31–52](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
 | 4 | [53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
-| 5 | [57–59](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 57–59 ✅ |
+| 5 | [57–60](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
+| 6 | [60](docs/60-PUBLIC-API-KAPISI.md) | Public API kapısı — kırıcı değişiklik derlemeyi kırar | 📋 Planlandı |
 
-**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–59 tek tek
+**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–60 tek tek
 listelidir ve her fazın kendi dokümanından **üretilir**, elle yazılmaz.
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı

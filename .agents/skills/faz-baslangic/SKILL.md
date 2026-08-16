@@ -100,6 +100,18 @@ dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
 
 ---
 
+## Adım 7 — Kod yazmaya `faz-uygulama` ile geç
+
+Okuma bitti. Kod yazma protokolü ayrı bir skill'dedir ve **ilk kod satırından
+önce** uygulanır: planın yapısal iddiasını ölçme, davranış başına test seviyesi
+seçimi, imza-gövde takibi.
+
+```
+[faz-baslangic] → faz-uygulama → faz-denetim → faz-tamamlama
+```
+
+---
+
 ## Okunmayacaklar
 
 Faz açılışında **hiçbir koşulda** baştan sona okunmaz:

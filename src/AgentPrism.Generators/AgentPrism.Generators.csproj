@@ -16,6 +16,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <!-- No consumer-facing API surface - it ships a diagnostic/generator, not a library. -->
+    <AgentPrismPublicApiTrackingEnabled>false</AgentPrismPublicApiTrackingEnabled>
     <!-- Turn off IsAotCompatible through AgentPrismAotCompatible, not DIRECTLY (K-006 pattern; Directory.Build.targets reads this). -->
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>

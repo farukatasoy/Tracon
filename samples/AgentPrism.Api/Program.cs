@@ -108,7 +108,7 @@ var agentPrism = builder.AddAgentPrism()
     // the section is absent. 🚨 Without this overload, an environment
     // variable such as `AgentPrism:Mcp:RefreshInterval` did NOTHING, WITH NO
     // ERROR AT ALL (measured; decision K-353).
-    .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName))
+    .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName), configure: null)
     // The other side of the mirror — exposes AgentPrism's own agents to the
     // outside. "summarizer" is chosen deliberately: it carries no tool, so it
     // never touches the approval boundary. Default MaxDepth=1: an inbound
@@ -209,10 +209,11 @@ if (googleEnabled)
 // the model name.
 //
 // This sample has NO reference to `Azure.Identity`; the API-key path is
-// shown instead. Managed identity is enabled like this:
+// shown instead. Managed identity is enabled by chaining a second call:
 //
-//   agentPrism.UseAzureOpenAI(azureOpenAI, o => o.CredentialFactory =
-//       static () => new DefaultAzureCredential());
+//   agentPrism.UseAzureOpenAI(azureOpenAI)
+//             .UseAzureOpenAI(o => o.CredentialFactory =
+//                 static () => new DefaultAzureCredential());
 var azureOpenAI = builder.Configuration.GetSection(AzureOpenAIProviderOptions.SectionName);
 var azureOpenAIEnabled = !string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"])
     && !string.IsNullOrWhiteSpace(azureOpenAI["ApiKey"]);

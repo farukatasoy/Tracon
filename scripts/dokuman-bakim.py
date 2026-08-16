@@ -11,6 +11,9 @@ Kullanım:
     python3 scripts/dokuman-bakim.py           # üret + denetle
     python3 scripts/dokuman-bakim.py --denetle # yalnız denetle (CI/kapı)
 
+    # Faz kapanışında: kullanıcıya dönük yüzey değişti mi, site güncellendi mi?
+    python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
+
 Bütçe aşılırsa çıkış kodu 1'dir.
 """
 from __future__ import annotations
@@ -18,6 +21,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -105,6 +109,42 @@ DIZIN_BUTCESI = {
 # Bir butcenin en az bu kadari bos kalmali; asagisi "DAR" olarak isaretlenir
 # (hata degil, erken uyari). Faz 58.0'in tum sicak yol dosyalarina koydugu hedef.
 BOSLUK_ORANI = 0.15
+
+# --- docs-site senkron denetimi ------------------------------------------
+# `docs/` Turkce gelistirme gunlugudur; `docs-site/` Ingilizce URUN
+# dokumantasyonudur ve yayinlanir. Faz 59 siteyi yayinladi fakat onu dogru
+# tutan bir mekanizma yoktu: hicbir skill `docs-site`'a deginmiyordu. Site
+# bayatlarsa kusur KULLANICIYA gorunur -- kod dogru olsa bile.
+#
+# Kural: fazin dokundugu kaynak yolu kullaniciya donuk bir yuzeyse, site'nin
+# ELLE yazilan sayfalarindan en az biri degismelidir. `api/` ve `http-api/`
+# URETILIR (npm run generate) ve commit EDILMEZ; oradaki is kodda yasar
+# (XML dokumani, .WithTags/.Produces ustverisi), bu yuzden site degisikligi
+# sayilirken haric tutulurlar.
+SITE_URETILEN = ("docs-site/src/content/docs/api/", "docs-site/src/content/docs/http-api/")
+
+SITE_KURALLARI: tuple[tuple[str, tuple[str, ...], str], ...] = (
+    (r"^src/AgentPrism\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
+     ("http-api.md",), "HTTP yuzeyi degisti"),
+    (r"^src/AgentPrism\.AspNetCore/(Security|Tenancy)/",
+     ("getting-started/security.md", "concepts/governance.md"), "guvenlik/kiraci sinirlari degisti"),
+    (r"^src/AgentPrism\.UI/frontend/src/(screens|components)/",
+     ("ui.md",), "ekran veya bilesen degisti (ekran goruntusu de gerekebilir)"),
+    (r"^src/AgentPrism\.(Abstractions|Core)/",
+     ("concepts/",), "cekirdek kavram yuzeyi degisti"),
+    (r"^src/AgentPrism\.Workflows/",
+     ("concepts/workflows.md",), "workflow yurutmesi degisti"),
+    (r"^src/AgentPrism\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
+     ("getting-started/persistence.md",), "kalicilik katmani degisti"),
+    (r"^src/AgentPrism\.(OpenAI|Anthropic|Google|Azure|Voice)/",
+     ("getting-started/first-agent.md",), "model saglayicisi degisti"),
+    (r"^src/AgentPrism\.Templates/",
+     ("getting-started/index.md",), "proje sablonu degisti"),
+    (r"^src/AgentPrism[^/]*/[^/]*\.csproj$",
+     ("packages.md",), "paket tanimi degisti"),
+    (r"^src/AgentPrism[^/]*/README\.md$",
+     ("packages.md",), "paket README'si degisti"),
+)
 
 
 def _kararlar_kalemleri() -> tuple[list, list]:
@@ -323,6 +363,67 @@ def yol_haritasi_uret() -> str:
     )
 
 
+def _git(*args: str) -> list[str]:
+    r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False)
+    if r.returncode != 0:
+        return []
+    return [s for s in r.stdout.splitlines() if s.strip()]
+
+
+def _degisen_dosyalar(taban: str | None) -> list[str]:
+    """Fazin dokundugu her dosya: taban..HEAD + calisma agaci + izlenmeyenler.
+
+    Izlenmeyenler dahildir cunku yeni bir site sayfasi HENUZ commit edilmemis
+    olabilir; onu gormezsek denetim yanlis yere kirmizi verir."""
+    yollar: set[str] = set()
+    if taban:
+        yollar.update(_git("diff", "--name-only", f"{taban}...HEAD"))
+    yollar.update(_git("diff", "--name-only", "HEAD"))
+    yollar.update(s[3:].strip('"') for s in _git("status", "--porcelain") if s.startswith("??"))
+    return sorted(yollar)
+
+
+def site_denetle(taban: str | None, gerekce_yazildi: bool) -> int:
+    degisen = _degisen_dosyalar(taban)
+    if not degisen:
+        print("docs-site senkronu: değişiklik yok (taban verilmedi mi?).")
+        return 0
+
+    tetiklenen = []
+    for desen, sayfalar, neden in SITE_KURALLARI:
+        vuran = [y for y in degisen if re.search(desen, y)]
+        if vuran:
+            tetiklenen.append((sayfalar, neden, vuran))
+
+    site_degisti = [
+        y for y in degisen
+        if y.startswith("docs-site/src/content/docs/") and not y.startswith(SITE_URETILEN)
+    ]
+
+    print(f"docs-site senkronu — {len(degisen)} değişen dosya")
+    if not tetiklenen:
+        print("  Kullanıcıya dönük yüzey değişmedi. Site güncellemesi gerekmiyor.")
+        return 0
+
+    print(f"{'gözden geçirilecek sayfa':<40} {'neden':<45} örnek")
+    for sayfalar, neden, vuran in tetiklenen:
+        print(f"  {' · '.join(sayfalar):<38} {neden:<45} {vuran[0]}")
+
+    if site_degisti:
+        print(f"\n✅ Site {len(site_degisti)} sayfada değişti: {', '.join(site_degisti[:3])}")
+        print("   Yine de yukarıdaki her satırın karşılığı yazıldı mı, göz at.")
+        return 0
+
+    if gerekce_yazildi:
+        print("\n⚠️  Site değişmedi; gerekçe faz dokümanına yazıldı (--site-gerekce-yazildi).")
+        return 0
+
+    print("\n❌ Kullanıcıya dönük yüzey değişti fakat docs-site/ hiç değişmedi.")
+    print("   Ya siteyi güncelle ya gerekçesini faz dokümanına yazıp")
+    print("   --site-gerekce-yazildi ile geç. Sessizce atlama.")
+    return 1
+
+
 def denetle() -> int:
     hata = 0
     print("Sıcak yol doküman bütçesi")
@@ -368,7 +469,15 @@ def denetle() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--denetle", action="store_true", help="yalnız denetle, üretme")
+    ap.add_argument("--site-denetle", action="store_true",
+                    help="docs-site senkronunu denetle (faz kapanışı)")
+    ap.add_argument("--taban", help="fazın başladığı commit; site denetimi bu aralığa bakar")
+    ap.add_argument("--site-gerekce-yazildi", action="store_true",
+                    help="site güncellemesi gerekmiyor; gerekçe faz dokümanına yazıldı")
     a = ap.parse_args()
+
+    if a.site_denetle:
+        return site_denetle(a.taban, a.site_gerekce_yazildi)
 
     if not a.denetle:
         for hedef, uret in (
