@@ -5,23 +5,24 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir metni seslendirir ve sesi ek deposuna yazar.
+/// Speaks a piece of text and writes the audio to the attachment store.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tool sonucu modele <strong>ekin kimligini</strong> dondurur, ham sesi degil.
-/// Ham ses sonuca konsaydi baglam penceresi base64 ile dolardi.
+/// The tool result returns the <strong>attachment id</strong> to the model, not
+/// the raw audio. If the raw audio were placed in the result, the context
+/// window would fill up with base64.
 /// </para>
 /// <para>
-/// 🚨 Uretilen ses ek deposuna yazilmadan once <c>AttachmentTypeGuard</c>'dan
-/// gecer. Depo hicbir dogrulama yapmaz (dogrulama HTTP katmanindadir); saglayici
-/// beklenmeyen bir bicim dondururse hata YAZMA aninda cikmalidir, calma aninda
-/// degil.
+/// 🚨 The produced audio passes through <c>AttachmentTypeGuard</c> before being
+/// written to the attachment store. The store performs no validation
+/// (validation lives in the HTTP layer); if the provider returns an unexpected
+/// format, the error must surface at WRITE time, not at playback time.
 /// </para>
 /// </remarks>
 internal sealed class SpeakTool : VoiceToolBase
 {
-    /// <summary>Tool adi. Agent tanimlarinda bu ad kullanilir.</summary>
+    /// <summary>The tool name. Used by this name in agent definitions.</summary>
     public const string ToolName = "speak";
 
     private const string Schema = """
@@ -30,11 +31,11 @@ internal sealed class SpeakTool : VoiceToolBase
           "properties": {
             "text": {
               "type": "string",
-              "description": "Seslendirilecek metin."
+              "description": "The text to speak."
             },
             "voiceId": {
               "type": "string",
-              "description": "Kullanilacak sesin kimligi. Bos birakilirsa varsayilan ses kullanilir."
+              "description": "The id of the voice to use. The default voice is used when left empty."
             }
           },
           "required": ["text"]
@@ -51,8 +52,8 @@ internal sealed class SpeakTool : VoiceToolBase
 
     /// <inheritdoc />
     public override string Description =>
-        "Bir metni sese cevirir ve uretilen ses dosyasini kaydeder. " +
-        "Sonuc olarak ekin kimligini doner; kullanici sesi arayuzden calar.";
+        "Converts a piece of text to speech and saves the produced audio file. " +
+        "Returns the attachment id as a result; the user plays the audio from the UI.";
 
     /// <inheritdoc />
     protected override async ValueTask<object?> InvokeCoreAsync(
@@ -66,11 +67,11 @@ internal sealed class SpeakTool : VoiceToolBase
 
         if (text.Length > options.MaxCharactersPerRequest)
         {
-            // Metin KIRPILMAZ: kirpma, kullanicinin duymadigi bir cumle uretir
-            // ve sebebi gorunmez olur.
+            // The text is NOT truncated: truncation would produce a sentence
+            // the user never hears, and the reason would become invisible.
             throw new AgentPrismException(
-                $"Metin {text.Length} karakter; sinir {options.MaxCharactersPerRequest}. " +
-                "Metni kisaltin veya `AgentPrism:Voice:MaxCharactersPerRequest` ayarini yukseltin.");
+                $"The text is {text.Length} characters; the limit is {options.MaxCharactersPerRequest}. " +
+                "Shorten the text or raise the `AgentPrism:Voice:MaxCharactersPerRequest` setting.");
         }
 
         var synthesizer = Resolve<ISpeechSynthesizer>();
@@ -96,9 +97,9 @@ internal sealed class SpeakTool : VoiceToolBase
         if (!validation.IsValid)
         {
             throw new AgentPrismException(
-                $"Uretilen ses kaydedilemedi: {validation.Error} " +
-                $"Saglayicinin cikti bicimi '{options.OutputFormat}'. " +
-                "Ek deposu turu sihirli bayttan dogrular; konteyner tasimayan bicimler reddedilir.");
+                $"The produced audio could not be saved: {validation.Error} " +
+                $"The provider's output format is '{options.OutputFormat}'. " +
+                "The attachment store validates the type from the magic bytes; formats without a container are rejected.");
         }
 
         var scope = AgentPrismRunContext.Current;
@@ -108,9 +109,10 @@ internal sealed class SpeakTool : VoiceToolBase
             {
                 TenantId = scope?.TenantId ?? tenantContext.TenantId,
 
-                // 🚨 Oturum kimligi ZORUNLUDUR. Bos birakilirsa saklama politikasi
-                // eki sahipsiz sayar ve kesim tarihinden sonra siler; oturum hala
-                // yasarken transcript'teki ses kaybolur (docs/28, G1).
+                // 🚨 The session id is REQUIRED. If left empty, the retention
+                // policy treats the attachment as orphaned and deletes it after
+                // the cutoff date; the audio in the transcript disappears while
+                // the session is still alive (docs/28, G1).
                 SessionId = scope?.SessionId,
                 RunId = scope?.RunId,
                 FileName = BuildFileName(validation.MediaType!),
@@ -123,17 +125,17 @@ internal sealed class SpeakTool : VoiceToolBase
         ReportUsage(audio, pricing, options, modelId, text);
 
         var duration = audio.Duration is { } value
-            ? $", sure={value.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}sn"
+            ? $", duration={value.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s"
             : string.Empty;
 
-        return $"Ses uretildi. attachmentId={descriptor.Id}, tur={descriptor.MediaType}, " +
-               $"boyut={descriptor.ByteSize} bayt{duration}";
+        return $"Audio produced. attachmentId={descriptor.Id}, type={descriptor.MediaType}, " +
+               $"size={descriptor.ByteSize} bytes{duration}";
     }
 
-    /// <summary>Olcumu suren cagriya baglar.</summary>
+    /// <summary>Attaches the measurement to the current run.</summary>
     /// <remarks>
-    /// Bildirim basarisiz olursa (calistirma kaydi kapali) tool'un isi BOZULMAZ;
-    /// gozlemlenebilirlik islevselligi bozmaz.
+    /// If reporting fails (the run record is closed), the tool's work is NOT
+    /// disrupted; observability does not break functionality.
     /// </remarks>
     private static void ReportUsage(
         SpeechAudio audio,
