@@ -1,12 +1,13 @@
 namespace AgentPrism.Templates.Tests.Infrastructure;
 
-/// <summary>Depo kokune gore onemli yollari cozer.</summary>
+/// <summary>Resolves important paths relative to the repository root.</summary>
 internal static class RepoPaths
 {
     /// <summary>
-    /// Depo koku. <c>AppContext.BaseDirectory</c>'den yukari dogru <c>AgentPrism.slnx</c>
-    /// bulunana kadar cikilir; <c>UseArtifactsOutput</c> nedeniyle test derlemesinin
-    /// ciktisi depo kokunden uzakta bir <c>artifacts/bin/...</c> altina duser.
+    /// The repository root. Walked upward from <c>AppContext.BaseDirectory</c>
+    /// until <c>AgentPrism.slnx</c> is found; because of <c>UseArtifactsOutput</c>,
+    /// the test assembly's output lands under an <c>artifacts/bin/...</c> path
+    /// far from the repository root.
     /// </summary>
     public static string Root { get; } = FindRoot();
 
@@ -15,10 +16,10 @@ internal static class RepoPaths
     public static string SolutionFile => Path.Combine(Root, "AgentPrism.slnx");
 
     /// <summary>
-    /// <c>/src/</c> altindaki paketlenebilir projeleri kapsayan cozum filtresi.
-    /// Sablon testleri yalniz bu paketlere ihtiyac duyar; tam cozum yerine bu
-    /// filtre paketlenirse 13 test projesi (Postgres/SqlServer/Sqlite
-    /// container'lari, Playwright E2E dahil) gereksiz yere derlenmez.
+    /// A solution filter covering the packable projects under <c>/src/</c>.
+    /// Template tests need only these packages; packing this filter instead of
+    /// the full solution avoids unnecessarily building 13 test projects
+    /// (including the Postgres/SqlServer/Sqlite containers and Playwright E2E).
     /// </summary>
     public static string PackableSolutionFilter => Path.Combine(Root, "AgentPrism.src.slnf");
 
@@ -36,7 +37,7 @@ internal static class RepoPaths
         if (dir is null)
         {
             throw new InvalidOperationException(
-                $"AgentPrism.slnx bulunamadi. Arama '{AppContext.BaseDirectory}' dizininden yukari dogru yapildi.");
+                $"AgentPrism.slnx was not found. The search walked upward from '{AppContext.BaseDirectory}'.");
         }
 
         return dir.FullName;

@@ -7,7 +7,7 @@ public sealed class RunAssertionsTests
     private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     [Fact]
-    public void ShouldHaveCompleted_tamamlanan_calistirmada_gecer()
+    public void ShouldHaveCompleted_passes_for_a_completed_run()
     {
         var assertions = Create(RunStatus.Completed);
 
@@ -15,7 +15,7 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveCompleted_tamamlanmayan_calistirmada_beklenen_ve_bulunani_yazarak_duser()
+    public void ShouldHaveCompleted_fails_with_the_expected_and_actual_value_for_an_incomplete_run()
     {
         var assertions = Create(RunStatus.Failed);
 
@@ -26,7 +26,7 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveFailed_hatali_calistirmada_gecer()
+    public void ShouldHaveFailed_passes_for_a_failed_run()
     {
         var assertions = Create(RunStatus.Failed);
 
@@ -34,7 +34,7 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveFailed_basarili_calistirmada_duser()
+    public void ShouldHaveFailed_fails_for_a_successful_run()
     {
         var assertions = Create(RunStatus.Completed);
 
@@ -42,7 +42,7 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveFailedWith_dogru_hata_tipinde_gecer()
+    public void ShouldHaveFailedWith_passes_for_the_correct_error_type()
     {
         var assertions = Create(RunStatus.Failed, error: new RunError { Type = "content_filtered", Message = "x" });
 
@@ -50,7 +50,7 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveFailedWith_yanlis_hata_tipinde_beklenen_ve_bulunani_yazarak_duser()
+    public void ShouldHaveFailedWith_fails_with_the_expected_and_actual_value_for_the_wrong_error_type()
     {
         var assertions = Create(RunStatus.Failed, error: new RunError { Type = "timeout", Message = "x" });
 
@@ -61,43 +61,44 @@ public sealed class RunAssertionsTests
     }
 
     [Fact]
-    public void ShouldHaveOutputContaining_metin_varsa_gecer()
+    public void ShouldHaveOutputContaining_passes_when_the_text_is_present()
     {
         var assertions = Create(RunStatus.Completed, events:
         [
-            Event(RunEventType.MessageCompleted, "iade edildi"),
+            Event(RunEventType.MessageCompleted, "refunded"),
         ]);
 
-        Should.NotThrow(() => assertions.ShouldHaveOutputContaining("iade edildi"));
+        Should.NotThrow(() => assertions.ShouldHaveOutputContaining("refunded"));
     }
 
     [Fact]
-    public void ShouldHaveOutputContaining_akisli_calistirmada_MessageDelta_parcalarindan_okur()
+    public void ShouldHaveOutputContaining_reads_from_MessageDelta_chunks_in_a_streaming_run()
     {
-        // MessageCompleted yalniz akissiz yolda yazilir (RunRecordingAgent.RunCoreAsync);
-        // HTTP /run ucu akislidir ve yalniz MessageDelta parcalari uretir.
+        // MessageCompleted is only written on the non-streaming path
+        // (RunRecordingAgent.RunCoreAsync); the HTTP /run endpoint streams and
+        // only produces MessageDelta chunks.
         var assertions = Create(RunStatus.Completed, events:
         [
-            Event(RunEventType.MessageDelta, "iade "),
-            Event(RunEventType.MessageDelta, "edildi"),
+            Event(RunEventType.MessageDelta, "refun"),
+            Event(RunEventType.MessageDelta, "ded"),
         ]);
 
-        Should.NotThrow(() => assertions.ShouldHaveOutputContaining("iade edildi"));
+        Should.NotThrow(() => assertions.ShouldHaveOutputContaining("refunded"));
     }
 
     [Fact]
-    public void ShouldHaveOutputContaining_metin_yoksa_bulunan_ciktiyi_yazarak_duser()
+    public void ShouldHaveOutputContaining_fails_with_the_actual_output_when_the_text_is_absent()
     {
         var assertions = Create(RunStatus.Completed, events:
         [
-            Event(RunEventType.MessageCompleted, "baska bir yanit"),
+            Event(RunEventType.MessageCompleted, "a different response"),
         ]);
 
         var exception = Should.Throw<AgentPrismAssertionException>(
-            () => assertions.ShouldHaveOutputContaining("iade edildi"));
+            () => assertions.ShouldHaveOutputContaining("refunded"));
 
-        exception.Message.ShouldContain("iade edildi", Case.Sensitive);
-        exception.Message.ShouldContain("baska bir yanit", Case.Sensitive);
+        exception.Message.ShouldContain("refunded", Case.Sensitive);
+        exception.Message.ShouldContain("a different response", Case.Sensitive);
     }
 
     private static RunEvent Event(RunEventType type, string text)

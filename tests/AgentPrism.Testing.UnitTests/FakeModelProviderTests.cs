@@ -8,59 +8,59 @@ public sealed class FakeModelProviderTests
     private static readonly ModelBinding Binding = new() { Provider = "fake", Model = "fake-model" };
 
     [Fact]
-    public async Task Varsayilan_kurulum_sabit_bir_yanit_dondurur()
+    public async Task Default_setup_returns_a_fixed_response()
     {
         using var provider = new FakeModelProvider();
 
         var response = await provider.CreateChatClient(Binding).GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "merhaba")]);
+            [new ChatMessage(ChatRole.User, "hello")]);
 
         response.Text.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public async Task EchoesUserMessage_son_kullanici_mesajini_yankilar()
+    public async Task EchoesUserMessage_echoes_the_last_user_message()
     {
         using var provider = new FakeModelProvider().EchoesUserMessage();
 
         var response = await provider.CreateChatClient(Binding).GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "ORD-7 nerede")]);
+            [new ChatMessage(ChatRole.User, "where is ORD-7")]);
 
-        response.Text.ShouldContain("ORD-7 nerede", Case.Sensitive);
+        response.Text.ShouldContain("where is ORD-7", Case.Sensitive);
     }
 
     [Fact]
-    public async Task RespondsWith_yanitlari_sirayla_dondurur()
+    public async Task RespondsWith_returns_responses_in_order()
     {
-        using var provider = new FakeModelProvider().RespondsWith("ilk", "ikinci");
+        using var provider = new FakeModelProvider().RespondsWith("first", "second");
         var client = provider.CreateChatClient(Binding);
 
         var first = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "x")]);
         var second = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "x")]);
 
-        first.Text.ShouldContain("ilk", Case.Sensitive);
-        second.Text.ShouldContain("ikinci", Case.Sensitive);
+        first.Text.ShouldContain("first", Case.Sensitive);
+        second.Text.ShouldContain("second", Case.Sensitive);
     }
 
     [Fact]
-    public async Task RespondsWith_kuyrugu_tukendikten_sonra_EchoesUserMessage_devreye_girer()
+    public async Task EchoesUserMessage_kicks_in_once_RespondsWith_queue_is_drained()
     {
-        using var provider = new FakeModelProvider().RespondsWith("ilk").EchoesUserMessage();
+        using var provider = new FakeModelProvider().RespondsWith("first").EchoesUserMessage();
         var client = provider.CreateChatClient(Binding);
 
         await client.GetResponseAsync([new ChatMessage(ChatRole.User, "x")]);
-        var third = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "sonraki mesaj")]);
+        var third = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "next message")]);
 
-        third.Text.ShouldContain("sonraki mesaj", Case.Sensitive);
+        third.Text.ShouldContain("next message", Case.Sensitive);
     }
 
     [Fact]
-    public async Task CallsTool_bir_FunctionCallContent_uretir()
+    public async Task CallsTool_produces_a_FunctionCallContent()
     {
         using var provider = new FakeModelProvider().CallsTool("get_order_status", new { orderId = "ORD-7" });
 
         var response = await provider.CreateChatClient(Binding).GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "ORD-7 nerede")]);
+            [new ChatMessage(ChatRole.User, "where is ORD-7")]);
 
         var call = response.Messages
             .SelectMany(static message => message.Contents)
@@ -73,11 +73,11 @@ public sealed class FakeModelProviderTests
     }
 
     [Fact]
-    public async Task ForModel_farkli_modeller_bagimsiz_kuyruk_kullanir()
+    public async Task ForModel_gives_different_models_independent_queues()
     {
         using var provider = new FakeModelProvider()
-            .ForModel("router-model", cfg => cfg.RespondsWith("router yaniti"))
-            .ForModel("researcher-model", cfg => cfg.RespondsWith("researcher yaniti"));
+            .ForModel("router-model", cfg => cfg.RespondsWith("router response"))
+            .ForModel("researcher-model", cfg => cfg.RespondsWith("researcher response"));
 
         var routerResponse = await provider
             .CreateChatClient(Binding with { Model = "router-model" })
@@ -87,43 +87,43 @@ public sealed class FakeModelProviderTests
             .CreateChatClient(Binding with { Model = "researcher-model" })
             .GetResponseAsync([new ChatMessage(ChatRole.User, "x")]);
 
-        routerResponse.Text.ShouldContain("router yaniti", Case.Sensitive);
-        researcherResponse.Text.ShouldContain("researcher yaniti", Case.Sensitive);
+        routerResponse.Text.ShouldContain("router response", Case.Sensitive);
+        researcherResponse.Text.ShouldContain("researcher response", Case.Sensitive);
     }
 
     [Fact]
-    public async Task EchoesLastToolResult_kuyruk_tukendikten_sonra_son_tool_sonucunu_yankilar()
+    public async Task EchoesLastToolResult_echoes_the_last_tool_result_once_the_queue_is_drained()
     {
         using var provider = new FakeModelProvider()
             .CallsTool("get_order_status", new { orderId = "ORD-7" })
-            .EchoesLastToolResult("Sonuc: ");
+            .EchoesLastToolResult("Result: ");
 
-        // 🚨 Tool cagri dongusu Faz 48'de ModelProviderRegistry'ye tasindi:
-        // IModelProvider artik HAM istemci dondurur. Bu test bu yuzden gercek
-        // yoldan — defter uzerinden — kosar.
+        // 🚨 The tool-call loop moved to ModelProviderRegistry in Phase 48:
+        // IModelProvider now returns the RAW client. This test therefore runs
+        // through the real path — over the pipeline.
         using var client = new ModelProviderRegistry([provider]).CreateChatClient(Binding);
 
         var response = await client.GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "ORD-7 nerede")],
+            [new ChatMessage(ChatRole.User, "where is ORD-7")],
             new ChatOptions
             {
                 Tools =
                 [
                     AIFunctionFactory.Create(
-                        static (string orderId) => $"hazirlaniyor ({orderId})",
+                        static (string orderId) => $"preparing ({orderId})",
                         "get_order_status"),
                 ],
             });
 
-        response.Text.ShouldContain("Sonuc: hazirlaniyor (ORD-7)", Case.Sensitive);
+        response.Text.ShouldContain("Result: preparing (ORD-7)", Case.Sensitive);
     }
 
     [Fact]
-    public void WithModel_saglanan_tanimi_Models_listesine_ekler()
+    public void WithModel_adds_the_given_descriptor_to_the_Models_list()
     {
         using var provider = new FakeModelProvider()
-            .WithModel(new ModelDescriptor { Name = "ozel-model", ContextWindowTokens = 4_096 });
+            .WithModel(new ModelDescriptor { Name = "custom-model", ContextWindowTokens = 4_096 });
 
-        provider.Models.ShouldContain(model => string.Equals(model.Name, "ozel-model", StringComparison.Ordinal));
+        provider.Models.ShouldContain(model => string.Equals(model.Name, "custom-model", StringComparison.Ordinal));
     }
 }

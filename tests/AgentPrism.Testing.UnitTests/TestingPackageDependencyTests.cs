@@ -3,8 +3,8 @@ using System.Xml.Linq;
 namespace AgentPrism.Testing.UnitTests;
 
 /// <summary>
-/// 🚨 <c>AgentPrism.Testing</c>'in K-007/39.1 gerekcelerini korur: hicbir test
-/// cercevesi getirmez ve meta paket ona baglanmaz.
+/// 🚨 Guards <c>AgentPrism.Testing</c>'s K-007/39.1 rationale: it pulls in no
+/// test framework, and the meta package does not depend on it.
 /// </summary>
 public sealed class TestingPackageDependencyTests
 {
@@ -14,7 +14,7 @@ public sealed class TestingPackageDependencyTests
     ];
 
     [Fact]
-    public void AgentPrism_Testing_hicbir_test_cercevesine_referans_vermez()
+    public void AgentPrism_Testing_references_no_test_framework()
     {
         var references = ReadPackageReferences("AgentPrism.Testing");
 
@@ -22,20 +22,20 @@ public sealed class TestingPackageDependencyTests
         {
             references.ShouldNotContain(
                 reference => reference.StartsWith(banned, StringComparison.OrdinalIgnoreCase),
-                customMessage: $"'AgentPrism.Testing' bir test cercevesine ({banned}) referans veriyor; " +
-                               "paket hicbir cerceveye baglanmamalidir (bolum 39.2).");
+                customMessage: $"'AgentPrism.Testing' references a test framework ({banned}); " +
+                               "the package must bind to no framework (section 39.2).");
         }
     }
 
     [Fact]
-    public void Meta_paket_AgentPrism_Testing_e_referans_vermez()
+    public void Meta_package_does_not_reference_AgentPrism_Testing()
     {
         var references = ReadProjectReferences("AgentPrism");
 
         references.ShouldNotContain(
             reference => string.Equals(reference, "AgentPrism.Testing", StringComparison.Ordinal),
-            customMessage: "Meta paket 'AgentPrism.Testing'e baglanmamalidir; test kodu " +
-                           "meta paketin vaat ettigi 'tek referansla her sey'in icinde degildir (bolum 39.1).");
+            customMessage: "The meta package must not depend on 'AgentPrism.Testing'; test code " +
+                           "is not part of the meta package's promised 'everything with one reference' (section 39.1).");
     }
 
     private static List<string> ReadPackageReferences(string package)
@@ -66,7 +66,7 @@ public sealed class TestingPackageDependencyTests
     {
         var projectPath = Path.Combine(RepositoryRoot, "src", package, $"{package}.csproj");
 
-        File.Exists(projectPath).ShouldBeTrue($"Proje dosyasi bulunamadi: {projectPath}");
+        File.Exists(projectPath).ShouldBeTrue($"Project file not found: {projectPath}");
 
         return XDocument.Load(projectPath);
     }
@@ -83,6 +83,6 @@ public sealed class TestingPackageDependencyTests
         }
 
         return dir?.FullName
-            ?? throw new InvalidOperationException("AgentPrism.slnx bulunamadi.");
+            ?? throw new InvalidOperationException("AgentPrism.slnx not found.");
     }
 }

@@ -1,5 +1,5 @@
 using AgentPrism.Templates.Tests.Infrastructure;
 
-// Cozum bir kez paketlenir ve sablon bir kez kurulur; testler kendi gecici
-// dizinlerinde ayri projeler uretir.
+// The solution is packed once and the template is installed once; tests
+// generate separate projects in their own temp directories.
 [assembly: AssemblyFixture(typeof(TemplateFixture))]
