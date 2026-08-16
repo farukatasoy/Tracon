@@ -80,7 +80,7 @@ internal static class CatalogEndpoints
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Returns run counts, token totals, and the error rate.")
             .WithDescription(
-                "The summary is computed in the store itself. Cost (Phase 20) is populated " +
+                "The summary is computed in the store itself. Cost is populated " +
                 "only when pricing is configured (model catalog or AgentPrism:Pricing); " +
                 "the count of models with undefined pricing is counted separately in the " +
                 "RunsWithUnknownPricing field — it is not written as zero.");
@@ -140,7 +140,7 @@ internal static class CatalogEndpoints
                 "Empty buckets are returned too. The default range is the last 24 hours, " +
                 "the default bucket is an hour. At most 500 buckets; exceeding that returns 400. " +
                 "Unlike /api/stats, this endpoint does NOT exclude Eval/Workflow runs " +
-                "by default (see docs/KARARLAR.md K-152); it can be filtered with ?kind=.");
+                "by default; it can be filtered with ?kind=.");
 
         builder.MapGet("/api/stats/errors", async Task<Ok<IReadOnlyList<RunErrorStatistics>>> (
                 IRunStore runs,
@@ -212,7 +212,7 @@ internal static class CatalogEndpoints
                 "This is a maintenance endpoint. It is used to refresh past runs when " +
                 "pricing is defined later. The provider is not kept on historical rows; " +
                 "if the same model name is defined for more than one provider, the first " +
-                "alphabetical match wins (see docs/KARARLAR.md K-154). Requires Admin; " +
+                "alphabetical match wins. Requires Admin; " +
                 "the call is written to the audit trail.");
     }
 }

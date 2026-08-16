@@ -1,0 +1,22 @@
+{
+  "name": "agentprism-docs-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Product documentation site for AgentPrism. English only; docs/ stays the Turkish development journal.",
+  "scripts": {
+    "generate": "node scripts/build-api-reference.mjs && node scripts/build-http-api.mjs",
+    "generate:fast": "node scripts/build-api-reference.mjs --skip-docfx && node scripts/build-http-api.mjs",
+    "prebuild": "npm run generate",
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.7",
+    "astro": "^7.2.2",
+    "astro-mermaid": "^2.1.0",
+    "mermaid": "^11.16.1",
+    "sharp": "^0.35.3"
+  }
+}

@@ -51,7 +51,7 @@ internal static class AuditEndpoints
             .WithDescription(
                 "Filterable by actor, action, entity, and date range. Runs (an agent processing " +
                 "a message) are not written to this log; the runs table already keeps the full " +
-                "record. The one exception is the 'content.blocked' action (Phase 48): an " +
+                "record. The one exception is the 'content.blocked' action: an " +
                 "IContentGuard's block decision is a GOVERNANCE decision, not a run detail, and " +
                 "must remain traceable even after the run record is deleted by retention policy. " +
                 "The entry carries only the guard and rule name, never the blocked TEXT.");
@@ -78,6 +78,13 @@ internal static class AuditEndpoints
             .RequireApiKeyScope(ApiKeyScope.AuditRead)
             .WithName("AgentPrismGetEntityAudit")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Returns a single entity's change history, newest first.");
+            .WithSummary("Returns a single entity's change history, newest first.")
+            .WithDescription(
+                "The path segment is the full entity key as it was recorded, in the form " +
+                "'<type>:<id>' — for example 'quota:<guid>' or 'retention:runs'. It is matched " +
+                "as written, not as a prefix. Entries carry the before and the after state, so " +
+                "one request answers 'who changed this and to what'. There is no paging: " +
+                "'?limit=' defaults to 100 and is clamped to 1..500, and only the newest entries " +
+                "are returned. An entity with no history returns an empty list, not 404.");
     }
 }

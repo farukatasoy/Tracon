@@ -64,6 +64,12 @@ internal static class OpenAIConversationsEndpoints
             .WithName("AgentPrismOpenAIGetConversation")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Returns a conversation's metadata.")
+            .WithDescription(
+                "A conversation identifier is a reservation, so an id that has never carried a " +
+                "call is still valid and answers 200 with the current time as its creation time. " +
+                "404 therefore means 'not yours', not 'never used': an identifier owned by " +
+                "another tenant is reported as missing rather than forbidden, so the API does " +
+                "not confirm that it exists.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -73,6 +79,11 @@ internal static class OpenAIConversationsEndpoints
             .WithName("AgentPrismOpenAIDeleteConversation")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Deletes a conversation and the session underneath it.")
+            .WithDescription(
+                "Following the OpenAI shape, the response is 200 with a 'deleted' flag rather " +
+                "than 204: the flag is false when the identifier was valid but no session had " +
+                "been created for it yet, so a client can tell a real deletion from a no-op. " +
+                "An identifier owned by another tenant returns 404.")
             .Produces<DeletedResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -82,6 +93,14 @@ internal static class OpenAIConversationsEndpoints
             .WithName("AgentPrismOpenAIListConversationItems")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Lists a conversation's messages in the OpenAI item format.")
+            .WithDescription(
+                "Items come back oldest first, and one stored message can expand into several " +
+                "items — a reply plus its tool calls, for example. '?limit=' trims the list from " +
+                "the end and sets 'has_more' to true, which is computed from the real total " +
+                "before trimming, so a truncated list never looks complete. There is no cursor " +
+                "paging: 'first_id' and 'last_id' describe the returned window only. A " +
+                "conversation with no history returns an empty list, and an identifier owned by " +
+                "another tenant returns 404.")
             .Produces<ItemListResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }

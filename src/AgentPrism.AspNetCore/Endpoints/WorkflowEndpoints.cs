@@ -39,14 +39,26 @@ internal static class WorkflowEndpoints
             .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("AgentPrismListWorkflows")
             .WithTags("AgentPrism", "Workflows")
-            .WithSummary("Lists workflows defined in code and stored in the database.");
+            .WithSummary("Lists workflows defined in code and stored in the database.")
+            .WithDescription(
+                "What the list contains depends on whether the workflow engine is registered. " +
+                "With the engine, both code-defined and stored workflows appear, because only " +
+                "the engine can see the ones built in code. Without it, only stored definitions " +
+                "are listed — managing definitions does not require the engine, but running them " +
+                "does.");
 
         builder.MapGet("/api/workflows/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("AgentPrismGetWorkflow")
             .WithTags("AgentPrism", "Workflows")
-            .WithSummary("Returns a single workflow definition.");
+            .WithSummary("Returns a single workflow definition.")
+            .WithDescription(
+                "Only stored definitions are editable and only they are returned here. A " +
+                "code-defined workflow is listed and can be run but has no stored definition, so " +
+                "it answers 404 with a distinct 'No editable definition' title — different from " +
+                "the plain not-found title used for a name that does not exist at all. Read the " +
+                "structure of a code-defined workflow from the graph endpoint instead.");
 
         builder.MapGet("/api/workflows/{name}/graph", GetGraphAsync)
             .RequireRole(roles.Reader)
@@ -65,6 +77,13 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismSaveWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Creates or updates a workflow definition.")
+            .WithDescription(
+                "The definition is validated at save time with the same rules the compiler " +
+                "applies, so a shape that could not run is rejected with 400 instead of failing " +
+                "on the first run. Which fields are required depends on the kind — a manager " +
+                "driven workflow needs its manager agent, for example. The call replaces the " +
+                "whole definition: omitted fields are cleared, not merged. The name comes from " +
+                "the path and is not taken from the body.")
             .Accepts<WorkflowSaveRequest>("application/json");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
@@ -72,7 +91,12 @@ internal static class WorkflowEndpoints
             .RequireApiKeyScope(ApiKeyScope.WorkflowsAdmin)
             .WithName("AgentPrismDeleteWorkflow")
             .WithTags("AgentPrism", "Workflows")
-            .WithSummary("Deletes a workflow definition.");
+            .WithSummary("Deletes a workflow definition.")
+            .WithDescription(
+                "Only a stored definition can be deleted; a code-defined workflow is removed by " +
+                "changing the application, and asking for one here returns 404. Runs and " +
+                "checkpoints already recorded are kept, so past executions stay readable, but a " +
+                "checkpoint cannot be resumed once the definition it needs is gone.");
 
         builder.MapPost("/api/workflows/{name}/run", RunAsync)
             .RequireRole(roles.Operator)
@@ -96,7 +120,14 @@ internal static class WorkflowEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListWorkflowCheckpoints")
             .WithTags("AgentPrism", "Workflows")
-            .WithSummary("Lists the checkpoints of a workflow run.");
+            .WithSummary("Lists the checkpoints of a workflow run.")
+            .WithDescription(
+                "Checkpoints are the points a run can be resumed from; each entry's id is what " +
+                "the resume endpoint takes. A run belonging to another tenant is reported as " +
+                "404 rather than 403, so the API does not confirm that it exists. An empty list " +
+                "means the run wrote no checkpoint — checkpointing is a property of how the " +
+                "workflow was built, not something this endpoint can turn on. Checkpoints are " +
+                "subject to retention, so an old run may have none left.");
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/resume", ResumeAsync)
             .RequireRole(roles.Operator)
@@ -104,6 +135,13 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismResumeWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Resumes from a checkpoint and streams events over SSE.")
+            .WithDescription(
+                "Resuming opens a NEW run rather than continuing the old one: the original run " +
+                "row is never rewritten, and the first streamed frame reports the new run id. " +
+                "The body is optional — without a checkpoint id the run resumes from its latest " +
+                "checkpoint. The engine must be registered; otherwise the response is 501. " +
+                "Because the status code is sent before the stream begins, a failure after that " +
+                "point arrives as an SSE error frame rather than an HTTP error.")
             .Accepts<WorkflowResumeHttpRequest>(true, "application/json")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status501NotImplemented);

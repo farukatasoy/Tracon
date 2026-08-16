@@ -25,7 +25,13 @@ internal static class SkillScriptGrantEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismListSkillScriptGrants")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Lists the tenant's script run grants.");
+            .WithSummary("Lists the tenant's script run grants.")
+            .WithDescription(
+                "A grant is permission to execute code on the server, so this list is the " +
+                "authoritative answer to 'what may run here'. A grant with no script name covers " +
+                "every script in that skill; one with a script name covers only that script. " +
+                "Entries may carry an expiry, and an expired grant no longer authorizes a run. " +
+                "Grants are also a retention target, so old ones are cleaned up.");
 
         builder.MapPost("/api/skill-script-grants", GrantAsync)
             .RequireRole(roles.Admin)
@@ -33,6 +39,12 @@ internal static class SkillScriptGrantEndpoints
             .WithName("AgentPrismGrantSkillScript")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Grants run permission to a skill script.")
+            .WithDescription(
+                "Granting while script execution is switched off returns 409 rather than " +
+                "succeeding: a grant that reads as active but never allows a run would be " +
+                "misleading. Omit 'scriptName' to cover every script in the skill. 'expiresAt' " +
+                "is optional but must be in the future when given (400 otherwise); without it " +
+                "the grant does not expire. Every change is written to the audit trail.")
             .Accepts<SkillScriptGrantRequest>("application/json");
 
         builder.MapDelete("/api/skill-script-grants/{skillName}", RevokeAsync)
@@ -40,7 +52,13 @@ internal static class SkillScriptGrantEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismRevokeSkillScript")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Revokes a script run grant.");
+            .WithSummary("Revokes a script run grant.")
+            .WithDescription(
+                "Revoking takes effect on the next run; a script already executing is not " +
+                "stopped. The optional '?scriptName=' must match how the grant was created — " +
+                "revoking one script does not remove a skill-wide grant, and the skill-wide " +
+                "grant keeps authorizing that script until it too is revoked. When no matching " +
+                "active grant exists the response is 404.");
     }
 
     private static async Task<Ok<IReadOnlyList<SkillScriptGrant>>> ListAsync(

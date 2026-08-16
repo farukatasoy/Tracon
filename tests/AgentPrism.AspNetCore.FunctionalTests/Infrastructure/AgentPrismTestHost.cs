@@ -5,6 +5,7 @@ using AgentPrism.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -89,7 +90,18 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
 
         if (withOpenApi)
         {
+            // 🚨 The bare AddOpenApi() call is REQUIRED, and the product metadata is
+            // registered separately below. .NET 10 emits an interceptor for the XML
+            // documentation transformer, and it only matches this exact invocation:
+            // passing the configuration delegate here instead
+            // (`AddOpenApi(ProductOpenApiDocument.Configure)`) silently drops the
+            // `description` of EVERY schema property. Measured: 166 of 226 schemas
+            // lost their documentation, and OpenApiSnapshotTests did not catch it
+            // because a refreshed snapshot only proves the file matches the host.
             builder.Services.AddOpenApi();
+            builder.Services.Configure<OpenApiOptions>(
+                ProductOpenApiDocument.DocumentName,
+                ProductOpenApiDocument.Configure);
         }
 
         configureServices?.Invoke(builder.Services);

@@ -29,7 +29,13 @@ internal static class QuotaEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListQuotas")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Lists a tenant's quota rules.");
+            .WithSummary("Lists a tenant's quota rules.")
+            .WithDescription(
+                "Rules are definitions, not counters — read the counters from the usage " +
+                "endpoint. A rule with no agent name applies to the whole tenant, and a " +
+                "tenant-wide rule and an agent-specific rule can both be in force at once. " +
+                "A rule with 'enabled: false' is kept but not enforced. An agent with no " +
+                "matching rule is unlimited.");
 
         builder.MapPut("/api/quotas", SaveAsync)
             .RequireRole(roles.Admin)
@@ -48,7 +54,13 @@ internal static class QuotaEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteQuota")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Deletes a quota rule.");
+            .WithSummary("Deletes a quota rule.")
+            .WithDescription(
+                "Removing the last rule that covers an agent makes it unlimited, which is why " +
+                "the removal is written to the audit trail with the rule's previous values. " +
+                "Usage counters already recorded are not deleted; they simply stop being " +
+                "enforced. To keep the limits but stop enforcing them, save the rule with " +
+                "'enabled: false' instead. An unknown id returns 404.");
 
         builder.MapGet("/api/quotas/usage", GetUsageAsync)
             .RequireRole(roles.Reader)

@@ -1,0 +1,85 @@
+---
+title: AgentPrism
+description: An agent control plane for .NET, built on the Microsoft Agent Framework. Define agents, run them, and see exactly what they did.
+template: splash
+hero:
+  tagline: |
+    Define agents, run them, and see exactly what they did — a control plane for the
+    Microsoft Agent Framework that drops into an ASP.NET Core application.
+  actions:
+    - text: Get started
+      link: /AgentPrism/getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/farukatasoy/AgentPrism
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="One call, whole control plane" icon="rocket">
+    `MapAgentPrism` adds 143 HTTP operations and an embedded management console to an
+    existing application. Nothing is exposed to the network until you say so.
+  </Card>
+  <Card title="Every run is recorded" icon="approve-check">
+    There is no code path that runs an agent without writing a run row. Status,
+    timings, tokens, cost, tool calls, and the event stream — all queryable.
+  </Card>
+  <Card title="No database required" icon="setting">
+    Configure nothing and every store runs in memory. Add PostgreSQL, SQL Server, or
+    SQLite when the runs need to outlive the process.
+  </Card>
+  <Card title="MAF, not a wrapper" icon="puzzle">
+    `AIAgent`, `AgentSession`, and `AIFunction` are used directly and appear in the
+    public API as themselves. Anything you know how to do with MAF keeps working.
+  </Card>
+</CardGrid>
+
+## Thirty seconds
+
+<Code
+  lang="csharp"
+  title="Program.cs"
+  code={`var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAgentPrism()
+       .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+       .UseUI();
+
+var app = builder.Build();
+
+app.MapAgentPrism("/agentprism");
+app.Run();`}
+/>
+
+Run it and open `/agentprism`. Create an agent, talk to it in the playground, then
+open the run and read it back event by event.
+
+## Where to go next
+
+<CardGrid>
+  <Card title="Getting started" icon="open-book">
+    Install, write a first agent, give it a tool, make it durable, and lock it down.
+    Start at [What AgentPrism is](/AgentPrism/getting-started/).
+  </Card>
+  <Card title="Concepts" icon="information">
+    How the pieces fit: [architecture](/AgentPrism/concepts/),
+    [runs](/AgentPrism/concepts/runs/), [tools](/AgentPrism/concepts/tools/),
+    [governance](/AgentPrism/concepts/governance/).
+  </Card>
+  <Card title="HTTP API" icon="list-format">
+    [143 operations](/AgentPrism/http-api/), each with what it does and what it
+    returns. The OpenAPI document is published too.
+  </Card>
+  <Card title="API reference" icon="seti:c-sharp">
+    [Every public type](/AgentPrism/api/), generated from the shipped assemblies and
+    their XML documentation.
+  </Card>
+</CardGrid>
+
+:::caution[Pre-release]
+AgentPrism has not shipped a `1.0`. The Microsoft Agent Framework hosting packages it
+builds on are themselves in preview, and the public API is still moving.
+:::

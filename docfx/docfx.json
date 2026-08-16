@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../artifacts/bin",
+          "files": [
+            "AgentPrism/release_net10.0/AgentPrism.dll",
+            "AgentPrism.Abstractions/release_net10.0/AgentPrism.Abstractions.dll",
+            "AgentPrism.Anthropic/release_net10.0/AgentPrism.Anthropic.dll",
+            "AgentPrism.AspNetCore/release_net10.0/AgentPrism.AspNetCore.dll",
+            "AgentPrism.Azure/release_net10.0/AgentPrism.Azure.dll",
+            "AgentPrism.Core/release_net10.0/AgentPrism.Core.dll",
+            "AgentPrism.Google/release_net10.0/AgentPrism.Google.dll",
+            "AgentPrism.Mcp/release_net10.0/AgentPrism.Mcp.dll",
+            "AgentPrism.OpenAI/release_net10.0/AgentPrism.OpenAI.dll",
+            "AgentPrism.PostgreSql/release_net10.0/AgentPrism.PostgreSql.dll",
+            "AgentPrism.SqlServer/release_net10.0/AgentPrism.SqlServer.dll",
+            "AgentPrism.Sqlite/release_net10.0/AgentPrism.Sqlite.dll",
+            "AgentPrism.Templates/release/AgentPrism.Templates.dll",
+            "AgentPrism.Testing/release_net10.0/AgentPrism.Testing.dll",
+            "AgentPrism.UI/release_net10.0/AgentPrism.UI.dll",
+            "AgentPrism.Voice/release_net10.0/AgentPrism.Voice.dll",
+            "AgentPrism.Workflows/release_net10.0/AgentPrism.Workflows.dll"
+          ]
+        }
+      ],
+      "references": [
+        {
+          "src": "../artifacts/bin",
+          "files": [
+            "*/release_net10.0/*.dll",
+            "*/release/*.dll"
+          ],
+          "exclude": [
+            "**/* [0-9].dll",
+            "**/* [0-9][0-9].dll"
+          ]
+        }
+      ],
+      "dest": "api-md",
+      "outputFormat": "markdown",
+      "memberLayout": "samePage",
+      "namespaceLayout": "flattened",
+      "filter": "filterConfig.yml"
+    }
+  ]
+}

@@ -45,6 +45,14 @@ internal static class AttachmentEndpoints
             .WithName("AgentPrismDownloadAttachment")
             .WithTags("AgentPrism", "Attachments")
             .WithSummary("Streams the raw content of an attachment.")
+            .WithDescription(
+                "The response carries the attachment's own stored media type, an ETag holding the " +
+                "content's SHA-256, and 'Content-Disposition: attachment' together with " +
+                "'X-Content-Type-Options: nosniff' — a browser therefore downloads the bytes " +
+                "instead of rendering them, so uploaded HTML can never execute in the console's " +
+                "origin. The token travels in the Authorization header, so a browser cannot use " +
+                "this URL directly as an image or audio element source; fetch the bytes and wrap " +
+                "them in an object URL instead.")
             // Binary body; the actual type comes from the attachment's own
             // MediaType field and cannot be known at compile time.
             .Produces<Stream>(StatusCodes.Status200OK, contentType: "application/octet-stream")
@@ -55,14 +63,26 @@ internal static class AttachmentEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListAttachments")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Lists attachments.");
+            .WithSummary("Lists attachments.")
+            .WithDescription(
+                "Only descriptors are returned — file name, media type, size, and content hash — " +
+                "never the bytes; fetch those from the download endpoint. 'sessionId' narrows the " +
+                "list to one session, and attachments uploaded without a session are reachable " +
+                "only without that filter. Paging is offset based: 'skip' defaults to 0, 'take' " +
+                "to 50, and 'take' is clamped to 1..200 instead of being rejected.");
 
         builder.MapDelete("/api/attachments/{id:guid}", DeleteAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteAttachment")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Deletes an attachment.");
+            .WithSummary("Deletes an attachment.")
+            .WithDescription(
+                "The bytes are removed immediately; there is no soft delete. Messages that already " +
+                "reference the attachment keep the reference and it stops resolving, so delete an " +
+                "attachment only when its conversation no longer needs to be replayed. Deleting " +
+                "the owning session removes its attachments as well, which is usually the call to " +
+                "reach for. An unknown id returns 404.");
     }
 
     private static async Task<Results<Created<AttachmentDescriptor>, ProblemHttpResult>> UploadAsync(
