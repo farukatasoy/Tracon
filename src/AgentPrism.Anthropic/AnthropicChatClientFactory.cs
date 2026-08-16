@@ -56,13 +56,14 @@ public sealed class AnthropicChatClientFactory
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> is not positive.</exception>
     /// <remarks>
     /// Setups that manage their own authentication (for example Bedrock/Vertex
-    /// identity, or a provider that refreshes tokens) use this constructor.
+    /// identity, or a provider that refreshes tokens) use <see cref="FromClient"/>,
+    /// which calls this constructor.
     /// </remarks>
-    public AnthropicChatClientFactory(
+    private AnthropicChatClientFactory(
         IAnthropicClient client,
-        string? defaultModel = null,
-        int defaultMaxOutputTokens = 4096,
-        ILoggerFactory? loggerFactory = null)
+        string? defaultModel,
+        int defaultMaxOutputTokens,
+        ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(defaultMaxOutputTokens);
@@ -72,6 +73,27 @@ public sealed class AnthropicChatClientFactory
         _defaultMaxOutputTokens = defaultMaxOutputTokens;
         _loggerFactory = loggerFactory;
     }
+
+    /// <summary>Builds a new factory from an already-constructed client.</summary>
+    /// <param name="client">The Anthropic client to use.</param>
+    /// <param name="defaultModel">The model to use when no model name is given.</param>
+    /// <param name="defaultMaxOutputTokens">
+    /// The upper bound used when <see cref="ModelBinding.MaxOutputTokens"/> is not given.
+    /// </param>
+    /// <param name="loggerFactory">Logger factory passed to produced clients.</param>
+    /// <returns>The new factory.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> is not positive.</exception>
+    /// <remarks>
+    /// Setups that manage their own authentication (for example Bedrock/Vertex
+    /// identity, or a provider that refreshes tokens) use this factory method.
+    /// </remarks>
+    public static AnthropicChatClientFactory FromClient(
+        IAnthropicClient client,
+        string? defaultModel = null,
+        int defaultMaxOutputTokens = 4096,
+        ILoggerFactory? loggerFactory = null)
+        => new(client, defaultModel, defaultMaxOutputTokens, loggerFactory);
 
     /// <summary>Produces a chat client for the given binding.</summary>
     /// <param name="binding">The model binding.</param>

@@ -26,7 +26,23 @@ Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
 ## Mevcut skill'ler ve zincir
 
 ```
-aday listesi (F-NN)  →  faz-planlama  →  docs/NN-*.md  →  faz-baslangic  →  kod  →  faz-tamamlama
-                                                                             ↑
-                                                              maf-api-kesfi (MAF tipi kullanmadan önce)
+aday listesi (F-NN)
+      │
+      ▼
+faz-planlama  →  docs/NN-*.md  →  faz-baslangic  →  faz-uygulama  →  faz-denetim  →  faz-tamamlama
+                                                          ↑                                  │
+                                       maf-api-kesfi (MAF tipi kullanmadan önce)              ▼
+                                                                                 docs-site + manuel-test
+
+kusur-giderme — zincirin dışındadır, bir kusur bulunduğunda her an koşar
 ```
+
+| Skill | Ne zaman |
+|---|---|
+| `faz-planlama` | Aday (F-NN) faz dokümanına dönüşürken |
+| `faz-baslangic` | Faza başlarken — okuma protokolü |
+| `faz-uygulama` | İlk kod satırından önce — yazım protokolü |
+| `faz-denetim` | Kod bittiğinde — taze bağlamlı bağımsız denetim |
+| `faz-tamamlama` | Kapanışta — kapılar, manuel case, site, doküman |
+| `maf-api-kesfi` | Bir MAF tipini ilk kez kullanmadan önce |
+| `kusur-giderme` | Bir kusur bulunduğunda — her an |

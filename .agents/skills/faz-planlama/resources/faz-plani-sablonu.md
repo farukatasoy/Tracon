@@ -21,6 +21,8 @@
 > **Paketler:** `AgentPrism.<X>`, `.<Y>`
 > **Yeni paket:** <Yok · veya ad + K-007 gerekçesi> · **Migration:** <Yok · veya "gerekli — numara uygulama anında alınır">
 > **Public API:** <Büyümüyor · veya "büyüyor — Faz 7'den önce ucuz">
+> **Site etkisi:** <Yok · veya sayfa listesi: `concepts/runs.md`, `packages.md`, `ui.md` + ekran görüntüsü>
+> **Manuel test alanı:** <`docs/manuel-test/<NN>-<ALAN>.md` — case'ler oraya eklenir>
 
 ---
 
@@ -111,14 +113,33 @@ src/AgentPrism.<Paket>/
 
 ---
 
-## Testler
+## Hata Modları ve Testler
 
-| Test sınıfı | Neyi doğrular |
-|---|---|
-| `<Ad>Tests` | <tek cümle> |
+> Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
+> Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
+> testiyle kanıtlanamaz — `faz-uygulama` Adım 2.
+
+| Ne bozulabilir | Seviye | Test sınıfı |
+|---|---|---|
+| <somut bozulma> | <Birim · Sözleşme · Fonksiyonel · E2E · Manuel> | `<Ad>Tests` |
+
+Her yeni kod yolu için beş soru cevaplanır ve cevabı bu tabloya girer:
+iptal · eşzamanlılık · boş/aşırı girdi · başka kiracının kaydı · alt sistem hatası.
 
 Sözleşme testi gerekiyorsa `tests/Shared/Contracts/` altına — hem bellek içi
 hem üç SQL sağlayıcısı üzerinde koşar.
+
+---
+
+## Manuel Kabul Case'leri
+
+> Kapanışta `docs/manuel-test/<NN>-<ALAN>.md` içine eklenecek case'lerin
+> taslağı. Otomatikleştirilebilenler kapanışta koşulur; fiziksel/görsel
+> olanlar `👤 insan gerekir` diye işaretlenir.
+
+| # | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|
+| 1 | <durum> | <komut veya tıklama> | <ölçülebilir çıktı> |
 
 ---
 
@@ -139,6 +160,9 @@ hem üç SQL sağlayıcısı üzerinde koşar.
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
+- [ ] Manuel kabul case'leri `docs/manuel-test/<NN>-<ALAN>.md` içine eklendi; otomatikleştirilebilenler koşuldu
+- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [ ] <site etkisi varsa> `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 - [ ] <arayüze dokunulduysa> `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
 
 ### Doğrulama komutları
@@ -179,6 +203,12 @@ curl -s http://localhost:5081/agentprism/api/<yol>
 ## Dosya Listesi (gerçekleşen)
 
 > Kapanışta doldurulur.
+
+## Denetim Bulguları
+
+> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
+> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
+> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
 
 ## Sonraki Faza Devir Notu
 

@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (60 kalem)
+## Fazlar (61 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -71,5 +71,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [57](57-KOD-DILI-BIRLESTIRME.md) | Kod Dili Birleştirme (İngilizce) | ✅ Tamamlandı |
 | [58](58-DOKUMAN-DUZENI.md) | Doküman Düzeni | ✅ Tamamlandı |
 | [59](59-URUN-DOKUMANTASYONU.md) | Ürün Dokümantasyonu (Doküman Sitesi) | ✅ Tamamlandı |
+| [60](60-PUBLIC-API-KAPISI.md) | Public API Kapısı | ✅ Tamamlandı |
 
 Dalga yol haritaları: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md) (21–30) · [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) (31–56). Seçilmemiş adaylar: [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md).

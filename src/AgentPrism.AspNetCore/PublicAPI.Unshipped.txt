@@ -1,1 +1,963 @@
 #nullable enable
+AgentPrism.AcceptedRunResponse
+AgentPrism.AcceptedRunResponse.<Clone>$() -> AgentPrism.AcceptedRunResponse!
+AgentPrism.AcceptedRunResponse.AcceptedRunResponse() -> void
+AgentPrism.AcceptedRunResponse.Equals(AgentPrism.AcceptedRunResponse? other) -> bool
+AgentPrism.AcceptedRunResponse.EventsLocation.get -> string!
+AgentPrism.AcceptedRunResponse.EventsLocation.init -> void
+AgentPrism.AcceptedRunResponse.JobId.get -> System.Guid
+AgentPrism.AcceptedRunResponse.JobId.init -> void
+AgentPrism.AcceptedRunResponse.Location.get -> string!
+AgentPrism.AcceptedRunResponse.Location.init -> void
+AgentPrism.AcceptedRunResponse.RunId.get -> System.Guid
+AgentPrism.AcceptedRunResponse.RunId.init -> void
+AgentPrism.AgentDefinitionRequest
+AgentPrism.AgentDefinitionRequest.<Clone>$() -> AgentPrism.AgentDefinitionRequest!
+AgentPrism.AgentDefinitionRequest.AgentDefinitionRequest() -> void
+AgentPrism.AgentDefinitionRequest.CallableAgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.AgentDefinitionRequest.CallableAgentNames.init -> void
+AgentPrism.AgentDefinitionRequest.Compaction.get -> AgentPrism.CompactionSettings?
+AgentPrism.AgentDefinitionRequest.Compaction.init -> void
+AgentPrism.AgentDefinitionRequest.Description.get -> string?
+AgentPrism.AgentDefinitionRequest.Description.init -> void
+AgentPrism.AgentDefinitionRequest.DisplayName.get -> string?
+AgentPrism.AgentDefinitionRequest.DisplayName.init -> void
+AgentPrism.AgentDefinitionRequest.Equals(AgentPrism.AgentDefinitionRequest? other) -> bool
+AgentPrism.AgentDefinitionRequest.Harness.get -> AgentPrism.HarnessSettings?
+AgentPrism.AgentDefinitionRequest.Harness.init -> void
+AgentPrism.AgentDefinitionRequest.Instructions.get -> string?
+AgentPrism.AgentDefinitionRequest.Instructions.init -> void
+AgentPrism.AgentDefinitionRequest.Memory.get -> AgentPrism.MemorySettings?
+AgentPrism.AgentDefinitionRequest.Memory.init -> void
+AgentPrism.AgentDefinitionRequest.Model.get -> AgentPrism.ModelBinding!
+AgentPrism.AgentDefinitionRequest.Model.init -> void
+AgentPrism.AgentDefinitionRequest.Name.get -> string!
+AgentPrism.AgentDefinitionRequest.Name.init -> void
+AgentPrism.AgentDefinitionRequest.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.AgentDefinitionRequest.SkillNames.init -> void
+AgentPrism.AgentDefinitionRequest.ToDefinition() -> AgentPrism.AgentDefinition!
+AgentPrism.AgentDefinitionRequest.ToolNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.AgentDefinitionRequest.ToolNames.init -> void
+AgentPrism.AgentDetailResponse
+AgentPrism.AgentDetailResponse.<Clone>$() -> AgentPrism.AgentDetailResponse!
+AgentPrism.AgentDetailResponse.AgentDetailResponse() -> void
+AgentPrism.AgentDetailResponse.Definition.get -> AgentPrism.AgentDefinition?
+AgentPrism.AgentDetailResponse.Definition.init -> void
+AgentPrism.AgentDetailResponse.Descriptor.get -> AgentPrism.AgentDescriptor!
+AgentPrism.AgentDetailResponse.Descriptor.init -> void
+AgentPrism.AgentDetailResponse.Equals(AgentPrism.AgentDetailResponse? other) -> bool
+AgentPrism.AgentDetailResponse.IsEditable.get -> bool
+AgentPrism.AgentDetailResponse.IsEditable.init -> void
+AgentPrism.AgentPrismA2ABuilderExtensions
+AgentPrism.AgentPrismA2AExtensions
+AgentPrism.AgentPrismA2AOptions
+AgentPrism.AgentPrismA2AOptions.AgentPrismA2AOptions() -> void
+AgentPrism.AgentPrismA2AOptions.Budget.get -> AgentPrism.AgentRunBudget!
+AgentPrism.AgentPrismA2AOptions.Budget.set -> void
+AgentPrism.AgentPrismA2AOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismAgentSessionStore
+AgentPrism.AgentPrismAgentSessionStore.AgentPrismAgentSessionStore(AgentPrism.AgentSessionManager! sessions) -> void
+AgentPrism.AgentPrismAuthenticationMeta
+AgentPrism.AgentPrismAuthenticationMeta.<Clone>$() -> AgentPrism.AgentPrismAuthenticationMeta!
+AgentPrism.AgentPrismAuthenticationMeta.AgentPrismAuthenticationMeta() -> void
+AgentPrism.AgentPrismAuthenticationMeta.AllowRemoteAccess.get -> bool
+AgentPrism.AgentPrismAuthenticationMeta.AllowRemoteAccess.init -> void
+AgentPrism.AgentPrismAuthenticationMeta.Equals(AgentPrism.AgentPrismAuthenticationMeta? other) -> bool
+AgentPrism.AgentPrismAuthenticationMeta.RequiresAuthorizationPolicy.get -> bool
+AgentPrism.AgentPrismAuthenticationMeta.RequiresAuthorizationPolicy.init -> void
+AgentPrism.AgentPrismAuthenticationMeta.RequiresBearerToken.get -> bool
+AgentPrism.AgentPrismAuthenticationMeta.RequiresBearerToken.init -> void
+AgentPrism.AgentPrismEndpointOptions
+AgentPrism.AgentPrismEndpointOptions.AgentPrismEndpointOptions() -> void
+AgentPrism.AgentPrismEndpointOptions.AllowRemoteAccess.get -> bool
+AgentPrism.AgentPrismEndpointOptions.AllowRemoteAccess.set -> void
+AgentPrism.AgentPrismEndpointOptions.AuthorizationPolicy.get -> string?
+AgentPrism.AgentPrismEndpointOptions.AuthToken.get -> string?
+AgentPrism.AgentPrismEndpointOptions.AuthToken.set -> void
+AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
+AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.set -> void
+AgentPrism.AgentPrismEndpointOptions.RequireAuthorization(string! policyName) -> void
+AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.get -> bool
+AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.set -> void
+AgentPrism.AgentPrismEndpointOptions.RunEventPollInterval.get -> System.TimeSpan
+AgentPrism.AgentPrismEndpointOptions.RunEventPollInterval.set -> void
+AgentPrism.AgentPrismEndpointRouteBuilderExtensions
+AgentPrism.AgentPrismHealthCheckExtensions
+AgentPrism.AgentPrismMcpServerBuilderExtensions
+AgentPrism.AgentPrismMcpServerExtensions
+AgentPrism.AgentPrismMcpServerOptions
+AgentPrism.AgentPrismMcpServerOptions.AgentPrismMcpServerOptions() -> void
+AgentPrism.AgentPrismMcpServerOptions.Budget.get -> AgentPrism.AgentRunBudget!
+AgentPrism.AgentPrismMcpServerOptions.Budget.set -> void
+AgentPrism.AgentPrismMcpServerOptions.ExposeAllAgents.get -> bool
+AgentPrism.AgentPrismMcpServerOptions.ExposeAllAgents.set -> void
+AgentPrism.AgentPrismMcpServerOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismMcpServerOptions.ToolNamePrefix.get -> string!
+AgentPrism.AgentPrismMcpServerOptions.ToolNamePrefix.set -> void
+AgentPrism.AgentPrismMetaResponse
+AgentPrism.AgentPrismMetaResponse.<Clone>$() -> AgentPrism.AgentPrismMetaResponse!
+AgentPrism.AgentPrismMetaResponse.AgentPrismMetaResponse() -> void
+AgentPrism.AgentPrismMetaResponse.Authentication.get -> AgentPrism.AgentPrismAuthenticationMeta!
+AgentPrism.AgentPrismMetaResponse.Authentication.init -> void
+AgentPrism.AgentPrismMetaResponse.Equals(AgentPrism.AgentPrismMetaResponse? other) -> bool
+AgentPrism.AgentPrismMetaResponse.Prefix.get -> string!
+AgentPrism.AgentPrismMetaResponse.Prefix.init -> void
+AgentPrism.AgentPrismMetaResponse.Roles.get -> AgentPrism.AgentPrismRoleMeta!
+AgentPrism.AgentPrismMetaResponse.Roles.init -> void
+AgentPrism.AgentPrismMetaResponse.Storage.get -> AgentPrism.AgentPrismStorageMeta!
+AgentPrism.AgentPrismMetaResponse.Storage.init -> void
+AgentPrism.AgentPrismMetaResponse.Version.get -> string!
+AgentPrism.AgentPrismMetaResponse.Version.init -> void
+AgentPrism.AgentPrismPolicies
+AgentPrism.AgentPrismRoleMeta
+AgentPrism.AgentPrismRoleMeta.<Clone>$() -> AgentPrism.AgentPrismRoleMeta!
+AgentPrism.AgentPrismRoleMeta.AgentPrismRoleMeta() -> void
+AgentPrism.AgentPrismRoleMeta.CanAdminister.get -> bool
+AgentPrism.AgentPrismRoleMeta.CanAdminister.init -> void
+AgentPrism.AgentPrismRoleMeta.CanOperate.get -> bool
+AgentPrism.AgentPrismRoleMeta.CanOperate.init -> void
+AgentPrism.AgentPrismRoleMeta.CanRead.get -> bool
+AgentPrism.AgentPrismRoleMeta.CanRead.init -> void
+AgentPrism.AgentPrismRoleMeta.Equals(AgentPrism.AgentPrismRoleMeta? other) -> bool
+AgentPrism.AgentPrismStorageMeta
+AgentPrism.AgentPrismStorageMeta.<Clone>$() -> AgentPrism.AgentPrismStorageMeta!
+AgentPrism.AgentPrismStorageMeta.AgentDefinitionStore.get -> string!
+AgentPrism.AgentPrismStorageMeta.AgentDefinitionStore.init -> void
+AgentPrism.AgentPrismStorageMeta.AgentPrismStorageMeta() -> void
+AgentPrism.AgentPrismStorageMeta.Equals(AgentPrism.AgentPrismStorageMeta? other) -> bool
+AgentPrism.AgentPrismStorageMeta.JobStore.get -> string!
+AgentPrism.AgentPrismStorageMeta.JobStore.init -> void
+AgentPrism.AgentPrismStorageMeta.JobWorkerEnabled.get -> bool
+AgentPrism.AgentPrismStorageMeta.JobWorkerEnabled.init -> void
+AgentPrism.AgentPrismStorageMeta.Persistent.get -> bool
+AgentPrism.AgentPrismStorageMeta.Persistent.init -> void
+AgentPrism.AgentPrismStorageMeta.RunStore.get -> string!
+AgentPrism.AgentPrismStorageMeta.RunStore.init -> void
+AgentPrism.AgentPrismStorageMeta.SessionStore.get -> string!
+AgentPrism.AgentPrismStorageMeta.SessionStore.init -> void
+AgentPrism.AgentPrismTenancyBuilderExtensions
+AgentPrism.AgentPrismTenancyOptions
+AgentPrism.AgentPrismTenancyOptions.AgentPrismTenancyOptions() -> void
+AgentPrism.AgentPrismTenancyOptions.AllowedTenants.get -> System.Collections.Generic.IList<string!>!
+AgentPrism.AgentPrismTenancyOptions.AllowHeaderResolution.get -> bool
+AgentPrism.AgentPrismTenancyOptions.AllowHeaderResolution.set -> void
+AgentPrism.AgentPrismTenancyOptions.ClaimType.get -> string?
+AgentPrism.AgentPrismTenancyOptions.ClaimType.set -> void
+AgentPrism.AgentPrismTenancyOptions.Enabled.get -> bool
+AgentPrism.AgentPrismTenancyOptions.Enabled.set -> void
+AgentPrism.AgentPrismTenancyOptions.HeaderName.get -> string!
+AgentPrism.AgentPrismTenancyOptions.HeaderName.set -> void
+AgentPrism.AgentRollbackRequest
+AgentPrism.AgentRollbackRequest.<Clone>$() -> AgentPrism.AgentRollbackRequest!
+AgentPrism.AgentRollbackRequest.AgentRollbackRequest() -> void
+AgentPrism.AgentRollbackRequest.Equals(AgentPrism.AgentRollbackRequest? other) -> bool
+AgentPrism.AgentRollbackRequest.Version.get -> int
+AgentPrism.AgentRollbackRequest.Version.init -> void
+AgentPrism.AgentRunRequest
+AgentPrism.AgentRunRequest.<Clone>$() -> AgentPrism.AgentRunRequest!
+AgentPrism.AgentRunRequest.AgentRunRequest() -> void
+AgentPrism.AgentRunRequest.Approvals.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolApprovalDecision!>!
+AgentPrism.AgentRunRequest.Approvals.init -> void
+AgentPrism.AgentRunRequest.AttachmentIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
+AgentPrism.AgentRunRequest.AttachmentIds.init -> void
+AgentPrism.AgentRunRequest.Equals(AgentPrism.AgentRunRequest? other) -> bool
+AgentPrism.AgentRunRequest.Message.get -> string?
+AgentPrism.AgentRunRequest.Message.init -> void
+AgentPrism.AgentRunRequest.SessionId.get -> string?
+AgentPrism.AgentRunRequest.SessionId.init -> void
+AgentPrism.AgentSkillRequest
+AgentPrism.AgentSkillRequest.<Clone>$() -> AgentPrism.AgentSkillRequest!
+AgentPrism.AgentSkillRequest.AgentSkillRequest() -> void
+AgentPrism.AgentSkillRequest.AllowedTools.get -> string?
+AgentPrism.AgentSkillRequest.AllowedTools.init -> void
+AgentPrism.AgentSkillRequest.Compatibility.get -> string?
+AgentPrism.AgentSkillRequest.Compatibility.init -> void
+AgentPrism.AgentSkillRequest.Description.get -> string!
+AgentPrism.AgentSkillRequest.Description.init -> void
+AgentPrism.AgentSkillRequest.Enabled.get -> bool
+AgentPrism.AgentSkillRequest.Enabled.init -> void
+AgentPrism.AgentSkillRequest.Equals(AgentPrism.AgentSkillRequest? other) -> bool
+AgentPrism.AgentSkillRequest.Instructions.get -> string!
+AgentPrism.AgentSkillRequest.Instructions.init -> void
+AgentPrism.AgentSkillRequest.License.get -> string?
+AgentPrism.AgentSkillRequest.License.init -> void
+AgentPrism.AgentSkillRequest.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+AgentPrism.AgentSkillRequest.Metadata.init -> void
+AgentPrism.AgentSkillRequest.Name.get -> string!
+AgentPrism.AgentSkillRequest.Name.init -> void
+AgentPrism.AgentSkillRequest.Resources.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentSkillResourceDefinition!>!
+AgentPrism.AgentSkillRequest.Resources.init -> void
+AgentPrism.AgentSkillRequest.Scripts.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentSkillScriptDefinition!>!
+AgentPrism.AgentSkillRequest.Scripts.init -> void
+AgentPrism.AgentSkillRequest.ToDefinition(string! tenantId) -> AgentPrism.AgentSkillDefinition!
+AgentPrism.AgentVersionDiffResponse
+AgentPrism.AgentVersionDiffResponse.<Clone>$() -> AgentPrism.AgentVersionDiffResponse!
+AgentPrism.AgentVersionDiffResponse.AgentVersionDiffResponse() -> void
+AgentPrism.AgentVersionDiffResponse.Equals(AgentPrism.AgentVersionDiffResponse? other) -> bool
+AgentPrism.AgentVersionDiffResponse.Left.get -> AgentPrism.AgentDefinition!
+AgentPrism.AgentVersionDiffResponse.Left.init -> void
+AgentPrism.AgentVersionDiffResponse.Right.get -> AgentPrism.AgentDefinition!
+AgentPrism.AgentVersionDiffResponse.Right.init -> void
+AgentPrism.ApiKeyCreateRequest
+AgentPrism.ApiKeyCreateRequest.<Clone>$() -> AgentPrism.ApiKeyCreateRequest!
+AgentPrism.ApiKeyCreateRequest.ApiKeyCreateRequest() -> void
+AgentPrism.ApiKeyCreateRequest.Equals(AgentPrism.ApiKeyCreateRequest? other) -> bool
+AgentPrism.ApiKeyCreateRequest.ExpiresAt.get -> System.DateTimeOffset?
+AgentPrism.ApiKeyCreateRequest.ExpiresAt.init -> void
+AgentPrism.ApiKeyCreateRequest.Name.get -> string?
+AgentPrism.ApiKeyCreateRequest.Name.init -> void
+AgentPrism.ApiKeyCreateRequest.Scopes.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ApiKeyScope>?
+AgentPrism.ApiKeyCreateRequest.Scopes.init -> void
+AgentPrism.ApprovalDecisionRequest
+AgentPrism.ApprovalDecisionRequest.<Clone>$() -> AgentPrism.ApprovalDecisionRequest!
+AgentPrism.ApprovalDecisionRequest.ApprovalDecisionRequest() -> void
+AgentPrism.ApprovalDecisionRequest.Approved.get -> bool
+AgentPrism.ApprovalDecisionRequest.Approved.init -> void
+AgentPrism.ApprovalDecisionRequest.Equals(AgentPrism.ApprovalDecisionRequest? other) -> bool
+AgentPrism.CurrentTenantResponse
+AgentPrism.CurrentTenantResponse.<Clone>$() -> AgentPrism.CurrentTenantResponse!
+AgentPrism.CurrentTenantResponse.CurrentTenantResponse() -> void
+AgentPrism.CurrentTenantResponse.Equals(AgentPrism.CurrentTenantResponse? other) -> bool
+AgentPrism.CurrentTenantResponse.TenantId.get -> string!
+AgentPrism.CurrentTenantResponse.TenantId.init -> void
+AgentPrism.EvalCaseInput
+AgentPrism.EvalCaseInput.<Clone>$() -> AgentPrism.EvalCaseInput!
+AgentPrism.EvalCaseInput.Context.get -> string?
+AgentPrism.EvalCaseInput.Context.init -> void
+AgentPrism.EvalCaseInput.Equals(AgentPrism.EvalCaseInput? other) -> bool
+AgentPrism.EvalCaseInput.EvalCaseInput() -> void
+AgentPrism.EvalCaseInput.ExpectedOutput.get -> string?
+AgentPrism.EvalCaseInput.ExpectedOutput.init -> void
+AgentPrism.EvalCaseInput.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.EvalCaseInput.ExpectedTools.init -> void
+AgentPrism.EvalCaseInput.Query.get -> string!
+AgentPrism.EvalCaseInput.Query.init -> void
+AgentPrism.EvalCasePromotionRequest
+AgentPrism.EvalCasePromotionRequest.<Clone>$() -> AgentPrism.EvalCasePromotionRequest!
+AgentPrism.EvalCasePromotionRequest.Equals(AgentPrism.EvalCasePromotionRequest? other) -> bool
+AgentPrism.EvalCasePromotionRequest.EvalCasePromotionRequest() -> void
+AgentPrism.EvalCasePromotionRequest.SourceKind.get -> AgentPrism.EvalCaseSource?
+AgentPrism.EvalCasePromotionRequest.SourceKind.init -> void
+AgentPrism.EvalRunDetailResponse
+AgentPrism.EvalRunDetailResponse.<Clone>$() -> AgentPrism.EvalRunDetailResponse!
+AgentPrism.EvalRunDetailResponse.Equals(AgentPrism.EvalRunDetailResponse? other) -> bool
+AgentPrism.EvalRunDetailResponse.EvalRunDetailResponse() -> void
+AgentPrism.EvalRunDetailResponse.Results.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.EvalCaseResult!>!
+AgentPrism.EvalRunDetailResponse.Results.init -> void
+AgentPrism.EvalRunDetailResponse.Run.get -> AgentPrism.EvalRun!
+AgentPrism.EvalRunDetailResponse.Run.init -> void
+AgentPrism.EvalRunTriggerRequest
+AgentPrism.EvalRunTriggerRequest.<Clone>$() -> AgentPrism.EvalRunTriggerRequest!
+AgentPrism.EvalRunTriggerRequest.AgentVersion.get -> int?
+AgentPrism.EvalRunTriggerRequest.AgentVersion.init -> void
+AgentPrism.EvalRunTriggerRequest.Equals(AgentPrism.EvalRunTriggerRequest? other) -> bool
+AgentPrism.EvalRunTriggerRequest.EvalRunTriggerRequest() -> void
+AgentPrism.EvalRunTriggerRequest.ModelId.get -> string?
+AgentPrism.EvalRunTriggerRequest.ModelId.init -> void
+AgentPrism.EvalRunTriggerRequest.NumRepetitions.get -> int?
+AgentPrism.EvalRunTriggerRequest.NumRepetitions.init -> void
+AgentPrism.EvalSuiteSaveRequest
+AgentPrism.EvalSuiteSaveRequest.<Clone>$() -> AgentPrism.EvalSuiteSaveRequest!
+AgentPrism.EvalSuiteSaveRequest.AgentName.get -> string!
+AgentPrism.EvalSuiteSaveRequest.AgentName.init -> void
+AgentPrism.EvalSuiteSaveRequest.Checks.get -> System.Text.Json.JsonElement
+AgentPrism.EvalSuiteSaveRequest.Checks.init -> void
+AgentPrism.EvalSuiteSaveRequest.Description.get -> string?
+AgentPrism.EvalSuiteSaveRequest.Description.init -> void
+AgentPrism.EvalSuiteSaveRequest.Equals(AgentPrism.EvalSuiteSaveRequest? other) -> bool
+AgentPrism.EvalSuiteSaveRequest.EvalSuiteSaveRequest() -> void
+AgentPrism.ExperimentCanaryResponse
+AgentPrism.ExperimentCanaryResponse.<Clone>$() -> AgentPrism.ExperimentCanaryResponse!
+AgentPrism.ExperimentCanaryResponse.Equals(AgentPrism.ExperimentCanaryResponse? other) -> bool
+AgentPrism.ExperimentCanaryResponse.Evaluation.get -> AgentPrism.CanaryEvaluation?
+AgentPrism.ExperimentCanaryResponse.Evaluation.init -> void
+AgentPrism.ExperimentCanaryResponse.ExperimentCanaryResponse() -> void
+AgentPrism.ExperimentCanaryResponse.Policy.get -> AgentPrism.CanaryPolicy?
+AgentPrism.ExperimentCanaryResponse.Policy.init -> void
+AgentPrism.ExperimentResultsResponse
+AgentPrism.ExperimentResultsResponse.<Clone>$() -> AgentPrism.ExperimentResultsResponse!
+AgentPrism.ExperimentResultsResponse.Equals(AgentPrism.ExperimentResultsResponse? other) -> bool
+AgentPrism.ExperimentResultsResponse.Experiment.get -> AgentPrism.Experiment!
+AgentPrism.ExperimentResultsResponse.Experiment.init -> void
+AgentPrism.ExperimentResultsResponse.ExperimentResultsResponse() -> void
+AgentPrism.ExperimentResultsResponse.Results.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ExperimentVariantResult!>!
+AgentPrism.ExperimentResultsResponse.Results.init -> void
+AgentPrism.ExperimentSaveRequest
+AgentPrism.ExperimentSaveRequest.<Clone>$() -> AgentPrism.ExperimentSaveRequest!
+AgentPrism.ExperimentSaveRequest.AgentName.get -> string!
+AgentPrism.ExperimentSaveRequest.AgentName.init -> void
+AgentPrism.ExperimentSaveRequest.Equals(AgentPrism.ExperimentSaveRequest? other) -> bool
+AgentPrism.ExperimentSaveRequest.ExperimentSaveRequest() -> void
+AgentPrism.ExperimentSaveRequest.Variants.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ExperimentVariant!>!
+AgentPrism.ExperimentSaveRequest.Variants.init -> void
+AgentPrism.HttpTenantContext
+AgentPrism.HttpTenantContext.HttpTenantContext(Microsoft.AspNetCore.Http.IHttpContextAccessor! accessor, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! coreOptions, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismTenancyOptions!>! tenancyOptions) -> void
+AgentPrism.HttpTenantContext.TenantId.get -> string!
+AgentPrism.IAgentPrismUiProvider
+AgentPrism.IAgentPrismUiProvider.HasAssets.get -> bool
+AgentPrism.IAgentPrismUiProvider.TryServeAsync(Microsoft.AspNetCore.Http.HttpContext! context, string! basePath, string! relativePath) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.JobDetailResponse
+AgentPrism.JobDetailResponse.<Clone>$() -> AgentPrism.JobDetailResponse!
+AgentPrism.JobDetailResponse.Equals(AgentPrism.JobDetailResponse? other) -> bool
+AgentPrism.JobDetailResponse.Items.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.JobItemRecord!>!
+AgentPrism.JobDetailResponse.Items.init -> void
+AgentPrism.JobDetailResponse.Job.get -> AgentPrism.JobRecord!
+AgentPrism.JobDetailResponse.Job.init -> void
+AgentPrism.JobDetailResponse.JobDetailResponse() -> void
+AgentPrism.JobScheduleSaveRequest
+AgentPrism.JobScheduleSaveRequest.<Clone>$() -> AgentPrism.JobScheduleSaveRequest!
+AgentPrism.JobScheduleSaveRequest.Cron.get -> string?
+AgentPrism.JobScheduleSaveRequest.Cron.init -> void
+AgentPrism.JobScheduleSaveRequest.Enabled.get -> bool
+AgentPrism.JobScheduleSaveRequest.Enabled.init -> void
+AgentPrism.JobScheduleSaveRequest.Equals(AgentPrism.JobScheduleSaveRequest? other) -> bool
+AgentPrism.JobScheduleSaveRequest.JobScheduleSaveRequest() -> void
+AgentPrism.JobScheduleSaveRequest.Kind.get -> AgentPrism.JobKind
+AgentPrism.JobScheduleSaveRequest.Kind.init -> void
+AgentPrism.JobScheduleSaveRequest.Payload.get -> System.Text.Json.JsonElement
+AgentPrism.JobScheduleSaveRequest.Payload.init -> void
+AgentPrism.JobScheduleSaveRequest.TargetName.get -> string!
+AgentPrism.JobScheduleSaveRequest.TargetName.init -> void
+AgentPrism.JobScheduleSaveRequest.TimeZone.get -> string!
+AgentPrism.JobScheduleSaveRequest.TimeZone.init -> void
+AgentPrism.JobTriggerRequest
+AgentPrism.JobTriggerRequest.<Clone>$() -> AgentPrism.JobTriggerRequest!
+AgentPrism.JobTriggerRequest.Equals(AgentPrism.JobTriggerRequest? other) -> bool
+AgentPrism.JobTriggerRequest.JobTriggerRequest() -> void
+AgentPrism.JobTriggerRequest.Payload.get -> System.Text.Json.JsonElement?
+AgentPrism.JobTriggerRequest.Payload.init -> void
+AgentPrism.McpOAuthStartResponse
+AgentPrism.McpOAuthStartResponse.<Clone>$() -> AgentPrism.McpOAuthStartResponse!
+AgentPrism.McpOAuthStartResponse.AuthorizationUri.get -> string!
+AgentPrism.McpOAuthStartResponse.AuthorizationUri.init -> void
+AgentPrism.McpOAuthStartResponse.Equals(AgentPrism.McpOAuthStartResponse? other) -> bool
+AgentPrism.McpOAuthStartResponse.McpOAuthStartResponse() -> void
+AgentPrism.McpOAuthStartResponse.State.get -> string!
+AgentPrism.McpOAuthStartResponse.State.init -> void
+AgentPrism.McpPromptArgumentsRequest
+AgentPrism.McpPromptArgumentsRequest.<Clone>$() -> AgentPrism.McpPromptArgumentsRequest!
+AgentPrism.McpPromptArgumentsRequest.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.McpPromptArgumentsRequest.Arguments.init -> void
+AgentPrism.McpPromptArgumentsRequest.Equals(AgentPrism.McpPromptArgumentsRequest? other) -> bool
+AgentPrism.McpPromptArgumentsRequest.McpPromptArgumentsRequest() -> void
+AgentPrism.McpRefreshResponse
+AgentPrism.McpRefreshResponse.<Clone>$() -> AgentPrism.McpRefreshResponse!
+AgentPrism.McpRefreshResponse.Equals(AgentPrism.McpRefreshResponse? other) -> bool
+AgentPrism.McpRefreshResponse.McpRefreshResponse() -> void
+AgentPrism.McpRefreshResponse.ToolCount.get -> int
+AgentPrism.McpRefreshResponse.ToolCount.init -> void
+AgentPrism.McpServerRequest
+AgentPrism.McpServerRequest.<Clone>$() -> AgentPrism.McpServerRequest!
+AgentPrism.McpServerRequest.AuthorizationConfigurationKey.get -> string?
+AgentPrism.McpServerRequest.AuthorizationConfigurationKey.init -> void
+AgentPrism.McpServerRequest.Description.get -> string?
+AgentPrism.McpServerRequest.Description.init -> void
+AgentPrism.McpServerRequest.Enabled.get -> bool
+AgentPrism.McpServerRequest.Enabled.init -> void
+AgentPrism.McpServerRequest.Endpoint.get -> string!
+AgentPrism.McpServerRequest.Endpoint.init -> void
+AgentPrism.McpServerRequest.Equals(AgentPrism.McpServerRequest? other) -> bool
+AgentPrism.McpServerRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.McpServerRequest.Headers.init -> void
+AgentPrism.McpServerRequest.McpServerRequest() -> void
+AgentPrism.McpServerRequest.OAuthAuthorizationMode.get -> AgentPrism.McpOAuthAuthorizationMode
+AgentPrism.McpServerRequest.OAuthAuthorizationMode.init -> void
+AgentPrism.McpServerRequest.OAuthClientId.get -> string?
+AgentPrism.McpServerRequest.OAuthClientId.init -> void
+AgentPrism.McpServerRequest.OAuthClientSecretConfigurationKey.get -> string?
+AgentPrism.McpServerRequest.OAuthClientSecretConfigurationKey.init -> void
+AgentPrism.McpServerRequest.OAuthEnabled.get -> bool
+AgentPrism.McpServerRequest.OAuthEnabled.init -> void
+AgentPrism.McpServerRequest.OAuthScopes.get -> string?
+AgentPrism.McpServerRequest.OAuthScopes.init -> void
+AgentPrism.McpServerRequest.RequiresApproval.get -> bool
+AgentPrism.McpServerRequest.RequiresApproval.init -> void
+AgentPrism.McpServerRequest.Transport.get -> AgentPrism.McpTransportMode
+AgentPrism.McpServerRequest.Transport.init -> void
+AgentPrism.QuotaSaveRequest
+AgentPrism.QuotaSaveRequest.<Clone>$() -> AgentPrism.QuotaSaveRequest!
+AgentPrism.QuotaSaveRequest.AgentName.get -> string?
+AgentPrism.QuotaSaveRequest.AgentName.init -> void
+AgentPrism.QuotaSaveRequest.Enabled.get -> bool
+AgentPrism.QuotaSaveRequest.Enabled.init -> void
+AgentPrism.QuotaSaveRequest.Equals(AgentPrism.QuotaSaveRequest? other) -> bool
+AgentPrism.QuotaSaveRequest.MaxCost.get -> decimal?
+AgentPrism.QuotaSaveRequest.MaxCost.init -> void
+AgentPrism.QuotaSaveRequest.MaxRuns.get -> long?
+AgentPrism.QuotaSaveRequest.MaxRuns.init -> void
+AgentPrism.QuotaSaveRequest.MaxTokens.get -> long?
+AgentPrism.QuotaSaveRequest.MaxTokens.init -> void
+AgentPrism.QuotaSaveRequest.Period.get -> AgentPrism.QuotaPeriod
+AgentPrism.QuotaSaveRequest.Period.init -> void
+AgentPrism.QuotaSaveRequest.QuotaSaveRequest() -> void
+AgentPrism.QuotaUsageResponse
+AgentPrism.QuotaUsageResponse.<Clone>$() -> AgentPrism.QuotaUsageResponse!
+AgentPrism.QuotaUsageResponse.DailyResetsAt.get -> System.DateTimeOffset
+AgentPrism.QuotaUsageResponse.DailyResetsAt.init -> void
+AgentPrism.QuotaUsageResponse.Definitions.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.QuotaDefinition!>!
+AgentPrism.QuotaUsageResponse.Definitions.init -> void
+AgentPrism.QuotaUsageResponse.Equals(AgentPrism.QuotaUsageResponse? other) -> bool
+AgentPrism.QuotaUsageResponse.MonthlyResetsAt.get -> System.DateTimeOffset
+AgentPrism.QuotaUsageResponse.MonthlyResetsAt.init -> void
+AgentPrism.QuotaUsageResponse.QuotaUsageResponse() -> void
+AgentPrism.QuotaUsageResponse.TenantId.get -> string!
+AgentPrism.QuotaUsageResponse.TenantId.init -> void
+AgentPrism.QuotaUsageResponse.TimeZone.get -> string!
+AgentPrism.QuotaUsageResponse.TimeZone.init -> void
+AgentPrism.QuotaUsageResponse.Usage.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.QuotaUsageRecord!>!
+AgentPrism.QuotaUsageResponse.Usage.init -> void
+AgentPrism.RetentionPolicySaveRequest
+AgentPrism.RetentionPolicySaveRequest.<Clone>$() -> AgentPrism.RetentionPolicySaveRequest!
+AgentPrism.RetentionPolicySaveRequest.Archive.get -> bool
+AgentPrism.RetentionPolicySaveRequest.Archive.init -> void
+AgentPrism.RetentionPolicySaveRequest.Enabled.get -> bool
+AgentPrism.RetentionPolicySaveRequest.Enabled.init -> void
+AgentPrism.RetentionPolicySaveRequest.Equals(AgentPrism.RetentionPolicySaveRequest? other) -> bool
+AgentPrism.RetentionPolicySaveRequest.MaxAgeDays.get -> int?
+AgentPrism.RetentionPolicySaveRequest.MaxAgeDays.init -> void
+AgentPrism.RetentionPolicySaveRequest.MaxRows.get -> long?
+AgentPrism.RetentionPolicySaveRequest.MaxRows.init -> void
+AgentPrism.RetentionPolicySaveRequest.RetentionPolicySaveRequest() -> void
+AgentPrism.RetentionRunTriggerResponse
+AgentPrism.RetentionRunTriggerResponse.<Clone>$() -> AgentPrism.RetentionRunTriggerResponse!
+AgentPrism.RetentionRunTriggerResponse.Equals(AgentPrism.RetentionRunTriggerResponse? other) -> bool
+AgentPrism.RetentionRunTriggerResponse.JobId.get -> System.Guid
+AgentPrism.RetentionRunTriggerResponse.JobId.init -> void
+AgentPrism.RetentionRunTriggerResponse.RetentionRunTriggerResponse() -> void
+AgentPrism.RetentionRunTriggerResponse.Target.get -> string!
+AgentPrism.RetentionRunTriggerResponse.Target.init -> void
+AgentPrism.RunComparisonResponse
+AgentPrism.RunComparisonResponse.<Clone>$() -> AgentPrism.RunComparisonResponse!
+AgentPrism.RunComparisonResponse.Equals(AgentPrism.RunComparisonResponse? other) -> bool
+AgentPrism.RunComparisonResponse.Left.get -> AgentPrism.RunComparisonSide!
+AgentPrism.RunComparisonResponse.Left.init -> void
+AgentPrism.RunComparisonResponse.Right.get -> AgentPrism.RunComparisonSide!
+AgentPrism.RunComparisonResponse.Right.init -> void
+AgentPrism.RunComparisonResponse.RunComparisonResponse() -> void
+AgentPrism.RunComparisonSide
+AgentPrism.RunComparisonSide.<Clone>$() -> AgentPrism.RunComparisonSide!
+AgentPrism.RunComparisonSide.AgentName.get -> string!
+AgentPrism.RunComparisonSide.AgentName.init -> void
+AgentPrism.RunComparisonSide.AgentVersion.get -> int?
+AgentPrism.RunComparisonSide.AgentVersion.init -> void
+AgentPrism.RunComparisonSide.Cost.get -> AgentPrism.RunCost?
+AgentPrism.RunComparisonSide.Cost.init -> void
+AgentPrism.RunComparisonSide.DurationMs.get -> long?
+AgentPrism.RunComparisonSide.DurationMs.init -> void
+AgentPrism.RunComparisonSide.Equals(AgentPrism.RunComparisonSide? other) -> bool
+AgentPrism.RunComparisonSide.ErrorClass.get -> AgentPrism.RunErrorClass?
+AgentPrism.RunComparisonSide.ErrorClass.init -> void
+AgentPrism.RunComparisonSide.ErrorMessage.get -> string?
+AgentPrism.RunComparisonSide.ErrorMessage.init -> void
+AgentPrism.RunComparisonSide.ModelId.get -> string?
+AgentPrism.RunComparisonSide.ModelId.init -> void
+AgentPrism.RunComparisonSide.Output.get -> string?
+AgentPrism.RunComparisonSide.Output.init -> void
+AgentPrism.RunComparisonSide.ReplayOfRunId.get -> System.Guid?
+AgentPrism.RunComparisonSide.ReplayOfRunId.init -> void
+AgentPrism.RunComparisonSide.RunComparisonSide() -> void
+AgentPrism.RunComparisonSide.RunId.get -> System.Guid
+AgentPrism.RunComparisonSide.RunId.init -> void
+AgentPrism.RunComparisonSide.Scores.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScore!>!
+AgentPrism.RunComparisonSide.Scores.init -> void
+AgentPrism.RunComparisonSide.Status.get -> AgentPrism.RunStatus
+AgentPrism.RunComparisonSide.Status.init -> void
+AgentPrism.RunComparisonSide.ToolCallCount.get -> int
+AgentPrism.RunComparisonSide.ToolCallCount.init -> void
+AgentPrism.RunComparisonSide.Usage.get -> AgentPrism.RunUsage?
+AgentPrism.RunComparisonSide.Usage.init -> void
+AgentPrism.RunFeedbackRequest
+AgentPrism.RunFeedbackRequest.<Clone>$() -> AgentPrism.RunFeedbackRequest!
+AgentPrism.RunFeedbackRequest.Comment.get -> string?
+AgentPrism.RunFeedbackRequest.Comment.init -> void
+AgentPrism.RunFeedbackRequest.Equals(AgentPrism.RunFeedbackRequest? other) -> bool
+AgentPrism.RunFeedbackRequest.Kind.get -> AgentPrism.RunScoreKind
+AgentPrism.RunFeedbackRequest.Kind.init -> void
+AgentPrism.RunFeedbackRequest.MessageId.get -> string?
+AgentPrism.RunFeedbackRequest.MessageId.init -> void
+AgentPrism.RunFeedbackRequest.RunFeedbackRequest() -> void
+AgentPrism.RunFeedbackRequest.Value.get -> int
+AgentPrism.RunFeedbackRequest.Value.init -> void
+AgentPrism.RunInputResponse
+AgentPrism.RunInputResponse.<Clone>$() -> AgentPrism.RunInputResponse!
+AgentPrism.RunInputResponse.CreatedAt.get -> System.DateTimeOffset
+AgentPrism.RunInputResponse.CreatedAt.init -> void
+AgentPrism.RunInputResponse.Equals(AgentPrism.RunInputResponse? other) -> bool
+AgentPrism.RunInputResponse.Messages.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
+AgentPrism.RunInputResponse.Messages.init -> void
+AgentPrism.RunInputResponse.RunId.get -> System.Guid
+AgentPrism.RunInputResponse.RunId.init -> void
+AgentPrism.RunInputResponse.RunInputResponse() -> void
+AgentPrism.RunReplayResponse
+AgentPrism.RunReplayResponse.<Clone>$() -> AgentPrism.RunReplayResponse!
+AgentPrism.RunReplayResponse.AgentVersion.get -> int?
+AgentPrism.RunReplayResponse.AgentVersion.init -> void
+AgentPrism.RunReplayResponse.CompareLocation.get -> string!
+AgentPrism.RunReplayResponse.CompareLocation.init -> void
+AgentPrism.RunReplayResponse.Equals(AgentPrism.RunReplayResponse? other) -> bool
+AgentPrism.RunReplayResponse.ModelId.get -> string?
+AgentPrism.RunReplayResponse.ModelId.init -> void
+AgentPrism.RunReplayResponse.Output.get -> string?
+AgentPrism.RunReplayResponse.Output.init -> void
+AgentPrism.RunReplayResponse.RunId.get -> System.Guid
+AgentPrism.RunReplayResponse.RunId.init -> void
+AgentPrism.RunReplayResponse.RunReplayResponse() -> void
+AgentPrism.RunReplayResponse.SourceRunId.get -> System.Guid
+AgentPrism.RunReplayResponse.SourceRunId.init -> void
+AgentPrism.RunReplayResponse.ToolMode.get -> AgentPrism.ReplayToolMode
+AgentPrism.RunReplayResponse.ToolMode.init -> void
+AgentPrism.SearchKnowledgeHit
+AgentPrism.SearchKnowledgeHit.<Clone>$() -> AgentPrism.SearchKnowledgeHit!
+AgentPrism.SearchKnowledgeHit.ChunkIndex.get -> int
+AgentPrism.SearchKnowledgeHit.ChunkIndex.init -> void
+AgentPrism.SearchKnowledgeHit.Content.get -> string!
+AgentPrism.SearchKnowledgeHit.Content.init -> void
+AgentPrism.SearchKnowledgeHit.Distance.get -> double
+AgentPrism.SearchKnowledgeHit.Distance.init -> void
+AgentPrism.SearchKnowledgeHit.Equals(AgentPrism.SearchKnowledgeHit? other) -> bool
+AgentPrism.SearchKnowledgeHit.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.SearchKnowledgeHit.Metadata.init -> void
+AgentPrism.SearchKnowledgeHit.SearchKnowledgeHit() -> void
+AgentPrism.SearchKnowledgeHit.SourceId.get -> string!
+AgentPrism.SearchKnowledgeHit.SourceId.init -> void
+AgentPrism.SearchKnowledgeRequest
+AgentPrism.SearchKnowledgeRequest.<Clone>$() -> AgentPrism.SearchKnowledgeRequest!
+AgentPrism.SearchKnowledgeRequest.Equals(AgentPrism.SearchKnowledgeRequest? other) -> bool
+AgentPrism.SearchKnowledgeRequest.Query.get -> string!
+AgentPrism.SearchKnowledgeRequest.Query.init -> void
+AgentPrism.SearchKnowledgeRequest.SearchKnowledgeRequest() -> void
+AgentPrism.SearchKnowledgeRequest.Top.get -> int?
+AgentPrism.SearchKnowledgeRequest.Top.init -> void
+AgentPrism.SessionDetailResponse
+AgentPrism.SessionDetailResponse.<Clone>$() -> AgentPrism.SessionDetailResponse!
+AgentPrism.SessionDetailResponse.AgentName.get -> string!
+AgentPrism.SessionDetailResponse.AgentName.init -> void
+AgentPrism.SessionDetailResponse.CreatedAt.get -> System.DateTimeOffset
+AgentPrism.SessionDetailResponse.CreatedAt.init -> void
+AgentPrism.SessionDetailResponse.Equals(AgentPrism.SessionDetailResponse? other) -> bool
+AgentPrism.SessionDetailResponse.Id.get -> string!
+AgentPrism.SessionDetailResponse.Id.init -> void
+AgentPrism.SessionDetailResponse.Messages.get -> System.Text.Json.JsonElement?
+AgentPrism.SessionDetailResponse.Messages.init -> void
+AgentPrism.SessionDetailResponse.SessionDetailResponse() -> void
+AgentPrism.SessionDetailResponse.State.get -> System.Text.Json.JsonElement
+AgentPrism.SessionDetailResponse.State.init -> void
+AgentPrism.SessionDetailResponse.TenantId.get -> string?
+AgentPrism.SessionDetailResponse.TenantId.init -> void
+AgentPrism.SessionDetailResponse.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.SessionDetailResponse.UpdatedAt.init -> void
+AgentPrism.SkillScriptGrantRequest
+AgentPrism.SkillScriptGrantRequest.<Clone>$() -> AgentPrism.SkillScriptGrantRequest!
+AgentPrism.SkillScriptGrantRequest.Equals(AgentPrism.SkillScriptGrantRequest? other) -> bool
+AgentPrism.SkillScriptGrantRequest.ExpiresAt.get -> System.DateTimeOffset?
+AgentPrism.SkillScriptGrantRequest.ExpiresAt.init -> void
+AgentPrism.SkillScriptGrantRequest.ScriptName.get -> string?
+AgentPrism.SkillScriptGrantRequest.ScriptName.init -> void
+AgentPrism.SkillScriptGrantRequest.SkillName.get -> string!
+AgentPrism.SkillScriptGrantRequest.SkillName.init -> void
+AgentPrism.SkillScriptGrantRequest.SkillScriptGrantRequest() -> void
+AgentPrism.TenantRequest
+AgentPrism.TenantRequest.<Clone>$() -> AgentPrism.TenantRequest!
+AgentPrism.TenantRequest.DisplayName.get -> string?
+AgentPrism.TenantRequest.DisplayName.init -> void
+AgentPrism.TenantRequest.Equals(AgentPrism.TenantRequest? other) -> bool
+AgentPrism.TenantRequest.TenantRequest() -> void
+AgentPrism.ToolApprovalDecision
+AgentPrism.ToolApprovalDecision.<Clone>$() -> AgentPrism.ToolApprovalDecision!
+AgentPrism.ToolApprovalDecision.Approved.get -> bool
+AgentPrism.ToolApprovalDecision.Approved.init -> void
+AgentPrism.ToolApprovalDecision.Equals(AgentPrism.ToolApprovalDecision? other) -> bool
+AgentPrism.ToolApprovalDecision.Reason.get -> string?
+AgentPrism.ToolApprovalDecision.Reason.init -> void
+AgentPrism.ToolApprovalDecision.Remember.get -> bool
+AgentPrism.ToolApprovalDecision.Remember.init -> void
+AgentPrism.ToolApprovalDecision.RememberArgumentsOnly.get -> bool
+AgentPrism.ToolApprovalDecision.RememberArgumentsOnly.init -> void
+AgentPrism.ToolApprovalDecision.RequestId.get -> string!
+AgentPrism.ToolApprovalDecision.RequestId.init -> void
+AgentPrism.ToolApprovalDecision.ToolApprovalDecision() -> void
+AgentPrism.UploadDocumentChunk
+AgentPrism.UploadDocumentChunk.<Clone>$() -> AgentPrism.UploadDocumentChunk!
+AgentPrism.UploadDocumentChunk.Content.get -> string!
+AgentPrism.UploadDocumentChunk.Content.init -> void
+AgentPrism.UploadDocumentChunk.Embedding.get -> float[]?
+AgentPrism.UploadDocumentChunk.Embedding.init -> void
+AgentPrism.UploadDocumentChunk.Equals(AgentPrism.UploadDocumentChunk? other) -> bool
+AgentPrism.UploadDocumentChunk.Index.get -> int
+AgentPrism.UploadDocumentChunk.Index.init -> void
+AgentPrism.UploadDocumentChunk.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.UploadDocumentChunk.Metadata.init -> void
+AgentPrism.UploadDocumentChunk.UploadDocumentChunk() -> void
+AgentPrism.UploadDocumentRequest
+AgentPrism.UploadDocumentRequest.<Clone>$() -> AgentPrism.UploadDocumentRequest!
+AgentPrism.UploadDocumentRequest.Chunks.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.UploadDocumentChunk!>?
+AgentPrism.UploadDocumentRequest.Chunks.init -> void
+AgentPrism.UploadDocumentRequest.Equals(AgentPrism.UploadDocumentRequest? other) -> bool
+AgentPrism.UploadDocumentRequest.SourceId.get -> string!
+AgentPrism.UploadDocumentRequest.SourceId.init -> void
+AgentPrism.UploadDocumentRequest.Text.get -> string?
+AgentPrism.UploadDocumentRequest.Text.init -> void
+AgentPrism.UploadDocumentRequest.UploadDocumentRequest() -> void
+AgentPrism.UploadDocumentResponse
+AgentPrism.UploadDocumentResponse.<Clone>$() -> AgentPrism.UploadDocumentResponse!
+AgentPrism.UploadDocumentResponse.ChunkCount.get -> int
+AgentPrism.UploadDocumentResponse.ChunkCount.init -> void
+AgentPrism.UploadDocumentResponse.Deconstruct(out string! SourceId, out int ChunkCount) -> void
+AgentPrism.UploadDocumentResponse.Equals(AgentPrism.UploadDocumentResponse? other) -> bool
+AgentPrism.UploadDocumentResponse.SourceId.get -> string!
+AgentPrism.UploadDocumentResponse.SourceId.init -> void
+AgentPrism.UploadDocumentResponse.UploadDocumentResponse(string! SourceId, int ChunkCount) -> void
+AgentPrism.WebhookSaveRequest
+AgentPrism.WebhookSaveRequest.<Clone>$() -> AgentPrism.WebhookSaveRequest!
+AgentPrism.WebhookSaveRequest.Enabled.get -> bool
+AgentPrism.WebhookSaveRequest.Enabled.init -> void
+AgentPrism.WebhookSaveRequest.Equals(AgentPrism.WebhookSaveRequest? other) -> bool
+AgentPrism.WebhookSaveRequest.Events.get -> System.Collections.Generic.IReadOnlyList<string!>?
+AgentPrism.WebhookSaveRequest.Events.init -> void
+AgentPrism.WebhookSaveRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.WebhookSaveRequest.Headers.init -> void
+AgentPrism.WebhookSaveRequest.SecretConfigurationKey.get -> string?
+AgentPrism.WebhookSaveRequest.SecretConfigurationKey.init -> void
+AgentPrism.WebhookSaveRequest.Url.get -> string?
+AgentPrism.WebhookSaveRequest.Url.init -> void
+AgentPrism.WebhookSaveRequest.WebhookSaveRequest() -> void
+AgentPrism.WebhookTestResponse
+AgentPrism.WebhookTestResponse.<Clone>$() -> AgentPrism.WebhookTestResponse!
+AgentPrism.WebhookTestResponse.Equals(AgentPrism.WebhookTestResponse? other) -> bool
+AgentPrism.WebhookTestResponse.Message.get -> string!
+AgentPrism.WebhookTestResponse.Message.init -> void
+AgentPrism.WebhookTestResponse.Name.get -> string!
+AgentPrism.WebhookTestResponse.Name.init -> void
+AgentPrism.WebhookTestResponse.Queued.get -> bool
+AgentPrism.WebhookTestResponse.Queued.init -> void
+AgentPrism.WebhookTestResponse.WebhookTestResponse() -> void
+AgentPrism.WorkflowRespondHttpRequest
+AgentPrism.WorkflowRespondHttpRequest.<Clone>$() -> AgentPrism.WorkflowRespondHttpRequest!
+AgentPrism.WorkflowRespondHttpRequest.Approved.get -> bool?
+AgentPrism.WorkflowRespondHttpRequest.Approved.init -> void
+AgentPrism.WorkflowRespondHttpRequest.CheckpointId.get -> string?
+AgentPrism.WorkflowRespondHttpRequest.CheckpointId.init -> void
+AgentPrism.WorkflowRespondHttpRequest.Data.get -> System.Text.Json.JsonElement?
+AgentPrism.WorkflowRespondHttpRequest.Data.init -> void
+AgentPrism.WorkflowRespondHttpRequest.Equals(AgentPrism.WorkflowRespondHttpRequest? other) -> bool
+AgentPrism.WorkflowRespondHttpRequest.RequestId.get -> string!
+AgentPrism.WorkflowRespondHttpRequest.RequestId.init -> void
+AgentPrism.WorkflowRespondHttpRequest.Text.get -> string?
+AgentPrism.WorkflowRespondHttpRequest.Text.init -> void
+AgentPrism.WorkflowRespondHttpRequest.WorkflowRespondHttpRequest() -> void
+AgentPrism.WorkflowResumeHttpRequest
+AgentPrism.WorkflowResumeHttpRequest.<Clone>$() -> AgentPrism.WorkflowResumeHttpRequest!
+AgentPrism.WorkflowResumeHttpRequest.CheckpointId.get -> string?
+AgentPrism.WorkflowResumeHttpRequest.CheckpointId.init -> void
+AgentPrism.WorkflowResumeHttpRequest.Equals(AgentPrism.WorkflowResumeHttpRequest? other) -> bool
+AgentPrism.WorkflowResumeHttpRequest.WorkflowResumeHttpRequest() -> void
+AgentPrism.WorkflowRunHttpRequest
+AgentPrism.WorkflowRunHttpRequest.<Clone>$() -> AgentPrism.WorkflowRunHttpRequest!
+AgentPrism.WorkflowRunHttpRequest.Equals(AgentPrism.WorkflowRunHttpRequest? other) -> bool
+AgentPrism.WorkflowRunHttpRequest.Message.get -> string?
+AgentPrism.WorkflowRunHttpRequest.Message.init -> void
+AgentPrism.WorkflowRunHttpRequest.SessionId.get -> string?
+AgentPrism.WorkflowRunHttpRequest.SessionId.init -> void
+AgentPrism.WorkflowRunHttpRequest.WorkflowRunHttpRequest() -> void
+AgentPrism.WorkflowSaveRequest
+AgentPrism.WorkflowSaveRequest.<Clone>$() -> AgentPrism.WorkflowSaveRequest!
+AgentPrism.WorkflowSaveRequest.AgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>?
+AgentPrism.WorkflowSaveRequest.AgentNames.init -> void
+AgentPrism.WorkflowSaveRequest.Description.get -> string?
+AgentPrism.WorkflowSaveRequest.Description.init -> void
+AgentPrism.WorkflowSaveRequest.DisplayName.get -> string?
+AgentPrism.WorkflowSaveRequest.DisplayName.init -> void
+AgentPrism.WorkflowSaveRequest.Equals(AgentPrism.WorkflowSaveRequest? other) -> bool
+AgentPrism.WorkflowSaveRequest.HandoffInstructions.get -> string?
+AgentPrism.WorkflowSaveRequest.HandoffInstructions.init -> void
+AgentPrism.WorkflowSaveRequest.Kind.get -> AgentPrism.WorkflowKind
+AgentPrism.WorkflowSaveRequest.Kind.init -> void
+AgentPrism.WorkflowSaveRequest.ManagerAgentName.get -> string?
+AgentPrism.WorkflowSaveRequest.ManagerAgentName.init -> void
+AgentPrism.WorkflowSaveRequest.MaxIterations.get -> int?
+AgentPrism.WorkflowSaveRequest.MaxIterations.init -> void
+AgentPrism.WorkflowSaveRequest.RequirePlanApproval.get -> bool
+AgentPrism.WorkflowSaveRequest.RequirePlanApproval.init -> void
+AgentPrism.WorkflowSaveRequest.WorkflowSaveRequest() -> void
+const AgentPrism.AgentPrismA2AExtensions.DefaultPattern = "/agentprism/a2a" -> string!
+const AgentPrism.AgentPrismEndpointRouteBuilderExtensions.DefaultPrefix = "/agentprism" -> string!
+const AgentPrism.AgentPrismMcpServerExtensions.DefaultPattern = "/agentprism/mcp" -> string!
+const AgentPrism.AgentPrismPolicies.Admin = "AgentPrism.Admin" -> string!
+const AgentPrism.AgentPrismPolicies.Operator = "AgentPrism.Operator" -> string!
+const AgentPrism.AgentPrismPolicies.Reader = "AgentPrism.Reader" -> string!
+override AgentPrism.AcceptedRunResponse.Equals(object? obj) -> bool
+override AgentPrism.AcceptedRunResponse.GetHashCode() -> int
+override AgentPrism.AcceptedRunResponse.ToString() -> string!
+override AgentPrism.AgentDefinitionRequest.Equals(object? obj) -> bool
+override AgentPrism.AgentDefinitionRequest.GetHashCode() -> int
+override AgentPrism.AgentDefinitionRequest.ToString() -> string!
+override AgentPrism.AgentDetailResponse.Equals(object? obj) -> bool
+override AgentPrism.AgentDetailResponse.GetHashCode() -> int
+override AgentPrism.AgentDetailResponse.ToString() -> string!
+override AgentPrism.AgentPrismAgentSessionStore.DeleteSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override AgentPrism.AgentPrismAgentSessionStore.GetSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AgentSession!>
+override AgentPrism.AgentPrismAgentSessionStore.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override AgentPrism.AgentPrismAuthenticationMeta.Equals(object? obj) -> bool
+override AgentPrism.AgentPrismAuthenticationMeta.GetHashCode() -> int
+override AgentPrism.AgentPrismAuthenticationMeta.ToString() -> string!
+override AgentPrism.AgentPrismMetaResponse.Equals(object? obj) -> bool
+override AgentPrism.AgentPrismMetaResponse.GetHashCode() -> int
+override AgentPrism.AgentPrismMetaResponse.ToString() -> string!
+override AgentPrism.AgentPrismRoleMeta.Equals(object? obj) -> bool
+override AgentPrism.AgentPrismRoleMeta.GetHashCode() -> int
+override AgentPrism.AgentPrismRoleMeta.ToString() -> string!
+override AgentPrism.AgentPrismStorageMeta.Equals(object? obj) -> bool
+override AgentPrism.AgentPrismStorageMeta.GetHashCode() -> int
+override AgentPrism.AgentPrismStorageMeta.ToString() -> string!
+override AgentPrism.AgentRollbackRequest.Equals(object? obj) -> bool
+override AgentPrism.AgentRollbackRequest.GetHashCode() -> int
+override AgentPrism.AgentRollbackRequest.ToString() -> string!
+override AgentPrism.AgentRunRequest.Equals(object? obj) -> bool
+override AgentPrism.AgentRunRequest.GetHashCode() -> int
+override AgentPrism.AgentRunRequest.ToString() -> string!
+override AgentPrism.AgentSkillRequest.Equals(object? obj) -> bool
+override AgentPrism.AgentSkillRequest.GetHashCode() -> int
+override AgentPrism.AgentSkillRequest.ToString() -> string!
+override AgentPrism.AgentVersionDiffResponse.Equals(object? obj) -> bool
+override AgentPrism.AgentVersionDiffResponse.GetHashCode() -> int
+override AgentPrism.AgentVersionDiffResponse.ToString() -> string!
+override AgentPrism.ApiKeyCreateRequest.Equals(object? obj) -> bool
+override AgentPrism.ApiKeyCreateRequest.GetHashCode() -> int
+override AgentPrism.ApiKeyCreateRequest.ToString() -> string!
+override AgentPrism.ApprovalDecisionRequest.Equals(object? obj) -> bool
+override AgentPrism.ApprovalDecisionRequest.GetHashCode() -> int
+override AgentPrism.ApprovalDecisionRequest.ToString() -> string!
+override AgentPrism.CurrentTenantResponse.Equals(object? obj) -> bool
+override AgentPrism.CurrentTenantResponse.GetHashCode() -> int
+override AgentPrism.CurrentTenantResponse.ToString() -> string!
+override AgentPrism.EvalCaseInput.Equals(object? obj) -> bool
+override AgentPrism.EvalCaseInput.GetHashCode() -> int
+override AgentPrism.EvalCaseInput.ToString() -> string!
+override AgentPrism.EvalCasePromotionRequest.Equals(object? obj) -> bool
+override AgentPrism.EvalCasePromotionRequest.GetHashCode() -> int
+override AgentPrism.EvalCasePromotionRequest.ToString() -> string!
+override AgentPrism.EvalRunDetailResponse.Equals(object? obj) -> bool
+override AgentPrism.EvalRunDetailResponse.GetHashCode() -> int
+override AgentPrism.EvalRunDetailResponse.ToString() -> string!
+override AgentPrism.EvalRunTriggerRequest.Equals(object? obj) -> bool
+override AgentPrism.EvalRunTriggerRequest.GetHashCode() -> int
+override AgentPrism.EvalRunTriggerRequest.ToString() -> string!
+override AgentPrism.EvalSuiteSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.EvalSuiteSaveRequest.GetHashCode() -> int
+override AgentPrism.EvalSuiteSaveRequest.ToString() -> string!
+override AgentPrism.ExperimentCanaryResponse.Equals(object? obj) -> bool
+override AgentPrism.ExperimentCanaryResponse.GetHashCode() -> int
+override AgentPrism.ExperimentCanaryResponse.ToString() -> string!
+override AgentPrism.ExperimentResultsResponse.Equals(object? obj) -> bool
+override AgentPrism.ExperimentResultsResponse.GetHashCode() -> int
+override AgentPrism.ExperimentResultsResponse.ToString() -> string!
+override AgentPrism.ExperimentSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.ExperimentSaveRequest.GetHashCode() -> int
+override AgentPrism.ExperimentSaveRequest.ToString() -> string!
+override AgentPrism.JobDetailResponse.Equals(object? obj) -> bool
+override AgentPrism.JobDetailResponse.GetHashCode() -> int
+override AgentPrism.JobDetailResponse.ToString() -> string!
+override AgentPrism.JobScheduleSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.JobScheduleSaveRequest.GetHashCode() -> int
+override AgentPrism.JobScheduleSaveRequest.ToString() -> string!
+override AgentPrism.JobTriggerRequest.Equals(object? obj) -> bool
+override AgentPrism.JobTriggerRequest.GetHashCode() -> int
+override AgentPrism.JobTriggerRequest.ToString() -> string!
+override AgentPrism.McpOAuthStartResponse.Equals(object? obj) -> bool
+override AgentPrism.McpOAuthStartResponse.GetHashCode() -> int
+override AgentPrism.McpOAuthStartResponse.ToString() -> string!
+override AgentPrism.McpPromptArgumentsRequest.Equals(object? obj) -> bool
+override AgentPrism.McpPromptArgumentsRequest.GetHashCode() -> int
+override AgentPrism.McpPromptArgumentsRequest.ToString() -> string!
+override AgentPrism.McpRefreshResponse.Equals(object? obj) -> bool
+override AgentPrism.McpRefreshResponse.GetHashCode() -> int
+override AgentPrism.McpRefreshResponse.ToString() -> string!
+override AgentPrism.McpServerRequest.Equals(object? obj) -> bool
+override AgentPrism.McpServerRequest.GetHashCode() -> int
+override AgentPrism.McpServerRequest.ToString() -> string!
+override AgentPrism.QuotaSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.QuotaSaveRequest.GetHashCode() -> int
+override AgentPrism.QuotaSaveRequest.ToString() -> string!
+override AgentPrism.QuotaUsageResponse.Equals(object? obj) -> bool
+override AgentPrism.QuotaUsageResponse.GetHashCode() -> int
+override AgentPrism.QuotaUsageResponse.ToString() -> string!
+override AgentPrism.RetentionPolicySaveRequest.Equals(object? obj) -> bool
+override AgentPrism.RetentionPolicySaveRequest.GetHashCode() -> int
+override AgentPrism.RetentionPolicySaveRequest.ToString() -> string!
+override AgentPrism.RetentionRunTriggerResponse.Equals(object? obj) -> bool
+override AgentPrism.RetentionRunTriggerResponse.GetHashCode() -> int
+override AgentPrism.RetentionRunTriggerResponse.ToString() -> string!
+override AgentPrism.RunComparisonResponse.Equals(object? obj) -> bool
+override AgentPrism.RunComparisonResponse.GetHashCode() -> int
+override AgentPrism.RunComparisonResponse.ToString() -> string!
+override AgentPrism.RunComparisonSide.Equals(object? obj) -> bool
+override AgentPrism.RunComparisonSide.GetHashCode() -> int
+override AgentPrism.RunComparisonSide.ToString() -> string!
+override AgentPrism.RunFeedbackRequest.Equals(object? obj) -> bool
+override AgentPrism.RunFeedbackRequest.GetHashCode() -> int
+override AgentPrism.RunFeedbackRequest.ToString() -> string!
+override AgentPrism.RunInputResponse.Equals(object? obj) -> bool
+override AgentPrism.RunInputResponse.GetHashCode() -> int
+override AgentPrism.RunInputResponse.ToString() -> string!
+override AgentPrism.RunReplayResponse.Equals(object? obj) -> bool
+override AgentPrism.RunReplayResponse.GetHashCode() -> int
+override AgentPrism.RunReplayResponse.ToString() -> string!
+override AgentPrism.SearchKnowledgeHit.Equals(object? obj) -> bool
+override AgentPrism.SearchKnowledgeHit.GetHashCode() -> int
+override AgentPrism.SearchKnowledgeHit.ToString() -> string!
+override AgentPrism.SearchKnowledgeRequest.Equals(object? obj) -> bool
+override AgentPrism.SearchKnowledgeRequest.GetHashCode() -> int
+override AgentPrism.SearchKnowledgeRequest.ToString() -> string!
+override AgentPrism.SessionDetailResponse.Equals(object? obj) -> bool
+override AgentPrism.SessionDetailResponse.GetHashCode() -> int
+override AgentPrism.SessionDetailResponse.ToString() -> string!
+override AgentPrism.SkillScriptGrantRequest.Equals(object? obj) -> bool
+override AgentPrism.SkillScriptGrantRequest.GetHashCode() -> int
+override AgentPrism.SkillScriptGrantRequest.ToString() -> string!
+override AgentPrism.TenantRequest.Equals(object? obj) -> bool
+override AgentPrism.TenantRequest.GetHashCode() -> int
+override AgentPrism.TenantRequest.ToString() -> string!
+override AgentPrism.ToolApprovalDecision.Equals(object? obj) -> bool
+override AgentPrism.ToolApprovalDecision.GetHashCode() -> int
+override AgentPrism.ToolApprovalDecision.ToString() -> string!
+override AgentPrism.UploadDocumentChunk.Equals(object? obj) -> bool
+override AgentPrism.UploadDocumentChunk.GetHashCode() -> int
+override AgentPrism.UploadDocumentChunk.ToString() -> string!
+override AgentPrism.UploadDocumentRequest.Equals(object? obj) -> bool
+override AgentPrism.UploadDocumentRequest.GetHashCode() -> int
+override AgentPrism.UploadDocumentRequest.ToString() -> string!
+override AgentPrism.UploadDocumentResponse.Equals(object? obj) -> bool
+override AgentPrism.UploadDocumentResponse.GetHashCode() -> int
+override AgentPrism.UploadDocumentResponse.ToString() -> string!
+override AgentPrism.WebhookSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.WebhookSaveRequest.GetHashCode() -> int
+override AgentPrism.WebhookSaveRequest.ToString() -> string!
+override AgentPrism.WebhookTestResponse.Equals(object? obj) -> bool
+override AgentPrism.WebhookTestResponse.GetHashCode() -> int
+override AgentPrism.WebhookTestResponse.ToString() -> string!
+override AgentPrism.WorkflowRespondHttpRequest.Equals(object? obj) -> bool
+override AgentPrism.WorkflowRespondHttpRequest.GetHashCode() -> int
+override AgentPrism.WorkflowRespondHttpRequest.ToString() -> string!
+override AgentPrism.WorkflowResumeHttpRequest.Equals(object? obj) -> bool
+override AgentPrism.WorkflowResumeHttpRequest.GetHashCode() -> int
+override AgentPrism.WorkflowResumeHttpRequest.ToString() -> string!
+override AgentPrism.WorkflowRunHttpRequest.Equals(object? obj) -> bool
+override AgentPrism.WorkflowRunHttpRequest.GetHashCode() -> int
+override AgentPrism.WorkflowRunHttpRequest.ToString() -> string!
+override AgentPrism.WorkflowSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.WorkflowSaveRequest.GetHashCode() -> int
+override AgentPrism.WorkflowSaveRequest.ToString() -> string!
+static AgentPrism.AcceptedRunResponse.operator !=(AgentPrism.AcceptedRunResponse? left, AgentPrism.AcceptedRunResponse? right) -> bool
+static AgentPrism.AcceptedRunResponse.operator ==(AgentPrism.AcceptedRunResponse? left, AgentPrism.AcceptedRunResponse? right) -> bool
+static AgentPrism.AgentDefinitionRequest.operator !=(AgentPrism.AgentDefinitionRequest? left, AgentPrism.AgentDefinitionRequest? right) -> bool
+static AgentPrism.AgentDefinitionRequest.operator ==(AgentPrism.AgentDefinitionRequest? left, AgentPrism.AgentDefinitionRequest? right) -> bool
+static AgentPrism.AgentDetailResponse.operator !=(AgentPrism.AgentDetailResponse? left, AgentPrism.AgentDetailResponse? right) -> bool
+static AgentPrism.AgentDetailResponse.operator ==(AgentPrism.AgentDetailResponse? left, AgentPrism.AgentDetailResponse? right) -> bool
+static AgentPrism.AgentPrismA2ABuilderExtensions.UseA2A(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismA2AOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismA2AExtensions.MapAgentPrismA2A(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/agentprism/a2a") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static AgentPrism.AgentPrismAuthenticationMeta.operator !=(AgentPrism.AgentPrismAuthenticationMeta? left, AgentPrism.AgentPrismAuthenticationMeta? right) -> bool
+static AgentPrism.AgentPrismAuthenticationMeta.operator ==(AgentPrism.AgentPrismAuthenticationMeta? left, AgentPrism.AgentPrismAuthenticationMeta? right) -> bool
+static AgentPrism.AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix = "/agentprism", System.Action<AgentPrism.AgentPrismEndpointOptions!>? configure = null) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static AgentPrism.AgentPrismHealthCheckExtensions.AddAgentPrismHealthChecks(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "agentprism", System.Collections.Generic.IEnumerable<string!>? tags = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
+static AgentPrism.AgentPrismMcpServerBuilderExtensions.UseMcpServer(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismMcpServerOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismMcpServerExtensions.MapAgentPrismMcpServer(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/agentprism/mcp") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static AgentPrism.AgentPrismMetaResponse.operator !=(AgentPrism.AgentPrismMetaResponse? left, AgentPrism.AgentPrismMetaResponse? right) -> bool
+static AgentPrism.AgentPrismMetaResponse.operator ==(AgentPrism.AgentPrismMetaResponse? left, AgentPrism.AgentPrismMetaResponse? right) -> bool
+static AgentPrism.AgentPrismRoleMeta.operator !=(AgentPrism.AgentPrismRoleMeta? left, AgentPrism.AgentPrismRoleMeta? right) -> bool
+static AgentPrism.AgentPrismRoleMeta.operator ==(AgentPrism.AgentPrismRoleMeta? left, AgentPrism.AgentPrismRoleMeta? right) -> bool
+static AgentPrism.AgentPrismStorageMeta.operator !=(AgentPrism.AgentPrismStorageMeta? left, AgentPrism.AgentPrismStorageMeta? right) -> bool
+static AgentPrism.AgentPrismStorageMeta.operator ==(AgentPrism.AgentPrismStorageMeta? left, AgentPrism.AgentPrismStorageMeta? right) -> bool
+static AgentPrism.AgentPrismTenancyBuilderExtensions.UseTenancy(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismTenancyOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentRollbackRequest.operator !=(AgentPrism.AgentRollbackRequest? left, AgentPrism.AgentRollbackRequest? right) -> bool
+static AgentPrism.AgentRollbackRequest.operator ==(AgentPrism.AgentRollbackRequest? left, AgentPrism.AgentRollbackRequest? right) -> bool
+static AgentPrism.AgentRunRequest.operator !=(AgentPrism.AgentRunRequest? left, AgentPrism.AgentRunRequest? right) -> bool
+static AgentPrism.AgentRunRequest.operator ==(AgentPrism.AgentRunRequest? left, AgentPrism.AgentRunRequest? right) -> bool
+static AgentPrism.AgentSkillRequest.operator !=(AgentPrism.AgentSkillRequest? left, AgentPrism.AgentSkillRequest? right) -> bool
+static AgentPrism.AgentSkillRequest.operator ==(AgentPrism.AgentSkillRequest? left, AgentPrism.AgentSkillRequest? right) -> bool
+static AgentPrism.AgentVersionDiffResponse.operator !=(AgentPrism.AgentVersionDiffResponse? left, AgentPrism.AgentVersionDiffResponse? right) -> bool
+static AgentPrism.AgentVersionDiffResponse.operator ==(AgentPrism.AgentVersionDiffResponse? left, AgentPrism.AgentVersionDiffResponse? right) -> bool
+static AgentPrism.ApiKeyCreateRequest.operator !=(AgentPrism.ApiKeyCreateRequest? left, AgentPrism.ApiKeyCreateRequest? right) -> bool
+static AgentPrism.ApiKeyCreateRequest.operator ==(AgentPrism.ApiKeyCreateRequest? left, AgentPrism.ApiKeyCreateRequest? right) -> bool
+static AgentPrism.ApprovalDecisionRequest.operator !=(AgentPrism.ApprovalDecisionRequest? left, AgentPrism.ApprovalDecisionRequest? right) -> bool
+static AgentPrism.ApprovalDecisionRequest.operator ==(AgentPrism.ApprovalDecisionRequest? left, AgentPrism.ApprovalDecisionRequest? right) -> bool
+static AgentPrism.CurrentTenantResponse.operator !=(AgentPrism.CurrentTenantResponse? left, AgentPrism.CurrentTenantResponse? right) -> bool
+static AgentPrism.CurrentTenantResponse.operator ==(AgentPrism.CurrentTenantResponse? left, AgentPrism.CurrentTenantResponse? right) -> bool
+static AgentPrism.EvalCaseInput.operator !=(AgentPrism.EvalCaseInput? left, AgentPrism.EvalCaseInput? right) -> bool
+static AgentPrism.EvalCaseInput.operator ==(AgentPrism.EvalCaseInput? left, AgentPrism.EvalCaseInput? right) -> bool
+static AgentPrism.EvalCasePromotionRequest.operator !=(AgentPrism.EvalCasePromotionRequest? left, AgentPrism.EvalCasePromotionRequest? right) -> bool
+static AgentPrism.EvalCasePromotionRequest.operator ==(AgentPrism.EvalCasePromotionRequest? left, AgentPrism.EvalCasePromotionRequest? right) -> bool
+static AgentPrism.EvalRunDetailResponse.operator !=(AgentPrism.EvalRunDetailResponse? left, AgentPrism.EvalRunDetailResponse? right) -> bool
+static AgentPrism.EvalRunDetailResponse.operator ==(AgentPrism.EvalRunDetailResponse? left, AgentPrism.EvalRunDetailResponse? right) -> bool
+static AgentPrism.EvalRunTriggerRequest.operator !=(AgentPrism.EvalRunTriggerRequest? left, AgentPrism.EvalRunTriggerRequest? right) -> bool
+static AgentPrism.EvalRunTriggerRequest.operator ==(AgentPrism.EvalRunTriggerRequest? left, AgentPrism.EvalRunTriggerRequest? right) -> bool
+static AgentPrism.EvalSuiteSaveRequest.operator !=(AgentPrism.EvalSuiteSaveRequest? left, AgentPrism.EvalSuiteSaveRequest? right) -> bool
+static AgentPrism.EvalSuiteSaveRequest.operator ==(AgentPrism.EvalSuiteSaveRequest? left, AgentPrism.EvalSuiteSaveRequest? right) -> bool
+static AgentPrism.ExperimentCanaryResponse.operator !=(AgentPrism.ExperimentCanaryResponse? left, AgentPrism.ExperimentCanaryResponse? right) -> bool
+static AgentPrism.ExperimentCanaryResponse.operator ==(AgentPrism.ExperimentCanaryResponse? left, AgentPrism.ExperimentCanaryResponse? right) -> bool
+static AgentPrism.ExperimentResultsResponse.operator !=(AgentPrism.ExperimentResultsResponse? left, AgentPrism.ExperimentResultsResponse? right) -> bool
+static AgentPrism.ExperimentResultsResponse.operator ==(AgentPrism.ExperimentResultsResponse? left, AgentPrism.ExperimentResultsResponse? right) -> bool
+static AgentPrism.ExperimentSaveRequest.operator !=(AgentPrism.ExperimentSaveRequest? left, AgentPrism.ExperimentSaveRequest? right) -> bool
+static AgentPrism.ExperimentSaveRequest.operator ==(AgentPrism.ExperimentSaveRequest? left, AgentPrism.ExperimentSaveRequest? right) -> bool
+static AgentPrism.HttpTenantContext.IsValidTenantId(string? tenantId) -> bool
+static AgentPrism.JobDetailResponse.operator !=(AgentPrism.JobDetailResponse? left, AgentPrism.JobDetailResponse? right) -> bool
+static AgentPrism.JobDetailResponse.operator ==(AgentPrism.JobDetailResponse? left, AgentPrism.JobDetailResponse? right) -> bool
+static AgentPrism.JobScheduleSaveRequest.operator !=(AgentPrism.JobScheduleSaveRequest? left, AgentPrism.JobScheduleSaveRequest? right) -> bool
+static AgentPrism.JobScheduleSaveRequest.operator ==(AgentPrism.JobScheduleSaveRequest? left, AgentPrism.JobScheduleSaveRequest? right) -> bool
+static AgentPrism.JobTriggerRequest.operator !=(AgentPrism.JobTriggerRequest? left, AgentPrism.JobTriggerRequest? right) -> bool
+static AgentPrism.JobTriggerRequest.operator ==(AgentPrism.JobTriggerRequest? left, AgentPrism.JobTriggerRequest? right) -> bool
+static AgentPrism.McpOAuthStartResponse.operator !=(AgentPrism.McpOAuthStartResponse? left, AgentPrism.McpOAuthStartResponse? right) -> bool
+static AgentPrism.McpOAuthStartResponse.operator ==(AgentPrism.McpOAuthStartResponse? left, AgentPrism.McpOAuthStartResponse? right) -> bool
+static AgentPrism.McpPromptArgumentsRequest.operator !=(AgentPrism.McpPromptArgumentsRequest? left, AgentPrism.McpPromptArgumentsRequest? right) -> bool
+static AgentPrism.McpPromptArgumentsRequest.operator ==(AgentPrism.McpPromptArgumentsRequest? left, AgentPrism.McpPromptArgumentsRequest? right) -> bool
+static AgentPrism.McpRefreshResponse.operator !=(AgentPrism.McpRefreshResponse? left, AgentPrism.McpRefreshResponse? right) -> bool
+static AgentPrism.McpRefreshResponse.operator ==(AgentPrism.McpRefreshResponse? left, AgentPrism.McpRefreshResponse? right) -> bool
+static AgentPrism.McpServerRequest.operator !=(AgentPrism.McpServerRequest? left, AgentPrism.McpServerRequest? right) -> bool
+static AgentPrism.McpServerRequest.operator ==(AgentPrism.McpServerRequest? left, AgentPrism.McpServerRequest? right) -> bool
+static AgentPrism.QuotaSaveRequest.operator !=(AgentPrism.QuotaSaveRequest? left, AgentPrism.QuotaSaveRequest? right) -> bool
+static AgentPrism.QuotaSaveRequest.operator ==(AgentPrism.QuotaSaveRequest? left, AgentPrism.QuotaSaveRequest? right) -> bool
+static AgentPrism.QuotaUsageResponse.operator !=(AgentPrism.QuotaUsageResponse? left, AgentPrism.QuotaUsageResponse? right) -> bool
+static AgentPrism.QuotaUsageResponse.operator ==(AgentPrism.QuotaUsageResponse? left, AgentPrism.QuotaUsageResponse? right) -> bool
+static AgentPrism.RetentionPolicySaveRequest.operator !=(AgentPrism.RetentionPolicySaveRequest? left, AgentPrism.RetentionPolicySaveRequest? right) -> bool
+static AgentPrism.RetentionPolicySaveRequest.operator ==(AgentPrism.RetentionPolicySaveRequest? left, AgentPrism.RetentionPolicySaveRequest? right) -> bool
+static AgentPrism.RetentionRunTriggerResponse.operator !=(AgentPrism.RetentionRunTriggerResponse? left, AgentPrism.RetentionRunTriggerResponse? right) -> bool
+static AgentPrism.RetentionRunTriggerResponse.operator ==(AgentPrism.RetentionRunTriggerResponse? left, AgentPrism.RetentionRunTriggerResponse? right) -> bool
+static AgentPrism.RunComparisonResponse.operator !=(AgentPrism.RunComparisonResponse? left, AgentPrism.RunComparisonResponse? right) -> bool
+static AgentPrism.RunComparisonResponse.operator ==(AgentPrism.RunComparisonResponse? left, AgentPrism.RunComparisonResponse? right) -> bool
+static AgentPrism.RunComparisonSide.operator !=(AgentPrism.RunComparisonSide? left, AgentPrism.RunComparisonSide? right) -> bool
+static AgentPrism.RunComparisonSide.operator ==(AgentPrism.RunComparisonSide? left, AgentPrism.RunComparisonSide? right) -> bool
+static AgentPrism.RunFeedbackRequest.operator !=(AgentPrism.RunFeedbackRequest? left, AgentPrism.RunFeedbackRequest? right) -> bool
+static AgentPrism.RunFeedbackRequest.operator ==(AgentPrism.RunFeedbackRequest? left, AgentPrism.RunFeedbackRequest? right) -> bool
+static AgentPrism.RunInputResponse.operator !=(AgentPrism.RunInputResponse? left, AgentPrism.RunInputResponse? right) -> bool
+static AgentPrism.RunInputResponse.operator ==(AgentPrism.RunInputResponse? left, AgentPrism.RunInputResponse? right) -> bool
+static AgentPrism.RunReplayResponse.operator !=(AgentPrism.RunReplayResponse? left, AgentPrism.RunReplayResponse? right) -> bool
+static AgentPrism.RunReplayResponse.operator ==(AgentPrism.RunReplayResponse? left, AgentPrism.RunReplayResponse? right) -> bool
+static AgentPrism.SearchKnowledgeHit.operator !=(AgentPrism.SearchKnowledgeHit? left, AgentPrism.SearchKnowledgeHit? right) -> bool
+static AgentPrism.SearchKnowledgeHit.operator ==(AgentPrism.SearchKnowledgeHit? left, AgentPrism.SearchKnowledgeHit? right) -> bool
+static AgentPrism.SearchKnowledgeRequest.operator !=(AgentPrism.SearchKnowledgeRequest? left, AgentPrism.SearchKnowledgeRequest? right) -> bool
+static AgentPrism.SearchKnowledgeRequest.operator ==(AgentPrism.SearchKnowledgeRequest? left, AgentPrism.SearchKnowledgeRequest? right) -> bool
+static AgentPrism.SessionDetailResponse.operator !=(AgentPrism.SessionDetailResponse? left, AgentPrism.SessionDetailResponse? right) -> bool
+static AgentPrism.SessionDetailResponse.operator ==(AgentPrism.SessionDetailResponse? left, AgentPrism.SessionDetailResponse? right) -> bool
+static AgentPrism.SkillScriptGrantRequest.operator !=(AgentPrism.SkillScriptGrantRequest? left, AgentPrism.SkillScriptGrantRequest? right) -> bool
+static AgentPrism.SkillScriptGrantRequest.operator ==(AgentPrism.SkillScriptGrantRequest? left, AgentPrism.SkillScriptGrantRequest? right) -> bool
+static AgentPrism.TenantRequest.operator !=(AgentPrism.TenantRequest? left, AgentPrism.TenantRequest? right) -> bool
+static AgentPrism.TenantRequest.operator ==(AgentPrism.TenantRequest? left, AgentPrism.TenantRequest? right) -> bool
+static AgentPrism.ToolApprovalDecision.operator !=(AgentPrism.ToolApprovalDecision? left, AgentPrism.ToolApprovalDecision? right) -> bool
+static AgentPrism.ToolApprovalDecision.operator ==(AgentPrism.ToolApprovalDecision? left, AgentPrism.ToolApprovalDecision? right) -> bool
+static AgentPrism.UploadDocumentChunk.operator !=(AgentPrism.UploadDocumentChunk? left, AgentPrism.UploadDocumentChunk? right) -> bool
+static AgentPrism.UploadDocumentChunk.operator ==(AgentPrism.UploadDocumentChunk? left, AgentPrism.UploadDocumentChunk? right) -> bool
+static AgentPrism.UploadDocumentRequest.operator !=(AgentPrism.UploadDocumentRequest? left, AgentPrism.UploadDocumentRequest? right) -> bool
+static AgentPrism.UploadDocumentRequest.operator ==(AgentPrism.UploadDocumentRequest? left, AgentPrism.UploadDocumentRequest? right) -> bool
+static AgentPrism.UploadDocumentResponse.operator !=(AgentPrism.UploadDocumentResponse? left, AgentPrism.UploadDocumentResponse? right) -> bool
+static AgentPrism.UploadDocumentResponse.operator ==(AgentPrism.UploadDocumentResponse? left, AgentPrism.UploadDocumentResponse? right) -> bool
+static AgentPrism.WebhookSaveRequest.operator !=(AgentPrism.WebhookSaveRequest? left, AgentPrism.WebhookSaveRequest? right) -> bool
+static AgentPrism.WebhookSaveRequest.operator ==(AgentPrism.WebhookSaveRequest? left, AgentPrism.WebhookSaveRequest? right) -> bool
+static AgentPrism.WebhookTestResponse.operator !=(AgentPrism.WebhookTestResponse? left, AgentPrism.WebhookTestResponse? right) -> bool
+static AgentPrism.WebhookTestResponse.operator ==(AgentPrism.WebhookTestResponse? left, AgentPrism.WebhookTestResponse? right) -> bool
+static AgentPrism.WorkflowRespondHttpRequest.operator !=(AgentPrism.WorkflowRespondHttpRequest? left, AgentPrism.WorkflowRespondHttpRequest? right) -> bool
+static AgentPrism.WorkflowRespondHttpRequest.operator ==(AgentPrism.WorkflowRespondHttpRequest? left, AgentPrism.WorkflowRespondHttpRequest? right) -> bool
+static AgentPrism.WorkflowResumeHttpRequest.operator !=(AgentPrism.WorkflowResumeHttpRequest? left, AgentPrism.WorkflowResumeHttpRequest? right) -> bool
+static AgentPrism.WorkflowResumeHttpRequest.operator ==(AgentPrism.WorkflowResumeHttpRequest? left, AgentPrism.WorkflowResumeHttpRequest? right) -> bool
+static AgentPrism.WorkflowRunHttpRequest.operator !=(AgentPrism.WorkflowRunHttpRequest? left, AgentPrism.WorkflowRunHttpRequest? right) -> bool
+static AgentPrism.WorkflowRunHttpRequest.operator ==(AgentPrism.WorkflowRunHttpRequest? left, AgentPrism.WorkflowRunHttpRequest? right) -> bool
+static AgentPrism.WorkflowSaveRequest.operator !=(AgentPrism.WorkflowSaveRequest? left, AgentPrism.WorkflowSaveRequest? right) -> bool
+static AgentPrism.WorkflowSaveRequest.operator ==(AgentPrism.WorkflowSaveRequest? left, AgentPrism.WorkflowSaveRequest? right) -> bool

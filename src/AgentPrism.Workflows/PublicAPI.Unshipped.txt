@@ -1,0 +1,21 @@
+#nullable enable
+AgentPrism.AgentPrismWorkflowOptions
+AgentPrism.AgentPrismWorkflowOptions.AgentPrismWorkflowOptions() -> void
+AgentPrism.AgentPrismWorkflowOptions.EnableCheckpointing.get -> bool
+AgentPrism.AgentPrismWorkflowOptions.EnableCheckpointing.set -> void
+AgentPrism.AgentPrismWorkflowOptions.Enabled.get -> bool
+AgentPrism.AgentPrismWorkflowOptions.Enabled.set -> void
+AgentPrism.AgentPrismWorkflowOptions.KeepCheckpointsAfterCompletion.get -> bool
+AgentPrism.AgentPrismWorkflowOptions.KeepCheckpointsAfterCompletion.set -> void
+AgentPrism.AgentPrismWorkflowOptions.MaxConcurrentRuns.get -> int
+AgentPrism.AgentPrismWorkflowOptions.MaxConcurrentRuns.set -> void
+AgentPrism.AgentPrismWorkflowOptions.MaxSuperSteps.get -> int
+AgentPrism.AgentPrismWorkflowOptions.MaxSuperSteps.set -> void
+AgentPrism.AgentPrismWorkflowOptions.RunTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismWorkflowOptions.RunTimeout.set -> void
+AgentPrism.AgentPrismWorkflowsBuilderExtensions
+AgentPrism.WorkflowAgentBinding
+const AgentPrism.AgentPrismWorkflowOptions.SectionName = "AgentPrism:Workflows" -> string!
+static AgentPrism.AgentPrismWorkflowsBuilderExtensions.AddWorkflow(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismWorkflowsBuilderExtensions.UseWorkflows(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismWorkflowOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!

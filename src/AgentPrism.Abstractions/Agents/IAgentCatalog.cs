@@ -23,7 +23,7 @@ public interface IAgentCatalog
     /// <param name="agentName">The agent name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The agent, or <see langword="null"/> when no source holds it.</returns>
-    ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default);
+    ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken);
 
     /// <summary>
     /// Resolves an agent by name and by <strong>a specific definition version</strong>.

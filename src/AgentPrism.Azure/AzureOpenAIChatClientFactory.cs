@@ -62,14 +62,15 @@ public sealed class AzureOpenAIChatClientFactory
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that build the client themselves use this constructor: it is the
-    /// only escape hatch when a custom <c>AzureOpenAIClientOptions</c>, a
-    /// sovereign cloud, or a hand-managed HTTP pipeline is needed.
+    /// Setups that build the client themselves use <see cref="FromClient"/>, which
+    /// calls this constructor: it is the only escape hatch when a custom
+    /// <c>AzureOpenAIClientOptions</c>, a sovereign cloud, or a hand-managed HTTP
+    /// pipeline is needed.
     /// </remarks>
-    public AzureOpenAIChatClientFactory(
+    private AzureOpenAIChatClientFactory(
         AzureOpenAIClient client,
-        string? defaultDeployment = null,
-        ILoggerFactory? loggerFactory = null)
+        string? defaultDeployment,
+        ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(client);
 
@@ -77,6 +78,23 @@ public sealed class AzureOpenAIChatClientFactory
         _defaultDeployment = Trim(defaultDeployment);
         _loggerFactory = loggerFactory;
     }
+
+    /// <summary>Builds a new factory from a ready-made client.</summary>
+    /// <param name="client">The Azure OpenAI client to use.</param>
+    /// <param name="defaultDeployment">The name to use when no deployment name is given.</param>
+    /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
+    /// <returns>The new factory.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Setups that build the client themselves use this factory method: it is the
+    /// only escape hatch when a custom <c>AzureOpenAIClientOptions</c>, a
+    /// sovereign cloud, or a hand-managed HTTP pipeline is needed.
+    /// </remarks>
+    public static AzureOpenAIChatClientFactory FromClient(
+        AzureOpenAIClient client,
+        string? defaultDeployment = null,
+        ILoggerFactory? loggerFactory = null)
+        => new(client, defaultDeployment, loggerFactory);
 
     /// <summary>Produces a chat client for the given binding.</summary>
     /// <param name="binding">The model binding. <see cref="ModelBinding.Model"/> is the deployment name.</param>

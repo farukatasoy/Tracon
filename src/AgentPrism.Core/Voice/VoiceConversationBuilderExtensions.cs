@@ -30,27 +30,20 @@ public static class VoiceConversationBuilderExtensions
     /// <summary>Enables the conversation layer, reading its settings from configuration.</summary>
     /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">The <c>AgentPrism:Voice:Conversation</c> section.</param>
-    /// <param name="configure">Changes applied after configuration binding.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseVoiceConversation(
         this IAgentPrismBuilder builder,
-        IConfiguration configurationSection,
-        Action<VoiceConversationOptions>? configure = null)
+        IConfiguration configurationSection)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configurationSection);
 
-        return builder.UseVoiceConversation(options =>
-        {
-            BindOptions(configurationSection, options);
-            configure?.Invoke(options);
-        });
+        return builder.UseVoiceConversation(options => BindOptions(configurationSection, options));
     }
 
-    /// <summary>Enables the conversation layer.</summary>
+    /// <summary>Enables the conversation layer with default settings.</summary>
     /// <param name="builder">The AgentPrism chain.</param>
-    /// <param name="configure">The settings.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -68,12 +61,32 @@ public static class VoiceConversationBuilderExtensions
     /// (<c>docs/hafiza/aspnetcore-di.md</c>). This is why a factory is used.
     /// </para>
     /// </remarks>
-    public static IAgentPrismBuilder UseVoiceConversation(
-        this IAgentPrismBuilder builder,
-        Action<VoiceConversationOptions>? configure = null)
+    public static IAgentPrismBuilder UseVoiceConversation(this IAgentPrismBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        return UseVoiceConversationCore(builder, configure: null);
+    }
+
+    /// <summary>Enables the conversation layer with settings given in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The settings.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    public static IAgentPrismBuilder UseVoiceConversation(
+        this IAgentPrismBuilder builder,
+        Action<VoiceConversationOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return UseVoiceConversationCore(builder, configure);
+    }
+
+    private static IAgentPrismBuilder UseVoiceConversationCore(
+        IAgentPrismBuilder builder,
+        Action<VoiceConversationOptions>? configure)
+    {
         var services = builder.Services;
 
         if (configure is not null)

@@ -107,7 +107,54 @@ Sonuçları faz dokümanının DoD tablosuna **gerçek çıktı olarak** yaz. "�
 
 ---
 
-## Adım 3 — Faz dokümanını gerçekleşenle hizala
+## Adım 3 — Manuel kabul case'lerini sete ekle
+
+`docs/manuel-test/` yayın öncesi elle koşulan kabul setidir. **Faz kendi
+case'lerini eklemezse set her fazda bir adım geride kalır** — bugün spec
+dosyaları Faz 0–56'yı kapsıyor, sonrası boştur.
+
+Case'ler **alan dosyasına** eklenir, faz başına yeni dosya açılmaz:
+
+1. Fazın konusuna karşılık gelen dosyayı bul (`docs/manuel-test/<NN>-<ALAN>.md`)
+2. Case'leri o dosyanın biçimiyle ekle — mevcut numaralandırmayı sürdür
+3. Dosya başlığındaki **`Faz:`** satırına fazın numarasını ekle
+4. Alan dosyası yoksa (gerçekten yeni bir alan) yenisini aç ve
+   [`00-INDEKS.md`](../../../docs/manuel-test/00-INDEKS.md) durum tablosuna satır ekle
+
+Her case dört alan taşır: **ön koşul · adımlar · beklenen sonuç · alan kodu**.
+Beklenen sonuç ölçülebilir olmalıdır — "çalışır" değil, "`429` ve `Retry-After`
+başlığı döner".
+
+### Otomatikleştirilebilen case'i şimdi koş
+
+Örnek uygulama zaten ayakta (Adım 2). `curl`/HTTP ile koşulabilen her case'i
+**şimdi koş** ve gerçek çıktıyı fazın DoD tablosuna yaz.
+
+Fiziksel veya görsel eylem isteyen case (mikrofon, dosya yükleme, göz denetimi)
+`👤 insan gerekir` diye işaretlenir. Bu işaret bir eksiklik değil, koşum
+planının girdisidir.
+
+> Tam set koşumu ayrı bir iştir ([`KOSUM-PLANI.md`](../../../docs/manuel-test/KOSUM-PLANI.md))
+> ve sürüm öncesi yapılır. Bu adım yalnız **fazın kendi** case'lerini üretir ve
+> koşar.
+
+---
+
+## Adım 4 — Bağımsız denetim
+
+Kodu yazan göz kendi kör noktasını göremez. `faz-denetim` skill'ini uygula:
+taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulgu
+üretir.
+
+**🔴 bulgular kapanmadan faz bitmez.** Kapandıktan sonra Adım 1'in dört kapısı
+**yeniden koşar** — düzeltme yeni kusur üretebilir.
+
+🟡 bulgular ya kapanır ya gerekçesi faz dokümanına yazılır. 🟢 bulgular
+`docs/UCUNCU-FAZ-ADAYLARI.md`'ye F-NN olarak gider.
+
+---
+
+## Adım 5 — Faz dokümanını gerçekleşenle hizala
 
 `docs/NN-*.md` dosyasını aç ve şunları düzelt:
 
@@ -117,13 +164,14 @@ Sonuçları faz dokümanının DoD tablosuna **gerçek çıktı olarak** yaz. "�
 - [ ] **Dosya listesi**: gerçekten oluşturulan dosyalar
 - [ ] **Testler**: sınıf adları ve neyi doğruladıkları, test sayısı
 - [ ] **DoD tablosu**: her satır ✅ veya gerekçeli açıklama
+- [ ] **Denetim bulguları**: Adım 4'ün her bulgusu — seviye, sonuç (düzeltildi / gerekçelendi / devredildi)
 - [ ] **Sonraki faza devreden notlar**: yarım kalan işler, yer tutucular, açık uçlar
 
 > Plan ile gerçek arasındaki farkı **gizleme**. Fark, sonraki oturumun en değerli bilgisidir.
 
 ---
 
-## Adım 4 — Sonraki fazın dokümanını devir teslim kalitesine çıkar
+## Adım 6 — Sonraki fazın dokümanını devir teslim kalitesine çıkar
 
 Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı bir sohbette yapılacaksa, o doküman **tek başına yeterli** olmalıdır.
 
@@ -138,7 +186,7 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 
 ---
 
-## Adım 5 — Yatay dokümanları güncelle
+## Adım 7 — Yatay dokümanları güncelle
 
 > 🚨 **Bu adım en pahalı adımdır.** Dosyaları baştan sona okuyup yeniden yazma.
 > Her satır **nereye ait olduğu** yere yazılır; sıcak dokümana yığmak yasaktır.
@@ -154,18 +202,54 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | MAF genişleme noktası kullanıldıysa | `docs/MAF-GENISLEME-NOKTALARI.md` |
 | Yol haritası durumu | `README.md` tablosu (tek kaynak) |
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
+| **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — aşağıdaki eşleme tablosu |
 | `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
 
 `AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
 vardır. Tam tabloyu yalnız `README.md`'de güncelle.
 
+### 🚨 `docs-site/` senkronu
+
+`docs/` Türkçe geliştirme günlüğüdür; `docs-site/` İngilizce **ürün
+dokümantasyonudur** ve yayınlanır. İkisi karıştırılmaz. Site bayatlarsa kusur
+kullanıcıya görünür — kod doğru olsa bile.
+
+Site iki tür sayfa taşır. Ayrımı bil, yoksa üretilen bir sayfayı elle yazarsın:
+
+| Fazın dokunduğu şey | Sayfa | Kim yazar |
+|---|---|---|
+| Public tip, XML doküman, `<example>` | `api/` | **Üretilir** (`npm run generate`) — iş koddadır: XML doküman eksiksiz mi |
+| HTTP ucu | `http-api/` | **Üretilir** — iş koddadır: `.WithTags`/`.Produces` üstverisi var mı |
+| Yeni kavram veya davranış değişimi | `concepts/<alan>.md` | **Elle** |
+| Kurulum akışı, ilk agent, kalıcılık, güvenlik | `getting-started/*.md` | **Elle** |
+| Yeni paket veya paket rolü değişimi | `packages.md` | **Elle** |
+| Yeni ekran veya rota | `ui.md` + ekran görüntüsü | **Elle** + `AGENTPRISM_UI_SCREENSHOTS=1` ile E2E koşumu |
+
+Üretilen sayfalar **commit edilmez**; ekran görüntüleri **commit edilir**.
+
+Site ayrı bir yayın hattıdır — `dotnet build`'e bağlanmaz ve Node **22.12+**
+ister. Dokunduysan kendi kapısını koş:
+
+```bash
+cd docs-site && npm run build && node scripts/check-links.mjs
+```
+
+Kırık iç bağlantı bir yeniden adlandırmanın sessiz sonucudur; bu denetim onu
+yakalar.
+
 ### Bakım komutunu çalıştır (zorunlu)
 
 ```bash
 python3 scripts/dokuman-bakim.py
+python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
 ```
 
-İki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/KARARLAR-INDEKS-REDDEDILEN.md`
+İkinci komut `docs-site` senkronunu denetler: faz kullanıcıya dönük bir yüzeye
+(HTTP ucu, ekran, paket, public tip) dokunmuş ama site hiç değişmemişse çıkış
+kodu 1 verir. Site gerçekten güncelleme gerektirmiyorsa gerekçesini faz
+dokümanına yaz ve `--site-gerekce-yazildi` ile geç.
+
+İlk komut iki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/KARARLAR-INDEKS-REDDEDILEN.md`
 dosyalarını yeniden üretir (K-214, Faz 32'de ikiye ayrıldı) ve sıcak yol
 bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
@@ -182,7 +266,7 @@ grep -rn "KaldirilanTipAdi" docs/ README.md src/
 
 ---
 
-## Adım 6 — Karar defterine yaz
+## Adım 8 — Karar defterine yaz
 
 Fazda alınan her mimari karar `docs/KARARLAR.md` içine gider. İki tablo var:
 
@@ -202,7 +286,7 @@ Kurallar:
 
 ---
 
-## Adım 7 — Commit
+## Adım 9 — Commit
 
 Kullanıcı istemedikçe commit **etme**. İstediğinde:
 
@@ -217,12 +301,15 @@ Ana dalda çalışılmaz; faz dalı kullanılır (`feature/phase-N-...`).
 
 ## Kapanış kontrolü
 
-İki soruya dürüst cevap ver:
+Dört soruya dürüst cevap ver:
 
 > 1. Bu repoyu hiç görmemiş bir agent, `faz-baslangic` skill'inin **sabit okuma
 >    kümesiyle** (AGENTS.md + MEMORY.md + faz dokümanı) sonraki fazı doğru
 >    başlatabilir mi?
 > 2. Sıcak yol dokümanları bu fazda **büyüdü mü**? (`scripts/dokuman-bakim.py`)
+> 3. Denetimin (Adım 4) **🔴 bulgusu kaldı mı**? Kaldıysa faz bitmemiştir.
+> 4. Bu fazın vaat ettiği davranışı **bir kullanıcı** `docs-site/` üzerinden
+>    öğrenebilir mi?
 
 1'e cevap "hayır" ise eksik bilgiyi **fazın kendi dokümanına** yaz — sıcak
 dokümana değil.

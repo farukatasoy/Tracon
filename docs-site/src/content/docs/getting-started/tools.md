@@ -79,7 +79,7 @@ var repository = app.Services.GetRequiredService<IOrderRepository>();
 agentPrism.AddTool(AIFunctionFactory.Create(
     (string orderId) => repository.Find(orderId).Status,
     "get_order_status",
-    "Returns the shipping status of an order."));
+    "Returns the shipping status of an order."), requiresApproval: false);
 ```
 
 The same applies to instance-method tools picked up by scanning: the instance has to

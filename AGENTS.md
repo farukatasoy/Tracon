@@ -102,7 +102,9 @@ tur yol haritalarındadır ([ikinci](docs/IKINCI-FAZ-YOL-HARITASI.md) ·
 [adaylardadır](docs/UCUNCU-FAZ-ADAYLARI.md). Bu listeyi başka dosyada
 tekrarlama — iki yerde tutmak kayma üretir.
 
-Faz bittiğinde **`faz-tamamlama` skill'i uygulanır.** Atlanmaz.
+Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz.
+Kapanış üç şeyi de kapsar: kod, `docs/manuel-test/` kabul case'leri ve
+`docs-site/` ürün dokümantasyonu.
 
 ---
 
@@ -123,9 +125,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 > yakalayabilir. Dört kapının da çalıştırılması bu yüzden zorunludur.
 
 **Hızlı iç döngü.** Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false`
-npm/Vite/Vitest adımlarını atlar; tek test projesi
-`dotnet test tests/<Proje> -c Release --no-build` ile koşar. Dört kapının tamamı
-**faz kapanışında** ve arayüz/paket değişiminde çalışır.
+npm/Vite/Vitest adımlarını atlar. Dört kapının tamamı **faz kapanışında** ve
+arayüz/paket değişiminde çalışır. Komutlar ve E2E tuzağı: `faz-uygulama` Adım 5.
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer
 kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa
@@ -143,9 +144,12 @@ Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 ## Skill'ler (Ortak İş Akışları)
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
-burada tekrarlanmaz, skill okunup uygulanır. `faz-planlama` (aday F-NN faza
-dönüşürken) · `faz-baslangic` (faza başlarken) · `faz-tamamlama` (kod bittiğinde)
-· `maf-api-kesfi` (bir MAF tipini ilk kez kullanmadan önce).
+burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `faz-planlama`
+(aday F-NN faza dönüşürken) → `faz-baslangic` (okuma protokolü) →
+`faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (taze bağlamlı
+bağımsız denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış).
+Zincir dışı: `maf-api-kesfi` (bir MAF tipini ilk kez kullanmadan önce) ·
+`kusur-giderme` (bir kusur bulunduğunda).
 Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
@@ -162,7 +166,8 @@ içeriği iki yere yazma: kullanıcıya dönük anlatı siteye, geliştirme kayd
 Site ayrı bir yayın hattıdır — `dotnet build`'e bağlanmaz, pakete girmez, Node
 **22.12+** ister. API referansı ve HTTP API sayfaları **üretilir** (`npm run
 generate`) ve commit edilmez; ekran görüntüleri E2E koşumundan üretilir
-(`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir.
+(`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir. **Site fazın kapanışına
+dahildir** — sayfa eşlemesi ve denetimi `faz-tamamlama` Adım 7'dedir.
 
 **🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
 Kod, yorum, XML dokümanı, `exception`/log/`ProblemDetails` metni, migration
@@ -205,19 +210,22 @@ Tuzaklar: `docs/hafiza/frontend.md`.
 
 **İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Yeni bir
 alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle izle.
-Faz 20'de 1068 test bunu kaçırdı.
+Faz 20'de 1068 test bunu kaçırdı. Kontrol listesi: `faz-uygulama` Adım 4.
+
+**Bir davranış sınır geçiyorsa birim testi onu kanıtlamaz.** Sınır: DI · HTTP ·
+kiracı · akış · depo · paket. Seviye tablosu: `faz-uygulama` Adım 2.
 
 ---
 
 ## Diyagram Kuralı
 
 **Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz —
-elle hizalanır, bayatlar ve `git diff`'i bozar. Tip seçimi: katman/akış/karar
-ağacı → `flowchart TD|LR` · çağrı sırası → `sequenceDiagram` · veri modeli →
-`erDiagram` · durum makinesi → `stateDiagram-v2` · zaman planı → `gantt`.
+elle hizalanır, bayatlar ve `git diff`'i bozar. Tip: katman/akış/karar ağacı →
+`flowchart TD|LR` · çağrı sırası → `sequenceDiagram` · veri modeli → `erDiagram` ·
+durum makinesi → `stateDiagram-v2` · zaman planı → `gantt`.
 
 - Türkçe etiket serbest; teknik terim orijinal dilinde kalır (`AIAgent`)
 - Düğüm metninde `(`, `)`, `,`, `:` ayrıştırıcıyı bozar — tırnak kullan
-- Bir diyagram **tek bir fikri** anlatır; on beş düğümü aşıyorsa ikiye böl
-- Diyagram koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
+- Tek fikir anlatır; on beş düğümü aşıyorsa ikiye böl
+- Koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
 - **İstisna:** dizin ağaçları düz metin kod bloğu kalır (`├──`, `└──`)

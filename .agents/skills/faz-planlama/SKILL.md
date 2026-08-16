@@ -8,10 +8,10 @@ description: Bir aday yeteneği (F-NN) uygulanabilir bir faz dokümanına (docs/
 Bu skill, **seçilmiş bir aday yetenek** (`docs/UCUNCU-FAZ-ADAYLARI.md` içindeki
 bir F-NN kalemi) uygulanabilir bir faz dokümanına dönüştürülürken çalıştırılır.
 
-Yerini bilin — üç skill bir zinciri tamamlar:
+Yerini bilin — zincir beş halkadır:
 
 ```
-aday listesi (F-NN)  →  [faz-planlama]  →  docs/NN-*.md  →  [faz-baslangic]  →  kod  →  [faz-tamamlama]
+aday listesi (F-NN) → [faz-planlama] → docs/NN-*.md → [faz-baslangic] → [faz-uygulama] → [faz-denetim] → [faz-tamamlama]
 ```
 
 Amaç tek şeydir: **plan dokümanı, onu hiç görmemiş bir oturumda tek başına
@@ -110,6 +110,7 @@ plan yanlıştır.
 | **Arayüz işi** | Bundle payını **gzip KB olarak** yaz. Bütçe 250 KB; bugünkü kullanımı ölç: `ls -l src/AgentPrism.UI/wwwroot/assets/` |
 | **Yeni ekran metni** | `locales/en.ts` + `tr.ts`. Eksik anahtar **derleme hatasıdır** (K-228) |
 | **Sunucu yanıtı** | Çevrilmez; API sözleşmesi tek dillidir (K-232) |
+| **Kullanıcıya dönük yüzey** | Plan başlığındaki **Site etkisi** satırı hangi `docs-site/` sayfasının değişeceğini yazar. `api/` ve `http-api/` üretilir — orada iş XML dokümanı ve `.WithTags`/`.Produces` üstverisidir |
 | **`secret`** | Dosyaya **ve veritabanına** yazılmaz. Kayıtta yalnız yapılandırma anahtarının **adı** durur (K-059) |
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan tasarım bu paketlere giremez |
 | **Public API** | `EnablePublicApiTracking` bugün `false`. Public yüzeyi büyüten kalem Faz 7'den **önce** ucuzdur; sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler |
@@ -169,8 +170,8 @@ Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kı
 
 | Bölüm | Kim doldurur |
 |---|---|
-| Başlık · Bu Faza Başlarken · Amaç · Tasarım · Planlanan Public API · Planlanan Dosya Listesi · Testler · DoD · Riskler · Açık Sorular | **Bu skill** (plan anı) |
-| Plandan Sapmalar · Bu Fazda Verilen Kararlar · Gerçekleşen Public API · Dosya Listesi (gerçekleşen) · Sonraki Faza Devir Notu | **`faz-tamamlama`** (kapanış anı) |
+| Başlık · Bu Faza Başlarken · Amaç · Tasarım · Planlanan Public API · Planlanan Dosya Listesi · Hata Modları ve Testler · Manuel Kabul Case'leri · DoD · Riskler · Açık Sorular | **Bu skill** (plan anı) |
+| Plandan Sapmalar · Bu Fazda Verilen Kararlar · Gerçekleşen Public API · Dosya Listesi (gerçekleşen) · Denetim Bulguları · Sonraki Faza Devir Notu | **`faz-tamamlama`** (kapanış anı) |
 
 İkinci gruptaki başlıkları **boş yer tutucu olarak** bırak. Kapanışta
 doldurulacaklarını yazan bir satır koy. Böylece kapanış adımı unutulmaz.
@@ -184,6 +185,24 @@ doldurulacaklarını yazan bir satır koy. Böylece kapanış adımı unutulmaz.
 - Pazarlama dili yok.
 - 🚨 işaretini yalnız **gerçek tuzak** için kullan; enflasyon işareti öldürür.
 
+### 🚨 Testi hata modundan türet, mutlu yoldan değil
+
+Plan "Testler" tablosu yerine bir **hata modu tablosu** yazar: ne bozulabilir ×
+hangi **seviyede** yakalanır. Seviyeyi plan seçer, uygulayan oturum değil —
+çünkü yanlış seviye seçimi bu repoda kusurların ana kaynağıdır.
+
+| Ne bozulabilir | Seviye | Test |
+|---|---|---|
+| Kota sayacı eşzamanlı `run`'da kayar | Fonksiyonel | `QuotaConcurrencyTests` |
+| Başka kiracının kotası görünür | Sözleşme (`TenantIsolationContract`) | dört koşumda birden |
+| `store` yazamazsa `run` durur | Fonksiyonel | `QuotaStoreFailureTests` |
+
+Seviye kuralı: bir davranış **sınır** geçiyorsa (DI · HTTP · kiracı · akış ·
+depo · paket) birim testi onu kanıtlamaz. Ayrıntı: `faz-uygulama` Adım 2.
+
+Her yeni kod yolu için beş soru sorulur ve cevabı tabloya girer: iptal ·
+eşzamanlılık · boş/aşırı girdi · başka kiracı · alt sistem hatası.
+
 ### DoD gerçekten ölçülebilir olmalı
 
 "Kota çalışıyor" bir bitiş ölçütü değildir. Bunun yerine:
@@ -192,10 +211,16 @@ doldurulacaklarını yazan bir satır koy. Böylece kapanış adımı unutulmaz.
 - [ ] Dört doğrulama kapısı sıfır uyarı
 - [ ] `samples/AgentPrism.Api` üzerinde gerçek çıktı alındı (komut + beklenen yanıt)
 
-Her faz DoD'sinde şu üç satır **her zaman** bulunur: dört kapı, örnek uygulama
-ile gerçek `run`, `secret` taraması. Gerekçe: birim testleri Faz 6, 12, 15, 16,
-18, 20, 21 ve 28'de gerçek hataları **kaçırdı**; hepsi yalnız örnek uygulamada
-ortaya çıktı.
+Her faz DoD'sinde şu **beş** satır her zaman bulunur:
+
+1. Dört doğrulama kapısı sıfır uyarı
+2. `samples/AgentPrism.Api` ile gerçek `run` — çıktı belgeye yazıldı
+3. `secret` taraması boş döndü
+4. Fazın manuel kabul case'leri `docs/manuel-test/<alan>` içine eklendi ve otomatikleştirilebilenler koşuldu
+5. `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+
+Gerekçe: birim testleri Faz 6, 12, 15, 16, 18, 20, 21 ve 28'de gerçek hataları
+**kaçırdı**; hepsi yalnız örnek uygulamada ortaya çıktı.
 
 ---
 

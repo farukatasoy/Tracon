@@ -52,7 +52,8 @@ Everything else follows from these.
 `AddAgentPrism()` works alone. Without a configured database every store falls back to
 memory. A developer installs the package, writes one line, and has a working console.
 A database is never required, and neither is any particular model vendor — OpenAI,
-compatible endpoints, Anthropic, Google, and Azure OpenAI all work side by side.
+Anthropic, Google, Azure OpenAI, and any OpenAI-compatible endpoint (including a
+self-hosted engine like Ollama or vLLM) all work side by side.
 
 ### Tools are defined in code only
 

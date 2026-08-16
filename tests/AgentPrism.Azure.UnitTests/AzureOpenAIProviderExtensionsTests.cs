@@ -68,13 +68,12 @@ public sealed class AzureOpenAIProviderExtensionsTests
     public void Credential_factory_can_be_given_in_code_after_configuration_is_read()
     {
         // CredentialFactory is a delegate and cannot be read from
-        // configuration; that is why the configuration overload accepts an
-        // extra modifier.
+        // configuration; chaining a second call sets it in code afterward.
         var credential = new FakeTokenCredential();
 
-        using var provider = Build(builder => builder.UseAzureOpenAI(
-            Configuration(),
-            options => options.CredentialFactory = () => credential));
+        using var provider = Build(builder => builder
+            .UseAzureOpenAI(Configuration())
+            .UseAzureOpenAI(options => options.CredentialFactory = () => credential));
 
         var options = provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value;
 

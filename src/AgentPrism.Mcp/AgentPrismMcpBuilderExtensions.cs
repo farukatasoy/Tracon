@@ -17,7 +17,6 @@ public static class AgentPrismMcpBuilderExtensions
     /// registered in code.
     /// </summary>
     /// <param name="builder">The AgentPrism configuration chain.</param>
-    /// <param name="configure">The option modifier.</param>
     /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -44,11 +43,26 @@ public static class AgentPrismMcpBuilderExtensions
     /// </code>
     /// </example>
     /// </remarks>
-    public static IAgentPrismBuilder UseMcp(
-        this IAgentPrismBuilder builder,
-        Action<AgentPrismMcpOptions>? configure = null)
+    public static IAgentPrismBuilder UseMcp(this IAgentPrismBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        return UseMcpCore(builder, configure: null);
+    }
+
+    /// <summary>
+    /// Registers the Model Context Protocol client with settings given in code.
+    /// </summary>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">The option modifier.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    public static IAgentPrismBuilder UseMcp(
+        this IAgentPrismBuilder builder,
+        Action<AgentPrismMcpOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
 
         return UseMcpCore(builder, configure);
     }
@@ -63,7 +77,8 @@ public static class AgentPrismMcpBuilderExtensions
     /// </param>
     /// <param name="configure">
     /// The option modifier that runs AFTER the section is bound. A value given
-    /// in code overrides the value coming from configuration.
+    /// in code overrides the value coming from configuration. Pass
+    /// <see langword="null"/> when configuration alone is enough.
     /// </param>
     /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException">
@@ -80,14 +95,14 @@ public static class AgentPrismMcpBuilderExtensions
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
-    ///        .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName));
+    ///        .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName), configure: null);
     /// </code>
     /// </example>
     /// </remarks>
     public static IAgentPrismBuilder UseMcp(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection,
-        Action<AgentPrismMcpOptions>? configure = null)
+        Action<AgentPrismMcpOptions>? configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configurationSection);

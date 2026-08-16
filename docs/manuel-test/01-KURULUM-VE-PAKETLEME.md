@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/AgentPrism.Generators/`
@@ -2183,3 +2183,138 @@ grep -iE "warn|uyari|birden fazla|multiple" /tmp/ap-cift.log
 - Log'da bir uyarı satırı vardır ve iki sağlayıcının birlikte tanımlandığını
   söyler. Uyarı **yoksa** case `Kaldı`'dır: `README.md`'nin iddiası kodla
   doğrulanmıyor demektir.
+
+---
+
+### MT-PKG-090 — Public API kapısı temiz ağaçta sıfır uyarı verir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 60 |
+| **İlgili karar** | K-421 |
+
+Faz 60, `EnablePublicApiTracking`'i açtı ve `NoWarn` istisnasını kaldırdı.
+Temel iddia: kayıtlı bir yüzeyde kapı sessizdir.
+
+**Ön koşul**
+- Temiz çalışma ağacı (`git status` boş).
+
+**Adımlar**
+1. Tam derle.
+2. `RS00xx` tanısı ara.
+
+**Girilecek veri**
+```bash
+dotnet build AgentPrism.slnx -c Release --no-incremental 2>&1 | grep -c "warning RS0"
+```
+
+**Beklenen sonuç**
+- Çıktı `0`'dır.
+- Ölçüldü (2026-08-16): `Build succeeded. 0 Warning(s). 0 Error(s).`
+
+---
+
+### MT-PKG-091 — Kayıtsız yeni bir public üye derlemeyi kırar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 60 |
+| **İlgili karar** | K-421 |
+
+Kapının **gerçekten** çalıştığının kanıtı — yalnız yeşil bir build bunu
+kanıtlamaz.
+
+**Ön koşul**
+- MT-PKG-090 geçti.
+
+**Adımlar**
+1. `IAgentPrismBuilder`'a yeni, kayıtsız bir `public` metot ekle (arayüz + uygulama).
+2. Derle.
+3. Metodu ve dosyayı geri al.
+
+**Girilecek veri**
+```bash
+# IAgentPrismBuilder.cs içine: void ProbeUnregisteredMember();
+# AgentPrismBuilder.cs içine: public void ProbeUnregisteredMember() { }
+dotnet build src/AgentPrism.Core/AgentPrism.Core.csproj -c Release 2>&1 | grep "RS0016"
+```
+
+**Beklenen sonuç**
+- Derleme `error RS0016` ile **kırılır** ve eklenen üyenin tam imzasını adıyla söyler.
+- Ölçüldü (2026-08-16): `error RS0016: Symbol 'AgentPrism.IAgentPrismBuilder.ProbeUnregisteredMember() -> void' is not part of the declared public API`.
+
+---
+
+### MT-PKG-092 — `PublicAPI.Unshipped.txt`'e eklenince kapı tekrar yeşil
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 60 |
+| **İlgili karar** | K-421 |
+
+**Ön koşul**
+- MT-PKG-091'in üyesi hâlâ kodda.
+
+**Adımlar**
+1. `src/AgentPrism.Core/PublicAPI.Unshipped.txt`'e üyenin imzasını ekle.
+2. Yeniden derle.
+3. Üyeyi ve satırı geri al.
+
+**Beklenen sonuç**
+- Derleme sıfır uyarıyla biter — kapı kayıtlı üyeyi engellemez.
+
+---
+
+### MT-PKG-093 — Sadeleşen aşırı yüklemeler paketlenmiş tüketicide görünür ve çalışır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 60 |
+| **İlgili karar** | K-422 |
+
+RS0026 düzeltmelerinin (60.2) `ProjectReference` ile değil, gerçek `.nupkg` ile
+tüketildiğinde de çalıştığının kanıtı — iç test bu sınıfı hiç görmez.
+
+**Ön koşul**
+- `dotnet pack` üretti (`artifacts/package/release/`).
+
+**Adımlar**
+1. Scratch bir konsol projesi aç, yerel besleme (`artifacts/package/release`) ile `AgentPrism.Anthropic` ve `AgentPrism.Mcp`'yi ekle.
+2. `AnthropicChatClientFactory.FromClient(...)` (yeni statik fabrika) ve `UseMcp()` (bare, sadeleşmiş aşırı yükleme) çağır.
+3. Derle ve çalıştır.
+
+**Girilecek veri**
+```bash
+mkdir -p ~/agentprism-manuel/tuketici-probe && cd ~/agentprism-manuel/tuketici-probe
+dotnet new console -n ConsumerProbe --force
+cd ConsumerProbe
+cat > NuGet.config <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="local" value="<repo>/artifacts/package/release" />
+    <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+</configuration>
+EOF
+dotnet add package AgentPrism.Anthropic --version <surum>
+dotnet add package AgentPrism.Mcp --version <surum>
+# Program.cs: AnthropicChatClientFactory.FromClient(client, defaultModel: "claude-sonnet", loggerFactory: null)
+#             services.AddAgentPrism().UseAnthropic("k").UseMcp();
+dotnet build -c Release
+dotnet run -c Release --no-build
+```
+
+**Beklenen sonuç**
+- Derleme sıfır uyarıyla biter.
+- Çalıştırma `Consumer probe OK: AgentPrism.AnthropicChatClientFactory` yazdırır.
+- Ölçüldü (2026-08-16): birebir bu çıktı üretildi, sürüm `0.0.0-preview.0.251`.

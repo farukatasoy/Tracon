@@ -3,6 +3,14 @@
   <PropertyGroup>
     <Description>AgentPrism contracts and abstractions. Agent definition, catalog, run record and storage interfaces. Not bound to a concrete provider or database.</Description>
     <PackageTags>$(CommonPackageTags);abstractions;contracts</PackageTags>
+    <!--
+      RS0041 (oblivious reference type) fires only on the compiler-generated
+      WebhookEventPayloadJsonContext.*.g.cs files produced by the
+      System.Text.Json source generator - Microsoft's own generated code, not
+      ours to annotate. Measured: all 51 instances trace to this one generated
+      JsonSerializerContext (17 members x 3 TFMs). Rationale: docs/KARARLAR.md.
+    -->
+    <NoWarn>$(NoWarn);RS0041</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

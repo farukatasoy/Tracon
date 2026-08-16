@@ -1,1 +1,35 @@
 #nullable enable
+AgentPrism.VoiceBuilderExtensions
+AgentPrism.VoiceOptions
+AgentPrism.VoiceOptions.ApiKey.get -> string?
+AgentPrism.VoiceOptions.ApiKey.set -> void
+AgentPrism.VoiceOptions.DefaultVoiceId.get -> string?
+AgentPrism.VoiceOptions.DefaultVoiceId.set -> void
+AgentPrism.VoiceOptions.Endpoint.get -> System.Uri?
+AgentPrism.VoiceOptions.Endpoint.set -> void
+AgentPrism.VoiceOptions.MaxCharactersPerRequest.get -> int
+AgentPrism.VoiceOptions.MaxCharactersPerRequest.set -> void
+AgentPrism.VoiceOptions.MaxConcurrentRequests.get -> int
+AgentPrism.VoiceOptions.MaxConcurrentRequests.set -> void
+AgentPrism.VoiceOptions.OutputFormat.get -> string!
+AgentPrism.VoiceOptions.OutputFormat.set -> void
+AgentPrism.VoiceOptions.Provider.get -> string!
+AgentPrism.VoiceOptions.Provider.set -> void
+AgentPrism.VoiceOptions.RequireApproval.get -> bool
+AgentPrism.VoiceOptions.RequireApproval.set -> void
+AgentPrism.VoiceOptions.SynthesisModelId.get -> string?
+AgentPrism.VoiceOptions.SynthesisModelId.set -> void
+AgentPrism.VoiceOptions.Timeout.get -> System.TimeSpan?
+AgentPrism.VoiceOptions.Timeout.set -> void
+AgentPrism.VoiceOptions.TranscriptionModelId.get -> string?
+AgentPrism.VoiceOptions.TranscriptionModelId.set -> void
+AgentPrism.VoiceOptions.VoiceOptions() -> void
+AgentPrism.VoiceOptionsValidator
+AgentPrism.VoiceOptionsValidator.Validate(string? name, AgentPrism.VoiceOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+AgentPrism.VoiceOptionsValidator.VoiceOptionsValidator() -> void
+AgentPrism.VoiceProviderNames
+const AgentPrism.VoiceOptions.DefaultOutputFormat = "mp3_44100_128" -> string!
+const AgentPrism.VoiceOptions.SectionName = "AgentPrism:Voice" -> string!
+const AgentPrism.VoiceProviderNames.ElevenLabs = "elevenlabs" -> string!
+static AgentPrism.VoiceBuilderExtensions.UseVoice(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<AgentPrism.VoiceOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.VoiceBuilderExtensions.UseVoice(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.VoiceOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!

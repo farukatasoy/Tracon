@@ -21,6 +21,8 @@
       in docs/KARARLAR.md and src/AgentPrism/AgentPrism.csproj.
     -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- No consumer-facing API surface - it ships `dotnet new` content, not a library. -->
+    <AgentPrismPublicApiTrackingEnabled>false</AgentPrismPublicApiTrackingEnabled>
     <!--
       🚨 IncludeSymbols=false is MANDATORY. src/Directory.Build.props assigns
       IncludeSymbols=true + snupkg (a separate symbol package is produced for

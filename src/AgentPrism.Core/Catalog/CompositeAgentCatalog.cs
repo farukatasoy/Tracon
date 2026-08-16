@@ -72,7 +72,7 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 

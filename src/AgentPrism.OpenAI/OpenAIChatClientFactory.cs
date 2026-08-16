@@ -47,9 +47,9 @@ public sealed class OpenAIChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// Setups that manage authentication themselves (for example an identity provider
-    /// that refreshes tokens) use this constructor.
+    /// that refreshes tokens) use <see cref="FromClient"/>, which calls this constructor.
     /// </remarks>
-    public OpenAIChatClientFactory(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
+    private OpenAIChatClientFactory(OpenAIClient client, string? defaultModel, ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(client);
 
@@ -57,6 +57,19 @@ public sealed class OpenAIChatClientFactory
         _defaultModel = Trim(defaultModel);
         _loggerFactory = loggerFactory;
     }
+
+    /// <summary>Initializes a new factory from an existing client.</summary>
+    /// <param name="client">The OpenAI client to use.</param>
+    /// <param name="defaultModel">The model to use when no model name is given.</param>
+    /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
+    /// <returns>The new factory.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Setups that manage authentication themselves (for example an identity provider
+    /// that refreshes tokens) use this factory method.
+    /// </remarks>
+    public static OpenAIChatClientFactory FromClient(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
+        => new(client, defaultModel, loggerFactory);
 
     /// <summary>Creates a chat client for the given binding.</summary>
     /// <param name="binding">The model binding.</param>

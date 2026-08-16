@@ -27,7 +27,7 @@ public interface IAgentPrismBuilder
     /// <param name="tool">The tool to register.</param>
     /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
     /// <returns>The chain, for further configuration.</returns>
-    IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval = false);
+    IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval);
 
     /// <summary>
     /// Builds a tool from a method and registers it.
