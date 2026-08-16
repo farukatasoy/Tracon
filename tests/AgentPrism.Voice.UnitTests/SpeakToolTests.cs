@@ -7,27 +7,29 @@ using Shouldly;
 namespace AgentPrism.Voice.UnitTests;
 
 /// <summary>
-/// <c>speak</c> tool'unun ek yazma yolunu dogrular.
+/// Validates the <c>speak</c> tool's attachment write path.
 /// </summary>
 /// <remarks>
-/// Bu sinifin uc testi Faz 28'in en pahali bulgularini korur:
-/// oturum kimliginin eke yazilmasi (G1), tur denetiminin tool tarafindan
-/// cagrilmasi (G2) ve gercek MP3 baytinin taninmasi (G3).
+/// The three tests in this class guard Phase 28's most expensive findings:
+/// writing the session id to the attachment (G1), the tool itself calling the
+/// type check (G2), and recognizing a real MP3 byte sequence (G3).
 /// </remarks>
 public sealed class SpeakToolTests
 {
-    /// <summary>ID3 etiketi TASIMAYAN gercek bir MPEG cerceve basligi.</summary>
+    /// <summary>A real MPEG frame header that carries NO ID3 tag.</summary>
     /// <remarks>
-    /// 0xFF 0xF3 = 11 bit senkron + MPEG2 + Layer III. Eski beyaz liste yalnizca
-    /// uc sabit deger tanidigi icin bu bayt dizisi bilerek secildi.
+    /// 0xFF 0xF3 = 11-bit sync + MPEG2 + Layer III. This byte sequence was
+    /// deliberately chosen because the old allow-list recognized only three
+    /// fixed values.
     /// </remarks>
     private static readonly byte[] FrameSyncMp3 = [0xFF, 0xF3, 0x48, 0xC4, 0x00, 0x00];
 
     [Fact]
-    public async Task Uretilen_ses_ekine_OTURUM_kimligi_yazilir()
+    public async Task Produced_audio_attachment_is_written_with_the_SESSION_id()
     {
-        // 🚨 G1. Oturumsuz yazilan bir eki saklama politikasi SAHIPSIZ sayar ve
-        // kesim tarihinden sonra siler; oturum hala yasarken ses kaybolur.
+        // 🚨 G1. The retention policy treats an attachment written without a
+        // session as ORPHANED and deletes it after the cutoff date; the audio
+        // would disappear while the session is still alive.
         var store = new RecordingAttachmentStore();
         var services = BuildServices(store, FrameSyncMp3);
 
@@ -35,16 +37,16 @@ public sealed class SpeakToolTests
         {
             RunId = Guid.NewGuid(),
             RootRunId = Guid.NewGuid(),
-            TenantId = "kiraci-1",
-            SessionId = "oturum-42",
-            AgentName = "sesli-asistan",
+            TenantId = "tenant-1",
+            SessionId = "session-42",
+            AgentName = "voice-assistant",
         };
 
         AgentPrismRunContext.SetCurrent(scope);
 
         try
         {
-            _ = await InvokeAsync(services, "merhaba");
+            _ = await InvokeAsync(services, "hello");
         }
         finally
         {
@@ -52,37 +54,37 @@ public sealed class SpeakToolTests
         }
 
         var saved = store.Saved.ShouldHaveSingleItem();
-        saved.SessionId.ShouldBe("oturum-42");
+        saved.SessionId.ShouldBe("session-42");
         saved.RunId.ShouldBe(scope.RunId);
-        saved.TenantId.ShouldBe("kiraci-1");
+        saved.TenantId.ShouldBe("tenant-1");
     }
 
     [Fact]
-    public async Task Basliksiz_icerik_ek_deposuna_YAZILMAZ()
+    public async Task Headerless_content_is_NOT_written_to_the_attachment_store()
     {
-        // 🚨 G2. IAttachmentStore.SaveAsync hicbir dogrulama yapmaz; dogrulama
-        // HTTP katmanindadir. Tool guard'i KENDISI cagirmak zorundadir.
+        // 🚨 G2. IAttachmentStore.SaveAsync performs no validation; validation
+        // lives at the HTTP layer. The tool guard MUST call it ITSELF.
         var store = new RecordingAttachmentStore();
 
-        // Ham PCM: hicbir sihirli bayta uymaz.
+        // Raw PCM: matches no magic byte.
         var services = BuildServices(store, [0x01, 0x02, 0x03, 0x04, 0x05]);
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
-            async () => await InvokeAsync(services, "merhaba"));
+            async () => await InvokeAsync(services, "hello"));
 
-        exception.Message.ShouldContain("sihirli bayt");
+        exception.Message.ShouldContain("magic byte");
         store.Saved.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Cerceve_senkronlu_MP3_taninir_ve_kaydedilir()
+    public async Task Frame_synced_MP3_is_recognized_and_saved()
     {
-        // 🚨 G3. Beyaz liste eskiden yalnizca ID3/FFFB/FFF3 taniyordu; gercek
-        // cikti baska bir gecerli cerceve basligi tasiyabilir.
+        // 🚨 G3. The allow-list used to recognize only ID3/FFFB/FFF3; real
+        // output can carry a different valid frame header.
         var store = new RecordingAttachmentStore();
         var services = BuildServices(store, FrameSyncMp3);
 
-        var result = await InvokeAsync(services, "merhaba");
+        var result = await InvokeAsync(services, "hello");
 
         store.Saved.ShouldHaveSingleItem().MediaType.ShouldBe("audio/mpeg");
         result.ShouldNotBeNull();
@@ -90,36 +92,36 @@ public sealed class SpeakToolTests
     }
 
     [Fact]
-    public async Task Sonuc_ham_ses_DEGIL_ek_kimligi_dondurur()
+    public async Task Result_returns_the_attachment_id_NOT_the_raw_audio()
     {
         var store = new RecordingAttachmentStore();
         var services = BuildServices(store, FrameSyncMp3);
 
-        var result = (await InvokeAsync(services, "merhaba"))?.ToString();
+        var result = (await InvokeAsync(services, "hello"))?.ToString();
 
         result.ShouldNotBeNull();
         result.Contains(store.Saved[0].Id.ToString(), StringComparison.Ordinal).ShouldBeTrue();
 
-        // Ham ses sonuca konsaydi baglam penceresi base64 ile dolardi.
+        // If the raw audio landed in the result, the context window would fill up with base64.
         result.Contains("audio/mpeg;base64", StringComparison.Ordinal).ShouldBeFalse();
         result.Length.ShouldBeLessThan(200);
     }
 
     [Fact]
-    public async Task Karakter_siniri_asilirsa_metin_KIRPILMAZ_hata_verilir()
+    public async Task Text_is_NOT_truncated_when_over_the_character_limit_it_errors()
     {
         var store = new RecordingAttachmentStore();
         var services = BuildServices(store, FrameSyncMp3, options => options.MaxCharactersPerRequest = 5);
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
-            async () => await InvokeAsync(services, "bu metin bes karakterden uzun"));
+            async () => await InvokeAsync(services, "this text is longer than five characters"));
 
-        exception.Message.ShouldContain("sinir 5");
+        exception.Message.ShouldContain("the limit is 5");
         store.Saved.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Tool_semasi_metni_zorunlu_kilar()
+    public void Tool_schema_requires_text()
     {
         using var services = new ServiceCollection().BuildServiceProvider();
         var schema = new SpeakTool(services).JsonSchema.GetRawText();
@@ -147,14 +149,14 @@ public sealed class SpeakToolTests
         byte[] audioBytes,
         Action<VoiceOptions>? configure = null)
     {
-        var voiceOptions = new VoiceOptions { ApiKey = "k", DefaultVoiceId = "ses-1" };
+        var voiceOptions = new VoiceOptions { ApiKey = "k", DefaultVoiceId = "voice-1" };
         configure?.Invoke(voiceOptions);
 
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(audioBytes));
 
         var services = new ServiceCollection();
         services.AddSingleton(store);
-        services.AddSingleton<ITenantContext>(new FixedTenantContext("kiraci-1"));
+        services.AddSingleton<ITenantContext>(new FixedTenantContext("tenant-1"));
         services.AddSingleton(Options.Create(voiceOptions));
         services.AddSingleton(Options.Create(new AgentPrismOptions()));
         services.AddSingleton<AttachmentTypeGuard>();
@@ -170,7 +172,7 @@ public sealed class SpeakToolTests
         public string TenantId { get; } = tenantId;
     }
 
-    /// <summary>Kaydedilen ekleri bellekte tutan depo.</summary>
+    /// <summary>Store that keeps saved attachments in memory.</summary>
     private sealed class RecordingAttachmentStore : IAttachmentStore
     {
         public List<AttachmentDescriptor> Saved { get; } = [];
@@ -188,7 +190,7 @@ public sealed class SpeakToolTests
                 FileName = content.FileName,
                 MediaType = content.MediaType,
                 ByteSize = content.Data.Length,
-                Sha256 = "SAHTE",
+                Sha256 = "FAKE",
                 CreatedBy = content.CreatedBy,
                 CreatedAt = DateTimeOffset.UnixEpoch,
             };

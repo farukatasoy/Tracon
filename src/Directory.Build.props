@@ -1,38 +1,39 @@
 <Project>
 
-  <!-- Kok Directory.Build.props'u once yukle. -->
+  <!-- Load the root Directory.Build.props first. -->
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <!--
-    src/ altindaki her proje yayinlanabilir bir NuGet paketidir.
-    Ortak paketleme metadata'si burada tanimlanir; her proje yalnizca
-    <Description> ve <PackageTags> degerlerini kendi csproj dosyasinda verir.
+    Every project under src/ is a publishable NuGet package.
+    Shared packaging metadata is defined here; each project only gives its own
+    <Description> and <PackageTags> values in its own csproj file.
   -->
 
-  <PropertyGroup Label="Hedef framework">
+  <PropertyGroup Label="Target framework">
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
 
   <!--
-    Trim ve AOT uyumlulugu.
-    Varsayilan olarak aciktir; boylece kirpilmis ve native AOT uygulamalarda
-    calisan bir kutuphane elde ederiz. ASP.NET Core minimal API yonlendirmesi
-    ve gomulu arayuz varlik tarama yapisi dogasi geregi reflection kullanir,
-    bu yuzden AgentPrism.AspNetCore ve AgentPrism.UI kendi csproj dosyalarinda
-    AgentPrismAotCompatible=false yazarak devre disi birakir.
-    Gerekce: docs/KARARLAR.md, karar K-006.
+    Trim and AOT compatibility.
+    On by default, so we get a library that works in trimmed and native AOT
+    applications. ASP.NET Core minimal API routing and the embedded UI's asset
+    scanning inherently use reflection, so AgentPrism.AspNetCore and
+    AgentPrism.UI disable it in their own csproj files by writing
+    AgentPrismAotCompatible=false.
+    Rationale: docs/KARARLAR.md, decision K-006.
   -->
   <!--
-    DIKKAT: Buradan IsAotCompatible ATANMAZ. Bu dosya csproj govdesinden ONCE
-    yuklenir; csproj'da yazilan <AgentPrismAotCompatible>false</...> degeri henuz
-    okunmamistir ve IsAotCompatible geri alinamaz bicimde true kalirdi. Turetme
-    Directory.Build.targets icinde, csproj okunduktan SONRA yapilir.
+    NOTE: IsAotCompatible is NOT assigned here. This file loads BEFORE the
+    csproj body; the <AgentPrismAotCompatible>false</...> value written in the
+    csproj has not been read yet, and IsAotCompatible would stay true
+    irreversibly. The derivation happens in Directory.Build.targets, AFTER the
+    csproj is read.
   -->
   <PropertyGroup Label="Trim / AOT">
     <AgentPrismAotCompatible Condition=" '$(AgentPrismAotCompatible)' == '' ">true</AgentPrismAotCompatible>
   </PropertyGroup>
 
-  <PropertyGroup Label="Paketleme">
+  <PropertyGroup Label="Packaging">
     <IsPackable>true</IsPackable>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -48,27 +49,27 @@
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <!-- Ortak etiketler; projeler PackageTags icinde $(CommonPackageTags) kullanir. -->
+    <!-- Shared tags; projects use $(CommonPackageTags) inside PackageTags. -->
     <CommonPackageTags>agentprism;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
   </PropertyGroup>
 
-  <PropertyGroup Label="Surumleme (MinVer - git tag'inden)">
+  <PropertyGroup Label="Versioning (MinVer - from git tag)">
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerAutoIncrement>minor</MinVerAutoIncrement>
     <MinVerDefaultPreReleaseIdentifiers>preview.0</MinVerDefaultPreReleaseIdentifiers>
   </PropertyGroup>
 
-  <ItemGroup Label="Paket dosyalari">
+  <ItemGroup Label="Package files">
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
   </ItemGroup>
 
-  <ItemGroup Label="Yayinlanabilir paketlerde ek analyzer'lar">
+  <ItemGroup Label="Extra analyzers in publishable packages">
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="MinVer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 
-  <ItemGroup Label="Ic gorunurluk - test projeleri">
+  <ItemGroup Label="Internal visibility - test projects">
     <InternalsVisibleTo Include="$(MSBuildProjectName).UnitTests" />
     <InternalsVisibleTo Include="$(MSBuildProjectName).IntegrationTests" />
     <InternalsVisibleTo Include="$(MSBuildProjectName).FunctionalTests" />

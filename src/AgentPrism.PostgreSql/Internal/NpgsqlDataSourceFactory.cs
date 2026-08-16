@@ -4,26 +4,27 @@ using Npgsql;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in kullandigi <see cref="NpgsqlDataSource"/> ornegini kurar.
+/// Sets up the <see cref="NpgsqlDataSource"/> instance AgentPrism uses.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tek bir veri kaynagi kullanilir ve DI icinde singleton olarak yasar. Npgsql
-/// baglanti havuzunu kendi yonetir; ayrica bir havuz katmani eklenmez.
+/// A single data source is used and lives as a singleton in DI. Npgsql manages
+/// its own connection pool; no extra pooling layer is added.
 /// </para>
 /// <para>
-/// <c>EnableDynamicJson()</c> <strong>kullanilmaz</strong>: yansimaya dayanir ve
-/// AOT vaadini bozar. <c>jsonb</c> alanlari metin olarak tasinir; serilestirme
-/// uygulama tarafinda kaynak ureteci ile yapilir (bkz. <c>AgentPrismJsonContext</c>).
+/// <c>EnableDynamicJson()</c> is <strong>not used</strong>: it relies on
+/// reflection and breaks the AOT promise. <c>jsonb</c> fields are carried as
+/// text; serialization is done on the application side with a source
+/// generator (see <c>AgentPrismJsonContext</c>).
 /// </para>
 /// </remarks>
 internal static class NpgsqlDataSourceFactory
 {
-    /// <summary>Ayarlardan bir veri kaynagi olusturur.</summary>
-    /// <param name="options">PostgreSQL ayarlari.</param>
-    /// <param name="loggerFactory">Npgsql'in kullanacagi gunlukleyici fabrikasi.</param>
-    /// <returns>Kullanima hazir veri kaynagi.</returns>
-    /// <exception cref="AgentPrismException">Baglanti dizesi tanimli degilse.</exception>
+    /// <summary>Creates a data source from settings.</summary>
+    /// <param name="options">The PostgreSQL settings.</param>
+    /// <param name="loggerFactory">The logger factory Npgsql will use.</param>
+    /// <returns>A ready-to-use data source.</returns>
+    /// <exception cref="AgentPrismException">The connection string is not defined.</exception>
     public static NpgsqlDataSource Create(AgentPrismPostgreSqlOptions options, ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -31,9 +32,10 @@ internal static class NpgsqlDataSourceFactory
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             throw new AgentPrismException(
-                "PostgreSQL baglanti dizesi tanimli degil. `UsePostgreSql(connectionString)` cagrisinda verin " +
-                $"veya '{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                "The PostgreSQL connection string is not defined. Give it in the " +
+                $"`UsePostgreSql(connectionString)` call, or define the " +
+                $"'{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
+                "setting in `dotnet user-secrets`.");
         }
 
         var builder = new NpgsqlDataSourceBuilder(options.ConnectionString);

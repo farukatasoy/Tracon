@@ -2,17 +2,17 @@ using Shouldly;
 
 namespace AgentPrism.Voice.UnitTests;
 
-/// <summary>Ayar dogrulamasi uygulama BASLARKEN calisir; hatalar erken cikar.</summary>
+/// <summary>Settings validation runs at application STARTUP; errors surface early.</summary>
 public sealed class VoiceOptionsValidatorTests
 {
     [Fact]
-    public void Gecerli_ayar_kabul_edilir()
+    public void Valid_settings_are_accepted()
     {
         Validate(new VoiceOptions { ApiKey = "k", DefaultVoiceId = "v" }).Succeeded.ShouldBeTrue();
     }
 
     [Fact]
-    public void Anahtarsiz_kayit_user_secrets_komutunu_soyler()
+    public void Keyless_setup_names_the_user_secrets_command()
     {
         var result = Validate(new VoiceOptions());
 
@@ -21,22 +21,22 @@ public sealed class VoiceOptionsValidatorTests
     }
 
     [Fact]
-    public void Saklanamayan_cikti_bicimi_REDDEDILIR()
+    public void Unstorable_output_format_is_REJECTED()
     {
-        // 🚨 Ham PCM dosya basligi tasimaz; ek deposu turu sihirli bayttan
-        // dogrular ve boyle bir icerigi reddeder. Hata calisma aninda degil,
-        // uygulama baslarken cikmalidir.
+        // 🚨 Raw PCM carries no file header; the attachment store validates the
+        // type from the magic byte and rejects such content. The error must
+        // surface at application startup, not at run time.
         foreach (var format in (string[])["pcm_16000", "PCM_24000", "ulaw_8000", "alaw_8000"])
         {
             var result = Validate(new VoiceOptions { ApiKey = "k", OutputFormat = format });
 
-            result.Failed.ShouldBeTrue($"'{format}' saklanamaz olmasina ragmen kabul edildi.");
-            string.Join('\n', result.Failures ?? []).ShouldContain("sihirli bayt");
+            result.Failed.ShouldBeTrue($"'{format}' was accepted even though it cannot be stored.");
+            string.Join('\n', result.Failures ?? []).ShouldContain("magic byte");
         }
     }
 
     [Fact]
-    public void Konteynerli_bicimler_kabul_edilir()
+    public void Container_formats_are_accepted()
     {
         foreach (var format in (string[])["mp3_44100_128", "opus_48000_128", "wav_44100"])
         {
@@ -45,9 +45,9 @@ public sealed class VoiceOptionsValidatorTests
     }
 
     [Fact]
-    public void Taninmayan_saglayici_kendi_uygulamanizi_kaydedin_der()
+    public void Unrecognized_provider_says_to_register_your_own_implementation()
     {
-        var result = Validate(new VoiceOptions { ApiKey = "k", Provider = "yokboyle" });
+        var result = Validate(new VoiceOptions { ApiKey = "k", Provider = "no-such-provider" });
 
         result.Failed.ShouldBeTrue();
 
@@ -57,7 +57,7 @@ public sealed class VoiceOptionsValidatorTests
     }
 
     [Fact]
-    public void Sifir_veya_negatif_sinirlar_reddedilir()
+    public void Zero_or_negative_limits_are_rejected()
     {
         Validate(new VoiceOptions { ApiKey = "k", MaxCharactersPerRequest = 0 }).Failed.ShouldBeTrue();
         Validate(new VoiceOptions { ApiKey = "k", MaxConcurrentRequests = 0 }).Failed.ShouldBeTrue();

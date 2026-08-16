@@ -4,15 +4,16 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kayitli bir ses ekini metne cevirir.
+/// Transcribes a recorded audio attachment to text.
 /// </summary>
 /// <remarks>
-/// Tool ham ses <strong>almaz</strong>, bir ek kimligi alir. Baglam penceresine
-/// base64 ses koymak hem pahalidir hem de model bunu cozemez.
+/// The tool <strong>does not take</strong> raw audio, it takes an attachment
+/// id. Putting base64 audio in the context window is both expensive and
+/// something the model cannot decode.
 /// </remarks>
 internal sealed class TranscribeTool : VoiceToolBase
 {
-    /// <summary>Tool adi.</summary>
+    /// <summary>The tool name.</summary>
     public const string ToolName = "transcribe";
 
     private const string Schema = """
@@ -21,11 +22,11 @@ internal sealed class TranscribeTool : VoiceToolBase
           "properties": {
             "attachmentId": {
               "type": "string",
-              "description": "Metne cevrilecek ses ekinin kimligi (GUID)."
+              "description": "The id (GUID) of the audio attachment to transcribe."
             },
             "languageCode": {
               "type": "string",
-              "description": "Beklenen dilin ISO 639-1 kodu. Bos birakilirsa dil kendiliginden sezilir."
+              "description": "The ISO 639-1 code of the expected language. If left empty, the language is auto-detected."
             }
           },
           "required": ["attachmentId"]
@@ -42,7 +43,7 @@ internal sealed class TranscribeTool : VoiceToolBase
 
     /// <inheritdoc />
     public override string Description =>
-        "Kayitli bir ses ekini metne cevirir. Ekin kimligini alir, cozulen metni doner.";
+        "Transcribes a recorded audio attachment to text. Takes the attachment's id, returns the resolved text.";
 
     /// <inheritdoc />
     protected override async ValueTask<object?> InvokeCoreAsync(
@@ -55,7 +56,7 @@ internal sealed class TranscribeTool : VoiceToolBase
 
         if (!Guid.TryParse(rawId, out var attachmentId))
         {
-            throw new AgentPrismException($"'{rawId}' gecerli bir ek kimligi degil.");
+            throw new AgentPrismException($"'{rawId}' is not a valid attachment id.");
         }
 
         var store = Resolve<IAttachmentStore>();
@@ -67,16 +68,16 @@ internal sealed class TranscribeTool : VoiceToolBase
         var tenantId = AgentPrismRunContext.Current?.TenantId ?? tenantContext.TenantId;
 
         var descriptor = await store.GetAsync(tenantId, attachmentId, cancellationToken).ConfigureAwait(false)
-                         ?? throw new AgentPrismException($"'{attachmentId}' kimlikli ek bulunamadi.");
+                         ?? throw new AgentPrismException($"No attachment with id '{attachmentId}' was found.");
 
         if (!descriptor.MediaType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
         {
             throw new AgentPrismException(
-                $"'{attachmentId}' kimlikli ek bir ses dosyasi degil (tur: {descriptor.MediaType}).");
+                $"The attachment with id '{attachmentId}' is not an audio file (type: {descriptor.MediaType}).");
         }
 
         var content = await store.OpenReadAsync(tenantId, attachmentId, cancellationToken).ConfigureAwait(false)
-                      ?? throw new AgentPrismException($"'{attachmentId}' kimlikli ekin icerigi okunamadi.");
+                      ?? throw new AgentPrismException($"Could not read the content of the attachment with id '{attachmentId}'.");
 
         SpeechTranscript transcript;
 
@@ -98,14 +99,14 @@ internal sealed class TranscribeTool : VoiceToolBase
         ReportUsage(transcript, pricing, options);
 
         return transcript.LanguageCode is { Length: > 0 } language
-            ? $"[dil={language}] {transcript.Text}"
+            ? $"[lang={language}] {transcript.Text}"
             : transcript.Text;
     }
 
-    /// <summary>Olcumu suren cagriya baglar.</summary>
+    /// <summary>Attaches the usage measurement to the current call.</summary>
     /// <remarks>
-    /// Saglayici sureyi bildirmediyse olcum HIC bildirilmez — sifir saniye
-    /// yazmak "bedava" demek olurdu.
+    /// If the provider did not report the duration, the measurement is NOT
+    /// reported at all — writing zero seconds would mean "free".
     /// </remarks>
     private static void ReportUsage(SpeechTranscript transcript, VoicePricing pricing, VoiceOptions options)
     {
