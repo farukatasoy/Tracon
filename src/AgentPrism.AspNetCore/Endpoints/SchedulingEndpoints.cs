@@ -29,14 +29,25 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListSchedules")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Lists a tenant's schedules.");
+            .WithSummary("Lists a tenant's schedules.")
+            .WithDescription(
+                "Enabled and disabled schedules are returned together; 'enabled' tells them " +
+                "apart. Each entry carries 'nextRunAt' as computed at the last save and " +
+                "'lastRunAt' from the last execution, which is the quickest way to see that a " +
+                "schedule has stopped firing. A schedule with no cron expression never fires on " +
+                "its own and exists only to be triggered by hand.");
 
         builder.MapGet("/api/schedules/{name}", GetScheduleAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Gets a single schedule.");
+            .WithSummary("Gets a single schedule.")
+            .WithDescription(
+                "The response is the definition, including the stored payload the schedule fires " +
+                "with; the jobs it produced are read from the job endpoints, filtered by this " +
+                "schedule's id. Names are scoped to the calling tenant, and an unknown name " +
+                "returns 404.");
 
         builder.MapPut("/api/schedules/{name}", SaveScheduleAsync)
             .RequireRole(roles.Admin)
@@ -54,7 +65,12 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Deletes a schedule.");
+            .WithSummary("Deletes a schedule.")
+            .WithDescription(
+                "The schedule stops firing, but jobs it already queued are not withdrawn — " +
+                "cancel those individually if they must not run. Job history keeps pointing at " +
+                "the deleted schedule's id, so past executions stay traceable. To pause a " +
+                "schedule instead, save it with 'enabled: false'. An unknown name returns 404.");
 
         builder.MapPost("/api/schedules/{name}/trigger", TriggerScheduleAsync)
             .RequireRole(roles.Operator)
@@ -62,6 +78,13 @@ internal static class SchedulingEndpoints
             .WithName("AgentPrismTriggerSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Runs a schedule immediately, without waiting for the cron schedule.")
+            .WithDescription(
+                "The job is queued, not executed inline: the response is the queued job record, " +
+                "so poll the job endpoint for the outcome. The body is optional — without one " +
+                "the schedule's stored payload is used, and a body's payload overrides it for " +
+                "this run only without changing the schedule. A trigger fires even when the " +
+                "schedule is disabled, and it does not move 'nextRunAt'. The payload's item " +
+                "count is capped by the same limit that applies on save.")
             .Accepts<JobTriggerRequest>(true, "application/json");
 
         builder.MapGet("/api/jobs", ListJobsAsync)
@@ -69,14 +92,26 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListJobs")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Lists jobs, filtered by kind, status, or schedule.");
+            .WithSummary("Lists jobs, filtered by kind, status, or schedule.")
+            .WithDescription(
+                "Every queued unit of work shares this queue — scheduled runs, retention " +
+                "cleanups, webhook deliveries, and queued agent runs — so filter by 'kind' to " +
+                "narrow it. 'scheduleId' returns the executions of one schedule. Job items are " +
+                "not included here; read them from the single-job endpoint. Paging is offset " +
+                "based, with 'skip' defaulting to 0 and 'take' to 50.");
 
         builder.MapGet("/api/jobs/{id:guid}", GetJobAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetJob")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Gets a job and its items.");
+            .WithSummary("Gets a job and its items.")
+            .WithDescription(
+                "This is the endpoint to poll after queuing work: it carries the job's status " +
+                "and attempt count together with its items, each with its own status, so partial " +
+                "progress is visible while the job is still running. A failed job keeps its " +
+                "error text here rather than only in the logs. An unknown id, or one belonging " +
+                "to another tenant, returns 404.");
 
         builder.MapPost("/api/jobs/{id:guid}/cancel", CancelJobAsync)
             .RequireRole(roles.Operator)

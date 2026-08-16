@@ -33,14 +33,25 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListRetentionPolicies")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Lists a tenant's retention policies.");
+            .WithSummary("Lists a tenant's retention policies.")
+            .WithDescription(
+                "Only targets that have an explicit policy appear here. A target missing from " +
+                "the list is not cleaned up at all — absence means 'keep forever', not 'use a " +
+                "default'. A policy is also kept while switched off, so 'enabled: false' is a " +
+                "configured-but-paused policy and is different from having none.");
 
         builder.MapGet("/api/retention/preview", PreviewAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismPreviewRetention")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Shows how many rows would be deleted if run now. Does NOT delete.");
+            .WithSummary("Shows how many rows would be deleted if run now. Does NOT delete.")
+            .WithDescription(
+                "Run this before every cleanup: it is the only way to see the size of a deletion " +
+                "before it happens. The counts are computed against the data as it is right now, " +
+                "so they are an estimate — rows written between the preview and the run are " +
+                "included by the run. Without '?target=' every configured target is previewed; " +
+                "an unknown target name returns 400. Nothing is written and no job is queued.");
 
         builder.MapPost("/api/retention/run", RunAsync)
             .RequireRole(roles.Admin)
@@ -55,14 +66,25 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismRetentionHistory")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Lists past cleanup runs.");
+            .WithSummary("Lists past cleanup runs.")
+            .WithDescription(
+                "Each entry records one executed cleanup — the target, when it ran, and how many " +
+                "rows it removed — which is how a deletion is accounted for after the fact. " +
+                "Filter to one target with '?target='. Paging is offset based: 'skip' defaults " +
+                "to 0, 'take' to 50, and 'take' is clamped to 1..200 instead of being rejected. " +
+                "This history is not itself cleaned up by any policy — it is the permanent " +
+                "record of what was deleted.");
 
         builder.MapGet("/api/retention/{target}", GetAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Gets the retention policy for a single target.");
+            .WithSummary("Gets the retention policy for a single target.")
+            .WithDescription(
+                "Two different failures are reported differently: an unrecognized target name " +
+                "returns 400 and lists the valid targets, while a valid target with no policy " +
+                "configured returns 404. Read that 404 as 'this data is never cleaned up'.");
 
         builder.MapPut("/api/retention/{target}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -70,6 +92,12 @@ internal static class RetentionEndpoints
             .WithName("AgentPrismSaveRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Creates or updates the retention policy for a target.")
+            .WithDescription(
+                "'maxAgeDays' and 'maxRows' are independent limits and both may be set; each " +
+                "must be at least 1 when given, and leaving both unset means the policy removes " +
+                "nothing. Saving does not delete anything by itself — the cleanup runs from the " +
+                "queue, so preview first. Every save is written to the audit trail with the " +
+                "previous and the new values. An unrecognized target returns 400.")
             .Accepts<RetentionPolicySaveRequest>("application/json");
 
         builder.MapDelete("/api/retention/{target}", DeleteAsync)
@@ -77,7 +105,13 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Deletes the retention policy for a target.");
+            .WithSummary("Deletes the retention policy for a target.")
+            .WithDescription(
+                "Removing a policy stops the cleanup for that target; it deletes no data and " +
+                "restores none that was already deleted. To pause a cleanup while keeping the " +
+                "limits, save the policy with 'enabled: false' instead. The removal is written " +
+                "to the audit trail. An unrecognized target returns 400, a target with no " +
+                "policy returns 404.");
     }
 
     private static async Task<Ok<IReadOnlyList<RetentionPolicy>>> ListAsync(

@@ -117,7 +117,13 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunTree")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Returns the entire tree a run belongs to, starting from the root.");
+            .WithSummary("Returns the entire tree a run belongs to, starting from the root.")
+            .WithDescription(
+                "The tree is always resolved from the ROOT, whichever member is asked for: a " +
+                "request naming a child run still returns the whole tree, because without the " +
+                "sibling branches a client cannot tell where in the tree that run sits. Each " +
+                "entry carries its parent, so the shape is rebuilt on the client. At most 200 " +
+                "runs are returned; a tree larger than that is truncated rather than paged.");
 
         builder.MapGet("/api/runs/{runId:guid}", async Task<Results<Ok<RunRecord>, ProblemHttpResult>> (
                 Guid runId,
@@ -130,7 +136,13 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRun")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Returns the summary of a single run.");
+            .WithSummary("Returns the summary of a single run.")
+            .WithDescription(
+                "The summary carries status, timings, token counts, and — when pricing is " +
+                "configured — cost; it does not carry the conversation. Read the messages from " +
+                "the events endpoint, and the recorded input from the input endpoint. A run row " +
+                "is written when the run starts, so a run that is still going is readable here " +
+                "with a non-terminal status.");
 
         builder.MapGet("/api/runs/{runId:guid}/events", async Task<Results<ProblemHttpResult, IResult>> (
                 Guid runId,
@@ -184,14 +196,26 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRunFeedback")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Lists all scores for a run.");
+            .WithSummary("Lists all scores for a run.")
+            .WithDescription(
+                "Both human scores and scores written by automatic evaluators appear in one " +
+                "list; the source is a field on each entry, not a separate endpoint. A run " +
+                "belonging to another tenant is reported as 404 rather than 403, so the API " +
+                "does not confirm that the run exists. A run with no scores returns an empty " +
+                "list, not 404.");
 
         builder.MapDelete("/api/runs/{runId:guid}/feedback/{scoreId:guid}", DeleteFeedbackAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteRunFeedback")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Deletes a score.");
+            .WithSummary("Deletes a score.")
+            .WithDescription(
+                "The deletion is recorded in the audit trail, so removing a score is itself " +
+                "traceable. The run must belong to the calling tenant; otherwise the response " +
+                "is 404. An unknown score id also returns 404, so repeating the call is not " +
+                "idempotent. Aggregate statistics computed from scores are recalculated on the " +
+                "next read rather than adjusted here.");
 
         builder.MapGet("/api/runs/{runId:guid}/input", GetRunInputAsync)
             .RequireRole(roles.Reader)
@@ -212,7 +236,7 @@ internal static class RunEndpoints
             .WithSummary("Returns the summaries of two runs side by side.")
             .WithDescription(
                 "The diff is NOT computed on the server; the endpoint returns the two summaries and the UI " +
-                "shows the comparison (the same pattern as the definition-version diff in Phase 19).");
+                "shows the comparison — the same pattern as the agent definition version diff.");
 
         builder.MapPost("/api/runs/{runId:guid}/replay", async (
                 Guid runId,

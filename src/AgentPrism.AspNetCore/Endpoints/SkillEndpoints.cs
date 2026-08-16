@@ -22,14 +22,23 @@ internal static class SkillEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListSkills")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Lists the tenant's skills.");
+            .WithSummary("Lists the tenant's skills.")
+            .WithDescription(
+                "Skills are scoped to the calling tenant; a skill defined for another tenant is " +
+                "never returned. Each entry is complete — instructions, resources, and scripts " +
+                "come with it, so a client does not need a second call per skill. The response " +
+                "is not paged.");
 
         builder.MapGet("/api/skills/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Returns a single skill and its resources.");
+            .WithSummary("Returns a single skill and its resources.")
+            .WithDescription(
+                "The response carries the skill's instructions together with every resource and " +
+                "script attached to it, including their content. Names are compared exactly, " +
+                "case included; an unknown name returns 404.");
 
         builder.MapPut("/api/skills/{name}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -37,6 +46,15 @@ internal static class SkillEndpoints
             .WithName("AgentPrismSaveSkill")
             .WithTags("AgentPrism", "Skills")
             .WithSummary("Creates or updates a skill.")
+            .WithDescription(
+                "The call replaces the whole skill: resources and scripts that the body omits are " +
+                "removed. A first save answers 201, a later one 200. The path name and the body " +
+                "name must be identical (400 otherwise). Name, description, and compatibility " +
+                "follow the skill frontmatter rules, and instructions, resources, and scripts are " +
+                "each bounded by the configured size limits. A script may be SAVED even when " +
+                "script execution is turned off — saving and running are separate permissions — " +
+                "but an extension with no registered interpreter is rejected, because such a " +
+                "script could never run and would leave dead data behind.")
             .Accepts<AgentSkillRequest>("application/json");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)
@@ -44,7 +62,13 @@ internal static class SkillEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Deletes a skill and its cascading resources.");
+            .WithSummary("Deletes a skill and its cascading resources.")
+            .WithDescription(
+                "Resources and scripts are removed with the skill. Agent definitions that still " +
+                "name the skill are NOT rewritten, and they stop resolving: compiling such an " +
+                "agent fails with 'the skill was not found' until the reference is removed or the " +
+                "skill is recreated. Check the agents that use a skill before deleting it. An " +
+                "unknown name returns 404.");
     }
 
     private static async Task<Ok<IReadOnlyList<AgentSkillDefinition>>> ListAsync(

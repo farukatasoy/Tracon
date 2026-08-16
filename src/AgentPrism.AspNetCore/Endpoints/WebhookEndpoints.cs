@@ -41,7 +41,11 @@ internal static class WebhookEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Gets a single subscription.");
+            .WithSummary("Gets a single subscription.")
+            .WithDescription(
+                "As in the list, no signing secret is returned — only the configuration key its " +
+                "value is read from at delivery time. A secret is never stored in the database " +
+                "and never leaves through this API. An unknown name returns 404.");
 
         builder.MapPut("/api/webhooks/{name}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -60,7 +64,12 @@ internal static class WebhookEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Deletes a subscription and its delivery history.");
+            .WithSummary("Deletes a subscription and its delivery history.")
+            .WithDescription(
+                "The delivery history cascades with the subscription, so export it first if it " +
+                "is needed for an audit; there is no way to recover it afterwards. Events raised " +
+                "after the delete match no subscription and are simply not delivered. An unknown " +
+                "name returns 404.");
 
         builder.MapPost("/api/webhooks/{name}/test", TestAsync)
             .RequireRole(roles.Admin)
@@ -77,7 +86,14 @@ internal static class WebhookEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListWebhookDeliveries")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Lists a subscription's delivery history.");
+            .WithSummary("Lists a subscription's delivery history.")
+            .WithDescription(
+                "This is a history table, not a queue: scheduling and retry live in the job " +
+                "queue. There is one entry per event, carrying the latest status, the attempt " +
+                "count, and the endpoint's last response code — a retry updates that entry " +
+                "rather than adding another. Filter with '?status=' to find failures. Paging " +
+                "is offset based — 'skip' defaults to 0, 'take' to 50, and 'take' is clamped to " +
+                "1..200 instead of being rejected. An unknown subscription name returns 404.");
     }
 
     private static async Task<Ok<IReadOnlyList<WebhookSubscription>>> ListAsync(

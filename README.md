@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 58 tamamlandı — AgentPrism **işletilebilirdir** ve kaynak kodu **İngilizce**dir. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–58 bitti; kod dili birleştirme ve doküman düzeni tamamlandı.
+> **Durum:** Faz 59 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir ve [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism). `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–59 bitti; kod dili birleştirme, doküman düzeni ve ürün dokümantasyon sitesi tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -227,7 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–58 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**Faz 0–59 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 **59 planlandı.**
 
 | Dalga | Fazlar | Konu | Durum |
@@ -236,7 +236,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 2 | [21–30](docs/IKINCI-FAZ-YOL-HARITASI.md) | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
 | 3 | [31–52](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
 | 4 | [53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
-| 5 | [57–59](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 57–58 ✅ · 59 📋 |
+| 5 | [57–59](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 57–59 ✅ |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–59 tek tek
 listelidir ve her fazın kendi dokümanından **üretilir**, elle yazılmaz.
@@ -313,6 +313,14 @@ cd src/AgentPrism.UI/frontend && npm run dev
 
 ## Dokümantasyon
 
+**Kullanıcıya dönük ürün dokümantasyonu ayrı bir sitededir ve İngilizce'dir:**
+<https://farukatasoy.github.io/AgentPrism> — kurulum, ilk agent, kavramlar, arayüz
+turu, HTTP API (143 operasyon) ve 588 public tipin API referansı. Kaynağı
+[`docs-site/`](docs-site/); `main`'e her push'ta yayınlanır.
+
+Aşağıdaki tablo **geliştirme dokümantasyonudur** (Türkçe, repo içi). İkisi
+karıştırılmaz: `docs/` geliştirme günlüğüdür, `docs-site/` ürün dokümantasyonudur.
+
 | Kaynak | İçerik |
 |--------|--------|
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
@@ -321,6 +329,7 @@ cd src/AgentPrism.UI/frontend && npm run dev
 | [docs/](docs/) | Faz dokümanları (00–59) — kapsam, tasarım kararları, DoD |
 | [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Alan bazlı tuzaklar · faz anlatısı (tarihsel kayıt) |
 | [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent talimatları, hafıza yönlendirmesi, iş akışı skill'leri (`CLAUDE.md` → `AGENTS.md` symlink) |
+| [docs-site/](docs-site/) · [docfx/](docfx/) | **Ürün sitesi** (İngilizce, Astro Starlight) ve API referansı üreteci. Ayrı yayın hattı; `dotnet build`'e bağlanmaz. Node 22.12+ gerekir |
 | [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Karar indeksini üretir, doküman bütçelerini denetler |
 
 ---
