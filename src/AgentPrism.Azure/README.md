@@ -1,154 +1,159 @@
 # AgentPrism.Azure
 
-AgentPrism icin Azure OpenAI saglayici adaptoru.
+Azure OpenAI provider adapter for AgentPrism.
 
 ```csharp
 builder.AddAgentPrism()
-       .UseAzureOpenAI(new Uri("https://benim-kaynagim.openai.azure.com/"), apiKey, o =>
+       .UseAzureOpenAI(new Uri("https://my-resource.openai.azure.com/"), apiKey, o =>
        {
-           o.DefaultDeployment = "uretim-gpt";
+           o.DefaultDeployment = "production-gpt";
        });
 ```
 
-Kaydedilen saglayici adi: **`azure-openai`** (`AzureOpenAIProviderNames.AzureOpenAI`).
+Registered provider name: **`azure-openai`** (`AzureOpenAIProviderNames.AzureOpenAI`).
 
-Uretilen her `IChatClient` `AgentPrism.OpenAI` ile ayni boru hattindan gecer:
-`UseFunctionInvocation()` tool cagri dongusunu Microsoft Agent Framework'e birakir,
-`UseOpenTelemetry()` span'leri `AgentPrism` kaynagi altinda uretir. Devre kesici ve
-icerik filtresi tespiti `ModelProviderRegistry` duzeyindedir; bu paket ikisini de
-ek kod yazmadan alir.
+Every `IChatClient` produced goes through the same pipeline as `AgentPrism.OpenAI`:
+`UseFunctionInvocation()` leaves the tool-call loop to the Microsoft Agent Framework,
+`UseOpenTelemetry()` produces spans under the `AgentPrism` source. Circuit breaker and
+content filter detection live at the `ModelProviderRegistry` level; this package gets
+both without any extra code.
 
 ## 🚨 Deployment ≠ model
 
-Azure'da cagrilan sey **model adi degil, deployment adidir**. Deployment adini
-Azure kaynagini kuran kisi secer; ayni model iki kaynakta iki farkli adla
-konuslandirilmis olabilir.
+What gets called in Azure is **the deployment name, not the model name**. The
+deployment name is chosen by whoever provisioned the Azure resource; the same model
+can be deployed under two different names in two different resources.
 
 ```csharp
 Model = new ModelBinding
 {
     Provider = AzureOpenAIProviderNames.AzureOpenAI,
-    Model = "uretim-gpt",     // DEPLOYMENT adi. "gpt-5.4-mini" DEGIL.
+    Model = "production-gpt",     // DEPLOYMENT name. NOT "gpt-5.4-mini".
 }
 ```
 
-Ad istegin yoluna girer:
+The name goes into the request path:
 
 ```
 POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-10-21
 ```
 
-Bu yuzden yanlis bir ad, model bulunamadi hatasi degil **HTTP 404** verir.
-Alan bos birakildiginda hata mesaji da bunu soyler.
+This is why a wrong name produces **HTTP 404**, not a "model not found" error.
+When the field is left empty, the error message says so too.
 
-## Kimlik dogrulama
+## Authentication
 
-Iki yol vardir. Ikisi de verildiginde **yonetilen kimlik kazanir**.
+There are two ways. If both are provided, **managed identity wins**.
 
-### API anahtari
+### API key
 
 ```csharp
 .UseAzureOpenAI(endpoint, apiKey)
 ```
 
-Anahtar bir sirdir; `appsettings.json`'a **yazilmaz**, `dotnet user-secrets`
-kullanilir.
+The key is a secret; it is **never** written to `appsettings.json` — use
+`dotnet user-secrets`.
 
-### Microsoft Entra (yonetilen kimlik)
+### Microsoft Entra (managed identity)
 
-AgentPrism'in "sir saklamama" durusuyla en iyi ortusen yoldur: API anahtari hic
-yoktur.
+The path that best matches AgentPrism's "no secrets stored" stance: there is no API
+key at all.
 
 ```csharp
-// Tuketicinin projesinde:
+// In the consumer's project:
 //   <PackageReference Include="Azure.Identity" Version="..." />
 .UseAzureOpenAI(o =>
 {
-    o.Endpoint = new Uri("https://benim-kaynagim.openai.azure.com/");
+    o.Endpoint = new Uri("https://my-resource.openai.azure.com/");
     o.CredentialFactory = static () => new DefaultAzureCredential();
-    o.DefaultDeployment = "uretim-gpt";
+    o.DefaultDeployment = "production-gpt";
 })
 ```
 
-🚨 **`Azure.Identity` bu paketin bagimliligi DEGILDIR.** Paket yalnizca
-`Azure.Core` soyutlamasina (`TokenCredential`) baglanir; kimligi tuketici secer ve
-yonetilen kimlik kullanmayan tuketici `Azure.Identity` zincirini hic almaz.
+🚨 **`Azure.Identity` is NOT a dependency of this package.** The package only binds to
+the `Azure.Core` abstraction (`TokenCredential`); the consumer chooses the credential,
+and a consumer that doesn't use managed identity never pulls in the `Azure.Identity`
+chain at all.
 
-Egemen bulutlar icin token kapsami degisir:
+Token scope changes for sovereign clouds:
 
 ```csharp
 o.Audience = "https://cognitiveservices.azure.us/.default";   // Azure Government
 ```
 
-Varsayilan: `https://cognitiveservices.azure.com/.default`.
+Default: `https://cognitiveservices.azure.com/.default`.
 
-## Saglayiciya ozgu ayarlar — yoktur
+## Provider-specific settings — none
 
-`ModelBinding.ProviderSettings` icinde bu saglayici **hicbir anahtar
-desteklemez**. Tanimli bir anahtar geldiginde derleme acik bir hatayla durur.
+This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. If a
+defined key is present, the build stops with a clear error.
 
-Sebep olculdur (2026-08-05): Azure'un sohbet istegine ek alan yazan tek yol
-`Azure.AI.OpenAI.Chat.AzureChatExtensions`'tir (`AddDataSource`,
-`SetNewMaxCompletionTokensPropertyEnabled`, `GetDataSources`) ve bu uzantilarin
-**tamami** kullandigimiz OpenAI SDK surumuyle calisma aninda
-`MissingMethodException` verir. Calismayan bir ayari sunmak, hic sunmamaktan
-kotudur. Ayrinti: `docs/KARARLAR.md`, karar K-211.
+The reason is measured (2026-08-05): the only way to write extra fields onto an
+Azure chat request is `Azure.AI.OpenAI.Chat.AzureChatExtensions` (`AddDataSource`,
+`SetNewMaxCompletionTokensPropertyEnabled`, `GetDataSources`), and **all** of these
+extensions throw `MissingMethodException` at runtime against the OpenAI SDK version
+we use. Offering a setting that doesn't work is worse than not offering it at all.
+Details: `docs/KARARLAR.md`, decision K-211.
 
-`max_completion_tokens` alani zaten dogru gonderilir — OpenAI SDK'si bu adi
-kendisi kullanir, Azure uzantisina gerek yoktur (olculdu).
+The `max_completion_tokens` field is already sent correctly — the OpenAI SDK uses
+this name itself, no Azure extension is needed (measured).
 
-## Kullanilan SDK
+## SDK used
 
-Resmi [`Azure.AI.OpenAI`](https://www.nuget.org/packages/Azure.AI.OpenAI) paketi
-(sahip: Microsoft, MIT). Paket OpenAI SDK'sinin ustune yalnizca **yonlendirmeyi**
-ekler: deployment yolu, `api-version` sorgu parametresi ve `api-key` / Entra
-kimligi. Mesaj eslemesi, akis, tool cagrisi ve kullanim sayaclari OpenAI SDK'sinin
-kendi kodundan gelir.
+The official [`Azure.AI.OpenAI`](https://www.nuget.org/packages/Azure.AI.OpenAI)
+package (owner: Microsoft, MIT). The package adds only **routing** on top of the
+OpenAI SDK: the deployment path, the `api-version` query parameter, and
+`api-key` / Entra credentials. Message mapping, streaming, tool calling, and usage
+counters all come from the OpenAI SDK's own code.
 
-Geciseli bagimliliklar: `Azure.Core`, `OpenAI`, `System.ClientModel`,
-`System.Memory.Data`, `Microsoft.Bcl.AsyncInterfaces`. Paket AOT uyumludur
-(`IsAotCompatible=true`, sifir uyari).
+Transitive dependencies: `Azure.Core`, `OpenAI`, `System.ClientModel`,
+`System.Memory.Data`, `Microsoft.Bcl.AsyncInterfaces`. The package is AOT-compatible
+(`IsAotCompatible=true`, zero warnings).
 
-### Desteklenmeyen yuzeyler
+### Unsupported surfaces
 
-- **Responses API.** `AzureOpenAIClient.GetResponsesClient()` Azure'a ozgu bir
-  istemci **dondurmez**; OpenAI'in taban sinifini doner ve Azure'un yol/`api-version`
-  sekline uydugu dogrulanamaz. Bu paket yalnizca Chat Completions kullanir.
-- **Azure OpenAI On Your Data** (`AddDataSource`) — yukaridaki calisma ani kirilmasi.
-- **Azure AI Foundry Agents.** Ayri bir yetenektir (`IAgentSource`, `IModelProvider`
-  degil) ve ayri bir pakete birakildi; bkz. `docs/27-AZURE-FOUNDRY.md`.
+- **Responses API.** `AzureOpenAIClient.GetResponsesClient()` does **not** return an
+  Azure-specific client; it returns OpenAI's base class, and there is no confirmation
+  it conforms to Azure's path/`api-version` shape. This package only uses Chat
+  Completions.
+- **Azure OpenAI On Your Data** (`AddDataSource`) — the runtime breakage described
+  above.
+- **Azure AI Foundry Agents.** This is a separate capability (`IAgentSource`, not
+  `IModelProvider`) and has been left to a separate package; see
+  `docs/27-AZURE-FOUNDRY.md`.
 
-## Saglik denetimi
+## Health check
 
-`GET {endpoint}/openai/models?api-version=2024-10-21` ucuna gider, **ucret
-uretmez**. Kimlik dogrulama `api-key` basligi veya Entra `Bearer` token'i ile
-yapilir. Hata detayi HTTP durum kodu ve kisa nedenle sinirlidir; API anahtari ve
-kaynak adresi **sizmaz**.
+Hits `GET {endpoint}/openai/models?api-version=2024-10-21`, which **produces no
+charge**. Authentication is done with the `api-key` header or an Entra `Bearer`
+token. Error detail is limited to the HTTP status code and a short reason; the API
+key and resource address are **never leaked**.
 
 ```
 GET /agentprism/api/models/health/azure-openai
 ```
 
-🚨 Donen liste **model** listesidir, deployment listesi degildir. Denetimin
-kanitladigi sey sudur: adres dogru, kimlik gecerli, kaynak ayakta. Deployment
-adinin dogrulugu ilk gercek cagrida anlasilir.
+🚨 The list returned is a **model** list, not a deployment list. What the health
+check proves is: the address is correct, the credential is valid, the resource is
+up. Whether the deployment name is correct is only known on the first real call.
 
-## Model katalogu
+## Model catalog
 
-AgentPrism yerlesik model listesi tasimaz (karar K-032). Katalog tamamen
-yapilandirmadan gelir ve **bir dogrulama listesi degildir** — burada olmayan bir
-deployment adi da kullanilabilir. Girdilerin `Name` alani **deployment adidir**.
+AgentPrism does not ship a built-in model list (decision K-032). The catalog comes
+entirely from configuration and **is not a validation list** — a deployment name not
+listed here can still be used. The `Name` field of each entry is **the deployment
+name**.
 
 ```json
 {
   "AgentPrism": {
     "Providers": {
       "AzureOpenAI": {
-        "Endpoint": "https://benim-kaynagim.openai.azure.com/",
+        "Endpoint": "https://my-resource.openai.azure.com/",
         "ApiKey": "",
-        "DefaultDeployment": "uretim-gpt",
+        "DefaultDeployment": "production-gpt",
         "Models": [
-          { "Name": "uretim-gpt", "DisplayName": "Uretim (gpt-5.4-mini)",
+          { "Name": "production-gpt", "DisplayName": "Production (gpt-5.4-mini)",
             "ContextWindowTokens": 128000,
             "InputCostPerMillionTokens": 0.15, "OutputCostPerMillionTokens": 0.6 }
         ]
@@ -158,5 +163,6 @@ deployment adi da kullanilabilir. Girdilerin `Name` alani **deployment adidir**.
 }
 ```
 
-`ApiKey` **asla** bu dosyaya yazilmaz — `dotnet user-secrets` kullanilir.
-`CredentialFactory` bir delegate'tir ve yapilandirmadan okunmaz; kodda verilir.
+`ApiKey` is **never** written to this file — use `dotnet user-secrets`.
+`CredentialFactory` is a delegate and is not read from configuration; it is
+supplied in code.
