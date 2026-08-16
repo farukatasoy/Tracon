@@ -1,36 +1,36 @@
-# AgentPrism.Sql.Shared — paylasilan kaynak
+# AgentPrism.Sql.Shared — shared source
 
-> Bu bir NuGet paketi **degildir** ve kendi `.csproj` dosyasi **yoktur**.
-> Buradaki `.cs` dosyalari her SQL kalicilik paketine `<Compile Include="..." />`
-> ile dogrudan derlenir.
+> This is **not** a NuGet package and has **no** `.csproj` file of its own.
+> The `.cs` files here are compiled directly into each SQL persistence package
+> via `<Compile Include="..." />`.
 
-## Neden paket degil
+## Why not a package
 
-Ucuncu bir paket yayinlamak, tuketicinin asla dogrudan kullanmayacagi bir
-bagimlilik uretirdi ve her surumde ayrica yayin yuku getirirdi. Kaynak
-paylasimi paket sayisini artirmadan kod tekrarini onler.
+Publishing a third package would produce a dependency the consumer would never use
+directly, and would add a release burden on every version. Sharing source avoids
+code duplication without adding to the package count.
 
-Gerekce: `docs/KARARLAR.md`, karar K-176.
+Rationale: `docs/KARARLAR.md`, decision K-176.
 
-## Kimler derler
+## Who compiles it
 
-| Paket | Nasil |
+| Package | How |
 |-------|-------|
 | `AgentPrism.PostgreSql` | `<Compile Include="../AgentPrism.Sql.Shared/**/*.cs" />` |
-| `AgentPrism.SqlServer` | ayni |
+| `AgentPrism.SqlServer` | same |
 
-Her iki derlemede de tipler `AgentPrism` ad alanindadir ve `internal`'dir;
-ayni ada sahip iki tip iki **ayri** derlemede yasadigi icin catisma olmaz.
+In both assemblies the types live in the `AgentPrism` namespace and are `internal`;
+since a type with the same name lives in two **separate** assemblies, there is no
+conflict.
 
-## Ne buraya girer, ne girmez
+## What belongs here, what doesn't
 
-| Girer | Girmez |
+| Belongs | Doesn't belong |
 |-------|--------|
-| Saglayicidan bagimsiz depo uygulamalari (`Stores/Sql*Store.cs`) | SQL metinleri (`SqlQueriesBase` alt siniflari) |
-| `DbCommand` / `DbDataReader` uzerine yardimcilar | Gomulu `.sql` migration dosyalari |
-| Migration calistirici iskeleti ve checksum hesabi | Baglanti dizesi / veri kaynagi kurulumu |
-| Tanim yuku DTO'lari, JSON kaynak ureteci baglami | `Options` siniflari ve `Use*` uzantilari |
+| Provider-independent store implementations (`Stores/Sql*Store.cs`) | SQL text (`SqlQueriesBase` subclasses) |
+| Helpers built on `DbCommand` / `DbDataReader` | Embedded `.sql` migration files |
+| Migration runner scaffolding and checksum computation | Connection string / data source setup |
+| Definition payload DTOs, JSON source generator context | `Options` classes and `Use*` extensions |
 
-**Kural:** buradaki hicbir dosya `Npgsql` veya `Microsoft.Data.SqlClient`
-ad alanina referans veremez. Saglayiciya ozgu her sey `SqlDialect` uzerinden
-gecer.
+**Rule:** no file here may reference the `Npgsql` or `Microsoft.Data.SqlClient`
+namespace. Anything provider-specific goes through `SqlDialect`.

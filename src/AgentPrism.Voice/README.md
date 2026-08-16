@@ -1,64 +1,65 @@
 # AgentPrism.Voice
 
-AgentPrism icin ses tool'lari: metinden ses (TTS) ve sesten metin (STT).
-Uretilen ses AgentPrism'in **ek deposunda** yasar; tool modele yalnizca ekin
-kimligini dondurur.
+Voice tools for AgentPrism: text-to-speech (TTS) and speech-to-text (STT).
+Generated audio lives in AgentPrism's **attachment store**; the tool returns only the
+attachment's ID to the model.
 
-## Kurulum
+## Setup
 
 ```csharp
 builder.AddAgentPrism()
        .UseVoice(configuration.GetSection(VoiceOptions.SectionName));
 ```
 
-API anahtari bir **sirdir** ve dosyaya yazilmaz:
+The API key is a **secret** and is not written to a file:
 
 ```bash
 dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
 ```
 
-## Kaydedilen tool'lar
+## Registered tools
 
-| Tool | Ne yapar | Sonuc |
+| Tool | What it does | Result |
 |------|----------|-------|
-| `speak` | Metni sese cevirir, ek deposuna yazar | Ek **kimligi** |
-| `transcribe` | Bir ses ekini metne cevirir | Cozulen metin |
-| `list_voices` | Kullanilabilir sesleri listeler | Ad + kimlik listesi |
+| `speak` | Converts text to speech, writes it to the attachment store | Attachment **ID** |
+| `transcribe` | Converts an audio attachment to text | Resolved text |
+| `list_voices` | Lists the available voices | List of name + ID |
 
-Tool'lar K-012'nin geregi olarak **kodda** tanimlidir. Arayuzden bir agent'a
-eklenebilir, ama tool **kodu** yazilamaz.
+Per K-012, tools are defined **in code**. A tool can be added to an agent from the
+UI, but tool **code** cannot be written there.
 
 ```csharp
 builder.AddAgentPrism()
        .UseVoice(o =>
        {
-           o.ApiKey = "...";                  // user-secrets'tan gelir
+           o.ApiKey = "...";                  // comes from user-secrets
            o.DefaultVoiceId = "...";
            o.MaxCharactersPerRequest = 5000;
        })
        .AddAgent(new AgentDefinition
        {
-           Name = "sesli-asistan",
-           Instructions = "Kullanici isterse cevabini seslendir.",
+           Name = "voice-assistant",
+           Instructions = "If the user asks, speak your answer aloud.",
            Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
            ToolNames = ["speak", "list_voices"],
        });
 ```
 
-## 🚨 Cikti bicimi ek olarak saklanabilmelidir
+## 🚨 The output format must be storable as an attachment
 
-Ek deposu icerigin turunu **sihirli bayttan** dogrular; istemcinin bildirdigi
-tur kanit sayilmaz. Ham `pcm_*` ve `ulaw_*` ciktilari dosya basligi **tasimaz**
-ve reddedilir. Varsayilan bicim bu yuzden `mp3_44100_128`'dir ve ayar
-dogrulamasi saklanamayan bir bicimi uygulama **baslarken** reddeder.
+The attachment store validates the content type from its **magic bytes**; the type
+reported by the client is not treated as proof. Raw `pcm_*` and `ulaw_*` outputs
+carry **no** file header and are rejected. This is why the default format is
+`mp3_44100_128`, and settings validation rejects a non-storable format at
+application **startup**.
 
-## Maliyet
+## Cost
 
-Ses ucretlendirmesi token degil **karakter** (uretim) veya **sure** (cozum)
-bazlidir. Olcum `tool_invocations` tablosuna yazilir ve token maliyetiyle
-**toplanmaz** — iki farkli birim toplanamaz.
+Voice pricing is based on **characters** (generation) or **duration** (resolution),
+not tokens. The measurement is written to the `tool_invocations` table and is
+**not summed** with token cost — two different units cannot be added together.
 
-Fiyat yapilandirmadan gelir; AgentPrism fiyat uydurmaz (K-032):
+Pricing comes from configuration; AgentPrism does not fabricate prices (K-032):
 
 ```jsonc
 "AgentPrism": {
@@ -74,23 +75,24 @@ Fiyat yapilandirmadan gelir; AgentPrism fiyat uydurmaz (K-032):
 }
 ```
 
-Fiyat tanimli degilse maliyet `NULL` kalir — **sifir degil**.
+If a price is not defined, the cost stays `NULL` — **not zero**.
 
-Saglayici faturalanan karakter sayisini bildirmezse metnin uzunlugu kullanilir
-ve olcum **tahmin** olarak isaretlenir.
+If the provider does not report the billed character count, the length of the text
+is used instead, and the measurement is flagged as an **estimate**.
 
-## Baska bir saglayici
+## A different provider
 
-`ElevenLabs` bir **uygulamadir**, bir bagimlilik degil. Kendi uygulamanizi
-`UseVoice` cagrisindan **once** kaydedin; kayitli uygulama korunur:
+`ElevenLabs` is an **implementation**, not a dependency. Register your own
+implementation **before** the `UseVoice` call; the registered implementation is
+preserved:
 
 ```csharp
-builder.Services.AddSingleton<ISpeechSynthesizer, BenimSaglayicim>();
+builder.Services.AddSingleton<ISpeechSynthesizer, MyProvider>();
 builder.AddAgentPrism().UseVoice(...);
 ```
 
-## Bagimliliklar
+## Dependencies
 
-Paket **hicbir NuGet paketi almaz**. Kullanilan yuzey uc HTTP ucundan ibarettir
-ve ham `HttpClient` + `System.Text.Json` kaynak ureteci ile yazilmistir; paket
-AOT uyumludur.
+The package pulls in **no NuGet packages at all**. The surface used amounts to
+three HTTP endpoints and is written with a raw `HttpClient` + `System.Text.Json`
+source generator; the package is AOT-compatible.

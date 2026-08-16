@@ -1,25 +1,25 @@
 # AgentPrism.PostgreSql
 
-AgentPrism icin PostgreSQL kalicilik katmani.
+PostgreSQL persistence layer for AgentPrism.
 
-Agent tanimlari, oturumlar, konusmalar, calistirmalar ve olaylar ayri bir `agentprism` semasinda saklanir. Tuketici uygulamanin `public` semasina dokunulmaz.
+Agent definitions, sessions, conversations, runs, and events are stored in a separate `agentprism` schema. The consuming application's `public` schema is left untouched.
 
-Gomulu SQL migration'lari uygulama basladiginda `pg_advisory_lock` korumasi altinda uygulanir.
+Embedded SQL migrations are applied at application startup under `pg_advisory_lock` protection.
 
 ```csharp
 builder.AddAgentPrism()
        .UsePostgreSql(connectionString);
 ```
 
-## Kurulum
+## Setup
 
 ```bash
 dotnet add package AgentPrism.PostgreSql
 ```
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
 
-Lisans: MIT
+License: MIT

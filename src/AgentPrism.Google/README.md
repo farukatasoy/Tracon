@@ -1,13 +1,13 @@
 # AgentPrism.Google
 
-AgentPrism icin Google Gemini saglayici adaptoru.
+Google Gemini provider adapter for AgentPrism.
 
 ```csharp
 builder.AddAgentPrism()
        .UseGoogle(apiKey, o => o.DefaultModel = "gemini-3.6-flash");
 ```
 
-Kaydedilen saglayici adi: **`google`** (`GoogleProviderNames.Google`).
+Registered provider name: **`google`** (`GoogleProviderNames.Google`).
 
 ```csharp
 Model = new ModelBinding
@@ -17,45 +17,46 @@ Model = new ModelBinding
 }
 ```
 
-Ad `gemini` degil `google`'dir: ayni paket ileride Vertex AI'yi de kapsayabilir ve
-model ailesinin adina kilitlenmemelidir.
+The name is `google`, not `gemini`: the same package may cover Vertex AI in the
+future and should not be locked to the model family's name.
 
-Uretilen her `IChatClient` `AgentPrism.OpenAI` ile ayni boru hattindan gecer:
-`UseFunctionInvocation()` tool cagri dongusunu Microsoft Agent Framework'e birakir,
-`UseOpenTelemetry()` span'leri `AgentPrism` kaynagi altinda uretir. Devre kesici ve
-icerik filtresi tespiti `ModelProviderRegistry` duzeyindedir.
+Every `IChatClient` produced goes through the same pipeline as `AgentPrism.OpenAI`:
+`UseFunctionInvocation()` leaves the tool-call loop to the Microsoft Agent Framework,
+`UseOpenTelemetry()` produces spans under the `AgentPrism` source. Circuit breaker
+and content filter detection live at the `ModelProviderRegistry` level.
 
-## Kullanilan SDK ve bagimlilik agirligi
+## SDK used and dependency weight
 
-Resmi [`Google.GenAI`](https://www.nuget.org/packages/Google.GenAI) paketi (sahip:
-Google LLC, Apache-2.0). Paket kendi `AsIChatClient` adaptorunu tasir.
+The official [`Google.GenAI`](https://www.nuget.org/packages/Google.GenAI) package
+(owner: Google LLC, Apache-2.0). The package carries its own `AsIChatClient` adapter.
 
-🚨 **Bu paket digerlerinden agirdir.** `Google.Apis.Auth` uzerinden `Newtonsoft.Json`,
-`System.Management` ve `System.CodeDom` gecisli olarak gelir. Agirlik bilerek kabul
-edildi ve bu paketin icinde izole tutuldu: Gemini kullanmayan bir tuketici hicbirini
-almaz. Diger AgentPrism paketleri bu bagimliliklardan etkilenmez.
+🚨 **This package is heavier than the others.** `Newtonsoft.Json`, `System.Management`,
+and `System.CodeDom` come in transitively via `Google.Apis.Auth`. The weight is a
+deliberate trade-off and is kept isolated inside this package: a consumer not using
+Gemini pulls in none of it. Other AgentPrism packages are unaffected by these
+dependencies.
 
-Paket AOT uyumludur (`IsAotCompatible=true`, sifir uyari).
+The package is AOT-compatible (`IsAotCompatible=true`, zero warnings).
 
-## Saglayiciya ozgu ayarlar
+## Provider-specific settings
 
-`ModelBinding.ProviderSettings` sozlugu ile agent basina verilir. **Bu listede
-olmayan bir anahtar sessizce yok sayilmaz** — derleme hatasi verir ve mesaj
-desteklenen anahtarlari yazar.
+Supplied per agent via the `ModelBinding.ProviderSettings` dictionary. **A key not
+in this list is not silently ignored** — it produces a build error, and the message
+lists the supported keys.
 
-| Anahtar | Tip | Aciklama |
+| Key | Type | Description |
 |---|---|---|
-| `google.safety.harassment` | metin | Taciz esigi |
-| `google.safety.hateSpeech` | metin | Nefret soylemi esigi |
-| `google.safety.sexuallyExplicit` | metin | Cinsel icerik esigi |
-| `google.safety.dangerousContent` | metin | Tehlikeli icerik esigi |
-| `google.safety.civicIntegrity` | metin | Sivil butunluk esigi |
-| `google.thinking.budgetTokens` | tam sayi | Dusunme butcesi, `[-1, 65535]` |
-| `google.thinking.includeThoughts` | mantiksal | Dusunme ozeti yanitta dondurulsun mu |
+| `google.safety.harassment` | string | Harassment threshold |
+| `google.safety.hateSpeech` | string | Hate speech threshold |
+| `google.safety.sexuallyExplicit` | string | Sexual content threshold |
+| `google.safety.dangerousContent` | string | Dangerous content threshold |
+| `google.safety.civicIntegrity` | string | Civic integrity threshold |
+| `google.thinking.budgetTokens` | integer | Thinking budget, `[-1, 65535]` |
+| `google.thinking.includeThoughts` | boolean | Whether a thinking summary is returned in the response |
 
-Gecerli esik degerleri: `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
-`BLOCK_ONLY_HIGH`, `BLOCK_NONE`, `OFF`. Taninmayan bir deger derleme hatasi verir
-ve gecerli degerleri listeler.
+Valid threshold values: `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
+`BLOCK_ONLY_HIGH`, `BLOCK_NONE`, `OFF`. An unrecognized value produces a build error
+and lists the valid values.
 
 ```csharp
 ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
@@ -65,37 +66,42 @@ ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgn
 }
 ```
 
-## Guvenlik filtresi bos yanit uretir
+## Safety filter produces an empty response
 
-🚨 Gemini'nin guvenlik filtresi devreye girdiginde yanit **bos** gelir ve bitis
-sebebi `content_filter` olur. AgentPrism bunu "basarili ama bos" saymaz: calistirma
-`Failed` durumuyla ve `RunError.Type = "content_filtered"` ile kaydedilir. Sessiz bos
-yanit, hata ayiklamasi en zor durumdur.
+🚨 When Gemini's safety filter kicks in, the response comes back **empty** and the
+finish reason is `content_filter`. AgentPrism does not treat this as "succeeded but
+empty": the run is recorded with `Failed` status and `RunError.Type =
+"content_filtered"`. A silent empty response is the hardest kind of failure to
+debug.
 
-Tespit `AgentPrism.Core` icindeki ortak dekoratordedir; model metin urettikten sonra
-kesildiyse (kismi cevap) hata atilmaz — elde kullanilabilir bir cevap vardir.
+Detection lives in a shared decorator inside `AgentPrism.Core`; if the model produced
+text before being cut off (a partial response), no error is thrown — there is a
+usable answer in hand.
 
-## Bilinen davranis farklari
+## Known behavioral differences
 
-- **Model adlari hizli eskir.** Olculdu (2026-08-05): `gemini-2.5-flash` cagrisi
-  *"This model is no longer available to new users"* dondu. Katalog yapilandirmadan
-  gelir (karar K-032) ve bir dogrulama listesi degildir.
-- **Model listesi kaynak yolu tasir.** Saglik ucu `models/gemini-3.6-flash` yerine
-  `gemini-3.6-flash` doner; onek temizlenir.
-- **Sistem mesaji ayri bir alandir** (`systemInstruction`); donusumu SDK yapar.
-- **Akista kullanim sayaclari sonda gelir.**
+- **Model names go stale quickly.** Measured (2026-08-05): calling
+  `gemini-2.5-flash` returned *"This model is no longer available to new users"*.
+  The catalog comes from configuration (decision K-032) and is not a validation
+  list.
+- **The model list carries a resource path.** The health endpoint returns
+  `models/gemini-3.6-flash` rather than `gemini-3.6-flash`; the prefix is stripped.
+- **The system message is a separate field** (`systemInstruction`); the SDK handles
+  the conversion.
+- **Usage counters arrive at the end when streaming.**
 
-## Saglik denetimi
+## Health check
 
-`GET {endpoint}/{apiVersion}/models` ucuna gider, **ucret uretmez**. Kimlik
-dogrulamasi `x-goog-api-key` basligi ile yapilir — anahtar sorgu dizesine bilerek
-konmaz, cunku sorgu dizeleri vekil sunucu ve erisim gunluklerine duz metin yazilir.
+Hits `GET {endpoint}/{apiVersion}/models`, which **produces no charge**.
+Authentication is done with the `x-goog-api-key` header — the key is deliberately
+not put in the query string, because query strings get written in plain text to
+proxy and access logs.
 
 ```
 GET /agentprism/api/models/health/google
 ```
 
-## Model katalogu
+## Model catalog
 
 ```json
 {
@@ -115,4 +121,4 @@ GET /agentprism/api/models/health/google
 }
 ```
 
-`ApiKey` **asla** bu dosyaya yazilmaz — `dotnet user-secrets` kullanilir.
+`ApiKey` is **never** written to this file — use `dotnet user-secrets`.

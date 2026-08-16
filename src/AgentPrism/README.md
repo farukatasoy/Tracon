@@ -1,31 +1,31 @@
 # AgentPrism
 
-AgentPrism meta paketi.
+The AgentPrism meta package.
 
-Microsoft Agent Framework uzerine kurulu, PostgreSQL destekli, gomulu yonetim arayuzu olan uretim seviyesi agent kontrol duzlemi.
+A production-grade agent control plane built on the Microsoft Agent Framework, backed by PostgreSQL, with an embedded management UI.
 
-Bu paket tum AgentPrism bilesenlerini tek referansla getirir:
+This package brings in all AgentPrism components with a single reference:
 
-| Paket | Ne yapar |
+| Package | What it does |
 |-------|----------|
-| `AgentPrism.Abstractions` | Sozlesmeler |
-| `AgentPrism.Core` | Calisma zamani, katalog, derleyici |
-| `AgentPrism.PostgreSql` | Kalicilik |
-| `AgentPrism.OpenAI` | OpenAI saglayicisi |
+| `AgentPrism.Abstractions` | Contracts |
+| `AgentPrism.Core` | Runtime, catalog, compiler |
+| `AgentPrism.PostgreSql` | Persistence |
+| `AgentPrism.OpenAI` | OpenAI provider |
 | `AgentPrism.AspNetCore` | HTTP API |
-| `AgentPrism.UI` | Gomulu arayuz |
+| `AgentPrism.UI` | Embedded UI |
 
-Yalnizca bir alt kumeye ihtiyaciniz varsa ilgili paketi tek tek kurun.
+If you only need a subset, install the relevant package individually.
 
-## Kurulum
+## Setup
 
 ```bash
 dotnet add package AgentPrism
 ```
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
 
-Lisans: MIT
+License: MIT
