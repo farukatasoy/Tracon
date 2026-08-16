@@ -4,21 +4,21 @@ using System.Text;
 namespace AgentPrism.Api;
 
 /// <summary>
-/// <see cref="IArchiveSink"/>'in dosya sistemine yazan ornek uygulamasi (Faz 25).
+/// Sample implementation of <see cref="IArchiveSink"/> that writes to the file system.
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism hicbir bulut SDK'sina bagimlilik almaz (karar K-007); bu yuzden
-/// varsayilan bir <see cref="IArchiveSink"/> YOKTUR. Bu sinif bir sablondur —
-/// gercek bir kurulumda S3/Blob/GCS'ye yazan kendi sink'inizi buradan turetin.
+/// AgentPrism takes no dependency on any cloud SDK (decision K-007), so there is
+/// NO default <see cref="IArchiveSink"/>. This class is a template — derive your
+/// own sink that writes to S3/Blob/GCS from it in a real deployment.
 /// </para>
 /// <para>
-/// Bicim: <c>{kok}/{hedef}/{yyyy-MM-dd}.jsonl.gz</c> — satir basina bir JSON
-/// nesnesi, gzip ile sikistirilmis. Ayni gune ait birden fazla parti AYNI
-/// dosyaya EKLENIR: her <see cref="WriteAsync"/> cagrisi kendi gzip "uyesini"
-/// yazar; gzip biçimi ardisik uyelerin birlestirilmesine izin verir ve
-/// standart okuyucular (<c>gzip -d</c>, <see cref="GZipStream"/>) dosyayi
-/// tek bir akis gibi acar.
+/// Format: <c>{root}/{target}/{yyyy-MM-dd}.jsonl.gz</c> — one JSON object per
+/// line, gzip-compressed. Multiple batches for the same day are APPENDED to the
+/// SAME file: each <see cref="WriteAsync"/> call writes its own gzip "member";
+/// the gzip format allows consecutive members to be concatenated, and standard
+/// readers (<c>gzip -d</c>, <see cref="GZipStream"/>) open the file as a single
+/// stream.
 /// </para>
 /// </remarks>
 public sealed class FileSystemArchiveSink(string rootPath) : IArchiveSink
