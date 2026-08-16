@@ -109,9 +109,10 @@ internal sealed class SqlQuotaStore : IQuotaStore
         var command = CreateCommand(_sql.SelectQuotaUsage);
         DbHelpers.Add(command, "tenant_id", query.TenantId);
 
-        // 🚨 `(@p IS NULL OR col = @p)` deseninde parametre NULL olunca surucu
-        // tipi cikaramaz ve PostgreSQL `42P08: could not determine data type`
-        // verir. Isteğe bagli her suzgec parametresi ACIKCA tiplenmelidir.
+        // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
+        // NULL the driver cannot infer its type and PostgreSQL returns
+        // `42P08: could not determine data type`. Every optional filter
+        // parameter must be typed EXPLICITLY.
         Dialect.AddText(command, "agent_name", query.AgentName);
         Dialect.AddInt16(command, "period", query.Period is { } period ? (short?)period : null);
 

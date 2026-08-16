@@ -109,7 +109,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Zamanlayici BUTUN kiracilarin vadesi gelmis zamanlamalarini tek gecişte tarar; kiraci, uretilen isin kaydinda (JobRecord.TenantId) tasinir ve isci o kiraci ile calisir.")]
+        "The scheduler scans ALL tenants' due schedules in a single pass; the tenant travels in the generated job's record (JobRecord.TenantId), and the worker runs with that tenant.")]
     public async ValueTask<IReadOnlyList<JobSchedule>> ListDueAsync(
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
