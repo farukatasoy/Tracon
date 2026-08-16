@@ -221,7 +221,7 @@ public sealed class ChildAgentInvokerTests
         public string TenantId => "test";
     }
 
-    /// <summary>Tek bir agent'i dondüren en kucuk katalog.</summary>
+    /// <summary>The smallest catalog, returning a single agent.</summary>
     private sealed class SingleAgentServices(AIAgent agent) : IServiceProvider, IAgentCatalog
     {
         public object? GetService(Type serviceType)
