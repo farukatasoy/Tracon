@@ -3,18 +3,19 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Idempotency kayitlarini SQL'de saklayan depo (Faz 43).</summary>
+/// <summary>Stores idempotency records in the SQL database (Phase 43).</summary>
 /// <remarks>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryIdempotencyStore"/> ile birebir aynidir
-/// ve ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryIdempotencyStore"/>
+/// and is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// Ayirma DUZ bir <c>INSERT</c>'tir; ikinci bir ayni-anahtarli istek benzersizlik
-/// ihlaline duser ve <see cref="SqlDialect.IsUniqueViolation"/> ile yakalanir —
-/// tipki <c>SqlExperimentStore.StartAsync</c>'in yaptigi gibi. Veritabaninda
-/// yalniz iki durum kalicidir: <c>Reserved</c> (0) ve <c>Completed</c> (2);
-/// <c>InProgress</c>/<c>FingerprintMismatch</c> okuma aninda turetilir.
+/// A reservation is a PLAIN <c>INSERT</c>; a second request with the same key
+/// falls into a uniqueness violation and is caught with
+/// <see cref="SqlDialect.IsUniqueViolation"/> — the same way
+/// <c>SqlExperimentStore.StartAsync</c> does it. Only two states persist in the
+/// database: <c>Reserved</c> (0) and <c>Completed</c> (2);
+/// <c>InProgress</c>/<c>FingerprintMismatch</c> are derived at read time.
 /// </para>
 /// </remarks>
 internal sealed class SqlIdempotencyStore : IIdempotencyStore
@@ -22,8 +23,8 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir SQL idempotency deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new SQL idempotency store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlIdempotencyStore(SqlStoreContext context)
     {
@@ -58,7 +59,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         {
             var existing = await ReadAsync(request.TenantId, request.Key, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
-                    $"'{request.Key}' idempotency anahtari icin ayirma catisti ama kayit okunamadi.", ex);
+                    $"Reservation for idempotency key '{request.Key}' conflicted but the record could not be read.", ex);
 
             if (existing.State != IdempotencyState.Completed)
             {
@@ -141,9 +142,9 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         return new StoredEntry(state, fingerprint, response);
     }
 
-    // 🚨 Kaynak uretilmis baglam: AOT uyumlulugu icin yansimaya dayanan
-    // serilestirme kullanilmaz (SqlWebhookStore.SerializeHeaders/DeserializeHeaders
-    // ile ayni desen).
+    // 🚨 Source-generated context: reflection-based serialization is not used,
+    // for AOT compatibility (same pattern as
+    // SqlWebhookStore.SerializeHeaders/DeserializeHeaders).
     private static string? SerializeHeaders(IReadOnlyDictionary<string, string> headers)
     {
         if (headers.Count == 0)

@@ -3,18 +3,18 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Workflow kontrol noktalarini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores workflow checkpoints in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Durum <c>json</c> sutununda saklanir, <c>jsonb</c> sutununda
-/// <strong>degil</strong>. Microsoft Agent Framework'un kontrol noktasi yuku
-/// polimorfiktir ve <c>$type</c> ayraci bulundugu nesnenin ilk ozelligi olmak
-/// zorundadir; <c>jsonb</c> anahtarlari yeniden siralayarak bu kurali bozar.
-/// Karar K-027, olcum <c>docs/15-WORKFLOWS-YURUTME.md</c>.
+/// 🚨 State is stored in the <c>json</c> column, <strong>not</strong> the
+/// <c>jsonb</c> column. Microsoft Agent Framework's checkpoint payload is
+/// polymorphic and the <c>$type</c> discriminator must be the first property
+/// of the object it is in; <c>jsonb</c> breaks this rule by reordering keys.
+/// Decision K-027, measured in <c>docs/15-WORKFLOWS-YURUTME.md</c>.
 /// </para>
 /// <para>
-/// Parametre de <c>json</c> olarak isaretlenir: varsayilan
-/// metin gonderimi sunucunun sutun tipine dogrudan yazamamasina yol acabilir.
+/// The parameter is also marked as <c>json</c>: the default text send format
+/// can fail to write directly to the server's column type.
 /// </para>
 /// </remarks>
 internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
@@ -22,8 +22,8 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir kontrol noktasi deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new checkpoint store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlWorkflowCheckpointStore(
         SqlStoreContext context)
@@ -34,7 +34,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -79,9 +79,9 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
             .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
             .ConfigureAwait(false);
 
-        // Belge cagiranin omrunu asmalidir: JsonDocument birakildiginda kendi
-        // tamponunu geri verir ve icinden alinan JsonElement gecersizlesir.
-        // Clone() tamponu kopyalar ve degeri bagimsiz kilar.
+        // The document must not outlive the caller: when a JsonDocument is
+        // disposed it returns its buffer, and a JsonElement taken from it
+        // becomes invalid. Clone() copies the buffer and makes the value independent.
         if (raw is null)
         {
             return null;
@@ -142,8 +142,8 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     /// <summary>
-    /// Ustveri satirini okur. <see cref="WorkflowCheckpointRecord.State"/> bos bir
-    /// nesneye ayarlanir: liste sorgusu durum yukunu bilerek secmez.
+    /// Reads a metadata row. <see cref="WorkflowCheckpointRecord.State"/> is set
+    /// to an empty object: the list query deliberately does not select the state payload.
     /// </summary>
     private static WorkflowCheckpointRecord ReadMetadata(DbDataReader reader)
         => new()

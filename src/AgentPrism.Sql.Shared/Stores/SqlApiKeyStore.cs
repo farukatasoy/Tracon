@@ -2,11 +2,11 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Kiraci bazli API anahtarlarini saklayan depo.</summary>
+/// <summary>Store for tenant-scoped API keys.</summary>
 /// <remarks>
-/// 🚨 Bu depo hicbir zaman ham anahtar degeri yazmaz veya okumaz; yalnizca
-/// geri donduruleyemez bir SHA-256 ozeti tutar
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, bolum 53.2).
+/// 🚨 This store never writes or reads the raw key value; it only holds an
+/// irreversible SHA-256 digest
+/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
 /// </remarks>
 internal sealed class SqlApiKeyStore : IApiKeyStore
 {
@@ -14,9 +14,9 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
     private readonly SqlQueriesBase _sql;
     private readonly TimeProvider _timeProvider;
 
-    /// <summary>Yeni bir API anahtari deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse <see cref="TimeProvider.System"/> kullanilir.</param>
+    /// <summary>Creates a new API key store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="timeProvider">The time source. Defaults to <see cref="TimeProvider.System"/> when not given.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlApiKeyStore(SqlStoreContext context, TimeProvider? timeProvider = null)
     {
@@ -27,7 +27,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -77,7 +77,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kiraci bu cagrinin girdisi degil ciktisidir: bir istegi dogrularken hangi kiraciya ait oldugunu henuz bilmeyiz (bolum 53.5).")]
+        "The tenant is the OUTPUT of this call, not its input: while authenticating a request we do not yet know which tenant it belongs to (section 53.5).")]
     public async ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectApiKeyByHash);
@@ -101,7 +101,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Cagiran (ApiKeyAuthenticator) anahtari zaten ozet uzerinden bulmus ve kiraciyi cozmustur; FindByHashAsync ile ayni gerekce.")]
+        "The caller (ApiKeyAuthenticator) has already found the key by its hash and resolved the tenant; same rationale as FindByHashAsync.")]
     public async ValueTask TouchLastUsedAsync(Guid id, DateTimeOffset usedAt, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.TouchApiKeyLastUsed);
@@ -113,7 +113,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kurulum saglik denetimidir (ExternalSurfaceGuard, bolum 53.4); belirli bir kiraciya ozgu degildir.")]
+        "This is a deployment health check (ExternalSurfaceGuard, section 53.4); it is not specific to any one tenant.")]
     public async ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.HasApiKeyWithScope);
@@ -137,8 +137,8 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
             TenantId = reader.GetString(1),
             Name = reader.GetString(2),
 
-            // Sutun 3 (key_hash) BILEREK atlanir: ozet ApiKeyRecord'a hic
-            // girmez (bolum 53.2).
+            // Column 3 (key_hash) is DELIBERATELY skipped: the digest never
+            // enters ApiKeyRecord (section 53.2).
             KeyPrefix = reader.GetString(4),
             Scopes = [.. Dialect.ReadTextArray(reader, 5).Select(ParseScope)],
             ExpiresAt = DbHelpers.GetNullableTimestamp(reader, 6),

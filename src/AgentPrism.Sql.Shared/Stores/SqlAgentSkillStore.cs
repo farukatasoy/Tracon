@@ -3,14 +3,14 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Skill tanimlarini PostgreSQL'de saklayan tenant-yalitimli depo.</summary>
+/// <summary>Tenant-isolated store for skill definitions in the SQL database.</summary>
 internal sealed class SqlAgentSkillStore : IAgentSkillStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir skill deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new skill store.</summary>
+    /// <param name="context">The store context.</param>
     public SqlAgentSkillStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -19,7 +19,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -120,9 +120,9 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
                     DbHelpers.Add(insertScript, "name", script.Name);
                     Dialect.AddText(insertScript, "description", script.Description);
 
-                    // Uzanti noktasiz ve kucuk harfle saklanir: yorumlayici beyaz
-                    // listesi bu bicimde aranir ve iki bicim karisirsa script
-                    // sessizce calistirilamaz hale gelirdi.
+                    // The extension is stored without a dot and lower-cased: the
+                    // interpreter allow-list is searched in this form, and mixing
+                    // the two forms would silently make the script unrunnable.
                     DbHelpers.Add(insertScript, "extension", script.Extension.TrimStart('.').ToLowerInvariant());
                     DbHelpers.Add(insertScript, "content", script.Content);
                     Dialect.AddJsonb(insertScript, "parameters_schema", script.ParametersSchema);

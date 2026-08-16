@@ -4,18 +4,18 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Agent tanimlarini PostgreSQL'de saklayan depo.
+/// Stores agent definitions in the SQL database.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryAgentDefinitionStore"/> ile birebir aynidir:
-/// her kayit surumu artirir, gecmis silinmez, geri alma eski surumu yeni surum olarak
-/// yazar. Iki uygulama arasindaki davranis farki hatadir ve ortak sozlesme testleriyle
-/// korunur.
+/// The behavior contract is identical to <see cref="InMemoryAgentDefinitionStore"/>:
+/// every save increments the version, history is never deleted, and a rollback
+/// writes the old version back as a new version. A behavior difference between
+/// the two implementations is a defect and is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// Tum islemler <see cref="ITenantContext.TenantId"/> ile sinirlidir. Bir kiraci
-/// digerinin tanimini goremez.
+/// All operations are scoped by <see cref="ITenantContext.TenantId"/>. A tenant
+/// cannot see another tenant's definition.
 /// </para>
 /// </remarks>
 internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
@@ -24,9 +24,9 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir tanim deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
+    /// <summary>Creates a new definition store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlAgentDefinitionStore(
         SqlStoreContext context,
@@ -40,7 +40,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -177,7 +177,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
             throw await BuildRollbackFailureAsync(name, version, cancellationToken).ConfigureAwait(false);
         }
 
-        // Geri alma eski surumu SILMEZ; icerigini yeni bir surum olarak kaydeder.
+        // A rollback does NOT delete the old version; it saves its content as a new version.
         return await WriteVersionAsync(name, payload, cancellationToken).ConfigureAwait(false);
     }
 
@@ -208,7 +208,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
                 var written = await DbHelpers
                     .ReadSingleAsync(upsert, static reader => new WrittenVersion(reader.GetGuid(0), reader.GetInt32(1)), cancellationToken)
                     .ConfigureAwait(false)
-                    ?? throw new AgentPrismException($"'{name}' agent tanimi kaydedilemedi: veritabani surum bilgisi dondurmedi.");
+                    ?? throw new AgentPrismException($"Could not save the '{name}' agent definition: the database did not return version information.");
 
                 var insertVersion = _context.CreateCommand(_sql.InsertAgentDefinitionVersion, connection, transaction);
 
@@ -235,8 +235,8 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         var current = await GetAsync(name, cancellationToken).ConfigureAwait(false);
 
         return current is null
-            ? new AgentPrismException($"'{name}' adinda bir agent tanimi bulunamadi.")
-            : new AgentPrismException($"'{name}' agent'inin {version} numarali surumu bulunamadi.");
+            ? new AgentPrismException($"No agent definition named '{name}' was found.")
+            : new AgentPrismException($"Version {version} of the '{name}' agent was not found.");
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
@@ -249,7 +249,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         DateTimeOffset updatedAt)
     {
         var deserialized = JsonSerializer.Deserialize(payload, AgentPrismJsonContext.Default.AgentDefinitionPayload)
-            ?? throw new AgentPrismException($"'{name}' agent tanimi okunamadi: veritabanindaki JSON yuku bos.");
+            ?? throw new AgentPrismException($"Could not read the '{name}' agent definition: the JSON payload in the database is empty.");
 
         return deserialized.ToDefinition(name, version, tenantId, updatedAt);
     }

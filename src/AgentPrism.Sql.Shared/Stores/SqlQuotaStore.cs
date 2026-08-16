@@ -2,15 +2,16 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Kota kurallarini ve tuketim sayaclarini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores quota rules and consumption counters in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryQuotaStore"/> ile birebir aynidir ve
-/// ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryQuotaStore"/> and
+/// is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// 🚨 Cok ornekli bir dagitimda <strong>bu depo gereklidir</strong>: bellek ici
-/// depo her surecte ayri bir sayac tutar ve kota, ornek sayisina bolunur.
+/// 🚨 In a multi-instance deployment <strong>this store is required</strong>:
+/// the in-memory store keeps a separate counter per process, and the quota
+/// ends up divided by the instance count.
 /// </para>
 /// </remarks>
 internal sealed class SqlQuotaStore : IQuotaStore
@@ -18,8 +19,8 @@ internal sealed class SqlQuotaStore : IQuotaStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir kota deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new quota store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlQuotaStore(SqlStoreContext context)
     {
@@ -29,7 +30,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -138,9 +139,9 @@ internal sealed class SqlQuotaStore : IQuotaStore
             {
                 foreach (var (period, periodStart) in periodStarts)
                 {
-                    // Bir calistirma HEM agent sayacini HEM kiraci geneli
-                    // sayacini artirir; kiraci geneli kural agent adini
-                    // bilmeden sorgulanabilsin diye.
+                    // A run increments BOTH the agent counter AND the
+                    // tenant-wide counter, so a tenant-wide rule can be
+                    // queried without knowing the agent name.
                     await IncrementAsync(connection, transaction, consumption, period, periodStart, consumption.AgentName, cancellationToken)
                         .ConfigureAwait(false);
                     await IncrementAsync(connection, transaction, consumption, period, periodStart, string.Empty, cancellationToken)

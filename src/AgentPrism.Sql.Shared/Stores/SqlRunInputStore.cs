@@ -4,18 +4,18 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>Calistirma girdilerini SQL'de saklayan depo (Faz 47).</summary>
+/// <summary>Stores run inputs in the SQL database (Phase 47).</summary>
 /// <remarks>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryRunInputStore"/> ile birebir aynidir
-/// ve ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryRunInputStore"/>
+/// and is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// 🚨 Mesajlar <c>json</c> sutununda saklanir, <c>jsonb</c>'de <strong>degil</strong>:
-/// <c>ChatMessage</c> icerikleri polimorfiktir ve <c>$type</c> ayraci nesnenin
-/// ilk ozelligi olmak zorundadir (K-027). Sutun tipi
-/// <see cref="SqlDialect.AddJson"/> ile degil, semada belirlenir; buradaki
-/// gorev yalnizca metni dogru serilestirmektir.
+/// 🚨 Messages are stored in the <c>json</c> column, <strong>not</strong>
+/// <c>jsonb</c>: <c>ChatMessage</c> content is polymorphic and the <c>$type</c>
+/// discriminator must be the object's first property (K-027). The column type
+/// is fixed by the schema, not by <see cref="SqlDialect.AddJson"/>; the only
+/// job here is serializing the text correctly.
 /// </para>
 /// </remarks>
 internal sealed class SqlRunInputStore : IRunInputStore
@@ -23,8 +23,8 @@ internal sealed class SqlRunInputStore : IRunInputStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir SQL girdi deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new SQL input store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlRunInputStore(SqlStoreContext context)
     {

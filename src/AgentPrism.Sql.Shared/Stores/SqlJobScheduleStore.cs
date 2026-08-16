@@ -3,18 +3,18 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Zamanlama tanimlarini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores schedule definitions in the SQL database.</summary>
 /// <remarks>
-/// Davranis sozlesmesi <see cref="InMemoryJobScheduleStore"/> ile birebir
-/// aynidir ve ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryJobScheduleStore"/>
+/// and is guarded by the shared contract tests.
 /// </remarks>
 internal sealed class SqlJobScheduleStore : IJobScheduleStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir zamanlama deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new schedule store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlJobScheduleStore(SqlStoreContext context)
     {
@@ -24,7 +24,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -122,7 +122,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Zamanlama kimligi ListDueAsync'in dondurdugu satirdan gelir; iyimser kilit bir yaris cozumudur, kiraci sinirlamasi degildir.")]
+        "The schedule id comes from a row returned by ListDueAsync; it is an optimistic-lock race resolution, not a tenant restriction.")]
     public async ValueTask<bool> TryClaimNextRunAsync(
         Guid scheduleId,
         DateTimeOffset expectedNextRunAt,
@@ -161,12 +161,12 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         };
 
     /// <summary>
-    /// jsonb sutununu <see cref="JsonElement"/> olarak okur.
+    /// Reads a jsonb column as a <see cref="JsonElement"/>.
     /// </summary>
     /// <remarks>
-    /// <see cref="JsonDocument"/> birakildiginda kendi tamponunu geri verir ve
-    /// icinden alinan <see cref="JsonElement"/> gecersizlesir; <c>Clone()</c>
-    /// tamponu kopyalar ve degeri cagiranin omrunden bagimsiz kilar.
+    /// When a <see cref="JsonDocument"/> is disposed it returns its buffer, and
+    /// a <see cref="JsonElement"/> taken from it becomes invalid; <c>Clone()</c>
+    /// copies the buffer and makes the value independent of the caller's lifetime.
     /// </remarks>
     private static JsonElement ReadJsonb(DbDataReader reader, int ordinal)
     {

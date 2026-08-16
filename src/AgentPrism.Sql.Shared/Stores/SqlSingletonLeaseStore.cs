@@ -2,23 +2,23 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Tek yurutucu secimi kiralarini SQL'de saklayan depo (Faz 42).</summary>
+/// <summary>Stores single-executor election leases in the SQL database (Phase 42).</summary>
 /// <remarks>
 /// <para>
-/// Oturum kilidi (<c>pg_try_advisory_lock</c>/<c>sp_getapplock</c>) yerine bir
-/// kira tablosu kullanilir: uc saglayicida da (SQLite'in oturum kilidi
-/// karsiligi olmadigi icin) ayni davranisi verir ve bagli baglanti havuzuna
-/// bagimli degildir. Gerekce: <c>docs/42-TEK-YURUTUCU-SECIMI.md</c> bolum 42.3.
+/// A lease table is used instead of a session lock (<c>pg_try_advisory_lock</c>/
+/// <c>sp_getapplock</c>): it behaves the same way across all three providers
+/// (SQLite has no session-lock equivalent) and does not depend on connection
+/// pooling. Rationale: <c>docs/42-TEK-YURUTUCU-SECIMI.md</c> section 42.3.
 /// </para>
-/// <para>Kiraci sutunu yoktur: tek yurutucu secimi kurulum genelinde bir kavramdir.</para>
+/// <para>There is no tenant column: single-executor election is a deployment-wide concept.</para>
 /// </remarks>
 internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir SQL tek yurutucu kira deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new SQL single-executor lease store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlSingletonLeaseStore(SqlStoreContext context)
     {
@@ -32,7 +32,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Tek yurutucu secimi kurulum genelinde bir kavramdir; kira kiraciya degil kume genelindeki bir ise aittir.")]
+        "Single-executor election is a deployment-wide concept; the lease belongs to a cluster-wide job, not a tenant.")]
     public async ValueTask<bool> TryAcquireAsync(
         string name,
         string ownerId,
@@ -57,7 +57,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "TryAcquireAsync ile ayni gerekce: tek yurutucu secimi kurulum genelinde bir kavramdir.")]
+        "Same rationale as TryAcquireAsync: single-executor election is a deployment-wide concept.")]
     public async ValueTask<bool> RenewAsync(
         string name,
         string ownerId,
@@ -80,7 +80,7 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "TryAcquireAsync ile ayni gerekce: tek yurutucu secimi kurulum genelinde bir kavramdir.")]
+        "Same rationale as TryAcquireAsync: single-executor election is a deployment-wide concept.")]
     public async ValueTask ReleaseAsync(string name, string ownerId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

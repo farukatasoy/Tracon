@@ -2,19 +2,19 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Denetim izi kayitlarini PostgreSQL'de saklayan defter.</summary>
+/// <summary>Ledger that stores audit trail records in the SQL database.</summary>
 /// <remarks>
-/// Yazma <c>tenant_id, created_at</c> indeksinden gecen bir okuma ile eslenir
-/// (0001'de kurulan <c>audit_log_tenant_created_idx</c>). Migration gerekmez;
-/// sema Faz 0'dan beri yeterlidir.
+/// A write is matched by a read that goes through the <c>tenant_id, created_at</c>
+/// index (<c>audit_log_tenant_created_idx</c>, set up in 0001). No migration is
+/// needed; the schema has been sufficient since Phase 0.
 /// </remarks>
 internal sealed class SqlAuditLog : IAuditLog
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir denetim izi defteri olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new audit trail ledger.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlAuditLog(SqlStoreContext context)
     {
@@ -24,7 +24,7 @@ internal sealed class SqlAuditLog : IAuditLog
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
