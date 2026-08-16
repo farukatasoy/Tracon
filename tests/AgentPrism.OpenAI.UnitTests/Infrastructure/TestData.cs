@@ -1,13 +1,13 @@
 namespace AgentPrism.OpenAI.UnitTests.Infrastructure;
 
-/// <summary>Testlerde tekrar eden nesneleri ureten yardimcilar.</summary>
+/// <summary>Helpers that produce objects repeated across tests.</summary>
 internal static class TestData
 {
     /// <summary>
-    /// Testlerde kullanilan sahte API anahtari. Gercek bir anahtar degildir ve
-    /// gercek bir cagri yapilmaz; sir tarama desenine takilmayacak sekilde secilmistir.
+    /// The fake API key used in tests. It is not a real key and no real call is made;
+    /// it is chosen so it does not trip the secret scan pattern.
     /// </summary>
-    public const string ApiKey = "test-anahtari-1234567890";
+    public const string ApiKey = "test-api-key-1234567890";
 
     public static ModelBinding Binding(string model = "gpt-4o-mini")
         => new() { Provider = OpenAIProviderNames.ChatCompletions, Model = model };

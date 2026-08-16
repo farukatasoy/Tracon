@@ -4,17 +4,18 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Anthropic.UnitTests;
 
 /// <summary>
-/// Fabrikanin model cozumu, boru hatti kurulumu ve saglayici ayarlarini dogrulamasi.
+/// The factory's model resolution, pipeline setup, and provider settings validation.
 /// </summary>
 public sealed class AnthropicChatClientFactoryTests
 {
     [Fact]
-    public void Fabrika_HAM_istemci_doner_boru_hattini_kurmaz()
+    public void Factory_returns_a_RAW_client_and_does_not_build_the_pipeline()
     {
-        // 🚨 Faz 48: tool cagri dongusu ve telemetri ModelProviderRegistry'ye
-        // tasindi. Fabrika onlari kursaydi ic ice iki FunctionInvokingChatClient
-        // olusur ve defterin ekledigi icerik guard'i dongunun DISINDA kalirdi —
-        // tool sonuclari hic denetlenmezdi.
+        // 🚨 Phase 48: the tool-call loop and telemetry moved to
+        // ModelProviderRegistry. If the factory built them, two nested
+        // FunctionInvokingChatClient instances would form and the content guard
+        // the registry adds would stay OUTSIDE the loop — tool results would
+        // never be inspected.
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 
         chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldBeNull();
@@ -22,7 +23,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Model_bos_ise_varsayilan_model_kullanilir()
+    public void Empty_model_falls_back_to_the_default_model()
     {
         using var chatClient = Factory(options => options.DefaultModel = TestData.Model)
             .CreateChatClient(new ModelBinding { Provider = AnthropicProviderNames.Anthropic, Model = "  " });
@@ -33,7 +34,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Model_ve_varsayilan_model_yoksa_anlasilir_hata_verir()
+    public void Missing_model_and_default_model_gives_a_clear_error()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory()
             .CreateChatClient(new ModelBinding { Provider = AnthropicProviderNames.Anthropic, Model = " " }));
@@ -43,7 +44,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Anahtarsiz_istemci_kurulumu_hata_verir()
+    public void Client_setup_without_a_key_fails()
     {
         var exception = Should.Throw<AgentPrismException>(
             () => AnthropicChatClientFactory.CreateClient(new AnthropicProviderOptions()));
@@ -52,18 +53,18 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Endpoint_verilirse_istemci_ustverisine_yansir()
+    public void Given_endpoint_is_reflected_in_client_metadata()
     {
-        using var chatClient = Factory(options => options.Endpoint = new Uri("https://ornek.gecit/v1"))
+        using var chatClient = Factory(options => options.Endpoint = new Uri("https://example.gateway/v1"))
             .CreateChatClient(TestData.Binding());
 
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
 
-        metadata.ProviderUri!.ToString().ShouldStartWith("https://ornek.gecit/");
+        metadata.ProviderUri!.ToString().ShouldStartWith("https://example.gateway/");
     }
 
     [Fact]
-    public void Desteklenen_saglayici_ayarlari_kabul_edilir()
+    public void Supported_provider_settings_are_accepted()
     {
         using var chatClient = Factory().CreateChatClient(TestData.Binding(
             providerSettings: TestData.Settings(
@@ -74,19 +75,19 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Taninmayan_saglayici_ayari_hata_verir_ve_gecerli_anahtarlari_listeler()
+    public void Unrecognized_provider_setting_fails_and_lists_the_valid_keys()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
-            TestData.Binding(providerSettings: TestData.Settings(("anthropic.bilinmeyenAyar", true)))));
+            TestData.Binding(providerSettings: TestData.Settings(("anthropic.unknownSetting", true)))));
 
-        // Sessizce yok sayilmaz (K-034 deseni); mesaj gecerli anahtarlari yazar.
-        exception.Message.ShouldContain("anthropic.bilinmeyenAyar");
+        // Not silently ignored (K-034 pattern); the message lists the valid keys.
+        exception.Message.ShouldContain("anthropic.unknownSetting");
         exception.Message.ShouldContain(AnthropicProviderNames.PromptCachingSetting);
         exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
     }
 
     [Fact]
-    public void Baska_saglayiciya_ait_ayar_hata_verir()
+    public void Setting_belonging_to_another_provider_fails()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("google.safety.harassment", "BLOCK_NONE")))));
@@ -96,7 +97,7 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Sifir_veya_negatif_dusunme_butcesi_reddedilir()
+    public void Zero_or_negative_thinking_budget_is_rejected()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(
@@ -106,20 +107,20 @@ public sealed class AnthropicChatClientFactoryTests
     }
 
     [Fact]
-    public void Yanlis_tipli_ayar_degeri_reddedilir()
+    public void Wrongly_typed_setting_value_is_rejected()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(
-                (AnthropicProviderNames.ThinkingBudgetTokensSetting, "cok")))));
+                (AnthropicProviderNames.ThinkingBudgetTokensSetting, "too much")))));
 
         exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
     }
 
     [Fact]
-    public void Sifir_varsayilan_cikti_siniri_reddedilir()
+    public void Zero_default_output_limit_is_rejected()
     {
-        // Anthropic Messages API'si max_tokens alanini zorunlu tutar; sifir bir istegi
-        // calisma aninda kirardi.
+        // The Anthropic Messages API requires the max_tokens field; zero would
+        // break a request at run time.
         Should.Throw<ArgumentOutOfRangeException>(() => new AnthropicChatClientFactory(
             AnthropicChatClientFactory.CreateClient(TestData.Options()),
             TestData.Model,

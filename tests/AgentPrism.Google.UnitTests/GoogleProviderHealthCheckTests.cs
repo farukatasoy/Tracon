@@ -5,27 +5,27 @@ using AgentPrism.Google.UnitTests.Infrastructure;
 namespace AgentPrism.Google.UnitTests;
 
 /// <summary>
-/// Saglik denetiminin adres birlestirmesi ve yanit ayristirmasi. Ag cagrisi yapilmaz.
+/// The health check's endpoint join and response parsing. No network call is made.
 /// </summary>
 public sealed class GoogleProviderHealthCheckTests
 {
     [Fact]
-    public void Adres_verilmezse_resmi_uc_ve_varsayilan_surum_kullanilir()
+    public void No_address_uses_the_official_endpoint_and_default_version()
         => GoogleProviderHealthCheck.BuildModelsEndpoint(null, null)
             .ToString().ShouldBe("https://generativelanguage.googleapis.com/v1beta/models");
 
     [Fact]
-    public void Api_surumu_verilirse_adrese_girer()
+    public void Api_version_is_included_in_the_address_when_given()
         => GoogleProviderHealthCheck.BuildModelsEndpoint(null, "v1")
             .ToString().ShouldBe("https://generativelanguage.googleapis.com/v1/models");
 
     [Fact]
-    public void Egik_cizgisiz_taban_adres_son_parcayi_yutmaz()
-        => GoogleProviderHealthCheck.BuildModelsEndpoint(new Uri("https://ornek.gecit/genai"), "v1beta")
-            .ToString().ShouldBe("https://ornek.gecit/genai/v1beta/models");
+    public void Base_address_without_trailing_slash_does_not_swallow_the_last_segment()
+        => GoogleProviderHealthCheck.BuildModelsEndpoint(new Uri("https://example.test/genai"), "v1beta")
+            .ToString().ShouldBe("https://example.test/genai/v1beta/models");
 
     [Fact]
-    public async Task Yanittan_model_adlari_okunur_ve_onek_temizlenir()
+    public async Task Model_names_are_read_from_the_response_and_the_prefix_is_stripped()
     {
         using var response = Json("""
             {"models":[{"name":"models/gemini-3.6-flash"},{"name":"models/gemini-3.1-pro-preview"}]}
@@ -33,24 +33,24 @@ public sealed class GoogleProviderHealthCheckTests
 
         var models = await GoogleProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
-        // ModelBinding.Model alani "models/" onegini tasimaz; onek temizlenmeli.
+        // The ModelBinding.Model field does not carry the "models/" prefix; the prefix must be stripped.
         models.ShouldBe(["gemini-3.1-pro-preview", "gemini-3.6-flash"]);
     }
 
     [Fact]
-    public async Task Oneksiz_ad_oldugu_gibi_kalir()
+    public async Task Name_without_a_prefix_is_left_unchanged()
     {
-        using var response = Json("""{"models":[{"name":"ozel-model"}]}""");
+        using var response = Json("""{"models":[{"name":"custom-model"}]}""");
 
         var models = await GoogleProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
-        models.ShouldBe(["ozel-model"]);
+        models.ShouldBe(["custom-model"]);
     }
 
     [Fact]
-    public async Task Beklenmeyen_govde_bos_liste_dondurur()
+    public async Task Unexpected_body_returns_an_empty_list()
     {
-        // OpenAI bicimi ("data") Gemini icin gecerli degildir; sessizce bos donmeli.
+        // OpenAI's shape ("data") is not valid for Gemini; it must return empty silently.
         using var response = Json("""{"data":[{"id":"gemini-3.6-flash"}]}""");
 
         var models = await GoogleProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
@@ -59,7 +59,7 @@ public sealed class GoogleProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Baglanamayan_ucun_detayinda_ne_anahtar_ne_adres_gorunur()
+    public async Task Unreachable_endpoint_detail_contains_neither_the_key_nor_the_address()
     {
         var options = TestData.Options(o =>
         {
@@ -77,7 +77,7 @@ public sealed class GoogleProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Saglik_ayari_verilmeyen_saglayici_bilinmiyor_dondurur()
+    public async Task Provider_without_health_settings_returns_unknown()
     {
         using var factory = new GoogleChatClientFactory(TestData.Options());
         var provider = new GoogleModelProvider(GoogleProviderNames.Google, factory, []);

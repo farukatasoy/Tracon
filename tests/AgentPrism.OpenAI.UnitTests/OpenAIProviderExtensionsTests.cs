@@ -6,17 +6,17 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.OpenAI.UnitTests;
 
 /// <summary>
-/// <c>UseOpenAI()</c> cagrisinin servis kayitlarini dogrular.
+/// Verifies the service registrations of the <c>UseOpenAI()</c> call.
 /// </summary>
 /// <remarks>
-/// <c>UsePostgreSql()</c> mevcut depolarin yerini aldigi icin <c>Replace</c> kullanir;
-/// bu cagri yeni saglayici <em>ekler</em>, bu yuzden <c>AddModelProvider</c> yeterlidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-025.
+/// <c>UsePostgreSql()</c> uses <c>Replace</c> because it takes the place of existing
+/// stores; this call <em>adds</em> a new provider, so <c>AddModelProvider</c> is enough.
+/// Reason: <c>docs/KARARLAR.md</c>, decision K-025.
 /// </remarks>
 public sealed class OpenAIProviderExtensionsTests
 {
     [Fact]
-    public void UseOpenAI_iki_saglayici_kaydeder()
+    public void UseOpenAI_registers_two_providers()
     {
         using var provider = BuildProvider();
 
@@ -27,7 +27,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Saglayicilar_defterden_ada_gore_cozulur()
+    public void Providers_are_resolved_from_the_registry_by_name()
     {
         using var provider = BuildProvider();
         var registry = provider.GetRequiredService<IModelProviderRegistry>();
@@ -42,7 +42,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Saglayici_adi_buyuk_kucuk_harfe_duyarsizdir()
+    public void Provider_name_is_case_insensitive()
     {
         using var provider = BuildProvider();
 
@@ -53,9 +53,9 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Iki_saglayici_ayni_istemci_fabrikasini_paylasir()
+    public void Both_providers_share_the_same_chat_client_factory()
     {
-        // Tek OpenAIClient, tek HTTP baglanti havuzu. Iki fabrika kurulursa havuz parcalanir.
+        // One OpenAIClient, one HTTP connection pool. Two factories would fragment the pool.
         using var provider = BuildProvider();
 
         var providers = provider.GetServices<IModelProvider>().OfType<OpenAIModelProvider>().ToList();
@@ -66,7 +66,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Ikinci_cagri_saglayicilari_cogaltmaz()
+    public void Second_call_does_not_duplicate_providers()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism()
@@ -81,9 +81,9 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Katalog_varsayilan_olarak_bostur()
+    public void Catalog_is_empty_by_default()
     {
-        // AgentPrism yerlesik model listesi tasimaz; karar K-032.
+        // AgentPrism carries no built-in model list; decision K-032.
         using var provider = BuildProvider();
 
         var descriptors = provider.GetRequiredService<IModelProviderRegistry>().List();
@@ -93,7 +93,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_verilen_katalog_defterde_gorunur()
+    public void Catalog_given_in_code_appears_in_the_registry()
     {
         using var provider = BuildProvider(options =>
             options.Models.Add(new ModelDescriptor { Name = "gpt-5.4-mini" }));
@@ -104,17 +104,17 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Ayarlar_yapilandirmadan_okunur()
+    public void Options_are_read_from_configuration()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
                 ["DefaultModel"] = "gpt-4.1-mini",
-                ["Endpoint"] = "https://ara-sunucu.example.com/v1/",
+                ["Endpoint"] = "https://intermediate-server.example.com/v1/",
                 ["Organization"] = "org-test",
                 ["Timeout"] = "00:01:30",
-                ["Models:0:Name"] = "ozel-model",
+                ["Models:0:Name"] = "custom-model",
                 ["Models:0:ContextWindowTokens"] = "65536",
                 ["Models:0:InputCostPerMillionTokens"] = "1.25",
                 ["Models:0:SupportsReasoning"] = "true",
@@ -129,12 +129,12 @@ public sealed class OpenAIProviderExtensionsTests
 
         options.ApiKey.ShouldBe(TestData.ApiKey);
         options.DefaultModel.ShouldBe("gpt-4.1-mini");
-        options.Endpoint.ShouldBe(new Uri("https://ara-sunucu.example.com/v1/"));
+        options.Endpoint.ShouldBe(new Uri("https://intermediate-server.example.com/v1/"));
         options.Organization.ShouldBe("org-test");
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(90));
 
         var model = options.Models.ShouldHaveSingleItem();
-        model.Name.ShouldBe("ozel-model");
+        model.Name.ShouldBe("custom-model");
         model.ContextWindowTokens.ShouldBe(65_536);
         model.InputCostPerMillionTokens.ShouldBe(1.25m);
         model.SupportsReasoning.ShouldBeTrue();
@@ -142,13 +142,13 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_model_katalogda_gorunur()
+    public void Model_from_configuration_appears_in_the_catalog()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
-                ["Models:0:Name"] = "yalnizca-bu",
+                ["Models:0:Name"] = "only-this-one",
             })
             .Build();
 
@@ -159,11 +159,11 @@ public sealed class OpenAIProviderExtensionsTests
 
         var descriptor = provider.GetRequiredService<IModelProviderRegistry>().List()[0];
 
-        descriptor.Models.ShouldHaveSingleItem().Name.ShouldBe("yalnizca-bu");
+        descriptor.Models.ShouldHaveSingleItem().Name.ShouldBe("only-this-one");
     }
 
     [Fact]
-    public void Api_anahtari_bos_ise_dogrulama_hata_verir()
+    public void Empty_api_key_fails_validation()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseOpenAI(options => options.ApiKey = "   ");
@@ -177,7 +177,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Goreli_adres_reddedilir()
+    public void Relative_address_is_rejected()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseOpenAI(TestData.ApiKey, options => options.Endpoint = new Uri("/v1", UriKind.Relative));
@@ -189,16 +189,16 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_goreli_adres_reddedilir()
+    public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-001: Bind() eskiden Uri.TryCreate(..., UriKind.Absolute, ...)
-        // basarisiz olunca Endpoint'i hic atamiyordu; deger doğrulayiciya
-        // ulasmadan sessizce eleniyordu.
+        // HATA-S3-001: Bind() used to never assign Endpoint at all when
+        // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
+        // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
-                ["Endpoint"] = "sadece-bir-yol",
+                ["Endpoint"] = "just-a-path",
             })
             .Build();
 
@@ -213,10 +213,10 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_adsiz_model_reddedilir()
+    public void Nameless_model_from_configuration_is_rejected()
     {
-        // HATA-S3-002: BindModels() eskiden bos Name'li ogeyi listeye hic
-        // eklemiyordu; doğrulayici boş isimli bir öge asla görmüyordu.
+        // HATA-S3-002: BindModels() used to never add an item with an empty Name to the
+        // list at all; the validator never saw an item with an empty name.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -237,7 +237,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Sifir_sure_siniri_reddedilir()
+    public void Zero_timeout_is_rejected()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseOpenAI(TestData.ApiKey, options => options.Timeout = TimeSpan.Zero);
@@ -249,7 +249,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Bos_api_anahtari_argumani_reddedilir()
+    public void Empty_api_key_argument_is_rejected()
     {
         var builder = new ServiceCollection().AddAgentPrism();
 
@@ -257,7 +257,7 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Null_zincir_reddedilir()
+    public void Null_chain_is_rejected()
         => Should.Throw<ArgumentNullException>(
             () => OpenAIProviderExtensions.UseOpenAI(null!, TestData.ApiKey));
 

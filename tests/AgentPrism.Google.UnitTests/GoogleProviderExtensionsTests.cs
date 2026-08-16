@@ -6,12 +6,12 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Google.UnitTests;
 
 /// <summary>
-/// <c>UseGoogle()</c> kaydinin sekli, tekrarlanmasi ve yapilandirmadan baglanmasi.
+/// The shape of the <c>UseGoogle()</c> registration, its idempotency, and binding from configuration.
 /// </summary>
 public sealed class GoogleProviderExtensionsTests
 {
     [Fact]
-    public void Tek_saglayici_kaydeder()
+    public void Registers_a_single_provider()
     {
         using var provider = Build(builder => builder.UseGoogle(TestData.ApiKey));
 
@@ -20,14 +20,14 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Saglayici_adi_gemini_degil_google()
+    public void Provider_name_is_google_not_gemini()
     {
-        // Ad kararlidir: agent tanimlari veritabaninda bu adla saklanir.
+        // The name is stable: agent definitions are stored in the database with this name.
         GoogleProviderNames.Google.ShouldBe("google");
     }
 
     [Fact]
-    public void Ikinci_cagri_saglayiciyi_cogaltmaz()
+    public void Second_call_does_not_duplicate_the_provider()
     {
         using var provider = Build(builder => builder
             .UseGoogle(TestData.ApiKey)
@@ -40,7 +40,7 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Tek_fabrika_paylasilir()
+    public void Single_factory_is_shared()
     {
         using var provider = Build(builder => builder.UseGoogle(TestData.ApiKey));
 
@@ -49,14 +49,14 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_okur()
+    public void Reads_from_configuration()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
                 ["DefaultModel"] = TestData.Model,
-                ["Endpoint"] = "https://ornek.gecit",
+                ["Endpoint"] = "https://example.test",
                 ["ApiVersion"] = "v1beta",
                 ["Timeout"] = "00:00:30",
                 ["Models:0:Name"] = TestData.Model,
@@ -71,7 +71,7 @@ public sealed class GoogleProviderExtensionsTests
 
         options.ApiKey.ShouldBe(TestData.ApiKey);
         options.DefaultModel.ShouldBe(TestData.Model);
-        options.Endpoint.ShouldBe(new Uri("https://ornek.gecit"));
+        options.Endpoint.ShouldBe(new Uri("https://example.test"));
         options.ApiVersion.ShouldBe("v1beta");
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(30));
         options.Models.Single().ContextWindowTokens.ShouldBe(1048576);
@@ -79,16 +79,16 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_goreli_adres_reddedilir()
+    public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-003: Bind() eskiden Uri.TryCreate(..., UriKind.Absolute, ...)
-        // basarisiz olunca Endpoint'i hic atamiyordu; deger doğrulayiciya
-        // ulasmadan sessizce eleniyordu.
+        // HATA-S3-003: Bind() used to leave Endpoint unassigned whenever
+        // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
+        // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
-                ["Endpoint"] = "sadece-bir-yol",
+                ["Endpoint"] = "just-a-path",
             })
             .Build();
 
@@ -100,10 +100,10 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_adsiz_model_reddedilir()
+    public void Unnamed_model_from_configuration_is_rejected()
     {
-        // HATA-S3-004: BindModels() eskiden bos Name'li ogeyi listeye hic
-        // eklemiyordu; doğrulayici boş isimli bir öge asla görmüyordu.
+        // HATA-S3-004: BindModels() used to never add an entry with an empty Name
+        // to the list; the validator never saw an empty-named entry at all.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -121,7 +121,7 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Anahtarsiz_kayit_baslangicta_hata_verir()
+    public void Registration_without_a_key_fails_at_startup()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseGoogle(options => options.DefaultModel = TestData.Model);
@@ -134,7 +134,7 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Bos_anahtar_argumani_reddedilir()
+    public void Empty_key_argument_is_rejected()
     {
         var services = new ServiceCollection();
 
@@ -142,7 +142,7 @@ public sealed class GoogleProviderExtensionsTests
     }
 
     [Fact]
-    public void Katalog_yapilandirmadan_gelir_ve_saglayiciya_yansir()
+    public void Catalog_comes_from_configuration_and_reflects_in_the_provider()
     {
         using var provider = Build(builder => builder.UseGoogle(TestData.ApiKey, options =>
         {
