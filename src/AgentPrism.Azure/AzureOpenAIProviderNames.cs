@@ -1,43 +1,45 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>UseAzureOpenAI()</c> cagrisinin kaydettigi saglayici adi ve
-/// <see cref="ModelBinding.ProviderSettings"/> anahtarlari.
+/// The provider name registered by the <c>UseAzureOpenAI()</c> call, and the
+/// <see cref="ModelBinding.ProviderSettings"/> keys.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu adlar <strong>kararlidir</strong>. Agent tanimlari veritabaninda bu adlarla
-/// saklanir; degistirmek kayitli tanimlari bozar.
+/// These names are <strong>stable</strong>. Agent definitions are stored in the
+/// database under these names; changing them breaks stored definitions.
 /// </para>
 /// <para>
-/// Ad <c>azure</c> degil <c>azure-openai</c>'dir: paket ileride baska bir Azure
-/// model servisini de kaydedebilir ve o zaman <c>azure</c> adi neyi gosterdigini
-/// soylemez olurdu. Gerekce: <c>docs/KARARLAR.md</c>, karar K-210.
+/// The name is <c>azure-openai</c>, not <c>azure</c>: the package may later
+/// register another Azure model service, at which point the name <c>azure</c>
+/// would no longer say what it refers to. Rationale: <c>docs/KARARLAR.md</c>,
+/// decision K-210.
 /// </para>
 /// </remarks>
 public static class AzureOpenAIProviderNames
 {
-    /// <summary>Azure OpenAI Chat Completions ucunu kullanan saglayici: <c>azure-openai</c>.</summary>
+    /// <summary>The provider that uses the Azure OpenAI Chat Completions endpoint: <c>azure-openai</c>.</summary>
     public const string AzureOpenAI = "azure-openai";
 
-    /// <summary>Saglayiciya ozgu ayarlarin oneki: <c>azure-openai</c>.</summary>
+    /// <summary>The prefix for provider-specific settings: <c>azure-openai</c>.</summary>
     public const string SettingsPrefix = "azure-openai";
 
     /// <summary>
-    /// Bu saglayicinin destekledigi ayar anahtarlari. <strong>Bugun bostur.</strong>
+    /// The setting keys this provider supports. <strong>Empty today.</strong>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Liste bilincli olarak bostur. Azure'un sohbet istegine ekleyebilecegi
-    /// ozel alanlar (veri kaynaklari, <c>max_completion_tokens</c> anahtari)
-    /// <c>Azure.AI.OpenAI.Chat.AzureChatExtensions</c> uzerinden yazilir; olculdu
-    /// (2026-08-05) ki bu uzantilarin <strong>tamami</strong> kullandigimiz OpenAI
-    /// SDK surumuyle calisma aninda <c>MissingMethodException</c> verir. Calismayan
-    /// bir ayari sunmak, hic sunmamaktan kotudur. Ayrinti: karar K-211.
+    /// The list is deliberately empty. The custom fields Azure lets you add to
+    /// a chat request (data sources, the <c>max_completion_tokens</c> key) are
+    /// written through <c>Azure.AI.OpenAI.Chat.AzureChatExtensions</c>; it was
+    /// measured (2026-08-05) that <strong>all</strong> of these extensions throw
+    /// <c>MissingMethodException</c> at run time against the OpenAI SDK version
+    /// we use. Offering a setting that doesn't work is worse than not offering
+    /// it at all. Detail: decision K-211.
     /// </para>
     /// <para>
-    /// Liste bos oldugu icin <see cref="ModelProviderSettings.Validate"/> herhangi
-    /// bir anahtari reddeder ve mesajinda "hicbir ek ayar desteklemiyor" der.
+    /// Because the list is empty, <see cref="ModelProviderSettings.Validate"/>
+    /// rejects any key and says "supports no extra settings" in its message.
     /// </para>
     /// </remarks>
     public static IReadOnlyList<string> SupportedSettings { get; } = [];

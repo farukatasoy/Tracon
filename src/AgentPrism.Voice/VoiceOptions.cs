@@ -1,84 +1,85 @@
 namespace AgentPrism;
 
-/// <summary>Ses tool'larinin ayarlari.</summary>
+/// <summary>Settings for the voice tools.</summary>
 /// <remarks>
-/// 🚨 Tur bir <c>record</c> <strong>olamaz</strong> (K-035): derleyicinin urettigi
-/// <c>ToString</c> tum ozellikleri yazar ve tek bir <c>LogDebug("{Options}", o)</c>
-/// cagrisi <see cref="ApiKey"/> degerini gunluge ifsa ederdi.
-/// <c>SecretLeakTests</c> tipin kendi <c>ToString</c>'ini tanimlamadigini denetler.
+/// 🚨 The type <strong>cannot</strong> be a <c>record</c> (K-035): the compiler-generated
+/// <c>ToString</c> writes every property, and a single <c>LogDebug("{Options}", o)</c>
+/// call would leak <see cref="ApiKey"/> into the log.
+/// <c>SecretLeakTests</c> verifies the type does not define its own <c>ToString</c>.
 /// </remarks>
 public sealed class VoiceOptions
 {
-    /// <summary>Yapilandirma bolumunun varsayilan adi.</summary>
+    /// <summary>Default name of the configuration section.</summary>
     public const string SectionName = "AgentPrism:Voice";
 
-    /// <summary>Varsayilan cikti bicimi.</summary>
+    /// <summary>Default output format.</summary>
     /// <remarks>
-    /// 🚨 MP3 secilmistir cunku ek deposu tur denetimini <strong>sihirli bayttan</strong>
-    /// yapar. <c>pcm_*</c> ve <c>ulaw_*</c> ciktilari basliksizdir ve reddedilir.
+    /// 🚨 MP3 is chosen because the attachment store does type checking from the
+    /// <strong>magic byte</strong>. <c>pcm_*</c> and <c>ulaw_*</c> outputs have no header
+    /// and are rejected.
     /// </remarks>
     public const string DefaultOutputFormat = "mp3_44100_128";
 
-    /// <summary>Saglayici adi. Su an yalnizca <c>elevenlabs</c> desteklenir.</summary>
+    /// <summary>Provider name. Currently only <c>elevenlabs</c> is supported.</summary>
     public string Provider { get; set; } = VoiceProviderNames.ElevenLabs;
 
     /// <summary>
-    /// API anahtari. Bir <strong>sirdir</strong>: yalnizca
-    /// <c>dotnet user-secrets</c> veya ortam degiskeninde yasar.
+    /// The API key. A <strong>secret</strong>: it lives only in
+    /// <c>dotnet user-secrets</c> or an environment variable.
     /// </summary>
     /// <remarks>
-    /// Anahtarin <em>adi</em> degil <em>degeri</em> tutulur. K-059 sirlarin
-    /// VERITABANINA yazilmasini yasaklar; ses yapilandirmasi veritabanina hic
-    /// girmez ve diger dort saglayici paketi de duz <c>ApiKey</c> tasir.
+    /// The key's <em>value</em> is held here, not its <em>name</em>. K-059 forbids
+    /// writing secrets to the DATABASE; voice configuration never reaches the
+    /// database, and the other four provider packages also carry a plain <c>ApiKey</c>.
     /// </remarks>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Taban adres. Bos ise saglayicinin genel adresi kullanilir.
+    /// Base address. When empty, the provider's public address is used.
     /// </summary>
     public Uri? Endpoint { get; set; }
 
-    /// <summary>Istek ses kimligi vermezse kullanilacak ses.</summary>
+    /// <summary>Voice to use when the request gives no voice id.</summary>
     public string? DefaultVoiceId { get; set; }
 
-    /// <summary>Varsayilan sentez modeli.</summary>
+    /// <summary>Default synthesis model.</summary>
     public string? SynthesisModelId { get; set; }
 
-    /// <summary>Varsayilan cozum modeli.</summary>
+    /// <summary>Default transcription model.</summary>
     public string? TranscriptionModelId { get; set; }
 
-    /// <summary>Cikti bicimi.</summary>
+    /// <summary>Output format.</summary>
     public string OutputFormat { get; set; } = DefaultOutputFormat;
 
     /// <summary>
-    /// Tek istekte seslendirilebilecek en fazla karakter. Varsayilan 5.000.
+    /// Maximum characters that can be spoken in a single request. Default 5,000.
     /// </summary>
     /// <remarks>
-    /// Sinir asilirsa tool <strong>hata dondurur</strong>, metni sessizce
-    /// kirpmaz. Kirpma, kullanicinin duymadigi bir cumle uretir ve sebebi
-    /// gorunmez olur.
+    /// When the limit is exceeded, the tool <strong>returns an error</strong>; it does
+    /// not silently truncate the text. Truncation produces a sentence the user never
+    /// hears, and the reason becomes invisible.
     /// </remarks>
     public int MaxCharactersPerRequest { get; set; } = 5000;
 
-    /// <summary>Ayni anda kac ses istegi yapilabilecegi. Varsayilan 2.</summary>
+    /// <summary>How many voice requests can run at once. Default 2.</summary>
     public int MaxConcurrentRequests { get; set; } = 2;
 
     /// <summary>
-    /// Ses tool'lari cagri oncesi acik onay istesin mi. Varsayilan <see langword="false"/>.
+    /// Whether voice tools require explicit approval before a call. Default <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// Tool geri alinamaz bir dis etki yaratmaz — dosya uretir ve ucret harcar.
-    /// Ucret bir gerekce olabilir; bu yuzden ayar vardir ve varsayilan kapalidir.
+    /// The tool causes no irreversible side effect — it produces a file and spends
+    /// money. Cost can be a reason on its own; that is why the setting exists, off by default.
     /// </remarks>
     public bool RequireApproval { get; set; }
 
-    /// <summary>Istek zaman asimi. Bos ise 100 saniye.</summary>
+    /// <summary>Request timeout. 100 seconds when empty.</summary>
     public TimeSpan? Timeout { get; set; }
 }
 
-/// <summary>Bilinen ses saglayicilarinin adlari.</summary>
+/// <summary>Names of known voice providers.</summary>
 public static class VoiceProviderNames
 {
-    /// <summary>ElevenLabs. 🚨 KARARLI ad: olcum kayitlarinda saklanir.</summary>
+    /// <summary>ElevenLabs. 🚨 STABLE name: stored in usage records.</summary>
     public const string ElevenLabs = "elevenlabs";
 }

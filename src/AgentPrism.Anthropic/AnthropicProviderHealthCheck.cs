@@ -4,24 +4,24 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>GET {endpoint}/models</c> ucuna giderek Anthropic saglayicisinin
-/// erisilebilirligini denetler.
+/// Checks the Anthropic provider's reachability by calling <c>GET {endpoint}/models</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu uc model adlarini doner ve <strong>ucret uretmez</strong> — model cagrisi
-/// yapilmaz. Desen <c>OpenAIProviderHealthCheck</c> ile birebir aynidir
-/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3).
+/// This endpoint returns model names and <strong>incurs no cost</strong> — no model
+/// call is made. The pattern is identical to <c>OpenAIProviderHealthCheck</c>
+/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3).
 /// </para>
 /// <para>
-/// SDK yerine dogrudan <see cref="HttpClient"/> kullanilir: denetim yolunun hata
-/// detayinin sir ve adres tasimadigi burada tam olarak denetlenebilir, ayrica
-/// <c>internal static</c> yardimcilar ag cagrisi olmadan test edilebilir.
+/// <see cref="HttpClient"/> is used directly instead of the SDK: this lets the
+/// check path be fully verified to carry neither secret nor address in its error
+/// detail, and lets the <c>internal static</c> helpers be tested without a
+/// network call.
 /// </para>
 /// <para>
-/// Anthropic kimlik dogrulamasi <c>Authorization: Bearer</c> degil, <c>x-api-key</c>
-/// basligi ile yapilir ve <c>anthropic-version</c> basligi <strong>zorunludur</strong>;
-/// eksikse uc <c>HTTP 400</c> doner.
+/// Anthropic authentication uses the <c>x-api-key</c> header, not
+/// <c>Authorization: Bearer</c>, and the <c>anthropic-version</c> header is
+/// <strong>required</strong>; the endpoint returns <c>HTTP 400</c> when it is missing.
 /// </para>
 /// </remarks>
 internal sealed class AnthropicProviderHealthCheck(string providerName, AnthropicProviderOptions options)
@@ -32,8 +32,8 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     private const int MaxReportedModels = 200;
 
     /// <summary>
-    /// Anthropic'in istedigi API surum basligi. Tarihli bir surum kimligidir ve
-    /// gunun tarihi degildir; yukseltmek bilincli bir karardir.
+    /// The API version header Anthropic requires. It is a dated version id, not
+    /// today's date; bumping it is a deliberate decision.
     /// </summary>
     internal const string AnthropicVersion = "2023-06-01";
 
@@ -83,15 +83,16 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Zaman asimi.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
         }
         catch (HttpRequestException exception)
         {
             stopwatch.Stop();
 
-            // exception.Message baglanti reddi gibi durumlarda hedef adresi (host:port)
-            // govdeye gomer. HttpRequestError adres tasimayan bir kategori adidir (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Baglanti hatasi ({exception.HttpRequestError}).");
+            // exception.Message embeds the target address (host:port) in the body in
+            // cases such as a refused connection. HttpRequestError is a category name
+            // that carries no address (.NET 8+).
+            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }
         catch (JsonException)
         {
@@ -100,7 +101,7 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
             {
                 ProviderName = providerName,
                 Status = ModelProviderHealthStatus.Degraded,
-                Detail = "Yanit gecerli JSON degil.",
+                Detail = "The response is not valid JSON.",
                 Latency = stopwatch.Elapsed,
                 CheckedAt = checkedAt,
             };
@@ -118,11 +119,11 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
         };
 
     /// <summary>
-    /// Taban adresi <c>/models</c> ile birlestirir. Taban adres egik cizgi ile
-    /// bitmiyorsa <see cref="Uri"/> son parcayi DEGISTIRIR (dosya gibi davranir);
-    /// bu yuzden birlestirmeden once normalize edilir.
+    /// Joins the base address with <c>/models</c>. When the base address does not
+    /// end with a slash, <see cref="Uri"/> REPLACES its last segment (treating it
+    /// like a file); the address is therefore normalized before joining.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri ag cagrisi yapmadan bu birlestirmeyi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify this join without a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri? baseEndpoint)
     {
         var effective = baseEndpoint ?? DefaultAnthropicEndpoint;
@@ -137,9 +138,9 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     }
 
     /// <summary>
-    /// <c>{"data":[{"id":"claude-..."}]}</c> govdesinden model kimliklerini okur.
+    /// Reads model ids from a <c>{"data":[{"id":"claude-..."}]}</c> body.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri hazir bir yanit govdesiyle ayristirmayi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify parsing against a canned response body.</remarks>
     internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

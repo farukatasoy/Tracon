@@ -1,103 +1,103 @@
 # AgentPrism.OpenAI
 
-AgentPrism icin OpenAI saglayici adaptoru.
+The OpenAI provider adapter for AgentPrism.
 
 ```csharp
 builder.AddAgentPrism()
        .UseOpenAI(apiKey);
 ```
 
-Tek cagri **iki** saglayici kaydeder:
+A single call registers **two** providers:
 
-| Saglayici adi | OpenAI API | Konusma gecmisi |
+| Provider name | OpenAI API | Conversation history |
 |---------------|-----------|-----------------|
-| `openai` | Chat Completions | AgentPrism (PostgreSQL veya bellek) |
-| `openai-responses` | Responses | AgentPrism (ayni) |
+| `openai` | Chat Completions | AgentPrism (PostgreSQL or in-memory) |
+| `openai-responses` | Responses | AgentPrism (same) |
 
-Secim agent tanimindaki `ModelBinding.Provider` ile yapilir:
+The choice is made with `ModelBinding.Provider` in the agent definition:
 
 ```csharp
 Model = new ModelBinding
 {
-    Provider = OpenAIProviderNames.ChatCompletions,   // veya .Responses
+    Provider = OpenAIProviderNames.ChatCompletions,   // or .Responses
     Model = "gpt-5.4-mini",
-    ReasoningEffort = "medium",                       // destekleyen modellerde
+    ReasoningEffort = "medium",                       // on models that support it
 }
 ```
 
-Uretilen her `IChatClient` ayni boru hattindan gecer: `UseFunctionInvocation()` tool
-cagri dongusunu Microsoft Agent Framework'e birakir, `UseOpenTelemetry()` span'leri
-`AgentPrism` kaynagi altinda uretir.
+Every produced `IChatClient` goes through the same pipeline: `UseFunctionInvocation()`
+leaves the tool call loop to the Microsoft Agent Framework, and `UseOpenTelemetry()`
+produces spans under the `AgentPrism` source.
 
-## OpenAI uyumlu herhangi bir uç (OpenRouter, Groq, vLLM, yerel sunucular)
+## Any OpenAI compatible endpoint (OpenRouter, Groq, vLLM, local servers)
 
-`UseOpenAICompatible(ad, ...)` aynı paketin farklı bir uca bağlanan sürümüdür.
-Aynı ayar şekli (`OpenAIProviderOptions`) kullanılır; taban adres uyumlu
-sunucuya işaret eder:
+`UseOpenAICompatible(name, ...)` is a variant of the same package that connects to a
+different endpoint. It uses the same options shape (`OpenAIProviderOptions`); the base
+address points at the compatible server:
 
 ```csharp
 builder.AddAgentPrism()
-       .UseOpenAI(apiKey)                                   // degismedi
+       .UseOpenAI(apiKey)                                   // unchanged
        .UseOpenAICompatible("openrouter", o =>
        {
            o.Endpoint = new Uri("https://openrouter.ai/api/v1");
-           o.ApiKey   = configuration["OpenRouter:ApiKey"];  // SIR: user-secrets
+           o.ApiKey   = configuration["OpenRouter:ApiKey"];  // secret: user-secrets
        });
 ```
 
-- **Ad rezervesi:** `openai` ve `openai-responses` kullanılamaz.
-- **Ad deseni:** küçük harf, rakam, tire; küçük harf/rakamla başlar, en fazla 32 karakter.
-- **Endpoint zorunludur** (boş bırakılırsa istek sessizce resmi OpenAI adresine giderdi).
-- **Yalnız Chat Completions yüzeyi kaydedilir.** Çoğu uyumlu sunucu `/v1/responses`
-  uygulamaz. İsteyen `o.EnableResponsesSurface = true` ile `{ad}-responses` adında
-  ikinci bir sağlayıcı da açabilir.
+- **Reserved names:** `openai` and `openai-responses` cannot be used.
+- **Name pattern:** lower case letters, digits, hyphens; starts with a lower case letter or digit, at most 32 characters.
+- **Endpoint is required** (left empty, requests would silently go to the official OpenAI address).
+- **Only the Chat Completions surface is registered.** Most compatible servers do not
+  implement `/v1/responses`. Set `o.EnableResponsesSurface = true` to also open a
+  second provider named `{name}-responses`.
 
-### Yerel modeller (Ollama, LM Studio)
+### Local models (Ollama, LM Studio)
 
-Kurulum aynıdır; tek fark `ApiKey` **vermemektir** — yerel sunucular kimlik
-istemez:
+The setup is the same; the only difference is **not** passing `ApiKey` — local servers
+do not ask for credentials:
 
 ```csharp
 builder.AddAgentPrism()
        .UseOpenAICompatible("ollama", o =>
        {
            o.Endpoint = new Uri("http://localhost:11434/v1");
-           // ApiKey YOK. OpenAIClient bos kimlik kabul etmedigi icin AgentPrism
-           // sabit bir yer tutucu kullanir; saglayici bunu hic gormez.
+           // No ApiKey. Because OpenAIClient does not accept an empty credential,
+           // AgentPrism uses a fixed placeholder; the provider never sees it.
        });
 ```
 
-Bilinen farklar (bu paket her OpenAI uyumlu sunucunun tam eşleniği olduğunu
-**iddia etmez** — sağlık ucu yalnızca erişilebilirlik ölçer, yetenek değil):
+Known differences (this package does not **claim** to be a perfect match for every
+OpenAI compatible server — the health endpoint measures reachability only, not
+capability):
 
-- Ollama'nın `tool_choice` desteği modele göre değişir.
-- Akışta `usage` göndermeyen sunucular vardır; bu durumda `RunRecord.TotalTokens`
-  **null** kalır — bu bir hata değildir.
-- Bazı uyumlu sağlayıcılar (ör. OpenRouter) `max_tokens`'i kredi/maliyet
-  kontrolünde "en kötü durum" olarak sayar. Yüksek bir varsayılan `max_tokens`
-  düşük bakiyeli bir anahtarla `HTTP 402` üretebilir; `ModelBinding.MaxOutputTokens`
-  ile makul bir üst sınır verin.
+- Ollama's `tool_choice` support varies by model.
+- Some servers do not send `usage` while streaming; in that case `RunRecord.TotalTokens`
+  stays **null** — this is not an error.
+- Some compatible providers (for example OpenRouter) count `max_tokens` as a
+  "worst case" figure for credit/cost control. A high default `max_tokens` can produce
+  `HTTP 402` with a low balance key; set a reasonable upper bound with
+  `ModelBinding.MaxOutputTokens`.
 
-## Sağlık denetimi ve devre kesici
+## Health check and circuit breaker
 
-Kayıtlı her sağlayıcı `IModelProviderHealthCheck`'i otomatik uygular ve
-`GET {endpoint}/models` ucuna giderek erişilebilirliği denetler — **model
-çağrısı yapmaz, ücret üretmez**. Sonuç `{prefix}/api/models/health` ucundan
-okunur ve varsayılan 60 saniye önbelleklenir.
+Every registered provider automatically implements `IModelProviderHealthCheck` and
+checks reachability by calling the `GET {endpoint}/models` endpoint — it makes **no
+model call and produces no cost**. The result is read from the
+`{prefix}/api/models/health` endpoint and cached for 60 seconds by default.
 
-Bir sağlayıcı ardışık olarak (varsayılan eşik: 5) hata verirse
-`AgentPrism.Core` içindeki devre kesici o sağlayıcıyı geçici olarak durdurur;
-istekler `AgentPrismProviderUnavailableException` ile anında reddedilir,
-sağlayıcıya hiç gitmez. `AgentPrismOptions.CircuitBreaker.Enabled = false`
-ile tamamen kapatılabilir.
+When a provider fails repeatedly (default threshold: 5), the circuit breaker in
+`AgentPrism.Core` temporarily stops that provider; requests are rejected immediately
+with `AgentPrismProviderUnavailableException` and never reach the provider. It can be
+turned off entirely with `AgentPrismOptions.CircuitBreaker.Enabled = false`.
 
-## Kurulum
+## Installation
 
 ```bash
 dotnet add package AgentPrism.OpenAI
 ```
 
-## Yapilandirma
+## Configuration
 
 ```json
 {
@@ -119,18 +119,19 @@ dotnet add package AgentPrism.OpenAI
 }
 ```
 
-**API anahtari bu dosyaya yazilmaz.** `dotnet user-secrets`, ortam degiskeni veya bir
-sir yoneticisi kullanin. Anahtar hicbir kosulda veritabanina yazilmaz, API'den donmez
-ve arayuzde gosterilmez.
+**The API key is never written to this file.** Use `dotnet user-secrets`, an
+environment variable, or a secret manager. The key is never written to the database,
+never returned from the API, and never shown in the user interface.
 
-**Model katalogu yapilandirmadan gelir.** Paket yerlesik bir model listesi tasimaz:
-OpenAI model adlari ve fiyatlari, bir NuGet paketinin yayin sikligindan cok daha hizli
-degisir. Katalog bir dogrulama listesi de degildir — burada bulunmayan bir model adi da
-kullanilabilir; liste yalnizca arayuzun model secim ekranini ve maliyet hesabini besler.
+**The model catalog comes from configuration.** The package carries no built-in model
+list: OpenAI model names and prices change much faster than a NuGet package release
+cycle. The catalog is not a validation list either — a model name absent from it can
+still be used; the list only feeds the model picker screen and the cost calculation of
+the user interface.
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
 
-Lisans: MIT
+License: MIT
