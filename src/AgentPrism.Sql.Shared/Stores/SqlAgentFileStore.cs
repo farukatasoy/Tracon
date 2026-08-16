@@ -6,33 +6,32 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentFileStore"/>'un PostgreSQL destekli, kalici uygulamasi.
+/// The persistent, PostgreSQL-backed implementation of <see cref="AgentFileStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 13'ten devir: <c>FileMemoryProvider</c> ve <c>TextSearchProvider</c> bu
-/// tip kayitli oldugunda kod degismeden kalici belleğe doner
-/// (bkz. <c>docs/KARARLAR.md</c>, K-110).
+/// <c>FileMemoryProvider</c> and <c>TextSearchProvider</c> resolve to this type
+/// when it is registered, without code changes (see <c>docs/KARARLAR.md</c>, K-110).
 /// </para>
 /// <para>
-/// Kiraci <see cref="ITenantContext"/>'ten dogrudan enjekte edilir. Agent adi
-/// icin arayuzde bir parametre yoktur; suren calistirmanin ambient kapsamindan
-/// (<see cref="AgentPrismRunContext"/>) okunur. Bu yuzden dosya belleği yalnizca
-/// bir calistirma icinde kullanilabilir — <c>RunRecordingAgent</c> disinda
-/// cagrilirsa acik bir hata verir.
+/// The tenant is injected directly from <see cref="ITenantContext"/>. The
+/// interface has no parameter for the agent name; it is read from the current
+/// run's ambient scope (<see cref="AgentPrismRunContext"/>). Because of this,
+/// the file store can only be used within a run — calling it outside
+/// <c>RunRecordingAgent</c> throws an explicit error.
 /// </para>
 /// </remarks>
-#pragma warning disable MAAI001 // AgentFileStore ve turevleri "evaluation purposes only" — gerekce AgentDefinitionCompiler'daki ile ayni.
+#pragma warning disable MAAI001 // AgentFileStore and its derivatives are "evaluation purposes only" — same rationale as AgentDefinitionCompiler.
 internal sealed class SqlAgentFileStore : AgentFileStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir kalici dosya belleği olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new persistent file store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlAgentFileStore(
         SqlStoreContext context,
         ITenantContext tenantContext)
@@ -45,7 +44,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behaviors.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -104,17 +103,17 @@ internal sealed class SqlAgentFileStore : AgentFileStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Dizinler ayri satir olarak tutulmaz; yol hiyerarsisi kayitli dosyalarin
-    /// yolundan turetilir (bkz. migration 0006 yorumu). Bir dizini "olusturmak"
-    /// bu yuzden hicbir kalici etkisi olmayan bir no-op'tur.
+    /// Directories are not stored as separate rows; the path hierarchy is derived
+    /// from the paths of stored files (see migration 0006 comment). "Creating" a
+    /// directory is therefore a no-op with no persistent effect.
     /// </remarks>
     public override Task CreateDirectoryAsync(string path, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc />
     /// <remarks>
-    /// Faz 51 (Is A): dizinin ALTINDAKI dosyalar SQL'de onek suzgeciyle daraltilir;
-    /// depodaki toplam dosya sayisindan degil, yalniz bu dizinin altindaki satir
-    /// sayisindan etkilenir. Bkz. <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>.
+    /// Files UNDER the directory are narrowed by a prefix filter in SQL; cost is
+    /// driven by the row count under this directory, not by the store's total
+    /// file count. See <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>.
     /// </remarks>
     public override async Task<IReadOnlyList<FileStoreEntry>> ListChildrenAsync(
         string directory,
@@ -152,14 +151,15 @@ internal sealed class SqlAgentFileStore : AgentFileStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Faz 51 (Is A): onek, derinlik siniri (<paramref name="recursive"/>) ve
-    /// <paramref name="globPattern"/> SQL'e iner; <c>LoadAllAsync</c> artik
-    /// cagrilmaz. PostgreSQL ayrica <paramref name="regexPattern"/>'i <c>~</c>
-    /// operatoruyle on suzgec olarak indirir — nihai eslesme yine de HER ZAMAN
-    /// .NET <see cref="Regex"/> ile burada yapilir, davranis degismez. Sunucuya
-    /// gonderilen desen PostgreSQL'in ARE sozdiziminde gecersizse (ornegin .NET'e
-    /// ozgu adlandirilmis gruplar), <see cref="SqlDialect.IsInvalidRegexError"/>
-    /// bunu yakalar ve sorgu on suzgec OLMADAN yeniden calisir.
+    /// The prefix, depth limit (<paramref name="recursive"/>), and
+    /// <paramref name="globPattern"/> are pushed down to SQL; <c>LoadAllAsync</c>
+    /// is no longer called. PostgreSQL additionally pushes
+    /// <paramref name="regexPattern"/> down as a pre-filter via the <c>~</c>
+    /// operator — the final match is still ALWAYS done here with .NET
+    /// <see cref="Regex"/>, so behavior does not change. If the pattern sent to
+    /// the server is invalid in PostgreSQL's ARE syntax (e.g. .NET-specific
+    /// named groups), <see cref="SqlDialect.IsInvalidRegexError"/> catches this
+    /// and the query is re-run WITHOUT the pre-filter.
     /// </remarks>
     public override async Task<IReadOnlyList<FileSearchResult>> SearchAsync(
         string directory,
@@ -223,11 +223,11 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     }
 
     /// <summary>
-    /// Onek, istege bagli derinlik siniri, istege bagli glob suzgeci ve
-    /// (yalniz PostgreSQL'de etkili) istege bagli regex on suzgeciyle daraltilmis
-    /// dosyalari okur (Faz 51, Is A). <paramref name="deepLike"/> ve
-    /// <paramref name="nameLike"/> cagiran tarafca ONEKI ICEREN tam LIKE
-    /// desenleri olarak kurulur (bkz. <see cref="SearchAsync"/>).
+    /// Reads files narrowed by a prefix, an optional depth limit, an optional
+    /// glob filter, and an optional regex pre-filter (effective only on
+    /// PostgreSQL). <paramref name="deepLike"/> and <paramref name="nameLike"/>
+    /// are built by the caller as full LIKE patterns that INCLUDE the prefix
+    /// (see <see cref="SearchAsync"/>).
     /// </summary>
     private async ValueTask<List<(string Path, string Content)>> LoadFilteredAsync(
         string prefix,
@@ -250,7 +250,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Bir metni <c>LIKE</c> deseninde harfi harfine eslesecek sekilde kacislar.</summary>
+    /// <summary>Escapes a string so it matches literally in a <c>LIKE</c> pattern.</summary>
     private static string EscapeLikeLiteral(string text)
     {
         var builder = new StringBuilder(text.Length);
@@ -269,12 +269,12 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     }
 
     /// <summary>
-    /// Bir glob desenini (<c>*</c>/<c>?</c>) <c>LIKE ... ESCAPE '\'</c> desenine cevirir.
+    /// Translates a glob pattern (<c>*</c>/<c>?</c>) into a <c>LIKE ... ESCAPE '\'</c> pattern.
     /// </summary>
     /// <remarks>
-    /// <c>*</c> orijinal .NET regex tabanli eslemede oldugu gibi <c>/</c> dahil
-    /// HERHANGI bir karakter dizisiyle eslesir (dizin sinirini asabilir); <c>LIKE</c>
-    /// icindeki <c>%</c> ayni davranisi tasir.
+    /// <c>*</c> matches ANY sequence of characters, including <c>/</c>, just as
+    /// in the original .NET regex-based matching (it can cross directory
+    /// boundaries); <c>%</c> in <c>LIKE</c> carries the same behavior.
     /// </remarks>
     private static string TranslateGlobToLike(string globPattern)
     {
@@ -306,7 +306,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     private static string RequireAgentName()
         => AgentPrismRunContext.Current?.AgentName
            ?? throw new AgentPrismException(
-               "Kalici dosya belleği yalnizca suren bir calistirma icinde kullanilabilir.");
+               "Persistent file memory can only be used within an active run.");
 
     private static string NormalizePath(string path)
     {
