@@ -6,20 +6,21 @@ using NpgsqlTypes;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IVectorSearchStore"/>'un <c>pgvector</c> destekli, tek somut
-/// uygulamasi (Faz 51).
+/// The single concrete <c>pgvector</c>-backed implementation of
+/// <see cref="IVectorSearchStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Diger 20 depodan farkli olarak <c>AgentPrism.Sql.Shared</c>'in saglayicidan
-/// bagimsiz katmanindan GECMEZ: bu depo <strong>yalniz</strong> PostgreSQL'de var
-/// olacagi icin bir <see cref="SqlDialect"/> soyutlamasina gerek yoktur; dogrudan
-/// Npgsql kullanir. Gerekce: <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.3.
+/// 🚨 Unlike the other 20 stores, this one does NOT go through
+/// <c>AgentPrism.Sql.Shared</c>'s provider-independent layer: it exists
+/// <strong>only</strong> for PostgreSQL, so a <see cref="SqlDialect"/> abstraction
+/// is unnecessary; it uses Npgsql directly. Rationale:
+/// <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.3.
 /// </para>
 /// <para>
-/// Gomu <strong>metin</strong> olarak gonderilir (<c>@embedding::vector</c> cast).
-/// Hicbir vektor paketi alinmadi (K-007/K-211'in ikinci uygulamasi, karar Faz
-/// 51 kapanisinda K-numarasi alir); AOT duruşu bu yuzden bozulmaz.
+/// The embedding is sent as <strong>text</strong> (<c>@embedding::vector</c> cast).
+/// No vector package dependency was added (second application of K-007/K-211);
+/// AOT compatibility is therefore unaffected.
 /// </para>
 /// </remarks>
 internal sealed class PgVectorSearchStore : IVectorSearchStore

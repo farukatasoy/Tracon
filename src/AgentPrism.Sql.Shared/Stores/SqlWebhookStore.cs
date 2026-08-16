@@ -204,9 +204,9 @@ internal sealed class SqlWebhookStore : IWebhookStore
         var command = CreateCommand(_sql.SelectWebhookDeliveries);
         DbHelpers.Add(command, "tenant_id", query.TenantId);
 
-        // 🚨 `(@p IS NULL OR col = @p)` deseninde parametre NULL olunca surucu
-        // tipi cikaramaz (`42P08`). Isteğe bagli suzgec parametreleri ACIKCA
-        // tiplenir.
+        // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
+        // NULL the driver cannot infer its type (`42P08`). Optional filter
+        // parameters are therefore typed EXPLICITLY.
         Dialect.AddUuid(command, "subscription_id", query.SubscriptionId);
         Dialect.AddInt16(command, "status", query.Status is { } status ? (short?)status : null);
         DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));

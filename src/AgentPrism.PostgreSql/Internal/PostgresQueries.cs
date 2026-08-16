@@ -1,19 +1,19 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlQueriesBase"/> yuzeyinin PostgreSQL metinleri.
+/// Holds the PostgreSQL texts for the <see cref="SqlQueriesBase"/> surface.
 /// </summary>
 /// <remarks>
-/// Upsert'ler <c>ON CONFLICT ... DO UPDATE ... RETURNING</c> kullanir; tek gidis
-/// donusle hem yazar hem sonucu dondurur. Ayni sozlesme SQL Server tarafinda
-/// <c>UPDATE ... OUTPUT</c> + <c>IF ROWCOUNT = 0 INSERT ... OUTPUT</c> ile
-/// karsilanir (karar K-177).
+/// Upserts use <c>ON CONFLICT ... DO UPDATE ... RETURNING</c>; a single round
+/// trip both writes and returns the result. The same contract is met on the
+/// SQL Server side with <c>UPDATE ... OUTPUT</c> + <c>IF ROWCOUNT = 0 INSERT
+/// ... OUTPUT</c> (decision K-177).
 /// </remarks>
 internal sealed class PostgresQueries : SqlQueriesBase
 {
-    /// <summary>Yeni bir sorgu kumesi olusturur.</summary>
-    /// <param name="schemaName">Dogrulanacak sema adi.</param>
-    /// <exception cref="AgentPrismException">Sema adi gecerli bir tanimlayici degilse.</exception>
+    /// <summary>Creates a new query set.</summary>
+    /// <param name="schemaName">The schema name to validate.</param>
+    /// <exception cref="AgentPrismException">The schema name is not a valid identifier.</exception>
     public PostgresQueries(string schemaName)
     {
         Schema = SqlIdentifier.RequireSchemaName(schemaName);
@@ -42,7 +42,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ON CONFLICT (slug) DO NOTHING;
             """;
 
-        // --- Agent tanimlari ---
+        // --- Agent definitions ---
 
         UpsertAgentDefinition = $"""
             INSERT INTO {Schema}.agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at)
@@ -89,7 +89,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
             """;
 
-        // --- Skill'ler ---
+        // --- Skills ---
 
         SelectAgentSkills = $"""
             SELECT id, tenant_id, name, description, instructions, compatibility, license,
@@ -145,7 +145,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Skill script'leri ---
+        // --- Skill scripts ---
 
         DeleteAgentSkillScripts = $"DELETE FROM {Schema}.agent_skill_scripts WHERE skill_id = @skill_id;";
 
@@ -163,7 +163,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Script calistirma izinleri ---
+        // --- Script execution grants ---
 
         SelectSkillScriptGrants = $"""
             SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
@@ -172,8 +172,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY skill_name, COALESCE(script_name, '');
             """;
 
-        // Dar izin genis olani yener: script'e ozgu kayit once gelsin diye
-        // script_name IS NOT NULL olanlar basa siralanir ve tek satir alinir.
+        // A narrow grant wins over a broad one: rows with script_name IS NOT NULL
+        // sort first so the script-specific row comes first, and one row is taken.
         SelectActiveSkillScriptGrant = $"""
             SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
             FROM {Schema}.skill_script_grants
@@ -199,8 +199,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at;
             """;
 
-        // Izin SILINMEZ, iptal edilir: "kim ne zaman izin verdi ve ne zaman geri
-        // aldi" sorusu denetim izinin disinda da cevaplanabilmelidir.
+        // A grant is NOT DELETED, it is revoked: the question "who granted access
+        // when, and when was it withdrawn" must stay answerable outside the audit log.
         RevokeSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants
             SET revoked_at = @revoked_at
@@ -210,7 +210,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND revoked_at IS NULL;
             """;
 
-        // --- Oturumlar ---
+        // --- Sessions ---
 
         UpsertSession = $"""
             INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
@@ -246,11 +246,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
             OFFSET @skip LIMIT @take;
             """;
 
-        // --- Calistirmalar ---
+        // --- Runs ---
 
-        // 🚨 Faz 46: UPSERT'tir. Kuyruga alinan bir calistirma once Queued
-        // olarak yazilir; isci is'i gercekten calistirdiginda AYNI id ile
-        // ikinci kez cagrilir ve satir yerinde guncellenir (yeni satir ACILMAZ).
+        // 🚨 Phase 46: this is an UPSERT. A queued run is first written as
+        // Queued; when the worker actually runs the job it is called a second
+        // time with the SAME id and the row is updated in place (no new row
+        // is OPENED).
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
@@ -296,8 +297,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Yalniz bakim ucu (POST /api/stats/recalculate-costs) tarafindan
-        // kullanilir; normal akista maliyet UpdateRunCompletion ile bir kez yazilir.
+        // Used only by the maintenance endpoint (POST /api/stats/recalculate-costs);
+        // in the normal flow the cost is written once by UpdateRunCompletion.
         UpdateRunCost = $"""
             UPDATE {Schema}.runs
             SET input_cost     = @input_cost,
@@ -307,29 +308,30 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
-        // etkiler; degeri var olmayan veya baska durumdaki bir kimlik icin
-        // sessizce sifir satir gunceller (bakim sinyali, hata firlatmaz).
+        // Orphaned run reconciliation (Phase 54). Affects only Running rows;
+        // for an id that does not exist or is in another status it silently
+        // updates zero rows (a maintenance signal, not a thrown error).
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
             SET heartbeat_at = @at
             WHERE id = @id AND status = @status_running;
             """;
 
-        // Tek bir ifadede: aday secimi (heartbeat_at yoksa started_at'e duser),
-        // kapama VE hata alanlarinin yazimi. error_message satirin KENDI
-        // heartbeat_at/started_at degerinden turetilir; error_fingerprint
-        // SABIT bir dizedir ("orphaned") -- SHA-256 hash DEGILDIR, cunku tum
-        // oksuz calistirmalar ayni arizadir ve InMemoryRunStore ile davranis
-        // esitligi boyle saglanir (ErrorFingerprint AgentPrism.Core'da internal'dir,
-        // bu derlemeden erisilemez). Queued satirlar status=@status_running
-        // suzgeciyle asla eslesmez (Faz 46'nin sahiplik ayrimi).
+        // In one statement: candidate selection (falls back to started_at when
+        // heartbeat_at is absent), closing the row, AND writing the error
+        // fields. error_message is derived from the row's OWN heartbeat_at/
+        // started_at value; error_fingerprint is a FIXED string ("orphaned")
+        // -- NOT a SHA-256 hash, because every orphaned run is the same
+        // failure, and this is how behavioral parity with InMemoryRunStore is
+        // achieved (ErrorFingerprint is internal in AgentPrism.Core and cannot
+        // be reached from this assembly). Queued rows never match the
+        // status=@status_running filter (the Phase 46 ownership split).
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}.runs
             SET status            = @status_failed,
                 completed_at      = @now,
                 error_type        = 'orphaned',
-                error_message     = 'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                error_message     = 'The process running this run is not responding; last heartbeat: '
                                      || COALESCE(heartbeat_at, started_at)::text || '.',
                 error_class       = @error_class,
                 error_fingerprint = @error_fingerprint,
@@ -347,10 +349,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                       error_fingerprint;
             """;
 
-        // RunEventWriter o surecte artik yoktur; olayi uzlastirici yazar.
-        // Sira numarasi mevcut en buyuk degerin bir fazlasidir -- calistirma
-        // az once kapatildigi icin yaris riski yoktur (SingletonGuard zaten
-        // tek uzlastiriciyi garanti eder).
+        // RunEventWriter no longer exists in that process; the reconciler
+        // writes the event. The sequence number is the current maximum plus
+        // one -- there is no race risk because the run was just closed
+        // (SingletonGuard already guarantees a single reconciler).
         InsertOrphanRunEvent = $"""
             INSERT INTO {Schema}.run_events (run_id, seq, type, text, created_at)
             VALUES (@run_id,
@@ -358,11 +360,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     @type, @text, @created_at);
             """;
 
-        // Agac toplamlari OKUMADA hesaplanir, saklanmaz. Saklansaydi her alt
-        // calistirmanin tamamlanmasi ustundeki her kaydi guncellemek zorunda kalir
-        // ve kayit yolu derinlikle birlikte pahalilasirdi. LATERAL alt sorgu
-        // runs_parent_idx ve runs_root_idx uzerinden calisir; sayfa basina en fazla
-        // `take` satir icin degerlendirilir.
+        // Tree totals are computed ON READ, not stored. Storing them would
+        // force every ancestor record to be updated on each child run's
+        // completion, and the write path would grow more expensive with
+        // depth. The LATERAL subquery runs over runs_parent_idx and
+        // runs_root_idx; it is evaluated for at most `take` rows per page.
         var treeJoin = $"""
             LEFT JOIN LATERAL (
                 SELECT COUNT(*)::int AS child_count
@@ -384,8 +386,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ) AS tree ON TRUE
             """;
 
-        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir, aralara sokulmaz: okuyucu
-        // (PostgresRunStore.ReadRun) sabit sira numarasiyla okur.
+        // 🚨 New columns are ALWAYS appended at the end, never inserted in
+        // between: the reader (PostgresRunStore.ReadRun) reads by fixed
+        // ordinal position.
         const string runColumns = """
             r.id, r.tenant_id, r.agent_name, r.session_id, r.status, r.started_at, r.completed_at, r.is_streaming,
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
@@ -416,11 +419,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id yalniz KOK calistirmada set edilir
-                    -- (K-217); alt calistirmanin kendi session_id'si NULL'dur.
-                    -- Dogrudan esitlik "includeChildren=true" ile birlikte hicbir
-                    -- alt calistirmayi eslestirmezdi -- kaydin kendi agacinin
-                    -- KOKU bu oturuma aitse de eslesir.
+                    -- HATA-S2-001: session_id is set only on the ROOT run
+                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- equality combined with "includeChildren=true" would
+                    -- match no child run at all -- a row also matches when
+                    -- its own tree's ROOT belongs to this session.
                     @session_id IS NULL
                  OR r.session_id = @session_id
                  OR EXISTS (
@@ -433,9 +436,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@started_after IS NULL OR r.started_at > @started_after)
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
               AND (
-                    -- Ebeveyn filtresi verildiyse kok filtresi BILEREK yok sayilir:
-                    -- ikisi mantiksal olarak celisir ve sessizce bos liste donmek
-                    -- hata ayiklanmasi zor bir davranistir.
+                    -- When a parent filter is given, the root filter is
+                    -- DELIBERATELY ignored: the two are logically contradictory,
+                    -- and silently returning an empty list is a behavior
+                    -- that is hard to debug.
                     (@parent_run_id IS NOT NULL AND r.parent_run_id = @parent_run_id)
                  OR (@parent_run_id IS NULL AND (NOT @only_root_runs OR r.parent_run_id IS NULL))
               )
@@ -443,16 +447,18 @@ internal sealed class PostgresQueries : SqlQueriesBase
             OFFSET @skip LIMIT @take;
             """;
 
-        // Iki sonuc kumesi tek gidis donuste alinir: once genel ozet, sonra agent
-        // kirilimi. Durum degerleri sabit sayi olarak gomulmez; RunStatus enum'undan
-        // parametre olarak gelir, boylece enum ile SQL arasindaki bag aciktir.
-        // kind <> @kind_eval: eval vaka calistirmalari sentetik test
-        // cagrilaridir, gercek trafik degildir; ozeti kirletmemesi icin haric
-        // tutulur (docs/18-DEGERLENDIRME.md, acik soru 4).
-        // scored_runs/positive_rate (Faz 31): matched_run_scores runs'in AYNI
-        // filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE'ye
-        // tasimak yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut
-        // toplam satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        // Two result sets come back in a single round trip: first the overall
+        // summary, then the per-agent breakdown. Status values are not
+        // embedded as bare numbers; they arrive as parameters from the
+        // RunStatus enum, so the link between the enum and the SQL stays
+        // explicit.
+        // kind <> @kind_eval: eval case runs are synthetic test calls, not
+        // real traffic; they are excluded so they do not pollute the summary
+        // (docs/18-DEGERLENDIRME.md, open question 4).
+        // scored_runs/positive_rate (Phase 31): matched_run_scores repeats the
+        // SAME filter as runs (tenant/eval/agent/date) -- it is added as a
+        // scalar subquery instead of moving it into a separate CTE so the
+        // existing total row is extended with the smallest possible change.
         var matchedRunScoresFilter = $"""
             {Schema}.run_scores rs
             JOIN {Schema}.runs r2 ON r2.id = rs.run_id
@@ -534,9 +540,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
 
-            -- Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44). error_class
-            -- NULL olan (hata sinifi eklenmeden once yazilmis) satirlar Unknown
-            -- (0) kovasina duser -- K-014 geriye donuk doldurma yapmaz.
+            -- Fifth result set: error class breakdown (Phase 44). Rows where
+            -- error_class is NULL (written before the error class column
+            -- existed) fall into the Unknown (0) bucket -- K-014 does not
+            -- backfill.
             SELECT COALESCE(error_class, 0)::smallint,
                    COUNT(*)::bigint
             FROM {Schema}.runs
@@ -548,10 +555,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
             GROUP BY COALESCE(error_class, 0)
             ORDER BY COUNT(*) DESC;
 
-            -- Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi.
-            -- Iki pencere fonksiyonu gecisi: `failed` her satirin kumesindeki
-            -- sayiyi/son goruntuyu ve orneklemek icin en yeni satiri (sample_rank)
-            -- isaretler; `ranked` kumeleri sinif icinde sayiya gore siralar.
+            -- Sixth result set: the most frequent fingerprint clusters per
+            -- class. Two window-function passes: `failed` tags each row with
+            -- its cluster's count/last-seen time and marks the newest row to
+            -- sample (sample_rank); `ranked` orders the clusters by count
+            -- within each class.
             WITH failed AS (
                 SELECT COALESCE(error_class, 0)::smallint AS error_class,
                        COALESCE(error_fingerprint, '') AS error_fingerprint,
@@ -592,10 +600,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY error_class, cluster_count DESC;
             """;
 
-        // 🚨 VALUES degil SELECT ... WHERE EXISTS: yazma yalnizca hedef calistirma
-        // BEKLENEN kiraciya aitse uygulanir (K-355). @tenant_id NULL ise denetim
-        // yapilmaz. Alt sorgu birincil anahtar aramasidir; sicak yazma yolunda
-        // ek maliyeti bir indeks okumasidir.
+        // 🚨 SELECT ... WHERE EXISTS, not VALUES: the write applies only if
+        // the target run belongs to the EXPECTED tenant (K-355). No check is
+        // made when @tenant_id is NULL. The subquery is a primary-key lookup;
+        // its added cost on the hot write path is a single index read.
         InsertRunEvent = $"""
             INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
             SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
@@ -612,11 +620,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY e.seq;
             """;
 
-        // --- Konusmalar (sohbet gecmisi) ---
+        // --- Conversations (chat history) ---
 
-        // ON CONFLICT DO UPDATE konusma satirini kilitler; boylece ayni konusmaya
-        // es zamanli yazan iki islem sira numarasi icin sirayla bekler.
-        // metadata sutunu yazilmaz; sema varsayilani bos bir jsonb nesnesidir.
+        // ON CONFLICT DO UPDATE locks the conversation row, so two
+        // transactions writing to the same conversation concurrently wait in
+        // turn for the sequence number. The metadata column is not written;
+        // the schema default is an empty jsonb object.
         UpsertConversation = $"""
             INSERT INTO {Schema}.conversations (id, tenant_id, agent_name, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @now, @now)
@@ -643,7 +652,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Konusma dallandirma (Faz 47) ---
+        // --- Conversation branching (Phase 47) ---
 
         SelectConversationBranchPoint = $"""
             SELECT COALESCE(MAX(seq), -1), COUNT(*)
@@ -652,9 +661,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
             """;
 
-        // Ustveri (agent_name, metadata) kaynaktan KOPYALANIR: dal ayni agent'in
-        // konusmasidir. Kiraci suzgeci SELECT tarafindadir; baska bir kiracinin
-        // konusmasi icin hicbir satir yazilmaz ve cagiran 0 etkilenen satir gorur.
+        // Metadata (agent_name, metadata) is COPIED from the source: a branch
+        // is a conversation of the same agent. The tenant filter is on the
+        // SELECT side; for another tenant's conversation no row is written
+        // and the caller sees 0 affected rows.
         InsertBranchConversation = $"""
             INSERT INTO {Schema}.conversations
                 (id, tenant_id, agent_name, metadata, created_at, updated_at,
@@ -673,12 +683,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Calistirma girdileri (Faz 47) ---
+        // --- Run inputs (Phase 47) ---
 
-        // 🚨 `messages` sutunu `json`, `jsonb` DEGIL: ChatMessage icerikleri
-        // polimorfiktir ve `$type` ayraci nesnenin ILK ozelligi olmalidir (K-027).
-        // Ikinci yazim yok sayilir: kuyruga alinan bir calistirma (Faz 46) ayni
-        // kimlikle iki kez baslar ve girdi degismemelidir.
+        // 🚨 The `messages` column is `json`, NOT `jsonb`: ChatMessage
+        // contents are polymorphic and the `$type` discriminator must be the
+        // FIRST property of the object (K-027). A second write is ignored: a
+        // queued run (Phase 46) starts twice with the same id, and its input
+        // must not change.
         InsertRunInput = $"""
             INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
             VALUES (@run_id, @tenant_id, @messages, @created_at)
@@ -691,9 +702,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
-        // --- Tool cagrilari (Faz 6) ---
+        // --- Tool invocations (Phase 6) ---
 
-        // InsertRunEvent ile ayni kiraci muhafizi (K-355).
+        // Same tenant guard as InsertRunEvent (K-355).
         InsertToolInvocation = $"""
             INSERT INTO {Schema}.tool_invocations
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
@@ -705,8 +716,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
-        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir; mevcut sabit-indeks okuyucular
-        // (ReadToolInvocation) yeniden numaralandirilmaz. Faz 20 dersi.
+        // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
+        // readers (ReadToolInvocation) are never renumbered. Lesson from
+        // Phase 20.
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
@@ -717,8 +729,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY t.created_at, t.id;
             """;
 
-        // Ortalama sure yalnizca sure tasiyan cagrilar uzerinden alinir:
-        // AVG NULL degerleri zaten atlar, bu yuzden payda dogru olur.
+        // Average duration is computed only over calls that carry a
+        // duration: AVG already skips NULL values, so the denominator is correct.
         SelectToolUsage = $"""
             SELECT t.tool_name,
                    COUNT(*)::bigint,
@@ -734,7 +746,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             LIMIT @max_tools;
             """;
 
-        // --- Deneyler (Faz 19) ---
+        // --- Experiments (Phase 19) ---
 
         SelectExperiments = $"""
             SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
@@ -765,11 +777,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE status = 1 AND canary_policy IS NOT NULL;
             """;
 
-        // Draft-disi bir deneyi guncelleme girisimi 0 satir dondurur; cagiran
-        // taraf bunu onceden GetAsync ile ayirt edip anlamli bir hata verir.
-        // canary_policy/rollback_reason BILEREK SET listesinde YOK: bir Draft
-        // duzenlemesi (SaveAsync) daha once SetCanaryPolicyAsync ile tanimlanmis
-        // kurali silmemelidir.
+        // An attempt to update a non-Draft experiment returns 0 rows; the
+        // caller distinguishes this beforehand with GetAsync and raises a
+        // meaningful error. canary_policy/rollback_reason are DELIBERATELY
+        // absent from the SET list: a Draft edit (SaveAsync) must not erase a
+        // rule already defined by SetCanaryPolicyAsync.
         UpsertExperiment = $"""
             INSERT INTO {Schema}.experiments (id, tenant_id, name, agent_name, variants, status, assignment_key, updated_at)
             VALUES (@id, @tenant_id, @name, @agent_name, @variants, 0, @assignment_key, @updated_at)
@@ -801,7 +813,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        // Durumdan BAGIMSIZ calisir (Draft veya Running) — SaveAsync'in aksine.
+        // Runs INDEPENDENTLY of status (Draft or Running) — unlike SaveAsync.
         SetExperimentCanaryPolicy = $"""
             UPDATE {Schema}.experiments
             SET canary_policy = @canary_policy, updated_at = @now
@@ -823,11 +835,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        // run_avg_scores: ONCE calistirma basina ortalama (yazar/judge sayisindan
-        // bagimsiz), SONRA varyant basina bu ortalamalarin ortalamasi. Dogrudan
-        // run_scores JOIN'i (calistirma basina birden fazla puan satiri olabilir)
-        // GROUP BY variant'taki TUM diger toplamlari (token, maliyet, sayim) da
-        // COGALTIRDI — bu yuzden AYRI bir CTE ile once calistirma duzeyine indirilir.
+        // run_avg_scores: FIRST the per-run average (independent of the
+        // number of authors/judges), THEN the average of these averages per
+        // variant. Joining run_scores directly (a run can have more than one
+        // score row) would also DUPLICATE every other total in the GROUP BY
+        // variant (tokens, cost, counts) — so it is first reduced to the
+        // run level in a SEPARATE CTE.
         SelectExperimentResults = $"""
             WITH run_avg_scores AS (
                 SELECT run_id, AVG(value) AS avg_score
@@ -855,16 +868,18 @@ internal sealed class PostgresQueries : SqlQueriesBase
             GROUP BY r.variant;
             """;
 
-        // Bos kovalar da doner (generate_series + LEFT JOIN): aksi halde
-        // grafikte kesinti "veri yok" degil "sifir" gibi gorunur. Eval/Workflow
-        // calistirmalari BILEREK haric TUTULMAZ — SelectRunStatistics'in aksine
-        // (bkz. docs/KARARLAR.md K-152); @kind verilirse filtrelenir.
+        // Empty buckets are also returned (generate_series + LEFT JOIN):
+        // otherwise a gap in the chart would look like "zero" instead of "no
+        // data". Eval/Workflow runs are DELIBERATELY NOT excluded — unlike
+        // SelectRunStatistics (see docs/KARARLAR.md K-152); they are filtered
+        // if @kind is given.
         SelectRunTimeSeries = $"""
             WITH buckets AS (
-                -- Ust sinir kapsayicidir (Truncate(to_ts) dahil), sonra bucket < to_ts
-                -- ile filtrelenir: to_ts tam bir kova sinirina denk gelirse o kova
-                -- (icinde hicbir zaman `started_at < to_ts` olan satir olamaz) elenir.
-                -- InMemoryRunStore'daki `cursor < To` dongusuyle birebir ayni kural.
+                -- The upper bound is inclusive (Truncate(to_ts) included), then
+                -- filtered by bucket < to_ts: if to_ts lands exactly on a bucket
+                -- boundary, that bucket (which can never contain a row where
+                -- `started_at < to_ts`) is dropped. The same rule, exactly, as
+                -- the `cursor < To` loop in InMemoryRunStore.
                 SELECT bucket
                 FROM generate_series(
                     date_trunc(@bucket_unit, @from_ts),
@@ -902,10 +917,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY buckets.bucket;
             """;
 
-        // --- Span'ler (Faz 6) ---
+        // --- Spans (Phase 6) ---
 
-        // Trace basligi kiraci + W3C kimligi ciftinde benzersizdir; ayni
-        // calistirma icin ikinci bir yazma basligi guncellemekle yetinir.
+        // A trace header is unique on the (tenant, W3C id) pair; a second
+        // write for the same run just updates the header.
         UpsertTrace = $"""
             INSERT INTO {Schema}.traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
             VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at)
@@ -916,8 +931,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        // Span kimligi W3C kimliklerinden turetilir, bu yuzden ayni span iki kez
-        // yazilirsa cakisir ve satir guncellenir; tekrar kaydi olusmaz.
+        // The span id is derived from W3C ids, so writing the same span twice
+        // conflicts and updates the row; no duplicate record is created.
         UpsertSpan = $"""
             INSERT INTO {Schema}.spans
                 (id, trace_id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status)
@@ -942,7 +957,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY started_at, id;
             """;
 
-        // --- Tool onay kurallari (Faz 6) ---
+        // --- Tool approval rules (Phase 6) ---
 
         SelectToolApprovalRules = $"""
             SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
@@ -951,9 +966,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY created_at DESC;
             """;
 
-        // Ayni kapsam icin ikinci bir kural acilmaz; mevcut kayit dondurulur.
-        // Kisit COALESCE'li bir ifade indeksidir cunku NULL'lar PostgreSQL'de
-        // birbirine esit sayilmaz ve duz bir UNIQUE kisit tekrari engellemezdi.
+        // A second rule for the same scope is not opened; the existing
+        // record is returned. The constraint is a COALESCE'd expression
+        // index because NULLs are not considered equal to each other in
+        // PostgreSQL, and a plain UNIQUE constraint would not prevent the duplicate.
         InsertToolApprovalRule = $"""
             INSERT INTO {Schema}.tool_approval_rules
                 (id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at)
@@ -1082,7 +1098,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING external_uri;
             """;
 
-        // --- Kalici agent dosya belleği (Faz 14, 14.5) ---
+        // --- Persistent agent file memory ---
 
         SelectAgentFile = $"""
             SELECT content

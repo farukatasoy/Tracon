@@ -275,9 +275,9 @@ public static class AgentPrismSqlServerBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
-        // Kalici agent dosya belleği (Faz 14, 14.5): FileMemoryProvider ve
-        // TextSearchProvider kod degismeden buraya doner (K-110).
-#pragma warning disable MAAI001 // AgentFileStore — gerekce AgentPrismServiceCollectionExtensions'daki ile ayni.
+        // Persistent agent file memory: FileMemoryProvider and TextSearchProvider
+        // resolve here without code changes (K-110).
+#pragma warning disable MAAI001 // AgentFileStore — same rationale as AgentPrismServiceCollectionExtensions.
         services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
