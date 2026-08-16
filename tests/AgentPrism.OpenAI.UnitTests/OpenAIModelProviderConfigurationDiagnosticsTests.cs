@@ -3,13 +3,13 @@ using AgentPrism.OpenAI.UnitTests.Infrastructure;
 namespace AgentPrism.OpenAI.UnitTests;
 
 /// <summary>
-/// <see cref="OpenAIModelProvider.GetConfigurationDiagnostic"/>'in K-059'a uygun
-/// davrandigini dogrular: anahtarin DEGERI degil, cozulup cozulmedigi bilgisi doner.
+/// Verifies that <see cref="OpenAIModelProvider.GetConfigurationDiagnostic"/> follows
+/// K-059: it returns whether the key was resolved, never the key's VALUE.
 /// </summary>
 public sealed class OpenAIModelProviderConfigurationDiagnosticsTests
 {
     [Fact]
-    public void Anahtar_verilmisse_cozuldu_ve_ipucu_yoktur()
+    public void Key_given_reports_resolved_with_no_hint()
     {
         var provider = CreateProvider(healthCheckOptions: TestData.Options());
 
@@ -22,11 +22,12 @@ public sealed class OpenAIModelProviderConfigurationDiagnosticsTests
     }
 
     [Fact]
-    public void Anahtar_bossa_cozulmedi_ve_ipucu_verilir_ama_deger_verilmez()
+    public void Empty_key_reports_unresolved_with_a_hint_but_never_the_value()
     {
-        // ChatClientFactory GECERLI bir anahtarla kurulur (kurucusu bos anahtari
-        // reddeder) — bu test yalniz TESHIS icin ayrica gecirilen healthCheckOptions'in
-        // BOS anahtarini dogrular; ikisi kasitli olarak farkli nesnelerdir.
+        // ChatClientFactory is built with a VALID key (its constructor rejects an
+        // empty one) — this test only verifies the EMPTY key of the separately
+        // passed healthCheckOptions, used purely for DIAGNOSTICS; the two are
+        // deliberately different objects.
         var provider = CreateProvider(healthCheckOptions: TestData.Options(static o => o.ApiKey = null));
 
         var diagnostic = provider.GetConfigurationDiagnostic();
@@ -38,7 +39,7 @@ public sealed class OpenAIModelProviderConfigurationDiagnosticsTests
     }
 
     [Fact]
-    public void Saglik_denetimi_ayarlari_verilmemisse_teshis_null_doner()
+    public void Diagnostic_is_null_when_no_health_check_options_are_given()
     {
         var provider = new OpenAIModelProvider(
             OpenAIProviderNames.ChatCompletions,
@@ -50,10 +51,10 @@ public sealed class OpenAIModelProviderConfigurationDiagnosticsTests
     }
 
     [Fact]
-    public void UseOpenAICompatible_sabit_bolum_olmadigi_icin_teshis_bildirmez()
+    public void UseOpenAICompatible_reports_no_diagnostic_because_it_has_no_fixed_section()
     {
-        // configurationSectionKey: null -> UseOpenAICompatible()'in kod-tanimli,
-        // sabit olmayan anahtarini yanlis raporlamak yerine hic raporlamaz.
+        // configurationSectionKey: null -> instead of misreporting the code-defined,
+        // non-fixed key of UseOpenAICompatible(), it reports nothing at all.
         var provider = new OpenAIModelProvider(
             "openrouter",
             OpenAIApiSurface.ChatCompletions,

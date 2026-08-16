@@ -8,20 +8,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Google.UnitTests;
 
 /// <summary>
-/// API anahtarinin AgentPrism'in disariya verdigi hicbir ciktida gorunmedigini dogrular.
+/// Verifies that the API key does not appear in any output AgentPrism exposes externally.
 /// </summary>
 /// <remarks>
-/// Korunan sinir: anahtar yalnizca Google istemcisinin <c>x-goog-api-key</c> basligina
-/// gider. Katalog, saglayici defteri, ayar nesnesi, dogrulama mesajlari, istisna
-/// mesajlari, istemci ustverisi ve gunluk satirlari anahtari <strong>hicbir
-/// kosulda</strong> tasiyamaz.
+/// Protected boundary: the key goes only to the Google client's <c>x-goog-api-key</c>
+/// header. The catalog, provider registry, settings object, validation messages,
+/// exception messages, client metadata, and log lines must <strong>never, under any
+/// condition,</strong> carry the key.
 /// </remarks>
 public sealed class SecretLeakTests
 {
-    private const string Secret = "cok-gizli-anahtar-DENEME-9f3a2b";
+    private const string Secret = "very-secret-key-TEST-9f3a2b";
 
     [Fact]
-    public void Saglayici_defteri_ciktisinda_anahtar_yok()
+    public void Provider_registry_output_has_no_key()
     {
         using var provider = BuildProvider();
 
@@ -31,7 +31,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public void Model_katalogu_ciktisinda_anahtar_yok()
+    public void Model_catalog_output_has_no_key()
     {
         using var provider = BuildProvider();
 
@@ -43,16 +43,16 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public void Ayar_nesnesi_kendi_ToString_metodunu_tanimlamaz()
+    public void Settings_object_does_not_define_its_own_ToString()
     {
-        // Ayar nesnesi record OLMAMALIDIR (K-035): derleyicinin urettigi ToString
-        // tum ozellikleri yazar ve anahtari ilk gunluk satirinda ifsa ederdi.
+        // The settings object MUST NOT be a record (K-035): the compiler-generated
+        // ToString would print every property and expose the key in the first log line.
         typeof(GoogleProviderOptions).GetMethod(nameof(ToString), Type.EmptyTypes)!
             .DeclaringType.ShouldBe(typeof(object));
     }
 
     [Fact]
-    public void Dogrulama_mesajlari_anahtar_icermez()
+    public void Validation_messages_do_not_contain_the_key()
     {
         var result = new GoogleProviderOptionsValidator().Validate(
             name: null,
@@ -68,7 +68,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public void Derleme_hatasi_mesaji_anahtar_icermez()
+    public void Compile_error_message_does_not_contain_the_key()
     {
         using var factory = new GoogleChatClientFactory(new GoogleProviderOptions { ApiKey = Secret });
 
@@ -79,7 +79,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public void Istemci_ustverisi_anahtar_icermez()
+    public void Client_metadata_does_not_contain_the_key()
     {
         using var provider = BuildProvider();
 
@@ -94,7 +94,7 @@ public sealed class SecretLeakTests
     }
 
     [Fact]
-    public void Saglayici_kurulumu_ve_istemci_uretimi_anahtari_gunluge_yazmaz()
+    public void Provider_setup_and_client_production_do_not_log_the_key()
     {
         using var loggerProvider = new RecordingLoggerProvider();
 
@@ -109,13 +109,13 @@ public sealed class SecretLeakTests
         using var serviceProvider = services.BuildServiceProvider();
 
         using var chatClient = serviceProvider.GetRequiredService<IModelProviderRegistry>()
-            .CreateChatClient(TestData.Binding("katalogda-olmayan-model"));
+            .CreateChatClient(TestData.Binding("model-not-in-catalog"));
 
         loggerProvider.AllText.ShouldNotContain(Secret);
     }
 
     [Fact]
-    public void Ayarlar_dogrulandiginda_anahtar_gunluge_yazilmaz()
+    public void Key_is_not_logged_when_settings_are_validated()
     {
         using var loggerProvider = new RecordingLoggerProvider();
 

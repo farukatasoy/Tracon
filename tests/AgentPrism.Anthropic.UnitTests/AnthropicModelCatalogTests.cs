@@ -2,18 +2,18 @@ using AgentPrism.Anthropic.UnitTests.Infrastructure;
 
 namespace AgentPrism.Anthropic.UnitTests;
 
-/// <summary>Katalogun yalnizca yapilandirmadan gelmesi (K-032).</summary>
+/// <summary>The catalog comes only from configuration (K-032).</summary>
 public sealed class AnthropicModelCatalogTests
 {
     [Fact]
-    public void Yerlesik_liste_yoktur()
+    public void No_built_in_list_exists()
     {
-        // AgentPrism model listesi tasimaz; ayar bossa katalog da bostur.
+        // AgentPrism carries no model list; when settings are empty, the catalog is empty too.
         AnthropicModelCatalog.Build(TestData.Options()).ShouldBeEmpty();
     }
 
     [Fact]
-    public void Ada_gore_siralar()
+    public void Sorts_by_name()
     {
         var catalog = AnthropicModelCatalog.Build(TestData.Options(options =>
         {
@@ -27,19 +27,19 @@ public sealed class AnthropicModelCatalogTests
     }
 
     [Fact]
-    public void Ayni_ad_tekrarlanirsa_son_tanim_kazanir()
+    public void Repeated_name_lets_the_last_definition_win()
     {
         var catalog = AnthropicModelCatalog.Build(TestData.Options(options =>
         {
-            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "eski" });
-            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "yeni" });
+            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "old" });
+            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "new" });
         }));
 
-        catalog.Single().DisplayName.ShouldBe("yeni");
+        catalog.Single().DisplayName.ShouldBe("new");
     }
 
     [Fact]
-    public void Adsiz_girdiler_yok_sayilir()
+    public void Nameless_entries_are_ignored()
     {
         var catalog = AnthropicModelCatalog.Build(TestData.Options(options =>
         {
@@ -51,6 +51,6 @@ public sealed class AnthropicModelCatalogTests
     }
 
     [Fact]
-    public void Null_ayar_reddedilir()
+    public void Null_options_is_rejected()
         => Should.Throw<ArgumentNullException>(() => AnthropicModelCatalog.Build(null!));
 }

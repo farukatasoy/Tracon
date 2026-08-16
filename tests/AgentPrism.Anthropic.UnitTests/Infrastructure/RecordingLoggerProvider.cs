@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism.Anthropic.UnitTests.Infrastructure;
 
 /// <summary>
-/// Yazilan tum gunluk satirlarini bellekte toplayan gunlukleyici saglayicisi.
-/// Sir sizinti testleri gunluge ne yazildigini bunun uzerinden denetler.
+/// A logger provider that collects every written log line in memory.
+/// Secret-leak tests check what was written to the log through this.
 /// </summary>
 internal sealed class RecordingLoggerProvider : ILoggerProvider
 {
@@ -19,7 +19,7 @@ internal sealed class RecordingLoggerProvider : ILoggerProvider
 
     public void Dispose()
     {
-        // Toplanan satirlar test suresince kalir; serbest birakilacak kaynak yok.
+        // Collected lines live for the duration of the test; there is no resource to release.
     }
 
     private sealed class RecordingLogger(string category, ConcurrentQueue<string> entries) : ILogger
