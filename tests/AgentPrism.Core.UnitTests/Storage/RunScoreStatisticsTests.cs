@@ -1,20 +1,21 @@
 namespace AgentPrism.Core.UnitTests.Storage;
 
 /// <summary>
-/// <see cref="RunStatistics.ScoredRuns"/> ve <see cref="RunStatistics.PositiveRate"/>
-/// hesabinin testleri (Faz 31).
+/// Tests for the <see cref="RunStatistics.ScoredRuns"/> and
+/// <see cref="RunStatistics.PositiveRate"/> calculation.
 /// </summary>
 /// <remarks>
-/// <see cref="InMemoryRunStore"/>, ozet hesabinda kurucuya verilen
-/// <see cref="IRunScoreStore"/>'u kullanir; bu testler ayni orneği paylasarak
-/// puan yazma ile istatistik okumanin AYNI depoyu gordugunu dogrular.
+/// <see cref="InMemoryRunStore"/> uses the <see cref="IRunScoreStore"/> given to
+/// its constructor when computing the summary; these tests share the same
+/// instance to verify that writing a score and reading statistics see the SAME
+/// store.
 /// </remarks>
 public sealed class RunScoreStatisticsTests
 {
     private const string Tenant = "test";
 
     [Fact]
-    public async Task Puanli_calistirma_ScoredRuns_sayisina_girer_ve_oran_hesaplanir()
+    public async Task Scored_run_is_counted_in_ScoredRuns_and_the_rate_is_computed()
     {
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
@@ -25,7 +26,7 @@ public sealed class RunScoreStatisticsTests
         await runs.StartRunAsync(Start(scoredRunId));
         await runs.StartRunAsync(Start(unscoredRunId));
 
-        // Iki farkli yazar ayni calistirmayi puanlar: 1 olumlu, 1 olumsuz.
+        // Two different authors score the same run: 1 positive, 1 negative.
         await scores.UpsertAsync(Score(scoredRunId, "alice", 1));
         await scores.UpsertAsync(Score(scoredRunId, "bob", 0));
 
@@ -36,9 +37,9 @@ public sealed class RunScoreStatisticsTests
     }
 
     [Fact]
-    public async Task Eval_calistirmasinin_puani_ozete_HIC_girmez()
+    public async Task Eval_run_score_never_enters_the_summary()
     {
-        // K-141'in ayrimi (RunKind.Eval haric tutulur) puanlar icin de gecerlidir.
+        // K-141's exclusion (RunKind.Eval is excluded) also applies to scores.
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 
@@ -54,10 +55,11 @@ public sealed class RunScoreStatisticsTests
     }
 
     [Fact]
-    public async Task Yildiz_puani_ScoredRuns_sayilir_ama_orana_KATILMAZ()
+    public async Task Star_score_is_counted_in_ScoredRuns_but_does_NOT_enter_the_rate()
     {
-        // Yildiz ve ikili puanin ortalamasi anlamsizdir; oran yalniz Binary
-        // uzerinden hesaplanir (bkz. docs/31-GERI-BILDIRIM-VE-PUANLAMA.md, riskler).
+        // Averaging a star score with a binary score is meaningless; the rate
+        // is computed only from Binary scores (see
+        // docs/31-GERI-BILDIRIM-VE-PUANLAMA.md, risks).
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 
@@ -72,7 +74,7 @@ public sealed class RunScoreStatisticsTests
     }
 
     [Fact]
-    public async Task Hic_puan_yoksa_ScoredRuns_sifir_ve_oran_null()
+    public async Task No_scores_at_all_means_ScoredRuns_is_zero_and_the_rate_is_null()
     {
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
