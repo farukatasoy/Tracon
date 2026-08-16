@@ -257,4 +257,4 @@ dotnet add package AgentPrism --prerelease
 | Public API dondurma geç kaldığı için büyük bir tek seferlik iş çıkar | Faz 1–6 boyunca API yüzeyi `MIMARI.md`'de takip edildi; faz 6'nın "Gerçekleşen Public API" bölümü tam listedir |
 | Paket imzalama sertifikası yok | İmzalama olmadan da yayın yapılabilir; eksik dokümante edilir |
 | Depo adresi hâlâ yer tutucu | Yayından önce doğrulanır; bölüm 7.4 |
-| İkinci faz planı public API'yi büyütür | Yayın **önce** yapılırsa her yeni kalem `PublicAPI.Unshipped.txt` disiplinine girer — bu iyidir ama yavaşlatır. Sıra kullanıcı kararıdır; bkz. `BEYIN-FIRTINASI.md` açık soru 5 |
+| İkinci faz planı public API'yi büyütür | Yayın **önce** yapılırsa her yeni kalem `PublicAPI.Unshipped.txt` disiplinine girer — bu iyidir ama yavaşlatır. Sıra kullanıcı kararıdır; bkz. `arsiv/BEYIN-FIRTINASI.md` açık soru 5 |

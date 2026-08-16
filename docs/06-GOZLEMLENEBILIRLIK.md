@@ -522,7 +522,7 @@ GET /api/stats
    [Faz 8](08-SAGLAYICI-GENISLEMESI.md) (sağlık denetimi).
 
 8. **İkinci faz planı hazır:** [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md)
-   (Faz 8–30; hammadde [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md)).
+   (Faz 8–30; hammadde [`BEYIN-FIRTINASI.md`](arsiv/BEYIN-FIRTINASI.md)).
    Faz 7 (yayın) ile ikinci faz planı birbirinden bağımsızdır; yayın önce
    yapılabilir.
 

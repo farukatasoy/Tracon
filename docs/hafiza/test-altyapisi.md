@@ -40,6 +40,20 @@
   basina gecti, ikinci tam kosumda **870/870** yesil geldi. Yuk altinda
   kirilgan bir test; degisiklikle ilgisi yoktu. Aday listesine **F-102** olarak
   yazildi — sessiz birakilmadi.
+- **🚨 `Templates.Tests` GLOBAL `~/.templateengine/packages.json` dosyasina
+  yazar — paralel kosumda birbirini kilitler** (2026-08-16, Faz 58). Belirti:
+  `Most_minimal_combination_compiles_with_zero_warnings` `ExitCode 70` ile
+  duser, mesaj: *"Failed to retrieve template packages from provider 'Global
+  Settings'. Details: The process cannot access the file
+  '/Users/<kullanici>/.templateengine/packages.json' because it is being used
+  by another process"* + `Sequence contains no matching element`. Bu bir URUN
+  KUSURU DEGILDIR: `dotnet new` sablon deposu kullanici genelindedir, test
+  basina yalitilmaz. **Ayirt etme**: tek basina kostur —
+  `dotnet test tests/AgentPrism.Templates.Tests -c Release --no-build`; 10/10
+  gecerse kilit cakismasidir. Ayni kosumda iki kez ust uste duserse gercek
+  kusurdur. Faz 58'de tam paket bir kez 3695/3695 yesil, ikinci kez bu tek
+  testte dustu, izole kosumda 10/10 gecti.
+
 - **🚨 `dotnet test ... | grep ... | head -N` KOSUMU ERKEN KESER.** `head` N
   satiri alinca boruyu kapatir, `dotnet test` SIGPIPE alir ve kalan test
   projeleri **hic kosmaz**; kabuk yine de `exit 0` doner ve kosum basarili

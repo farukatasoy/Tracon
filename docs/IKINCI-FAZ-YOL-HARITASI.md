@@ -1,6 +1,6 @@
 # İkinci Faz Yol Haritası (Faz 8 – Faz 30)
 
-> **Durum:** Onaylı sıra. Bu belge [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md)'nin
+> **Durum:** Onaylı sıra. Bu belge [`BEYIN-FIRTINASI.md`](arsiv/BEYIN-FIRTINASI.md)'nin
 > **hammadde** hâlini, uygulanabilir faz dokümanlarına dönüştürür.
 >
 > Beyin fırtınası belgesindeki **29 kalemin tamamı** planlandı. Hiçbir kalem

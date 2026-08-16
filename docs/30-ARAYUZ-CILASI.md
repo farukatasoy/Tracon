@@ -1,7 +1,7 @@
 # Faz 30 — Arayüz Cilası: Yerelleştirme, Komut Paleti ve Kısayollar
 
 > **Durum:** ✅ Tamamlandı (2026-08-05)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-25**, **F-26**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-25**, **F-26**
 > **Önkoşul:** Yok — ama **en sonda** olması bilinçliydi
 > **Paketler:** `AgentPrism.UI` (yalnız arayüz; **sunucuda tek satır değişiklik yok**)
 > **Migration:** Yok

@@ -1,7 +1,7 @@
 # Faz 25 — Veri Saklama Politikası ve Arşivleme
 
 > **Durum:** ✅ **Tamamlandı (2026-08-05)**
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-08**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-08**
 > **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — temizleme işi kuyruğu kullanır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql` (+ varsa `.SqlServer`, `.Sqlite`), `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0014 (planlanan sırada)

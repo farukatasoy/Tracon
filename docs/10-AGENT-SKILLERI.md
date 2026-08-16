@@ -1,7 +1,7 @@
 # Faz 10 — Agent Skill'leri (script'siz)
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-09** (1/2)
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-09** (1/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi dekoratörü hazır olmalı
 > **Sonraki:** [Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md) — script çalıştırma
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`

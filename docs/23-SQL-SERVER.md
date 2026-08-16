@@ -1,7 +1,7 @@
 # Faz 23 — SQL Server Desteği
 
 > **Durum:** ✅ Tamam — 204/204 sözleşme testi `azure-sql-edge` (arm64) üzerinde yeşil (bkz. "Açık Kalan")
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-06**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-06**
 > **Paketler:** **`AgentPrism.SqlServer` (YENİ)** · `AgentPrism.PostgreSql` (yeniden yapılandırıldı) · `AgentPrism.Sql.Shared` (yeni, **paket değil**)
 > **Migration:** Kendi migration seti — `0001_initial.sql`
 > **Kararlar:** K-176 … K-189

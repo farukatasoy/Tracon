@@ -14,11 +14,11 @@
 **Paket listesi tek yerdedir: [`README.md`](../README.md) → "Paketler".** Burada
 tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
 
-- `AgentPrism.Sql.Shared` **paket değildir** — üç SQL sağlayıcısına bağlanan
-  paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198),
-  migration runner (K-176).
-- Migration setleri sağlayıcı başına bağımsızdır (K-178): PostgreSql `0001`–`0027`,
-  SqlServer ve Sqlite `0001`–`0014` (K-190).
+- `AgentPrism.Sql.Shared` **paket değildir** — `.csproj`'u yoktur; üç SQL
+  sağlayıcısı onu `<Compile Include=... />` ile derler: 29 `store`,
+  `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176).
+- Migration setleri sağlayıcı başına bağımsızdır (K-178): PostgreSql `0001`–`0029`,
+  SqlServer ve Sqlite `0001`–`0016` (K-190).
 - `PgVectorSearchStore` (Faz 51) `Sql.Shared`'den geçmeyen **tek** `store`'dur —
   doğrudan `Npgsql` kullanır (K4, K-344).
 - Meta pakete **dâhil olmayanlar**: `SqlServer` (K-185), `Sqlite`, `Anthropic`
@@ -665,10 +665,9 @@ ve ikisi de işaretlidir (K-350). **Önerilen yol** `AddGeneratedTools()`
 
 ## 10. İlgili Dokümanlar
 
-Faz dokümanlarının **tam listesi ve durumu tek yerdedir**: `README.md` yol
-haritası tablosu ile tur yol haritaları ([ikinci](IKINCI-FAZ-YOL-HARITASI.md) ·
-[üçüncü](UCUNCU-FAZ-YOL-HARITASI.md)). Burada tekrarlanmaz — iki yerde tutmak
-kayma üretir.
+Faz listesi ve durumu **tek yerdedir**: [`YOL-HARITASI.md`](YOL-HARITASI.md),
+her fazın `Durum:` satırından üretilir. Turlar:
+[ikinci](IKINCI-FAZ-YOL-HARITASI.md) · [üçüncü](UCUNCU-FAZ-YOL-HARITASI.md).
 
 Karar arıyorsan [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md)'ten satırı bul ve
 `KARARLAR.md`'yi **grep'le**. MAF'a dokunurken

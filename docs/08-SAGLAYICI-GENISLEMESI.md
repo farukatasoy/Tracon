@@ -1,7 +1,7 @@
 # Faz 8 — Sağlayıcı Genişlemesi ve Sağlık Denetimi
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-03**, **F-05**, **F-16**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-03**, **F-05**, **F-16**
 > **Önkoşul:** Yok — Faz 6 sonundaki kod tabanı yeterli
 > **Paketler:** `AgentPrism.OpenAI` (genişler), `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok

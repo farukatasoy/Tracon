@@ -1,7 +1,7 @@
 # Faz 28 — Ses Tool'ları (ElevenLabs)
 
 > **Durum:** ✅ Tamamlandı (2026-08-05)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-13** (1/2)
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-13** (1/2)
 > **Önkoşul:** [Faz 14](14-COK-MODLULUK.md) — ses çıktısı `attachments` deposunu kullanır
 > **Sonraki:** [Faz 29](29-KONUSMA-KATMANI.md) — gerçek zamanlı konuşma katmanı
 > **Paketler:** **`AgentPrism.Voice` (YENİ)**

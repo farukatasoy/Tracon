@@ -94,7 +94,7 @@ taşınır.
 
 ### Faz durumu
 
-**Faz 0–57 tamam** (Faz 7 hariç, K-068); **58–59 planlandı**. Durum tablosu
+**Faz 0–58 tamam** (Faz 7 hariç, K-068); **59 planlandı**. Durum tablosu
 [`README.md`](README.md)'de; faz sırası, migration numaraları ve açık kalemler
 tur yol haritalarındadır ([ikinci](docs/IKINCI-FAZ-YOL-HARITASI.md) ·
 [üçüncü](docs/UCUNCU-FAZ-YOL-HARITASI.md)), seçilmemiş kalemler

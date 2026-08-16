@@ -1,7 +1,7 @@
 # Faz 24 — SQLite Desteği
 
 > **Durum:** ✅ Kod tamam · 205/205 sözleşme+diyalekt testi yeşil · AOT ölçülmedi (bkz. "Açık Kalan")
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-07**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-07**
 > **Önkoşul:** [Faz 23](23-SQL-SERVER.md) — ortak SQL soyutlaması orada olgunlaşır
 > **Paketler:** **`AgentPrism.Sqlite` (YENİ)** · `AgentPrism.Abstractions`
 > **Migration:** Kendi migration seti — `0001_initial.sql`

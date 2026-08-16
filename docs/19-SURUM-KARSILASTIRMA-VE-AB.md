@@ -1,7 +1,7 @@
 # Faz 19 — Sürüm Karşılaştırma, Diff ve A/B
 
 > **Durum:** ✅ Tamamlandı (2026-08-03)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-15**, **F-24**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-15**, **F-24**
 > **Önkoşul:** [Faz 18](18-DEGERLENDIRME.md) — "hangisi daha iyi" sorusu ölçüm ister
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0010 (`0010_experiments.sql`)

@@ -65,10 +65,46 @@ BUTCE = {
     "docs/KARARLAR-INDEKS.md": 25_000,
     "docs/MIMARI.md": 44_000,  # K-361 (Faz 53): API anahtarı katmanı bugunku mimarinin gercek buyumesi
     "README.md": 20_000,
+    # --- Faz 58.4'te eklendi ---------------------------------------------
+    # Bunlar her oturumda BASTAN SONA okunmaz ama her planlama/kapanis
+    # turunda buyurler ve hicbir freni yoktu. Sinirlar 2026-08-16'da OLCULEN
+    # gercek boyuta %15 bosluk eklenerek kondu, tahminle degil.
+    #
+    # KARARLAR.md: ilk deger 465_000 idi ve Faz 58'in KENDI kararlari
+    # (K-411..K-414, +5.663 B) eklenmeden ONCE olculmustu -- kapanista %14'e
+    # dustu. Bu bir buyume olayi degil, kalibrasyon hatasiydi: sinir fazin
+    # SONUNDAKI boyuta gore konur. K-214'un "butce buyutulmez" sozu var olan
+    # bir sinirin asilmasi icindir; burada sinir ilk kez konuyor.
+    "docs/KARARLAR.md": 475_000,           # olculen 398_967 (faz kapanisindan sonra)
+    "docs/UCUNCU-FAZ-ADAYLARI.md": 80_000,  # olculen 67_195
 }
 
 # Alan hafiza dosyalari tek tek buyuyebilir ama biri digerlerini yutmamali.
 HAFIZA_DOSYA_BUTCESI = 16_000
+
+# --- Dizin butceleri (Faz 58.4) ------------------------------------------
+# Tek dosya freni yetmez: hangi dosyanin buyudugunden BAGIMSIZ bir ust sinir
+# gerekir. Sinir "oturum maliyetini" olcer, disk boyutunu degil -- bu yuzden
+# ARSIV ve KOSUM KAYITLARI HARIC tutulur (kullanici karari, 2026-08-16):
+#
+#   docs/arsiv/                 -> yalniz grep'lenir, hicbir oturum bastan okumaz
+#   docs/manuel-test/kosumlar/  -> bir kosumun kaydi; spec degil
+#
+# Gerekce: bu ikisi sayilsaydi ARSIVLEMEK sayaci degistirmezdi ve disiplinin
+# istedigi davranis (sicak yoldan cikarma) odullendirilmezdi. Boyle bir sinir
+# yalnizca SILMEYE zorlar -- AGENTS.md'nin "icerik silinmez, tasinir" kuralinin
+# tam tersi. Haric tutunca arsive tasimak sayaci GERCEKTEN dusurur.
+HARIC = ("docs/arsiv", "docs/manuel-test/kosumlar")
+
+DIZIN_BUTCESI = {
+    # (yol, ozyinelemeli mi) -> sinir.  Olculen deger 2026-08-16.
+    ("docs/manuel-test", False): 1_950_000,  # olculen 1_646_886 (yalniz spec)
+    ("docs", True): 5_000_000,               # olculen 4_206_267 (haric'ler dusuldu)
+}
+
+# Bir butcenin en az bu kadari bos kalmali; asagisi "DAR" olarak isaretlenir
+# (hata degil, erken uyari). Faz 58.0'in tum sicak yol dosyalarina koydugu hedef.
+BOSLUK_ORANI = 0.15
 
 
 def _kararlar_kalemleri() -> tuple[list, list]:
@@ -198,37 +234,135 @@ def kararlar_reddedilen_uret() -> str:
     return "\n".join(ç)
 
 
+def _dizin_boyutu(yol: str, ozyinelemeli: bool, haric_uygula: bool = True) -> int:
+    """Bir dizindeki .md dosyalarinin toplam bayti.
+
+    `haric_uygula` False verilirse HARIC dusulmez -- denetim disi kalan
+    yigini RAPORLAMAK icin gerekir (kendini dusurmesin diye).
+    """
+    kok = ROOT / yol
+    if not kok.exists():
+        return 0
+    haric = tuple((ROOT / h).resolve() for h in HARIC) if haric_uygula else ()
+    desen = kok.rglob("*.md") if ozyinelemeli else kok.glob("*.md")
+    toplam = 0
+    for p in desen:
+        r = p.resolve()
+        if any(r == h or h in r.parents for h in haric):
+            continue
+        toplam += len(p.read_bytes())
+    return toplam
+
+
+def _satir(ad: str, n: int, sinir: int, genislik: int = 30) -> tuple[str, bool]:
+    """Bicimlenmis satir ve 'butce asildi mi' bayragi."""
+    asti = n > sinir
+    bosluk = (sinir - n) / sinir if sinir else 0
+    if asti:
+        durum = "AŞTI"
+    elif bosluk < BOSLUK_ORANI:
+        durum = f"DAR (%{bosluk * 100:.0f} boş)"
+    else:
+        durum = f"ok (%{bosluk * 100:.0f} boş)"
+    return f"{ad:<{genislik}} {n:>9} {sinir:>9}  {n * 10 // 24:>8}  {durum}", asti
+
+
+def yol_haritasi_uret() -> str:
+    """Faz yol haritasi -- `docs/NN-*.md` dosyalarindan URETILIR, elle yazilmaz.
+
+    Faz 58: README'deki tablo Faz 21-56'yi tek satirda ozetliyordu ve
+    "Faz dokumanlari (00-32)" gibi elle bakilan sayilar bayatliyordu. Kaynak
+    artik fazin KENDI dokumanindaki `> **Durum:**` satiridir; bir faz kapandiginda
+    yol haritasi kendiliginden dogrulanir (K-214'un indeks deseni).
+    """
+    kisalt = {
+        "Tamamlandı": "✅ Tamamlandı",
+        "Tamam": "✅ Tamamlandı",
+        "Beklemede": "⏸ Beklemede",
+        "Planlandı": "📋 Planlandı",
+    }
+
+    satirlar = []
+    for p in sorted((ROOT / "docs").glob("[0-9][0-9]-*.md")):
+        metin = p.read_text(encoding="utf-8")
+        mb = re.search(r"^#\s+(.*)$", metin, re.M)
+        md = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+
+        baslik = mb.group(1).strip() if mb else p.stem
+        baslik = re.sub(r"^Faz\s+\d+\s*[—-]\s*", "", baslik)
+
+        ham = (md.group(1) if md else "?").strip()
+        ham = ham.replace("*", "").replace("✅", "").replace("⏸", "").replace("📋", "").strip()
+        durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham[:40] or "?")
+
+        no = p.name[:2].lstrip("0") or "0"
+        satirlar.append(f"| [{no}]({p.name}) | {baslik} | {durum} |")
+
+    return "\n".join(
+        [
+            "# Faz Yol Haritası",
+            "",
+            "> **Üretilen dosya. Elle düzenleme.** Kaynak: her fazın kendi",
+            "> `docs/NN-*.md` dosyasındaki `> **Durum:**` satırı.",
+            "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
+            "",
+            "Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;",
+            "bu dosyayı düzeltmek bir sonraki üretimde geri alınır.",
+            "",
+            f"## Fazlar ({len(satirlar)} kalem)",
+            "",
+            "| Faz | Konu | Durum |",
+            "|-----|------|-------|",
+            *satirlar,
+            "",
+            "Dalga yol haritaları: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md)"
+            " (21–30) · [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) (31–56)."
+            " Seçilmemiş adaylar: [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md).",
+            "",
+        ]
+    )
+
+
 def denetle() -> int:
     hata = 0
     print("Sıcak yol doküman bütçesi")
-    print(f"{'dosya':<28} {'bayt':>8} {'bütçe':>8}  {'~token':>7}")
+    print(f"{'dosya':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
     for yol, sinir in BUTCE.items():
         p = ROOT / yol
         if not p.exists():
-            print(f"{yol:<28} {'YOK':>8}")
+            print(f"{yol:<30} {'YOK':>9}")
             continue
-        n = len(p.read_bytes())
-        durum = "ok" if n <= sinir else "AŞTI"
-        if n > sinir:
-            hata = 1
-        print(f"{yol:<28} {n:>8} {sinir:>8}  {n * 10 // 24:>7}  {durum}")
+        s, asti = _satir(yol, len(p.read_bytes()), sinir)
+        hata |= asti
+        print(s)
 
     print("\nAlan hafıza dosyaları")
-    hafiza = sorted((ROOT / "docs" / "hafiza").glob("*.md"))
-    for p in hafiza:
+    for p in sorted((ROOT / "docs" / "hafiza").glob("*.md")):
         n = len(p.read_bytes())
-        durum = "ok" if n <= HAFIZA_DOSYA_BUTCESI else "AŞTI — ikiye böl"
         if n > HAFIZA_DOSYA_BUTCESI:
             hata = 1
-        print(f"  {p.name:<26} {n:>8} {HAFIZA_DOSYA_BUTCESI:>8}  {durum}")
+            print(f"  {p.name:<28} {n:>9} {HAFIZA_DOSYA_BUTCESI:>9}  AŞTI — ikiye böl")
+        else:
+            print(f"  {p.name:<28} {n:>9} {HAFIZA_DOSYA_BUTCESI:>9}  ok")
+
+    print(f"\nDizin bütçeleri (hariç: {', '.join(HARIC)})")
+    print(f"{'dizin':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
+    for (yol, ozyinelemeli), sinir in DIZIN_BUTCESI.items():
+        ad = f"{yol}/{'**' if ozyinelemeli else '*'}.md"
+        s, asti = _satir(ad, _dizin_boyutu(yol, ozyinelemeli), sinir)
+        hata |= asti
+        print(s)
+
+    haric_toplam = sum(_dizin_boyutu(h, True, haric_uygula=False) for h in HARIC)
+    print(f"  (denetim dışı arşiv + koşum kaydı: {haric_toplam} B — sınırı etkilemez)")
 
     toplam = sum(len((ROOT / y).read_bytes()) for y in BUTCE if (ROOT / y).exists())
     print(f"\nOturum başı sıcak yol toplamı: {toplam} B (~{toplam * 10 // 24} token)")
     if hata:
-        print("\n❌ Bütçe aşıldı. Notu alan dosyasına taşı veya geçmişi arşive al.")
+        print("\n❌ Bütçe aşıldı. İçeriği SİLME — alan dosyasına veya docs/arsiv/'e taşı.")
     else:
         print("\n✅ Bütçeler içinde.")
-    return hata
+    return int(hata)
 
 
 def main() -> int:
@@ -241,6 +375,7 @@ def main() -> int:
             (ROOT / "docs" / "KARARLAR-INDEKS.md", kararlar_indeksi_uret),
             (ROOT / "docs" / "KARARLAR-INDEKS-ARSIV.md", kararlar_indeksi_arsiv_uret),
             (ROOT / "docs" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
+            (ROOT / "docs" / "YOL-HARITASI.md", yol_haritasi_uret),
         ):
             yeni = uret()
             eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 57 tamamlandı — AgentPrism **işletilebilirdir** ve kaynak kodu **İngilizce**dir. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–57 bitti; dördüncü dalga ve kod dili birleştirme tamamlandı.
+> **Durum:** Faz 58 tamamlandı — AgentPrism **işletilebilirdir** ve kaynak kodu **İngilizce**dir. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–58 bitti; kod dili birleştirme ve doküman düzeni tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -21,12 +21,13 @@ adresinde bir kontrol düzlemi.
 
 ### Arayüz
 
-Agents, Playground, Sessions, Runs, Workflows, Jobs, Evals, Experiments, Tools,
-Models, MCP, Audit, Diagnostics, Settings — her faz için ayrı bir ekran.
+Dashboard, Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
+Experiments, Approvals, Tools, Models, MCP, Audit, Diagnostics, Settings —
+**27 ekran, 33 route**; liste ve düzenleyiciler dâhil.
 
 React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
 sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
-`node_modules` klasörü gerekmez. JavaScript bütçesi **~159 KB gzip** (kapı: 250 KB).
+`node_modules` klasörü gerekmez. JavaScript bütçesi **165,8 KB gzip** (kapı: 250 KB).
 
 Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
 çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
@@ -159,7 +160,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, onay varsayılan |
 | `AgentPrism.Workflows` | ✅ Workflow yürütme — beş desen, kontrol noktası, sürdürme, human-in-the-loop |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si, OpenAI uyumlu uçlar, çok kiracılılık |
-| `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
+| `AgentPrism.UI` | ✅ Gömülü React arayüzü — 27 ekran / 33 route, sıfır JavaScript bağımlılığı |
 | `AgentPrism.Templates` | ✅ `dotnet new agentprism-api` şablonu — meta pakete dâhil değil |
 | `AgentPrism.Testing` | ✅ `FakeModelProvider`/`AgentPrismTestHost`/`RunAssertions`; çerçeveden bağımsız, meta pakete dâhil değil |
 
@@ -226,35 +227,19 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-| Faz | Konu | Durum |
-|-----|------|-------|
-| [0](docs/00-ALTYAPI.md) | Build ve paketleme altyapısı | ✅ Tamamlandı |
-| [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | ✅ Tamamlandı |
-| [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | ✅ Tamamlandı |
-| [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | ✅ Tamamlandı |
-| [4](docs/04-HTTP-API.md) | HTTP API katmanı | ✅ Tamamlandı |
-| [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | ✅ Tamamlandı |
-| [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, tool onayı, MCP, çok kiracılılık | ✅ Tamamlandı |
-| [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
-| [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu her uç, devre kesici) | ✅ Tamamlandı |
-| [9](docs/09-YONETISIM-VE-DENETIM-IZI.md) | Yönetişim: rol tabanlı yetkilendirme (Reader/Operator/Admin) ve denetim izi | ✅ Tamamlandı |
-| [10](docs/10-AGENT-SKILLERI.md) | Agent skill'leri: markdown talimatlar, kaynaklar ve MAF onayı | ✅ Tamamlandı |
-| [11](docs/11-SKILL-SCRIPT-CALISTIRMA.md) | Skill script çalıştırma: sandbox, izin kaydı ve denetim izi | ✅ Tamamlandı |
-| [12](docs/12-AGENT-CAGRI-GRAFIGI.md) | Agent'ın agent'ı çağırması: çağrı grafiği, çalıştırma ağacı ve paylaşılan bütçe | ✅ Tamamlandı |
-| [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
-| [14](docs/14-COK-MODLULUK.md) | Çok modluluk: görsel/dosya eki, kalıcı agent dosya belleği | ✅ Tamamlandı |
-| [15](docs/15-WORKFLOWS-YURUTME.md) | Workflows: beş desenle yürütme, kontrol noktası ve sürdürme | ✅ Tamamlandı |
-| [16](docs/16-WORKFLOWS-ARAYUZ.md) | Workflows: graf görselleştirme, human-in-the-loop, Magentic plan onayı | ✅ Tamamlandı |
-| [17](docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | Toplu ve zamanlanmış çalıştırma: iş kuyruğu (`SKIP LOCKED`), cron, Jobs ekranı | ✅ Tamamlandı |
-| [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
-| [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
-| [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (53–56): API anahtarı, öksüz çalıştırma, asenkron onay kutusu, [kanarya yayını](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | **53–56 bitti** |
-| [57](docs/57-KOD-DILI-BIRLESTIRME.md) | Kod dili birleştirme (İngilizce) | ✅ Tamamlandı |
-| [58–59](docs/57-KOD-DILI-BIRLESTIRME.md) | Doküman düzeni, ürün dokümantasyonu | 📋 Planlandı |
+**Faz 0–58 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**59 planlandı.**
 
+| Dalga | Fazlar | Konu | Durum |
+|-------|--------|------|-------|
+| 1 | [0–20](docs/YOL-HARITASI.md) | Çekirdek, kalıcılık, HTTP, arayüz, workflows, eval, maliyet | ✅ Bitti (7 beklemede) |
+| 2 | [21–30](docs/IKINCI-FAZ-YOL-HARITASI.md) | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
+| 3 | [31–52](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
+| 4 | [53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
+| 5 | [57–59](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 57–58 ✅ · 59 📋 |
+
+**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–59 tek tek
+listelidir ve her fazın kendi dokümanından **üretilir**, elle yazılmaz.
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı
 
@@ -302,7 +287,7 @@ yazılmaz. Ayrıntı: [`docs/48-GUARDRAILS.md`](docs/48-GUARDRAILS.md).
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 3355 test, 16 proje
+dotnet test   AgentPrism.slnx -c Release --no-build   # 3695 test, 16 proje
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```
