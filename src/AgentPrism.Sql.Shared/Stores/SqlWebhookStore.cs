@@ -3,19 +3,20 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Webhook aboneliklerini ve teslim gecmisini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores webhook subscriptions and delivery history in the SQL database.</summary>
 /// <remarks>
-/// 🚨 Bu depo hicbir zaman bir <strong>sir</strong> yazmaz veya okumaz; yalnizca
-/// sirrin okunacagi yapilandirma anahtarinin <em>adini</em> tutar (K-059).
-/// Veritabani yedegi, denetim izi ve arayuz yaniti bu yuzden sir tasimaz.
+/// 🚨 This store never writes or reads a <strong>secret</strong>; it only holds
+/// the <em>name</em> of the configuration key the secret will be read from
+/// (K-059). The database backup, audit trail, and UI response therefore carry
+/// no secret.
 /// </remarks>
 internal sealed class SqlWebhookStore : IWebhookStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir webhook deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new webhook store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlWebhookStore(SqlStoreContext context)
     {
@@ -25,7 +26,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -107,7 +108,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        // Teslim gecmisi ON DELETE CASCADE ile birlikte silinir (migration 0012).
+        // The delivery history is deleted along with it via ON DELETE CASCADE (migration 0012).
         var command = CreateCommand(_sql.DeleteWebhookSubscription);
         DbHelpers.Add(command, "tenant_id", tenantId);
         DbHelpers.Add(command, "name", name);
@@ -117,7 +118,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Teslim iscisi, teslimatin tasidigi abonelik kimligiyle sonucu isler; cagride ayri bir kiraci niyeti yoktur.")]
+        "The delivery worker processes the outcome using the subscription id carried by the delivery; there is no separate tenant intent in the call.")]
     public async ValueTask<bool> RecordSubscriptionOutcomeAsync(
         Guid subscriptionId,
         bool succeeded,
@@ -163,7 +164,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Teslimat kimligi yalnizca teslim isini ACAN kod tarafindan uretilir ve HTTP yuzeyinde HIC gorunmez; kiraci, teslimati ureten abonelikten miras alinir.")]
+        "The delivery id is generated only by the code that OPENS the delivery job and NEVER appears on the HTTP surface; the tenant is inherited from the subscription that produced the delivery.")]
     public async ValueTask<WebhookDelivery?> GetDeliveryAsync(
         Guid deliveryId,
         CancellationToken cancellationToken = default)
@@ -176,7 +177,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "GetDeliveryAsync ile ayni gerekce: teslimat kimligi is kuyrugundan gelir.")]
+        "Same rationale as GetDeliveryAsync: the delivery id comes from the job queue.")]
     public async ValueTask RecordDeliveryResultAsync(
         WebhookDeliveryResult result,
         CancellationToken cancellationToken = default)
@@ -224,8 +225,8 @@ internal sealed class SqlWebhookStore : IWebhookStore
             return "{}";
         }
 
-        // Kaynak uretilmis baglam: AOT uyumlulugu icin yansimaya dayanan
-        // serilestirme kullanilmaz.
+        // Source-generated context: reflection-based serialization is not
+        // used, for AOT compatibility.
         return JsonSerializer.Serialize(
             headers.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
             AgentPrismJsonContext.Default.DictionaryStringString);

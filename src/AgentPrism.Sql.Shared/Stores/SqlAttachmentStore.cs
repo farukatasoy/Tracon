@@ -2,12 +2,13 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Ekleri PostgreSQL'de saklayan tenant-yalitimli depo.</summary>
+/// <summary>Tenant-isolated store for attachments in the SQL database.</summary>
 /// <remarks>
-/// <see cref="IAttachmentStorage"/> kayitliysa icerik orada yasar ve
-/// <c>attachments.content</c> <c>NULL</c> kalir, <c>external_uri</c> dolar.
-/// Kayitli degilse icerik dogrudan <c>bytea</c> sutununda tasinir.
-/// Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1 ve 14.3.
+/// When <see cref="IAttachmentStorage"/> is registered, the content lives there,
+/// <c>attachments.content</c> stays <c>NULL</c>, and <c>external_uri</c> is filled
+/// in. When it is not registered, the content is carried directly in the
+/// <c>bytea</c> column.
+/// Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.3.
 /// </remarks>
 internal sealed class SqlAttachmentStore : IAttachmentStore
 {
@@ -15,9 +16,9 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     private readonly SqlQueriesBase _sql;
     private readonly IAttachmentStorage? _storage;
 
-    /// <summary>Yeni bir ek deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="storage">Kayitliysa icerigin yazilacagi harici depo.</param>
+    /// <summary>Creates a new attachment store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="storage">The external store the content is written to when registered.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlAttachmentStore(
         SqlStoreContext context,
@@ -30,7 +31,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         _storage = storage;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />

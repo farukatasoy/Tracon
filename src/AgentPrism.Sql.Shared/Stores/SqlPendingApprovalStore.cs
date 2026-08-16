@@ -2,13 +2,13 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Bekleyen onay isteklerini SQL'de saklayan depo (Faz 55).</summary>
+/// <summary>Stores pending approval requests in the SQL database (Phase 55).</summary>
 /// <remarks>
-/// Davranis sozlesmesi <see cref="InMemoryPendingApprovalStore"/> ile birebir
-/// aynidir ve ortak sozlesme testleriyle korunur. <see cref="ListPendingAsync"/>,
-/// <see cref="GetAsync"/> ve <see cref="DecideAsync"/> cagiranin kiracisiyla
-/// (<see cref="ITenantContext"/>) sinirlidir — <see cref="ExpireAsync"/> bir
-/// bakim islemidir ve butun kiracilari tarar.
+/// The behavior contract is identical to <see cref="InMemoryPendingApprovalStore"/>
+/// and is guarded by the shared contract tests. <see cref="ListPendingAsync"/>,
+/// <see cref="GetAsync"/>, and <see cref="DecideAsync"/> are scoped to the
+/// caller's tenant (<see cref="ITenantContext"/>) — <see cref="ExpireAsync"/> is
+/// a maintenance operation and scans every tenant.
 /// </remarks>
 internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
 {
@@ -16,9 +16,9 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir SQL onay deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
+    /// <summary>Creates a new SQL approval store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlPendingApprovalStore(SqlStoreContext context, ITenantContext tenantContext)
     {

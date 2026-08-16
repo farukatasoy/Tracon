@@ -2,19 +2,20 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Script calistirma izinlerini PostgreSQL'de saklayan tenant-yalitimli depo.</summary>
+/// <summary>Tenant-isolated store for script run grants in the SQL database.</summary>
 /// <remarks>
-/// Izin kaydi <strong>silinmez</strong>, iptal edilir (<c>revoked_at</c>). "Bu
-/// sunucuda kim, ne zaman, hangi script'e calistirma yetkisi verdi ve ne zaman
-/// geri aldi" sorusu denetim izinden bagimsiz olarak da cevaplanabilmelidir.
+/// A grant record is <strong>never deleted</strong>, it is revoked
+/// (<c>revoked_at</c>). The question "who granted permission to run which
+/// script on this server, when, and when it was taken back" must be
+/// answerable independently of the audit trail as well.
 /// </remarks>
 internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir izin deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new grant store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlSkillScriptGrantStore(
         SqlStoreContext context)
@@ -25,7 +26,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -79,7 +80,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
 
         return await DbHelpers.ReadSingleAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
-                $"'{grant.SkillName}' skill'i icin script calistirma izni kaydedilemedi.");
+                $"Could not save the script run grant for skill '{grant.SkillName}'.");
     }
 
     /// <inheritdoc />
