@@ -4,84 +4,87 @@
     <RootNamespace>AgentPrism.Api</RootNamespace>
     <UserSecretsId>agentprism-sample-api</UserSecretsId>
     <!--
-      🚨 InvariantGlobalization ACILMAZ. `Microsoft.Data.SqlClient` Globalization
-      Invariant Mode'u DESTEKLEMEZ: `SqlConnection.Open` kosulsuz
-      `NotSupportedException: Globalization Invariant Mode is not supported.`
-      firlatir ve `UseSqlServer()` kullanan uygulama HIC acilmaz. Hata mesaji
-      AgentPrism'i anmaz, bu yuzden tuketici kok nedeni bulamaz. Olculdu
-      (manuel test MT-SQL-024). Gerekce: docs/KARARLAR.md, karar K-392.
+      🚨 InvariantGlobalization is NOT enabled. `Microsoft.Data.SqlClient` does
+      NOT support Globalization Invariant Mode: `SqlConnection.Open` unconditionally
+      throws `NotSupportedException: Globalization Invariant Mode is not supported.`
+      and an application using `UseSqlServer()` NEVER starts. The error message
+      does not mention AgentPrism, so the consumer cannot find the root cause.
+      Measured (manual test MT-SQL-024). Rationale: docs/KARARLAR.md, decision K-392.
     -->
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
     <!--
-      🚨 Yalniz bu REPO icin gerekli. `OutputItemType=Analyzer`, coklu-sicrama
-      ProjectReference zincirlerinde (Api -> AgentPrism -> Core -> Generators)
-      YAYILMAZ - olculdu, AddGeneratedTools() bu satir olmadan CS1061 verir.
-      NuGet'in analyzers/dotnet/cs YAYILIMI yalniz PAKET tuketiminde (PackageReference)
-      gecerlidir; gercek bir dis tuketici yalniz `AgentPrism.Core`'u PackageReference
-      ile alir ve bu satira ihtiyac duymaz. Bkz. docs/52-KAYNAK-URETECI.md.
+      🚨 Needed only for THIS repo. `OutputItemType=Analyzer` does NOT propagate
+      across multi-hop ProjectReference chains (Api -> AgentPrism -> Core -> Generators)
+      - measured, AddGeneratedTools() gives CS1061 without this line.
+      NuGet's analyzers/dotnet/cs propagation applies only to PACKAGE consumption
+      (PackageReference); a real external consumer only takes `AgentPrism.Core` via
+      PackageReference and does not need this line. See docs/52-KAYNAK-URETECI.md.
     -->
     <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj"
                        PrivateAssets="all"
                        ReferenceOutputAssembly="false"
                        OutputItemType="Analyzer" />
     <!--
-      SQL Server ve SQLite meta pakete DAHIL DEGILDIR: her tuketici
-      Microsoft.Data.SqlClient/SQLitePCLRaw cekmek zorunda kalmasin diye
-      (K-185, aynisi SQLite icin de gecerlidir). Kullanmak isteyen acikca
-      referans verir; ornek uygulama uc saglayiciyi da gosterebilmek icin verir.
+      SQL Server and SQLite are NOT included in the meta package, so consumers
+      are not forced to pull in Microsoft.Data.SqlClient/SQLitePCLRaw
+      (K-185, same applies to SQLite). A consumer who wants them references
+      explicitly; the sample app references them to show all three providers.
     -->
     <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
     <!--
-      Anthropic ve Google saglayicilari da meta pakete DAHIL DEGILDIR (K-185
-      deseni): OpenAI kullanan bir tuketici Anthropic SDK'sini, Gemini kullanmayan
-      bir tuketici Google.Apis.Auth zincirini cekmek zorunda kalmamalidir. Ornek
-      uygulama uc saglayiciyi birlikte gosterebilmek icin acikca referans verir.
+      Anthropic and Google providers are also NOT included in the meta package
+      (K-185 pattern): a consumer using OpenAI should not be forced to pull in the
+      Anthropic SDK, and a consumer not using Gemini should not be forced to pull
+      in the Google.Apis.Auth chain. The sample app references them explicitly to
+      show all three providers together.
     -->
     <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
-    <!-- Ses tool'lari (Faz 28). Meta pakete dahil DEGILDIR; acikca referans verilir. -->
+    <!-- Voice tools. NOT included in the meta package; referenced explicitly. -->
     <ProjectReference Include="../../src/AgentPrism.Voice/AgentPrism.Voice.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!--
-      OpenAPI belgesi TUKETICININ tercihidir. AgentPrism.AspNetCore bu pakete
-      bagimli degildir; uclar paylasilan cerceveden gelen ustveriyi tasir ve
-      AddOpenApi() cagrildiginda belgede kendiliginden gorunur.
+      The OpenAPI document is the CONSUMER's choice. AgentPrism.AspNetCore does
+      not depend on this package; endpoints carry metadata from the shared
+      framework and appear in the document automatically when AddOpenApi() is called.
     -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!-- CVE zorlamasi; gerekce Directory.Packages.props icinde. -->
+    <!-- CVE pin; rationale in Directory.Packages.props. -->
     <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
   <!--
-    🚨 F-76 (olculdu 2026-08-08). AgentPrism.Sql.Shared bir PAKET DEGILDIR; ayni
-    kaynak uc derlemeye LinkBase ile baglanir (K-185). Uc derlemenin XML dokuman
-    dosyasi bu yuzden AYNI kimlikleri tasir - olculdu: SqlServer ile Sqlite
-    arasinda 620 ortak <member> kimligi, ilki `T:AgentPrism.MigrationRunner`.
+    🚨 F-76 (measured 2026-08-08). AgentPrism.Sql.Shared is NOT a package; the
+    same source links into three assemblies via LinkBase (K-185). The three
+    assemblies' XML documentation files therefore carry the SAME member ids -
+    measured: 620 shared <member> ids between SqlServer and Sqlite, the first
+    being `T:AgentPrism.MigrationRunner`.
 
-    Microsoft.AspNetCore.OpenApi'nin GenerateAdditionalXmlFilesForOpenApi hedefi
-    (build/Microsoft.AspNetCore.OpenApi.targets) her ProjectReference'in .xml
-    dosyasini AdditionalFiles'a ekler; XmlCommentGenerator hepsini TEK bir
-    sozlukte toplar ve ikinci ayni kimlikte `ArgumentException` firlatir.
-    Sonuc: /openapi/v1.json 500 doner.
+    The GenerateAdditionalXmlFilesForOpenApi target of Microsoft.AspNetCore.OpenApi
+    (build/Microsoft.AspNetCore.OpenApi.targets) adds each ProjectReference's .xml
+    file to AdditionalFiles; XmlCommentGenerator collects them all into ONE
+    dictionary and throws `ArgumentException` on the second duplicate id.
+    Result: /openapi/v1.json returns 500.
 
-    🚨 KAPSAM OLCULDU: hedefin kosulu `ReferenceSourceTarget == 'ProjectReference'`.
-    Bu ornekte 15 ProjectReference, 368 ResolveAssemblyReference olculdu; NuGet
-    paketleriyle gelen derlemelerin XML'i HIC eklenmez. Gercek bir PackageReference
-    tuketicisi (AgentPrism + SqlServer + Sqlite + AddOpenApi) ucdan uca denendi ve
-    HTTP 200 dondu. Yani hata YALNIZ kaynaktan derleyen (ProjectReference) tuketiciyi
-    etkiler - bu ornek uygulama dahil.
+    🚨 SCOPE MEASURED: the target's condition is `ReferenceSourceTarget ==
+    'ProjectReference'`. In this sample, 15 ProjectReference and 368
+    ResolveAssemblyReference were measured; XML from assemblies that come via
+    NuGet packages is NEVER added. A real PackageReference consumer
+    (AgentPrism + SqlServer + Sqlite + AddOpenApi) was tested end to end and
+    returned HTTP 200. So the bug affects ONLY consumers that build from source
+    (ProjectReference) - including this sample app.
 
-    Cozum: cakisan paylasilan kaynagin dokumanini TEK derlemede birak. SQL saglayici
-    tiplerinin hicbiri HTTP sozlesmesinde gorunmez, dolayisiyla belgeden hicbir sey
-    kaybolmaz. PostgreSql kanonik olarak kalir.
-    Gerekce ve olcum: docs/KARARLAR.md K-352, docs/40-OPENAPI-YAYINI.md.
+    Fix: keep the documentation of the conflicting shared source in ONE assembly
+    only. None of the SQL provider types appear in the HTTP contract, so nothing
+    is lost from the document. PostgreSql remains the canonical one.
+    Rationale and measurement: docs/KARARLAR.md K-352, docs/40-OPENAPI-YAYINI.md.
   -->
   <Target Name="AgentPrismRemoveDuplicateSqlXmlDocs"
           AfterTargets="GenerateAdditionalXmlFilesForOpenApi">

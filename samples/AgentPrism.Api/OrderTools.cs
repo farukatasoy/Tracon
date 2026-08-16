@@ -1,41 +1,42 @@
 namespace AgentPrism.Api;
 
 /// <summary>
-/// Ornek tool'lar. Gercek bir uygulamada bunlar veritabanina veya bir servise gider.
+/// Sample tools. A real application would call a database or a service here.
 /// </summary>
 /// <remarks>
-/// Metotlar <c>[AgentPrismTool]</c> ile isaretlidir ve
-/// <c>builder.AddAgentPrism().AddToolsFrom(typeof(OrderTools))</c> ile kaydedilir.
-/// Isaretsiz metotlar tool olmaz — bu sinifa yeni bir yardimci metot eklemek onu
-/// kendiliginden agent'lara acmaz. Arayuz (Faz 5) yalnizca bu listeden secim
-/// yaptirir; tool kodu yazdirmaz.
+/// Methods are marked with <c>[AgentPrismTool]</c> and registered with
+/// <c>builder.AddAgentPrism().AddToolsFrom(typeof(OrderTools))</c>. An unmarked
+/// method is not a tool — adding a new helper method to this class does not
+/// automatically expose it to agents. The UI only lets the user pick from this
+/// list; it never generates tool code.
 /// </remarks>
 internal static class OrderTools
 {
-    /// <summary>Bir siparisin kargo durumunu dondurur.</summary>
-    /// <param name="orderId">Siparis numarasi.</param>
-    /// <returns>Kargo durumu metni.</returns>
-    [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
+    /// <summary>Returns the shipping status of an order.</summary>
+    /// <param name="orderId">The order number.</param>
+    /// <returns>The shipping status text.</returns>
+    [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
     public static string GetOrderStatus(string orderId)
-        => $"{orderId} numarali siparis kargoya verildi. Tahmini teslim: 2 gun.";
+        => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
 
-    /// <summary>Musterinin son siparislerini listeler.</summary>
-    /// <param name="customerId">Musteri numarasi.</param>
-    /// <returns>Siparis listesi metni.</returns>
-    [AgentPrismTool("list_recent_orders", "Musterinin son siparislerini listeler.")]
+    /// <summary>Lists a customer's recent orders.</summary>
+    /// <param name="customerId">The customer number.</param>
+    /// <returns>The order list text.</returns>
+    [AgentPrismTool("list_recent_orders", "Lists a customer's recent orders.")]
     public static string ListRecentOrders(string customerId)
-        => $"{customerId} musterisinin son siparisleri: ORD-1001, ORD-1002.";
+        => $"Recent orders for customer {customerId}: ORD-1001, ORD-1002.";
 
-    /// <summary>Bir siparisi iptal eder.</summary>
-    /// <param name="orderId">Siparis numarasi.</param>
-    /// <returns>Iptal sonucu metni.</returns>
+    /// <summary>Cancels an order.</summary>
+    /// <param name="orderId">The order number.</param>
+    /// <returns>The cancellation result text.</returns>
     /// <remarks>
-    /// <c>RequiresApproval = true</c>: bu tool geri alinamaz bir is yapar ve
-    /// modelin karariyla kendiliginden calismamalidir. Isaretlenen tool defterde
-    /// <c>ApprovalRequiredAIFunction</c> ile sarilir; Microsoft Agent Framework
-    /// cagriyi calistirmak yerine onay istegi uretir ve arayuzde onay karti cikar.
+    /// <c>RequiresApproval = true</c>: this tool performs an irreversible action
+    /// and must not run automatically on the model's own decision. A marked tool
+    /// is wrapped with <c>ApprovalRequiredAIFunction</c> in the registry; the
+    /// Microsoft Agent Framework produces an approval request instead of running
+    /// the call, and the UI shows an approval card.
     /// </remarks>
-    [AgentPrismTool("cancel_order", "Bir siparisi iptal eder.", RequiresApproval = true)]
+    [AgentPrismTool("cancel_order", "Cancels an order.", RequiresApproval = true)]
     public static string CancelOrder(string orderId)
-        => $"{orderId} numarali siparis iptal edildi.";
+        => $"Order {orderId} has been canceled.";
 }

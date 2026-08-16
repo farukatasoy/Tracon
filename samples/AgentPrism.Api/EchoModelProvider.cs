@@ -5,18 +5,17 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Api;
 
 /// <summary>
-/// Ag cagrisi yapmayan ornek model saglayicisi.
+/// Sample model provider that makes no network calls.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 1'de gercek bir saglayici henuz yok. Bu sinif iki isi birden yapar:
-/// ornegin API anahtari olmadan calismasini saglar ve <see cref="IModelProvider"/>
-/// genisleme noktasinin gercekten calistigini gosterir.
+/// It lets the sample run without an API key and demonstrates that the
+/// <see cref="IModelProvider"/> extension point works end to end.
 /// </para>
 /// <para>
-/// Faz 3'te <c>builder.AddAgentPrism().UseOpenAI(apiKey)</c> bu saglayicinin
-/// yerini alir; agent tanimlarinda yalnizca <see cref="ModelBinding.Provider"/>
-/// degeri degisir, baska hicbir sey degismez.
+/// Calling <c>builder.AddAgentPrism().UseOpenAI(apiKey)</c> replaces this provider;
+/// agent definitions only change the <see cref="ModelBinding.Provider"/> value,
+/// nothing else.
 /// </para>
 /// </remarks>
 internal sealed class EchoModelProvider : IModelProvider
@@ -28,7 +27,7 @@ internal sealed class EchoModelProvider : IModelProvider
         new ModelDescriptor
         {
             Name = "echo-1",
-            DisplayName = "Echo (yerel, ag yok)",
+            DisplayName = "Echo (local, no network)",
             ContextWindowTokens = 8_192,
             MaxOutputTokens = 1_024,
             SupportsTools = false,
@@ -82,13 +81,13 @@ internal sealed class EchoModelProvider : IModelProvider
 
         public void Dispose()
         {
-            // Yerel istemcinin serbest birakilacak kaynagi yok.
+            // The local client has no resources to release.
         }
 
         private static string BuildReply(IEnumerable<ChatMessage> messages)
         {
             var lastUserMessage = messages.LastOrDefault(static message => message.Role == ChatRole.User);
-            return $"Echo: {lastUserMessage?.Text ?? "(bos istek)"}";
+            return $"Echo: {lastUserMessage?.Text ?? "(empty request)"}";
         }
     }
 }
