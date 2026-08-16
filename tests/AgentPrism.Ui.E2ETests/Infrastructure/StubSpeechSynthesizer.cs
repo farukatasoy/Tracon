@@ -1,18 +1,18 @@
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
 
 /// <summary>
-/// Aga cikmadan gecerli bir MP3 dondurur.
+/// Returns a valid MP3 without reaching the network.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Test projesi <c>AgentPrism.Voice</c>'a referans <strong>VERMEZ</strong>.
-/// Uclar yalnizca <see cref="ISpeechSynthesizer"/> soyutlamasini bilir; bu
-/// sinifin calisiyor olmasi soyutlamanin dogru yerde (Abstractions) durdugunun
-/// kanitidir.
+/// The test project does <strong>NOT</strong> reference <c>AgentPrism.Voice</c>.
+/// The endpoints only know the <see cref="ISpeechSynthesizer"/> abstraction; this
+/// class working proves that the abstraction sits in the right place
+/// (Abstractions).
 /// </para>
 /// <para>
-/// Dondurulen baytlar bir ID3 etiketiyle baslar: ek deposu turu sihirli
-/// bayttan dogrular ve etiketsiz rastgele bir icerik reddedilirdi.
+/// The returned bytes start with an ID3 tag: the attachment store validates the
+/// type from the magic byte, and untagged random content would be rejected.
 /// </para>
 /// </remarks>
 internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscriber
@@ -23,7 +23,7 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
         0x00, 0x00, 0xFF, 0xFB, 0x90, 0x00, 0x00, 0x00,
     ];
 
-    public string ProviderName => "test-ses";
+    public string ProviderName => "test-speech";
 
     public int MaxCharactersPerRequest => 5000;
 
@@ -53,11 +53,11 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
     }
 
     /// <summary>
-    /// Gelen sesi sabit bir metne cevirir (Faz 29).
+    /// Translates incoming audio into a fixed text (phase 29).
     /// </summary>
     /// <remarks>
-    /// Konusma katmani cozum ve sentezi ayni ornekten alabilir; gercek bir
-    /// kurulumda da tek bir saglayici ikisini birden sunar.
+    /// The voice layer can take transcription and synthesis from the same
+    /// instance; a real setup also has a single provider offering both.
     /// </remarks>
     public ValueTask<SpeechTranscript> TranscribeAsync(
         Stream audio,
@@ -66,8 +66,8 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
         CancellationToken cancellationToken = default)
         => ValueTask.FromResult(new SpeechTranscript
         {
-            Text = "siparisim nerede",
-            LanguageCode = "tr",
+            Text = "where is my order",
+            LanguageCode = "en",
             AudioDuration = TimeSpan.FromSeconds(1),
         });
 
@@ -75,6 +75,6 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
         CancellationToken cancellationToken = default)
         => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>(
         [
-            new VoiceDescriptor { VoiceId = "ses-1", Name = "Test Sesi", Category = "premade" },
+            new VoiceDescriptor { VoiceId = "voice-1", Name = "Test Voice", Category = "premade" },
         ]);
 }

@@ -3,26 +3,26 @@ using Microsoft.Playwright;
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
 
 /// <summary>
-/// Tum arayuz testlerinin paylastigi tarayici ornegi.
+/// The browser instance shared by all UI tests.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Eksikse fixture
-/// onlari kendisi indirir, boylece <c>dotnet test</c> her makinede ek bir kurulum
-/// adimi olmadan calisir. Ilk calistirma bu yuzden uzun surer; sonrakiler
-/// indirilmis ikiliyi kullanir.
+/// Playwright's browser binaries do not ship with the NuGet package. If
+/// missing, the fixture downloads them itself, so <c>dotnet test</c> runs on
+/// any machine without an extra setup step. The first run is therefore slow;
+/// later runs use the downloaded binary.
 /// </para>
 /// <para>
-/// Yalnizca Chromium indirilir. Uc tarayicinin tamami arayuzun kendisinden cok
-/// daha buyuk bir indirme maliyeti getirir ve bu testler tarayici farklarini
-/// degil, arayuzun davranisini dogrular.
+/// Only Chromium is downloaded. All three browsers together cost far more to
+/// download than the UI itself, and these tests validate the UI's behavior,
+/// not browser differences.
 /// </para>
 /// </remarks>
 public sealed class BrowserFixture : IAsyncLifetime
 {
     private IPlaywright? _playwright;
 
-    /// <summary>Test suresince acik kalan tarayici.</summary>
+    /// <summary>The browser kept open for the duration of the test run.</summary>
     public IBrowser Browser { get; private set; } = null!;
 
     /// <inheritdoc />
@@ -33,16 +33,16 @@ public sealed class BrowserFixture : IAsyncLifetime
         if (exitCode != 0)
         {
             throw new InvalidOperationException(
-                $"Playwright Chromium indirilemedi (cikis kodu {exitCode}). " +
-                "Linux'ta sistem bagimliliklari da gerekebilir: playwright install --with-deps chromium");
+                $"Playwright could not download Chromium (exit code {exitCode}). " +
+                "On Linux, system dependencies may also be needed: playwright install --with-deps chromium");
         }
 
         _playwright = await Playwright.CreateAsync();
 
-        // 🚨 Sahte medya cihazi: konusma modu testleri gercek bir mikrofon
-        // bulamaz. Iki bayrak birlikte gerekir — biri cihazi uretir, digeri
-        // izin kutusunu bastirir. Bayraklar tum testlerde acik olmasina ragmen
-        // yalnizca getUserMedia cagiran testleri etkiler.
+        // 🚨 Fake media device: voice mode tests cannot find a real microphone.
+        // Both flags are required together — one produces the device, the other
+        // suppresses the permission prompt. The flags are on for every test, but
+        // only affect tests that call getUserMedia.
         Browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
             Headless = true,

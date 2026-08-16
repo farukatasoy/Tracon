@@ -8,25 +8,25 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
 
 /// <summary>
-/// Her istegi kimligi dogrulanmis sayan test semasi.
+/// A test scheme that treats every request as authenticated.
 /// </summary>
 /// <remarks>
-/// Rol tabanli dugme gizlemeyi gercek bir tarayicida test etmek icin gerekli:
-/// bir authorization policy'nin basarisiz olmasi <c>/api/meta</c> yanitindaki
-/// rol alanini <see langword="false"/> yapar ve arayuz buna gore dugmeleri
-/// gizler. Deseni <c>AgentPrism.AspNetCore.FunctionalTests</c> ile aynidir.
+/// Needed to test role-based button hiding in a real browser: an
+/// authorization policy failing sets the role field in the <c>/api/meta</c>
+/// response to <see langword="false"/>, and the UI hides buttons accordingly.
+/// Same pattern as <c>AgentPrism.AspNetCore.FunctionalTests</c>.
 /// </remarks>
 internal sealed class TestAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
-    /// <summary>Test semasinin adi.</summary>
+    /// <summary>The name of the test scheme.</summary>
     public const string SchemeName = "Test";
 
-    /// <summary>Test semasini kaydeder.</summary>
-    /// <param name="services">Servis koleksiyonu.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Registers the test scheme.</summary>
+    /// <param name="services">Service collection.</param>
+    /// <returns>The chain continuation.</returns>
     public static IServiceCollection Add(IServiceCollection services)
     {
         services
@@ -39,7 +39,7 @@ internal sealed class TestAuthenticationHandler(
     /// <inheritdoc />
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, "test-kullanici")], SchemeName);
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, "test-user")], SchemeName);
         var principal = new ClaimsPrincipal(identity);
 
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName)));
