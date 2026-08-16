@@ -19,12 +19,15 @@ process, using your configuration, your authentication, and your database.
 | | |
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
-| **Runs** | Every execution recorded — status, timings, tokens, cost, tool calls, and an ordered event stream |
-| **HTTP API** | 143 operations, plus OpenAI-compatible endpoints so existing clients work unchanged |
-| **Console** | 27 screens embedded in the assembly. No `node_modules` in your project |
+| **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
+| **HTTP API** | 143 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **Console** | 27 screens embedded when you add `AgentPrism.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
-| **Governance** | Roles, API keys with scopes, quotas, retention policies, and an audit trail |
+| **Governance** | Roles, scoped API keys, tenancy, approvals, guards, quotas, retention, webhooks, and audit |
+
+See the [complete capability map](/AgentPrism/capabilities/) for providers, testing,
+RAG, voice, scheduling, external protocols, and production operations.
 
 ## What it deliberately is not
 
@@ -62,8 +65,10 @@ It fits when you are building agents in .NET and want the operational layer with
 building it: a record of what happened, a console for the people who did not write
 the code, and a way to change an agent without a deployment.
 
-It does not fit if you want a hosted agent product, or if you are not on .NET — the
-packages target `net8.0`, `net9.0`, and `net10.0`.
+It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
+packages target `net8.0`, `net9.0`, and `net10.0`; the testing and template packages
+require .NET 10, and the source generator that ships inside Core targets
+`netstandard2.0`.
 
 ## Next
 

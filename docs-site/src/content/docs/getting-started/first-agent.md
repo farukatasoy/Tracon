@@ -1,6 +1,6 @@
 ---
 title: Your first agent
-description: From an empty folder to a running agent with a console, in about five minutes.
+description: Build, run, inspect, and call your first AgentPrism agent from an empty folder in about five minutes.
 sidebar:
   order: 2
 ---
@@ -11,18 +11,31 @@ you what the template wrote.
 ## With the template
 
 ```bash
-dotnet new install AgentPrism.Templates
+AGENTPRISM_VERSION=1.0.0-preview.N # replace N with the published preview
+dotnet new install "AgentPrism.Templates@$AGENTPRISM_VERSION"
 dotnet new agentprism-api -o MyAgents
 cd MyAgents
 ```
 
-The template takes three options, all with sensible defaults:
+Pinning the template version makes the generated package references reproducible.
+The project template has five options:
+
+| Option | Values | Default |
+|---|---|---|
+| `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` |
+| `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` |
+| `--ui` | `true`, `false` | `true` |
+| `--AgentPrismVersion` | A NuGet version or version range | `*-*` (latest preview) |
+| `--skipRestore` | `true`, `false` | `false` |
+
+For example:
 
 ```bash
 dotnet new agentprism-api -o MyAgents \
-  --persistence postgres \   # postgres | sqlserver | sqlite | none
-  --provider openai \        # openai | anthropic | google | azure
-  --ui true
+  --persistence postgres \
+  --provider openai \
+  --ui true \
+  --AgentPrismVersion "$AGENTPRISM_VERSION"
 ```
 
 Set your key — it never goes in a file that gets committed:
@@ -40,7 +53,7 @@ template listens on `http://localhost:5081` by default.
 ```bash
 dotnet new web -o MyAgents
 cd MyAgents
-dotnet add package AgentPrism
+dotnet add package AgentPrism --prerelease
 dotnet user-secrets init
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-…"
 ```
@@ -98,8 +111,9 @@ curl -N -X POST http://localhost:5081/agentprism/api/agents/support/run \
      -d '{"message":"Where is order 4182?"}'
 ```
 
-**From an OpenAI client.** The compatible endpoints mean an existing client only
-needs a different base address:
+**From an OpenAI client.** The compatible endpoint accepts the familiar wire format.
+Point the client at AgentPrism, provide its authentication, and use the agent name as
+the `model`:
 
 ```bash
 curl -X POST http://localhost:5081/agentprism/v1/responses \
@@ -112,9 +126,9 @@ business, not the caller's.
 
 ## Look at what happened
 
-Every one of those runs was recorded. In the console, open **Runs**: status, duration,
-token counts, cost when pricing is configured, and the full event stream in order.
-Over HTTP it is the same data:
+Run recording is on by default for agents resolved through the catalog. In the
+console, open **Runs**: status, duration, token counts, cost when pricing is
+configured, and the ordered event stream. Over HTTP it is the same data:
 
 ```bash
 curl http://localhost:5081/agentprism/api/runs
@@ -122,8 +136,9 @@ curl http://localhost:5081/agentprism/api/runs/{runId}
 curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
 ```
 
-Nothing was configured to make that happen. There is no code path that runs an agent
-without recording it.
+Nothing extra was configured to make that happen. Recording can be disabled. A store
+failure is also best-effort: it is logged and the agent still runs, so observability
+cannot take down product functionality.
 
 ## What you have
 

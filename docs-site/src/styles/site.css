@@ -1,27 +1,124 @@
-/* AgentPrism documentation site — a light touch on top of Starlight's defaults. */
+/* AgentPrism documentation site — quiet product surfaces with a precise spectrum. */
 
 :root {
-  --sl-color-accent-low: #16233a;
-  --sl-color-accent: #3b7dd8;
-  --sl-color-accent-high: #b9d3f5;
+  --sl-color-accent-low: #14233c;
+  --sl-color-accent: #6ea8fe;
+  --sl-color-accent-high: #d8e8ff;
+  --ap-spectrum: linear-gradient(90deg, #e5484d, #f5a524 25%, #46a758 50%, #3b7dd8 75%, #8e4ec6);
+  --sl-content-width: 60rem;
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #d6e4fa;
-  --sl-color-accent: #1d5fbf;
-  --sl-color-accent-high: #10305f;
+  --sl-color-accent-low: #e8f0ff;
+  --sl-color-accent: #245fba;
+  --sl-color-accent-high: #102a50;
+}
+
+.site-title {
+  letter-spacing: -0.025em;
+}
+
+.site-title::after {
+  content: '';
+  display: block;
+  block-size: 2px;
+  margin-block-start: 0.2rem;
+  border-radius: 999px;
+  background: var(--ap-spectrum);
+}
+
+.hero h1 {
+  max-inline-size: 15ch;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.hero .tagline {
+  max-inline-size: 62ch;
+  text-wrap: pretty;
+}
+
+.trust-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-block: 1rem 2.5rem;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--sl-color-bg-nav) 88%, var(--sl-color-accent-low));
+}
+
+.trust-strip span {
+  padding: 1rem;
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+  text-align: center;
+}
+
+.trust-strip span + span {
+  border-inline-start: 1px solid var(--sl-color-gray-5);
+}
+
+.trust-strip strong {
+  display: block;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-xl);
+  line-height: 1.1;
+}
+
+.card {
+  border-color: color-mix(in srgb, var(--sl-color-gray-5) 82%, var(--sl-color-accent));
+  box-shadow: 0 1rem 2.5rem rgb(4 10 22 / 8%);
+}
+
+.product-shot {
+  margin: 2.5rem 0 3.5rem;
+}
+
+.product-shot img {
+  inline-size: 100%;
+  block-size: auto;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.9rem;
+  box-shadow: 0 1.5rem 4rem rgb(4 10 22 / 22%);
+}
+
+.product-shot figcaption {
+  margin-block-start: 0.65rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+  text-align: center;
+}
+
+.ui-shot {
+  display: block;
+  margin-block: 1.5rem;
+}
+
+.ui-shot img {
+  inline-size: 100%;
+  block-size: auto;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  box-shadow: 0 1rem 2.5rem rgb(4 10 22 / 14%);
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.ui-shot:hover img {
+  border-color: var(--sl-color-accent);
+  transform: translateY(-1px);
 }
 
 /* The generated API pages open with "Namespace … · Assembly …". It is provenance,
    not prose, so it should not compete with the summary underneath it. */
-.sl-markdown-content > p > em:first-child {
+.api-provenance {
   color: var(--sl-color-gray-3);
   font-size: var(--sl-text-sm);
-  font-style: normal;
 }
 
 /* A reference page is a long list of members. Give each one a visible boundary. */
-.sl-markdown-content h3 {
+.sl-markdown-content:has(> .api-provenance) h3 {
   border-top: 1px solid var(--sl-color-gray-5);
   padding-top: 1.25rem;
 }
@@ -35,6 +132,25 @@
 
 .sl-markdown-content pre {
   overflow-x: auto;
+}
+
+.sl-markdown-content img[loading='lazy'] {
+  content-visibility: auto;
+}
+
+@media (max-width: 50rem) {
+  .trust-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trust-strip span:nth-child(3) {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--sl-color-gray-5);
+  }
+
+  .trust-strip span:nth-child(4) {
+    border-block-start: 1px solid var(--sl-color-gray-5);
+  }
 }
 
 /* The embedded OpenAPI reference needs the full viewport height to be usable. */

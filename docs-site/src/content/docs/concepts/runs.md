@@ -1,13 +1,14 @@
 ---
 title: Runs and recording
-description: What a run is, the decorator chain that records it, the event stream, and how a queued run differs.
+description: Understand default-on run recording, ordered events, streaming, queues, errors, replay, comparison, and traces.
 sidebar:
   order: 3
 ---
 
-A **run** is one execution of an agent. Every run is recorded — there is no code path
-that runs an agent without writing a run row, whether the call came from the HTTP API,
-the console, a workflow, an eval, or your own code.
+A **run** is one execution of an agent. Recording is on by default for agents resolved
+through the AgentPrism catalog, whether the call came from HTTP, the console, a
+workflow, an eval, or your code. You can disable it. A failed store write also leaves
+the agent running, so recording is best-effort rather than an availability dependency.
 
 ## How recording happens
 
@@ -16,6 +17,8 @@ in a chain of decorators:
 
 ```mermaid
 flowchart LR
+    accTitle: Agent execution decorator order
+    accDescr: Run recording wraps telemetry, approvals, guards, online evaluation, and the inner agent in a fixed outer-to-inner order.
     REC["RunRecordingAgent<br/>order 0 — outermost"] --> OTEL["OpenTelemetryAgent<br/>order 10"]
     OTEL --> APR["ToolApprovalAgent<br/>order 20"]
     APR --> AGENT["the compiled AIAgent"]
@@ -46,6 +49,8 @@ single writer:
 
 ```mermaid
 stateDiagram-v2
+    accTitle: Recorded run event lifecycle
+    accDescr: A run starts, emits zero or more message and tool events, then ends exactly once as completed, failed, cancelled, or awaiting input.
     [*] --> RunStarted
     RunStarted --> MessageDelta
     RunStarted --> ToolInvoking
@@ -107,8 +112,15 @@ anyone reports it.
 - `GET /api/runs/{runId}/input` — the recorded input, when input recording is on
 - `GET /api/runs/{a}/compare/{b}` — both summaries, verbatim; the client shows the
   comparison
+- `POST /api/runs/{runId}/replay` — create a sessionless, single-turn replay. The
+  default `ReplayTools` mode reuses recorded tool results; `NoTools` produces only
+  the model response; `LiveTools` can repeat real side effects and therefore
+  requires Admin
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
+
+See [Reliable runs](/AgentPrism/guides/reliability/) for idempotency, cancellation,
+reconciliation, replay constraints, and failure handling.
 
 ## Read next
 

@@ -14,6 +14,8 @@ nothing between you and MAF's own types.
 
 ```mermaid
 flowchart TD
+    accTitle: AgentPrism architecture layers
+    accDescr: The embedded console and HTTP API use the control plane, which coordinates model providers, runtime execution, and replaceable stores.
     APP["Your ASP.NET Core application"]
     UI["<b>AgentPrism.UI</b><br/>embedded React console"]
     HTTP["<b>AgentPrism.AspNetCore</b><br/>management API · OpenAI-compatible endpoints<br/>access layers · SSE"]
@@ -22,7 +24,7 @@ flowchart TD
     OPT["<b>Optional</b><br/>Workflows · MCP"]
     CORE["<b>AgentPrism.Core</b><br/>catalog · compiler · tool registry<br/>run recording · session manager · in-memory stores"]
     ABS["<b>AgentPrism.Abstractions</b><br/>contracts"]
-    MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatClientAgent"]
+    MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatMessage · AIFunction"]
 
     APP --> HTTP
     HTTP --> UI

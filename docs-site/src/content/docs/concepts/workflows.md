@@ -19,8 +19,11 @@ stays optional on purpose.
 | `Sequential` | Agents run in order; each output is the next input |
 | `Concurrent` | Agents run at the same time; results are merged |
 | `Handoff` | One agent starts and hands off when needed — the **model** decides |
-| `GroupChat` | A manager distributes turns among participants, bounded by `MaxIterations` |
+| `GroupChat` | A manager distributes turns among participants |
 | `Magentic` | A manager plans, tracks progress, and replans; a manager agent is required |
+
+`MaxIterations` bounds the turn count for `Handoff`, `GroupChat`, and `Magentic` — the
+only structural guard against two agents handing off to each other forever.
 
 ```csharp
 new WorkflowDefinition
@@ -63,16 +66,24 @@ the workflow progresses. The response also carries MAF's generated Mermaid text.
 
 ## Checkpoints
 
-A workflow can write checkpoints as it goes. `GET /api/workflows/runs/{runId}/checkpoints`
-lists them and `POST /api/workflows/runs/{runId}/resume` continues from one — omit the
-id to resume from the latest.
+A workflow writes checkpoints as it goes, controlled by
+`AgentPrism:Workflows:EnableCheckpointing` (default `true`).
+`GET /api/workflows/runs/{runId}/checkpoints` lists them and
+`POST /api/workflows/runs/{runId}/resume` continues from one — omit the id to resume
+from the latest.
 
 Resuming opens a **new** run. The original is never rewritten, so "what happened, then
 what we did about it" stays two readable records rather than one edited one.
 
-Whether checkpoints exist at all is a property of how the workflow was built, not
-something the endpoint can switch on. They are also a retention target, so an old run
-may have none left.
+Checkpoints survive a process restart only with a SQL provider registered
+(`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
+most 50 checkpoints per session and drops the oldest — enough for local development,
+not for a workflow you expect to resume after a restart. They are also a retention
+target, so an old run may have none left even on durable storage.
+
+Turning off `EnableCheckpointing` does not silently disable resumption: a workflow
+that stops to wait for a human answer fails outright instead of hanging with no way
+to resume.
 
 ## Asking a human
 
@@ -80,6 +91,8 @@ A workflow can stop and wait for input:
 
 ```mermaid
 flowchart LR
+    accTitle: Durable workflow input cycle
+    accDescr: A workflow request closes the run as awaiting input, writes a checkpoint, then resumes from that checkpoint in a new run after a response.
     RUN["run"] --> ASK["executor raises a request"]
     ASK --> WAIT["run closes as AwaitingInput<br/>a checkpoint is written"]
     WAIT --> LIST["GET .../requests"]

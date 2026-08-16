@@ -93,12 +93,13 @@ HAFIZA_DOSYA_BUTCESI = 16_000
 #
 #   docs/arsiv/                 -> yalniz grep'lenir, hicbir oturum bastan okumaz
 #   docs/manuel-test/kosumlar/  -> bir kosumun kaydi; spec degil
+#   docs/kesif/                 -> bir aday-kesfi turunun kaydi; spec degil (K-426)
 #
 # Gerekce: bu ikisi sayilsaydi ARSIVLEMEK sayaci degistirmezdi ve disiplinin
 # istedigi davranis (sicak yoldan cikarma) odullendirilmezdi. Boyle bir sinir
 # yalnizca SILMEYE zorlar -- AGENTS.md'nin "icerik silinmez, tasinir" kuralinin
 # tam tersi. Haric tutunca arsive tasimak sayaci GERCEKTEN dusurur.
-HARIC = ("docs/arsiv", "docs/manuel-test/kosumlar")
+HARIC = ("docs/arsiv", "docs/manuel-test/kosumlar", "docs/kesif")
 
 DIZIN_BUTCESI = {
     # (yol, ozyinelemeli mi) -> sinir.  Olculen deger 2026-08-16.

@@ -144,7 +144,8 @@ Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 ## Skill'ler (Ortak İş Akışları)
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
-burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `faz-planlama`
+burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `aday-kesfi`
+(aday ararken; yalnız istek üzerine) → `faz-planlama`
 (aday F-NN faza dönüşürken) → `faz-baslangic` (okuma protokolü) →
 `faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (taze bağlamlı
 bağımsız denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış).

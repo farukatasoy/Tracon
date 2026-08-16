@@ -1,6 +1,6 @@
 ---
 title: Evaluation and experiments
-description: Offline suites, online judges, human feedback, and A/B tests between agent versions.
+description: Improve agents with regression suites, production-run promotion, online judges, human feedback, and controlled experiments.
 sidebar:
   order: 7
 ---
@@ -17,19 +17,51 @@ and are meant to be used together.
 
 ## Eval suites
 
-A suite names the agent under test and carries **declarative checks**. Its cases are a
-list of queries with expected outputs or expected tool calls.
+A suite names the agent under test and carries **declarative checks** — a JSON array
+stored and read as one unit with the suite. Create or update the suite before adding
+cases:
+
+```bash
+curl -X PUT http://localhost:5081/agentprism/api/evals/support \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "agentName": "support",
+       "checks": [{"kind":"toolCalled","tools":["get_order_status"]}]
+     }'
+```
+
+A suite needs at least one check before it can run — an empty `checks` array fails the
+run outright instead of reporting every case as passed. Six built-in kinds cover the
+common cases, matched directly to `Microsoft.Agents.AI.EvalChecks` factories:
+
+| Kind | Checks | Fields |
+|---|---|---|
+| `nonEmpty` | The response has at least `minLength` characters | `minLength` (default 1) |
+| `containsExpected` | The response contains the case's `expectedOutput` | `caseSensitive` (default false) |
+| `keywords` | The response contains every string in `values` | `values`, `caseSensitive` |
+| `toolCalled` | The listed `tools` were called, `all` or `any` of them | `tools`, `mode` (default `all`) |
+| `toolCallsPresent` | At least one tool was called | — |
+| `hasImageContent` | The response carries image content | — |
+
+Application code can add more with `IAgentPrismBuilder.AddEvalCheck(kind, check)` — a
+named MAF `EvalCheck` that becomes usable under a custom kind name alongside the six
+built-in ones. A kind that matches neither fails the run with a clear error instead of
+being silently skipped.
+
+Cases are a separate, ordered list of queries:
 
 ```bash
 curl -X PUT http://localhost:5081/agentprism/api/evals/support/cases \
      -H 'Content-Type: application/json' \
-     -d '[{"query":"Where is order 4182?","expectedTools":["get_order_status"]}]'
+     -d '[{"query":"Where is order 4182?","expectedOutput":"shipped"}]'
 ```
 
 That `PUT` is a **full replacement**: cases missing from the body are removed, so send
 the whole list every time. Sequence numbers come from the body's order, which means
 reordering re-numbers the cases and past results then line up with different ones.
-Treat the list as ordered data, not a set.
+Treat the list as ordered data, not a set. `expectedOutput` reaches `containsExpected`;
+a case also carries an `expectedTools` field for record-keeping, but the tool names a
+`toolCalled` check verifies come from the suite's own check definition, shown above.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
@@ -41,9 +73,11 @@ curl http://localhost:5081/agentprism/api/evals/support/runs
 ```
 
 Cases can also be **promoted from a real run** — a production conversation that went
-wrong becomes a regression case in one request. The query is read from the run's own
-session, so a run without a session cannot be promoted. Promoting the same run twice
-returns the existing case rather than duplicating it.
+wrong becomes a regression case in one request. The query comes from the run's
+`RunStarted` event, so failed and sessionless runs can be promoted. A run from a
+multi-turn session is accepted only when it has no previous turn; otherwise a single
+query cannot represent the conversation that produced the answer. Promoting the same
+run twice returns the existing case rather than duplicating it.
 
 ## Online evaluation
 
@@ -74,6 +108,8 @@ code-defined agents have no version history, they cannot be experimented on.
 
 ```mermaid
 flowchart LR
+    accTitle: Experiment version assignment
+    accDescr: An eligible agent request is assigned to the current or candidate version by a stable hash, then records that assignment on the run.
     REQ["POST /api/agents/support/run"] --> ASSIGN{"a Running experiment<br/>for this agent?"}
     ASSIGN -->|no| CUR["current version"]
     ASSIGN -->|yes| SPLIT["assign an arm by weight"]

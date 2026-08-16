@@ -1,0 +1,216 @@
+---
+title: Capability map
+description: A complete map of AgentPrism capabilities, with the package, registration point, storage needs, and operational boundary of each feature.
+slug: capabilities
+---
+
+AgentPrism is a library, not a hosted service. You choose the pieces, keep control of
+the dependency graph, and run the control plane inside your own .NET application.
+This page is the inventory: what exists, where it lives, and what turns it on.
+
+## The shortest complete picture
+
+```mermaid
+flowchart LR
+    accTitle: AgentPrism capability flow
+    accDescr: Agent definitions enter the catalog, run with tools and context, persist state and telemetry, then feed evaluation and governance.
+    DEF["Agent definitions"] --> CAT["Catalog and compiler"]
+    CAT --> RUN["Runs and sessions"]
+    RUN --> REC["Recording and telemetry"]
+    RUN --> ORCH["Workflows and jobs"]
+    RUN --> EXT["HTTP · OpenAI · MCP · A2A"]
+    DEF --> CTX["Tools · skills · memory"]
+    STORE["Memory or SQL stores"] --> CAT
+    STORE --> RUN
+    GOV["Security and governance"] --> RUN
+    GOV --> EXT
+```
+
+The default `AddAgentPrism()` registration is useful on its own. It gives you the
+catalog, compiler, in-memory stores, run pipeline, sessions, jobs, evaluation
+contracts, quotas, audit services, and other core services. Provider, SQL, UI,
+workflow, MCP, voice, and external protocol packages add their own explicit calls.
+
+## Agent design and model control
+
+| Capability | What it gives you | Enable or define it | Boundary |
+|---|---|---|---|
+| Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `IAgentPrismBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
+| Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies AgentPrism decorators when it resolves the agent |
+| Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapAgentPrism()` | Code-defined agents are visible but read-only |
+| Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
+| Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
+| Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider |
+| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, and total tokens |
+| Harness mode | Context and iteration limits plus optional todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types |
+| Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `AgentPrism:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
+| Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
+
+AgentPrism uses `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction` directly.
+It is a control plane around MAF, not a competing agent abstraction.
+
+## Model providers
+
+Several providers can be active at the same time. Each agent selects one by its
+stable provider name.
+
+| Package | Registration | Provider names | Notable capability |
+|---|---|---|---|
+| `AgentPrism.OpenAI` | `UseOpenAI()` | `openai`, `openai-responses` | Chat Completions and Responses clients |
+| `AgentPrism.OpenAI` | `UseOpenAICompatible(name, ...)` | `name`, and optionally `name-responses` | OpenRouter, Groq, Ollama, LM Studio, vLLM, and other compatible endpoints |
+| `AgentPrism.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, prompt caching, and extended-thinking settings |
+| `AgentPrism.Google` | `UseGoogle()` | `google` | Gemini safety thresholds and thinking settings |
+| `AgentPrism.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
+| Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |
+
+All built-in providers can publish a configured model catalog. The catalog feeds the
+console and pricing; it is not an allowlist. Health checks are cached. A shared
+circuit breaker protects provider calls. AgentPrism does not invent model names or
+prices.
+
+## Tools, skills, and context
+
+| Capability | Registration or source | What is enforced |
+|---|---|---|
+| Generated tools | `[AgentPrismTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code |
+| Direct tools | `AddTool(AIFunction, requiresApproval)` | Exact tool instance and approval policy |
+| Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
+| Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
+| Tool approval | `RequiresApproval` or the registration flag | A sensitive call cannot execute until a person or standing rule decides it |
+| Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
+| Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
+| Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
+| Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, tenant grant, timeout, output limit, and concurrency limits |
+| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication, refresh, prompts, and OAuth coordination |
+| MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
+| Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
+
+Only application code defines executable tool logic. The console can edit which
+registered tools an agent may use, but it cannot create a new executable function.
+Stored skill scripts are a separate, deliberately gated feature; AgentPrism does not
+claim to provide an operating-system sandbox.
+
+## Runs, sessions, and media
+
+| Capability | Surface | Important behavior |
+|---|---|---|
+| Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events |
+| Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
+| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
+| Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
+| Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
+| Compare and score | HTTP API and console | Compare two runs and attach human or automatic scores |
+| Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
+| Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
+| Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
+| Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new AgentPrism message abstraction |
+| Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
+| Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
+
+## Workflows and background work
+
+| Capability | Enable it | Storage and execution model |
+|---|---|---|
+| Multi-agent workflows | `AgentPrism.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run |
+| Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again |
+| Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
+| Job queue | Registered by `AddAgentPrism()` | Leases, retries, items, status, cancellation, and handler dispatch |
+| Custom jobs | `IServiceCollection.AddJobHandler<THandler>()` | Your handler receives a durable job kind without changing the core queue |
+| Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
+| Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
+| Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution |
+| Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
+| Singleton execution | `AgentPrism:SingletonExecution` | A distributed lease selects one active executor for singleton services |
+| Run reconciliation | `AgentPrism:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
+
+In-memory stores make these contracts usable for local work. Durable queues,
+checkpoints, schedules, cross-process leases, and recovery need a SQL provider for
+production behavior.
+
+## Evaluation and controlled change
+
+| Capability | Definition | Result |
+|---|---|---|
+| Eval suites and cases | API, console, or stores | Repeatable inputs, expected properties, checks, and run history |
+| Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
+| Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
+| Run judges | `IRunJudge` or `AddModelRunJudge()` | Manual or automatic scores with named criteria |
+| Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
+| Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
+| Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |
+
+AgentPrism reports evidence. It does not declare a statistical winner for an
+experiment, and automatic rollback is off until you configure it.
+
+## Security and governance
+
+| Capability | Where it applies | Default or gate |
+|---|---|---|
+| Loopback restriction | All mapped management surfaces | Remote access is off by default |
+| Static bearer token | `MapAgentPrism()` options | Optional; compare uses constant time |
+| ASP.NET Core policy | `RequireAuthorization(policy)` | Uses your authentication and identity pipeline |
+| Reader, Operator, Admin roles | Endpoint groups | Optional policy names; production can require all three at startup |
+| API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
+| Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
+| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists |
+| Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
+| Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
+| Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |
+| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, retry jobs, and failure disablement |
+| Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
+| Content inspection | Model input and output | No guard cost until a guard is registered |
+| External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
+
+An API-key scope never grants a role. Effective authority is the intersection of the
+caller's role and key scopes. See the complete scope table in
+[Compatibility](/AgentPrism/reference/compatibility/#api-key-scopes).
+
+## Observability and operations
+
+| Capability | Output | Control |
+|---|---|---|
+| Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
+| OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; AgentPrism can also persist a sample |
+| Metrics | Run counts, duration, tokens, cost, tools, errors, judges, and optional quota gauges | Standard .NET metrics; high-cardinality and store-backed gauges are bounded |
+| Cost attribution | Per model, agent, run, child run, and voice usage | Prices come from a model catalog or explicit configuration |
+| Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
+| Health checks | `AddAgentPrismHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
+| Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
+| Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
+
+## Integration surfaces
+
+| Surface | Registration | Intended caller |
+|---|---|---|
+| .NET API | `AddAgentPrism()` and `IAgentCatalog` | Application code that wants direct MAF objects |
+| Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
+| OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
+| OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
+| Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |
+| MCP client | `AgentPrism.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
+| MCP server | `UseMcpServer()` and `MapAgentPrismMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
+| A2A server | `UseA2A()` and `MapAgentPrismA2A()` | External agents that invoke an explicit allowlist of AgentPrism agents |
+| Voice WebSocket | `UseVoiceConversation()` and `MapAgentPrism()` | Browser or native real-time audio clients |
+
+`MapAgentPrism()` exposes the documented management and OpenAI operations. The
+diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
+conditional or separately mapped, so they are not all represented by the generated
+143-operation HTTP reference.
+
+## Storage and testability
+
+| Capability | Choice |
+|---|---|
+| Zero-infrastructure start | In-memory implementations for every required core store |
+| PostgreSQL persistence | `UsePostgreSql()`; durable contracts plus pgvector knowledge search |
+| SQL Server persistence | `UseSqlServer()`; durable contracts without vector knowledge search |
+| SQLite persistence | `UseSqlite()`; durable single-node or local use with a native SQLite dependency |
+| Store replacement | Register your implementation before AgentPrism; `TryAdd*` preserves the consumer registration |
+| Provider-free tests | `AgentPrism.Testing.FakeModelProvider` scripts deterministic model turns |
+| Integrated tests | `AgentPrismTestHost` builds a real catalog and in-memory stores |
+| Assertions | `RunAssertions` checks recorded runs without binding to a unit-test framework |
+
+Use [Compatibility](/AgentPrism/reference/compatibility/) before you choose packages
+for a target framework or native AOT application. Use
+[Configuration](/AgentPrism/reference/configuration/) for verified section names and
+defaults.

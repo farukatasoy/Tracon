@@ -9,6 +9,9 @@
     "generate:fast": "node scripts/build-api-reference.mjs --skip-docfx && node scripts/build-http-api.mjs",
     "prebuild": "npm run generate",
     "build": "astro build",
+    "check:content": "node scripts/check-content.mjs",
+    "check:links": "node scripts/check-links.mjs",
+    "check": "npm run check:content && npm run build && npm run check:links",
     "dev": "astro dev",
     "preview": "astro preview"
   },

@@ -1,6 +1,6 @@
 ---
 title: Sessions and conversations
-description: How a session carries state, why it is independent of a run, and what branching does.
+description: Learn how sessions carry conversation state, how branching copies history, and how attachments are owned and removed.
 sidebar:
   order: 4
 ---
@@ -13,6 +13,8 @@ without one.
 
 ```mermaid
 sequenceDiagram
+    accTitle: Session conversation lifecycle
+    accDescr: A caller sends a session id, AgentPrism loads conversation history, invokes the agent, appends new items, and returns the response.
     autonumber
     participant Caller
     participant Manager as AgentSessionManager
@@ -61,6 +63,8 @@ number into a **new** conversation and opens a session on it.
 
 ```mermaid
 flowchart LR
+    accTitle: Conversation branch operation
+    accDescr: Branching copies parent conversation items through a selected sequence into a new conversation and opens a new session on that copy.
     P["parent conversation<br/>items 0..9"] -->|"branch at 4"| B["new conversation<br/>copy of items 0..4"]
     B --> S["new session"]
     P -.->|"provenance only"| B
@@ -96,9 +100,12 @@ Attachments are uploaded independently and referenced from messages; the bytes l
 storage and only a small reference travels with a message. The upload's type is
 decided by inspecting its magic bytes, not by the `Content-Type` the client claims.
 
-Deleting a session deletes its attachments, and that is the only cleanup path — an
-attachment may be uploaded before any session exists, so the link is deliberately not
-a database foreign key.
+Deleting a session deletes the attachments it owns. You can also call
+`DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
+target cleans uploads that never become part of a session. Individual deletion is a
+hard delete: an older message that still contains the reference will no longer be able
+to download the bytes. The link is deliberately not a database foreign key because an
+upload can exist before its session does.
 
 Downloads are served with `Content-Disposition: attachment` and
 `X-Content-Type-Options: nosniff` together, so uploaded HTML can never execute in the
@@ -107,4 +114,5 @@ console's origin.
 ## Read next
 
 - [Runs and recording](/AgentPrism/concepts/runs/)
+- [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
 - [Workflows](/AgentPrism/concepts/workflows/)
