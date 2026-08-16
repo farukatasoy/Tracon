@@ -3,32 +3,32 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Bir sozlesme test sinifinin paylastigi tek sema. Sema sinif basina bir kez
-/// olusturulur; her test kendi verisini <see cref="SqlServerTestContext.ResetDataAsync"/>
-/// ile sifirlar.
+/// The single schema shared by one contract test class. The schema is created
+/// once per class; each test resets its own data with
+/// <see cref="SqlServerTestContext.ResetDataAsync"/>.
 /// </summary>
-/// <param name="container">Calisan SQL Server container'i.</param>
+/// <param name="container">The running SQL Server container.</param>
 public sealed class SqlServerSchemaFixture(SqlServerFixture container) : IAsyncLifetime
 {
-    /// <summary>Sinifin butun testlerinin paylastigi degistirilebilir kiraci baglami.</summary>
+    /// <summary>Gets the mutable tenant context shared by all tests in the class.</summary>
     public MutableTenantContext Tenant { get; } = new("tenant-a");
 
-    /// <summary>Sinifin sema baglami.</summary>
+    /// <summary>Gets the class's schema context.</summary>
     internal SqlServerTestContext Context { get; private set; } = null!;
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
        => Context = await SqlServerTestContext.CreateAsync(container, Tenant);
 
-    /// <summary>Semadaki tum verileri sifirlar; sema ve migration defteri kalir.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Resets all data in the schema; the schema and the migration ledger remain.</summary>
+    /// <returns>The completion task.</returns>
     public ValueTask ResetAsync() => Context.ResetDataAsync();
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see cref="InitializeAsync"/> basarisiz olursa <see cref="Context"/> hic
-    /// atanmaz; bu durumda gercek hatayi bir <see cref="NullReferenceException"/>
-    /// ile gizlememek icin dispose sessizce atlanir.
+    /// If <see cref="InitializeAsync"/> fails, <see cref="Context"/> is never
+    /// assigned; disposal is skipped silently in that case, so the real error
+    /// is not masked by a <see cref="NullReferenceException"/>.
     /// </remarks>
     public async ValueTask DisposeAsync()
     {

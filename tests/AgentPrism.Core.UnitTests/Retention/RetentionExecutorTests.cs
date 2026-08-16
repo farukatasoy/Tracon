@@ -3,14 +3,14 @@ using AgentPrism.Core.UnitTests.Fakes;
 namespace AgentPrism.Core.UnitTests.Retention;
 
 /// <summary>
-/// <see cref="RetentionExecutor"/>'in onizleme/kosu orkestrasyonunun testleri.
+/// Tests for <see cref="RetentionExecutor"/>'s preview/run orchestration.
 /// </summary>
 public sealed class RetentionExecutorTests
 {
     private const string Tenant = "acme";
 
     [Fact]
-    public async Task Bilinmeyen_hedef_ArgumentException_firlatir()
+    public async Task Unknown_target_throws_ArgumentException()
     {
         var (executor, _, _) = Build();
 
@@ -19,7 +19,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Onizleme_hicbir_satir_silmez()
+    public async Task Preview_deletes_no_rows()
     {
         var (executor, store, dataStore) = Build();
 
@@ -35,7 +35,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Politikasi_olmayan_hedef_onizlemede_kapali_gorunur()
+    public async Task A_target_without_a_policy_shows_as_disabled_in_the_preview()
     {
         var (executor, _, _) = Build();
 
@@ -47,7 +47,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Arsiv_istenip_sink_kayitli_degilse_hicbir_satir_silinmez()
+    public async Task When_archiving_is_requested_but_no_sink_is_registered_no_rows_are_deleted()
     {
         var (executor, store, dataStore) = Build(archiveSink: null);
 
@@ -67,7 +67,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Arsiv_sink_kayitliysa_silmeden_once_yazilir()
+    public async Task When_an_archive_sink_is_registered_it_writes_before_deleting()
     {
         var sink = new RecordingArchiveSink();
         var (executor, store, dataStore) = Build(archiveSink: sink);
@@ -85,7 +85,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Parti_boyutundan_kucuk_donunce_dongu_durur()
+    public async Task Loop_stops_when_a_batch_returns_smaller_than_the_batch_size()
     {
         var (executor, store, dataStore) = Build(batchSize: 2);
 
@@ -101,7 +101,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Politikasi_olmayan_hedef_hicbir_kosu_uretmez()
+    public async Task A_target_without_a_policy_produces_no_runs()
     {
         var (executor, _, dataStore) = Build();
 
@@ -112,11 +112,11 @@ public sealed class RetentionExecutorTests
     }
 
     /// <summary>
-    /// 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu bir
-    /// politika bugune kadar sifir satir siliyordu.
+    /// 🚨 Gap closed by Phase 36: a policy with MaxAgeDays EMPTY and only MaxRows
+    /// set used to delete zero rows until now.
     /// </summary>
     [Fact]
-    public async Task Yalniz_MaxRows_dolu_politika_siler()
+    public async Task A_policy_with_only_MaxRows_set_deletes_rows()
     {
         var (executor, store, dataStore) = Build();
 
@@ -133,7 +133,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task MaxRows_tablo_sinirin_altindaysa_hicbir_silme_sorgusu_calismaz()
+    public async Task When_MaxRows_is_below_the_table_count_no_delete_query_runs()
     {
         var (executor, store, dataStore) = Build();
 
@@ -148,13 +148,13 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Iki_esik_doluyken_daha_yeni_olan_kazanir()
+    public async Task When_both_thresholds_are_set_the_newer_one_wins()
     {
         var (executor, store, dataStore) = Build(
             now: new DateTimeOffset(2026, 8, 6, 0, 0, 0, TimeSpan.Zero));
 
-        // MaxAgeDays=30 -> esik 2026-07-07. MaxRows esigi (satirdan gelen) daha
-        // YENI (2026-08-01) — daha cok siler ve KAZANMALIDIR.
+        // MaxAgeDays=30 -> threshold 2026-07-07. The MaxRows threshold (from the row
+        // count) is NEWER (2026-08-01) — it deletes more and MUST WIN.
         await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, maxRows: 100);
         dataStore.RowLimitCutoffToReturn = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
         dataStore.DeleteBatchSizes.Enqueue(10);
@@ -165,7 +165,7 @@ public sealed class RetentionExecutorTests
     }
 
     [Fact]
-    public async Task Onizleme_MaxRows_esigini_gercek_kosuyla_ayni_hesaplar()
+    public async Task Preview_computes_the_MaxRows_threshold_the_same_way_as_a_real_run()
     {
         var (executor, store, dataStore) = Build();
 

@@ -1,12 +1,12 @@
 namespace AgentPrism.Core.UnitTests.Attachments;
 
 /// <summary>
-/// Ek referans Uri'sinin kurulmasi ve geri cozulmesi.
+/// Construction and resolution of the attachment reference Uri.
 /// </summary>
 public sealed class AttachmentUriReferenceTests
 {
     [Fact]
-    public void Kurulan_referans_geri_cozulur()
+    public void Constructed_reference_resolves_back()
     {
         var id = AgentPrismId.NewId();
 
@@ -17,7 +17,7 @@ public sealed class AttachmentUriReferenceTests
     }
 
     [Fact]
-    public void Mutlak_uri_de_cozulur()
+    public void Absolute_uri_also_resolves()
     {
         var id = AgentPrismId.NewId();
 
@@ -28,26 +28,27 @@ public sealed class AttachmentUriReferenceTests
     }
 
     [Fact]
-    public void Farkli_onek_ile_kurulan_referans_da_cozulur()
+    public void Reference_built_with_a_different_prefix_also_resolves()
     {
-        // Cozumleme onegi BILMEZ; yalniz '/api/attachments/{id}' izine bakar.
-        // Boylece Core, uc noktalarin yol yapilandirmasindan bagimsiz kalir.
+        // Resolution does NOT KNOW the prefix; it only looks for the
+        // '/api/attachments/{id}' trail. This keeps Core independent of the
+        // endpoints' path configuration.
         var id = AgentPrismId.NewId();
 
-        var uri = AttachmentUriReference.Create("/farkli-onek", id);
+        var uri = AttachmentUriReference.Create("/different-prefix", id);
 
         AttachmentUriReference.TryParse(uri, out var parsed).ShouldBeTrue();
         parsed.ShouldBe(id);
     }
 
     [Fact]
-    public void Ilgisiz_uri_cozulmez()
+    public void Unrelated_uri_does_not_resolve()
     {
-        AttachmentUriReference.TryParse(new Uri("https://example.com/baska/yol"), out _).ShouldBeFalse();
+        AttachmentUriReference.TryParse(new Uri("https://example.com/other/path"), out _).ShouldBeFalse();
     }
 
     [Fact]
-    public void Gecersiz_kimlik_cozulmez()
+    public void Invalid_id_does_not_resolve()
     {
         AttachmentUriReference.TryParse(
             new Uri("/agentprism/api/attachments/not-a-guid", UriKind.Relative),

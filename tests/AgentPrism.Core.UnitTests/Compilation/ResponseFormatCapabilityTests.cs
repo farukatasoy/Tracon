@@ -7,7 +7,7 @@ namespace AgentPrism.Core.UnitTests.Compilation;
 public sealed class ResponseFormatCapabilityTests
 {
     [Fact]
-    public void SupportsStructuredOutput_false_olan_modelde_derleme_reddedilir()
+    public void Compilation_is_rejected_for_a_model_with_SupportsStructuredOutput_false()
     {
         var provider = new FakeModelProvider(models:
         [
@@ -34,7 +34,7 @@ public sealed class ResponseFormatCapabilityTests
     }
 
     [Fact]
-    public void SupportsStructuredOutput_true_olan_modelde_derleme_basarili_olur()
+    public void Compilation_succeeds_for_a_model_with_SupportsStructuredOutput_true()
     {
         var provider = new FakeModelProvider(models:
         [
@@ -60,10 +60,11 @@ public sealed class ResponseFormatCapabilityTests
     }
 
     [Fact]
-    public void Model_katalogda_yoksa_denetim_atlanir()
+    public void Check_is_skipped_when_the_model_is_not_in_the_catalog()
     {
-        // K-032: model adlari yapilandirmadan gelebilir ve katalog bir dogrulama
-        // listesi degildir. Katalogda hic olmayan bir model reddedilmemelidir.
+        // K-032: model names can come from configuration, and the catalog is not
+        // a validation list. A model absent from the catalog entirely must not
+        // be rejected.
         var provider = new FakeModelProvider(models: []);
         var compiler = new AgentDefinitionCompiler(TestData.Providers(provider), TestData.Registry());
 

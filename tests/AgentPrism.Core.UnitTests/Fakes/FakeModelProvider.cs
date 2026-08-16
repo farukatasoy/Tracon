@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Testlerde kullanilan, tek modelli sahte saglayici.</summary>
+/// <summary>A fake single-model provider used in tests.</summary>
 internal sealed class FakeModelProvider : IModelProvider
 {
     private readonly IChatClient _client;
@@ -21,7 +21,7 @@ internal sealed class FakeModelProvider : IModelProvider
 
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
-    /// <summary>Son istenen baglanti. Testler secenek eslemesini bunun uzerinden dogrular.</summary>
+    /// <summary>The last requested binding. Tests verify option mapping through this.</summary>
     public ModelBinding? LastBinding { get; private set; }
 
     public IChatClient CreateChatClient(ModelBinding binding)

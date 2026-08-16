@@ -20,7 +20,7 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-1");
+        var runId = await RunAsync(host, "hello", "session-1");
         await SaveSuiteAsync(host, "kod-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(runId), content: null);
@@ -28,8 +28,8 @@ public sealed class RunToCasePromotionEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
-        body.GetProperty("query").GetString().ShouldBe("merhaba");
-        body.GetProperty("expectedOutput").GetString()!.ShouldContain("Echo: merhaba");
+        body.GetProperty("query").GetString().ShouldBe("hello");
+        body.GetProperty("expectedOutput").GetString()!.ShouldContain("Echo: hello");
         body.GetProperty("sourceKind").GetString().ShouldBe("ReferenceRun");
         body.GetProperty("sourceRunId").GetGuid().ShouldBe(runId);
         body.GetProperty("seq").GetInt32().ShouldBe(0);
@@ -45,7 +45,7 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-2");
+        var runId = await RunAsync(host, "hello", "session-2");
         await SaveSuiteAsync(host, "kod-agent");
 
         using var first = await host.Client.PostAsync(PromoteUri(runId), content: null);
@@ -73,7 +73,7 @@ public sealed class RunToCasePromotionEndpointTests
                     Model = new ModelBinding { Provider = "throws", Model = "throws-1" },
                 }));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-3", agentName: "broken-agent", expectFailure: true);
+        var runId = await RunAsync(host, "hello", "session-3", agentName: "broken-agent", expectFailure: true);
         await SaveSuiteAsync(host, "broken-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(runId), content: null);
@@ -90,7 +90,7 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-4");
+        var runId = await RunAsync(host, "hello", "session-4");
         await SaveSuiteAsync(host, "kod-agent");
 
         using (var feedback = await host.Client.PostAsJsonAsync(
@@ -114,8 +114,8 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "first turn", "oturum-5");
-        var secondRunId = await RunAsync(host, "second turn", "oturum-5");
+        await RunAsync(host, "first turn", "session-5");
+        var secondRunId = await RunAsync(host, "second turn", "session-5");
         await SaveSuiteAsync(host, "kod-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(secondRunId), content: null);
@@ -132,14 +132,14 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        var runId = await RunAsync(host, "merhaba", sessionId: null);
+        var runId = await RunAsync(host, "hello", sessionId: null);
         await SaveSuiteAsync(host, "kod-agent");
 
         using var response = await host.Client.PostAsync(PromoteUri(runId), content: null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
-        body.GetProperty("query").GetString().ShouldBe("merhaba");
+        body.GetProperty("query").GetString().ShouldBe("hello");
     }
 
     [Fact]
@@ -187,17 +187,17 @@ public sealed class RunToCasePromotionEndpointTests
                 });
             });
 
-        var runId = await RunAsAsync(host, "merhaba", "oturum-6", "kiraci-a");
-        await SaveSuiteAsAsync(host, "kod-agent", "kiraci-a");
-        await SaveSuiteAsAsync(host, "kod-agent", "kiraci-b");
+        var runId = await RunAsAsync(host, "hello", "session-6", "tenant-a");
+        await SaveSuiteAsAsync(host, "kod-agent", "tenant-a");
+        await SaveSuiteAsAsync(host, "kod-agent", "tenant-b");
 
-        using var missing = await SendAsTenant(host, PromoteUri(AgentPrismId.NewId()), "kiraci-b");
-        using var wrongTenant = await SendAsTenant(host, PromoteUri(runId), "kiraci-b");
+        using var missing = await SendAsTenant(host, PromoteUri(AgentPrismId.NewId()), "tenant-b");
+        using var wrongTenant = await SendAsTenant(host, PromoteUri(runId), "tenant-b");
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         wrongTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        using var ownTenant = await SendAsTenant(host, PromoteUri(runId), "kiraci-a");
+        using var ownTenant = await SendAsTenant(host, PromoteUri(runId), "tenant-a");
         ownTenant.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
@@ -236,24 +236,24 @@ public sealed class RunToCasePromotionEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        var runId = await RunAsync(host, "merhaba", "oturum-7");
+        var runId = await RunAsync(host, "hello", "session-7");
 
         using var response = await host.Client.PostAsync(
-            new Uri("/agentprism/api/evals/yok-boyle/cases/from-run/" + runId, UriKind.Relative),
+            new Uri("/agentprism/api/evals/no-such-thing/cases/from-run/" + runId, UriKind.Relative),
             content: null);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    private static readonly Uri CasesUri = new("/agentprism/api/evals/musteri-destek-takimi/cases", UriKind.Relative);
+    private static readonly Uri CasesUri = new("/agentprism/api/evals/customer-support-team/cases", UriKind.Relative);
 
     private static Uri PromoteUri(Guid runId)
-        => new($"/agentprism/api/evals/musteri-destek-takimi/cases/from-run/{runId}", UriKind.Relative);
+        => new($"/agentprism/api/evals/customer-support-team/cases/from-run/{runId}", UriKind.Relative);
 
     private static async Task SaveSuiteAsync(AgentPrismTestHost host, string agentName)
     {
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/evals/musteri-destek-takimi", UriKind.Relative),
+            new Uri("/agentprism/api/evals/customer-support-team", UriKind.Relative),
             new EvalSuiteSaveRequest
             {
                 AgentName = agentName,
@@ -266,7 +266,7 @@ public sealed class RunToCasePromotionEndpointTests
     private static async Task SaveSuiteAsAsync(AgentPrismTestHost host, string agentName, string tenant)
     {
         var request = new HttpRequestMessage(
-            HttpMethod.Put, new Uri("/agentprism/api/evals/musteri-destek-takimi", UriKind.Relative));
+            HttpMethod.Put, new Uri("/agentprism/api/evals/customer-support-team", UriKind.Relative));
         request.Headers.Add(TenantHeader, tenant);
         request.Content = JsonContent.Create(new EvalSuiteSaveRequest
         {

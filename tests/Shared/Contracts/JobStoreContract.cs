@@ -2,14 +2,14 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IJobStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IJobStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir. Kira
-/// suresi dolma testi gercek zamanla calisir (kisa bir kira + kisa bir
-/// bekleme): PostgreSQL uygulamasi kendi saatini enjekte edilebilir bir
-/// <see cref="TimeProvider"/> uzerinden almaz, bu yuzden sahte zaman burada
-/// kullanilamaz.
+/// The in-memory store and the PostgreSQL store must pass the same
+/// scenarios. The lease-expiry test runs against real time (a short lease +
+/// a short wait): the PostgreSQL implementation does not take its clock
+/// through an injectable <see cref="TimeProvider"/>, so fake time cannot be
+/// used here.
 /// </remarks>
 public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 {
@@ -27,13 +27,14 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 
     /// <inheritdoc />
     /// <remarks>
-    /// Is kuyrugunda silme yoktur; kiraciya ait tek yikici islem iptaldir.
+    /// There is no delete in the job queue; the only destructive operation
+    /// available to a tenant is cancel.
     /// </remarks>
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.CancelAsync(tenantId, (Guid)key);
 
     [Fact]
-    public async Task Kuyruga_eklenen_is_beklemede_baslar_ve_ogeleri_olusturur()
+    public async Task Enqueued_job_starts_pending_and_creates_items()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a", "b", "c"]);
 
@@ -49,7 +50,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task Zamani_gelmemis_is_kiralanamaz()
+    public async Task Job_not_yet_due_cannot_be_leased()
     {
         await Store.EnqueueAsync(TestData.Job(scheduledFor: DateTimeOffset.UtcNow.AddMinutes(5)), ["a"]);
 
@@ -57,7 +58,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task Kiralama_leased_yapar_ve_denemeyi_artirir()
+    public async Task Leasing_marks_Leased_and_increments_the_attempt()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var owner = Owner();
@@ -72,7 +73,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task Kirali_is_suresi_dolmadan_baska_isciye_verilmez()
+    public async Task Leased_job_is_not_given_to_another_worker_before_expiry()
     {
         await Store.EnqueueAsync(TestData.Job(), ["a"]);
         await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
@@ -81,7 +82,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task Kira_suresi_dolunca_is_yeniden_kiralanabilir()
+    public async Task Job_can_be_re_leased_once_the_lease_expires()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
 
@@ -96,7 +97,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task MarkRunningAsync_yalnizca_gercek_sahibi_icin_calisir()
+    public async Task MarkRunningAsync_works_only_for_the_real_owner()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         var owner = Owner();
@@ -110,7 +111,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task ReportItemAsync_idempotenttir()
+    public async Task ReportItemAsync_is_idempotent()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a", "b"]);
         var result = new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Completed, RunId = Guid.NewGuid() };
@@ -124,24 +125,24 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task ReportItemAsync_basarili_ve_basarisiz_ogeleri_ayri_sayar()
+    public async Task ReportItemAsync_counts_successful_and_failed_items_separately()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a", "b"]);
 
         await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Completed });
-        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 1, Status = JobItemStatus.Failed, Error = "patladi" });
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 1, Status = JobItemStatus.Failed, Error = "blew up" });
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.DoneItems.ShouldBe(1);
         current.FailedItems.ShouldBe(1);
 
         var items = await Store.ListItemsAsync(job.Id);
-        items.Single(static i => i.Seq == 1).Error.ShouldBe("patladi");
+        items.Single(static i => i.Seq == 1).Error.ShouldBe("blew up");
         items.Single(static i => i.Seq == 1).Status.ShouldBe(JobItemStatus.Failed);
     }
 
     [Fact]
-    public async Task CompleteAsync_kirayi_birakir()
+    public async Task CompleteAsync_releases_the_lease()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
@@ -161,17 +162,17 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task ReleaseForRetryAsync_denemeyi_sifirlamadan_beklemeye_alir()
+    public async Task ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
         await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
 
-        await Store.ReleaseForRetryAsync(job.Id, "gecici hata");
+        await Store.ReleaseForRetryAsync(job.Id, "temporary error");
 
         var current = await Store.GetAsync(job.TenantId, job.Id);
         current!.Status.ShouldBe(JobStatus.Pending);
         current.Attempt.ShouldBe(1);
-        current.ErrorMessage.ShouldBe("gecici hata");
+        current.ErrorMessage.ShouldBe("temporary error");
 
         (await Store.LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
     }
@@ -180,7 +181,7 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     [InlineData(JobStatus.Pending, true)]
     [InlineData(JobStatus.Completed, false)]
     [InlineData(JobStatus.Failed, false)]
-    public async Task CancelAsync_yalnizca_uygun_durumlarda_calisir(JobStatus status, bool expected)
+    public async Task CancelAsync_works_only_in_eligible_states(JobStatus status, bool expected)
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
 
@@ -193,35 +194,35 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
-    public async Task CancelAsync_baska_kiracinin_isini_etkilemez()
+    public async Task CancelAsync_does_not_affect_another_tenants_job()
     {
-        var job = await Store.EnqueueAsync(TestData.Job(tenantId: "kiraci-a"), ["a"]);
+        var job = await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-a"), ["a"]);
 
-        (await Store.CancelAsync("kiraci-b", job.Id)).ShouldBeFalse();
+        (await Store.CancelAsync("tenant-b", job.Id)).ShouldBeFalse();
 
-        var current = await Store.GetAsync("kiraci-a", job.Id);
+        var current = await Store.GetAsync("tenant-a", job.Id);
         current!.Status.ShouldBe(JobStatus.Pending);
     }
 
     [Fact]
-    public async Task GetAsync_baska_kiracidan_null_doner()
+    public async Task GetAsync_returns_null_for_another_tenant()
     {
-        var job = await Store.EnqueueAsync(TestData.Job(tenantId: "kiraci-a"), ["a"]);
+        var job = await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-a"), ["a"]);
 
-        (await Store.GetAsync("kiraci-b", job.Id)).ShouldBeNull();
+        (await Store.GetAsync("tenant-b", job.Id)).ShouldBeNull();
     }
 
     [Fact]
-    public async Task QueryAsync_kiraciya_gore_filtreler()
+    public async Task QueryAsync_filters_by_tenant()
     {
-        await Store.EnqueueAsync(TestData.Job(tenantId: "kiraci-a"), ["a"]);
-        await Store.EnqueueAsync(TestData.Job(tenantId: "kiraci-b"), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-a"), ["a"]);
+        await Store.EnqueueAsync(TestData.Job(tenantId: "tenant-b"), ["a"]);
 
-        var results = await Store.QueryAsync(new JobQuery { TenantId = "kiraci-a" });
+        var results = await Store.QueryAsync(new JobQuery { TenantId = "tenant-a" });
 
         results.ShouldHaveSingleItem();
-        results[0].TenantId.ShouldBe("kiraci-a");
+        results[0].TenantId.ShouldBe("tenant-a");
     }
 
-    private static string Owner() => $"isci-{Guid.NewGuid():N}";
+    private static string Owner() => $"worker-{Guid.NewGuid():N}";
 }

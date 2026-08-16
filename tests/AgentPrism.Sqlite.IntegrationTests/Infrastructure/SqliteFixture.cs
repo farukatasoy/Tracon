@@ -1,19 +1,19 @@
 namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tum entegrasyon testlerinin paylastigi tek kullanimlik SQLite veritabani dosyasi.
+/// The disposable SQLite database file shared by all integration tests.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Container GEREKMEZ.</strong> SQLite tek dosyalik oldugu icin gecici
-/// bir dosya yolu yeter; bu, PostgreSQL/SQL Server sozlesme kosularina gore
-/// CI suresini kisaltir (docs/24-SQLITE.md, bolum 24.5).
+/// <strong>A container is NOT REQUIRED.</strong> Since SQLite is a single
+/// file, a temporary file path is enough; this shortens CI time compared to
+/// the PostgreSQL/SQL Server contract runs (docs/24-SQLITE.md, section 24.5).
 /// </para>
 /// <para>
-/// Dosya tum derleme icin bir kez olusturulur; tablo oneki sozlesme test
-/// SINIFI basina paylasilir (bkz. <see cref="SqliteSchemaFixture"/>,
-/// <see cref="SqliteTestContext"/>), testler arasi izolasyon veri
-/// sifirlamayla saglanir (K-390) — SQL Server/PostgreSQL ile ayni desen.
+/// The file is created once for the whole assembly; the table prefix is
+/// shared per contract test CLASS (see <see cref="SqliteSchemaFixture"/>,
+/// <see cref="SqliteTestContext"/>), and isolation between tests is achieved
+/// by resetting data (K-390) — the same pattern as SQL Server/PostgreSQL.
 /// </para>
 /// </remarks>
 public sealed class SqliteFixture : IAsyncLifetime
@@ -22,7 +22,7 @@ public sealed class SqliteFixture : IAsyncLifetime
         Path.GetTempPath(),
         $"agentprism-tests-{Guid.NewGuid():N}.db");
 
-    /// <summary>Calisan veritabaninin baglanti dizesi.</summary>
+    /// <summary>Gets the connection string of the running database.</summary>
     public string ConnectionString => $"Data Source={_databasePath}";
 
     /// <inheritdoc />
@@ -30,9 +30,9 @@ public sealed class SqliteFixture : IAsyncLifetime
 
     /// <inheritdoc />
     /// <remarks>
-    /// Migration kilit dosyalari artik tablo onegine kapsanmistir (K-389), yani
-    /// dosya adi sinif basina degisir; sabit bir sonek listesi yerine dizin
-    /// glob'u ile taranir.
+    /// Migration lock files are now scoped to the table prefix (K-389), so the
+    /// file name varies per class; it is scanned with a directory glob instead
+    /// of a fixed suffix list.
     /// </remarks>
     public ValueTask DisposeAsync()
     {

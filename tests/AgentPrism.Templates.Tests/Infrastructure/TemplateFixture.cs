@@ -79,8 +79,8 @@ public sealed class TemplateFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// <c>dotnet new agentprism-api</c> calistirir; hedef dizine paketlenen
-    /// surumu isaret eden bir <c>NuGet.config</c> onceden yazilir.
+    /// Runs <c>dotnet new agentprism-api</c>; a <c>NuGet.config</c> pointing at the
+    /// packed version is written to the target directory beforehand.
     /// </summary>
     public async Task<ProcessResult> NewAsync(string name, string outputDirectory, string extraArgs = "")
     {
@@ -99,13 +99,14 @@ public sealed class TemplateFixture : IAsyncLifetime
         TimeSpan.FromSeconds(1));
 
     /// <remarks>
-    /// 🚨 <c>Directory.EnumerateFiles</c>'in sirasi dosya sistemine ozgudur ve
-    /// <strong>surume gore SIRALI olmayabilir</strong> (olculdu). Onceki bir
-    /// fazin kapanisindan kalmis eski bir <c>AgentPrism.&lt;eski-surum&gt;.nupkg</c>
-    /// klasorde durursa, ilk eslesen dosya rastgele bicimde ESKI (belki
-    /// analyzer'i eksik, bkz. AgentPrism.Core.csproj'daki '--no-build' notu)
-    /// bir surumu secebilirdi. Aday dosyalar arasindan en SON YAZILAN secilir:
-    /// bu, az once tamamlanan <c>InitializeAsync</c>'in kendi pack ciktisidir.
+    /// 🚨 The order of <c>Directory.EnumerateFiles</c> is filesystem-specific and
+    /// <strong>may not be SORTED by version</strong> (measured). If a stale
+    /// <c>AgentPrism.&lt;old-version&gt;.nupkg</c> left over from a previous
+    /// phase's closeout sits in the folder, the first matching file could
+    /// randomly pick an OLD version (possibly missing an analyzer, see the
+    /// '--no-build' note in AgentPrism.Core.csproj). The MOST RECENTLY WRITTEN
+    /// file is picked among the candidates: that is the pack output of the
+    /// <c>InitializeAsync</c> that just completed.
     /// </remarks>
     private static string ResolveMetaPackageVersion()
     {
@@ -116,7 +117,7 @@ public sealed class TemplateFixture : IAsyncLifetime
                 .Select(candidate => candidate.Match)
                 .FirstOrDefault()
             ?? throw new InvalidOperationException(
-                $"'{RepoPaths.PackageReleaseDirectory}' altinda 'AgentPrism.<surum>.nupkg' bulunamadi.");
+                $"No 'AgentPrism.<version>.nupkg' was found under '{RepoPaths.PackageReleaseDirectory}'.");
 
         return match.Groups["version"].Value;
     }

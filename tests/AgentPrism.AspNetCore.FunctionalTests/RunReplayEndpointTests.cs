@@ -76,7 +76,7 @@ public sealed class RunReplayEndpointTests
     public async Task Replay_opens_a_new_run_and_carries_lineage()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureAgent);
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")]);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "hello")]);
 
         using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
 
@@ -191,7 +191,7 @@ public sealed class RunReplayEndpointTests
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition("kod-agent")));
 
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")], agentName: "kod-agent");
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "hello")], agentName: "kod-agent");
 
         using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "ReplayTools" });
 
@@ -211,10 +211,10 @@ public sealed class RunReplayEndpointTests
             });
         });
 
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")], tenantId: "kiraci-a");
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "hello")], tenantId: "tenant-a");
 
-        using var missing = await SendAsTenant(host, ReplayUri(AgentPrismId.NewId()), "kiraci-b");
-        using var wrongTenant = await SendAsTenant(host, ReplayUri(runId), "kiraci-b");
+        using var missing = await SendAsTenant(host, ReplayUri(AgentPrismId.NewId()), "tenant-b");
+        using var wrongTenant = await SendAsTenant(host, ReplayUri(runId), "tenant-b");
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         wrongTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -229,7 +229,7 @@ public sealed class RunReplayEndpointTests
     public async Task Two_runs_are_compared_side_by_side()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureAgent);
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")]);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "hello")]);
 
         using var replayResponse = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
         var replayId = (await AgentPrismTestHost.ReadJsonAsync(replayResponse)).GetProperty("runId").GetGuid();
@@ -386,7 +386,7 @@ public sealed class RunReplayEndpointTests
 
     private static Uri InputUri(Guid runId) => new($"/agentprism/api/runs/{runId}/input", UriKind.Relative);
 
-    /// <summary>Kurulum sirasinda kaydedilecek tanimlari tasiyan isaret.</summary>
+    /// <summary>Marker interface carrying definitions to be saved during startup.</summary>
     private interface IStartupSeed
     {
         AgentDefinition Definition { get; }

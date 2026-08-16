@@ -1,24 +1,24 @@
-using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
+using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 
-namespace AgentPrism.Sqlite.IntegrationTests;
+namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Verifies the hand-written SQL (FILTER/CASE, scalar subquery) behind the
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
-/// computation on SQLite, against a real database (Phase 31).
+/// hesabinin PostgreSQL'deki el yazimi SQL'ini (FILTER/CASE, skaler alt sorgu)
+/// gercek bir veritabaninda dogrular (Faz 31).
 /// </summary>
-public sealed class RunScoreStatisticsTests(SqliteFixture fixture) : IAsyncLifetime
+public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLifetime
 {
-    private SqliteTestContext _context = null!;
+    private PostgresTestContext _context = null!;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => _context = await SqliteTestContext.CreateAsync(fixture);
+    public async ValueTask InitializeAsync() => _context = await PostgresTestContext.CreateAsync(fixture);
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await _context.DisposeAsync();
 
     [Fact]
-    public async Task Binary_scores_positive_rate_is_computed_correctly()
+    public async Task Ikili_puanlarin_olumlu_orani_dogru_hesaplanir()
     {
         var tenant = _context.TenantContext.TenantId;
         var scoredRunId = AgentPrismId.NewId();
@@ -37,7 +37,7 @@ public sealed class RunScoreStatisticsTests(SqliteFixture fixture) : IAsyncLifet
     }
 
     [Fact]
-    public async Task Eval_runs_score_NEVER_enters_the_summary()
+    public async Task Eval_calistirmasinin_puani_ozete_HIC_girmez()
     {
         var tenant = _context.TenantContext.TenantId;
         var evalRunId = AgentPrismId.NewId();
@@ -53,7 +53,7 @@ public sealed class RunScoreStatisticsTests(SqliteFixture fixture) : IAsyncLifet
     }
 
     [Fact]
-    public async Task Star_score_is_counted_in_ScoredRuns_but_does_NOT_JOIN_the_rate()
+    public async Task Yildiz_puani_ScoredRuns_sayilir_ama_orana_KATILMAZ()
     {
         var tenant = _context.TenantContext.TenantId;
         var runId = AgentPrismId.NewId();

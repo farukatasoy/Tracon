@@ -1,19 +1,19 @@
 namespace AgentPrism.Core.UnitTests.Experiments;
 
 /// <summary>
-/// <see cref="CanaryEvaluator"/> sozlesmesi — saf karar mantigi, veritabani yok
-/// (Faz 56).
+/// The <see cref="CanaryEvaluator"/> contract — pure decision logic, no database
+/// (Phase 56).
 /// </summary>
 public sealed class CanaryEvaluatorTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Esigi_asan_hata_orani_geri_almaya_karar_verir()
+    public void Error_rate_over_threshold_triggers_rollback()
     {
         var policy = Policy(maxErrorRateDelta: 0.1);
 
-        // Kanarya %30 hata, kontrol %5 hata -- fark (%25) esigi (%10) asiyor.
+        // Canary has 30% errors, control has 5% errors -- the gap (25%) exceeds the threshold (10%).
         var results = new[]
         {
             Variant("canary", completed: 14, failed: 6, canceled: 0),
@@ -27,11 +27,11 @@ public sealed class CanaryEvaluatorTests
     }
 
     [Fact]
-    public void MinSampleSizeya_ulasilmadiysa_karar_verilmez()
+    public void No_decision_is_made_when_MinSampleSize_is_not_reached()
     {
         var policy = Policy(maxErrorRateDelta: 0.01, minSampleSize: 20);
 
-        // Kanarya yalniz 5 sonuclanmis calistirmaya sahip -- esik cok altinda.
+        // The canary has only 5 settled runs -- well below the threshold.
         var results = new[]
         {
             Variant("canary", completed: 0, failed: 5, canceled: 0),
@@ -44,11 +44,11 @@ public sealed class CanaryEvaluatorTests
     }
 
     [Fact]
-    public void Kontrol_de_kotuyse_gorece_karsilastirma_geri_almaz()
+    public void Relative_comparison_does_not_roll_back_when_control_is_also_bad()
     {
         var policy = Policy(maxErrorRateDelta: 0.15);
 
-        // Kanarya %50 hata, kontrol %40 hata -- fark yalniz %10, esigin (%15) ACIKCA ALTINDA.
+        // Canary has 50% errors, control has 40% errors -- the gap is only 10%, CLEARLY below the threshold (15%).
         var results = new[]
         {
             Variant("canary", completed: 10, failed: 10, canceled: 0),
@@ -61,7 +61,7 @@ public sealed class CanaryEvaluatorTests
     }
 
     [Fact]
-    public void Esigin_altindaki_puan_geri_almaya_karar_verir()
+    public void Score_below_threshold_triggers_rollback()
     {
         var policy = Policy(minScore: 70);
 
@@ -78,7 +78,7 @@ public sealed class CanaryEvaluatorTests
     }
 
     [Fact]
-    public void Puan_yoksa_puan_esigi_atlanir_ve_saglikli_sayilir()
+    public void Score_threshold_is_skipped_and_counted_healthy_when_score_is_missing()
     {
         var policy = Policy(minScore: 70);
 
@@ -94,7 +94,7 @@ public sealed class CanaryEvaluatorTests
     }
 
     [Fact]
-    public void Kanarya_kolu_hic_calismamissa_karar_verilmez()
+    public void No_decision_is_made_when_the_canary_arm_never_ran()
     {
         var policy = Policy(maxErrorRateDelta: 0.1);
 

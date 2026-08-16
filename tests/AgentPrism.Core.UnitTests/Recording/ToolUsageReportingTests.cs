@@ -4,19 +4,19 @@ using Shouldly;
 namespace AgentPrism.Core.UnitTests.Recording;
 
 /// <summary>
-/// Bir tool'un bildirdigi token disi olcumun dogru cagri kaydina baglandigini
-/// dogrular.
+/// Verifies that a non-token measurement reported by a tool is linked to the
+/// correct call record.
 /// </summary>
 /// <remarks>
-/// Kanal olculerek tasarlandi (2026-08-05): <c>AIFunctionArguments.Context</c>
-/// <see langword="null"/> gelir ve cagri kimligini tasimaz;
-/// <c>FunctionInvokingChatClient.CurrentContext</c> ise tool govdesinde doludur.
-/// Olcum bu yuzden cagri kimligiyle anahtarlanir.
+/// The channel was designed by measuring (2026-08-05): <c>AIFunctionArguments.Context</c>
+/// arrives as <see langword="null"/> and does not carry the call id;
+/// <c>FunctionInvokingChatClient.CurrentContext</c>, on the other hand, is populated
+/// inside the tool body. The measurement is therefore keyed by the call id.
 /// </remarks>
 public sealed class ToolUsageReportingTests
 {
     [Fact]
-    public void Bildirilen_olcum_ayni_cagri_kimligiyle_alinir()
+    public void Reported_measurement_is_retrieved_with_the_same_call_id()
     {
         var accumulator = new ToolUsageAccumulator();
 
@@ -32,12 +32,12 @@ public sealed class ToolUsageReportingTests
 
         accumulator.Take("call-1").ShouldBe(usage);
 
-        // Alinan olcum sozlukten CIKARILIR: ayni kayit iki kez yazilmaz.
+        // The retrieved measurement is REMOVED from the dictionary: the same record is not written twice.
         accumulator.Take("call-1").ShouldBeNull();
     }
 
     [Fact]
-    public void Baska_bir_cagrinin_olcumu_alinmaz()
+    public void Another_calls_measurement_is_not_retrieved()
     {
         var accumulator = new ToolUsageAccumulator();
         accumulator.Report("call-1", new ToolCallUsage { Unit = ToolUsageUnits.Seconds, Quantity = 3m });
@@ -46,22 +46,22 @@ public sealed class ToolUsageReportingTests
     }
 
     [Fact]
-    public void Izleyici_olcumu_cagri_kaydina_baglar()
+    public void Tracker_links_the_measurement_to_the_call_record()
     {
         var accumulator = new ToolUsageAccumulator();
         var runId = AgentPrismId.NewId();
         var tracker = new ToolInvocationTracker(runId, measureDuration: false, TimeProvider.System, accumulator);
 
-        tracker.OnCall(new FunctionCallContent("call-ses", "speak", arguments: null), source: null, arguments: null);
+        tracker.OnCall(new FunctionCallContent("call-voice", "speak", arguments: null), source: null, arguments: null);
 
-        accumulator.Report("call-ses", new ToolCallUsage
+        accumulator.Report("call-voice", new ToolCallUsage
         {
             Unit = ToolUsageUnits.Characters,
             Quantity = 42m,
             IsEstimated = true,
         });
 
-        var record = tracker.OnResult(new FunctionResultContent("call-ses", "tamam"));
+        var record = tracker.OnResult(new FunctionResultContent("call-voice", "ok"));
 
         record.Usage.ShouldNotBeNull();
         record.Usage.Quantity.ShouldBe(42m);
@@ -69,7 +69,7 @@ public sealed class ToolUsageReportingTests
     }
 
     [Fact]
-    public void Olcum_bildirmeyen_cagri_bos_olcumle_kaydedilir()
+    public void A_call_that_reports_no_measurement_is_recorded_with_an_empty_measurement()
     {
         var accumulator = new ToolUsageAccumulator();
         var tracker = new ToolInvocationTracker(
@@ -80,14 +80,14 @@ public sealed class ToolUsageReportingTests
 
         tracker.OnCall(new FunctionCallContent("call-1", "get_order", arguments: null), source: null, arguments: null);
 
-        tracker.OnResult(new FunctionResultContent("call-1", "kargoda")).Usage.ShouldBeNull();
+        tracker.OnResult(new FunctionResultContent("call-1", "in transit")).Usage.ShouldBeNull();
     }
 
     [Fact]
-    public void Calistirma_disinda_bildirim_sessizce_basarisiz_olur()
+    public void Reporting_outside_a_run_fails_silently()
     {
-        // Gozlemlenebilirlik islevselligi BOZMAZ: bildirim yapilamiyorsa tool
-        // yine calisir.
+        // Observability functionality does NOT break the tool: if reporting is
+        // unavailable, the tool still runs.
         AgentPrismRunContext.SetCurrent(null);
 
         AgentPrismToolUsage
@@ -96,10 +96,10 @@ public sealed class ToolUsageReportingTests
     }
 
     [Fact]
-    public void Tool_baglami_disinda_bildirim_sessizce_basarisiz_olur()
+    public void Reporting_outside_a_tool_context_fails_silently()
     {
-        // Kapsam var ama cagri bir tool govdesinden gelmiyor: baglanacak bir
-        // cagri kimligi yoktur.
+        // A scope exists, but the call does not come from a tool body: there is
+        // no call id to link to.
         AgentPrismRunContext.SetCurrent(new AgentRunScope
         {
             RunId = AgentPrismId.NewId(),

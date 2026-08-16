@@ -4,10 +4,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.Sqlite.IntegrationTests;
 
-/// <summary>Migration calistiricisinin SQLite uzerindeki davranisi.</summary>
+/// <summary>Behavior of the migration runner on SQLite.</summary>
 public sealed class MigrationRunnerTests(SqliteFixture fixture)
 {
-    /// <summary>Gomulu migration sayisi.</summary>
+    /// <summary>Number of embedded migrations.</summary>
     private static int EmbeddedMigrationCount { get; } = typeof(MigrationRunner).Assembly
         .GetManifestResourceNames()
         .Count(static name =>
@@ -15,7 +15,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             && name.EndsWith(".sql", StringComparison.Ordinal));
 
     [Fact]
-    public async Task Ilk_kosuda_tablolar_olusur()
+    public async Task Tables_are_created_on_the_first_run()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -28,24 +28,24 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             WHERE type = 'table' AND name LIKE '{context.TablePrefix}%' ESCAPE '\';
             """);
 
-        // 0001_initial PostgreSQL'in 0001-0013 birikimini kurar: 35 tablo +
-        // migration defteri = 36. 0002_retention 2 tablo daha ekler (Faz 25):
-        // retention_policies, retention_runs. Sayi diger saglayicilarla AYNI
-        // olmalidir; ucu de ayni veri modelini tasir. Sayi BILEREK sabittir:
-        // yeni bir tablo eklendiginde bu test kirilir ve ekleyen kisi tabloyu
-        // fark eder.
-        // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
-        // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
-        // Faz 42 `singleton_leases` tablosunu ekledi: 40 -> 41.
-        // Faz 43 `idempotency_keys` tablosunu ekledi: 41 -> 42.
-        // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
-        // Faz 53 `api_keys` tablosunu ekledi: 43 -> 44.
-        // Faz 55 `pending_approvals` tablosunu ekledi: 44 -> 45.
+        // 0001_initial establishes the PostgreSQL 0001-0013 accumulation: 35
+        // tables + migration ledger = 36. 0002_retention adds 2 more tables
+        // (Phase 25): retention_policies, retention_runs. The count must be
+        // the SAME across the other providers; all three carry the same data
+        // model. The count is DELIBERATELY hard-coded: this test breaks when
+        // a new table is added, and whoever added it notices the table.
+        // Phase 29 added the `voice_sessions` table: 38 -> 39.
+        // Phase 31 added the `run_scores` table: 39 -> 40.
+        // Phase 42 added the `singleton_leases` table: 40 -> 41.
+        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
+        // Phase 47 added the `run_inputs` table: 42 -> 43.
+        // Phase 53 added the `api_keys` table: 43 -> 44.
+        // Phase 55 added the `pending_approvals` table: 44 -> 45.
         tableCount.ShouldBe(45);
     }
 
     [Fact]
-    public async Task Ikinci_kosu_hicbir_sey_uygulamaz()
+    public async Task Second_run_applies_nothing()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -55,7 +55,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Uygulanan_migration_deftere_yazilir()
+    public async Task Applied_migrations_are_recorded_in_the_ledger()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
@@ -71,13 +71,14 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Degistirilmis_migration_hata_verir()
+    public async Task A_modified_migration_throws()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
-        // Defterdeki ozeti bozmak, dosyanin degistirilmesiyle ayni sonucu verir.
+        // Corrupting the checksum in the ledger produces the same result as
+        // modifying the file.
         await context.ExecuteAsync(
-            $"UPDATE {context.TablePrefix}__migrations SET checksum = 'BOZUK' WHERE id = 1;");
+            $"UPDATE {context.TablePrefix}__migrations SET checksum = 'CORRUPTED' WHERE id = 1;");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await context.Migrations.ApplyAsync());
@@ -86,13 +87,13 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Bes es zamanli calistirici sidecar dosya kilidiyle sirayla gecer ve
-    /// migration'lar toplamda yalnizca bir kez uygulanir. Ayni veritabani
-    /// dosyasini (fixture) paylasan ama ayri tablo onekleri kullanan bes
-    /// baglam, ayni kilit dosyasi icin yarisir.
+    /// Five concurrent runners pass through the sidecar file lock one at a
+    /// time, and the migrations are applied exactly once in total. Five
+    /// contexts that share the same database file (fixture) but use separate
+    /// table prefixes race for the same lock file.
     /// </summary>
     [Fact]
-    public async Task Bes_es_zamanli_kosuda_migration_tek_kez_uygulanir()
+    public async Task Five_concurrent_runs_apply_migrations_exactly_once()
     {
         var tablePrefix = SqliteTestContext.NewTablePrefix();
         var contexts = new List<SqliteTestContext>();
@@ -107,8 +108,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             var results = await Task.WhenAll(contexts.Select(static async context =>
                 await context.Migrations.ApplyAsync().AsTask()));
 
-            // Tam olarak bir calistirici uygular; digerleri kilidi bekler ve
-            // defteri dolu bulur.
+            // Exactly one runner applies them; the others wait for the lock
+            // and find the ledger already full.
             results.Count(count => count == EmbeddedMigrationCount).ShouldBe(1);
             results.Sum().ShouldBe(EmbeddedMigrationCount);
         }
@@ -122,12 +123,13 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// K-389: migration kilit dosyasi tablo onegine kapsanmistir. A onegi
-    /// icin kilit acikken B onegi icin kilit HEMEN alinabilmelidir; tek bir
-    /// paylasilan kilit dosyasinda olsa B, A'nin serbest kalmasini beklerdi.
+    /// K-389: the migration lock file is scoped to the table prefix. While
+    /// the lock for prefix A is held, the lock for prefix B must be
+    /// acquirable IMMEDIATELY; with a single shared lock file, B would wait
+    /// for A to release.
     /// </summary>
     [Fact]
-    public async Task Farkli_oneklerin_migration_kilitleri_birbirini_engellemez()
+    public async Task Migration_locks_for_different_prefixes_do_not_block_each_other()
     {
         var dialectA = new SqliteDialect(SqliteTestContext.NewTablePrefix());
         var dialectB = new SqliteDialect(SqliteTestContext.NewTablePrefix());
@@ -155,10 +157,11 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public void Gecersiz_tablo_oneki_reddedilir()
+    public void An_invalid_table_prefix_is_rejected()
     {
-        // Buyuk harf, tirnak ve nokta reddedilir: onek SQL metnine dogrudan
-        // gomulur ve enjeksiyon yuzeyi burada kapanir (K-029'un SQLite karsiligi).
+        // Uppercase letters, quotes, and dots are rejected: the prefix is
+        // embedded directly into SQL text, and the injection surface is
+        // closed here (the SQLite counterpart of K-029).
         foreach (var invalid in new[] { "Agent", "agent-prism", "agent.prism", "agent prism", "dbo';--" })
         {
             Should.Throw<AgentPrismException>(() => new SqliteDialect(invalid));
@@ -166,7 +169,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Ozel_tablo_oneki_kullanilir()
+    public async Task A_custom_table_prefix_is_used()
     {
         var tablePrefix = SqliteTestContext.NewTablePrefix();
 
@@ -180,10 +183,11 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public void Migration_calistiricisi_dogru_derlemeden_okur()
+    public void Migration_runner_reads_from_the_correct_assembly()
     {
-        // Migration kaynak oneki saglayiciya ozgudur; PostgreSQL/SQL Server'in
-        // dosyalarini SQLite'a uygulamak sessizce yanlis sema kurardi.
+        // The migration resource prefix is provider-specific; applying
+        // PostgreSQL/SQL Server files to SQLite would silently build the
+        // wrong schema.
         var dialect = new SqliteDialect("agentprism_");
 
         dialect.MigrationResourcePrefix.ShouldBe("AgentPrism.Sqlite.Migrations.");
@@ -193,7 +197,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public void Migration_calistiricisi_gecersiz_onekle_kurulamaz()
+    public void Migration_runner_cannot_be_constructed_with_an_invalid_prefix()
     {
         var exception = Should.Throw<AgentPrismException>(() =>
             new MigrationRunner(

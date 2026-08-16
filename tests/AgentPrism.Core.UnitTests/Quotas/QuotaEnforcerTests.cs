@@ -3,14 +3,14 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Quotas;
 
-/// <summary>Kota denetimi ve tuketim muhasebesinin testleri.</summary>
+/// <summary>Tests of quota enforcement and consumption accounting.</summary>
 public sealed class QuotaEnforcerTests
 {
     private const string Tenant = "acme";
     private const string Agent = "support";
 
     [Fact]
-    public async Task Kural_yoksa_izin_verilir()
+    public async Task Allowed_when_no_rule_exists()
     {
         var (enforcer, _, _) = Build();
 
@@ -18,7 +18,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Sinir_altinda_izin_verilir()
+    public async Task Allowed_when_below_the_limit()
     {
         var (enforcer, store, clock) = Build();
 
@@ -29,7 +29,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Sinira_ulasinca_reddedilir()
+    public async Task Rejected_once_the_limit_is_reached()
     {
         var (enforcer, store, clock) = Build();
 
@@ -47,7 +47,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Token_kotasi_ayri_uygulanir()
+    public async Task Token_quota_is_enforced_separately()
     {
         var (enforcer, store, clock) = Build();
 
@@ -61,21 +61,21 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Fiyati_tanimsiz_calistirma_para_kotasina_katilmaz()
+    public async Task Run_with_no_defined_price_does_not_count_toward_the_cost_quota()
     {
         var (enforcer, store, clock) = Build();
 
         await SaveQuotaAsync(store, maxCost: 1.0m);
 
-        // Cost = null: fiyat tanimsiz. Sifir olarak da eklenmez; para kotasi
-        // bu calistirmayi hic gormez ve asilmaz.
+        // Cost = null: the price is undefined. It is not added as zero either;
+        // the cost quota never sees this run, so it is not exceeded.
         await RecordAsync(enforcer, clock, runs: 1, tokens: 5000, cost: null);
 
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Para_kotasi_fiyat_tanimliyken_uygulanir()
+    public async Task Cost_quota_is_enforced_when_a_price_is_defined()
     {
         var (enforcer, store, clock) = Build();
 
@@ -89,22 +89,22 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Kiraci_geneli_kural_baska_agentin_tuketimini_de_sayar()
+    public async Task Tenant_wide_rule_also_counts_another_agents_consumption()
     {
         var (enforcer, store, clock) = Build();
 
-        // agentName = null: kural kiracinin tumune uygulanir.
+        // agentName = null: the rule applies to the whole tenant.
         await SaveQuotaAsync(store, agentName: null, maxRuns: 2);
 
         await RecordAsync(enforcer, clock, runs: 1, agentName: "billing");
         await RecordAsync(enforcer, clock, runs: 1, agentName: "support");
 
-        // Iki farkli agent, ayni kiraci geneli sayaci.
+        // Two different agents, the same tenant-wide counter.
         (await enforcer.CheckAsync(Tenant, "anything")).IsAllowed.ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Agent_kurali_baska_agenti_etkilemez()
+    public async Task Agent_rule_does_not_affect_another_agent()
     {
         var (enforcer, store, clock) = Build();
 
@@ -116,7 +116,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_tuketimi_sayilmaz()
+    public async Task Another_tenants_consumption_is_not_counted()
     {
         var (enforcer, store, clock) = Build();
 
@@ -127,7 +127,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Donem_donunce_sayac_sifirlanir()
+    public async Task Counter_resets_when_the_period_rolls_over()
     {
         var (enforcer, store, clock) = Build();
 
@@ -136,15 +136,15 @@ public sealed class QuotaEnforcerTests
 
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeFalse();
 
-        // Ertesi gun: yeni donem, yeni sayac. Eski satir silinmez, yalnizca
-        // artik sorgulanmaz.
+        // The next day: a new period, a new counter. The old row is not
+        // deleted, it is simply no longer queried.
         clock.Advance(TimeSpan.FromDays(1));
 
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Devre_disi_kural_uygulanmaz()
+    public async Task Disabled_rule_is_not_enforced()
     {
         var (enforcer, store, clock) = Build();
 
@@ -155,7 +155,7 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Kota_kapaliyken_hicbir_sey_reddedilmez()
+    public async Task Nothing_is_rejected_while_quotas_are_disabled()
     {
         var (enforcer, store, clock) = Build(options => options.Enabled = false);
 
@@ -166,14 +166,14 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Esik_asilinca_olay_yayilir()
+    public async Task Event_is_published_when_the_threshold_is_exceeded()
     {
         var publisher = new RecordingPublisher();
         var (enforcer, store, clock) = Build(publisher: publisher);
 
         await SaveQuotaAsync(store, maxRuns: 10);
 
-        // %80 esigi: 8/10.
+        // 80% threshold: 8/10.
         await RecordAsync(enforcer, clock, runs: 8);
 
         publisher.Events.Count.ShouldBe(1);
@@ -184,48 +184,48 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Ayni_esik_donem_icinde_bir_kez_yayilir()
+    public async Task Same_threshold_is_published_once_per_period()
     {
         var publisher = new RecordingPublisher();
         var (enforcer, store, clock) = Build(publisher: publisher);
 
         await SaveQuotaAsync(store, maxRuns: 10);
 
-        await RecordAsync(enforcer, clock, runs: 8);   // %80 -> olay
-        await RecordAsync(enforcer, clock, runs: 1);   // %90 -> olay YOK
+        await RecordAsync(enforcer, clock, runs: 8);   // 80% -> event
+        await RecordAsync(enforcer, clock, runs: 1);   // 90% -> NO event
 
         publisher.Events.Count(e => e.Payload.Quota?.ThresholdPercent == 80).ShouldBe(1);
     }
 
     [Fact]
-    public async Task Yuzde_yuz_esigi_ayrica_yayilir()
+    public async Task Hundred_percent_threshold_is_published_separately()
     {
         var publisher = new RecordingPublisher();
         var (enforcer, store, clock) = Build(publisher: publisher);
 
         await SaveQuotaAsync(store, maxRuns: 10);
 
-        await RecordAsync(enforcer, clock, runs: 8);    // %80
-        await RecordAsync(enforcer, clock, runs: 2);    // %100
+        await RecordAsync(enforcer, clock, runs: 8);    // 80%
+        await RecordAsync(enforcer, clock, runs: 2);    // 100%
 
         publisher.Events.Select(e => e.Payload.Quota!.ThresholdPercent)
             .ShouldBe([80, 100], ignoreOrder: true);
     }
 
     [Fact]
-    public async Task Depo_hata_verirse_varsayilan_olarak_izin_verilir()
+    public async Task Allowed_by_default_when_the_store_fails()
     {
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: new ManualTimeProvider());
 
-        // Veritabani gecici olarak erisilemezse hizmet durmaz.
+        // A temporarily unreachable database must not stop the service.
         (await enforcer.CheckAsync(Tenant, Agent)).IsAllowed.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Siki_kurulumda_depo_hatasi_reddedilir()
+    public async Task Store_failure_is_rejected_in_strict_setup()
     {
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
@@ -236,15 +236,15 @@ public sealed class QuotaEnforcerTests
     }
 
     [Fact]
-    public async Task Tuketim_yazimi_hata_verirse_istisna_sizmaz()
+    public async Task No_exception_leaks_when_writing_consumption_fails()
     {
         var enforcer = new QuotaEnforcer(
             new ThrowingQuotaStore(),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: new ManualTimeProvider());
 
-        // Gozlemlenebilirlik islevselligi bozmaz: tamamlanmis bir calistirma
-        // sayac yazilamadi diye geriye donuk bozulmaz.
+        // Observability must not break functionality: a completed run is not
+        // retroactively broken because its counter could not be written.
         await Should.NotThrowAsync(() => enforcer.RecordAsync(new QuotaConsumption
         {
             TenantId = Tenant,
@@ -327,25 +327,25 @@ public sealed class QuotaEnforcerTests
     private sealed class ThrowingQuotaStore : IQuotaStore
     {
         public ValueTask<IReadOnlyList<QuotaDefinition>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
 
         public ValueTask<QuotaDefinition?> GetAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
 
         public ValueTask<QuotaDefinition> SaveAsync(QuotaDefinition definition, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
 
         public ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
 
         public ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageAsync(QuotaUsageQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
 
         public ValueTask AddUsageAsync(
             QuotaConsumption consumption,
             IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unreachable");
     }
 
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

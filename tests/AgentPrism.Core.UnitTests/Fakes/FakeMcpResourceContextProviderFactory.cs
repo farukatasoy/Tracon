@@ -3,9 +3,9 @@ using Microsoft.Agents.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// <see cref="IMcpResourceContextProviderFactory"/> sahtesi. Gercek MCP
-/// baglantisi kurmaz; yalniz derleyicinin (<see cref="AgentDefinitionCompiler"/>)
-/// fabrikayi cagirip cagirmadigini dogrulamak icindir.
+/// A fake <see cref="IMcpResourceContextProviderFactory"/>. Makes no real MCP
+/// connection; it exists only to verify whether the compiler
+/// (<see cref="AgentDefinitionCompiler"/>) calls the factory.
 /// </summary>
 internal sealed class FakeMcpResourceContextProviderFactory : IMcpResourceContextProviderFactory
 {

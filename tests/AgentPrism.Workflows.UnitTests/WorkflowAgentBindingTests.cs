@@ -7,42 +7,42 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Kodda tanimli workflow'larin agent baglamasi.
+/// Agent binding for workflows defined in code.
 /// </summary>
 /// <remarks>
-/// Bu testin varlik sebebi olculmus bir hatadir: ornek uygulamada agent'lar
-/// katalogdan DOGRUDAN alinmisti ve her biri kendi kok <c>runs</c> satirini
-/// acti; workflow agaci uc satir yerine bir satir dondu. Sarmalama unutuldugu
-/// an ayni sessiz bozulma tekrarlanir.
+/// This test exists because of a measured defect: in the sample app, agents were
+/// taken DIRECTLY from the catalog and each one opened its own root <c>runs</c>
+/// row; the workflow tree returned three rows instead of one. The same silent
+/// breakage repeats the moment the wrapping is forgotten.
 /// </remarks>
 public sealed class WorkflowAgentBindingTests
 {
     [Fact]
-    public async Task Baglanan_agentler_workflow_agacina_girer()
+    public async Task Bound_agents_enter_the_workflow_tree()
     {
-        var host = new WorkflowTestHost("ozetleyici", "cevirmen");
+        var host = new WorkflowTestHost("summarizer", "translator");
         var services = BuildServices(host);
 
         var runner = host.CreateRunner(
             configure: null,
             services,
             new CodeWorkflowRegistration(
-                "ozetle-ve-cevir",
-                "Kodda tanimli zincir.",
+                "summarize-and-translate",
+                "Chain defined in code.",
                 provider => AgentWorkflowBuilder.BuildSequential(
-                    "ozetle-ve-cevir",
+                    "summarize-and-translate",
                     [
-                        provider.GetWorkflowAgent("ozetle-ve-cevir", "ozetleyici"),
-                        provider.GetWorkflowAgent("ozetle-ve-cevir", "cevirmen"),
+                        provider.GetWorkflowAgent("summarize-and-translate", "summarizer"),
+                        provider.GetWorkflowAgent("summarize-and-translate", "translator"),
                     ])));
 
         await foreach (var _ in runner.RunStreamingAsync(new WorkflowRunRequest
         {
-            WorkflowName = "ozetle-ve-cevir",
-            Message = "girdi",
+            WorkflowName = "summarize-and-translate",
+            Message = "input",
         }))
         {
-            // Olaylar bu testin konusu degil; agac kaydi kontrol edilir.
+            // Events are not the subject of this test; the tree record is checked.
         }
 
         var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
@@ -53,34 +53,34 @@ public sealed class WorkflowAgentBindingTests
         children.ShouldAllBe(run => run.ParentRunId == root.Id);
         children.ShouldAllBe(run => run.Depth == 1);
 
-        // Kok listede TEK basina durur: alt calistirmalar bagimsiz kok olarak
-        // gorunseydi bu sorgu uc satir dondururdu.
+        // Stands ALONE in the root list: if child runs showed up as independent
+        // roots, this query would return three rows.
         (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 100 })).Count.ShouldBe(1);
     }
 
     [Fact]
-    public void Baglanan_agent_adi_ve_aciklamasi_korunur()
+    public void Bound_agent_name_and_description_are_preserved()
     {
-        var host = new WorkflowTestHost("ozetleyici");
+        var host = new WorkflowTestHost("summarizer");
         var services = BuildServices(host);
 
-        var agent = services.GetWorkflowAgent("zincir", "ozetleyici", "Metni ozetler.");
+        var agent = services.GetWorkflowAgent("chain", "summarizer", "Summarizes text.");
 
-        agent.Name.ShouldBe("ozetleyici");
-        agent.Description.ShouldBe("Metni ozetler.");
+        agent.Name.ShouldBe("summarizer");
+        agent.Description.ShouldBe("Summarizes text.");
     }
 
     [Fact]
-    public void Bos_agent_adi_reddedilir()
+    public void Empty_agent_name_is_rejected()
     {
-        var host = new WorkflowTestHost("ozetleyici");
+        var host = new WorkflowTestHost("summarizer");
         var services = BuildServices(host);
 
-        Should.Throw<ArgumentException>(() => services.GetWorkflowAgent("zincir", "  "));
+        Should.Throw<ArgumentException>(() => services.GetWorkflowAgent("chain", "  "));
     }
 
     /// <summary>
-    /// <see cref="WorkflowAgentBinding.GetWorkflowAgent"/> icin gereken en kucuk kap.
+    /// The smallest container needed for <see cref="WorkflowAgentBinding.GetWorkflowAgent"/>.
     /// </summary>
     private static ServiceProvider BuildServices(WorkflowTestHost host)
         => new ServiceCollection()

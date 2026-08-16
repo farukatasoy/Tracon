@@ -6,19 +6,20 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// <c>/api/voice/*</c> uclarini dogrular.
+/// Verifies the <c>/api/voice/*</c> endpoints.
 /// </summary>
 /// <remarks>
-/// Test projesi <c>AgentPrism.Voice</c>'a referans <strong>VERMEZ</strong>: uclar
-/// yalnizca <see cref="ISpeechSynthesizer"/> soyutlamasini bilir. Bu, soyutlamanin
-/// dogru pakette (Abstractions) durdugunun kanitidir — K-174 deseni.
+/// The test project <strong>does NOT</strong> reference <c>AgentPrism.Voice</c>:
+/// the endpoints know only the <see cref="ISpeechSynthesizer"/> abstraction.
+/// This is proof that the abstraction lives in the right package
+/// (Abstractions) — the K-174 pattern.
 /// </remarks>
 public sealed class VoiceEndpointTests
 {
     [Fact]
-    public async Task Saglayici_yoksa_uclar_501_doner()
+    public async Task Endpoints_return_501_when_no_provider()
     {
-        // 404 DEGIL: yanlis adres ile eksik yapilandirma birbirine karismamalidir.
+        // NOT 404: a wrong address and missing configuration must not be confused with each other.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var voices = await host.Client.GetAsync(new Uri("/agentprism/api/voice/voices", UriKind.Relative));
@@ -29,7 +30,7 @@ public sealed class VoiceEndpointTests
     }
 
     [Fact]
-    public async Task Ses_listesi_soyutlamadan_okunur()
+    public async Task Voice_list_is_read_from_the_abstraction()
     {
         await using var host = await StartWithVoiceAsync();
 
@@ -38,40 +39,40 @@ public sealed class VoiceEndpointTests
 
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
         body.GetArrayLength().ShouldBe(1);
-        body[0].GetProperty("voiceId").GetString().ShouldBe("ses-1");
+        body[0].GetProperty("voiceId").GetString().ShouldBe("voice-1");
     }
 
     [Fact]
-    public async Task Seslendirme_eki_yazar_ve_olcumu_yanitta_dondurur()
+    public async Task Speak_writes_an_attachment_and_returns_the_measurement_in_the_response()
     {
         await using var host = await StartWithVoiceAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/voice/speak", UriKind.Relative),
-            new { text = "merhaba dunya", sessionId = "oturum-1" });
+            new { text = "hello world", sessionId = "session-1" });
 
         response.EnsureSuccessStatusCode();
 
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        // 🚨 Oturum kimligi eke YAZILMALIDIR: bos birakilirsa saklama politikasi
-        // eki sahipsiz sayar ve siler.
-        body.GetProperty("attachment").GetProperty("sessionId").GetString().ShouldBe("oturum-1");
+        // 🚨 The session id MUST be written to the attachment: if left empty,
+        // the retention policy treats the attachment as orphaned and deletes it.
+        body.GetProperty("attachment").GetProperty("sessionId").GetString().ShouldBe("session-1");
         body.GetProperty("attachment").GetProperty("mediaType").GetString().ShouldBe("audio/mpeg");
 
-        // Olcum tool_invocations'a YAZILMAZ (calistirma yok) ama gorunmez de degildir.
-        body.GetProperty("characters").GetInt32().ShouldBe("merhaba dunya".Length);
+        // The measurement is NOT written to tool_invocations (there is no run), but it is not invisible either.
+        body.GetProperty("characters").GetInt32().ShouldBe("hello world".Length);
         body.GetProperty("isEstimated").GetBoolean().ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Yazilan_ek_indirilebilir_ve_ses_turunde_gelir()
+    public async Task Written_attachment_is_downloadable_and_comes_back_as_audio()
     {
         await using var host = await StartWithVoiceAsync();
 
         using var speak = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/voice/speak", UriKind.Relative),
-            new { text = "merhaba", sessionId = (string?)null });
+            new { text = "hello", sessionId = (string?)null });
 
         speak.EnsureSuccessStatusCode();
 
@@ -86,7 +87,7 @@ public sealed class VoiceEndpointTests
     }
 
     [Fact]
-    public async Task Bos_metin_400_doner()
+    public async Task Empty_text_returns_400()
     {
         await using var host = await StartWithVoiceAsync();
 
@@ -98,18 +99,19 @@ public sealed class VoiceEndpointTests
     }
 
     [Fact]
-    public async Task Sinir_asan_metin_400_doner_ve_saglayiciya_ULASMAZ()
+    public async Task Text_over_the_limit_returns_400_and_does_NOT_reach_the_provider()
     {
-        // HTTP operator ucu, SpeakTool'un (agent cagrisi) zaten uyguladigi
-        // MaxCharactersPerRequest sinirini KENDI de uygulamaliydi — onceden
-        // uygulamiyordu (bkz. ISpeechSynthesizer.MaxCharactersPerRequest).
+        // The HTTP operator endpoint had to enforce the same
+        // MaxCharactersPerRequest limit that SpeakTool (the agent call)
+        // already enforces — it previously did not (see
+        // ISpeechSynthesizer.MaxCharactersPerRequest).
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services =>
                 services.AddSingleton<ISpeechSynthesizer>(new LimitedSynthesizer()));
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/voice/speak", UriKind.Relative),
-            new { text = "bu-metin-on-karakterden-uzun" });
+            new { text = "this-text-is-longer-than-ten-characters" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
@@ -118,7 +120,7 @@ public sealed class VoiceEndpointTests
     }
 
     [Fact]
-    public async Task Saglayici_reddederse_govdesi_yanita_TASINMAZ()
+    public async Task When_the_provider_rejects_its_body_is_NOT_copied_to_the_response()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services =>
@@ -126,25 +128,25 @@ public sealed class VoiceEndpointTests
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/voice/speak", UriKind.Relative),
-            new { text = "gizli-metin" });
+            new { text = "secret-text" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
 
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        text.Contains("SAHTE-ANAHTAR", StringComparison.Ordinal).ShouldBeFalse();
+        text.Contains("FAKE-KEY", StringComparison.Ordinal).ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Basliksiz_ses_ek_olarak_YAZILMAZ()
+    public async Task Headerless_audio_is_NOT_written_as_an_attachment()
     {
-        // Saglayici beklenmeyen bir bicim dondurdugunde hata YAZMA aninda cikar.
+        // When the provider returns an unexpected format, the error surfaces at WRITE time.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services =>
                 services.AddSingleton<ISpeechSynthesizer>(new HeaderlessSynthesizer()));
 
         using var response = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/voice/speak", UriKind.Relative),
-            new { text = "merhaba" });
+            new { text = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
     }
@@ -154,13 +156,13 @@ public sealed class VoiceEndpointTests
             configureServices: static services =>
                 services.AddSingleton<ISpeechSynthesizer>(new StubSynthesizer()));
 
-    /// <summary>Gecerli bir MP3 dondurur (ID3 etiketi + cerceve).</summary>
+    /// <summary>Returns a valid MP3 (ID3 tag + frame).</summary>
     private sealed class StubSynthesizer : ISpeechSynthesizer
     {
         private static readonly byte[] Mp3 =
             [0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFB];
 
-        public string ProviderName => "test-ses";
+        public string ProviderName => "test-voice";
 
         public int MaxCharactersPerRequest => 5000;
 
@@ -186,35 +188,35 @@ public sealed class VoiceEndpointTests
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>(
-                [new VoiceDescriptor { VoiceId = "ses-1", Name = "Test" }]);
+                [new VoiceDescriptor { VoiceId = "voice-1", Name = "Test" }]);
     }
 
-    /// <summary>Saglayicinin govdesini yankilayan bir hata firlatir.</summary>
+    /// <summary>Throws an error that echoes the provider's body.</summary>
     private sealed class FailingSynthesizer : ISpeechSynthesizer
     {
-        public string ProviderName => "test-ses";
+        public string ProviderName => "test-voice";
 
         public int MaxCharactersPerRequest => 5000;
 
         public ValueTask<SpeechAudio> SynthesizeAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
-            => throw new AgentPrismException("Ses uretilemedi: HTTP 401. API anahtari gecersiz.");
+            => throw new AgentPrismException("Failed to synthesize speech: HTTP 401. API key is invalid.");
 
         public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
-            => throw new AgentPrismException("Ses uretilemedi: HTTP 401.");
+            => throw new AgentPrismException("Failed to synthesize speech: HTTP 401.");
 
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)
             => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
     }
 
-    /// <summary>Ham PCM dondurur: hicbir sihirli bayta uymaz.</summary>
+    /// <summary>Returns raw PCM: it doesn't match any magic bytes.</summary>
     private sealed class HeaderlessSynthesizer : ISpeechSynthesizer
     {
-        public string ProviderName => "test-ses";
+        public string ProviderName => "test-voice";
 
         public int MaxCharactersPerRequest => 5000;
 
@@ -240,10 +242,10 @@ public sealed class VoiceEndpointTests
             => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
     }
 
-    /// <summary>10 karakterlik yapay dusuk sinir tasir; sinir denetimini test eder.</summary>
+    /// <summary>Carries an artificially low 10-character limit; tests the limit check.</summary>
     private sealed class LimitedSynthesizer : ISpeechSynthesizer
     {
-        public string ProviderName => "test-ses";
+        public string ProviderName => "test-voice";
 
         public int MaxCharactersPerRequest => 10;
 
@@ -251,13 +253,13 @@ public sealed class VoiceEndpointTests
             SpeechRequest request,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException(
-                "Sinirin uzerindeki bir istek saglayiciya hic ULASMAMALIYDI.");
+                "A request over the limit should NEVER have reached the provider.");
 
         public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException(
-                "Sinirin uzerindeki bir istek saglayiciya hic ULASMAMALIYDI.");
+                "A request over the limit should NEVER have reached the provider.");
 
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)

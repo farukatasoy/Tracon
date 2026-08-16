@@ -6,11 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Webhook uclarinin testleri (Faz 21).</summary>
+/// <summary>Tests for the webhook endpoints (Phase 21).</summary>
 /// <remarks>
-/// 🚨 En onemli test <see cref="Yanit_ve_kayit_hicbir_sir_tasimaz"/>: sozlesmede
-/// sir alani <strong>hic yoktur</strong> ve fazladan gonderilen bir alan
-/// baglanmaz (K-059).
+/// 🚨 The most important test is <see cref="Response_and_record_carry_no_secret"/>:
+/// the contract <strong>has no secret field at all</strong>, and an extra
+/// field sent in the request is not bound (K-059).
 /// </remarks>
 public sealed class WebhookEndpointTests
 {
@@ -18,7 +18,7 @@ public sealed class WebhookEndpointTests
     private static readonly Uri Orders = new("/agentprism/api/webhooks/orders", UriKind.Relative);
 
     [Fact]
-    public async Task Abonelik_olusturulur_okunur_ve_silinir()
+    public async Task Subscription_is_created_read_and_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -49,12 +49,12 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
-    public async Task Yanit_ve_kayit_hicbir_sir_tasimaz()
+    public async Task Response_and_record_carry_no_secret()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        // Istemci fazladan bir 'secret' alani gonderiyor. Sozlesmede boyle bir
-        // alan YOKTUR; baglanmamali ve hicbir yanitta gorunmemelidir.
+        // The client sends an extra 'secret' field. No such field exists in
+        // the contract; it must not bind and must not appear in any response.
         using (var created = await host.Client.PutAsJsonAsync(
                    Orders,
                    new
@@ -62,8 +62,8 @@ public sealed class WebhookEndpointTests
                        url = "https://example.com/hook",
                        events = new[] { "run.completed" },
                        secretConfigurationKey = "AgentPrism:Webhooks:Secrets:orders",
-                       secret = "super-gizli-deger",
-                       signingSecret = "baska-gizli-deger",
+                       secret = "super-secret-value",
+                       signingSecret = "another-secret-value",
                        enabled = true,
                    }))
         {
@@ -71,22 +71,22 @@ public sealed class WebhookEndpointTests
 
             var raw = await created.Content.ReadAsStringAsync();
 
-            raw.ShouldNotContain("super-gizli-deger");
-            raw.ShouldNotContain("baska-gizli-deger");
+            raw.ShouldNotContain("super-secret-value");
+            raw.ShouldNotContain("another-secret-value");
 
-            // Anahtarin ADI donmelidir — deger degil.
+            // The key's NAME must be returned — not the value.
             raw.ShouldContain("AgentPrism:Webhooks:Secrets:orders");
         }
 
         using var listed = await host.Client.GetAsync(Webhooks);
         var listRaw = await listed.Content.ReadAsStringAsync();
 
-        listRaw.ShouldNotContain("super-gizli-deger");
-        listRaw.ShouldNotContain("baska-gizli-deger");
+        listRaw.ShouldNotContain("super-secret-value");
+        listRaw.ShouldNotContain("another-secret-value");
     }
 
     [Fact]
-    public async Task Http_adresi_reddedilir()
+    public async Task Http_url_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -102,7 +102,7 @@ public sealed class WebhookEndpointTests
     [InlineData("file:///etc/passwd")]
     [InlineData("ftp://example.com/hook")]
     [InlineData("not-a-url")]
-    public async Task Gecersiz_sema_veya_bicim_reddedilir(string url)
+    public async Task Invalid_scheme_or_format_is_rejected(string url)
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -112,22 +112,22 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
-    public async Task Taninmayan_olay_reddedilir()
+    public async Task Unrecognized_event_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
             Orders,
-            Request(events: ["run.completed", "uydurma.olay"]));
+            Request(events: ["run.completed", "made-up.event"]));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
-        problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("uydurma.olay");
+        problem.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("made-up.event");
     }
 
     [Fact]
-    public async Task Bos_olay_listesi_reddedilir()
+    public async Task Empty_event_list_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -137,7 +137,7 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
-    public async Task Sinama_olayi_kuyruga_yazilir()
+    public async Task Test_event_is_queued()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -155,8 +155,8 @@ public sealed class WebhookEndpointTests
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
         body.GetProperty("queued").GetBoolean().ShouldBeTrue();
 
-        // Abonelik 'test.ping' olayina abone degildi; yine de sinama gonderilir
-        // ve olay listesi kalici olarak degismez.
+        // The subscription was not subscribed to the 'test.ping' event; the
+        // test is still sent, and the event list does not change permanently.
         using var reloaded = await host.Client.GetAsync(Orders);
         var subscription = await AgentPrismTestHost.ReadJsonAsync(reloaded);
 
@@ -164,7 +164,7 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
-    public async Task Teslim_gecmisi_okunur()
+    public async Task Delivery_history_is_read()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -188,19 +188,19 @@ public sealed class WebhookEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_abonelige_sinama_gonderilemez()
+    public async Task Test_cannot_be_sent_to_a_nonexistent_subscription()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
-            new Uri("/agentprism/api/webhooks/yok/test", UriKind.Relative),
+            new Uri("/agentprism/api/webhooks/no-such-subscription/test", UriKind.Relative),
             new { });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Loopback_http_adresi_izin_acikken_kabul_edilir()
+    public async Task Loopback_http_url_is_accepted_when_allowed()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.Configure<AgentPrismWebhookOptions>(

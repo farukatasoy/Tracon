@@ -1,26 +1,28 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IIdempotencyStore"/> sozlesmesinin davranis testleri (Faz 43).
+/// Behavior tests for the <see cref="IIdempotencyStore"/> contract (phase 43).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bellek ici depo ile uc SQL saglayicisi ayni senaryolari gecmelidir.
+/// The in-memory store and the three SQL providers must pass the same
+/// scenarios.
 /// </para>
 /// <para>
-/// Kiraci kimligi her cagriya <em>acikca</em> verilir (ambient <see cref="ITenantContext"/>
-/// uzerinden degil) — sozlesme bu yuzden <c>TenantIsolationContract&lt;TStore&gt;</c>'in
-/// genel CRUD sekline degil, dogrudan <see cref="IAsyncLifetime"/>'a dayanir;
-/// <c>SingletonLeaseStoreContract</c> ile ayni desen.
+/// The tenant id is passed <em>explicitly</em> to every call (not through
+/// the ambient <see cref="ITenantContext"/>) — the contract therefore does
+/// not rely on the generic CRUD shape of <c>TenantIsolationContract&lt;TStore&gt;</c>,
+/// but directly on <see cref="IAsyncLifetime"/>; the same pattern as
+/// <c>SingletonLeaseStoreContract</c>.
 /// </para>
 /// </remarks>
 public abstract class IdempotencyStoreContract : IAsyncLifetime
 {
-    /// <summary>Sinanan idempotency deposu.</summary>
+    /// <summary>The idempotency store under test.</summary>
     protected IIdempotencyStore Store { get; private set; } = null!;
 
-    /// <summary>Test icin bos bir idempotency deposu uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
+    /// <summary>Produces an empty idempotency store for testing.</summary>
+    /// <returns>A store ready for use.</returns>
     protected abstract ValueTask<IIdempotencyStore> CreateStoreAsync();
 
     /// <inheritdoc />
@@ -33,8 +35,8 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Hook for the derived class to release its own resources.</summary>
+    /// <returns>The completion task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
     private const string Tenant = "test";
@@ -60,7 +62,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
         };
 
     [Fact]
-    public async Task Yeni_anahtar_Reserved_doner()
+    public async Task New_key_returns_Reserved()
     {
         var reservation = await Store.ReserveAsync(Request(Tenant, Key()));
 
@@ -69,7 +71,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Isleniyor_durumundaki_anahtar_ikinci_ayirmada_InProgress_doner()
+    public async Task Key_in_progress_returns_InProgress_on_second_reservation()
     {
         var key = Key();
 
@@ -81,7 +83,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Tamamlanan_anahtar_ayni_parmak_iziyle_saklanan_yaniti_doner()
+    public async Task Completed_key_returns_the_stored_response_with_the_same_fingerprint()
     {
         var key = Key();
 
@@ -97,7 +99,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Tamamlanan_anahtar_saklanan_HTTP_basliklarini_da_doner()
+    public async Task Completed_key_also_returns_the_stored_HTTP_headers()
     {
         var key = Key();
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -117,7 +119,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Tamamlanan_anahtar_baslik_YOKKEN_bos_sozluk_doner()
+    public async Task Completed_key_returns_an_empty_dictionary_when_there_are_NO_headers()
     {
         var key = Key();
 
@@ -130,7 +132,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Tamamlanan_anahtar_FARKLI_parmak_iziyle_FingerprintMismatch_doner()
+    public async Task Completed_key_with_a_DIFFERENT_fingerprint_returns_FingerprintMismatch()
     {
         var key = Key();
 
@@ -144,35 +146,35 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Birakilan_anahtar_yeniden_ayrilabilir()
+    public async Task Released_key_can_be_reserved_again()
     {
         var key = Key();
 
         await Store.ReserveAsync(Request(Tenant, key));
         await Store.ReleaseAsync(Tenant, key);
 
-        // 🚨 Basarisiz calistirmadan sonra ayni anahtarla yeniden deneme
-        // CALISMALIDIR — kayit silinmis olmalidir (docs/43-IDEMPOTENCY-KEY.md, 43.2).
+        // 🚨 Retrying with the same key after a failed run MUST work — the
+        // record must have been deleted (docs/43-IDEMPOTENCY-KEY.md, 43.2).
         var retried = await Store.ReserveAsync(Request(Tenant, key));
 
         retried.State.ShouldBe(IdempotencyState.Reserved);
     }
 
     [Fact]
-    public async Task Ayni_anahtar_iki_kiracida_bagimsiz_yasar()
+    public async Task Same_key_lives_independently_in_two_tenants()
     {
         var key = Key();
 
         var first = await Store.ReserveAsync(Request("tenant-a", key));
         var second = await Store.ReserveAsync(Request("tenant-b", key));
 
-        // Ikinci kiraci ILK kiracinin ayirmasindan ETKILENMEMELIDIR.
+        // The second tenant must NOT be affected by the FIRST tenant's reservation.
         first.State.ShouldBe(IdempotencyState.Reserved);
         second.State.ShouldBe(IdempotencyState.Reserved);
     }
 
     [Fact]
-    public async Task Tamamlanmis_kayit_diger_kiraciyi_ETKILEMEZ()
+    public async Task Completed_record_does_NOT_affect_another_tenant()
     {
         var key = Key();
 
@@ -185,7 +187,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Eszamanli_ayni_anahtar_ayirmasinda_yalniz_biri_Reserved_alir()
+    public async Task Concurrent_reservation_of_the_same_key_only_one_gets_Reserved()
     {
         var key = Key();
 

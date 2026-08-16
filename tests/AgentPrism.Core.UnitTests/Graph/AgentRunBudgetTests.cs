@@ -1,12 +1,12 @@
 namespace AgentPrism.Core.UnitTests.Graph;
 
 /// <summary>
-/// Agac boyunca paylasilan butcenin sayaclari.
+/// The counters of the budget shared across the tree.
 /// </summary>
 public sealed class AgentRunBudgetTests
 {
     [Fact]
-    public void Sinirsiz_butce_her_zaman_yer_ayirir()
+    public void Unlimited_budget_always_reserves_a_slot()
     {
         var budget = new AgentRunBudget();
 
@@ -19,7 +19,7 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
-    public void Sayi_siniri_asilinca_yer_ayrilmaz()
+    public void No_slot_is_reserved_once_the_run_count_limit_is_exceeded()
     {
         var budget = new AgentRunBudget { MaxTotalRuns = 2 };
 
@@ -27,13 +27,14 @@ public sealed class AgentRunBudgetTests
         budget.TryReserveRun().ShouldBeTrue();
         budget.TryReserveRun().ShouldBeFalse();
 
-        // Basarisiz deneme sayaci artirmaz; aksi halde sinira ulasmis bir agacta
-        // her yeni deneme arayuzde gercekte baslamamis calistirmalar gosterirdi.
+        // A failed attempt does not increment the counter; otherwise, on a
+        // tree that has reached the limit, every new attempt would show runs
+        // in the UI that never actually started.
         budget.StartedRuns.ShouldBe(2);
     }
 
     [Fact]
-    public void Token_siniri_dolunca_yeni_calistirma_baslamaz()
+    public void No_new_run_starts_once_the_token_limit_is_reached()
     {
         var budget = new AgentRunBudget { MaxTotalTokens = 1_000 };
 
@@ -49,7 +50,7 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
-    public void Negatif_kullanim_yok_sayilir()
+    public void Negative_usage_is_ignored()
     {
         var budget = new AgentRunBudget();
 
@@ -59,10 +60,10 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
-    public async Task Es_zamanli_yer_ayirma_siniri_asmaz()
+    public async Task Concurrent_reservation_does_not_exceed_the_limit()
     {
-        // Alt calistirmalar es zamanli baslar: MAF'in arka plan agent gorevleri
-        // bloke etmeden calisir ve ayni butce birden cok is parcaciginda okunur.
+        // Child runs start concurrently: MAF's background agent tasks run
+        // without blocking, and the same budget is read from multiple threads.
         var budget = new AgentRunBudget { MaxTotalRuns = 10 };
         var granted = 0;
 
@@ -81,7 +82,7 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
-    public void Ayarlardan_uretilen_butce_varsayilanlari_tasir()
+    public void Budget_built_from_settings_carries_the_defaults()
     {
         var budget = new AgentPrismAgentGraphOptions().CreateBudget();
 
@@ -91,7 +92,7 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
-    public void Sifir_deger_sinirlamayi_kaldirir()
+    public void Zero_value_removes_the_limit()
     {
         var budget = new AgentPrismAgentGraphOptions
         {

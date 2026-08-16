@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Testlerde tekrar eden nesneleri ureten yardimcilar.</summary>
+/// <summary>Helpers that produce objects that repeat across tests.</summary>
 internal static class TestData
 {
     public static ModelBinding Binding(string provider = "fake", string model = "fake-model")
@@ -18,7 +18,7 @@ internal static class TestData
         => new()
         {
             Name = name,
-            Instructions = "Sen bir test agent'isin.",
+            Instructions = "You are a test agent.",
             Model = Binding(),
             ToolNames = toolNames ?? [],
             Harness = harness,
@@ -26,7 +26,7 @@ internal static class TestData
         };
 
     public static AIFunction Tool(string name, string description = "test tool")
-        => AIFunctionFactory.Create(() => "sonuc", name, description);
+        => AIFunctionFactory.Create(() => "result", name, description);
 
     public static ToolRegistry Registry(params AIFunction[] tools)
         => new(tools.Select(static tool => new AgentPrismToolRegistration(tool)));
@@ -34,19 +34,19 @@ internal static class TestData
     public static ModelProviderRegistry Providers(params IModelProvider[] providers)
         => new(providers);
 
-    /// <summary>Icerik guard'i takilmis bir saglayici defteri kurar.</summary>
+    /// <summary>Sets up a provider registry with a content guard attached.</summary>
     public static ModelProviderRegistry Providers(ContentGuardPipeline guards, params IModelProvider[] providers)
         => new(providers, contentGuards: guards);
 
     /// <summary>
-    /// Verilen guard'lardan bir denetim boru hatti kurar.
+    /// Sets up an audit pipeline from the given guards.
     /// </summary>
     /// <param name="auditLog">
-    /// Engelleme kararlarinin yazilacagi defter. Verilmezse yeni bir bellek ici
-    /// defter kullanilir.
+    /// The log that block decisions are written to. When omitted, a new
+    /// in-memory log is used.
     /// </param>
-    /// <param name="options">Boru hatti ayarlari.</param>
-    /// <param name="guards">Kayitli guard'lar. Bos birakilirsa boru hatti pasiftir.</param>
+    /// <param name="options">The pipeline settings.</param>
+    /// <param name="guards">The registered guards. The pipeline is inactive when this is empty.</param>
     public static ContentGuardPipeline ContentGuards(
         IAuditLog? auditLog = null,
         AgentPrismContentGuardOptions? options = null,

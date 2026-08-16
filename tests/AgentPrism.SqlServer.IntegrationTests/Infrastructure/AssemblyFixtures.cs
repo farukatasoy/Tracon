@@ -1,6 +1,6 @@
 using AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 
-// SQL Server container'i tum derleme icin bir kez baslar. Sema sinif basina
-// paylasilir (K-390), veri her testte sifirlanir. Imaj ~2 GB bellek ister;
-// CI kaynak sinirina dikkat.
+// The SQL Server container starts once for the whole assembly. The schema is
+// shared per class (K-390); data is reset for every test. The image needs
+// ~2 GB of memory; watch the CI resource limit.
 [assembly: AssemblyFixture(typeof(SqlServerFixture))]

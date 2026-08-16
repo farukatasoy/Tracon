@@ -1,11 +1,12 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IWorkflowDefinitionStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IWorkflowDefinitionStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir. Ozellikle
-/// surum artisi ve kiraci yalitimi iki uygulamada da ayni davranmalidir.
+/// The in-memory store and the PostgreSQL store must pass the same
+/// scenarios. In particular, version increment and tenant isolation must
+/// behave identically in both implementations.
 /// </remarks>
 public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<IWorkflowDefinitionStore>
 {
@@ -29,63 +30,65 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
-    public async Task Kaydedilen_tanim_geri_okunur()
+    public async Task Saved_definition_is_read_back()
     {
         var saved = await Store.SaveAsync("tenant-a", Definition());
 
         saved.Version.ShouldBe(1);
         saved.TenantId.ShouldBe("tenant-a");
 
-        var loaded = await Store.GetAsync("tenant-a", "inceleme");
+        var loaded = await Store.GetAsync("tenant-a", "review");
 
         loaded.ShouldNotBeNull();
         loaded.Kind.ShouldBe(WorkflowKind.Sequential);
-        loaded.AgentNames.ShouldBe(["arastirmaci", "yazar", "editor"]);
-        loaded.Description.ShouldBe("Uc adimli inceleme.");
+        loaded.AgentNames.ShouldBe(["researcher", "writer", "editor"]);
+        loaded.Description.ShouldBe("Three-step review.");
     }
 
     [Fact]
-    public async Task Butun_alanlar_gidis_donuste_korunur()
+    public async Task All_fields_survive_the_round_trip()
     {
-        // 🚨 jsonb yuku ELLE yazilmis bir DTO uzerinden gider. Tanima yeni bir
-        // alan eklendiginde DTO guncellenmezse alan sessizce kaybolur; ne
-        // derleme ne baska bir test kirilir. Bu testin varlik sebebi budur.
+        // 🚨 The jsonb payload goes through a HAND-WRITTEN DTO. If a new
+        // field is added to the definition and the DTO is not updated, the
+        // field silently disappears; neither compilation nor any other test
+        // catches it. This is the whole reason this test exists.
         var definition = new WorkflowDefinition
         {
-            Name = "tam",
-            DisplayName = "Tam Tanim",
-            Description = "Butun alanlar dolu.",
+            Name = "full",
+            DisplayName = "Full Definition",
+            Description = "All fields populated.",
             Kind = WorkflowKind.Handoff,
-            AgentNames = ["destek", "uzman"],
+            AgentNames = ["support", "specialist"],
             MaxIterations = 5,
-            HandoffInstructions = "Teknik soruda uzmana devret.",
+            HandoffInstructions = "Hand off to the specialist for technical questions.",
         };
 
         await Store.SaveAsync("tenant-a", definition);
 
-        var loaded = await Store.GetAsync("tenant-a", "tam");
+        var loaded = await Store.GetAsync("tenant-a", "full");
 
         loaded.ShouldNotBeNull();
-        loaded.DisplayName.ShouldBe("Tam Tanim");
-        loaded.Description.ShouldBe("Butun alanlar dolu.");
+        loaded.DisplayName.ShouldBe("Full Definition");
+        loaded.Description.ShouldBe("All fields populated.");
         loaded.Kind.ShouldBe(WorkflowKind.Handoff);
-        loaded.AgentNames.ShouldBe(["destek", "uzman"]);
+        loaded.AgentNames.ShouldBe(["support", "specialist"]);
         loaded.MaxIterations.ShouldBe(5);
-        loaded.HandoffInstructions.ShouldBe("Teknik soruda uzmana devret.");
+        loaded.HandoffInstructions.ShouldBe("Hand off to the specialist for technical questions.");
 
-        // Faz 16'da eklendi. Varsayilan false oldugu icin eksik bir DTO alani
-        // bu testte "false donduruldu" olarak gorunur - bilerek true yaziliyor.
+        // Added in phase 16. Because the default is false, a missing DTO
+        // field would show up in this test as "returned false" -- true is
+        // written deliberately.
         loaded.RequirePlanApproval.ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Magentic_yonetici_adi_korunur()
+    public async Task Magentic_manager_name_is_preserved()
     {
         var definition = Definition() with
         {
             Name = "magentic",
             Kind = WorkflowKind.Magentic,
-            ManagerAgentName = "yonetici",
+            ManagerAgentName = "manager",
             RequirePlanApproval = true,
         };
 
@@ -93,90 +96,90 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
 
         var loaded = (await Store.GetAsync("tenant-a", "magentic"))!;
 
-        loaded.ManagerAgentName.ShouldBe("yonetici");
+        loaded.ManagerAgentName.ShouldBe("manager");
 
-        // Plan onayi jsonb yukunun bir parcasidir; elle yazilmis DTO'ya
-        // eklenmezse sessizce kaybolurdu.
+        // Plan approval is part of the jsonb payload; if it were missing from
+        // the hand-written DTO, it would silently disappear.
         loaded.RequirePlanApproval.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Her_kayit_surumu_artirir()
+    public async Task Every_save_increments_the_version()
     {
         await Store.SaveAsync("tenant-a", Definition());
-        var second = await Store.SaveAsync("tenant-a", Definition() with { Description = "Guncellendi." });
+        var second = await Store.SaveAsync("tenant-a", Definition() with { Description = "Updated." });
 
         second.Version.ShouldBe(2);
 
-        var loaded = await Store.GetAsync("tenant-a", "inceleme");
+        var loaded = await Store.GetAsync("tenant-a", "review");
 
         loaded!.Version.ShouldBe(2);
-        loaded.Description.ShouldBe("Guncellendi.");
+        loaded.Description.ShouldBe("Updated.");
     }
 
     [Fact]
-    public async Task Gelen_surum_degeri_yok_sayilir()
+    public async Task Incoming_version_value_is_ignored()
     {
-        // Surumu depo belirler. Istemcinin gonderdigi degere guvenmek, iki
-        // kullanicinin ayni surum numarasini yazmasina izin verirdi.
+        // The store decides the version. Trusting the value sent by the
+        // client would let two users write the same version number.
         var saved = await Store.SaveAsync("tenant-a", Definition() with { Version = 99 });
 
         saved.Version.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_tanimi_gorulmez()
+    public async Task Another_tenants_definition_is_not_visible()
     {
         await Store.SaveAsync("tenant-a", Definition());
 
-        (await Store.GetAsync("tenant-b", "inceleme")).ShouldBeNull();
+        (await Store.GetAsync("tenant-b", "review")).ShouldBeNull();
         (await Store.ListAsync("tenant-b")).ShouldBeEmpty();
-        (await Store.DeleteAsync("tenant-b", "inceleme")).ShouldBeFalse();
+        (await Store.DeleteAsync("tenant-b", "review")).ShouldBeFalse();
 
-        (await Store.GetAsync("tenant-a", "inceleme")).ShouldNotBeNull();
+        (await Store.GetAsync("tenant-a", "review")).ShouldNotBeNull();
     }
 
     [Fact]
-    public async Task Ayni_ad_farkli_kiracilarda_bagimsizdir()
+    public async Task Same_name_is_independent_across_tenants()
     {
-        await Store.SaveAsync("tenant-a", Definition() with { Description = "A kiracisi." });
-        await Store.SaveAsync("tenant-b", Definition() with { Description = "B kiracisi." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Tenant A." });
+        await Store.SaveAsync("tenant-b", Definition() with { Description = "Tenant B." });
 
-        (await Store.GetAsync("tenant-a", "inceleme"))!.Description.ShouldBe("A kiracisi.");
-        (await Store.GetAsync("tenant-b", "inceleme"))!.Description.ShouldBe("B kiracisi.");
+        (await Store.GetAsync("tenant-a", "review"))!.Description.ShouldBe("Tenant A.");
+        (await Store.GetAsync("tenant-b", "review"))!.Description.ShouldBe("Tenant B.");
     }
 
     [Fact]
-    public async Task Listeleme_ada_gore_siralar()
+    public async Task Listing_is_sorted_by_name()
     {
         await Store.SaveAsync("tenant-a", Definition() with { Name = "zeta" });
-        await Store.SaveAsync("tenant-a", Definition() with { Name = "alfa" });
+        await Store.SaveAsync("tenant-a", Definition() with { Name = "alpha" });
         await Store.SaveAsync("tenant-a", Definition() with { Name = "beta" });
 
         var names = (await Store.ListAsync("tenant-a")).Select(static definition => definition.Name).ToList();
 
-        names.ShouldBe(["alfa", "beta", "zeta"]);
+        names.ShouldBe(["alpha", "beta", "zeta"]);
     }
 
     [Fact]
-    public async Task Silme_var_olmayan_tanimda_false_doner()
-        => (await Store.DeleteAsync("tenant-a", "yok")).ShouldBeFalse();
+    public async Task Deleting_a_nonexistent_definition_returns_false()
+        => (await Store.DeleteAsync("tenant-a", "missing")).ShouldBeFalse();
 
     [Fact]
-    public async Task Silinen_tanim_geri_okunmaz()
+    public async Task Deleted_definition_is_not_read_back()
     {
         await Store.SaveAsync("tenant-a", Definition());
 
-        (await Store.DeleteAsync("tenant-a", "inceleme")).ShouldBeTrue();
-        (await Store.GetAsync("tenant-a", "inceleme")).ShouldBeNull();
+        (await Store.DeleteAsync("tenant-a", "review")).ShouldBeTrue();
+        (await Store.GetAsync("tenant-a", "review")).ShouldBeNull();
     }
 
     private static WorkflowDefinition Definition()
         => new()
         {
-            Name = "inceleme",
-            Description = "Uc adimli inceleme.",
+            Name = "review",
+            Description = "Three-step review.",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["arastirmaci", "yazar", "editor"],
+            AgentNames = ["researcher", "writer", "editor"],
         };
 }

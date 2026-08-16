@@ -1,64 +1,65 @@
 namespace AgentPrism.Core.UnitTests.Compilation;
 
-#pragma warning disable MAAI001 // InMemoryAgentFileStore "evaluation purposes only" — yalniz test kurulumu icin.
+#pragma warning disable MAAI001 // InMemoryAgentFileStore is "evaluation purposes only" — for test setup only.
 
 /// <summary>
-/// <see cref="TenantPrefixingAgentFileStore"/>'un tek bir paylasilan
-/// <see cref="Microsoft.Agents.AI.AgentFileStore"/> uzerinde kiracilari
-/// gercekten yalitip yalitmadigini dogrular.
+/// Verifies that <see cref="TenantPrefixingAgentFileStore"/> truly isolates
+/// tenants on top of a single shared <see cref="Microsoft.Agents.AI.AgentFileStore"/>.
 /// </summary>
 /// <remarks>
-/// Bu testlerin korudugu kural: bir kiracinin <c>EnableFileMemory</c> ile
-/// yazdigi dosya, BASKA bir kiracinin <c>EnableTextSearch</c> aramasinda asla
-/// GORUNMEMELIDIR. Bkz. 00-INDEKS.md'nin "KRITIK SUPHE" notu (2026-08-10).
+/// The rule these tests guard: a file written by one tenant through
+/// <c>EnableFileMemory</c> must NEVER APPEAR in ANOTHER tenant's
+/// <c>EnableTextSearch</c> search. See the "CRITICAL SUSPICION" note in
+/// 00-INDEKS.md (2026-08-10).
 /// </remarks>
 public sealed class TenantPrefixingAgentFileStoreTests
 {
     [Fact]
-    public async Task Bir_kiracinin_yazdigi_dosya_baska_kiraciya_gorunmez()
+    public async Task A_file_written_by_one_tenant_is_not_visible_to_another_tenant()
     {
         var shared = new Microsoft.Agents.AI.InMemoryAgentFileStore();
-        var tenantA = new TenantPrefixingAgentFileStore(shared, "kiraci-a");
-        var tenantB = new TenantPrefixingAgentFileStore(shared, "kiraci-b");
+        var tenantA = new TenantPrefixingAgentFileStore(shared, "tenant-a");
+        var tenantB = new TenantPrefixingAgentFileStore(shared, "tenant-b");
 
-        await tenantA.WriteAsync("/gizli.txt", "kiraci-a'nin sirri", CancellationToken.None);
+        await tenantA.WriteAsync("/secret.txt", "tenant-a's secret", CancellationToken.None);
 
-        (await tenantA.ReadAsync("/gizli.txt", CancellationToken.None)).ShouldBe("kiraci-a'nin sirri");
-        (await tenantA.FileExistsAsync("/gizli.txt", CancellationToken.None)).ShouldBeTrue();
+        (await tenantA.ReadAsync("/secret.txt", CancellationToken.None)).ShouldBe("tenant-a's secret");
+        (await tenantA.FileExistsAsync("/secret.txt", CancellationToken.None)).ShouldBeTrue();
 
-        (await tenantB.FileExistsAsync("/gizli.txt", CancellationToken.None)).ShouldBeFalse();
+        (await tenantB.FileExistsAsync("/secret.txt", CancellationToken.None)).ShouldBeFalse();
         (await tenantB.ListChildrenAsync("/", CancellationToken.None)).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Ayni_kiraci_kok_dizinden_kendi_dosyasini_gorur()
+    public async Task Same_tenant_sees_its_own_file_from_the_root_directory()
     {
         var shared = new Microsoft.Agents.AI.InMemoryAgentFileStore();
-        var tenant = new TenantPrefixingAgentFileStore(shared, "kiraci-a");
+        var tenant = new TenantPrefixingAgentFileStore(shared, "tenant-a");
 
-        await tenant.WriteAsync("/notlar/gunluk.txt", "merhaba", CancellationToken.None);
+        await tenant.WriteAsync("/notes/journal.txt", "hello", CancellationToken.None);
 
-        var children = await tenant.ListChildrenAsync("/notlar", CancellationToken.None);
+        var children = await tenant.ListChildrenAsync("/notes", CancellationToken.None);
 
-        children.ShouldHaveSingleItem().Name.ShouldBe("gunluk.txt");
+        children.ShouldHaveSingleItem().Name.ShouldBe("journal.txt");
     }
 
     [Fact]
-    public async Task Ic_depodaki_gercek_onek_disariya_sizmaz()
+    public async Task The_real_prefix_in_the_inner_store_does_not_leak_out()
     {
         var shared = new Microsoft.Agents.AI.InMemoryAgentFileStore();
-        var tenant = new TenantPrefixingAgentFileStore(shared, "kiraci-a");
+        var tenant = new TenantPrefixingAgentFileStore(shared, "tenant-a");
 
-        await tenant.WriteAsync("/notlar.txt", "icerik", CancellationToken.None);
+        await tenant.WriteAsync("/notes.txt", "content", CancellationToken.None);
 
         var children = await tenant.ListChildrenAsync("/", CancellationToken.None);
 
-        // Donen ad "kiraci-a/notlar.txt" DEGIL, sanki tenant kendi ozel kok
-        // dizininde calisiyormus gibi duz "notlar.txt" olmalidir.
-        children.ShouldHaveSingleItem().Name.ShouldBe("notlar.txt");
+        // The returned name must NOT be "tenant-a/notes.txt" but plain
+        // "notes.txt", as if the tenant were operating in its own private
+        // root directory.
+        children.ShouldHaveSingleItem().Name.ShouldBe("notes.txt");
 
-        // Ic depoda gercek yol kiraci onekini TASIR.
-        (await shared.FileExistsAsync("kiraci-a/notlar.txt", CancellationToken.None)).ShouldBeTrue();
+        // In the inner store the real path CARRIES the tenant prefix.
+        (await shared.FileExistsAsync("tenant-a/notes.txt", CancellationToken.None)).ShouldBeTrue();
     }
 }
 #pragma warning restore MAAI001

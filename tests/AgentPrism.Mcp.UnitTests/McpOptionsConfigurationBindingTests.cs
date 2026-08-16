@@ -5,19 +5,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Mcp.UnitTests;
 
 /// <summary>
-/// <c>UseMcp(IConfiguration)</c> ayarlari gercekten baglar.
+/// <c>UseMcp(IConfiguration)</c> actually binds the settings.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testin varlik sebebi olculmus bir kusurdur (2026-08-08 raporu, bolum 2.2):
-/// <see cref="AgentPrismMcpOptions.SectionName"/> tanimliydi ama hicbir kod
-/// <c>Bind</c> cagirmiyordu. <c>AgentPrism:Mcp:RefreshInterval</c> gibi bir ortam
-/// degiskeni HICBIR HATA VERMEDEN hicbir sey yapmiyordu. Sessiz yapilandirma
-/// kaybi container/K8s dagitimlarinda tipik bir tuzaktir. Gerekce: K-353.
+/// 🚨 This test exists because of a measured defect (2026-08-08 report, section 2.2):
+/// <see cref="AgentPrismMcpOptions.SectionName"/> was defined, but no code
+/// called <c>Bind</c>. An environment variable such as <c>AgentPrism:Mcp:RefreshInterval</c>
+/// did NOTHING, WITHOUT ANY ERROR. Silent configuration loss is a typical trap
+/// in container/K8s deployments. Rationale: K-353.
 /// </remarks>
 public sealed class McpOptionsConfigurationBindingTests
 {
     [Fact]
-    public void Yapilandirma_bolumu_tum_ayarlari_baglar()
+    public void Configuration_section_binds_all_settings()
     {
         var options = Resolve(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -40,7 +40,7 @@ public sealed class McpOptionsConfigurationBindingTests
     }
 
     [Fact]
-    public void Bos_bolum_varsayilanlari_bozmaz()
+    public void Empty_section_does_not_break_defaults()
     {
         var defaults = new AgentPrismMcpOptions();
 
@@ -56,11 +56,11 @@ public sealed class McpOptionsConfigurationBindingTests
     }
 
     /// <summary>
-    /// Kodda verilen deger yapilandirmadan gelen degeri EZER. Sira bilincli:
-    /// <c>Bind</c> once, <c>configure</c> sonra calisir.
+    /// A value given in code OVERWRITES the value coming from configuration. The order
+    /// is deliberate: <c>Bind</c> runs first, <c>configure</c> runs after.
     /// </summary>
     [Fact]
-    public void Kod_tarafli_configure_yapilandirmayi_ezer()
+    public void Code_side_configure_overwrites_configuration()
     {
         var options = Resolve(
             new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -73,9 +73,9 @@ public sealed class McpOptionsConfigurationBindingTests
     }
 
     /// <summary>
-    /// Ayari GERCEK kayit yolundan cozer: <c>AddAgentPrism().UseMcp(section)</c> →
-    /// <c>IOptions&lt;AgentPrismMcpOptions&gt;</c>. Bir prob nesnesi degil, kurulumun
-    /// kendisi olculur (bkz. MEMORY.md: "izole olcum entegre davranisi kanitlamaz").
+    /// Resolves the setting through the REAL registration path: <c>AddAgentPrism().UseMcp(section)</c> →
+    /// <c>IOptions&lt;AgentPrismMcpOptions&gt;</c>. It is the setup itself that is measured, not a
+    /// probe object (see MEMORY.md: "an isolated measurement does not prove integrated behavior").
     /// </summary>
     private static AgentPrismMcpOptions Resolve(
         Dictionary<string, string?> settings,

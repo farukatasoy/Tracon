@@ -563,7 +563,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/router");
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
@@ -595,7 +595,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/router");
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
@@ -624,7 +624,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/router");
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
@@ -851,8 +851,8 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/workflows");
 
-        await session.Page.GetByText("ozetle-ve-cevir").WaitForAsync();
-        await session.Page.GetByText("ozetle-ve-cevir").ClickAsync();
+        await session.Page.GetByText("summarize-and-translate").WaitForAsync();
+        await session.Page.GetByText("summarize-and-translate").ClickAsync();
 
         var graph = session.Page.GetByTestId("workflow-graph");
 
@@ -873,7 +873,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
-        await session.Page.GotoAsync($"{host.UiAddress}/workflows/ozetle-ve-cevir");
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/summarize-and-translate");
 
         await session.Page.GetByTestId("workflow-graph").WaitForAsync();
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Copy" }).First.ClickAsync();
@@ -891,7 +891,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        await session.Page.GotoAsync($"{host.UiAddress}/workflows/onay-akisi");
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow");
 
         await session.Page.GetByTestId("workflow-graph").WaitForAsync();
 
@@ -912,7 +912,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await output.WaitForAsync(new() { Timeout = 20_000 });
 
-        (await output.InnerTextAsync()).ShouldContain("onaylandi", Case.Sensitive);
+        (await output.InnerTextAsync()).ShouldContain("approved", Case.Sensitive);
     }
 
     [Fact]
@@ -921,7 +921,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
-        await session.Page.GotoAsync($"{host.UiAddress}/workflows/onay-akisi");
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow");
         await session.Page.GetByTestId("workflow-graph").WaitForAsync();
 
         await session.Page.GetByTestId("workflow-message").FillAsync("publish the report");
@@ -1410,7 +1410,7 @@ public sealed class UiTests(BrowserFixture browsers)
         // submission) — so the pending request is seeded directly from the
         // API; what is actually under test is the Approvals screen ITSELF.
         using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
-        using var seedRequest = new HttpRequestMessage(HttpMethod.Post, "api/agents/onay-agent/run")
+        using var seedRequest = new HttpRequestMessage(HttpMethod.Post, "api/agents/approval-agent/run")
         {
             Content = JsonContent.Create(new { message = "cancel the order", sessionId = "e2e-approval-session" }),
         };

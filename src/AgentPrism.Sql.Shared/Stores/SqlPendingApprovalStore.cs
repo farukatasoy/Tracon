@@ -19,7 +19,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     /// <summary>Creates a new SQL approval store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="tenantContext">The tenant context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlPendingApprovalStore(SqlStoreContext context, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(context);

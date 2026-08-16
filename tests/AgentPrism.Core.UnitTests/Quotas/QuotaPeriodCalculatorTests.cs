@@ -1,11 +1,12 @@
 namespace AgentPrism.Core.UnitTests.Quotas;
 
 /// <summary>
-/// Donem siniri hesabinin testleri.
+/// Tests of period boundary computation.
 /// </summary>
 /// <remarks>
-/// Saf mantiktir: gercek saat okunmaz, her senaryo acik bir an ve saat dilimi
-/// verir. Yaz saati gecisleri gercek IANA kurallariyla sinanir.
+/// Pure logic: no wall-clock read happens, each scenario gives an explicit
+/// instant and time zone. Daylight-saving transitions are tested against the
+/// real IANA rules.
 /// </remarks>
 public sealed class QuotaPeriodCalculatorTests
 {
@@ -13,21 +14,21 @@ public sealed class QuotaPeriodCalculatorTests
     private static readonly TimeZoneInfo NewYork = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
 
     [Fact]
-    public void Gunluk_donem_yerel_takvim_gunudur()
+    public void Daily_period_is_the_local_calendar_day()
     {
-        // 2026-08-03T22:30Z, Istanbul'da (UTC+03) ertesi gunun 01:30'udur.
+        // 2026-08-03T22:30Z is 01:30 the next day in Istanbul (UTC+03).
         var instant = new DateTimeOffset(2026, 8, 3, 22, 30, 0, TimeSpan.Zero);
 
         QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, Istanbul)
             .ShouldBe(new DateOnly(2026, 8, 4));
 
-        // Ayni an UTC'de hala 3 Agustos'tur.
+        // The same instant is still August 3rd in UTC.
         QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, TimeZoneInfo.Utc)
             .ShouldBe(new DateOnly(2026, 8, 3));
     }
 
     [Fact]
-    public void Aylik_donem_ayin_ilk_gunudur()
+    public void Monthly_period_is_the_first_day_of_the_month()
     {
         var instant = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero);
 
@@ -36,19 +37,19 @@ public sealed class QuotaPeriodCalculatorTests
     }
 
     [Fact]
-    public void Gunluk_donem_yerel_gece_yarisinda_biter()
+    public void Daily_period_ends_at_local_midnight()
     {
         var instant = new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
 
-        // Istanbul UTC+03: 4 Agustos 00:00 yerel = 3 Agustos 21:00 UTC.
+        // Istanbul UTC+03: August 4th 00:00 local = August 3rd 21:00 UTC.
         QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, Istanbul)
             .ShouldBe(new DateTimeOffset(2026, 8, 3, 21, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
-    public void Aylik_donem_sonu_ay_uzunlugunu_izler()
+    public void Monthly_period_end_follows_the_month_length()
     {
-        // Subat 28 cekiyor: 2026 arti yil degildir.
+        // February has 28 days: 2026 is not a leap year.
         var instant = new DateTimeOffset(2026, 2, 10, 12, 0, 0, TimeSpan.Zero);
 
         QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Monthly, TimeZoneInfo.Utc)
@@ -56,7 +57,7 @@ public sealed class QuotaPeriodCalculatorTests
     }
 
     [Fact]
-    public void Yil_sonunda_aylik_donem_ocaga_gecer()
+    public void Monthly_period_rolls_over_into_January_at_year_end()
     {
         var instant = new DateTimeOffset(2026, 12, 20, 12, 0, 0, TimeSpan.Zero);
 
@@ -65,28 +66,28 @@ public sealed class QuotaPeriodCalculatorTests
     }
 
     [Fact]
-    public void Yaz_saati_gecisinde_donem_sinirinda_gun_kaymaz()
+    public void Daylight_saving_transition_does_not_shift_the_period_boundary_by_a_day()
     {
-        // 2026-03-08: New York'ta saatler 02:00'de 03:00'e atlar. Gece yarisi
-        // gecerlidir, ama gun 23 saat surer.
+        // 2026-03-08: clocks in New York jump from 02:00 to 03:00. Midnight
+        // is still valid, but that day only lasts 23 hours.
         var instant = new DateTimeOffset(2026, 3, 8, 10, 0, 0, TimeSpan.Zero);
 
         QuotaPeriodCalculator.GetPeriodStart(instant, QuotaPeriod.Daily, NewYork)
             .ShouldBe(new DateOnly(2026, 3, 8));
 
-        // 9 Mart 00:00 EDT (UTC-04) = 9 Mart 04:00 UTC.
+        // March 9th 00:00 EDT (UTC-04) = March 9th 04:00 UTC.
         QuotaPeriodCalculator.GetPeriodEnd(instant, QuotaPeriod.Daily, NewYork)
             .ShouldBe(new DateTimeOffset(2026, 3, 9, 4, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
-    public void Var_olmayan_gece_yarisi_gecisin_sonrasina_tasinir()
+    public void Nonexistent_midnight_resolves_to_a_moment_after_the_transition()
     {
-        // Bazi saat dilimlerinde gece yarisi ileri atlamayla tumuyle yutulur;
-        // hesabin istisna firlatmadan tanimli bir an uretmesi gerekir.
-        // Lord Howe/Chatham gibi diliminler yerine dogrudan davranisi sinariz:
-        // gecerli her sonuc, o gunun yerel gece yarisina esit veya ondan
-        // sonradir ve bir sonraki gunden oncedir.
+        // In some time zones midnight is entirely swallowed by a forward
+        // jump; the calculation must produce a defined instant instead of
+        // throwing. Rather than testing zones like Lord Howe/Chatham
+        // directly, this asserts the general behavior: any valid result is
+        // at or after that day's local midnight and before the next day.
         var date = new DateOnly(2026, 3, 8);
         var instant = QuotaPeriodCalculator.ToUtcInstant(date, NewYork);
 
@@ -96,7 +97,7 @@ public sealed class QuotaPeriodCalculatorTests
     }
 
     [Fact]
-    public void Tum_donemler_birlikte_hesaplanir()
+    public void All_periods_are_computed_together()
     {
         var instant = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero);
 

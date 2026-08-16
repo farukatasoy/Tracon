@@ -4,9 +4,9 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// Cagiranin belirteci iptal edilene kadar hicbir zaman tamamlanmayan sahte
-/// sohbet istemcisi. Disaridan tetiklenen iptalin gercek bir model cagrisini
-/// nasil kestigini benzetmek icin kullanilir.
+/// A fake chat client that never completes until the caller's token is
+/// canceled. Used to simulate how an externally triggered cancellation cuts
+/// off a real model call.
 /// </summary>
 internal sealed class BlockingChatClient : IChatClient
 {
@@ -17,7 +17,7 @@ internal sealed class BlockingChatClient : IChatClient
     {
         await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
 
-        throw new InvalidOperationException("BlockingChatClient hicbir zaman tamamlanmamalidir.");
+        throw new InvalidOperationException("BlockingChatClient must never complete.");
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -25,7 +25,7 @@ internal sealed class BlockingChatClient : IChatClient
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return new ChatResponseUpdate(ChatRole.Assistant, "baslangic");
+        yield return new ChatResponseUpdate(ChatRole.Assistant, "start");
 
         await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
     }
@@ -34,6 +34,6 @@ internal sealed class BlockingChatClient : IChatClient
 
     public void Dispose()
     {
-        // Sahte istemcinin serbest birakilacak kaynagi yok.
+        // The fake client has no resource to release.
     }
 }

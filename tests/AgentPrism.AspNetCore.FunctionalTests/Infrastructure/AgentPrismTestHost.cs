@@ -13,23 +13,24 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// AgentPrism uclarini surec ici bir test barindiricisinda ayaga kaldirir.
+/// Boots the AgentPrism endpoints in an in-process test host.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Her test kendi barindiricisini kurar; testler arasinda paylasilan durum yoktur.
-/// Bellek ici depolar kullanildigi icin kurulum hizlidir ve veritabani gerektirmez.
+/// Each test builds its own host; there is no state shared across tests.
+/// In-memory stores are used, so setup is fast and no database is required.
 /// </para>
 /// <para>
-/// <c>X-Test-Remote-Ip</c> basligi baglantinin uzak adresini belirler. Loopback
-/// kisiti gercek bir soket adresine bakar; test barindiricisinda bu adres normalde
-/// <see langword="null"/>'dur, dolayisiyla uzak istegi taklit etmenin baska yolu yoktur.
-/// Bu seam <strong>yalnizca testlerdedir</strong>, kutuphanede degil.
+/// The <c>X-Test-Remote-Ip</c> header sets the connection's remote address. The
+/// loopback restriction looks at a real socket address; on the test host that
+/// address is normally <see langword="null"/>, so there is no other way to
+/// simulate a remote request. This seam exists <strong>only in tests</strong>,
+/// not in the library.
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismTestHost : IAsyncDisposable
 {
-    /// <summary>Testin uzak IP adresini belirledigi baslik.</summary>
+    /// <summary>The header a test uses to set the remote IP address.</summary>
     public const string RemoteIpHeader = "X-Test-Remote-Ip";
 
     private readonly WebApplication _app;
@@ -41,34 +42,34 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         Logs = logs;
     }
 
-    /// <summary>Barindiriciya baglanmis istemci.</summary>
+    /// <summary>The client connected to the host.</summary>
     public HttpClient Client { get; }
 
-    /// <summary>Barindiricinin yazdigi tum gunluk satirlari.</summary>
+    /// <summary>All log lines the host has written.</summary>
     public RecordingLoggerProvider Logs { get; }
 
-    /// <summary>Uygulamanin servis saglayicisi.</summary>
+    /// <summary>The application's service provider.</summary>
     public IServiceProvider Services => _app.Services;
 
-    /// <summary>Bir barindirici kurar ve baslatir.</summary>
-    /// <param name="configureAgentPrism">AgentPrism zincirini degistirir.</param>
-    /// <param name="configureEndpoints">Uc ayarlarini degistirir.</param>
-    /// <param name="configureServices">Ek servis kaydi yapar.</param>
-    /// <param name="prefix">Yol oneki.</param>
+    /// <summary>Builds and starts a host.</summary>
+    /// <param name="configureAgentPrism">Changes the AgentPrism chain.</param>
+    /// <param name="configureEndpoints">Changes the endpoint settings.</param>
+    /// <param name="configureServices">Registers additional services.</param>
+    /// <param name="prefix">The path prefix.</param>
     /// <param name="withOpenApi">
-    /// OpenAPI belgesi uretimini acar. Tuketicinin kendi uygulamasinda yaptigi
-    /// sey budur; AgentPrism.AspNetCore OpenAPI paketine bagimli DEGILDIR.
+    /// Turns on OpenAPI document generation. This is what a consumer does in
+    /// their own app; AgentPrism.AspNetCore does NOT depend on the OpenAPI package.
     /// </param>
     /// <param name="configureApp">
-    /// <c>app.Build()</c> sonrasi, <c>MapAgentPrism</c> cagrisindan once ek yol
-    /// baglamak icin (ornek: <c>app.MapHealthChecks("/health")</c>).
+    /// Wires up an additional route after <c>app.Build()</c> and before the
+    /// <c>MapAgentPrism</c> call (example: <c>app.MapHealthChecks("/health")</c>).
     /// </param>
     /// <param name="configureAfterMap">
-    /// <c>MapAgentPrism</c> cagrisindan SONRA ek yol baglamak icin (ornek:
-    /// <c>app.MapAgentPrismMcpServer()</c> — paylasilan erisim ayarlarini
-    /// <c>MapAgentPrism</c>'den devralmak icin ondan SONRA cagrilmalidir).
+    /// Wires up an additional route AFTER the <c>MapAgentPrism</c> call
+    /// (example: <c>app.MapAgentPrismMcpServer()</c> — it must be called AFTER
+    /// <c>MapAgentPrism</c> to inherit the shared access settings from it).
     /// </param>
-    /// <returns>Calisan barindirici.</returns>
+    /// <returns>The running host.</returns>
     public static async Task<AgentPrismTestHost> StartAsync(
         Action<IAgentPrismBuilder>? configureAgentPrism = null,
         Action<AgentPrismEndpointOptions>? configureEndpoints = null,
@@ -94,13 +95,13 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         configureServices?.Invoke(builder.Services);
 
         var agentPrism = builder.Services.AddAgentPrism();
-        // "echo" adi TestData.Definition()'daki sabit ModelBinding.Provider ile eslesir.
+        // The name "echo" matches the fixed ModelBinding.Provider in TestData.Definition().
         agentPrism.AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage());
         configureAgentPrism?.Invoke(agentPrism);
 
         var app = builder.Build();
 
-        // Uzak adresi taklit eden test seam'i. Uc filtresinden once calisir.
+        // Test seam that simulates the remote address. Runs before the endpoint filter.
         app.Use(static (context, next) =>
         {
             if (context.Request.Headers.TryGetValue(RemoteIpHeader, out var raw) &&
@@ -130,18 +131,19 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// Barindiriciya WebSocket ile baglanan bir istemci kurar.
+    /// Builds a client that connects to the host over WebSocket.
     /// </summary>
-    /// <returns>Istemci.</returns>
+    /// <returns>The client.</returns>
     /// <remarks>
-    /// <c>TestServer</c> gercek bir soket acmaz ama WebSocket yukseltmesini
-    /// taklit eder; konusma ucu bu yuzden surec ici dogrulanabilir.
+    /// <c>TestServer</c> does not open a real socket, but it simulates the
+    /// WebSocket upgrade; the conversation endpoint can therefore be verified
+    /// in-process.
     /// </remarks>
     public WebSocketClient CreateWebSocketClient() => _app.GetTestServer().CreateWebSocketClient();
 
-    /// <summary>Yaniti JSON belgesi olarak cozumler.</summary>
-    /// <param name="response">HTTP yaniti.</param>
-    /// <returns>Cozumlenmis kok eleman.</returns>
+    /// <summary>Parses the response as a JSON document.</summary>
+    /// <param name="response">The HTTP response.</param>
+    /// <returns>The parsed root element.</returns>
     public static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
         => await response.Content.ReadFromJsonAsync<JsonElement>();
 

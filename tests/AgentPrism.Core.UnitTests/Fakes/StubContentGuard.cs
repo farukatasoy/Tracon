@@ -1,26 +1,27 @@
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// Kararini testin belirledigi sahte icerik guard'i.
+/// A fake content guard whose decision is set by the test.
 /// </summary>
 /// <remarks>
-/// Yerlesik <c>PatternContentGuard</c>'dan bagimsizdir: boru hattinin davranisini
-/// (konum, siddet sirasi, kayit) desen mantigina bulastirmadan dogrular.
+/// Independent of the built-in <c>PatternContentGuard</c>: it verifies the
+/// pipeline's behavior (placement, severity order, recording) without mixing
+/// in pattern-matching logic.
 /// </remarks>
 internal sealed class StubContentGuard(
     Func<ContentGuardContext, ContentGuardResult> decide,
     string name = "stub") : IContentGuard
 {
-    /// <summary>Guard kac kez cagrildi.</summary>
+    /// <summary>The number of times the guard was called.</summary>
     public int CallCount { get; private set; }
 
-    /// <summary>Guard'in gordugu metinler, cagri sirasiyla.</summary>
+    /// <summary>The texts the guard saw, in call order.</summary>
     public List<string> SeenText { get; } = [];
 
-    /// <summary>Guard'in gordugu yonler, cagri sirasiyla.</summary>
+    /// <summary>The directions the guard saw, in call order.</summary>
     public List<ContentGuardDirection> SeenDirections { get; } = [];
 
-    /// <summary>Guard'in gordugu son baglam.</summary>
+    /// <summary>The last context the guard saw.</summary>
     public ContentGuardContext? LastContext { get; private set; }
 
     /// <inheritdoc />
@@ -39,15 +40,15 @@ internal sealed class StubContentGuard(
         return ValueTask.FromResult(decide(context));
     }
 
-    /// <summary>Verilen metni gorurse engelleyen bir guard uretir.</summary>
+    /// <summary>Produces a guard that blocks when it sees the given text.</summary>
     public static StubContentGuard Blocking(string trigger, string name = "stub")
         => new(
             context => context.Text.Contains(trigger, StringComparison.OrdinalIgnoreCase)
-                ? ContentGuardResult.Block("trigger", "Test kurali eslesti.")
+                ? ContentGuardResult.Block("trigger", "Test rule matched.")
                 : ContentGuardResult.Allow,
             name);
 
-    /// <summary>Verilen metni gorurse maskeleyen bir guard uretir.</summary>
+    /// <summary>Produces a guard that masks when it sees the given text.</summary>
     public static StubContentGuard Masking(string trigger, string replacement, string name = "stub")
         => new(
             context => context.Text.Contains(trigger, StringComparison.OrdinalIgnoreCase)

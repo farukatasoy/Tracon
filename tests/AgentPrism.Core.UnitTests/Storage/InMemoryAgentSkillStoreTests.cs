@@ -3,7 +3,7 @@ namespace AgentPrism.Core.UnitTests.Storage;
 public sealed class InMemoryAgentSkillStoreTests
 {
     [Fact]
-    public async Task Kayit_kimlik_zaman_damgasi_ve_surumu_atar()
+    public async Task Saving_assigns_an_id_timestamps_and_a_version()
     {
         var store = new InMemoryAgentSkillStore();
 
@@ -16,21 +16,21 @@ public sealed class InMemoryAgentSkillStoreTests
     }
 
     [Fact]
-    public async Task Guncelleme_kimligi_ve_olusturma_zamanini_korur()
+    public async Task Updating_preserves_the_id_and_creation_time()
     {
         var store = new InMemoryAgentSkillStore();
         var first = await store.SaveAsync(CreateSkill("tenant-a", "invoicing"));
 
-        var updated = await store.SaveAsync(first with { Description = "Yeni aciklama" });
+        var updated = await store.SaveAsync(first with { Description = "New description" });
 
         updated.Id.ShouldBe(first.Id);
         updated.CreatedAt.ShouldBe(first.CreatedAt);
         updated.Version.ShouldBe(2);
-        updated.Description.ShouldBe("Yeni aciklama");
+        updated.Description.ShouldBe("New description");
     }
 
     [Fact]
-    public async Task Listeleme_kiraciya_ait_ve_ada_gore_siralidir()
+    public async Task Listing_is_scoped_to_the_tenant_and_sorted_by_name()
     {
         var store = new InMemoryAgentSkillStore();
         await store.SaveAsync(CreateSkill("tenant-a", "zeta"));
@@ -43,7 +43,7 @@ public sealed class InMemoryAgentSkillStoreTests
     }
 
     [Fact]
-    public async Task Silme_yalnizca_hedef_kiracinin_skillini_kaldirir()
+    public async Task Deleting_removes_only_the_target_tenants_skill()
     {
         var store = new InMemoryAgentSkillStore();
         await store.SaveAsync(CreateSkill("tenant-a", "invoicing"));
@@ -60,7 +60,7 @@ public sealed class InMemoryAgentSkillStoreTests
         {
             TenantId = tenantId,
             Name = name,
-            Description = "Fatura analizi yapar.",
-            Instructions = "Faturalari dikkatle incele.",
+            Description = "Analyzes invoices.",
+            Instructions = "Review invoices carefully.",
         };
 }

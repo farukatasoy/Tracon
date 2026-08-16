@@ -2,14 +2,14 @@ using AgentPrism.Core.UnitTests.Fakes;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
-/// <summary>Cevrimici degerlendirme ornekleyicisinin testleri (Faz 49).</summary>
+/// <summary>Tests for the online evaluation sampler (Phase 49).</summary>
 public sealed class RunSamplerTests
 {
     private const string Tenant = "acme";
     private const string Agent = "support";
 
     [Fact]
-    public async Task Varsayilan_ayarlarla_hicbir_sey_orneklenmez()
+    public async Task Nothing_is_sampled_with_default_settings()
     {
         var (sampler, jobs) = Build();
 
@@ -18,7 +18,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task Enabled_acik_ama_SampleRate_sifirken_hicbir_sey_orneklenmez()
+    public async Task Nothing_is_sampled_when_Enabled_is_on_but_SampleRate_is_zero()
     {
         var (sampler, jobs) = Build(options =>
         {
@@ -31,7 +31,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task SampleRate_1_ile_her_tamamlanan_calistirma_orneklenir()
+    public async Task Every_completed_run_is_sampled_with_SampleRate_1()
     {
         var (sampler, jobs) = Build(options =>
         {
@@ -52,7 +52,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task Ayni_runId_deterministik_karar_verir()
+    public async Task Same_runId_decides_deterministically()
     {
         var (sampler, _) = Build(options =>
         {
@@ -68,7 +68,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task Eval_turundeki_calistirma_orneklenmez()
+    public async Task A_run_of_kind_Eval_is_not_sampled()
     {
         var (sampler, jobs) = Build(options =>
         {
@@ -81,7 +81,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task Basarisiz_calistirma_orneklenmez()
+    public async Task A_failed_run_is_not_sampled()
     {
         var (sampler, jobs) = Build(options =>
         {
@@ -94,13 +94,13 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task AgentNames_listesindeyse_yalniz_o_agentlar_orneklenir()
+    public async Task Only_agents_in_the_AgentNames_list_are_sampled()
     {
         var (sampler, jobs) = Build(options =>
         {
             options.Enabled = true;
             options.SampleRate = 1.0;
-            options.AgentNames.Add("baska-agent");
+            options.AgentNames.Add("another-agent");
         });
 
         (await sampler.SampleAsync(Completed(Guid.NewGuid()))).ShouldBeFalse();
@@ -108,7 +108,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task MaxScoresPerHour_asilinca_ornekleme_durur()
+    public async Task Sampling_stops_when_MaxScoresPerHour_is_exceeded()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
         var (sampler, jobs) = Build(
@@ -128,7 +128,7 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
-    public async Task Saat_degisince_butce_sifirlanir()
+    public async Task Budget_resets_when_the_hour_changes()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 7, 10, 0, 0, TimeSpan.Zero));
         var (sampler, jobs) = Build(

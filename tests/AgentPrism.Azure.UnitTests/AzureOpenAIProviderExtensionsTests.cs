@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Azure.UnitTests;
 
 /// <summary>
-/// <c>UseAzureOpenAI()</c> kaydinin sekli, tekrarlanmasi ve yapilandirmadan
-/// baglanmasi.
+/// The shape of the <c>UseAzureOpenAI()</c> registration, its repetition,
+/// and binding from configuration.
 /// </summary>
 public sealed class AzureOpenAIProviderExtensionsTests
 {
     [Fact]
-    public void Tek_saglayici_kaydeder()
+    public void Single_provider_is_registered()
     {
         using var provider = Build(builder => builder.UseAzureOpenAI(TestData.Endpoint, TestData.ApiKey));
 
@@ -22,7 +22,7 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Ikinci_cagri_saglayiciyi_cogaltmaz()
+    public void Second_call_does_not_duplicate_the_provider()
     {
         using var provider = Build(builder => builder
             .UseAzureOpenAI(TestData.Endpoint, TestData.ApiKey)
@@ -30,24 +30,25 @@ public sealed class AzureOpenAIProviderExtensionsTests
 
         provider.GetServices<IModelProvider>().Count().ShouldBe(1);
 
-        // Ikinci cagri ayarlari birlestirir; defter "ayni ad iki kez" hatasi vermez.
+        // The second call merges the settings; the registry does not throw
+        // a "same name twice" error.
         provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value.DefaultDeployment
             .ShouldBe(TestData.Deployment);
         provider.GetRequiredService<IModelProviderRegistry>().List().Count.ShouldBe(1);
     }
 
     [Fact]
-    public void Tek_fabrika_paylasilir()
+    public void Single_factory_is_shared()
     {
         using var provider = Build(builder => builder.UseAzureOpenAI(TestData.Endpoint, TestData.ApiKey));
 
-        // Tek istemci, tek HTTP baglanti havuzu.
+        // A single client, a single HTTP connection pool.
         provider.GetRequiredService<AzureOpenAIChatClientFactory>()
             .ShouldBeSameAs(provider.GetRequiredService<AzureOpenAIChatClientFactory>());
     }
 
     [Fact]
-    public void Yapilandirmadan_okur()
+    public void Reads_from_configuration()
     {
         using var provider = Build(builder => builder.UseAzureOpenAI(Configuration()));
 
@@ -64,11 +65,12 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirma_okunduktan_sonra_kimlik_fabrikasi_kodda_verilebilir()
+    public void Credential_factory_can_be_given_in_code_after_configuration_is_read()
     {
-        // CredentialFactory bir delegate'tir ve yapilandirmadan okunamaz; bu yuzden
-        // yapilandirma asiri yuklemesi bir ek degistirici kabul eder.
-        var credential = new SahteTokenKimligi();
+        // CredentialFactory is a delegate and cannot be read from
+        // configuration; that is why the configuration overload accepts an
+        // extra modifier.
+        var credential = new FakeTokenCredential();
 
         using var provider = Build(builder => builder.UseAzureOpenAI(
             Configuration(),
@@ -82,7 +84,7 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Adressiz_kayit_baslangicta_hata_verir()
+    public void Registration_without_an_endpoint_fails_at_startup()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseAzureOpenAI(options => options.ApiKey = TestData.ApiKey);
@@ -96,7 +98,7 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Kimliksiz_kayit_baslangicta_hata_verir()
+    public void Registration_without_credentials_fails_at_startup()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseAzureOpenAI(options => options.Endpoint = TestData.Endpoint);
@@ -111,15 +113,15 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Anahtar_yerine_kimlik_fabrikasi_yeterlidir()
+    public void Credential_factory_is_sufficient_instead_of_a_key()
     {
-        // Yonetilen kimlik yolunda API anahtari HIC yoktur; dogrulama bunu
-        // eksik ayar saymamalidir.
+        // On the managed-identity path there is NO API key at all;
+        // validation must not treat this as a missing setting.
         var services = new ServiceCollection();
         services.AddAgentPrism().UseAzureOpenAI(options =>
         {
             options.Endpoint = TestData.Endpoint;
-            options.CredentialFactory = static () => new SahteTokenKimligi();
+            options.CredentialFactory = static () => new FakeTokenCredential();
         });
 
         using var provider = services.BuildServiceProvider();
@@ -131,7 +133,7 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Bos_anahtar_argumani_reddedilir()
+    public void Empty_key_argument_is_rejected()
     {
         var services = new ServiceCollection();
 
@@ -140,18 +142,20 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
-    public void Katalog_yapilandirmadan_gelir_ve_saglayiciya_yansir()
+    public void Catalog_comes_from_configuration_and_is_reflected_in_the_provider()
     {
         using var provider = Build(builder => builder.UseAzureOpenAI(TestData.Endpoint, TestData.ApiKey, options =>
         {
-            options.Models.Add(new ModelDescriptor { Name = "deneme-gpt" });
+            options.Models.Add(new ModelDescriptor { Name = "test-gpt" });
             options.Models.Add(new ModelDescriptor { Name = TestData.Deployment });
         }));
 
         var descriptor = provider.GetRequiredService<IModelProviderRegistry>().List().Single();
 
         descriptor.Name.ShouldBe(AzureOpenAIProviderNames.AzureOpenAI);
-        descriptor.Models.Select(static m => m.Name).ShouldBe(["deneme-gpt", TestData.Deployment]);
+
+        // AzureOpenAIModelCatalog.Build sorts by name (ordinal); "production-gpt" < "test-gpt".
+        descriptor.Models.Select(static m => m.Name).ShouldBe([TestData.Deployment, "test-gpt"]);
     }
 
     private static IConfiguration Configuration()

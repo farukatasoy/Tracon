@@ -6,27 +6,29 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Configuration;
 
 /// <summary>
-/// MT-CORE-065: <c>AgentPrism:Pricing:{saglayici}:{model}</c> yalniz kisa
-/// <c>Input</c>/<c>Output</c> anahtarlarini okur (K-021, elle baglama). C#
-/// ozellik adiyla (<c>InputCostPerMillionTokens</c>) veya baska bir tiposla
-/// yazilan bir fiyat girdisi K-034 geregi TAMAMEN SESSIZCE dusmemelidir.
+/// MT-CORE-065: <c>AgentPrism:Pricing:{provider}:{model}</c> reads only the
+/// short <c>Input</c>/<c>Output</c> keys (K-021, manual binding). Per K-034, a
+/// price entry written with the C# property name (<c>InputCostPerMillionTokens</c>)
+/// or another spelling must not drop COMPLETELY SILENTLY.
 /// </summary>
 public sealed class AgentPrismPricingBindingTests
 {
     [Fact]
-    public void Yanlis_anahtar_adiyla_yazilan_fiyat_Providers_tan_dusurulmez()
+    public void Price_written_with_the_wrong_key_name_is_not_dropped_from_Providers()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            // Dogrusu "Input"/"Output"tur; bilerek C# ozellik adi yazildi.
+            // The correct keys are "Input"/"Output"; the C# property name was
+            // written intentionally.
             ["Pricing:echo:echo-1:InputCostPerMillionTokens"] = "0.25",
             ["Pricing:echo:echo-1:OutputCostPerMillionTokens"] = "1.0",
         };
 
         var options = BindOnly(configValues);
 
-        // Model TAMAMEN kaybolmaz; ikisi de bos bir kayit olarak Providers'a
-        // girer — dogrulayici bunu acilista reddeder (asagidaki test).
+        // The model does not disappear entirely; both enter Providers as an
+        // empty record — the validator rejects this at startup (see the test
+        // below).
         options.Pricing.Providers.ShouldContainKey("echo");
         options.Pricing.Providers["echo"].ShouldContainKey("echo-1");
         options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBeNull();
@@ -34,7 +36,7 @@ public sealed class AgentPrismPricingBindingTests
     }
 
     [Fact]
-    public void Dogru_kisa_anahtarla_yazilan_fiyat_kabul_edilir()
+    public void Price_written_with_the_correct_short_key_is_accepted()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -49,7 +51,7 @@ public sealed class AgentPrismPricingBindingTests
     }
 
     [Fact]
-    public void Yanlis_anahtar_adiyla_yazilan_fiyat_baslangicta_reddedilir()
+    public void Price_written_with_the_wrong_key_name_is_rejected_at_startup()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -63,11 +65,12 @@ public sealed class AgentPrismPricingBindingTests
     }
 
     [Fact]
-    public void Yanlis_anahtar_adiyla_yazilan_ses_fiyati_baslangicta_reddedilir()
+    public void Voice_price_written_with_the_wrong_key_name_is_rejected_at_startup()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            // Dogrusu "PerMillionCharacters"tir; bilerek yanlis yazildi.
+            // The correct key is "PerMillionCharacters"; it was written
+            // incorrectly on purpose.
             ["AgentPrism:Pricing:Voice:elevenlabs:tts-1:PerMillionChars"] = "30.0",
         };
 
@@ -78,7 +81,7 @@ public sealed class AgentPrismPricingBindingTests
     }
 
     [Fact]
-    public void Dogru_anahtarla_yazilan_fiyat_baslangicta_kabul_edilir()
+    public void Price_written_with_the_correct_key_is_accepted_at_startup()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -94,10 +97,11 @@ public sealed class AgentPrismPricingBindingTests
     }
 
     /// <summary>
-    /// <c>AgentPrismServiceCollectionExtensions.Bind</c>'i (private, elle
-    /// yazilan K-021 baglayicisi) DI/dogrulayici devreye girmeden dogrudan
-    /// cagirir. Amac: bu testlerin yalniz BAGLAMA davranisini olcmesi — bir
-    /// sonraki dogrulama testleri ayni senaryoyu acilis hatasi olarak dogrular.
+    /// Calls <c>AgentPrismServiceCollectionExtensions.Bind</c> (the private,
+    /// manually written K-021 binder) directly, without DI or the validator
+    /// kicking in. Purpose: these tests measure only BINDING behavior — the
+    /// validation tests further down verify the same scenario as a startup
+    /// failure.
     /// </summary>
     private static AgentPrismOptions BindOnly(Dictionary<string, string?> configValues)
     {
@@ -110,7 +114,7 @@ public sealed class AgentPrismPricingBindingTests
                 "Bind",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 [typeof(IConfiguration), typeof(AgentPrismOptions)])
-            ?? throw new InvalidOperationException("AgentPrismServiceCollectionExtensions.Bind bulunamadi.");
+            ?? throw new InvalidOperationException("AgentPrismServiceCollectionExtensions.Bind not found.");
 
         bind.Invoke(null, [configuration, options]);
 

@@ -1,25 +1,26 @@
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Tanim dogrulamasi. Ayni kurallar hem HTTP kayit ucunda hem derleyicide
-/// calisir; bu yuzden kural tek yerde (AgentPrism.Core) yasar.
+/// Definition validation. The same rules run both at the HTTP registration
+/// endpoint and in the compiler; that is why the rule lives in one place
+/// (AgentPrism.Core).
 /// </summary>
 public sealed class WorkflowDefinitionValidatorTests
 {
     [Fact]
-    public void Gecerli_tanim_kabul_edilir()
+    public void Valid_definition_is_accepted()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Sequential, ["a", "b"]))
             .ShouldBeNull();
 
     [Fact]
-    public void Bos_agent_listesi_reddedilir()
+    public void Empty_agent_list_is_rejected()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Sequential, []))!
             .ShouldContain("has no agents", Case.Sensitive);
 
     [Fact]
-    public void Tekrar_eden_agent_adi_reddedilir()
+    public void Repeated_agent_name_is_rejected()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Sequential, ["a", "b", "a"]))!
             .ShouldContain("appears more than once", Case.Sensitive);
@@ -28,19 +29,19 @@ public sealed class WorkflowDefinitionValidatorTests
     [InlineData(WorkflowKind.Concurrent)]
     [InlineData(WorkflowKind.Handoff)]
     [InlineData(WorkflowKind.GroupChat)]
-    public void Iki_agent_isteyen_desenler_tek_agentle_reddedilir(WorkflowKind kind)
+    public void Patterns_that_need_two_agents_are_rejected_with_a_single_agent(WorkflowKind kind)
         => WorkflowDefinitionValidator
             .Validate(Definition(kind, ["a"]))!
             .ShouldContain("at least two agents", Case.Sensitive);
 
     [Fact]
-    public void Magentic_yonetici_agent_ister()
+    public void Magentic_requires_a_manager_agent()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Magentic, ["a"]))!
             .ShouldContain("'managerAgentName' is required", Case.Sensitive);
 
     [Fact]
-    public void Magentic_yonetici_ayni_anda_katilimci_olamaz()
+    public void Magentic_manager_cannot_also_be_a_participant()
     {
         var definition = Definition(WorkflowKind.Magentic, ["a", "b"]) with { ManagerAgentName = "a" };
 
@@ -49,11 +50,11 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
-    public void GroupChat_yonetici_agent_kabul_etmez()
+    public void GroupChat_does_not_accept_a_manager_agent()
     {
-        // GroupChat'in yoneticisi bir agent DEGILDIR: sirayi dagitan kod
-        // tarafindaki round-robin yoneticisidir. Alani sessizce yok saymak,
-        // kullanicinin bekledigi davranisin olusmadigini gizlerdi.
+        // GroupChat's manager is NOT an agent: it is the round-robin manager on
+        // the code side that distributes turn order. Silently ignoring the field
+        // would hide the fact that the behavior the user expected never happened.
         var definition = Definition(WorkflowKind.GroupChat, ["a", "b"]) with { ManagerAgentName = "c" };
 
         WorkflowDefinitionValidator.Validate(definition)!
@@ -61,11 +62,11 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
-    public void Handoff_disinda_devretme_talimati_reddedilir()
+    public void Handoff_instructions_outside_Handoff_are_rejected()
     {
         var definition = Definition(WorkflowKind.Sequential, ["a", "b"]) with
         {
-            HandoffInstructions = "gerekirse devret",
+            HandoffInstructions = "hand off if needed",
         };
 
         WorkflowDefinitionValidator.Validate(definition)!
@@ -73,7 +74,7 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
-    public void Sifir_tur_siniri_reddedilir()
+    public void Zero_turn_limit_is_rejected()
     {
         var definition = Definition(WorkflowKind.GroupChat, ["a", "b"]) with { MaxIterations = 0 };
 
@@ -82,7 +83,7 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
-    public void Bilinmeyen_desen_reddedilir()
+    public void Unknown_pattern_is_rejected()
     {
         var definition = Definition((WorkflowKind)99, ["a", "b"]);
 
@@ -91,7 +92,7 @@ public sealed class WorkflowDefinitionValidatorTests
     }
 
     [Fact]
-    public void Require_gecersiz_tanimda_istisna_atar()
+    public void Require_throws_on_an_invalid_definition()
         => Should.Throw<AgentPrismException>(
             () => WorkflowDefinitionValidator.Require(Definition(WorkflowKind.Sequential, [])));
 

@@ -4,10 +4,11 @@ using AgentPrism.Templates.Tests.Infrastructure;
 namespace AgentPrism.Templates.Tests;
 
 /// <summary>
-/// Sablonun en az iki uc noktada gercekten derlendigini dogrular: en yalin
-/// (bellek ici, arayuzsuz) ve en dolu (SQL Server + Azure OpenAI + arayuz)
-/// birlesim. Kutuphane degistiginde sablon sessizce kirilabilir (37.3); bu
-/// testler o kirilmayi yakalayan tek gercek kapidir.
+/// Verifies that the template actually compiles at at least two endpoints: the
+/// most minimal (in-memory, no UI) and the most fully loaded (SQL Server +
+/// Azure OpenAI + UI) combination. The template can break silently when the
+/// library changes (37.3); these tests are the only real gate that catches
+/// that breakage.
 /// </summary>
 public sealed class TemplateInstantiationTests(TemplateFixture fixture)
 {
@@ -17,11 +18,11 @@ public sealed class TemplateInstantiationTests(TemplateFixture fixture)
         TimeSpan.FromSeconds(1));
 
     [Fact]
-    public async Task EnYalinBirlesim_SifirUyariylaDerlenir()
+    public async Task Most_minimal_combination_compiles_with_zero_warnings()
     {
         using var dir = new TempDirectory();
 
-        var newResult = await fixture.NewAsync("Yalin.Deneme", dir.Path, "--persistence memory --provider openai --ui false");
+        var newResult = await fixture.NewAsync("Minimal.Sample", dir.Path, "--persistence memory --provider openai --ui false");
         newResult.ExitCode.ShouldBe(0, newResult.Combined);
 
         var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(5));
@@ -31,12 +32,12 @@ public sealed class TemplateInstantiationTests(TemplateFixture fixture)
     }
 
     [Fact]
-    public async Task EnDoluBirlesim_SifirUyariylaDerlenir()
+    public async Task Most_full_combination_compiles_with_zero_warnings()
     {
         using var dir = new TempDirectory();
 
         var newResult = await fixture.NewAsync(
-            "Dolu.Deneme",
+            "Full.Sample",
             dir.Path,
             "--persistence sqlserver --provider azure --ui true");
         newResult.ExitCode.ShouldBe(0, newResult.Combined);

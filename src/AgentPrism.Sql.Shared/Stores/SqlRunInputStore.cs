@@ -25,7 +25,7 @@ internal sealed class SqlRunInputStore : IRunInputStore
 
     /// <summary>Creates a new SQL input store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlRunInputStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 56 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–56 bitti; dördüncü dalga tamamlandı.
+> **Durum:** Faz 57 tamamlandı — AgentPrism **işletilebilirdir** ve kaynak kodu **İngilizce**dir. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–57 bitti; dördüncü dalga ve kod dili birleştirme tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -252,7 +252,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (53–56): API anahtarı, öksüz çalıştırma, asenkron onay kutusu, [kanarya yayını](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | **53–56 bitti** |
-| [57–59](docs/57-KOD-DILI-BIRLESTIRME.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 📋 Planlandı |
+| [57](docs/57-KOD-DILI-BIRLESTIRME.md) | Kod dili birleştirme (İngilizce) | ✅ Tamamlandı |
+| [58–59](docs/57-KOD-DILI-BIRLESTIRME.md) | Doküman düzeni, ürün dokümantasyonu | 📋 Planlandı |
 
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı

@@ -4,17 +4,17 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Coordination;
 
 /// <summary>
-/// Iki gercek <see cref="ModelProviderHealthBackgroundService"/> orneginin AYNI
-/// kira deposunu paylastigi uctan uca senaryo (Faz 42, DoD: "Iki ornek ...
-/// model saglik yoklamasi yalniz birinde kosar"). Gercek zaman kullanir:
-/// servisler kendi <c>PeriodicTimer</c>'lariyla calisir, sahte zamanlayici
-/// enjekte edilmez (bu proje BackgroundService'leri boyle test etmez, bkz.
-/// <c>MEMORY.md</c> — "Birim testi yetmez").
+/// End-to-end scenario where two real <see cref="ModelProviderHealthBackgroundService"/>
+/// instances share the SAME lease store (Phase 42, DoD: "With two instances ...
+/// the model health check runs on only one"). Uses real time: the services run
+/// on their own <c>PeriodicTimer</c>s, no fake timer is injected (this project
+/// does not test BackgroundServices that way, see <c>MEMORY.md</c> — "A unit
+/// test is not enough").
 /// </summary>
 public sealed class ModelHealthSingletonTests
 {
     [Fact]
-    public async Task Saglik_yoklamasi_yalniz_bir_ornekte_kosar()
+    public async Task Health_check_runs_on_only_one_instance()
     {
         var leaseStore = new InMemorySingletonLeaseStore();
         var singletonOptions = Options(new SingletonExecutionOptions
@@ -45,15 +45,15 @@ public sealed class ModelHealthSingletonTests
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
 
-        // 🚨 Yalniz biri calismis olmalidir: toplam sayac > 0, ama ikisi de
-        // ayni anda > 0 OLAMAZ.
+        // 🚨 Only one must have run: the total counter > 0, but both CANNOT be
+        // > 0 at the same time.
         (providerA.CheckCount > 0 ^ providerB.CheckCount > 0).ShouldBeTrue(
             $"providerA={providerA.CheckCount}, providerB={providerB.CheckCount}");
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) => new(value);
 
-    /// <summary>Cagrildigi sayiyi tutan sahte model saglayicisi.</summary>
+    /// <summary>Fake model provider that tracks how many times it was called.</summary>
     private sealed class CountingHealthProvider(string name) : IModelProvider, IModelProviderHealthCheck
     {
         public int CheckCount { get; private set; }

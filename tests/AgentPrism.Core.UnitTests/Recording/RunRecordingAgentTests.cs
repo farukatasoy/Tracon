@@ -212,7 +212,7 @@ public sealed class RunRecordingAgentTests
 
         var response = await agent.RunAsync("hello");
 
-        response.Text.ShouldBe("tamam");
+        response.Text.ShouldBe("tamam"); // must match FakeChatClient's default reply text
         store.StartAttempts.ShouldBe(1);
     }
 
@@ -246,7 +246,7 @@ public sealed class RunRecordingAgentTests
         var agent = CreateAgent(store, compiler, definition);
 
         var longConversation = Enumerable.Range(0, 12)
-            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"mesaj {i}"))
+            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"message {i}"))
             .ToList();
 
         await agent.RunAsync(longConversation);
@@ -258,14 +258,14 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
-    public async Task Ozetleme_token_kullanimi_calistirma_toplamina_eklenir()
+    public async Task Summarization_token_usage_is_added_to_the_run_total()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var mainClient = new FakeChatClient();
         var summarizerUsage = new UsageDetails { InputTokenCount = 100, OutputTokenCount = 20, TotalTokenCount = 120 };
         var summarizerClient = new FakeChatClient(
-            _ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ozet")) { Usage = summarizerUsage });
+            _ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "summary")) { Usage = summarizerUsage });
 
         var compiler = new AgentDefinitionCompiler(
             TestData.Providers(
@@ -287,34 +287,34 @@ public sealed class RunRecordingAgentTests
         var agent = CreateAgent(store, compiler, definition);
 
         var longConversation = Enumerable.Range(0, 12)
-            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"mesaj {i}"))
+            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"message {i}"))
             .ToList();
 
         await agent.RunAsync(longConversation);
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
-        // Ozetleme cagrisi agent'in kendi AgentResponse'undan tamamen ayri bir
-        // yan-kanal cagrisidir; birlesim olmasa bu token'lar hicbir yere kaydolmaz.
+        // The summarization call is a side-channel call, entirely separate from the
+        // agent's own AgentResponse; without merging, these tokens would go unrecorded.
         run.Usage.ShouldNotBeNull();
         (run.Usage!.InputTokens >= 100).ShouldBeTrue();
         (run.Usage.OutputTokens >= 20).ShouldBeTrue();
     }
 
     /// <summary>
-    /// Faz 20: fiyat cozumleyicinin gercekten cagrildigini ve sonucunun
-    /// depoya yazildigini dogrular. Diger testlerin aksine `RunRecordingAgent`
-    /// burada modelId/modelProvider/pricingResolver ile KURULUR — bu ucu
-    /// KARARLAR.md'de kayitli bir hatanin (RunEventWriter.CompleteAsync yeni
-    /// `cost` parametresini alip RunCompletion'a hic yazmiyordu) yakalandigi testtir.
+    /// Phase 20: verifies that the pricing resolver is actually called and its result is
+    /// written to the store. Unlike the other tests, this one constructs
+    /// <see cref="RunRecordingAgent"/> WITH modelId/modelProvider/pricingResolver — this
+    /// path is what caught a bug recorded in KARARLAR.md (RunEventWriter.CompleteAsync
+    /// accepted the new `cost` parameter but never wrote it to RunCompletion).
     /// </summary>
     [Fact]
-    public async Task Maliyet_pipeline_ucdan_uca_hesaplanip_yaziliyor()
+    public async Task Cost_pipeline_is_computed_and_written_end_to_end()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
-        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")) { Usage = usage });
 
         var pricedProvider = new FakeModelProvider(client, name: "fake", models:
         [
@@ -338,7 +338,7 @@ public sealed class RunRecordingAgentTests
             modelProvider: "fake",
             pricingResolver: resolver);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -348,14 +348,14 @@ public sealed class RunRecordingAgentTests
         run.Cost.OutputCost.ShouldBe(2m);
     }
 
-    /// <summary>Ayni pipeline, ama modele fiyat tanimlanmadan: maliyet null, kaynak Unknown olmalidir.</summary>
+    /// <summary>Same pipeline, but with no price defined for the model: cost must be null and source must be Unknown.</summary>
     [Fact]
-    public async Task Maliyet_pipeline_fiyatsiz_modelde_unknown_yazar()
+    public async Task Cost_pipeline_writes_unknown_for_an_unpriced_model()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
-        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")) { Usage = usage });
 
         var provider = new FakeModelProvider(client, name: "fake", models: [new ModelDescriptor { Name = "unpriced-model" }]);
         var compiler = new AgentDefinitionCompiler(TestData.Providers(provider), TestData.Registry());
@@ -373,7 +373,7 @@ public sealed class RunRecordingAgentTests
             modelProvider: "fake",
             pricingResolver: resolver);
 
-        await agent.RunAsync("merhaba");
+        await agent.RunAsync("hello");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -451,59 +451,59 @@ public sealed class RunRecordingAgentTests
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
         {
             StartAttempts++;
-            throw new InvalidOperationException("depo erisilemez");
+            throw new InvalidOperationException("store unavailable");
         }
 
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask UpdateRunCostAsync(
             Guid runId,
             RunCost? cost,
             string? tenantId = null,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
             DateTimeOffset staleBefore,
             int max,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
     }
 }

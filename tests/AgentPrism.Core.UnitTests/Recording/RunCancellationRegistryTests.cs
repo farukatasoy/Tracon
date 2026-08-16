@@ -3,7 +3,7 @@ namespace AgentPrism.Core.UnitTests.Recording;
 public sealed class RunCancellationRegistryTests
 {
     [Fact]
-    public void Kayit_ActiveCount_artirir()
+    public void Registering_increases_ActiveCount()
     {
         var registry = new RunCancellationRegistry();
         var runId = AgentPrismId.NewId();
@@ -15,7 +15,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     [Fact]
-    public void Birakma_ActiveCount_sifira_doner()
+    public void Releasing_returns_ActiveCount_to_zero()
     {
         var registry = new RunCancellationRegistry();
         var runId = AgentPrismId.NewId();
@@ -30,7 +30,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     [Fact]
-    public void Cift_birakma_hata_vermez_ve_ActiveCount_bozulmaz()
+    public void Double_release_does_not_throw_and_does_not_corrupt_ActiveCount()
     {
         var registry = new RunCancellationRegistry();
         var runId = AgentPrismId.NewId();
@@ -45,7 +45,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     [Fact]
-    public void Olmayan_calistirma_icin_TryCancel_false_doner()
+    public void TryCancel_returns_false_for_a_run_that_does_not_exist()
     {
         var registry = new RunCancellationRegistry();
 
@@ -53,7 +53,7 @@ public sealed class RunCancellationRegistryTests
     }
 
     [Fact]
-    public void Kayitli_calistirma_TryCancel_ile_iptal_edilir()
+    public void A_registered_run_is_canceled_via_TryCancel()
     {
         var registry = new RunCancellationRegistry();
         var runId = AgentPrismId.NewId();
@@ -66,15 +66,15 @@ public sealed class RunCancellationRegistryTests
     }
 
     [Fact]
-    public void Baska_kiracinin_TryCancel_istegi_reddedilir_ve_kaynak_iptal_edilmez()
+    public void Another_tenants_TryCancel_request_is_rejected_and_the_source_is_not_canceled()
     {
         var registry = new RunCancellationRegistry();
         var runId = AgentPrismId.NewId();
 
         using var cts = new CancellationTokenSource();
-        using var registration = registry.Register(runId, runId, "kiraci-a", cts);
+        using var registration = registry.Register(runId, runId, "tenant-a", cts);
 
-        registry.TryCancel(runId, "kiraci-b").ShouldBeFalse();
+        registry.TryCancel(runId, "tenant-b").ShouldBeFalse();
         cts.IsCancellationRequested.ShouldBeFalse();
     }
 }

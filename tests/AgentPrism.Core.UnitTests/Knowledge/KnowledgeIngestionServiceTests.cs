@@ -6,7 +6,7 @@ namespace AgentPrism.Core.UnitTests.Knowledge;
 public sealed class KnowledgeIngestionServiceTests
 {
     [Fact]
-    public void Store_veya_uretici_eksikse_desteklenmiyor()
+    public void Not_supported_when_the_store_or_the_generator_is_missing()
     {
         CreateService(withStore: false, withEmbeddings: true).IsSupported.ShouldBeFalse();
         CreateService(withStore: true, withEmbeddings: false).IsSupported.ShouldBeFalse();
@@ -14,110 +14,110 @@ public sealed class KnowledgeIngestionServiceTests
     }
 
     [Fact]
-    public void Ikisi_de_kayitliyken_destekleniyor()
+    public void Supported_when_both_are_registered()
     {
         CreateService(withStore: true, withEmbeddings: true).IsSupported.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Desteklenmiyorken_her_metot_AgentPrismException_firlatir()
+    public async Task Every_method_throws_AgentPrismException_when_not_supported()
     {
         var service = CreateService(withStore: false, withEmbeddings: false);
 
         await Should.ThrowAsync<AgentPrismException>(
-            () => service.IngestAsync("kb", "kaynak", "metin", null).AsTask());
+            () => service.IngestAsync("kb", "source", "text", null).AsTask());
         await Should.ThrowAsync<AgentPrismException>(
-            () => service.SearchAsync("kb", "sorgu").AsTask());
+            () => service.SearchAsync("kb", "query").AsTask());
         await Should.ThrowAsync<AgentPrismException>(
-            () => service.DeleteSourceAsync("kb", "kaynak").AsTask());
+            () => service.DeleteSourceAsync("kb", "source").AsTask());
         await Should.ThrowAsync<AgentPrismException>(
             () => service.ListSourcesAsync("kb").AsTask());
     }
 
     [Fact]
-    public async Task Metin_verilirse_parcalanir_ve_gomulur()
+    public async Task Text_is_chunked_and_embedded_when_given()
     {
         var store = new FakeVectorSearchStore();
         var embeddings = new FakeEmbeddingGenerator();
         var service = CreateService(store, embeddings, chunkSize: 5, chunkOverlap: 1);
 
-        var count = await service.IngestAsync("kb", "kaynak", "0123456789", chunks: null);
+        var count = await service.IngestAsync("kb", "source", "0123456789", chunks: null);
 
         count.ShouldBeGreaterThan(1);
         embeddings.Requested.Count.ShouldBe(count);
 
         var sources = await service.ListSourcesAsync("kb");
-        sources.ShouldBe(["kaynak"]);
+        sources.ShouldBe(["source"]);
     }
 
     [Fact]
-    public async Task Hazir_parcalarda_bos_gomu_uretilir_dolu_olan_oldugu_gibi_kalir()
+    public async Task Prebuilt_chunks_get_an_embedding_only_when_empty_a_filled_one_stays_as_is()
     {
         var store = new FakeVectorSearchStore();
         var embeddings = new FakeEmbeddingGenerator();
         var service = CreateService(store, embeddings);
 
-        var onceden = new float[] { 1, 2, 3 };
+        var precomputed = new float[] { 1, 2, 3 };
 
         var chunks = new[]
         {
-            new VectorChunk { Index = 0, Content = "gomusuz", Embedding = ReadOnlyMemory<float>.Empty },
-            new VectorChunk { Index = 1, Content = "gomulu", Embedding = onceden },
+            new VectorChunk { Index = 0, Content = "unembedded", Embedding = ReadOnlyMemory<float>.Empty },
+            new VectorChunk { Index = 1, Content = "embedded", Embedding = precomputed },
         };
 
-        await service.IngestAsync("kb", "kaynak", text: null, chunks);
+        await service.IngestAsync("kb", "source", text: null, chunks);
 
-        // Yalniz gomusuz parca ureticiye gitti.
-        embeddings.Requested.ShouldBe(["gomusuz"]);
+        // Only the unembedded chunk went to the generator.
+        embeddings.Requested.ShouldBe(["unembedded"]);
     }
 
     [Fact]
-    public async Task Hem_metin_hem_parca_verilirse_hata_verir()
+    public async Task Giving_both_text_and_chunks_fails()
     {
         var service = CreateService(withStore: true, withEmbeddings: true);
 
         await Should.ThrowAsync<ArgumentException>(() => service
-            .IngestAsync("kb", "kaynak", "metin", [new VectorChunk { Index = 0, Content = "x", Embedding = new float[] { 1, 2, 3 } }])
+            .IngestAsync("kb", "source", "text", [new VectorChunk { Index = 0, Content = "x", Embedding = new float[] { 1, 2, 3 } }])
             .AsTask());
     }
 
     [Fact]
-    public async Task Ne_metin_ne_parca_verilirse_hata_verir()
+    public async Task Giving_neither_text_nor_chunks_fails()
     {
         var service = CreateService(withStore: true, withEmbeddings: true);
 
-        await Should.ThrowAsync<ArgumentException>(() => service.IngestAsync("kb", "kaynak", null, null).AsTask());
+        await Should.ThrowAsync<ArgumentException>(() => service.IngestAsync("kb", "source", null, null).AsTask());
     }
 
     [Fact]
-    public async Task Yanlis_boyutlu_hazir_gomu_hata_verir()
+    public async Task Wrong_sized_prebuilt_embedding_fails()
     {
         var service = CreateService(withStore: true, withEmbeddings: true);
 
         var chunks = new[] { new VectorChunk { Index = 0, Content = "x", Embedding = new float[] { 1, 2 } } };
 
-        await Should.ThrowAsync<ArgumentException>(() => service.IngestAsync("kb", "kaynak", null, chunks).AsTask());
+        await Should.ThrowAsync<ArgumentException>(() => service.IngestAsync("kb", "source", null, chunks).AsTask());
     }
 
     [Theory]
-    [InlineData("gecersiz koleksiyon")]
-    [InlineData("gecersiz/koleksiyon")]
+    [InlineData("invalid collection")]
+    [InlineData("invalid/collection")]
     [InlineData("")]
-    public async Task Gecersiz_koleksiyon_adi_reddedilir(string collection)
+    public async Task Invalid_collection_name_is_rejected(string collection)
     {
         var service = CreateService(withStore: true, withEmbeddings: true);
 
-        await Should.ThrowAsync<ArgumentException>(() => service.SearchAsync(collection, "sorgu").AsTask());
+        await Should.ThrowAsync<ArgumentException>(() => service.SearchAsync(collection, "query").AsTask());
     }
 
     [Fact]
-    public async Task Arama_kiraciyi_ve_koleksiyonu_dogru_gecirir()
+    public async Task Search_passes_the_tenant_and_the_collection_through_correctly()
     {
         var store = new FakeVectorSearchStore();
         var embeddings = new FakeEmbeddingGenerator();
         var service = CreateService(store, embeddings, tenantId: "acme", maxResults: 7);
 
-        await service.SearchAsync("kb", "sorgu");
+        await service.SearchAsync("kb", "query");
 
         var request = store.Searches.ShouldHaveSingleItem();
         request.TenantId.ShouldBe("acme");

@@ -1,6 +1,6 @@
 namespace AgentPrism.Core.UnitTests.Audit;
 
-/// <summary>Denetim izi sir suzgecinin davranis testleri.</summary>
+/// <summary>Behavior tests for the audit trail secret filter.</summary>
 public sealed class AuditSecretFilterTests
 {
     [Theory]
@@ -13,19 +13,19 @@ public sealed class AuditSecretFilterTests
     [InlineData("password")]
     [InlineData("secret")]
     [InlineData("clientSecret")]
-    public void Sir_anahtari_temizlenir(string keyName)
+    public void Secret_key_is_redacted(string keyName)
     {
-        var json = $$"""{"name":"github","{{keyName}}":"cok-gizli-deger"}""";
+        var json = $$"""{"name":"github","{{keyName}}":"very-secret-value"}""";
 
         var redacted = AuditSecretFilter.Redact(json)!;
 
         redacted.ShouldContain("\"***\"");
-        redacted.ShouldNotContain("cok-gizli-deger");
+        redacted.ShouldNotContain("very-secret-value");
         redacted.ShouldContain("\"name\":\"github\"");
     }
 
     [Fact]
-    public void Ic_ice_nesne_ve_dizilerde_de_temizlenir()
+    public void Nested_objects_and_arrays_are_also_redacted()
     {
         const string Json = """
             {"name":"support","auth":{"headers":{"Authorization":"Bearer x"}},"items":[{"password":"p1"},{"password":"p2"}]}
@@ -44,11 +44,11 @@ public sealed class AuditSecretFilterTests
     [InlineData("totalTokens")]
     [InlineData("inputTokens")]
     [InlineData("outputTokens")]
-    public void Cogul_token_alanlari_sir_sayilmaz(string keyName)
+    public void Plural_token_fields_are_not_treated_as_secrets(string keyName)
     {
-        // Olculdu: /agentprism ornek uygulamasinda gercek bir agent.create
-        // kaydinda "maxOutputTokens" alani "***" ile gizlenmisti. "token" tek
-        // basina bir kimlik dogrulama degeridir; cogulu (Tokens) bir sayimdir.
+        // Measured: in the /agentprism sample app, a real agent.create record had
+        // its "maxOutputTokens" field redacted with "***". "token" on its own is
+        // a credential; its plural (Tokens) is a count.
         var json = $$"""{"name":"support","{{keyName}}":512}""";
 
         var redacted = AuditSecretFilter.Redact(json)!;
@@ -58,7 +58,7 @@ public sealed class AuditSecretFilterTests
     }
 
     [Fact]
-    public void Sir_icermeyen_yuk_degismeden_doner()
+    public void Payload_without_secrets_returns_unchanged()
     {
         const string Json = """{"name":"support","version":3}""";
 
@@ -70,16 +70,16 @@ public sealed class AuditSecretFilterTests
     }
 
     [Fact]
-    public void Null_oldugu_gibi_doner()
+    public void Null_is_returned_as_is()
     {
         AuditSecretFilter.Redact(null).ShouldBeNull();
     }
 
     [Fact]
-    public void Gecersiz_json_oldugu_gibi_doner()
+    public void Invalid_json_is_returned_as_is()
     {
-        // run_events.payload gibi elle bicimlendirilmis, gecerli JSON olmayabilen
-        // metinler icin suzgec sessizce degismeden birakir.
+        // For text that may be manually formatted and not valid JSON, such as
+        // run_events.payload, the filter silently leaves it unchanged.
         const string NotJson = "orderId=ORD-1";
 
         AuditSecretFilter.Redact(NotJson).ShouldBe(NotJson);

@@ -3,15 +3,15 @@ using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="PostgresAgentFileStore"/>'un yol hiyerarsisi, kiraci/agent yalitimi
-/// ve arama davranisi.
+/// <see cref="PostgresAgentFileStore"/>'s path hierarchy, tenant/agent
+/// isolation, and search behavior.
 /// </summary>
 /// <remarks>
-/// Agent adi arayuzde bir parametre olmadigi icin ambient kapsamdan
-/// (<see cref="AgentPrismRunContext"/>) okunur. Kapsam her test GOVDESININ
-/// BASINDA kurulur, <c>InitializeAsync</c>'te degil: xunit v3 (MTP) yasam
-/// dongusu kancalarini ve test govdesini ayri zamanlanmis islemler olarak
-/// calistirabiliyor, bu da <c>AsyncLocal</c> akisini keser — olculdu.
+/// The agent name is not a parameter on the interface, so it is read from the
+/// ambient scope (<see cref="AgentPrismRunContext"/>). The scope is set up at
+/// the START of each test BODY, not in <c>InitializeAsync</c>: xunit v3 (MTP)
+/// can run lifecycle hooks and the test body as separately scheduled
+/// operations, which breaks the <c>AsyncLocal</c> flow — this was measured.
 /// </remarks>
 public sealed class PostgresAgentFileStoreTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -32,40 +32,40 @@ public sealed class PostgresAgentFileStoreTests(PostgresFixture fixture) : IAsyn
     }
 
     [Fact]
-    public async Task Yazilan_dosya_okunur()
+    public async Task Written_file_is_read()
     {
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/notes/a.md", "merhaba");
+        await _context!.AgentFiles.WriteAsync("/notes/a.md", "hello");
 
-        (await _context.AgentFiles.ReadAsync("/notes/a.md")).ShouldBe("merhaba");
+        (await _context.AgentFiles.ReadAsync("/notes/a.md")).ShouldBe("hello");
     }
 
     [Fact]
-    public async Task Olmayan_dosya_null_doner()
+    public async Task Nonexistent_file_returns_null()
     {
         SetScope("agent-a");
 
-        (await _context!.AgentFiles.ReadAsync("/yok")).ShouldBeNull();
+        (await _context!.AgentFiles.ReadAsync("/none")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task Var_olan_dosya_uzerine_yazilir()
+    public async Task Existing_file_is_overwritten()
     {
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/a.md", "birinci");
-        await _context.AgentFiles.WriteAsync("/a.md", "ikinci");
+        await _context!.AgentFiles.WriteAsync("/a.md", "first");
+        await _context.AgentFiles.WriteAsync("/a.md", "second");
 
-        (await _context.AgentFiles.ReadAsync("/a.md")).ShouldBe("ikinci");
+        (await _context.AgentFiles.ReadAsync("/a.md")).ShouldBe("second");
     }
 
     [Fact]
-    public async Task Silme_calisir_ve_ikinci_seferde_false_doner()
+    public async Task Delete_works_and_returns_false_the_second_time()
     {
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/a.md", "icerik");
+        await _context!.AgentFiles.WriteAsync("/a.md", "content");
 
         (await _context.AgentFiles.DeleteAsync("/a.md")).ShouldBeTrue();
         (await _context.AgentFiles.FileExistsAsync("/a.md")).ShouldBeFalse();
@@ -73,46 +73,46 @@ public sealed class PostgresAgentFileStoreTests(PostgresFixture fixture) : IAsyn
     }
 
     [Fact]
-    public async Task Farkli_agentlar_birbirinin_dosyasini_gormez()
+    public async Task Different_agents_do_not_see_each_others_file()
     {
         SetScope("agent-a");
-        await _context!.AgentFiles.WriteAsync("/a.md", "agent-a icerigi");
+        await _context!.AgentFiles.WriteAsync("/a.md", "agent-a content");
 
         SetScope("agent-b");
         (await _context.AgentFiles.FileExistsAsync("/a.md")).ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Dizin_listesi_dogrudan_alt_ogeleri_dondurur()
+    public async Task Directory_listing_returns_direct_children()
     {
         SetScope("agent-a");
 
         await _context!.AgentFiles.WriteAsync("/notes/a.md", "a");
         await _context.AgentFiles.WriteAsync("/notes/b.md", "b");
-        await _context.AgentFiles.WriteAsync("/notes/alt/c.md", "c");
+        await _context.AgentFiles.WriteAsync("/notes/sub/c.md", "c");
         await _context.AgentFiles.WriteAsync("/other.md", "d");
 
         var children = await _context.AgentFiles.ListChildrenAsync("/notes");
 
         children.Select(static entry => entry.Name)
             .OrderBy(static name => name, StringComparer.Ordinal)
-            .ShouldBe(["a.md", "alt", "b.md"]);
+            .ShouldBe(["a.md", "b.md", "sub"]);
 
-        children.Single(static entry => string.Equals(entry.Name, "alt", StringComparison.Ordinal))
+        children.Single(static entry => string.Equals(entry.Name, "sub", StringComparison.Ordinal))
             .Type.ShouldBe("directory");
         children.Single(static entry => string.Equals(entry.Name, "a.md", StringComparison.Ordinal))
             .Type.ShouldBe("file");
     }
 
     [Fact]
-    public async Task Arama_eslesen_satiri_dondurur()
+    public async Task Search_returns_the_matching_line()
     {
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/notes/a.md", "birinci satir\nfatura numarasi 42\nson satir");
-        await _context.AgentFiles.WriteAsync("/notes/b.md", "ilgisiz icerik");
+        await _context!.AgentFiles.WriteAsync("/notes/a.md", "first line\ninvoice number 42\nlast line");
+        await _context.AgentFiles.WriteAsync("/notes/b.md", "unrelated content");
 
-        var results = await _context.AgentFiles.SearchAsync("/", "fatura", recursive: true);
+        var results = await _context.AgentFiles.SearchAsync("/", "invoice", recursive: true);
 
         var match = results.ShouldHaveSingleItem();
         match.FileName.ShouldBe("/notes/a.md");

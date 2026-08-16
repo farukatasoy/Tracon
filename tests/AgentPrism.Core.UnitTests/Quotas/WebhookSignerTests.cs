@@ -1,6 +1,6 @@
 namespace AgentPrism.Core.UnitTests.Quotas;
 
-/// <summary>Webhook imzasinin testleri.</summary>
+/// <summary>Tests of webhook signing.</summary>
 public sealed class WebhookSignerTests
 {
     private const string Secret = "s3cret-signing-key";
@@ -10,23 +10,23 @@ public sealed class WebhookSignerTests
         new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void Imza_sha256_onekiyle_uretilir()
+    public void Signature_is_produced_with_a_sha256_prefix()
     {
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
 
         signature.ShouldStartWith("sha256=");
 
-        // HMAC-SHA256 = 32 bayt = 64 onaltilik karakter.
+        // HMAC-SHA256 = 32 bytes = 64 hex characters.
         signature.Length.ShouldBe(7 + 64);
     }
 
     [Fact]
-    public void Ayni_girdi_ayni_imzayi_uretir()
+    public void Same_input_produces_the_same_signature()
         => WebhookSigner.Sign(Body, Timestamp, Secret)
             .ShouldBe(WebhookSigner.Sign(Body, Timestamp, Secret));
 
     [Fact]
-    public void Dogru_imza_dogrulanir()
+    public void Correct_signature_verifies()
     {
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
 
@@ -34,10 +34,10 @@ public sealed class WebhookSignerTests
     }
 
     [Fact]
-    public void Zaman_damgasi_degisince_imza_degisir()
+    public void Signature_changes_when_the_timestamp_changes()
     {
-        // 🚨 Zaman damgasi imzaya DAHILDIR; olmasaydi yakalanan bir istek
-        // sonsuza kadar yeniden oynatilabilirdi (K-163).
+        // 🚨 The timestamp IS included in the signature; without it, a
+        // captured request could be replayed forever (K-163).
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
         var later = Timestamp.AddSeconds(1);
 
@@ -47,7 +47,7 @@ public sealed class WebhookSignerTests
     }
 
     [Fact]
-    public void Govde_degisince_imza_dogrulanmaz()
+    public void Signature_does_not_verify_when_the_body_changes()
     {
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
 
@@ -56,7 +56,7 @@ public sealed class WebhookSignerTests
     }
 
     [Fact]
-    public void Yanlis_sir_dogrulanmaz()
+    public void Wrong_secret_does_not_verify()
     {
         var signature = WebhookSigner.Sign(Body, Timestamp, Secret);
 
@@ -68,10 +68,10 @@ public sealed class WebhookSignerTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("sha256=deadbeef")]
-    public void Bos_veya_bozuk_imza_dogrulanmaz(string? signature)
+    public void Empty_or_malformed_signature_does_not_verify(string? signature)
         => WebhookSigner.Verify(Body, Timestamp, Secret, signature).ShouldBeFalse();
 
     [Fact]
-    public void Bos_sir_ile_imzalamak_hata_verir()
+    public void Signing_with_an_empty_secret_throws()
         => Should.Throw<ArgumentException>(() => WebhookSigner.Sign(Body, Timestamp, ""));
 }

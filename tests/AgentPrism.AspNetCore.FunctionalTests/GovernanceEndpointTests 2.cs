@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Phase 6 endpoints: telemetry, tool usage, tenants, MCP servers, and approval rules.
+/// Faz 6 uclari: telemetri, tool kullanimi, kiracilar, MCP sunuculari ve onay kurallari.
 /// </summary>
 public sealed class GovernanceEndpointTests
 {
     [Fact]
-    public async Task Missing_trace_returns_404_with_a_reason()
+    public async Task Trace_yoksa_404_ve_gerekce_doner()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -20,16 +20,15 @@ public sealed class GovernanceEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        // 404 here is not an error, it is the result of SAMPLING; the
-        // reason must be written in the response so the operator doesn't
-        // hunt for a bug in vain.
+        // 404 burada bir hata degil, ORNEKLEME sonucudur; gerekce yanitta yazili
+        // olmali ki operator bosuna hata aramasin.
         var body = await response.Content.ReadAsStringAsync();
 
         body.ShouldContain("SuccessSampleRatio");
     }
 
     [Fact]
-    public async Task Tool_usage_starts_empty()
+    public async Task Tool_kullanimi_bos_baslar()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -41,7 +40,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Run_tool_calls_are_listed()
+    public async Task Calistirma_tool_cagrilari_listelenir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -73,7 +72,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Valid_tenant_is_returned()
+    public async Task Gecerli_kiraci_donduruluyor()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -85,13 +84,13 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Tenant_record_is_written_and_deleted()
+    public async Task Kiraci_kaydi_yazilir_ve_silinir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var saved = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/tenants/acme", UriKind.Relative),
-            new { displayName = "Acme Inc." });
+            new { displayName = "Acme A.S." });
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -108,19 +107,19 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Invalid_tenant_key_is_rejected()
+    public async Task Gecersiz_kiraci_anahtari_reddedilir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/tenants/has%20space", UriKind.Relative),
-            new { displayName = "Invalid" });
+            new Uri("/agentprism/api/tenants/bosluk%20var", UriKind.Relative),
+            new { displayName = "Gecersiz" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Mcp_server_is_written_and_listed()
+    public async Task Mcp_sunucusu_yazilir_ve_listelenir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -149,16 +148,14 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Mcp_response_carries_no_secret()
+    public async Task Mcp_yaniti_sir_tasimaz()
     {
-        // The server record never carries the authentication VALUE; it
-        // only carries the NAME of the configuration key the value will be
-        // read from (decision K-059).
+        // Sunucu kaydi kimlik dogrulama DEGERINI hicbir zaman tasimaz; yalnizca
+        // degerin okunacagi yapilandirma anahtarinin ADINI tasir (karar K-059).
         //
-        // The test verifies this by sending an 'authorization' field that
-        // does NOT exist in the contract: the field does not bind, is not
-        // stored, and never comes back in any response.
-        const string ValueThatMustNotLeak = "VERY-SECRET-VALUE-TEST";
+        // Test bunu, sozlesmede OLMAYAN bir 'authorization' alani gondererek
+        // dogrular: alan baglanmaz, saklanmaz ve hicbir yanitta geri donmez.
+        const string Sizdirilmaya_Calisilan = "COK-GIZLI-DEGER-TESTI";
 
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -168,33 +165,33 @@ public sealed class GovernanceEndpointTests
             {
                 endpoint = "https://mcp.example.com/mcp",
                 authorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
-                authorization = ValueThatMustNotLeak,
+                authorization = Sizdirilmaya_Calisilan,
                 headers = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    ["X-Server"] = "example",
+                    ["X-Sunucu"] = "ornek",
                 },
                 enabled = true,
                 requiresApproval = true,
             });
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await saved.Content.ReadAsStringAsync()).ShouldNotContain(ValueThatMustNotLeak);
+        (await saved.Content.ReadAsStringAsync()).ShouldNotContain(Sizdirilmaya_Calisilan);
 
         using var listed = await host.Client.GetAsync(
             new Uri("/agentprism/api/mcp-servers", UriKind.Relative));
 
-        (await listed.Content.ReadAsStringAsync()).ShouldNotContain(ValueThatMustNotLeak);
+        (await listed.Content.ReadAsStringAsync()).ShouldNotContain(Sizdirilmaya_Calisilan);
     }
 
     [Fact]
-    public async Task Stdio_address_is_rejected()
+    public async Task Stdio_adresi_reddedilir()
     {
-        // Local process transport is a security boundary: someone with
-        // access to the interface must not be able to run a program on the server.
+        // Yerel surec aktarimi bir guvenlik sinirdir: arayuze erisen biri
+        // sunucuda program calistiramamalidir.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/mcp-servers/local", UriKind.Relative),
+            new Uri("/agentprism/api/mcp-servers/yerel", UriKind.Relative),
             new { endpoint = "file:///usr/local/bin/mcp-server", enabled = true, requiresApproval = true });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -203,23 +200,22 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Invalid_address_is_rejected()
+    public async Task Gecersiz_adres_reddedilir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/mcp-servers/broken", UriKind.Relative),
-            new { endpoint = "this-is-not-an-address", enabled = true, requiresApproval = true });
+            new Uri("/agentprism/api/mcp-servers/bozuk", UriKind.Relative),
+            new { endpoint = "bu-bir-adres-degil", enabled = true, requiresApproval = true });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Refresh_returns_501_when_Mcp_not_registered()
+    public async Task Mcp_kayitli_degilse_tazeleme_501_doner()
     {
-        // AgentPrism.Mcp is an optional package; if it is not registered,
-        // the endpoint explicitly says "not implemented" and does not
-        // silently appear to succeed.
+        // AgentPrism.Mcp istege bagli bir pakettir; kayitli degilse uc acikca
+        // "uygulanmadi" der ve sessizce basarili gorunmez.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsync(
@@ -230,7 +226,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Mcp_server_is_written_and_listed_with_OAuth_fields()
+    public async Task Mcp_sunucusu_oauth_alanlariyla_yazilir_ve_listelenir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -263,7 +259,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Rejected_when_OAuth_client_id_is_missing()
+    public async Task Oauth_istemci_kimligi_eksikse_reddedilir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -275,7 +271,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Rejected_when_OAuth_and_static_authorization_header_conflict()
+    public async Task Oauth_ile_statik_yetkilendirme_baslikcakisirsa_reddedilir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -294,11 +290,10 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Prompt_and_resource_endpoints_return_501_when_Mcp_not_registered()
+    public async Task Mcp_kayitli_degilse_prompt_ve_kaynak_uclari_501_doner()
     {
-        // Prompts/Resources/OAuth (Phase 22) also depend on AgentPrism.Mcp;
-        // if not registered, they must show the same explicit "not
-        // implemented" behavior.
+        // Prompts/Resources/OAuth (Faz 22) da AgentPrism.Mcp'ye bagimlidir;
+        // kayitli degilse ayni acik "uygulanmadi" davranisini sergilemeli.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var prompts = await host.Client.GetAsync(
@@ -324,17 +319,16 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Mcp_oauth_callback_is_accessible_without_a_bearer_token()
+    public async Task Mcp_oauth_callback_bearer_token_olmadan_erisilir()
     {
-        // The callback endpoint is outside the access layers: the browser
-        // the provider redirects cannot carry our bearer token. This
-        // request has NO Authorization header at all, and the endpoint
-        // still returns 200 (with a failure HTML page, because
-        // AgentPrism.Mcp is not registered in this test host).
+        // Callback ucu erisim katmanlarinin disindadir: saglayicinin yonlendirdigi
+        // tarayici bizim bearer token'imizi tasiyamaz. Bu istekte hicbir
+        // Authorization basligi YOKTUR ve uc yine de 200 doner (basarisiz bir
+        // HTML sayfasiyla, cunku bu test host'unda AgentPrism.Mcp kayitli degil).
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/mcp-servers/github/oauth/callback?code=abc&state=unknown", UriKind.Relative));
+            new Uri("/agentprism/api/mcp-servers/github/oauth/callback?code=abc&state=bilinmeyen", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
@@ -345,7 +339,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Approval_rules_are_listed_and_revoked()
+    public async Task Onay_kurallari_listelenir_ve_geri_alinir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -373,7 +367,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Nonexistent_rule_cannot_be_deleted()
+    public async Task Olmayan_kural_silinemez()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -384,7 +378,7 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Empty_run_request_is_rejected()
+    public async Task Bos_calistirma_istegi_reddedilir()
     {
         await using var host = await AgentPrismTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition("echo")));
 
@@ -398,10 +392,10 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
-    public async Task Sessionless_approval_request_is_rejected()
+    public async Task Oturumsuz_onay_istegi_reddedilir()
     {
-        // A pending approval request lives in session history; a
-        // sessionless request has nothing to match against.
+        // Bekleyen onay istegi oturum gecmisinde yasar; oturumsuz bir istekte
+        // eslesecek bir sey yoktur.
         await using var host = await AgentPrismTestHost.StartAsync(static builder => builder.AddAgent(TestData.Definition("echo")));
 
         using var response = await host.Client.PostAsJsonAsync(

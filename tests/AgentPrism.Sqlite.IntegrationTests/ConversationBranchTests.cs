@@ -4,22 +4,22 @@ using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 namespace AgentPrism.Sqlite.IntegrationTests;
 
 /// <summary>
-/// Konusma dallandirmasinin depo davranisi (Faz 47).
+/// Store behavior of conversation branching (Phase 47).
 /// </summary>
 /// <remarks>
-/// SQLite secildi cunku uc SQL saglayicisinin en ucuz kosanidir ve sorgular
-/// paylasilan katmandadir (<c>SqlConversationBranchStore</c>). Kiraci suzgeci
-/// ve <c>INSERT … SELECT</c> mantigi diyalektten bagimsizdir.
+/// SQLite was chosen because it is the cheapest of the three SQL providers to
+/// run, and the queries live in the shared layer (<c>SqlConversationBranchStore</c>).
+/// The tenant filter and the <c>INSERT … SELECT</c> logic are dialect-independent.
 /// </remarks>
 public sealed class ConversationBranchTests(SqliteFixture fixture)
 {
     private const string Tenant = "default";
 
-    /// <summary>Bos bir JSON nesnesi. Ham SQL icinde suslu parantez kacisini onler.</summary>
+    /// <summary>An empty JSON object. Avoids brace-escaping inside raw SQL.</summary>
     private const string EmptyJsonObject = "{}";
 
     [Fact]
-    public async Task Belirli_bir_noktaya_kadar_kopyalanir()
+    public async Task Branch_copies_items_up_to_the_given_sequence()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 4);
@@ -36,7 +36,7 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Sinir_verilmezse_konusmanin_TAMAMI_kopyalanir()
+    public async Task Branch_without_a_limit_copies_the_ENTIRE_conversation()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 3);
@@ -48,31 +48,32 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Dala_yazmak_ANA_konusmayi_degistirmez()
+    public async Task Writing_to_the_branch_does_not_change_the_PARENT_conversation()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 3);
 
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: 1);
 
-        // Dala yeni bir oge yaz.
-        await InsertItemAsync(context, branch!.Value.ConversationId, sequence: 2, text: "dalda yeni");
+        // Write a new item to the branch.
+        await InsertItemAsync(context, branch!.Value.ConversationId, sequence: 2, text: "new-in-branch");
 
-        // 🚨 Kopyalama tasariminin butun degeri budur: iki konusma birbirinden
-        // BAGIMSIZDIR. Isaretci zinciri olsaydi dala yazmak ana konusmanin
-        // okumasini da degistirirdi.
+        // 🚨 This is the entire value of the copy design: the two conversations
+        // are INDEPENDENT of each other. If it used a pointer chain instead,
+        // writing to the branch would also change reads of the parent conversation.
         (await CountItemsAsync(context, parent)).ShouldBe(3);
         (await CountItemsAsync(context, branch.Value.ConversationId)).ShouldBe(3);
     }
 
     [Fact]
-    public async Task Bos_sinir_gecerli_ama_bos_bir_dal_acar()
+    public async Task An_empty_limit_is_valid_but_opens_an_empty_branch()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 2);
 
-        // seq = -1: hicbir oge kopyalanmaz ama konusma satiri acilir. Bos bir
-        // dal gecerlidir — kullanici konusmayi bastan baslatmak isteyebilir.
+        // seq = -1: no item is copied, but the conversation row is opened. An
+        // empty branch is valid — the user may want to restart the
+        // conversation from scratch.
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: -1);
 
         branch!.Value.CopiedItemCount.ShouldBe(0);
@@ -81,10 +82,10 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Dal_isaretcisi_ve_kaynak_ustverisi_kopyalanir()
+    public async Task Branch_pointer_and_source_metadata_are_copied()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
-        var parent = await SeedConversationAsync(context, itemCount: 2, agentName: "asistan");
+        var parent = await SeedConversationAsync(context, itemCount: 2, agentName: "assistant");
 
         var branch = await context.ConversationBranches.BranchAsync(Tenant, parent, upToSequence: 0);
 
@@ -95,14 +96,14 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
         var branchFrom = await context.ScalarAsync<long>(
             $"SELECT branch_from_seq FROM {context.TablePrefix}conversations WHERE id = '{Sql(branch.Value.ConversationId)}';");
 
-        agentName.ShouldBe("asistan");
+        agentName.ShouldBe("assistant");
         parentPointer.ShouldNotBeNull();
         Guid.Parse(parentPointer!, CultureInfo.InvariantCulture).ShouldBe(parent);
         branchFrom.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Ana_konusma_silinince_dal_YASAR()
+    public async Task Branch_SURVIVES_when_the_parent_conversation_is_deleted()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 2);
@@ -111,23 +112,24 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
 
         await context.ExecuteAsync($"DELETE FROM {context.TablePrefix}conversations WHERE id = '{Sql(parent)}';");
 
-        // Dal yasamaya devam eder ve ogeleri KENDISINDEDIR. Isaretci artik
-        // cozulemeyen bir kokeni gosterir; hicbir okuma yolu onu JOIN'lemez.
+        // The branch keeps living and its items stay WITH IT. The pointer now
+        // refers to an origin that can no longer be resolved; no read path
+        // joins against it.
         (await CountItemsAsync(context, branch!.Value.ConversationId)).ShouldBe(2);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_konusmasi_dallandirilamaz()
+    public async Task Another_tenants_conversation_cannot_be_branched()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 2);
 
-        (await context.ConversationBranches.BranchAsync("baska-kiraci", parent, upToSequence: null))
+        (await context.ConversationBranches.BranchAsync("other-tenant", parent, upToSequence: null))
             .ShouldBeNull();
     }
 
     [Fact]
-    public async Task Olmayan_konusma_null_doner()
+    public async Task A_nonexistent_conversation_returns_null()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
@@ -136,12 +138,13 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task Bin_ogelik_konusma_dallandirilabilir()
+    public async Task A_conversation_with_a_thousand_items_can_be_branched()
     {
-        // Acik Soru 4 buyuk bir konusmanin kopyalanma maliyetinin OLCULMESINI
-        // istiyordu. Kopyalama tek islemde satir satir yazar (uuid v7 kimligi
-        // uygulamada uretilir, bkz. SqlConversationBranchStore); bu test o
-        // yolun bin ogede de calistigini ve dogru sayidigini dogrular.
+        // Open Question 4 asked that the cost of copying a large conversation
+        // be MEASURED. The copy writes row by row in a single transaction
+        // (the uuid v7 id is generated in the application, see
+        // SqlConversationBranchStore); this test confirms that path works and
+        // counts correctly even at a thousand items.
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         var parent = await SeedConversationAsync(context, itemCount: 1_000);
 
@@ -167,7 +170,7 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
 
         for (var index = 0; index < itemCount; index++)
         {
-            await InsertItemAsync(context, conversationId, index, $"mesaj-{index}");
+            await InsertItemAsync(context, conversationId, index, $"message-{index}");
         }
 
         return conversationId;
@@ -181,8 +184,9 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
     {
         var now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
-        // Icerik polimorfik bir ChatMessage'i taklit eder: `$type` ayraci ILK
-        // ozelliktir ve kopyalama sirasinda oldugu gibi tasinmalidir (K-027).
+        // The content mimics a polymorphic ChatMessage: the `$type`
+        // discriminator is the FIRST property and must be carried as-is
+        // during the copy (K-027).
         await context.ExecuteAsync(
             $$"""
             INSERT INTO {{context.TablePrefix}}conversation_items (id, conversation_id, seq, item, created_at)
@@ -196,14 +200,14 @@ public sealed class ConversationBranchTests(SqliteFixture fixture)
             $"SELECT count(*) FROM {context.TablePrefix}conversation_items WHERE conversation_id = '{Sql(conversationId)}';");
 
     /// <summary>
-    /// Bir kimligi SQLite'in SAKLADIGI bicime cevirir.
+    /// Converts an id to the form SQLite STORES it in.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>Microsoft.Data.Sqlite</c> <see cref="Guid"/> degerlerini BUYUK
-    /// harfli, tireli metin olarak yazar (K-191) ve SQLite metin
-    /// karsilastirmasi harf buyuklugune duyarlidir. Elle yazilan SQL kucuk
-    /// harfli bir kimlik kullanirsa <c>WHERE</c> SESSIZCE hicbir satir bulmaz —
-    /// bu test dosyasi ilk kosusunda tam olarak boyle dustu.
+    /// 🚨 <c>Microsoft.Data.Sqlite</c> writes <see cref="Guid"/> values as
+    /// UPPERCASE, hyphenated text (K-191), and SQLite text comparison is
+    /// case-sensitive. If hand-written SQL uses a lowercase id, <c>WHERE</c>
+    /// SILENTLY finds no rows — this test file failed exactly this way on its
+    /// first run.
     /// </remarks>
     private static string Sql(Guid id) => id.ToString("D", CultureInfo.InvariantCulture).ToUpperInvariant();
 }

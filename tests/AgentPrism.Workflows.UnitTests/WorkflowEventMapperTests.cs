@@ -5,13 +5,13 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Olay eslemesi. Kritik nokta dal sirasidir: <c>AgentResponseEvent</c> ve
-/// <c>AgentResponseUpdateEvent</c>, <c>WorkflowOutputEvent</c>'ten turer.
+/// Event mapping. The critical point is branch order: <c>AgentResponseEvent</c>
+/// and <c>AgentResponseUpdateEvent</c> derive from <c>WorkflowOutputEvent</c>.
 /// </summary>
 public sealed class WorkflowEventMapperTests
 {
     [Fact]
-    public void Baslangic_olayi_eslenir()
+    public void Started_event_is_mapped()
     {
         var mapping = WorkflowEventMapper.Map(new WorkflowStartedEvent(message: null));
 
@@ -20,74 +20,74 @@ public sealed class WorkflowEventMapperTests
     }
 
     [Fact]
-    public void Agent_guncellemesi_cikti_DEGIL_metin_parcasi_olarak_eslenir()
+    public void Agent_update_is_mapped_as_a_text_delta_NOT_as_output()
     {
-        // AgentResponseUpdateEvent, WorkflowOutputEvent'ten TUREDIGI icin genel
-        // dal once yazilsaydi bu olay "workflow cikti uretti" diye siniflanir ve
-        // gercek cikti kaybolurdu.
-        var update = new AgentResponseUpdate(ChatRole.Assistant, "parca");
-        var mapping = WorkflowEventMapper.Map(new AgentResponseUpdateEvent("yazar", update));
+        // Because AgentResponseUpdateEvent DERIVES from WorkflowOutputEvent, if the
+        // general branch were written first this event would be classified as
+        // "workflow produced output" and the real output would be lost.
+        var update = new AgentResponseUpdate(ChatRole.Assistant, "chunk");
+        var mapping = WorkflowEventMapper.Map(new AgentResponseUpdateEvent("writer", update));
 
         mapping.IsKnown.ShouldBeTrue();
         mapping.Draft!.Value.Type.ShouldBe(RunEventType.MessageDelta);
-        mapping.Draft!.Value.Text.ShouldBe("parca");
-        mapping.Draft!.Value.ToolName.ShouldBe("yazar");
+        mapping.Draft!.Value.Text.ShouldBe("chunk");
+        mapping.Draft!.Value.ToolName.ShouldBe("writer");
     }
 
     [Fact]
-    public void Tam_agent_yaniti_atlanir()
+    public void Full_agent_response_is_skipped()
     {
-        // Akisli calistirmada guncellemeler zaten metni tasir; tam yaniti da
-        // yazmak ayni metni akista iki kez gosterirdi.
-        var response = new AgentResponse(new ChatMessage(ChatRole.Assistant, "tam yanit"));
-        var mapping = WorkflowEventMapper.Map(new AgentResponseEvent("yazar", response));
+        // In a streaming run, updates already carry the text; also writing the
+        // full response would show the same text twice in the stream.
+        var response = new AgentResponse(new ChatMessage(ChatRole.Assistant, "full response"));
+        var mapping = WorkflowEventMapper.Map(new AgentResponseEvent("writer", response));
 
         mapping.IsKnown.ShouldBeTrue();
         mapping.Draft.ShouldBeNull();
     }
 
     [Fact]
-    public void Workflow_ciktisi_metne_cevrilir()
+    public void Workflow_output_is_converted_to_text()
     {
         List<ChatMessage> output =
         [
-            new(ChatRole.User, "soru"),
-            new(ChatRole.Assistant, "cevap"),
+            new(ChatRole.User, "question"),
+            new(ChatRole.Assistant, "answer"),
         ];
 
         var mapping = WorkflowEventMapper.Map(new WorkflowOutputEvent(output, "OutputMessages"));
 
         mapping.Draft!.Value.Type.ShouldBe(RunEventType.WorkflowOutput);
-        (mapping.Draft!.Value.Text ?? string.Empty).ShouldContain("cevap", Case.Sensitive);
+        (mapping.Draft!.Value.Text ?? string.Empty).ShouldContain("answer", Case.Sensitive);
     }
 
     [Fact]
-    public void Executor_hatasi_eslenir()
+    public void Executor_error_is_mapped()
     {
         var mapping = WorkflowEventMapper.Map(
-            new ExecutorFailedEvent("yazar", new InvalidOperationException("patladi")));
+            new ExecutorFailedEvent("writer", new InvalidOperationException("blew up")));
 
         mapping.Draft!.Value.Type.ShouldBe(RunEventType.ExecutorFailed);
-        mapping.Draft!.Value.Text.ShouldBe("yazar");
-        mapping.Draft!.Value.Payload.ShouldBe("patladi");
+        mapping.Draft!.Value.Text.ShouldBe("writer");
+        mapping.Draft!.Value.Payload.ShouldBe("blew up");
     }
 
     [Fact]
-    public void Super_step_olaylari_adim_numarasini_tasir()
+    public void Super_step_events_carry_the_step_number()
     {
         var started = WorkflowEventMapper.Map(
-            new SuperStepStartedEvent(3, new SuperStepStartInfo(["yazar"])));
+            new SuperStepStartedEvent(3, new SuperStepStartInfo(["writer"])));
 
         started.Draft!.Value.Type.ShouldBe(RunEventType.SuperStepStarted);
         started.Draft!.Value.Text.ShouldBe("3");
-        started.Draft!.Value.Payload.ShouldBe("yazar");
+        started.Draft!.Value.Payload.ShouldBe("writer");
     }
 
     [Fact]
-    public void Bilinmeyen_olay_taninmaz_olarak_isaretlenir()
+    public void Unknown_event_is_marked_as_unrecognized()
     {
-        // Sessizce dusurulen bir olay, MAF yeni bir tip ekledigi gun hata
-        // ayiklamayi imkansizlastirirdi.
+        // An event silently dropped would make debugging impossible the day
+        // MAF adds a new type.
         var mapping = WorkflowEventMapper.Map(new UnknownEvent());
 
         mapping.IsKnown.ShouldBeFalse();

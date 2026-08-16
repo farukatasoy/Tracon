@@ -1,42 +1,43 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IRetentionStore"/> veri duzleminin davranis ve kiraci yalitimi
-/// testleri.
+/// Behavior and tenant isolation tests for the <see cref="IRetentionStore"/>
+/// data plane.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 41'de eklendi. 🚨 Bu sozlesme bir <strong>guvenlik kusurunun</strong>
-/// uzerine yazildi: veri duzlemi kiraci suzgeci tasimiyordu ve bir kiracinin
-/// saklama politikasi <em>butun</em> kiracilarin satirlarini siliyordu.
+/// Added in phase 41. 🚨 This contract was written over a <strong>security
+/// defect</strong>: the data plane carried no tenant filter, and one
+/// tenant's retention policy deleted <em>all</em> tenants' rows.
 /// </para>
 /// <para>
-/// Sozlesme <see cref="TenantIsolationContract{TStore}"/>'tan turemez: veri
-/// duzleminin "kayit" kavrami yoktur (yazma ucu yoktur), tohumlama hedef
-/// tablonun kendi deposundan gecer. Yalitim burada dogrudan sinanir.
+/// The contract does not derive from <see cref="TenantIsolationContract{TStore}"/>:
+/// the data plane has no concept of a "record" (there is no write side),
+/// seeding goes through the target table's own store. Isolation is tested
+/// directly here.
 /// </para>
 /// </remarks>
 public abstract class RetentionStoreContract : IAsyncLifetime
 {
-    /// <summary>Veriyi yazan kiraci.</summary>
+    /// <summary>The tenant that writes the data.</summary>
     protected const string TenantA = "tenant-a";
 
-    /// <summary>Verisi korunmasi gereken kiraci.</summary>
+    /// <summary>The tenant whose data must be preserved.</summary>
     protected const string TenantB = "tenant-b";
 
-    /// <summary>Sinanan veri duzlemi.</summary>
+    /// <summary>The data plane under test.</summary>
     protected IRetentionStore Store { get; private set; } = null!;
 
-    /// <summary>Test icin bos bir veri duzlemi uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
+    /// <summary>Produces an empty data plane for testing.</summary>
+    /// <returns>A store ready for use.</returns>
     protected abstract ValueTask<IRetentionStore> CreateStoreAsync();
 
     /// <summary>
-    /// Verilen kiraci icin <see cref="RetentionTargets.VoiceSessions"/> hedefine
-    /// dusen, kesim tarihinden eski bir satir yazar.
+    /// Writes a row for the given tenant, older than the cutoff date, that
+    /// falls under the <see cref="RetentionTargets.VoiceSessions"/> target.
     /// </summary>
-    /// <param name="tenantId">Satirin sahibi kiraci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="tenantId">The tenant that owns the row.</param>
+    /// <returns>The completion task.</returns>
     protected abstract ValueTask SeedOldRowAsync(string tenantId);
 
     /// <inheritdoc />
@@ -49,15 +50,15 @@ public abstract class RetentionStoreContract : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Hook for the derived class to release its own resources.</summary>
+    /// <returns>The completion task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
-    /// <summary>Tohumlanan satirlarin hepsinden yeni bir kesim tarihi.</summary>
+    /// <summary>A cutoff date newer than all seeded rows.</summary>
     private static DateTimeOffset Cutoff { get; } = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Sayim_yalnizca_verilen_kiraciyi_kapsar()
+    public async Task Count_covers_only_the_given_tenant()
     {
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantB);
@@ -65,15 +66,15 @@ public abstract class RetentionStoreContract : IAsyncLifetime
         (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantA, Cutoff)).ShouldBe(1);
         (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantB, Cutoff)).ShouldBe(1);
 
-        // Kiraci verilmezse islem kurulum genelindedir.
+        // When no tenant is given, the operation is installation-wide.
         (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, tenantId: null, Cutoff)).ShouldBe(2);
     }
 
     [Fact]
-    public async Task Silme_digerinin_verisine_DOKUNMAZ()
+    public async Task Delete_does_NOT_touch_the_others_data()
     {
-        // 🚨 Faz 41 oncesi bu test kirmiziydi: kiraci suzgeci yoktu ve tek bir
-        // kiracinin politikasi butun kurulumu siliyordu.
+        // 🚨 Before phase 41 this test was red: there was no tenant filter,
+        // and a single tenant's policy deleted the entire installation.
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantB);
 
@@ -86,7 +87,7 @@ public abstract class RetentionStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Arsiv_okumasi_yalnizca_verilen_kiraciyi_dondurur()
+    public async Task Archive_read_returns_only_the_given_tenant()
     {
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantB);
@@ -101,11 +102,12 @@ public abstract class RetentionStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Hacim_siniri_esigi_yalnizca_verilen_kiraciyi_sayar()
+    public async Task Row_limit_threshold_counts_only_the_given_tenant()
     {
-        // A kiracisinda iki, B kiracisinda bir satir. A icin "en fazla 2 satir"
-        // esigi hicbir sey silmemelidir; suzgec calismasaydi toplam uc satir
-        // sayilir ve esik dolu cikardi.
+        // Two rows for tenant A, one row for tenant B. The "at most 2 rows"
+        // threshold for A must not delete anything; if the filter did not
+        // work, three rows total would be counted and the threshold would
+        // appear full.
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantA);
         await SeedOldRowAsync(TenantB);
@@ -115,7 +117,7 @@ public abstract class RetentionStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Bilinmeyen_hedef_hata_verir()
+    public async Task Unknown_target_throws()
         => await Should.ThrowAsync<ArgumentException>(
-            async () => await Store.CountOlderThanAsync("bilinmeyen-hedef", TenantA, Cutoff));
+            async () => await Store.CountOlderThanAsync("unknown-target", TenantA, Cutoff));
 }

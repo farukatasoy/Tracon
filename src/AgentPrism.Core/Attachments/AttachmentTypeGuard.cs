@@ -22,7 +22,7 @@ public sealed class AttachmentTypeGuard
 
     /// <summary>Initializes a validator from configuration.</summary>
     /// <param name="options">The AgentPrism options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public AttachmentTypeGuard(IOptions<AgentPrismOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -199,7 +199,7 @@ public sealed class AttachmentTypeGuard
         => data.Length >= signature.Length && data[..signature.Length].SequenceEqual(signature);
 }
 
-/// <summary>Ek dogrulamasinin sonucu.</summary>
+/// <summary>The result of validating an attachment.</summary>
 public readonly struct AttachmentValidationResult
 {
     private AttachmentValidationResult(bool isValid, string? mediaType, string? error)
@@ -212,7 +212,7 @@ public readonly struct AttachmentValidationResult
     /// <summary>Gets whether the content is valid.</summary>
     public bool IsValid { get; }
 
-    /// <summary>Gecerliyse sihirli bayttan cikarilan MIME turu.</summary>
+    /// <summary>The MIME type derived from the magic bytes, when valid.</summary>
     public string? MediaType { get; }
 
     /// <summary>Gets the reason shown to the user when invalid.</summary>

@@ -6,30 +6,30 @@ namespace AgentPrism.Core.UnitTests.Scheduling;
 public sealed class WorkflowJobHandlerTests
 {
     [Fact]
-    public void Kind_Workflow_dur()
+    public void Kind_is_Workflow()
     {
         new WorkflowJobHandler(null, NullLogger<WorkflowJobHandler>.Instance).Kind.ShouldBe(JobKind.Workflow);
     }
 
     [Fact]
-    public async Task Motor_kayitli_degilse_istisna_firlatir()
+    public async Task Throws_when_no_runner_is_registered()
     {
         var handler = new WorkflowJobHandler(runner: null, NullLogger<WorkflowJobHandler>.Instance);
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
-            () => handler.ExecuteAsync(BuildContext([Item(0, "girdi")])).AsTask());
+            () => handler.ExecuteAsync(BuildContext([Item(0, "input")])).AsTask());
 
         exception.Message.ShouldContain("UseWorkflows", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Basarili_akis_tamamlandi_olarak_raporlanir()
+    public async Task A_successful_run_is_reported_as_completed()
     {
         var runner = new ScriptedWorkflowRunner(shouldFail: false);
         var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
-        await handler.ExecuteAsync(BuildContext([Item(0, "girdi")], reported));
+        await handler.ExecuteAsync(BuildContext([Item(0, "input")], reported));
 
         reported.ShouldHaveSingleItem();
         reported[0].Status.ShouldBe(JobItemStatus.Completed);
@@ -37,13 +37,13 @@ public sealed class WorkflowJobHandlerTests
     }
 
     [Fact]
-    public async Task RunFailed_olayi_basarisiz_olarak_raporlanir()
+    public async Task A_RunFailed_event_is_reported_as_failed()
     {
         var runner = new ScriptedWorkflowRunner(shouldFail: true);
         var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
-        await handler.ExecuteAsync(BuildContext([Item(0, "girdi")], reported));
+        await handler.ExecuteAsync(BuildContext([Item(0, "input")], reported));
 
         reported.ShouldHaveSingleItem();
         reported[0].Status.ShouldBe(JobItemStatus.Failed);
@@ -62,9 +62,9 @@ public sealed class WorkflowJobHandlerTests
             Job = new JobRecord
             {
                 Id = Guid.NewGuid(),
-                TenantId = "kiraci",
+                TenantId = "tenant",
                 Kind = JobKind.Workflow,
-                TargetName = "gunluk-rapor",
+                TargetName = "daily-report",
                 Status = JobStatus.Running,
                 ScheduledFor = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -80,8 +80,8 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
-    /// Yalnizca <see cref="RunStreamingAsync"/> gercekten kullanilir; digerleri
-    /// bu isleyicinin hic cagirmadigi uyelerdir.
+    /// Only <see cref="RunStreamingAsync"/> is actually used; the others are
+    /// members this handler never calls.
     /// </summary>
     private sealed class ScriptedWorkflowRunner(bool shouldFail) : IWorkflowRunner
     {
@@ -124,7 +124,7 @@ public sealed class WorkflowJobHandlerTests
                     Sequence = 1,
                     Type = RunEventType.RunFailed,
                     Timestamp = now,
-                    Text = "workflow patladi",
+                    Text = "workflow failed",
                 };
             }
             else

@@ -3,22 +3,22 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Models;
 
-/// <summary>Saglayici defterinin ada gore cozum davranisini dogrular.</summary>
+/// <summary>Verifies the provider registry's resolution behavior by name.</summary>
 public sealed class ModelProviderRegistryTests
 {
     [Fact]
-    public void Saglayici_ada_gore_cozulur()
+    public void Provider_is_resolved_by_name()
     {
-        var provider = new FakeModelProvider(name: "birinci");
-        var registry = new ModelProviderRegistry([provider, new FakeModelProvider(name: "ikinci")]);
+        var provider = new FakeModelProvider(name: "first");
+        var registry = new ModelProviderRegistry([provider, new FakeModelProvider(name: "second")]);
 
-        registry.CreateChatClient(TestData.Binding(provider: "birinci"));
+        registry.CreateChatClient(TestData.Binding(provider: "first"));
 
         provider.LastBinding.ShouldNotBeNull();
     }
 
     [Fact]
-    public void Saglayici_adi_buyuk_kucuk_harfe_duyarsizdir()
+    public void Provider_name_is_case_insensitive()
     {
         var provider = new FakeModelProvider(name: "openai");
         var registry = new ModelProviderRegistry([provider]);
@@ -29,21 +29,21 @@ public sealed class ModelProviderRegistryTests
     }
 
     [Fact]
-    public void Bilinmeyen_saglayici_anlasilir_hata_verir()
+    public void Unknown_provider_gives_an_understandable_error()
     {
         var registry = new ModelProviderRegistry([new FakeModelProvider(name: "fake")]);
 
         var exception = Should.Throw<AgentPrismException>(
-            () => registry.CreateChatClient(TestData.Binding(provider: "yok-boyle")));
+            () => registry.CreateChatClient(TestData.Binding(provider: "no-such-provider")));
 
-        exception.Message.ShouldContain("yok-boyle");
-        // Hata mesaji kayitli saglayicilari ve ne yapilacagini soylemeli.
+        exception.Message.ShouldContain("no-such-provider");
+        // The error message must list the registered providers and say what to do.
         exception.Message.ShouldContain("fake");
         exception.Message.ShouldContain("UseOpenAI");
     }
 
     [Fact]
-    public void Hic_saglayici_yoksa_hata_bunu_soyler()
+    public void Error_says_so_when_there_is_no_provider_at_all()
     {
         var registry = new ModelProviderRegistry([]);
 
@@ -54,7 +54,7 @@ public sealed class ModelProviderRegistryTests
     }
 
     [Fact]
-    public void Ayni_ad_iki_kez_kaydedilirse_hata_verilir()
+    public void Registering_the_same_name_twice_fails()
     {
         var exception = Should.Throw<AgentPrismException>(() => new ModelProviderRegistry(
             [new FakeModelProvider(name: "openai"), new FakeModelProvider(name: "OPENAI")]));
@@ -63,16 +63,16 @@ public sealed class ModelProviderRegistryTests
     }
 
     [Fact]
-    public void Liste_ada_gore_siralidir()
+    public void List_is_sorted_by_name()
     {
         var registry = new ModelProviderRegistry(
-            [new FakeModelProvider(name: "zeta"), new FakeModelProvider(name: "alfa")]);
+            [new FakeModelProvider(name: "zeta"), new FakeModelProvider(name: "alpha")]);
 
-        registry.List().Select(static descriptor => descriptor.Name).ShouldBe(["alfa", "zeta"]);
+        registry.List().Select(static descriptor => descriptor.Name).ShouldBe(["alpha", "zeta"]);
     }
 
     [Fact]
-    public void Liste_saglayicinin_modellerini_tasir()
+    public void List_carries_the_providers_models()
     {
         var registry = new ModelProviderRegistry([new FakeModelProvider()]);
 
@@ -80,12 +80,12 @@ public sealed class ModelProviderRegistryTests
     }
 
     [Fact]
-    public void Boru_hatti_tool_dongusunu_ve_telemetriyi_defter_kurar()
+    public void Registry_sets_up_the_tool_loop_and_telemetry_pipeline()
     {
-        // 🚨 Faz 48: bu iki halka dort saglayici paketinin icinden buraya tasindi.
-        // Kaybolurlarsa agent tool cagrilarini hic yurutmez ve hicbir 'chat' span'i
-        // uretilmez. Ucuncu taraf bir saglayici da bunlari bedava devralir —
-        // FakeModelProvider ham bir istemci donduruyor ve halkalar yine var.
+        // 🚨 Phase 48: these two links were moved here from inside four provider packages.
+        // If they are lost, the agent never runs tool calls and no 'chat' span
+        // is produced. A third-party provider also inherits them for free —
+        // FakeModelProvider returns a raw client and the links are still there.
         using var chatClient = new ModelProviderRegistry([new FakeModelProvider()])
             .CreateChatClient(TestData.Binding());
 
@@ -94,7 +94,7 @@ public sealed class ModelProviderRegistryTests
     }
 
     [Fact]
-    public void Null_baglanti_reddedilir()
+    public void Null_binding_is_rejected()
     {
         var registry = new ModelProviderRegistry([new FakeModelProvider()]);
 

@@ -4,22 +4,23 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Core.UnitTests.Recording;
 
 /// <summary>
-/// Disaridan (<see cref="IRunCancellationRegistry.TryCancel"/>) tetiklenen bir
-/// iptalin, suren bir model cagrisini gercekten kestigini ve <c>runs</c>
-/// satirini <see cref="RunStatus.Canceled"/> yazdigini dogrular.
+/// Verifies that a cancellation triggered from the outside (<see
+/// cref="IRunCancellationRegistry.TryCancel"/>) actually cuts off an
+/// in-flight model call, and writes <see cref="RunStatus.Canceled"/> to the
+/// <c>runs</c> row.
 /// </summary>
 public sealed class RunCancellationStatusTests
 {
     private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(5);
 
     [Fact]
-    public async Task Disaridan_iptal_akissiz_calistirmayi_Canceled_yazar()
+    public async Task External_cancellation_writes_Canceled_for_a_non_streaming_run()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();
         var agent = CreateAgent(store, new BlockingChatClient(), registry);
 
-        var runTask = agent.RunAsync("uzun bir metin yaz");
+        var runTask = agent.RunAsync("write a long piece of text");
 
         await WaitUntilAsync(() => registry.ActiveCount == 1);
 
@@ -35,7 +36,7 @@ public sealed class RunCancellationStatusTests
     }
 
     [Fact]
-    public async Task Disaridan_iptal_akisli_calistirmayi_Canceled_yazar()
+    public async Task External_cancellation_writes_Canceled_for_a_streaming_run()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();
@@ -43,10 +44,10 @@ public sealed class RunCancellationStatusTests
 
         var runTask = Task.Run(async () =>
         {
-            await foreach (var _ in agent.RunStreamingAsync("uzun bir metin yaz"))
+            await foreach (var _ in agent.RunStreamingAsync("write a long piece of text"))
             {
-                // Ilk cerceveden sonra istemci gibi akisi tuketmeye devam eder;
-                // BlockingChatClient ikinci cerceveyi hicbir zaman uretmez.
+                // Keeps consuming the stream like a client would, after the first frame;
+                // BlockingChatClient never produces a second frame.
             }
         });
 

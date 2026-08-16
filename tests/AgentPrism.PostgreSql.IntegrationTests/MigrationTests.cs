@@ -5,12 +5,13 @@ using Npgsql;
 
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
-/// <summary>Migration calistiricisinin davranisi.</summary>
+/// <summary>The behavior of the migration runner.</summary>
 public sealed class MigrationRunnerTests(PostgresFixture fixture)
 {
     /// <summary>
-    /// Gomulu migration sayisi. Sabit yazilmaz: her yeni migration dosyasi bu
-    /// testleri kirardi ve kirilma, testin dogruladigi davranisla ilgisiz olurdu.
+    /// The count of embedded migrations. Not written as a constant: every new
+    /// migration file would break these tests, and the break would be
+    /// unrelated to the behavior the test verifies.
     /// </summary>
     private static int EmbeddedMigrationCount { get; } = typeof(MigrationRunner).Assembly
         .GetManifestResourceNames()
@@ -19,7 +20,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             && name.EndsWith(".sql", StringComparison.Ordinal));
 
     [Fact]
-    public async Task Ilk_kosuda_sema_ve_tablolar_olusur()
+    public async Task First_run_creates_the_schema_and_tables()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -30,38 +31,39 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         var tableCount = await context.ScalarAsync<long>(
             $"SELECT count(*) FROM information_schema.tables WHERE table_schema = '{context.SchemaName}';");
 
-        // 0001_initial 13 tablo + migration defteri, 0002_observability 2 tablo,
-        // 0003_agent_skills 2 tablo, 0004_skill_scripts 2 tablo daha.
-        // 0005_agent_call_graph YENI TABLO EKLEMEZ; runs tablosuna sutun ekler.
-        // 0006_attachments 2 tablo daha (attachments, agent_files).
-        // 0007_workflows 2 tablo daha (workflows, workflow_checkpoints) ve
-        // runs tablosuna kind + workflow_name sutunlarini ekler.
-        // 0008_scheduling 3 tablo daha (job_schedules, jobs, job_items).
-        // 0009_eval 4 tablo daha (eval_suites, eval_cases, eval_runs, eval_case_results).
-        // 0010_experiments 1 tablo daha (experiments); runs tablosuna agent_version,
-        // experiment_id, variant sutunlarini ekler.
-        // 0011_run_costs YENI TABLO EKLEMEZ; runs tablosuna maliyet sutunlari ekler.
-        // 0012_quotas_and_webhooks 4 tablo daha (quotas, quota_usage,
-        // webhook_subscriptions, webhook_deliveries) ve jobs tablosuna
-        // max_attempts sutununu ekler.
-        // 0013_mcp_oauth YENI TABLO EKLEMEZ; mcp_servers tablosuna sutun ekler.
-        // 0014_retention 2 tablo daha (retention_policies, retention_runs).
+        // 0001_initial: 13 tables + migration ledger. 0002_observability: 2 more
+        // tables. 0003_agent_skills: 2 more tables. 0004_skill_scripts: 2 more
+        // tables.
+        // 0005_agent_call_graph ADDS NO NEW TABLE; it adds a column to the runs table.
+        // 0006_attachments: 2 more tables (attachments, agent_files).
+        // 0007_workflows: 2 more tables (workflows, workflow_checkpoints) and adds
+        // the kind + workflow_name columns to the runs table.
+        // 0008_scheduling: 3 more tables (job_schedules, jobs, job_items).
+        // 0009_eval: 4 more tables (eval_suites, eval_cases, eval_runs, eval_case_results).
+        // 0010_experiments: 1 more table (experiments); adds the agent_version,
+        // experiment_id, variant columns to the runs table.
+        // 0011_run_costs ADDS NO NEW TABLE; it adds cost columns to the runs table.
+        // 0012_quotas_and_webhooks: 4 more tables (quotas, quota_usage,
+        // webhook_subscriptions, webhook_deliveries) and adds the max_attempts
+        // column to the jobs table.
+        // 0013_mcp_oauth ADDS NO NEW TABLE; it adds a column to the mcp_servers table.
+        // 0014_retention: 2 more tables (retention_policies, retention_runs).
         //
-        // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
-        // ekleyen kisi tabloyu fark etmis olur.
-        // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
-        // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
-        // Faz 42 `singleton_leases` tablosunu ekledi: 40 -> 41.
-        // Faz 43 `idempotency_keys` tablosunu ekledi: 41 -> 42.
-        // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
-        // Faz 51 `document_embeddings` tablosunu ekledi: 43 -> 44.
-        // Faz 53 `api_keys` tablosunu ekledi: 44 -> 45.
-        // Faz 55 `pending_approvals` tablosunu ekledi: 45 -> 46.
+        // The number is DELIBERATELY a constant: adding a new table breaks this
+        // test, so whoever adds it notices the table.
+        // Phase 29 added the `voice_sessions` table: 38 -> 39.
+        // Phase 31 added the `run_scores` table: 39 -> 40.
+        // Phase 42 added the `singleton_leases` table: 40 -> 41.
+        // Phase 43 added the `idempotency_keys` table: 41 -> 42.
+        // Phase 47 added the `run_inputs` table: 42 -> 43.
+        // Phase 51 added the `document_embeddings` table: 43 -> 44.
+        // Phase 53 added the `api_keys` table: 44 -> 45.
+        // Phase 55 added the `pending_approvals` table: 45 -> 46.
         tableCount.ShouldBe(46);
     }
 
     [Fact]
-    public async Task Ikinci_kosu_hicbir_sey_uygulamaz()
+    public async Task Second_run_applies_nothing()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -71,7 +73,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Uygulanan_migration_deftere_yazilir()
+    public async Task Applied_migration_is_written_to_the_ledger()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
@@ -87,13 +89,13 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Degistirilmis_migration_hata_verir()
+    public async Task Modified_migration_throws()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        // Dosya degistirilmis gibi davranmak icin defterdeki ozeti bozuyoruz.
+        // Corrupts the ledger's checksum to simulate a modified file.
         await context.ExecuteAsync(
-            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'BOZUK' WHERE id = 1;");
+            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'CORRUPTED' WHERE id = 1;");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await context.Migrations.ApplyAsync());
@@ -103,7 +105,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Bes_es_zamanli_kosuda_migration_tek_kez_uygulanir()
+    public async Task Five_concurrent_runs_apply_migrations_only_once()
     {
         var schemaName = PostgresTestContext.NewSchemaName();
         var contexts = new List<PostgresTestContext>();
@@ -118,8 +120,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             var results = await Task.WhenAll(
                 contexts.Select(static context => context.Migrations.ApplyAsync().AsTask()));
 
-            // Tam olarak bir kosu migration'lari uygular; digerleri onun bitmesini
-            // bekler ve uygulanmis bulur. pg_advisory_lock bunu garanti eder.
+            // Exactly one run applies the migrations; the others wait for it to
+            // finish and find them already applied. pg_advisory_lock guarantees this.
             results.Count(count => count == EmbeddedMigrationCount).ShouldBe(1);
             results.Count(static count => count == 0).ShouldBe(4);
 
@@ -138,12 +140,12 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// K-389: migration kilidi semaya kapsanmistir. A semasinin kilidi acikken
-    /// B semasinin kilidi HEMEN alinabilmelidir; global kilitte olsa B
-    /// kilidin serbest kalmasini beklerdi.
+    /// K-389: the migration lock is scoped to the schema. While schema A's lock
+    /// is held, schema B's lock must be acquirable IMMEDIATELY; with a global
+    /// lock, B would wait for the lock to be released.
     /// </summary>
     [Fact]
-    public async Task Farkli_semalarin_migration_kilitleri_birbirini_engellemez()
+    public async Task Different_schemas_migration_locks_do_not_block_each_other()
     {
         var dialectA = new PostgresDialect(PostgresTestContext.NewSchemaName());
         var dialectB = new PostgresDialect(PostgresTestContext.NewSchemaName());
@@ -171,12 +173,12 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Gecersiz_sema_adi_reddedilir()
+    public async Task Invalid_schema_name_is_rejected()
     {
         var options = Options.Create(new AgentPrismPostgreSqlOptions
         {
             ConnectionString = fixture.ConnectionString,
-            SchemaName = "kotu-ad; DROP TABLE users",
+            SchemaName = "bad-name; DROP TABLE users",
         });
 
         await using var dataSource = new NpgsqlDataSourceBuilder(fixture.ConnectionString).Build();
@@ -196,7 +198,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Ozel_sema_adi_kullanilir()
+    public async Task Custom_schema_name_is_used()
     {
         var schemaName = PostgresTestContext.NewSchemaName();
         await using var context = PostgresTestContext.Create(fixture, schemaName);

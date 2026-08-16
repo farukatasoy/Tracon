@@ -14,7 +14,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
     /// <summary>Creates a new score store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlRunScoreStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

@@ -17,7 +17,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
     /// <summary>Creates a new webhook store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlWebhookStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

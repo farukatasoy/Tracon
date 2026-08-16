@@ -1,9 +1,9 @@
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// <see cref="IVectorSearchStore"/> sahtesi. Gercek bir veritabani kullanmaz;
-/// bellekte tutar. Yalniz derleyici (<see cref="AgentDefinitionCompiler"/>) ve
-/// <see cref="KnowledgeIngestionService"/> testleri icindir.
+/// A fake <see cref="IVectorSearchStore"/>. Uses no real database; it holds
+/// data in memory. Used only by the compiler (<see cref="AgentDefinitionCompiler"/>)
+/// and <see cref="KnowledgeIngestionService"/> tests.
 /// </summary>
 internal sealed class FakeVectorSearchStore : IVectorSearchStore
 {
@@ -25,8 +25,8 @@ internal sealed class FakeVectorSearchStore : IVectorSearchStore
             if (chunk.Embedding.Length != Dimensions)
             {
                 throw new ArgumentException(
-                    $"Parca {chunk.Index} gomu uzunlugu ({chunk.Embedding.Length}) depo boyutuyla " +
-                    $"({Dimensions}) eslesmiyor.",
+                    $"Chunk {chunk.Index} embedding length ({chunk.Embedding.Length}) does not match " +
+                    $"the store dimension ({Dimensions}).",
                     nameof(chunks));
             }
         }

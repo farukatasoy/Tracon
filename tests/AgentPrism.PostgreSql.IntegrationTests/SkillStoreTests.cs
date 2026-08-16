@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
-/// <summary>Skill deposunun PostgreSQL'e ozgu davranislarini dogrular.</summary>
+/// <summary>Verifies the skill store's PostgreSQL-specific behavior.</summary>
 public sealed class SkillStoreTests(PostgresFixture fixture)
 {
     [Fact]
-    public async Task Kaynaklar_skill_ile_okunur_ve_silmede_cascade_olur()
+    public async Task Resources_are_read_with_the_skill_and_cascade_on_delete()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         var store = CreateStore(context);
@@ -37,7 +37,7 @@ public sealed class SkillStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Ayni_skill_adi_kiracilar_arasinda_izoludur()
+    public async Task Same_skill_name_is_isolated_between_tenants()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         var store = CreateStore(context);

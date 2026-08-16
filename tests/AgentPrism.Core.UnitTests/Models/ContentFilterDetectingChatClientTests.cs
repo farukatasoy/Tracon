@@ -4,17 +4,17 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Models;
 
 /// <summary>
-/// Guvenlik/icerik filtresiyle kesilmis bos yanitin acik bir hataya cevrilmesi.
+/// Turning an empty response cut off by a safety/content filter into an explicit error.
 /// </summary>
 /// <remarks>
-/// Dekorator <c>ModelProviderRegistry.CreateChatClient</c> tarafindan her istemciye
-/// uygulanir; bu yuzden testler defter uzerinden kosar — sarmalama sirasinin
-/// bozulmasi da yakalanmis olur.
+/// The decorator is applied to every client by <c>ModelProviderRegistry.CreateChatClient</c>;
+/// that is why the tests run through the registry — this also catches a break
+/// in the wrapping order.
 /// </remarks>
 public sealed class ContentFilterDetectingChatClientTests
 {
     [Fact]
-    public async Task Filtrelenmis_bos_yanit_content_filtered_hatasi_atar()
+    public async Task Filtered_empty_response_throws_a_content_filtered_error()
     {
         using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
         {
@@ -23,7 +23,7 @@ public sealed class ContentFilterDetectingChatClientTests
         }));
 
         var exception = await Should.ThrowAsync<AgentPrismContentFilteredException>(
-            () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "selam")], cancellationToken: TestContext.Current.CancellationToken));
+            () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
 
         exception.ErrorType.ShouldBe("content_filtered");
         exception.ProviderName.ShouldBe("fake");
@@ -31,25 +31,25 @@ public sealed class ContentFilterDetectingChatClientTests
     }
 
     [Fact]
-    public async Task Filtrelenmis_ama_metin_iceren_yanit_gecer()
+    public async Task Filtered_response_that_still_carries_text_passes_through()
     {
-        // Model metin uretip sonra kesildiyse kullanicinin elinde kismi bir cevap
-        // vardir; onu hataya cevirmek bilgi kaybi olurdu.
+        // If the model produced text and was then cut off, the user has a
+        // partial answer in hand; turning it into an error would be a loss of information.
         using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
         {
-            Messages = [new ChatMessage(ChatRole.Assistant, "kismi cevap")],
+            Messages = [new ChatMessage(ChatRole.Assistant, "partial answer")],
             FinishReason = ChatFinishReason.ContentFilter,
         }));
 
         var response = await chatClient.GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hi")],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        response.Text.ShouldBe("kismi cevap");
+        response.Text.ShouldBe("partial answer");
     }
 
     [Fact]
-    public async Task Filtresiz_bos_yanit_hata_atmaz()
+    public async Task Unfiltered_empty_response_does_not_throw()
     {
         using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
         {
@@ -58,14 +58,14 @@ public sealed class ContentFilterDetectingChatClientTests
         }));
 
         var response = await chatClient.GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hi")],
             cancellationToken: TestContext.Current.CancellationToken);
 
         response.Text.ShouldBeNullOrEmpty();
     }
 
     [Fact]
-    public async Task Akisli_filtrelenmis_bos_yanit_akis_sonunda_hata_atar()
+    public async Task Streaming_filtered_empty_response_throws_at_the_end_of_the_stream()
     {
         using var chatClient = Registry(new FakeChatClient(streamingUpdates:
         [
@@ -76,39 +76,39 @@ public sealed class ContentFilterDetectingChatClientTests
         await Should.ThrowAsync<AgentPrismContentFilteredException>(async () =>
         {
             await foreach (var _ in chatClient.GetStreamingResponseAsync(
-                [new ChatMessage(ChatRole.User, "selam")],
+                [new ChatMessage(ChatRole.User, "hi")],
                 cancellationToken: TestContext.Current.CancellationToken))
             {
-                // Cerceveler tuketilir; karar akisin SONUNDA verilir.
+                // Frames are consumed; the decision is made at the END of the stream.
             }
         });
     }
 
     [Fact]
-    public async Task Akisli_filtrelenmis_ama_metin_iceren_yanit_gecer()
+    public async Task Streaming_filtered_response_that_still_carries_text_passes_through()
     {
         using var chatClient = Registry(new FakeChatClient(streamingUpdates:
         [
-            new ChatResponseUpdate(ChatRole.Assistant, "kismi"),
+            new ChatResponseUpdate(ChatRole.Assistant, "partial"),
             new ChatResponseUpdate(ChatRole.Assistant, string.Empty) { FinishReason = ChatFinishReason.ContentFilter },
         ]));
 
         var text = string.Empty;
 
         await foreach (var update in chatClient.GetStreamingResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hi")],
             cancellationToken: TestContext.Current.CancellationToken))
         {
             text += update.Text;
         }
 
-        text.ShouldBe("kismi");
+        text.ShouldBe("partial");
     }
 
     [Fact]
-    public async Task Tool_cagrisi_iceren_filtrelenmis_yanit_bos_sayilmaz()
+    public async Task Filtered_response_containing_a_tool_call_is_not_counted_as_empty()
     {
-        // Metin yok ama bir tool cagrisi var: yanit kullanilabilirdir.
+        // There is no text but there is a tool call: the response is usable.
         using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
         {
             Messages = [new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("1", "get_order", null)])],
@@ -116,12 +116,13 @@ public sealed class ContentFilterDetectingChatClientTests
         }));
 
         var response = await chatClient.GetResponseAsync(
-            [new ChatMessage(ChatRole.User, "selam")],
+            [new ChatMessage(ChatRole.User, "hi")],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Faz 48'den beri defter tool cagri dongusunu de kurar: cozulemeyen cagri
-        // icin MAF bir sonuc icerigi ekler. Onemli olan istisna ATILMAMASIDIR —
-        // tool cagrisi tasiyan filtreli yanit bos sayilmadi.
+        // Since Phase 48 the registry also sets up the tool-call loop: MAF adds
+        // a result content for an unresolved call. What matters is that NO
+        // exception is thrown — a filtered response carrying a tool call is
+        // not counted as empty.
         response.Messages
             .SelectMany(static message => message.Contents)
             .OfType<FunctionCallContent>()
@@ -129,11 +130,11 @@ public sealed class ContentFilterDetectingChatClientTests
     }
 
     [Fact]
-    public async Task Devre_kesici_filtreyi_hata_saymaz()
+    public async Task Circuit_breaker_does_not_count_a_filter_as_a_failure()
     {
-        // Filtrelenmis yanit saglayicinin SAGLIKLI oldugunu gosterir. Dekorator devre
-        // kesicinin disinda durmalidir; icinde olsaydi esik sayisinca filtrelenen
-        // istek saglayiciyi kapatirdi.
+        // A filtered response shows the provider is HEALTHY. The decorator
+        // must sit outside the circuit breaker; if it sat inside, enough
+        // filtered requests would trip the circuit and close the provider.
         var breaker = new ModelProviderCircuitBreaker(
             new StaticOptionsMonitor<AgentPrismOptions>(new AgentPrismOptions
             {
@@ -153,7 +154,7 @@ public sealed class ContentFilterDetectingChatClientTests
         for (var attempt = 0; attempt < 5; attempt++)
         {
             await Should.ThrowAsync<AgentPrismContentFilteredException>(
-                () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "selam")], cancellationToken: TestContext.Current.CancellationToken));
+                () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
         }
 
         breaker.IsOpen("fake", out _).ShouldBeFalse();

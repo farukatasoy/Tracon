@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Audit;
 
 /// <summary>
-/// <see cref="AmbientAuditActorResolver"/>'in <see cref="AuditActorContext"/>
-/// uzerinden aktor cozumleme sirasi.
+/// <see cref="AmbientAuditActorResolver"/>'s actor resolution order via
+/// <see cref="AuditActorContext"/>.
 /// </summary>
 public sealed class AmbientAuditActorResolverTests : IDisposable
 {
@@ -14,7 +14,7 @@ public sealed class AmbientAuditActorResolverTests : IDisposable
     public void Dispose() => AuditActorContext.Current = null;
 
     [Fact]
-    public void Baglam_bos_ise_null_doner()
+    public void Returns_null_when_the_context_is_empty()
     {
         var resolver = new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions()));
 
@@ -22,10 +22,10 @@ public sealed class AmbientAuditActorResolverTests : IDisposable
     }
 
     [Fact]
-    public void Kimlik_dogrulanmamis_kullanici_null_doner()
+    public void Returns_null_for_an_unauthenticated_user()
     {
         AuditActorContext.Current = new ClaimsPrincipal(
-            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "kullanici-1")]));
+            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-1")]));
 
         var resolver = new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions()));
 
@@ -33,39 +33,39 @@ public sealed class AmbientAuditActorResolverTests : IDisposable
     }
 
     [Fact]
-    public void Varsayilan_sirada_NameIdentifier_oncelikli()
+    public void NameIdentifier_takes_priority_in_the_default_order()
     {
         AuditActorContext.Current = Authenticated(
-            new Claim(ClaimTypes.NameIdentifier, "kullanici-1"),
-            new Claim(ClaimTypes.Name, "kullanici-adi"));
+            new Claim(ClaimTypes.NameIdentifier, "user-1"),
+            new Claim(ClaimTypes.Name, "user-name"));
 
         var resolver = new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions()));
 
-        resolver.Resolve().ShouldBe("kullanici-1");
+        resolver.Resolve().ShouldBe("user-1");
     }
 
     [Fact]
-    public void NameIdentifier_yoksa_Name_kullanilir()
+    public void Name_is_used_when_NameIdentifier_is_absent()
     {
-        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.Name, "kullanici-adi"));
+        AuditActorContext.Current = Authenticated(new Claim(ClaimTypes.Name, "user-name"));
 
         var resolver = new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions()));
 
-        resolver.Resolve().ShouldBe("kullanici-adi");
+        resolver.Resolve().ShouldBe("user-name");
     }
 
     [Fact]
-    public void NameIdentifier_ve_Name_yoksa_sub_kullanilir()
+    public void Sub_is_used_when_NameIdentifier_and_Name_are_both_absent()
     {
-        AuditActorContext.Current = Authenticated(new Claim("sub", "sub-degeri"));
+        AuditActorContext.Current = Authenticated(new Claim("sub", "sub-value"));
 
         var resolver = new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions()));
 
-        resolver.Resolve().ShouldBe("sub-degeri");
+        resolver.Resolve().ShouldBe("sub-value");
     }
 
     [Fact]
-    public void Hicbir_claim_yoksa_null_doner()
+    public void Returns_null_when_no_claim_is_present()
     {
         AuditActorContext.Current = Authenticated();
 
@@ -75,18 +75,18 @@ public sealed class AmbientAuditActorResolverTests : IDisposable
     }
 
     [Fact]
-    public void Yapilandirilmis_claim_tipi_varsayilan_sirayi_gecersiz_kilar()
+    public void Configured_claim_type_overrides_the_default_order()
     {
         AuditActorContext.Current = Authenticated(
-            new Claim(ClaimTypes.NameIdentifier, "kullanici-1"),
-            new Claim("tenant_id", "ozel-deger"));
+            new Claim(ClaimTypes.NameIdentifier, "user-1"),
+            new Claim("tenant_id", "custom-value"));
 
         var options = new AgentPrismOptions();
         options.Audit.ActorClaimType = "tenant_id";
 
         var resolver = new AmbientAuditActorResolver(Options.Create(options));
 
-        resolver.Resolve().ShouldBe("ozel-deger");
+        resolver.Resolve().ShouldBe("custom-value");
     }
 
     private static ClaimsPrincipal Authenticated(params Claim[] claims)

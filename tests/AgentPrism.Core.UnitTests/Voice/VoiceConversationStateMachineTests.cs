@@ -1,16 +1,16 @@
 namespace AgentPrism.Core.UnitTests.Voice;
 
 /// <summary>
-/// Konusma protokolunun durum makinesini dogrular.
+/// Validates the state machine of the conversation protocol.
 /// </summary>
 /// <remarks>
-/// Durum makinesi saftir: ag, ses ve agent yoktur. Protokolun dogrulugu bu
-/// yuzden bir WebSocket kurmadan denetlenebilir.
+/// The state machine is pure: there is no network, audio, or agent. Protocol
+/// correctness can therefore be checked without setting up a WebSocket.
 /// </remarks>
 public sealed class VoiceConversationStateMachineTests
 {
     [Fact]
-    public void Baslangicta_yalniz_start_kabul_edilir()
+    public void Only_start_is_accepted_initially()
     {
         var machine = new VoiceConversationStateMachine();
 
@@ -21,10 +21,11 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Ikinci_start_REDDEDILIR()
+    public void Second_start_is_rejected()
     {
-        // Agent, oturum ve kiraci baglanti boyunca sabittir (29.3): ikinci bir
-        // `start` yetkilendirmeyi el sikismadan sonraya tasirdi.
+        // The agent, session and tenant are fixed for the whole connection
+        // (29.3): a second `start` would move authorization to after the
+        // handshake.
         var machine = new VoiceConversationStateMachine();
 
         machine.Start().ShouldBe(VoiceTransitionOutcome.Accepted);
@@ -32,7 +33,7 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Tam_bir_tur_start_commit_yanit_bitis()
+    public void Full_turn_start_commit_response_end()
     {
         var machine = new VoiceConversationStateMachine();
 
@@ -51,10 +52,11 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Agent_konusurken_gelen_ses_YOK_SAYILIR()
+    public void Audio_arriving_while_the_agent_is_speaking_is_ignored()
     {
-        // Kesinti acik bir `cancel` ile istenir. Sesin kendisini kesinti sayan
-        // bir sunucu, hoparlorden gelen kendi sesini kullanicinin sesi sanabilirdi.
+        // Interruption is requested with an explicit `cancel`. A server that
+        // treats audio itself as an interruption could mistake its own
+        // speaker output for the user's voice.
         var machine = new VoiceConversationStateMachine();
 
         machine.Start();
@@ -66,7 +68,7 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Mesgulken_gelen_commit_REDDEDILIR()
+    public void Commit_arriving_while_busy_is_rejected()
     {
         var machine = new VoiceConversationStateMachine();
 
@@ -77,10 +79,11 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Kesinti_durumu_DEGISTIRMEZ_donusu_yalniz_tur_gorevi_yapar()
+    public void Interruption_does_not_change_state_only_marks_the_turn()
     {
-        // 🚨 Kesinti Listening'e cekseydi istemci hemen yeni bir `commit`
-        // gonderebilir ve iki tur ayni anda calisirdi.
+        // 🚨 If a cancellation moved the state back to Listening, the client
+        // could immediately send a new `commit` and two turns would run at
+        // once.
         var machine = new VoiceConversationStateMachine();
 
         machine.Start();
@@ -97,7 +100,7 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Dinlerken_gelen_kesinti_dinlemeyi_SURDURUR()
+    public void Interruption_while_listening_keeps_listening()
     {
         var machine = new VoiceConversationStateMachine();
 
@@ -108,7 +111,7 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Bos_tur_sayilmaz()
+    public void Empty_turn_does_not_count()
     {
         var machine = new VoiceConversationStateMachine();
 
@@ -121,7 +124,7 @@ public sealed class VoiceConversationStateMachineTests
     }
 
     [Fact]
-    public void Stop_her_durumdan_kapatir_ve_sonrasi_kabul_edilmez()
+    public void Stop_closes_from_any_state_and_nothing_after_is_accepted()
     {
         var machine = new VoiceConversationStateMachine();
 

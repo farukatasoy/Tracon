@@ -3,25 +3,25 @@ using Azure.Core;
 
 namespace AgentPrism.Azure.UnitTests.Infrastructure;
 
-/// <summary>Testlerde tekrar eden nesneleri ureten yardimcilar.</summary>
+/// <summary>Helpers that produce objects that repeat across tests.</summary>
 internal static class TestData
 {
     /// <summary>
-    /// Testlerde kullanilan sahte API anahtari. Gercek bir anahtar degildir ve
-    /// gercek bir cagri yapilmaz.
+    /// Fake API key used in tests. It is not a real key, and no real call is made.
     /// </summary>
-    public const string ApiKey = "test-anahtari-1234567890";
+    public const string ApiKey = "test-key-1234567890";
 
     /// <summary>
-    /// Testlerde kullanilan sahte kaynak adresi. Gercek bir Azure kaynagi degildir.
+    /// Fake resource endpoint used in tests. It is not a real Azure resource.
     /// </summary>
-    public const string EndpointText = "https://test-kaynagi.openai.azure.com/";
+    public const string EndpointText = "https://test-resource.openai.azure.com/";
 
     /// <summary>
-    /// Testlerde kullanilan deployment adi. Azure'da bu alan MODEL adi degil
-    /// DEPLOYMENT adi tasir; katalog bir dogrulama listesi degildir (K-032).
+    /// Deployment name used in tests. In Azure, this field carries a
+    /// DEPLOYMENT name, not a MODEL name; the catalog is not a validation
+    /// list (K-032).
     /// </summary>
-    public const string Deployment = "uretim-gpt";
+    public const string Deployment = "production-gpt";
 
     public static Uri Endpoint { get; } = new(EndpointText);
 
@@ -63,21 +63,21 @@ internal static class TestData
 }
 
 /// <summary>
-/// Ag cagrisi yapmayan, sabit bir token dondururen kimlik. Testler yonetilen
-/// kimlik yolunu bununla dolasir.
+/// A credential that makes no network call and returns a fixed token. Tests
+/// exercise the managed-identity path with this.
 /// </summary>
-internal sealed class SahteTokenKimligi(string token = "sahte-token") : TokenCredential
+internal sealed class FakeTokenCredential(string token = "fake-token") : TokenCredential
 {
-    /// <summary>Kimligin kac kez token uretmesi istendi.</summary>
-    public int IstenenTokenSayisi { get; private set; }
+    /// <summary>Gets how many times the credential was asked to produce a token.</summary>
+    public int RequestedTokenCount { get; private set; }
 
-    /// <summary>Son istenen kapsam (audience).</summary>
-    public string? SonKapsam { get; private set; }
+    /// <summary>Gets the last requested scope (audience).</summary>
+    public string? LastScope { get; private set; }
 
     public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken)
     {
-        IstenenTokenSayisi++;
-        SonKapsam = requestContext.Scopes.Length > 0 ? requestContext.Scopes[0] : null;
+        RequestedTokenCount++;
+        LastScope = requestContext.Scopes.Length > 0 ? requestContext.Scopes[0] : null;
 
         return new AccessToken(token, DateTimeOffset.UtcNow.AddHours(1));
     }

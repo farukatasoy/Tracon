@@ -1,23 +1,24 @@
 namespace AgentPrism.Core.UnitTests.Diagnostics;
 
 /// <summary>
-/// <see cref="SchemaReadyGate"/> sozlesmesi.
+/// <see cref="SchemaReadyGate"/> contract.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testlerin varlik sebebi olculmus bir kusurdur (Faz 42, 2026-08-08 raporu
-/// bolum 2.3): <c>MigrationHostedService.StartAsync</c> migration'lari tam bekler
-/// ama <c>BackgroundService.StartAsync</c> <c>ExecuteAsync</c>'i beklemeden doner.
-/// Kayit sirasi <c>.UseMcp()</c> → <c>.UseSqlite()</c> ise ilk SQL denemesi
-/// migration bitmeden calisir ve "no such table" verir. Gerekce: K-354.
+/// 🚨 The reason these tests exist is a measured defect (Phase 42, 2026-08-08
+/// report section 2.3): <c>MigrationHostedService.StartAsync</c> waits fully
+/// for migrations, but <c>BackgroundService.StartAsync</c> returns without
+/// waiting for <c>ExecuteAsync</c>. If the registration order is
+/// <c>.UseMcp()</c> → <c>.UseSqlite()</c>, the first SQL attempt runs before
+/// migration finishes and produces "no such table". Rationale: K-354.
 /// </remarks>
 public sealed class SchemaReadyGateTests
 {
     /// <summary>
-    /// Bellek ici kurulum: hicbir SQL saglayicisi kayitli degil. Kapi
-    /// KENDILIGINDEN aciktir; aksi hâlde arka plan servisleri sonsuza dek beklerdi.
+    /// In-memory setup: no SQL provider is registered. The gate is open BY
+    /// ITSELF; otherwise background services would wait forever.
     /// </summary>
     [Fact]
-    public async Task Kayitli_SQL_saglayicisi_yoksa_kapi_hemen_acilir()
+    public async Task Gate_opens_immediately_when_no_SQL_provider_is_registered()
     {
         var gate = new SchemaReadyGate([]);
 
@@ -27,18 +28,19 @@ public sealed class SchemaReadyGateTests
     }
 
     /// <summary>
-    /// SQL saglayicisi kayitliyken kapi <see cref="SchemaReadyGate.MarkReady"/>
-    /// cagrilana kadar KAPALI kalir. Bu, kusurun ta kendisini kapatan davranistir.
+    /// While an SQL provider is registered, the gate stays CLOSED until
+    /// <see cref="SchemaReadyGate.MarkReady"/> is called. This is the exact
+    /// behavior that closes the defect.
     /// </summary>
     [Fact]
-    public async Task SQL_saglayicisi_kayitliysa_kapi_MarkReady_oncesi_kapali_kalir()
+    public async Task Gate_stays_closed_before_MarkReady_when_an_SQL_provider_is_registered()
     {
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SQLite")]);
 
         var waiter = gate.WaitAsync(TestContext.Current.CancellationToken);
 
         gate.IsReady.ShouldBeFalse();
-        waiter.IsCompleted.ShouldBeFalse("Migration bitmeden kapi acilmamalidir.");
+        waiter.IsCompleted.ShouldBeFalse("The gate must not open before migration finishes.");
 
         gate.MarkReady();
 
@@ -48,11 +50,11 @@ public sealed class SchemaReadyGateTests
     }
 
     /// <summary>
-    /// Migration basarisiz olursa kapi hic acilmaz. Barindirici zaten kapanir;
-    /// bekleyen servis iptal uzerinden cikar ve sonsuza dek asili kalmaz.
+    /// If migration fails, the gate never opens. The host shuts down anyway;
+    /// the waiting service exits via cancellation and does not hang forever.
     /// </summary>
     [Fact]
-    public async Task Kapi_acilmadan_iptal_edilirse_bekleyen_cikar()
+    public async Task Waiter_exits_when_cancelled_before_the_gate_opens()
     {
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("PostgreSQL")]);
 
@@ -65,9 +67,9 @@ public sealed class SchemaReadyGateTests
         gate.IsReady.ShouldBeFalse();
     }
 
-    /// <summary>Birden fazla <c>MarkReady</c> zararsizdir.</summary>
+    /// <summary>Multiple <c>MarkReady</c> calls are harmless.</summary>
     [Fact]
-    public async Task MarkReady_birden_fazla_cagrilabilir()
+    public async Task MarkReady_can_be_called_more_than_once()
     {
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SQLite")]);
 
@@ -79,9 +81,9 @@ public sealed class SchemaReadyGateTests
         gate.IsReady.ShouldBeTrue();
     }
 
-    /// <summary>Kapi acildiktan sonra gelen bekleyen hemen gecer.</summary>
+    /// <summary>A waiter that arrives after the gate opens passes immediately.</summary>
     [Fact]
-    public async Task Kapi_acildiktan_sonra_bekleyen_hemen_gecer()
+    public async Task Waiter_arriving_after_the_gate_opens_passes_immediately()
     {
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SqlServer")]);
 

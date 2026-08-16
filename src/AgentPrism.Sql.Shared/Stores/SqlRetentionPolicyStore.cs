@@ -14,7 +14,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
 
     /// <summary>Creates a new retention policy store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlRetentionPolicyStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

@@ -1,31 +1,31 @@
 namespace AgentPrism.Core.UnitTests.Runs;
 
 /// <summary>
-/// <see cref="DefaultRunErrorClassifier"/>'in kural eslesmelerini ve
-/// eski/yeni <c>error_type</c> bicimlerinin ayni sinifa dustugunu dogrular.
+/// Verifies <see cref="DefaultRunErrorClassifier"/>'s rule matches, and that
+/// the old and new <c>error_type</c> formats land in the same class.
 /// </summary>
 public sealed class DefaultRunErrorClassifierTests
 {
     private readonly DefaultRunErrorClassifier _classifier = new();
 
     [Theory]
-    [InlineData("content_filtered", "yanit filtrelendi", RunErrorClass.ContentFiltered)]
-    [InlineData("compilation_failed", "agent derlenemedi", RunErrorClass.CompilationFailed)]
-    [InlineData("provider_unavailable", "devre kesici acik", RunErrorClass.ProviderUnavailable)]
+    [InlineData("content_filtered", "response was filtered", RunErrorClass.ContentFiltered)]
+    [InlineData("compilation_failed", "agent could not be compiled", RunErrorClass.CompilationFailed)]
+    [InlineData("provider_unavailable", "circuit breaker is open", RunErrorClass.ProviderUnavailable)]
     [InlineData("System.Net.Http.HttpRequestException", "connection reset", RunErrorClass.ProviderError)]
-    // Gercek bir OpenAI 404 yanitiyla olculdu (samples/AgentPrism.Api): resmi
-    // SDK HttpRequestException degil ClientResultException firlatir.
+    // Measured against a real OpenAI 404 response (samples/AgentPrism.Api): the
+    // official SDK throws ClientResultException, not HttpRequestException.
     [InlineData("System.ClientModel.ClientResultException", "HTTP 404 (invalid_request_error: model_not_found)\n\nThe model `gpt-x` does not exist or you do not have access to it.", RunErrorClass.ProviderError)]
-    [InlineData("System.Exception", "sunucu HTTP 503 dondurdu", RunErrorClass.ProviderError)]
-    [InlineData("System.Exception", "Sunucu 429 Too Many Requests dondurdu", RunErrorClass.RateLimited)]
+    [InlineData("System.Exception", "server returned HTTP 503", RunErrorClass.ProviderError)]
+    [InlineData("System.Exception", "The server returned 429 Too Many Requests", RunErrorClass.RateLimited)]
     [InlineData("System.Exception", "rate limit exceeded, retry later", RunErrorClass.RateLimited)]
-    [InlineData("System.Exception", "Bu kiraci icin tanimli kota asildi.", RunErrorClass.QuotaExceeded)]
-    [InlineData("System.Exception", "Tool 'refund_order' calisirken hata olustu", RunErrorClass.ToolError)]
-    [InlineData("System.TimeoutException", "islem zaman asimina ugradi", RunErrorClass.Timeout)]
+    [InlineData("System.Exception", "The quota defined for this tenant was exceeded.", RunErrorClass.QuotaExceeded)]
+    [InlineData("System.Exception", "An error occurred while running tool 'refund_order'", RunErrorClass.ToolError)]
+    [InlineData("System.TimeoutException", "the operation timed out", RunErrorClass.Timeout)]
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
-    [InlineData("System.OperationCanceledException", "iptal edildi", RunErrorClass.Canceled)]
-    [InlineData("System.Threading.Tasks.TaskCanceledException", "iptal edildi", RunErrorClass.Canceled)]
-    public void Her_sinif_en_az_bir_ornekle_dogru_kovaya_duser(string type, string message, RunErrorClass expected)
+    [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]
+    [InlineData("System.Threading.Tasks.TaskCanceledException", "canceled", RunErrorClass.Canceled)]
+    public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });
 
@@ -33,9 +33,9 @@ public sealed class DefaultRunErrorClassifierTests
     }
 
     [Theory]
-    [InlineData("Uygulamaya.Ozgu.BeklenmedikBirTip", "hicbir kurala uymuyor")]
-    [InlineData("System.Exception", "genel bir hata mesaji, hicbir anahtar kelime tasimiyor")]
-    public void Taninmayan_hata_tahmin_edilmez_unknown_olur(string type, string message)
+    [InlineData("App.Specific.UnexpectedType", "matches no rule")]
+    [InlineData("System.Exception", "a generic error message that contains no keywords")]
+    public void Unrecognized_error_is_not_guessed_it_becomes_unknown(string type, string message)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });
 
@@ -45,20 +45,20 @@ public sealed class DefaultRunErrorClassifierTests
     [Theory]
     [InlineData("compilation_failed", "AgentPrism.AgentPrismCompilationException", RunErrorClass.CompilationFailed)]
     [InlineData("provider_unavailable", "AgentPrism.AgentPrismProviderUnavailableException", RunErrorClass.ProviderUnavailable)]
-    public void Eski_ve_yeni_error_type_bicimleri_ayni_sinifa_eslenir(string stableType, string legacyType, RunErrorClass expected)
+    public void Old_and_new_error_type_formats_map_to_the_same_class(string stableType, string legacyType, RunErrorClass expected)
     {
-        var stable = _classifier.Classify(new RunError { Type = stableType, Message = "hata" });
-        var legacy = _classifier.Classify(new RunError { Type = legacyType, Message = "hata" });
+        var stable = _classifier.Classify(new RunError { Type = stableType, Message = "error" });
+        var legacy = _classifier.Classify(new RunError { Type = legacyType, Message = "error" });
 
         stable.Class.ShouldBe(expected);
         legacy.Class.ShouldBe(expected);
     }
 
     [Fact]
-    public void Ayni_hata_her_zaman_ayni_parmak_izini_uretir()
+    public void The_same_error_always_produces_the_same_fingerprint()
     {
-        var first = _classifier.Classify(new RunError { Type = "content_filtered", Message = "yanit filtrelendi" });
-        var second = _classifier.Classify(new RunError { Type = "content_filtered", Message = "yanit filtrelendi" });
+        var first = _classifier.Classify(new RunError { Type = "content_filtered", Message = "response was filtered" });
+        var second = _classifier.Classify(new RunError { Type = "content_filtered", Message = "response was filtered" });
 
         first.Fingerprint.ShouldBe(second.Fingerprint);
     }

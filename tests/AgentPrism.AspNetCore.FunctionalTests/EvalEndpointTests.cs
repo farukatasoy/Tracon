@@ -156,7 +156,7 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Var_olmayan_kosu_404_doner()
+    public async Task Nonexistent_run_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -167,7 +167,7 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Operator_tetikleyebilir_ama_takim_kaydedemez()
+    public async Task Operator_can_trigger_but_cannot_save_suite()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -175,8 +175,9 @@ public sealed class EvalEndpointTests
                 .AddPolicy(AgentPrismPolicies.Operator, static policy => policy.RequireAssertion(static _ => true))
                 .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => false)));
 
-        // Takim HTTP yetkilendirmesini atlayarak dogrudan depoya yazilir: bu testte
-        // Admin ucu kapali, o yuzden takim baska bir yoldan tohumlanir.
+        // The suite bypasses HTTP authorization and is written directly to
+        // the store: in this test the Admin endpoint is closed, so the
+        // suite is seeded another way.
         var evalStore = host.Services.GetRequiredService<IEvalStore>();
         var suite = await evalStore.SaveSuiteAsync(new EvalSuite
         {
@@ -185,7 +186,7 @@ public sealed class EvalEndpointTests
             AgentName = "customer-support-agent",
             Checks = JsonDocument.Parse("""[{"kind":"nonEmpty"}]""").RootElement,
         });
-        await evalStore.ReplaceCasesAsync(suite.Id, [new EvalCase { SuiteId = suite.Id, Seq = 0, Query = "soru" }]);
+        await evalStore.ReplaceCasesAsync(suite.Id, [new EvalCase { SuiteId = suite.Id, Seq = 0, Query = "question" }]);
 
         using var trigger = await host.Client.PostAsJsonAsync(Run, new { });
         trigger.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -194,17 +195,17 @@ public sealed class EvalEndpointTests
         save.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Surum secimi (Faz 19, acik soru 2) ---
+    // --- Version selection (Phase 19, open question 2) ---
 
     [Fact]
-    public async Task Belirli_surumle_kosu_tetiklenir()
+    public async Task Run_is_triggered_with_a_specific_version()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         await CreateVersionedAgentAsync(host);
         await host.Client.PutAsJsonAsync(Suite, Request());
-        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });
 
         using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 1 });
 
@@ -212,14 +213,14 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_surumle_kosu_reddedilir()
+    public async Task Run_with_a_nonexistent_version_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         await CreateVersionedAgentAsync(host);
         await host.Client.PutAsJsonAsync(Suite, Request());
-        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });
 
         using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 99 });
 
@@ -227,14 +228,14 @@ public sealed class EvalEndpointTests
     }
 
     [Fact]
-    public async Task Kod_kaynakli_agentta_surum_secilemez()
+    public async Task Version_cannot_be_selected_for_a_code_based_agent()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition(name: "customer-support-agent")),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         await host.Client.PutAsJsonAsync(Suite, Request());
-        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "question" } });
 
         using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 1 });
 
@@ -242,17 +243,17 @@ public sealed class EvalEndpointTests
         (await triggered.Content.ReadAsStringAsync()).ShouldContain("version history");
     }
 
-    /// <summary>"customer-support-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>
+    /// <summary>Creates a database agent named "customer-support-agent" with two versions.</summary>
     private static async Task CreateVersionedAgentAsync(AgentPrismTestHost host)
     {
         using var created = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents", UriKind.Relative),
-            TestData.Request(name: "customer-support-agent", instructions: "ilk"));
+            TestData.Request(name: "customer-support-agent", instructions: "first"));
         created.EnsureSuccessStatusCode();
 
         using var updated = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/agents/customer-support-agent", UriKind.Relative),
-            TestData.Request(name: "customer-support-agent", instructions: "ikinci"));
+            TestData.Request(name: "customer-support-agent", instructions: "second"));
         updated.EnsureSuccessStatusCode();
     }
 

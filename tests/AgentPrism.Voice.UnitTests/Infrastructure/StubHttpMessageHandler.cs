@@ -3,11 +3,11 @@ using System.Net;
 namespace AgentPrism.Voice.UnitTests.Infrastructure;
 
 /// <summary>
-/// Gelen istekleri kaydeden ve hazir yanit donduren sahte HTTP isleyicisi.
+/// Fake HTTP handler that records incoming requests and returns a canned response.
 /// </summary>
 /// <remarks>
-/// Gercek bir ses saglayicisina HICBIR test cikmaz (Faz 3'ten beri gecerli
-/// karar). Istek bicimi — yol, baslik, govde — burada dogrulanir.
+/// No test reaches a real voice provider (decision valid since Phase 3).
+/// The request shape — path, header, body — is verified here.
 /// </remarks>
 internal sealed class StubHttpMessageHandler : HttpMessageHandler
 {
@@ -16,7 +16,7 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
     public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
         => _responder = responder;
 
-    /// <summary>Gorulen istekler, gelis sirasiyla.</summary>
+    /// <summary>Requests seen, in arrival order.</summary>
     public List<RecordedRequest> Requests { get; } = [];
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -25,8 +25,8 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Govde istek elden cikmadan ONCE okunur: cagri bittikten sonra icerik
-        // atilmis olur ve dogrulanamaz.
+        // The body is read BEFORE the request is disposed: once the call finishes,
+        // the content is discarded and can no longer be verified.
         var body = request.Content is null
             ? null
             : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -42,7 +42,7 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
         return _responder(request);
     }
 
-    /// <summary>Kaydedilmis tek bir istek.</summary>
+    /// <summary>A single recorded request.</summary>
     internal sealed record RecordedRequest(
         HttpMethod Method,
         Uri Uri,
@@ -50,7 +50,7 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
         string? Body,
         string? ContentType);
 
-    /// <summary>Ikili govdeli basarili bir yanit uretir.</summary>
+    /// <summary>Produces a successful response with a binary body.</summary>
     public static HttpResponseMessage Binary(byte[] data, string mediaType = "audio/mpeg")
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -63,7 +63,7 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
         return response;
     }
 
-    /// <summary>JSON govdeli basarili bir yanit uretir.</summary>
+    /// <summary>Produces a successful response with a JSON body.</summary>
     public static HttpResponseMessage Json(string body)
         => new(HttpStatusCode.OK)
         {

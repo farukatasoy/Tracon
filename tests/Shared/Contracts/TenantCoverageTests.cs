@@ -4,33 +4,35 @@ using Microsoft.Agents.AI;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// Paylasilan depo katmanindaki <strong>her</strong> public metodun ya kiraci
-/// yalitimi sozlesmesinde sinandigini ya da gerekcesiyle muaf tutuldugunu
-/// dogrular.
+/// Verifies that <strong>every</strong> public method on the shared store
+/// layer is either tested by a tenant isolation contract or exempted with a
+/// reason.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 41'de eklendi. En kolay kacirilan sey, <em>yarin eklenecek</em> metodun
-/// testsiz kalmasidir; bu denetim onu bir derleme sonrasi kirmizisina cevirir.
+/// Added in phase 41. The easiest thing to miss is a method added
+/// <em>tomorrow</em> that is left untested; this audit turns that into a
+/// build failure right after compilation.
 /// </para>
 /// <para>
-/// 🚨 Yansima yalniz TEST projesindedir. <c>AgentPrism.Sql.Shared</c> yansimaya
-/// dokunmaz ve AOT durusu etkilenmez. <c>TenantAgnosticAttribute</c> de
-/// <c>internal</c>'dir; public sozlesme buyumez.
+/// 🚨 Reflection lives ONLY in the TEST project. <c>AgentPrism.Sql.Shared</c>
+/// does not touch reflection and its AOT posture is unaffected.
+/// <c>TenantAgnosticAttribute</c> is also <c>internal</c>; the public
+/// contract does not grow.
 /// </para>
 /// <para>
-/// Muafiyet <strong>sessiz olamaz</strong>: gerekce metodun yaninda durur ve
-/// kod incelemesinde gorunur. Kapsam listesi ise sozlesmelerin gercekten
-/// dokundugu metotlari sayar; listede olup artik var olmayan bir metot da
-/// hatadir (bayat kayit).
+/// An exemption <strong>cannot be silent</strong>: the reason sits next to
+/// the method and is visible in code review. The coverage list, in turn,
+/// counts the methods the contracts actually exercise; a method that is
+/// listed but no longer exists is also an error (a stale entry).
 /// </para>
 /// </remarks>
 public sealed class TenantCoverageTests
 {
     /// <summary>
-    /// Depo basina, kiraci yalitimi sozlesmelerinin GERCEKTEN cagirdigi
-    /// metotlar. Yeni bir metot eklendiginde ya buraya (bir testle birlikte)
-    /// ya da <c>[TenantAgnostic]</c> ile muafiyete girer.
+    /// Per store, the methods the tenant isolation contracts ACTUALLY call.
+    /// When a new method is added, it enters either here (with a test) or the
+    /// <c>[TenantAgnostic]</c> exemption.
     /// </summary>
     private static readonly Dictionary<string, string[]> Covered = new(StringComparer.Ordinal)
     {
@@ -58,10 +60,10 @@ public sealed class TenantCoverageTests
         ["SqlRetentionStore"] =
             ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "FindRowLimitCutoffAsync"],
         ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync"],
-        // 🚨 Dort alt yazma yolu 2026-08-08'de muafiyetten cikip kapsama girdi
-        // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync ve
-        // RecordToolInvocationAsync artik cagrinin tasidigi BEKLENEN kiraciya
-        // gore suzuluyor ve RunStoreContract bunu iki yonlu siniyor.
+        // 🚨 Four write paths moved from exempt to covered on 2026-08-08
+        // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and
+        // RecordToolInvocationAsync are now filtered by the EXPECTED tenant
+        // carried by the call, and RunStoreContract checks this both ways.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
@@ -87,9 +89,9 @@ public sealed class TenantCoverageTests
     };
 
     [Fact]
-    public void Her_public_depo_metodu_ya_sinaniyor_ya_gerekceli_muaf()
+    public void Every_public_store_method_is_either_tested_or_exempted_with_a_reason()
     {
-        var eksik = new List<string>();
+        var missing = new List<string>();
 
         foreach (var store in DiscoverStores())
         {
@@ -99,7 +101,7 @@ public sealed class TenantCoverageTests
 
             if (covered is null)
             {
-                eksik.Add($"{store.Name}: kapsam listesinde hic yok (yeni bir depo mu eklendi?)");
+                missing.Add($"{store.Name}: not in the coverage list at all (was a new store added?)");
 
                 continue;
             }
@@ -116,17 +118,17 @@ public sealed class TenantCoverageTests
                     continue;
                 }
 
-                eksik.Add($"{store.Name}.{method.Name}");
+                missing.Add($"{store.Name}.{method.Name}");
             }
         }
 
-        eksik.ShouldBeEmpty(
-            "Bu metotlar ne kiraci yalitimi sozlesmesinde gorunuyor ne de "
-            + "[TenantAgnostic(\"gerekce\")] ile muaf: " + string.Join(", ", eksik));
+        missing.ShouldBeEmpty(
+            "These methods appear neither in a tenant isolation contract nor are "
+            + "exempted with [TenantAgnostic(\"reason\")]: " + string.Join(", ", missing));
     }
 
     [Fact]
-    public void Muafiyet_gerekcesi_yazilmadan_verilemez()
+    public void Exemption_cannot_be_granted_without_a_written_reason()
     {
         foreach (var store in DiscoverStores())
         {
@@ -137,26 +139,27 @@ public sealed class TenantCoverageTests
                     continue;
                 }
 
-                // Gerekce, muafiyeti bir kacis kapisi olmaktan cikaran tek
-                // seydir; bos veya bir kelimelik bir metin kabul edilmez.
+                // The reason is the only thing that keeps an exemption from
+                // being an escape hatch; an empty or one-word text is not
+                // accepted.
                 exemption.Reason.Length.ShouldBeGreaterThan(
                     40,
-                    $"{store.Name}.{method.Name} muafiyeti gercek bir gerekce tasimiyor.");
+                    $"{store.Name}.{method.Name} exemption does not carry a real reason.");
             }
         }
     }
 
     [Fact]
-    public void Kapsam_listesi_bayat_kayit_tasimaz()
+    public void Coverage_list_carries_no_stale_entries()
     {
         var stores = DiscoverStores().ToDictionary(static type => type.Name, StringComparer.Ordinal);
-        var bayat = new List<string>();
+        var stale = new List<string>();
 
         foreach (var (storeName, methods) in Covered)
         {
             if (!stores.TryGetValue(storeName, out var store))
             {
-                bayat.Add($"{storeName} (boyle bir depo yok)");
+                stale.Add($"{storeName} (no such store)");
 
                 continue;
             }
@@ -165,26 +168,26 @@ public sealed class TenantCoverageTests
 
             foreach (var method in methods.Where(method => !actual.Contains(method)))
             {
-                bayat.Add($"{storeName}.{method}");
+                stale.Add($"{storeName}.{method}");
             }
         }
 
-        bayat.ShouldBeEmpty("Kapsam listesinde artik var olmayan kayitlar: " + string.Join(", ", bayat));
+        stale.ShouldBeEmpty("These coverage-list entries no longer exist: " + string.Join(", ", stale));
     }
 
     [Fact]
-    public void Denetim_gercekten_depo_buluyor()
+    public void Audit_actually_finds_stores()
     {
-        // 🚨 Bos bir yansima sorgusu her seyi yesil gosterirdi. Bu test kapinin
-        // kendisini korur.
+        // 🚨 An empty reflection query would show everything as green. This
+        // test guards the gate itself.
         DiscoverStores().Count.ShouldBeGreaterThanOrEqualTo(20);
     }
 
     /// <summary>
-    /// Saglayici derlemesindeki (baglantili kaynak, K-176) butun depo
-    /// siniflarini bulur.
+    /// Finds every store class in the provider assembly (linked source,
+    /// K-176).
     /// </summary>
-    /// <returns>Depo tipleri.</returns>
+    /// <returns>The store types.</returns>
     private static IReadOnlyList<Type> DiscoverStores()
         => [.. typeof(SqlRunStore).Assembly
             .GetTypes()
@@ -194,12 +197,12 @@ public sealed class TenantCoverageTests
             .Where(IsStoreLike)
             .OrderBy(static type => type.Name, StringComparer.Ordinal)];
 
-    /// <summary>Tip bir depo mu (kalicilik yuzeyi mi).</summary>
-    /// <param name="type">Aday tip.</param>
-    /// <returns>Depo ise <see langword="true"/>.</returns>
+    /// <summary>Whether the type is a store (a persistence surface).</summary>
+    /// <param name="type">The candidate type.</param>
+    /// <returns><see langword="true"/> if it is a store.</returns>
     private static bool IsStoreLike(Type type)
     {
-#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
+#pragma warning disable MAAI001 // AgentFileStore is "evaluation purposes only"; same rationale as in production code.
         if (type.IsSubclassOf(typeof(AgentFileStore)) || type.IsSubclassOf(typeof(ChatHistoryProvider)))
 #pragma warning restore MAAI001
         {
@@ -212,9 +215,9 @@ public sealed class TenantCoverageTests
                 || string.Equals(contract.Name, "IAuditLog", StringComparison.Ordinal)));
     }
 
-    /// <summary>Bir deponun kendi tanimladigi public ornek metotlari.</summary>
-    /// <param name="store">Depo tipi.</param>
-    /// <returns>Metotlar.</returns>
+    /// <summary>The public instance methods a store declares itself.</summary>
+    /// <param name="store">The store type.</param>
+    /// <returns>The methods.</returns>
     private static IEnumerable<MethodInfo> PublicMethods(Type store)
         => store
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)

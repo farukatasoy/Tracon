@@ -5,22 +5,22 @@ namespace AgentPrism.Core.UnitTests.Storage;
 public sealed class InMemoryAgentDefinitionStoreTests
 {
     [Fact]
-    public async Task Kayit_surumu_artirir_ve_gecmisi_saklar()
+    public async Task Saving_increments_the_version_and_keeps_history()
     {
         var store = new InMemoryAgentDefinitionStore();
 
-        var first = await store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
-        var second = await store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+        var first = await store.SaveAsync(TestData.Definition("a") with { Instructions = "first" });
+        var second = await store.SaveAsync(TestData.Definition("a") with { Instructions = "second" });
 
         first.Version.ShouldBe(1);
         second.Version.ShouldBe(2);
 
-        (await store.GetAsync("a"))!.Instructions.ShouldBe("ikinci");
+        (await store.GetAsync("a"))!.Instructions.ShouldBe("second");
         (await store.ListVersionsAsync("a")).Count.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Kayit_kaynagi_veritabani_olarak_isaretlenir()
+    public async Task A_saved_record_is_marked_with_a_database_origin()
     {
         var store = new InMemoryAgentDefinitionStore();
 
@@ -30,7 +30,7 @@ public sealed class InMemoryAgentDefinitionStoreTests
     }
 
     [Fact]
-    public async Task Surum_gecmisi_yeniden_eskiye_siralanir()
+    public async Task Version_history_is_sorted_newest_to_oldest()
     {
         var store = new InMemoryAgentDefinitionStore();
 
@@ -44,24 +44,24 @@ public sealed class InMemoryAgentDefinitionStoreTests
     }
 
     [Fact]
-    public async Task Geri_alma_eski_surumu_yeni_surum_olarak_kaydeder()
+    public async Task Rollback_saves_the_old_version_as_a_new_version()
     {
         var store = new InMemoryAgentDefinitionStore();
 
-        await store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
-        await store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+        await store.SaveAsync(TestData.Definition("a") with { Instructions = "first" });
+        await store.SaveAsync(TestData.Definition("a") with { Instructions = "second" });
 
         var restored = await store.RollbackAsync("a", version: 1);
 
         restored.Version.ShouldBe(3);
-        restored.Instructions.ShouldBe("birinci");
+        restored.Instructions.ShouldBe("first");
 
-        // Geri alma gecmisi silmez.
+        // Rollback does not delete history.
         (await store.ListVersionsAsync("a")).Count.ShouldBe(3);
     }
 
     [Fact]
-    public async Task Olmayan_surume_geri_alma_hata_verir()
+    public async Task Rolling_back_to_a_nonexistent_version_throws()
     {
         var store = new InMemoryAgentDefinitionStore();
         await store.SaveAsync(TestData.Definition("a"));
@@ -70,7 +70,7 @@ public sealed class InMemoryAgentDefinitionStoreTests
     }
 
     [Fact]
-    public async Task Silme_tum_surumleri_kaldirir()
+    public async Task Deleting_removes_all_versions()
     {
         var store = new InMemoryAgentDefinitionStore();
         await store.SaveAsync(TestData.Definition("a"));
@@ -85,7 +85,7 @@ public sealed class InMemoryAgentDefinitionStoreTests
 public sealed class InMemoryRunStoreTests
 {
     [Fact]
-    public async Task Olaylar_sira_numarasina_gore_okunur()
+    public async Task Events_are_read_by_sequence_number()
     {
         var store = new InMemoryRunStore();
         var runId = AgentPrismId.NewId();
@@ -107,7 +107,7 @@ public sealed class InMemoryRunStoreTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirmaya_olay_eklenemez()
+    public async Task An_event_cannot_be_appended_to_a_run_that_does_not_exist()
     {
         var store = new InMemoryRunStore();
 
@@ -116,7 +116,7 @@ public sealed class InMemoryRunStoreTests
     }
 
     [Fact]
-    public async Task Sorgu_agent_adina_gore_filtreler()
+    public async Task Query_filters_by_agent_name()
     {
         var store = new InMemoryRunStore();
 
@@ -131,7 +131,7 @@ public sealed class InMemoryRunStoreTests
     }
 
     [Fact]
-    public async Task Sorgu_en_yeniden_eskiye_siralar()
+    public async Task Query_sorts_newest_to_oldest()
     {
         var store = new InMemoryRunStore();
         var now = DateTimeOffset.UtcNow;
@@ -147,7 +147,7 @@ public sealed class InMemoryRunStoreTests
     }
 
     [Fact]
-    public async Task Ust_sinir_asilinca_en_eski_calistirma_dusurulur()
+    public async Task When_the_upper_limit_is_exceeded_the_oldest_run_is_dropped()
     {
         var store = new InMemoryRunStore { MaxRuns = 3 };
         var ids = new List<Guid>();
@@ -179,44 +179,44 @@ public sealed class InMemoryRunStoreTests
 public sealed class AgentPrismIdTests
 {
     [Fact]
-    public void Uretilen_kimlik_surum_7_dir()
+    public void Generated_id_is_version_7()
     {
         var id = AgentPrismId.NewId();
 
-        // 7. baytin ust 4 biti surum numarasini tasir (big-endian gosterimde).
+        // The top 4 bits of byte 7 carry the version number (in big-endian representation).
         Span<byte> bytes = stackalloc byte[16];
         id.TryWriteBytes(bytes, bigEndian: true, out _).ShouldBeTrue();
 
         (bytes[6] >> 4).ShouldBe(7);
-        (bytes[8] >> 6).ShouldBe(2); // RFC 9562 varyanti: ikili 10
+        (bytes[8] >> 6).ShouldBe(2); // RFC 9562 variant: binary 10
     }
 
     [Fact]
-    public void Kimlikler_zaman_siralidir()
+    public void Ids_are_time_ordered()
     {
         var baseTime = DateTimeOffset.UtcNow;
 
         var earlier = AgentPrismId.NewId(baseTime);
         var later = AgentPrismId.NewId(baseTime.AddSeconds(1));
 
-        // UUIDv7 metin gosterimi zaman sirasini korur.
+        // UUIDv7's text representation preserves time order.
         string.CompareOrdinal(earlier.ToString(), later.ToString()).ShouldBeLessThan(0);
     }
 
     [Fact]
-    public void Zaman_damgasi_geri_okunabilir()
+    public void The_timestamp_can_be_read_back()
     {
         var timestamp = DateTimeOffset.UtcNow;
         var id = AgentPrismId.NewId(timestamp);
 
         var recovered = AgentPrismId.GetTimestamp(id);
 
-        // Milisaniye cozunurlugu; alt birimler kaybolur.
+        // Millisecond resolution; sub-units are lost.
         recovered.ToUnixTimeMilliseconds().ShouldBe(timestamp.ToUnixTimeMilliseconds());
     }
 
     [Fact]
-    public void Surum_7_olmayan_kimlik_reddedilir()
+    public void An_id_that_is_not_version_7_is_rejected()
     {
         Should.Throw<ArgumentException>(() => AgentPrismId.GetTimestamp(Guid.Empty));
     }

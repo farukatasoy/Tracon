@@ -1,11 +1,12 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IToolApprovalRuleStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IToolApprovalRuleStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 41'de eklendi. Kalici onay kurali bir <strong>guvenlik kaydidir</strong>:
-/// bir kiracinin kurali digerinin tool cagrisini onaylatmadan gecirmemelidir.
+/// Added in phase 41. A persisted approval rule is a <strong>security
+/// record</strong>: one tenant's rule must never let another tenant's tool
+/// call through without approval.
 /// </remarks>
 public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IToolApprovalRuleStore>
 {
@@ -26,63 +27,64 @@ public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IT
         => await Store.DeleteAsync(tenantId, (Guid)key);
 
     [Fact]
-    public async Task Eklenen_kural_geri_okunur()
+    public async Task Added_rule_is_read_back()
     {
-        var added = await Store.AddAsync(Rule("kiraci-a", "get_order"));
+        var added = await Store.AddAsync(Rule("tenant-a", "get_order"));
 
         added.Id.ShouldNotBe(Guid.Empty);
 
-        var loaded = (await Store.ListAsync("kiraci-a")).ShouldHaveSingleItem();
+        var loaded = (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
 
         loaded.ToolName.ShouldBe("get_order");
-        loaded.AgentName.ShouldBe("destek");
-        loaded.CreatedBy.ShouldBe("operator@ornek");
+        loaded.AgentName.ShouldBe("support");
+        loaded.CreatedBy.ShouldBe("operator@example");
     }
 
     [Fact]
-    public async Task Ayni_kapsam_ikinci_kez_eklenirse_tek_kayit_kalir()
+    public async Task Same_scope_added_twice_leaves_a_single_record()
     {
-        // agent_name ve arguments_hash NULL olabilir; benzersizlik NULL
-        // semantigi dogru kurulmazsa kopya satir birikir.
-        await Store.AddAsync(Rule("kiraci-a", "get_order") with { AgentName = null, ArgumentsHash = null });
-        await Store.AddAsync(Rule("kiraci-a", "get_order") with { AgentName = null, ArgumentsHash = null });
+        // agent_name and arguments_hash can be NULL; if NULL semantics for
+        // uniqueness are not set up correctly, duplicate rows accumulate.
+        await Store.AddAsync(Rule("tenant-a", "get_order") with { AgentName = null, ArgumentsHash = null });
+        await Store.AddAsync(Rule("tenant-a", "get_order") with { AgentName = null, ArgumentsHash = null });
 
-        (await Store.ListAsync("kiraci-a")).ShouldHaveSingleItem();
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Farkli_agent_ayri_kural_olur()
+    public async Task Different_agent_becomes_a_separate_rule()
     {
-        await Store.AddAsync(Rule("kiraci-a", "get_order") with { AgentName = null });
-        await Store.AddAsync(Rule("kiraci-a", "get_order") with { AgentName = "destek" });
+        await Store.AddAsync(Rule("tenant-a", "get_order") with { AgentName = null });
+        await Store.AddAsync(Rule("tenant-a", "get_order") with { AgentName = "support" });
 
-        (await Store.ListAsync("kiraci-a")).Count.ShouldBe(2);
+        (await Store.ListAsync("tenant-a")).Count.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Silme_olmayan_kuralda_false_doner()
-        => (await Store.DeleteAsync("kiraci-a", Guid.NewGuid())).ShouldBeFalse();
+    public async Task Deleting_a_nonexistent_rule_returns_false()
+        => (await Store.DeleteAsync("tenant-a", Guid.NewGuid())).ShouldBeFalse();
 
     private static ToolApprovalRule Rule(string tenantId, string toolName)
         => new()
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            AgentName = "destek",
+            AgentName = "support",
             ToolName = toolName,
-            CreatedBy = "operator@ornek",
+            CreatedBy = "operator@example",
             CreatedAt = new DateTimeOffset(2026, 8, 7, 9, 0, 0, TimeSpan.Zero),
         };
 }
 
 /// <summary>
-/// <see cref="IMcpServerStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IMcpServerStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 41'de eklendi. MCP sunucu kaydi disaridan tool tanimi kabul eder; bir
-/// kiracinin sunucusunun digerinin katalogunda gorunmemesi bir guvenlik
-/// sinirdir. Kayit <strong>hicbir zaman sir tasimaz</strong> (K-059) --
-/// yalnizca degerin okunacagi yapilandirma anahtarinin adi durur.
+/// Added in phase 41. An MCP server registration accepts a tool definition
+/// from an external source; one tenant's server showing up in another
+/// tenant's catalog is a security boundary. The record <strong>never carries
+/// a secret</strong> (K-059) -- it only stores the name of the configuration
+/// key the value will be read from.
 /// </remarks>
 public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServerStore>
 {
@@ -106,35 +108,35 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
-    public async Task Kaydedilen_sunucu_geri_okunur()
+    public async Task Saved_server_is_read_back()
     {
-        await Store.SaveAsync(Server("kiraci-a", "github"));
+        await Store.SaveAsync(Server("tenant-a", "github"));
 
-        var loaded = await Store.GetAsync("kiraci-a", "github");
+        var loaded = await Store.GetAsync("tenant-a", "github");
 
         loaded.ShouldNotBeNull();
-        loaded.Endpoint.ToString().ShouldBe("https://ornek.test/mcp");
+        loaded.Endpoint.ToString().ShouldBe("https://example.test/mcp");
         loaded.Enabled.ShouldBeTrue();
         loaded.AuthorizationConfigurationKey.ShouldBe("AgentPrism:Mcp:GithubToken");
     }
 
     [Fact]
-    public async Task Ayni_ad_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Saving_the_same_name_a_second_time_overwrites_it()
     {
-        await Store.SaveAsync(Server("kiraci-a", "github"));
-        await Store.SaveAsync(Server("kiraci-a", "github") with { Description = "guncellendi" });
+        await Store.SaveAsync(Server("tenant-a", "github"));
+        await Store.SaveAsync(Server("tenant-a", "github") with { Description = "updated" });
 
-        (await Store.GetAsync("kiraci-a", "github"))!.Description.ShouldBe("guncellendi");
-        (await Store.ListAsync("kiraci-a")).ShouldHaveSingleItem();
+        (await Store.GetAsync("tenant-a", "github"))!.Description.ShouldBe("updated");
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Olmayan_sunucu_null_doner()
-        => (await Store.GetAsync("kiraci-a", "yok")).ShouldBeNull();
+    public async Task Nonexistent_server_returns_null()
+        => (await Store.GetAsync("tenant-a", "missing")).ShouldBeNull();
 
     [Fact]
-    public async Task Silme_olmayan_kayitta_false_doner()
-        => (await Store.DeleteAsync("kiraci-a", "yok")).ShouldBeFalse();
+    public async Task Deleting_a_nonexistent_record_returns_false()
+        => (await Store.DeleteAsync("tenant-a", "missing")).ShouldBeFalse();
 
     private static McpServerDefinition Server(string tenantId, string name)
         => new()
@@ -142,8 +144,8 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             Name = name,
-            Description = "Ornek sunucu.",
-            Endpoint = new Uri("https://ornek.test/mcp"),
+            Description = "Sample server.",
+            Endpoint = new Uri("https://example.test/mcp"),
             AuthorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
             Enabled = true,
         };

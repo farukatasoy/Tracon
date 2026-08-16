@@ -9,35 +9,35 @@ namespace AgentPrism.Core.UnitTests.Scheduling;
 public sealed class AgentBatchJobHandlerTests
 {
     [Fact]
-    public void Kind_AgentBatch_dir()
+    public void Kind_is_AgentBatch()
     {
         new AgentBatchJobHandler(new SingleAgentCatalog(new ScriptedAgent()), NullLogger<AgentBatchJobHandler>.Instance)
             .Kind.ShouldBe(JobKind.AgentBatch);
     }
 
     [Fact]
-    public async Task Agent_bulunamazsa_istisna_firlatir()
+    public async Task Throws_when_the_agent_is_not_found()
     {
         var handler = new AgentBatchJobHandler(new SingleAgentCatalog(null), NullLogger<AgentBatchJobHandler>.Instance);
 
         await Should.ThrowAsync<AgentPrismException>(
-            () => handler.ExecuteAsync(BuildContext([Item(0, "girdi")])).AsTask());
+            () => handler.ExecuteAsync(BuildContext([Item(0, "input")])).AsTask());
     }
 
     [Fact]
-    public async Task Ogeler_sirayla_islenir_ve_sonuclar_raporlanir()
+    public async Task Items_are_processed_in_order_and_results_are_reported()
     {
-        var agent = new ScriptedAgent(fail: "patlat");
+        var agent = new ScriptedAgent(fail: "boom");
         var handler = new AgentBatchJobHandler(new SingleAgentCatalog(agent), NullLogger<AgentBatchJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
         var context = BuildContext(
-            [Item(0, "birinci"), Item(1, "patlat"), Item(2, "ucuncu")],
+            [Item(0, "first"), Item(1, "boom"), Item(2, "third")],
             reported);
 
         await handler.ExecuteAsync(context);
 
-        agent.Inputs.ShouldBe(["birinci", "patlat", "ucuncu"]);
+        agent.Inputs.ShouldBe(["first", "boom", "third"]);
         reported.Count.ShouldBe(3);
         reported[0].Status.ShouldBe(JobItemStatus.Completed);
         reported[0].RunId.ShouldNotBeNull();
@@ -47,36 +47,36 @@ public sealed class AgentBatchJobHandlerTests
     }
 
     [Fact]
-    public async Task Daha_once_islenmis_ogeler_yeniden_calistirilmaz()
+    public async Task Previously_processed_items_are_not_rerun()
     {
-        // Kira suresi dolup is yeniden alindiginda yalnizca Pending ogeler islenir.
+        // When the lease expires and the job is reclaimed, only Pending items are processed.
         var agent = new ScriptedAgent();
         var handler = new AgentBatchJobHandler(new SingleAgentCatalog(agent), NullLogger<AgentBatchJobHandler>.Instance);
 
         var context = BuildContext(
         [
-            Item(0, "eski", JobItemStatus.Completed),
-            Item(1, "yeni"),
+            Item(0, "old", JobItemStatus.Completed),
+            Item(1, "new"),
         ]);
 
         await handler.ExecuteAsync(context);
 
-        agent.Inputs.ShouldBe(["yeni"]);
+        agent.Inputs.ShouldBe(["new"]);
     }
 
     [Fact]
-    public async Task Iptal_edilen_is_ogeler_arasinda_durur()
+    public async Task A_canceled_job_stops_between_items()
     {
         var agent = new ScriptedAgent();
         var handler = new AgentBatchJobHandler(new SingleAgentCatalog(agent), NullLogger<AgentBatchJobHandler>.Instance);
 
         var context = BuildContext(
-            [Item(0, "birinci"), Item(1, "ikinci")],
+            [Item(0, "first"), Item(1, "second")],
             cancelAfter: 1);
 
         await handler.ExecuteAsync(context);
 
-        agent.Inputs.ShouldBe(["birinci"]);
+        agent.Inputs.ShouldBe(["first"]);
     }
 
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
@@ -95,9 +95,9 @@ public sealed class AgentBatchJobHandlerTests
             Job = new JobRecord
             {
                 Id = Guid.NewGuid(),
-                TenantId = "kiraci",
+                TenantId = "tenant",
                 Kind = JobKind.AgentBatch,
-                TargetName = "ozetleyici",
+                TargetName = "summarizer",
                 Status = JobStatus.Running,
                 ScheduledFor = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -128,14 +128,14 @@ public sealed class AgentBatchJobHandlerTests
             => new(agent);
     }
 
-    /// <summary>Girdisi <paramref name="fail"/> ile eslesirse hata firlatan en kucuk sahte agent.</summary>
+    /// <summary>The smallest possible fake agent, which throws when its input matches <paramref name="fail"/>.</summary>
     private sealed class ScriptedAgent(string? fail = null) : AIAgent
     {
         public List<string> Inputs { get; } = [];
 
-        public override string Name => "sahte-agent";
+        public override string Name => "fake-agent";
 
-        public override string Description => "test icin";
+        public override string Description => "for tests";
 
         protected override Task<AgentResponse> RunCoreAsync(
             IEnumerable<ChatMessage> messages,
@@ -148,10 +148,10 @@ public sealed class AgentBatchJobHandlerTests
 
             if (fail is not null && string.Equals(last, fail, StringComparison.Ordinal))
             {
-                throw new InvalidOperationException($"'{last}' girdisi kasitli olarak basarisiz oldu.");
+                throw new InvalidOperationException($"'{last}' input deliberately failed.");
             }
 
-            return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, $"tamam:{last}")));
+            return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, $"ok:{last}")));
         }
 
         protected override async IAsyncEnumerable<AgentResponseUpdate> RunCoreStreamingAsync(

@@ -9,27 +9,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <c>UsePostgreSql()</c> cagrisinin bellek ici depolarin yerini gercekten aldigini dogrular.
+/// Verifies that the <c>UsePostgreSql()</c> call really replaces the in-memory stores.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu testler <strong>sessiz bir hataya</strong> karsi koruma saglar: <c>AddAgentPrism()</c>
-/// bellek ici depolari <c>TryAddSingleton</c> ile kaydeder ve zincirde once calisir.
-/// <c>UsePostgreSql()</c> icinde <c>TryAdd</c> kullanilirsa hicbir sey olmaz; uygulama
-/// hata vermeden bellek ici depoyla calismaya devam eder ve tum veri surecle birlikte kaybolur.
+/// These tests guard against a <strong>silent failure</strong>: <c>AddAgentPrism()</c>
+/// registers the in-memory stores with <c>TryAddSingleton</c> and runs first in the
+/// chain. If <c>UsePostgreSql()</c> used <c>TryAdd</c>, nothing would happen; the
+/// application would keep working with the in-memory store without erroring, and
+/// all data would be lost with the process.
 /// </para>
-/// <para>Gerekce: <c>docs/KARARLAR.md</c>, karar K-025.</para>
+/// <para>Rationale: <c>docs/KARARLAR.md</c>, decision K-025.</para>
 /// </remarks>
 public sealed class ServiceRegistrationTests(PostgresFixture fixture)
 {
     [Fact]
-    public void UsePostgreSql_bellek_ici_depolarin_yerini_alir()
+    public void UsePostgreSql_replaces_the_in_memory_stores()
     {
         using var provider = BuildProvider();
 
-        // Yazma yapan depolar Faz 9'un denetim izi dekoratorleriyle sarilir; asil
-        // testin dogruladigi sey (Postgres kazandi, bellek ici degil) dekoratorun
-        // sardigi gercek uygulamaya bakilarak korunur.
+        // Write-capable stores are wrapped by Phase 9's audit-trail decorators;
+        // the actual thing this test verifies (Postgres won, not in-memory) is
+        // preserved by looking at the real implementation the decorator wraps.
         provider.GetRequiredService<IAgentDefinitionStore>()
             .ShouldBeOfType<AuditingAgentDefinitionStore>().AuditedInner
             .ShouldBeOfType<SqlAgentDefinitionStore>();
@@ -40,7 +41,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void UsePostgreSql_sohbet_gecmisi_saglayicisini_kaydeder()
+    public void UsePostgreSql_registers_the_chat_history_provider()
     {
         using var provider = BuildProvider();
 
@@ -48,7 +49,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void UsePostgreSql_migration_servisini_kaydeder()
+    public void UsePostgreSql_registers_the_migration_service()
     {
         using var provider = BuildProvider();
 
@@ -57,24 +58,24 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void Ayarlar_yapilandirmadan_okunur()
+    public void Settings_are_read_from_configuration()
     {
         using var provider = BuildProvider(options =>
         {
-            options.SchemaName = "ozel_sema";
+            options.SchemaName = "custom_schema";
             options.CommandTimeoutSeconds = 90;
             options.AutoApplyMigrations = false;
         });
 
         var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
 
-        options.SchemaName.ShouldBe("ozel_sema");
+        options.SchemaName.ShouldBe("custom_schema");
         options.CommandTimeoutSeconds.ShouldBe(90);
         options.AutoApplyMigrations.ShouldBeFalse();
     }
 
     [Fact]
-    public void Baglanti_dizesi_bos_ise_dogrulama_hata_verir()
+    public void Validation_throws_when_connection_string_is_blank()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UsePostgreSql(options => options.ConnectionString = "   ");
@@ -88,7 +89,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void Public_sema_adi_reddedilir()
+    public void Public_schema_name_is_rejected()
     {
         using var provider = BuildProvider(options => options.SchemaName = "public");
 
@@ -99,16 +100,16 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public void Gecersiz_sema_adi_reddedilir()
+    public void Invalid_schema_name_is_rejected()
     {
-        using var provider = BuildProvider(options => options.SchemaName = "Kotu Ad");
+        using var provider = BuildProvider(options => options.SchemaName = "Bad Name");
 
         Should.Throw<OptionsValidationException>(
             () => provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value);
     }
 
     [Fact]
-    public async Task Derlenen_agent_sohbet_gecmisini_veritabanina_yazar()
+    public async Task Compiled_agent_writes_chat_history_to_the_database()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
@@ -126,12 +127,12 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         await using var provider = services.BuildServiceProvider();
 
         var compiler = provider.GetRequiredService<AgentDefinitionCompiler>();
-        var agent = compiler.Compile(TestData.Definition("gecmisli") with { ToolNames = [] });
+        var agent = compiler.Compile(TestData.Definition("with-history") with { ToolNames = [] });
 
         var session = await agent.CreateSessionAsync();
-        await agent.RunAsync("merhaba", session);
+        await agent.RunAsync("hello", session);
 
-        // Derleyici saglayiciyi gercekten bagladiysa mesajlar tabloya yazilmistir.
+        // If the compiler really wired up the provider, messages have been written to the table.
         var itemCount = await context.ScalarAsync<long>(
             $"SELECT count(*) FROM {context.SchemaName}.conversation_items;");
 
@@ -139,28 +140,29 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     }
 
     /// <summary>
-    /// 🚨 MT-PKG-082 regresyon testi. <c>AgentPrism.Sql.Shared</c> her SQL
-    /// saglayicisinda AYRI derlenir (K-176, link-based paylasim): bu yuzden
+    /// 🚨 MT-PKG-082 regression test. <c>AgentPrism.Sql.Shared</c> is compiled
+    /// SEPARATELY into each SQL provider (K-176, link-based sharing): so
     /// <c>SqlStoreContext</c>/<c>MigrationRunner</c>/<c>MigrationHostedService</c>
-    /// her saglayicida FARKLI bir CLR tipidir ve <c>services.Replace(...)</c>
-    /// yalniz KENDI tipini degistirir — rakip saglayicinin kaydini SILMEZ.
-    /// Duzeltmeden once bu, iki saglayici birden kayitliyken IKISININ DE
-    /// migration uygulayip kendi veritabanina yazmasina yol aciyordu ("son
-    /// kayit kazanir" iddiasi yalnizca AYNI saglayicinin tekrar kaydi icin
-    /// gecerliydi, FARKLI saglayicilar icin degil).
+    /// are a DIFFERENT CLR type per provider, and <c>services.Replace(...)</c>
+    /// replaces only ITS OWN type — it does NOT REMOVE the competing provider's
+    /// registration. Before the fix, this caused BOTH providers to apply
+    /// migrations and write to their own database when two providers were
+    /// registered at once (the "last registration wins" claim held only for a
+    /// repeat registration of the SAME provider, not for DIFFERENT providers).
     /// </summary>
     /// <remarks>
-    /// Ikinci gercek bir saglayici (ornegin AgentPrism.Sqlite) BILEREK
-    /// referans ALINMAZ: her SQL saglayici projesi <c>AgentPrism.Sql.Shared</c>'i
-    /// kendi derlemesine link'ler ve <c>MigrationRunner</c> gibi PUBLIC tipler
-    /// iki saglayici ayni projede referanslandiginda CS0433 ile cakisir (bu
-    /// oturumda olculdu). Rakip saglayicinin varligi bu yuzden paylasilan
-    /// (<c>AgentPrism.Abstractions</c>) <see cref="SqlPersistenceRegistrationMarker"/>
-    /// isaretiyle SIMULE edilir — <c>MigrationHostedService.IsWinningProvider()</c>
-    /// tam olarak bu isarete bakar, gercek bir ikinci baglantiya degil.
+    /// A second real provider (e.g. AgentPrism.Sqlite) is DELIBERATELY NOT
+    /// referenced: each SQL provider project links <c>AgentPrism.Sql.Shared</c>
+    /// into its own assembly, and PUBLIC types like <c>MigrationRunner</c>
+    /// collide with CS0433 when two providers are referenced in the same
+    /// project (measured in this session). The competing provider's presence
+    /// is therefore SIMULATED with the shared (<c>AgentPrism.Abstractions</c>)
+    /// <see cref="SqlPersistenceRegistrationMarker"/> marker —
+    /// <c>MigrationHostedService.IsWinningProvider()</c> looks at exactly this
+    /// marker, not a real second connection.
     /// </remarks>
     [Fact]
-    public async Task Kaybeden_saglayici_migration_uygulamaz()
+    public async Task Losing_provider_does_not_apply_migrations()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -174,7 +176,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
             options.AutoApplyMigrations = true;
         });
 
-        // "SQLite" SONRA kayitli gibi davranir: PostgreSQL artik kaybedendir.
+        // Simulates "SQLite" registered AFTER: PostgreSQL is now the loser.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
         await using var provider = services.BuildServiceProvider();
@@ -184,7 +186,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
             await hosted.StartAsync(CancellationToken.None);
         }
 
-        // PostgreSQL kaybetti: kendi semasini HIC olusturmamis olmali.
+        // PostgreSQL lost: it must not have created its own schema at all.
         var schemaCreated = await context.ScalarAsync<long>(
             "SELECT count(*) FROM information_schema.schemata WHERE schema_name = "
             + $"'{context.SchemaName}';");
@@ -192,16 +194,16 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         schemaCreated.ShouldBe(0);
     }
 
-    /// <summary>Ayna testi: PostgreSQL SON kayitliysa (kazanan), migration gercekten uygulanir.</summary>
+    /// <summary>Mirror test: when PostgreSQL is registered LAST (the winner), migration is really applied.</summary>
     [Fact]
-    public async Task Kazanan_saglayici_migration_uygular()
+    public async Task Winning_provider_applies_migrations()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
         var services = new ServiceCollection();
         services.AddSingleton(context.TenantContext);
 
-        // "SQLite" ONCE kayitli gibi davranir.
+        // Simulates "SQLite" registered FIRST.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
         services.AddAgentPrism().UsePostgreSql(options =>

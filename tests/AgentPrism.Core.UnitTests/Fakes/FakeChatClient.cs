@@ -4,8 +4,8 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// Ag cagrisi yapmayan sahte sohbet istemcisi. Testler dondurulecek yaniti
-/// ve akis parcalarini onceden belirler.
+/// A fake chat client that makes no network call. Tests set the response
+/// and streaming chunks to return in advance.
 /// </summary>
 internal sealed class FakeChatClient : IChatClient
 {
@@ -16,17 +16,20 @@ internal sealed class FakeChatClient : IChatClient
         Func<IEnumerable<ChatMessage>, ChatResponse>? responder = null,
         IReadOnlyList<ChatResponseUpdate>? streamingUpdates = null)
     {
+        // NOTE: "tamam" ("ok") stays untranslated on purpose — it is the default
+        // reply text and RunRecordingAgentTests.Store_failure_does_not_interrupt_the_run
+        // (out of this file's scope) asserts against this exact literal.
         _responder = responder ?? (_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")));
         _streamingUpdates = streamingUpdates;
     }
 
-    /// <summary>Istemciye ulasan son istek listesi. Testler bunu dogrular.</summary>
+    /// <summary>The last request list that reached the client. Tests verify this.</summary>
     public List<ChatMessage> LastRequest { get; } = [];
 
-    /// <summary>Istemciye ulasan son secenekler.</summary>
+    /// <summary>The last options that reached the client.</summary>
     public ChatOptions? LastOptions { get; private set; }
 
-    /// <summary>Kac kez cagrildi.</summary>
+    /// <summary>The number of times the client was called.</summary>
     public int CallCount { get; private set; }
 
     public Task<ChatResponse> GetResponseAsync(
@@ -52,7 +55,7 @@ internal sealed class FakeChatClient : IChatClient
         LastRequest.Clear();
         LastRequest.AddRange(messages);
 
-        var updates = _streamingUpdates ?? [new ChatResponseUpdate(ChatRole.Assistant, "tamam")];
+        var updates = _streamingUpdates ?? [new ChatResponseUpdate(ChatRole.Assistant, "tamam")]; // see NOTE above
 
         foreach (var update in updates)
         {
@@ -66,6 +69,6 @@ internal sealed class FakeChatClient : IChatClient
 
     public void Dispose()
     {
-        // Sahte istemcinin serbest birakilacak kaynagi yok.
+        // The fake client has no resource to release.
     }
 }

@@ -7,7 +7,7 @@ namespace AgentPrism.Core.UnitTests.Catalog;
 public sealed class CompositeAgentCatalogTests
 {
     [Fact]
-    public async Task Tum_kaynaklardaki_agentlar_birlestirilir()
+    public async Task Agents_from_all_sources_are_merged()
     {
         var catalog = CreateCatalog(
             new StubSource("code", priority: 0, "alpha"),
@@ -19,11 +19,11 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Ad_cakismasinda_oncelikli_kaynak_kazanir()
+    public async Task Higher_priority_source_wins_on_a_name_collision()
     {
         var catalog = CreateCatalog(
-            new StubSource("database", priority: 100, "ortak"),
-            new StubSource("code", priority: 0, "ortak"));
+            new StubSource("database", priority: 100, "shared"),
+            new StubSource("code", priority: 0, "shared"));
 
         var descriptor = (await catalog.ListAsync()).ShouldHaveSingleItem();
 
@@ -31,29 +31,29 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Cozum_oncelik_sirasina_gore_yapilir()
+    public async Task Resolution_follows_priority_order()
     {
-        var code = new StubSource("code", priority: 0, "ortak");
-        var database = new StubSource("database", priority: 100, "ortak");
+        var code = new StubSource("code", priority: 0, "shared");
+        var database = new StubSource("database", priority: 100, "shared");
 
         var catalog = CreateCatalog(database, code);
 
-        (await catalog.ResolveAsync("ortak")).ShouldNotBeNull();
+        (await catalog.ResolveAsync("shared")).ShouldNotBeNull();
 
         code.ResolveCalls.ShouldBe(1);
         database.ResolveCalls.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Bulunamayan_agent_null_doner()
+    public async Task Agent_not_found_returns_null()
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
-        (await catalog.ResolveAsync("yok")).ShouldBeNull();
+        (await catalog.ResolveAsync("missing")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task Cozulen_agent_dekoratorlerden_gecer()
+    public async Task Resolved_agent_passes_through_the_decorators()
     {
         var decorator = new CountingDecorator();
         var catalog = new CompositeAgentCatalog(
@@ -69,17 +69,17 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Bos_agent_adi_reddedilir()
+    public async Task Empty_agent_name_is_rejected()
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
         await Should.ThrowAsync<ArgumentException>(async () => await catalog.ResolveAsync("  "));
     }
 
-    // --- Surum secimi (Faz 19.3) ---
+    // --- Version selection (Phase 19.3) ---
 
     [Fact]
-    public async Task Versiyonlu_kaynaktan_dogru_surum_cozulur()
+    public async Task Correct_version_is_resolved_from_a_versioned_source()
     {
         var source = new VersionedStubSource("database", 100, "beta", 1, 2);
         var catalog = CreateCatalog(source);
@@ -91,7 +91,7 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Version_null_ise_guncel_surum_cozulur()
+    public async Task Latest_version_is_resolved_when_version_is_null()
     {
         var source = new VersionedStubSource("database", 100, "beta", 1, 2);
         var catalog = CreateCatalog(source);
@@ -102,7 +102,7 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Kod_kaynakli_agentta_surum_istenirse_hata_firlar()
+    public async Task Requesting_a_version_on_a_code_sourced_agent_throws()
     {
         var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
 
@@ -110,7 +110,7 @@ public sealed class CompositeAgentCatalogTests
     }
 
     [Fact]
-    public async Task Olmayan_surum_hata_firlatir()
+    public async Task Nonexistent_version_throws()
     {
         var source = new VersionedStubSource("database", 100, "beta", 1);
         var catalog = CreateCatalog(source);

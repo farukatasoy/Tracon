@@ -4,18 +4,18 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>A/B deneyi uclarinin bellek ici davranis testleri (Faz 19.3-19.4).</summary>
+/// <summary>In-memory behavior tests for the A/B experiment endpoints (Phase 19.3-19.4).</summary>
 public sealed class ExperimentEndpointTests
 {
     private static readonly Uri Experiments = new("/agentprism/api/experiments", UriKind.Relative);
-    private static readonly Uri Experiment = new("/agentprism/api/experiments/surum-karsilastirma", UriKind.Relative);
-    private static readonly Uri Start = new("/agentprism/api/experiments/surum-karsilastirma/start", UriKind.Relative);
-    private static readonly Uri Stop = new("/agentprism/api/experiments/surum-karsilastirma/stop", UriKind.Relative);
-    private static readonly Uri Results = new("/agentprism/api/experiments/surum-karsilastirma/results", UriKind.Relative);
-    private static readonly Uri Canary = new("/agentprism/api/experiments/surum-karsilastirma/canary", UriKind.Relative);
+    private static readonly Uri Experiment = new("/agentprism/api/experiments/version-comparison", UriKind.Relative);
+    private static readonly Uri Start = new("/agentprism/api/experiments/version-comparison/start", UriKind.Relative);
+    private static readonly Uri Stop = new("/agentprism/api/experiments/version-comparison/stop", UriKind.Relative);
+    private static readonly Uri Results = new("/agentprism/api/experiments/version-comparison/results", UriKind.Relative);
+    private static readonly Uri Canary = new("/agentprism/api/experiments/version-comparison/canary", UriKind.Relative);
 
     [Fact]
-    public async Task Deney_olusturulur_ve_listelenir()
+    public async Task Experiment_is_created_and_listed()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -32,7 +32,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Agirlik_toplami_100_degilse_reddedilir()
+    public async Task Rejected_when_weight_total_is_not_100()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -52,21 +52,21 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Kod_kaynakli_agentta_deney_kurulamaz()
+    public async Task Experiment_cannot_be_set_up_for_a_code_based_agent()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition(name: "kod-agenti")));
+            static builder => builder.AddAgent(TestData.Definition(name: "code-agent")));
 
         using var response = await host.Client.PutAsJsonAsync(
             Experiment,
-            Request() with { AgentName = "kod-agenti" });
+            Request() with { AgentName = "code-agent" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync()).ShouldContain("version history");
     }
 
     [Fact]
-    public async Task Olmayan_surumlu_varyant_reddedilir()
+    public async Task Variant_with_a_nonexistent_version_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -86,7 +86,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Yasam_dongusu_baslar_ve_durur()
+    public async Task Lifecycle_starts_and_stops()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -102,7 +102,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_agent_icin_ikinci_calisan_deney_reddedilir()
+    public async Task A_second_running_experiment_for_the_same_agent_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -110,20 +110,20 @@ public sealed class ExperimentEndpointTests
         await host.Client.PutAsJsonAsync(Experiment, Request());
         await host.Client.PostAsJsonAsync(Start, new { });
 
-        var secondUri = new Uri("/agentprism/api/experiments/ikinci-deney", UriKind.Relative);
+        var secondUri = new Uri("/agentprism/api/experiments/second-experiment", UriKind.Relative);
         using (var created = await host.Client.PutAsJsonAsync(secondUri, Request()))
         {
             created.EnsureSuccessStatusCode();
         }
 
         using var secondStart = await host.Client.PostAsJsonAsync(
-            new Uri("/agentprism/api/experiments/ikinci-deney/start", UriKind.Relative), new { });
+            new Uri("/agentprism/api/experiments/second-experiment/start", UriKind.Relative), new { });
 
         secondStart.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
-    public async Task Calisirken_duzenlenemez()
+    public async Task Cannot_be_edited_while_running()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -136,7 +136,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Sonuc_ucu_bos_deneyde_bos_liste_doner()
+    public async Task Results_endpoint_returns_an_empty_list_for_an_empty_experiment()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -150,7 +150,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Kanarya_kurali_tanimlanir_ve_okunur()
+    public async Task Canary_policy_is_defined_and_read()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -166,12 +166,12 @@ public sealed class ExperimentEndpointTests
         var body = await AgentPrismTestHost.ReadJsonAsync(fetched);
         body.GetProperty("policy").GetProperty("canaryVariant").GetString().ShouldBe("v2");
 
-        // Hic calistirma yok -- degerlendirme "yetersiz veri" doner, geri alma DEGIL.
+        // No runs yet -- evaluation returns "insufficient data", NOT a rollback.
         body.GetProperty("evaluation").GetProperty("decision").GetString().ShouldBe("InsufficientData");
     }
 
     [Fact]
-    public async Task Kanarya_kurali_null_govdeyle_kaldirilir()
+    public async Task Canary_policy_is_removed_with_a_null_body()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -190,7 +190,7 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Ikiden_farkli_kollu_deneyde_kanarya_reddedilir()
+    public async Task Canary_is_rejected_for_an_experiment_with_other_than_two_variants()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
@@ -215,19 +215,19 @@ public sealed class ExperimentEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_kolla_kanarya_reddedilir()
+    public async Task Canary_with_a_nonexistent_variant_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         await CreateVersionedAgentAsync(host);
         await host.Client.PutAsJsonAsync(Experiment, Request());
 
-        using var response = await host.Client.PutAsJsonAsync(Canary, CanaryPolicy() with { CanaryVariant = "yok" });
+        using var response = await host.Client.PutAsJsonAsync(Canary, CanaryPolicy() with { CanaryVariant = "missing" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Olmayan_deneyde_kanarya_404_doner()
+    public async Task Canary_for_a_nonexistent_experiment_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -244,24 +244,24 @@ public sealed class ExperimentEndpointTests
             MinSampleSize = 20,
         };
 
-    /// <summary>"musteri-destek-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>
+    /// <summary>Creates a database agent named "customer-support-agent" with two versions.</summary>
     private static async Task CreateVersionedAgentAsync(AgentPrismTestHost host)
     {
         using var created = await host.Client.PostAsJsonAsync(
             new Uri("/agentprism/api/agents", UriKind.Relative),
-            TestData.Request(name: "musteri-destek-agent", instructions: "ilk"));
+            TestData.Request(name: "customer-support-agent", instructions: "first"));
         created.EnsureSuccessStatusCode();
 
         using var updated = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/agents/musteri-destek-agent", UriKind.Relative),
-            TestData.Request(name: "musteri-destek-agent", instructions: "ikinci"));
+            new Uri("/agentprism/api/agents/customer-support-agent", UriKind.Relative),
+            TestData.Request(name: "customer-support-agent", instructions: "second"));
         updated.EnsureSuccessStatusCode();
     }
 
     private static ExperimentSaveRequest Request()
         => new()
         {
-            AgentName = "musteri-destek-agent",
+            AgentName = "customer-support-agent",
             Variants =
             [
                 new ExperimentVariant { Name = "control", Version = 1, Weight = 50 },

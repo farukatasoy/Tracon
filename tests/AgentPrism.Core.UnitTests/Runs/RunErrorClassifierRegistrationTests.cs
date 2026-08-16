@@ -4,13 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.Core.UnitTests.Runs;
 
 /// <summary>
-/// <see cref="IRunErrorClassifier"/>'in DI kaydinin K4 desenini (tuketicinin
-/// kaydi kazanir) izledigini dogrular.
+/// Verifies that <see cref="IRunErrorClassifier"/>'s DI registration follows
+/// the K4 pattern (the consumer's registration wins).
 /// </summary>
 public sealed class RunErrorClassifierRegistrationTests
 {
     [Fact]
-    public void Varsayilan_kurulumda_yerlesik_siniflandirici_kayitlidir()
+    public void The_built_in_classifier_is_registered_by_default()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism();
@@ -21,12 +21,12 @@ public sealed class RunErrorClassifierRegistrationTests
     }
 
     [Fact]
-    public void Tuketicinin_kendi_siniflandiricisi_TryAdd_sayesinde_kazanir()
+    public void The_consumers_own_classifier_wins_via_TryAdd()
     {
         var services = new ServiceCollection();
 
-        // Tuketici kaydi AddAgentPrism'den ONCE yapilir; TryAddSingleton
-        // ikinci kaydi sessizce atlar (K4).
+        // The consumer registers BEFORE AddAgentPrism; TryAddSingleton silently
+        // skips the second registration (K4).
         services.AddSingleton<IRunErrorClassifier, SpyRunErrorClassifier>();
         services.AddAgentPrism();
 

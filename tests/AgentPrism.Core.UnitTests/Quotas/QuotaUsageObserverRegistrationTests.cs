@@ -7,25 +7,27 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Quotas;
 
 /// <summary>
-/// HATA-S4-020 (MT-OBS-036): <c>QuotaUsageObserver</c> DI'dan cozuldugunde
-/// <c>AgentPrism:Observability:EnableQuotaUsageGauge</c> yapilandirmasini
-/// GERCEKTEN gormeli.
+/// HATA-S4-020 (MT-OBS-036): when <c>QuotaUsageObserver</c> is resolved from
+/// DI, it must ACTUALLY see the <c>AgentPrism:Observability:EnableQuotaUsageGauge</c>
+/// configuration.
 /// </summary>
 /// <remarks>
-/// Kok neden DI kaydindaydi: <c>AgentPrismObservabilityOptions</c> standalone
-/// (<c>IOptionsMonitor&lt;AgentPrismObservabilityOptions&gt;</c>) hicbir yerde
-/// <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c> ile kayitli
-/// DEGILDI; konteyner GERCEKTEN yapilandirilmis olsa dahi bu tur icin her zaman
-/// varsayilan (kapali) bir ornek uretiyordu. <see cref="QuotaUsageObserverTests"/>
-/// bunu YAKALAMAZ cunku direkt kurucu cagrisi kullanir, DI cozumlemesini hic
-/// tetiklemez. Duzeltme: gozlemci artik <c>IOptionsMonitor&lt;AgentPrismOptions&gt;</c>
-/// enjekte eder (zaten <c>Configure&lt;AgentPrismOptions&gt;</c> ile dogru
-/// baglanan tur) ve <c>Observability</c> alt ozelligini okur.
+/// The root cause was in the DI registration: the standalone
+/// <c>AgentPrismObservabilityOptions</c> (<c>IOptionsMonitor&lt;AgentPrismObservabilityOptions&gt;</c>)
+/// was NEVER registered anywhere with
+/// <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c>; the container
+/// always produced a default (disabled) instance for that type even when it was
+/// genuinely configured. <see cref="QuotaUsageObserverTests"/> does NOT catch
+/// this because it calls the constructor directly and never triggers DI
+/// resolution. Fix: the observer now injects
+/// <c>IOptionsMonitor&lt;AgentPrismOptions&gt;</c> (the type that is already
+/// correctly wired via <c>Configure&lt;AgentPrismOptions&gt;</c>) and reads the
+/// <c>Observability</c> sub-property.
 /// </remarks>
 public sealed class QuotaUsageObserverRegistrationTests
 {
     [Fact]
-    public void DI_uzerinden_cozulen_observer_yapilandirilmis_bayragi_gorur()
+    public void Observer_resolved_via_DI_sees_the_configured_flag()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -41,7 +43,7 @@ public sealed class QuotaUsageObserverRegistrationTests
         var observer = provider.GetServices<IHostedService>().OfType<QuotaUsageObserver>().Single();
 
         var field = typeof(QuotaUsageObserver).GetField("_options", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?? throw new InvalidOperationException("QuotaUsageObserver._options bulunamadi — alan adi degisti mi?");
+            ?? throw new InvalidOperationException("QuotaUsageObserver._options not found — did the field name change?");
 
         var monitor = (IOptionsMonitor<AgentPrismOptions>)field.GetValue(observer)!;
 
@@ -49,7 +51,7 @@ public sealed class QuotaUsageObserverRegistrationTests
     }
 
     [Fact]
-    public void DI_uzerinden_cozulen_observer_varsayilanda_kapali_gorur()
+    public void Observer_resolved_via_DI_sees_the_disabled_default()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism();

@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Yapilandirmadan ayar okuma testleri icin bellek ici yapilandirma saglayicisi. -->
+    <!-- In-memory configuration provider for the settings-binding-from-configuration tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 

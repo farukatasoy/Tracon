@@ -1,5 +1,5 @@
 using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
-// Tum derleme icin bir kez olusan tek bir SQLite dosyasi. Tablo oneki sinif
-// basina paylasilir (K-390), veri her testte sifirlanir.
+// A single SQLite file created once for the whole assembly. The table prefix
+// is shared per class (K-390); data is reset for every test.
 [assembly: AssemblyFixture(typeof(SqliteFixture))]

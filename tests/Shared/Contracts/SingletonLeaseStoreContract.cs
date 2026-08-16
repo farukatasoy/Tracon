@@ -1,30 +1,31 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="ISingletonLeaseStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="ISingletonLeaseStore"/> contract.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bellek ici depo ile uc SQL saglayicisi ayni senaryolari gecmelidir. Kira
-/// suresi dolma testi gercek zamanla calisir (kisa bir kira + kisa bir
-/// bekleme): SQL uygulamalari kendi saatlerini enjekte edilebilir bir
-/// <see cref="TimeProvider"/> uzerinden almaz — <c>JobStoreContract</c> ile
-/// ayni gerekce.
+/// The in-memory store and the three SQL providers must pass the same
+/// scenarios. The lease-expiry test runs against real time (a short lease
+/// plus a short wait): the SQL implementations do not take their clock from
+/// an injectable <see cref="TimeProvider"/> -- the same rationale as
+/// <c>JobStoreContract</c>.
 /// </para>
 /// <para>
-/// Kiraci kavrami yoktur (Faz 42): tek yurutucu secimi kurulum genelinde bir
-/// isletim kavramidir. Bu yuzden sozlesme <see cref="TenantIsolationContract{TStore}"/>'tan
-/// degil, dogrudan <see cref="IAsyncLifetime"/>'dan turer —
-/// <c>RetentionStoreContract</c> ile ayni desen.
+/// There is no tenant concept here (phase 42): single-executor election is a
+/// deployment-wide concern. This is why the contract derives directly from
+/// <see cref="IAsyncLifetime"/> rather than from
+/// <see cref="TenantIsolationContract{TStore}"/> -- the same pattern as
+/// <c>RetentionStoreContract</c>.
 /// </para>
 /// </remarks>
 public abstract class SingletonLeaseStoreContract : IAsyncLifetime
 {
-    /// <summary>Sinanan kira deposu.</summary>
+    /// <summary>The lease store under test.</summary>
     protected ISingletonLeaseStore Store { get; private set; } = null!;
 
-    /// <summary>Test icin bos bir kira deposu uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
+    /// <summary>Produces an empty lease store for the test.</summary>
+    /// <returns>A store ready for use.</returns>
     protected abstract ValueTask<ISingletonLeaseStore> CreateStoreAsync();
 
     /// <inheritdoc />
@@ -37,8 +38,8 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Hook for a derived class to release its own resources.</summary>
+    /// <returns>A completed task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
     private static string Lease() => $"lease-{Guid.NewGuid():N}";
@@ -46,7 +47,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     private static string Owner() => $"owner-{Guid.NewGuid():N}";
 
     [Fact]
-    public async Task Bos_kira_alinabilir()
+    public async Task Empty_lease_can_be_acquired()
     {
         var acquired = await Store.TryAcquireAsync(Lease(), Owner(), TimeSpan.FromMinutes(5));
 
@@ -54,7 +55,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Kira_tutulurken_ikinci_sahip_alamaz()
+    public async Task Second_owner_cannot_acquire_while_lease_is_held()
     {
         var lease = Lease();
         await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5));
@@ -63,7 +64,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Ayni_sahip_kendi_kirasini_yeniden_alabilir()
+    public async Task Same_owner_can_reacquire_its_own_lease()
     {
         var lease = Lease();
         var owner = Owner();
@@ -74,7 +75,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Kira_suresi_dolunca_baskasi_alabilir()
+    public async Task Someone_else_can_acquire_once_the_lease_expires()
     {
         var lease = Lease();
 
@@ -85,7 +86,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Sahip_kirasini_yenileyebilir()
+    public async Task Owner_can_renew_its_lease()
     {
         var lease = Lease();
         var owner = Owner();
@@ -96,7 +97,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Kira_baskasina_gectikten_sonra_RenewAsync_false_doner()
+    public async Task RenewAsync_returns_false_once_the_lease_has_passed_to_someone_else()
     {
         var lease = Lease();
         var firstOwner = Owner();
@@ -105,13 +106,14 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
         await Task.Delay(TimeSpan.FromMilliseconds(200));
         await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5));
 
-        // 🚨 Eski sahip kirasini yenilemeye calisirsa false donmelidir — cagiran
-        // isi BIRAKMALIDIR (Testler tablosu, docs/42-TEK-YURUTUCU-SECIMI.md).
+        // 🚨 If the former owner tries to renew its lease, this must return
+        // false -- the caller MUST step down (Tests table,
+        // docs/42-TEK-YURUTUCU-SECIMI.md).
         (await Store.RenewAsync(lease, firstOwner, TimeSpan.FromMinutes(5))).ShouldBeFalse();
     }
 
     [Fact]
-    public async Task Sahip_olmayan_RenewAsync_false_doner()
+    public async Task RenewAsync_returns_false_for_a_non_owner()
     {
         var lease = Lease();
 
@@ -119,7 +121,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Birakilan_kira_hemen_baskasina_verilebilir()
+    public async Task Released_lease_can_be_reacquired_immediately_by_someone_else()
     {
         var lease = Lease();
         var owner = Owner();
@@ -131,14 +133,14 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Sahip_olmayan_ReleaseAsync_hicbir_sey_yapmaz()
+    public async Task ReleaseAsync_by_a_non_owner_does_nothing()
     {
         var lease = Lease();
         var owner = Owner();
 
         await Store.TryAcquireAsync(lease, owner, TimeSpan.FromMinutes(5));
 
-        // Baska bir 'sahibin' birakma denemesi mevcut kirayi ETKILEMEMELIDIR.
+        // A release attempt by another 'owner' must NOT AFFECT the current lease.
         await Store.ReleaseAsync(lease, Owner());
 
         (await Store.TryAcquireAsync(lease, Owner(), TimeSpan.FromMinutes(5))).ShouldBeFalse();

@@ -5,18 +5,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Skills;
 
 /// <summary>
-/// Sandbox'in guvenlik kapilarini dogrular.
+/// Verifies the sandbox's security gates.
 /// </summary>
 /// <remarks>
-/// Bu testler islevsellikten cok <strong>reddetme</strong> davranisini olcer:
-/// bir kapinin sessizce acilmasi, sunucuda yetkisiz kod calistirilmasi demektir.
+/// These tests measure <strong>denial</strong> behavior more than
+/// functionality: a gate silently opening means unauthorized code runs on
+/// the server.
 /// </remarks>
 public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 {
     private readonly List<string> _tempDirectories = [];
 
     [Fact]
-    public async Task Ozellik_kapaliyken_script_calismaz()
+    public async Task The_script_does_not_run_when_the_feature_is_disabled()
     {
         var log = new InMemoryAuditLog();
         using var runner = CreateRunner(log, configure: options => options.Enabled = false);
@@ -28,7 +29,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Izin_yokken_script_reddedilir_ve_denetim_izine_yazilir()
+    public async Task The_script_is_denied_and_written_to_the_audit_trail_when_there_is_no_grant()
     {
         var log = new InMemoryAuditLog();
         using var runner = CreateRunner(log);
@@ -39,17 +40,16 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
         var denied = entries.Single(entry => string.Equals(entry.Action, "script.denied", StringComparison.Ordinal));
 
-        // HATA-K-skill-audit-json (2026-08-15): 'After' gercek bir jsonb
-        // sutununa yazilir; DenyAsync ham (JSON olmayan) metni gecirdiginde
-        // Postgres INSERT'i "22P02 invalid input syntax for type json" ile
-        // reddediyordu ve denetim izi HICBIR ZAMAN olusmuyordu. Bellek ici
-        // sahte defter bunu yakalayamaz (JSON gecerliligini denetlemez) - bu
-        // yuzden burada acikca parse ediliyor.
+        // HATA-K-skill-audit-json (2026-08-15): 'After' is written to a real jsonb
+        // column; when DenyAsync passed raw (non-JSON) text, the Postgres INSERT
+        // rejected it with "22P02 invalid input syntax for type json" and the
+        // audit trail entry NEVER got created. The in-memory fake log cannot
+        // catch this (it does not validate JSON) -- so it is parsed explicitly here.
         Should.NotThrow(() => JsonDocument.Parse(denied.After!));
     }
 
     [Fact]
-    public async Task Suresi_dolmus_izin_gecersizdir()
+    public async Task An_expired_grant_is_invalid()
     {
         var log = new InMemoryAuditLog();
         var grants = new InMemorySkillScriptGrantStore();
@@ -67,7 +67,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Bos_yorumlayici_listesiyle_hicbir_script_calismaz()
+    public async Task No_script_runs_with_an_empty_interpreter_list()
     {
         var log = new InMemoryAuditLog();
         using var runner = CreateRunner(log, await GrantAllAsync(), options => options.Interpreters.Clear());
@@ -79,10 +79,10 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Denetim_izi_yazilamazsa_script_calismaz()
+    public async Task The_script_does_not_run_when_the_audit_trail_cannot_be_written()
     {
-        // Faz 9'un "gozlemlenebilirlik islevi bozmaz" kuralinin bilincli
-        // istisnasi: kaydi tutulamayan bir calistirma hic yapilmamalidir.
+        // A deliberate exception to Phase 9's "observability does not break
+        // functionality" rule: a run whose record cannot be kept must never happen.
         using var runner = CreateRunner(new ThrowingAuditLog(), await GrantAllAsync());
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
@@ -92,7 +92,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Kayitli_script_kapaliyken_reddedilir()
+    public async Task A_stored_script_is_denied_when_disabled()
     {
         using var runner = CreateRunner(
             new InMemoryAuditLog(),
@@ -104,21 +104,21 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Cok_buyuk_arguman_reddedilir()
+    public async Task An_oversized_argument_is_rejected()
     {
         using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(), options => options.MaxArgumentBytes = 8);
-        var arguments = JsonDocument.Parse("""{"value":"cok uzun bir arguman metni"}""").RootElement;
+        var arguments = JsonDocument.Parse("""{"value":"a very long argument text"}""").RootElement;
 
         await Should.ThrowAsync<AgentPrismException>(
             async () => await runner.RunStoredScriptAsync("demo", EchoScript(), arguments, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Izinli_script_gercekten_calisir_ve_denetim_izine_yazilir()
+    public async Task An_authorized_script_actually_runs_and_is_written_to_the_audit_trail()
     {
-        // Faz 11'in kanit testi: tum kapilar acikken script gercek bir isletim
-        // sistemi surecinde calisir ve ciktisi modele doner.
-        Assert.SkipWhen(!File.Exists("/bin/bash"), "bash bulunamadi.");
+        // Phase 11's proof test: with all gates open, the script actually runs
+        // in a real OS process and its output is returned to the model.
+        Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
 
         var log = new InMemoryAuditLog();
         using var runner = CreateRunner(log, await GrantAllAsync(), options =>
@@ -131,12 +131,12 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         {
             Name = "echo",
             Extension = "sh",
-            Content = "echo merhaba-agentprism",
+            Content = "echo hello-agentprism",
         };
 
         var output = await runner.RunStoredScriptAsync("demo", script, null, CancellationToken.None);
 
-        output?.ToString().ShouldNotBeNull().ShouldContain("merhaba-agentprism");
+        output?.ToString().ShouldNotBeNull().ShouldContain("hello-agentprism");
 
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
         entries.ShouldContain(entry => entry.Action == "script.run");
@@ -152,7 +152,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             }
             catch (IOException)
             {
-                // Gecici klasor temizligi testin sonucunu degistirmemelidir.
+                // Temp directory cleanup must not change the test's outcome.
             }
         }
     }
@@ -161,7 +161,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     {
         Name = "echo",
         Extension = "py",
-        Content = "print('merhaba')",
+        Content = "print('hello')",
     };
 
     private static async Task<InMemorySkillScriptGrantStore> GrantAllAsync()
@@ -206,7 +206,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     private sealed class ThrowingAuditLog : IAuditLog
     {
         public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("depo erisilemez");
+            => throw new InvalidOperationException("store unavailable");
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => new(Array.Empty<AuditEntry>());

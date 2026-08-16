@@ -3,15 +3,15 @@ using AgentPrism.Core.UnitTests.Fakes;
 namespace AgentPrism.Core.UnitTests.Retention;
 
 /// <summary>
-/// <see cref="RetentionPolicyResolver"/>'in veritabani politikasi ile
-/// yapilandirma varsayilanini birlestirme kurallarinin testleri.
+/// Tests for how <see cref="RetentionPolicyResolver"/> merges the database
+/// policy with the configuration default.
 /// </summary>
 public sealed class RetentionPolicyResolverTests
 {
     private const string Tenant = "acme";
 
     [Fact]
-    public async Task Politika_yok_ve_yapilandirma_kapaliysa_hicbir_sey_donmez()
+    public async Task Nothing_is_returned_when_there_is_no_policy_and_configuration_is_disabled()
     {
         var resolver = Build(new AgentPrismRetentionOptions { Enabled = false });
 
@@ -21,7 +21,7 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Politika_yoksa_yapilandirma_varsayilani_kullanilir()
+    public async Task The_configuration_default_is_used_when_there_is_no_policy()
     {
         var options = new AgentPrismRetentionOptions { Enabled = true };
         var resolver = Build(options);
@@ -34,11 +34,11 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Kullanici_verisi_hedefleri_yapilandirma_acik_olsa_bile_varsayilan_kapalidir()
+    public async Task User_data_targets_default_to_disabled_even_when_configuration_is_enabled()
     {
-        // Sessions/Conversations icin RetentionTargetOptions.MaxAgeDays varsayilan
-        // null'dur — Enabled=true tek basina yeterli DEGILDIR, ayrica MaxAgeDays
-        // acikca verilmelidir (25.1: kullanici verisi, varsayilan KAPALI).
+        // For Sessions/Conversations, RetentionTargetOptions.MaxAgeDays defaults to
+        // null — Enabled=true alone is NOT enough; MaxAgeDays must also be set
+        // explicitly (25.1: user data, default DISABLED).
         var resolver = Build(new AgentPrismRetentionOptions { Enabled = true });
 
         (await resolver.ResolveAsync(Tenant, RetentionTargets.Sessions)).ShouldBeNull();
@@ -46,14 +46,14 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Veritabani_politikasi_yapilandirmayi_hic_gormeden_kazanir()
+    public async Task The_database_policy_wins_without_ever_looking_at_configuration()
     {
         var options = new AgentPrismRetentionOptions { Enabled = true };
         var store = new InMemoryRetentionPolicyStore();
         var now = DateTimeOffset.UtcNow;
 
-        // Veritabaninda ACIKCA kapali bir kayit var; yapilandirma acik olsa
-        // bile hicbir sey silinmemelidir.
+        // The database has a record that is EXPLICITLY disabled; nothing should
+        // be deleted even though configuration is enabled.
         await store.SavePolicyAsync(new RetentionPolicy
         {
             Id = Guid.NewGuid(),
@@ -71,7 +71,7 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Kiraciya_ozel_politika_genel_yildizdan_once_gelir()
+    public async Task A_tenant_specific_policy_takes_precedence_over_the_global_wildcard()
     {
         var store = new InMemoryRetentionPolicyStore();
         var now = DateTimeOffset.UtcNow;
@@ -109,10 +109,10 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Yalniz_MaxRows_dolu_politika_dogru_cozulur()
+    public async Task A_policy_with_only_MaxRows_set_resolves_correctly()
     {
-        // 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu.
-        // Eskiden ResolveAsync boyle bir kaydi "hicbir sey silinmeyecek" sayardi.
+        // 🚨 Gap closed by Phase 36: MaxAgeDays EMPTY, only MaxRows set.
+        // ResolveAsync used to treat such a record as "nothing will be deleted".
         var store = new InMemoryRetentionPolicyStore();
         var now = DateTimeOffset.UtcNow;
 
@@ -140,7 +140,7 @@ public sealed class RetentionPolicyResolverTests
     }
 
     [Fact]
-    public async Task Ikisi_de_bos_politika_hicbir_sey_dondurmez()
+    public async Task A_policy_with_both_fields_empty_returns_nothing()
     {
         var store = new InMemoryRetentionPolicyStore();
         var now = DateTimeOffset.UtcNow;

@@ -4,18 +4,19 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Azure.UnitTests;
 
 /// <summary>
-/// Fabrikanin deployment cozumu, kimlik secimi, boru hatti kurulumu ve saglayici
-/// ayarlarini reddetmesi.
+/// The factory's deployment resolution, credential selection, pipeline
+/// setup, and rejection of provider settings.
 /// </summary>
 public sealed class AzureOpenAIChatClientFactoryTests
 {
     [Fact]
-    public void Fabrika_HAM_istemci_doner_boru_hattini_kurmaz()
+    public void Factory_returns_a_RAW_client_and_does_not_build_a_pipeline()
     {
-        // 🚨 Faz 48: tool cagri dongusu ve telemetri ModelProviderRegistry'ye
-        // tasindi. Fabrika onlari kursaydi ic ice iki FunctionInvokingChatClient
-        // olusur ve defterin ekledigi icerik guard'i dongunun DISINDA kalirdi —
-        // tool sonuclari hic denetlenmezdi.
+        // 🚨 Phase 48: the tool-call loop and telemetry moved to
+        // ModelProviderRegistry. If the factory built them too, two nested
+        // FunctionInvokingChatClient instances would form, and the content
+        // guard the registry adds would stay OUTSIDE the loop — tool
+        // results would never be inspected.
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 
         chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldBeNull();
@@ -23,10 +24,11 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Deployment_adi_istemci_ustverisine_model_olarak_yansir()
+    public void Deployment_name_is_reflected_in_client_metadata_as_the_model()
     {
-        // Azure'da yol {endpoint}/openai/deployments/{deployment}/chat/completions
-        // seklindedir; MEAI ustverisinde bu ad "model" alanini doldurur.
+        // In Azure the path is shaped like
+        // {endpoint}/openai/deployments/{deployment}/chat/completions; in
+        // MEAI metadata this name fills the "model" field.
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
@@ -36,7 +38,7 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Deployment_bos_ise_varsayilan_deployment_kullanilir()
+    public void Default_deployment_is_used_when_deployment_is_empty()
     {
         using var chatClient = Factory(options => options.DefaultDeployment = TestData.Deployment)
             .CreateChatClient(new ModelBinding { Provider = AzureOpenAIProviderNames.AzureOpenAI, Model = "  " });
@@ -47,20 +49,21 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Deployment_ve_varsayilani_yoksa_hata_model_degil_deployment_bekledigini_soyler()
+    public void Error_says_it_expected_a_deployment_not_a_model_when_neither_is_given()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory()
             .CreateChatClient(new ModelBinding { Provider = AzureOpenAIProviderNames.AzureOpenAI, Model = " " }));
 
-        // Fazin tasidigi tek buyuk kavram karisikligi budur; mesaj bunu acikca
-        // soylemezse kullanici "model bulunamadi" sanip yanlis yerde arar.
+        // This is the one big source of confusion this phase carries; if
+        // the message doesn't say so explicitly, the user assumes "model
+        // not found" and looks in the wrong place.
         exception.Message.ShouldContain("DEPLOYMENT");
         exception.Message.ShouldContain(nameof(ModelBinding.Model));
         exception.Message.ShouldContain(nameof(AzureOpenAIProviderOptions.DefaultDeployment));
     }
 
     [Fact]
-    public void Adressiz_istemci_kurulumu_hata_verir()
+    public void Client_setup_without_an_endpoint_fails()
     {
         var exception = Should.Throw<AgentPrismException>(
             () => AzureOpenAIChatClientFactory.CreateClient(new AzureOpenAIProviderOptions { ApiKey = TestData.ApiKey }));
@@ -69,7 +72,7 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Kimliksiz_istemci_kurulumu_iki_yolu_da_anlatir()
+    public void Client_setup_without_credentials_explains_both_paths()
     {
         var exception = Should.Throw<AgentPrismException>(
             () => AzureOpenAIChatClientFactory.CreateClient(new AzureOpenAIProviderOptions { Endpoint = TestData.Endpoint }));
@@ -79,42 +82,42 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Kimlik_fabrikasi_kurulum_sirasinda_bir_kez_cagrilir()
+    public void Credential_factory_is_called_once_during_setup()
     {
-        var credential = new SahteTokenKimligi();
-        var cagriSayisi = 0;
+        var credential = new FakeTokenCredential();
+        var callCount = 0;
 
         var factory = new AzureOpenAIChatClientFactory(TestData.Options(o =>
         {
             o.ApiKey = null;
-            o.CredentialFactory = () => { cagriSayisi++; return credential; };
+            o.CredentialFactory = () => { callCount++; return credential; };
         }));
 
         using var first = factory.CreateChatClient(TestData.Binding());
-        using var second = factory.CreateChatClient(TestData.Binding("baska-deployment"));
+        using var second = factory.CreateChatClient(TestData.Binding("another-deployment"));
 
-        // Istemci bir kez kurulur; her derlemede yeni kimlik uretmek token
-        // onbellegini bosa cikarirdi.
-        cagriSayisi.ShouldBe(1);
+        // The client is built once; generating a new credential on every
+        // compile would waste the token cache.
+        callCount.ShouldBe(1);
     }
 
     [Fact]
-    public void Kimlik_fabrikasi_anahtari_ezer()
+    public void Credential_factory_overrides_the_key()
     {
-        // Ikisi de verildiginde daha guvenli olan kazanir; sessizce anahtara
-        // dusmek kullanicinin bekledigi davranis degildir.
-        var credential = new SahteTokenKimligi();
-        var kullanildi = false;
+        // When both are given, the more secure one wins; silently falling
+        // back to the key is not the behavior the user expects.
+        var credential = new FakeTokenCredential();
+        var used = false;
 
         var client = AzureOpenAIChatClientFactory.CreateClient(TestData.Options(o =>
-            o.CredentialFactory = () => { kullanildi = true; return credential; }));
+            o.CredentialFactory = () => { used = true; return credential; }));
 
-        kullanildi.ShouldBeTrue();
+        used.ShouldBeTrue();
         client.ShouldNotBeNull();
     }
 
     [Fact]
-    public void Kimlik_fabrikasi_null_dondururse_anlasilir_hata_verir()
+    public void Credential_factory_returning_null_gives_a_clear_error()
     {
         var exception = Should.Throw<AgentPrismException>(
             () => AzureOpenAIChatClientFactory.CreateClient(TestData.Options(o =>
@@ -127,10 +130,11 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Egemen_bulut_kapsami_istemciye_verilebilir()
+    public void Sovereign_cloud_audience_can_be_given_to_the_client()
     {
-        // Kurulum hata vermemelidir; kapsam SDK'nin ic ayarina gider ve disaridan
-        // okunamaz. Saglik denetimi tarafindaki karsiligi ayri test edilir.
+        // Setup must not fail; the audience goes into the SDK's internal
+        // configuration and cannot be read from outside. Its counterpart
+        // on the health-check side is tested separately.
         var client = AzureOpenAIChatClientFactory.CreateClient(TestData.Options(o =>
             o.Audience = "https://cognitiveservices.azure.us/.default"));
 
@@ -138,29 +142,29 @@ public sealed class AzureOpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Hicbir_saglayici_ayari_desteklenmez()
+    public void No_provider_setting_is_supported()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
-            TestData.Binding(providerSettings: TestData.Settings(("azure-openai.yokBoyleAyar", true)))));
+            TestData.Binding(providerSettings: TestData.Settings(("azure-openai.noSuchSetting", true)))));
 
         exception.Message.ShouldContain("are not recognized");
         exception.Message.ShouldContain("supports no extra settings");
     }
 
     [Fact]
-    public void Baska_saglayiciya_ait_ayar_ayri_bir_hata_mesaji_verir()
+    public void Setting_belonging_to_another_provider_gives_a_separate_error_message()
     {
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("anthropic.promptCaching", true)))));
 
-        // Yanlis onek "ayari baska bir saglayiciya yazdin" demektir; duzeltmesi
-        // taninmayan anahtardan farklidir.
+        // A wrong prefix means "you wrote the setting for another
+        // provider"; the fix for that differs from an unrecognized key.
         exception.Message.ShouldContain("do not belong");
         exception.Message.ShouldContain("anthropic.promptCaching");
     }
 
     [Fact]
-    public void Ayarsiz_baglanti_sorunsuz_calisir()
+    public void Connection_without_settings_works_fine()
     {
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 

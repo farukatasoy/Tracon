@@ -3,23 +3,23 @@ using Microsoft.Agents.AI;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// Kalici agent dosya belleginin kiraci yalitimi sozlesmesi.
+/// Tenant isolation contract for the persistent agent file memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 41'de eklendi. Dosya bellegi bir <c>IStore</c> degil, Microsoft Agent
-/// Framework'un <see cref="AgentFileStore"/> tipidir; kiraci
-/// <see cref="ITenantContext"/>'ten, agent adi ise suren calistirmanin ambient
-/// kapsamindan (<c>AgentPrismRunContext</c>) okunur.
+/// Added in phase 41. File memory is not an <c>IStore</c>; it is the
+/// Microsoft Agent Framework <see cref="AgentFileStore"/> type. The tenant
+/// is read from <see cref="ITenantContext"/>, and the agent name is read
+/// from the ambient scope of the running run (<c>AgentPrismRunContext</c>).
 /// </para>
 /// <para>
-/// 🚨 Ambient kapsam her test <strong>govdesinin basinda</strong> kurulur,
-/// <c>InitializeAsync</c>'te degil: xunit v3 (MTP) yasam dongusu kancasi ile
-/// test govdesini ayri zamanlanmis isler olarak calistirabiliyor ve
-/// <c>AsyncLocal</c> akisi kesiliyor.
+/// 🚨 The ambient scope is set up at the <strong>start of each test body</strong>,
+/// not in <c>InitializeAsync</c>: the xunit v3 (MTP) lifecycle hook can run
+/// the test body as a separately scheduled task, which breaks the
+/// <c>AsyncLocal</c> flow.
 /// </para>
 /// </remarks>
-#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
+#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only" — same rationale as the product code.
 public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFileStore>
 {
     /// <inheritdoc />
@@ -28,7 +28,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         Enter(tenantId);
 
         var path = $"/{name}.md";
-        await Store.WriteAsync(path, $"{tenantId} icerigi");
+        await Store.WriteAsync(path, $"{tenantId} content");
 
         return path;
     }
@@ -41,7 +41,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         var path = (string)key;
         var content = await Store.ReadAsync(path);
 
-        // Varlik denetimi ve arama ayni siniri tasimalidir.
+        // Existence checks and search must carry the same boundary.
         (await Store.FileExistsAsync(path)).ShouldBe(content is not null);
 
         return content is not null;
@@ -71,92 +71,95 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
     }
 
     [Fact]
-    public async Task Arama_baska_kiracinin_dosyasini_bulmaz()
+    public async Task Search_does_not_find_another_tenants_file()
     {
         Enter(TenantA);
-        await Store.WriteAsync("/notlar/a.md", "fatura numarasi 42");
+        await Store.WriteAsync("/notes/a.md", "invoice number 42");
 
         Enter(TenantB);
-        (await Store.SearchAsync("/", "fatura", recursive: true)).ShouldBeEmpty();
+        (await Store.SearchAsync("/", "invoice", recursive: true)).ShouldBeEmpty();
 
         Enter(TenantA);
-        (await Store.SearchAsync("/", "fatura", recursive: true)).ShouldHaveSingleItem();
+        (await Store.SearchAsync("/", "invoice", recursive: true)).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Dizin_olusturma_kayit_uretmez()
+    public async Task Creating_a_directory_does_not_produce_a_record()
     {
-        // MAF sozlesmesi bir dizin cagrisi bekler; kalici depoda dizinler
-        // yollarin icinde ortuk yasar ve ayri bir satir olusmaz.
+        // The MAF contract expects a directory call; in the persistent store,
+        // directories live implicitly within paths and do not produce a
+        // separate record.
         Enter(TenantA);
 
-        await Store.CreateDirectoryAsync("/notlar");
+        await Store.CreateDirectoryAsync("/notes");
 
         (await Store.ListChildrenAsync("/")).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Recursive_false_alt_dizindeki_eslesmeyi_atlar()
+    public async Task Recursive_false_skips_matches_in_subdirectories()
     {
-        // Faz 51, Is A: derinlik siniri SQL'e indi (prefix_deep_like). Bu test
-        // davranisin degismedigini kanitlar.
+        // Phase 51, Job A: the depth limit moved down to SQL
+        // (prefix_deep_like). This test proves the behavior did not change.
         Enter(TenantA);
 
-        await Store.WriteAsync("/notlar/ust.md", "anahtar kelime burada");
-        await Store.WriteAsync("/notlar/alt/derin.md", "anahtar kelime burada da var");
+        await Store.WriteAsync("/notes/top.md", "keyword is here");
+        await Store.WriteAsync("/notes/sub/deep.md", "keyword is here too");
 
-        var shallow = await Store.SearchAsync("/notlar", "anahtar", recursive: false);
-        shallow.ShouldHaveSingleItem().FileName.ShouldBe("/notlar/ust.md");
+        var shallow = await Store.SearchAsync("/notes", "keyword", recursive: false);
+        shallow.ShouldHaveSingleItem().FileName.ShouldBe("/notes/top.md");
 
-        var deep = await Store.SearchAsync("/notlar", "anahtar", recursive: true);
+        var deep = await Store.SearchAsync("/notes", "keyword", recursive: true);
         deep.Count.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Glob_suzgeci_dosya_adina_gore_daraltir()
+    public async Task Glob_filter_narrows_by_file_name()
     {
-        // Faz 51, Is A: glob SQL'e indi (name_like). `*` dizin sinirini asar,
-        // orijinal .NET regex tabanli eslemeyle ayni davranis.
+        // Phase 51, Job A: glob moved down to SQL (name_like). `*` crosses
+        // directory boundaries, matching the original .NET regex-based
+        // behavior.
         Enter(TenantA);
 
-        await Store.WriteAsync("/notlar/a.md", "ortak deger");
-        await Store.WriteAsync("/notlar/a.txt", "ortak deger");
-        await Store.WriteAsync("/notlar/alt/b.md", "ortak deger");
+        await Store.WriteAsync("/notes/a.md", "shared value");
+        await Store.WriteAsync("/notes/a.txt", "shared value");
+        await Store.WriteAsync("/notes/sub/b.md", "shared value");
 
-        var results = await Store.SearchAsync("/notlar", "ortak", globPattern: "*.md", recursive: true);
+        var results = await Store.SearchAsync("/notes", "shared", globPattern: "*.md", recursive: true);
 
         results.Select(static r => r.FileName)
             .OrderBy(static name => name, StringComparer.Ordinal)
-            .ShouldBe(["/notlar/a.md", "/notlar/alt/b.md"]);
+            .ShouldBe(["/notes/a.md", "/notes/sub/b.md"]);
     }
 
     [Fact]
-    public async Task Buyuk_depoda_arama_yalniz_hedef_dizini_dondurur()
+    public async Task Search_in_a_large_store_returns_only_the_target_directory()
     {
-        // Faz 51, Is A: `LoadAllAsync` kaldirildi. Bu test, cok sayida ILGISIZ
-        // dosya varken hedef dizindeki tek eslesmenin dogru bulundugunu
-        // kanitlar (satir sayisi olcumu Postgres'e ozgu EXPLAIN ile ayrica
-        // yapilir, bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md).
+        // Phase 51, Job A: `LoadAllAsync` was removed. This test proves that
+        // the single match in the target directory is found correctly while
+        // many UNRELATED files exist (the row-count measurement is done
+        // separately with a Postgres-specific EXPLAIN, see
+        // docs/51-VEKTOR-BELLEK-VE-RAG.md).
         Enter(TenantA);
 
         const int UnrelatedFileCount = 500;
 
         for (var i = 0; i < UnrelatedFileCount; i++)
         {
-            await Store.WriteAsync($"/arsiv/dosya-{i:D4}.md", "ilgisiz icerik");
+            await Store.WriteAsync($"/archive/file-{i:D4}.md", "unrelated content");
         }
 
-        await Store.WriteAsync("/hedef/not.md", "aranan-anahtar burada");
+        await Store.WriteAsync("/target/note.md", "search-keyword here");
 
-        var results = await Store.SearchAsync("/hedef", "aranan-anahtar", recursive: true);
+        var results = await Store.SearchAsync("/target", "search-keyword", recursive: true);
 
-        results.ShouldHaveSingleItem().FileName.ShouldBe("/hedef/not.md");
+        results.ShouldHaveSingleItem().FileName.ShouldBe("/target/note.md");
     }
 
     /// <summary>
-    /// Gecerli kiraciyi ayarlar ve ambient calistirma kapsamini kurar.
+    /// Sets the active tenant and establishes the ambient run scope.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="tenantId">The tenant id.</param>
     protected void Enter(string tenantId)
     {
         AmbientTenant.TenantId = tenantId;
@@ -165,7 +168,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         {
             RunId = Guid.NewGuid(),
             RootRunId = Guid.NewGuid(),
-            AgentName = "yalitim-agenti",
+            AgentName = "isolation-agent",
         });
     }
 

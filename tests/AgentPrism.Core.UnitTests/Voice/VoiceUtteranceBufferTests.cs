@@ -3,15 +3,16 @@ using System.Buffers.Binary;
 namespace AgentPrism.Core.UnitTests.Voice;
 
 /// <summary>
-/// Konusma parcasi tamponunu ve WAV sarmalamasini dogrular.
+/// Validates the utterance buffer and WAV wrapping.
 /// </summary>
 public sealed class VoiceUtteranceBufferTests
 {
     [Fact]
-    public void Ham_PCM_gecerli_bir_WAV_dosyasina_sarilir()
+    public void Raw_PCM_is_wrapped_into_a_valid_WAV_file()
     {
-        // 🚨 Ham PCM basliksizdir ve tek basina bir dosya DEGILDIR: cozum ucu onu
-        // multipart icinde bir dosya olarak alir ve turunu baslikdan tanir.
+        // 🚨 Raw PCM has no header and is NOT a file by itself: the decoding
+        // endpoint accepts it as a file inside a multipart request and
+        // identifies its type from the header.
         var buffer = Create(VoiceAudioFormats.Pcm16, maxBytes: 1_000_000);
 
         buffer.Append(new byte[3200]);
@@ -34,9 +35,9 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Ham_PCM_suresi_bayt_sayisindan_HESAPLANIR()
+    public void Raw_PCM_duration_is_computed_from_the_byte_count()
     {
-        // 16 kHz, mono, 16-bit -> saniyede 32.000 bayt.
+        // 16 kHz, mono, 16-bit -> 32,000 bytes per second.
         var buffer = Create(VoiceAudioFormats.Pcm16, maxBytes: 1_000_000);
 
         buffer.Append(new byte[32_000]);
@@ -45,10 +46,10 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Sikistirilmis_kabin_suresi_BILINMEZ()
+    public void Compressed_container_duration_is_unknown()
     {
-        // Sure ancak cozerek bulunur; uydurmak yerine saglayicinin bildirdigi
-        // deger kullanilir (K-032).
+        // Duration can only be determined by decoding; rather than guessing,
+        // the value reported by the provider is used (K-032).
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 1_000_000);
 
         buffer.Append(new byte[1024]);
@@ -60,7 +61,7 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Bayt_siniri_asilinca_tampon_dolar_ve_yeni_parca_ALINMAZ()
+    public void Buffer_fills_once_the_byte_limit_is_exceeded_and_no_new_chunk_is_accepted()
     {
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 2048);
 
@@ -73,10 +74,10 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void PCM_sure_siniri_bayt_sinirindan_ONCE_dolabilir()
+    public void PCM_duration_limit_can_fill_before_the_byte_limit()
     {
-        // Guvenlik agi: istemcinin VAD'i hic tetiklenmezse parca sure
-        // sinirinda kendiliginden kapanir.
+        // Safety net: if the client's VAD never triggers, the chunk closes
+        // on its own at the duration limit.
         var buffer = new VoiceUtteranceBuffer(
             VoiceAudioFormats.Pcm16,
             sampleRate: 16_000,
@@ -91,7 +92,7 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Bos_tampon_parca_URETMEZ()
+    public void Empty_buffer_produces_no_chunk()
     {
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 4096);
 
@@ -100,7 +101,7 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Take_tamponu_bosaltir()
+    public void Take_empties_the_buffer()
     {
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 4096);
 
@@ -112,7 +113,7 @@ public sealed class VoiceUtteranceBufferTests
     }
 
     [Fact]
-    public void Clear_biriken_sesi_atar()
+    public void Clear_discards_the_accumulated_audio()
     {
         var buffer = Create(VoiceAudioFormats.WebmOpus, maxBytes: 4096);
 

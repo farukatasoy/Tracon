@@ -6,21 +6,22 @@ using Microsoft.Data.Sqlite;
 namespace AgentPrism.Sqlite.IntegrationTests;
 
 /// <summary>
-/// SQLite'a ozgu tip ve davranis farklarinin testleri.
+/// Tests for SQLite-specific type and behavior differences.
 /// </summary>
 /// <remarks>
-/// Sozlesme testleri davranis <em>esitligini</em> korur. Buradaki testler ise
-/// yalnizca SQLite tarafinda var olan tuzaklari kapatir; PostgreSQL/SQL
-/// Server'da karsiliklari yoktur veya farkli mekanizmalarla kapanir.
+/// The contract tests preserve behavioral <em>equality</em>. The tests here
+/// close traps that exist only on the SQLite side; PostgreSQL/SQL Server have
+/// no counterpart for them, or close them through different mechanisms.
 /// </remarks>
 public sealed class SqliteDialectTests(SqliteFixture fixture)
 {
     /// <summary>
-    /// SQLite'ta <c>decimal</c> her zaman TEXT olarak yazilir; <c>REAL</c>'e
-    /// (double) donusum YOKTUR. Bu, kayan nokta kesinlik kaybini onler.
+    /// In SQLite, <c>decimal</c> is always written as TEXT; there is NO
+    /// conversion to <c>REAL</c> (double). This avoids floating-point
+    /// precision loss.
     /// </summary>
     [Fact]
-    public async Task Maliyet_ondaligi_kesilmeden_gidip_gelir()
+    public async Task Cost_decimal_round_trips_without_truncation()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
@@ -46,16 +47,16 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Zaman damgalari UTC yazilir ve UTC okunur. <c>SqliteDialect.AddTimestamp</c>
-    /// her zaman <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c> yazar; okunan ofset sifir
-    /// olmalidir.
+    /// Timestamps are written as UTC and read back as UTC.
+    /// <c>SqliteDialect.AddTimestamp</c> always writes
+    /// <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>; the offset read back must be zero.
     /// </summary>
     [Fact]
-    public async Task Zaman_damgasi_utc_olarak_gidip_gelir()
+    public async Task Timestamp_round_trips_as_UTC()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
-        // Bilerek UTC OLMAYAN bir ofsetle yazilir.
+        // Deliberately written with an offset that is NOT UTC.
         var startedAt = new DateTimeOffset(2026, 3, 15, 12, 30, 45, TimeSpan.FromHours(3));
         var runId = AgentPrismId.NewId();
 
@@ -69,21 +70,21 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Polimorfik JSON bozulmadan doner. SQLite JSON'u duz metin olarak
-    /// saklar; anahtar sirasi PostgreSQL'in <c>jsonb</c>'sinin aksine korunur.
+    /// Polymorphic JSON round-trips intact. SQLite stores JSON as plain text;
+    /// key order is preserved, unlike PostgreSQL's <c>jsonb</c>.
     /// </summary>
     [Fact]
-    public async Task Polimorfik_json_bozulmadan_gidip_gelir()
+    public async Task Polymorphic_JSON_round_trips_intact()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
         const string state = """
-            {"$type":"agentprism.test","b":1,"aaaaaaaaaaaa":{"$type":"inner","z":"son","a":"ilk"}}
+            {"$type":"agentprism.test","b":1,"aaaaaaaaaaaa":{"$type":"inner","z":"last","a":"first"}}
             """;
 
         var record = new SessionRecord
         {
-            Id = "oturum-json",
+            Id = "session-json",
             AgentName = "test-agent",
             State = JsonDocument.Parse(state).RootElement,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -92,7 +93,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
 
         await context.Sessions.SaveAsync(record);
 
-        var loaded = await context.Sessions.GetAsync("oturum-json");
+        var loaded = await context.Sessions.GetAsync("session-json");
 
         loaded.ShouldNotBeNull();
 
@@ -103,11 +104,12 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Dizi sutunlari JSON olarak tasinir ve <c>json_each</c> ile TAM eslesme
-    /// aranir; ekli bir son ek ('run.completed.v2') yanlislikla eslesmemelidir.
+    /// Array columns are carried as JSON and searched with <c>json_each</c>
+    /// for an EXACT match; a suffixed value ('run.completed.v2') must not
+    /// match incorrectly.
     /// </summary>
     [Fact]
-    public async Task Olay_dizisi_tam_eslesme_ile_aranir()
+    public async Task Event_array_is_searched_with_an_exact_match()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
@@ -115,7 +117,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
         {
             Id = AgentPrismId.NewId(),
             TenantId = "default",
-            Name = "tam-eslesme",
+            Name = "exact-match",
             Url = "https://example.test/hook",
             Events = ["run.completed.v2"],
             CreatedAt = DateTimeOffset.UtcNow,
@@ -133,24 +135,25 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// 🚨 <c>Microsoft.Data.Sqlite</c> guid'i BUYUK harfle yazar. Bu, uuid v7'nin
-    /// zaman sirali onekinin sozluksel sirasini bozmaz; ama <c>SqliteDialect</c>'in
-    /// bunu kucuk harfe CEVIRMEMESI kritiktir (bkz. sinif dokumani) — cunku
-    /// zorunlu Guid'ler <c>DbHelpers.Add</c> ile (surucu varsayilani), nullable
-    /// Guid'ler <c>Dialect.AddUuid</c> ile yazilir; ikisi FARKLI harf buyuklugu
-    /// kullansaydi ayni mantiksal kimlik iki temsille saklanir ve bu testin
-    /// dayandigi JOIN/WHERE esitligi (run_id uzerinden trace arama) SESSIZCE
-    /// basarisiz olurdu.
+    /// 🚨 <c>Microsoft.Data.Sqlite</c> writes guids in UPPERCASE. This does
+    /// not break the lexical ordering of uuid v7's time-ordered prefix; but
+    /// it is critical that <c>SqliteDialect</c> does NOT CONVERT it to
+    /// lowercase (see the class documentation) — because required Guids are
+    /// written through <c>DbHelpers.Add</c> (the driver default), while
+    /// nullable Guids go through <c>Dialect.AddUuid</c>; if the two used
+    /// DIFFERENT casing, the same logical id would be stored under two
+    /// representations, and the JOIN/WHERE equality this test relies on
+    /// (trace lookup via run_id) would fail SILENTLY.
     /// </summary>
     [Fact]
-    public async Task Nullable_ve_zorunlu_guid_yazma_yollari_tutarlidir()
+    public async Task Nullable_and_required_guid_write_paths_are_consistent()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 
         var runId = AgentPrismId.NewId();
         await context.Runs.StartRunAsync(TestData.Run(runId));
 
-        // WriteSpansAsync -> UpsertTraceAsync run_id'yi Dialect.AddUuid (nullable) ile yazar.
+        // WriteSpansAsync -> UpsertTraceAsync writes run_id via Dialect.AddUuid (nullable).
         await context.Traces.WriteSpansAsync(new TraceSpanBatch
         {
             TenantId = "default",
@@ -169,7 +172,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
             ],
         });
 
-        // GetTraceByRunAsync ayni run_id'yi DbHelpers.Add (zorunlu) ile filtreler.
+        // GetTraceByRunAsync filters the same run_id via DbHelpers.Add (required).
         var trace = await context.Traces.GetTraceByRunAsync(runId);
 
         trace.ShouldNotBeNull();
@@ -177,11 +180,12 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// WAL modu ve <c>busy_timeout</c> her yeni baglantida otomatik ayarlanir;
-    /// tuketicinin baglanti dizesinde ayrica belirtmesi gerekmez.
+    /// WAL mode and <c>busy_timeout</c> are set automatically on every new
+    /// connection; the consumer does not need to specify them separately in
+    /// the connection string.
     /// </summary>
     [Fact]
-    public async Task WAL_ve_busy_timeout_baglanti_acilisinda_ayarlanir()
+    public async Task WAL_and_busy_timeout_are_set_when_the_connection_opens()
     {
         await using var dataSource = new SqliteDataSource(fixture.ConnectionString);
         await using var connection = (SqliteConnection)await dataSource.OpenConnectionAsync();
@@ -200,12 +204,12 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     }
 
     /// <summary>
-    /// Yabanci anahtar zorlamasi SQLite'ta VARSAYILAN OLARAK KAPALIDIR; her
-    /// baglantida acikca acilmalidir (<c>SqliteDataSource</c>). Kapali kalsaydi
-    /// <c>ON DELETE CASCADE</c> yan tumceleri sessizce yok sayilirdi.
+    /// Foreign key enforcement is OFF BY DEFAULT in SQLite; it must be turned
+    /// on explicitly on every connection (<c>SqliteDataSource</c>). If left
+    /// off, <c>ON DELETE CASCADE</c> clauses would be silently ignored.
     /// </summary>
     [Fact]
-    public async Task Yabanci_anahtar_zorlamasi_etkindir()
+    public async Task Foreign_key_enforcement_is_enabled()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
 

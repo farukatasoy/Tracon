@@ -6,17 +6,17 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.MsSql" />
-    <!-- GHSA-q939-rpr3-3284 (SSH.NET, Testcontainers'in gecisli bagimliligi) icin yama surumune sabitler. -->
+    <!-- Pins to the patched version for GHSA-q939-rpr3-3284 (SSH.NET, a transitive dependency of Testcontainers). -->
     <PackageReference Include="SSH.NET" />
   </ItemGroup>
 
   <!--
-    Paylasilan sozlesme testleri (Faz 23). AYNI soyut siniflar
-    AgentPrism.PostgreSql.IntegrationTests icinde de kosar. Bu fazin sinavi tam
-    olarak buydu: ucuncu bir kalicilik uygulamasi eklemek yeni bir sozlesme
-    testi yazmayi GEREKTIRMEMELIDIR.
+    Shared contract tests (Phase 23). The SAME abstract classes also run in
+    AgentPrism.PostgreSql.IntegrationTests. This phase's exact test was that:
+    adding a third persistence implementation should NOT REQUIRE writing a new
+    contract test.
   -->
-  <ItemGroup Label="Paylasilan sozlesme testleri (Faz 23)">
+  <ItemGroup Label="Shared contract tests (Phase 23)">
     <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
