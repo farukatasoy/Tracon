@@ -1,6 +1,6 @@
 namespace AgentPrism.Templates.Tests.Infrastructure;
 
-/// <summary>Test suresince yasayan, sonunda kendini silen gecici bir dizin.</summary>
+/// <summary>A temporary directory that lives for the test and deletes itself when done.</summary>
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()
@@ -19,9 +19,9 @@ internal sealed class TempDirectory : IDisposable
         }
         catch (IOException)
         {
-            // Windows'ta acik dosya tutan bir surec olabilir (ornegin dotnet run
-            // henuz tam kapanmamis) - test sonucunu etkilemez, en kotu ihtimalle
-            // gecici dizin bir sonraki temizlige kadar kalir.
+            // On Windows, a process may still hold a file open (e.g. dotnet run
+            // has not fully shut down yet) - this does not affect the test
+            // result; at worst the temp directory lingers until the next cleanup.
         }
     }
 }

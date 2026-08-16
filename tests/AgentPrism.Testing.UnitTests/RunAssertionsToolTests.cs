@@ -7,7 +7,7 @@ public sealed class RunAssertionsToolTests
     private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
 
     [Fact]
-    public void ShouldHaveCalledTool_en_az_bir_cagrida_gecer()
+    public void ShouldHaveCalledTool_passes_when_called_at_least_once()
     {
         var assertions = Create([Invocation("get_order_status"), Invocation("get_order_status")]);
 
@@ -15,7 +15,7 @@ public sealed class RunAssertionsToolTests
     }
 
     [Fact]
-    public void ShouldHaveCalledTool_hic_cagrilmadiysa_duser()
+    public void ShouldHaveCalledTool_fails_when_never_called()
     {
         var assertions = Create([]);
 
@@ -26,7 +26,7 @@ public sealed class RunAssertionsToolTests
     }
 
     [Fact]
-    public void ShouldHaveCalledTool_times_dogru_sayidaysa_gecer()
+    public void ShouldHaveCalledTool_passes_when_times_matches()
     {
         var assertions = Create([Invocation("get_order_status"), Invocation("get_order_status")]);
 
@@ -34,7 +34,7 @@ public sealed class RunAssertionsToolTests
     }
 
     [Fact]
-    public void ShouldHaveCalledTool_times_yanlis_sayidaysa_beklenen_ve_bulunani_yazarak_duser()
+    public void ShouldHaveCalledTool_fails_with_the_expected_and_actual_count_when_times_does_not_match()
     {
         var assertions = Create([Invocation("get_order_status")]);
 
@@ -46,7 +46,7 @@ public sealed class RunAssertionsToolTests
     }
 
     [Fact]
-    public void ShouldNotHaveCalledTool_cagrilmadiysa_gecer()
+    public void ShouldNotHaveCalledTool_passes_when_never_called()
     {
         var assertions = Create([]);
 
@@ -54,7 +54,7 @@ public sealed class RunAssertionsToolTests
     }
 
     [Fact]
-    public void ShouldNotHaveCalledTool_cagrildiysa_duser()
+    public void ShouldNotHaveCalledTool_fails_when_called()
     {
         var assertions = Create([Invocation("delete_account")]);
 

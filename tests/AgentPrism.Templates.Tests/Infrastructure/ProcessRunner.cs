@@ -3,25 +3,25 @@ using System.Text;
 
 namespace AgentPrism.Templates.Tests.Infrastructure;
 
-/// <summary>Bir CLI komutunu alt surec olarak calistirir ve ciktisini toplar.</summary>
+/// <summary>Runs a CLI command as a subprocess and collects its output.</summary>
 /// <remarks>
-/// 🚨 <strong>MSBuild dugum yeniden kullanimi burada KAPATILIR ve bu bir
-/// performans ayari degil, bir KILITLENME duzeltmesidir.</strong>
+/// 🚨 <strong>MSBuild node reuse is DISABLED here, and this is not a
+/// performance setting — it is a DEADLOCK fix.</strong>
 /// <para>
-/// Olculdu (2026-08-07): <c>dotnet pack</c>/<c>build</c> calisan MSBuild isci
-/// dugumlerini <c>nodeReuse:true</c> ile baslatir ve o dugumler komut bittikten
-/// sonra da <strong>yasamaya devam eder</strong> (varsayilan olarak ~15 dakika).
-/// Dugumler ebeveynin YONLENDIRILMIS stdout/stderr tanitici(handle)larini miras
-/// alir; boru hatti bu yuzden hicbir zaman EOF gormez. .NET'in
-/// <see cref="Process.WaitForExitAsync"/> cagrisi ise cikis kodunu degil,
-/// asenkron okuyucularin BITMESINI de bekler — yani alt surec saniyeler icinde
-/// cikmis olsa bile bu metot dugumler olene kadar bloke kalir.
+/// Measured (2026-08-07): <c>dotnet pack</c>/<c>build</c> starts MSBuild worker
+/// nodes with <c>nodeReuse:true</c>, and those nodes <strong>keep living</strong>
+/// after the command finishes (~15 minutes by default). The nodes inherit the
+/// parent's REDIRECTED stdout/stderr handles; the pipe therefore never sees
+/// EOF. .NET's <see cref="Process.WaitForExitAsync"/> call waits not only for
+/// the exit code but also for the async readers to FINISH — meaning this
+/// method stays blocked until the nodes die, even though the subprocess itself
+/// exited within seconds.
 /// </para>
 /// <para>
-/// Belirti: <c>dotnet test</c> hicbir test calistirmadan on dakikalarca asili
-/// kalir, <c>ps</c> ciktisinda tek bir <c>dotnet pack</c> sureci bile gorunmez
-/// ve yalnizca oksuz (<c>ppid = 1</c>) <c>MSBuild.dll … /nodeReuse:true</c>
-/// dugumleri durur. Dugumler oldurulunce fikstur ANINDA devam eder.
+/// Symptom: <c>dotnet test</c> hangs for tens of minutes without running any
+/// test, <c>ps</c> output shows not a single <c>dotnet pack</c> process, and
+/// only orphaned (<c>ppid = 1</c>) <c>MSBuild.dll … /nodeReuse:true</c> nodes
+/// remain. Once the nodes are killed, the fixture resumes IMMEDIATELY.
 /// </para>
 /// </remarks>
 internal static class ProcessRunner
@@ -41,10 +41,11 @@ internal static class ProcessRunner
             WorkingDirectory = workingDirectory ?? RepoPaths.Root,
         };
 
-        // 🚨 Tip sinifinin notuna bakin: bu satir olmadan RunAsync, alt surec
-        // cikmis olsa bile kalan MSBuild dugumleri boruyu kapatana kadar (~15 dk)
-        // bloke kalir. Komut satiri anahtari (`-nodeReuse:false`) yeterli degildir:
-        // `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz.
+        // 🚨 See the type's remarks: without this line, RunAsync stays blocked
+        // until the leftover MSBuild nodes close the pipe (~15 min), even after
+        // the subprocess has exited. The command-line switch (`-nodeReuse:false`)
+        // is not enough: commands that INDIRECTLY invoke MSBuild, like
+        // `dotnet new`, cannot carry it.
         startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
 
         if (environment is not null)
@@ -88,7 +89,7 @@ internal static class ProcessRunner
         {
             KillProcessTree(process);
             throw new TimeoutException(
-                $"'{fileName} {arguments}' {timeout} icinde bitmedi.{Environment.NewLine}stdout:{stdOut}{Environment.NewLine}stderr:{stdErr}");
+                $"'{fileName} {arguments}' did not finish within {timeout}.{Environment.NewLine}stdout:{stdOut}{Environment.NewLine}stderr:{stdErr}");
         }
 
         return new ProcessResult(process.ExitCode, stdOut.ToString(), stdErr.ToString());
@@ -102,7 +103,7 @@ internal static class ProcessRunner
         }
         catch (InvalidOperationException)
         {
-            // Surec zaten cikmis olabilir - yaris durumu, yok sayilir.
+            // The process may have already exited - a race condition, ignored.
         }
     }
 }
