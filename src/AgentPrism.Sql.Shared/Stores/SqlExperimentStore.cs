@@ -4,14 +4,15 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// A/B deneylerini PostgreSQL'de saklayan depo.
+/// Stores A/B experiments in the SQL database.
 /// </summary>
 /// <remarks>
-/// Davranis sozlesmesi <see cref="InMemoryExperimentStore"/> ile birebir aynidir ve
-/// ortak sozlesme testleriyle korunur. Tum islemler <see cref="ITenantContext.TenantId"/>
-/// ile sinirlidir. "Ayni agent icin tek Running deney" kurali veritabaninda kismi
-/// benzersiz indeksle (<c>experiments_running_agent_uq</c>) de zorlanir; bu depo
-/// ihlali saglayicidan bagimsiz olarak <c>SqlDialect.IsUniqueViolation</c> ile yakalanir.
+/// The behavior contract is identical to <see cref="InMemoryExperimentStore"/> and is
+/// protected by shared contract tests. All operations are bounded by
+/// <see cref="ITenantContext.TenantId"/>. The "single Running experiment per agent"
+/// rule is also enforced in the database with a partial unique index
+/// (<c>experiments_running_agent_uq</c>); this store catches the violation with
+/// <c>SqlDialect.IsUniqueViolation</c> independent of the provider.
 /// </remarks>
 internal sealed class SqlExperimentStore : IExperimentStore
 {
@@ -19,10 +20,10 @@ internal sealed class SqlExperimentStore : IExperimentStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir deney deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new experiment store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlExperimentStore(
         SqlStoreContext context,
         ITenantContext tenantContext)
@@ -35,7 +36,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -104,18 +105,18 @@ internal sealed class SqlExperimentStore : IExperimentStore
 
         if (result is null)
         {
-            // INSERT ... ON CONFLICT DO UPDATE ... WHERE status = 0 hicbir satir
-            // etkilemedi: kayit var ama Draft degil.
+            // INSERT ... ON CONFLICT DO UPDATE ... WHERE status = 0 affected no
+            // row: the record exists but is not Draft.
             var existing = await GetAsync(experiment.TenantId, experiment.Name, cancellationToken).ConfigureAwait(false);
 
             throw existing is null
-                ? new AgentPrismException($"'{experiment.Name}' deneyi kaydedilemedi.")
+                ? new AgentPrismException($"Failed to save experiment '{experiment.Name}'.")
                 : new AgentPrismException(
-                    $"'{experiment.Name}' deneyi '{existing.Status}' durumunda; yalnizca Draft durumundaki deneyler duzenlenebilir.");
+                    $"Experiment '{experiment.Name}' is in status '{existing.Status}'; only experiments in Draft status can be edited.");
         }
 
         return await GetAsync(experiment.TenantId, experiment.Name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{experiment.Name}' deneyi kaydedildi ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{experiment.Name}' was saved but could not be read back.");
     }
 
     /// <inheritdoc />
@@ -139,7 +140,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
 
         if (existing is { Status: ExperimentStatus.Running })
         {
-            throw new AgentPrismException($"'{name}' deneyi calisirken silinemez; once durdurulmalidir.");
+            throw new AgentPrismException($"Experiment '{name}' cannot be deleted while running; stop it first.");
         }
 
         return false;
@@ -166,16 +167,16 @@ internal sealed class SqlExperimentStore : IExperimentStore
         catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
         {
             var experiment = await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-                ?? throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.", ex);
+                ?? throw new AgentPrismException($"No experiment named '{name}' was found.", ex);
 
             throw new AgentPrismException(
-                $"'{experiment.AgentName}' agent'i icin baska bir deney zaten calisiyor. " +
-                "Ayni agent icin ayni anda tek deney calisabilir.",
+                $"Another experiment is already running for agent '{experiment.AgentName}'. " +
+                "Only one experiment can run at a time for the same agent.",
                 ex);
         }
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyi baslatildi ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{name}' was started but could not be read back.");
     }
 
     /// <inheritdoc />
@@ -198,12 +199,12 @@ internal sealed class SqlExperimentStore : IExperimentStore
             var existing = await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
 
             throw existing is null
-                ? new AgentPrismException($"'{name}' adinda bir deney bulunamadi.")
-                : new AgentPrismException($"'{name}' deneyi calismiyor.");
+                ? new AgentPrismException($"No experiment named '{name}' was found.")
+                : new AgentPrismException($"Experiment '{name}' is not running.");
         }
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyi durduruldu ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{name}' was stopped but could not be read back.");
     }
 
     /// <inheritdoc />
@@ -226,10 +227,10 @@ internal sealed class SqlExperimentStore : IExperimentStore
         Dialect.AddTimestamp(command, "now", now);
 
         _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+            ?? throw new AgentPrismException($"No experiment named '{name}' was found.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyinin kanarya kurali guncellendi ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{name}''s canary policy was updated but could not be read back.");
     }
 
     /// <inheritdoc />
@@ -253,10 +254,10 @@ internal sealed class SqlExperimentStore : IExperimentStore
         Dialect.AddTimestamp(command, "now", now);
 
         _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+            ?? throw new AgentPrismException($"Experiment '{name}' is not running.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyinin kanarya agirligi guncellendi ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{name}''s canary weight was updated but could not be read back.");
     }
 
     /// <inheritdoc />
@@ -283,10 +284,10 @@ internal sealed class SqlExperimentStore : IExperimentStore
         Dialect.AddTimestamp(command, "now", now);
 
         _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+            ?? throw new AgentPrismException($"Experiment '{name}' is not running.");
 
         return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{name}' deneyi geri alindi ama okunamadi.");
+            ?? throw new AgentPrismException($"Experiment '{name}' was rolled back but could not be read back.");
     }
 
     private async ValueTask<AgentPrismException> BuildStartFailureAsync(string tenantId, string name, CancellationToken cancellationToken)
@@ -294,9 +295,9 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var existing = await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
 
         return existing is null
-            ? new AgentPrismException($"'{name}' adinda bir deney bulunamadi.")
+            ? new AgentPrismException($"No experiment named '{name}' was found.")
             : new AgentPrismException(
-                $"'{name}' deneyi '{existing.Status}' durumunda; yalnizca Draft durumundan baslatilabilir.");
+                $"Experiment '{name}' is in status '{existing.Status}'; it can only be started from Draft status.");
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);

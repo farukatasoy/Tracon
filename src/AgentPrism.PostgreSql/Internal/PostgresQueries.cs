@@ -984,10 +984,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // --- MCP sunuculari (Faz 6) ---
+        // --- MCP servers (Phase 6) ---
 
-        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir: PostgresMcpServerStore.ReadServer
-        // sabit sira numarasiyla okur (Faz 21 dersi, docs/hafiza/postgresql.md).
+        // 🚨 New columns are ALWAYS appended at the end:
+        // PostgresMcpServerStore.ReadServer reads by fixed ordinal position
+        // (lesson from Phase 21, docs/hafiza/postgresql.md).
         const string mcpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
             authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
@@ -1035,7 +1036,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         DeleteMcpServer = $"DELETE FROM {Schema}.mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";
 
-        // --- Kiracilar (Faz 6) ---
+        // --- Tenants (Phase 6) ---
 
         SelectTenants = $"""
             SELECT id, slug, display_name, created_at
@@ -1053,7 +1054,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         DeleteTenant = $"DELETE FROM {Schema}.tenants WHERE slug = @slug;";
 
-        // --- Ekler (Faz 14) ---
+        // --- Attachments (Phase 14) ---
 
         InsertAttachment = $"""
             INSERT INTO {Schema}.attachments
@@ -1070,7 +1071,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
-        // content yalniz istendiginde okunur (docs/14-COK-MODLULUK.md, bolum 14.2).
+        // content is read only when requested (docs/14-COK-MODLULUK.md, section 14.2).
         SelectAttachmentContent = $"""
             SELECT content, external_uri, media_type
             FROM {Schema}.attachments
@@ -1119,9 +1120,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
-        // Faz 51, Is A: onek, derinlik siniri ve glob SQL'e iner; PostgreSQL
-        // ayrica regex'i `~` operatoruyle on suzgec olarak indirir (nihai
-        // eslesme daima .NET Regex ile istemcide yapilir, degismez).
+        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // SQL; PostgreSQL also pushes the regex down as a pre-filter with the
+        // `~` operator (the final match is always done client-side with .NET
+        // Regex, unchanged).
         SelectAgentFilesFiltered = $"""
             SELECT path, content
             FROM {Schema}.agent_files
@@ -1133,7 +1135,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
-        // --- Workflow'lar (Faz 15) ---
+        // --- Workflows (Phase 15) ---
 
         UpsertWorkflow = $"""
             INSERT INTO {Schema}.workflows (id, tenant_id, name, version, definition, created_at, updated_at)
@@ -1160,9 +1162,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         DeleteWorkflow = $"DELETE FROM {Schema}.workflows WHERE tenant_id = @tenant_id AND name = @name;";
 
-        // Kontrol noktasi kimligini AgentPrism uretir; catisma yalnizca ayni
-        // kimligin iki kez yazilmasi demektir ve bu bir hatadir -- sessizce
-        // gecilmez, bu yuzden ON CONFLICT yan tumcesi YOKTUR.
+        // AgentPrism generates the checkpoint id; a conflict means only that
+        // the same id was written twice, and that is an error -- it is not
+        // silently skipped, so there is NO ON CONFLICT clause.
         InsertWorkflowCheckpoint = $"""
             INSERT INTO {Schema}.workflow_checkpoints
                 (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, created_at)
@@ -1175,9 +1177,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND session_id = @session_id AND checkpoint_id = @checkpoint_id;
             """;
 
-        // Durum yuku BILEREK secilmez: liste ustveridir ve her satirin yanina
-        // kilobaytlarca opak JSON tasimak, arayuzun checkpoint listesini
-        // acilamaz hale getirirdi.
+        // The state payload is DELIBERATELY not selected: this is a list of
+        // metadata, and carrying kilobytes of opaque JSON next to every row
+        // would make the UI's checkpoint list unopenable.
         SelectWorkflowCheckpoints = $"""
             SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
             FROM {Schema}.workflow_checkpoints
@@ -1197,7 +1199,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND session_id = @session_id;
             """;
 
-        // --- Denetim izi (Faz 9) ---
+        // --- Audit log (Phase 9) ---
 
         InsertAuditEntry = $"""
             INSERT INTO {Schema}.audit_log (id, tenant_id, actor, action, entity, before, after, created_at)
@@ -1217,7 +1219,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             LIMIT @take;
             """;
 
-        // --- Zamanlama ve is kuyrugu (Faz 17) ---
+        // --- Scheduling and job queue (Phase 17) ---
 
         UpsertJobSchedule = $"""
             INSERT INTO {Schema}.job_schedules
@@ -1256,7 +1258,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // Kiraciyla sinirlanmaz: bu sorgu isciye aittir, HTTP istegine degil.
+        // Not scoped by tenant: this query belongs to the worker, not to an
+        // HTTP request.
         SelectDueJobSchedules = $"""
             SELECT {scheduleColumns}
             FROM {Schema}.job_schedules
@@ -1265,9 +1268,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         DeleteJobSchedule = $"DELETE FROM {Schema}.job_schedules WHERE tenant_id = @tenant_id AND name = @name;";
 
-        // CAS (compare-and-swap): yalnizca beklenen `next_run_at` hala gecerliyse
-        // ilerletilir. Baska bir uygulama ornegi ayni anda ayni zamanlamayi zaten
-        // ilerlettiyse eslesme tutmaz ve etkilenen satir sayisi sifir olur.
+        // CAS (compare-and-swap): advances only if the expected `next_run_at`
+        // is still current. If another app instance already advanced the same
+        // schedule concurrently, the match fails and the affected row count
+        // is zero.
         TryClaimJobScheduleNextRun = $"""
             UPDATE {Schema}.job_schedules
                SET next_run_at = @new_next_run_at, last_run_at = @ran_at
@@ -1282,26 +1286,28 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     0, 0, 0, @scheduled_for, @created_at, @max_attempts);
             """;
 
-        // Kimlikler C# tarafinda uretilir (gen_random_uuid() sunucu surumune
-        // gore degisken bir bagimliliktir); iki dizi UNNEST ile sira numarasi
-        // (1 tabanli ord) uzerinden eslenir.
+        // Ids are generated on the C# side (gen_random_uuid() is a dependency
+        // that varies by server version); the two arrays are matched via
+        // UNNEST using the ordinal position (1-based ord).
         InsertJobItems = $"""
             INSERT INTO {Schema}.job_items (id, job_id, seq, input, status)
             SELECT t.id, @job_id, (t.ord - 1)::int, t.input, 0
             FROM UNNEST(@ids, @inputs) WITH ORDINALITY AS t(id, input, ord);
             """;
 
-        // 🚨 Yeni sutun her zaman SONA eklenir: ReadJob sabit sutun indeksi
-        // kullanir ve mevcut indeksleri kaydirmak sessizce yanlis sutun okur.
+        // 🚨 A new column is always appended at the END: ReadJob uses fixed
+        // column indices, and shifting the existing indices silently reads
+        // the wrong column.
         const string jobColumns = """
             id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
             failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
             error_message, created_at, max_attempts
             """;
 
-        // FOR UPDATE SKIP LOCKED: birden fazla isci ayni veritabanina baglansa
-        // bile bir is yalnizca bir isci tarafindan alinir. Suresi dolmus bir
-        // kira (status IN (1, 2) AND lease_until < @now) da yeniden alinabilir.
+        // FOR UPDATE SKIP LOCKED: even if multiple workers connect to the
+        // same database, a job is claimed by only one worker. An expired
+        // lease (status IN (1, 2) AND lease_until < @now) can also be
+        // reclaimed.
         LeaseJob = $"""
             UPDATE {Schema}.jobs
                SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
@@ -1331,9 +1337,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @id;
             """;
 
-        // @retry_at NULL ise scheduled_for'a dokunulmaz (eski davranis: is hemen
-        // yeniden kiralanabilir). Dolu ise geri adimli bekleme uygulanir; bu,
-        // webhook teslimi icin ikinci bir kuyruk yazmayi gereksiz kilar (K-160).
+        // If @retry_at is NULL, scheduled_for is left untouched (the old
+        // behavior: the job can be re-leased immediately). If it is given,
+        // backoff is applied; this makes writing a second queue for webhook
+        // delivery unnecessary (K-160).
         ReleaseJobForRetry = $"""
             UPDATE {Schema}.jobs
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
@@ -1371,9 +1378,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY seq;
             """;
 
-        // Idempotent raporlama: `updated` CTE'si yalnizca oge hala Pending (0)
-        // ise bir satir dondurur; kira suresi dolup ayni oge iki kez
-        // raporlanirsa ikinci cagri sayaclari BIR KEZ DAHA artirmaz.
+        // Idempotent reporting: the `updated` CTE returns a row only if the
+        // item is still Pending (0); if the lease expires and the same item
+        // is reported twice, the second call does NOT increment the counters
+        // AGAIN.
         ReportJobItem = $"""
             WITH updated AS (
                 UPDATE {Schema}.job_items
@@ -1387,7 +1395,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @job_id;
             """;
 
-        // --- Degerlendirme / eval (Faz 18) ---
+        // --- Evaluation / eval (Phase 18) ---
 
         const string suiteColumns = """
             id, tenant_id, name, description, agent_name, checks, created_at, updated_at
@@ -1442,14 +1450,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
             """;
 
-        // 🚨 `seq` burada DEPO tarafindan atomik uretilir (MAX+1 alt sorgusu),
-        // cagiran hesaplamaz (docs/45-URETIMDEN-EVAL-KUMESI.md, bolum 45.2).
-        // Es zamanli iki terfi ayni seq'i hesaplayabilir; bu durumda
-        // eval_cases_suite_seq_uq ihlali SqlDialect.IsUniqueViolation ile
-        // yakalanir ve SqlEvalStore yeniden dener. source_run_id catismasi
-        // (ayni calistirma iki kez terfi) ayni yakalamaya duser ama farkli
-        // yorumlanir: SqlEvalStore mevcut vakayi SelectEvalCaseBySourceRun ile
-        // okur ve onu doner.
+        // 🚨 `seq` is generated atomically here BY THE STORE (a MAX+1
+        // subquery); the caller does not compute it
+        // (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2). Two concurrent
+        // promotions can compute the same seq; in that case the
+        // eval_cases_suite_seq_uq violation is caught by
+        // SqlDialect.IsUniqueViolation and SqlEvalStore retries. A
+        // source_run_id conflict (the same run promoted twice) hits the same
+        // catch but is interpreted differently: SqlEvalStore reads the
+        // existing case with SelectEvalCaseBySourceRun and returns it.
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,
@@ -1532,18 +1541,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 21 -- kota
+        // Phase 21 -- quota
         // -------------------------------------------------------------------
         const string quotaColumns = """
             id, tenant_id, agent_name, period, max_runs, max_tokens, max_cost, enabled,
             created_at, updated_at
             """;
 
-        // 🚨 Catisma hedefi COALESCE(agent_name, '') ifadesidir, sutun listesi
-        // degil: PostgreSQL'de NULL'lar birbirine esit sayilmaz ve duz bir
-        // (tenant_id, agent_name, period) hedefi, agent_name NULL olan ayni
-        // kuralin sinirsiz kez eklenmesine izin verirdi. Benzersiz indeks de
-        // ayni ifadeyle kuruludur (migration 0012).
+        // 🚨 The conflict target is the expression COALESCE(agent_name, ''),
+        // not the column list: PostgreSQL does not count NULLs as equal to
+        // each other, and a plain (tenant_id, agent_name, period) target
+        // would allow the same rule with agent_name NULL to be added an
+        // unlimited number of times. The unique index is also built with the
+        // same expression (migration 0012).
         UpsertQuota = $"""
             INSERT INTO {Schema}.quotas
                 ({quotaColumns})
@@ -1576,9 +1586,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             DELETE FROM {Schema}.quotas WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Tuketim ATOMIK olarak artirilir. Eszamanli calistirmalar ayni satiri
-        // artirir ve hicbir artis kaybolmaz; okuma-degistir-yaz dizisi olsaydi
-        // ayni anda biten iki calistirmadan biri sessizce yutulurdu.
+        // Consumption is incremented ATOMICALLY. Concurrent runs increment
+        // the same row and no increment is lost; with a read-modify-write
+        // sequence instead, one of two runs finishing at the same time would
+        // be silently swallowed.
         AddQuotaUsage = $"""
             INSERT INTO {Schema}.quota_usage
                 (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at)
@@ -1601,10 +1612,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 21 -- webhook
+        // Phase 21 -- webhook
         // -------------------------------------------------------------------
-        // 🚨 Sutun listesinde SIR YOKTUR: yalnizca secret_configuration_key
-        // (anahtarin ADI) vardir (K-059).
+        // 🚨 The column list contains NO SECRET: only secret_configuration_key
+        // (the NAME of the key) is present (K-059).
         const string webhookSubscriptionColumns = """
             id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
             consecutive_failures, created_at, updated_at
@@ -1639,9 +1650,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // events bir text[] sutunudur; = ANY(...) tam eslesme arar ve indeks
-        // kullanabilir. LIKE tabanli bir arama 'run.completed' ararken
-        // 'run.completed.v2' aboneligini de yanlislikla eslerdi.
+        // events is a text[] column; = ANY(...) looks for an exact match and
+        // can use an index. A LIKE-based search would wrongly match the
+        // 'run.completed.v2' subscription too when looking for
+        // 'run.completed'.
         SelectWebhookSubscriptionsForEvent = $"""
             SELECT {webhookSubscriptionColumns}
             FROM {Schema}.webhook_subscriptions
@@ -1653,9 +1665,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             DELETE FROM {Schema}.webhook_subscriptions WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // Ust uste basarisizlik sayaci ve otomatik kapatma TEK ifadede yapilir;
-        // okuma-degistir-yaz dizisi eszamanli teslimlerle yarisirdi. Donen satir
-        // "bu cagri aboneligi kapatti mi" sorusunu yanitlar.
+        // The consecutive-failure counter and auto-disable are done in a
+        // SINGLE statement; a read-modify-write sequence would race with
+        // concurrent deliveries. The returned row answers the question "did
+        // this call disable the subscription".
         UpdateWebhookSubscriptionOutcome = $"""
             UPDATE {Schema}.webhook_subscriptions
                SET consecutive_failures = CASE WHEN @succeeded THEN 0 ELSE consecutive_failures + 1 END,
@@ -1709,10 +1722,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 53 -- kiraci bazli API anahtarlari
+        // Phase 53 -- tenant-scoped API keys
         // -------------------------------------------------------------------
-        // 🚨 Sutun listesinde HAM DEGER YOKTUR: yalnizca geri donduruleyemez
-        // key_hash ozeti vardir (bolum 53.2).
+        // 🚨 The column list contains NO RAW VALUE: only the irreversible
+        // key_hash digest is present (section 53.2).
         const string apiKeyColumns = """
             id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
             last_used_at, created_at
@@ -1733,8 +1746,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY created_at;
             """;
 
-        // Kiraci suzgeci BILEREK yoktur (bolum 53.5): kiraci bu sorgunun
-        // ciktisidir, girdisi degil.
+        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
+        // is the output of this query, not its input.
         SelectApiKeyByHash = $"""
             SELECT {apiKeyColumns}
             FROM {Schema}.api_keys
@@ -1753,8 +1766,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @id;
             """;
 
-        // Kurulum saglik denetimi (ExternalSurfaceGuard, bolum 53.4): kiraci
-        // suzgeci BILEREK yoktur.
+        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
+        // filter is DELIBERATELY absent.
         HasApiKeyWithScope = $"""
             SELECT EXISTS (
                 SELECT 1 FROM {Schema}.api_keys
@@ -1860,16 +1873,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 31 -- calistirma/mesaj puani
+        // Phase 31 -- run/message score
         // -------------------------------------------------------------------
         const string runScoreColumns =
             "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
 
-        // 🚨 Catisma hedefi COALESCE(message_id, '') ifadesidir (migration
-        // 0017'deki benzersizlik indeksiyle BIREBIR ayni olmalidir); author
-        // ise duz sutundur -- NULL oldugunda catisma hic olusmaz ve her
-        // cagri yeni bir satir acar (K1: kimliksiz kurulumda sessiz bir
-        // benzersizlik mekanizmasi getirilmez).
+        // 🚨 The conflict target is the expression COALESCE(message_id, '')
+        // (must be IDENTICAL to the uniqueness index in migration 0017);
+        // author is a plain column -- when it is NULL no conflict occurs at
+        // all and every call opens a new row (K1: no silent uniqueness
+        // mechanism is introduced for an identity-less setup).
         UpsertRunScore = $"""
             INSERT INTO {Schema}.run_scores
                 ({runScoreColumns})
@@ -1894,9 +1907,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
             DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Kira baskasindaysa ve suresi dolmamissa WHERE yanlis kalir; conflict
-        // satiri GUNCELLENMEZ ve RETURNING hicbir satir uretmez (K-177'nin
-        // PostgreSQL tarafi: tek ifadelik upsert, ikinci sonuc kumesi yoktur).
+        // If the lease is held by someone else and has not expired, WHERE
+        // stays false; the conflict row is NOT UPDATED and RETURNING
+        // produces no row (the PostgreSQL side of K-177: a single-statement
+        // upsert, no second result set).
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
             VALUES (@name, @owner_id, @expires_at, @now)
@@ -1919,10 +1933,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
             DELETE FROM {Schema}.singleton_leases WHERE name = @name AND owner_id = @owner_id;
             """;
 
-        // Catisma DO NOTHING/UPDATE degil DUZ INSERT'tir: cagiran taraf
-        // SqlDialect.IsUniqueViolation ile ihlali yakalar ve mevcut kaydi
-        // SelectIdempotencyKey ile okur (K-177'nin iki dalli upsert deseninden
-        // FARKLI — burada "zaten var" bir hata degil, normal bir akis dalidir).
+        // A PLAIN INSERT, not a DO NOTHING/UPDATE conflict clause: the caller
+        // catches the violation with SqlDialect.IsUniqueViolation and reads
+        // the existing record with SelectIdempotencyKey (DIFFERENT from
+        // K-177's two-branch upsert pattern -- here "already exists" is not
+        // an error, it is a normal flow branch).
         InsertIdempotencyKey = $"""
             INSERT INTO {Schema}.idempotency_keys (tenant_id, "key", fingerprint, state, created_at)
             VALUES (@tenant_id, @key, @fingerprint, 0, @created_at);
@@ -1969,17 +1984,17 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // WHERE status = @status_pending: ikinci bir karar 0 satir etkiler,
-        // DecideAsync bunu false olarak yorumlar.
+        // WHERE status = @status_pending: a second decision affects 0 rows,
+        // DecideAsync interprets that as false.
         DecidePendingApproval = $"""
             UPDATE {Schema}.pending_approvals
                SET status = @status, decided_by = @decided_by, decided_at = @decided_at
              WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
             """;
 
-        // ClaimOrphanedRuns ile AYNI desen: aday secimi + kapama TEK ifadede,
-        // RETURNING ile kapatilan satirlar okunur. Kiraci suzgeci YOKTUR — bir
-        // bakim islemidir.
+        // The SAME pattern as ClaimOrphanedRuns: candidate selection + closing
+        // in a SINGLE statement, closed rows are read via RETURNING. There is
+        // NO tenant filter -- this is a maintenance operation.
         ExpirePendingApprovals = $"""
             UPDATE {Schema}.pending_approvals
                SET status = @status_expired
