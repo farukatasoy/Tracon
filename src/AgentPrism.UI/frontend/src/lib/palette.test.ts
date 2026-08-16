@@ -70,7 +70,7 @@ describe('rankCommands', () => {
   });
 
   it('matches on keywords that are not shown', () => {
-    const commands = [command('Gösterge Paneli', 'Dashboard dashboard')];
+    const commands = [command('Localised Dashboard Label', 'Dashboard dashboard')];
 
     expect(rankCommands(commands, 'dashboard')).toHaveLength(1);
   });

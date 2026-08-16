@@ -189,7 +189,7 @@ export function formatDateTime(value: Date, options?: Intl.DateTimeFormatOptions
   return format.format(value);
 }
 
-/** Locale-aware `4 min. ago` / `4 dk. önce`. */
+/** Locale-aware relative time, e.g. `4 min. ago` in English or the Turkish equivalent in `tr`. */
 export function formatRelative(value: number, unit: Intl.RelativeTimeFormatUnit): string {
   let format = relativeFormats.get(active);
 
