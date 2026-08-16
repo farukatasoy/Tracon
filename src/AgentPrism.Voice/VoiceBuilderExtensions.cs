@@ -6,15 +6,15 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Ses tool'larini AgentPrism zincirine ekler.</summary>
+/// <summary>Adds the voice tools to the AgentPrism chain.</summary>
 public static class VoiceBuilderExtensions
 {
-    /// <summary>Ses tool'larini yapilandirmadan okuyarak kaydeder.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configurationSection"><c>AgentPrism:Voice</c> bolumu.</param>
-    /// <param name="configure">Yapilandirmadan sonra uygulanacak degisiklikler.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Registers the voice tools, reading settings from configuration.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configurationSection">The <c>AgentPrism:Voice</c> section.</param>
+    /// <param name="configure">Changes to apply after configuration binding.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">When a dependency is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseVoice(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection,
@@ -30,21 +30,20 @@ public static class VoiceBuilderExtensions
         });
     }
 
-    /// <summary>Ses tool'larini kaydeder.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayarlar.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Registers the voice tools.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The settings.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">When a dependency is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Kayit <c>TryAdd*</c> ile yapilir: tuketici kendi
-    /// <see cref="ISpeechSynthesizer"/> veya <see cref="ISpeechTranscriber"/>
-    /// uygulamasini bu cagridan ONCE kaydettiyse onunki korunur.
+    /// Registration uses <c>TryAdd*</c>: when the consumer registered its own
+    /// <see cref="ISpeechSynthesizer"/> or <see cref="ISpeechTranscriber"/>
+    /// implementation BEFORE this call, theirs is preserved.
     /// </para>
     /// <para>
-    /// Uc tool kaydedilir: <c>speak</c>, <c>transcribe</c>, <c>list_voices</c>.
-    /// Tool'lar K-012'nin geregi olarak KODDA tanimlidir; arayuzden yalnizca
-    /// secilirler.
+    /// Three tools are registered: <c>speak</c>, <c>transcribe</c>, <c>list_voices</c>.
+    /// Per K-012, tools are defined IN CODE; the UI only selects them.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseVoice(this IAgentPrismBuilder builder, Action<VoiceOptions> configure)
@@ -58,10 +57,10 @@ public static class VoiceBuilderExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<VoiceOptions>, VoiceOptionsValidator>());
 
-        // Tek bir istemci hem sentez hem cozum hem saglik denetimi sunar:
-        // eszamanlilik sinirinin TEK bir sayacta tutulmasi icin ayni ornek
-        // uc arayuze de baglanir. Ayri ornekler sinirin iki kati istege izin
-        // verirdi.
+        // A single client serves synthesis, transcription, and health checks:
+        // the same instance is bound to all three interfaces so the
+        // concurrency limit is held in ONE counter. Separate instances would
+        // allow twice the intended number of requests.
         services.TryAddSingleton(static provider =>
             new ElevenLabsSpeechClient(provider.GetRequiredService<IOptions<VoiceOptions>>().Value));
 
@@ -76,25 +75,25 @@ public static class VoiceBuilderExtensions
 
         services.TryAddSingleton<VoicePricing>();
 
-        // HTTP katmani fiyati bu soyutlama uzerinden okur; AgentPrism.Voice'a
-        // referans veremez (paket yonu kurali).
+        // The HTTP layer reads the price through this abstraction; it cannot
+        // reference AgentPrism.Voice (package direction rule).
         services.TryAddSingleton<IVoicePricingReader>(static provider =>
             provider.GetRequiredService<VoicePricing>());
 
         var requireApproval = ReadApprovalSetting(configure);
 
-        // 🚨 Tool'lar FABRIKA ile kaydedilir, hazir ornekle degil: bagimliliklari
-        // kurulum anindaki saglayicidan alirlar. Cagri aninda cozmek MUMKUN
-        // DEGILDIR — Microsoft Agent Framework tool'a EmptyServiceProvider
-        // gecirir (olculdu, bkz. VoiceToolBase).
+        // 🚨 Tools are registered with a FACTORY, not a ready instance: they
+        // take their dependencies from the provider at setup time. Resolving
+        // at call time is NOT POSSIBLE — Microsoft Agent Framework passes the
+        // tool an EmptyServiceProvider (measured, see VoiceToolBase).
         services.AddSingleton(provider =>
             new AgentPrismToolRegistration(new SpeakTool(provider), requireApproval));
 
         services.AddSingleton(provider =>
             new AgentPrismToolRegistration(new TranscribeTool(provider), requireApproval));
 
-        // Listeleme ucret uretmez ve dis etki yaratmaz; onay ayari buna
-        // uygulanmaz.
+        // Listing incurs no cost and has no side effect; the approval setting
+        // does not apply to it.
         services.AddSingleton(provider =>
             new AgentPrismToolRegistration(new ListVoicesTool(provider)));
 
@@ -102,13 +101,14 @@ public static class VoiceBuilderExtensions
     }
 
     /// <summary>
-    /// Onay ayarini tool kaydindan ONCE okur.
+    /// Reads the approval setting BEFORE tool registration.
     /// </summary>
     /// <remarks>
-    /// 🚨 Onay bayragi <c>ToolRegistry</c> kurulurken okunur ve defter
-    /// <c>AgentPrismToolRegistration</c> kayitlarindan bir kez insa edilir;
-    /// bu yuzden deger <see cref="IOptions{TOptions}"/> uzerinden calisma
-    /// aninda cozulemez. Ayar burada, kayit anindaki degeriyle alinir.
+    /// 🚨 The approval flag is read while <c>ToolRegistry</c> is built, and the
+    /// registry is built once from <c>AgentPrismToolRegistration</c> entries;
+    /// so the value cannot be resolved at run time through
+    /// <see cref="IOptions{TOptions}"/>. The setting is taken here, with its
+    /// value at registration time.
     /// </remarks>
     private static bool ReadApprovalSetting(Action<VoiceOptions> configure)
     {
@@ -119,12 +119,12 @@ public static class VoiceBuilderExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Voice</c> bolumunu elle baglar.
+    /// Binds the <c>AgentPrism:Voice</c> section by hand.
     /// </summary>
     /// <remarks>
-    /// Elle baglama AOT gereksinimidir: <c>Bind()</c> yansima kullanir ve
-    /// kirpilmis uygulamalarda ayarlar sessizce bos kalir
-    /// (bkz. <c>docs/hafiza/build-ve-analyzer.md</c>).
+    /// Hand binding is an AOT requirement: <c>Bind()</c> uses reflection and
+    /// leaves settings silently empty in trimmed applications
+    /// (see <c>docs/hafiza/build-ve-analyzer.md</c>).
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceOptions options)
     {

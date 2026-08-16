@@ -1,19 +1,19 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Saglayici ayarlarindaki model tanimlarindan arayuze gosterilecek katalogu kurar.
+/// Builds the catalog shown to the UI from the model definitions in provider settings.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism yerlesik bir model listesi tasimaz.</strong> Model adlari ve
-/// fiyatlari bir NuGet paketinin yayin sikligindan cok daha hizli degisir; koda
-/// gomulu bir liste kisa surede yaniltici olur. Gerekce: <c>docs/KARARLAR.md</c>,
-/// karar K-032.
+/// <strong>AgentPrism carries no built-in model list.</strong> Model names and
+/// prices change far faster than a NuGet package's release cadence; a list baked
+/// into the code goes stale quickly. Rationale: <c>docs/KARARLAR.md</c>,
+/// decision K-032.
 /// </para>
 /// <para>
-/// Katalog <em>bir dogrulama listesi degildir</em>: burada bulunmayan bir model adi
-/// da kullanilabilir, saglayici istegi oldugu gibi Anthropic'e gonderir. Katalog
-/// yalnizca arayuzun model secim ekranini ve maliyet hesabini besler.
+/// The catalog is <em>not a validation list</em>: a model name absent from it can
+/// still be used — the provider sends the request to Anthropic as given. The
+/// catalog only feeds the UI's model picker and cost calculation.
 /// </para>
 /// <example>
 /// <code language="json">
@@ -27,13 +27,13 @@ namespace AgentPrism;
 /// </remarks>
 public static class AnthropicModelCatalog
 {
-    /// <summary>Ayarlardaki model tanimlarindan katalogu kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Ada gore siralanmis model listesi. Tanim yoksa bos liste.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Builds the catalog from the model definitions in settings.</summary>
+    /// <param name="options">Provider settings.</param>
+    /// <returns>The model list, sorted by name. Empty when there are no definitions.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Ayni ad birden cok kez tanimlanmissa son tanim kazanir. Karsilastirma
-    /// buyuk/kucuk harfe duyarli degildir. Adsiz girdiler yok sayilir.
+    /// When the same name is defined more than once, the last definition wins.
+    /// Comparison is case-insensitive. Nameless entries are ignored.
     /// </remarks>
     public static IReadOnlyList<ModelDescriptor> Build(AnthropicProviderOptions options)
     {

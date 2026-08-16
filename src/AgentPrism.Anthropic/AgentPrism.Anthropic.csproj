@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin Anthropic (Claude) saglayici adaptoru. Model katalogu, IChatClient uretimi, prompt caching ve genisletilmis dusunme ayarlari.</Description>
+    <Description>Anthropic (Claude) provider adapter for AgentPrism. Model catalog, IChatClient production, prompt caching and extended thinking settings.</Description>
     <PackageTags>$(CommonPackageTags);anthropic;claude;provider</PackageTags>
   </PropertyGroup>
 
@@ -10,10 +10,10 @@
   </ItemGroup>
 
   <!--
-    Anthropic'in RESMI .NET SDK'si (sahip: Anthropic, MIT). Kendi `AsIChatClient`
-    adaptorunu tasir, bu yuzden mesaj eslemesi/akis/tool cagrisi AgentPrism'de
-    yazilmaz. Gecisli bagimliliklari yalnizca Microsoft/System paketleridir.
-    Gerekce: docs/KARARLAR.md, karar K-204.
+    Anthropic's OFFICIAL .NET SDK (owner: Anthropic, MIT). It carries its own
+    `AsIChatClient` adapter, so message mapping/streaming/tool calling is not
+    written in AgentPrism. Its transitive dependencies are Microsoft/System
+    packages only. Rationale: docs/KARARLAR.md, decision K-204.
   -->
   <ItemGroup>
     <PackageReference Include="Anthropic" />

@@ -8,33 +8,34 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// ElevenLabs'in uc HTTP ucunu kullanan <see cref="ISpeechSynthesizer"/> ve
-/// <see cref="ISpeechTranscriber"/> uygulamasi.
+/// <see cref="ISpeechSynthesizer"/> and <see cref="ISpeechTranscriber"/>
+/// implementation that uses ElevenLabs' three HTTP endpoints.
 /// </summary>
 /// <remarks>
 /// <para>
-/// SDK yerine ham <see cref="HttpClient"/>: kullanilan yuzey uc uctan ibarettir,
-/// JSON sozlesmesi basittir ve kaynak ureteciyle AOT uyumlu kalir. Ayrica hata
-/// detayinin sir ve adres tasimadigi burada tam olarak denetlenebilir.
+/// Raw <see cref="HttpClient"/> instead of an SDK: the surface used is only
+/// three endpoints, the JSON contract is simple, and source generation keeps
+/// it AOT compatible. This also lets the code fully control that the error
+/// detail carries no secret or address.
 /// </para>
 /// <para>
-/// Eszamanlilik bir <see cref="SemaphoreSlim"/> ile sinirlanir: ses istekleri
-/// pahalidir ve yanlis yazilmis tek bir agent tanimi onlarca istegi ayni anda
-/// baslatabilir.
+/// Concurrency is bounded with a <see cref="SemaphoreSlim"/>: voice requests
+/// are expensive, and a single misconfigured agent definition can fire dozens
+/// of requests at once.
 /// </para>
 /// </remarks>
 internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTranscriber, IVoiceHealthCheck, IDisposable
 {
-    /// <summary>Saglayicinin genel taban adresi.</summary>
+    /// <summary>The provider's public base address.</summary>
     internal static readonly Uri DefaultEndpoint = new("https://api.elevenlabs.io/");
 
-    /// <summary>Kimlik dogrulama basligi. 🚨 <c>Authorization: Bearer</c> DEGILDIR.</summary>
+    /// <summary>Authentication header. 🚨 It is NOT <c>Authorization: Bearer</c>.</summary>
     internal const string ApiKeyHeader = "xi-api-key";
 
-    /// <summary>Saglayicinin varsayilan sentez modeli.</summary>
+    /// <summary>The provider's default synthesis model.</summary>
     internal const string DefaultSynthesisModel = "eleven_multilingual_v2";
 
-    /// <summary>Saglayicinin varsayilan cozum modeli.</summary>
+    /// <summary>The provider's default transcription model.</summary>
     internal const string DefaultTranscriptionModel = "scribe_v2";
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(100);
@@ -45,11 +46,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     private readonly VoiceOptions _options;
     private readonly SemaphoreSlim _concurrency;
 
-    /// <summary>Yeni bir istemci kurar.</summary>
-    /// <param name="options">Ayarlar.</param>
+    /// <summary>Builds a new client.</summary>
+    /// <param name="options">The settings.</param>
     /// <param name="httpClient">
-    /// Kullanilacak istemci. <see langword="null"/> ise istemci burada kurulur ve
-    /// bu nesneye ait olur. Testler sahte bir <c>HttpMessageHandler</c> gecirir.
+    /// The client to use. When <see langword="null"/>, the client is built here
+    /// and owned by this instance. Tests pass a fake <c>HttpMessageHandler</c>.
     /// </param>
     public ElevenLabsSpeechClient(VoiceOptions options, HttpClient? httpClient = null)
     {
@@ -87,7 +88,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
             using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false);
             using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
-            await EnsureSuccessAsync(response, "Ses uretilemedi", cancellationToken).ConfigureAwait(false);
+            await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
 
             var data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
             var billed = ReadBilledCharacters(response);
@@ -98,8 +99,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                 MediaType = MediaTypeForFormat(format),
                 CharactersBilled = billed ?? request.Text.Length,
 
-                // Saglayici sayiyi bildirmediyse deger bir TAHMINDIR ve oyle
-                // isaretlenir. Tahmini olcum gibi gostermek fiyat uydurmaktir.
+                // When the provider does not report the count, the value is an
+                // ESTIMATE and is marked as such. Presenting an estimate as a
+                // measurement would be inventing a price.
                 UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
             };
         }
@@ -129,7 +131,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                 .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
 
-            await EnsureSuccessAsync(response, "Ses akisi baslatilamadi", cancellationToken).ConfigureAwait(false);
+            await EnsureSuccessAsync(response, "Speech stream could not be started", cancellationToken).ConfigureAwait(false);
 
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
@@ -146,7 +148,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                         break;
                     }
 
-                    // Tampon yeniden kullanilir; tuketiciye kopya verilir.
+                    // The buffer is reused; the consumer gets a copy.
                     yield return buffer.AsMemory(0, read).ToArray();
                 }
             }
@@ -166,7 +168,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
-        await EnsureSuccessAsync(response, "Ses listesi alinamadi", cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, "Voice list could not be retrieved", cancellationToken).ConfigureAwait(false);
 
         return await ReadVoicesAsync(response, cancellationToken).ConfigureAwait(false);
     }
@@ -185,7 +187,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         try
         {
-            // 🚨 Uc `multipart/form-data` ister; JSON govdesi KABUL ETMEZ.
+            // 🚨 The endpoint requires `multipart/form-data`; it does NOT accept a JSON body.
             using var content = new MultipartFormDataContent();
             var fileContent = new StreamContent(audio);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
@@ -211,7 +213,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
             using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
-            await EnsureSuccessAsync(response, "Ses cozulemedi", cancellationToken).ConfigureAwait(false);
+            await EnsureSuccessAsync(response, "Speech could not be transcribed", cancellationToken).ConfigureAwait(false);
 
             return await ReadTranscriptAsync(response, cancellationToken).ConfigureAwait(false);
         }
@@ -244,27 +246,28 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Zaman asimi.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
         }
         catch (HttpRequestException exception)
         {
             stopwatch.Stop();
 
-            // 🚨 exception.Message baglanti reddinde hedef adresi (host:port)
-            // govdeye gomer. HttpRequestError adres tasimayan bir kategori adidir.
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Baglanti hatasi ({exception.HttpRequestError}).");
+            // 🚨 exception.Message embeds the target address (host:port) in a
+            // connection refusal. HttpRequestError is a category name that
+            // carries no address.
+            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }
         catch (JsonException)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Yanit gecerli JSON degil.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Response is not valid JSON.");
         }
         catch (AgentPrismException exception)
         {
             stopwatch.Stop();
 
-            // AgentPrismException metni EnsureSuccessAsync tarafindan uretilir ve
-            // yalnizca HTTP durum kodu tasir; sir ve adres icermez.
+            // The AgentPrismException text is produced by EnsureSuccessAsync and
+            // carries only the HTTP status code; it contains no secret or address.
             return Unhealthy(checkedAt, stopwatch.Elapsed, exception.Message);
         }
     }
@@ -297,9 +300,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         if (string.IsNullOrWhiteSpace(voiceId))
         {
             throw new AgentPrismException(
-                "Ses kimligi verilmedi ve varsayilan ses tanimli degil. " +
-                "`AgentPrism:Voice:DefaultVoiceId` ayarini verin veya istekte bir ses kimligi gecirin. " +
-                "Kullanilabilir kimlikleri `list_voices` tool'u listeler.");
+                "No voice id was given and no default voice is configured. " +
+                "Set `AgentPrism:Voice:DefaultVoiceId` or pass a voice id in the request. " +
+                "The `list_voices` tool lists the available ids.");
         }
 
         return voiceId;
@@ -344,11 +347,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         }
     }
 
-    /// <summary>Taban adresi goreli bir yol ile birlestirir.</summary>
+    /// <summary>Combines the base address with a relative path.</summary>
     /// <remarks>
-    /// 🚨 Taban adres egik cizgi ile bitmiyorsa <see cref="Uri"/> son parcayi
-    /// DEGISTIRIR (dosya gibi davranir); birlestirmeden once normalize edilir.
-    /// <c>internal</c>: birim testleri ag cagrisi olmadan dogrular.
+    /// 🚨 When the base address does not end with a slash, <see cref="Uri"/>
+    /// REPLACES the last segment (treats it like a file); it is normalized
+    /// before combining. <c>internal</c>: unit tests verify this without a
+    /// network call.
     /// </remarks>
     internal Uri BuildUri(string relativePath) => Combine(BaseEndpoint, relativePath);
 
@@ -365,11 +369,11 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         return new Uri(new Uri(text, UriKind.Absolute), relativePath);
     }
 
-    /// <summary>Saglayicinin bicim adini bir MIME turune cevirir.</summary>
+    /// <summary>Converts the provider's format name to a MIME type.</summary>
     /// <remarks>
-    /// <c>internal</c>: birim testleri dogrular. Bilinmeyen bir bicim
-    /// <c>application/octet-stream</c> dondurur ve ek deposu tarafindan
-    /// reddedilir — sessizce yanlis bir tur yazmaktan iyidir.
+    /// <c>internal</c>: unit tests verify this. An unknown format returns
+    /// <c>application/octet-stream</c> and is rejected by the attachment
+    /// store — better than silently writing a wrong type.
     /// </remarks>
     internal static string MediaTypeForFormat(string outputFormat)
     {
@@ -392,11 +396,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         return "application/octet-stream";
     }
 
-    /// <summary>Yanit basliklarindan faturalanan karakter sayisini okur.</summary>
-    /// <returns>Saglayici bildirmediyse <see langword="null"/>.</returns>
+    /// <summary>Reads the billed character count from the response headers.</summary>
+    /// <returns><see langword="null"/> when the provider does not report it.</returns>
     /// <remarks>
-    /// <c>internal</c>: birim testleri hazir bir yanitla dogrular. Baslik yoksa
-    /// cagiran metnin uzunlugunu kullanir ve olcumu TAHMIN olarak isaretler.
+    /// <c>internal</c>: unit tests verify this with a prepared response. When
+    /// the header is absent, the caller uses the input text's length and
+    /// marks the measurement as an ESTIMATE.
     /// </remarks>
     internal static int? ReadBilledCharacters(HttpResponseMessage response)
     {
@@ -417,8 +422,8 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         return null;
     }
 
-    /// <summary>Ses listesi govdesini ayristirir.</summary>
-    /// <remarks><c>internal</c>: birim testleri hazir bir govdeyle dogrular.</remarks>
+    /// <summary>Parses the voice list body.</summary>
+    /// <remarks><c>internal</c>: unit tests verify this with a prepared body.</remarks>
     internal static async ValueTask<IReadOnlyList<VoiceDescriptor>> ReadVoicesAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -462,8 +467,8 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         }
     }
 
-    /// <summary>Cozum yanitini ayristirir.</summary>
-    /// <remarks><c>internal</c>: birim testleri hazir bir govdeyle dogrular.</remarks>
+    /// <summary>Parses the transcription response.</summary>
+    /// <remarks><c>internal</c>: unit tests verify this with a prepared body.</remarks>
     internal static async ValueTask<SpeechTranscript> ReadTranscriptAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -492,12 +497,13 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     }
 
     /// <summary>
-    /// Basarisiz bir yaniti anlasilir bir hataya cevirir.
+    /// Turns a failed response into an understandable error.
     /// </summary>
     /// <remarks>
-    /// 🚨 Hata metni yalnizca durum kodu tasir. Saglayicinin govdesi istegi (yani
-    /// seslendirilen metni) ve bazen anahtar parcasini yankilar; govdeyi hataya
-    /// koymak onlari gunluge ve arayuze tasirdi.
+    /// 🚨 The error text carries only the status code. The provider's response
+    /// body echoes the request (i.e. the spoken text) and sometimes a key
+    /// fragment; putting the body in the error would carry them into logs and
+    /// the UI.
     /// </remarks>
     private static async ValueTask EnsureSuccessAsync(
         HttpResponseMessage response,
@@ -509,15 +515,15 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
             return;
         }
 
-        // Govde okunur ve ATILIR: baglantinin duzgun kapanmasi icin tuketilir.
+        // The body is read and DISCARDED: consumed so the connection closes cleanly.
         _ = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
 
         var hint = (int)response.StatusCode switch
         {
-            401 => " API anahtari gecersiz.",
-            404 => " Ses veya model kimligi bulunamadi.",
-            422 => " Istek saglayici tarafindan reddedildi; ses kimligini ve model adini denetleyin.",
-            429 => " Saglayici hiz sinirina ulasildi.",
+            401 => " The API key is invalid.",
+            404 => " The voice or model id was not found.",
+            422 => " The request was rejected by the provider; check the voice id and model name.",
+            429 => " The provider's rate limit was reached.",
             _ => string.Empty,
         };
 

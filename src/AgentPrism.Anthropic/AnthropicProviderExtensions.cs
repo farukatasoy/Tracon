@@ -7,16 +7,16 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism zincirine Anthropic (Claude) saglayicisini ekleyen uzantilar.</summary>
+/// <summary>Extensions that add the Anthropic (Claude) provider to the AgentPrism chain.</summary>
 public static class AnthropicProviderExtensions
 {
-    /// <summary>API anahtari vererek Anthropic saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="apiKey">Anthropic API anahtari.</param>
-    /// <param name="configure">Ek ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="apiKey"/> bos ise.</exception>
+    /// <summary>Adds the Anthropic provider using an API key.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="apiKey">Anthropic API key.</param>
+    /// <param name="configure">Additional settings modifier.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
     public static IAgentPrismBuilder UseAnthropic(
         this IAgentPrismBuilder builder,
         string apiKey,
@@ -33,16 +33,16 @@ public static class AnthropicProviderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Providers:Anthropic</c> bolumunden okuyarak Anthropic
-    /// saglayicisini ekler.
+    /// Adds the Anthropic provider, reading settings from the
+    /// <c>AgentPrism:Providers:Anthropic</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section settings are read from. Typically
     /// <c>configuration.GetSection(AnthropicProviderOptions.SectionName)</c>.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseAnthropic(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection)
@@ -53,19 +53,19 @@ public static class AnthropicProviderExtensions
         return builder.UseAnthropic(options => Bind(configurationSection, options));
     }
 
-    /// <summary>Ayarlari kodda vererek Anthropic saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Adds the Anthropic provider using settings given in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">Settings modifier.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Bu cagri tek bir saglayici kaydeder: <see cref="AnthropicProviderNames.Anthropic"/>.
+    /// This call registers a single provider: <see cref="AnthropicProviderNames.Anthropic"/>.
     /// </para>
     /// <para>
-    /// Kayit <c>AddModelProvider(...)</c> ile yapilir; mevcut hicbir servis
-    /// <em>degistirilmez</em> (karar K-025). Birden cok kez cagrilirsa ayarlar
-    /// birlestirilir; saglayici yalnizca bir kez kaydedilir.
+    /// Registration uses <c>AddModelProvider(...)</c>; no existing service is
+    /// <em>replaced</em> (decision K-025). Calling this more than once merges the
+    /// settings; the provider is registered only once.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseAnthropic(
@@ -83,13 +83,13 @@ public static class AnthropicProviderExtensions
             IValidateOptions<AnthropicProviderOptions>,
             AnthropicProviderOptionsValidator>());
 
-        // Ikinci cagri ayarlari birlestirir ama saglayiciyi tekrar kaydetmez;
-        // aksi halde ModelProviderRegistry "ayni ad birden cok kez kaydedilmis"
-        // hatasi verirdi ve sebebi kullaniciya kapali kalirdi.
+        // A second call merges settings but does not register the provider again;
+        // otherwise ModelProviderRegistry would raise a "same name registered
+        // more than once" error whose cause would stay hidden from the caller.
         var alreadyRegistered = services.Any(
             static descriptor => descriptor.ServiceType == typeof(AnthropicChatClientFactory));
 
-        // Tek istemci, tek HTTP baglanti havuzu.
+        // One client, one HTTP connection pool.
         services.TryAddSingleton(static provider => new AnthropicChatClientFactory(
             provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value,
             provider.GetService<ILoggerFactory>()));
@@ -114,12 +114,12 @@ public static class AnthropicProviderExtensions
         return builder;
     }
 
-    /// <summary>Yapilandirma bolumunu ayar nesnesine elle baglar.</summary>
+    /// <summary>Binds a configuration section to the settings object by hand.</summary>
     /// <remarks>
-    /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
-    /// Yeni bir ayar eklendiginde bu metoda ve
-    /// <see cref="AnthropicProviderOptionsValidator"/> icine de eklenmelidir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
+    /// When a new setting is added, it must also be added here and inside
+    /// <see cref="AnthropicProviderOptionsValidator"/>.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     internal static void Bind(IConfiguration section, AnthropicProviderOptions options)
     {
@@ -136,9 +136,10 @@ public static class AnthropicProviderExtensions
         if (section[nameof(AnthropicProviderOptions.Endpoint)] is { Length: > 0 } endpoint
             && Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out var endpointUri))
         {
-            // Goreli adresler de atanir: validator IsAbsoluteUri denetimiyle
-            // reddeder. Yalnizca UriKind.Absolute ile parse edip goreliyi
-            // sessizce atlamak validator'in bu dalini erisilemez birakirdi.
+            // Relative addresses are assigned too: the validator rejects them with
+            // its IsAbsoluteUri check. Parsing only with UriKind.Absolute and
+            // silently dropping a relative value would leave that validator branch
+            // unreachable.
             options.Endpoint = endpointUri;
         }
 
@@ -167,8 +168,9 @@ public static class AnthropicProviderExtensions
     {
         foreach (var child in section.GetChildren())
         {
-            // Bos/eksik ad da eklenir: validator Models[i] dongusuyle reddeder.
-            // Burada atlamak validator'in bu dalini erisilemez birakirdi.
+            // An empty/missing name is added too: the validator rejects it through
+            // its Models[i] loop. Skipping it here would leave that validator
+            // branch unreachable.
             options.Models.Add(new ModelDescriptor
             {
                 Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,

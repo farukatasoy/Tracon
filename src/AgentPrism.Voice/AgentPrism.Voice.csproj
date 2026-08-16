@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin ses tool'lari. Metinden ses (TTS) ve sesten metin (STT); uretilen ses ek deposunda yasar. Saglayici soyutlamasi ElevenLabs uygulamasiyla birlikte gelir.</Description>
+    <Description>Voice tools for AgentPrism. Text-to-speech (TTS) and speech-to-text (STT); generated audio lives in the attachment store. The provider abstraction ships with an ElevenLabs implementation.</Description>
     <PackageTags>$(CommonPackageTags);voice;speech;tts;stt;elevenlabs</PackageTags>
   </PropertyGroup>
 
@@ -10,14 +10,14 @@
   </ItemGroup>
 
   <!--
-    HICBIR NuGet paketi alinmaz. Kullanilan yuzey uc HTTP ucundan ibarettir
-    (/v1/text-to-speech, /v1/speech-to-text, /v2/voices) ve JSON sozlesmesi
-    basittir; ham HttpClient + System.Text.Json kaynak ureteci ile paket AOT
-    uyumlu kalir.
+    NO NuGet package is taken on. The surface used is only three HTTP
+    endpoints (/v1/text-to-speech, /v1/speech-to-text, /v2/voices) and the
+    JSON contract is simple; raw HttpClient + System.Text.Json source
+    generation keeps the package AOT compatible.
 
-    Bir topluluk SDK'si bakim ve surum riskini tuketiciye tasirdi (K-007) ve
-    Faz 27 bir SDK'nin merkezi surum yonetimi altinda calisma aninda SESSIZCE
-    kirilabildigini olcerek gosterdi (K-211).
+    A community SDK would carry maintenance and version risk to the consumer
+    (K-007), and Phase 27 measured that an SDK can break SILENTLY at run time
+    under centralized version management (K-211).
   -->
 
 </Project>

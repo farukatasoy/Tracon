@@ -3,20 +3,20 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>Kullanilabilir sesleri listeler.</summary>
+/// <summary>Lists the available voices.</summary>
 /// <remarks>
-/// Cagri ucret <strong>uretmez</strong>. Liste modele ad ve kimlik olarak
-/// verilir; boylece model <c>speak</c> tool'unu dogru ses kimligiyle cagirabilir.
+/// The call <strong>incurs no cost</strong>. The list is given to the model as
+/// name and id, so the model can call the <c>speak</c> tool with the right voice id.
 /// </remarks>
 internal sealed class ListVoicesTool : VoiceToolBase
 {
-    /// <summary>Tool adi.</summary>
+    /// <summary>Tool name.</summary>
     public const string ToolName = "list_voices";
 
-    /// <summary>Modele bildirilecek en fazla ses sayisi.</summary>
+    /// <summary>Maximum number of voices reported to the model.</summary>
     /// <remarks>
-    /// Saglayici yuzlerce ses dondurebilir; hepsini baglama koymak pencereyi
-    /// gereksiz doldurur.
+    /// The provider can return hundreds of voices; putting all of them in the
+    /// context fills the window needlessly.
     /// </remarks>
     internal const int MaxListedVoices = 50;
 
@@ -38,7 +38,7 @@ internal sealed class ListVoicesTool : VoiceToolBase
 
     /// <inheritdoc />
     public override string Description =>
-        "Seslendirmede kullanilabilecek sesleri listeler. Her ses icin ad ve kimlik doner.";
+        "Lists the voices available for speech synthesis. Returns a name and id for each voice.";
 
     /// <inheritdoc />
     protected override async ValueTask<object?> InvokeCoreAsync(

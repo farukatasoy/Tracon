@@ -3,17 +3,18 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AnthropicProviderOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AnthropicProviderOptions"/> settings at application startup.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. <c>AgentPrism.Anthropic</c> AOT uyumlu kalmalidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is written by hand; <c>ValidateDataAnnotations()</c> relies on
+/// reflection and produces <c>IL2026</c>. <c>AgentPrism.Anthropic</c> must stay AOT
+/// compatible. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </para>
 /// <para>
-/// <strong>Hata mesajlari API anahtarini icermez.</strong> Dogrulama mesajlari
-/// gunluge ve baslangic istisnasina gider; anahtarin oraya sizmasi anahtari ifsa eder.
+/// <strong>Failure messages never contain the API key.</strong> Validation
+/// messages go to the log and the startup exception; leaking the key there would
+/// expose it.
 /// </para>
 /// </remarks>
 public sealed class AnthropicProviderOptionsValidator : IValidateOptions<AnthropicProviderOptions>
@@ -29,15 +30,15 @@ public sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthrop
         {
             (failures ??= []).Add(
                 $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.ApiKey)} cannot be empty. " +
-                "Anahtari `UseAnthropic(apiKey)` cagrisinda verin veya " +
+                "Provide the key through the `UseAnthropic(apiKey)` call, or define " +
                 $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.ApiKey)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                "inside `dotnet user-secrets`.");
         }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {
             (failures ??= []).Add(
-                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.Endpoint)} mutlak bir adres olmalidir. " +
+                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.Endpoint)} must be an absolute address. " +
                 $"Actual value: '{options.Endpoint}'.");
         }
 
@@ -45,7 +46,7 @@ public sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthrop
         {
             (failures ??= []).Add(
                 $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.DefaultMaxOutputTokens)} " +
-                $"must be greater than zero. Anthropic Messages API'si `max_tokens` alanini zorunlu tutar. " +
+                $"must be greater than zero. The Anthropic Messages API requires the `max_tokens` field. " +
                 $"Actual value: {options.DefaultMaxOutputTokens}.");
         }
 
@@ -59,7 +60,7 @@ public sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthrop
         if (options.MaxRetries is { } retries && retries < 0)
         {
             (failures ??= []).Add(
-                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.MaxRetries)} negatif olamaz. " +
+                $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.MaxRetries)} cannot be negative. " +
                 $"Actual value: {retries}.");
         }
 
@@ -69,7 +70,7 @@ public sealed class AnthropicProviderOptionsValidator : IValidateOptions<Anthrop
             {
                 (failures ??= []).Add(
                     $"{nameof(AnthropicProviderOptions)}.{nameof(AnthropicProviderOptions.Models)}[{index}] " +
-                    "icin model adi cannot be empty.");
+                    "model name cannot be empty.");
             }
         }
 

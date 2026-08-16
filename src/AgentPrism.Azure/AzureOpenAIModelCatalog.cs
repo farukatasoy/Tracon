@@ -1,27 +1,25 @@
 namespace AgentPrism;
 
-/// <summary>
-/// Saglayici ayarlarindaki deployment tanimlarindan arayuze gosterilecek katalogu
-/// kurar.
-/// </summary>
+/// <summary>Builds the catalog shown to the UI from the deployment definitions in the provider options.</summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism yerlesik bir model listesi tasimaz.</strong> Azure'da bu kural
-/// daha da baglayicidir: katalogda yazan ad bir <em>model</em> adi degil, o kaynakta
-/// tanimli bir <em>deployment</em> adidir ve deployment adlarini kaynagi kuran kisi
-/// secer. Iki AgentPrism tuketicisinin kataloglari birbirine benzemek zorunda
-/// degildir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-032.
+/// <strong>AgentPrism carries no built-in model list.</strong> On Azure this rule
+/// is even more binding: the name written in the catalog is not a <em>model</em>
+/// name — it is a <em>deployment</em> name defined on that resource, and the
+/// person who sets up the resource chooses deployment names. Two AgentPrism
+/// consumers' catalogs need not resemble each other. Rationale: <c>docs/KARARLAR.md</c>,
+/// decision K-032.
 /// </para>
 /// <para>
-/// Katalog <em>bir dogrulama listesi degildir</em>: burada bulunmayan bir deployment
-/// adi da kullanilabilir. Katalog yalnizca arayuzun model secim ekranini ve maliyet
-/// hesabini besler.
+/// The catalog is <em>not a validation list</em>: a deployment name absent from
+/// it can still be used. The catalog only feeds the UI's model selection screen
+/// and cost calculation.
 /// </para>
 /// <example>
 /// <code language="json">
 /// "AgentPrism": { "Providers": { "AzureOpenAI": {
 ///   "Models": [
-///     { "Name": "uretim-gpt", "DisplayName": "Uretim (gpt-5.4-mini)", "ContextWindowTokens": 128000 }
+///     { "Name": "prod-gpt", "DisplayName": "Production (gpt-5.4-mini)", "ContextWindowTokens": 128000 }
 ///   ]
 /// }}}
 /// </code>
@@ -29,13 +27,13 @@ namespace AgentPrism;
 /// </remarks>
 public static class AzureOpenAIModelCatalog
 {
-    /// <summary>Ayarlardaki deployment tanimlarindan katalogu kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Ada gore siralanmis liste. Tanim yoksa bos liste.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Builds the catalog from the deployment definitions in the options.</summary>
+    /// <param name="options">The provider options.</param>
+    /// <returns>A list sorted by name. An empty list when no definitions exist.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Ayni ad birden cok kez tanimlanmissa son tanim kazanir. Karsilastirma
-    /// buyuk/kucuk harfe duyarli degildir. Adsiz girdiler yok sayilir.
+    /// When the same name is defined more than once, the last definition wins.
+    /// The comparison is case-insensitive. Nameless entries are ignored.
     /// </remarks>
     public static IReadOnlyList<ModelDescriptor> Build(AzureOpenAIProviderOptions options)
     {
