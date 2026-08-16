@@ -3,14 +3,14 @@ using AgentPrism.Templates.Tests.Infrastructure;
 namespace AgentPrism.Templates.Tests;
 
 /// <summary>
-/// K-032: model kataloğu yapılandırmadan gelir, kodda yerleşik liste olmaz.
-/// Üretilen Program.cs bir model adı SABİTLEMEMELİDİR — yalnız açık bir
-/// placeholder taşımalıdır.
+/// K-032: the model catalog comes from configuration, never a list built into
+/// the code. The generated Program.cs must NOT HARD-CODE a model name — it
+/// must only carry an explicit placeholder.
 /// </summary>
 public sealed class TemplateModelNameTests(TemplateFixture fixture)
 {
-    // Bilinen saglayici model adi onekleri. Sablon bunlardan HICBIRINI
-    // uretilen kodda gercek bir deger olarak yazmamali.
+    // Known provider model name prefixes. The template must not write ANY of
+    // these as a real value in the generated code.
     private static readonly string[] KnownModelPrefixes =
     [
         "gpt-", "claude-", "gemini-", "o1-", "o3-", "text-embedding-",
@@ -21,7 +21,7 @@ public sealed class TemplateModelNameTests(TemplateFixture fixture)
     [InlineData("anthropic")]
     [InlineData("google")]
     [InlineData("azure")]
-    public async Task UretilenProgramCs_SabitlenmisModelAdiTasimaz(string provider)
+    public async Task Generated_ProgramCs_carries_no_hardcoded_model_name(string provider)
     {
         using var dir = new TempDirectory();
 
@@ -30,7 +30,7 @@ public sealed class TemplateModelNameTests(TemplateFixture fixture)
 
         var programCs = await File.ReadAllTextAsync(Path.Combine(dir.Path, "Program.cs"));
 
-        programCs.ShouldContain("MODEL_ADINI_BURAYA_YAZIN");
+        programCs.ShouldContain("WRITE_MODEL_NAME_HERE");
 
         var lowered = programCs.ToLowerInvariant();
 

@@ -5,27 +5,27 @@ using System.Text;
 
 namespace AgentPrism;
 
-/// <summary>Gomulu bir SQL migration dosyasi.</summary>
-/// <param name="Id">Sira numarasi. Dosya adinin basindaki dort haneli sayidir.</param>
-/// <param name="Name">Migration adi. Ornek: <c>0001_initial</c>.</param>
-/// <param name="Sql">Ham SQL metni. Sema yer tutucusu henuz degistirilmemistir.</param>
-/// <param name="Checksum">Ham metnin SHA-256 ozeti (onaltilik).</param>
+/// <summary>An embedded SQL migration file.</summary>
+/// <param name="Id">The sequence number. The four-digit number at the start of the file name.</param>
+/// <param name="Name">The migration name. Example: <c>0001_initial</c>.</param>
+/// <param name="Sql">The raw SQL text. The schema placeholder has not been substituted yet.</param>
+/// <param name="Checksum">The SHA-256 digest of the raw text (hexadecimal).</param>
 internal sealed record MigrationDescriptor(int Id, string Name, string Sql, string Checksum)
 {
-    /// <summary>Dosya adindaki sira numarasinin hane sayisi.</summary>
+    /// <summary>The digit count of the sequence number in the file name.</summary>
     private const int IdDigits = 4;
 
     /// <summary>
-    /// Derlemedeki tum migration'lari sira numarasina gore siralanmis olarak okur.
+    /// Reads all migrations in the assembly, sorted by sequence number.
     /// </summary>
-    /// <param name="assembly">Migration'larin gomulu oldugu derleme.</param>
+    /// <param name="assembly">The assembly the migrations are embedded in.</param>
     /// <param name="resourcePrefix">
-    /// Gomulu kaynak ad oneki. Ornek: <c>AgentPrism.PostgreSql.Migrations.</c>.
-    /// Her saglayicinin kendi seti vardir; onek <see cref="SqlDialect"/> tarafindan verilir.
+    /// The embedded resource name prefix. Example: <c>AgentPrism.PostgreSql.Migrations.</c>.
+    /// Each provider has its own set; the prefix is supplied by <see cref="SqlDialect"/>.
     /// </param>
-    /// <returns>Sirali migration listesi.</returns>
+    /// <returns>The sorted migration list.</returns>
     /// <exception cref="AgentPrismException">
-    /// Bir dosya adi <c>NNNN_ad.sql</c> bicimine uymuyorsa veya iki dosya ayni sira numarasini tasiyorsa.
+    /// A file name does not match the <c>NNNN_name.sql</c> format, or two files share the same sequence number.
     /// </exception>
     public static IReadOnlyList<MigrationDescriptor> Discover(Assembly assembly, string resourcePrefix)
     {
@@ -54,8 +54,8 @@ internal sealed record MigrationDescriptor(int Id, string Name, string Sql, stri
                     out var id))
             {
                 throw new AgentPrismException(
-                    $"Gomulu migration adi '{fileName}' beklenen bicimde degil. " +
-                    "Dosya adlari 'NNNN_ad.sql' bicimindedir; ornek: '0001_initial.sql'.");
+                    $"Embedded migration name '{fileName}' is not in the expected format. " +
+                    "File names follow the 'NNNN_name.sql' format; example: '0001_initial.sql'.");
             }
 
             var sql = ReadResource(assembly, resourceName);
@@ -69,8 +69,8 @@ internal sealed record MigrationDescriptor(int Id, string Name, string Sql, stri
             if (descriptors[index].Id == descriptors[index - 1].Id)
             {
                 throw new AgentPrismException(
-                    $"Iki migration ayni sira numarasini tasiyor: '{descriptors[index - 1].Name}' ve " +
-                    $"'{descriptors[index].Name}'. Sira numaralari benzersiz olmalidir.");
+                    $"Two migrations share the same sequence number: '{descriptors[index - 1].Name}' and " +
+                    $"'{descriptors[index].Name}'. Sequence numbers must be unique.");
             }
         }
 
@@ -80,31 +80,32 @@ internal sealed record MigrationDescriptor(int Id, string Name, string Sql, stri
     private static string ReadResource(Assembly assembly, string resourceName)
     {
         using var stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new AgentPrismException($"Gomulu migration kaynagi okunamadi: '{resourceName}'.");
+            ?? throw new AgentPrismException($"Could not read embedded migration resource: '{resourceName}'.");
 
         using var reader = new StreamReader(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
     /// <summary>
-    /// Metnin SHA-256 ozetini hesaplar.
+    /// Computes the SHA-256 digest of the text.
     /// </summary>
     /// <remarks>
-    /// Ozet, sema yer tutucusu degistirilmeden ONCE hesaplanir. Boylece
-    /// <c>SchemaName</c> ayarini degistirmek uygulanmis migration'lari
-    /// gecersiz kilmaz.
+    /// The digest is computed BEFORE the schema placeholder is substituted.
+    /// This way changing the <c>SchemaName</c> setting does not invalidate
+    /// already-applied migrations.
     /// </remarks>
     private static string ComputeChecksum(string sql)
     {
-        // Satir sonu farki (CRLF / LF) ozeti degistirmemelidir; depo checkout
-        // ayarina gore ayni dosya iki farkli ozet uretirse checksum dogrulamasi
-        // yanlis alarm verir.
+        // Line-ending differences (CRLF / LF) must not change the digest;
+        // depending on the repository's checkout setting, if the same file
+        // produced two different digests, checksum validation would raise a
+        // false alarm.
         var normalized = sql.Replace("\r\n", "\n", StringComparison.Ordinal);
 
         Span<byte> hash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(normalized), hash);
 
-        // Convert.ToHexStringLower yalnizca .NET 9+ icindedir; paket net8.0'i da hedefler.
+        // Convert.ToHexStringLower is only available in .NET 9+; the package also targets net8.0.
         return Convert.ToHexString(hash);
     }
 }

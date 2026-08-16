@@ -10,19 +10,14 @@ src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptions.cs|13
 src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs|11
 src/AgentPrism.PostgreSql/Internal/NpgsqlDataSourceFactory.cs|10
 src/AgentPrism.PostgreSql/Internal/PostgresDialect.cs|16
-src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs|74
 src/AgentPrism.PostgreSql/Stores/PgVectorSearchStore.cs|5
-src/AgentPrism.Sql.Shared/Migrations/MigrationDescriptor.cs|20
 src/AgentPrism.Sql.Shared/Stores/SqlAgentDefinitionStore.cs|13
 src/AgentPrism.Sql.Shared/Stores/SqlAgentSkillStore.cs|7
 src/AgentPrism.Sql.Shared/Stores/SqlApiKeyStore.cs|11
 src/AgentPrism.Sql.Shared/Stores/SqlAttachmentStore.cs|7
 src/AgentPrism.Sql.Shared/Stores/SqlAuditLog.cs|7
-src/AgentPrism.Sql.Shared/Stores/SqlConversationBranchStore.cs|19
-src/AgentPrism.Sql.Shared/Stores/SqlExperimentStore.cs|12
 src/AgentPrism.Sql.Shared/Stores/SqlIdempotencyStore.cs|12
 src/AgentPrism.Sql.Shared/Stores/SqlJobScheduleStore.cs|9
-src/AgentPrism.Sql.Shared/Stores/SqlJobStore.cs|19
 src/AgentPrism.Sql.Shared/Stores/SqlPendingApprovalStore.cs|7
 src/AgentPrism.Sql.Shared/Stores/SqlQuotaStore.cs|10
 src/AgentPrism.Sql.Shared/Stores/SqlRetentionPolicyStore.cs|9
@@ -35,7 +30,6 @@ src/AgentPrism.Sql.Shared/Stores/SqlTraceStore.cs|15
 src/AgentPrism.Sql.Shared/Stores/SqlVoiceSessionStore.cs|7
 src/AgentPrism.Sql.Shared/Stores/SqlWebhookStore.cs|13
 src/AgentPrism.Sql.Shared/Stores/SqlWorkflowCheckpointStore.cs|13
-src/AgentPrism.Sql.Shared/Stores/SqlWorkflowDefinitionStore.cs|15
 src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj|13
 src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs|80
 src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs|15
@@ -43,7 +37,6 @@ src/AgentPrism.SqlServer/AgentPrismSqlServerOptionsValidator.cs|10
 src/AgentPrism.SqlServer/Internal/SqlServerDataSource.cs|10
 src/AgentPrism.SqlServer/Internal/SqlServerDataSourceFactory.cs|7
 src/AgentPrism.SqlServer/Internal/SqlServerDialect.cs|43
-src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs|56
 src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj|10
 src/AgentPrism.Voice/Tools/TranscribeTool.cs|9
 src/AgentPrism/AgentPrism.csproj|3
@@ -215,9 +208,7 @@ tests/AgentPrism.Core.UnitTests/Voice/VoiceConnectionLimiterTests.cs|20
 tests/AgentPrism.Core.UnitTests/Voice/VoiceConversationStateMachineTests.cs|8
 tests/AgentPrism.Core.UnitTests/Voice/VoiceUtteranceBufferTests.cs|6
 tests/AgentPrism.Generators.UnitTests/AgentPrism.Generators.UnitTests.csproj|2
-tests/AgentPrism.Generators.UnitTests/IncrementalityTests.cs|14
 tests/AgentPrism.Mcp.UnitTests/AgentPrism.Mcp.UnitTests.csproj|1
-tests/AgentPrism.Mcp.UnitTests/McpDiscoverySingletonTests.cs|10
 tests/AgentPrism.Mcp.UnitTests/McpOptionsConfigurationBindingTests.cs|10
 tests/AgentPrism.Mcp.UnitTests/McpPromptSnapshotTests.cs|6
 tests/AgentPrism.Mcp.UnitTests/McpResourceReferenceTests.cs|4
@@ -262,14 +253,13 @@ tests/AgentPrism.Sqlite.IntegrationTests/RunScoreStatisticsTests.cs|2
 tests/AgentPrism.Sqlite.IntegrationTests/SqliteDialectTests.cs|30
 tests/AgentPrism.Templates.Tests/Infrastructure/TemplateFixture.cs|9
 tests/AgentPrism.Templates.Tests/TemplateInstantiationTests.cs|4
-tests/AgentPrism.Templates.Tests/TemplateModelNameTests.cs|5
 tests/AgentPrism.Templates.Tests/TemplateRenameTests.cs|3
 tests/AgentPrism.Templates.Tests/TemplateRunTests.cs|4
 tests/AgentPrism.Templates.Tests/TemplateSecretTests.cs|4
 tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj|1
 tests/AgentPrism.Ui.E2ETests/Infrastructure/ApprovalWorkflow.cs|10
 tests/AgentPrism.Ui.E2ETests/Infrastructure/UiHost.cs|48
-tests/AgentPrism.Ui.E2ETests/UiTests.cs|51
+tests/AgentPrism.Ui.E2ETests/UiTests.cs|6
 tests/AgentPrism.Voice.UnitTests/AgentPrism.Voice.UnitTests.csproj|1
 tests/AgentPrism.Voice.UnitTests/ElevenLabsSpeechClientTests.cs|20
 tests/AgentPrism.Voice.UnitTests/Infrastructure/RecordingLoggerProvider.cs|2
@@ -290,7 +280,6 @@ tests/Shared/Contracts/AgentFileStoreContract.cs|31
 tests/Shared/Contracts/ApiKeyStoreContract.cs|3
 tests/Shared/Contracts/AttachmentStoreContract.cs|7
 tests/Shared/Contracts/AuditLogContract.cs|16
-tests/Shared/Contracts/EvalStoreContract.cs|8
 tests/Shared/Contracts/IdempotencyStoreContract.cs|13
 tests/Shared/Contracts/JobStoreContract.cs|16
 tests/Shared/Contracts/PendingApprovalStoreContract.cs|32
@@ -299,7 +288,6 @@ tests/Shared/Contracts/RetentionPolicyStoreContract.cs|4
 tests/Shared/Contracts/RetentionStoreContract.cs|21
 tests/Shared/Contracts/RunInputStoreContract.cs|22
 tests/Shared/Contracts/RunScoreStoreContract.cs|11
-tests/Shared/Contracts/SessionStoreContract.cs|19
 tests/Shared/Contracts/SingletonLeaseStoreContract.cs|15
 tests/Shared/Contracts/SkillScriptGrantContract.cs|6
 tests/Shared/Contracts/TenantCoverageTests.cs|36

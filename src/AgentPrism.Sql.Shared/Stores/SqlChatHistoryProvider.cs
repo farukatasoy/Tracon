@@ -6,31 +6,32 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Sohbet gecmisini PostgreSQL'de saklayan Microsoft Agent Framework saglayicisi.
+/// Microsoft Agent Framework chat history provider that stores history in the SQL database.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Bu saglayicinin ornegi tum oturumlar arasinda paylasilir.</strong> Microsoft
-/// Agent Framework'un acik uyarisi budur: saglayici agent'a baglanir ve ayni ornek her
-/// oturumda kullanilir. Bu yuzden oturuma ozgu hicbir bilgi alan olarak tutulamaz.
-/// Konusma kimligi <see cref="ProviderSessionState{TState}"/> ile oturumun kendi
-/// durumunda tasinir; saglayici yalnizca veri kaynagi referansini tutar.
+/// <strong>This provider's instance is shared across all sessions.</strong> This is
+/// Microsoft Agent Framework's explicit warning: the provider is attached to the agent
+/// and the same instance is used by every session. Nothing session-specific may
+/// therefore be kept as a field. The conversation id is carried in the session's own
+/// state via <see cref="ProviderSessionState{TState}"/>; the provider holds only the
+/// data source reference.
 /// </para>
 /// <para>
-/// Mesajlar <c>conversation_items</c> tablosunda sirali olarak saklanir. Gecmisin
-/// oturum durumunun icinde degil ayri bir tabloda yasamasi iki fayda saglar:
-/// oturum satiri kucuk kalir ve gecmis SQL ile sorgulanabilir.
+/// Messages are stored in order in the <c>conversation_items</c> table. Keeping history
+/// in a separate table instead of inside the session state gives two benefits: the
+/// session row stays small and history can be queried with SQL.
 /// </para>
 /// </remarks>
 internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
 {
     /// <summary>
-    /// Konusma kimliginin oturum icinde saklandigi durum anahtari.
+    /// The state key under which the conversation id is stored in the session.
     /// </summary>
     /// <remarks>
-    /// Bu deger <strong>kararlidir</strong>; degistirmek mevcut oturumlarin gecmisini koparir.
-    /// Anahtar <see cref="AgentPrismSessionStateKeys.ChatHistory"/> ile paylasilir:
-    /// konusma dallandirmasi ayni durumu okuyup yeni oturuma yazar (Faz 47).
+    /// This value is <strong>stable</strong>; changing it breaks the history of existing
+    /// sessions. The key is shared with <see cref="AgentPrismSessionStateKeys.ChatHistory"/>:
+    /// conversation branching reads the same state and writes it into the new session (Phase 47).
     /// </remarks>
     public const string SessionStateKey = AgentPrismSessionStateKeys.ChatHistory;
 
@@ -39,10 +40,10 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
     private readonly ITenantContext _tenantContext;
     private readonly ProviderSessionState<ChatHistoryState> _sessionState;
 
-    /// <summary>Yeni bir sohbet gecmisi saglayicisi olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new chat history provider.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlChatHistoryProvider(
         SqlStoreContext context,
         ITenantContext tenantContext)
@@ -64,7 +65,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
             jsonSerializerOptions: AgentPrismJsonContext.Default.Options);
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -131,8 +132,9 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
 
             await using (transaction.ConfigureAwait(false))
             {
-                // Upsert konusma satirini kilitler; ayni konusmaya es zamanli yazan
-                // ikinci islem sira numarasini okumak icin bu islemin bitmesini bekler.
+                // The upsert locks the conversation row; a second transaction
+                // writing to the same conversation concurrently waits for this
+                // transaction to finish before it can read the sequence number.
                 var upsert = _context.CreateCommand(_sql.UpsertConversation, connection, transaction);
 
                 DbHelpers.Add(upsert, "id", conversationId);
@@ -159,8 +161,8 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
                     DbHelpers.Add(insert, "id", AgentPrismId.NewId());
                     DbHelpers.Add(insert, "conversation_id", conversationId);
                     DbHelpers.Add(insert, "seq", sequence++);
-                    // `json`, `jsonb` degil: ChatMessage icerikleri polimorfiktir ve
-                    // `$type` ayraci nesnenin ilk ozelligi olmalidir (karar K-027).
+                    // `json`, not `jsonb`: ChatMessage contents are polymorphic and
+                    // the `$type` discriminator must be the object's first property (decision K-027).
                     Dialect.AddJson(insert, "item", JsonSerializer.Serialize(message, AgentPrismJsonContext.Default.ChatMessage));
                     Dialect.AddTimestamp(insert, "created_at", now);
 
@@ -175,19 +177,19 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     /// <summary>
-    /// Oturumun konusma kimligini getirir; yoksa uretir ve oturuma yazar.
+    /// Gets the session's conversation id, generating and writing it to the session if absent.
     /// </summary>
     /// <remarks>
-    /// Durum her erisimde geri yazilir. Boylece kimlik, oturum serilestirildiginde
-    /// kalicilasir ve geri yuklenen oturum ayni konusmaya devam eder.
+    /// The state is written back on every access. This way the id persists once the
+    /// session is serialized, and a restored session continues the same conversation.
     /// </remarks>
     private Guid GetConversationId(AgentSession? session)
     {
         if (session is null)
         {
             throw new AgentPrismException(
-                "Sohbet gecmisi bir oturum olmadan saklanamaz. " +
-                "Agent'i calistirirken bir AgentSession verin.");
+                "Chat history cannot be stored without a session. " +
+                "Provide an AgentSession when running the agent.");
         }
 
         var state = _sessionState.GetOrInitializeState(session);

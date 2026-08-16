@@ -119,7 +119,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ON CONFLICT (slug) DO NOTHING;
             """;
 
-        // --- Agent tanimlari ---
+        // --- Agent definitions ---
 
         UpsertAgentDefinition = $"""
             INSERT INTO {Schema}agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at)
@@ -166,7 +166,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
             """;
 
-        // --- Skill'ler ---
+        // --- Skills ---
 
         const string skillColumns = """
             id, tenant_id, name, description, instructions, compatibility, license,
@@ -222,7 +222,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Skill script'leri ---
+        // --- Skill scripts ---
 
         DeleteAgentSkillScripts = $"DELETE FROM {Schema}agent_skill_scripts WHERE skill_id = @skill_id;";
 
@@ -240,7 +240,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Script calistirma izinleri ---
+        // --- Script execution grants ---
 
         const string grantColumns = """
             id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
@@ -287,7 +287,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND revoked_at IS NULL;
             """;
 
-        // --- Oturumlar ---
+        // --- Sessions ---
 
         UpsertSession = $"""
             INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
@@ -323,11 +323,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        // --- Calistirmalar ---
+        // --- Runs ---
 
-        // 🚨 Faz 46: UPSERT'tir. Kuyruga alinan bir calistirma once Queued
-        // olarak yazilir; isci is'i gercekten calistirdiginda AYNI id ile
-        // ikinci kez cagrilir ve satir yerinde guncellenir (yeni satir ACILMAZ).
+        // 🚨 Phase 46: this is an UPSERT. A queued run is first written as
+        // Queued; when the worker actually runs the job, it is called a
+        // second time with the SAME id and the row is updated in place (no
+        // new row is OPENED).
         InsertRun = $"""
             INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
@@ -382,26 +383,26 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
-        // etkiler; var olmayan veya baska durumdaki bir kimlik icin sessizce
-        // sifir satir gunceller.
+        // Orphaned run reconciliation (Phase 54). Affects only Running rows;
+        // for a nonexistent id or one in a different status it silently
+        // updates zero rows.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}runs
             SET heartbeat_at = @at
             WHERE id = @id AND status = @status_running;
             """;
 
-        // heartbeat_at/started_at zaten ISO 8601 METIN oldugu icin (K-191'in
-        // komsu kurali: zaman damgalari elle yazilir) dogrudan `||` ile
-        // birlestirilebilir -- PostgreSQL'deki `::text` donusumune gerek yok.
-        // error_fingerprint SABIT bir dize ("orphaned") -- gerekce
-        // PostgreSQL surumundeki ile aynidir.
+        // heartbeat_at/started_at are already ISO 8601 TEXT (K-191's adjacent
+        // rule: timestamps are written by hand), so they can be concatenated
+        // directly with `||` -- no need for the `::text` cast used in
+        // PostgreSQL. error_fingerprint is a CONSTANT string ("orphaned") --
+        // the rationale is the same as in the PostgreSQL version.
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}runs
             SET status            = @status_failed,
                 completed_at      = @now,
                 error_type        = 'orphaned',
-                error_message     = 'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                error_message     = 'The process running the run is not responding; last heartbeat: '
                                      || COALESCE(heartbeat_at, started_at) || '.',
                 error_class       = @error_class,
                 error_fingerprint = @error_fingerprint,
@@ -426,10 +427,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     @type, @text, @created_at);
             """;
 
-        // 🚨 SQLite'ta LATERAL JOIN yoktur. Agac toplamlari SELECT listesinde
-        // korele skaler alt sorgularla hesaplanir; her biri ayri bir tarama
-        // yapar ama okuma yolu, saklanan bir toplamin her alt calistirma
-        // tamamlaninca guncellenmesinden ucuzdur.
+        // 🚨 SQLite has no LATERAL JOIN. Tree aggregates are computed with
+        // correlated scalar subqueries in the SELECT list; each does a
+        // separate scan, but the read path is cheaper than updating a
+        // stored total on every child-run completion.
         var runColumns = $"""
             r.id, r.tenant_id, r.agent_name, r.session_id, r.status, r.started_at, r.completed_at, r.is_streaming,
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
@@ -465,11 +466,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id yalniz KOK calistirmada set edilir
-                    -- (K-217); alt calistirmanin kendi session_id'si NULL'dur.
-                    -- Dogrudan esitlik "includeChildren=true" ile birlikte hicbir
-                    -- alt calistirmayi eslestirmezdi -- kaydin kendi agacinin
-                    -- KOKU bu oturuma aitse de eslesir.
+                    -- HATA-S2-001: session_id is set only on the ROOT run
+                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- equality combined with "includeChildren=true" would
+                    -- match no child run -- it also matches if the ROOT of
+                    -- the record's own tree belongs to this session.
                     @session_id IS NULL
                  OR r.session_id = @session_id
                  OR EXISTS (
@@ -489,10 +490,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        // scored_runs/positive_rate (Faz 31): matchedRunScoresFilter runs'in
-        // AYNI filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE
-        // yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut toplam
-        // satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        // scored_runs/positive_rate (Phase 31): matchedRunScoresFilter repeats
+        // the SAME filter as runs (tenant/eval/agent/date) -- it is added as a
+        // scalar subquery instead of a separate CTE so that the existing
+        // totals row can be extended with the smallest possible change.
         var matchedRunScoresFilter = $"""
             {Schema}run_scores rs
             JOIN {Schema}runs r2 ON r2.id = rs.run_id
@@ -574,9 +575,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
 
-            -- Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44). error_class
-            -- NULL olan (hata sinifi eklenmeden once yazilmis) satirlar Unknown
-            -- (0) kovasina duser -- K-014 geriye donuk doldurma yapmaz.
+            -- Fifth result set: error class breakdown (Phase 44). Rows with
+            -- error_class NULL (written before error classification was
+            -- added) fall into the Unknown (0) bucket -- K-014 does not
+            -- backfill.
             SELECT COALESCE(error_class, 0),
                    COUNT(*)
             FROM {Schema}runs
@@ -588,8 +590,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             GROUP BY COALESCE(error_class, 0)
             ORDER BY COUNT(*) DESC;
 
-            -- Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi.
-            -- Gerekce PostgreSQL 0021_error_classification.sql'e bakin.
+            -- Sixth result set: the top three fingerprint clusters per class.
+            -- See PostgreSQL 0021_error_classification.sql for the rationale.
             WITH failed AS (
                 SELECT COALESCE(error_class, 0) AS error_class,
                        COALESCE(error_fingerprint, '') AS error_fingerprint,
@@ -630,9 +632,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY error_class, cluster_count DESC;
             """;
 
-        // 🚨 VALUES degil SELECT ... WHERE EXISTS: yazma yalnizca hedef calistirma
-        // BEKLENEN kiraciya aitse uygulanir (K-355). @tenant_id NULL ise denetim
-        // yapilmaz.
+        // 🚨 SELECT ... WHERE EXISTS instead of VALUES: the write applies only
+        // if the target run belongs to the EXPECTED tenant (K-355). If
+        // @tenant_id is NULL, no check is done.
         InsertRunEvent = $"""
             INSERT INTO {Schema}run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
             SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
@@ -649,7 +651,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY e.seq;
             """;
 
-        // --- Konusmalar (sohbet gecmisi) ---
+        // --- Conversations (chat history) ---
 
         UpsertConversation = $"""
             INSERT INTO {Schema}conversations (id, tenant_id, agent_name, created_at, updated_at)
@@ -677,9 +679,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Konusma dallandirma (Faz 47) ---
-        // Gerekce ve sutun anlamlari icin PostgresQueries'e bakin.
-        // 🚨 Tablo adlari ONEK tasir (K-193): {Schema} bir sema degil, onektir.
+        // --- Conversation branching (Phase 47) ---
+        // See PostgresQueries for the rationale and column meanings.
+        // 🚨 Table names carry a PREFIX (K-193): {Schema} is not a schema, it
+        // is a prefix.
 
         SelectConversationBranchPoint = $"""
             SELECT COALESCE(MAX(seq), -1), COUNT(*)
@@ -706,7 +709,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Calistirma girdileri (Faz 47) ---
+        // --- Run inputs (Phase 47) ---
 
         InsertRunInput = $"""
             INSERT INTO {Schema}run_inputs (run_id, tenant_id, messages, created_at)
@@ -720,9 +723,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
-        // --- Tool cagrilari ---
+        // --- Tool invocations ---
 
-        // InsertRunEvent ile ayni kiraci muhafizi (K-355).
+        // Same tenant guard as InsertRunEvent (K-355).
         InsertToolInvocation = $"""
             INSERT INTO {Schema}tool_invocations
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
@@ -734,8 +737,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
-        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir; mevcut sabit-indeks okuyucular
-        // (ReadToolInvocation) yeniden numaralandirilmaz. Faz 20 dersi.
+        // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
+        // readers (ReadToolInvocation) are never renumbered. Lesson from
+        // Phase 20.
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
@@ -761,7 +765,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @max_tools;
             """;
 
-        // --- Deneyler ---
+        // --- Experiments ---
 
         const string experimentColumns = """
             id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
@@ -793,9 +797,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE status = 1 AND canary_policy IS NOT NULL;
             """;
 
-        // canary_policy/rollback_reason BILEREK SET listesinde YOK: bir Draft
-        // duzenlemesi (SaveAsync) daha once SetCanaryPolicyAsync ile tanimlanmis
-        // kurali silmemelidir.
+        // canary_policy/rollback_reason are DELIBERATELY NOT in the SET list:
+        // a Draft edit (SaveAsync) must not erase a rule already defined by
+        // SetCanaryPolicyAsync.
         UpsertExperiment = $"""
             INSERT INTO {Schema}experiments (id, tenant_id, name, agent_name, variants, status, assignment_key, updated_at)
             VALUES (@id, @tenant_id, @name, @agent_name, @variants, 0, @assignment_key, @updated_at)
@@ -827,7 +831,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        // Durumdan BAGIMSIZ calisir (Draft veya Running) — SaveAsync'in aksine.
+        // Runs INDEPENDENTLY of status (Draft or Running) -- unlike SaveAsync.
         SetExperimentCanaryPolicy = $"""
             UPDATE {Schema}experiments
             SET canary_policy = @canary_policy, updated_at = @now
@@ -849,8 +853,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        // run_avg_scores: ONCE calistirma basina ortalama, SONRA varyant basina bu
-        // ortalamalarin ortalamasi — PostgreSQL'in ayni CTE'siyle AYNI gerekce.
+        // run_avg_scores: FIRST the average per run, THEN the average of those
+        // averages per variant -- the SAME rationale as PostgreSQL's identical
+        // CTE.
         SelectExperimentResults = $"""
             WITH run_avg_scores AS (
                 SELECT run_id, AVG(value) AS avg_score
@@ -879,11 +884,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
             GROUP BY r.variant;
             """;
 
-        // 🚨 generate_series yoktur; ozyinelemeli CTE kullanilir. Zaman
-        // damgalari zaten yyyy-MM-ddTHH:mm:ss.fffffffZ metni oldugu icin
-        // strftime/datetime dogrudan calisir (SqliteDialect.AddTimestamp).
-        // Bos kovalar da doner: aksi halde grafikte kesinti "veri yok" degil
-        // "sifir" gibi gorunur.
+        // 🚨 There is no generate_series; a recursive CTE is used instead.
+        // Since timestamps are already yyyy-MM-ddTHH:mm:ss.fffffffZ text,
+        // strftime/datetime work directly (SqliteDialect.AddTimestamp). Empty
+        // buckets are also returned: otherwise a gap in the chart would look
+        // like "zero" instead of "no data".
         SelectRunTimeSeries = $"""
             WITH RECURSIVE buckets(bucket) AS (
                 SELECT CASE WHEN @bucket_unit = 'hour'
@@ -934,11 +939,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY buckets.bucket;
             """;
 
-        // --- Span'ler ---
+        // --- Spans ---
 
-        // 🚨 Cok-argumanli min()/max() SQLite'ta herhangi bir arguman NULL ise
-        // NULL doner (PostgreSQL'in GREATEST/LEAST'inin tersi); bu yuzden SQL
-        // Server ile ayni CASE zinciri kullanilir.
+        // 🚨 SQLite's multi-argument min()/max() returns NULL if any argument
+        // is NULL (the opposite of PostgreSQL's GREATEST/LEAST); this is why
+        // the same CASE chain as SQL Server is used.
         UpsertTrace = $"""
             INSERT INTO {Schema}traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
             VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at)
@@ -979,7 +984,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY started_at, id;
             """;
 
-        // --- Tool onay kurallari ---
+        // --- Tool approval rules ---
 
         const string approvalColumns = """
             id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
@@ -992,9 +997,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY created_at DESC;
             """;
 
-        // Ayni kapsam icin ikinci bir kural acilmaz; mevcut kayit dondurulur.
-        // Kisit COALESCE'li bir ifade indeksidir: SQLite PostgreSQL gibi
-        // NULL'lari birbirine esit SAYMAZ.
+        // A second rule for the same scope is not opened; the existing record
+        // is returned. The constraint is an expression index with COALESCE:
+        // like PostgreSQL, SQLite does NOT count NULLs as equal to each
+        // other.
         InsertToolApprovalRule = $"""
             INSERT INTO {Schema}tool_approval_rules ({approvalColumns})
             VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at)
@@ -1008,7 +1014,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // --- MCP sunuculari ---
+        // --- MCP servers ---
 
         const string mcpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
@@ -1054,7 +1060,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         DeleteMcpServer = $"DELETE FROM {Schema}mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";
 
-        // --- Kiracilar ---
+        // --- Tenants ---
 
         SelectTenants = $"""
             SELECT id, slug, display_name, created_at
@@ -1072,7 +1078,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         DeleteTenant = $"DELETE FROM {Schema}tenants WHERE slug = @slug;";
 
-        // --- Ekler ---
+        // --- Attachments ---
 
         const string attachmentColumns = """
             id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
@@ -1120,7 +1126,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING external_uri;
             """;
 
-        // --- Kalici agent dosya bellegi ---
+        // --- Persistent agent file memory ---
 
         SelectAgentFile = $"""
             SELECT content
@@ -1141,12 +1147,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
-        // Faz 51, Is A: onek, derinlik siniri ve glob SQL'e iner. SQLite yerel
-        // regex tasimaz; regex_pattern parametresi PostgresQueries ile ayni
-        // cagri seklini korumak icin gonderilir ama burada KULLANILMAZ — nihai
-        // eslesme daima .NET Regex ile istemcide yapilir. LIKE buyuk/kucuk harfe
-        // duyarlidir (SqliteDataSource'un actigi `case_sensitive_like` pragmasi);
-        // aksi halde diger iki saglayicinin (Ordinal) davranisindan sapardi.
+        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // SQL. SQLite carries no native regex; the regex_pattern parameter is
+        // sent to keep the same call shape as PostgresQueries but is NOT USED
+        // here -- the final match is always done client-side with .NET Regex.
+        // LIKE is case-sensitive (the `case_sensitive_like` pragma opened by
+        // SqliteDataSource); otherwise it would diverge from the other two
+        // providers' (Ordinal) behavior.
         SelectAgentFilesFiltered = $"""
             SELECT path, content
             FROM {Schema}agent_files
@@ -1157,7 +1164,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
-        // --- Workflow'lar ---
+        // --- Workflows ---
 
         UpsertWorkflow = $"""
             INSERT INTO {Schema}workflows (id, tenant_id, name, version, definition, created_at, updated_at)
@@ -1215,7 +1222,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND session_id = @session_id;
             """;
 
-        // --- Denetim izi ---
+        // --- Audit log ---
 
         InsertAuditEntry = $"""
             INSERT INTO {Schema}audit_log (id, tenant_id, actor, action, entity, before, after, created_at)
@@ -1235,7 +1242,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take;
             """;
 
-        // --- Zamanlama ve is kuyrugu ---
+        // --- Scheduling and job queue ---
 
         const string scheduleColumns = """
             id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
@@ -1294,8 +1301,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     0, 0, 0, @scheduled_for, @created_at, @max_attempts);
             """;
 
-        // Kimlikler C# tarafinda uretilir; iki JSON dizisi json_each ile acilip
-        // key (0 tabanli sira) uzerinden eslenir.
+        // Ids are generated on the C# side; the two JSON arrays are opened
+        // with json_each and matched on key (0-based index).
         InsertJobItems = $"""
             INSERT INTO {Schema}job_items (id, job_id, seq, input, status)
             SELECT ids.value, @job_id, ids.key, inputs.value, 0
@@ -1309,8 +1316,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             error_message, created_at, max_attempts
             """;
 
-        // 🚨 FOR UPDATE SKIP LOCKED GEREKMEZ: SQLite tek yazicidir, ikinci bir
-        // isci yazma islemi zaten ic ice giremez.
+        // 🚨 FOR UPDATE SKIP LOCKED IS NOT NEEDED: SQLite is a single writer,
+        // a second worker's write can never nest inside another anyway.
         LeaseJob = $"""
             UPDATE {Schema}jobs
                SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
@@ -1376,11 +1383,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY seq;
             """;
 
-        // 🚨 Veri degistiren CTE SQLite'ta yoktur (SQL Server ile ayni sinir).
-        // Iki ayri ifade tek round-trip'te (bir CommandText, bir ExecuteNonQuery)
-        // yurutulur; ikinci ifade changes() ile ilk ifadenin etkiledigi satir
-        // sayisini okur. Idempotenttir: oge zaten raporlanmissa (status <> 0)
-        // ilk UPDATE hicbir satir etkilemez ve changes() sifir doner.
+        // 🚨 A data-modifying CTE does not exist in SQLite (same limit as SQL
+        // Server). Two separate statements run in a single round trip (one
+        // CommandText, one ExecuteNonQuery); the second statement reads the
+        // row count affected by the first with changes(). It is idempotent:
+        // if the item was already reported (status <> 0), the first UPDATE
+        // affects no rows and changes() returns zero.
         ReportJobItem = $"""
             UPDATE {Schema}job_items
                SET status = @status, run_id = @run_id, error = @error
@@ -1392,7 +1400,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = @job_id;
             """;
 
-        // --- Degerlendirme (eval) ---
+        // --- Evaluation (eval) ---
 
         const string suiteColumns = """
             id, tenant_id, name, description, agent_name, checks, created_at, updated_at
@@ -1447,9 +1455,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
             """;
 
-        // Gerekce PostgreSQL InsertEvalCaseWithComputedSeq ile aynidir
-        // (docs/45-URETIMDEN-EVAL-KUMESI.md, bolum 45.2). SQLite 3.35+ RETURNING
-        // destekler (diger eval sorgularinda zaten kullaniliyor).
+        // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
+        // (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2). SQLite 3.35+
+        // supports RETURNING (already used in the other eval queries).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,
@@ -1531,17 +1539,17 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY ecr.id;
             """;
 
-        // --- Kota ---
+        // --- Quota ---
 
         const string quotaColumns = """
             id, tenant_id, agent_name, period, max_runs, max_tokens, max_cost, enabled,
             created_at, updated_at
             """;
 
-        // 🚨 Catisma hedefi COALESCE(agent_name, '') ifadesidir: SQLite
-        // PostgreSQL gibi NULL'lari birbirine esit SAYMAZ; duz bir
-        // (tenant_id, agent_name, period) hedefi agent_name NULL olan ayni
-        // kuralin sinirsiz kez eklenmesine izin verirdi.
+        // 🚨 The conflict target is the expression COALESCE(agent_name, ''):
+        // like PostgreSQL, SQLite does NOT count NULLs as equal to each other;
+        // a plain (tenant_id, agent_name, period) target would allow the same
+        // rule with agent_name NULL to be added an unlimited number of times.
         UpsertQuota = $"""
             INSERT INTO {Schema}quotas ({quotaColumns})
             VALUES
@@ -1573,7 +1581,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}quotas WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Tuketim ATOMIK olarak artirilir.
+        // Consumption is incremented ATOMICALLY.
         AddQuotaUsage = $"""
             INSERT INTO {Schema}quota_usage
                 (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at)
@@ -1597,8 +1605,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Webhook ---
 
-        // 🚨 Sutun listesinde SIR YOKTUR: yalnizca secret_configuration_key
-        // (anahtarin ADI) vardir (K-059).
+        // 🚨 The column list contains NO SECRET: only secret_configuration_key
+        // (the NAME of the key) is present (K-059).
         const string webhookSubscriptionColumns = """
             id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
             consecutive_failures, created_at, updated_at
@@ -1632,8 +1640,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // 🚨 events bir JSON dizisidir; PostgreSQL'in = ANY(events) ifadesinin
-        // karsiligi json_each uzerinde TAM eslesmedir.
+        // 🚨 events is a JSON array; the counterpart of PostgreSQL's
+        // = ANY(events) expression is an EXACT match over json_each.
         SelectWebhookSubscriptionsForEvent = $"""
             SELECT {webhookSubscriptionColumns}
             FROM {Schema}webhook_subscriptions
@@ -1647,7 +1655,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}webhook_subscriptions WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // Ust uste basarisizlik sayaci ve otomatik kapatma TEK ifadede yapilir.
+        // The consecutive-failure counter and auto-disable are done in a
+        // SINGLE statement.
         UpdateWebhookSubscriptionOutcome = $"""
             UPDATE {Schema}webhook_subscriptions
                SET consecutive_failures = CASE WHEN @succeeded = 1 THEN 0 ELSE consecutive_failures + 1 END,
@@ -1700,10 +1709,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        // --- Faz 53: kiraci bazli API anahtarlari ---
+        // --- Phase 53: tenant-scoped API keys ---
 
-        // 🚨 Sutun listesinde HAM DEGER YOKTUR: yalnizca geri donduruleyemez
-        // key_hash ozeti vardir (bolum 53.2).
+        // 🚨 The column list contains NO RAW VALUE: only the irreversible
+        // key_hash digest is present (section 53.2).
         const string apiKeyColumns = """
             id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
             last_used_at, created_at
@@ -1722,8 +1731,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY created_at;
             """;
 
-        // Kiraci suzgeci BILEREK yoktur (bolum 53.5): kiraci bu sorgunun
-        // ciktisidir, girdisi degil.
+        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
+        // is the output of this query, not its input.
         SelectApiKeyByHash = $"""
             SELECT {apiKeyColumns}
             FROM {Schema}api_keys
@@ -1742,8 +1751,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = @id;
             """;
 
-        // Kurulum saglik denetimi (ExternalSurfaceGuard, bolum 53.4): kiraci
-        // suzgeci BILEREK yoktur. scopes bir JSON dizisidir.
+        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
+        // filter is DELIBERATELY absent. scopes is a JSON array.
         HasApiKeyWithScope = $"""
             SELECT EXISTS (
                 SELECT 1 FROM {Schema}api_keys
@@ -1756,9 +1765,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
         const string retentionPolicyColumns =
             "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
 
-        // Upsert PostgreSQL ile birebir aynidir (K-194): tek ifadelik
-        // INSERT ... ON CONFLICT ... RETURNING, iki dalli SQL Server deseni
-        // (K-177) burada yoktur.
+        // Upsert is identical to PostgreSQL (K-194): a single-statement
+        // INSERT ... ON CONFLICT ... RETURNING; SQL Server's two-branch
+        // pattern (K-177) is absent here.
         UpsertRetentionPolicy = $"""
             INSERT INTO {Schema}retention_policies
                 ({retentionPolicyColumns})
@@ -1852,15 +1861,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 31 -- calistirma/mesaj puani
+        // Phase 31 -- run/message score
         // -------------------------------------------------------------------
         const string runScoreColumns =
             "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
 
-        // Upsert PostgreSQL ile birebir aynidir (K-194): message_id
-        // COALESCE(…, '') ile esitlenir, author BILEREK COALESCE EDILMEZ --
-        // SQLite de NULL'lari birbirine esit SAYMAZ, author bos oldugunda
-        // (kimliksiz kurulum) her cagri yeni bir satir acar.
+        // Upsert is identical to PostgreSQL (K-194): message_id is equalized
+        // with COALESCE(…, ''), author is DELIBERATELY NOT COALESCED --
+        // SQLite also does not count NULLs as equal to each other, so when
+        // author is empty (an identity-less setup) each call opens a new row.
         UpsertRunScore = $"""
             INSERT INTO {Schema}run_scores
                 ({runScoreColumns})
@@ -1885,7 +1894,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Upsert PostgreSQL ile birebir aynidir (K-194).
+        // Upsert is identical to PostgreSQL (K-194).
         AcquireSingletonLease = $"""
             INSERT INTO {Schema}singleton_leases (name, owner_id, expires_at, updated_at)
             VALUES (@name, @owner_id, @expires_at, @now)
@@ -1908,9 +1917,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}singleton_leases WHERE name = @name AND owner_id = @owner_id;
             """;
 
-        // Duz INSERT: benzersizlik ihlali SqlDialect.IsUniqueViolation ile
-        // yakalanir, cagiran taraf mevcut kaydi SelectIdempotencyKey ile okur.
-        // 🚨 `key` AYRILMIS bir sozcuktur; "key" ile cift tirnaklanir.
+        // Plain INSERT: a uniqueness violation is caught by
+        // SqlDialect.IsUniqueViolation, the caller reads the existing record
+        // with SelectIdempotencyKey.
+        // 🚨 `key` is a RESERVED word; it is double-quoted as "key".
         InsertIdempotencyKey = $"""
             INSERT INTO {Schema}idempotency_keys (tenant_id, "key", fingerprint, state, created_at)
             VALUES (@tenant_id, @key, @fingerprint, 0, @created_at);
@@ -1957,16 +1967,17 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // WHERE status = @status_pending: ikinci bir karar 0 satir etkiler,
-        // DecideAsync bunu false olarak yorumlar.
+        // WHERE status = @status_pending: a second decision affects 0 rows,
+        // DecideAsync interprets that as false.
         DecidePendingApproval = $"""
             UPDATE {Schema}pending_approvals
                SET status = @status, decided_by = @decided_by, decided_at = @decided_at
              WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
             """;
 
-        // ClaimOrphanedRuns ile AYNI desen: RETURNING ile kapatilan satirlar
-        // okunur. Kiraci suzgeci YOKTUR — bir bakim islemidir.
+        // The SAME pattern as ClaimOrphanedRuns: closed rows are read via
+        // RETURNING. There is NO tenant filter -- this is a maintenance
+        // operation.
         ExpirePendingApprovals = $"""
             UPDATE {Schema}pending_approvals
                SET status = @status_expired
