@@ -4,17 +4,18 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Google.UnitTests;
 
 /// <summary>
-/// Fabrikanin model cozumu, boru hatti kurulumu ve saglayici ayarlarini dogrulamasi.
+/// The factory's model resolution, pipeline setup, and provider settings validation.
 /// </summary>
 public sealed class GoogleChatClientFactoryTests
 {
     [Fact]
-    public void Fabrika_HAM_istemci_doner_boru_hattini_kurmaz()
+    public void Factory_returns_RAW_client_and_does_not_build_the_pipeline()
     {
-        // 🚨 Faz 48: tool cagri dongusu ve telemetri ModelProviderRegistry'ye
-        // tasindi. Fabrika onlari kursaydi ic ice iki FunctionInvokingChatClient
-        // olusur ve defterin ekledigi icerik guard'i dongunun DISINDA kalirdi —
-        // tool sonuclari hic denetlenmezdi.
+        // 🚨 Phase 48: the tool call loop and telemetry moved to
+        // ModelProviderRegistry. If the factory built them, two nested
+        // FunctionInvokingChatClient instances would form, and the content guard
+        // added by the ledger would sit OUTSIDE the loop — tool results would
+        // never be inspected.
         using var factory = Factory();
         using var chatClient = factory.CreateChatClient(TestData.Binding());
 
@@ -23,7 +24,7 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Model_bos_ise_varsayilan_model_kullanilir()
+    public void Empty_model_uses_the_default_model()
     {
         using var factory = Factory(options => options.DefaultModel = TestData.Model);
         using var chatClient = factory.CreateChatClient(
@@ -35,7 +36,7 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Model_ve_varsayilan_model_yoksa_anlasilir_hata_verir()
+    public void Missing_model_and_default_model_gives_a_clear_error()
     {
         using var factory = Factory();
 
@@ -47,12 +48,12 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Anahtarsiz_istemci_kurulumu_hata_verir()
+    public void Client_setup_without_a_key_fails()
         => Should.Throw<AgentPrismException>(() => GoogleChatClientFactory.CreateClient(new GoogleProviderOptions()))
             .Message.ShouldContain(nameof(GoogleProviderOptions.ApiKey));
 
     [Fact]
-    public void Desteklenen_saglayici_ayarlari_kabul_edilir()
+    public void Supported_provider_settings_are_accepted()
     {
         using var factory = Factory();
         using var chatClient = factory.CreateChatClient(TestData.Binding(
@@ -66,19 +67,19 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Taninmayan_saglayici_ayari_hata_verir_ve_gecerli_anahtarlari_listeler()
+    public void Unknown_provider_setting_fails_and_lists_valid_keys()
     {
         using var factory = Factory();
 
         var exception = Should.Throw<AgentPrismException>(() => factory.CreateChatClient(
-            TestData.Binding(providerSettings: TestData.Settings(("google.safety.bilinmeyen", "BLOCK_NONE")))));
+            TestData.Binding(providerSettings: TestData.Settings(("google.safety.unknown", "BLOCK_NONE")))));
 
-        exception.Message.ShouldContain("google.safety.bilinmeyen");
+        exception.Message.ShouldContain("google.safety.unknown");
         exception.Message.ShouldContain(GoogleProviderNames.SafetyHarassmentSetting);
     }
 
     [Fact]
-    public void Baska_saglayiciya_ait_ayar_hata_verir()
+    public void Setting_belonging_to_another_provider_fails()
     {
         using var factory = Factory();
 
@@ -90,15 +91,15 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Taninmayan_guvenlik_esigi_hata_verir_ve_gecerli_degerleri_listeler()
+    public void Unknown_safety_threshold_fails_and_lists_valid_values()
     {
         using var factory = Factory();
 
         var exception = Should.Throw<AgentPrismException>(() => factory.CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(
-                (GoogleProviderNames.SafetyHarassmentSetting, "HERSEYI_ENGELLE")))));
+                (GoogleProviderNames.SafetyHarassmentSetting, "BLOCK_EVERYTHING")))));
 
-        exception.Message.ShouldContain("HERSEYI_ENGELLE");
+        exception.Message.ShouldContain("BLOCK_EVERYTHING");
         exception.Message.ShouldContain("BLOCK_ONLY_HIGH");
         exception.Message.ShouldContain("BLOCK_NONE");
     }
@@ -106,7 +107,7 @@ public sealed class GoogleChatClientFactoryTests
     [Theory]
     [InlineData(-2)]
     [InlineData(65536)]
-    public void Aralik_disi_dusunme_butcesi_reddedilir(int budget)
+    public void Out_of_range_thinking_budget_is_rejected(int budget)
     {
         using var factory = Factory();
 
@@ -122,7 +123,7 @@ public sealed class GoogleChatClientFactoryTests
     [InlineData(-1)]
     [InlineData(0)]
     [InlineData(65535)]
-    public void Sinir_degerleri_kabul_edilir(int budget)
+    public void Boundary_values_are_accepted(int budget)
     {
         using var factory = Factory();
         using var chatClient = factory.CreateChatClient(TestData.Binding(
@@ -132,7 +133,7 @@ public sealed class GoogleChatClientFactoryTests
     }
 
     [Fact]
-    public void Yanlis_tipli_ayar_degeri_reddedilir()
+    public void Wrong_typed_setting_value_is_rejected()
     {
         using var factory = Factory();
 

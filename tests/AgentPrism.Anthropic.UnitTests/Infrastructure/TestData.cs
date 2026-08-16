@@ -2,16 +2,15 @@ using System.Text.Json;
 
 namespace AgentPrism.Anthropic.UnitTests.Infrastructure;
 
-/// <summary>Testlerde tekrar eden nesneleri ureten yardimcilar.</summary>
+/// <summary>Helpers that produce objects repeated across tests.</summary>
 internal static class TestData
 {
     /// <summary>
-    /// Testlerde kullanilan sahte API anahtari. Gercek bir anahtar degildir ve
-    /// gercek bir cagri yapilmaz.
+    /// A fake API key used in tests. Not a real key; no real call is made with it.
     /// </summary>
-    public const string ApiKey = "test-anahtari-1234567890";
+    public const string ApiKey = "test-api-key-1234567890";
 
-    /// <summary>Testlerde kullanilan model adi. Katalog bir dogrulama listesi degildir (K-032).</summary>
+    /// <summary>The model name used in tests. The catalog is not a validation list (K-032).</summary>
     public const string Model = "claude-sonnet-5";
 
     public static ModelBinding Binding(

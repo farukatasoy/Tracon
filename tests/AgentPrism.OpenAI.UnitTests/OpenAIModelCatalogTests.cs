@@ -2,23 +2,21 @@ using AgentPrism.OpenAI.UnitTests.Infrastructure;
 
 namespace AgentPrism.OpenAI.UnitTests;
 
-/// <summary>
-/// Model katalogunun yapilandirmadan nasil kuruldugunu dogrular.
-/// </summary>
+/// <summary>Verifies how the model catalog is built from configuration.</summary>
 /// <remarks>
-/// AgentPrism yerlesik bir model listesi tasimaz. Olculdu (2026-08-02): koda
-/// gomulen liste, gercek bir hesabin erisebildigi modellerin hicbirini icermiyordu
-/// ve listedeki bir modele yapilan cagri <c>HTTP 403 model_not_found</c> dondu.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-032.
+/// AgentPrism carries no built-in model list. Measured (2026-08-02): the list
+/// embedded in code contained none of the models a real account could reach, and a
+/// call to a model on that list returned <c>HTTP 403 model_not_found</c>. Reason:
+/// <c>docs/KARARLAR.md</c>, decision K-032.
 /// </remarks>
 public sealed class OpenAIModelCatalogTests
 {
     [Fact]
-    public void Yapilandirma_bos_ise_katalog_bostur()
+    public void Catalog_is_empty_when_configuration_is_empty()
         => OpenAIModelCatalog.Build(TestData.Options()).ShouldBeEmpty();
 
     [Fact]
-    public void Yapilandirmadan_gelen_modeller_kataloga_girer()
+    public void Models_from_configuration_enter_the_catalog()
     {
         var options = TestData.Options(o =>
         {
@@ -34,7 +32,7 @@ public sealed class OpenAIModelCatalogTests
     }
 
     [Fact]
-    public void Ayni_ad_iki_kez_verilirse_son_tanim_kazanir()
+    public void Last_definition_wins_when_the_same_name_is_given_twice()
     {
         var options = TestData.Options(o =>
         {
@@ -48,7 +46,7 @@ public sealed class OpenAIModelCatalogTests
     }
 
     [Fact]
-    public void Katalog_ada_gore_siralidir()
+    public void Catalog_is_ordered_by_name()
     {
         var options = TestData.Options(o =>
         {
@@ -60,18 +58,18 @@ public sealed class OpenAIModelCatalogTests
     }
 
     [Fact]
-    public void Adsiz_girdi_yok_sayilir()
+    public void Nameless_entry_is_ignored()
     {
         var options = TestData.Options(o =>
         {
             o.Models.Add(new ModelDescriptor { Name = "   " });
-            o.Models.Add(new ModelDescriptor { Name = "gecerli" });
+            o.Models.Add(new ModelDescriptor { Name = "valid" });
         });
 
-        OpenAIModelCatalog.Build(options).ShouldHaveSingleItem().Name.ShouldBe("gecerli");
+        OpenAIModelCatalog.Build(options).ShouldHaveSingleItem().Name.ShouldBe("valid");
     }
 
     [Fact]
-    public void Null_ayar_reddedilir()
+    public void Null_options_is_rejected()
         => Should.Throw<ArgumentNullException>(() => OpenAIModelCatalog.Build(null!));
 }

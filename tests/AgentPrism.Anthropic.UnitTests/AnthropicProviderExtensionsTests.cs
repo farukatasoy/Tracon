@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Anthropic.UnitTests;
 
 /// <summary>
-/// <c>UseAnthropic()</c> kaydinin sekli, tekrarlanmasi ve yapilandirmadan
-/// baglanmasi.
+/// The shape of the <c>UseAnthropic()</c> registration, its behavior when repeated,
+/// and binding from configuration.
 /// </summary>
 public sealed class AnthropicProviderExtensionsTests
 {
     [Fact]
-    public void Tek_saglayici_kaydeder()
+    public void Registers_a_single_provider()
     {
         using var provider = Build(builder => builder.UseAnthropic(TestData.ApiKey));
 
@@ -22,7 +22,7 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Ikinci_cagri_saglayiciyi_cogaltmaz()
+    public void Second_call_does_not_duplicate_the_provider()
     {
         using var provider = Build(builder => builder
             .UseAnthropic(TestData.ApiKey)
@@ -30,31 +30,31 @@ public sealed class AnthropicProviderExtensionsTests
 
         provider.GetServices<IModelProvider>().Count().ShouldBe(1);
 
-        // Ikinci cagri ayarlari birlestirir; defter "ayni ad iki kez" hatasi vermez.
+        // A second call merges settings; the registry does not raise a "same name twice" error.
         provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value.DefaultModel
             .ShouldBe(TestData.Model);
         provider.GetRequiredService<IModelProviderRegistry>().List().Count.ShouldBe(1);
     }
 
     [Fact]
-    public void Tek_fabrika_paylasilir()
+    public void A_single_factory_is_shared()
     {
         using var provider = Build(builder => builder.UseAnthropic(TestData.ApiKey));
 
-        // Tek istemci, tek HTTP baglanti havuzu.
+        // One client, one HTTP connection pool.
         provider.GetRequiredService<AnthropicChatClientFactory>()
             .ShouldBeSameAs(provider.GetRequiredService<AnthropicChatClientFactory>());
     }
 
     [Fact]
-    public void Yapilandirmadan_okur()
+    public void Reads_from_configuration()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
                 ["DefaultModel"] = TestData.Model,
-                ["Endpoint"] = "https://ornek.gecit/v1",
+                ["Endpoint"] = "https://example.gateway/v1",
                 ["DefaultMaxOutputTokens"] = "8192",
                 ["MaxRetries"] = "0",
                 ["Timeout"] = "00:00:30",
@@ -70,7 +70,7 @@ public sealed class AnthropicProviderExtensionsTests
 
         options.ApiKey.ShouldBe(TestData.ApiKey);
         options.DefaultModel.ShouldBe(TestData.Model);
-        options.Endpoint.ShouldBe(new Uri("https://ornek.gecit/v1"));
+        options.Endpoint.ShouldBe(new Uri("https://example.gateway/v1"));
         options.DefaultMaxOutputTokens.ShouldBe(8192);
         options.MaxRetries.ShouldBe(0);
         options.Timeout.ShouldBe(TimeSpan.FromSeconds(30));
@@ -79,16 +79,16 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_goreli_adres_reddedilir()
+    public void Relative_address_from_configuration_is_rejected()
     {
-        // HATA-S3-003: Bind() eskiden Uri.TryCreate(..., UriKind.Absolute, ...)
-        // basarisiz olunca Endpoint'i hic atamiyordu; deger doğrulayiciya
-        // ulasmadan sessizce eleniyordu.
+        // HATA-S3-003: Bind() used to leave Endpoint unassigned when
+        // Uri.TryCreate(..., UriKind.Absolute, ...) failed; the value was silently
+        // dropped before it ever reached the validator.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ApiKey"] = TestData.ApiKey,
-                ["Endpoint"] = "sadece-bir-yol",
+                ["Endpoint"] = "just-a-path",
             })
             .Build();
 
@@ -100,10 +100,10 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Yapilandirmadan_gelen_adsiz_model_reddedilir()
+    public void Nameless_model_from_configuration_is_rejected()
     {
-        // HATA-S3-004: BindModels() eskiden bos Name'li ogeyi listeye hic
-        // eklemiyordu; doğrulayici boş isimli bir öge asla görmüyordu.
+        // HATA-S3-004: BindModels() used to never add an entry with an empty Name
+        // to the list; the validator never saw an empty-named entry.
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -121,7 +121,7 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Anahtarsiz_kayit_baslangicta_hata_verir()
+    public void Registration_without_a_key_fails_at_startup()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseAnthropic(options => options.DefaultModel = TestData.Model);
@@ -135,7 +135,7 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Bos_anahtar_argumani_reddedilir()
+    public void Empty_key_argument_is_rejected()
     {
         var services = new ServiceCollection();
 
@@ -143,7 +143,7 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
-    public void Katalog_yapilandirmadan_gelir_ve_saglayiciya_yansir()
+    public void Catalog_comes_from_configuration_and_is_reflected_in_the_provider()
     {
         using var provider = Build(builder => builder.UseAnthropic(TestData.ApiKey, options =>
         {

@@ -3,10 +3,8 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism.OpenAI.UnitTests.Infrastructure;
 
-/// <summary>
-/// Yazilan tum gunluk satirlarini bellekte toplayan gunlukleyici saglayicisi.
-/// Sir sizinti testleri gunluge ne yazildigini bunun uzerinden denetler.
-/// </summary>
+/// <summary>A logger provider that collects every written log line in memory.</summary>
+/// <remarks>Secret leak tests check what is written to the log through this.</remarks>
 internal sealed class RecordingLoggerProvider : ILoggerProvider
 {
     private readonly ConcurrentQueue<string> _entries = new();
@@ -19,7 +17,7 @@ internal sealed class RecordingLoggerProvider : ILoggerProvider
 
     public void Dispose()
     {
-        // Toplanan satirlar test suresince kalir; serbest birakilacak kaynak yok.
+        // Collected lines live for the duration of the test; there is no resource to release.
     }
 
     private sealed class RecordingLogger(string category, ConcurrentQueue<string> entries) : ILogger

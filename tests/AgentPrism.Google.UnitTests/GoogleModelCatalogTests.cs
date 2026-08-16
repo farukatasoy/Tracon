@@ -2,19 +2,19 @@ using AgentPrism.Google.UnitTests.Infrastructure;
 
 namespace AgentPrism.Google.UnitTests;
 
-/// <summary>Katalogun yalnizca yapilandirmadan gelmesi (K-032).</summary>
+/// <summary>The catalog comes only from configuration (K-032).</summary>
 public sealed class GoogleModelCatalogTests
 {
     [Fact]
-    public void Yerlesik_liste_yoktur()
+    public void No_built_in_list()
     {
-        // Olculdu (2026-08-05): gemini-2.5-flash "no longer available to new users"
-        // dondu. Koda gomulu bir liste yayinlandigi gun bile yanlis olabilir.
+        // Measured (2026-08-05): gemini-2.5-flash returned "no longer available to
+        // new users". A list embedded in code can be wrong the very day it ships.
         GoogleModelCatalog.Build(TestData.Options()).ShouldBeEmpty();
     }
 
     [Fact]
-    public void Ada_gore_siralar()
+    public void Sorts_by_name()
     {
         var catalog = GoogleModelCatalog.Build(TestData.Options(options =>
         {
@@ -28,19 +28,19 @@ public sealed class GoogleModelCatalogTests
     }
 
     [Fact]
-    public void Ayni_ad_tekrarlanirsa_son_tanim_kazanir()
+    public void Repeated_name_lets_the_last_definition_win()
     {
         var catalog = GoogleModelCatalog.Build(TestData.Options(options =>
         {
-            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "eski" });
-            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "yeni" });
+            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "old" });
+            options.Models.Add(new ModelDescriptor { Name = TestData.Model, DisplayName = "new" });
         }));
 
-        catalog.Single().DisplayName.ShouldBe("yeni");
+        catalog.Single().DisplayName.ShouldBe("new");
     }
 
     [Fact]
-    public void Adsiz_girdiler_yok_sayilir()
+    public void Unnamed_entries_are_ignored()
     {
         var catalog = GoogleModelCatalog.Build(TestData.Options(options =>
         {
@@ -52,6 +52,6 @@ public sealed class GoogleModelCatalogTests
     }
 
     [Fact]
-    public void Null_ayar_reddedilir()
+    public void Null_options_is_rejected()
         => Should.Throw<ArgumentNullException>(() => GoogleModelCatalog.Build(null!));
 }

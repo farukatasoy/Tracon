@@ -5,27 +5,27 @@ using AgentPrism.Anthropic.UnitTests.Infrastructure;
 namespace AgentPrism.Anthropic.UnitTests;
 
 /// <summary>
-/// Saglik denetiminin adres birlestirmesi ve yanit ayristirmasi. Ag cagrisi yapilmaz.
+/// The health check's address joining and response parsing. No network call is made.
 /// </summary>
 public sealed class AnthropicProviderHealthCheckTests
 {
     [Fact]
-    public void Adres_verilmezse_resmi_uc_kullanilir()
+    public void No_address_given_falls_back_to_the_official_endpoint()
         => AnthropicProviderHealthCheck.BuildModelsEndpoint(null)
             .ToString().ShouldBe("https://api.anthropic.com/v1/models");
 
     [Fact]
-    public void Egik_cizgisiz_taban_adres_son_parcayi_yutmaz()
-        => AnthropicProviderHealthCheck.BuildModelsEndpoint(new Uri("https://ornek.gecit/v1"))
-            .ToString().ShouldBe("https://ornek.gecit/v1/models");
+    public void Base_address_without_a_trailing_slash_does_not_swallow_the_last_segment()
+        => AnthropicProviderHealthCheck.BuildModelsEndpoint(new Uri("https://example.gateway/v1"))
+            .ToString().ShouldBe("https://example.gateway/v1/models");
 
     [Fact]
-    public void Egik_cizgili_taban_adres_ayni_sonucu_verir()
-        => AnthropicProviderHealthCheck.BuildModelsEndpoint(new Uri("https://ornek.gecit/v1/"))
-            .ToString().ShouldBe("https://ornek.gecit/v1/models");
+    public void Base_address_with_a_trailing_slash_gives_the_same_result()
+        => AnthropicProviderHealthCheck.BuildModelsEndpoint(new Uri("https://example.gateway/v1/"))
+            .ToString().ShouldBe("https://example.gateway/v1/models");
 
     [Fact]
-    public async Task Yanittan_model_kimlikleri_okunur_ve_siralanir()
+    public async Task Model_ids_are_read_from_the_response_and_sorted()
     {
         using var response = Json("""
             {"data":[{"id":"claude-sonnet-5"},{"id":"claude-haiku-4-5-20251001"},{"id":"claude-opus-5"}]}
@@ -37,9 +37,9 @@ public sealed class AnthropicProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Beklenmeyen_govde_bos_liste_dondurur()
+    public async Task Unexpected_body_returns_an_empty_list()
     {
-        using var response = Json("""{"nesne":"list"}""");
+        using var response = Json("""{"object":"list"}""");
 
         var models = await AnthropicProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
@@ -47,9 +47,9 @@ public sealed class AnthropicProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Kimliksiz_ogeler_atlanir()
+    public async Task Idless_entries_are_skipped()
     {
-        using var response = Json("""{"data":[{"nesne":"model"},{"id":""},{"id":"claude-opus-5"}]}""");
+        using var response = Json("""{"data":[{"object":"model"},{"id":""},{"id":"claude-opus-5"}]}""");
 
         var models = await AnthropicProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
@@ -57,10 +57,11 @@ public sealed class AnthropicProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Baglanamayan_ucun_detayinda_ne_anahtar_ne_adres_gorunur()
+    public async Task Unreachable_endpoint_detail_shows_neither_the_key_nor_the_address()
     {
-        // Kapali bir port: baglanti reddedilir. HttpRequestException.Message hedef
-        // adresi govdeye gomerdi; HttpRequestError kategorisi adres tasimaz.
+        // A closed port: the connection is refused. HttpRequestException.Message
+        // would embed the target address in the body; the HttpRequestError category
+        // carries no address.
         var options = TestData.Options(o =>
         {
             o.Endpoint = new Uri("http://127.0.0.1:1/v1");
@@ -77,7 +78,7 @@ public sealed class AnthropicProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Saglik_ayari_verilmeyen_saglayici_bilinmiyor_dondurur()
+    public async Task Provider_without_health_settings_returns_unknown()
     {
         var provider = new AnthropicModelProvider(
             AnthropicProviderNames.Anthropic,

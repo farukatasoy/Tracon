@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.OpenAI.UnitTests;
 
 /// <summary>
-/// <c>UseOpenAICompatible()</c> cagrisinin ad dogrulamasini, anahtarsiz yerel
-/// saglayici davranisini ve saglayici kaydini dogrular.
+/// Verifies the name validation, key-less local provider behavior, and provider
+/// registration of the <c>UseOpenAICompatible()</c> call.
 /// </summary>
 public sealed class OpenAICompatibleProviderExtensionsTests
 {
@@ -16,7 +16,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     private static readonly Uri LocalEndpoint = new("http://localhost:11434/v1");
 
     [Fact]
-    public void Adlandirilmis_saglayici_defterde_gorunur()
+    public void Named_provider_appears_in_the_registry()
     {
         using var provider = BuildProvider(o => o.Endpoint = OpenRouterEndpoint);
 
@@ -30,7 +30,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     [InlineData(OpenAIProviderNames.ChatCompletions)]
     [InlineData(OpenAIProviderNames.Responses)]
     [InlineData("OPENAI")]
-    public void Rezerve_ad_reddedilir(string name)
+    public void Reserved_name_is_rejected(string name)
     {
         var builder = new ServiceCollection().AddAgentPrism();
 
@@ -41,12 +41,12 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Theory]
-    [InlineData("Openrouter")] // buyuk harf
-    [InlineData("open router")] // bosluk
-    [InlineData("-openrouter")] // tire ile baslar
-    [InlineData("open_router")] // alt cizgi
+    [InlineData("Openrouter")] // upper case
+    [InlineData("open router")] // space
+    [InlineData("-openrouter")] // starts with a hyphen
+    [InlineData("open_router")] // underscore
     [InlineData("")]
-    public void Gecersiz_ad_deseni_reddedilir(string name)
+    public void Invalid_name_pattern_is_rejected(string name)
     {
         var builder = new ServiceCollection().AddAgentPrism();
 
@@ -55,7 +55,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Otuz_iki_karakterlik_ad_kabul_edilir_otuz_ucuncu_reddedilir()
+    public void A_32_character_name_is_accepted_a_33_character_name_is_rejected()
     {
         var builder = new ServiceCollection().AddAgentPrism();
         var name32 = new string('a', 32);
@@ -67,7 +67,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Endpoint_verilmeyen_adlandirilmis_saglayici_dogrulama_hatasi_verir()
+    public void Named_provider_without_an_endpoint_fails_validation()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism().UseOpenAICompatible("openrouter", static _ => { });
@@ -82,9 +82,9 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Anahtarsiz_yerel_saglayici_dogrulamayi_gecer_ve_istemci_uretir()
+    public void Key_less_local_provider_passes_validation_and_produces_a_client()
     {
-        // F-05: yerel sunucular (Ollama, LM Studio) API anahtari istemez.
+        // F-05: local servers (Ollama, LM Studio) do not ask for an API key.
         using var provider = BuildProvider(o => o.Endpoint = LocalEndpoint, name: "ollama");
 
         using var chatClient = provider.GetRequiredService<IModelProviderRegistry>()
@@ -94,7 +94,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Anahtarsiz_saglayicinin_uretilen_istemcisi_dogru_adrese_baglanir()
+    public void Key_less_providers_client_connects_to_the_right_address()
     {
         using var provider = BuildProvider(o => o.Endpoint = LocalEndpoint, name: "ollama");
 
@@ -107,7 +107,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Iki_adlandirilmis_saglayici_farkli_adreslere_baglanir()
+    public void Two_named_providers_connect_to_different_addresses()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism()
@@ -132,7 +132,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Responses_yuzeyi_varsayilan_olarak_kaydedilmez()
+    public void Responses_surface_is_not_registered_by_default()
     {
         using var provider = BuildProvider(o => o.Endpoint = OpenRouterEndpoint);
 
@@ -143,7 +143,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Responses_yuzeyi_acikca_istenirse_ikinci_saglayici_kaydedilir()
+    public void A_second_provider_is_registered_when_the_Responses_surface_is_explicitly_requested()
     {
         using var provider = BuildProvider(o =>
         {
@@ -159,7 +159,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Ikinci_cagri_saglayiciyi_cogaltmaz()
+    public void Second_call_does_not_duplicate_the_provider()
     {
         var services = new ServiceCollection();
         services.AddAgentPrism()
@@ -174,7 +174,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Ayarlar_yapilandirmadan_okunur()
+    public void Options_are_read_from_configuration()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -197,12 +197,12 @@ public sealed class OpenAICompatibleProviderExtensionsTests
     }
 
     [Fact]
-    public void Null_zincir_reddedilir()
+    public void Null_chain_is_rejected()
         => Should.Throw<ArgumentNullException>(
             () => OpenAICompatibleProviderExtensions.UseOpenAICompatible(null!, "openrouter", static _ => { }));
 
     [Fact]
-    public void Null_yapilandirici_reddedilir()
+    public void Null_configure_callback_is_rejected()
     {
         var builder = new ServiceCollection().AddAgentPrism();
 
