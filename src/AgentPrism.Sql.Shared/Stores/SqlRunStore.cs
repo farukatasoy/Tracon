@@ -4,17 +4,17 @@ using System.Runtime.CompilerServices;
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma kayitlarini ve olay akisini PostgreSQL'de saklayan depo.
+/// Stores run records and the event stream in a SQL database.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Olaylar <em>append-only</em>'dir (karar K-014). Sira numarasini
-/// <see cref="RunEventWriter"/> uretir; depo yalnizca yazar.
+/// Events are <em>append-only</em> (decision K-014). <see cref="RunEventWriter"/>
+/// produces the sequence number; the store only writes it.
 /// </para>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryRunStore"/> ile birebir aynidir ve ortak
-/// sozlesme testleriyle korunur. Tum islemler <see cref="ITenantContext.TenantId"/>
-/// ile sinirlidir.
+/// The behavior contract is identical to <see cref="InMemoryRunStore"/> and is
+/// protected by shared contract tests. All operations are scoped to
+/// <see cref="ITenantContext.TenantId"/>.
 /// </para>
 /// </remarks>
 internal sealed class SqlRunStore : IRunStore
@@ -23,10 +23,10 @@ internal sealed class SqlRunStore : IRunStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir calistirma deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new run store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public SqlRunStore(
         SqlStoreContext context,
         ITenantContext tenantContext)
@@ -39,18 +39,17 @@ internal sealed class SqlRunStore : IRunStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway to provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Faz 46: <c>_sql.InsertRun</c> bir UPSERT'tir (<c>id</c> uzerinde
-    /// catisirsa GUNCELLER). Kuyruga alinan bir calistirma icin bu metot AYNI
-    /// <see cref="RunStartInfo.RunId"/> ile iki kez cagrilir — once
-    /// <see cref="RunStatus.Queued"/> ile (HTTP katmani), sonra isci is'i
-    /// gercekten calistirirken (bu kez varsayilan <see cref="RunStatus.Running"/>
-    /// ile). Duz bir INSERT olsaydi ikinci cagri birincil anahtar catismasi
-    /// uretirdi.
+    /// 🚨 Phase 46: <c>_sql.InsertRun</c> is an UPSERT (UPDATES on a conflict over
+    /// <c>id</c>). For a queued run, this method is called TWICE with the SAME
+    /// <see cref="RunStartInfo.RunId"/> — first with <see cref="RunStatus.Queued"/>
+    /// (the HTTP layer), then when the worker actually runs the job (this time
+    /// with the default <see cref="RunStatus.Running"/>). A plain INSERT would
+    /// make the second call raise a primary-key conflict.
     /// </remarks>
     public async ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
     {
@@ -95,8 +94,8 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "variant", record.Variant);
         AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
 
-        // Derinlik smallint sutunudur; kaynagi butcenin MaxDepth degeridir ve
-        // hicbir kurulumda short sinirina yaklasmaz.
+        // The depth column is smallint; its source is the budget's MaxDepth
+        // value and never comes close to the short limit in any deployment.
         DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -119,10 +118,11 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "payload", runEvent.Payload);
         Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
 
-        // 🚨 BEKLENEN kiraci; ambient kiraci DEGIL. RunStartInfo.TenantId ambient
-        // kiraciyi bilerek ezebildigi icin (workflow ve is kuyrugu boyle calisir)
-        // ambient ile suzmek mesru yazmalari dusururdu. NULL ise denetim yok.
-        // Gerekce: K-355.
+        // 🚨 EXPECTED tenant, NOT the ambient tenant. RunStartInfo.TenantId can
+        // deliberately override the ambient tenant (this is how workflows and
+        // the job queue work), so filtering by the ambient tenant would drop
+        // legitimate writes. NULL means no check.
+        // Rationale: K-355.
         AddNullableText(command, "tenant_id", runEvent.TenantId);
 
         int affected;
@@ -134,16 +134,16 @@ internal sealed class SqlRunStore : IRunStore
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
             throw new AgentPrismException(
-                $"'{runEvent.RunId}' kimlikli calistirma bulunamadi. " +
-                "Olay eklemeden once StartRunAsync cagrilmalidir.",
+                $"Run with id '{runEvent.RunId}' was not found. " +
+                "StartRunAsync must be called before adding an event.",
                 ex);
         }
 
         if (affected == 0)
         {
             throw new AgentPrismException(
-                $"'{runEvent.RunId}' kimlikli calistirma bulunamadi veya beklenen kiraciya " +
-                $"('{runEvent.TenantId}') ait degil. Olay yazilmadi.");
+                $"Run with id '{runEvent.RunId}' was not found or does not belong to the expected " +
+                $"tenant ('{runEvent.TenantId}'). The event was not written.");
         }
     }
 
@@ -169,7 +169,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
-        // BEKLENEN kiraci (K-355). NULL ise denetim yok.
+        // EXPECTED tenant (K-355). NULL means no check.
         AddNullableText(command, "tenant_id", completion.TenantId);
 
         var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -177,10 +177,10 @@ internal sealed class SqlRunStore : IRunStore
         if (affected == 0)
         {
             throw new AgentPrismException(
-                $"'{completion.RunId}' kimlikli calistirma bulunamadi" +
+                $"Run with id '{completion.RunId}' was not found" +
                 (completion.TenantId is null
                     ? "."
-                    : $" veya beklenen kiraciya ('{completion.TenantId}') ait degil."));
+                    : $" or does not belong to the expected tenant ('{completion.TenantId}')."));
         }
     }
 
@@ -198,9 +198,10 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
-        // BEKLENEN kiraci (K-355). Bakim ucu (POST /api/stats/recalculate-costs)
-        // kimlikleri kiraciya gore SUZULMUS bir sorgudan alir ve ayni kiraciyi
-        // buraya da tasir; boylece iki asamali yolda yaris kalmaz.
+        // EXPECTED tenant (K-355). The maintenance endpoint
+        // (POST /api/stats/recalculate-costs) gets ids from a query already
+        // FILTERED by tenant and carries the same tenant here too, so the
+        // two-phase path has no race.
         AddNullableText(command, "tenant_id", tenantId);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -208,8 +209,8 @@ internal sealed class SqlRunStore : IRunStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kimlikler cagiran surecin KENDI IRunCancellationRegistry defterinden gelir ve zaten " +
-        "o surecin gercekten yuruttugu calistirmalarla sinirlidir; bakim sinyalidir, veri okumaz.")]
+        "The ids come from the CALLING process's OWN IRunCancellationRegistry ledger and are " +
+        "already scoped to runs that process is actually executing; this is a maintenance signal, it reads no data.")]
     public async ValueTask TouchHeartbeatAsync(
         IReadOnlyCollection<Guid> runIds,
         DateTimeOffset at,
@@ -217,12 +218,12 @@ internal sealed class SqlRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(runIds);
 
-        // Tek bir toplu UPDATE (WHERE id IN (dizi)) SQLite/SQL Server'da dizi
-        // parametresini JSON metnine cevirmeyi gerektirirdi; uuid harf
-        // buyuklugu (K-191) ve dizi serilestirmesinin (System.Text.Json,
-        // kucuk harf) UYUSMAMASI riski tasirdi. Bu surecte AYNI ANDA suren
-        // calistirma sayisi kucuktur (IRunCancellationRegistry.ActiveRunIds);
-        // dongude N tekil UPDATE, bu riski almadan ayni sonucu verir.
+        // A single bulk UPDATE (WHERE id IN (array)) would require converting
+        // the array parameter to JSON text on SQLite/SQL Server; this carried a
+        // MISMATCH risk between uuid casing (K-191) and array serialization
+        // (System.Text.Json, lowercase). The number of CONCURRENTLY running
+        // runs in this process is small (IRunCancellationRegistry.ActiveRunIds);
+        // N single UPDATEs in a loop give the same result without that risk.
         foreach (var runId in runIds)
         {
             var command = CreateCommand(_sql.TouchRunHeartbeat);
@@ -236,8 +237,8 @@ internal sealed class SqlRunStore : IRunStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Bir bakim isidir ve BUTUN kiracilarin oksuz satirlarini tarar; ambient kiraciyla " +
-        "suzmek diger kiracilarin satirlarini sonsuza dek Running birakirdi.")]
+        "This is a maintenance job and scans orphaned rows across ALL tenants; filtering by the " +
+        "ambient tenant would leave other tenants' rows stuck in Running forever.")]
     public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
         DateTimeOffset staleBefore,
         int max,
@@ -256,11 +257,11 @@ internal sealed class SqlRunStore : IRunStore
 
         var claimed = await DbHelpers.ReadListAsync(command, ReadOrphanedRun, cancellationToken).ConfigureAwait(false);
 
-        // RunEventWriter o surecte artik yoktur; olayi biz yaziyoruz. Bir
-        // sonraki tur bu run_id'yi bir daha GORMEZ (status artik Failed'dir),
-        // bu yuzden N ayri INSERT (birleştirilmiş tek bir yazma yerine) burada
-        // sicak yol maliyeti degildir -- MaxRunsPerScan ile sinirli, dakikada
-        // bir kosan bir bakim isidir.
+        // The RunEventWriter no longer exists in that process; we write the
+        // event here. The next scan will NEVER see this run_id again (its
+        // status is now Failed), so N separate INSERTs (instead of a single
+        // batched write) are not a hot-path cost here -- this is a maintenance
+        // job bounded by MaxRunsPerScan that runs once a minute.
         foreach (var record in claimed)
         {
             var eventCommand = CreateCommand(_sql.InsertOrphanRunEvent);
@@ -276,10 +277,10 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <summary>
-    /// Oksuz calistirma hatalarinin kumeleme parmak izi. Sabit bir dize --
-    /// bir SHA-256 hash DEGIL; gerekce <see cref="InMemoryRunStore"/>'daki
-    /// ayni adli sabitle aynidir (AgentPrism.Core'un ErrorFingerprint'i bu
-    /// derlemeden erisilemez, K-176).
+    /// The clustering fingerprint for orphaned run errors. A fixed string --
+    /// NOT a SHA-256 hash; the rationale matches the constant of the same
+    /// name in <see cref="InMemoryRunStore"/> (AgentPrism.Core's ErrorFingerprint
+    /// is not reachable from this assembly, K-176).
     /// </summary>
     private const string OrphanedFingerprint = "orphaned";
 
@@ -345,8 +346,8 @@ internal sealed class SqlRunStore : IRunStore
 
             await using (reader.ConfigureAwait(false))
             {
-                // Birinci sonuc kumesi: toplam ozet. Toplama sorgusu her zaman
-                // tam olarak bir satir dondurur.
+                // First result set: the overall summary. The aggregation query
+                // always returns exactly one row.
                 if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     return EmptyStatistics;
@@ -367,7 +368,7 @@ internal sealed class SqlRunStore : IRunStore
                 var scoredRuns = reader.GetInt64(12);
                 var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
 
-                // Ikinci sonuc kumesi: agent kirilimi.
+                // Second result set: the breakdown by agent.
                 var byAgent = new List<RunAgentStatistics>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -384,8 +385,9 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Ucuncu sonuc kumesi: model kirilimi. model_id NULL olan
-                // calistirmalar sorguda elenir; toplamlarda ise sayilirlar.
+                // Third result set: the breakdown by model. Runs with a NULL
+                // model_id are excluded from the query but are still counted
+                // in the totals.
                 var byModel = new List<RunModelStatistics>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -404,8 +406,9 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Dorduncu sonuc kumesi: surum kirilimi. agent_version NULL olan
-                // calistirmalar sorguda elenir; toplamlarda ise sayilirlar.
+                // Fourth result set: the breakdown by version. Runs with a
+                // NULL agent_version are excluded from the query but are still
+                // counted in the totals.
                 var byVersion = new List<RunVersionStatistics>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -423,7 +426,7 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44).
+                // Fifth result set: the breakdown by error class (Phase 44).
                 var errorTotals = new List<(RunErrorClass Class, long TotalRuns)>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -434,8 +437,8 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
-                // Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi,
-                // sinifa gore SIRALI doner (SQL metni bunu garanti eder).
+                // Sixth result set: the top three fingerprints per class,
+                // returned SORTED by class (the SQL text guarantees this).
                 var clustersByClass = new Dictionary<RunErrorClass, List<RunErrorCluster>>();
 
                 if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
@@ -497,7 +500,7 @@ internal sealed class SqlRunStore : IRunStore
         }
     }
 
-    /// <summary>Bir hata sinifinin en sik uc kumesini secerken kesilen ust sinir.</summary>
+    /// <summary>The upper limit applied when selecting the top cluster set for one error class.</summary>
     private const int TopErrorClusterCount = 3;
 
     /// <inheritdoc />
@@ -563,23 +566,24 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "source", invocation.Source);
         AddNullableText(command, "arguments", invocation.Arguments);
         AddNullableText(command, "result", invocation.Result);
-        // Sure `integer` sutununda milisaniye olarak saklanir; 24 gunden
-        // uzun bir tool cagrisi gercekci degildir ve tasma olusmaz.
+        // Duration is stored in milliseconds in the `integer` column; a tool
+        // call longer than 24 days is unrealistic and does not overflow.
         Dialect.AddInt32(command, "duration_ms", invocation.Duration is { } duration
                 ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
                 : null);
         AddNullableText(command, "error", invocation.Error);
         Dialect.AddTimestamp(command, "created_at", invocation.CreatedAt);
 
-        // Token DISI olcum (Faz 28). Cagrilarin cogunlugu olcum tasimaz ve bes
-        // sutun da NULL kalir. Fiyat tanimsizsa `cost` SIFIR degil NULL yazilir.
+        // Non-token usage measurement (Phase 28). Most calls carry no
+        // measurement and all five columns stay NULL. If the price is
+        // undefined, `cost` is written as NULL, not ZERO.
         AddNullableText(command, "usage_unit", invocation.Usage?.Unit);
         Dialect.AddDecimal(command, "usage_quantity", invocation.Usage?.Quantity);
         Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
         Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
         AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
 
-        // BEKLENEN kiraci (K-355). NULL ise denetim yok.
+        // EXPECTED tenant (K-355). NULL means no check.
         AddNullableText(command, "tenant_id", invocation.TenantId);
 
         int affected;
@@ -591,16 +595,16 @@ internal sealed class SqlRunStore : IRunStore
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
             throw new AgentPrismException(
-                $"'{invocation.RunId}' kimlikli calistirma bulunamadi. " +
-                "Tool cagrisi kaydetmeden once StartRunAsync cagrilmalidir.",
+                $"Run with id '{invocation.RunId}' was not found. " +
+                "StartRunAsync must be called before recording a tool call.",
                 ex);
         }
 
         if (affected == 0)
         {
             throw new AgentPrismException(
-                $"'{invocation.RunId}' kimlikli calistirma bulunamadi veya beklenen kiraciya " +
-                $"('{invocation.TenantId}') ait degil. Tool cagrisi yazilmadi.");
+                $"Run with id '{invocation.RunId}' was not found or does not belong to the expected " +
+                $"tenant ('{invocation.TenantId}'). The tool call was not written.");
         }
     }
 
@@ -655,7 +659,7 @@ internal sealed class SqlRunStore : IRunStore
             .ConfigureAwait(false);
     }
 
-    /// <summary>Hic satir donmeyen ozet sorgusu icin notr sonuc.</summary>
+    /// <summary>The neutral result for the summary query when it returns no row.</summary>
     private static RunStatistics EmptyStatistics { get; } = new()
     {
         TotalRuns = 0,
@@ -681,11 +685,11 @@ internal sealed class SqlRunStore : IRunStore
         };
 
     /// <summary>
-    /// <c>ClaimOrphanedRuns</c>'in RETURNING/OUTPUT sutunlarini okur. Bilerek
-    /// <see cref="ReadRun"/>'dan AYRIDIR: o, agac toplamlarinin LATERAL/OUTER
-    /// APPLY birlestirmesine dayanir; oksuz kapama bu maliyeti gerektirmez --
-    /// dogan satirin ne kullanimi ne maliyeti vardir (henuz hic tamamlanmamis
-    /// bir calistirma).
+    /// Reads the RETURNING/OUTPUT columns of <c>ClaimOrphanedRuns</c>. Deliberately
+    /// SEPARATE from <see cref="ReadRun"/>: that one relies on a LATERAL/OUTER
+    /// APPLY join for tree totals, which orphan reclamation does not need to
+    /// pay for -- a run that has never completed has neither usage nor cost
+    /// to aggregate.
     /// </summary>
     private static RunRecord ReadOrphanedRun(DbDataReader reader)
         => new()
@@ -750,13 +754,13 @@ internal sealed class SqlRunStore : IRunStore
             Cost = ownCost,
             TreeCost = ReadTreeCost(reader, ownCost),
 
-            // 🚨 39: Faz 47'de SONA eklendi. Eski satirlarda NULL'dur; bu satir
-            // bir yeniden oynatma degildir demektir.
+            // 🚨 39: Added at the END in Phase 47. NULL on old rows; that means
+            // the row is not a replay.
             ReplayOfRunId = reader.IsDBNull(39) ? null : reader.GetGuid(39),
 
-            // 🚨 37-38: HER ZAMAN sona eklenen sutunlar (Faz 44). Eski
-            // satirlarda error_class NULL'dur -- Unknown kovasina duser
-            // (RunStatistics.ByErrorClass, K-014 -- geriye donuk doldurma yok).
+            // 🚨 37-38: Columns ALWAYS appended at the end (Phase 44). On old
+            // rows error_class is NULL -- it falls into the Unknown bucket
+            // (RunStatistics.ByErrorClass, K-014 -- no backfill).
             Error = errorType is null
                 ? null
                 : new RunError
@@ -769,12 +773,13 @@ internal sealed class SqlRunStore : IRunStore
         };
     }
 
-    /// <summary>Agacin token toplamini kaydin kendi kullanimiyla birlestirir.</summary>
+    /// <summary>Combines the tree's token total with the record's own usage.</summary>
     /// <remarks>
-    /// Alt sorgu yalnizca <em>altindaki</em> calistirmalari toplar; kaydin kendi
-    /// kullanimi buraya eklenir. Ne kayitta ne agacta kullanim varsa deger
-    /// <see langword="null"/> kalir: sifir yazmak, "saglayici token bildirmedi"
-    /// ile "hic token harcanmadi" durumlarini ayirt edilemez hale getirirdi.
+    /// The subquery only aggregates <em>descendant</em> runs; the record's own
+    /// usage is added here. If neither the record nor the tree has usage, the
+    /// value stays <see langword="null"/>: writing zero would make "the
+    /// provider reported no tokens" indistinguishable from "no tokens were
+    /// spent at all".
     /// </remarks>
     private static RunUsage? ReadTreeUsage(DbDataReader reader, RunUsage? ownUsage)
     {
@@ -809,9 +814,10 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <summary>
-    /// Kaydin kendi maliyetini okur. <c>pricing_source</c> NULL ise model hic
-    /// bilinmiyordu demektir (<see cref="PricingSource.Unknown"/>'dan farkli):
-    /// bu durumda <see langword="null"/> doner.
+    /// Reads the record's own cost. A NULL <c>pricing_source</c> means the
+    /// model was never known at all (different from
+    /// <see cref="PricingSource.Unknown"/>): in that case it returns
+    /// <see langword="null"/>.
     /// </summary>
     private static RunCost? ReadCost(DbDataReader reader)
     {
@@ -829,8 +835,8 @@ internal sealed class SqlRunStore : IRunStore
         };
     }
 
-    /// <summary>Agacin maliyet toplamini kaydin kendi maliyetiyle birlestirir.</summary>
-    /// <remarks>Ayni gerekce <see cref="ReadTreeUsage"/> ile.</remarks>
+    /// <summary>Combines the tree's cost total with the record's own cost.</summary>
+    /// <remarks>Same rationale as <see cref="ReadTreeUsage"/>.</remarks>
     private static RunTreeCost? ReadTreeCost(DbDataReader reader, RunCost? ownCost)
     {
         var pricedDescendants = reader.IsDBNull(36) ? 0 : reader.GetInt64(36);
@@ -882,13 +888,14 @@ internal sealed class SqlRunStore : IRunStore
         };
 
     /// <summary>
-    /// Token disi olcum sutunlarini okur (indeksler 10-14).
+    /// Reads the non-token measurement columns (indexes 10-14).
     /// </summary>
     /// <remarks>
-    /// Birim bos ise cagri hic olcum bildirmemistir ve nesne kurulmaz — bos bir
-    /// <see cref="ToolCallUsage"/> dondurmek "olculdu ama sifir" anlamina gelirdi.
-    /// Mantiksal deger <c>DbHelpers.ToBoolean</c> ile okunur: SQLite mantiksal tip
-    /// tasimaz ve <c>long</c> (0/1) dondurur (K-195).
+    /// If the unit is empty, the call reported no measurement at all and no
+    /// object is constructed — returning an empty <see cref="ToolCallUsage"/>
+    /// would mean "measured, but zero". The boolean value is read with
+    /// <c>DbHelpers.ToBoolean</c>: SQLite has no boolean type and returns
+    /// <c>long</c> (0/1) instead (K-195).
     /// </remarks>
     private static ToolCallUsage? ReadToolCallUsage(DbDataReader reader)
     {

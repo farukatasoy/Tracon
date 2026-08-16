@@ -4,32 +4,31 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Gomulu SQL migration'larini veritabanina uygular.
+/// Applies the embedded SQL migrations to the database.
 /// </summary>
 /// <remarks>
-/// <para>Akis su adimlardan gecer:</para>
+/// <para>The flow goes through these steps:</para>
 /// <list type="number">
-///   <item><description>Saglayiciya ozgu migration kilidi alinir — SEMAYA kapsanmistir (K-389): ayni semaya coklu replika ayni anda baslarsa yalnizca biri uygular.</description></item>
-///   <item><description>Sema ve <c>__migrations</c> defteri yoksa olusturulur.</description></item>
-///   <item><description>Uygulanmis her migration'in ozeti dogrulanir; uyusmazlik <strong>hata verir</strong>.</description></item>
-///   <item><description>Uygulanmamis migration'lar sira ile, her biri kendi islemi icinde calistirilir.</description></item>
-///   <item><description>Kilit birakilir.</description></item>
+///   <item><description>The provider-specific migration lock is acquired — it is SCOPED to the schema (K-389): if multiple replicas start against the same schema at the same time, only one applies.</description></item>
+///   <item><description>The schema and the <c>__migrations</c> ledger are created if missing.</description></item>
+///   <item><description>Every applied migration's checksum is verified; a mismatch <strong>fails</strong>.</description></item>
+///   <item><description>Unapplied migrations run in order, each inside its own transaction.</description></item>
+///   <item><description>The lock is released.</description></item>
 /// </list>
 /// <para>
-/// Kilit oturum kapsamlidir; bu yuzden tum adimlar <em>tek bir baglanti</em>
-/// uzerinde yurutulur.
+/// The lock is session-scoped, so all steps run over <em>a single connection</em>.
 /// </para>
 /// <para>
-/// Sinif her SQL saglayicisinda ortaktir; kilit bicimi (<c>pg_advisory_lock</c>
-/// / <c>sp_getapplock</c>) ve migration kaynak oneki <see cref="SqlDialect"/>
-/// uzerinden gelir.
+/// This class is shared across every SQL provider; the lock mechanism
+/// (<c>pg_advisory_lock</c> / <c>sp_getapplock</c>) and the migration resource
+/// prefix come through <see cref="SqlDialect"/>.
 /// </para>
 /// <para>
-/// 🚨 Kilit semaya kapsanmis olsa da bazi migration'lar veritabani GENELINDE
-/// paylasilan bir katalog nesnesi olusturabilir (ornegin PostgreSQL
-/// <c>CREATE EXTENSION IF NOT EXISTS</c>). Iki farkli sema es zamanli ilk kez
-/// migrate olursa bu tur "IF NOT EXISTS" korumali DDL'ler benzersizlik ihlaline
-/// dusebilir; <see cref="ApplyOneAsync"/> bunu guvenle yeniden dener (K-389).
+/// 🚨 Even though the lock is scoped to the schema, some migrations may create
+/// a catalog object shared across the WHOLE database (for example PostgreSQL's
+/// <c>CREATE EXTENSION IF NOT EXISTS</c>). If two different schemas migrate for
+/// the first time concurrently, such "IF NOT EXISTS"-guarded DDL can still hit
+/// a uniqueness violation; <see cref="ApplyOneAsync"/> retries this safely (K-389).
 /// </para>
 /// </remarks>
 public sealed class MigrationRunner : ISqlPersistenceDiagnostics
@@ -37,10 +36,10 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     private readonly SqlStoreContext _context;
     private readonly ILogger<MigrationRunner> _logger;
 
-    /// <summary>Yeni bir migration calistiricisi olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new migration runner.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     internal MigrationRunner(SqlStoreContext context, ILogger<MigrationRunner> logger)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -54,10 +53,10 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     public string ProviderName => _context.ProviderName;
 
     /// <summary>
-    /// Baglanti ve migration durumunu, hicbir migration UYGULAMADAN okur (Faz 33).
+    /// Reads the connection and migration status WITHOUT applying any migration (Phase 33).
     /// </summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Baglanti kurulamadiysa <c>CanConnect: false</c>; kurulduysa bekleyen migration listesi.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><c>CanConnect: false</c> if the connection could not be established; otherwise the list of pending migrations.</returns>
     public async ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
         var dialect = _context.Dialect;
@@ -92,8 +91,9 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             }
             catch (DbException)
             {
-                // __migrations defteri henuz yok (ilk migration hic uygulanmamis).
-                // Baglanti calisiyor; tum migration'lar bekliyor sayilir.
+                // The __migrations ledger does not exist yet (no migration has
+                // ever been applied). The connection works; every migration
+                // counts as pending.
                 return new SqlPersistenceDiagnosticsSnapshot
                 {
                     CanConnect = true,
@@ -103,12 +103,12 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         }
     }
 
-    /// <summary>Bekleyen migration'lari uygular.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Uygulanan migration sayisi. Her sey guncelse 0.</returns>
+    /// <summary>Applies pending migrations.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of applied migrations. 0 if everything is current.</returns>
     /// <exception cref="AgentPrismException">
-    /// Uygulanmis bir migration dosyasi degistirilmisse (ozet uyusmazligi) veya
-    /// bir migration calistirilirken hata olustuysa.
+    /// An applied migration file has been modified (checksum mismatch), or an
+    /// error occurred while running a migration.
     /// </exception>
     public async ValueTask<int> ApplyAsync(CancellationToken cancellationToken = default)
     {
@@ -133,8 +133,9 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             }
             finally
             {
-                // Kilit her durumda birakilir. Baglanti kapansa da kilit duserdi;
-                // acik birakma yine de bekleyen replikalari erken serbest birakir.
+                // The lock is released in every case. It would also drop if the
+                // connection closed; releasing it explicitly still frees waiting
+                // replicas earlier.
                 await dialect.ReleaseMigrationLockAsync(
                     connection,
                     _context.CommandTimeoutSeconds,
@@ -171,7 +172,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         if (count > 0)
         {
             _logger.LogInformation(
-                "AgentPrism {Count} migration uyguladi. Sema: {Schema}.",
+                "AgentPrism applied {Count} migration(s). Schema: {Schema}.",
                 count,
                 sql.Schema);
         }
@@ -187,15 +188,16 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         }
 
         throw new AgentPrismException(
-            $"'{migration.Name}' migration'i veritabaninda uygulanmis ancak dosyanin icerigi degismis. " +
-            $"Veritabanindaki ozet: {record.Checksum}, dosyanin ozeti: {migration.Checksum}. " +
-            "Uygulanmis bir migration duzenlenmez; degisiklik icin yeni bir migration dosyasi ekleyin.");
+            $"Migration '{migration.Name}' has been applied to the database but the file's content has changed. " +
+            $"Checksum in the database: {record.Checksum}, checksum of the file: {migration.Checksum}. " +
+            "An applied migration is never edited; add a new migration file for the change.");
     }
 
     /// <summary>
-    /// Bir migration, veritabani genelinde paylasilan bir katalog nesnesiyle
-    /// (ornegin PostgreSQL <c>CREATE EXTENSION</c>) es zamanli baska bir semanin
-    /// migration'iyla yarisip benzersizlik ihlaline duserse yapilacak deneme sayisi.
+    /// The number of retries when a migration races another schema's
+    /// concurrent migration over a catalog object shared across the whole
+    /// database (for example PostgreSQL's <c>CREATE EXTENSION</c>) and hits a
+    /// uniqueness violation.
     /// </summary>
     private const int UniqueViolationRetryAttempts = 8;
 
@@ -204,11 +206,11 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         MigrationDescriptor migration,
         CancellationToken cancellationToken)
     {
-        // Migration'in kendi SQL'i ile deftere yazan INSERT TEK bir round-trip'te
-        // birlikte gonderilir (K-388). __migrations tablosu migration calismadan
-        // ONCE zaten var ve migration'in DDL'inin olusturdugu/degistirdigi hicbir
-        // nesneye referans vermiyor; bu yuzden K-318'in "ayni toplu islemde degisen
-        // bir nesneye referans" tuzagina girmiyor.
+        // The migration's own SQL and the INSERT that writes to the ledger are
+        // sent together in a SINGLE round trip (K-388). The __migrations table
+        // already exists BEFORE the migration runs and does not reference any
+        // object created/changed by the migration's DDL; so it does not fall
+        // into K-318's "reference to an object changed in the same batch" trap.
         var sql = ApplyTemplate(_context.Sql.ApplySchema(migration.Sql))
             + Environment.NewLine
             + _context.Sql.InsertMigration;
@@ -237,16 +239,17 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                 catch (DbException ex) when (
                     _context.Dialect.IsUniqueViolation(ex) && attempt < UniqueViolationRetryAttempts)
                 {
-                    // Migration kilidi SEMAYA kapsanmistir (K-389): veritabani
-                    // genelinde paylasilan bir katalog nesnesi (ornegin PostgreSQL
-                    // uzantisi) baska bir semanin migration'iyla ayni anda
-                    // olusturulmaya calisilirsa bu benzersizlik ihlaline duser.
-                    // Migration'lar YALNIZCA "IF NOT EXISTS" korumali DDL yazar; bu
-                    // yuzden yeniden denemek guvenlidir — bir sonraki denemede
-                    // koruma nesneyi zaten var bulur ve atlar. 🚨 Rastgele gecikme
-                    // sarttir: onlarca sema fixture'i ayni anda ilk kez migrate
-                    // olurken sabit bir gecikme hepsini ayni anda yeniden
-                    // denetir ve kalabaligi dagitmaz (surden kacinma).
+                    // The migration lock is SCOPED TO THE SCHEMA (K-389): if a
+                    // catalog object shared across the whole database (for
+                    // example a PostgreSQL extension) is created at the same
+                    // time by another schema's migration, this hits a
+                    // uniqueness violation. Migrations write ONLY "IF NOT EXISTS"-
+                    // guarded DDL, so retrying is safe — the next attempt finds
+                    // the guarded object already exists and skips it. 🚨 A
+                    // random delay is required: when dozens of schema fixtures
+                    // migrate for the first time at once, a fixed delay would
+                    // make them all retry at the same instant and would not
+                    // spread out the crowd (herd avoidance).
                     await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
                     await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * attempt), CancellationToken.None)
                         .ConfigureAwait(false);
@@ -256,7 +259,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
 
                     throw new AgentPrismException(
-                        $"'{migration.Name}' migration'i uygulanamadi: {description}.",
+                        $"Migration '{migration.Name}' could not be applied: {description}.",
                         ex);
                 }
             }
@@ -264,8 +267,8 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     }
 
     /// <summary>
-    /// <see cref="SqlStoreContext.MigrationTemplateValues"/>'daki her anahtari
-    /// <c>{anahtar}</c> yer tutucusunun yerine yazar (Faz 51: <c>{dimension}</c>).
+    /// Substitutes every key in <see cref="SqlStoreContext.MigrationTemplateValues"/>
+    /// for its <c>{key}</c> placeholder (Phase 51: <c>{dimension}</c>).
     /// </summary>
     private string ApplyTemplate(string sql)
     {

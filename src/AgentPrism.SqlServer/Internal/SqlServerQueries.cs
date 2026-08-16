@@ -1,76 +1,78 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlQueriesBase"/> yuzeyinin SQL Server (T-SQL) metinleri.
+/// Holds the SQL Server (T-SQL) text for the <see cref="SqlQueriesBase"/> surface.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sorgu <em>adlari</em> ve dondurdukleri sutun sirasi PostgreSQL ile birebir
-/// aynidir; paylasilan depo kodu ikisini ayirt etmez. Farklar yalnizca metnin
-/// icindedir.
+/// Query <em>names</em> and the column order they return are identical to
+/// PostgreSQL; the shared store code cannot tell the two apart. The
+/// differences live only inside the text.
 /// </para>
-/// <para>Uygulanan ceviri kurallari:</para>
+/// <para>Translation rules applied:</para>
 /// <list type="bullet">
 ///   <item><description>
-///     <strong><c>MERGE</c> KULLANILMAZ.</strong> Ifadenin bilinen esszamanlilik
-///     ve dogruluk sorunlari vardir. Upsert'ler
-///     <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> ve ardindan
-///     <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> ile yazilir. <c>SERIALIZABLE</c>
-///     ipucu aralik kilidi alir; boylece iki oturum ayni anahtari ayni anda
-///     ekleyemez. Gerekce: <c>docs/KARARLAR.md</c>, karar K-177.
+///     <strong><c>MERGE</c> IS NOT USED.</strong> The statement has known
+///     concurrency and correctness problems. Upserts are written as
+///     <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> followed by
+///     <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>. The <c>SERIALIZABLE</c> hint
+///     takes a range lock, so two sessions cannot insert the same key at the
+///     same time. Rationale: <c>docs/KARARLAR.md</c>, decision K-177.
 ///   </description></item>
 ///   <item><description>
 ///     <c>RETURNING</c> -> <c>OUTPUT inserted.*</c> / <c>OUTPUT deleted.*</c>.
-///     Upsert'in iki dali da <em>ayni sutunlari</em> dondurur; bu yuzden C#
-///     tarafinda tek bir okuyucu yeter.
+///     Both branches of the upsert return <em>the same columns</em>, so a
+///     single reader suffices on the C# side.
 ///   </description></item>
 ///   <item><description>
 ///     <c>COUNT(*) FILTER (WHERE p)</c> -> <c>COALESCE(SUM(CASE WHEN p THEN 1 ELSE 0 END), 0)</c>.
-///     🚨 <c>COALESCE</c> zorunludur: bos kume uzerinde <c>SUM</c> <c>NULL</c>
-///     dondururken PostgreSQL'in <c>COUNT</c>'u sifir donduruyordu.
+///     🚨 <c>COALESCE</c> is required: <c>SUM</c> returns <c>NULL</c> over an
+///     empty set, whereas PostgreSQL's <c>COUNT</c> returned zero.
 ///   </description></item>
 ///   <item><description>
-///     <c>LEAST</c> / <c>GREATEST</c> SQL Server 2019'da <strong>yoktur</strong>
-///     (2022 ile geldi) ve <c>CASE</c> ile yazilir.
+///     <c>LEAST</c> / <c>GREATEST</c> <strong>do not exist</strong> in SQL
+///     Server 2019 (added in 2022) and are written with <c>CASE</c> instead.
 ///   </description></item>
 ///   <item><description>
 ///     <c>FOR UPDATE SKIP LOCKED</c> -> <c>WITH (UPDLOCK, READPAST, ROWLOCK)</c>.
 ///   </description></item>
 ///   <item><description>
-///     <c>UNNEST</c> ve <c>= ANY(dizi)</c> -> <c>OPENJSON</c>; diziler JSON metni
-///     olarak tasinir (K-182).
+///     <c>UNNEST</c> and <c>= ANY(array)</c> -> <c>OPENJSON</c>; arrays travel
+///     as JSON text (K-182).
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>OFFSET ... FETCH NEXT @take ROWS ONLY</c> <c>@take = 0</c> iken
-///     <strong>hata verir</strong>; PostgreSQL'de <c>LIMIT 0</c> bos liste
-///     dondururdu. Davranis esitligi icin sayfali sorgular <c>@take &gt; 0</c>
-///     kosulunu WHERE'e ekler ve <c>FETCH</c> degerini en az bire sabitler.
+///     🚨 <c>OFFSET ... FETCH NEXT @take ROWS ONLY</c> <strong>raises an
+///     error</strong> when <c>@take = 0</c>, whereas PostgreSQL's <c>LIMIT 0</c>
+///     returned an empty list. To keep behavior equal, paged queries add an
+///     <c>@take &gt; 0</c> condition to the WHERE clause and clamp the
+///     <c>FETCH</c> value to at least one.
 ///   </description></item>
 /// </list>
 /// </remarks>
 internal sealed class SqlServerQueries : SqlQueriesBase
 {
     /// <summary>
-    /// Sayfali sorgularin sonuna eklenen atlama/alma yan tumcesi.
+    /// The skip/take clause appended to the end of paged queries.
     /// </summary>
     /// <remarks>
-    /// <c>@take = 0</c> durumu WHERE tarafinda elenir (bkz. <see cref="TakeGuard"/>);
-    /// buradaki <c>CASE</c> yalnizca <c>FETCH</c>'in sifir gormesini onler.
+    /// The <c>@take = 0</c> case is eliminated on the WHERE side (see
+    /// <see cref="TakeGuard"/>); the <c>CASE</c> here only stops <c>FETCH</c>
+    /// from ever seeing zero.
     /// </remarks>
     private const string Paging = "OFFSET @skip ROWS FETCH NEXT (CASE WHEN @take < 1 THEN 1 ELSE @take END) ROWS ONLY;";
 
-    /// <summary>Sayfali sorgularin WHERE tumcesine eklenen sifir koruma kosulu.</summary>
+    /// <summary>The zero-guard condition appended to the WHERE clause of paged queries.</summary>
     private const string TakeGuard = "AND @take > 0";
 
-    /// <summary>Yeni bir sorgu kumesi olusturur.</summary>
-    /// <param name="schemaName">Dogrulanacak sema adi.</param>
-    /// <exception cref="AgentPrismException">Sema adi gecerli bir tanimlayici degilse.</exception>
+    /// <summary>Creates a new query set.</summary>
+    /// <param name="schemaName">The schema name to validate.</param>
+    /// <exception cref="AgentPrismException">The schema name is not a valid identifier.</exception>
     public SqlServerQueries(string schemaName)
     {
         Schema = SqlIdentifier.RequireSchemaName(schemaName);
 
-        // CREATE SCHEMA bir toplu islemin ILK ifadesi olmak zorundadir; bu yuzden
-        // kosullu calistirma EXEC ile sarilir.
+        // CREATE SCHEMA must be the FIRST statement of a batch; conditional
+        // execution is therefore wrapped in EXEC.
         CreateSchema = $"""
             IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'{Schema}')
                 EXEC(N'CREATE SCHEMA {Schema};');
@@ -99,7 +101,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @slug, @display_name, @created_at);
             """;
 
-        // --- Agent tanimlari ---
+        // --- Agent definitions ---
 
         UpsertAgentDefinition = $"""
             UPDATE {Schema}.agent_definitions WITH (UPDLOCK, SERIALIZABLE)
@@ -150,7 +152,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
             """;
 
-        // --- Skill'ler ---
+        // --- Skills ---
 
         const string skillColumns = """
             id, tenant_id, name, description, instructions, compatibility, license,
@@ -215,7 +217,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Skill script'leri ---
+        // --- Skill scripts ---
 
         DeleteAgentSkillScripts = $"DELETE FROM {Schema}.agent_skill_scripts WHERE skill_id = @skill_id;";
 
@@ -233,7 +235,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // --- Script calistirma izinleri ---
+        // --- Script execution grants ---
 
         const string grantColumns = """
             id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
@@ -246,8 +248,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY skill_name, ISNULL(script_name, N'');
             """;
 
-        // Dar izin genis olani yener: script'e ozgu kayit once gelsin diye
-        // script_name IS NOT NULL olanlar basa siralanir ve tek satir alinir.
+        // A narrow grant wins over a broad one: rows with script_name IS NOT
+        // NULL are sorted first so the script-specific record comes first,
+        // and only one row is taken.
         SelectActiveSkillScriptGrant = $"""
             SELECT TOP (1) {grantColumns}
             FROM {Schema}.skill_script_grants
@@ -259,10 +262,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY CASE WHEN script_name IS NULL THEN 1 ELSE 0 END;
             """;
 
-        // SQL Server benzersiz indekste NULL'lari ESIT sayar; PostgreSQL'in
-        // COALESCE'li ifade indeksi burada gerekmez (K-184). Eslesme yine de
-        // ISNULL ile yazilir: @script_name NULL iken `= ` karsilastirmasi
-        // UNKNOWN dondururdu.
+        // SQL Server treats NULLs as EQUAL in a unique index; PostgreSQL's
+        // COALESCE-based expression index is not needed here (K-184). The
+        // match is still written with ISNULL: a plain `= ` comparison would
+        // return UNKNOWN when @script_name is NULL.
         UpsertSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants WITH (UPDLOCK, SERIALIZABLE)
                SET granted_by = @granted_by,
@@ -282,7 +285,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL);
             """;
 
-        // Izin SILINMEZ, iptal edilir.
+        // A grant is NOT DELETED, it is revoked.
         RevokeSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants
                SET revoked_at = @revoked_at
@@ -292,7 +295,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                AND revoked_at IS NULL;
             """;
 
-        // --- Oturumlar ---
+        // --- Sessions ---
 
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
@@ -332,12 +335,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
-        // --- Calistirmalar ---
+        // --- Runs ---
 
-        // 🚨 Faz 46: UPSERT'tir (UPDATE-sonra-INSERT deseni, UpsertConversation
-        // ile aynı). Kuyruga alinan bir calistirma once Queued olarak yazilir;
-        // isci is'i gercekten calistirdiginda AYNI id ile ikinci kez cagrilir
-        // ve satir yerinde guncellenir (yeni satir ACILMAZ).
+        // 🚨 Phase 46: this is an UPSERT (UPDATE-then-INSERT pattern, the same
+        // as UpsertConversation). A queued run is first written as Queued;
+        // when the worker actually runs the job it is called a second time
+        // with the SAME id, and the row is updated in place (no new row is
+        // OPENED).
         InsertRun = $"""
             UPDATE {Schema}.runs WITH (UPDLOCK, SERIALIZABLE)
                SET tenant_id     = @tenant_id,
@@ -395,24 +399,25 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
-        // etkiler; var olmayan veya baska durumdaki bir kimlik icin sessizce
-        // sifir satir gunceller.
+        // Orphaned run reconciliation (Phase 54). Only affects Running rows;
+        // silently updates zero rows for an id that does not exist or is in
+        // a different status.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
                SET heartbeat_at = @at
              WHERE id = @id AND status = @status_running;
             """;
 
-        // TOP (@n) = 0 hata VERMEZ (SQL Server'in FETCH NEXT'inin aksine);
-        // ekstra bir korumaya gerek yok. error_fingerprint SABIT bir dize
-        // ("orphaned") -- gerekce PostgreSQL surumundeki ile aynidir.
+        // TOP (@n) = 0 does NOT raise an error (unlike SQL Server's FETCH
+        // NEXT); no extra guard is needed. error_fingerprint is a FIXED
+        // string ("orphaned") -- the rationale is the same as in the
+        // PostgreSQL version.
         ClaimOrphanedRuns = $"""
             UPDATE r
                SET status            = @status_failed,
                    completed_at      = @now,
                    error_type        = N'orphaned',
-                   error_message     = N'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                   error_message     = N'The process running this run is not responding; last heartbeat: '
                                         + CONVERT(nvarchar(40), COALESCE(heartbeat_at, started_at), 127) + N'.',
                    error_class       = @error_class,
                    error_fingerprint = @error_fingerprint,
@@ -439,8 +444,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     @type, @text, @created_at);
             """;
 
-        // PostgreSQL'in LEFT JOIN LATERAL ... ON TRUE yapisinin karsiligi
-        // OUTER APPLY'dir. Agac toplamlari OKUMADA hesaplanir, saklanmaz.
+        // The counterpart of PostgreSQL's LEFT JOIN LATERAL ... ON TRUE
+        // construct is OUTER APPLY. Tree totals are computed ON READ, not
+        // stored.
         var treeJoin = $"""
             OUTER APPLY (
                 SELECT CAST(COUNT(*) AS int) AS child_count
@@ -462,8 +468,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ) AS tree
             """;
 
-        // 🚨 Sutun sirasi PostgreSQL ile BIREBIR aynidir: SqlRunStore.ReadRun
-        // sabit sira numarasiyla okur ve iki saglayici ayni okuyucuyu paylasir.
+        // 🚨 Column order is IDENTICAL to PostgreSQL: SqlRunStore.ReadRun reads
+        // by fixed ordinal position, and the two providers share the same
+        // reader.
         const string runColumns = """
             r.id, r.tenant_id, r.agent_name, r.session_id, r.status, r.started_at, r.completed_at, r.is_streaming,
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
@@ -494,11 +501,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@error_type IS NULL OR r.error_type = @error_type)
               AND (
-                    -- HATA-S2-001: session_id yalniz KOK calistirmada set edilir
-                    -- (K-217); alt calistirmanin kendi session_id'si NULL'dur.
-                    -- Dogrudan esitlik "includeChildren=true" ile birlikte hicbir
-                    -- alt calistirmayi eslestirmezdi -- kaydin kendi agacinin
-                    -- KOKU bu oturuma aitse de eslesir.
+                    -- HATA-S2-001: session_id is set only on the ROOT run
+                    -- (K-217); a child run's own session_id is NULL. Direct
+                    -- equality would match no child run at all when combined
+                    -- with "includeChildren=true" -- a row also matches when
+                    -- the ROOT of its own tree belongs to this session.
                     @session_id IS NULL
                  OR r.session_id = @session_id
                  OR EXISTS (
@@ -511,7 +518,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@started_after IS NULL OR r.started_at > @started_after)
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
               AND (
-                    -- Ebeveyn filtresi verildiyse kok filtresi BILEREK yok sayilir.
+                    -- When a parent filter is given, the root filter is
+                    -- DELIBERATELY ignored.
                     (@parent_run_id IS NOT NULL AND r.parent_run_id = @parent_run_id)
                  OR (@parent_run_id IS NULL AND (@only_root_runs = 0 OR r.parent_run_id IS NULL))
               )
@@ -520,10 +528,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
-        // scored_runs/positive_rate (Faz 31): matchedRunScoresFilter runs'in
-        // AYNI filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE
-        // yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut toplam
-        // satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        // scored_runs/positive_rate (Phase 31): matchedRunScoresFilter repeats
+        // the SAME filter (tenant/eval/agent/date) as runs -- it is added as a
+        // scalar subquery instead of a separate CTE so the existing totals
+        // row can be extended with the smallest possible change.
         var matchedRunScoresFilter = $"""
             {Schema}.run_scores rs
             JOIN {Schema}.runs r2 ON r2.id = rs.run_id
@@ -534,7 +542,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@started_after IS NULL OR r2.started_at > @started_after)
             """;
 
-        // Dort sonuc kumesi tek gidis donuste alinir.
+        // Four result sets are retrieved in a single round trip.
         SelectRunStatistics = $"""
             SELECT CAST(COUNT(*) AS bigint),
                    CAST(COALESCE(SUM(CASE WHEN status = @status_completed THEN 1 ELSE 0 END), 0) AS bigint),
@@ -606,9 +614,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             GROUP BY agent_name, agent_version
             ORDER BY agent_name, agent_version DESC;
 
-            -- Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44). error_class
-            -- NULL olan (hata sinifi eklenmeden once yazilmis) satirlar Unknown
-            -- (0) kovasina duser -- K-014 geriye donuk doldurma yapmaz.
+            -- Fifth result set: error class breakdown (Phase 44). Rows with a
+            -- NULL error_class (written before the error class column existed)
+            -- fall into the Unknown (0) bucket -- K-014 does not backfill.
             SELECT CAST(COALESCE(error_class, 0) AS smallint),
                    CAST(COUNT(*) AS bigint)
             FROM {Schema}.runs
@@ -620,8 +628,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             GROUP BY COALESCE(error_class, 0)
             ORDER BY COUNT(*) DESC;
 
-            -- Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi.
-            -- Gerekce PostgreSQL 0021_error_classification.sql'e bakin.
+            -- Sixth result set: the top fingerprint clusters per class.
+            -- See PostgreSQL 0021_error_classification.sql for the rationale.
             WITH failed AS (
                 SELECT CAST(COALESCE(error_class, 0) AS smallint) AS error_class,
                        COALESCE(error_fingerprint, N'') AS error_fingerprint,
@@ -662,9 +670,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY error_class, cluster_count DESC;
             """;
 
-        // 🚨 VALUES degil SELECT ... WHERE EXISTS: yazma yalnizca hedef calistirma
-        // BEKLENEN kiraciya aitse uygulanir (K-355). @tenant_id NULL ise denetim
-        // yapilmaz.
+        // 🚨 SELECT ... WHERE EXISTS, not VALUES: the write applies only if the
+        // target run belongs to the EXPECTED tenant (K-355). No check is
+        // performed when @tenant_id is NULL.
         InsertRunEvent = $"""
             INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
             SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
@@ -681,10 +689,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY e.seq;
             """;
 
-        // --- Konusmalar (sohbet gecmisi) ---
+        // --- Conversations (chat history) ---
 
-        // UPDATE satiri kilitler; boylece ayni konusmaya es zamanli yazan iki
-        // islem sira numarasi icin sirayla bekler.
+        // UPDATE locks the row, so two transactions writing to the same
+        // conversation at the same time wait for their turn on the sequence
+        // number.
         UpsertConversation = $"""
             UPDATE {Schema}.conversations WITH (UPDLOCK, SERIALIZABLE)
                SET updated_at = @now
@@ -714,8 +723,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Konusma dallandirma (Faz 47) ---
-        // Gerekce ve sutun anlamlari icin PostgresQueries'e bakin.
+        // --- Conversation branching (Phase 47) ---
+        // See PostgresQueries for the rationale and the meaning of the columns.
 
         SelectConversationBranchPoint = $"""
             SELECT COALESCE(MAX(seq), -1), COUNT(*)
@@ -742,9 +751,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY i.seq;
             """;
 
-        // --- Calistirma girdileri (Faz 47) ---
-        // 🚨 Ikinci yazim yok sayilir; T-SQL'de ON CONFLICT yoktur, kosul
-        // NOT EXISTS ile yazilir (K-177: MERGE kullanilmaz).
+        // --- Run inputs (Phase 47) ---
+        // 🚨 A second write is ignored; T-SQL has no ON CONFLICT, so the
+        // condition is written with NOT EXISTS (K-177: MERGE is not used).
         InsertRunInput = $"""
             INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
             SELECT @run_id, @tenant_id, @messages, @created_at
@@ -757,9 +766,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
-        // --- Tool cagrilari ---
+        // --- Tool invocations ---
 
-        // InsertRunEvent ile ayni kiraci muhafizi (K-355).
+        // Same tenant guard as InsertRunEvent (K-355).
         InsertToolInvocation = $"""
             INSERT INTO {Schema}.tool_invocations
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
@@ -771,8 +780,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
-        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir; mevcut sabit-indeks okuyucular
-        // (ReadToolInvocation) yeniden numaralandirilmaz. Faz 20 dersi.
+        // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
+        // readers (ReadToolInvocation) are never renumbered. Lesson from
+        // Phase 20.
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
@@ -798,7 +808,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY COUNT(*) DESC, t.tool_name;
             """;
 
-        // --- Deneyler ---
+        // --- Experiments ---
 
         const string experimentColumns = """
             id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
@@ -830,13 +840,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE status = 1 AND canary_policy IS NOT NULL;
             """;
 
-        // 🚨 Draft-disi bir deney icin UPDATE sifir satir etkiler; INSERT dali
-        // yalnizca kayit HIC YOKSA calisir. Aksi halde benzersizlik ihlali
-        // olusurdu. `@@ROWCOUNT` degeri once bir degiskene alinir: bilesik bir
-        // kosulda alt sorgu once degerlendirilirse sayac sifirlanirdi.
-        // canary_policy/rollback_reason BILEREK SET listesinde YOK: bir Draft
-        // duzenlemesi (SaveAsync) daha once SetCanaryPolicyAsync ile tanimlanmis
-        // kurali silmemelidir.
+        // 🚨 UPDATE affects zero rows for a non-Draft experiment; the INSERT
+        // branch runs only when the record does NOT EXIST AT ALL. Otherwise a
+        // uniqueness violation would occur. `@@ROWCOUNT` is first captured
+        // into a variable: in a compound condition, the counter would be
+        // reset if the subquery were evaluated first.
+        // canary_policy/rollback_reason are DELIBERATELY ABSENT from the SET
+        // list: a Draft edit (SaveAsync) must not erase a rule that
+        // SetCanaryPolicyAsync already defined.
         UpsertExperiment = $"""
             DECLARE @updated int;
 
@@ -877,7 +888,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE tenant_id = @tenant_id AND name = @name AND status = 1;
             """;
 
-        // Durumdan BAGIMSIZ calisir (Draft veya Running) — SaveAsync'in aksine.
+        // Runs INDEPENDENTLY of status (Draft or Running) — unlike SaveAsync.
         SetExperimentCanaryPolicy = $"""
             UPDATE {Schema}.experiments
                SET canary_policy = @canary_policy, updated_at = @now
@@ -900,9 +911,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // EXTRACT(EPOCH FROM (a - b)) * 1000 -> DATEDIFF_BIG(millisecond, b, a).
-        // run_avg_scores: ONCE calistirma basina ortalama, SONRA varyant basina bu
-        // ortalamalarin ortalamasi — PostgreSQL'in ayni CTE'siyle AYNI gerekce
-        // (dogrudan JOIN diger toplamlari cogaltirdi).
+        // run_avg_scores: FIRST the per-run average, THEN the average of these
+        // averages per variant — SAME rationale as PostgreSQL's identical CTE
+        // (a direct JOIN would have duplicated the other totals).
         SelectExperimentResults = $"""
             WITH run_avg_scores AS (
                 SELECT run_id, AVG(CAST(value AS float)) AS avg_score
@@ -931,13 +942,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             GROUP BY r.variant;
             """;
 
-        // 🚨 generate_series'in karsiligi ozyinelemeli bir CTE'dir.
-        // date_trunc(@unit, x) parametrik DATEPART alamaz; CASE ile yazilir ve
-        // hesap datetime2 uzerinde yapilip TODATETIMEOFFSET ile geri cevrilir
-        // (degerler her zaman UTC yazilir, bu yuzden ofset sifirdir).
+        // 🚨 The counterpart of generate_series is a recursive CTE.
+        // date_trunc(@unit, x) cannot take a parameterized DATEPART; it is
+        // written with CASE, and the computation is done on datetime2 and
+        // converted back with TODATETIMEOFFSET (values are always written in
+        // UTC, so the offset is zero).
         //
-        // Bos kovalar da doner: aksi halde grafikte kesinti "veri yok" degil
-        // "sifir" gibi gorunur.
+        // Empty buckets are also returned: otherwise a gap in the chart would
+        // look like "zero" instead of "no data".
         SelectRunTimeSeries = $"""
             WITH buckets AS (
                 SELECT CASE WHEN @bucket_unit = N'hour'
@@ -992,10 +1004,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             OPTION (MAXRECURSION 0);
             """;
 
-        // --- Span'ler ---
+        // --- Spans ---
 
-        // LEAST / GREATEST SQL Server 2019'da yoktur. PostgreSQL'de bu iki islev
-        // NULL argumani ATLAR; CASE zinciri ayni davranisi kurar.
+        // LEAST / GREATEST do not exist in SQL Server 2019. In PostgreSQL,
+        // these two functions SKIP a NULL argument; the CASE chain builds
+        // the same behavior.
         UpsertTrace = $"""
             UPDATE {Schema}.traces WITH (UPDLOCK, SERIALIZABLE)
                SET run_id     = COALESCE(@run_id, run_id),
@@ -1043,7 +1056,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY started_at, id;
             """;
 
-        // --- Tool onay kurallari ---
+        // --- Tool approval rules ---
 
         const string approvalColumns = """
             id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
@@ -1056,9 +1069,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY created_at DESC;
             """;
 
-        // Ayni kapsam icin ikinci bir kural acilmaz; mevcut kayit dondurulur.
-        // UPDATE bilerek bir sutunu kendisiyle degistirir: amac yazmak degil,
-        // var olan satiri OUTPUT ile geri vermektir.
+        // A second rule is not opened for the same scope; the existing record
+        // is returned. UPDATE deliberately replaces a column with itself: the
+        // goal is not to write, but to return the existing row via OUTPUT.
         InsertToolApprovalRule = $"""
             UPDATE {Schema}.tool_approval_rules WITH (UPDLOCK, SERIALIZABLE)
                SET tool_name = tool_name
@@ -1081,7 +1094,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // --- MCP sunuculari ---
+        // --- MCP servers ---
 
         const string mcpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
@@ -1140,7 +1153,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         DeleteMcpServer = $"DELETE FROM {Schema}.mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";
 
-        // --- Kiracilar ---
+        // --- Tenants ---
 
         SelectTenants = $"""
             SELECT id, slug, display_name, created_at
@@ -1162,7 +1175,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         DeleteTenant = $"DELETE FROM {Schema}.tenants WHERE slug = @slug;";
 
-        // --- Ekler ---
+        // --- Attachments ---
 
         const string attachmentColumns = """
             id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
@@ -1211,7 +1224,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND session_id = @session_id;
             """;
 
-        // --- Kalici agent dosya bellegi ---
+        // --- Persistent agent file memory ---
 
         SelectAgentFile = $"""
             SELECT content

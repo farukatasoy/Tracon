@@ -1,13 +1,12 @@
 # AgentPrism.Sqlite
 
-[AgentPrism](https://github.com/farukatasoy/AgentPrism) icin SQLite kalicilik katmani.
+SQLite persistence layer for [AgentPrism](https://github.com/farukatasoy/AgentPrism).
 
-Tek dosyalik kurulum: demo, gomulu/kenar (edge) senaryolar ve bellek ici
-depolarin otesinde gercek SQL davranisiyla test icin. Tablolar tuketicinin
-kendi tablolariyla catismasin diye yapilandirilabilir bir **onek** tasir
-(varsayilan `agentprism_`); SQLite'ta sema kavrami yoktur.
+For single-file setups: demos, embedded/edge scenarios, and testing with real SQL behavior
+beyond in-memory stores. Tables carry a configurable **prefix** (default `agentprism_`) so
+they do not collide with the consumer's own tables; SQLite has no schema concept.
 
-## Kurulum
+## Setup
 
 ```bash
 dotnet add package AgentPrism.Sqlite
@@ -18,14 +17,14 @@ builder.AddAgentPrism()
        .UseSqlite("Data Source=agentprism.db");
 ```
 
-Bellekte, yalniz test icin:
+In memory, testing only:
 
 ```csharp
 builder.AddAgentPrism()
-       .UseSqlite("Data Source=:memory:");   // SINIR: baglanti kapanirsa veri gider
+       .UseSqlite("Data Source=:memory:");   // LIMIT: data is lost when the connection closes
 ```
 
-Ayarlarla:
+With settings:
 
 ```csharp
 builder.AddAgentPrism()
@@ -38,44 +37,42 @@ builder.AddAgentPrism()
        });
 ```
 
-## SQLite'ın gerçek sınırları
+## SQLite's real limits
 
-Bunlar gizlenmez; bu README'de ve `/api/meta` cikisinda bildirilir.
+These are not hidden; they are reported in this README and in the `/api/meta` output.
 
-| Sınır | Sonuç |
-|-------|-------|
-| **Tek yazıcı** | Eşzamanlı yazma serileşir. Yüksek çalıştırma hacminde `run_events` yazımı darboğaz olur |
-| WAL zorunlu | Bağlantı açılışında otomatik ayarlanır; kapatılamaz |
-| `busy_timeout` | 5000 ms olarak ayarlanır |
-| Tip sistemi zayıf | `datetimeoffset` yok, `uuid` yok, `decimal` yok — hepsi metin/sayı olarak kodlanır |
-| Ağ yok | Tek süreçlidir; **çok örnekli dağıtımda kullanılamaz** |
-| `SKIP LOCKED` yok | İş kuyruğu (`RunWorker`) tek işçiyle çalışır; çok örnekli olamaz |
+| Limit | Consequence |
+|-------|-------------|
+| **Single writer** | Concurrent writes serialize. At high run volume, `run_events` writes become a bottleneck |
+| WAL required | Set automatically on connection open; cannot be disabled |
+| `busy_timeout` | Set to 5000 ms |
+| Weak type system | No `datetimeoffset`, no `uuid`, no `decimal` — all encoded as text/number |
+| No network | Single-process; **cannot be used in a multi-instance deployment** |
+| No `SKIP LOCKED` | The job queue (`RunWorker`) runs with a single worker; cannot be multi-instance |
 
-> Bu sınırlar SQLite'ı kötü yapmaz; **yanlış yerde kullanmak** kötü yapar.
+> These limits do not make SQLite bad; **using it in the wrong place** does.
 
-## Migration'lar
+## Migrations
 
-Gömülü `.sql` dosyaları uygulama başlarken otomatik uygulanır. Kilit
-`sp_getapplock`/`pg_advisory_lock` karşılığı taşımaz — sidecar bir dosya
-kilidiyle (`<veritabanı-dosyası>.agentprism-migration-lock`) korunur.
-`:memory:` veritabanlarında kilit atlanır (başka bir süreç aynı bağlantıyı
-paylaşamaz).
+Embedded `.sql` files are applied automatically at application startup. The lock carries no
+`sp_getapplock`/`pg_advisory_lock` equivalent — it is protected by a sidecar file lock
+(`<database-file>.agentprism-migration-lock`). The lock is skipped for `:memory:` databases
+(another process cannot share the same connection anyway).
 
 ```csharp
 options.AutoApplyMigrations = false;
 ```
 
-Migration numaraları **sağlayıcı başınadır**; `AgentPrism.PostgreSql` ve
-`AgentPrism.SqlServer` ile eşleşmez ve eşleşmesi gerekmez.
+Migration numbers are **per provider**; they do not, and need not, line up with
+`AgentPrism.PostgreSql` or `AgentPrism.SqlServer`.
 
 ## AOT
 
-Bu paketin AOT durumu **ölçülmedi**. `SQLitePCLRaw` yerel kütüphane taşır;
-bu genellikle yayınlama (publish) davranışını etkiler. AOT gereken
-kurulumlarda `AgentPrism.PostgreSql` kullanın.
+This package's AOT status is **not measured**. `SQLitePCLRaw` carries a native library; this
+typically affects publish behavior. Use `AgentPrism.PostgreSql` for setups that require AOT.
 
-## İki sağlayıcı birden
+## Two providers at once
 
-`UsePostgreSql()`, `UseSqlServer()` ve `UseSqlite()` aynı zincirde
-çağrılırsa **son kayıt kazanır** ve açılışta uyarı loglanır. Bu bir
-yapılandırma hatasıdır; yalnızca birini çağırın.
+If `UsePostgreSql()`, `UseSqlServer()`, and `UseSqlite()` are called in the same chain, **the
+last registration wins** and a warning is logged at startup. This is a configuration error;
+call only one.

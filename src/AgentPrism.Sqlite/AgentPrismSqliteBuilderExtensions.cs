@@ -8,15 +8,15 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism zincirine SQLite kaliciligini ekleyen uzantilar.</summary>
+/// <summary>Extensions that add SQLite persistence to the AgentPrism chain.</summary>
 public static class AgentPrismSqliteBuilderExtensions
 {
-    /// <summary>Baglanti dizesi vererek SQLite kaliciligini acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="connectionString">SQLite baglanti dizesi (ornek: <c>Data Source=agentprism.db</c>).</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="connectionString"/> bos ise.</exception>
+    /// <summary>Enables SQLite persistence by giving a connection string.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="connectionString">The SQLite connection string (example: <c>Data Source=agentprism.db</c>).</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
     public static IAgentPrismBuilder UseSqlite(this IAgentPrismBuilder builder, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -26,15 +26,15 @@ public static class AgentPrismSqliteBuilderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Sqlite</c> bolumunden okuyarak SQLite kaliciligini acar.
+    /// Enables SQLite persistence, reading settings from the <c>AgentPrism:Sqlite</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section settings are read from. Usually
     /// <c>configuration.GetSection(AgentPrismSqliteOptions.SectionName)</c>.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseSqlite(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection)
@@ -45,15 +45,15 @@ public static class AgentPrismSqliteBuilderExtensions
         return builder.UseSqlite(options => Bind(configurationSection, options));
     }
 
-    /// <summary>Ayarlari kodda vererek SQLite kaliciligini acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Enables SQLite persistence by giving settings in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The settings mutator.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Depolar <c>TryAdd</c> ile degil <see cref="ServiceCollectionDescriptorExtensions.Replace"/>
-    /// ile kaydedilir; gerekce <c>UseSqlServer()</c>/<c>UsePostgreSql()</c> ile aynidir
-    /// (<c>docs/KARARLAR.md</c>, karar K-025).
+    /// Stores are registered with <see cref="ServiceCollectionDescriptorExtensions.Replace"/>,
+    /// not <c>TryAdd</c>; the rationale is the same as for <c>UseSqlServer()</c>/<c>UsePostgreSql()</c>
+    /// (<c>docs/KARARLAR.md</c>, decision K-025).
     /// </remarks>
     public static IAgentPrismBuilder UseSqlite(
         this IAgentPrismBuilder builder,
@@ -73,8 +73,8 @@ public static class AgentPrismSqliteBuilderExtensions
         services.TryAddSingleton(static provider => SqliteDataSourceFactory.Create(
             provider.GetRequiredService<IOptions<AgentPrismSqliteOptions>>().Value));
 
-        // Paylasilan depo katmaninin baglami. Saglayiciya ozgu her sey burada
-        // toplanir; depolar Microsoft.Data.Sqlite tipi gormez (K-176).
+        // The shared store layer's context. Everything provider-specific is
+        // collected here; stores never see the Microsoft.Data.Sqlite type (K-176).
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismSqliteOptions>>().Value;
@@ -89,9 +89,9 @@ public static class AgentPrismSqliteBuilderExtensions
             };
         }));
 
-        // 🚨 Iki kalicilik saglayicisi ayni anda kaydedilirse son kayit kazanir.
-        // Bu bir yapilandirma hatasidir; acilista uyari loglanir ve /api/diagnostics
-        // bunu bildirir. Gerekce: K-183.
+        // 🚨 If two persistence providers are registered at the same time, the
+        // last registration wins. This is a configuration error; a warning is
+        // logged at startup and /api/diagnostics reports it. Rationale: K-183.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
         services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
@@ -99,8 +99,9 @@ public static class AgentPrismSqliteBuilderExtensions
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
 
-        // Teshis (Faz 33): kazanan saglayicinin MigrationRunner'i ISqlPersistenceDiagnostics
-        // olarak da cozulur; ayni ornek, ek bir SQL baglantisi uretmez.
+        // Diagnostics (Phase 33): the winning provider's MigrationRunner is also
+        // resolved as ISqlPersistenceDiagnostics; the same instance, no extra
+        // SQL connection produced.
         services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
@@ -141,47 +142,48 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
-        // Kiraci bazli API anahtarlari (Faz 53). Sarilmaz: kota/webhook
-        // depolariyla ayni gerekce, yonetici eylemleri HTTP katmaninda ayrica
-        // denetim izine yazilir.
+        // Tenant-scoped API keys (Phase 53). Not decorated: same rationale as
+        // the quota/webhook stores, admin actions are separately written to the
+        // audit log in the HTTP layer.
         services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
-        // Veri saklama ve arsivleme (Faz 25).
+        // Data retention and archiving (Phase 25).
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
-        // Tek yurutucu secimi (Faz 42). Bellek ici InMemorySingletonLeaseStore'un
-        // yerini alir; cok ornekli bir dagitimda kira paylasimi ancak burada
-        // anlamlidir.
+        // Single-executor election (Phase 42). Replaces the in-memory
+        // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
+        // a multi-instance deployment.
         services.Replace(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
-        // Konusma kaydi (Faz 29). Yalniz UseVoiceConversation() cagrildiysa bir
-        // sey yazar; cagrilmadiysa depo bos kalir. Denetim izi dekoratoruyle
-        // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
+        // Voice session recording (Phase 29). Only writes anything if
+        // UseVoiceConversation() was called; the store stays empty if it was
+        // not. NOT decorated with the audit log: recording is a byproduct of
+        // execution, not an admin decision.
         services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
-        // Calistirma/mesaj puanlari (Faz 31). Denetim izi dekoratoruyle
-        // SARILMAZ: kota/webhook depolariyla ayni gerekce -- bir puan
-        // yonetici karari degil, kullanicidan gelen geri bildirimdir.
+        // Run/message scores (Phase 31). NOT decorated with the audit log:
+        // same rationale as the quota/webhook stores -- a score is not an
+        // admin decision, it is user-supplied feedback.
         services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
-        // Idempotency-Key destegi (Faz 43). Bellek ici InMemoryIdempotencyStore'un
-        // yerini alir; cok ornekli bir dagitimda tekillestirme ancak burada
-        // anlamlidir.
+        // Idempotency-Key support (Phase 43). Replaces the in-memory
+        // InMemoryIdempotencyStore; deduplication is only meaningful here in a
+        // multi-instance deployment.
         services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
-        // Calistirma girdileri (Faz 47). Bellek ici InMemoryRunInputStore'un
-        // yerini alir; yeniden oynatma ancak girdi kalicilastiginda surec
-        // yeniden basladiktan sonra da calisir.
+        // Run inputs (Phase 47). Replaces the in-memory InMemoryRunInputStore;
+        // replay only keeps working after the process restarts once the input
+        // is persisted.
         services.Replace(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
-        // Asenkron onay kutusu (Faz 55).
+        // Async approval inbox (Phase 55).
         services.Replace(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
 
-        // Konusma dallandirma (Faz 47). Bellek ici karsiligi YOKTUR: MAF'in
-        // InMemoryChatHistoryProvider'i gecmisi oturum durumunun opak blogunda
-        // tutar ve belirli bir sira numarasina kadar kopyalanamaz. Kayit yalniz
-        // burada yapilir; kayitsiz kurulumda uc 501 doner.
+        // Conversation branching (Phase 47). There is NO in-memory equivalent:
+        // MAF's InMemoryChatHistoryProvider keeps history in an opaque blob of
+        // session state and cannot be copied up to a given sequence number.
+        // Registration only happens here; a stateless setup returns 501.
         services.TryAddSingleton<IConversationBranchStore, SqlConversationBranchStore>();
 
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
@@ -225,7 +227,7 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
-#pragma warning disable MAAI001 // AgentFileStore — gerekce AgentPrismServiceCollectionExtensions'daki ile ayni.
+#pragma warning disable MAAI001 // AgentFileStore — rationale same as AgentPrismServiceCollectionExtensions.
         services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
@@ -234,12 +236,12 @@ public static class AgentPrismSqliteBuilderExtensions
     }
 
     /// <summary>
-    /// Yapilandirma bolumunu ayar nesnesine elle baglar.
+    /// Manually binds the configuration section into the settings object.
     /// </summary>
     /// <remarks>
-    /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
-    /// Yeni bir ayar eklendiginde bu metoda da eklenmelidir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
+    /// This method must also be updated when a new setting is added.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismSqliteOptions options)
     {
