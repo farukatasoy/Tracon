@@ -1,19 +1,20 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="ITraceStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="ITraceStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 6'da eklendi. Span kimlikleri W3C kimliklerinden turetildigi icin ayni
-/// span'in iki kez yazilmasi tekrar kaydi uretmemelidir; iki uygulama da bu
-/// kurali saglamalidir.
+/// Added in phase 6. Because span ids are derived from W3C ids, writing the
+/// same span twice must not produce a duplicate record; both implementations
+/// must satisfy this rule.
 /// </remarks>
 public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Yazma kiraciyi partiden alir, okuma <see cref="ITenantContext"/>'ten;
-    /// ikisi ayrisirsa trace hicbir zaman bulunamaz.
+    /// The write takes the tenant from the batch, the read from
+    /// <see cref="ITenantContext"/>; if the two diverge, the trace can never
+    /// be found.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -43,8 +44,8 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
 
     /// <inheritdoc />
     /// <remarks>
-    /// Span deposunda listeleme ucu yoktur; sayim, o kiraci icin tohumlanan
-    /// calistirmalarin kacinin gorulebildigine indirgenir.
+    /// The span store has no listing endpoint; the count is reduced to how
+    /// many of the runs seeded for that tenant are visible.
     /// </remarks>
     protected override async ValueTask<int> CountAsync(string tenantId)
     {
@@ -61,23 +62,24 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
         return seen;
     }
 
-    // Tohumlanan her calistirma; sayim bunlarin uzerinden yurur.
+    // Every run seeded so far; the count walks over these.
     private readonly List<Guid> _seededRuns = [];
 
-    /// <summary>Span'lerin baglanacagi bir calistirma acar.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Opens a run for spans to attach to.</summary>
+    /// <param name="runId">The run id.</param>
+    /// <returns>A completed task.</returns>
     protected abstract ValueTask SeedRunAsync(Guid runId);
 
     /// <summary>
-    /// Span'lerin yazilacagi kiraci. Depo okurken kendi kiraci baglamini
-    /// kullanir; yazma ve okuma ayni kiraciya dusmezse trace hicbir zaman
-    /// bulunamaz. Bu yuzden deger ambient kiraciyla ayni kaynaktan gelir.
+    /// The tenant spans are written under. The store reads its own tenant
+    /// context; if the write and read tenants do not match, the trace can
+    /// never be found. This is why the value comes from the same source as
+    /// the ambient tenant.
     /// </summary>
     protected string TenantId => AmbientTenant.TenantId;
 
     [Fact]
-    public async Task Span_agaci_gidip_gelir()
+    public async Task Span_tree_round_trips()
     {
         var runId = AgentPrismId.NewId();
         await SeedRunAsync(runId);
@@ -101,7 +103,7 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     }
 
     [Fact]
-    public async Task Oznitelikler_korunur()
+    public async Task Attributes_are_preserved()
     {
         var runId = AgentPrismId.NewId();
         await SeedRunAsync(runId);
@@ -126,10 +128,10 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     }
 
     [Fact]
-    public async Task Ayni_span_iki_kez_yazilirsa_tekrar_olusmaz()
+    public async Task Writing_the_same_span_twice_does_not_create_a_duplicate()
     {
-        // Kimlikler W3C kimliklerinden TURETILIR; ikinci yazma ayni satiri
-        // gunceller. Aksi halde yeniden deneme sonrasi span agaci ikiye katlanirdi.
+        // Ids are DERIVED from W3C ids; the second write updates the same
+        // row. Otherwise a retry would double the span tree.
         var runId = AgentPrismId.NewId();
         await SeedRunAsync(runId);
 
@@ -145,11 +147,11 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     }
 
     [Fact]
-    public async Task Kayitsiz_calistirma_bos_doner()
+    public async Task Unrecorded_run_returns_empty()
         => (await Store.GetTraceByRunAsync(AgentPrismId.NewId())).ShouldBeNull();
 
     [Fact]
-    public async Task Bos_kume_yazilmaz()
+    public async Task Empty_set_is_not_written()
     {
         var runId = AgentPrismId.NewId();
         await SeedRunAsync(runId);
@@ -168,8 +170,8 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
             Spans = spans,
         };
 
-    // Her test ornegi kendi trace kimligini alir: xunit her test icin yeni bir
-    // ornek kurar, boylece testler birbirinin trace'ini ezmez.
+    // Each test instance gets its own trace id: xunit sets up a fresh
+    // instance per test, so tests never overwrite one another's trace.
     private readonly string _traceId = NewTraceId();
 
     private TraceSpan Span(string name, Guid? parent)
@@ -192,8 +194,8 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     private static string NewTraceId() => Guid.NewGuid().ToString("N");
 
     /// <summary>
-    /// Uretim kodundaki turetmeyi birebir taklit eder: kimlik W3C kimliklerinin
-    /// SHA-256 ozetinin ilk 16 baytidir.
+    /// Mirrors the production derivation exactly: the id is the first 16
+    /// bytes of the SHA-256 hash of the W3C ids.
     /// </summary>
     private static Guid DeriveId(string traceId, string spanId)
     {

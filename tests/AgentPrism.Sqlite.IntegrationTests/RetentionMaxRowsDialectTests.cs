@@ -1,16 +1,16 @@
 namespace AgentPrism.Sqlite.IntegrationTests;
 
 /// <summary>
-/// <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'in SQLite SQL
-/// uretiminin testleri (Faz 36, <c>MaxRows</c>). Canli veritabani gerektirmez —
-/// <see cref="SqliteDialect"/> yalniz SQL metni kurar.
+/// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s
+/// SQLite SQL generation (Phase 36, <c>MaxRows</c>). Requires no live database
+/// — <see cref="SqliteDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests : IDisposable
 {
     private readonly SqliteDialect _dialect = new("t_ab12cd34");
 
     [Fact]
-    public void Uretilen_sql_limit_offset_ve_null_elemeyi_tasir()
+    public void Generated_sql_carries_limit_offset_and_null_filtering()
     {
         var sql = _dialect.BuildRetentionFindNthRowCutoffSql("t_ab12cd34run_events", "created_at", extraPredicate: null);
 
@@ -23,7 +23,7 @@ public sealed class RetentionMaxRowsDialectTests : IDisposable
 
     [Theory]
     [MemberData(nameof(AllTargets))]
-    public void Her_hedef_registry_ustunden_hatasiz_cozulur(string target)
+    public void Every_target_resolves_without_error_via_the_registry(string target)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
 

@@ -1,14 +1,14 @@
 namespace AgentPrism.Core.UnitTests.Scheduling;
 
 /// <summary>
-/// Faz 46 sona eklenen enum degerlerinin sayisal degeri KAYMAMALIDIR;
-/// veritabaninda <c>smallint</c> olarak saklanan mevcut satirlar bu degerlere
-/// baglidir (bkz. <c>RunStatus.cs</c> / <c>JobKind.cs</c> XML dokumani).
+/// The numeric value of an enum member added at the end in Phase 46 MUST NOT
+/// shift; existing rows stored as <c>smallint</c> in the database depend on
+/// these values (see the <c>RunStatus.cs</c> / <c>JobKind.cs</c> XML docs).
 /// </summary>
 public sealed class JobKindAndRunStatusEnumTests
 {
     [Fact]
-    public void RunStatus_degerleri_kaymamis()
+    public void RunStatus_values_have_not_shifted()
     {
         ((int)RunStatus.Running).ShouldBe(0);
         ((int)RunStatus.Completed).ShouldBe(1);
@@ -19,7 +19,7 @@ public sealed class JobKindAndRunStatusEnumTests
     }
 
     [Fact]
-    public void JobKind_degerleri_kaymamis()
+    public void JobKind_values_have_not_shifted()
     {
         ((int)JobKind.AgentBatch).ShouldBe(0);
         ((int)JobKind.Workflow).ShouldBe(1);

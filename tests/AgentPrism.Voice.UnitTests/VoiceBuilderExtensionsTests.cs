@@ -5,36 +5,36 @@ using Shouldly;
 namespace AgentPrism.Voice.UnitTests;
 
 /// <summary>
-/// <c>UseVoice(...)</c> kaydinin gercekten cozulebilir servisler biraktigini
-/// dogrular.
+/// Verifies that the <c>UseVoice(...)</c> registration actually leaves behind
+/// resolvable services.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu sinifin ilk testi ornek uygulamada bulunan gercek bir hatanin
-/// gerileme testidir: tool calisma aninda
-/// <c>No service for type 'IOptions&lt;VoiceOptions&gt;'</c> ile dustu.
-/// Tool'lar DI'i CAGRI aninda cozer; kayit eksikligi ne derlemede ne de
-/// kurulum sirasinda gorunur.
+/// 🚨 This class's first test is a regression test for a real defect found in
+/// the sample app: a tool failed at call time with
+/// <c>No service for type 'IOptions&lt;VoiceOptions&gt;'</c>.
+/// Tools resolve DI at CALL time; a missing registration shows up neither at
+/// compile time nor during setup.
 /// </remarks>
 public sealed class VoiceBuilderExtensionsTests
 {
     [Fact]
-    public void Ayarlar_cagri_aninda_cozulebilir()
+    public void Settings_can_be_resolved_at_call_time()
     {
         using var provider = BuildProvider(options =>
         {
             options.ApiKey = "k";
-            options.DefaultVoiceId = "ses-1";
+            options.DefaultVoiceId = "voice-1";
         });
 
         provider.GetService<IOptions<VoiceOptions>>().ShouldNotBeNull()
-            .Value.DefaultVoiceId.ShouldBe("ses-1");
+            .Value.DefaultVoiceId.ShouldBe("voice-1");
     }
 
     [Fact]
-    public void Tool_bagimliliklarinin_TAMAMI_cozulebilir()
+    public void ALL_of_the_tools_dependencies_can_be_resolved()
     {
-        // Tool govdesinin istedigi her servis burada listelenir. Biri eksikse
-        // hata yalnizca gercek bir tool cagrisinda gorunurdu.
+        // Every service the tool bodies need is listed here. If one were
+        // missing, the error would only show up on a real tool call.
         using var provider = BuildProvider(options => options.ApiKey = "k");
 
         provider.GetService<ISpeechSynthesizer>().ShouldNotBeNull();
@@ -48,7 +48,7 @@ public sealed class VoiceBuilderExtensionsTests
     }
 
     [Fact]
-    public void Uc_tool_kaydedilir()
+    public void Three_tools_are_registered()
     {
         using var provider = BuildProvider(options => options.ApiKey = "k");
 
@@ -60,7 +60,7 @@ public sealed class VoiceBuilderExtensionsTests
     }
 
     [Fact]
-    public void Onay_ayari_uretim_tool_larina_uygulanir_listelemeye_uygulanmaz()
+    public void Approval_setting_applies_to_production_tools_not_to_listing()
     {
         using var provider = BuildProvider(options =>
         {
@@ -73,12 +73,12 @@ public sealed class VoiceBuilderExtensionsTests
         Find(descriptors, "speak").RequiresApproval.ShouldBeTrue();
         Find(descriptors, "transcribe").RequiresApproval.ShouldBeTrue();
 
-        // Listeleme ucret uretmez ve dis etki yaratmaz.
+        // Listing produces no charge and has no external effect.
         Find(descriptors, "list_voices").RequiresApproval.ShouldBeFalse();
     }
 
     [Fact]
-    public void Tuketicinin_kendi_uygulamasi_KORUNUR()
+    public void Consumers_own_registration_is_PRESERVED()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISpeechSynthesizer, CustomSynthesizer>();
@@ -90,10 +90,10 @@ public sealed class VoiceBuilderExtensionsTests
     }
 
     [Fact]
-    public void Ayni_ornek_uc_arayuze_de_baglanir()
+    public void The_same_instance_also_binds_to_all_three_interfaces()
     {
-        // Eszamanlilik siniri TEK bir sayacta tutulmalidir; ayri ornekler
-        // sinirin iki katina izin verirdi.
+        // The concurrency limit must be kept in a SINGLE counter; separate
+        // instances would allow double the limit.
         using var provider = BuildProvider(options => options.ApiKey = "k");
 
         var synthesizer = provider.GetRequiredService<ISpeechSynthesizer>();
@@ -117,7 +117,7 @@ public sealed class VoiceBuilderExtensionsTests
 
     private sealed class CustomSynthesizer : ISpeechSynthesizer
     {
-        public string ProviderName => "benimki";
+        public string ProviderName => "mine";
 
         public int MaxCharactersPerRequest => 5000;
 

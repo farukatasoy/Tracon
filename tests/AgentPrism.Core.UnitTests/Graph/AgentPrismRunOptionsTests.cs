@@ -1,18 +1,18 @@
 namespace AgentPrism.Core.UnitTests.Graph;
 
 /// <summary>
-/// <see cref="AgentPrismRunOptions.Clone"/> davranisi.
+/// <see cref="AgentPrismRunOptions.Clone"/> behavior.
 /// </summary>
 /// <remarks>
-/// K-044'te ogrenildi: ayarlari kopyalayan bir ara katman kimligi dusurdugunde
-/// istemciye bildirilen calistirma kimligi hicbir kayda karsilik gelmiyordu.
-/// Agac alanlari icin ayni tuzak daha sinsidir - dusen bir <c>Depth</c> degeri
-/// ozyineleme korumasini sessizce devre disi birakir.
+/// Learned in K-044: when a middleware layer that copies the settings dropped
+/// the id, the run id reported to the client no longer matched any record.
+/// The same trap is more insidious for the tree fields - a dropped <c>Depth</c>
+/// value silently disables recursion protection.
 /// </remarks>
 public sealed class AgentPrismRunOptionsTests
 {
     [Fact]
-    public void Clone_agac_alanlarinin_hepsini_korur()
+    public void Clone_preserves_all_tree_fields()
     {
         var budget = new AgentRunBudget { MaxDepth = 2, MaxTotalTokens = 500 };
 
@@ -32,13 +32,13 @@ public sealed class AgentPrismRunOptionsTests
         clone.RootRunId.ShouldBe(original.RootRunId);
         clone.Depth.ShouldBe(2);
 
-        // Butce AYNI ornek olmalidir. Deger esitligi yetmez: kopya bir butce her
-        // dala kendi sinirini verirdi.
+        // The budget must be the SAME instance. Value equality is not enough:
+        // a copied budget would give each branch its own limit.
         clone.Budget.ShouldBeSameAs(budget);
     }
 
     [Fact]
-    public void Clone_bos_ayarlari_bos_birakir()
+    public void Clone_leaves_empty_settings_empty()
     {
         var clone = new AgentPrismRunOptions().Clone().ShouldBeOfType<AgentPrismRunOptions>();
 

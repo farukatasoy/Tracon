@@ -1,20 +1,20 @@
 namespace AgentPrism.Core.UnitTests.Graph;
 
 /// <summary>
-/// Kaydetme anindaki statik dongu denetimi.
+/// The static cycle check performed at save time.
 /// </summary>
 /// <remarks>
-/// Denetim calisma anina birakilamaz: dongulu bir grafik ancak derinlik sayaci
-/// dolduktan sonra fark edilir ve o noktada token zaten harcanmistir.
+/// The check cannot be left to run time: a cyclic graph is only noticed
+/// after the depth counter runs out, and by that point tokens are already spent.
 /// </remarks>
 public sealed class AgentCallGraphTests
 {
     [Fact]
-    public void Bos_liste_gecerlidir()
+    public void Empty_list_is_valid()
         => AgentCallGraph.Validate("a", [], Descriptors()).ShouldBeNull();
 
     [Fact]
-    public void Kendini_cagirma_reddedilir()
+    public void Calling_itself_is_rejected()
     {
         var problem = AgentCallGraph.Validate("a", ["a"], Descriptors(("a", [])));
 
@@ -23,18 +23,18 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public void Bilinmeyen_ad_reddedilir()
+    public void Unknown_name_is_rejected()
     {
-        var problem = AgentCallGraph.Validate("a", ["yok"], Descriptors(("a", [])));
+        var problem = AgentCallGraph.Validate("a", ["none"], Descriptors(("a", [])));
 
         problem.ShouldNotBeNull();
         problem.ShouldContain("no such agent exists in the catalog", Case.Sensitive);
     }
 
     [Fact]
-    public void Dolayli_dongu_reddedilir()
+    public void Indirect_cycle_is_rejected()
     {
-        // b -> c -> a zinciri katalogda hazir; a -> b eklenirse dongu kapanir.
+        // The chain b -> c -> a already exists in the catalog; adding a -> b closes the cycle.
         var descriptors = Descriptors(("a", []), ("b", ["c"]), ("c", ["a"]));
 
         var problem = AgentCallGraph.Validate("a", ["b"], descriptors);
@@ -45,7 +45,7 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public void Dongusuz_derin_zincir_kabul_edilir()
+    public void Acyclic_deep_chain_is_accepted()
     {
         var descriptors = Descriptors(("a", []), ("b", ["c"]), ("c", ["d"]), ("d", []));
 
@@ -53,31 +53,32 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
-    public void Elmas_bicimli_grafik_dongu_sayilmaz()
+    public void Diamond_shaped_graph_is_not_counted_as_a_cycle()
     {
-        // a -> b, a -> c, ikisi de d'yi cagirir. Ayni dugume iki yoldan ulasmak
-        // bir dongu DEGILDIR; ziyaret edilmis dugumu dongu sanan bir algoritma
-        // bu gecerli grafigi reddederdi.
+        // a -> b, a -> c, both call d. Reaching the same node by two paths is
+        // NOT a cycle; an algorithm that mistakes a visited node for a cycle
+        // would reject this valid graph.
         var descriptors = Descriptors(("a", []), ("b", ["d"]), ("c", ["d"]), ("d", []));
 
         AgentCallGraph.Validate("a", ["b", "c"], descriptors).ShouldBeNull();
     }
 
     [Fact]
-    public void Katalogdaki_eski_hal_degil_yeni_liste_denetlenir()
+    public void The_new_list_is_checked_not_the_catalogs_stale_state()
     {
-        // Katalogda "a" henuz hicbir agent'i cagirmiyor. Denetim katalogdaki
-        // eski hali kullansaydi yeni eklenen kenar hic gorulmez ve dongu kacardi.
+        // In the catalog, "a" does not yet call any agent. If the check used
+        // the catalog's stale state, the newly added edge would never be
+        // seen and the cycle would slip through.
         var descriptors = Descriptors(("a", []), ("b", ["a"]));
 
         AgentCallGraph.Validate("a", ["b"], descriptors).ShouldNotBeNull();
     }
 
     [Fact]
-    public void Cok_uzun_zincir_yigin_tasmasi_uretmez()
+    public void Very_long_chain_does_not_cause_a_stack_overflow()
     {
-        // Cagri grafigi kullanici verisidir; ozyinelemeli bir gezinti yeterince
-        // uzun bir zincirde sureci oldururdu.
+        // The call graph is user data; a recursive traversal would kill the
+        // process on a sufficiently long chain.
         var chain = new List<AgentDescriptor>();
 
         for (var index = 0; index < 20_000; index++)
@@ -91,7 +92,7 @@ public sealed class AgentCallGraphTests
             });
         }
 
-        AgentCallGraph.Validate("kok", ["n0"], chain).ShouldBeNull();
+        AgentCallGraph.Validate("root", ["n0"], chain).ShouldBeNull();
     }
 
     private static AgentDescriptor[] Descriptors(params (string Name, string[] Calls)[] entries)

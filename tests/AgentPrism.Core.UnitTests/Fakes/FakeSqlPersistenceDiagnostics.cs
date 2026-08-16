@@ -1,6 +1,6 @@
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Testlerde gercek bir veritabani baglantisi kurmadan <see cref="ISqlPersistenceDiagnostics"/> taklit eder.</summary>
+/// <summary>Fakes <see cref="ISqlPersistenceDiagnostics"/> in tests without opening a real database connection.</summary>
 internal sealed class FakeSqlPersistenceDiagnostics(
     string providerName,
     bool canConnect,

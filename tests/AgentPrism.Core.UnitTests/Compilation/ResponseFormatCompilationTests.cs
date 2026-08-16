@@ -8,7 +8,7 @@ namespace AgentPrism.Core.UnitTests.Compilation;
 public sealed class ResponseFormatCompilationTests
 {
     [Fact]
-    public void ResponseFormat_verilmezse_secenek_bos_kalir()
+    public void Option_stays_empty_when_ResponseFormat_is_not_given()
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 
@@ -19,7 +19,7 @@ public sealed class ResponseFormatCompilationTests
     }
 
     [Fact]
-    public void Text_kipi_ChatResponseFormatText_uretir()
+    public void Text_mode_produces_ChatResponseFormatText()
     {
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 
@@ -38,7 +38,7 @@ public sealed class ResponseFormatCompilationTests
     }
 
     [Fact]
-    public void Json_kipi_sema_olmadan_ChatResponseFormatJson_uretir()
+    public void Json_mode_produces_ChatResponseFormatJson_without_a_schema()
     {
         var provider = new FakeModelProvider(models:
         [
@@ -62,7 +62,7 @@ public sealed class ResponseFormatCompilationTests
     }
 
     [Fact]
-    public void JsonSchema_kipi_semayi_tasir()
+    public void JsonSchema_mode_carries_the_schema()
     {
         var provider = new FakeModelProvider(models:
         [
@@ -80,7 +80,7 @@ public sealed class ResponseFormatCompilationTests
                     Kind = AgentResponseFormatKind.JsonSchema,
                     Schema = schema,
                     SchemaName = "invoice",
-                    SchemaDescription = "Bir fatura ozetinin semasi.",
+                    SchemaDescription = "Schema for an invoice summary.",
                 },
             },
         };
@@ -91,7 +91,7 @@ public sealed class ResponseFormatCompilationTests
         var format = options!.ChatOptions!.ResponseFormat.ShouldBeOfType<ChatResponseFormatJson>();
         format.Schema.ShouldNotBeNull();
         format.SchemaName.ShouldBe("invoice");
-        format.SchemaDescription.ShouldBe("Bir fatura ozetinin semasi.");
+        format.SchemaDescription.ShouldBe("Schema for an invoice summary.");
     }
 
     private static JsonElement ParseSchema(string json)

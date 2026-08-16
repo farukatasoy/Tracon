@@ -3,8 +3,8 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// <see cref="IModelProviderConfigurationDiagnostics"/> uygulayan sahte saglayici.
-/// Birden fazla saglayicinin AYNI anahtari bildirdigi durumu test etmek icindir.
+/// A fake provider that implements <see cref="IModelProviderConfigurationDiagnostics"/>.
+/// Used to test the case where multiple providers report the SAME key.
 /// </summary>
 internal sealed class FakeConfigurationDiagnosticProvider(string name, string key, bool resolved)
     : IModelProvider, IModelProviderConfigurationDiagnostics
@@ -20,6 +20,6 @@ internal sealed class FakeConfigurationDiagnosticProvider(string name, string ke
     {
         Key = key,
         Resolved = resolved,
-        Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+        Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
     };
 }

@@ -1,12 +1,13 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="ISkillScriptGrantStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="ISkillScriptGrantStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 11'de eklendi. Bellek ici depo ile PostgreSQL deposu ayni senaryolari
-/// gecmelidir; ozellikle "dar izin genis olani yener" kurali ve iptal edilen
-/// iznin geri gelmemesi iki uygulamada da ayni davranmalidir.
+/// Added in phase 11. The in-memory store and the PostgreSQL store must pass
+/// the same scenarios; in particular, the "the narrower grant wins over the
+/// broader one" rule and the fact that a revoked grant never comes back must
+/// behave identically in both implementations.
 /// </remarks>
 public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillScriptGrantStore>
 {
@@ -19,19 +20,19 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
 
     /// <inheritdoc />
     protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
-        => await Store.FindActiveAsync(tenantId, (string)key, "herhangi", DateTimeOffset.UtcNow) is not null;
+        => await Store.FindActiveAsync(tenantId, (string)key, "any", DateTimeOffset.UtcNow) is not null;
 
     /// <inheritdoc />
     protected override async ValueTask<int> CountAsync(string tenantId)
         => (await Store.ListAsync(tenantId)).Count;
 
     /// <inheritdoc />
-    /// <remarks>Izin silinmez, iptal edilir (K-092).</remarks>
+    /// <remarks>A grant is not deleted, it is revoked (K-092).</remarks>
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => await Store.RevokeAsync(tenantId, (string)key, scriptName: null);
 
     [Fact]
-    public async Task Skill_genelinde_verilen_izin_her_scripti_kapsar()
+    public async Task Skill_wide_grant_covers_every_script()
     {
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
 
@@ -42,7 +43,7 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Scripte_ozgu_izin_skill_iznini_yener()
+    public async Task Script_specific_grant_wins_over_the_skill_wide_grant()
     {
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
         await Store.GrantAsync(Grant("tenant-a", "invoice", "total"));
@@ -54,7 +55,7 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Izin_kiracilar_arasinda_sizmaz()
+    public async Task Grant_does_not_leak_across_tenants()
     {
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
 
@@ -64,7 +65,7 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Suresi_dolmus_izin_dondurulmez()
+    public async Task Expired_grant_is_not_returned()
     {
         var now = DateTimeOffset.UtcNow;
         await Store.GrantAsync(Grant("tenant-a", "invoice") with { ExpiresAt = now.AddMinutes(5) });
@@ -74,7 +75,7 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Iptal_edilen_izin_gecersizdir()
+    public async Task Revoked_grant_is_invalid()
     {
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
 
@@ -85,10 +86,11 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Ayni_izin_iki_kez_verilirse_tek_kayit_kalir()
+    public async Task Granting_the_same_grant_twice_leaves_a_single_record()
     {
-        // script_name NULL olabildigi icin benzersizlik COALESCE ile kurulur;
-        // aksi halde PostgreSQL NULL'lari farkli sayar ve kopya satir birikirdi.
+        // script_name can be NULL, so uniqueness is built with COALESCE;
+        // otherwise PostgreSQL treats NULLs as distinct and duplicate rows
+        // would accumulate.
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
 
@@ -98,7 +100,7 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
     }
 
     [Fact]
-    public async Task Iptal_edilen_izin_yeniden_verilebilir()
+    public async Task Revoked_grant_can_be_granted_again()
     {
         await Store.GrantAsync(Grant("tenant-a", "invoice"));
         await Store.RevokeAsync("tenant-a", "invoice", null);

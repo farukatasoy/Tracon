@@ -1,12 +1,13 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IQuotaStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IQuotaStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir. Ozellikle
-/// iki kural kritiktir: kapsam benzersizligi (<c>COALESCE(agent_name, '')</c>)
-/// ve tuketim artirmanin atomikligi (<c>ON CONFLICT DO UPDATE</c>).
+/// The in-memory store and the PostgreSQL store must pass the same
+/// scenarios. Two rules are especially critical: scope uniqueness
+/// (<c>COALESCE(agent_name, '')</c>) and the atomicity of usage increments
+/// (<c>ON CONFLICT DO UPDATE</c>).
 /// </remarks>
 public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
 {
@@ -25,8 +26,8 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     {
         var definition = await Store.GetAsync(tenantId, (Guid)key);
 
-        // Sayaclar da ayni kiraciya kilitlidir; kural gorulmuyorsa tuketimi de
-        // gorulmemelidir.
+        // Counters are also locked to the same tenant; if the rule is not
+        // visible, its usage must not be visible either.
         var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId, AsOf = new DateTimeOffset(Today, TimeOnly.MinValue, TimeSpan.Zero) });
 
         (usage.Count > 0).ShouldBe(definition is not null);
@@ -54,7 +55,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         };
 
     [Fact]
-    public async Task Kaydedilen_kural_geri_okunur()
+    public async Task Saved_rule_is_read_back()
     {
         var saved = await Store.SaveAsync(Quota(maxRuns: 100, maxTokens: 5000, maxCost: 12.5m));
 
@@ -68,7 +69,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Bos_sinirlar_null_olarak_korunur()
+    public async Task Empty_limits_are_preserved_as_null()
     {
         var saved = await Store.SaveAsync(Quota(maxRuns: 10));
 
@@ -81,11 +82,12 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Ayni_kapsam_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Saving_the_same_scope_a_second_time_overwrites_it()
     {
-        // 🚨 PostgreSQL'de NULL'lar birbirine esit sayilmaz; duz bir UNIQUE
-        // kisiti agent_name NULL olan ayni kuralin sinirsiz kez eklenmesine
-        // izin verirdi. Benzersizlik COALESCE(agent_name, '') ile kurulur.
+        // 🚨 In PostgreSQL, NULLs are not considered equal to each other; a
+        // plain UNIQUE constraint would allow the same rule with a NULL
+        // agent_name to be added an unlimited number of times. Uniqueness is
+        // established via COALESCE(agent_name, '').
         await Store.SaveAsync(Quota(agentName: null, maxRuns: 10));
         await Store.SaveAsync(Quota(agentName: null, maxRuns: 20));
 
@@ -96,7 +98,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Farkli_agent_ayri_kural_olur()
+    public async Task Different_agent_becomes_a_separate_rule()
     {
         await Store.SaveAsync(Quota(agentName: null, maxRuns: 10));
         await Store.SaveAsync(Quota(agentName: "support", maxRuns: 5));
@@ -105,7 +107,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Farkli_donem_ayri_kural_olur()
+    public async Task Different_period_becomes_a_separate_rule()
     {
         await Store.SaveAsync(Quota(period: QuotaPeriod.Daily, maxRuns: 10));
         await Store.SaveAsync(Quota(period: QuotaPeriod.Monthly, maxRuns: 200));
@@ -114,7 +116,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Baska_kiracinin_kurali_gorunmez()
+    public async Task Another_tenants_rule_is_not_visible()
     {
         var saved = await Store.SaveAsync(Quota(maxRuns: 10));
 
@@ -123,7 +125,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Silinen_kural_geri_okunmaz()
+    public async Task Deleted_rule_is_not_read_back()
     {
         var saved = await Store.SaveAsync(Quota(maxRuns: 10));
 
@@ -132,17 +134,17 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Olmayan_kurali_silmek_false_doner()
+    public async Task Deleting_a_nonexistent_rule_returns_false()
         => (await Store.DeleteAsync(Tenant, Guid.NewGuid())).ShouldBeFalse();
 
     [Fact]
-    public async Task Tuketim_hem_agent_hem_kiraci_sayacini_artirir()
+    public async Task Usage_increments_both_the_agent_and_tenant_counters()
     {
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: 0.5m), Periods);
 
         var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
 
-        // Iki donem x iki kapsam (agent + kiraci geneli) = dort satir.
+        // Two periods x two scopes (agent + tenant-wide) = four rows.
         usage.Count.ShouldBe(4);
 
         var agentDaily = Find(usage, "support", QuotaPeriod.Daily);
@@ -150,14 +152,14 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
         agentDaily.Tokens.ShouldBe(100);
         agentDaily.Cost.ShouldBe(0.5m);
 
-        // Bos ad = kiraci geneli sayaci.
+        // Empty name = tenant-wide counter.
         var tenantDaily = Find(usage, string.Empty, QuotaPeriod.Daily);
         tenantDaily.Runs.ShouldBe(1);
         tenantDaily.Tokens.ShouldBe(100);
     }
 
     [Fact]
-    public async Task Ard_arda_tuketim_toplanir()
+    public async Task Consecutive_usage_accumulates()
     {
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: 0.5m), Periods);
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 250, cost: 1.25m), Periods);
@@ -172,10 +174,11 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Eszamanli_artirma_hicbir_artisi_kaybetmez()
+    public async Task Concurrent_increments_lose_no_increment()
     {
-        // 🚨 ON CONFLICT DO UPDATE atomiktir. Okuma-degistir-yaz dizisi olsaydi
-        // ayni anda biten calistirmalardan bazilari sessizce yutulurdu.
+        // 🚨 ON CONFLICT DO UPDATE is atomic. If this were a read-modify-write
+        // sequence, some of the runs finishing at the same time would be
+        // silently swallowed.
         const int Concurrency = 20;
 
         await Task.WhenAll(Enumerable.Range(0, Concurrency).Select(_ =>
@@ -189,12 +192,12 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Fiyati_tanimsiz_tuketim_para_toplamini_bozmaz()
+    public async Task Usage_with_undefined_price_does_not_break_the_cost_total()
     {
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: 2.0m), Periods);
 
-        // Cost = null: fiyat tanimsiz. Toplam degismemelidir; NULL eklemek
-        // toplami tumuyle NULL yapardi.
+        // Cost = null: price undefined. The total must not change; adding
+        // NULL would turn the whole total into NULL.
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: null), Periods);
 
         var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
@@ -205,7 +208,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Ayri_donem_ayri_sayac_tutar()
+    public async Task Separate_period_keeps_a_separate_counter()
     {
         await Store.AddUsageAsync(Consumption(runs: 1), Periods);
 
@@ -219,14 +222,14 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
 
         var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
 
-        // Gunluk sayac bolundu, aylik sayac birikti.
+        // The daily counter split, the monthly counter accumulated.
         Find(usage, "support", QuotaPeriod.Daily, Today).Runs.ShouldBe(1);
         Find(usage, "support", QuotaPeriod.Daily, Today.AddDays(1)).Runs.ShouldBe(1);
         Find(usage, "support", QuotaPeriod.Monthly).Runs.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Kullanim_agent_adina_gore_suzulur()
+    public async Task Usage_is_filtered_by_agent_name()
     {
         await Store.AddUsageAsync(Consumption(runs: 1, agentName: "support"), Periods);
         await Store.AddUsageAsync(Consumption(runs: 1, agentName: "billing"), Periods);
@@ -235,11 +238,11 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
             new QuotaUsageQuery { TenantId = Tenant, AgentName = "support" });
 
         filtered.ShouldAllBe(record => record.AgentName == "support");
-        filtered.Count.ShouldBe(2);  // gunluk + aylik
+        filtered.Count.ShouldBe(2);  // daily + monthly
     }
 
     [Fact]
-    public async Task Kullanim_doneme_gore_suzulur()
+    public async Task Usage_is_filtered_by_period()
     {
         await Store.AddUsageAsync(Consumption(runs: 1), Periods);
 
@@ -250,7 +253,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
-    public async Task Baska_kiracinin_tuketimi_gorunmez()
+    public async Task Another_tenants_usage_is_not_visible()
     {
         await Store.AddUsageAsync(Consumption(runs: 1), Periods);
 

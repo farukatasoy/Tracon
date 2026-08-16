@@ -7,49 +7,49 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Scheduling;
 
-/// <summary><see cref="AgentRunJobHandler"/> testleri (Faz 46).</summary>
+/// <summary>Tests for <see cref="AgentRunJobHandler"/> (Phase 46).</summary>
 public sealed class AgentRunJobHandlerTests
 {
     [Fact]
-    public void Kind_AgentRun_dir()
+    public void Kind_is_AgentRun()
     {
         NewHandler(new SingleAgentCatalog(new ScriptedAgent())).Kind.ShouldBe(JobKind.AgentRun);
     }
 
     [Fact]
-    public async Task Basarili_calistirma_onceden_ayrilmis_kimlikle_kosar()
+    public async Task A_successful_run_uses_the_pre_assigned_id()
     {
         var runs = new InMemoryRunStore();
         var agent = new ScriptedAgent();
         var handler = NewHandler(new SingleAgentCatalog(agent), runs);
         var runId = AgentPrismId.NewId();
 
-        await handler.ExecuteAsync(BuildContext(runId, "merhaba"));
+        await handler.ExecuteAsync(BuildContext(runId, "hello"));
 
-        agent.Inputs.ShouldBe(["merhaba"]);
+        agent.Inputs.ShouldBe(["hello"]);
         agent.LastRunId.ShouldBe(runId);
     }
 
     [Fact]
-    public async Task Agent_bulunamazsa_kuyruktaki_Queued_satiri_Failed_e_kapatilir()
+    public async Task When_the_agent_is_not_found_the_queued_row_is_closed_as_Failed()
     {
         var runs = new InMemoryRunStore();
         var handler = NewHandler(new SingleAgentCatalog(null), runs);
         var runId = AgentPrismId.NewId();
 
-        // 202'nin sozunu veren yer tutucu satir: HTTP katmani enqueue ANINDA
-        // boyle bir satir yazar (Faz 46, AgentEndpoints.RunQueuedAsync).
+        // The placeholder row that promises the 202: the HTTP layer writes such a
+        // row AT enqueue time (Phase 46, AgentEndpoints.RunQueuedAsync).
         await runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
-            AgentName = "yok-agent",
+            AgentName = "missing-agent",
             Status = RunStatus.Queued,
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = "default",
         });
 
         await Should.ThrowAsync<AgentPrismException>(
-            () => handler.ExecuteAsync(BuildContext(runId, "merhaba", targetName: "yok-agent")).AsTask());
+            () => handler.ExecuteAsync(BuildContext(runId, "hello", targetName: "missing-agent")).AsTask());
 
         var record = await runs.GetRunAsync(runId);
         record.ShouldNotBeNull();
@@ -58,7 +58,7 @@ public sealed class AgentRunJobHandlerTests
     }
 
     [Fact]
-    public async Task Gecersiz_yuk_istisna_firlatir()
+    public async Task Invalid_payload_throws()
     {
         var handler = NewHandler(new SingleAgentCatalog(new ScriptedAgent()));
 
@@ -69,9 +69,9 @@ public sealed class AgentRunJobHandlerTests
                 Id = Guid.NewGuid(),
                 TenantId = "default",
                 Kind = JobKind.AgentRun,
-                TargetName = "sahte-agent",
+                TargetName = "fake-agent",
                 Status = JobStatus.Running,
-                Payload = JsonDocument.Parse("""{"runId":"gecersiz"}""").RootElement,
+                Payload = JsonDocument.Parse("""{"runId":"invalid"}""").RootElement,
                 ScheduledFor = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
             },
@@ -93,7 +93,7 @@ public sealed class AgentRunJobHandlerTests
             timeProvider: null,
             logger: NullLogger<AgentRunJobHandler>.Instance);
 
-    private static JobContext BuildContext(Guid runId, string message, string targetName = "sahte-agent")
+    private static JobContext BuildContext(Guid runId, string message, string targetName = "fake-agent")
         => new()
         {
             Job = new JobRecord
@@ -124,16 +124,16 @@ public sealed class AgentRunJobHandlerTests
             => new(agent);
     }
 
-    /// <summary>Cagrildigi kimligi ve girdiyi kaydeden en kucuk sahte agent.</summary>
+    /// <summary>The smallest possible fake agent, which records the id it was called with and its input.</summary>
     private sealed class ScriptedAgent : AIAgent
     {
         public List<string> Inputs { get; } = [];
 
         public Guid? LastRunId { get; private set; }
 
-        public override string Name => "sahte-agent";
+        public override string Name => "fake-agent";
 
-        public override string Description => "test icin";
+        public override string Description => "for tests";
 
         protected override Task<AgentResponse> RunCoreAsync(
             IEnumerable<ChatMessage> messages,
@@ -145,7 +145,7 @@ public sealed class AgentRunJobHandlerTests
             Inputs.Add(last);
             LastRunId = (options as AgentPrismRunOptions)?.RunId;
 
-            return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, $"tamam:{last}")));
+            return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, $"ok:{last}")));
         }
 
         protected override async IAsyncEnumerable<AgentResponseUpdate> RunCoreStreamingAsync(

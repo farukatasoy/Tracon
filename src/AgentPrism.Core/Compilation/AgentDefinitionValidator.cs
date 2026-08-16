@@ -73,7 +73,7 @@ public sealed class AgentDefinitionValidator
     /// <param name="definition">The definition to validate.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The report containing all findings.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     public async ValueTask<AgentValidationReport> ValidateAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken = default)

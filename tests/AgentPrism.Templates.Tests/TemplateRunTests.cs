@@ -4,16 +4,16 @@ using AgentPrism.Templates.Tests.Infrastructure;
 namespace AgentPrism.Templates.Tests;
 
 /// <summary>
-/// Varsayilan (bellek ici) birlesim hicbir kurulum olmadan ayaga kalkmali ve
-/// katalog ucu 200 donmelidir (37. faz Bitis Olcutleri).
+/// The default (in-memory) combination must start up without any setup, and the
+/// catalog endpoint must return 200 (Phase 37 Completion Criteria).
 /// </summary>
 public sealed class TemplateRunTests(TemplateFixture fixture)
 {
-    private const string ProjectName = "Calisma.Deneme";
+    private const string ProjectName = "Run.Sample";
     private const int Port = 5185;
 
     [Fact]
-    public async Task VarsayilanBirlesim_KurulumOlmadanAyagaKalkarVeKatalogDoner()
+    public async Task Default_combination_starts_up_without_setup_and_returns_the_catalog()
     {
         using var dir = new TempDirectory();
 
@@ -26,7 +26,7 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
         var dllPath = Directory.EnumerateFiles(dir.Path, $"{ProjectName}.dll", SearchOption.AllDirectories)
                 .FirstOrDefault(p => p.Contains(Path.Combine("bin", "Release"), StringComparison.Ordinal))
             ?? throw new InvalidOperationException(
-                $"'{ProjectName}.dll' derleme ciktisinda bulunamadi.{Environment.NewLine}{buildResult.Combined}");
+                $"'{ProjectName}.dll' was not found in the build output.{Environment.NewLine}{buildResult.Combined}");
 
         var startInfo = new ProcessStartInfo("dotnet", $"\"{dllPath}\"")
         {
@@ -38,7 +38,7 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
 
         using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Process.Start 'dotnet' icin null dondu.");
+            ?? throw new InvalidOperationException("Process.Start returned null for 'dotnet'.");
 
         try
         {
@@ -61,7 +61,7 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
                         var stdOut = await process.StandardOutput.ReadToEndAsync();
                         var stdErr = await process.StandardError.ReadToEndAsync();
                         throw new InvalidOperationException(
-                            $"Uygulama beklenmedik sekilde cikti (kod {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}");
+                            $"The application exited unexpectedly (code {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}");
                     }
 
                     await Task.Delay(TimeSpan.FromMilliseconds(500));
@@ -70,7 +70,7 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
 
             if (response is null)
             {
-                throw new InvalidOperationException("Uygulama 30 saniye icinde istek karsilamadi.");
+                throw new InvalidOperationException("The application did not respond within 30 seconds.");
             }
 
             response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);

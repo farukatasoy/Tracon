@@ -5,16 +5,16 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Models;
 
 /// <summary>
-/// Devre kesici durum makinesini dogrular: <c>Closed</c> &#8594; <c>Open</c>
-/// (esik asildiginda) &#8594; <c>HalfOpen</c> (mola suresi dolunca, tek deneme)
-/// &#8594; <c>Closed</c> veya yeniden <c>Open</c>.
+/// Verifies the circuit breaker state machine: <c>Closed</c> &#8594; <c>Open</c>
+/// (when the threshold is exceeded) &#8594; <c>HalfOpen</c> (once the break
+/// duration elapses, a single attempt) &#8594; <c>Closed</c> or <c>Open</c> again.
 /// </summary>
 public sealed class ModelProviderCircuitBreakerTests
 {
-    private const string Provider = "test-saglayici";
+    private const string Provider = "test-provider";
 
     [Fact]
-    public void Kapaliyken_istek_serbesttir()
+    public void Request_is_allowed_while_closed()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor());
 
@@ -22,7 +22,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Esik_asilinca_devre_acilir_ve_istek_reddedilir()
+    public void Circuit_opens_and_the_request_is_rejected_when_the_threshold_is_exceeded()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 3));
 
@@ -30,7 +30,7 @@ public sealed class ModelProviderCircuitBreakerTests
         breaker.RecordFailure(Provider);
         Should.NotThrow(() => breaker.EnsureRequestAllowed(Provider));
 
-        breaker.RecordFailure(Provider); // 3. ardisik hata: esik asildi
+        breaker.RecordFailure(Provider); // 3rd consecutive failure: threshold exceeded
         var exception = Should.Throw<AgentPrismProviderUnavailableException>(
             () => breaker.EnsureRequestAllowed(Provider));
 
@@ -38,7 +38,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Basarili_cagri_ardisik_hata_sayacini_sifirlar()
+    public void Successful_call_resets_the_consecutive_failure_counter()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 2));
 
@@ -46,12 +46,12 @@ public sealed class ModelProviderCircuitBreakerTests
         breaker.RecordSuccess(Provider);
         breaker.RecordFailure(Provider);
 
-        // Basari sayaci sifirladigi icin bu ikinci hata devreyi ACMAMALI (esik=2).
+        // Since the success reset the counter, this second failure must NOT open the circuit (threshold=2).
         Should.NotThrow(() => breaker.EnsureRequestAllowed(Provider));
     }
 
     [Fact]
-    public void Mola_suresi_dolmadan_yeniden_denenmez()
+    public void No_retry_happens_before_the_break_duration_elapses()
     {
         var time = new ManualTimeProvider();
         var breaker = new ModelProviderCircuitBreaker(
@@ -70,7 +70,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Mola_suresi_dolunca_tek_deneme_gecer()
+    public void A_single_attempt_passes_once_the_break_duration_elapses()
     {
         var time = new ManualTimeProvider();
         var breaker = new ModelProviderCircuitBreaker(
@@ -88,7 +88,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Yari_acik_deneme_basarisiz_olursa_devre_hemen_yeniden_acilir()
+    public void Circuit_reopens_immediately_when_the_half_open_attempt_fails()
     {
         var time = new ManualTimeProvider();
         var breaker = new ModelProviderCircuitBreaker(
@@ -101,14 +101,14 @@ public sealed class ModelProviderCircuitBreakerTests
 
         breaker.RecordFailure(Provider);
         time.Advance(TimeSpan.FromSeconds(31));
-        breaker.EnsureRequestAllowed(Provider); // yari-acik deneme baslar
-        breaker.RecordFailure(Provider); // deneme basarisiz
+        breaker.EnsureRequestAllowed(Provider); // the half-open attempt starts
+        breaker.RecordFailure(Provider); // the attempt fails
 
         Should.Throw<AgentPrismProviderUnavailableException>(() => breaker.EnsureRequestAllowed(Provider));
     }
 
     [Fact]
-    public void Yari_acik_deneme_basarili_olursa_devre_kapanir()
+    public void Circuit_closes_when_the_half_open_attempt_succeeds()
     {
         var time = new ManualTimeProvider();
         var breaker = new ModelProviderCircuitBreaker(
@@ -121,14 +121,14 @@ public sealed class ModelProviderCircuitBreakerTests
 
         breaker.RecordFailure(Provider);
         time.Advance(TimeSpan.FromSeconds(31));
-        breaker.EnsureRequestAllowed(Provider); // yari-acik deneme baslar
+        breaker.EnsureRequestAllowed(Provider); // the half-open attempt starts
         breaker.RecordSuccess(Provider);
 
         Should.NotThrow(() => breaker.EnsureRequestAllowed(Provider));
     }
 
     [Fact]
-    public void Kapatilinca_devre_hicbir_zaman_acilmaz()
+    public void Circuit_never_opens_once_disabled()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o =>
         {
@@ -144,7 +144,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Esik_asilmadan_once_esik_asilmamis_sayilir_saglik_ucunda()
+    public void Health_endpoint_reports_not_tripped_before_the_threshold_is_exceeded()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 2));
 
@@ -155,7 +155,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public void Devre_acikken_IsOpen_kalan_sureyi_bildirir_ve_durumu_degistirmez()
+    public void IsOpen_reports_the_remaining_time_and_does_not_change_state_while_the_circuit_is_open()
     {
         var time = new ManualTimeProvider();
         var breaker = new ModelProviderCircuitBreaker(
@@ -172,23 +172,23 @@ public sealed class ModelProviderCircuitBreakerTests
         retryAfter.ShouldNotBeNull();
         retryAfter!.Value.ShouldBeInRange(TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(30));
 
-        // IsOpen durumu degistirmemeli: hemen ardindan istek yine reddedilmeli.
+        // IsOpen must not change state: an immediately following request must still be rejected.
         Should.Throw<AgentPrismProviderUnavailableException>(() => breaker.EnsureRequestAllowed(Provider));
     }
 
     [Fact]
-    public void Farkli_saglayicilarin_durumu_birbirinden_bagimsizdir()
+    public void Different_providers_state_is_independent()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
 
-        breaker.RecordFailure("saglayici-a");
+        breaker.RecordFailure("provider-a");
 
-        Should.Throw<AgentPrismProviderUnavailableException>(() => breaker.EnsureRequestAllowed("saglayici-a"));
-        Should.NotThrow(() => breaker.EnsureRequestAllowed("saglayici-b"));
+        Should.Throw<AgentPrismProviderUnavailableException>(() => breaker.EnsureRequestAllowed("provider-a"));
+        Should.NotThrow(() => breaker.EnsureRequestAllowed("provider-b"));
     }
 
     [Fact]
-    public async Task Wrap_saglayiciya_gitmeden_once_devreyi_denetler()
+    public async Task Wrap_checks_the_circuit_before_reaching_the_provider()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
         breaker.RecordFailure(Provider);
@@ -203,7 +203,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public async Task Wrap_basarisiz_cagriyi_hata_olarak_sayar()
+    public async Task Wrap_counts_a_failed_call_as_a_failure()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
         var inner = new ThrowingChatClient();
@@ -215,7 +215,7 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public async Task Wrap_basarili_cagridan_sonra_devre_kapali_kalir()
+    public async Task Wrap_leaves_the_circuit_closed_after_a_successful_call()
     {
         var breaker = new ModelProviderCircuitBreaker(Monitor());
         var inner = new FakeChatClient();
@@ -240,7 +240,7 @@ public sealed class ModelProviderCircuitBreakerTests
             IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
             Microsoft.Extensions.AI.ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("saglayici hatasi");
+            => throw new InvalidOperationException("provider error");
 
         public async IAsyncEnumerable<Microsoft.Extensions.AI.ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
@@ -248,7 +248,7 @@ public sealed class ModelProviderCircuitBreakerTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.Yield();
-            throw new InvalidOperationException("saglayici hatasi");
+            throw new InvalidOperationException("provider error");
 #pragma warning disable CS0162
             yield break;
 #pragma warning restore CS0162

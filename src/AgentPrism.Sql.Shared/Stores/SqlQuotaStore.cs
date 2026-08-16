@@ -21,7 +21,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
     /// <summary>Creates a new quota store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlQuotaStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

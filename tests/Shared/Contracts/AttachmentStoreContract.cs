@@ -1,12 +1,13 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IAttachmentStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IAttachmentStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir; ozellikle
-/// kiraci yalitimi ve oturum silindiginde eklerin gitmesi (docs/14-COK-MODLULUK.md,
-/// acik soru 2) iki uygulamada da ayni davranmalidir.
+/// The in-memory store and the PostgreSQL store must pass the same
+/// scenarios; in particular, tenant isolation and attachments being removed
+/// when a session is deleted (docs/14-COK-MODLULUK.md, open question 2) must
+/// behave identically in both implementations.
 /// </remarks>
 public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachmentStore>
 {
@@ -20,8 +21,8 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
         var id = (Guid)key;
         var descriptor = await Store.GetAsync(tenantId, id);
 
-        // Ustveri ile icerik ayni yalitimi tasimalidir; biri sizarsa digeri de
-        // sizmis sayilir.
+        // Metadata and content must carry the same isolation; if one leaks,
+        // the other is considered leaked too.
         var content = await Store.OpenReadAsync(tenantId, id);
 
         await using (content)
@@ -41,21 +42,21 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
         => await Store.DeleteAsync(tenantId, (Guid)key);
 
     [Fact]
-    public async Task Kayit_ustveri_dogru_saklanir()
+    public async Task Record_metadata_is_stored_correctly()
     {
-        var saved = await Store.SaveAsync(Content("tenant-a", fileName: "rapor.pdf", mediaType: "application/pdf"));
+        var saved = await Store.SaveAsync(Content("tenant-a", fileName: "report.pdf", mediaType: "application/pdf"));
 
         var loaded = await Store.GetAsync("tenant-a", saved.Id);
 
         loaded.ShouldNotBeNull();
-        loaded.FileName.ShouldBe("rapor.pdf");
+        loaded.FileName.ShouldBe("report.pdf");
         loaded.MediaType.ShouldBe("application/pdf");
         loaded.ByteSize.ShouldBe(saved.ByteSize);
         loaded.Sha256.ShouldBe(saved.Sha256);
     }
 
     [Fact]
-    public async Task Icerik_oldugu_gibi_okunur()
+    public async Task Content_is_read_back_as_is()
     {
         var data = new byte[] { 10, 20, 30, 40, 50 };
         var saved = await Store.SaveAsync(Content("tenant-a", data: data));
@@ -70,7 +71,7 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
     }
 
     [Fact]
-    public async Task Baska_kiracinin_eki_gorulmez()
+    public async Task Another_tenants_attachment_is_not_visible()
     {
         var saved = await Store.SaveAsync(Content("tenant-a"));
 
@@ -82,7 +83,7 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
     }
 
     [Fact]
-    public async Task Listeleme_oturuma_gore_filtreler()
+    public async Task Listing_filters_by_session()
     {
         await Store.SaveAsync(Content("tenant-a", sessionId: "s-1"));
         await Store.SaveAsync(Content("tenant-a", sessionId: "s-2"));
@@ -95,7 +96,7 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
     }
 
     [Fact]
-    public async Task Silme_bir_kez_basarili_ikinci_seferde_false_doner()
+    public async Task Delete_succeeds_once_and_returns_false_the_second_time()
     {
         var saved = await Store.SaveAsync(Content("tenant-a"));
 
@@ -105,7 +106,7 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
     }
 
     [Fact]
-    public async Task Oturuma_gore_toplu_silme_yalniz_eslesenleri_kaldirir()
+    public async Task Bulk_delete_by_session_removes_only_matches()
     {
         var a = await Store.SaveAsync(Content("tenant-a", sessionId: "s-1"));
         var b = await Store.SaveAsync(Content("tenant-a", sessionId: "s-1"));
@@ -135,12 +136,12 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
         };
 
     [Fact]
-    public async Task Oturum_bazli_silme_digerinin_eklerini_silmez()
+    public async Task Session_based_delete_does_not_delete_the_others_attachments()
     {
-        await Store.SaveAsync(Content("tenant-a", sessionId: "ortak-oturum"));
-        await Store.SaveAsync(Content("tenant-b", sessionId: "ortak-oturum"));
+        await Store.SaveAsync(Content("tenant-a", sessionId: "shared-session"));
+        await Store.SaveAsync(Content("tenant-b", sessionId: "shared-session"));
 
-        (await Store.DeleteBySessionAsync("tenant-a", "ortak-oturum")).ShouldBe(1);
+        (await Store.DeleteBySessionAsync("tenant-a", "shared-session")).ShouldBe(1);
 
         (await Store.ListAsync(new AttachmentQuery { TenantId = "tenant-a" })).ShouldBeEmpty();
         (await Store.ListAsync(new AttachmentQuery { TenantId = "tenant-b" })).ShouldHaveSingleItem();

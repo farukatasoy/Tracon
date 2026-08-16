@@ -24,7 +24,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
 
     /// <summary>Creates a new checkpoint store.</summary>
     /// <param name="context">The store context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlWorkflowCheckpointStore(
         SqlStoreContext context)
     {

@@ -3,9 +3,9 @@ using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
+/// Verifies the hand-written SQL (FILTER/CASE, scalar subquery) behind the
 /// <see cref="RunStatistics.ScoredRuns"/>/<see cref="RunStatistics.PositiveRate"/>
-/// hesabinin PostgreSQL'deki el yazimi SQL'ini (FILTER/CASE, skaler alt sorgu)
-/// gercek bir veritabaninda dogrular (Faz 31).
+/// computation on PostgreSQL, against a real database (Phase 31).
 /// </summary>
 public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -18,7 +18,7 @@ public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLif
     public async ValueTask DisposeAsync() => await _context.DisposeAsync();
 
     [Fact]
-    public async Task Ikili_puanlarin_olumlu_orani_dogru_hesaplanir()
+    public async Task Binary_scores_positive_rate_is_computed_correctly()
     {
         var tenant = _context.TenantContext.TenantId;
         var scoredRunId = AgentPrismId.NewId();
@@ -37,7 +37,7 @@ public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Eval_calistirmasinin_puani_ozete_HIC_girmez()
+    public async Task Eval_runs_score_NEVER_enters_the_summary()
     {
         var tenant = _context.TenantContext.TenantId;
         var evalRunId = AgentPrismId.NewId();
@@ -53,7 +53,7 @@ public sealed class RunScoreStatisticsTests(PostgresFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task Yildiz_puani_ScoredRuns_sayilir_ama_orana_KATILMAZ()
+    public async Task Star_score_is_counted_in_ScoredRuns_but_does_NOT_JOIN_the_rate()
     {
         var tenant = _context.TenantContext.TenantId;
         var runId = AgentPrismId.NewId();

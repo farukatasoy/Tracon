@@ -3,9 +3,9 @@ using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="PgVectorSearchStore"/>'un sozlesmesi: siralama, mesafe suzgeci,
-/// yeniden yazma, silme, listeleme, boyut uyusmazligi ve kiraci yalitimi
-/// (Faz 51, Is B).
+/// The contract of <see cref="PgVectorSearchStore"/>: ordering, distance
+/// filtering, rewriting, deletion, listing, dimension mismatch, and tenant
+/// isolation (Phase 51, Job B).
 /// </summary>
 public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -24,16 +24,16 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
     }
 
     [Fact]
-    public async Task Dimensions_ayardan_gelir()
+    public async Task Dimensions_comes_from_settings()
     {
         _context!.Vectors.Dimensions.ShouldBe(PostgresTestContext.DefaultVectorDimensions);
     }
 
     [Fact]
-    public async Task Arama_mesafeye_gore_artan_sirali_doner()
+    public async Task Search_returns_results_sorted_by_ascending_distance()
     {
-        await _context!.Vectors.UpsertAsync("default", "kb", "yakin", Chunks(("icerik-yakin", [1f, 0f, 0f])));
-        await _context.Vectors.UpsertAsync("default", "kb", "uzak", Chunks(("icerik-uzak", [0f, 1f, 0f])));
+        await _context!.Vectors.UpsertAsync("default", "kb", "near", Chunks(("content-near", [1f, 0f, 0f])));
+        await _context.Vectors.UpsertAsync("default", "kb", "far", Chunks(("content-far", [0f, 1f, 0f])));
 
         var results = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
@@ -44,16 +44,16 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
         });
 
         results.Count.ShouldBe(2);
-        results[0].SourceId.ShouldBe("yakin");
-        results[1].SourceId.ShouldBe("uzak");
+        results[0].SourceId.ShouldBe("near");
+        results[1].SourceId.ShouldBe("far");
         results[0].Distance.ShouldBeLessThan(results[1].Distance);
     }
 
     [Fact]
-    public async Task MaxDistance_uzak_sonuclari_eler()
+    public async Task MaxDistance_filters_out_far_results()
     {
-        await _context!.Vectors.UpsertAsync("default", "kb", "yakin", Chunks(("a", [1f, 0f, 0f])));
-        await _context.Vectors.UpsertAsync("default", "kb", "uzak", Chunks(("b", [0f, 1f, 0f])));
+        await _context!.Vectors.UpsertAsync("default", "kb", "near", Chunks(("a", [1f, 0f, 0f])));
+        await _context.Vectors.UpsertAsync("default", "kb", "far", Chunks(("b", [0f, 1f, 0f])));
 
         var results = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
@@ -64,17 +64,17 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
             MaxDistance = 0.01,
         });
 
-        results.ShouldHaveSingleItem().SourceId.ShouldBe("yakin");
+        results.ShouldHaveSingleItem().SourceId.ShouldBe("near");
     }
 
     [Fact]
-    public async Task Ayni_kaynak_yeniden_yazilinca_eski_parcalar_silinir()
+    public async Task Same_source_rewritten_deletes_old_chunks()
     {
         await _context!.Vectors.UpsertAsync(
-            "default", "kb", "belge",
-            Chunks(("parca-0", [1f, 0f, 0f]), ("parca-1", [0f, 1f, 0f])));
+            "default", "kb", "document",
+            Chunks(("chunk-0", [1f, 0f, 0f]), ("chunk-1", [0f, 1f, 0f])));
 
-        await _context.Vectors.UpsertAsync("default", "kb", "belge", Chunks(("yeni-parca", [0f, 0f, 1f])));
+        await _context.Vectors.UpsertAsync("default", "kb", "document", Chunks(("new-chunk", [0f, 0f, 1f])));
 
         var results = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
@@ -85,35 +85,35 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
         });
 
         var hit = results.ShouldHaveSingleItem();
-        hit.SourceId.ShouldBe("belge");
-        hit.Content.ShouldBe("yeni-parca");
+        hit.SourceId.ShouldBe("document");
+        hit.Content.ShouldBe("new-chunk");
     }
 
     [Fact]
-    public async Task DeleteSourceAsync_yalniz_o_kaynagi_siler()
+    public async Task DeleteSourceAsync_deletes_only_that_source()
     {
-        await _context!.Vectors.UpsertAsync("default", "kb", "silinecek", Chunks(("a", [1f, 0f, 0f])));
-        await _context.Vectors.UpsertAsync("default", "kb", "kalacak", Chunks(("b", [0f, 1f, 0f])));
+        await _context!.Vectors.UpsertAsync("default", "kb", "to-delete", Chunks(("a", [1f, 0f, 0f])));
+        await _context.Vectors.UpsertAsync("default", "kb", "to-keep", Chunks(("b", [0f, 1f, 0f])));
 
-        var deleted = await _context.Vectors.DeleteSourceAsync("default", "kb", "silinecek");
+        var deleted = await _context.Vectors.DeleteSourceAsync("default", "kb", "to-delete");
         deleted.ShouldBe(1);
 
         var sources = await _context.Vectors.ListSourcesAsync("default", "kb");
-        sources.ShouldBe(["kalacak"]);
+        sources.ShouldBe(["to-keep"]);
     }
 
     [Fact]
-    public async Task ListSourcesAsync_koleksiyondaki_kaynaklari_alfabetik_dondurur()
+    public async Task ListSourcesAsync_returns_sources_in_the_collection_alphabetically()
     {
         await _context!.Vectors.UpsertAsync("default", "kb", "zeta", Chunks(("a", [1f, 0f, 0f])));
-        await _context.Vectors.UpsertAsync("default", "kb", "alfa", Chunks(("b", [0f, 1f, 0f])));
+        await _context.Vectors.UpsertAsync("default", "kb", "alpha", Chunks(("b", [0f, 1f, 0f])));
 
         var sources = await _context.Vectors.ListSourcesAsync("default", "kb");
-        sources.ShouldBe(["alfa", "zeta"]);
+        sources.ShouldBe(["alpha", "zeta"]);
     }
 
     [Fact]
-    public async Task Yanlis_boyutlu_gomu_UpsertAsync_hata_verir()
+    public async Task Wrong_dimension_embedding_UpsertAsync_throws()
     {
         var chunks = new[]
         {
@@ -125,20 +125,20 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
     }
 
     [Fact]
-    public async Task Metadata_gidip_gelir()
+    public async Task Metadata_round_trips()
     {
         var chunks = new[]
         {
             new VectorChunk
             {
                 Index = 0,
-                Content = "icerik",
+                Content = "content",
                 Embedding = new float[] { 1f, 0f, 0f },
-                Metadata = new Dictionary<string, string>(StringComparer.Ordinal) { ["kaynak-turu"] = "pdf" },
+                Metadata = new Dictionary<string, string>(StringComparer.Ordinal) { ["source-type"] = "pdf" },
             },
         };
 
-        await _context!.Vectors.UpsertAsync("default", "kb", "belge", chunks);
+        await _context!.Vectors.UpsertAsync("default", "kb", "document", chunks);
 
         var results = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
@@ -147,17 +147,17 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
             QueryEmbedding = new float[] { 1f, 0f, 0f },
         });
 
-        results.ShouldHaveSingleItem().Metadata.ShouldNotBeNull()["kaynak-turu"].ShouldBe("pdf");
+        results.ShouldHaveSingleItem().Metadata.ShouldNotBeNull()["source-type"].ShouldBe("pdf");
     }
 
     [Fact]
-    public async Task Kiraci_birbirinin_koleksiyonunu_gormez()
+    public async Task Tenant_does_not_see_the_others_collection()
     {
-        await _context!.Vectors.UpsertAsync("kiraci-a", "kb", "gizli", Chunks(("A kiracisinin verisi", [1f, 0f, 0f])));
+        await _context!.Vectors.UpsertAsync("tenant-a", "kb", "secret", Chunks(("tenant A's data", [1f, 0f, 0f])));
 
         var asTenantB = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
-            TenantId = "kiraci-b",
+            TenantId = "tenant-b",
             Collection = "kb",
             QueryEmbedding = new float[] { 1f, 0f, 0f },
         });
@@ -166,18 +166,18 @@ public sealed class PgVectorSearchStoreTests(PostgresFixture fixture) : IAsyncLi
 
         var asTenantA = await _context.Vectors.SearchAsync(new VectorSearchRequest
         {
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
             Collection = "kb",
             QueryEmbedding = new float[] { 1f, 0f, 0f },
         });
 
         asTenantA.ShouldHaveSingleItem();
 
-        var sourcesForB = await _context.Vectors.ListSourcesAsync("kiraci-b", "kb");
+        var sourcesForB = await _context.Vectors.ListSourcesAsync("tenant-b", "kb");
         sourcesForB.ShouldBeEmpty();
 
-        (await _context.Vectors.DeleteSourceAsync("kiraci-b", "kb", "gizli")).ShouldBe(0);
-        (await _context.Vectors.ListSourcesAsync("kiraci-a", "kb")).ShouldHaveSingleItem();
+        (await _context.Vectors.DeleteSourceAsync("tenant-b", "kb", "secret")).ShouldBe(0);
+        (await _context.Vectors.ListSourcesAsync("tenant-a", "kb")).ShouldHaveSingleItem();
     }
 
     private static VectorChunk[] Chunks(params (string Content, float[] Embedding)[] items)

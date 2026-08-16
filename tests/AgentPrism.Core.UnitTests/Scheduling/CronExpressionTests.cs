@@ -9,34 +9,34 @@ public sealed class CronExpressionTests
     [InlineData("0 0 1 1 *")]
     [InlineData("0 9 * * 1-5")]
     [InlineData("0,30 8-17 * * *")]
-    public void Gecerli_ifadeler_ayristirilir(string expression)
+    public void Valid_expressions_are_parsed(string expression)
     {
         CronExpression.TryParse(expression, out var result).ShouldBeTrue();
         result.ShouldNotBeNull();
     }
 
     [Theory]
-    [InlineData("* * * *")] // dort alan
-    [InlineData("* * * * * *")] // alti alan (saniye)
-    [InlineData("60 * * * *")] // dakika araligi disi
-    [InlineData("* 24 * * *")] // saat araligi disi
-    [InlineData("* * 32 * *")] // ayin gunu araligi disi
-    [InlineData("* * L * *")] // vixie-cron uzantisi
-    [InlineData("* * * * ?")] // desteklenmeyen sozdizimi
-    public void Gecersiz_ifadeler_reddedilir(string expression)
+    [InlineData("* * * *")] // four fields
+    [InlineData("* * * * * *")] // six fields (seconds)
+    [InlineData("60 * * * *")] // minute out of range
+    [InlineData("* 24 * * *")] // hour out of range
+    [InlineData("* * 32 * *")] // day-of-month out of range
+    [InlineData("* * L * *")] // vixie-cron extension
+    [InlineData("* * * * ?")] // unsupported syntax
+    public void Invalid_expressions_are_rejected(string expression)
     {
         CronExpression.TryParse(expression, out var result).ShouldBeFalse();
         result.ShouldBeNull();
     }
 
     [Fact]
-    public void Parse_gecersiz_ifadede_FormatException_firlatir()
+    public void Parse_throws_FormatException_for_an_invalid_expression()
     {
         Should.Throw<FormatException>(() => CronExpression.Parse("* * * * * *"));
     }
 
     [Fact]
-    public void Gunluk_saat_bir_sonraki_gune_atlar()
+    public void A_daily_time_rolls_over_to_the_next_day()
     {
         var cron = CronExpression.Parse("30 3 * * *");
         var after = new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
@@ -47,7 +47,7 @@ public sealed class CronExpressionTests
     }
 
     [Fact]
-    public void Adim_degeri_belirtilen_araliklarla_eslesir()
+    public void A_step_value_matches_at_the_specified_intervals()
     {
         var cron = CronExpression.Parse("*/15 * * * *");
         var after = new DateTimeOffset(2026, 1, 1, 10, 1, 0, TimeSpan.Zero);
@@ -58,9 +58,9 @@ public sealed class CronExpressionTests
     }
 
     [Fact]
-    public void Haftanin_gunu_dogru_gune_atlar()
+    public void Day_of_week_rolls_over_to_the_correct_day()
     {
-        // 2026-01-01 Persembe. Bir sonraki Pazartesi (1) 2026-01-05'tir.
+        // 2026-01-01 is a Thursday. The next Monday (1) is 2026-01-05.
         var cron = CronExpression.Parse("0 9 * * 1");
         var after = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -70,24 +70,25 @@ public sealed class CronExpressionTests
     }
 
     [Fact]
-    public void Ayin_gunu_ve_haftanin_gunu_ikisi_de_kisitliyken_OR_ile_eslesir()
+    public void When_both_day_of_month_and_day_of_week_are_restricted_they_match_with_OR()
     {
-        // Standart cron kurali: her ikisi kisitliyken eslesme "ya biri ya digeri"dir.
-        // Ayin 15'i VEYA Pazartesi (1) her ay eslesir; hangisi once gelirse.
+        // Standard cron rule: when both are restricted, a match is "either one or
+        // the other". The 15th of the month OR Monday (1) matches every month;
+        // whichever comes first.
         var cron = CronExpression.Parse("0 0 15 * 1");
 
-        // 2026-01-01 Persembe -> ilk eslesme Pazartesi 2026-01-05 (15'inden once).
+        // 2026-01-01 is a Thursday -> first match is Monday 2026-01-05 (before the 15th).
         var next = cron.GetNextOccurrence(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), TimeZoneInfo.Utc);
 
         next.ShouldBe(new DateTimeOffset(2026, 1, 5, 0, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
-    public void Yaz_saati_ileri_atlamasinda_gecersiz_yerel_zaman_atlanir()
+    public void An_invalid_local_time_during_the_spring_forward_DST_transition_is_skipped()
     {
-        // ABD'de saat 2024-03-10'da 02:00'dan 03:00'a atlar (2007'den beri
-        // yasayla sabit kural); 02:30 o gun hic yasanmaz. Sonraki eslesme bir
-        // gun sonraya kaymalidir.
+        // In the US, clocks jump from 02:00 to 03:00 on 2024-03-10 (a fixed rule
+        // by law since 2007); 02:30 never happens that day. The next match must
+        // roll over to the following day.
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
         var cron = CronExpression.Parse("30 2 * * *");
 

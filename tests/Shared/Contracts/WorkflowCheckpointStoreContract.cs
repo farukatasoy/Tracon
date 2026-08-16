@@ -3,14 +3,15 @@ using System.Text.Json;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IWorkflowCheckpointStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IWorkflowCheckpointStore"/> contract.
 /// </summary>
 /// <remarks>
-/// En kritik senaryo <em>polimorfik yukun bozulmadan</em> geri okunmasidir:
-/// Microsoft Agent Framework'un kontrol noktasi JSON'unda <c>$type</c> ayraci
-/// bulunur ve bulundugu nesnenin ilk ozelligi olmak zorundadir. PostgreSQL
-/// <c>jsonb</c> anahtarlari yeniden siralar ve ayraci ilk olmaktan cikarir;
-/// bu yuzden sutun <c>json</c>'dur (karar K-027).
+/// The most critical scenario is reading back a <em>polymorphic payload
+/// without corruption</em>: the Microsoft Agent Framework checkpoint JSON
+/// carries a <c>$type</c> discriminator that must be the first property of
+/// the object it appears in. PostgreSQL's <c>jsonb</c> reorders keys and
+/// takes the discriminator out of first place; this is why the column is
+/// <c>json</c> (decision K-027).
 /// </remarks>
 public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<IWorkflowCheckpointStore>
 {
@@ -35,7 +36,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
 
     /// <inheritdoc />
     protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId, "gizli")).Count + (await Store.ListAsync(tenantId, "ortak-ad")).Count;
+        => (await Store.ListAsync(tenantId, "secret")).Count + (await Store.ListAsync(tenantId, "shared-name")).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
@@ -44,7 +45,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     private static readonly Guid IsolationRunId = AgentPrismId.NewId();
 
     [Fact]
-    public async Task Yazilan_nokta_geri_okunur()
+    public async Task Written_checkpoint_is_read_back()
     {
         await Store.CreateAsync(Record("tenant-a", "s-1", "c-1"));
 
@@ -55,18 +56,20 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Polimorfik_yuk_ANAHTAR_SIRASI_KORUNARAK_okunur()
+    public async Task Polymorphic_payload_is_read_back_with_KEY_ORDER_PRESERVED()
     {
-        // 🚨 Bu testin varlik sebebi: `jsonb` anahtarlari once uzunluga sonra
-        // bayta gore yeniden sirilar. System.Text.Json'in `$type` ayraci
-        // bulundugu nesnenin ILK ozelligi olmak zorundadir; sira bozulursa
-        // okuma "The metadata property ... is not the first property" ile
-        // patlar. Sutun bu yuzden `json`'dur.
+        // 🚨 This is the whole reason the test exists: `jsonb` reorders keys
+        // first by length, then by byte value. System.Text.Json requires its
+        // `$type` discriminator to be the FIRST property of the object it
+        // appears in; if the order is disturbed, reading blows up with "The
+        // metadata property ... is not the first property". This is why the
+        // column is `json`.
         //
-        // Ayrac ic ice bir nesnede tutulur cunku MAF'in gercek yuku de oyledir
-        // (Faz 15'te olculdu: 7.537 baytlik bir noktada `{"$type":0,...}`).
+        // The discriminator is kept inside a nested object because that is
+        // how MAF's real payload is shaped too (measured in phase 15: a
+        // 7,537-byte checkpoint contains `{"$type":0,...}`).
         const string Payload = """
-            {"stepNumber":0,"edges":{"yazar":[{"$type":0,"hasCondition":false,"kind":0}]},"zzzz":"son"}
+            {"stepNumber":0,"edges":{"writer":[{"$type":0,"hasCondition":false,"kind":0}]},"zzzz":"last"}
             """;
 
         using var document = JsonDocument.Parse(Payload);
@@ -82,27 +85,28 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
 
         var edge = state.Value
             .GetProperty("edges")
-            .GetProperty("yazar")[0];
+            .GetProperty("writer")[0];
 
-        // Ilk ozellik hala `$type` olmalidir.
+        // The first property must still be `$type`.
         var firstProperty = edge.EnumerateObject().First();
 
         firstProperty.Name.ShouldBe("$type");
         firstProperty.Value.GetInt32().ShouldBe(0);
 
-        // Kok nesnede de sira korunur: "stepNumber" (10 karakter) `jsonb`
-        // altinda "edges" (5 karakter) ve "zzzz" (4 karakter) sonrasina duserdi.
+        // The order is preserved at the root too: "stepNumber" (10
+        // characters) would fall after "edges" (5 characters) and "zzzz" (4
+        // characters) under `jsonb`.
         state.Value.EnumerateObject().Select(static property => property.Name)
             .ShouldBe(["stepNumber", "edges", "zzzz"]);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_noktasi_BULUNAMAZ()
+    public async Task Another_tenants_checkpoint_is_NOT_FOUND()
     {
         await Store.CreateAsync(Record("tenant-a", "s-1", "c-1"));
 
-        // "Yetkisiz" degil, "bulunamadi". Bir kontrol noktasi tum yurutme
-        // durumunu tasir; varliginin bilgisi bile sizdirilmamalidir.
+        // Not "unauthorized" -- "not found". A checkpoint carries the entire
+        // execution state; even knowledge of its existence must not leak.
         (await Store.ReadAsync("tenant-b", "s-1", "c-1")).ShouldBeNull();
         (await Store.ListAsync("tenant-b", "s-1")).ShouldBeEmpty();
         (await Store.DeleteAsync("tenant-b", "s-1")).ShouldBe(0);
@@ -111,7 +115,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Listeleme_olusma_sirasini_korur()
+    public async Task Listing_preserves_creation_order()
     {
         var start = DateTimeOffset.UtcNow.AddMinutes(-5);
 
@@ -134,10 +138,10 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Listeleme_durum_yukunu_TASIMAZ()
+    public async Task Listing_does_NOT_CARRY_the_state_payload()
     {
-        // Bir kontrol noktasi kilobaytlarca opak JSON tasir; listeye eklemek
-        // arayuzun checkpoint ekranini acilamaz hale getirirdi.
+        // A checkpoint carries kilobytes of opaque JSON; including it in the
+        // list would make the checkpoint screen in the UI unusable.
         await Store.CreateAsync(Record("tenant-a", "s-1", "c-1"));
 
         var list = await Store.ListAsync("tenant-a", "s-1");
@@ -146,7 +150,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Calistirmaya_gore_listeleme_filtreler()
+    public async Task Listing_by_run_filters_correctly()
     {
         var runA = AgentPrismId.NewId();
         var runB = AgentPrismId.NewId();
@@ -170,7 +174,7 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Silme_oturumun_tamamini_temizler()
+    public async Task Delete_clears_the_entire_session()
     {
         await Store.CreateAsync(Record("tenant-a", "s-1", "c-1"));
         await Store.CreateAsync(Record("tenant-a", "s-1", "c-2"));
@@ -182,8 +186,8 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     [Fact]
-    public async Task Var_olmayan_nokta_null_doner()
-        => (await Store.ReadAsync("tenant-a", "s-1", "yok")).ShouldBeNull();
+    public async Task Nonexistent_checkpoint_returns_null()
+        => (await Store.ReadAsync("tenant-a", "s-1", "missing")).ShouldBeNull();
 
     private static WorkflowCheckpointRecord Record(string tenantId, string sessionId, string checkpointId)
         => new()
@@ -197,5 +201,5 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
         };
 
     private static JsonElement DefaultState { get; } =
-        JsonDocument.Parse("""{"stepNumber":3,"executors":["yazar","editor"]}""").RootElement.Clone();
+        JsonDocument.Parse("""{"stepNumber":3,"executors":["writer","editor"]}""").RootElement.Clone();
 }

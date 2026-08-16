@@ -3,17 +3,17 @@ using AgentPrism.Core.UnitTests.Fakes;
 namespace AgentPrism.Core.UnitTests.Coordination;
 
 /// <summary>
-/// Iki <see cref="SingletonGuard"/> orneginin AYNI kira deposunu paylastigi
-/// uctan uca senaryo (Faz 42): yalniz biri kirayi tutar, sahibi dusunce
-/// digeri devralir. Gercek zaman kullanir (kisa kira + kisa bekleme) —
-/// <c>JobStoreContract</c>'in kira suresi dolma testiyle ayni gerekce.
+/// End-to-end scenario where two <see cref="SingletonGuard"/> instances share
+/// the SAME lease store (Phase 42): only one holds the lease, and the other
+/// takes over when the owner drops. Uses real time (short lease + short wait)
+/// — same rationale as <c>JobStoreContract</c>'s lease-expiry test.
 /// </summary>
 public sealed class SingletonLeaseTakeoverTests
 {
     private const string LeaseName = "shared-lease";
 
     [Fact]
-    public async Task Iki_ornekten_yalniz_biri_kirayi_tutar()
+    public async Task Only_one_of_two_instances_holds_the_lease()
     {
         var store = new InMemorySingletonLeaseStore();
         var options = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromMinutes(5) });
@@ -29,7 +29,7 @@ public sealed class SingletonLeaseTakeoverTests
     }
 
     [Fact]
-    public async Task Sahip_durunca_diger_ornek_devralir()
+    public async Task Other_instance_takes_over_when_the_owner_stops()
     {
         var store = new InMemorySingletonLeaseStore();
         var shortLease = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromMilliseconds(20) });
@@ -42,7 +42,7 @@ public sealed class SingletonLeaseTakeoverTests
 
         (await store.TryAcquireAsync(LeaseName, "someone-else", TimeSpan.FromMinutes(5))).ShouldBeFalse();
 
-        // A durur (bir daha hic yenilemez). Kira suresi dolana kadar bekle.
+        // A stops (it never renews again). Wait until the lease expires.
         await Task.Delay(TimeSpan.FromMilliseconds(200));
 
         await guardB.TickAsync(CancellationToken.None);

@@ -80,7 +80,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     [Fact]
     public async Task Public_cloud_scope_is_requested_when_a_credential_factory_is_present()
     {
-        var credential = new SahteTokenKimligi();
+        var credential = new FakeTokenCredential();
 
         await CheckAsync(o =>
         {
@@ -88,13 +88,13 @@ public sealed class AzureOpenAIProviderHealthCheckTests
             o.CredentialFactory = () => credential;
         });
 
-        credential.SonKapsam.ShouldBe(AzureOpenAIProviderHealthCheck.DefaultAudience);
+        credential.LastScope.ShouldBe(AzureOpenAIProviderHealthCheck.DefaultAudience);
     }
 
     [Fact]
     public async Task Sovereign_cloud_scope_is_read_from_settings()
     {
-        var credential = new SahteTokenKimligi();
+        var credential = new FakeTokenCredential();
         const string Scope = "https://cognitiveservices.azure.us/.default";
 
         await CheckAsync(o =>
@@ -104,13 +104,13 @@ public sealed class AzureOpenAIProviderHealthCheckTests
             o.CredentialFactory = () => credential;
         });
 
-        credential.SonKapsam.ShouldBe(Scope);
+        credential.LastScope.ShouldBe(Scope);
     }
 
     [Fact]
     public async Task Credential_is_set_up_once_per_check()
     {
-        var credential = new SahteTokenKimligi();
+        var credential = new FakeTokenCredential();
         var setupCount = 0;
 
         var check = new AzureOpenAIProviderHealthCheck(
@@ -127,7 +127,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
         // The credential OBJECT is set up once (the token cache is
         // preserved), but a new token is requested on every check.
         setupCount.ShouldBe(1);
-        credential.IstenenTokenSayisi.ShouldBe(2);
+        credential.RequestedTokenCount.ShouldBe(2);
     }
 
     [Fact]

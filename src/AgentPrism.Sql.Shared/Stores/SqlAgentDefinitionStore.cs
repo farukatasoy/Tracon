@@ -27,7 +27,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
     /// <summary>Creates a new definition store.</summary>
     /// <param name="context">The store context.</param>
     /// <param name="tenantContext">The tenant context.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlAgentDefinitionStore(
         SqlStoreContext context,
         ITenantContext tenantContext)

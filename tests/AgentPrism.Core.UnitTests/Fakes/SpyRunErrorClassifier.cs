@@ -1,6 +1,6 @@
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Cagri sayisini sayan bir <see cref="IRunErrorClassifier"/> sahtesi.</summary>
+/// <summary>A fake <see cref="IRunErrorClassifier"/> that counts calls.</summary>
 internal sealed class SpyRunErrorClassifier : IRunErrorClassifier
 {
     public int CallCount { get; private set; }

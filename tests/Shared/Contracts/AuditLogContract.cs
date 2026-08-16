@@ -3,22 +3,22 @@ using System.Text.Json;
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IAuditLog"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IAuditLog"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 9'da eklendi. Bellek ici defter ile PostgreSQL defteri ayni senaryolari
-/// gecmelidir.
+/// Added in phase 9. The in-memory log and the PostgreSQL log must pass the
+/// same scenarios.
 /// </remarks>
 public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
 {
-    /// <summary>Test edilen defter.</summary>
+    /// <summary>The log under test.</summary>
     protected IAuditLog Log => Store;
 
     /// <inheritdoc />
     /// <remarks>
-    /// Denetim izi kaydin kendi <c>TenantId</c> alanini tasir ve sorgu
-    /// <see cref="AuditQuery.TenantId"/> ile filtreler; kiraci baglamindan
-    /// okunmaz.
+    /// The audit trail entry carries its own <c>TenantId</c> field and the
+    /// query filters by <see cref="AuditQuery.TenantId"/>; it is not read
+    /// from the tenant context.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -39,40 +39,40 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         => (await Log.QueryAsync(new AuditQuery { TenantId = tenantId })).Count;
 
     [Fact]
-    public async Task Yazilan_kayit_gidip_gelir()
+    public async Task Written_entry_round_trips()
     {
-        var entry = Entry(tenantId: "kiraci-a", action: "agent.update", entity: "agent:support");
+        var entry = Entry(tenantId: "tenant-a", action: "agent.update", entity: "agent:support");
         await Log.WriteAsync(entry);
 
-        var found = (await Log.QueryAsync(new AuditQuery { TenantId = "kiraci-a" })).ShouldHaveSingleItem();
+        var found = (await Log.QueryAsync(new AuditQuery { TenantId = "tenant-a" })).ShouldHaveSingleItem();
 
         found.Id.ShouldBe(entry.Id);
         string.Equals(found.Actor, entry.Actor, StringComparison.Ordinal).ShouldBeTrue();
         found.Action.ShouldBe(entry.Action);
         found.Entity.ShouldBe(entry.Entity);
 
-        // PostgreSQL'in jsonb sutunu bicimlendirmeyi (bosluk) degistirebilir;
-        // K-027'nin konusu ancak anahtar SIRASIYLA ilgilidir, burada onemli olan
-        // anlamsal esitliktir.
+        // PostgreSQL's jsonb column can change formatting (whitespace);
+        // K-027 is only about key ORDER, what matters here is semantic
+        // equality.
         JsonSemanticallyEquals(found.Before, entry.Before);
         JsonSemanticallyEquals(found.After, entry.After);
     }
 
     [Fact]
-    public async Task Kiracilar_arasi_sizinti_yok()
+    public async Task No_leakage_between_tenants()
     {
-        await Log.WriteAsync(Entry(tenantId: "kiraci-a", action: "agent.update", entity: "agent:x"));
-        await Log.WriteAsync(Entry(tenantId: "kiraci-b", action: "agent.update", entity: "agent:x"));
+        await Log.WriteAsync(Entry(tenantId: "tenant-a", action: "agent.update", entity: "agent:x"));
+        await Log.WriteAsync(Entry(tenantId: "tenant-b", action: "agent.update", entity: "agent:x"));
 
-        var mine = await Log.QueryAsync(new AuditQuery { TenantId = "kiraci-a" });
+        var mine = await Log.QueryAsync(new AuditQuery { TenantId = "tenant-a" });
 
         mine.ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Eylem_ve_varlik_filtresi_calisir()
+    public async Task Action_and_entity_filter_works()
     {
-        const string Tenant = "kiraci-c";
+        const string Tenant = "tenant-c";
 
         await Log.WriteAsync(Entry(Tenant, "agent.update", "agent:support"));
         await Log.WriteAsync(Entry(Tenant, "agent.delete", "agent:support"));
@@ -86,24 +86,24 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
     }
 
     [Fact]
-    public async Task Kayitlar_en_yeniden_eskiye_doner()
+    public async Task Entries_are_returned_newest_to_oldest()
     {
-        const string Tenant = "kiraci-d";
+        const string Tenant = "tenant-d";
         var start = DateTimeOffset.UtcNow;
 
-        // Bilerek ters sirada yaziliyor: siralamayi defter yapmalidir.
-        await Log.WriteAsync(Entry(Tenant, "agent.create", "agent:ikinci") with { CreatedAt = start.AddSeconds(2) });
-        await Log.WriteAsync(Entry(Tenant, "agent.create", "agent:birinci") with { CreatedAt = start });
+        // Written in reverse order on purpose: the log must do the ordering.
+        await Log.WriteAsync(Entry(Tenant, "agent.create", "agent:second") with { CreatedAt = start.AddSeconds(2) });
+        await Log.WriteAsync(Entry(Tenant, "agent.create", "agent:first") with { CreatedAt = start });
 
         var entries = await Log.QueryAsync(new AuditQuery { TenantId = Tenant });
 
-        entries.Select(static entry => entry.Entity).ShouldBe(["agent:ikinci", "agent:birinci"]);
+        entries.Select(static entry => entry.Entity).ShouldBe(["agent:second", "agent:first"]);
     }
 
     [Fact]
-    public async Task Limit_sinirlar()
+    public async Task Limit_constrains_the_result()
     {
-        const string Tenant = "kiraci-e";
+        const string Tenant = "tenant-e";
 
         for (var index = 0; index < 3; index++)
         {
@@ -116,12 +116,12 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
     }
 
     [Fact]
-    public async Task Aktoru_bilinmeyen_kayit_null_tasir()
+    public async Task Entry_with_unknown_actor_carries_null()
     {
-        var entry = Entry("kiraci-f", "session.delete", "session:abc") with { Actor = null };
+        var entry = Entry("tenant-f", "session.delete", "session:abc") with { Actor = null };
         await Log.WriteAsync(entry);
 
-        var found = (await Log.QueryAsync(new AuditQuery { TenantId = "kiraci-f" })).ShouldHaveSingleItem();
+        var found = (await Log.QueryAsync(new AuditQuery { TenantId = "tenant-f" })).ShouldHaveSingleItem();
 
         found.Actor.ShouldBeNull();
     }
@@ -148,7 +148,7 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         {
             Id = AgentPrismId.NewId(),
             TenantId = tenantId,
-            Actor = "kullanici-1",
+            Actor = "user-1",
             Action = action,
             Entity = entity,
             Before = """{"version":1}""",

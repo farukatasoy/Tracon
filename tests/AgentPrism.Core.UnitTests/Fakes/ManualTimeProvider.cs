@@ -1,6 +1,6 @@
 namespace AgentPrism.Core.UnitTests.Fakes;
 
-/// <summary>Testlerin zamani elle ilerletebildigi sahte zaman kaynagi.</summary>
+/// <summary>A fake time source that lets tests advance time manually.</summary>
 internal sealed class ManualTimeProvider : TimeProvider
 {
     private DateTimeOffset _now;

@@ -1,16 +1,16 @@
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'in PostgreSQL SQL
-/// uretiminin testleri (Faz 36, <c>MaxRows</c>). Canli veritabani gerektirmez —
-/// <see cref="PostgresDialect"/> yalniz SQL metni kurar.
+/// Tests for <see cref="SqlDialect.BuildRetentionFindNthRowCutoffSql"/>'s
+/// PostgreSQL SQL generation (Phase 36, <c>MaxRows</c>). Requires no live
+/// database — <see cref="PostgresDialect"/> only builds SQL text.
 /// </summary>
 public sealed class RetentionMaxRowsDialectTests
 {
     private readonly PostgresDialect _dialect = new("agentprism");
 
     [Fact]
-    public void Uretilen_sql_offset_limit_ve_null_elemeyi_tasir()
+    public void Generated_sql_carries_offset_limit_and_null_filtering()
     {
         var sql = _dialect.BuildRetentionFindNthRowCutoffSql("agentprism.run_events", "created_at", extraPredicate: null);
 
@@ -24,7 +24,7 @@ public sealed class RetentionMaxRowsDialectTests
 
     [Theory]
     [MemberData(nameof(AllTargets))]
-    public void Her_hedef_registry_ustunden_hatasiz_cozulur(string target)
+    public void Every_target_resolves_without_error_via_the_registry(string target)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
 

@@ -4,18 +4,18 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Tuketicinin <c>public</c> semasina dokunulmadigini dogrular.
+/// Verifies that the consumer's <c>public</c> schema is left untouched.
 /// </summary>
-/// <remarks>Bu bir guvenlik ve guven sinirdir; karar K-013.</remarks>
+/// <remarks>This is a security and trust boundary; decision K-013.</remarks>
 public sealed class SchemaIsolationTests(PostgresFixture fixture)
 {
     [Fact]
-    public async Task Public_semasi_degismez()
+    public async Task Public_schema_is_unchanged()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
-        // Tuketicinin var olan tablosunu taklit ediyoruz.
-        await context.ExecuteAsync("CREATE TABLE IF NOT EXISTS public.musteri_siparisleri (id integer PRIMARY KEY);");
+        // Simulates the consumer's existing table.
+        await context.ExecuteAsync("CREATE TABLE IF NOT EXISTS public.customer_orders (id integer PRIMARY KEY);");
 
         var before = await ReadPublicTablesAsync(context);
 
@@ -24,11 +24,11 @@ public sealed class SchemaIsolationTests(PostgresFixture fixture)
         var after = await ReadPublicTablesAsync(context);
 
         after.ShouldBe(before);
-        after.ShouldContain(static table => string.Equals(table, "musteri_siparisleri", StringComparison.Ordinal));
+        after.ShouldContain(static table => string.Equals(table, "customer_orders", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Tablolar_yalnizca_agentprism_semasinda_olusur()
+    public async Task Tables_are_created_only_in_the_agentprism_schema()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 

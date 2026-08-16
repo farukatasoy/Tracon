@@ -6,23 +6,24 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Workflow uclari: katalog, tanim yonetimi, calistirma ve kontrol noktalari.
+/// Workflow endpoints: catalog, definition management, runs, and checkpoints.
 /// </summary>
 /// <remarks>
-/// Iki kurulum test edilir: motor kayitli (<c>UseWorkflows()</c>) ve kayitsiz.
-/// Kayitsiz kurulumda tanim yonetimi calismali, calistirma <c>501</c> donmelidir.
+/// Two setups are tested: with the engine registered (<c>UseWorkflows()</c>)
+/// and without. In the unregistered setup, definition management must work;
+/// running must return <c>501</c>.
 /// </remarks>
 public sealed class WorkflowEndpointTests
 {
     [Fact]
-    public async Task Motor_kayitli_degilse_calistirma_501_doner()
+    public async Task Run_returns_501_when_engine_not_registered()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            static builder => builder.AddAgent(TestData.Definition("yazar")));
+            static builder => builder.AddAgent(TestData.Definition("writer")));
 
         using var response = await host.Client.PostAsJsonAsync(
-            "/agentprism/api/workflows/zincir/run",
-            new WorkflowRunHttpRequest { Message = "merhaba" });
+            "/agentprism/api/workflows/chain/run",
+            new WorkflowRunHttpRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
 
@@ -32,14 +33,14 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Motor_kayitli_degilken_tanim_yonetimi_calisir()
+    public async Task Definition_management_works_when_engine_not_registered()
     {
-        // Tanim depolari AddAgentPrism() tarafindan her zaman kaydedilir; motor
-        // yalnizca YURUTMEYI acar. Boylece bir sorun aninda motor kaldirilsa
-        // bile tanimlar okunabilir kalir.
+        // Definition stores are always registered by AddAgentPrism(); the
+        // engine only enables EXECUTION. This way, even if the engine is
+        // removed during an incident, definitions remain readable.
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using var saved = await SaveAsync(host, "zincir", Sequential());
+        using var saved = await SaveAsync(host, "chain", Sequential());
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -50,49 +51,49 @@ public sealed class WorkflowEndpointTests
         var body = await AgentPrismTestHost.ReadJsonAsync(listed);
 
         body.EnumerateArray().Select(static item => item.GetProperty("name").GetString())
-            .ShouldContain(static name => string.Equals(name, "zincir", StringComparison.Ordinal));
+            .ShouldContain(static name => string.Equals(name, "chain", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Tanim_kaydedilir_okunur_ve_silinir()
+    public async Task Definition_is_saved_read_and_deleted()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
 
             var body = await AgentPrismTestHost.ReadJsonAsync(saved);
 
-            body.GetProperty("name").GetString().ShouldBe("zincir");
+            body.GetProperty("name").GetString().ShouldBe("chain");
             body.GetProperty("version").GetInt32().ShouldBe(1);
 
-            // Enum'lar kabloda AD olarak yazilir, sayi olarak degil.
+            // Enums are written on the wire as NAMES, not numbers.
             body.GetProperty("kind").GetString().ShouldBe("Sequential");
         }
 
-        using (var read = await host.Client.GetAsync("/agentprism/api/workflows/zincir"))
+        using (var read = await host.Client.GetAsync("/agentprism/api/workflows/chain"))
         {
             read.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        using (var deleted = await host.Client.DeleteAsync("/agentprism/api/workflows/zincir"))
+        using (var deleted = await host.Client.DeleteAsync("/agentprism/api/workflows/chain"))
         {
             deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
-        using (var missing = await host.Client.GetAsync("/agentprism/api/workflows/zincir"))
+        using (var missing = await host.Client.GetAsync("/agentprism/api/workflows/chain"))
         {
             missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         }
     }
 
     [Fact]
-    public async Task Gecersiz_tanim_KAYIT_ANINDA_reddedilir()
+    public async Task Invalid_definition_is_rejected_AT_SAVE_TIME()
     {
         await using var host = await StartWithEngineAsync();
 
-        using var response = await SaveAsync(host, "bos", new WorkflowSaveRequest
+        using var response = await SaveAsync(host, "empty", new WorkflowSaveRequest
         {
             Kind = WorkflowKind.Sequential,
             AgentNames = [],
@@ -106,59 +107,59 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Tekrar_eden_agent_adi_reddedilir()
+    public async Task Duplicate_agent_name_is_rejected()
     {
         await using var host = await StartWithEngineAsync();
 
-        using var response = await SaveAsync(host, "tekrar", new WorkflowSaveRequest
+        using var response = await SaveAsync(host, "duplicate", new WorkflowSaveRequest
         {
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "yazar"],
+            AgentNames = ["writer", "writer"],
         });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Olmayan_workflow_calistirilamaz()
+    public async Task Nonexistent_workflow_cannot_be_run()
     {
         await using var host = await StartWithEngineAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
-            "/agentprism/api/workflows/olmayan/run",
-            new WorkflowRunHttpRequest { Message = "merhaba" });
+            "/agentprism/api/workflows/no-such-workflow/run",
+            new WorkflowRunHttpRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Calistirma_SSE_ile_akar_ve_agac_uretir()
+    public async Task Run_streams_over_SSE_and_produces_a_tree()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
         using var response = await host.Client.PostAsJsonAsync(
-            "/agentprism/api/workflows/zincir/run",
-            new WorkflowRunHttpRequest { Message = "merhaba" });
+            "/agentprism/api/workflows/chain/run",
+            new WorkflowRunHttpRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
-        // Ilk cerceve calistirma kimligini bildirir; son cerceve akisin
-        // bittigini soyler. Ikisi olmadan istemci baglantinin koptugunu mu
-        // yoksa isin bittigini mi anlayamaz.
+        // The first frame reports the run id; the last frame says the
+        // stream has ended. Without both, the client cannot tell whether
+        // the connection dropped or the work finished.
         frames[0].Event.ShouldBe("run");
         frames[^1].Event.ShouldBe("done");
 
         var runId = JsonDocument.Parse(frames[0].Data).RootElement.GetProperty("runId").GetGuid();
 
-        // Agac: bir workflow satiri + iki agent satiri.
+        // Tree: one workflow row + two agent rows.
         using var tree = await host.Client.GetAsync($"/agentprism/api/runs/{runId}/tree");
 
         tree.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -173,7 +174,7 @@ public sealed class WorkflowEndpointTests
             "Workflow",
             StringComparison.Ordinal));
 
-        workflowRun.GetProperty("workflowName").GetString().ShouldBe("zincir");
+        workflowRun.GetProperty("workflowName").GetString().ShouldBe("chain");
         workflowRun.GetProperty("id").GetGuid().ShouldBe(runId);
 
         var agentRuns = items
@@ -185,11 +186,11 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Kontrol_noktalari_listelenir_ve_surdurulur()
+    public async Task Checkpoints_are_listed_and_resumed()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
@@ -197,8 +198,8 @@ public sealed class WorkflowEndpointTests
         Guid runId;
 
         using (var response = await host.Client.PostAsJsonAsync(
-                   "/agentprism/api/workflows/zincir/run",
-                   new WorkflowRunHttpRequest { Message = "merhaba" }))
+                   "/agentprism/api/workflows/chain/run",
+                   new WorkflowRunHttpRequest { Message = "hello" }))
         {
             var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
             runId = JsonDocument.Parse(frames[0].Data).RootElement.GetProperty("runId").GetGuid();
@@ -227,7 +228,7 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirmanin_kontrol_noktalari_404_doner()
+    public async Task Checkpoints_of_a_nonexistent_run_return_404()
     {
         await using var host = await StartWithEngineAsync();
 
@@ -237,36 +238,36 @@ public sealed class WorkflowEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // --- Faz 16: graf, bekleyen istek, yanit ---
+    // --- Phase 16: graph, pending request, response ---
 
     [Fact]
-    public async Task Graf_ucu_dugumleri_kenarlari_ve_mermaid_dondurur()
+    public async Task Graph_endpoint_returns_nodes_edges_and_mermaid()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        using var response = await host.Client.GetAsync("/agentprism/api/workflows/zincir/graph");
+        using var response = await host.Client.GetAsync("/agentprism/api/workflows/chain/graph");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var graph = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        graph.GetProperty("name").GetString().ShouldBe("zincir");
+        graph.GetProperty("name").GetString().ShouldBe("chain");
         graph.GetProperty("mermaid").GetString().ShouldNotBeNullOrWhiteSpace();
         graph.GetProperty("startExecutorId").GetString().ShouldNotBeNullOrWhiteSpace();
 
         var nodes = graph.GetProperty("nodes").EnumerateArray().ToList();
         var edges = graph.GetProperty("edges").EnumerateArray().ToList();
 
-        // Iki agent + hazir desenin ekledigi cikti dugumu.
+        // Two agents + the output node the built-in pattern adds.
         nodes.Count.ShouldBeGreaterThanOrEqualTo(3);
         edges.ShouldNotBeEmpty();
 
-        // Enum'lar kabloda AD olarak yazilir (K-040).
+        // Enums are written on the wire as NAMES (K-040).
         nodes.Select(static node => node.GetProperty("kind").GetString())
             .ShouldContain(static kind => string.Equals(kind, "Agent", StringComparison.Ordinal));
 
@@ -276,44 +277,44 @@ public sealed class WorkflowEndpointTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        agentNames.ShouldBe(["editor", "yazar"]);
+        agentNames.ShouldBe(["editor", "writer"]);
     }
 
     [Fact]
-    public async Task Olmayan_workflow_grafi_404_doner()
+    public async Task Nonexistent_workflow_graph_returns_404()
     {
         await using var host = await StartWithEngineAsync();
 
-        using var response = await host.Client.GetAsync("/agentprism/api/workflows/yok/graph");
+        using var response = await host.Client.GetAsync("/agentprism/api/workflows/no-such-workflow/graph");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Motor_kayitli_degilse_graf_501_doner()
+    public async Task Graph_returns_501_when_engine_not_registered()
     {
-        // Graf DERLENMIS workflow'dan cikarilir; derleyici motorla gelir.
+        // The graph is extracted from the COMPILED workflow; the compiler comes with the engine.
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        using var response = await host.Client.GetAsync("/agentprism/api/workflows/zincir/graph");
+        using var response = await host.Client.GetAsync("/agentprism/api/workflows/chain/graph");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
     }
 
     [Fact]
-    public async Task Plan_onayi_baska_desende_reddedilir()
+    public async Task Plan_approval_is_rejected_on_another_pattern()
     {
         await using var host = await StartWithEngineAsync();
 
-        using var response = await SaveAsync(host, "zincir", new WorkflowSaveRequest
+        using var response = await SaveAsync(host, "chain", new WorkflowSaveRequest
         {
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
             RequirePlanApproval = true,
         });
 
@@ -325,7 +326,7 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Plan_onayi_tanimda_saklanir()
+    public async Task Plan_approval_is_stored_in_the_definition()
     {
         await using var host = await StartWithEngineAsync();
 
@@ -333,7 +334,7 @@ public sealed class WorkflowEndpointTests
         {
             Kind = WorkflowKind.Magentic,
             AgentNames = ["editor"],
-            ManagerAgentName = "yazar",
+            ManagerAgentName = "writer",
             RequirePlanApproval = true,
         });
 
@@ -345,16 +346,16 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Beklemeyen_calistirmanin_bekleyen_istegi_yoktur()
+    public async Task A_run_that_is_not_waiting_has_no_pending_request()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        var runId = await RunAsync(host, "zincir");
+        var runId = await RunAsync(host, "chain");
 
         using var response = await host.Client.GetAsync(
             $"/agentprism/api/workflows/runs/{runId}/requests");
@@ -367,7 +368,7 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_calistirmanin_istekleri_404_doner()
+    public async Task Requests_of_a_nonexistent_run_return_404()
     {
         await using var host = await StartWithEngineAsync();
 
@@ -378,7 +379,7 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Yanit_istek_kimligi_olmadan_reddedilir()
+    public async Task Response_without_a_request_id_is_rejected()
     {
         await using var host = await StartWithEngineAsync();
 
@@ -390,23 +391,24 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Beklemeyen_calistirmaya_verilen_yanit_akista_hata_bildirir()
+    public async Task A_response_to_a_non_waiting_run_reports_an_error_in_the_stream()
     {
         await using var host = await StartWithEngineAsync();
 
-        using (var saved = await SaveAsync(host, "zincir", Sequential()))
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        var runId = await RunAsync(host, "zincir");
+        var runId = await RunAsync(host, "chain");
 
         using var response = await host.Client.PostAsJsonAsync(
             $"/agentprism/api/workflows/runs/{runId}/respond",
-            new WorkflowRespondHttpRequest { RequestId = "herhangi" });
+            new WorkflowRespondHttpRequest { RequestId = "any" });
 
-        // Akis basladiktan sonra durum kodu degistirilemez; hata bir SSE
-        // cercevesi olarak gonderilir. Ayni desen calistirma ucunda da kullanildi.
+        // Once the stream has started, the status code cannot change; the
+        // error is sent as an SSE frame. The same pattern is used on the
+        // run endpoint.
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
@@ -415,7 +417,7 @@ public sealed class WorkflowEndpointTests
     }
 
     [Fact]
-    public async Task Motor_kayitli_degilse_yanit_501_doner()
+    public async Task Respond_returns_501_when_engine_not_registered()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -426,12 +428,12 @@ public sealed class WorkflowEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
     }
 
-    /// <summary>Bir workflow'u calistirir ve calistirma kimligini dondurur.</summary>
+    /// <summary>Runs a workflow and returns the run id.</summary>
     private static async Task<Guid> RunAsync(AgentPrismTestHost host, string name)
     {
         using var response = await host.Client.PostAsJsonAsync(
             $"/agentprism/api/workflows/{name}/run",
-            new WorkflowRunHttpRequest { Message = "merhaba" });
+            new WorkflowRunHttpRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -442,7 +444,7 @@ public sealed class WorkflowEndpointTests
 
     private static Task<AgentPrismTestHost> StartWithEngineAsync()
         => AgentPrismTestHost.StartAsync(static builder => builder
-            .AddAgent(TestData.Definition("yazar"))
+            .AddAgent(TestData.Definition("writer"))
             .AddAgent(TestData.Definition("editor"))
             .UseWorkflows());
 
@@ -455,8 +457,8 @@ public sealed class WorkflowEndpointTests
     private static WorkflowSaveRequest Sequential()
         => new()
         {
-            Description = "Iki adimli zincir.",
+            Description = "A two-step chain.",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         };
 }

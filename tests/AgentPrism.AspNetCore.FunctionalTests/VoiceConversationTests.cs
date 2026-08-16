@@ -17,8 +17,8 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class VoiceConversationTests
 {
-    private const string Agent = "kod-agent";
-    private const string StreamPath = "/agentprism/api/voice/sessions/oturum-1/stream";
+    private const string Agent = "code-agent";
+    private const string StreamPath = "/agentprism/api/voice/sessions/session-1/stream";
 
     [Fact]
     public async Task NO_endpoint_opens_when_UseVoiceConversation_was_not_called()
@@ -35,10 +35,11 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Ses_saglayicisi_yoksa_501_doner()
+    public async Task Returns_501_when_no_voice_provider()
     {
-        // Konusma hem cozum hem sentez ister; yalniz biriyle konusma tek yonlu
-        // olurdu ve bu bir konusma degildir.
+        // A conversation needs both transcription and synthesis; with only
+        // one, the conversation would be one-directional, and that is not a
+        // conversation.
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: static builder => builder.UseVoiceConversation());
 
@@ -48,7 +49,7 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task WebSocket_olmayan_istek_400_doner()
+    public async Task Non_WebSocket_request_returns_400()
     {
         await using var host = await StartAsync();
 
@@ -58,9 +59,9 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Uctan_uca_bir_tur_konusma()
+    public async Task End_to_end_single_turn_conversation()
     {
-        var voice = new StubVoiceProvider { Transcript = "siparisim nerede" };
+        var voice = new StubVoiceProvider { Transcript = "where is my order" };
         await using var host = await StartAsync(voice);
         await using var client = await ConnectAsync(host);
 
@@ -68,9 +69,9 @@ public sealed class VoiceConversationTests
 
         var ready = await client.WaitForAsync("ready");
         ready.Text("agent").ShouldBe(Agent);
-        ready.Text("sessionId").ShouldBe("oturum-1");
+        ready.Text("sessionId").ShouldBe("session-1");
 
-        // Ses varsayilan olarak SAKLANMAZ ve arayuz bunu kullaniciya gosterir.
+        // Audio is NOT saved by default, and the interface shows this to the user.
         ready.Flag("persistAudio").ShouldBe(false);
 
         await client.SendAudioAsync(new byte[3200]);
@@ -79,7 +80,7 @@ public sealed class VoiceConversationTests
         var frames = new List<VoiceEvent>();
 
         var transcript = await client.WaitForAsync("transcript", frames);
-        transcript.Text("text").ShouldBe("siparisim nerede");
+        transcript.Text("text").ShouldBe("where is my order");
         transcript.Flag("final").ShouldBe(true);
 
         var runStarted = await client.WaitForAsync("runStarted", frames);
@@ -88,24 +89,25 @@ public sealed class VoiceConversationTests
         var done = await client.WaitForAsync("done", frames);
         done.Flag("cancelled").ShouldBe(false);
 
-        // Altyazi metni akti, ses parcalari geldi.
+        // Caption text streamed, audio chunks arrived.
         frames.ShouldContain(static frame => frame.Type == "text");
         frames.ShouldContain(static frame => frame.Type == "audioStart");
         frames.ShouldContain(static frame => frame.IsAudio);
         frames.ShouldContain(static frame => frame.Type == "audioEnd");
 
-        // 🚨 Ham PCM cozume WAV olarak gider: basliksiz ses tek basina bir dosya
-        // degildir.
+        // 🚨 Raw PCM goes to transcription as WAV: headerless audio is not a
+        // file on its own.
         voice.ReceivedMediaType.ShouldBe("audio/wav");
         voice.ReceivedBytes.ShouldBe(3200 + 44);
         voice.Spoken.ShouldNotBeEmpty();
     }
 
     [Fact]
-    public async Task Her_tur_normal_bir_runs_satiri_uretir()
+    public async Task Each_turn_produces_a_normal_run_row()
     {
-        // Ses calistirma yolunu DEGISTIRMEZ; yalnizca girdi ve cikti bicimini
-        // degistirir. Kanit: kayit, span ve maliyet mevcut yoldan gelir.
+        // Voice does NOT change the run path; it only changes the input and
+        // output format. Proof: the recording, span, and cost all come from
+        // the existing path.
         await using var host = await StartAsync();
         await using var client = await ConnectAsync(host);
 
@@ -129,10 +131,11 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Kesinti_calistirmayi_iptal_eder_ve_yarim_yaniti_gecmise_yazar()
+    public async Task Interruption_cancels_the_run_and_writes_the_partial_reply_to_history()
     {
-        // 🚨 Kesilen yanit yazilmazsa model bir sonraki turda kendi yarim
-        // cumlesini GORMEZ ve konusma kopar.
+        // 🚨 If the interrupted reply is not written, the model will NOT SEE
+        // its own half-finished sentence on the next turn, and the
+        // conversation breaks.
         var voice = new StubVoiceProvider { SynthesisDelay = TimeSpan.FromSeconds(5) };
         await using var host = await StartAsync(voice);
         await using var client = await ConnectAsync(host);
@@ -143,7 +146,7 @@ public sealed class VoiceConversationTests
         await client.SendAudioAsync(new byte[1600]);
         await client.SendControlAsync(new { type = "commit" });
 
-        // Sentez basladi ama bitmedi: tam kesinti ani.
+        // Synthesis started but did not finish: the exact moment of interruption.
         await client.WaitForAsync("audioStart");
         await client.SendControlAsync(new { type = "cancel" });
 
@@ -151,7 +154,7 @@ public sealed class VoiceConversationTests
         done.Flag("cancelled").ShouldBe(true);
 
         using var history = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/oturum-1", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/session-1", UriKind.Relative));
 
         history.EnsureSuccessStatusCode();
 
@@ -160,7 +163,7 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Konusma_kaydi_yazilir_ve_ses_ICERMEZ()
+    public async Task Conversation_record_is_written_and_does_NOT_contain_audio()
     {
         await using var host = await StartAsync();
 
@@ -176,25 +179,26 @@ public sealed class VoiceConversationTests
             await client.SendControlAsync(new { type = "stop" });
         }
 
-        // Kapanis kaydin yazilmasini bekler; uc bunu okuyabilmelidir.
+        // Closing waits for the record to be written; the endpoint must be able to read it.
         var records = await WaitForRecordsAsync(host);
 
         records.GetArrayLength().ShouldBe(1);
         records[0].GetProperty("agentName").GetString().ShouldBe(Agent);
         records[0].GetProperty("turns").GetInt32().ShouldBe(1);
-        records[0].GetProperty("sessionId").GetString().ShouldBe("oturum-1");
+        records[0].GetProperty("sessionId").GetString().ShouldBe("session-1");
         records[0].GetProperty("endReason").GetString().ShouldBe("Client");
 
-        // Kayit ses ICERMEZ: sutunlarin hicbiri icerik tasimaz.
+        // The record does NOT contain audio: none of the columns carry content.
         records[0].TryGetProperty("audio", out _).ShouldBeFalse();
     }
 
     [Fact]
-    public async Task PersistAudio_acikken_YALNIZ_agentin_sesi_ek_olarak_yazilir()
+    public async Task When_PersistAudio_is_on_ONLY_the_agents_voice_is_saved_as_an_attachment()
     {
-        // 🚨 Kullanicinin sesi hicbir zaman saklanmaz: ses biyometrik veridir ve
-        // soylenenin kaydi zaten oturum gecmisindeki transkripttir. Saklanan tek
-        // sey agent'in URETTIGI sestir.
+        // 🚨 The user's voice is never saved: audio is biometric data, and
+        // the record of what was said already exists as the transcript in
+        // session history. The only thing saved is the voice the agent
+        // PRODUCES.
         await using var host = await StartAsync(configureConversation: static options =>
             options.PersistAudio = true);
 
@@ -202,7 +206,7 @@ public sealed class VoiceConversationTests
 
         await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
 
-        // Arayuz kullaniciya kaydin yapildigini GOSTERIR; kayit sessizce olmaz.
+        // The interface SHOWS the user that recording is happening; recording never happens silently.
         (await client.WaitForAsync("ready")).Flag("persistAudio").ShouldBe(true);
 
         await client.SendAudioAsync(new byte[1600]);
@@ -217,10 +221,10 @@ public sealed class VoiceConversationTests
         download.EnsureSuccessStatusCode();
         download.Content.Headers.ContentType?.MediaType.ShouldBe("audio/mpeg");
 
-        // Ek oturuma BAGLI olmalidir; sahipsiz bir ek saklama politikasi
-        // tarafindan silinir (Faz 28/G1).
+        // The attachment must be LINKED to the session; an orphaned
+        // attachment is deleted by the retention policy (Phase 28/G1).
         using var listing = await host.Client.GetAsync(
-            new Uri("/agentprism/api/attachments?sessionId=oturum-1", UriKind.Relative));
+            new Uri("/agentprism/api/attachments?sessionId=session-1", UriKind.Relative));
 
         listing.EnsureSuccessStatusCode();
 
@@ -229,7 +233,7 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Ses_varsayilan_olarak_SAKLANMAZ()
+    public async Task Audio_is_NOT_saved_by_default()
     {
         await using var host = await StartAsync();
         await using var client = await ConnectAsync(host);
@@ -243,17 +247,17 @@ public sealed class VoiceConversationTests
         (await client.WaitForAsync("done")).Text("attachmentId").ShouldBeNull();
 
         using var listing = await host.Client.GetAsync(
-            new Uri("/agentprism/api/attachments?sessionId=oturum-1", UriKind.Relative));
+            new Uri("/agentprism/api/attachments?sessionId=session-1", UriKind.Relative));
 
         listing.EnsureSuccessStatusCode();
         (await AgentPrismTestHost.ReadJsonAsync(listing)).GetArrayLength().ShouldBe(0);
     }
 
     [Fact]
-    public async Task Token_alt_protokolde_kabul_edilir()
+    public async Task Token_is_accepted_in_the_subprotocol()
     {
-        await using var host = await StartAsync(authToken: "gizli-token");
-        await using var client = await ConnectAsync(host, token: "gizli-token");
+        await using var host = await StartAsync(authToken: "secret-token");
+        await using var client = await ConnectAsync(host, token: "secret-token");
 
         await client.SendControlAsync(new { type = "start", agent = Agent, inputFormat = "pcm16" });
 
@@ -261,44 +265,46 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Token_SORGU_DIZESINDE_kabul_EDILMEZ()
+    public async Task Token_in_the_QUERY_STRING_is_NOT_accepted()
     {
-        // 🚨 Adres sunucu gunluklerine, ters vekil gunluklerine ve tarayici
-        // gecmisine yazilir; token oraya konmaz.
-        await using var host = await StartAsync(authToken: "gizli-token");
+        // 🚨 The address is written to server logs, reverse-proxy logs, and
+        // browser history; the token must not be placed there.
+        await using var host = await StartAsync(authToken: "secret-token");
 
         var socketClient = host.CreateWebSocketClient();
         socketClient.ConfigureRequest = static request => request.Headers.Remove("Authorization");
 
         var connect = async () => await socketClient.ConnectAsync(
-            new Uri("http://localhost/agentprism/api/voice/sessions/oturum-1/stream?token=gizli-token"),
+            new Uri("http://localhost/agentprism/api/voice/sessions/session-1/stream?token=secret-token"),
             TestContext.Current.CancellationToken);
 
         await connect.ShouldThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task Token_yanlissa_baglanti_reddedilir()
+    public async Task Connection_is_rejected_when_token_is_wrong()
     {
-        await using var host = await StartAsync(authToken: "gizli-token");
+        await using var host = await StartAsync(authToken: "secret-token");
 
-        var connect = async () => await ConnectAsync(host, token: "yanlis-token");
+        var connect = async () => await ConnectAsync(host, token: "wrong-token");
 
         await connect.ShouldThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task Baska_kiracinin_oturumuna_ERISILEMEZ()
+    public async Task Another_tenants_session_CANNOT_be_accessed()
     {
-        // sessionId guvenilmez girdidir.
+        // sessionId is untrusted input.
         //
-        // 🚨 Faz 41'de davranis DEGISTI. Once depo kiraci korlerdi: uc baska bir
-        // kiracinin oturumunu okuyabiliyor, goruyor ve "baskasinin" diye
-        // REDDEDIYORDU. Bu bir varlik kahiniydi — bir kiraci, hangi oturum
-        // kimliklerinin BASKA bir kiracida var oldugunu hata koduyla olcebilirdi.
-        // Depo artik kiraciyla sinirlidir (K-277): gorunmeyen bir oturum YOK
-        // sayilir, baglanti kendi kiracisinda taze bir oturum acar ve digerinin
-        // kaydina HIC dokunulmaz. Yalitim guclendi, sizdirilan bilgi azaldi.
+        // 🚨 The behavior CHANGED in Phase 41. Previously the store was
+        // tenant-blind: the endpoint could read another tenant's session,
+        // see it, and REJECT it as "belonging to someone else". This was an
+        // existence oracle — a tenant could probe, via the error code, which
+        // session ids existed for ANOTHER tenant. The store is now scoped to
+        // the tenant (K-277): an invisible session is treated as NOT
+        // EXISTING, the connection opens a fresh session in its own tenant,
+        // and the other tenant's record is NEVER touched. Isolation is
+        // stronger, and leaked information is reduced.
         await using var host = await StartAsync();
 
         var sessions = host.Services.GetRequiredService<ISessionStore>();
@@ -306,38 +312,39 @@ public sealed class VoiceConversationTests
         await sessions.SaveAsync(
             new SessionRecord
             {
-                Id = "baskasinin-oturumu",
+                Id = "someone-elses-session",
                 AgentName = Agent,
-                State = System.Text.Json.JsonDocument.Parse("""{"gizli":true}""").RootElement,
+                State = System.Text.Json.JsonDocument.Parse("""{"secret":true}""").RootElement,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
-                TenantId = "baska-kiraci",
+                TenantId = "other-tenant",
             },
             TestContext.Current.CancellationToken);
 
-        // Gecerli kiraci o kaydi hic goremez.
-        (await sessions.GetAsync("baskasinin-oturumu", TestContext.Current.CancellationToken)).ShouldBeNull();
+        // The current tenant can never see that record.
+        (await sessions.GetAsync("someone-elses-session", TestContext.Current.CancellationToken)).ShouldBeNull();
 
         var socketClient = host.CreateWebSocketClient();
 
         using (await socketClient.ConnectAsync(
-            new Uri("http://localhost/agentprism/api/voice/sessions/baskasinin-oturumu/stream"),
+            new Uri("http://localhost/agentprism/api/voice/sessions/someone-elses-session/stream"),
             TestContext.Current.CancellationToken))
         {
-            // Baglanti kurulur; ama karsisindaki oturum digerinin oturumu DEGILDIR.
+            // The connection is established; but the session on the other
+            // end is NOT the other tenant's session.
         }
 
-        // Digerinin kaydi bozulmadan yerinde durur.
+        // The other tenant's record remains intact.
         var theirs = (await sessions.QueryAsync(
-            new SessionQuery { TenantId = "baska-kiraci" },
+            new SessionQuery { TenantId = "other-tenant" },
             TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
 
-        theirs.Id.ShouldBe("baskasinin-oturumu");
-        theirs.State.GetProperty("gizli").GetBoolean().ShouldBeTrue();
+        theirs.Id.ShouldBe("someone-elses-session");
+        theirs.State.GetProperty("secret").GetBoolean().ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Es_zamanli_baglanti_siniri_uygulanir()
+    public async Task Concurrent_connection_limit_is_enforced()
     {
         await using var host = await StartAsync(configureConversation: static options =>
             options.MaxConcurrentConnectionsPerTenant = 1);
@@ -350,7 +357,7 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_ses_bicimi_reddedilir()
+    public async Task Unknown_audio_format_is_rejected()
     {
         await using var host = await StartAsync();
         await using var client = await ConnectAsync(host);
@@ -363,23 +370,23 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Olmayan_agent_hata_dondurur()
+    public async Task Nonexistent_agent_returns_an_error()
     {
         await using var host = await StartAsync();
         await using var client = await ConnectAsync(host);
 
-        await client.SendControlAsync(new { type = "start", agent = "yok-boyle-bir-agent" });
+        await client.SendControlAsync(new { type = "start", agent = "no-such-agent" });
 
         (await client.WaitForAsync("error")).Text("message")
             .ShouldNotBeNull()
-            .ShouldContain("yok-boyle-bir-agent");
+            .ShouldContain("no-such-agent");
     }
 
     [Fact]
-    public async Task Ses_gelmeden_commit_tur_URETMEZ()
+    public async Task Commit_without_audio_does_NOT_produce_a_turn()
     {
-        // Kisa bir oksuruk de istemcinin VAD'ini tetikleyebilir; bu bir hata
-        // degildir ve konusmayi kesmemelidir.
+        // A short cough can also trigger the client's VAD; this is not an
+        // error and must not interrupt the conversation.
         var voice = new StubVoiceProvider();
         await using var host = await StartAsync(voice);
         await using var client = await ConnectAsync(host);
@@ -389,7 +396,7 @@ public sealed class VoiceConversationTests
 
         await client.SendControlAsync(new { type = "commit" });
 
-        // Yeni bir tur yine baslatilabiliyorsa dinlemeye donulmustur.
+        // If a new turn can be started again, it has returned to listening.
         await client.SendAudioAsync(new byte[1600]);
         await client.SendControlAsync(new { type = "commit" });
 
@@ -429,7 +436,7 @@ public sealed class VoiceConversationTests
     private static async Task<VoiceConversationClient> ConnectAsync(
         AgentPrismTestHost host,
         string? token = null,
-        string sessionId = "oturum-1")
+        string sessionId = "session-1")
     {
         var socketClient = host.CreateWebSocketClient();
         socketClient.SubProtocols.Add(VoiceConversationProtocol.SubProtocol);
@@ -446,10 +453,10 @@ public sealed class VoiceConversationTests
         return new VoiceConversationClient(socket);
     }
 
-    /// <summary>Kayit yazilana kadar konusma listesini yoklar.</summary>
+    /// <summary>Polls the conversation list until the record is written.</summary>
     /// <remarks>
-    /// Kayit soketin kapanisinda yazilir; istemcinin <c>Dispose</c>'u sunucunun
-    /// kapanis isini beklemez.
+    /// The record is written when the socket closes; the client's
+    /// <c>Dispose</c> does not wait for the server's closing work.
     /// </remarks>
     private static async Task<System.Text.Json.JsonElement> WaitForRecordsAsync(AgentPrismTestHost host)
     {
@@ -470,6 +477,6 @@ public sealed class VoiceConversationTests
             await Task.Delay(20, TestContext.Current.CancellationToken);
         }
 
-        throw new InvalidOperationException("Konusma kaydi yazilmadi.");
+        throw new InvalidOperationException("Conversation record was not written.");
     }
 }

@@ -4,17 +4,17 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <see cref="MigrationRunner"/>'in <see cref="ISqlPersistenceDiagnostics"/> uygulamasini
-/// gercek bir PostgreSQL container'ina karsi dogrular (Faz 33).
+/// Verifies <see cref="MigrationRunner"/>'s <see cref="ISqlPersistenceDiagnostics"/>
+/// implementation against a real PostgreSQL container (Phase 33).
 /// </summary>
 /// <remarks>
-/// <c>GetSnapshotAsync</c> hicbir migration UYGULAMAZ — bu yuzden her testte ayri bir
-/// dogrulama adimi olarak <c>ApplyAsync</c> cagrilir ve oncesi/sonrasi karsilastirilir.
+/// <c>GetSnapshotAsync</c> does NOT APPLY any migration — so each test calls
+/// <c>ApplyAsync</c> as a separate verification step and compares before/after.
 /// </remarks>
 public sealed class MigrationDiagnosticsTests(PostgresFixture fixture)
 {
     [Fact]
-    public async Task Saglayici_adi_PostgreSQL_doner()
+    public async Task Provider_name_returns_PostgreSQL()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -22,7 +22,7 @@ public sealed class MigrationDiagnosticsTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Migration_uygulanmadan_once_bekleyenler_dolu_ve_baglanti_calisir()
+    public async Task Before_migration_is_applied_pending_is_full_and_connection_works()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -33,7 +33,7 @@ public sealed class MigrationDiagnosticsTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Migration_uygulandiktan_sonra_bekleyen_kalmaz()
+    public async Task After_migration_is_applied_no_pending_remains()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
@@ -45,11 +45,11 @@ public sealed class MigrationDiagnosticsTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task GetSnapshotAsync_migration_UYGULAMAZ()
+    public async Task GetSnapshotAsync_does_NOT_APPLY_migrations()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
-        // Ayni sinamayi iki kez cagirmak sema durumunu DEGISTIRMEMELIDIR.
+        // Calling the same probe twice should NOT CHANGE the schema state.
         await context.Migrations.GetSnapshotAsync();
         var snapshot = await context.Migrations.GetSnapshotAsync();
 
@@ -63,13 +63,13 @@ public sealed class MigrationDiagnosticsTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Baglanti_kurulamayan_saglayici_CanConnect_false_doner()
+    public async Task Unreachable_provider_returns_CanConnect_false()
     {
         var options = new AgentPrismPostgreSqlOptions
         {
-            // Kapali/ayrilmis bir port: gercek bir baglanti reddi uretir, ag zaman
-            // asimi beklemez (Timeout=2 saniyeye dusurur).
-            ConnectionString = "Host=127.0.0.1;Port=1;Database=yok;Username=yok;Password=yok;Timeout=2",
+            // A closed/reserved port: produces a real connection refusal instead
+            // of waiting for a network timeout (Timeout is lowered to 2 seconds).
+            ConnectionString = "Host=127.0.0.1;Port=1;Database=none;Username=none;Password=none;Timeout=2",
             SchemaName = PostgresTestContext.NewSchemaName(),
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 5,

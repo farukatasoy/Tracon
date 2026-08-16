@@ -1,7 +1,7 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IRetentionPolicyStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IRetentionPolicyStore"/> contract.
 /// </summary>
 public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRetentionPolicyStore>
 {
@@ -22,7 +22,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     {
         var policy = await Store.GetPolicyAsync(tenantId, (string)key);
 
-        // Kosu gecmisi de kiraciya aittir.
+        // Run history also belongs to the tenant.
         var runs = await Store.ListRunsAsync(tenantId, (string)key, skip: 0, take: 50);
         (runs.Count > 0).ShouldBe(policy is not null);
 
@@ -39,8 +39,9 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
 
     /// <inheritdoc />
     /// <remarks>
-    /// Politikanin benzersizligi <c>(kiraci, hedef)</c> ciftindedir; ad bir
-    /// ayirt edici degildir. Ikinci kiraci ayni hedefe kendi politikasini yazar.
+    /// Policy uniqueness is on the <c>(tenant, target)</c> pair; name is not
+    /// a discriminator. The second tenant writes its own policy for the
+    /// same target.
     /// </remarks>
     protected override async ValueTask<bool> TryOverwriteAsync(string tenantId, string name)
     {
@@ -51,7 +52,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     private const string Tenant = "test";
 
     [Fact]
-    public async Task Kaydedilen_politika_geri_okunur()
+    public async Task Saved_policy_is_read_back()
     {
         await Store.SavePolicyAsync(Policy(maxAgeDays: 30, archive: true));
 
@@ -64,7 +65,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Ayni_hedef_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Saving_the_same_target_a_second_time_overwrites_it()
     {
         await Store.SavePolicyAsync(Policy(maxAgeDays: 30));
         await Store.SavePolicyAsync(Policy(maxAgeDays: 7));
@@ -76,7 +77,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Kiraciya_ozel_kayit_yoksa_yildiz_genelinine_duser()
+    public async Task Falls_back_to_the_wildcard_policy_when_no_tenant_specific_record_exists()
     {
         await Store.SavePolicyAsync(Policy(tenantId: "*", maxAgeDays: 14));
 
@@ -88,7 +89,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Kiraciya_ozel_kayit_yildizdan_once_gelir()
+    public async Task Tenant_specific_record_takes_precedence_over_the_wildcard()
     {
         await Store.SavePolicyAsync(Policy(tenantId: "*", maxAgeDays: 30));
         await Store.SavePolicyAsync(Policy(tenantId: Tenant, maxAgeDays: 7));
@@ -101,7 +102,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Baska_kiracinin_politikasi_gorunmez()
+    public async Task Another_tenants_policy_is_not_visible()
     {
         await Store.SavePolicyAsync(Policy(tenantId: Tenant));
 
@@ -110,7 +111,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Silinen_politika_geri_okunmaz()
+    public async Task Deleted_policy_is_not_read_back()
     {
         await Store.SavePolicyAsync(Policy());
 
@@ -119,7 +120,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Kosu_olusturulur_ve_ilerleme_birikir()
+    public async Task Run_is_created_and_progress_accumulates()
     {
         var run = await Store.CreateRunAsync(Run());
 
@@ -137,19 +138,19 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     [Fact]
-    public async Task Basarisiz_kosu_hata_mesaji_tasir()
+    public async Task Failed_run_carries_the_error_message()
     {
         var run = await Store.CreateRunAsync(Run());
 
-        await Store.CompleteRunAsync(run.Id, DateTimeOffset.UtcNow, "baglanti koptu");
+        await Store.CompleteRunAsync(run.Id, DateTimeOffset.UtcNow, "connection dropped");
 
         var history = await Store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10);
 
-        history[0].Error.ShouldBe("baglanti koptu");
+        history[0].Error.ShouldBe("connection dropped");
     }
 
     [Fact]
-    public async Task Kosu_gecmisi_en_yeni_basta_doner()
+    public async Task Run_history_returns_newest_first()
     {
         var now = DateTimeOffset.UtcNow;
 

@@ -3,7 +3,7 @@ using AgentPrism.StoreContracts;
 
 namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
 
-/// <summary>Sozlesme testlerinin PostgreSQL uygulamasi uzerindeki kosumu.</summary>
+/// <summary>Runs the contract tests against the PostgreSQL implementation.</summary>
 public sealed class PostgresAgentDefinitionStoreContractTests(PostgresSchemaFixture schema)
     : AgentDefinitionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
@@ -107,8 +107,8 @@ public sealed class PostgresTraceStoreContractTests(PostgresSchemaFixture schema
     }
 
     /// <summary>
-    /// <c>traces.run_id</c> yabanci anahtardir; calistirma kaydi olmadan span
-    /// yazilamaz.
+    /// <c>traces.run_id</c> is a foreign key; a span cannot be written without a
+    /// run record.
     /// </summary>
     protected override async ValueTask SeedRunAsync(Guid runId)
         => await schema.Context.Runs.StartRunAsync(TestData.Run(runId));
@@ -346,16 +346,16 @@ public sealed class PostgresRetentionStoreContractTests(PostgresSchemaFixture sc
 
     /// <inheritdoc />
     /// <remarks>
-    /// Konusma kaydi hedefi secildi: kendi <c>tenant_id</c> sutunu vardir,
-    /// yabanci anahtar tasimaz ve tek bir yazma ile tohumlanabilir.
+    /// The voice-session-record target was chosen: it has its own <c>tenant_id</c>
+    /// column, carries no foreign key, and can be seeded with a single write.
     /// </remarks>
     protected override async ValueTask SeedOldRowAsync(string tenantId)
         => await schema.Context.VoiceSessions.SaveAsync(new VoiceSessionRecord
         {
             Id = AgentPrismId.NewId(),
             TenantId = tenantId,
-            SessionId = $"oturum-{Guid.NewGuid():N}",
-            AgentName = "destek",
+            SessionId = $"session-{Guid.NewGuid():N}",
+            AgentName = "support",
             StartedAt = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
             EndedAt = new DateTimeOffset(2020, 1, 1, 0, 5, 0, TimeSpan.Zero),
             Turns = 1,
@@ -363,7 +363,7 @@ public sealed class PostgresRetentionStoreContractTests(PostgresSchemaFixture sc
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
+#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; same rationale as in the product code.
 public sealed class PostgresAgentFileStoreContractTests(PostgresSchemaFixture schema)
     : AgentFileStoreContract, IClassFixture<PostgresSchemaFixture>
 {
@@ -389,15 +389,15 @@ public sealed class PostgresRunInputStoreContractTests(PostgresSchemaFixture sch
     }
 
     /// <summary>
-    /// <c>run_inputs.run_id</c> <c>runs</c> tablosuna yabanci anahtardir; girdi
-    /// yazilmadan once satirin var olmasi gerekir.
+    /// <c>run_inputs.run_id</c> is a foreign key to the <c>runs</c> table; the row
+    /// must exist before an input is written.
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
         => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
-            AgentName = "sozlesme",
+            AgentName = "contract",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });
@@ -416,15 +416,15 @@ public sealed class PostgresPendingApprovalStoreContractTests(PostgresSchemaFixt
     }
 
     /// <summary>
-    /// <c>pending_approvals.run_id</c> <c>runs</c> tablosuna yabanci anahtardir;
-    /// onay yazilmadan once satirin var olmasi gerekir.
+    /// <c>pending_approvals.run_id</c> is a foreign key to the <c>runs</c> table;
+    /// the row must exist before an approval is written.
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
         => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
-            AgentName = "sozlesme",
+            AgentName = "contract",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });

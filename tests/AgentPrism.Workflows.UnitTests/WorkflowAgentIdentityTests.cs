@@ -4,82 +4,82 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Executor kimliklerinin surec omrunu asan kararliligi.
+/// Stability of executor ids across the life of a process.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testin varlik sebebi olculmus bir sinirdir. Microsoft Agent Framework
-/// executor kimliklerini agent <em>orneginden</em> turetir ve <c>AIAgent.Id</c>
-/// her ornek icin rastgele uretilir; Faz 15'te uygulama yeniden baslatildiginda
-/// eski kontrol noktalari kullanilamiyordu. Faz 16 kimligi
-/// <c>(workflow, agent)</c> ciftinden turetiyor. Kimlik yazma yolu MAF'in ozel
-/// bir alanina dayanir - MAF o alani kaldirirsa <strong>bu test kirilir</strong>
-/// ve sinir sessizce geri donmez.
+/// 🚨 This test exists because of a measured limitation. Microsoft Agent Framework
+/// derives executor ids from the agent <em>instance</em>, and <c>AIAgent.Id</c>
+/// is generated randomly for every instance; in Phase 15, restarting the app made
+/// old checkpoints unusable. Phase 16 derives the id from the
+/// <c>(workflow, agent)</c> pair instead. The write path for the id relies on a
+/// private field of MAF - if MAF removes that field, <strong>this test breaks</strong>
+/// and the limitation does not silently return.
 /// </remarks>
 public sealed class WorkflowAgentIdentityTests
 {
     [Fact]
-    public void Kalici_kimlik_yazilabiliyor()
+    public void Persistent_id_can_be_written()
     {
-        // Kirmizi olursa: MAF AIAgent.Id uygulamasini degistirmistir. Kontrol
-        // noktalari yeniden baslatma sonrasi kullanilamaz hale gelir.
+        // If this goes red: MAF has changed its AIAgent.Id implementation.
+        // Checkpoints become unusable after a restart.
         WorkflowAgentIdentity.IsSupported.ShouldBeTrue(
-            "Microsoft Agent Framework 'AIAgent.Id' alanini degistirmis olabilir; " +
-            "kalici executor kimligi bu alana yazilir.");
+            "Microsoft Agent Framework may have changed the 'AIAgent.Id' field; " +
+            "the persistent executor id is written to that field.");
     }
 
     [Fact]
-    public void Ayni_cift_ayni_kimligi_uretir()
+    public void Same_pair_produces_the_same_id()
     {
-        var first = WorkflowAgentIdentity.Compute("zincir", "ozetleyici");
-        var second = WorkflowAgentIdentity.Compute("zincir", "ozetleyici");
+        var first = WorkflowAgentIdentity.Compute("chain", "summarizer");
+        var second = WorkflowAgentIdentity.Compute("chain", "summarizer");
 
         first.ShouldBe(second);
 
-        // Bicim MAF'in urettigi kimlikle ayni olmalidir: executor kimligi
-        // '{ad}_{kimlik}' olarak birlestirilir ve ayirici karakter tasimamalidir.
+        // The format must match the id MAF produces: the executor id is joined
+        // as '{name}_{id}' and must not carry a separator character.
         first.Length.ShouldBe(32);
         first.ShouldAllBe(character => Uri.IsHexDigit(character));
     }
 
     [Fact]
-    public void Farkli_workflow_veya_agent_farkli_kimlik_uretir()
+    public void Different_workflow_or_agent_produces_a_different_id()
     {
-        var baseline = WorkflowAgentIdentity.Compute("zincir", "ozetleyici");
+        var baseline = WorkflowAgentIdentity.Compute("chain", "summarizer");
 
-        Differs(WorkflowAgentIdentity.Compute("zincir", "cevirmen"), baseline);
-        Differs(WorkflowAgentIdentity.Compute("baska-zincir", "ozetleyici"), baseline);
+        Differs(WorkflowAgentIdentity.Compute("chain", "translator"), baseline);
+        Differs(WorkflowAgentIdentity.Compute("other-chain", "summarizer"), baseline);
 
-        // Ayirici karakter olarak '\n' secildi: ("a-b","c") ile ("a","b-c")
-        // ayni kimligi uretemez.
+        // '\n' was chosen as the separator character: ("a-b","c") and ("a","b-c")
+        // cannot produce the same id.
         Differs(WorkflowAgentIdentity.Compute("a-b", "c"), WorkflowAgentIdentity.Compute("a", "b-c"));
     }
 
     private static void Differs(string actual, string other)
         => string.Equals(actual, other, StringComparison.Ordinal)
-            .ShouldBeFalse($"'{actual}' ile '{other}' ayni kimlik olmamaliydi.");
+            .ShouldBeFalse($"'{actual}' and '{other}' should not have been the same id.");
 
     [Fact]
-    public void Sarmalayici_kalici_kimligi_tasir()
+    public void Wrapper_carries_the_persistent_id()
     {
-        var host = new WorkflowTestHost("ozetleyici");
+        var host = new WorkflowTestHost("summarizer");
 
-        var agent = host.AgentCache.Get("zincir", "ozetleyici", description: null);
+        var agent = host.AgentCache.Get("chain", "summarizer", description: null);
 
-        agent.Id.ShouldBe(WorkflowAgentIdentity.Compute("zincir", "ozetleyici"));
+        agent.Id.ShouldBe(WorkflowAgentIdentity.Compute("chain", "summarizer"));
     }
 
     [Fact]
-    public void Yeniden_kurulan_onbellek_AYNI_kimligi_uretir()
+    public void A_freshly_rebuilt_cache_produces_the_SAME_id()
     {
-        // Surec yeniden baslatmasinin birim testi karsiligi: onbellek sifirdan
-        // kurulur. Faz 15'te bu kimlikleri degistiriyor ve bekleyen bir insan
-        // istegi her dagitimda kayboluyordu.
-        var host = new WorkflowTestHost("ozetleyici");
+        // The unit-test equivalent of a process restart: the cache is rebuilt
+        // from scratch. In Phase 15 this changed the ids, and a pending human
+        // request got lost on every deployment.
+        var host = new WorkflowTestHost("summarizer");
 
-        var first = host.AgentCache.Get("zincir", "ozetleyici", description: null).Id;
+        var first = host.AgentCache.Get("chain", "summarizer", description: null).Id;
 
         var restarted = new WorkflowAgentCache(host.Resolver, host.TenantContext, NullLoggerFactory.Instance);
-        var second = restarted.Get("zincir", "ozetleyici", description: null).Id;
+        var second = restarted.Get("chain", "summarizer", description: null).Id;
 
         second.ShouldBe(first);
     }

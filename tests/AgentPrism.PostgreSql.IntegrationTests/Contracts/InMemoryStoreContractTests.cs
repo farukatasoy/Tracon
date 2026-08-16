@@ -2,12 +2,13 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
 
 /// <summary>
-/// Sozlesme testlerinin bellek ici uygulama uzerindeki kosumu.
+/// Runs the contract tests against the in-memory implementation.
 /// </summary>
 /// <remarks>
-/// Bu sinif <c>AgentPrism.Core</c> icindeki uygulamayi test eder ancak burada durur:
-/// sozlesmenin iki uygulama tarafindan da <em>ayni</em> kaynaktan dogrulanmasi,
-/// aradaki farkin gozden kacmasini engeller. Veritabani gerektirmez.
+/// This class tests the implementation in <c>AgentPrism.Core</c>, but its role does not
+/// stop there: verifying the contract from the <em>same</em> source for both
+/// implementations prevents a divergence between them from going unnoticed. It
+/// requires no database.
 /// </remarks>
 public sealed class InMemoryAgentDefinitionStoreContractTests : AgentDefinitionStoreContract
 {
@@ -48,8 +49,8 @@ public sealed class InMemoryTraceStoreContractTests : TraceStoreContract
         => ValueTask.FromResult<ITraceStore>(new InMemoryTraceStore(AmbientTenant));
 
     /// <summary>
-    /// Bellek ici span deposu bir calistirma kaydi aramaz; yabanci anahtar
-    /// kisiti yoktur ve tohumlama gerekmez.
+    /// The in-memory span store does not look for a run record; there is no
+    /// foreign key constraint, so no seeding is needed.
     /// </summary>
     protected override ValueTask SeedRunAsync(Guid runId) => default;
 }

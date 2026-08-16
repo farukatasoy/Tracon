@@ -4,13 +4,13 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Quotas;
 
-/// <summary>Olay yayincisinin testleri.</summary>
+/// <summary>Tests of the event publisher.</summary>
 public sealed class WebhookPublisherTests
 {
     private const string Tenant = "acme";
 
     [Fact]
-    public async Task Abone_yoksa_hicbir_sey_yayilmaz()
+    public async Task No_event_is_published_when_there_are_no_subscribers()
     {
         var (publisher, _, jobs) = Build();
 
@@ -19,7 +19,7 @@ public sealed class WebhookPublisherTests
     }
 
     [Fact]
-    public async Task Abone_varsa_teslim_ve_is_olusur()
+    public async Task Delivery_and_job_are_created_when_a_subscriber_exists()
     {
         var (publisher, store, jobs) = Build();
 
@@ -32,19 +32,20 @@ public sealed class WebhookPublisherTests
         deliveries[0].Status.ShouldBe(WebhookDeliveryStatus.Pending);
         deliveries[0].EventType.ShouldBe(WebhookEvents.RunCompleted);
 
-        // Teslim, Faz 17'nin AYNI kuyruguna yazilir; ikinci bir kuyruk yoktur.
+        // The delivery is written into the SAME queue as phase 17; there is no second queue.
         var queued = await jobs.QueryAsync(new JobQuery { TenantId = Tenant });
         queued.Count.ShouldBe(1);
         queued[0].Kind.ShouldBe(JobKind.WebhookDelivery);
     }
 
     [Fact]
-    public async Task Kuyruga_yazilan_is_serilestirilebilir_bir_yuk_tasir()
+    public async Task Job_written_to_the_queue_carries_a_serializable_payload()
     {
-        // 🚨 Regresyon (K-166): Payload atanmazsa alan default(JsonElement)
-        // olur (ValueKind = Undefined) ve JsonElementConverter onu
-        // serilestiremez — GET /api/jobs tum listeyi 500 ile dondururdu.
-        // Birim ve fonksiyonel testler yakalamadi; ornek uygulama yakaladi.
+        // 🚨 Regression (K-166): if Payload is left unassigned, the field
+        // becomes default(JsonElement) (ValueKind = Undefined) and
+        // JsonElementConverter cannot serialize it — GET /api/jobs would
+        // return the whole list with a 500. Unit and functional tests missed
+        // this; the sample app caught it.
         var (publisher, store, jobs) = Build();
 
         await SubscribeAsync(store);
@@ -54,17 +55,17 @@ public sealed class WebhookPublisherTests
 
         queued[0].Payload.ValueKind.ShouldNotBe(JsonValueKind.Undefined);
 
-        // Serilestirme gercekten calismalidir; ValueKind denetimi tek basina
-        // ayni hatayi bir daha yakalamayabilir.
+        // Serialization must actually work; the ValueKind check alone might
+        // not catch the same bug again.
         Should.NotThrow(() => JsonSerializer.Serialize(queued[0].Payload));
 
-        // Yuk, is ogesiyle ayni teslim kimligini tasir.
+        // The payload carries the same delivery id as the job item.
         JobPayload.ExtractItems(queued[0].Payload).ShouldBe(
             (await jobs.ListItemsAsync(queued[0].Id)).Select(item => item.Input).ToList());
     }
 
     [Fact]
-    public async Task Deneme_siniri_merdivenin_uzunlugudur()
+    public async Task Retry_limit_matches_the_length_of_the_delay_ladder()
     {
         var (publisher, store, jobs) = Build(options =>
         {
@@ -82,7 +83,7 @@ public sealed class WebhookPublisherTests
     }
 
     [Fact]
-    public async Task Yayin_kapaliyken_hicbir_sey_olusmaz()
+    public async Task Nothing_is_created_while_publishing_is_disabled()
     {
         var (publisher, store, jobs) = Build(options => options.Enabled = false);
 
@@ -93,7 +94,7 @@ public sealed class WebhookPublisherTests
     }
 
     [Fact]
-    public async Task Baska_olaya_abone_olan_teslim_almaz()
+    public async Task Subscriber_of_a_different_event_receives_no_delivery()
     {
         var (publisher, store, jobs) = Build();
 
@@ -104,7 +105,7 @@ public sealed class WebhookPublisherTests
     }
 
     [Fact]
-    public async Task Yuk_zarf_alanlarini_doldurur()
+    public async Task Payload_fills_the_envelope_fields()
     {
         var (publisher, store, _) = Build();
 
@@ -121,9 +122,9 @@ public sealed class WebhookPublisherTests
     }
 
     [Fact]
-    public async Task Yuk_mesaj_icerigi_tasimaz()
+    public async Task Payload_does_not_carry_message_content()
     {
-        // K-161: yalnizca ozet. Icerik isteyen alici /api/runs/{id} cagirir.
+        // K-161: summary only. A recipient that wants the content calls /api/runs/{id}.
         var (publisher, store, _) = Build();
 
         await SubscribeAsync(store);

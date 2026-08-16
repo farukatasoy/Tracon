@@ -1,18 +1,18 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// Kiracisi calisma aninda degistirilebilen bir <see cref="ITenantContext"/>.
+/// An <see cref="ITenantContext"/> whose tenant can be swapped at run time.
 /// </summary>
 /// <remarks>
-/// Depolarin bir kismi kiraciyi metot parametresi olarak alir, bir kismi ise
-/// <see cref="ITenantContext"/>'ten okur (ornegin <c>IRunStore</c>,
-/// <c>ISessionStore</c>, <c>IAgentDefinitionStore</c>). Ikinci gruba iki kiracili
-/// bir senaryo yazabilmek icin ya iki ayri depo ornegi ya da kiracisi
-/// degistirilebilen tek bir baglam gerekir. Ikincisi secildi: ayni depo ornegi
-/// ayni arka uca bakar ve "A'nin yazdigini B goruyor mu" sorusu tek bir depo
-/// uzerinde sorulabilir.
+/// Some stores take the tenant as a method parameter, others read it from
+/// <see cref="ITenantContext"/> (for example <c>IRunStore</c>,
+/// <c>ISessionStore</c>, <c>IAgentDefinitionStore</c>). To write a two-tenant
+/// scenario for the second group, we need either two separate store
+/// instances or a single context whose tenant can be swapped. The latter was
+/// chosen: the same store instance points at the same backend, and the
+/// question "does B see what A wrote" can be asked against a single store.
 /// </remarks>
-/// <param name="tenantId">Baslangic kiracisi.</param>
+/// <param name="tenantId">The initial tenant.</param>
 public sealed class MutableTenantContext(string tenantId) : ITenantContext
 {
     /// <inheritdoc />
@@ -20,55 +20,56 @@ public sealed class MutableTenantContext(string tenantId) : ITenantContext
 }
 
 /// <summary>
-/// Bir deponun kiraci yalitimini <strong>iki yonlu</strong> sinayan ortak taban.
+/// The shared base that checks a store's tenant isolation <strong>both
+/// ways</strong>.
 /// </summary>
-/// <typeparam name="TStore">Sinanan depo tipi.</typeparam>
+/// <typeparam name="TStore">The store type under test.</typeparam>
 /// <remarks>
 /// <para>
-/// Faz 41'de eklendi. Bu taban ayni zamanda butun depo sozlesmelerinin ortak
-/// yasam dongusu tesisatini tasir; turemis sozlesmeler yalnizca kendi
-/// senaryolarini ve dort yalitim kancasini yazar.
+/// Added in phase 41. This base also carries the lifecycle plumbing shared
+/// by every store contract; derived contracts write only their own scenarios
+/// and the four isolation hooks.
 /// </para>
 /// <para>
-/// 🚨 <strong>Iki yonlu denetim atlanamaz.</strong> Yalnizca "B gormemeli"
-/// denetlenirse, hicbir sey dondurmeyen kirik bir sorgu da testi gecerdi.
-/// Her senaryo ayrica "A kendi verisini goruyor mu" sorusunu da sorar; boylece
-/// filtrenin hem yeterli hem de fazla dar olmadigi kanitlanir.
+/// 🚨 <strong>The two-way check cannot be skipped.</strong> If only "B must
+/// not see it" is checked, a broken query that returns nothing at all would
+/// also pass the test. Every scenario therefore also asks "does A see its
+/// own data", proving the filter is both sufficient and not too narrow.
 /// </para>
 /// </remarks>
 public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
 {
-    /// <summary>Veriyi yazan kiraci.</summary>
+    /// <summary>The tenant that writes the data.</summary>
     protected const string TenantA = "tenant-a";
 
-    /// <summary>Veriyi gormemesi gereken kiraci.</summary>
+    /// <summary>The tenant that must not see the data.</summary>
     protected const string TenantB = "tenant-b";
 
     /// <summary>
-    /// Depolarin <see cref="ITenantContext"/>'ten okudugu kiraci. Kiraciyi
-    /// parametre olarak almayan depolarin sozlesmeleri, kancalarinin ilk
-    /// satirinda bu ozelligi ilgili kiraciya ayarlar.
+    /// The tenant stores read from <see cref="ITenantContext"/>. For stores
+    /// that do not take the tenant as a parameter, the contract sets this
+    /// property to the relevant tenant on the first line of its hooks.
     /// </summary>
     protected MutableTenantContext AmbientTenant { get; private set; } = new(TenantA);
 
-    /// <summary>Test edilen depo.</summary>
+    /// <summary>The store under test.</summary>
     protected TStore Store { get; private set; } = default!;
 
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
+    /// <summary>Produces an empty store for the test.</summary>
+    /// <returns>A store ready for use.</returns>
     protected abstract ValueTask<TStore> CreateStoreAsync();
 
     /// <summary>
-    /// Sinif basina paylasilan (birden fazla test tarafindan kullanilan) bir
-    /// kiraci baglamina baglanir ve kiraciyi <see cref="TenantA"/>'ya geri alir.
+    /// Attaches to a tenant context shared per class (used by multiple
+    /// tests) and resets the tenant back to <see cref="TenantA"/>.
     /// </summary>
-    /// <param name="tenant">Sema/test SINIFI fixture'inin sagladigi paylasilan baglam.</param>
+    /// <param name="tenant">The shared context supplied by the schema/test CLASS fixture.</param>
     /// <remarks>
-    /// Store ornekleri sinif basina bir kez kuruldugunda (bkz. sema fixture'lari)
-    /// hepsi AYNI <see cref="ITenantContext"/> nesnesini yakalar; bu yuzden her
-    /// test <see cref="CreateStoreAsync"/> icinde bu metodu cagirarak o nesneye
-    /// baglanmali ve onceki testin kiraciyi <see cref="TenantB"/>'de birakmis
-    /// olabilecegi durumu sifirlamalidir.
+    /// When store instances are set up once per class (see the schema
+    /// fixtures), they all capture the SAME <see cref="ITenantContext"/>
+    /// object; each test must therefore call this method inside
+    /// <see cref="CreateStoreAsync"/> to attach to that object and reset any
+    /// state a previous test may have left on <see cref="TenantB"/>.
     /// </remarks>
     protected void UseAmbientTenant(MutableTenantContext tenant)
     {
@@ -88,54 +89,56 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Hook for a derived class to release its own resources.</summary>
+    /// <returns>A completed task.</returns>
     protected virtual ValueTask OnDisposeAsync() => default;
 
-    // --- Kiraci yalitimi kancalari (Faz 41) ---
+    // --- Tenant isolation hooks (phase 41) ---
 
-    /// <summary>Verilen kiraci icin ornek bir kayit yazar.</summary>
-    /// <param name="tenantId">Kaydin sahibi kiraci.</param>
-    /// <param name="name">Kaydi ayirt eden ad. Ayni ad iki kiracida kullanilabilir.</param>
-    /// <returns>Kaydi geri okumak icin kullanilacak anahtar.</returns>
+    /// <summary>Writes a sample record for the given tenant.</summary>
+    /// <param name="tenantId">The tenant that owns the record.</param>
+    /// <param name="name">The name distinguishing the record. The same name may be used by two tenants.</param>
+    /// <returns>The key to use for reading the record back.</returns>
     protected abstract ValueTask<object> SeedAsync(string tenantId, string name);
 
-    /// <summary>Kaydin verilen kiraci gozunden gorunup gorunmedigini soyler.</summary>
-    /// <param name="tenantId">Okuyan kiraci.</param>
-    /// <param name="key"><see cref="SeedAsync"/>'in dondurdugu anahtar.</param>
-    /// <returns>Kayit goruluyorsa <see langword="true"/>.</returns>
+    /// <summary>Reports whether the record is visible from the given tenant's viewpoint.</summary>
+    /// <param name="tenantId">The reading tenant.</param>
+    /// <param name="key">The key returned by <see cref="SeedAsync"/>.</param>
+    /// <returns><see langword="true"/> if the record is visible.</returns>
     protected abstract ValueTask<bool> ExistsAsync(string tenantId, object key);
 
-    /// <summary>Verilen kiracinin listeleme ucundan kac kayit gordugunu soyler.</summary>
-    /// <param name="tenantId">Okuyan kiraci.</param>
-    /// <returns>Gorulen kayit sayisi.</returns>
+    /// <summary>Reports how many records the given tenant sees through the listing endpoint.</summary>
+    /// <param name="tenantId">The reading tenant.</param>
+    /// <returns>The number of records seen.</returns>
     protected abstract ValueTask<int> CountAsync(string tenantId);
 
     /// <summary>
-    /// Kaydi verilen kiraci adina silmeyi dener.
+    /// Attempts to delete the record on behalf of the given tenant.
     /// </summary>
-    /// <param name="tenantId">Silmeyi deneyen kiraci.</param>
-    /// <param name="key"><see cref="SeedAsync"/>'in dondurdugu anahtar.</param>
+    /// <param name="tenantId">The tenant attempting the delete.</param>
+    /// <param name="key">The key returned by <see cref="SeedAsync"/>.</param>
     /// <returns>
-    /// Silme gerceklestiyse <see langword="true"/>, kayit bulunamadiysa
-    /// <see langword="false"/>; depo silme sunmuyorsa <see langword="null"/>.
+    /// <see langword="true"/> if the delete succeeded, <see langword="false"/>
+    /// if the record was not found; <see langword="null"/> if the store does
+    /// not offer deletion.
     /// </returns>
     protected virtual ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
         => new((bool?)null);
 
     /// <summary>
-    /// Kaydin icerigini verilen kiraci adina degistirmeyi dener.
+    /// Attempts to change the record's content on behalf of the given
+    /// tenant.
     /// </summary>
-    /// <param name="tenantId">Guncellemeyi deneyen kiraci.</param>
-    /// <param name="name">Kaydin adi.</param>
+    /// <param name="tenantId">The tenant attempting the update.</param>
+    /// <param name="name">The record's name.</param>
     /// <returns>
-    /// Guncelleme denendiyse <see langword="true"/>; depo bu senaryoyu
-    /// desteklemiyorsa <see langword="false"/>.
+    /// <see langword="true"/> if the update was attempted; <see langword="false"/>
+    /// if the store does not support this scenario.
     /// </returns>
     /// <remarks>
-    /// Varsayilan uygulama <see cref="SeedAsync"/>'i ikinci kez cagirir: adi
-    /// ayni olan bir kayit yazmak, iki kiracinin ayni adi bagimsiz
-    /// tasiyabildigini dogrular.
+    /// The default implementation calls <see cref="SeedAsync"/> a second
+    /// time: writing a record with the same name verifies that two tenants
+    /// can carry the same name independently.
     /// </remarks>
     protected virtual async ValueTask<bool> TryOverwriteAsync(string tenantId, string name)
     {
@@ -143,69 +146,70 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
         return true;
     }
 
-    // --- Yalitim testleri ---
+    // --- Isolation tests ---
 
     [Fact]
-    public async Task Kiraci_digerinin_kaydini_okuyamaz()
+    public async Task Tenant_cannot_read_another_tenants_record()
     {
-        var key = await SeedAsync(TenantA, "gizli");
+        var key = await SeedAsync(TenantA, "secret");
 
         (await ExistsAsync(TenantB, key)).ShouldBeFalse(
-            "B kiracisi A kiracisinin kaydini okuyabiliyor.");
+            "Tenant B can read tenant A's record.");
     }
 
     [Fact]
-    public async Task Kiraci_kendi_kaydini_okur()
+    public async Task Tenant_reads_its_own_record()
     {
-        // 🚨 Ikinci yon. Bu denetim olmadan hicbir sey dondurmeyen kirik bir
-        // sorgu da yalitim testini gecerdi.
-        var key = await SeedAsync(TenantA, "gizli");
+        // 🚨 The second direction. Without this check, a broken query that
+        // returns nothing at all would also pass the isolation test.
+        var key = await SeedAsync(TenantA, "secret");
 
         (await ExistsAsync(TenantA, key)).ShouldBeTrue(
-            "A kiracisi kendi kaydini okuyamiyor; filtre fazla dar.");
+            "Tenant A cannot read its own record; the filter is too narrow.");
     }
 
     [Fact]
-    public async Task Kiraci_digerinin_kaydini_listede_gormez()
+    public async Task Tenant_does_not_see_another_tenants_record_in_the_list()
     {
-        await SeedAsync(TenantA, "gizli");
+        await SeedAsync(TenantA, "secret");
 
-        (await CountAsync(TenantB)).ShouldBe(0, "Listeleme ucu kiracilar arasinda siziyor.");
-        (await CountAsync(TenantA)).ShouldBeGreaterThan(0, "Kiraci kendi kaydini listeleyemiyor.");
+        (await CountAsync(TenantB)).ShouldBe(0, "The listing endpoint leaks across tenants.");
+        (await CountAsync(TenantA)).ShouldBeGreaterThan(0, "The tenant cannot list its own record.");
     }
 
     [Fact]
-    public async Task Kiraci_digerinin_kaydini_silemez()
+    public async Task Tenant_cannot_delete_another_tenants_record()
     {
-        var key = await SeedAsync(TenantA, "gizli");
+        var key = await SeedAsync(TenantA, "secret");
 
         var deleted = await TryDeleteAsync(TenantB, key);
 
         if (deleted is null)
         {
-            // Depo silme sunmuyor; senaryo gecerli degil.
+            // The store does not offer deletion; the scenario does not apply.
             return;
         }
 
-        deleted.Value.ShouldBeFalse("B kiracisi A kiracisinin kaydini silebiliyor.");
-        (await ExistsAsync(TenantA, key)).ShouldBeTrue("Kayit basarisiz silme denemesinden sonra kaybolmus.");
+        deleted.Value.ShouldBeFalse("Tenant B can delete tenant A's record.");
+        (await ExistsAsync(TenantA, key)).ShouldBeTrue("The record disappeared after a failed delete attempt.");
 
-        // Kendi kaydini silebilmelidir; aksi halde silme sorgusu tumden kirik olurdu.
-        (await TryDeleteAsync(TenantA, key))!.Value.ShouldBeTrue("Kiraci kendi kaydini silemiyor.");
+        // It must be able to delete its own record; otherwise the delete
+        // query would be broken altogether.
+        (await TryDeleteAsync(TenantA, key))!.Value.ShouldBeTrue("The tenant cannot delete its own record.");
     }
 
     [Fact]
-    public async Task Ayni_ad_iki_kiracida_bagimsiz_yasar()
+    public async Task Same_name_lives_independently_across_two_tenants()
     {
-        var keyA = await SeedAsync(TenantA, "ortak-ad");
+        var keyA = await SeedAsync(TenantA, "shared-name");
 
-        if (!await TryOverwriteAsync(TenantB, "ortak-ad"))
+        if (!await TryOverwriteAsync(TenantB, "shared-name"))
         {
             return;
         }
 
         (await ExistsAsync(TenantA, keyA)).ShouldBeTrue(
-            "B kiracisinin ayni adla yazmasi A kiracisinin kaydini ezdi.");
+            "Tenant B writing under the same name overwrote tenant A's record.");
         (await CountAsync(TenantA)).ShouldBe(1);
         (await CountAsync(TenantB)).ShouldBe(1);
     }

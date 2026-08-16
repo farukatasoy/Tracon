@@ -5,36 +5,36 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.Core.UnitTests.Tools;
 
 /// <summary>
-/// Tool defterinin arayuze verdigi tanimlari ve <c>AddToolsFrom&lt;T&gt;()</c>
-/// taramasini dogrular.
+/// Validates the descriptors the tool registry exposes to the interface, and
+/// the <c>AddToolsFrom&lt;T&gt;()</c> scan.
 /// </summary>
 /// <remarks>
-/// Tool'lar yalnizca kodda tanimlanir; arayuz bu listeden secim yaptirir.
-/// Bu bir guvenlik sinirdir. Gerekce: <c>docs/MIMARI.md</c>, kural K2.
+/// Tools are defined only in code; the interface only picks from this list.
+/// This is a security boundary. Rationale: <c>docs/MIMARI.md</c>, rule K2.
 /// </remarks>
 public sealed class ToolRegistrationTests
 {
     [Fact]
-    public void Tool_tanimi_ad_aciklama_ve_json_semasi_tasir()
+    public void Tool_descriptor_carries_name_description_and_json_schema()
     {
-        var registry = TestData.Registry(TestData.Tool("get_order", "Siparis durumunu dondurur"));
+        var registry = TestData.Registry(TestData.Tool("get_order", "Returns the order status."));
 
         var descriptor = registry.List().ShouldHaveSingleItem();
 
         descriptor.Name.ShouldBe("get_order");
-        descriptor.Description.ShouldBe("Siparis durumunu dondurur");
+        descriptor.Description.ShouldBe("Returns the order status.");
         descriptor.JsonSchema.ShouldNotBeNullOrWhiteSpace();
         JsonDocument.Parse(descriptor.JsonSchema!).RootElement.ValueKind.ShouldBe(JsonValueKind.Object);
     }
 
     [Fact]
-    public void Json_semasi_parametreleri_icerir()
+    public void Json_schema_contains_the_parameters()
     {
         var registry = TestData.Registry(
             Microsoft.Extensions.AI.AIFunctionFactory.Create(
-                (string orderId) => $"durum: {orderId}",
+                (string orderId) => $"status: {orderId}",
                 "get_order_status",
-                "Kargo durumunu dondurur"));
+                "Returns the shipment status."));
 
         var descriptor = registry.List().ShouldHaveSingleItem();
 
@@ -42,76 +42,77 @@ public sealed class ToolRegistrationTests
     }
 
     [Fact]
-    public void Onay_gereksinimi_tanima_tasinir()
+    public void Approval_requirement_is_carried_to_the_descriptor()
     {
-        var registry = new ToolRegistry([new AgentPrismToolRegistration(TestData.Tool("sil"), requiresApproval: true)]);
+        var registry = new ToolRegistry([new AgentPrismToolRegistration(TestData.Tool("delete"), requiresApproval: true)]);
 
         registry.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
     }
 
     [Fact]
-    public void Ayni_ad_iki_kez_kaydedilirse_hata_verilir()
+    public void Registering_the_same_name_twice_throws()
     {
         var exception = Should.Throw<AgentPrismException>(
-            () => TestData.Registry(TestData.Tool("ayni"), TestData.Tool("ayni")));
+            () => TestData.Registry(TestData.Tool("duplicate"), TestData.Tool("duplicate")));
 
-        exception.Message.ShouldContain("ayni");
+        exception.Message.ShouldContain("duplicate");
     }
 
     [Fact]
-    public void AddToolsFrom_yalnizca_isaretli_metotlari_kaydeder()
+    public void AddToolsFrom_registers_only_marked_methods()
     {
-        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(OrnekToolSinifi)));
+        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(SampleToolClass)));
 
         registry.List().Select(static descriptor => descriptor.Name)
-            .ShouldBe(["VarsayilanAdliMetot", "ozel_ad"], ignoreOrder: true);
+            .ShouldBe(["DefaultNamedMethod", "custom_name"], ignoreOrder: true);
     }
 
     [Fact]
-    public void AddToolsFrom_aciklama_ve_onay_bilgisini_tasir()
+    public void AddToolsFrom_carries_the_description_and_approval_flag()
     {
-        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(OrnekToolSinifi)));
+        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(SampleToolClass)));
 
-        var descriptor = registry.List().Single(static d => string.Equals(d.Name, "ozel_ad", StringComparison.Ordinal));
+        var descriptor = registry.List().Single(static d => string.Equals(d.Name, "custom_name", StringComparison.Ordinal));
 
-        descriptor.Description.ShouldBe("Ozel adli tool.");
+        descriptor.Description.ShouldBe("Custom-named tool.");
         descriptor.RequiresApproval.ShouldBeTrue();
     }
 
     [Fact]
-    public void AddToolsFrom_ad_verilmezse_metot_adini_kullanir()
+    public void AddToolsFrom_uses_the_method_name_when_no_name_is_given()
     {
-        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(OrnekToolSinifi)));
+        var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(SampleToolClass)));
 
-        registry.TryGet("VarsayilanAdliMetot", out _).ShouldBeTrue();
+        registry.TryGet("DefaultNamedMethod", out _).ShouldBeTrue();
     }
 
     [Fact]
-    public void AddToolsFrom_isaretli_metot_yoksa_hata_verir()
+    public void AddToolsFrom_throws_when_there_is_no_marked_method()
     {
-        // Sessiz bir bos kayit, kullaniciya tool'lari kaydettigini dusundururdu.
+        // A silent, empty registration would make the caller think tools were registered.
         var exception = Should.Throw<AgentPrismException>(
-            () => BuildRegistry(builder => builder.AddToolsFrom(typeof(IsaretsizSinif))));
+            () => BuildRegistry(builder => builder.AddToolsFrom(typeof(UnmarkedClass))));
 
-        exception.Message.ShouldContain(nameof(IsaretsizSinif));
+        exception.Message.ShouldContain(nameof(UnmarkedClass));
         exception.Message.ShouldContain("AgentPrismTool");
     }
 
     [Fact]
-    public void AddToolsFrom_ornek_metodunu_tarama_aninda_reddeder()
+    public void AddToolsFrom_rejects_the_sample_method_at_scan_time()
     {
-        // K-218 onarimi: MAF, tool govdesine AIFunctionArguments.Services olarak
-        // BOS bir saglayici gecirir (EmptyServiceProvider, null DEGIL). Eskiden bu
-        // denetim cagri aninda, hicbir zaman tetiklenmeyen bir `is { }` deseninin
-        // arkasindaydi. Onarim: reddi TARAMA anina tasir, ilk tool cagrisini beklemez.
+        // K-218 fix: MAF passes an EMPTY provider as AIFunctionArguments.Services
+        // into the tool body (EmptyServiceProvider, NOT null). This check used to
+        // sit behind an `is { }` pattern at call time that never triggered.
+        // Fix: move the rejection to SCAN time instead of waiting for the first
+        // tool call.
         var services = new ServiceCollection();
-        services.AddSingleton(new SelamlamaAyari("Merhaba"));
+        services.AddSingleton(new GreetingSettings("Hello"));
 
         var exception = Should.Throw<AgentPrismException>(
-            () => services.AddAgentPrism().AddToolsFrom<OrnekMetotluSinif>());
+            () => services.AddAgentPrism().AddToolsFrom<SampleClassWithMethod>());
 
-        exception.Message.ShouldContain(nameof(OrnekMetotluSinif));
-        exception.Message.ShouldContain("Selamla");
+        exception.Message.ShouldContain(nameof(SampleClassWithMethod));
+        exception.Message.ShouldContain("Greet");
         exception.Message.ShouldContain("K-218");
     }
 
@@ -124,27 +125,27 @@ public sealed class ToolRegistrationTests
         return provider.GetRequiredService<IToolRegistry>();
     }
 
-    private sealed record SelamlamaAyari(string Onek);
+    private sealed record GreetingSettings(string Prefix);
 
-    private static class OrnekToolSinifi
+    private static class SampleToolClass
     {
         [AgentPrismTool]
-        public static string VarsayilanAdliMetot() => "sonuc";
+        public static string DefaultNamedMethod() => "result";
 
-        [AgentPrismTool("ozel_ad", "Ozel adli tool.", RequiresApproval = true)]
-        public static string OzelAdliMetot() => "sonuc";
+        [AgentPrismTool("custom_name", "Custom-named tool.", RequiresApproval = true)]
+        public static string CustomNamedMethod() => "result";
 
-        public static string IsaretsizMetot() => "kaydedilmez";
+        public static string UnmarkedMethod() => "not registered";
     }
 
-    private static class IsaretsizSinif
+    private static class UnmarkedClass
     {
-        public static string HicbirSey() => "kaydedilmez";
+        public static string Nothing() => "not registered";
     }
 
-    private sealed class OrnekMetotluSinif(SelamlamaAyari ayar)
+    private sealed class SampleClassWithMethod(GreetingSettings settings)
     {
-        [AgentPrismTool("selamla")]
-        public string Selamla(string ad) => $"{ayar.Onek} {ad}";
+        [AgentPrismTool("greet")]
+        public string Greet(string name) => $"{settings.Prefix} {name}";
     }
 }

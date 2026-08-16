@@ -6,7 +6,7 @@ namespace AgentPrism.Core.UnitTests.Compilation;
 public sealed class ResponseFormatValidationTests
 {
     [Fact]
-    public void JsonSchema_kipi_semasiz_derlemeyi_durdurur()
+    public void JsonSchema_mode_without_a_schema_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -25,7 +25,7 @@ public sealed class ResponseFormatValidationTests
     }
 
     [Fact]
-    public void Text_kipi_semayla_verilirse_derlemeyi_durdurur()
+    public void Text_mode_with_a_schema_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -47,7 +47,7 @@ public sealed class ResponseFormatValidationTests
     }
 
     [Fact]
-    public void Json_kipi_semayla_verilirse_derlemeyi_durdurur()
+    public void Json_mode_with_a_schema_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -69,7 +69,7 @@ public sealed class ResponseFormatValidationTests
     }
 
     [Fact]
-    public void Sema_JSON_nesnesi_degilse_derlemeyi_durdurur()
+    public void Schema_that_is_not_a_JSON_object_stops_compilation()
     {
         var compiler = CreateCompiler();
 
@@ -80,7 +80,7 @@ public sealed class ResponseFormatValidationTests
                 ResponseFormat = new AgentResponseFormat
                 {
                     Kind = AgentResponseFormatKind.JsonSchema,
-                    Schema = ParseSchema("""["degil", "nesne"]"""),
+                    Schema = ParseSchema("""["not", "object"]"""),
                 },
             },
         };
