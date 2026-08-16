@@ -5,14 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Cevrimici degerlendirme uclarinin testleri (Faz 49).</summary>
+/// <summary>Tests for the online evaluation endpoints (Phase 49).</summary>
 public sealed class OnlineEvaluationEndpointTests
 {
     [Fact]
-    public async Task Elle_puanlama_ornetlemeyi_atlar_ve_puan_yazar()
+    public async Task Manual_scoring_skips_sampling_and_writes_a_score()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(77, "iyi")));
+            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(77, "good")));
 
         var runId = await SeedScorableRunAsync(host);
 
@@ -26,16 +26,16 @@ public sealed class OnlineEvaluationEndpointTests
         body[0].GetProperty("value").GetInt32().ShouldBe(77);
         body[0].GetProperty("source").GetString().ShouldBe("judge:stub");
 
-        // Yazilan puan, insan geri bildirim ucunda da gorunur (ayni tablo).
+        // The written score is also visible on the human feedback endpoint (same table).
         using var feedback = await host.Client.GetAsync(new Uri($"/agentprism/api/runs/{runId}/feedback", UriKind.Relative));
         (await AgentPrismTestHost.ReadJsonAsync(feedback)).GetArrayLength().ShouldBe(1);
     }
 
     [Fact]
-    public async Task Olmayan_calistirma_elle_puanlanmaya_calisilinca_404_doner()
+    public async Task Manual_scoring_a_nonexistent_run_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(77, "iyi")));
+            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(77, "good")));
 
         using var response = await host.Client.PostAsync(JudgeUri(AgentPrismId.NewId()), content: null);
 
@@ -43,7 +43,7 @@ public sealed class OnlineEvaluationEndpointTests
     }
 
     [Fact]
-    public async Task Kayitli_yargic_yoksa_bos_liste_doner()
+    public async Task Returns_an_empty_list_when_no_judge_is_registered()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedScorableRunAsync(host);
@@ -55,7 +55,7 @@ public sealed class OnlineEvaluationEndpointTests
     }
 
     [Fact]
-    public async Task Ozet_ucu_bos_pencerede_sifir_ornek_doner()
+    public async Task Summary_endpoint_returns_zero_samples_for_an_empty_window()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -69,10 +69,10 @@ public sealed class OnlineEvaluationEndpointTests
     }
 
     [Fact]
-    public async Task Elle_puanlama_sonrasi_ozet_orneği_gosterir()
+    public async Task Summary_endpoint_shows_the_sample_after_manual_scoring()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
-            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(20, "kotu")));
+            configureServices: static services => services.AddSingleton<IRunJudge>(new StubJudge(20, "bad")));
 
         var runId = await SeedScorableRunAsync(host);
         await host.Client.PostAsync(JudgeUri(runId), content: null);
@@ -105,7 +105,7 @@ public sealed class OnlineEvaluationEndpointTests
         {
             RunId = runId,
             TenantId = "default",
-            Messages = [new ChatMessage(ChatRole.User, "soru")],
+            Messages = [new ChatMessage(ChatRole.User, "question")],
             CreatedAt = now,
         });
 
@@ -115,7 +115,7 @@ public sealed class OnlineEvaluationEndpointTests
             Sequence = 0,
             Type = RunEventType.MessageCompleted,
             Timestamp = now,
-            Text = "cevap",
+            Text = "answer",
         });
 
         await runs.CompleteRunAsync(new RunCompletion

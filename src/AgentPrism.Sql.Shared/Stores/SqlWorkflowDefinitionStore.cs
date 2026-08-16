@@ -3,18 +3,18 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Workflow tanimlarini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores workflow definitions in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// Davranis sozlesmesi <see cref="InMemoryWorkflowDefinitionStore"/> ile birebir
-/// aynidir ve ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryWorkflowDefinitionStore"/>
+/// and is protected by shared contract tests.
 /// </para>
 /// <para>
-/// Kiraci kimligi <em>parametre olarak</em> alinir, <c>ITenantContext</c>'ten
-/// okunmaz. Sebep: kontrol noktasi deposu ve workflow deposu MAF'in yurutme
-/// hattindan da cagrilir; orada HTTP baglami yoktur ve ortam kiracisi yanlis
-/// degere duserdi. Ayni tercih <see cref="SqlAgentSkillStore"/> icin de
-/// yapilmisti.
+/// The tenant id is taken <em>as a parameter</em>, not read from <c>ITenantContext</c>.
+/// Reason: the checkpoint store and the workflow store are also called from
+/// MAF's execution pipeline; there is no HTTP context there, and the ambient
+/// tenant would fall back to the wrong value. The same choice was made for
+/// <see cref="SqlAgentSkillStore"/>.
 /// </para>
 /// </remarks>
 internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
@@ -22,9 +22,9 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir workflow tanim deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new workflow definition store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlWorkflowDefinitionStore(
         SqlStoreContext context)
     {
@@ -34,7 +34,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -71,10 +71,11 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         var command = CreateCommand(_sql.SelectWorkflows);
         DbHelpers.Add(command, "tenant_id", tenantId);
 
-        // Ad `definition` yukunde DEGIL, sutunda yasar; okurken JSON'dan degil
-        // sutundan alinmasi gerekir. Sorgu adi secmedigi icin burada yuke
-        // gomulu olmayan tek alan odur ve ayri bir sorgu yerine SELECT
-        // listesine eklenmistir.
+        // The name lives in the column, NOT in the `definition` payload; when
+        // reading, it must come from the column, not the JSON. Since the
+        // query does not select by name, it is the only field here not
+        // embedded in the payload, and has been added to the SELECT list
+        // instead of a separate query.
         return await DbHelpers.ReadListAsync(
             command,
             reader => ReadDefinition(
@@ -113,7 +114,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
                 static reader => new WrittenVersion(reader.GetInt32(0), DbHelpers.GetTimestamp(reader, 1)),
                 cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
-                $"'{definition.Name}' workflow tanimi kaydedilemedi: veritabani surum bilgisi dondurmedi.");
+                $"Failed to save workflow definition '{definition.Name}': the database did not return version information.");
 
         return definition with
         {
@@ -149,7 +150,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         DateTimeOffset updatedAt)
     {
         var deserialized = JsonSerializer.Deserialize(payload, AgentPrismJsonContext.Default.WorkflowDefinitionPayload)
-            ?? throw new AgentPrismException($"'{name}' workflow tanimi okunamadi: veritabanindaki JSON yuku bos.");
+            ?? throw new AgentPrismException($"Failed to read workflow definition '{name}': the JSON payload in the database is empty.");
 
         return deserialized.ToDefinition(name, version, tenantId, updatedAt);
     }

@@ -3,14 +3,14 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Eval takimlarini, vakalarini ve kosularini PostgreSQL'de saklayan tenant-yalitimli depo.</summary>
+/// <summary>Tenant-isolated store for eval suites, cases, and runs in the SQL database.</summary>
 internal sealed class SqlEvalStore : IEvalStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir eval deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new eval store.</summary>
+    /// <param name="context">The store context.</param>
     public SqlEvalStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -19,7 +19,7 @@ internal sealed class SqlEvalStore : IEvalStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -67,7 +67,7 @@ internal sealed class SqlEvalStore : IEvalStore
         Dialect.AddTimestamp(command, "now", now);
 
         return await DbHelpers.ReadSingleAsync(command, ReadSuite, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{suite.Name}' eval takimi kaydedilemedi.");
+            ?? throw new AgentPrismException($"Failed to save eval suite '{suite.Name}'.");
     }
 
     /// <inheritdoc />
@@ -88,7 +88,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Vakalar takimin ALTINDA yasar; takim kimligi kiraciya suzulmus bir sorgudan (ListSuitesAsync/GetSuiteAsync) gelir ve kendisi bir kiraci niyeti tasimaz.")]
+        "Cases live UNDER a suite; the suite id comes from a query already filtered by tenant (ListSuitesAsync/GetSuiteAsync) and carries no tenant intent of its own.")]
     public async ValueTask<IReadOnlyList<EvalCase>> ListCasesAsync(
         Guid suiteId,
         CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "ListCasesAsync ile ayni gerekce: takim kimligi kiraciya suzulmus bir sorgudan gelir.")]
+        "Same rationale as ListCasesAsync: the suite id comes from a query already filtered by tenant.")]
     public async ValueTask<IReadOnlyList<EvalCase>> ReplaceCasesAsync(
         Guid suiteId,
         IReadOnlyList<EvalCase> cases,
@@ -157,17 +157,18 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>seq</c> depo icinde <c>MAX(seq) + 1</c> alt sorgusuyla atomik
-    /// hesaplanir; iki es zamanli terfi ayni degeri hesaplayabilir. Bu durumda
-    /// <c>eval_cases_suite_seq_uq</c> ihlali <see cref="SqlDialect.IsUniqueViolation"/>
-    /// ile yakalanir ve YENIDEN DENENIR. Ayni <c>SourceRunId</c>'nin ikinci kez
-    /// eklenmeye calisilmasi da benzersizlik ihlaline duser (<c>eval_cases_source_run_uq</c>)
-    /// ama farkli yorumlanir: mevcut vaka <c>SelectEvalCaseBySourceRun</c> ile
-    /// okunup <c>Created: false</c> ile donulur (docs/45-URETIMDEN-EVAL-KUMESI.md,
-    /// bolum 45.2).
+    /// 🚨 <c>seq</c> is computed atomically in the store with a
+    /// <c>MAX(seq) + 1</c> subquery; two concurrent promotions can compute the
+    /// same value. In that case the <c>eval_cases_suite_seq_uq</c> violation is
+    /// caught by <see cref="SqlDialect.IsUniqueViolation"/> and RETRIED. A
+    /// second attempt to add the same <c>SourceRunId</c> also trips a
+    /// uniqueness violation (<c>eval_cases_source_run_uq</c>) but is
+    /// interpreted differently: the existing case is read back via
+    /// <c>SelectEvalCaseBySourceRun</c> and returned with <c>Created: false</c>
+    /// (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2).
     /// </remarks>
     [TenantAgnostic(
-        "ReplaceCasesAsync ile ayni gerekce: takim kimligi kiraciya suzulmus bir sorgudan gelir.")]
+        "Same rationale as ReplaceCasesAsync: the suite id comes from a query already filtered by tenant.")]
     public async ValueTask<EvalCaseAddResult> AddCaseAsync(
         Guid suiteId,
         EvalCaseDraft draft,
@@ -181,10 +182,11 @@ internal sealed class SqlEvalStore : IEvalStore
         {
             if (attempt > 0)
             {
-                // Es zamanli terfiler ayni MAX(seq)'i okuyup ayni degeri
-                // hesaplayabilir; jitter'siz yeniden deneme kaybedenleri ayni
-                // anda tekrar carpistirir (thundering herd, K-385). Rastgele
-                // gecikme kaybedenleri zamanda dagitip yakinsamayi hizlandirir.
+                // Concurrent promotions can read the same MAX(seq) and compute
+                // the same value; retrying without jitter would collide the
+                // losers again at the same instant (thundering herd, K-385).
+                // Random delay spreads the losers out in time and speeds up
+                // convergence.
                 var jitterMs = Random.Shared.Next(1, (attempt * 5) + 1);
                 await Task.Delay(jitterMs, cancellationToken).ConfigureAwait(false);
             }
@@ -207,7 +209,7 @@ internal sealed class SqlEvalStore : IEvalStore
             try
             {
                 var inserted = await DbHelpers.ReadSingleAsync(command, ReadCase, cancellationToken).ConfigureAwait(false)
-                    ?? throw new AgentPrismException("Eval vakasi eklenemedi.");
+                    ?? throw new AgentPrismException("Failed to add eval case.");
 
                 return new EvalCaseAddResult { Case = inserted, Created = true };
             }
@@ -223,13 +225,14 @@ internal sealed class SqlEvalStore : IEvalStore
                     }
                 }
 
-                // Ihlal source_run_id'den degilse seq catismasidir: bir sonraki
-                // denemede MAX(seq) yeniden okunur ve taze bir deger uretilir.
+                // If the violation is not from source_run_id, it is a seq
+                // conflict: the next attempt re-reads MAX(seq) and produces a
+                // fresh value.
             }
         }
 
         throw new AgentPrismException(
-            $"Eval vakasi eklenemedi: {maxAttempts} denemede sira numarasi atanamadi (cok fazla es zamanli terfi).");
+            $"Failed to add eval case: could not assign a sequence number in {maxAttempts} attempts (too much concurrent promotion).");
     }
 
     private async ValueTask<EvalCase?> GetCaseBySourceRunAsync(
@@ -256,12 +259,12 @@ internal sealed class SqlEvalStore : IEvalStore
         Dialect.AddTimestamp(command, "started_at", run.StartedAt);
 
         return await DbHelpers.ReadSingleAsync(command, ReadRun, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException("Eval kosu kaydi olusturulamadi.");
+            ?? throw new AgentPrismException("Failed to create eval run record.");
     }
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kosu kimligi kosuyu ACAN kod tarafindan uretilir (uuid v7); cagride ayri bir kiraci niyeti yoktur. Kiraci siniri kosu okumalarinda zorlanir.")]
+        "The run id is generated by the code that OPENS the run (uuid v7); the call carries no separate tenant intent. The tenant boundary is enforced on run reads.")]
     public async ValueTask MarkRunRunningAsync(
         Guid evalRunId,
         int? agentVersion,
@@ -278,7 +281,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "MarkRunRunningAsync ile ayni gerekce: kiraci kosudan miras alinir.")]
+        "Same rationale as MarkRunRunningAsync: the tenant is inherited from the run.")]
     public async ValueTask CompleteRunAsync(EvalRunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -344,7 +347,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Sonuc kosunun ALTINA yazilir ve kiracisini kosudan miras alir; okuma tarafi (ListCaseResultsAsync) kiraciyla sinirlidir.")]
+        "The result is written UNDER the run and inherits its tenant from the run; the read side (ListCaseResultsAsync) is bounded by tenant.")]
     public async ValueTask RecordCaseResultAsync(EvalCaseResult result, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -357,11 +360,11 @@ internal sealed class SqlEvalStore : IEvalStore
         DbHelpers.Add(command, "passed", result.Passed);
         AddNullableText(command, "output", result.Output);
 
-        // Scores bir LISTEDIR ("[]" sutun varsayilanidir); ayarlanmamis
-        // (Undefined) bir JsonElement RawJson ile "null" yazardi ve SQL
-        // Server'in ISJSON kisiti bunu REDDEDER (ISJSON(N'null') = 0). Postgre/
-        // SQLite'ta json/jsonb 'null' sessizce kabul edildigi icin bu sadece
-        // SQL Server'da gorulur.
+        // Scores is a LIST (the column default is "[]"); an unset (Undefined)
+        // JsonElement would write "null" through RawJson, and SQL Server's
+        // ISJSON constraint REJECTS that (ISJSON(N'null') = 0). Postgres/SQLite
+        // accept a json/jsonb 'null' silently, so this only surfaces on SQL
+        // Server.
         Dialect.AddJsonb(command, "scores", result.Scores.ValueKind == JsonValueKind.Undefined ? "[]" : RawJson(result.Scores));
 
         AddNullableText(command, "failure_reason", result.FailureReason);
@@ -449,12 +452,12 @@ internal sealed class SqlEvalStore : IEvalStore
         };
 
     /// <summary>
-    /// jsonb sutununu <see cref="JsonElement"/> olarak okur.
+    /// Reads a jsonb column as a <see cref="JsonElement"/>.
     /// </summary>
     /// <remarks>
-    /// <see cref="JsonDocument"/> birakildiginda kendi tamponunu geri verir ve
-    /// icinden alinan <see cref="JsonElement"/> gecersizlesir; <c>Clone()</c>
-    /// tamponu kopyalar ve degeri cagiranin omrunden bagimsiz kilar.
+    /// Disposing a <see cref="JsonDocument"/> returns its buffer, invalidating
+    /// any <see cref="JsonElement"/> taken from it; <c>Clone()</c> copies the
+    /// buffer and makes the value independent of the caller's lifetime.
     /// </remarks>
     private static JsonElement ReadJsonb(DbDataReader reader, int ordinal)
     {

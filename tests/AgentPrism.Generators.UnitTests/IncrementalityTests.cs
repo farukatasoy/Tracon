@@ -3,13 +3,13 @@ using Microsoft.CodeAnalysis;
 namespace AgentPrism.Generators.UnitTests;
 
 /// <summary>
-/// <c>IIncrementalGenerator</c> sozlesmesini dogrular: alakasiz bir degisiklik
-/// adimin onbellegini BOZMAMALIDIR (52.5, DoD "IncrementalityTests").
+/// Verifies the <c>IIncrementalGenerator</c> contract: an unrelated change
+/// must NOT invalidate a step's cache (52.5, DoD "IncrementalityTests").
 /// </summary>
 public sealed class IncrementalityTests
 {
     [Fact]
-    public void Alakasiz_bir_degisiklikte_tool_adayi_adimi_yeniden_calismaz()
+    public void Tool_candidate_step_does_not_rerun_on_an_unrelated_change()
     {
         const string First = """
             using AgentPrism;
@@ -18,20 +18,21 @@ public sealed class IncrementalityTests
 
             internal static class Tools
             {
-                [AgentPrismTool("get_order_status", "Bir siparisin durumunu dondurur.")]
+                [AgentPrismTool("get_order_status", "Returns the status of an order.")]
                 public static string GetOrderStatus(string orderId) => orderId;
             }
 
             internal static class Unrelated
             {
-                public const int Deger = 1;
+                public const int Value = 1;
             }
             """;
 
-        // Yalniz ALAKASIZ sabitin degeri degisti; [AgentPrismTool] isaretli metot
-        // metnen AYNI (ayni SyntaxNode konumu/icerigi degil ama ureteç girdisi
-        // acisindan esdeger uretmelidir cunku ForAttributeWithMetadataName yalniz
-        // isaretlenmis dugumu izler).
+        // Only the value of the UNRELATED constant changed; the method marked
+        // with [AgentPrismTool] must produce an equivalent generator input (not
+        // the same SyntaxNode location/content, but equivalent for the
+        // generator's purposes, since ForAttributeWithMetadataName only tracks
+        // the marked node).
         const string Second = """
             using AgentPrism;
 
@@ -39,13 +40,13 @@ public sealed class IncrementalityTests
 
             internal static class Tools
             {
-                [AgentPrismTool("get_order_status", "Bir siparisin durumunu dondurur.")]
+                [AgentPrismTool("get_order_status", "Returns the status of an order.")]
                 public static string GetOrderStatus(string orderId) => orderId;
             }
 
             internal static class Unrelated
             {
-                public const int Deger = 2;
+                public const int Value = 2;
             }
             """;
 
@@ -61,7 +62,7 @@ public sealed class IncrementalityTests
     }
 
     [Fact]
-    public void Isaretli_metodun_govdesi_degisince_adayi_yeniden_uretilir()
+    public void Tool_candidate_step_stays_cached_when_only_the_marked_methods_body_changes()
     {
         const string First = """
             using AgentPrism;
@@ -70,7 +71,7 @@ public sealed class IncrementalityTests
 
             internal static class Tools
             {
-                [AgentPrismTool("get_order_status", "Bir siparisin durumunu dondurur.")]
+                [AgentPrismTool("get_order_status", "Returns the status of an order.")]
                 public static string GetOrderStatus(string orderId) => "v1";
             }
             """;
@@ -82,17 +83,18 @@ public sealed class IncrementalityTests
 
             internal static class Tools
             {
-                [AgentPrismTool("get_order_status", "Bir siparisin durumunu dondurur.")]
+                [AgentPrismTool("get_order_status", "Returns the status of an order.")]
                 public static string GetOrderStatus(string orderId) => "v2";
             }
             """;
 
         var (_, second) = GeneratorTestHelper.RunIncremental(First, Second);
 
-        // Model (imza, ad, aciklama) AYNI kaldigi icin ToolCandidate esdegerdir -
-        // govde degisikligi yalniz cagri sitesindeki metin degil, sema/kayit
-        // uretimini ETKILEMEZ. Onbellek bu yuzden Cached kalmalidir; bu, modelin
-        // yalniz GEREKEN alanlari tasidigini (SyntaxNode/govde degil) dogrular.
+        // Since the model (signature, name, description) stays the SAME, the
+        // ToolCandidate is equivalent - a body change does NOT affect
+        // schema/registration generation, only the call-site text. The cache
+        // therefore must stay Cached; this verifies the model carries only the
+        // fields it NEEDS (not the SyntaxNode/body).
         var reasons = second.StepReasons(ToolRegistrationGenerator.TrackingNames.ToolCandidates);
 
         reasons.ShouldNotBeEmpty();

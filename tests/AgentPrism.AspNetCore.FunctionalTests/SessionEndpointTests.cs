@@ -6,26 +6,26 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Oturum uclarini dogrular: listeleme, sohbet gecmisi okuma ve silme.
+/// Verifies the session endpoints: listing, reading chat history, and deletion.
 /// </summary>
 public sealed class SessionEndpointTests
 {
     [Fact]
-    public async Task Oturum_detayi_sohbet_gecmisini_dondurur()
+    public async Task Session_detail_returns_the_chat_history()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-1");
+        await RunAsync(host, "hello", "session-1");
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/oturum-1", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/session-1", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        json.GetProperty("id").GetString().ShouldBe("oturum-1");
+        json.GetProperty("id").GetString().ShouldBe("session-1");
         json.GetProperty("agentName").GetString().ShouldBe("kod-agent");
 
         var messages = json.GetProperty("messages");
@@ -33,37 +33,37 @@ public sealed class SessionEndpointTests
         messages.GetArrayLength().ShouldBeGreaterThanOrEqualTo(2);
 
         var text = messages.ToString();
-        text.ShouldContain("merhaba");
-        text.ShouldContain("Echo: merhaba");
+        text.ShouldContain("hello");
+        text.ShouldContain("Echo: hello");
     }
 
     [Fact]
-    public async Task Oturum_detayi_opak_durumu_da_dondurur()
+    public async Task Session_detail_also_returns_the_opaque_state()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-2");
+        await RunAsync(host, "hello", "session-2");
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/oturum-2", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/session-2", UriKind.Relative));
 
         var state = (await AgentPrismTestHost.ReadJsonAsync(response)).GetProperty("state");
 
         state.ValueKind.ShouldBe(JsonValueKind.Object);
 
-        // Oturum kimligi damgasi durumun icinde yasar ve oturumla kalicilasır.
+        // The session identity stamp lives inside the state and persists with the session.
         state.ToString().ShouldContain(AgentSessionIdentity.StateKey);
     }
 
     [Fact]
-    public async Task Oturumlar_listelenir()
+    public async Task Sessions_are_listed()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "bir", "oturum-a");
-        await RunAsync(host, "iki", "oturum-b");
+        await RunAsync(host, "one", "session-a");
+        await RunAsync(host, "two", "session-b");
 
         using var response = await host.Client.GetAsync(new Uri("/agentprism/api/sessions", UriKind.Relative));
         var ids = (await AgentPrismTestHost.ReadJsonAsync(response))
@@ -71,98 +71,100 @@ public sealed class SessionEndpointTests
             .Select(static session => session.GetProperty("id").GetString())
             .ToList();
 
-        ids.ShouldContain(static id => string.Equals(id, "oturum-a", StringComparison.Ordinal));
-        ids.ShouldContain(static id => string.Equals(id, "oturum-b", StringComparison.Ordinal));
+        ids.ShouldContain(static id => string.Equals(id, "session-a", StringComparison.Ordinal));
+        ids.ShouldContain(static id => string.Equals(id, "session-b", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Oturum_agent_adina_gore_filtrelenir()
+    public async Task Session_is_filtered_by_agent_name()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-c");
+        await RunAsync(host, "hello", "session-c");
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions?agentName=baska-agent", UriKind.Relative));
+            new Uri("/agentprism/api/sessions?agentName=other-agent", UriKind.Relative));
 
         (await AgentPrismTestHost.ReadJsonAsync(response)).GetArrayLength().ShouldBe(0);
     }
 
     [Fact]
-    public async Task Oturum_silinir()
+    public async Task Session_is_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-silinecek");
+        await RunAsync(host, "hello", "session-to-delete");
 
         using (var deleted = await host.Client.DeleteAsync(
-            new Uri("/agentprism/api/sessions/oturum-silinecek", UriKind.Relative)))
+            new Uri("/agentprism/api/sessions/session-to-delete", UriKind.Relative)))
         {
             deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         }
 
         using var missing = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/oturum-silinecek", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/session-to-delete", UriKind.Relative));
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Olmayan_oturum_404_doner()
+    public async Task Missing_session_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/yok-boyle", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/no-such-session", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
     }
 
     [Fact]
-    public async Task Agent_katalogdan_kalkarsa_ustveri_yine_doner()
+    public async Task Metadata_is_still_returned_when_the_agent_is_removed_from_the_catalog()
     {
-        // Gozlemlenebilirlik islevselligi bozmaz: gecmis okunamasa da oturum
-        // ustverisi dondurulur.
+        // Observability does not break functionality: even if the history
+        // can't be read, session metadata is still returned.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-yetim");
+        await RunAsync(host, "hello", "session-orphan");
 
-        // Ayni depoyu paylasmayan yeni bir barindirici kurmak yerine, oturumu
-        // katalogda olmayan bir agent adiyla dogrudan yaziyoruz.
+        // Instead of setting up a new host that does not share the same
+        // store, the session is written directly with an agent name that is
+        // not in the catalog.
         var store = (ISessionStore)host.Services.GetService(typeof(ISessionStore))!;
-        var existing = await store.GetAsync("oturum-yetim");
+        var existing = await store.GetAsync("session-orphan");
 
         existing.ShouldNotBeNull();
-        await store.SaveAsync(existing with { Id = "oturum-silinmis-agent", AgentName = "artik-yok" });
+        await store.SaveAsync(existing with { Id = "session-deleted-agent", AgentName = "no-longer-exists" });
 
         using var response = await host.Client.GetAsync(
-            new Uri("/agentprism/api/sessions/oturum-silinmis-agent", UriKind.Relative));
+            new Uri("/agentprism/api/sessions/session-deleted-agent", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
-        json.GetProperty("agentName").GetString().ShouldBe("artik-yok");
+        json.GetProperty("agentName").GetString().ShouldBe("no-longer-exists");
         json.GetProperty("messages").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     [Fact]
-    public async Task Bellek_ici_kurulumda_dallandirma_501_doner()
+    public async Task Branching_returns_501_in_an_in_memory_setup()
     {
-        // 🚨 SQL saglayicisi kayitli degilken sohbet gecmisi MAF'in
-        // InMemoryChatHistoryProvider'inda, oturum durumunun OPAK blogunda
-        // yasar ve belirli bir sira numarasina kadar kopyalanamaz. Sessizce
-        // tamamini kopyalamak istenen dali uretmezdi; uc bunu acikca soyler.
+        // 🚨 While no SQL provider is registered, the chat history lives in
+        // MAF's InMemoryChatHistoryProvider, inside the session state's OPAQUE
+        // block, and cannot be copied up to a specific sequence number.
+        // Silently copying everything would not produce the branch the caller
+        // wanted; the endpoint states this explicitly.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        await RunAsync(host, "merhaba", "oturum-dal");
+        await RunAsync(host, "hello", "session-branch");
 
         using var response = await host.Client.PostAsJsonAsync(
-            new Uri("/agentprism/api/sessions/oturum-dal/branch", UriKind.Relative),
+            new Uri("/agentprism/api/sessions/session-branch/branch", UriKind.Relative),
             new { upToSequence = 0 });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
@@ -173,18 +175,18 @@ public sealed class SessionEndpointTests
     }
 
     [Fact]
-    public async Task Olmayan_oturum_dallandirilamaz_404_doner()
+    public async Task Missing_session_cannot_be_branched_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         using var response = await host.Client.PostAsJsonAsync(
-            new Uri("/agentprism/api/sessions/yok-boyle-bir-oturum/branch", UriKind.Relative),
+            new Uri("/agentprism/api/sessions/no-such-session/branch", UriKind.Relative),
             new { upToSequence = 0 });
 
-        // Depo kayitli olmadigi icin "desteklenmiyor" cevabi ONCE gelir: eksik
-        // yetenek, eksik kayittan daha genel bir sebeptir ve kullaniciyi dogru
-        // eyleme yonlendirir.
+        // Because no store is registered, the "not supported" response comes
+        // FIRST: a missing capability is a more general reason than a
+        // missing record, and it points the caller to the right action.
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
     }
 

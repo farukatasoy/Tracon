@@ -5,22 +5,22 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// <c>FOR UPDATE SKIP LOCKED</c> garantisinin kaniti: iki gercek
-/// <see cref="IJobStore"/> orneği ayni veritabanina baglanip ayni kuyruk
-/// icin yarisir.
+/// Proof of the <c>FOR UPDATE SKIP LOCKED</c> guarantee: two real
+/// <see cref="IJobStore"/> instances connect to the same database and race
+/// for the same queue.
 /// </summary>
 /// <remarks>
-/// Bellek ici depoda bu garanti bir <c>lock</c> ile saglanir ve tek surecte
-/// tartismasizdir; asil kanit yalnizca gercek PostgreSQL'e karsi, gercek
-/// eszamanlilikla verilebilir. Gerekce: docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md,
-/// bolum "Testler".
+/// In the in-memory store this guarantee is provided by a <c>lock</c> and is
+/// uncontested in a single process; the real proof can only come from a real
+/// PostgreSQL instance under real concurrency. Rationale:
+/// docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md, section "Testler".
 /// </remarks>
 public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
 {
     private const int JobCount = 50;
 
     [Fact]
-    public async Task Iki_isci_ayni_isi_iki_kez_kiralamaz()
+    public async Task Two_workers_never_lease_the_same_job_twice()
     {
         var schemaName = PostgresTestContext.NewSchemaName();
 
@@ -31,7 +31,7 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
 
         for (var i = 0; i < JobCount; i++)
         {
-            var job = await seed.Jobs.EnqueueAsync(TestData.Job(), ["girdi"]);
+            var job = await seed.Jobs.EnqueueAsync(TestData.Job(), ["input"]);
             expectedIds.Add(job.Id);
         }
 
@@ -42,14 +42,14 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
         var leasedByB = new ConcurrentBag<Guid>();
 
         await Task.WhenAll(
-            LeaseAllAsync(workerA.Jobs, "isci-a", leasedByA),
-            LeaseAllAsync(workerB.Jobs, "isci-b", leasedByB));
+            LeaseAllAsync(workerA.Jobs, "worker-a", leasedByA),
+            LeaseAllAsync(workerB.Jobs, "worker-b", leasedByB));
 
         var all = leasedByA.Concat(leasedByB).ToList();
 
-        // Hicbir is iki kez kiralanmadi (toplam sayi ve tekil sayi esit) ve
-        // kuyruktaki her is tam olarak bir kere alindi. Kume esitligi kontrol
-        // edilir; iki isci arasindaki bolusum sirasi onemli degildir.
+        // No job was leased twice (total count equals distinct count) and
+        // every job in the queue was picked up exactly once. Set equality is
+        // checked; the split between the two workers does not matter.
         all.Count.ShouldBe(JobCount);
         all.Distinct().Count().ShouldBe(JobCount);
         all.ToHashSet().SetEquals(expectedIds).ShouldBeTrue();

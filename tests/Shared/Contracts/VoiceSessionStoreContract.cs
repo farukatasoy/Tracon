@@ -1,13 +1,14 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IVoiceSessionStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IVoiceSessionStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile uc SQL saglayicisi ayni senaryolari gecmelidir. Iki kural
-/// kritiktir: aynı kimlikle ikinci yazma <strong>gunceller</strong> (baglanti
-/// once acilir, sonra kapanir) ve <c>input_seconds</c> ondalik kismini
-/// <strong>kaybetmez</strong>.
+/// The in-memory store and the three SQL providers must pass the same
+/// scenarios. Two rules are critical: a second write with the same ID
+/// <strong>updates</strong> the record (a call is first opened, then
+/// closed), and <c>input_seconds</c> does not <strong>lose</strong> its
+/// decimal fraction.
 /// </remarks>
 public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoiceSessionStore>
 {
@@ -32,7 +33,7 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     private static readonly DateTimeOffset Started = new(2026, 8, 5, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Kaydedilen_konusma_geri_okunur()
+    public async Task Saved_call_is_read_back()
     {
         var record = Record();
 
@@ -41,19 +42,20 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
         var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
 
         loaded.Id.ShouldBe(record.Id);
-        loaded.SessionId.ShouldBe("oturum-1");
-        loaded.AgentName.ShouldBe("destek");
+        loaded.SessionId.ShouldBe("session-1");
+        loaded.AgentName.ShouldBe("support");
         loaded.Turns.ShouldBe(3);
         loaded.OutputChars.ShouldBe(420);
         loaded.EndReason.ShouldBe(VoiceSessionEndReason.Client);
-        loaded.CreatedBy.ShouldBe("operator@ornek");
+        loaded.CreatedBy.ShouldBe("operator@example");
     }
 
     [Fact]
-    public async Task Sure_ondalik_kismini_KAYBETMEZ()
+    public async Task Duration_does_NOT_lose_its_decimal_fraction()
     {
-        // 🚨 Olcum sutunu ondalik tasir. Tipi verilmemis bir parametre SQL
-        // Server'da decimal(18,0) sayilir ve kesir SESSIZCE kesilirdi.
+        // 🚨 The measurement column carries a decimal. An untyped parameter
+        // is treated as decimal(18,0) on SQL Server and the fraction was
+        // SILENTLY truncated.
         await Store.SaveAsync(Record() with { InputSeconds = 12.345m });
 
         var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
@@ -62,10 +64,10 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
-    public async Task Olcum_yoksa_null_kalir_SIFIR_degil()
+    public async Task Missing_measurement_stays_null_NOT_zero()
     {
-        // AgentPrism olcum uydurmaz (K-032): saglayici sure bildirmediyse alan
-        // bos kalir.
+        // AgentPrism never fabricates a measurement (K-032): if the provider
+        // did not report a duration, the field stays empty.
         await Store.SaveAsync(Record() with { InputSeconds = null, OutputChars = null, EndedAt = null });
 
         var loaded = (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).ShouldHaveSingleItem();
@@ -76,10 +78,10 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
-    public async Task Ayni_kimlikle_ikinci_yazma_GUNCELLER()
+    public async Task Second_write_with_the_same_id_UPDATES_the_record()
     {
-        // Baglanti once acilir (turns = 0), sonra kapanir. Iki satir olusursa
-        // ayni konusma iki kez sayilirdi.
+        // A call is first opened (turns = 0), then closed. If two rows were
+        // created, the same call would be counted twice.
         var record = Record() with { Turns = 0, EndedAt = null, EndReason = null };
 
         await Store.SaveAsync(record);
@@ -97,35 +99,35 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
-    public async Task Baska_kiracinin_kaydi_gorunmez()
+    public async Task Another_tenants_record_is_not_visible()
     {
         await Store.SaveAsync(Record());
-        await Store.SaveAsync(Record() with { Id = AgentPrismId.NewId(), TenantId = "baska" });
+        await Store.SaveAsync(Record() with { Id = AgentPrismId.NewId(), TenantId = "other" });
 
         (await Store.QueryAsync(Tenant, new VoiceSessionQuery())).Count.ShouldBe(1);
-        (await Store.QueryAsync("baska", new VoiceSessionQuery())).Count.ShouldBe(1);
+        (await Store.QueryAsync("other", new VoiceSessionQuery())).Count.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Agent_ve_oturum_suzgeci_calisir()
+    public async Task Agent_and_session_filters_work()
     {
         await Store.SaveAsync(Record());
         await Store.SaveAsync(Record() with
         {
             Id = AgentPrismId.NewId(),
-            AgentName = "arastirmaci",
-            SessionId = "oturum-2",
+            AgentName = "researcher",
+            SessionId = "session-2",
         });
 
-        (await Store.QueryAsync(Tenant, new VoiceSessionQuery { AgentName = "destek" }))
-            .ShouldHaveSingleItem().SessionId.ShouldBe("oturum-1");
+        (await Store.QueryAsync(Tenant, new VoiceSessionQuery { AgentName = "support" }))
+            .ShouldHaveSingleItem().SessionId.ShouldBe("session-1");
 
-        (await Store.QueryAsync(Tenant, new VoiceSessionQuery { SessionId = "oturum-2" }))
-            .ShouldHaveSingleItem().AgentName.ShouldBe("arastirmaci");
+        (await Store.QueryAsync(Tenant, new VoiceSessionQuery { SessionId = "session-2" }))
+            .ShouldHaveSingleItem().AgentName.ShouldBe("researcher");
     }
 
     [Fact]
-    public async Task Liste_en_yeniden_eskiye_sirali_gelir()
+    public async Task List_is_ordered_newest_to_oldest()
     {
         await Store.SaveAsync(Record() with { Id = AgentPrismId.NewId(), StartedAt = Started });
         await Store.SaveAsync(Record() with { Id = AgentPrismId.NewId(), StartedAt = Started.AddMinutes(10) });
@@ -139,7 +141,7 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
     }
 
     [Fact]
-    public async Task Sayfalama_uygulanir()
+    public async Task Paging_is_applied()
     {
         for (var index = 0; index < 5; index++)
         {
@@ -161,14 +163,14 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
         {
             Id = AgentPrismId.NewId(),
             TenantId = Tenant,
-            SessionId = "oturum-1",
-            AgentName = "destek",
+            SessionId = "session-1",
+            AgentName = "support",
             StartedAt = Started,
             EndedAt = Started.AddMinutes(2),
             Turns = 3,
             InputSeconds = 7.5m,
             OutputChars = 420,
             EndReason = VoiceSessionEndReason.Client,
-            CreatedBy = "operator@ornek",
+            CreatedBy = "operator@example",
         };
 }
