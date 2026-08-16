@@ -4,28 +4,29 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Serilestirilmis agent oturumlarini PostgreSQL'de saklayan depo.
+/// Stores serialized agent sessions in the SQL database.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Oturum durumu Microsoft Agent Framework'un <c>SerializeSessionAsync</c> ciktisidir
-/// ve <strong>opak</strong> kabul edilir; icerigi yorumlanmaz.
+/// Session state is the output of Microsoft Agent Framework's <c>SerializeSessionAsync</c>
+/// and is treated as <strong>opaque</strong>; its content is not interpreted.
 /// </para>
 /// <para>
-/// <see cref="CurrentSchemaVersion"/> her satirda saklanir. Ileride serilestirme
-/// bicimi degisirse, eski bir bicimi okuyan yeni bir surum sessizce yanlis davranmak
-/// yerine anlasilir bir hata verir.
+/// <see cref="CurrentSchemaVersion"/> is stored on every row. If the serialization
+/// format changes in the future, a newer version reading an older format raises a
+/// clear error instead of silently misbehaving.
 /// </para>
 /// </remarks>
 internal sealed class SqlSessionStore : ISessionStore
 {
     /// <summary>
-    /// Yazilan oturum durumunun bicim surumu.
+    /// The format version of the session state being written.
     /// </summary>
     /// <remarks>
-    /// Bu deger yalnizca AgentPrism'in oturum satirini nasil yorumladigini anlatir;
-    /// durumun kendi ic yapisini Microsoft Agent Framework belirler. Bicim degisirse
-    /// deger artirilir ve gecis yolu yazilir.
+    /// This value only describes how AgentPrism interprets the session row; the
+    /// internal structure of the state itself is determined by Microsoft Agent
+    /// Framework. If the format changes, the value is incremented and a migration
+    /// path is written.
     /// </remarks>
     public const int CurrentSchemaVersion = 1;
 
@@ -33,10 +34,10 @@ internal sealed class SqlSessionStore : ISessionStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir oturum deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new session store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlSessionStore(
         SqlStoreContext context,
         ITenantContext tenantContext)
@@ -49,14 +50,14 @@ internal sealed class SqlSessionStore : ISessionStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
     /// <remarks>
-    /// Ayni kimlikle kayit varsa <see cref="SessionRecord.CreatedAt"/> korunur;
-    /// "olusturulma zamani" ilk yazmaya aittir. <see cref="InMemorySessionStore"/>
-    /// ayni davranisi gosterir.
+    /// If a record with the same id already exists, <see cref="SessionRecord.CreatedAt"/>
+    /// is preserved; "creation time" belongs to the first write. <see cref="InMemorySessionStore"/>
+    /// exhibits the same behavior.
     /// </remarks>
     public async ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
@@ -66,8 +67,8 @@ internal sealed class SqlSessionStore : ISessionStore
         DbHelpers.Add(command, "id", record.Id);
         DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
-        // `json` sutunu metni AYNEN saklar. `jsonb` anahtarlari yeniden siralar
-        // ve System.Text.Json'un `$type` ayracini gecersiz kilar (karar K-027).
+        // The `json` column stores the text AS-IS. `jsonb` would reorder keys
+        // and invalidate System.Text.Json's `$type` discriminator (decision K-027).
         Dialect.AddJson(command, "state", record.State.GetRawText());
         DbHelpers.Add(command, "schema_version", CurrentSchemaVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
@@ -78,12 +79,13 @@ internal sealed class SqlSessionStore : ISessionStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Duz bir <c>INSERT</c>'tir; ayni (tenant_id, id) ile eszamanli ikinci bir
-    /// cagri benzersizlik ihlaline duser ve <see cref="SqlDialect.IsUniqueViolation"/>
-    /// ile yakalanip <see langword="false"/>'a cevrilir — tipki <c>SqlIdempotencyStore.ReserveAsync</c>'in
-    /// yaptigi gibi. Bu, <see cref="SaveAsync"/>'in kosulsuz uzerine yazmasinin
-    /// aksine, ayni YENI oturuma gelen eszamanli iki ilk istekten yalniz birinin
-    /// oturumu "kazanmasini" saglar (HATA-004).
+    /// This is a plain <c>INSERT</c>; a second concurrent call with the same
+    /// (tenant_id, id) trips a uniqueness violation, caught by
+    /// <see cref="SqlDialect.IsUniqueViolation"/> and converted to
+    /// <see langword="false"/> — just like <c>SqlIdempotencyStore.ReserveAsync</c>
+    /// does. Unlike <see cref="SaveAsync"/>'s unconditional overwrite, this
+    /// ensures only one of two concurrent first requests to the same NEW
+    /// session "wins" the session (HATA-004).
     /// </remarks>
     public async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
@@ -134,9 +136,9 @@ internal sealed class SqlSessionStore : ISessionStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see cref="SqlQueriesBase.SelectSessionOwner"/> kiraci sutununda FILTRE
-    /// UYGULAMAZ — <see cref="GetAsync"/>'in aksine, kaydin sahibi ambient kiraciyla
-    /// eslesmese bile bulunur.
+    /// <see cref="SqlQueriesBase.SelectSessionOwner"/> applies NO FILTER on the
+    /// tenant column — unlike <see cref="GetAsync"/>, the record is found even
+    /// when its owner does not match the ambient tenant.
     /// </remarks>
     public async ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
     {
@@ -202,11 +204,11 @@ internal sealed class SqlSessionStore : ISessionStore
         if (schemaVersion > CurrentSchemaVersion)
         {
             throw new AgentPrismException(
-                $"'{sessionId}' oturumu {schemaVersion} numarali bicim surumuyle yazilmis; bu AgentPrism surumu " +
-                $"en fazla {CurrentSchemaVersion} surumunu okuyabilir. AgentPrism paketlerini guncelleyin.");
+                $"Session '{sessionId}' was written with format version {schemaVersion}; this AgentPrism version " +
+                $"can read up to version {CurrentSchemaVersion}. Update the AgentPrism packages.");
         }
 
-        // JsonDocument sahipligi burada biter; Clone bagimsiz bir kopya dondurur.
+        // JsonDocument ownership ends here; Clone returns an independent copy.
         using var document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
     }

@@ -5,13 +5,13 @@ using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL'e ozgu regex on suzgeci (<c>~</c>) davranisi (Faz 51, Is A).
+/// PostgreSQL-specific regex pre-filter (<c>~</c>) behavior (Phase 51, Task A).
 /// </summary>
 /// <remarks>
-/// Nihai eslesme HER ZAMAN .NET <see cref="Regex"/> ile istemcide yapilir; bu
-/// suzgec yalniz bir on daraltmadir. Testler bunun sonucu DEGISTIRMEDIGINI ve
-/// PostgreSQL'in ARE sozdiziminde GECERSIZ bir .NET deseninde sessizce on
-/// suzgecsiz devam ettigini dogrular.
+/// The final match ALWAYS happens client-side with the .NET <see cref="Regex"/>;
+/// this filter is only a pre-narrowing step. The tests verify that it does NOT
+/// change the result, and that a .NET pattern that is INVALID in PostgreSQL's
+/// ARE syntax silently falls back to running without the pre-filter.
 /// </remarks>
 public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -32,41 +32,42 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
     }
 
     [Fact]
-    public async Task Are_uyumlu_desen_dotnet_ile_ayni_sonucu_dondurur()
+    public async Task Are_compatible_pattern_returns_the_same_result_as_dotnet()
     {
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/notlar/a.md", "fatura no 4242");
-        await _context.AgentFiles.WriteAsync("/notlar/b.md", "fatura numarasi yok");
+        await _context!.AgentFiles.WriteAsync("/notes/a.md", "invoice no 4242");
+        await _context.AgentFiles.WriteAsync("/notes/b.md", "no invoice number");
 
         var results = await _context.AgentFiles.SearchAsync("/", @"\d{4}", recursive: true);
 
-        results.ShouldHaveSingleItem().FileName.ShouldBe("/notlar/a.md");
+        results.ShouldHaveSingleItem().FileName.ShouldBe("/notes/a.md");
     }
 
     [Fact]
-    public async Task Dotnet_ozel_adlandirilmis_grup_on_suzgecsiz_geri_duser()
+    public async Task Dotnet_named_group_falls_back_without_the_pre_filter()
     {
-        // (?<tutar>...) PostgreSQL'in ARE sozdiziminde GECERSIZDIR (2201B).
-        // SqlAgentFileStore bunu SqlDialect.IsInvalidRegexError ile yakalayip
-        // on suzgec OLMADAN yeniden dener; .NET Regex nihai eslesmeyi yine de
-        // dogru yapar.
+        // (?<amount>...) is INVALID in PostgreSQL's ARE syntax (2201B).
+        // SqlAgentFileStore catches this with SqlDialect.IsInvalidRegexError
+        // and retries WITHOUT the pre-filter; the .NET Regex still performs
+        // the final match correctly.
         SetScope("agent-a");
 
-        await _context!.AgentFiles.WriteAsync("/notlar/a.md", "fatura no 4242");
-        await _context.AgentFiles.WriteAsync("/notlar/b.md", "fatura numarasi yok");
+        await _context!.AgentFiles.WriteAsync("/notes/a.md", "invoice no 4242");
+        await _context.AgentFiles.WriteAsync("/notes/b.md", "no invoice number");
 
-        var results = await _context.AgentFiles.SearchAsync("/", @"(?<tutar>\d{4})", recursive: true);
+        var results = await _context.AgentFiles.SearchAsync("/", @"(?<amount>\d{4})", recursive: true);
 
-        results.ShouldHaveSingleItem().FileName.ShouldBe("/notlar/a.md");
+        results.ShouldHaveSingleItem().FileName.ShouldBe("/notes/a.md");
     }
 
     [Fact]
-    public async Task Buyuk_depoda_hedef_dizin_disindaki_satirlar_taranmaz()
+    public async Task Large_store_does_not_scan_rows_outside_the_target_directory()
     {
-        // Faz 51 DoD: "10 000 dosyali bir depoda tek dosya aramasi sabit
-        // sayida satir okur; okunan satir sayisi olculdu ve buraya yazildi."
-        // Bu test o olcumu üretir (bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD).
+        // Phase 51 DoD: "A single-file search in a 10,000-file store reads a
+        // constant number of rows; the row count was measured and recorded
+        // here." This test produces that measurement (see
+        // docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD).
         SetScope("agent-a");
 
         const int UnrelatedFileCount = 10_000;
@@ -75,29 +76,30 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
         await _context.ExecuteAsync($"""
             INSERT INTO {schema}.agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
             SELECT gen_random_uuid(), 'default', 'agent-a',
-                   '/arsiv/dosya-' || i || '.md', 'ilgisiz icerik', now(), now()
+                   '/archive/file-' || i || '.md', 'unrelated content', now(), now()
             FROM generate_series(1, {UnrelatedFileCount}) AS i;
             """);
 
-        await _context.AgentFiles.WriteAsync("/hedef/not.md", "aranan-anahtar burada");
+        await _context.AgentFiles.WriteAsync("/target/note.md", "search-key is here");
 
-        var results = await _context.AgentFiles.SearchAsync("/hedef", "aranan-anahtar", recursive: true);
-        results.ShouldHaveSingleItem().FileName.ShouldBe("/hedef/not.md");
+        var results = await _context.AgentFiles.SearchAsync("/target", "search-key", recursive: true);
+        results.ShouldHaveSingleItem().FileName.ShouldBe("/target/note.md");
 
         var actualRows = await MeasureActualRowsAsync($"""
             EXPLAIN (ANALYZE, FORMAT TEXT)
             SELECT path, content
             FROM {schema}.agent_files
             WHERE tenant_id = 'default' AND agent_name = 'agent-a'
-              AND path LIKE '/hedef/%' ESCAPE '\'
+              AND path LIKE '/target/%' ESCAPE '\'
             ORDER BY path;
             """);
 
-        // Olculen deger (10 001 satirlik depoda, test container'inda): 1 satir
-        // (bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD). Test container'inin
-        // locale'i onek LIKE'i bir index range scan'e cevirebiliyor; genis bir
-        // ust sinirla kaydediyoruz — asil kanit UnrelatedFileCount'tan KAT KAT
-        // kucuk kalmasidir, tam sayi ortamlar arasi degisebilir.
+        // Measured value (in a 10,001-row store, in the test container): 1 row
+        // (see docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD). The test container's
+        // locale can turn a prefix LIKE into an index range scan; we assert a
+        // wide upper bound — the real proof is staying ORDERS OF MAGNITUDE
+        // below UnrelatedFileCount, the exact number can vary across
+        // environments.
         actualRows.ShouldBeLessThan(UnrelatedFileCount / 10);
     }
 

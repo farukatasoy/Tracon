@@ -1248,10 +1248,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
-        // Faz 51, Is A: onek, derinlik siniri ve glob SQL'e iner. SQL Server yerel
-        // regex tasimaz; regex_pattern parametresi PostgresQueries ile ayni
-        // cagri seklini korumak icin gonderilir ama burada KULLANILMAZ — nihai
-        // eslesme daima .NET Regex ile istemcide yapilir.
+        // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
+        // SQL. SQL Server carries no native regex; the regex_pattern
+        // parameter is sent to keep the same call shape as PostgresQueries
+        // but is NOT USED here -- the final match is always done client-side
+        // with .NET Regex.
         SelectAgentFilesFiltered = $"""
             SELECT path, content
             FROM {Schema}.agent_files
@@ -1324,7 +1325,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND session_id = @session_id;
             """;
 
-        // --- Denetim izi ---
+        // --- Audit trail ---
 
         InsertAuditEntry = $"""
             INSERT INTO {Schema}.audit_log (id, tenant_id, actor, action, entity, before, after, created_at)
@@ -1345,7 +1346,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             OFFSET 0 ROWS FETCH NEXT (CASE WHEN @take < 1 THEN 1 ELSE @take END) ROWS ONLY;
             """;
 
-        // --- Zamanlama ve is kuyrugu ---
+        // --- Scheduling and job queue ---
 
         const string scheduleColumns = """
             id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
@@ -1386,7 +1387,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY name;
             """;
 
-        // Kiraciyla sinirlanmaz: bu sorgu isciye aittir, HTTP istegine degil.
+        // Not scoped by tenant: this query belongs to the worker, not to an
+        // HTTP request.
         SelectDueJobSchedules = $"""
             SELECT {scheduleColumns}
             FROM {Schema}.job_schedules
@@ -1409,9 +1411,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     0, 0, 0, @scheduled_for, @created_at, @max_attempts);
             """;
 
-        // 🚨 SQL Server'da dizi parametresi yoktur: `UNNEST(@ids, @inputs)
-        // WITH ORDINALITY` yerine iki JSON dizisi OPENJSON ile acilir ve
-        // `[key]` (0 tabanli sira) uzerinden eslenir. Gerekce: K-182.
+        // 🚨 SQL Server has no array parameter: instead of `UNNEST(@ids,
+        // @inputs) WITH ORDINALITY`, the two JSON arrays are opened with
+        // OPENJSON and matched on `[key]` (0-based index). Rationale: K-182.
         InsertJobItems = $"""
             INSERT INTO {Schema}.job_items (id, job_id, seq, input, status)
             SELECT CAST(ids.value AS uniqueidentifier), @job_id, CAST(ids.[key] AS int), inputs.value, 0
@@ -1425,11 +1427,12 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             error_message, created_at, max_attempts
             """;
 
-        // 🚨 `FOR UPDATE SKIP LOCKED` karsiligi `WITH (UPDLOCK, READPAST, ROWLOCK)`
-        // ipuclaridir: UPDLOCK secilen satiri yazma icin kilitler, READPAST baska
-        // bir iscinin kilitledigi satiri ATLAR, ROWLOCK kilidi satir duzeyinde
-        // tutar. Guncelleme CTE uzerinden yapilir; `UPDATE TOP (n)` ORDER BY
-        // kabul etmez ve en eski isi almayi garanti edemezdi.
+        // 🚨 The `FOR UPDATE SKIP LOCKED` counterpart is the `WITH (UPDLOCK,
+        // READPAST, ROWLOCK)` hints: UPDLOCK locks the selected row for
+        // writing, READPAST SKIPS a row another worker already locked, ROWLOCK
+        // keeps the lock at row granularity. The update goes through a CTE;
+        // `UPDATE TOP (n)` does not accept ORDER BY and could not guarantee
+        // picking the oldest job.
         LeaseJob = $"""
             WITH next_job AS (
                 SELECT TOP (1) *
@@ -1505,11 +1508,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY seq;
             """;
 
-        // 🚨 T-SQL'de veri degistiren CTE yoktur; PostgreSQL'in
-        // `WITH updated AS (UPDATE ... RETURNING)` yapisi bir tablo degiskenine
-        // OUTPUT ile yazilarak kurulur. Idempotenttir: oge yalnizca hala Pending
-        // (0) ise guncellenir, bu yuzden ayni oge iki kez raporlanirsa sayaclar
-        // BIR KEZ DAHA artmaz.
+        // 🚨 T-SQL has no data-modifying CTE; PostgreSQL's
+        // `WITH updated AS (UPDATE ... RETURNING)` structure is built by
+        // writing to a table variable with OUTPUT. It is idempotent: the
+        // item is updated only if it is still Pending (0), so if the same
+        // item is reported twice the counters do NOT increment AGAIN.
         ReportJobItem = $"""
             DECLARE @updated TABLE (status smallint);
 
@@ -1583,8 +1586,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
             """;
 
-        // Gerekce PostgreSQL InsertEvalCaseWithComputedSeq ile aynidir
-        // (docs/45-URETIMDEN-EVAL-KUMESI.md, bolum 45.2); MERGE kullanilmaz (K-177).
+        // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
+        // (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2); MERGE is not used (K-177).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,
@@ -1721,8 +1724,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             DELETE FROM {Schema}.quotas WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // Tuketim ATOMIK olarak artirilir. UPDATE ... SET x = x + @y tek
-        // ifadedir; eszamanli calistirmalarda hicbir artis kaybolmaz.
+        // Consumption is incremented ATOMICALLY. UPDATE ... SET x = x + @y is
+        // a single statement; no increment is lost across concurrent runs.
         AddQuotaUsage = $"""
             UPDATE {Schema}.quota_usage WITH (UPDLOCK, SERIALIZABLE)
                SET runs       = runs   + @runs,
@@ -1750,8 +1753,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Webhook ---
 
-        // 🚨 Sutun listesinde SIR YOKTUR: yalnizca secret_configuration_key
-        // (anahtarin ADI) vardir (K-059).
+        // 🚨 There is NO secret in the column list: only secret_configuration_key
+        // (the NAME of the key) is present (K-059).
         const string webhookSubscriptionColumns = """
             id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
             consecutive_failures, created_at, updated_at
@@ -1794,10 +1797,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // 🚨 `events` bir JSON dizisidir; PostgreSQL'in `@event_type = ANY(events)`
-        // ifadesinin karsiligi OPENJSON uzerinde TAM eslesmedir. LIKE tabanli bir
-        // arama 'run.completed' ararken 'run.completed.v2' aboneligini de
-        // yanlislikla eslerdi.
+        // 🚨 `events` is a JSON array; the counterpart of PostgreSQL's
+        // `@event_type = ANY(events)` is an EXACT match over OPENJSON. A
+        // LIKE-based search would wrongly match a 'run.completed.v2'
+        // subscription while searching for 'run.completed'.
         SelectWebhookSubscriptionsForEvent = $"""
             SELECT {webhookSubscriptionColumns}
             FROM {Schema}.webhook_subscriptions
@@ -1811,8 +1814,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             DELETE FROM {Schema}.webhook_subscriptions WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
-        // Ust uste basarisizlik sayaci ve otomatik kapatma TEK ifadede yapilir.
-        // Donen satir "bu cagri aboneligi kapatti mi" sorusunu yanitlar.
+        // The consecutive-failure counter and the auto-disable happen in a
+        // SINGLE statement. The returned row answers "did this call disable
+        // the subscription".
         UpdateWebhookSubscriptionOutcome = $"""
             UPDATE {Schema}.webhook_subscriptions
                SET consecutive_failures = CASE WHEN @succeeded = 1 THEN 0 ELSE consecutive_failures + 1 END,
@@ -1867,10 +1871,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
-        // --- Faz 53: kiraci bazli API anahtarlari ---
+        // --- Phase 53: tenant-scoped API keys ---
 
-        // 🚨 Sutun listesinde HAM DEGER YOKTUR: yalnizca geri donduruleyemez
-        // key_hash ozeti vardir (bolum 53.2).
+        // 🚨 The column list contains NO RAW VALUE: only the irreversible
+        // key_hash digest is present (section 53.2).
         const string apiKeyColumns = """
             id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
             last_used_at, created_at
@@ -1889,8 +1893,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY created_at;
             """;
 
-        // Kiraci suzgeci BILEREK yoktur (bolum 53.5): kiraci bu sorgunun
-        // ciktisidir, girdisi degil.
+        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
+        // is the output of this query, not its input.
         SelectApiKeyByHash = $"""
             SELECT {apiKeyColumns}
             FROM {Schema}.api_keys
@@ -1909,8 +1913,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id;
             """;
 
-        // Kurulum saglik denetimi (ExternalSurfaceGuard, bolum 53.4): kiraci
-        // suzgeci BILEREK yoktur. scopes bir JSON dizisidir (K-182).
+        // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
+        // filter is DELIBERATELY absent. scopes is a JSON array (K-182).
         HasApiKeyWithScope = $"""
             SELECT CASE WHEN EXISTS (
                 SELECT 1 FROM {Schema}.api_keys
@@ -1928,9 +1932,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             inserted.archive, inserted.enabled, inserted.created_at, inserted.updated_at
             """;
 
-        // K-177 iki dalli upsert deseni: UPDATE 0 satir etkilerse gercek satir
-        // IKINCI sonuc kumesindedir (K-188); DbHelpers.ReadSingleAsync bunu
-        // NextResultAsync ile dolasir.
+        // K-177 two-branch upsert pattern: when UPDATE affects 0 rows, the
+        // real row is in the SECOND result set (K-188); DbHelpers.ReadSingleAsync
+        // steps into it with NextResultAsync.
         UpsertRetentionPolicy = $"""
             UPDATE {Schema}.retention_policies WITH (UPDLOCK, SERIALIZABLE)
                SET max_age_days = @max_age_days,
@@ -2006,7 +2010,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         const string voiceSessionColumns =
             "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by";
 
-        // 🚨 MERGE KULLANILMAZ (K-177): once kilitli UPDATE, satir yoksa INSERT.
+        // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if no row exists.
         UpsertVoiceSession = $"""
             UPDATE {Schema}.voice_sessions WITH (UPDLOCK, SERIALIZABLE)
                SET ended_at      = @ended_at,
@@ -2035,7 +2039,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // -------------------------------------------------------------------
-        // Faz 31 -- calistirma/mesaj puani
+        // Phase 31 -- run/message score
         // -------------------------------------------------------------------
         const string runScoreColumns =
             "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
@@ -2044,15 +2048,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             "inserted.id, inserted.tenant_id, inserted.run_id, inserted.message_id, inserted.kind, " +
             "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at";
 
-        // 🚨 MERGE KULLANILMAZ (K-177): once kilitli UPDATE, satir yoksa INSERT.
+        // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if
+        // no row exists.
         //
-        // 🚨 NULL benzersizligi burada TERS calisir (K-184): `author = @author`
-        // karsilastirmasi @author NULL iken (kimliksiz kurulum) HER ZAMAN
-        // UNKNOWN dondurur -- eslesen satir olmaz ve akis INSERT'e duser. Bu
-        // KASITLIDIR: benzersizlik indeksi de ayni sebeple `WHERE author IS
-        // NOT NULL` ile filtrelidir (migration 0005). message_id icin ISNULL
-        // eslesmesi yeterlidir; SQL Server'da duz NULL karsilastirmasi zaten
-        // NULL'lari birbirine esit sayar.
+        // 🚨 NULL uniqueness works in REVERSE here (K-184): the
+        // `author = @author` comparison ALWAYS returns UNKNOWN when @author
+        // is NULL (an identity-less setup) -- no row matches and the flow
+        // falls through to INSERT. This is DELIBERATE: the uniqueness index
+        // is filtered with `WHERE author IS NOT NULL` for the same reason
+        // (migration 0005). An ISNULL match is enough for message_id; in SQL
+        // Server a plain NULL comparison already treats NULLs as equal to
+        // each other.
         UpsertRunScore = $"""
             UPDATE {Schema}.run_scores WITH (UPDLOCK, SERIALIZABLE)
                SET kind       = @kind,
@@ -2082,10 +2088,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // MERGE kullanilmaz (K-177). Iki-dalli desen: once UPDATE (sahibi biz
-        // isek veya kira suresi dolmussa), sonra yalniz satir hic yoksa INSERT.
-        // Ikisi de ayni sekilde tek sutun (name) doner; DbHelpers.ExecuteScalarAsync
-        // K-188'in coklu-sonuc-kumesi tuzagina karsi ikinci kumeye kendiliginden duser.
+        // MERGE is not used (K-177). Two-branch pattern: first UPDATE (if we
+        // are the owner or the lease expired), then INSERT only if the row is
+        // absent. Both branches return the same single column (name) the
+        // same way; DbHelpers.ExecuteScalarAsync falls through to the second
+        // result set by itself against K-188's multi-result-set trap.
         AcquireSingletonLease = $"""
             DECLARE @updated int;
 
@@ -2114,9 +2121,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             DELETE FROM {Schema}.singleton_leases WHERE name = @name AND owner_id = @owner_id;
             """;
 
-        // Duz INSERT: benzersizlik ihlali SqlDialect.IsUniqueViolation ile
-        // yakalanir, cagiran taraf mevcut kaydi SelectIdempotencyKey ile okur.
-        // 🚨 `key` AYRILMIS bir sozcuktur; [key] ile koseli parantezlenir.
+        // Plain INSERT: a uniqueness violation is caught with
+        // SqlDialect.IsUniqueViolation, the caller reads the existing row with
+        // SelectIdempotencyKey.
+        // 🚨 `key` is a RESERVED word; it is bracket-quoted as [key].
         InsertIdempotencyKey = $"""
             INSERT INTO {Schema}.idempotency_keys (tenant_id, [key], fingerprint, state, created_at)
             VALUES (@tenant_id, @key, @fingerprint, 0, @created_at);
@@ -2163,16 +2171,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
-        // WHERE status = @status_pending: ikinci bir karar 0 satir etkiler,
-        // DecideAsync bunu false olarak yorumlar.
+        // WHERE status = @status_pending: a second decision affects 0 rows,
+        // DecideAsync interprets that as false.
         DecidePendingApproval = $"""
             UPDATE {Schema}.pending_approvals
                SET status = @status, decided_by = @decided_by, decided_at = @decided_at
              WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
             """;
 
-        // ClaimOrphanedRuns ile AYNI desen: OUTPUT ile kapatilan satirlar
-        // okunur. Kiraci suzgeci YOKTUR — bir bakim islemidir.
+        // The SAME pattern as ClaimOrphanedRuns: closed rows are read via
+        // OUTPUT. There is NO tenant filter -- this is a maintenance
+        // operation.
         ExpirePendingApprovals = $"""
             UPDATE a
                SET status = @status_expired

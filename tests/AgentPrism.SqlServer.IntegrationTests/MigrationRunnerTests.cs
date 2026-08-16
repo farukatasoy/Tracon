@@ -82,7 +82,7 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await context.Migrations.ApplyAsync());
 
-        exception.Message.ShouldContain("icerigi degismis");
+        exception.Message.ShouldContain("has changed");
     }
 
     /// <summary>

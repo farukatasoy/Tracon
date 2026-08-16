@@ -2,17 +2,18 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="ISessionStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="ISessionStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Oturum durumu opaktir; depo icerigi yorumlamadan aynen geri vermelidir.
+/// Session state is opaque; the store must return the content back exactly, without interpreting it.
 /// </remarks>
 public abstract class SessionStoreContract : TenantIsolationContract<ISessionStore>
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
-    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// The tenant is not a parameter in the interface; it is read from
+    /// <see cref="ITenantContext"/>. That is why every hook sets the current
+    /// tenant first.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -43,11 +44,11 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task Oturum_durumu_bozulmadan_geri_gelir()
+    public async Task Session_state_round_trips_without_corruption()
     {
         var state = TestData.State(
             """
-            {"messages":[{"role":"user","text":"merhaba üği"},{"role":"assistant","text":"selam"}],
+            {"messages":[{"role":"user","text":"hello café naïve"},{"role":"assistant","text":"hi"}],
              "nested":{"deep":{"value":3.14159}},"flag":true,"nothing":null}
             """);
 
@@ -58,11 +59,11 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         loaded.ShouldNotBeNull();
         loaded.State.GetRawText().ShouldBe(state.GetRawText());
         loaded.State.GetProperty("nested").GetProperty("deep").GetProperty("value").GetDouble().ShouldBe(3.14159);
-        loaded.State.GetProperty("messages")[0].GetProperty("text").GetString().ShouldBe("merhaba üği");
+        loaded.State.GetProperty("messages")[0].GetProperty("text").GetString().ShouldBe("hello café naïve");
     }
 
     [Fact]
-    public async Task Ayni_kimlikle_kayit_uzerine_yazar_ve_olusturulma_zamanini_korur()
+    public async Task Saving_with_the_same_id_overwrites_the_record_and_keeps_the_creation_time()
     {
         var created = DateTimeOffset.UtcNow.AddHours(-1);
 
@@ -91,7 +92,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task Silme_kaydi_kaldirir()
+    public async Task Delete_removes_the_record()
     {
         await Store.SaveAsync(TestData.Session("s1"));
 
@@ -101,25 +102,25 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task Olmayan_oturum_null_doner()
-        => (await Store.GetAsync("yok")).ShouldBeNull();
+    public async Task Nonexistent_session_returns_null()
+        => (await Store.GetAsync("missing")).ShouldBeNull();
 
     [Fact]
-    public async Task Sorgu_en_son_guncellenenden_baslar()
+    public async Task Query_starts_with_the_most_recently_updated()
     {
         var now = DateTimeOffset.UtcNow;
 
-        await Store.SaveAsync(TestData.Session("eski") with { UpdatedAt = now.AddMinutes(-10) });
-        await Store.SaveAsync(TestData.Session("yeni") with { UpdatedAt = now });
-        await Store.SaveAsync(TestData.Session("orta") with { UpdatedAt = now.AddMinutes(-5) });
+        await Store.SaveAsync(TestData.Session("old") with { UpdatedAt = now.AddMinutes(-10) });
+        await Store.SaveAsync(TestData.Session("new") with { UpdatedAt = now });
+        await Store.SaveAsync(TestData.Session("mid") with { UpdatedAt = now.AddMinutes(-5) });
 
         var results = await Store.QueryAsync(new SessionQuery());
 
-        results.Select(static session => session.Id).ShouldBe(["yeni", "orta", "eski"]);
+        results.Select(static session => session.Id).ShouldBe(["new", "mid", "old"]);
     }
 
     [Fact]
-    public async Task Sorgu_agent_adina_gore_filtreler()
+    public async Task Query_filters_by_agent_name()
     {
         await Store.SaveAsync(TestData.Session("s1") with { AgentName = "alpha" });
         await Store.SaveAsync(TestData.Session("s2") with { AgentName = "beta" });
@@ -130,7 +131,7 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task Sorgu_sayfalama_uygular()
+    public async Task Query_applies_paging()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -145,79 +146,80 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     [Fact]
-    public async Task TryCreateAsync_yeni_kimlikte_true_doner_ve_kaydeder()
+    public async Task TryCreateAsync_returns_true_and_saves_for_a_new_id()
     {
-        var record = TestData.Session("yeni") with { State = TestData.State("""{"turn":1}""") };
+        var record = TestData.Session("new") with { State = TestData.State("""{"turn":1}""") };
 
         (await Store.TryCreateAsync(record)).ShouldBeTrue();
 
-        var loaded = await Store.GetAsync("yeni");
+        var loaded = await Store.GetAsync("new");
         loaded.ShouldNotBeNull();
         loaded.State.GetProperty("turn").GetInt32().ShouldBe(1);
     }
 
     [Fact]
-    public async Task TryCreateAsync_var_olan_kimlikte_false_doner_ve_uzerine_yazmaz()
+    public async Task TryCreateAsync_returns_false_and_does_not_overwrite_for_an_existing_id()
     {
-        await Store.SaveAsync(TestData.Session("var-olan") with { State = TestData.State("""{"turn":1}""") });
+        await Store.SaveAsync(TestData.Session("existing") with { State = TestData.State("""{"turn":1}""") });
 
         var created = await Store.TryCreateAsync(
-            TestData.Session("var-olan") with { State = TestData.State("""{"turn":2}""") });
+            TestData.Session("existing") with { State = TestData.State("""{"turn":2}""") });
 
         created.ShouldBeFalse();
 
-        var loaded = await Store.GetAsync("var-olan");
+        var loaded = await Store.GetAsync("existing");
         loaded.ShouldNotBeNull();
         loaded.State.GetProperty("turn").GetInt32().ShouldBe(1);
     }
 
     [Fact]
-    public async Task TryCreateAsync_eszamanli_ayni_kimlikte_yalniz_biri_kazanir()
+    public async Task TryCreateAsync_only_one_concurrent_call_with_the_same_id_wins()
     {
-        // HATA-004: check-then-create yarisinda iki eszamanli ilk istek ayni
-        // YENI oturuma farkli birer konusma kimligi uretiyordu. TryCreateAsync
-        // atomik olmalidir: N eszamanli cagridan tam olarak biri kazanmalidir.
+        // HATA-004: in the check-then-create race, two concurrent first
+        // requests generated different conversation IDs for the same NEW
+        // session. TryCreateAsync must be atomic: of N concurrent calls,
+        // exactly one must win.
         const int Concurrency = 8;
 
         var attempts = Enumerable.Range(0, Concurrency)
             .Select(i => Store.TryCreateAsync(
-                    TestData.Session("yaris") with { State = TestData.State($$"""{"turn":{{i}}}""") })
+                    TestData.Session("race") with { State = TestData.State($$"""{"turn":{{i}}}""") })
                 .AsTask());
 
         var results = await Task.WhenAll(attempts);
 
         results.Count(static won => won).ShouldBe(1);
 
-        var loaded = await Store.GetAsync("yaris");
+        var loaded = await Store.GetAsync("race");
         loaded.ShouldNotBeNull();
     }
 
     [Fact]
-    public async Task TryCreateAsync_ayni_kimlik_iki_kiracida_bagimsiz_kazanir()
+    public async Task TryCreateAsync_same_id_wins_independently_in_two_tenants()
     {
-        // Birincil anahtar (tenant_id, id)'dir (K-018); benzersizlik ihlali tek
-        // basina kimlige degil kiraci+kimlik ciftine bakmalidir.
-        (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantA })).ShouldBeTrue();
-        (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantB })).ShouldBeTrue();
+        // The primary key is (tenant_id, id) (K-018); a uniqueness violation
+        // must look at the tenant+ID pair, not the ID alone.
+        (await Store.TryCreateAsync(TestData.Session("shared-id") with { TenantId = TenantA })).ShouldBeTrue();
+        (await Store.TryCreateAsync(TestData.Session("shared-id") with { TenantId = TenantB })).ShouldBeTrue();
     }
 
     [Fact]
-    public async Task GetOwnerTenantIdAsync_hic_kullanilmamis_kimlikte_null_doner()
+    public async Task GetOwnerTenantIdAsync_returns_null_for_a_never_used_id()
     {
         AmbientTenant.TenantId = TenantA;
-        (await Store.GetOwnerTenantIdAsync("hic-kullanilmamis")).ShouldBeNull();
+        (await Store.GetOwnerTenantIdAsync("never-used")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task GetOwnerTenantIdAsync_ambient_kiraciden_bagimsiz_gercek_sahibi_doner()
+    public async Task GetOwnerTenantIdAsync_returns_the_real_owner_independent_of_the_ambient_tenant()
     {
-        // HATA-S2-005: GetAsync ambient kiraciyle filtrelenir, dolayisiyla capraz
-        // kiraci sahiplik sorusunu asla dogru cevaplayamaz. GetOwnerTenantIdAsync
-        // kiraci filtresi UYGULAMAMALIDIR.
+        // HATA-S2-005: GetAsync is filtered by the ambient tenant, so it can
+        // never correctly answer a cross-tenant ownership question.
+        // GetOwnerTenantIdAsync must NOT apply a tenant filter.
         AmbientTenant.TenantId = TenantA;
-        await Store.SaveAsync(TestData.Session("gizli") with { TenantId = TenantA });
+        await Store.SaveAsync(TestData.Session("hidden") with { TenantId = TenantA });
 
         AmbientTenant.TenantId = TenantB;
-        (await Store.GetOwnerTenantIdAsync("gizli")).ShouldBe(TenantA);
+        (await Store.GetOwnerTenantIdAsync("hidden")).ShouldBe(TenantA);
     }
 }

@@ -5,37 +5,37 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
 /// <summary>
-/// Oturum kaliciliginin uctan uca calistigini dogrular.
+/// Verifies that session persistence works end to end.
 /// </summary>
 /// <remarks>
-/// Faz 1'den devreden iki acik is bu testlerle kapanir:
-/// <see cref="ISessionStore"/> artik kullanilir ve <c>RunRecordingAgent</c>
-/// calistirma kaydina gercek oturum kimligini yazar.
+/// Two open items carried over from Phase 1 are closed by these tests:
+/// <see cref="ISessionStore"/> is now used, and <c>RunRecordingAgent</c>
+/// writes the real session ID into the run record.
 /// </remarks>
 public sealed class SessionPersistenceTests(PostgresFixture fixture)
 {
     [Fact]
-    public async Task Oturum_kaydedilir_ve_yeni_bir_surecte_geri_yuklenir()
+    public async Task Session_is_saved_and_restored_in_a_new_process()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        const string SessionId = "musteri-42";
+        const string SessionId = "customer-42";
 
-        // Birinci "surec": oturumu ac, calistir, kaydet.
+        // First "process": open the session, run it, save it.
         await using (var first = BuildProvider(context))
         {
-            var agent = await ResolveAsync(first, "destek");
+            var agent = await ResolveAsync(first, "support");
             var manager = first.GetRequiredService<AgentSessionManager>();
 
             var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
-            await agent.RunAsync("siparisim nerede", session);
+            await agent.RunAsync("where is my order", session);
             await manager.SaveSessionAsync(agent, session);
         }
 
-        // Ikinci "surec": ayni kimlikle devam et.
+        // Second "process": resume with the same ID.
         await using (var second = BuildProvider(context))
         {
-            var agent = await ResolveAsync(second, "destek");
+            var agent = await ResolveAsync(second, "support");
             var manager = second.GetRequiredService<AgentSessionManager>();
 
             var restored = await manager.GetOrCreateSessionAsync(agent, SessionId);
@@ -44,61 +44,63 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
 
             var stored = await second.GetRequiredService<ISessionStore>().GetAsync(SessionId);
             stored.ShouldNotBeNull();
-            stored.AgentName.ShouldBe("destek");
+            stored.AgentName.ShouldBe("support");
         }
     }
 
     [Fact]
-    public async Task Sohbet_gecmisi_oturumlar_arasi_surer()
+    public async Task Chat_history_survives_across_sessions()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        const string SessionId = "gecmis-oturumu";
+        const string SessionId = "history-session";
 
         await using (var first = BuildProvider(context))
         {
-            var agent = await ResolveAsync(first, "destek");
+            var agent = await ResolveAsync(first, "support");
             var manager = first.GetRequiredService<AgentSessionManager>();
 
             var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
-            await agent.RunAsync("birinci soru", session);
+            await agent.RunAsync("first question", session);
             await manager.SaveSessionAsync(agent, session);
         }
 
         await using (var second = BuildProvider(context))
         {
-            var agent = await ResolveAsync(second, "destek");
+            var agent = await ResolveAsync(second, "support");
             var manager = second.GetRequiredService<AgentSessionManager>();
             var provider = second.GetRequiredService<FakeModelProvider>();
 
             var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
-            await agent.RunAsync("ikinci soru", session);
+            await agent.RunAsync("second question", session);
 
-            // Model, ilk turun mesajlarini da gormelidir; gecmis veritabanindan geldi.
+            // The model must also see the first turn's messages; they came from the database history.
             var texts = provider.Requests[^1].Messages.Select(static message => message.Text).ToList();
 
-            texts.ShouldContain(static text => text.Contains("birinci soru", StringComparison.Ordinal));
-            texts.ShouldContain(static text => text.Contains("ikinci soru", StringComparison.Ordinal));
+            texts.ShouldContain(static text => text.Contains("first question", StringComparison.Ordinal));
+            texts.ShouldContain(static text => text.Contains("second question", StringComparison.Ordinal));
         }
     }
 
     [Fact]
-    public async Task Ayni_yeni_oturuma_eszamanli_iki_ilk_istek_sessizce_mesaj_kaybetmez()
+    public async Task Two_concurrent_first_turns_on_the_same_new_session_do_not_silently_lose_a_message()
     {
-        // HATA-004 / MT-CORE-054: check-then-create yarisinda iki eszamanli ilk
-        // istek ayni YENI oturum icin farkli birer konusma kimligi uretiyordu;
-        // ikinci SaveSessionAsync birinciyi SESSIZCE eziyor ve kaybedenin
-        // mesajlari erisilmez kaliyordu — ikisi de "basarili" gorunuyordu.
+        // HATA-004 / MT-CORE-054: in the check-then-create race, two
+        // concurrent first turns generated different conversation IDs for
+        // the same NEW session; the second SaveSessionAsync SILENTLY
+        // overwrote the first, and the loser's messages became unreachable
+        // — both calls appeared to "succeed".
         //
-        // Kabul edilen davranis (KAPANIS-PLANI.md §6, Aile C): ya HICBIR mesaj
-        // kaybolmaz, ya da bir catisma denetimi VARSA isteklerden biri ACIK bir
-        // catisma hatasi doner. Bu ikinci dal kabul edilebilir — sessiz kayip
-        // DEGIL. Duzeltmeden sonra: iki eszamanli ilk istekten TAM OLARAK biri
-        // basarili olur, digeri AgentPrismSessionConflictException alir; hicbir
-        // zaman ikisi de sessizce "basarili" olup biri kaybolmaz.
+        // Accepted behavior (KAPANIS-PLANI.md §6, Family C): either NO
+        // message is lost, or, if a conflict check exists, one of the
+        // requests returns an EXPLICIT conflict error. This second branch is
+        // acceptable — silent loss is NOT. After the fix: of two concurrent
+        // first turns, EXACTLY ONE succeeds, the other gets
+        // AgentPrismSessionConflictException; the two never both silently
+        // "succeed" with one lost.
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        const string SessionId = "es-zamanli-ilk-istek";
+        const string SessionId = "concurrent-first-turn";
 
         await using var first = BuildProvider(context);
         await using var second = BuildProvider(context);
@@ -107,7 +109,7 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         {
             try
             {
-                var agent = await ResolveAsync(provider, "destek");
+                var agent = await ResolveAsync(provider, "support");
                 var manager = provider.GetRequiredService<AgentSessionManager>();
 
                 var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
@@ -122,47 +124,47 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         }
 
         var outcomes = await Task.WhenAll(
-            TryRunFirstTurnAsync(first, "birinci istek"),
-            TryRunFirstTurnAsync(second, "ikinci istek"));
+            TryRunFirstTurnAsync(first, "first request"),
+            TryRunFirstTurnAsync(second, "second request"));
 
-        // Sessiz kayip senaryosunda ikisi de null (basarili) dönerdi ama
-        // oturumda yalniz 2 mesaj kalirdi. Kabul edilen davranis: en fazla biri
-        // basarisiz olur, ve basarisiz olan MUTLAKA acik bir catisma hatasidir.
-        outcomes.Count(static ex => ex is null).ShouldBeGreaterThanOrEqualTo(1, "Iki istek de basarisiz oldu.");
+        // In the silent-loss scenario both would return null (success) but
+        // only 2 messages would remain in the session. Accepted behavior: at
+        // most one fails, and the one that fails MUST be an explicit conflict error.
+        outcomes.Count(static ex => ex is null).ShouldBeGreaterThanOrEqualTo(1, "Both requests failed.");
         outcomes.Where(static ex => ex is not null).ShouldAllBe(static ex => ex is AgentPrismSessionConflictException);
     }
 
     [Fact]
-    public async Task Calistirma_kaydi_gercek_oturum_kimligini_tasir()
+    public async Task Run_record_carries_the_real_session_id()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        const string SessionId = "kayitli-oturum";
+        const string SessionId = "recorded-session";
 
         await using var provider = BuildProvider(context);
 
-        var agent = await ResolveAsync(provider, "destek");
+        var agent = await ResolveAsync(provider, "support");
         var manager = provider.GetRequiredService<AgentSessionManager>();
 
         var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
-        await agent.RunAsync("merhaba", session);
+        await agent.RunAsync("hello", session);
 
         var runs = await provider.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery());
 
         var run = runs.ShouldHaveSingleItem();
         run.SessionId.ShouldBe(SessionId);
-        run.AgentName.ShouldBe("destek");
+        run.AgentName.ShouldBe("support");
         run.Status.ShouldBe(RunStatus.Completed);
     }
 
     [Fact]
-    public async Task Oturumsuz_calistirmada_kayit_bos_oturum_kimligi_tasir()
+    public async Task Run_without_a_session_carries_a_null_session_id()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         await using var provider = BuildProvider(context);
 
-        var agent = await ResolveAsync(provider, "destek");
-        await agent.RunAsync("oturumsuz");
+        var agent = await ResolveAsync(provider, "support");
+        await agent.RunAsync("no session");
 
         var runs = await provider.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery());
 
@@ -170,42 +172,42 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Kimliksiz_oturum_kaydedilemez()
+    public async Task Session_without_an_id_cannot_be_saved()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         await using var provider = BuildProvider(context);
 
-        var agent = await ResolveAsync(provider, "destek");
+        var agent = await ResolveAsync(provider, "support");
         var manager = provider.GetRequiredService<AgentSessionManager>();
 
-        // AgentSessionManager disinda acilmis bir oturumun AgentPrism kimligi yoktur.
+        // A session opened outside AgentSessionManager has no AgentPrism ID.
         var session = await agent.CreateSessionAsync();
 
         await Should.ThrowAsync<AgentPrismException>(async () => await manager.SaveSessionAsync(agent, session));
     }
 
     [Fact]
-    public async Task Oturum_silinince_geri_yukleme_yeni_oturum_acar()
+    public async Task Restoring_a_deleted_session_opens_a_new_one()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
         await using var provider = BuildProvider(context);
 
-        var agent = await ResolveAsync(provider, "destek");
+        var agent = await ResolveAsync(provider, "support");
         var manager = provider.GetRequiredService<AgentSessionManager>();
 
-        var session = await manager.GetOrCreateSessionAsync(agent, "gecici");
+        var session = await manager.GetOrCreateSessionAsync(agent, "temporary");
         await manager.SaveSessionAsync(agent, session);
 
-        (await manager.DeleteSessionAsync("gecici")).ShouldBeTrue();
-        (await manager.DeleteSessionAsync("gecici")).ShouldBeFalse();
+        (await manager.DeleteSessionAsync("temporary")).ShouldBeTrue();
+        (await manager.DeleteSessionAsync("temporary")).ShouldBeFalse();
 
-        var fresh = await manager.GetOrCreateSessionAsync(agent, "gecici");
-        AgentSessionIdentity.GetId(fresh).ShouldBe("gecici");
+        var fresh = await manager.GetOrCreateSessionAsync(agent, "temporary");
+        AgentSessionIdentity.GetId(fresh).ShouldBe("temporary");
     }
 
     private static async ValueTask<Microsoft.Agents.AI.AIAgent> ResolveAsync(IServiceProvider provider, string name)
         => await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(name)
-           ?? throw new InvalidOperationException($"'{name}' agent'i cozulemedi.");
+           ?? throw new InvalidOperationException($"Could not resolve agent '{name}'.");
 
     private ServiceProvider BuildProvider(PostgresTestContext context)
     {
@@ -218,8 +220,8 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
             .AddModelProvider(static provider => provider.GetRequiredService<FakeModelProvider>())
             .AddAgent(new AgentDefinition
             {
-                Name = "destek",
-                Instructions = "Kisa yanit ver.",
+                Name = "support",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
             })
             .UsePostgreSql(options =>

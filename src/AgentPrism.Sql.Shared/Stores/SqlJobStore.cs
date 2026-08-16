@@ -3,13 +3,13 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Kuyruktaki isleri ve ogelerini PostgreSQL'de saklayan depo.</summary>
+/// <summary>Stores queued jobs and their items in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// <see cref="LeaseAsync"/> <c>FOR UPDATE SKIP LOCKED</c> kullanir: birden
-/// fazla isci ayni veritabanina baglansa bile bir is yalnizca bir isci
-/// tarafindan alinir. Davranis sozlesmesi <see cref="InMemoryJobStore"/> ile
-/// birebir aynidir ve ortak sozlesme testleriyle (eslerlik dahil) korunur.
+/// <see cref="LeaseAsync"/> uses <c>FOR UPDATE SKIP LOCKED</c>: even when
+/// multiple workers connect to the same database, a job is picked up by only
+/// one worker. The behavior contract is identical to <see cref="InMemoryJobStore"/>
+/// and is protected by shared contract tests (including concurrency).
 /// </para>
 /// </remarks>
 internal sealed class SqlJobStore : IJobStore
@@ -17,9 +17,9 @@ internal sealed class SqlJobStore : IJobStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir is deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new job store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlJobStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -28,7 +28,7 @@ internal sealed class SqlJobStore : IJobStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -98,7 +98,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Isci havuzu BUTUN kiracilarin kuyrugundan sirayla is alir; kiraci, alinan isin kaydinda tasinir ve yurutme o kiraci kapsaminda (AmbientTenantScope) yapilir.")]
+        "The worker pool picks up jobs in order from EVERY tenant's queue; the tenant is carried on the leased job's record, and execution happens within that tenant's scope (AmbientTenantScope).")]
     public async ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
@@ -118,7 +118,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kira yenileme, isin sahibi ISCI kimligiyle korunur (owner); kiraci kavrami tasimaz.")]
+        "Lease renewal is guarded by the job's owning WORKER identity (owner); it carries no tenant concept.")]
     public async ValueTask RenewLeaseAsync(
         Guid jobId,
         string owner,
@@ -137,7 +137,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "RenewLeaseAsync ile ayni gerekce: sahiplik isci kimligiyle korunur.")]
+        "Same rationale as RenewLeaseAsync: ownership is guarded by the worker identity.")]
     public async ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -151,7 +151,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Is kimligi LeaseAsync'ten gelir; cagride ayri bir kiraci niyeti yoktur.")]
+        "The job id comes from LeaseAsync; the call carries no separate tenant intent.")]
     public async ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -167,7 +167,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "CompleteAsync ile ayni gerekce: is kimligi LeaseAsync'ten gelir.")]
+        "Same rationale as CompleteAsync: the job id comes from LeaseAsync.")]
     public async ValueTask ReleaseForRetryAsync(
         Guid jobId,
         string errorMessage,
@@ -178,9 +178,9 @@ internal sealed class SqlJobStore : IJobStore
         DbHelpers.Add(command, "id", jobId);
         AddNullableText(command, "error_message", errorMessage);
 
-        // Geri adimli bekleme scheduled_for uzerinden kurulur; LeaseJob zaten
-        // `scheduled_for <= @now` suzer. GREATEST(...) ile beklemeyi asla one
-        // cekmeyiz: erken calisan bir tur isi geriye alamaz.
+        // Backoff is set up via scheduled_for; LeaseJob already filters
+        // `scheduled_for <= @now`. GREATEST(...) never brings the wait time
+        // forward: an early-running round cannot pull the job back.
         var retryAt = retryAfter is { } delay && delay > TimeSpan.Zero
             ? DateTimeOffset.UtcNow + delay
             : (DateTimeOffset?)null;
@@ -238,7 +238,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kalemler isin ALTINDA yasar; is kimligi kiraciya suzulmus bir sorgudan (GetAsync/QueryAsync) gelir.")]
+        "Items live UNDER a job; the job id comes from a query already filtered by tenant (GetAsync/QueryAsync).")]
     public async ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
@@ -251,7 +251,7 @@ internal sealed class SqlJobStore : IJobStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kalem sonucu isi yuruten isci tarafindan yazilir; is kimligi LeaseAsync'ten gelir.")]
+        "The item result is written by the worker running the job; the job id comes from LeaseAsync.")]
     public async ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -305,12 +305,12 @@ internal sealed class SqlJobStore : IJobStore
         };
 
     /// <summary>
-    /// jsonb sutununu <see cref="JsonElement"/> olarak okur.
+    /// Reads a jsonb column as a <see cref="JsonElement"/>.
     /// </summary>
     /// <remarks>
-    /// <see cref="JsonDocument"/> birakildiginda kendi tamponunu geri verir ve
-    /// icinden alinan <see cref="JsonElement"/> gecersizlesir; <c>Clone()</c>
-    /// tamponu kopyalar ve degeri cagiranin omrunden bagimsiz kilar.
+    /// Disposing a <see cref="JsonDocument"/> returns its buffer, invalidating
+    /// any <see cref="JsonElement"/> taken from it; <c>Clone()</c> copies the
+    /// buffer and makes the value independent of the caller's lifetime.
     /// </remarks>
     private static JsonElement ReadJsonb(DbDataReader reader, int ordinal)
     {

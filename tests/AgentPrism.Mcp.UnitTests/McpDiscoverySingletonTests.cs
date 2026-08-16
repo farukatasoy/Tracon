@@ -7,16 +7,17 @@ using Microsoft.Extensions.Primitives;
 namespace AgentPrism.Mcp.UnitTests;
 
 /// <summary>
-/// Iki gercek <see cref="McpDiscoveryService"/> orneginin AYNI kira deposunu
-/// paylastigi uctan uca senaryo (Faz 42, DoD: "Iki ornek kurulur; MCP kesfi
-/// yalniz birinde kosar"). MCP sunucusu kayitli degildir; amac kesfin
-/// KENDISINI degil, YALNIZ BIR orneginin calistigini gozlemektir — bu yuzden
-/// tamamlanma logu (<c>"MCP discovery completed"</c>) sinyal olarak kullanilir.
+/// End-to-end scenario where two real <see cref="McpDiscoveryService"/>
+/// instances share the SAME lease store (Phase 42, DoD: "Two instances are
+/// set up; MCP discovery runs on only one"). No MCP server is registered;
+/// the goal is to observe that discovery runs on ONLY ONE instance, not
+/// discovery itself — so the completion log
+/// (<c>"MCP discovery completed"</c>) is used as the signal.
 /// </summary>
 public sealed class McpDiscoverySingletonTests
 {
     [Fact]
-    public async Task Kesif_yalniz_bir_ornekte_kosar()
+    public async Task Discovery_runs_on_only_one_instance()
     {
         var leaseStore = new InMemorySingletonLeaseStore();
         var singletonOptions = Options(new SingletonExecutionOptions
@@ -62,8 +63,8 @@ public sealed class McpDiscoverySingletonTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry());
 
-        // Hicbir SQL kalicilik saglayicisi kayitli degil: kapi kendiliginden aciktir
-        // ve kesif beklemeden baslar (K-354).
+        // No SQL persistence provider is registered: the gate is open by
+        // itself, and discovery starts without waiting (K-354).
         var schemaReadyGate = new SchemaReadyGate([]);
 
         return new McpDiscoveryService(
@@ -73,9 +74,9 @@ public sealed class McpDiscoverySingletonTests
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
 
     /// <summary>
-    /// Hicbir anahtar tasimayan sahte yapilandirma. MCP kayitli sunucusu
-    /// yokken <c>McpToolCatalog</c> yapilandirmayi hic okumaz; bu tip yalniz
-    /// bir kurucu bagimliligini doldurmak icindir.
+    /// Fake configuration that carries no keys. When no MCP server is
+    /// registered, <c>McpToolCatalog</c> never reads configuration; this
+    /// type exists only to fill a constructor dependency.
     /// </summary>
     private sealed class EmptyConfiguration : IConfiguration
     {
@@ -112,7 +113,7 @@ public sealed class McpDiscoverySingletonTests
         }
     }
 
-    /// <summary>Sabit bir deger dondüren, degisikligi izlemeyen sahte <see cref="IOptionsMonitor{T}"/>.</summary>
+    /// <summary>A fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never tracks changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>, IOptions<T>
         where T : class
     {
@@ -125,7 +126,7 @@ public sealed class McpDiscoverySingletonTests
         public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
-    /// <summary>Bicimlendirilmis log mesajlarini biriktiren sahte gunlukleyici.</summary>
+    /// <summary>Fake logger that accumulates formatted log messages.</summary>
     private sealed class RecordingLogger<T> : ILogger<T>
     {
         private readonly List<string> _messages = [];

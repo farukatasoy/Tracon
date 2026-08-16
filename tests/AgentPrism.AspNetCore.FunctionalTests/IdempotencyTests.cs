@@ -6,7 +6,7 @@ using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary><c>Idempotency-Key</c> destegi testleri (Faz 43).</summary>
+/// <summary><c>Idempotency-Key</c> support tests (Phase 43).</summary>
 public sealed class IdempotencyTests
 {
     private const string HeaderName = "Idempotency-Key";
@@ -34,13 +34,13 @@ public sealed class IdempotencyTests
     }
 
     [Fact]
-    public async Task Ayni_anahtar_ayni_govde_agenti_ikinci_kez_calistirmaz()
+    public async Task Same_key_same_body_does_not_run_the_agent_a_second_time()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         var key = Guid.NewGuid().ToString("N");
-        var body = new AgentRunRequest { Message = "merhaba" };
+        var body = new AgentRunRequest { Message = "hello" };
 
         using (var first = await PostWithKeyAsync(host, Run, body, key))
         {
@@ -59,16 +59,16 @@ public sealed class IdempotencyTests
     }
 
     [Fact]
-    public async Task Prefer_respond_async_replay_Location_ve_Preference_Applied_basliklarini_da_doner()
+    public async Task Prefer_respond_async_replay_also_returns_Location_and_Preference_Applied_headers()
     {
-        // HATA-S3-008 / MT-JOB-083: replay yalniz govdeyi koruyordu; 'Location'
-        // ve 'Preference-Applied' HTTP baslikları saklanmiyordu.
+        // HATA-S3-008 / MT-JOB-083: replay only preserved the body — the
+        // 'Location' and 'Preference-Applied' HTTP headers were not stored.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
         var key = Guid.NewGuid().ToString("N");
-        var body = new AgentRunRequest { Message = "merhaba" };
+        var body = new AgentRunRequest { Message = "hello" };
 
         using var first = await PostAsyncWithKeyAsync(host, Run, body, key);
         first.StatusCode.ShouldBe(HttpStatusCode.Accepted);
@@ -84,39 +84,40 @@ public sealed class IdempotencyTests
     }
 
     [Fact]
-    public async Task Ayni_anahtar_FARKLI_govde_422_doner()
+    public async Task Same_key_DIFFERENT_body_returns_422()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         var key = Guid.NewGuid().ToString("N");
 
-        using (var first = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "merhaba" }, key))
+        using (var first = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "hello" }, key))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        using var mismatched = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "BASKA" }, key);
+        using var mismatched = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "OTHER" }, key);
 
         mismatched.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]
-    public async Task Eszamanli_ayni_anahtar_istegi_agenti_YALNIZ_BIR_KEZ_calistirir()
+    public async Task Concurrent_requests_with_the_same_key_run_the_agent_ONLY_ONCE()
     {
-        // 🚨 Test sunucusu (TestServer) es zamanli istekleri gercek bir agin
-        // aksine SIRALI islemeye de karar verebilir; bu durumda ikinci istek
-        // 409 yerine REPLAY edilmis 200 alir (kayit zaten Completed'dir). Bu
-        // yuzden "kim 409 aldi" yerine ayirmanin ATOMIK oldugunu gosteren
-        // TEK degismez dogrulanir: agent kac istek gelirse gelsin YALNIZ BIR
-        // KEZ calisir. Ayirmanin gercek yaris testi (8 eszamanli cagri, ag
-        // katmani olmadan) `IdempotencyStoreContract`'tadir ve uc SQL
-        // saglayicisinda da kosar.
+        // 🚨 The test server (TestServer) may process concurrent requests
+        // SEQUENTIALLY, unlike a real network; in that case the second
+        // request gets a REPLAYED 200 instead of a 409 (the record is
+        // already Completed). So instead of asserting "who got 409", the
+        // ONE invariant that shows the separation is ATOMIC is asserted: the
+        // agent runs ONLY ONCE no matter how many requests arrive. The real
+        // race test for the separation (8 concurrent calls, no network
+        // layer) lives in `IdempotencyStoreContract` and runs against all
+        // three SQL providers.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         var key = Guid.NewGuid().ToString("N");
-        var body = new AgentRunRequest { Message = "merhaba" };
+        var body = new AgentRunRequest { Message = "hello" };
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => PostWithKeyAsync(host, Run, body, key)));
 
@@ -138,15 +139,16 @@ public sealed class IdempotencyTests
     }
 
     [Fact]
-    public async Task Basarisiz_istekten_sonra_ayni_anahtarla_yeniden_deneme_calisir()
+    public async Task Retrying_with_the_same_key_after_a_failed_request_works()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         var key = Guid.NewGuid().ToString("N");
 
-        // Bos mesaj RunAsync icinde 400 ile reddedilir; IdempotencyFilter bu
-        // basarisizligi SAKLAMAMALI ve kaydi SILMELIDIR.
+        // An empty message is rejected with 400 inside RunAsync;
+        // IdempotencyFilter must NOT STORE this failure and must DELETE the
+        // record.
         using (var failed = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "  " }, key))
         {
             failed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -154,13 +156,13 @@ public sealed class IdempotencyTests
 
         using var retried = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "  " }, key);
 
-        // 🚨 409 (InProgress) veya saklanan-eski-hata DEGIL: anahtar serbest
-        // birakilmis olmalidir, ayni sonuc (400) TEKRAR uretilir.
+        // 🚨 NOT 409 (InProgress) or a stored-stale-error: the key must have
+        // been released, the same result (400) is produced AGAIN.
         retried.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Akisli_istekte_Idempotency_Key_400_doner()
+    public async Task Streaming_request_with_Idempotency_Key_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -168,14 +170,14 @@ public sealed class IdempotencyTests
         using var response = await PostWithKeyAsync(
             host,
             Responses,
-            new { model = "kod-agent", input = "merhaba", stream = true },
+            new { model = "kod-agent", input = "hello", stream = true },
             Guid.NewGuid().ToString("N"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Tekrarlanan_istek_kotayi_ikinci_kez_tuketmez()
+    public async Task Repeated_request_does_not_consume_the_quota_a_second_time()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -188,15 +190,16 @@ public sealed class IdempotencyTests
         }
 
         var key = Guid.NewGuid().ToString("N");
-        var body = new AgentRunRequest { Message = "merhaba" };
+        var body = new AgentRunRequest { Message = "hello" };
 
         using (var first = await PostWithKeyAsync(host, Run, body, key))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        // Kota tukendi (maxRuns=1); YENI bir istek 429 alirdi. Ama AYNI
-        // anahtar+govde saklanan yaniti dondurmelidir — QuotaGate'e HIC ugramaz.
+        // Quota exhausted (maxRuns=1); a NEW request would get 429. But the
+        // SAME key+body must return the stored response — it never reaches
+        // the QuotaGate.
         using var replayed = await PostWithKeyAsync(host, Run, body, key);
 
         replayed.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -204,7 +207,7 @@ public sealed class IdempotencyTests
     }
 
     [Fact]
-    public async Task Hiz_sinirina_tabidir()
+    public async Task Is_subject_to_the_rate_limit()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -217,22 +220,22 @@ public sealed class IdempotencyTests
                 }));
 
         var key = Guid.NewGuid().ToString("N");
-        var body = new AgentRunRequest { Message = "merhaba" };
+        var body = new AgentRunRequest { Message = "hello" };
 
         using (var first = await PostWithKeyAsync(host, Run, body, key))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        // Hiz siniri IdempotencyFilter'DAN ONCE calisir (43.1): ayni anahtarla
-        // gelen tekrar bile pencere dolunca 429 alir.
+        // The rate limit runs BEFORE IdempotencyFilter (43.1): even a repeat
+        // with the same key gets 429 once the window is exhausted.
         using var limited = await PostWithKeyAsync(host, Run, body, key);
 
         limited.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]
-    public async Task Kapaliyken_baslik_tasiyan_istek_501_doner()
+    public async Task Request_carrying_the_header_returns_501_while_disabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -240,37 +243,37 @@ public sealed class IdempotencyTests
                 static options => options.Enabled = false));
 
         using var response = await PostWithKeyAsync(
-            host, Run, new AgentRunRequest { Message = "merhaba" }, Guid.NewGuid().ToString("N"));
+            host, Run, new AgentRunRequest { Message = "hello" }, Guid.NewGuid().ToString("N"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
     }
 
     [Fact]
-    public async Task Baslik_yokken_davranis_degismez()
+    public async Task Behavior_is_unchanged_when_the_header_is_absent()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "merhaba" });
+        using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
     }
 
     [Fact]
-    public async Task Cok_uzun_anahtar_400_doner()
+    public async Task Too_long_key_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
         using var response = await PostWithKeyAsync(
-            host, Run, new AgentRunRequest { Message = "merhaba" }, new string('a', 300));
+            host, Run, new AgentRunRequest { Message = "hello" }, new string('a', 300));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Idempotency_keys_saklama_hedefi_olarak_taninir()
+    public async Task Idempotency_keys_is_recognized_as_a_retention_target()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

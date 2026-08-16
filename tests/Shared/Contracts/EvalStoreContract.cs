@@ -1,7 +1,7 @@
 
 namespace AgentPrism.StoreContracts;
 
-/// <summary><see cref="IEvalStore"/> sozlesmesinin davranis testleri.</summary>
+/// <summary>Behavior tests for the <see cref="IEvalStore"/> contract.</summary>
 public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
 {
     /// <inheritdoc />
@@ -25,7 +25,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         => await Store.DeleteSuiteAsync(tenantId, (string)key);
 
     [Fact]
-    public async Task SaveSuiteAsync_yeni_takima_kimlik_atar()
+    public async Task SaveSuiteAsync_assigns_an_id_to_a_new_suite()
     {
         var saved = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
@@ -35,97 +35,97 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task SaveSuiteAsync_ayni_ad_icin_kimligi_korur_ve_gunceller()
+    public async Task SaveSuiteAsync_keeps_the_id_for_the_same_name_and_updates()
     {
         var first = await Store.SaveSuiteAsync(TestData.EvalSuite());
-        var second = await Store.SaveSuiteAsync(TestData.EvalSuite() with { Description = "guncellendi" });
+        var second = await Store.SaveSuiteAsync(TestData.EvalSuite() with { Description = "updated" });
 
         second.Id.ShouldBe(first.Id);
 
-        var fetched = await Store.GetSuiteAsync("default", "musteri-destek-takimi");
-        fetched!.Description.ShouldBe("guncellendi");
+        var fetched = await Store.GetSuiteAsync("default", "customer-support-team");
+        fetched!.Description.ShouldBe("updated");
     }
 
     [Fact]
-    public async Task GetSuiteAsync_baska_kiracidan_null_doner()
+    public async Task GetSuiteAsync_returns_null_for_another_tenant()
     {
-        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "kiraci-a"));
+        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "tenant-a"));
 
-        (await Store.GetSuiteAsync("kiraci-b", "musteri-destek-takimi")).ShouldBeNull();
+        (await Store.GetSuiteAsync("tenant-b", "customer-support-team")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task ListSuitesAsync_yalnizca_o_kiraciyi_getirir()
+    public async Task ListSuitesAsync_returns_only_that_tenant()
     {
-        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "kiraci-a", name: "s1"));
-        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "kiraci-b", name: "s2"));
+        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "tenant-a", name: "s1"));
+        await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId: "tenant-b", name: "s2"));
 
-        var list = await Store.ListSuitesAsync("kiraci-a");
+        var list = await Store.ListSuitesAsync("tenant-a");
 
         list.ShouldHaveSingleItem();
         list[0].Name.ShouldBe("s1");
     }
 
     [Fact]
-    public async Task DeleteSuiteAsync_vakalari_ve_kosulari_da_siler()
+    public async Task DeleteSuiteAsync_also_deletes_its_cases_and_runs()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id)]);
         var run = await Store.CreateRunAsync(TestData.EvalRun("default", suite.Id));
 
-        (await Store.DeleteSuiteAsync("default", "musteri-destek-takimi")).ShouldBeTrue();
+        (await Store.DeleteSuiteAsync("default", "customer-support-team")).ShouldBeTrue();
 
         (await Store.ListCasesAsync(suite.Id)).ShouldBeEmpty();
         (await Store.GetRunAsync("default", run.Id)).ShouldBeNull();
     }
 
     [Fact]
-    public async Task ReplaceCasesAsync_sira_numaralarini_atar_ve_oncekileri_degistirir()
+    public async Task ReplaceCasesAsync_assigns_sequence_numbers_and_replaces_previous_cases()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
         var saved = await Store.ReplaceCasesAsync(
             suite.Id,
-            [TestData.EvalCase(suite.Id, "birinci"), TestData.EvalCase(suite.Id, "ikinci")]);
+            [TestData.EvalCase(suite.Id, "first"), TestData.EvalCase(suite.Id, "second")]);
 
         saved[0].Seq.ShouldBe(0);
         saved[1].Seq.ShouldBe(1);
         saved[0].SuiteId.ShouldBe(suite.Id);
 
-        var replaced = await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "tek")]);
+        var replaced = await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "single")]);
 
         replaced.Count.ShouldBe(1);
         (await Store.ListCasesAsync(suite.Id)).Count.ShouldBe(1);
-        (await Store.ListCasesAsync(suite.Id))[0].Query.ShouldBe("tek");
+        (await Store.ListCasesAsync(suite.Id))[0].Query.ShouldBe("single");
     }
 
     [Fact]
-    public async Task ReplaceCasesAsync_beklenen_toollari_ve_baglami_saklar()
+    public async Task ReplaceCasesAsync_stores_expected_tools_and_context()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
         var input = TestData.EvalCase(suite.Id) with
         {
-            ExpectedOutput = "beklenen",
+            ExpectedOutput = "expected",
             ExpectedTools = ["get_order_status", "get_shipping_status"],
-            Context = "ek baglam",
+            Context = "extra context",
         };
 
         await Store.ReplaceCasesAsync(suite.Id, [input]);
         var loaded = (await Store.ListCasesAsync(suite.Id))[0];
 
-        loaded.ExpectedOutput.ShouldBe("beklenen");
+        loaded.ExpectedOutput.ShouldBe("expected");
         loaded.ExpectedTools.ShouldBe(["get_order_status", "get_shipping_status"]);
-        loaded.Context.ShouldBe("ek baglam");
+        loaded.Context.ShouldBe("extra context");
     }
 
     [Fact]
-    public async Task AddCaseAsync_seq_atomik_atanir()
+    public async Task AddCaseAsync_assigns_seq_atomically()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
-        var first = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "birinci"));
-        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "ikinci"));
+        var first = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "first"));
+        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "second"));
 
         first.Created.ShouldBeTrue();
         second.Created.ShouldBeTrue();
@@ -134,7 +134,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task AddCaseAsync_kaynak_alanlarini_ve_beklenen_alanlari_saklar()
+    public async Task AddCaseAsync_stores_source_fields_and_expected_fields()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         var runId = AgentPrismId.NewId();
@@ -143,32 +143,32 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
             suite.Id,
             new EvalCaseDraft
             {
-                Query = "soru",
-                ExpectedOutput = "beklenen",
+                Query = "question",
+                ExpectedOutput = "expected",
                 ExpectedTools = ["get_order_status"],
-                Context = "baglam",
+                Context = "context",
                 SourceRunId = runId,
                 SourceKind = EvalCaseSource.ReferenceRun,
             });
 
         added.Created.ShouldBeTrue();
-        added.Case.Query.ShouldBe("soru");
-        added.Case.ExpectedOutput.ShouldBe("beklenen");
+        added.Case.Query.ShouldBe("question");
+        added.Case.ExpectedOutput.ShouldBe("expected");
         added.Case.ExpectedTools.ShouldBe(["get_order_status"]);
-        added.Case.Context.ShouldBe("baglam");
+        added.Case.Context.ShouldBe("context");
         added.Case.SourceRunId.ShouldBe(runId);
         added.Case.SourceKind.ShouldBe(EvalCaseSource.ReferenceRun);
         added.Case.PromotedAt.ShouldNotBeNull();
     }
 
     [Fact]
-    public async Task AddCaseAsync_ayni_source_run_id_ikinci_kez_mevcut_vakayi_doner()
+    public async Task AddCaseAsync_returns_the_existing_case_the_second_time_for_the_same_source_run_id()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         var runId = AgentPrismId.NewId();
 
         var first = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(runId));
-        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(runId, "farkli-soru"));
+        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(runId, "different-question"));
 
         first.Created.ShouldBeTrue();
         second.Created.ShouldBeFalse();
@@ -179,12 +179,12 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task AddCaseAsync_kaynaksiz_vakalari_elle_yazilmis_vakalardan_ayirmaz()
+    public async Task AddCaseAsync_does_not_separate_sourceless_cases_from_hand_written_ones()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
-        await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "elle")]);
+        await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "manual")]);
 
-        var added = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "terfi"));
+        var added = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "promoted"));
 
         added.Case.Seq.ShouldBe(1);
 
@@ -195,7 +195,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir()
+    public async Task AddCaseAsync_concurrent_promotions_produce_distinct_seq()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
@@ -210,7 +210,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task Kosu_yasam_dongusu_calisiyor_tamamlandi_gecisi_yapar()
+    public async Task Run_lifecycle_transitions_from_running_to_completed()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         var jobId = Guid.NewGuid();
@@ -249,10 +249,10 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task QueryRunsAsync_takima_gore_filtreler_ve_en_yeniyi_basa_alir()
+    public async Task QueryRunsAsync_filters_by_suite_and_puts_the_newest_first()
     {
-        var suiteA = await Store.SaveSuiteAsync(TestData.EvalSuite(name: "takim-a"));
-        var suiteB = await Store.SaveSuiteAsync(TestData.EvalSuite(name: "takim-b"));
+        var suiteA = await Store.SaveSuiteAsync(TestData.EvalSuite(name: "team-a"));
+        var suiteB = await Store.SaveSuiteAsync(TestData.EvalSuite(name: "team-b"));
 
         var first = await Store.CreateRunAsync(TestData.EvalRun("default", suiteA.Id) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-5) });
         var second = await Store.CreateRunAsync(TestData.EvalRun("default", suiteA.Id) with { StartedAt = DateTimeOffset.UtcNow });
@@ -266,7 +266,7 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task Vaka_sonucu_kaydedilir_ve_kiraciya_gore_filtrelenir()
+    public async Task Case_result_is_recorded_and_filtered_by_tenant()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
         var run = await Store.CreateRunAsync(TestData.EvalRun("default", suite.Id));
@@ -278,26 +278,26 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
             CaseId = Guid.NewGuid(),
             RunId = runId,
             Passed = false,
-            Output = "cikti",
+            Output = "output",
             Scores = TestData.State("""[{"name":"nonEmpty","passed":false}]"""),
-            FailureReason = "cok kisa",
+            FailureReason = "too short",
         });
 
         var results = await Store.ListCaseResultsAsync("default", run.Id);
 
         results.ShouldHaveSingleItem();
         results[0].Passed.ShouldBeFalse();
-        results[0].Output.ShouldBe("cikti");
+        results[0].Output.ShouldBe("output");
         results[0].RunId.ShouldBe(runId);
-        results[0].FailureReason.ShouldBe("cok kisa");
+        results[0].FailureReason.ShouldBe("too short");
 
-        (await Store.ListCaseResultsAsync("baska-kiraci", run.Id)).ShouldBeEmpty();
+        (await Store.ListCaseResultsAsync("other-tenant", run.Id)).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Kosu_okumalari_kiracilar_arasinda_sizmaz()
+    public async Task Run_reads_do_not_leak_across_tenants()
     {
-        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite("tenant-a", "takim"));
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite("tenant-a", "team"));
         var jobId = AgentPrismId.NewId();
         var run = await Store.CreateRunAsync(TestData.EvalRun("tenant-a", suite.Id) with { JobId = jobId });
 

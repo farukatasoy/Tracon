@@ -2,21 +2,22 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Konusmalari kopyalayarak dallandiran SQL deposu (Faz 47).</summary>
+/// <summary>SQL store that branches conversations by copying them (Phase 47).</summary>
 /// <remarks>
 /// <para>
-/// Kopyalama tek bir islemde (transaction) yapilir: dal konusmasi ve ogeleri ya
-/// birlikte olusur ya hic olusmaz. Yarim bir dal, gecmisi eksik bir oturum
-/// demektir ve sessizce yanlis cevaplar uretirdi.
+/// The copy happens in a single transaction: the branch conversation and its
+/// items are created together or not at all. A half-formed branch would mean
+/// a session with incomplete history, and would silently produce wrong answers.
 /// </para>
 /// <para>
-/// 🚨 Ogeler <c>INSERT … SELECT</c> ile <strong>tek ifadede</strong> degil,
-/// okunup satir satir yazilir. Gerekce olculdu: yeni oge kimligi her satirda
-/// yeni bir uuid v7 olmalidir (K-015) ve uc diyalektin hicbirinde ortak bir
-/// uuid v7 uretici yoktur (PostgreSQL <c>gen_random_uuid()</c> v4 uretir,
-/// SQL Server <c>NEWID()</c> siralanamaz, SQLite'in hicbir yerlesigi yoktur).
-/// Saglayiciya ozgu uc ayri ifade yazmak yerine kimlik uygulamada uretilir;
-/// yazma tek islem icinde kaldigi icin dayaniklilik degismez.
+/// 🚨 Items are not copied with a <strong>single</strong> <c>INSERT … SELECT</c>
+/// statement; they are read and written row by row. The rationale was measured:
+/// each row's new item id must be a fresh uuid v7 (K-015), and none of the
+/// three dialects has a common uuid v7 generator (PostgreSQL's
+/// <c>gen_random_uuid()</c> produces v4, SQL Server's <c>NEWID()</c> cannot be
+/// sorted, SQLite has no built-in at all). Instead of writing three separate
+/// provider-specific statements, the id is generated in the application; since
+/// the write stays inside a single transaction, durability is unaffected.
 /// </para>
 /// </remarks>
 internal sealed class SqlConversationBranchStore : IConversationBranchStore
@@ -24,9 +25,9 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir SQL dallandirma deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new SQL branching store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlConversationBranchStore(SqlStoreContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -64,9 +65,10 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
                     upToSequence,
                     cancellationToken).ConfigureAwait(false);
 
-                // Konusma satiri kaynaktan kopyalanir. Kaynak yoksa veya baska
-                // bir kiraciya aitse SELECT bos doner ve hicbir satir yazilmaz;
-                // etkilenen satir sayisi bunu tek sorguda soyler.
+                // The conversation row is copied from the source. If the
+                // source does not exist or belongs to another tenant, the
+                // SELECT returns empty and no row is written; the affected
+                // row count reports this in a single query.
                 var insert = _context.CreateCommand(_sql.InsertBranchConversation, connection, transaction);
                 Dialect.AddUuid(insert, "id", newConversationId);
                 Dialect.AddUuid(insert, "parent_conversation_id", parentConversationId);
@@ -112,8 +114,8 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
                 cancellationToken)
             .ConfigureAwait(false);
 
-        // Toplam sorgusu her zaman bir satir doner; yine de savunmaci bir
-        // varsayilan birakiyoruz (bos konusma: -1 ve 0).
+        // The aggregate query always returns one row; we still leave a
+        // defensive default (empty conversation: -1 and 0).
         return point ?? new BranchPoint(-1, 0);
     }
 
@@ -146,9 +148,10 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
             Dialect.AddUuid(insert, "conversation_id", newConversationId);
             Dialect.AddInt64(insert, "seq", item.Sequence);
 
-            // 🚨 Metin AYNEN tasinir; yeniden serilestirilmez. Bir tur
-            // deserialize/serialize, `$type` ayracinin yerini degistirebilir
-            // ve dalin gecmisi okunamaz hale gelirdi (K-027).
+            // 🚨 The text is carried over AS-IS; it is not re-serialized. A
+            // round of deserialize/serialize could move the `$type`
+            // discriminator's position and make the branch's history
+            // unreadable (K-027).
             Dialect.AddJson(insert, "item", item.Item);
             Dialect.AddTimestamp(insert, "created_at", item.CreatedAt);
 

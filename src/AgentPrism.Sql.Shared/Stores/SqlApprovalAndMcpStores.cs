@@ -5,20 +5,21 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Kalici onay kurallarini PostgreSQL'de saklayan depo.
+/// Stores persistent approval rules in the SQL database.
 /// </summary>
 /// <remarks>
-/// Kurallar her tool cagrisinda okunur; sorgu <c>(tenant_id, created_at)</c>
-/// indeksinden gecer. Kiraci filtresi <strong>her</strong> islemde uygulanir.
+/// Rules are read on every tool call; the query goes through the
+/// <c>(tenant_id, created_at)</c> index. The tenant filter applies on
+/// <strong>every</strong> operation.
 /// </remarks>
 internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir kural deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new rule store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlToolApprovalRuleStore(
         SqlStoreContext context)
     {
@@ -28,7 +29,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -60,9 +61,9 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
         AddNullableText(command, "created_by", rule.CreatedBy);
         Dialect.AddTimestamp(command, "created_at", rule.CreatedAt);
 
-        // ON CONFLICT ... DO UPDATE (degistirmeyen bir atama ile) kullaniliyor:
-        // DO NOTHING satiri dondurmez ve mevcut kurali ikinci bir sorguyla
-        // okumak gerekirdi.
+        // Uses ON CONFLICT ... DO UPDATE (with a no-op assignment): DO NOTHING
+        // does not return a row, which would require a second query to read
+        // the existing rule.
         var saved = await DbHelpers.ReadSingleAsync(command, ReadRule, cancellationToken).ConfigureAwait(false);
 
         return saved ?? rule;
@@ -102,21 +103,21 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 }
 
 /// <summary>
-/// MCP sunucu tanimlarini PostgreSQL'de saklayan depo.
+/// Stores MCP server definitions in the SQL database.
 /// </summary>
 /// <remarks>
-/// <strong>Sir tasimaz.</strong> Yalnizca kimlik dogrulama degerinin okunacagi
-/// yapilandirma anahtarinin adi saklanir; degerin kendisi hicbir zaman bu
-/// tabloya yazilmaz (karar K-059).
+/// <strong>Carries no secret.</strong> Only the name of the configuration key
+/// whose value resolves the authorization credential is stored; the value
+/// itself is never written to this table (decision K-059).
 /// </remarks>
 internal sealed class SqlMcpServerStore : IMcpServerStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir MCP sunucu deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new MCP server store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlMcpServerStore(
         SqlStoreContext context)
     {
@@ -126,7 +127,7 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -206,8 +207,9 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
-    // Basliklar duz bir metin sozlugudur; Utf8JsonWriter ile elle yazilir
-    // (yansimasiz, AOT uyumlu). Polimorfik ayrac tasimadigi icin jsonb guvenlidir.
+    // Headers are a flat string dictionary; written by hand with Utf8JsonWriter
+    // (reflection-free, AOT-compatible). jsonb is safe here because the value
+    // carries no polymorphic type discriminator.
     private static string WriteHeaders(IReadOnlyDictionary<string, string> headers)
     {
         var buffer = new MemoryStream();
@@ -280,21 +282,21 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
 }
 
 /// <summary>
-/// Kiraci kayitlarini PostgreSQL'de saklayan depo.
+/// Stores tenant records in the SQL database.
 /// </summary>
 /// <remarks>
-/// Kiraci kaydi zorunlu degildir: diger tablolardaki <c>tenant_id</c> bu tablonun
-/// <c>slug</c> degeriyle ayni metindir ancak yabanci anahtarla baglanmaz. Kaydi
-/// silmek kiracinin verisini silmez.
+/// A tenant record is not mandatory: <c>tenant_id</c> in other tables is the
+/// same text as this table's <c>slug</c> value, but it is not linked by a
+/// foreign key. Deleting the record does not delete the tenant's data.
 /// </remarks>
 internal sealed class SqlTenantStore : ITenantStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir kiraci deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new tenant store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public SqlTenantStore(
         SqlStoreContext context)
     {
@@ -304,12 +306,12 @@ internal sealed class SqlTenantStore : ITenantStore
         _sql = context.Sql;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR: listeleme, kurulumdaki butun kiracilari dondurur ve yonetim yuzeyi icindir (Admin policy). Bir kiraci filtresi burada 'kendini listele'ye indirgenir ve anlamsizdir.")]
+        "The tenant registry itself sits ABOVE tenants: listing returns every tenant in the installation and exists for the management surface (Admin policy). A tenant filter here reduces to 'list yourself' and is meaningless.")]
     public async ValueTask<IReadOnlyList<TenantDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectTenants);
@@ -319,7 +321,7 @@ internal sealed class SqlTenantStore : ITenantStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR; kayit yeni bir kiraci ACAR, var olan bir kiracinin verisine dokunmaz.")]
+        "The tenant registry itself sits ABOVE tenants; saving OPENS a new tenant and does not touch an existing tenant's data.")]
     public async ValueTask<TenantDescriptor> SaveAsync(
         TenantDescriptor tenant,
         CancellationToken cancellationToken = default)
@@ -339,7 +341,7 @@ internal sealed class SqlTenantStore : ITenantStore
 
     /// <inheritdoc />
     [TenantAgnostic(
-        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR; silme bir kiraci KAYDINI kaldirir ve yonetim yuzeyi icindir.")]
+        "The tenant registry itself sits ABOVE tenants; deleting removes a tenant's RECORD and exists for the management surface.")]
     public async ValueTask<bool> DeleteAsync(string slug, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);

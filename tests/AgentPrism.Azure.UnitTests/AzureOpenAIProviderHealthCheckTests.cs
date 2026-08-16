@@ -5,25 +5,25 @@ using AgentPrism.Azure.UnitTests.Infrastructure;
 namespace AgentPrism.Azure.UnitTests;
 
 /// <summary>
-/// Saglik denetiminin adres birlestirmesi, yanit ayristirmasi ve kimlik secimi.
-/// Gercek bir Azure kaynagina cagri yapilmaz.
+/// The health check's address joining, response parsing, and credential selection.
+/// No call is made to a real Azure resource.
 /// </summary>
 public sealed class AzureOpenAIProviderHealthCheckTests
 {
     [Fact]
-    public void Egik_cizgili_taban_adres_veri_duzlemi_yoluna_baglanir()
+    public void Base_address_with_trailing_slash_joins_to_the_data_plane_path()
         => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(TestData.Endpoint)
             .ToString().ShouldBe(
                 $"{TestData.EndpointText}openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion}");
 
     [Fact]
-    public void Egik_cizgisiz_taban_adres_son_parcayi_yutmaz()
-        => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(new Uri("https://ornek.gecit/azure"))
+    public void Base_address_without_trailing_slash_does_not_swallow_the_last_segment()
+        => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(new Uri("https://example.gateway/azure"))
             .ToString().ShouldBe(
-                $"https://ornek.gecit/azure/openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion}");
+                $"https://example.gateway/azure/openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion}");
 
     [Fact]
-    public async Task Yanittan_model_kimlikleri_okunur_ve_siralanir()
+    public async Task Model_ids_are_read_from_the_response_and_sorted()
     {
         using var response = Json("""
             {"data":[{"id":"gpt-5.6-terra"},{"id":"gpt-4o-mini"},{"id":"text-embedding-3-large"}]}
@@ -35,9 +35,9 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Beklenmeyen_govde_bos_liste_dondurur()
+    public async Task Unexpected_body_returns_an_empty_list()
     {
-        using var response = Json("""{"nesne":"list"}""");
+        using var response = Json("""{"object":"list"}""");
 
         var models = await AzureOpenAIProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
@@ -45,9 +45,9 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Kimliksiz_ogeler_atlanir()
+    public async Task Items_without_an_id_are_skipped()
     {
-        using var response = Json("""{"data":[{"nesne":"model"},{"id":""},{"id":"gpt-5.6-terra"}]}""");
+        using var response = Json("""{"data":[{"object":"model"},{"id":""},{"id":"gpt-5.6-terra"}]}""");
 
         var models = await AzureOpenAIProviderHealthCheck.ReadModelIdsAsync(response, TestContext.Current.CancellationToken);
 
@@ -55,10 +55,11 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Baglanamayan_ucun_detayinda_ne_anahtar_ne_adres_gorunur()
+    public async Task Neither_key_nor_address_appears_in_the_detail_for_an_unreachable_endpoint()
     {
-        // Kapali bir port: baglanti reddedilir. HttpRequestException.Message hedef
-        // adresi govdeye gomerdi; HttpRequestError kategorisi adres tasimaz.
+        // A closed port: the connection is refused. HttpRequestException.Message
+        // would embed the target address in the body; the HttpRequestError
+        // category does not carry the address.
         var health = await CheckAsync(o => o.Endpoint = new Uri("http://127.0.0.1:1/"));
 
         health.Status.ShouldBe(ModelProviderHealthStatus.Unhealthy);
@@ -68,7 +69,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Adres_tanimsizsa_denetim_cagri_yapmadan_saglıksiz_doner()
+    public async Task Returns_unhealthy_without_making_a_check_call_when_the_address_is_undefined()
     {
         var health = await CheckAsync(o => o.Endpoint = null);
 
@@ -77,7 +78,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Kimlik_fabrikasi_varsa_genel_bulut_kapsami_istenir()
+    public async Task Public_cloud_scope_is_requested_when_a_credential_factory_is_present()
     {
         var credential = new SahteTokenKimligi();
 
@@ -91,46 +92,46 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     }
 
     [Fact]
-    public async Task Egemen_bulut_kapsami_ayardan_okunur()
+    public async Task Sovereign_cloud_scope_is_read_from_settings()
     {
         var credential = new SahteTokenKimligi();
-        const string Kapsam = "https://cognitiveservices.azure.us/.default";
+        const string Scope = "https://cognitiveservices.azure.us/.default";
 
         await CheckAsync(o =>
         {
             o.Endpoint = new Uri("http://127.0.0.1:1/");
-            o.Audience = Kapsam;
+            o.Audience = Scope;
             o.CredentialFactory = () => credential;
         });
 
-        credential.SonKapsam.ShouldBe(Kapsam);
+        credential.SonKapsam.ShouldBe(Scope);
     }
 
     [Fact]
-    public async Task Kimlik_denetim_basina_bir_kez_kurulur()
+    public async Task Credential_is_set_up_once_per_check()
     {
         var credential = new SahteTokenKimligi();
-        var kurulumSayisi = 0;
+        var setupCount = 0;
 
         var check = new AzureOpenAIProviderHealthCheck(
             AzureOpenAIProviderNames.AzureOpenAI,
             TestData.Options(o =>
             {
                 o.Endpoint = new Uri("http://127.0.0.1:1/");
-                o.CredentialFactory = () => { kurulumSayisi++; return credential; };
+                o.CredentialFactory = () => { setupCount++; return credential; };
             }));
 
         await check.CheckHealthAsync(TestContext.Current.CancellationToken);
         await check.CheckHealthAsync(TestContext.Current.CancellationToken);
 
-        // Kimlik NESNESI bir kez kurulur (token onbellegi korunur), ama her
-        // denetimde yeni bir token istenir.
-        kurulumSayisi.ShouldBe(1);
+        // The credential OBJECT is set up once (the token cache is
+        // preserved), but a new token is requested on every check.
+        setupCount.ShouldBe(1);
         credential.IstenenTokenSayisi.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Saglik_ayari_verilmeyen_saglayici_bilinmiyor_dondurur()
+    public async Task Provider_without_health_settings_returns_unknown()
     {
         var provider = new AzureOpenAIModelProvider(
             AzureOpenAIProviderNames.AzureOpenAI,

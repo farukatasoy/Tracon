@@ -5,21 +5,22 @@ using Npgsql;
 namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Yalitilmis bir sema kurar ve depolari hazirlar.
+/// Sets up an isolated schema and prepares the stores.
 /// </summary>
 /// <remarks>
-/// Bir sema genellikle bir sozlesme test SINIFI tarafindan paylasilir
-/// (bkz. <see cref="PostgresSchemaFixture"/>); testler arasi izolasyon
-/// <see cref="ResetDataAsync"/> ile saglanir, ayri sema ile degil.
-/// <c>SchemaName</c> ayarinin varsayilan olmayan bir semada dogru calistigi
-/// <c>MigrationRunnerTests</c>'te ayrica dogrulanir.
+/// A schema is usually shared by one contract test CLASS (see
+/// <see cref="PostgresSchemaFixture"/>); isolation between tests is provided
+/// by <see cref="ResetDataAsync"/>, not by a separate schema. That
+/// <c>SchemaName</c> works correctly with a non-default schema is verified
+/// separately in <c>MigrationRunnerTests</c>.
 /// </remarks>
 internal sealed class PostgresTestContext : IAsyncDisposable
 {
     /// <summary>
-    /// Testlerde kullanilan varsayilan gomu boyutu (Faz 51). Kucuk tutulur:
-    /// vektor testleri disindaki 40+ paket bu degerden BAGIMSIZDIR, yalniz
-    /// <c>document_embeddings.embedding</c> sutununun tipini belirler.
+    /// Default embedding dimension used in tests (Phase 51). Kept small:
+    /// the 40+ packages outside the vector tests are INDEPENDENT of this
+    /// value, it only determines the type of the
+    /// <c>document_embeddings.embedding</c> column.
     /// </summary>
     public const int DefaultVectorDimensions = 3;
 
@@ -86,130 +87,130 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
-    /// <summary>Bu baglamin veri kaynagi.</summary>
+    /// <summary>This context's data source.</summary>
     public NpgsqlDataSource DataSource { get; }
 
-    /// <summary>Paylasilan depo katmaninin baglami.</summary>
+    /// <summary>This context's shared store-layer context.</summary>
     public SqlStoreContext StoreContext { get; }
 
-    /// <summary>Bu baglamin ayarlari.</summary>
+    /// <summary>This context's options.</summary>
     public AgentPrismPostgreSqlOptions Options { get; }
 
-    /// <summary>Bu baglamin kiraci baglami.</summary>
+    /// <summary>This context's tenant context.</summary>
     public ITenantContext TenantContext { get; }
 
-    /// <summary>Migration 0024'e uygulanan gomu boyutu (Faz 51).</summary>
+    /// <summary>The embedding dimension applied to migration 0024 (Phase 51).</summary>
     public int VectorDimensions { get; }
 
-    /// <summary>Agent tanim deposu.</summary>
+    /// <summary>Agent definition store.</summary>
     public SqlAgentDefinitionStore AgentDefinitions { get; }
 
-    /// <summary>Calistirma deposu.</summary>
+    /// <summary>Run store.</summary>
     public SqlRunStore Runs { get; }
 
-    /// <summary>Oturum deposu.</summary>
+    /// <summary>Session store.</summary>
     public SqlSessionStore Sessions { get; }
 
-    /// <summary>Span deposu (Faz 6).</summary>
+    /// <summary>Span store (Phase 6).</summary>
     public SqlTraceStore Traces { get; }
 
-    /// <summary>Kalici onay kurali deposu (Faz 6).</summary>
+    /// <summary>Persistent tool approval rule store (Phase 6).</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
 
-    /// <summary>Bekleyen onay istegi deposu (Faz 55).</summary>
+    /// <summary>Pending approval request store (Phase 55).</summary>
     public SqlPendingApprovalStore PendingApprovals { get; }
 
-    /// <summary>MCP sunucu deposu (Faz 6).</summary>
+    /// <summary>MCP server store (Phase 6).</summary>
     public SqlMcpServerStore McpServers { get; }
 
-    /// <summary>Kiraci kaydi deposu (Faz 6).</summary>
+    /// <summary>Tenant registry store (Phase 6).</summary>
     public SqlTenantStore Tenants { get; }
 
-    /// <summary>Sohbet gecmisi saglayicisi.</summary>
+    /// <summary>Chat history provider.</summary>
     public SqlChatHistoryProvider ChatHistory { get; }
 
-    /// <summary>Denetim izi defteri (Faz 9).</summary>
+    /// <summary>Audit trail ledger (Phase 9).</summary>
     public SqlAuditLog AuditLog { get; }
 
-    /// <summary>Script calistirma izni deposu (Faz 11).</summary>
+    /// <summary>Script execution grant store (Phase 11).</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
-    /// <summary>Calisma ani skill deposu (Faz 10).</summary>
+    /// <summary>Runtime skill store (Phase 10).</summary>
     public SqlAgentSkillStore AgentSkills { get; }
 
-    /// <summary>Ek deposu (Faz 14).</summary>
+    /// <summary>Attachment store (Phase 14).</summary>
     public SqlAttachmentStore Attachments { get; }
 
-    /// <summary>Kalici agent dosya belleği (Faz 14).</summary>
+    /// <summary>Persistent agent file storage (Phase 14).</summary>
     public SqlAgentFileStore AgentFiles { get; }
 
-    /// <summary>Vektor tabanli anlamsal arama deposu (Faz 51).</summary>
+    /// <summary>Vector-based semantic search store (Phase 51).</summary>
     public PgVectorSearchStore Vectors { get; }
 
-    /// <summary>Workflow tanim deposu (Faz 15).</summary>
+    /// <summary>Workflow definition store (Phase 15).</summary>
     public SqlWorkflowDefinitionStore Workflows { get; }
 
-    /// <summary>Workflow kontrol noktasi deposu (Faz 15).</summary>
+    /// <summary>Workflow checkpoint store (Phase 15).</summary>
     public SqlWorkflowCheckpointStore WorkflowCheckpoints { get; }
 
-    /// <summary>Is kuyrugu deposu (Faz 17).</summary>
+    /// <summary>Job queue store (Phase 17).</summary>
     public SqlJobStore Jobs { get; }
 
-    /// <summary>Zamanlama deposu (Faz 17).</summary>
+    /// <summary>Schedule store (Phase 17).</summary>
     public SqlJobScheduleStore JobSchedules { get; }
 
-    /// <summary>Eval takim/vaka/kosu deposu (Faz 18).</summary>
+    /// <summary>Eval team/case/run store (Phase 18).</summary>
     public SqlEvalStore Evals { get; }
 
-    /// <summary>A/B deneyi deposu (Faz 19).</summary>
+    /// <summary>A/B experiment store (Phase 19).</summary>
     public SqlExperimentStore Experiments { get; }
 
-    /// <summary>Kota deposu (Faz 21).</summary>
+    /// <summary>Quota store (Phase 21).</summary>
     public SqlQuotaStore Quotas { get; }
 
-    /// <summary>Webhook deposu (Faz 21).</summary>
+    /// <summary>Webhook store (Phase 21).</summary>
     public SqlWebhookStore Webhooks { get; }
 
-    /// <summary>Kiraci bazli API anahtari deposu (Faz 53).</summary>
+    /// <summary>Tenant-scoped API key store (Phase 53).</summary>
     public SqlApiKeyStore ApiKeys { get; }
 
-    /// <summary>Saklama politikasi ve kosu gecmisi deposu (Faz 25).</summary>
+    /// <summary>Retention policy and run history store (Phase 25).</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }
 
-    /// <summary>Saklama veri duzlemi (sayma/silme/arsiv okuma) (Faz 25).</summary>
+    /// <summary>Retention data plane (count/delete/archive read) (Phase 25).</summary>
     public SqlRetentionStore RetentionData { get; }
 
-    /// <summary>Konusma kaydi deposu (Faz 29).</summary>
+    /// <summary>Voice session record store (Phase 29).</summary>
     public SqlVoiceSessionStore VoiceSessions { get; }
 
-    /// <summary>Calistirma/mesaj puani deposu (Faz 31).</summary>
+    /// <summary>Run/message score store (Phase 31).</summary>
     public SqlRunScoreStore RunScores { get; }
 
-    /// <summary>Tek yurutucu secimi kira deposu (Faz 42).</summary>
+    /// <summary>Single-executor election lease store (Phase 42).</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
 
-    /// <summary>Idempotency deposu (Faz 43).</summary>
+    /// <summary>Idempotency store (Phase 43).</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }
 
-    /// <summary>Calistirma girdi deposu (Faz 47).</summary>
+    /// <summary>Run input store (Phase 47).</summary>
     public SqlRunInputStore RunInputs { get; }
 
-    /// <summary>Konusma dallandirma deposu (Faz 47).</summary>
+    /// <summary>Conversation branching store (Phase 47).</summary>
     public SqlConversationBranchStore ConversationBranches { get; }
 
-    /// <summary>Migration calistiricisi.</summary>
+    /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
 
-    /// <summary>Kullanilan sema adi.</summary>
+    /// <summary>The schema name in use.</summary>
     public string SchemaName => Options.SchemaName;
 
     /// <summary>
-    /// Yeni bir yalitilmis sema kurar, migration'lari uygular ve depolari hazirlar.
+    /// Sets up a new isolated schema, applies migrations, and prepares the stores.
     /// </summary>
-    /// <param name="fixture">Calisan PostgreSQL container'i.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
-    /// <returns>Kullanima hazir baglam.</returns>
+    /// <param name="fixture">The running PostgreSQL container.</param>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="applyMigrations">Whether to apply migrations immediately.</param>
+    /// <returns>A ready-to-use context.</returns>
     public static ValueTask<PostgresTestContext> CreateAsync(
         PostgresFixture fixture,
         string tenantId = "default",
@@ -218,14 +219,14 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions);
 
     /// <summary>
-    /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
-    /// ayni depo ornegi uzerinde kiraci degistirdigi icin bu asiri yuklemeyi
-    /// kullanir (Faz 41).
+    /// Setup with the tenant context supplied externally. The tenant
+    /// isolation contract uses this overload because it switches tenants on
+    /// the same store instance (Phase 41).
     /// </summary>
-    /// <param name="fixture">Calisan PostgreSQL container.</param>
-    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
-    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
-    /// <returns>Kullanima hazir baglam.</returns>
+    /// <param name="fixture">The running PostgreSQL container.</param>
+    /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <param name="applyMigrations">Whether to apply migrations immediately.</param>
+    /// <returns>A ready-to-use context.</returns>
     public static async ValueTask<PostgresTestContext> CreateAsync(
         PostgresFixture fixture,
         ITenantContext tenantContext,
@@ -245,13 +246,13 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     }
 
     /// <summary>
-    /// Var olan bir semaya baglanan ikinci bir baglam kurar.
-    /// Es zamanlilik ve kiraci yalitimi testleri icin kullanilir.
+    /// Sets up a second context connected to an existing schema.
+    /// Used for concurrency and tenant isolation tests.
     /// </summary>
-    /// <param name="fixture">Calisan PostgreSQL container'i.</param>
-    /// <param name="schemaName">Kullanilacak sema adi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <returns>Ayni semaya bakan yeni baglam.</returns>
+    /// <param name="fixture">The running PostgreSQL container.</param>
+    /// <param name="schemaName">The schema name to use.</param>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <returns>A new context pointing at the same schema.</returns>
     public static PostgresTestContext Create(
         PostgresFixture fixture,
         string schemaName,
@@ -259,12 +260,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         int vectorDimensions = DefaultVectorDimensions)
         => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions);
 
-    /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
-    /// <param name="fixture">Calisan PostgreSQL container.</param>
-    /// <param name="schemaName">Kullanilacak sema adi.</param>
-    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
-    /// <param name="vectorDimensions">Migration 0024'e uygulanacak gomu boyutu (Faz 51).</param>
-    /// <returns>Ayni arka uca bakan yeni baglam.</returns>
+    /// <summary>Setup with the tenant context supplied externally.</summary>
+    /// <param name="fixture">The running PostgreSQL container.</param>
+    /// <param name="schemaName">The schema name to use.</param>
+    /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <param name="vectorDimensions">The embedding dimension to apply to migration 0024 (Phase 51).</param>
+    /// <returns>A new context pointing at the same backend.</returns>
     public static PostgresTestContext Create(
         PostgresFixture fixture,
         string schemaName,
@@ -286,24 +287,24 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions);
     }
 
-    /// <summary>Yeni ve benzersiz bir test sema adi uretir.</summary>
-    /// <returns>Kucuk harflerden olusan gecerli bir tanimlayici.</returns>
+    /// <summary>Generates a new, unique test schema name.</summary>
+    /// <returns>A valid identifier made of lowercase letters.</returns>
     public static string NewSchemaName()
         => "t_" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..16];
 
-    /// <summary>Baglamdaki ham SQL'i calistirir.</summary>
-    /// <param name="sql">Calistirilacak SQL.</param>
-    /// <returns>Etkilenen satir sayisi.</returns>
+    /// <summary>Runs raw SQL against the context.</summary>
+    /// <param name="sql">The SQL to run.</param>
+    /// <returns>The number of affected rows.</returns>
     public async ValueTask<int> ExecuteAsync(string sql)
     {
         await using var command = DataSource.CreateCommand(sql);
         return await command.ExecuteNonQueryAsync();
     }
 
-    /// <summary>Tek deger donduren ham SQL calistirir.</summary>
-    /// <typeparam name="T">Beklenen tip.</typeparam>
-    /// <param name="sql">Calistirilacak SQL.</param>
-    /// <returns>Ilk satirin ilk sutunu.</returns>
+    /// <summary>Runs raw SQL that returns a single value.</summary>
+    /// <typeparam name="T">The expected type.</typeparam>
+    /// <param name="sql">The SQL to run.</param>
+    /// <returns>The first column of the first row.</returns>
     public async ValueTask<T?> ScalarAsync<T>(string sql)
     {
         await using var command = DataSource.CreateCommand(sql);
@@ -315,19 +316,19 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await DataSource.DisposeAsync();
 
-    /// <summary>Onbelleklenen veri sifirlama SQL metni. Sinif basina bir kez hesaplanir.</summary>
+    /// <summary>Cached data-reset SQL text. Computed once per class.</summary>
     private string? _resetSql;
 
     /// <summary>
-    /// Semadaki tum veri tablolarini tek round-trip'te bosaltir; sema ve
-    /// <c>__migrations</c> defteri KALIR.
+    /// Empties all data tables in the schema in a single round trip; the
+    /// schema and the <c>__migrations</c> ledger REMAIN.
     /// </summary>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// Tek bir <c>TRUNCATE</c> ifadesinde semadaki TUM tablolar birlikte
-    /// verilir; PostgreSQL boyle bir ifadede tablolar arasi FOREIGN KEY'leri
-    /// <c>CASCADE</c> gerekmeden kendisi cozer. Tablo listesi katalogdan
-    /// okunur, sabit yazilmaz.
+    /// ALL tables in the schema are given together in a single
+    /// <c>TRUNCATE</c> statement; PostgreSQL resolves cross-table FOREIGN
+    /// KEYs by itself in such a statement without needing <c>CASCADE</c>.
+    /// The table list is read from the catalog, not hardcoded.
     /// </remarks>
     public async ValueTask ResetDataAsync()
     {

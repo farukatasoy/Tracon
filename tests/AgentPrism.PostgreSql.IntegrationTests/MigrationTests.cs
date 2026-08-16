@@ -99,7 +99,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             async () => await context.Migrations.ApplyAsync());
 
         exception.Message.ShouldContain("0001_initial");
-        exception.Message.ShouldContain("degismis");
+        exception.Message.ShouldContain("has changed");
     }
 
     [Fact]
