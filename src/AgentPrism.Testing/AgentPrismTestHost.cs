@@ -8,21 +8,21 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism.Testing;
 
-/// <summary>Bellek ici AgentPrism host'u.</summary>
+/// <summary>In-memory AgentPrism host.</summary>
 /// <remarks>
 /// <para>
-/// <c>WebApplication.CreateSlimBuilder()</c> + <c>UseTestServer()</c> uzerine
-/// kurulur; <c>Microsoft.AspNetCore.Mvc.Testing</c>'in <c>WebApplicationFactory&lt;T&gt;</c>'i
-/// KULLANILMAZ, cunku o bir giris noktasi derlemesi ister ve tuketiciyi bir
-/// barindirma modeline baglar (K-007). Bellek ici depolar K-018 sayesinde
-/// birinci sinif implementasyondur; host bir veritabani gerektirmez.
+/// Built on <c>WebApplication.CreateSlimBuilder()</c> + <c>UseTestServer()</c>;
+/// <c>Microsoft.AspNetCore.Mvc.Testing</c>'s <c>WebApplicationFactory&lt;T&gt;</c>
+/// is NOT used, because it requires an entry-point assembly and locks the
+/// consumer into a hosting model (K-007). In-memory stores are a first-class
+/// implementation thanks to K-018; the host needs no database.
 /// </para>
 /// <para>
-/// 🚨 <c>AIFunctionArguments.Services</c> MAF boru hattinda bostur (K-218): kendi
-/// tool'unuzu yazarken bir bagimlilik <strong>DI'dan cozulmez</strong>. Bagimliligi
-/// tool'un KURUCUSUNDA alin ve <c>services.AddSingleton(provider =&gt; new
-/// AgentPrismToolRegistration(new BenimTool(provider), ...))</c> ile fabrika
-/// uzerinden kaydedin.
+/// 🚨 <c>AIFunctionArguments.Services</c> is empty in the MAF pipeline (K-218): a
+/// dependency your own tool needs is <strong>not resolved from DI</strong>. Take
+/// the dependency in the tool's CONSTRUCTOR and register it through a factory
+/// with <c>services.AddSingleton(provider =&gt; new
+/// AgentPrismToolRegistration(new MyTool(provider), ...))</c>.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismTestHost : IAsyncDisposable
@@ -39,16 +39,16 @@ public sealed class AgentPrismTestHost : IAsyncDisposable
         Client = client;
     }
 
-    /// <summary>Host'a baglı HTTP istemcisi.</summary>
+    /// <summary>HTTP client bound to the host.</summary>
     public HttpClient Client { get; }
 
-    /// <summary>Host'un servis saglayicisi.</summary>
+    /// <summary>The host's service provider.</summary>
     public IServiceProvider Services => _app.Services;
 
-    /// <summary>Bir host kurar ve baslatir.</summary>
-    /// <param name="configure">Host ayarlarini degistirir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Calisan host.</returns>
+    /// <summary>Builds and starts a host.</summary>
+    /// <param name="configure">Changes the host settings.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The running host.</returns>
     public static async ValueTask<AgentPrismTestHost> StartAsync(
         Action<AgentPrismTestHostOptions>? configure = null,
         CancellationToken cancellationToken = default)
@@ -78,14 +78,14 @@ public sealed class AgentPrismTestHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// Bir agent'i calistirir, akisi sonuna kadar tuketir ve kaydini dondurur.
+    /// Runs an agent, drains the stream to completion, and returns its record.
     /// </summary>
-    /// <param name="agentName">Calistirilacak agent'in adi.</param>
-    /// <param name="message">Kullanici mesaji.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit uzerinde iddialar kurmaya yarayan bir nesne.</returns>
+    /// <param name="agentName">The name of the agent to run.</param>
+    /// <param name="message">The user message.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An object for building assertions on the run.</returns>
     /// <exception cref="AgentPrismAssertionException">
-    /// Calistirma kabul edilmedi veya kaydi depoda bulunamadi.
+    /// The run was not accepted, or its record was not found in the store.
     /// </exception>
     public async ValueTask<RunAssertions> RunAsync(
         string agentName,
@@ -103,7 +103,7 @@ public sealed class AgentPrismTestHost : IAsyncDisposable
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
             throw new AgentPrismAssertionException(
-                $"'{agentName}' calistirilamadi. Beklenen durum kodu basarili, bulunan '{(int)response.StatusCode}': {body}");
+                $"Failed to run '{agentName}'. Expected a successful status code, found '{(int)response.StatusCode}': {body}");
         }
 
         Guid? runId = null;
@@ -124,13 +124,13 @@ public sealed class AgentPrismTestHost : IAsyncDisposable
         if (runId is not { } id)
         {
             throw new AgentPrismAssertionException(
-                $"'{agentName}' calistirmasi bir 'run' cercevesi dondurmedi; calistirma kimligi cozulemedi.");
+                $"Running '{agentName}' did not return a 'run' frame; the run ID could not be resolved.");
         }
 
         var runs = Services.GetRequiredService<IRunStore>();
 
         var record = await runs.GetRunAsync(id, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismAssertionException($"'{id}' kimlikli calistirma kaydi depoda bulunamadi.");
+            ?? throw new AgentPrismAssertionException($"No run record with ID '{id}' was found in the store.");
 
         var events = new List<RunEvent>();
 

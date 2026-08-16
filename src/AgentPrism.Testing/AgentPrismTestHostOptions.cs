@@ -4,25 +4,25 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.Testing;
 
 /// <summary>
-/// <see cref="AgentPrismTestHost.StartAsync"/> icin ayarlar.
+/// Settings for <see cref="AgentPrismTestHost.StartAsync"/>.
 /// </summary>
 public sealed class AgentPrismTestHostOptions
 {
     /// <summary>
-    /// Host'a kaydedilecek varsayilan model saglayicisi. Kendi agent'lariniz ve
-    /// tool'lariniz icin genellikle bunu yapilandirmak yeterlidir.
+    /// The default model provider registered on the host. Usually the only
+    /// thing you need to configure for your own agents and tools.
     /// </summary>
     public FakeModelProvider ModelProvider { get; set; } = new FakeModelProvider().EchoesUserMessage();
 
-    /// <summary>AgentPrism zincirini degistirir (tool, agent, skill, ek model saglayicisi kaydi).</summary>
+    /// <summary>Changes the AgentPrism chain (tool, agent, skill, extra model provider registration).</summary>
     public Action<IAgentPrismBuilder>? ConfigureAgentPrism { get; set; }
 
-    /// <summary><c>MapAgentPrism</c> uc ayarlarini degistirir.</summary>
+    /// <summary>Changes the <c>MapAgentPrism</c> endpoint settings.</summary>
     public Action<AgentPrismEndpointOptions>? ConfigureEndpoints { get; set; }
 
-    /// <summary>Ek servis kaydi yapar. <c>AddAgentPrism()</c> cagrisindan ONCE calisir.</summary>
+    /// <summary>Registers additional services. Runs BEFORE the <c>AddAgentPrism()</c> call.</summary>
     public Action<IServiceCollection>? ConfigureServices { get; set; }
 
-    /// <summary>Yol oneki.</summary>
+    /// <summary>Route prefix.</summary>
     public string Prefix { get; set; } = AgentPrismEndpointRouteBuilderExtensions.DefaultPrefix;
 }

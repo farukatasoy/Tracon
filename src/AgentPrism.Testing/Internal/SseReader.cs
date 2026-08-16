@@ -3,13 +3,13 @@ using System.Text;
 
 namespace AgentPrism.Testing.Internal;
 
-/// <summary>Bir Server-Sent Events akisini cerceve cerceve okur.</summary>
+/// <summary>Reads a Server-Sent Events stream frame by frame.</summary>
 internal static class SseReader
 {
-    /// <summary>Akistaki cerceveleri sirayla dondurur.</summary>
-    /// <param name="stream">Yanit govdesi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Cozumlenmis cerceveler.</returns>
+    /// <summary>Returns the frames in the stream in order.</summary>
+    /// <param name="stream">Response body.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Parsed frames.</returns>
     public static async IAsyncEnumerable<SseFrame> ReadAsync(
         Stream stream,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -55,7 +55,7 @@ internal static class SseReader
     }
 }
 
-/// <summary>Tek bir SSE cercevesi.</summary>
-/// <param name="Event"><c>event</c> alani.</param>
-/// <param name="Data"><c>data</c> alani.</param>
+/// <summary>A single SSE frame.</summary>
+/// <param name="Event">The <c>event</c> field.</param>
+/// <param name="Data">The <c>data</c> field.</param>
 internal sealed record SseFrame(string? Event, string Data);

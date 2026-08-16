@@ -1,10 +1,11 @@
 namespace AgentPrism.Testing;
 
-/// <summary>Kaydedilmis bir calistirma uzerinde iddialar.</summary>
+/// <summary>Assertions on a recorded run.</summary>
 /// <remarks>
-/// Her iddia karsilanmazsa <see cref="AgentPrismAssertionException"/> firlatir ve
-/// mesaji **beklenen ve bulunan** degeri yazar. Akisli calistirmalar da kapsanir:
-/// <c>run_events</c> akisli yolda da dolar, ayri bir tip gerekmez.
+/// Each unmet assertion throws <see cref="AgentPrismAssertionException"/> and
+/// writes the **expected and actual** value in its message. Streaming runs are
+/// covered too: <c>run_events</c> fills in on the streaming path as well, no
+/// separate type is needed.
 /// </remarks>
 public sealed class RunAssertions
 {
@@ -18,48 +19,48 @@ public sealed class RunAssertions
         ToolInvocations = toolInvocations;
     }
 
-    /// <summary>Calistirma kaydi.</summary>
+    /// <summary>The run record.</summary>
     public RunRecord Record { get; }
 
-    /// <summary>Calistirmanin olay akisi, sira numarasina gore.</summary>
+    /// <summary>The run's event stream, in sequence order.</summary>
     public IReadOnlyList<RunEvent> Events { get; }
 
-    /// <summary>Calistirma sirasinda yapilan tool cagrilari.</summary>
+    /// <summary>Tool calls made during the run.</summary>
     public IReadOnlyList<ToolInvocationRecord> ToolInvocations { get; }
 
-    /// <summary>Calistirmanin basariyla tamamlandigini dogrular.</summary>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="AgentPrismAssertionException">Durum <see cref="RunStatus.Completed"/> degilse.</exception>
+    /// <summary>Asserts that the run completed successfully.</summary>
+    /// <returns>The chain, for continued assertions.</returns>
+    /// <exception cref="AgentPrismAssertionException">The status is not <see cref="RunStatus.Completed"/>.</exception>
     public RunAssertions ShouldHaveCompleted()
     {
         if (Record.Status != RunStatus.Completed)
         {
             throw new AgentPrismAssertionException(
-                $"Calistirmanin durumu 'Completed' olmasi beklenirdi ama '{Record.Status}' bulundu.");
+                $"Expected the run status to be 'Completed' but found '{Record.Status}'.");
         }
 
         return this;
     }
 
-    /// <summary>Calistirmanin hata ile sonlandigini dogrular.</summary>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="AgentPrismAssertionException">Durum <see cref="RunStatus.Failed"/> degilse.</exception>
+    /// <summary>Asserts that the run ended with a failure.</summary>
+    /// <returns>The chain, for continued assertions.</returns>
+    /// <exception cref="AgentPrismAssertionException">The status is not <see cref="RunStatus.Failed"/>.</exception>
     public RunAssertions ShouldHaveFailed()
     {
         if (Record.Status != RunStatus.Failed)
         {
             throw new AgentPrismAssertionException(
-                $"Calistirmanin durumu 'Failed' olmasi beklenirdi ama '{Record.Status}' bulundu.");
+                $"Expected the run status to be 'Failed' but found '{Record.Status}'.");
         }
 
         return this;
     }
 
-    /// <summary>Calistirmanin belirli bir hata tipiyle sonlandigini dogrular.</summary>
-    /// <param name="errorType"><see cref="AgentPrismException.ErrorType"/> ile eslesmesi beklenen deger.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Asserts that the run ended with a specific error type.</summary>
+    /// <param name="errorType">The value expected to match <see cref="AgentPrismException.ErrorType"/>.</param>
+    /// <returns>The chain, for continued assertions.</returns>
     /// <exception cref="AgentPrismAssertionException">
-    /// Durum <see cref="RunStatus.Failed"/> degilse veya hata tipi eslesmiyorsa.
+    /// The status is not <see cref="RunStatus.Failed"/>, or the error type does not match.
     /// </exception>
     public RunAssertions ShouldHaveFailedWith(string errorType)
     {
@@ -70,17 +71,17 @@ public sealed class RunAssertions
         if (!string.Equals(actual, errorType, StringComparison.Ordinal))
         {
             throw new AgentPrismAssertionException(
-                $"Hata tipinin '{errorType}' olmasi beklenirdi ama '{actual}' bulundu.");
+                $"Expected the error type to be '{errorType}' but found '{actual}'.");
         }
 
         return this;
     }
 
-    /// <summary>Belirli bir tool'un cagrildigini dogrular.</summary>
-    /// <param name="toolName">Tool adi.</param>
-    /// <param name="times">Verilirse tam olarak bu sayida cagrilmis olmasi beklenir.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="AgentPrismAssertionException">Tool hic cagrilmadiysa veya sayi eslesmiyorsa.</exception>
+    /// <summary>Asserts that a specific tool was called.</summary>
+    /// <param name="toolName">Tool name.</param>
+    /// <param name="times">If given, the exact number of calls expected.</param>
+    /// <returns>The chain, for continued assertions.</returns>
+    /// <exception cref="AgentPrismAssertionException">The tool was never called, or the count does not match.</exception>
     public RunAssertions ShouldHaveCalledTool(string toolName, int? times = null)
     {
         var count = ToolInvocations.Count(invocation => string.Equals(invocation.ToolName, toolName, StringComparison.Ordinal));
@@ -88,22 +89,22 @@ public sealed class RunAssertions
         if (count == 0)
         {
             throw new AgentPrismAssertionException(
-                $"'{toolName}' tool'unun en az bir kez cagrilmasi beklenirdi ama hic cagrilmadi.");
+                $"Expected tool '{toolName}' to be called at least once but it was never called.");
         }
 
         if (times is { } expected && count != expected)
         {
             throw new AgentPrismAssertionException(
-                $"'{toolName}' tool'unun {expected} kez cagrilmasi beklenirdi ama {count} kez cagrildi.");
+                $"Expected tool '{toolName}' to be called {expected} time(s) but it was called {count} time(s).");
         }
 
         return this;
     }
 
-    /// <summary>Belirli bir tool'un hic cagrilmadigini dogrular.</summary>
-    /// <param name="toolName">Tool adi.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="AgentPrismAssertionException">Tool en az bir kez cagrildiysa.</exception>
+    /// <summary>Asserts that a specific tool was never called.</summary>
+    /// <param name="toolName">Tool name.</param>
+    /// <returns>The chain, for continued assertions.</returns>
+    /// <exception cref="AgentPrismAssertionException">The tool was called at least once.</exception>
     public RunAssertions ShouldNotHaveCalledTool(string toolName)
     {
         var count = ToolInvocations.Count(invocation => string.Equals(invocation.ToolName, toolName, StringComparison.Ordinal));
@@ -111,22 +112,22 @@ public sealed class RunAssertions
         if (count > 0)
         {
             throw new AgentPrismAssertionException(
-                $"'{toolName}' tool'unun hic cagrilmamasi beklenirdi ama {count} kez cagrildi.");
+                $"Expected tool '{toolName}' to never be called but it was called {count} time(s).");
         }
 
         return this;
     }
 
-    /// <summary>Calistirmanin uretilen metninin belirli bir alt metni icerdigini dogrular.</summary>
-    /// <param name="text">Aranan alt metin.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="AgentPrismAssertionException">Alt metin bulunamazsa.</exception>
+    /// <summary>Asserts that the run's generated text contains a specific substring.</summary>
+    /// <param name="text">Substring to look for.</param>
+    /// <returns>The chain, for continued assertions.</returns>
+    /// <exception cref="AgentPrismAssertionException">The substring was not found.</exception>
     /// <remarks>
-    /// <see cref="RunEventType.MessageCompleted"/> varsa (akissiz calistirma)
-    /// o kullanilir; yoksa (akisli calistirma, ornegin HTTP <c>/run</c> ucu)
-    /// <see cref="RunEventType.MessageDelta"/> parcalari birlestirilir. Ikisi
-    /// AYNI calistirmada birlikte kullanilmaz — akissiz yolda ayrica
-    /// parcalari da toplamak metni MUKERRER sayardi.
+    /// If a <see cref="RunEventType.MessageCompleted"/> exists (non-streaming
+    /// run) it is used; otherwise (a streaming run, e.g. the HTTP <c>/run</c>
+    /// endpoint) the <see cref="RunEventType.MessageDelta"/> chunks are
+    /// concatenated. The two are never both present in the same run — also
+    /// summing the chunks on the non-streaming path would DUPLICATE the text.
     /// </remarks>
     public RunAssertions ShouldHaveOutputContaining(string text)
     {
@@ -144,7 +145,7 @@ public sealed class RunAssertions
         if (!output.Contains(text, StringComparison.Ordinal))
         {
             throw new AgentPrismAssertionException(
-                $"Ciktinin '{text}' icermesi beklenirdi ama bulunan cikti: '{output}'.");
+                $"Expected the output to contain '{text}' but found: '{output}'.");
         }
 
         return this;

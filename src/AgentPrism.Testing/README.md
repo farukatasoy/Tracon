@@ -1,29 +1,28 @@
 # AgentPrism.Testing
 
-AgentPrism uzerine agent yazan bir tuketicinin, kendi agent'ini **gercek bir
-model cagirmadan** test etmesini saglayan yardimcilar: aga cikmayan bir model
-saglayicisi, bellek ici bir host fixture'i ve calistirma kayitlari uzerinde
-iddialar.
+Helpers that let a consumer building an agent on AgentPrism test their own
+agent **without calling a real model**: a non-networked model provider, an
+in-memory host fixture, and assertions on run records.
 
-Paket **hicbir test cercevesine** (xunit, NUnit, MSTest, Shouldly,
-FluentAssertions) bagli degildir. Iddialar basarisiz oldugunda
-`AgentPrismAssertionException` firlatir; her cerceve bunu bir basarisizlik
-sayar.
+The package binds to **no test framework** (xunit, NUnit, MSTest, Shouldly,
+FluentAssertions). It throws `AgentPrismAssertionException` when an assertion
+fails; every framework counts that as a failure.
 
-## Kurulum
+## Setup
 
 ```bash
 dotnet add package AgentPrism.Testing
 ```
 
-🚨 **Meta paket (`AgentPrism`) bu pakete referans vermez.** `AgentPrism.Testing`
-yalniz test projenizden referans verilir, uretim uygulamanizdan degil.
+🚨 **The meta package (`AgentPrism`) does not reference this package.**
+`AgentPrism.Testing` is referenced only from your test project, not from your
+production application.
 
-## Hizli baslangic
+## Quick start
 
 ```csharp
 [Fact]
-public async Task Siparis_durumu_soruldugunda_tool_cagrilir()
+public async Task Tool_is_called_when_order_status_is_asked()
 {
     var provider = new FakeModelProvider()
         .CallsTool("get_order_status", new { orderId = "ORD-7" })
@@ -37,14 +36,14 @@ public async Task Siparis_durumu_soruldugunda_tool_cagrilir()
             .AddAgent(new AgentDefinition
             {
                 Name = "support",
-                Instructions = "Kisa yanit ver.",
+                Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = provider.Name, Model = "fake-model" },
                 ToolNames = ["get_order_status"],
                 Origin = AgentDefinitionOrigin.Code,
             });
     });
 
-    var run = await host.RunAsync("support", "ORD-7 nerede?");
+    var run = await host.RunAsync("support", "Where is ORD-7?");
 
     run.ShouldHaveCompleted()
        .ShouldHaveCalledTool("get_order_status", times: 1)
@@ -54,36 +53,36 @@ public async Task Siparis_durumu_soruldugunda_tool_cagrilir()
 
 ## `FakeModelProvider`
 
-Her modelin kendi **sirali yanit kuyrugu** vardir. Bir cagri sıradaki adimi
-coker; kuyruk tukendiginde her sonraki cagri varsayilan davranisi (sabit bir
-metin ya da `EchoesUserMessage()` ile son kullanici mesajinin yankisi)
-dondurur. Bu, saglayicinin omru boyunca **kalicidir**: mesaj gecmisi taranarak
-"hangi tool zaten cagrildi" cikarilmaz.
+Each model has its own **ordered response queue**. A call pops the next step
+in the queue; once the queue is drained, every subsequent call returns the
+default behavior (a fixed text, or the echo of the last user message via
+`EchoesUserMessage()`). This is **lasting** for the provider's lifetime: it
+does not infer "which tool was already called" by scanning message history.
 
 ```csharp
-// Varsayilan kuyruk: tek bir model kullanan basit senaryolar.
+// Default queue: simple scenarios using a single model.
 var provider = new FakeModelProvider()
-    .RespondsWith("ilk yanit", "ikinci yanit")
-    .EchoesUserMessage();          // kuyruk tukendikten sonra
+    .RespondsWith("first response", "second response")
+    .EchoesUserMessage();          // once the queue is drained
 
-// Modele ozel kuyruk: ayni saglayicinin farkli modelleri (ornegin bir
-// yonlendirici ve devrettigi alt agent) BAGIMSIZ davranmalidir.
+// Per-model queue: different models of the same provider (e.g. a router
+// and the sub-agent it hands off to) must behave INDEPENDENTLY.
 var routing = new FakeModelProvider()
     .ForModel("router-model", cfg => cfg
-        .CallsTool("background_agents_start_task", new { agentName = "arastirmaci" })
+        .CallsTool("background_agents_start_task", new { agentName = "researcher" })
         .CallsTool("background_agents_wait_for_first_completion", new { taskIds = new[] { 1 } })
         .EchoesUserMessage())
     .ForModel("researcher-model", cfg => cfg
-        .RespondsWith("arastirma tamam"));
+        .RespondsWith("research complete"));
 ```
 
 ## `AgentPrismTestHost`
 
-`WebApplication.CreateSlimBuilder()` + `UseTestServer()` uzerine kurulur —
-`Microsoft.AspNetCore.Mvc.Testing`'in `WebApplicationFactory<T>`'i
-**kullanilmaz**, cunku o bir giris noktasi derlemesi ister ve tuketiciyi bir
-barindirma modeline baglar. Bellek ici depolar birinci sinif implementasyon
-oldugu icin (K-018) host bir veritabani gerektirmez.
+Built on `WebApplication.CreateSlimBuilder()` + `UseTestServer()` —
+`Microsoft.AspNetCore.Mvc.Testing`'s `WebApplicationFactory<T>` is **not
+used**, because it requires an entry-point assembly and locks the consumer
+into a hosting model. In-memory stores are a first-class implementation
+(K-018), so the host needs no database.
 
 ```csharp
 await using var host = await AgentPrismTestHost.StartAsync(options =>
@@ -92,19 +91,19 @@ await using var host = await AgentPrismTestHost.StartAsync(options =>
     options.ConfigureAgentPrism = builder => builder.AddAgent(...);
 });
 
-// Ham HTTP erisimi de mumkundur:
+// Raw HTTP access is also possible:
 using var response = await host.Client.GetAsync("/agentprism/api/agents");
 ```
 
-## 🚨 Tool'unuz DI'dan bir bagimlilik BEKLEMEMELIDIR
+## 🚨 Your tool must NOT EXPECT a dependency from DI
 
-`AIFunctionArguments.Services` MAF'in calistirma boru hattinda **bostur**
-(`Microsoft.Extensions.AI.EmptyServiceProvider`). Bir tool'un bir bagimliliga
-ihtiyaci varsa, o bagimlilik **kurulum aninda** alinir:
+`AIFunctionArguments.Services` is **empty** in MAF's run pipeline
+(`Microsoft.Extensions.AI.EmptyServiceProvider`). If a tool needs a
+dependency, that dependency is taken **at setup time**:
 
 ```csharp
-// YANLIS: tool govdesinde arguments.Services'ten cozmeye calismak calisma
-// aninda null doner.
+// WRONG: resolving from arguments.Services inside the tool body returns
+// null at run time.
 public static class OrderTools
 {
     [AgentPrismTool]
@@ -115,7 +114,8 @@ public static class OrderTools
     }
 }
 
-// DOGRU: bagimlilik kurucuda alinir, tool fabrika ile kaydedilir.
+// CORRECT: the dependency is taken in the constructor, the tool is
+// registered through a factory.
 public sealed class OrderTools(IOrderRepository repository)
 {
     [AgentPrismTool]
@@ -126,9 +126,9 @@ services.AddSingleton(provider =>
     new AgentPrismToolRegistration(new OrderTools(provider.GetRequiredService<IOrderRepository>()), ...));
 ```
 
-Bu tuzak Faz 27'de olculdu (K-218): izole bir prob programi gercek boru
-hattini kanitlamadi. `AgentPrismTestHost` gercek boru hattini kurar, ayri bir
-prob degildir — bu yuzden bu hata testlerde de aynen gorulur.
+This trap was measured in Phase 27 (K-218): an isolated probe program did not
+prove the real pipeline. `AgentPrismTestHost` builds the real pipeline, not a
+separate probe — so this failure shows up in tests the exact same way.
 
 ## `RunAssertions`
 
@@ -138,18 +138,19 @@ run.ShouldHaveCalledTool("refund_order");
 run.ShouldHaveCalledTool("refund_order", times: 1);
 run.ShouldNotHaveCalledTool("delete_account");
 run.ShouldHaveFailedWith("content_filtered");
-run.ShouldHaveOutputContaining("iade edildi");
+run.ShouldHaveOutputContaining("refunded");
 ```
 
-Akisli calistirmalar da kapsanir: `run_events` akisli yolda da dolar, ayri bir
-tip gerekmez.
+Streaming runs are covered too: `run_events` fills in on the streaming path as
+well, no separate type is needed.
 
-## Bagimliliklar
+## Dependencies
 
-Paket `AgentPrism.Core` ve `AgentPrism.AspNetCore`'a baglidir; bellek ici host
-fixture'i uclari kuran paketi gerektirir. `AgentPrism.AspNetCore` on surum MAF
-paketleri tasiyan tek pakettir (K-008); `AgentPrism.Testing` ona baglandigi
-icin o on surum bagimliliklari **gecisli** olarak devralir. Bu kabul
-edilebilir — test paketi uretim bagimlilik grafiginde **degildir**.
+The package depends on `AgentPrism.Core` and `AgentPrism.AspNetCore`; the
+in-memory host fixture needs the package that builds the endpoints.
+`AgentPrism.AspNetCore` is the only package that carries prerelease MAF
+packages (K-008); since `AgentPrism.Testing` depends on it, it inherits those
+prerelease dependencies **transitively**. This is acceptable — the test
+package is **not** in the production dependency graph.
 
-Paket **hicbir test cercevesi** almaz.
+The package takes **no test framework** dependency.

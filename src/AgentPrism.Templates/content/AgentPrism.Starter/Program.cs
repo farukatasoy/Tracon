@@ -1,20 +1,20 @@
-// AgentPrism baslangic sablonu — `dotnet new agentprism-api` ile uretildi.
+// AgentPrism starter template — generated with `dotnet new agentprism-api`.
 //
-// Calistirmadan once README.md'deki `dotnet user-secrets` adimlarini uygulayin.
-// Sirlar bu dosyaya ASLA yazilmaz; appsettings.json yalnizca bos placeholder tasir.
+// Before running, follow the `dotnet user-secrets` steps in README.md.
+// Secrets are NEVER written to this file; appsettings.json carries only empty placeholders.
 
 using AgentPrism;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var agentPrism = builder.AddAgentPrism()
-    // Bu derlemedeki [AgentPrismTool] isaretli tum metotlari derleme aninda
-    // kaynak ureteciyle kaydeder — yansima yok, AOT uyarisi yok (OrderTools).
-    // Baska bir derlemedeki tool'lar icin AddToolsFrom kullanilir.
+    // Registers every method marked [AgentPrismTool] in this assembly at build
+    // time via the source generator — no reflection, no AOT warning (OrderTools).
+    // Use AddToolsFrom for tools defined in another assembly.
     .AddGeneratedTools();
 
-// Kalicilik istege baglidir. Baglanti dizesi bos ise uygulama bellek ici
-// depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.
+// Persistence is optional. If the connection string is empty, the app runs on
+// in-memory stores; nothing breaks, data just ends with the process.
 #if (UsePostgres)
 var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName);
 
@@ -40,9 +40,9 @@ if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
 }
 #endif
 
-// Saglayici da istege baglidir ("sifir surpriz" kurali). API anahtari
-// tanimlanmadan uygulama yine ayaga kalkar; yalnizca modeli gercekten
-// cagiran calistirmalar hata doner.
+// The provider is optional too (the "zero surprise" rule). The app still
+// starts up without an API key; only runs that actually call the model
+// return an error.
 #if (UseOpenAI)
 var openAi = builder.Configuration.GetSection(OpenAIProviderOptions.SectionName);
 
@@ -80,16 +80,16 @@ if (!string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"]) && !string.IsNullOrWhite
 agentPrism.UseUI();
 #endif
 
-// Kodda bildirimsel tek bir ornek agent. Model adi kasitli olarak
-// SABITLENMEDI (K-032) — bugunku model adini saglayicinin belgesinden alip
-// asagidaki placeholder'i degistirin veya appsettings.json'daki
-// `AgentPrism:Providers:*:DefaultModel` ayarindan okuyun.
+// A single declarative sample agent in code. The model name is deliberately
+// NOT PINNED (K-032) — take today's model name from the provider's docs and
+// replace the placeholder below, or read it from the
+// `AgentPrism:Providers:*:DefaultModel` setting in appsettings.json.
 agentPrism.AddAgent(new AgentDefinition
 {
     Name = "support",
-    DisplayName = "Destek Asistani",
-    Description = "Siparis ve kargo sorularini yanitlar.",
-    Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. Siparis sorularinda mutlaka tool kullan.",
+    DisplayName = "Support Assistant",
+    Description = "Answers order and shipping questions.",
+    Instructions = "You are a support assistant. Answer briefly and clearly. Always use a tool for order questions.",
     Model = new ModelBinding
     {
 #if (UseOpenAI)
@@ -104,7 +104,7 @@ agentPrism.AddAgent(new AgentDefinition
 #if (UseAzure)
         Provider = AzureOpenAIProviderNames.AzureOpenAI,
 #endif
-        Model = "MODEL_ADINI_BURAYA_YAZIN",
+        Model = "WRITE_MODEL_NAME_HERE",
     },
     ToolNames = ["get_order_status"],
 });
