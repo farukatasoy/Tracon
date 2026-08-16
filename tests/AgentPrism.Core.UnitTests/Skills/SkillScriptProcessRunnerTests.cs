@@ -2,12 +2,12 @@
 namespace AgentPrism.Core.UnitTests.Skills;
 
 /// <summary>
-/// Sureci gercekten baslatan katmanin sinirlarini dogrular.
+/// Verifies the boundaries of the layer that actually launches the process.
 /// </summary>
 /// <remarks>
-/// Testler <c>bash</c> kullanir; bulunmadigi platformlarda atlanir. Script
-/// dosyalari gecici bir klasorde uretilir, depoya calistirilabilir dosya
-/// eklenmez.
+/// Tests use <c>bash</c>; they are skipped on platforms where it is missing.
+/// Script files are produced in a temporary folder; no executable file is
+/// added to the repository.
 /// </remarks>
 public sealed class SkillScriptProcessRunnerTests : IDisposable
 {
@@ -16,20 +16,20 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     private readonly string _root = Directory.CreateTempSubdirectory("agentprism-tests-").FullName;
 
     [Fact]
-    public async Task Ortam_degiskenleri_surece_sizmaz()
+    public async Task Environment_variables_do_not_leak_into_the_process()
     {
-        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
+        Assert.SkipWhen(BashPath is null, "bash not found.");
 
-        // Beyaz listede olmayan bir degisken, calistirma anindaki surecte
-        // tanimli olsa bile script'e gecmemelidir.
-        Environment.SetEnvironmentVariable("AGENTPRISM_TEST_CONNECTIONSTRING", "gizli-deger");
+        // A variable that is not on the whitelist must not reach the script,
+        // even if it is defined in the process at run time.
+        Environment.SetEnvironmentVariable("AGENTPRISM_TEST_CONNECTIONSTRING", "secret-value");
         try
         {
             var script = WriteScript("env.sh", "echo \"[$AGENTPRISM_TEST_CONNECTIONSTRING]\"");
 
             var result = await RunAsync(script);
 
-            result.StandardOutput.ShouldNotContain("gizli-deger");
+            result.StandardOutput.ShouldNotContain("secret-value");
             result.StandardOutput.ShouldContain("[]");
         }
         finally
@@ -39,9 +39,9 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Zaman_asimi_sureci_oldurur()
+    public async Task Timeout_kills_the_process()
     {
-        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
+        Assert.SkipWhen(BashPath is null, "bash not found.");
         var script = WriteScript("sleep.sh", "sleep 30");
 
         var result = await RunAsync(script, options => options.Timeout = TimeSpan.FromMilliseconds(300));
@@ -51,9 +51,9 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Cikti_siniri_asilinca_kirpilir()
+    public async Task Output_is_truncated_once_the_limit_is_exceeded()
     {
-        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
+        Assert.SkipWhen(BashPath is null, "bash not found.");
         var script = WriteScript("flood.sh", "for i in $(seq 1 5000); do echo 0123456789; done");
 
         var result = await RunAsync(script, options => options.MaxOutputBytes = 512);
@@ -63,12 +63,12 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Gecici_klasor_degiskeni_yazilabilir_ve_calisma_sonrasi_silinir()
+    public async Task Temp_directory_variable_is_writable_and_deleted_after_the_run()
     {
-        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
+        Assert.SkipWhen(BashPath is null, "bash not found.");
         var script = WriteScript(
             "temp.sh",
-            $"echo veri > \"${SkillScriptProcessRunner.TempDirectoryVariable}/x.txt\" && echo \"${SkillScriptProcessRunner.TempDirectoryVariable}\"");
+            $"echo data > \"${SkillScriptProcessRunner.TempDirectoryVariable}/x.txt\" && echo \"${SkillScriptProcessRunner.TempDirectoryVariable}\"");
 
         var result = await RunAsync(script);
 
@@ -77,21 +77,22 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
     }
 
     [Fact]
-    public async Task Stdin_okumadan_cikan_script_boru_kirik_istisnasi_firlatmaz()
+    public async Task Script_exiting_without_reading_stdin_does_not_throw_a_broken_pipe_exception()
     {
-        // HATA-K-skill-pipe (2026-08-15): script stdin'i hic okumadan cikarsa
-        // (ornegin salt 'echo'), argumanlari yazmaya calisirken degil ama
-        // StandardInput.Close()'un KENDI ic flush'inda "Pipe is broken"
-        // firlar; finally bloğu bunu yakalamiyordu ve calistirma tumuyle
-        // cokuyordu (istisna cagirana sizardi). Burada stdin'i BILEREK
-        // erkenden kapatan bir script ile deterministik olarak tetikleniyor.
-        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
-        var script = WriteScript("closestdin.sh", "exec 0<&-\necho tamamlandi");
+        // HATA-K-skill-pipe (2026-08-15): when a script exits without ever
+        // reading stdin (e.g. a bare 'echo'), the failure did not happen while
+        // writing arguments, but inside StandardInput.Close()'s OWN internal
+        // flush, which threw "Pipe is broken"; the finally block did not catch
+        // it and the run crashed entirely (the exception leaked to the
+        // caller). This test deterministically triggers it with a script that
+        // DELIBERATELY closes stdin early.
+        Assert.SkipWhen(BashPath is null, "bash not found.");
+        var script = WriteScript("closestdin.sh", "exec 0<&-\necho done");
 
         var result = await RunAsync(script, argumentsJson: "{\"arguments\":\"\"}");
 
         result.Succeeded.ShouldBeTrue();
-        result.StandardOutput.ShouldContain("tamamlandi");
+        result.StandardOutput.ShouldContain("done");
     }
 
     public void Dispose()
@@ -102,7 +103,7 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
         }
         catch (IOException)
         {
-            // Temizlik basarisizligi test sonucunu degistirmemelidir.
+            // A cleanup failure must not change the test result.
         }
     }
 
