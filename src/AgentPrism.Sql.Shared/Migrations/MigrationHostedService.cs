@@ -5,24 +5,25 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Uygulama baslarken bekleyen migration'lari uygular ve varsayilan kiraci
-/// kaydinin var oldugundan emin olur.
+/// Applies pending migrations at application startup and ensures the default
+/// tenant record exists.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>AutoApplyMigrations</c> kapaliysa migration uygulanmaz. O durumda semanin
-/// hazir olmasi tuketicinin sorumlulugundadir; <see cref="MigrationRunner"/> ayri
-/// bir dagitim adiminda calistirilabilir.
+/// If <c>AutoApplyMigrations</c> is off, no migration is applied. In that case
+/// making sure the schema is ready is the consumer's responsibility;
+/// <see cref="MigrationRunner"/> can be run as a separate deployment step.
 /// </para>
 /// <para>
-/// <strong>Hata uygulamayi baslatmaz.</strong> Sema hazir degilken calisan bir
-/// AgentPrism sessizce veri kaybeder; bu yuzden migration hatasi yutulmaz.
-/// Gozlemlenebilirlik kurali (depo hatasi calistirmayi kesmez) yalnizca
-/// calistirma kaydi icindir, sema kurulumu icin degil.
+/// <strong>A failure does not start the application.</strong> An AgentPrism
+/// instance that runs while the schema is not ready silently loses data, so
+/// migration failures are not swallowed. The observability rule (a store
+/// failure does not stop a run) applies only to run recording, not to schema
+/// setup.
 /// </para>
 /// <para>
-/// Sinif her SQL saglayicisinda ortaktir (Faz 23); saglayiciya ozgu her sey
-/// <see cref="SqlStoreContext"/> uzerinden gelir.
+/// This class is shared across every SQL provider (Phase 23); everything
+/// provider-specific comes through <see cref="SqlStoreContext"/>.
 /// </para>
 /// </remarks>
 internal sealed class MigrationHostedService : IHostedService
@@ -34,14 +35,14 @@ internal sealed class MigrationHostedService : IHostedService
     private readonly SchemaReadyGate _schemaReadyGate;
     private readonly ILogger<MigrationHostedService> _logger;
 
-    /// <summary>Yeni bir baslangic servisi olusturur.</summary>
-    /// <param name="runner">Migration calistiricisi.</param>
-    /// <param name="storeContext">Depo baglami.</param>
-    /// <param name="agentPrismOptions">AgentPrism ayarlari.</param>
-    /// <param name="registrations">Kayitli kalicilik saglayicilari.</param>
-    /// <param name="schemaReadyGate">SQL'e dokunan arka plan servislerini bekleten kapi.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new startup service.</summary>
+    /// <param name="runner">The migration runner.</param>
+    /// <param name="storeContext">The store context.</param>
+    /// <param name="agentPrismOptions">The AgentPrism options.</param>
+    /// <param name="registrations">The registered persistence providers.</param>
+    /// <param name="schemaReadyGate">The gate that holds back background services that touch SQL.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public MigrationHostedService(
         MigrationRunner runner,
         SqlStoreContext storeContext,
@@ -70,25 +71,27 @@ internal sealed class MigrationHostedService : IHostedService
     {
         if (!IsWinningProvider())
         {
-            // 🚨 Birden fazla kalicilik saglayicisi kayitliysa BURADAN once
-            // WarnOnMultipleProviders() zaten uyarmis olur. Sql.Shared her
-            // saglayicida AYRI derlenir (bu dosya link ile kopyalanir, K-176) —
-            // yani SqlStoreContext/MigrationRunner/MigrationHostedService HER
-            // saglayicida FARKLI bir CLR tipidir. `services.Replace(...)` bu
-            // yuzden yalnizca AYNI saglayicinin kendi tipini degistirir; rakip
-            // saglayicinin kaydini SILMEZ. Bu koruma olmadan kaybeden saglayici
-            // de kendi semasini/varsayilan kiracisini SESSIZCE yazardi (olculdu:
-            // MT-PKG-082, iki veritabaninda da sema olustu). Yalnizca kazanan
-            // (son kaydedilen) saglayici migration uygular; digerleri kapiyi
-            // hicbir seye dokunmadan cikar.
+            // 🚨 If more than one persistence provider is registered,
+            // WarnOnMultipleProviders() has already warned BEFORE this point.
+            // Sql.Shared is compiled SEPARATELY for every provider (this file
+            // is copied by a link, K-176) — meaning SqlStoreContext/MigrationRunner/
+            // MigrationHostedService is a DIFFERENT CLR type in EVERY provider.
+            // `services.Replace(...)` therefore replaces only the SAME provider's
+            // own type; it does NOT REMOVE a competing provider's registration.
+            // Without this guard, the losing provider would also SILENTLY write
+            // its own schema/default tenant (measured: MT-PKG-082, both databases
+            // ended up with a schema). Only the winning (last registered)
+            // provider applies migrations; the others leave the gate untouched
+            // and exit.
             //
-            // 🚨 Kapiyi KAYBEDEN ACMAZ. Kapi paylasilan TEK bir sinyaldir; kaybeden
-            // onu hemen acsaydi, kazananin migration'i daha bitmeden acilirdi ve
-            // bekleyen arka plan servisleri bos bir semaya sorgu atardi. Olculdu:
-            // MT-PG-034 (PostgreSQL semasi zaten guncelken SQLite kazanir; kaybeden
-            // PostgreSQL kapiyi aninda acar ve "no such table" ile karsilasilir).
-            // Kazanan HER YOLDA MarkReady cagirir - AutoApplyMigrations kapali olsa
-            // bile - bu yuzden kapi asla acilmadan kalmaz.
+            // 🚨 The LOSER does not open the gate. The gate is ONE shared signal;
+            // if the loser opened it immediately, it would open before the
+            // winner's migration finished, and waiting background services
+            // would query an empty schema. Measured: MT-PG-034 (the PostgreSQL
+            // schema is already current, SQLite wins; the losing PostgreSQL
+            // provider opens the gate instantly and hits "no such table").
+            // The winner calls MarkReady on EVERY path - even when
+            // AutoApplyMigrations is off - so the gate never stays closed forever.
             WarnOnMultipleProviders();
 
             return;
@@ -99,11 +102,11 @@ internal sealed class MigrationHostedService : IHostedService
         if (!_storeContext.AutoApplyMigrations)
         {
             _logger.LogInformation(
-                "AgentPrism migration'lari otomatik uygulanmiyor (AutoApplyMigrations kapali). " +
-                "Semanin guncel olmasi cagiranin sorumlulugundadir.");
+                "AgentPrism migrations are not applied automatically (AutoApplyMigrations is off). " +
+                "Keeping the schema current is the caller's responsibility.");
 
-            // Kapi ACILIR: sema tuketicinin sorumlulugundadir ve arka plan
-            // servislerini sonsuza dek beklemekte tutmanin faydasi yoktur.
+            // The gate OPENS: the schema is the consumer's responsibility, and
+            // there is no benefit in holding background services waiting forever.
             _schemaReadyGate.MarkReady();
 
             return;
@@ -112,10 +115,10 @@ internal sealed class MigrationHostedService : IHostedService
         await _runner.ApplyAsync(cancellationToken).ConfigureAwait(false);
         await EnsureDefaultTenantAsync(cancellationToken).ConfigureAwait(false);
 
-        // 🚨 Kapi yalnizca BURADA, migration ve varsayilan kiraci yaziminin
-        // ikisi de bittikten sonra acilir. Migration hata verirse kapi kapali
-        // kalir; barindirici zaten baslamaz ve bekleyen servisler
-        // stoppingToken uzerinden cikar. Gerekce: K-354.
+        // 🚨 The gate opens ONLY HERE, after both the migration and the
+        // default tenant write have completed. If the migration fails, the
+        // gate stays closed; the host does not start anyway and waiting
+        // services exit through the stoppingToken. Rationale: K-354.
         _schemaReadyGate.MarkReady();
     }
 
@@ -123,14 +126,15 @@ internal sealed class MigrationHostedService : IHostedService
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>
-    /// Birden fazla kalicilik saglayicisi kayitliysa uyarir.
+    /// Warns when more than one persistence provider is registered.
     /// </summary>
     /// <remarks>
-    /// <c>UsePostgreSql()</c> ve <c>UseSqlServer()</c> ayni zincirde cagrilirsa
-    /// <em>son kayit kazanir</em> ve verinin hangi veritabanina gittigi cagri
-    /// sirasina baglanir. Bu bir yapilandirma hatasidir. Kayit engellenmez —
-    /// bilincli bir gecis senaryosu olabilir — ama sessiz kalmaz.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-183.
+    /// If <c>UsePostgreSql()</c> and <c>UseSqlServer()</c> are called in the
+    /// same chain, <em>the last registration wins</em> and which database the
+    /// data goes to depends on call order. This is a configuration mistake.
+    /// The registration is not blocked — it could be a deliberate migration
+    /// scenario — but it is not silent either.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-183.
     /// </remarks>
     private void WarnOnMultipleProviders()
     {
@@ -142,23 +146,23 @@ internal sealed class MigrationHostedService : IHostedService
         }
 
         _logger.LogWarning(
-            "AgentPrism'de birden fazla kalicilik saglayicisi kayitli: {Providers}. " +
-            "Son kayit kazanir ve su an {Winner} kullaniliyor. Yalnizca birini cagirin.",
+            "AgentPrism has more than one persistence provider registered: {Providers}. " +
+            "The last registration wins and {Winner} is currently in use. Call only one.",
             string.Join(", ", names),
             WinningProviderName());
     }
 
     /// <summary>
-    /// Bu ornegin baglandigi saglayici, "son kayit kazanir" kuralina gore
-    /// kazanan mi.
+    /// Whether the provider this instance is bound to is the winner under the
+    /// "last registration wins" rule.
     /// </summary>
     /// <remarks>
-    /// <see cref="_registrations"/> paylasilan (<c>AgentPrism.Abstractions</c>)
-    /// bir tip oldugu icin TUM saglayicilardan gelen isaretleri gorur ve kayit
-    /// sirasini korur; son eleman "son cagrilan" saglayicidir. <see cref="_storeContext"/>
-    /// ise bu derlemeye OZGUDUR (Sql.Shared ayri derlenir) — yalniz kendi adini
-    /// paylasilan listedeki son adla karsilastirarak "kazanan miyim" sorusunu
-    /// yanitlayabilir.
+    /// <see cref="_registrations"/> is a shared (<c>AgentPrism.Abstractions</c>)
+    /// type, so it sees markers from ALL providers and preserves registration
+    /// order; the last element is the "last called" provider. <see cref="_storeContext"/>,
+    /// on the other hand, is SPECIFIC to this assembly (Sql.Shared is compiled
+    /// separately per provider) — it can only answer "am I the winner" by
+    /// comparing its own name against the last name in the shared list.
     /// </remarks>
     private bool IsWinningProvider()
     {

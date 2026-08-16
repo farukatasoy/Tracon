@@ -4,11 +4,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismSqliteOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismSqliteOptions"/> settings at application startup.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is written manually; <c>ValidateDataAnnotations()</c> relies on reflection.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPrismSqliteOptions>
 {
@@ -23,34 +23,34 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot be empty. " +
-                $"Baglanti dizesini `UseSqlite(...)` cagrisinda verin veya " +
-                $"'{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
-                "ayarini yapilandirmada tanimlayin.");
+                $"Provide the connection string in the `UseSqlite(...)` call, or " +
+                $"define the '{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
+                "setting in configuration.");
         }
         else if (IsBareInMemoryConnectionString(options.ConnectionString))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} ciplak " +
-                "'Data Source=:memory:' kullanamaz: bu kutuphane her islem icin yeni bir baglanti acar ve " +
-                "ciplak ':memory:' her baglantiya kendi izole veritabanini verir (Cache=Shared eklense bile). " +
-                "Migration'lar bir baglantida uygulanir, sonraki sorgu bos bir veritabanina duser. Paylasimli " +
-                "bellek ici veritabani icin URI bicimini kullanin: " +
-                "'Data Source=file:<ad>?mode=memory&cache=shared' veya 'Data Source=file::memory:?cache=shared'.");
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot use a bare " +
+                "'Data Source=:memory:': this library opens a new connection for every operation, and a bare " +
+                "':memory:' gives each connection its own isolated database (even with Cache=Shared added). " +
+                "Migrations get applied on one connection, and the next query lands on an empty database. Use the " +
+                "URI form for a shared in-memory database: " +
+                "'Data Source=file:<name>?mode=memory&cache=shared' or 'Data Source=file::memory:?cache=shared'.");
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.TablePrefix))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.TablePrefix)} gecerli bir " +
-                "AgentPrism tablo oneki degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.TablePrefix}'.");
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.TablePrefix)} is not a valid " +
+                "AgentPrism table prefix. It must start with a lowercase letter or underscore; contain lowercase " +
+                $"letters, digits, and underscores; and be at most 63 characters. Actual value: '{options.TablePrefix}'.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
+                $"must be between 0 and 3600. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null
@@ -59,8 +59,8 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
     }
 
     /// <summary>
-    /// Baglanti dizesinin ciplak (URI olmayan) <c>:memory:</c> veri kaynagi
-    /// kullanip kullanmadigini bildirir. Bkz. <see cref="AgentPrismSqliteOptions.ConnectionString"/>.
+    /// Reports whether the connection string uses a bare (non-URI) <c>:memory:</c> data
+    /// source. See <see cref="AgentPrismSqliteOptions.ConnectionString"/>.
     /// </summary>
     private static bool IsBareInMemoryConnectionString(string connectionString)
     {
@@ -72,7 +72,7 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
         }
         catch (ArgumentException)
         {
-            // Baska bir catman (baglanti acilirken) gecersiz sozdizimini bildirir.
+            // Another layer (when the connection is opened) reports the invalid syntax.
             return false;
         }
 
