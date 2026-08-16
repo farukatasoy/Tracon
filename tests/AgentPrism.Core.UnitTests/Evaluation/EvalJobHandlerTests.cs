@@ -317,7 +317,7 @@ public sealed class EvalJobHandlerTests
                 },
             ]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
             => new(string.Equals(agentName, AgentName, StringComparison.Ordinal) ? agent : null);
 
         /// <summary>The version from the last <see cref="ResolveAsync(string, int?, CancellationToken)"/> call.</summary>

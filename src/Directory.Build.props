@@ -63,8 +63,19 @@
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
   </ItemGroup>
 
+  <!--
+    Public API tracking applies to every src/ project by default. Two projects
+    opt out by setting AgentPrismPublicApiTrackingEnabled=false in their own
+    csproj: AgentPrism.Generators and AgentPrism.Templates. Neither ships a
+    consumer-facing API surface - Generators' "API" is its diagnostic/source
+    output, Templates' is `dotnet new` content. Rationale: docs/KARARLAR.md.
+  -->
+  <PropertyGroup Label="Public API takibi katilimi">
+    <AgentPrismPublicApiTrackingEnabled Condition=" '$(AgentPrismPublicApiTrackingEnabled)' == '' ">true</AgentPrismPublicApiTrackingEnabled>
+  </PropertyGroup>
+
   <ItemGroup Label="Extra analyzers in publishable packages">
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Condition=" '$(AgentPrismPublicApiTrackingEnabled)' == 'true' " PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="MinVer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>

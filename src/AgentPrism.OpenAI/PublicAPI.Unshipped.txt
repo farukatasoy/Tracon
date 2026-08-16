@@ -1,1 +1,50 @@
 #nullable enable
+AgentPrism.OpenAIApiSurface
+AgentPrism.OpenAIApiSurface.ChatCompletions = 0 -> AgentPrism.OpenAIApiSurface
+AgentPrism.OpenAIApiSurface.Responses = 1 -> AgentPrism.OpenAIApiSurface
+AgentPrism.OpenAIChatClientFactory
+AgentPrism.OpenAIChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.OpenAIApiSurface apiSurface) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.OpenAIChatClientFactory.OpenAIChatClientFactory(AgentPrism.OpenAIProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
+AgentPrism.OpenAICompatibleProviderExtensions
+AgentPrism.OpenAICompatibleProviderOptions
+AgentPrism.OpenAIModelCatalog
+AgentPrism.OpenAIModelProvider
+AgentPrism.OpenAIModelProvider.ApiSurface.get -> AgentPrism.OpenAIApiSurface
+AgentPrism.OpenAIModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
+AgentPrism.OpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.OpenAIModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
+AgentPrism.OpenAIModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
+AgentPrism.OpenAIModelProvider.Name.get -> string!
+AgentPrism.OpenAIModelProvider.OpenAIModelProvider(string! name, AgentPrism.OpenAIApiSurface apiSurface, AgentPrism.OpenAIChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.OpenAIModelProvider!>? logger = null, AgentPrism.OpenAIProviderOptions? healthCheckOptions = null, string? configurationSectionKey = "AgentPrism:Providers:OpenAI") -> void
+AgentPrism.OpenAIProviderExtensions
+AgentPrism.OpenAIProviderNames
+AgentPrism.OpenAIProviderOptions
+AgentPrism.OpenAIProviderOptions.ApiKey.get -> string?
+AgentPrism.OpenAIProviderOptions.ApiKey.set -> void
+AgentPrism.OpenAIProviderOptions.DefaultModel.get -> string?
+AgentPrism.OpenAIProviderOptions.DefaultModel.set -> void
+AgentPrism.OpenAIProviderOptions.EnableResponsesSurface.get -> bool
+AgentPrism.OpenAIProviderOptions.EnableResponsesSurface.set -> void
+AgentPrism.OpenAIProviderOptions.Endpoint.get -> System.Uri?
+AgentPrism.OpenAIProviderOptions.Endpoint.set -> void
+AgentPrism.OpenAIProviderOptions.Models.get -> System.Collections.Generic.IList<AgentPrism.ModelDescriptor!>!
+AgentPrism.OpenAIProviderOptions.OpenAIProviderOptions() -> void
+AgentPrism.OpenAIProviderOptions.Organization.get -> string?
+AgentPrism.OpenAIProviderOptions.Organization.set -> void
+AgentPrism.OpenAIProviderOptions.Timeout.get -> System.TimeSpan?
+AgentPrism.OpenAIProviderOptions.Timeout.set -> void
+AgentPrism.OpenAIProviderOptionsValidator
+AgentPrism.OpenAIProviderOptionsValidator.OpenAIProviderOptionsValidator() -> void
+AgentPrism.OpenAIProviderOptionsValidator.Validate(string? name, AgentPrism.OpenAIProviderOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+const AgentPrism.OpenAICompatibleProviderOptions.SectionName = "AgentPrism:Providers:OpenAICompatible" -> string!
+const AgentPrism.OpenAIProviderNames.ChatCompletions = "openai" -> string!
+const AgentPrism.OpenAIProviderNames.Responses = "openai-responses" -> string!
+const AgentPrism.OpenAIProviderOptions.SectionName = "AgentPrism:Providers:OpenAI" -> string!
+static AgentPrism.OpenAIChatClientFactory.CreateClient(AgentPrism.OpenAIProviderOptions! options) -> OpenAI.OpenAIClient!
+static AgentPrism.OpenAIChatClientFactory.FromClient(OpenAI.OpenAIClient! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> AgentPrism.OpenAIChatClientFactory!
+static AgentPrism.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this AgentPrism.IAgentPrismBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Action<AgentPrism.OpenAIProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.OpenAIModelCatalog.Build(AgentPrism.OpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
+static AgentPrism.OpenAIProviderExtensions.UseOpenAI(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.OpenAIProviderExtensions.UseOpenAI(this AgentPrism.IAgentPrismBuilder! builder, string! apiKey, System.Action<AgentPrism.OpenAIProviderOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.OpenAIProviderExtensions.UseOpenAI(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.OpenAIProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!

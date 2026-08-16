@@ -50,26 +50,21 @@ public static class AzureOpenAIProviderExtensions
     /// The section to read options from. Typically
     /// <c>configuration.GetSection(AzureOpenAIProviderOptions.SectionName)</c>.
     /// </param>
-    /// <param name="configure">
-    /// An extra modifier that runs after configuration is bound. The one option
-    /// that cannot be read from configuration,
-    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/>, is given here.
-    /// </param>
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configurationSection"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> cannot be read from
+    /// configuration; call the <see cref="UseAzureOpenAI(IAgentPrismBuilder, Action{AzureOpenAIProviderOptions})"/>
+    /// overload afterward to set it in code.
+    /// </remarks>
     public static IAgentPrismBuilder UseAzureOpenAI(
         this IAgentPrismBuilder builder,
-        IConfiguration configurationSection,
-        Action<AzureOpenAIProviderOptions>? configure = null)
+        IConfiguration configurationSection)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configurationSection);
 
-        return builder.UseAzureOpenAI(options =>
-        {
-            Bind(configurationSection, options);
-            configure?.Invoke(options);
-        });
+        return builder.UseAzureOpenAI(options => Bind(configurationSection, options));
     }
 
     /// <summary>Adds the Azure OpenAI provider by giving options in code.</summary>

@@ -238,7 +238,7 @@ public sealed class ChildAgentInvokerTests
                 },
             ]);
 
-        public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
             => new(string.Equals(agentName, "researcher", StringComparison.Ordinal) ? agent : null);
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)

@@ -24,7 +24,7 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
-    public IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval = false)
+    public IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval)
     {
         ArgumentNullException.ThrowIfNull(tool);
 

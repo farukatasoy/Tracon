@@ -68,6 +68,6 @@ internal sealed class OpenAINamedChatClientFactoryCache
             Timeout = options.Timeout,
         });
 
-        return new OpenAIChatClientFactory(client, options.DefaultModel, _loggerFactory);
+        return OpenAIChatClientFactory.FromClient(client, options.DefaultModel, _loggerFactory);
     }
 }

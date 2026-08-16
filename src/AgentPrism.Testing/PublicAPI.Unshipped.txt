@@ -1,1 +1,62 @@
 #nullable enable
+AgentPrism.Testing.AgentPrismAssertionException
+AgentPrism.Testing.AgentPrismAssertionException.AgentPrismAssertionException() -> void
+AgentPrism.Testing.AgentPrismAssertionException.AgentPrismAssertionException(string! message) -> void
+AgentPrism.Testing.AgentPrismAssertionException.AgentPrismAssertionException(string! message, System.Exception! innerException) -> void
+AgentPrism.Testing.AgentPrismTestHost
+AgentPrism.Testing.AgentPrismTestHost.Client.get -> System.Net.Http.HttpClient!
+AgentPrism.Testing.AgentPrismTestHost.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.AgentPrismTestHost.RunAsync(string! agentName, string! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.Testing.RunAssertions!>
+AgentPrism.Testing.AgentPrismTestHost.Services.get -> System.IServiceProvider!
+AgentPrism.Testing.AgentPrismTestHostOptions
+AgentPrism.Testing.AgentPrismTestHostOptions.AgentPrismTestHostOptions() -> void
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureAgentPrism.get -> System.Action<AgentPrism.IAgentPrismBuilder!>?
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureAgentPrism.set -> void
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureEndpoints.get -> System.Action<AgentPrism.AgentPrismEndpointOptions!>?
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureEndpoints.set -> void
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureServices.get -> System.Action<Microsoft.Extensions.DependencyInjection.IServiceCollection!>?
+AgentPrism.Testing.AgentPrismTestHostOptions.ConfigureServices.set -> void
+AgentPrism.Testing.AgentPrismTestHostOptions.ModelProvider.get -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.AgentPrismTestHostOptions.ModelProvider.set -> void
+AgentPrism.Testing.AgentPrismTestHostOptions.Prefix.get -> string!
+AgentPrism.Testing.AgentPrismTestHostOptions.Prefix.set -> void
+AgentPrism.Testing.FakeModelProvider
+AgentPrism.Testing.FakeModelProvider.CallsTool(string! toolName, object? arguments = null) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.Testing.FakeModelProvider.Dispose() -> void
+AgentPrism.Testing.FakeModelProvider.EchoesLastToolResult(string! prefix = "", int? inputTokens = null, int? outputTokens = null) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.EchoesUserMessage() -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.FakeModelProvider(string! name = "fake") -> void
+AgentPrism.Testing.FakeModelProvider.ForModel(string! modelId, System.Action<AgentPrism.Testing.FakeModelProvider!>! configure) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
+AgentPrism.Testing.FakeModelProvider.Name.get -> string!
+AgentPrism.Testing.FakeModelProvider.Requests.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.Testing.FakeModelRequest!>!
+AgentPrism.Testing.FakeModelProvider.RespondsWith(params string![]! responses) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.RespondsWith(string! response, int inputTokens, int outputTokens) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelProvider.WithModel(AgentPrism.ModelDescriptor! descriptor) -> AgentPrism.Testing.FakeModelProvider!
+AgentPrism.Testing.FakeModelRequest
+AgentPrism.Testing.FakeModelRequest.<Clone>$() -> AgentPrism.Testing.FakeModelRequest!
+AgentPrism.Testing.FakeModelRequest.Equals(AgentPrism.Testing.FakeModelRequest? other) -> bool
+AgentPrism.Testing.FakeModelRequest.FakeModelRequest() -> void
+AgentPrism.Testing.FakeModelRequest.IsStreaming.get -> bool
+AgentPrism.Testing.FakeModelRequest.IsStreaming.init -> void
+AgentPrism.Testing.FakeModelRequest.Messages.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
+AgentPrism.Testing.FakeModelRequest.Messages.init -> void
+AgentPrism.Testing.FakeModelRequest.Options.get -> Microsoft.Extensions.AI.ChatOptions?
+AgentPrism.Testing.FakeModelRequest.Options.init -> void
+AgentPrism.Testing.RunAssertions
+AgentPrism.Testing.RunAssertions.Events.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunEvent!>!
+AgentPrism.Testing.RunAssertions.Record.get -> AgentPrism.RunRecord!
+AgentPrism.Testing.RunAssertions.ShouldHaveCalledTool(string! toolName, int? times = null) -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ShouldHaveCompleted() -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ShouldHaveFailed() -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ShouldHaveFailedWith(string! errorType) -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ShouldHaveOutputContaining(string! text) -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ShouldNotHaveCalledTool(string! toolName) -> AgentPrism.Testing.RunAssertions!
+AgentPrism.Testing.RunAssertions.ToolInvocations.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolInvocationRecord!>!
+override AgentPrism.Testing.FakeModelRequest.Equals(object? obj) -> bool
+override AgentPrism.Testing.FakeModelRequest.GetHashCode() -> int
+override AgentPrism.Testing.FakeModelRequest.ToString() -> string!
+static AgentPrism.Testing.AgentPrismTestHost.StartAsync(System.Action<AgentPrism.Testing.AgentPrismTestHostOptions!>? configure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.Testing.AgentPrismTestHost!>
+static AgentPrism.Testing.FakeModelRequest.operator !=(AgentPrism.Testing.FakeModelRequest? left, AgentPrism.Testing.FakeModelRequest? right) -> bool
+static AgentPrism.Testing.FakeModelRequest.operator ==(AgentPrism.Testing.FakeModelRequest? left, AgentPrism.Testing.FakeModelRequest? right) -> bool

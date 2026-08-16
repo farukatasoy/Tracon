@@ -50,13 +50,12 @@
   </PropertyGroup>
 
   <!--
-    Public API takibi Faz 7'de acilir. O ana kadar analyzer yuklu durur ancak
-    RS0016 (eksik kayit) ve kardesleri build'i kirmaz. Faz 7'de bu ozellik
-    true yapilir ve PublicAPI.Shipped.txt dosyalari donduruluyor.
+    Public API takibi Faz 60'ta acildi (K-016/K-068'i gunceller). Yuzeyi
+    degistiren her faz PublicAPI.Unshipped.txt'nin diff'ini uretir; Faz 7
+    (yayin) geldiginde Unshipped -> Shipped tek seferlik tasinir.
   -->
   <PropertyGroup Label="Public API takibi">
-    <EnablePublicApiTracking>false</EnablePublicApiTracking>
-    <NoWarn Condition=" '$(EnablePublicApiTracking)' != 'true' ">$(NoWarn);RS0016;RS0017;RS0022;RS0024;RS0025;RS0026;RS0027;RS0036;RS0037;RS0041</NoWarn>
+    <EnablePublicApiTracking>true</EnablePublicApiTracking>
   </PropertyGroup>
 
   <ItemGroup Label="Tum projelerde gecerli analyzer'lar">

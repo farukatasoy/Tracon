@@ -206,7 +206,7 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     }
 
     private static async ValueTask<Microsoft.Agents.AI.AIAgent> ResolveAsync(IServiceProvider provider, string name)
-        => await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(name)
+        => await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(name, CancellationToken.None)
            ?? throw new InvalidOperationException($"Could not resolve agent '{name}'.");
 
     private ServiceProvider BuildProvider(PostgresTestContext context)

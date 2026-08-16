@@ -1,0 +1,25 @@
+#nullable enable
+AgentPrism.AgentPrismMcpBuilderExtensions
+AgentPrism.AgentPrismMcpOptions
+AgentPrism.AgentPrismMcpOptions.AgentPrismMcpOptions() -> void
+AgentPrism.AgentPrismMcpOptions.ConnectionTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismMcpOptions.ConnectionTimeout.set -> void
+AgentPrism.AgentPrismMcpOptions.Enabled.get -> bool
+AgentPrism.AgentPrismMcpOptions.Enabled.set -> void
+AgentPrism.AgentPrismMcpOptions.MaxResourceBytesPerResource.get -> int
+AgentPrism.AgentPrismMcpOptions.MaxResourceBytesPerResource.set -> void
+AgentPrism.AgentPrismMcpOptions.MaxResourceBytesTotal.get -> int
+AgentPrism.AgentPrismMcpOptions.MaxResourceBytesTotal.set -> void
+AgentPrism.AgentPrismMcpOptions.MaxToolsPerServer.get -> int
+AgentPrism.AgentPrismMcpOptions.MaxToolsPerServer.set -> void
+AgentPrism.AgentPrismMcpOptions.OAuthCallbackBaseUri.get -> System.Uri?
+AgentPrism.AgentPrismMcpOptions.OAuthCallbackBaseUri.set -> void
+AgentPrism.AgentPrismMcpOptions.RefreshInterval.get -> System.TimeSpan
+AgentPrism.AgentPrismMcpOptions.RefreshInterval.set -> void
+AgentPrism.McpToolRegistry
+AgentPrism.McpToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
+AgentPrism.McpToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunction? tool) -> bool
+const AgentPrism.AgentPrismMcpOptions.SectionName = "AgentPrism:Mcp" -> string!
+static AgentPrism.AgentPrismMcpBuilderExtensions.UseMcp(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismMcpBuilderExtensions.UseMcp(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<AgentPrism.AgentPrismMcpOptions!>? configure) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismMcpBuilderExtensions.UseMcp(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismMcpOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!

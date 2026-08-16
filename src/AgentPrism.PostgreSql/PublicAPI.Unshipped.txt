@@ -1,1 +1,23 @@
 #nullable enable
+AgentPrism.AgentPrismPostgreSqlBuilderExtensions
+AgentPrism.AgentPrismPostgreSqlOptions
+AgentPrism.AgentPrismPostgreSqlOptions.AgentPrismPostgreSqlOptions() -> void
+AgentPrism.AgentPrismPostgreSqlOptions.AutoApplyMigrations.get -> bool
+AgentPrism.AgentPrismPostgreSqlOptions.AutoApplyMigrations.set -> void
+AgentPrism.AgentPrismPostgreSqlOptions.CommandTimeoutSeconds.get -> int
+AgentPrism.AgentPrismPostgreSqlOptions.CommandTimeoutSeconds.set -> void
+AgentPrism.AgentPrismPostgreSqlOptions.ConnectionString.get -> string?
+AgentPrism.AgentPrismPostgreSqlOptions.ConnectionString.set -> void
+AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.get -> string!
+AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.set -> void
+AgentPrism.AgentPrismPostgreSqlOptionsValidator
+AgentPrism.AgentPrismPostgreSqlOptionsValidator.AgentPrismPostgreSqlOptionsValidator() -> void
+AgentPrism.AgentPrismPostgreSqlOptionsValidator.Validate(string? name, AgentPrism.AgentPrismPostgreSqlOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+AgentPrism.MigrationRunner
+AgentPrism.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+AgentPrism.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.SqlPersistenceDiagnosticsSnapshot!>
+AgentPrism.MigrationRunner.ProviderName.get -> string!
+const AgentPrism.AgentPrismPostgreSqlOptions.SectionName = "AgentPrism:PostgreSql" -> string!
+static AgentPrism.AgentPrismPostgreSqlBuilderExtensions.UsePostgreSql(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismPostgreSqlBuilderExtensions.UsePostgreSql(this AgentPrism.IAgentPrismBuilder! builder, string! connectionString) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismPostgreSqlBuilderExtensions.UsePostgreSql(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismPostgreSqlOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
