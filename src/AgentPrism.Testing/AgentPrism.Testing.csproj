@@ -1,22 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin test yardimcilari: aga cikmayan bir model saglayicisi, bellek ici bir host fixture'i ve calistirma kayitlari uzerinde iddialar. Hicbir test cercevesine (xunit, NUnit, MSTest) bagli degildir.</Description>
+    <Description>Test helpers for AgentPrism: a non-networked model provider, an in-memory host fixture, and assertions on run records. Binds to no test framework (xunit, NUnit, MSTest).</Description>
     <PackageTags>$(CommonPackageTags);testing;fixtures;mocks</PackageTags>
     <!--
-      TEK TFM: Microsoft.AspNetCore.TestHost paket surumu barindirma
-      framework'uyle birebir eslenir (10.0.10 yalniz net10.0 destekler); ayni
-      surumu net8.0/net9.0 icin coken bir siniflandirilmis paket yoktur. Coğul
-      ozellik BILEREK kullaniliyor (tekil degil): `dotnet pack`in capraz-hedef
-      orkestrasyonu Directory.Build.props'tan miras kalan coğul degeri okumaya
-      devam eder ve tekil deger onu GORMEZ (Faz 37 tuzagi,
-      docs/hafiza/build-ve-analyzer.md).
+      SINGLE TFM: the Microsoft.AspNetCore.TestHost package version maps
+      one-to-one to the hosting framework (10.0.10 supports only net10.0);
+      there is no classified package that collapses the same version for
+      net8.0/net9.0. The plural property is used ON PURPOSE (not singular):
+      `dotnet pack`'s cross-target orchestration keeps reading the plural
+      value inherited from Directory.Build.props, and the singular value is
+      NOT SEEN by it (Phase 37 trap, docs/hafiza/build-ve-analyzer.md).
     -->
     <TargetFrameworks>net10.0</TargetFrameworks>
     <!--
-      Test paketi uretimde calismaz: FakeModelProvider.CallsTool anonim tip
-      ozelliklerini yansima ile okur, AgentPrismTestHost JSON (de)serilestirmesi
-      icin kaynak ureteci baglami tasimaz. AOT vaadi verilmez.
+      The test package does not run in production: FakeModelProvider.CallsTool
+      reads anonymous-type properties through reflection, and
+      AgentPrismTestHost's JSON (de)serialization carries no source-generator
+      context. No AOT promise is made.
     -->
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
   </PropertyGroup>
@@ -24,31 +25,34 @@
   <ItemGroup>
     <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
     <!--
-      Tuketicinin en cok isteyecegi tip bellek ici host fixture'idir
-      (AgentPrismTestHost) ve o, uclari kuran AgentPrism.AspNetCore'u gerektirir.
-      K-008 kisiti burada gecerlidir: AspNetCore on surum MAF paketleri
-      tasiyabilen tek pakettir, Testing ona baglandigi icin o bagimliliklari
-      GECISLI olarak devralir. Kabul edilebilir - test paketi zaten uretim
-      grafiginde degildir. Gerekce: docs/39-TEST-PAKETI.md, bolum 39.1.
+      The type a consumer will want most is the in-memory host fixture
+      (AgentPrismTestHost), and it requires AgentPrism.AspNetCore, which
+      builds the endpoints. K-008 applies here: AspNetCore is the only
+      package that can carry prerelease MAF packages; since Testing
+      depends on it, it inherits those dependencies TRANSITIVELY.
+      Acceptable — the test package is not in the production graph
+      anyway. Rationale: docs/39-TEST-PAKETI.md, section 39.1.
     -->
     <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!--
-      Bellek ici host TestServer uzerine kurulur (Microsoft.AspNetCore.Mvc.Testing
-      degil - K-007: WebApplicationFactory<T> bir giris noktasi derlemesi ister
-      ve tuketiciyi bir barindirma modeline baglar. TestHost ise resmi, kararli
-      bir Microsoft paketidir ve baska hicbir bagimlilik getirmez.
+      The in-memory host is built on TestServer (not
+      Microsoft.AspNetCore.Mvc.Testing - K-007: WebApplicationFactory<T>
+      requires an entry-point assembly and locks the consumer into a hosting
+      model. TestHost, in contrast, is an official, stable Microsoft package
+      that pulls in no other dependency.
     -->
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
 
   <!--
-    HICBIR test cercevesi paketi alinmaz (xunit, NUnit, MSTest, Shouldly,
-    FluentAssertions). Tuketici hangi cerceveyi kullanirsa kullansin paket
-    calisir; iddialar basarisiz oldugunda kendi AgentPrismAssertionException'ini
-    firlatir, her cerceve bunu bir basarisizlik sayar. Gerekce: bolum 39.2.
+    NO test framework package is taken (xunit, NUnit, MSTest, Shouldly,
+    FluentAssertions). The package works regardless of which framework the
+    consumer uses; when an assertion fails it throws its own
+    AgentPrismAssertionException, and every framework counts that as a
+    failure. Rationale: section 39.2.
   -->
 
 </Project>

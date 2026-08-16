@@ -4,11 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AgentPrism.Generators;
 
-/// <summary>
-/// <c>[AgentPrismTool]</c> ile isaretli metotlari derleme aninda tarar, yansima
-/// gerektirmeyen <c>AIFunction</c> sarmalayicilari uretir ve derleme anı tanilar
-/// (APG0001-APG0007) verir. Ayrinti: <c>docs/52-KAYNAK-URETECI.md</c>.
-/// </summary>
+/// <summary>Scans methods marked with <c>[AgentPrismTool]</c> at compile time and emits reflection-free <c>AIFunction</c> wrappers and compile-time diagnostics (APG0001-APG0007).</summary>
+/// <remarks>Details: <c>docs/52-KAYNAK-URETECI.md</c>.</remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class ToolRegistrationGenerator : IIncrementalGenerator
 {
@@ -98,7 +95,7 @@ public sealed class ToolRegistrationGenerator : IIncrementalGenerator
 
         if (callSites.Length == 0 && emittable.Count == 0)
         {
-            // Ne AddGeneratedTools() cagrisi ne de tool var - uretecin uretecek bir seyi yok.
+            // Neither an AddGeneratedTools() call nor a tool exists - the generator has nothing to emit.
             return;
         }
 
@@ -127,11 +124,8 @@ public sealed class ToolRegistrationGenerator : IIncrementalGenerator
         }
     }
 
-    /// <summary>
-    /// <see cref="IncrementalValueProvider{TValue}.WithTrackingName"/> icin sabit adlar.
-    /// Testler bu adlarla adim onbellek nedenlerini (<c>Cached</c>/<c>Modified</c>)
-    /// sorgular - artimlilik (52.5) ancak bu isaretlerle olculebilir.
-    /// </summary>
+    /// <summary>Constant names for <see cref="IncrementalValueProvider{TValue}.WithTrackingName"/>.</summary>
+    /// <remarks>Tests query step cache reasons (<c>Cached</c>/<c>Modified</c>) by these names - incrementality (52.5) is only measurable through these markers.</remarks>
     internal static class TrackingNames
     {
         public const string ToolCandidates = "ToolCandidates";

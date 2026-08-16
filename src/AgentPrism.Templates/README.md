@@ -1,37 +1,37 @@
 # AgentPrism.Templates
 
-`dotnet new` şablonu — çalışan bir [AgentPrism](https://www.nuget.org/packages/AgentPrism) kontrol düzlemi üretir.
+A `dotnet new` template — generates a working [AgentPrism](https://www.nuget.org/packages/AgentPrism) control plane.
 
-## Kurulum
+## Install
 
 ```bash
 dotnet new install AgentPrism.Templates
 ```
 
-## Kullanım
+## Usage
 
 ```bash
-dotnet new agentprism-api -n Benim.Agent
-cd Benim.Agent
+dotnet new agentprism-api -n My.Agent
+cd My.Agent
 dotnet user-secrets init
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
 dotnet run
 ```
 
-`http://localhost:5081/agentprism` adresinde çalışan bir kontrol düzlemi açılır.
+A running control plane opens at `http://localhost:5081/agentprism`.
 
-## Seçenekler
+## Options
 
-| Seçenek | Değerler | Varsayılan | Ne yapar |
+| Option | Values | Default | What it does |
 |---|---|---|---|
-| `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` | Kalıcılık sağlayıcısı |
-| `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` | Model sağlayıcısı |
-| `--ui` | `true`, `false` | `true` | Gömülü kontrol düzlemi arayüzü |
+| `--persistence` | `memory`, `postgres`, `sqlite`, `sqlserver` | `memory` | Persistence provider |
+| `--provider` | `openai`, `anthropic`, `google`, `azure` | `openai` | Model provider |
+| `--ui` | `true`, `false` | `true` | Embedded control plane UI |
 
 ```bash
-dotnet new agentprism-api -n Benim.Agent --persistence postgres --provider anthropic --ui true
+dotnet new agentprism-api -n My.Agent --persistence postgres --provider anthropic --ui true
 ```
 
-Üretilen `appsettings.json` yalnız boş placeholder taşır — hiçbir `secret` içermez. Bağlantı dizesi ve API anahtarı `dotnet user-secrets` ile ayarlanır; üretilen `README.md` bunu ilk adım olarak anlatır.
+The generated `appsettings.json` carries only empty placeholders — it never contains a `secret`. The connection string and API key are set with `dotnet user-secrets`; the generated `README.md` describes this as the first step.
 
-Ayrıntı: [AgentPrism deposu](https://github.com/farukatasoy/AgentPrism), [`docs/37-PROJE-SABLONU.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/37-PROJE-SABLONU.md).
+Details: [AgentPrism repository](https://github.com/farukatasoy/AgentPrism), [`docs/37-PROJE-SABLONU.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/37-PROJE-SABLONU.md).

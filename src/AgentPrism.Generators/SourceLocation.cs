@@ -3,15 +3,12 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace AgentPrism.Generators;
 
-/// <summary>
-/// <see cref="Location"/>'un onbelleklenebilir (deger esitligi tasiyan) izdusumu.
-/// </summary>
+/// <summary>A cacheable (value-equality) projection of <see cref="Location"/>.</summary>
 /// <remarks>
-/// <see cref="Location"/> bir <see cref="SyntaxTree"/>'ye bagli olabilir ve
-/// <see cref="IIncrementalGenerator"/> modellerinde tutulmamalidir; bu tip
-/// gereken uc bilgiyi (dosya yolu, metin araligi, satir araligi) kopyalar ve
-/// gerektiginde <see cref="ToLocation"/> ile yeniden bir <see cref="Location"/>
-/// uretir.
+/// <see cref="Location"/> can be tied to a <see cref="SyntaxTree"/> and must not be
+/// held in <see cref="IIncrementalGenerator"/> models; this type copies the three
+/// pieces of information needed (file path, text span, line span) and reconstructs
+/// a <see cref="Location"/> via <see cref="ToLocation"/> when required.
 /// </remarks>
 internal readonly record struct SourceLocation(string FilePath, TextSpan Span, LinePositionSpan LineSpan)
 {

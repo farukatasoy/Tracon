@@ -2,15 +2,15 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Testing;
 
-/// <summary>Sahte saglayiciya ulasan tek bir istek.</summary>
+/// <summary>A single request that reached the fake provider.</summary>
 public sealed record FakeModelRequest
 {
-    /// <summary>Istekteki mesaj gecmisi.</summary>
+    /// <summary>Message history in the request.</summary>
     public required IReadOnlyList<ChatMessage> Messages { get; init; }
 
-    /// <summary>Istekle birlikte gelen secenekler. Tool tanimlarini da tasir.</summary>
+    /// <summary>Options that came with the request. Also carries tool definitions.</summary>
     public ChatOptions? Options { get; init; }
 
-    /// <summary>Akisli bir cagri mi.</summary>
+    /// <summary>Whether this was a streaming call.</summary>
     public bool IsStreaming { get; init; }
 }

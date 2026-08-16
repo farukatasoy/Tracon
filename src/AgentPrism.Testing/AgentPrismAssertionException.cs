@@ -1,30 +1,30 @@
 namespace AgentPrism.Testing;
 
 /// <summary>
-/// Bir <see cref="RunAssertions"/> iddiasi karsilanmadiginda firlatilir.
+/// Thrown when a <see cref="RunAssertions"/> assertion is not met.
 /// </summary>
 /// <remarks>
-/// Her test cercevesi (xunit, NUnit, MSTest) firlatilan bir istisnayi test
-/// basarisizligi sayar; paket bunun disinda hicbir cerceveye baglanmaz.
-/// Gerekce: docs/39-TEST-PAKETI.md, bolum 39.2.
+/// Every test framework (xunit, NUnit, MSTest) counts a thrown exception as a
+/// test failure; the package binds to no other framework. Rationale:
+/// docs/39-TEST-PAKETI.md, section 39.2.
 /// </remarks>
 public sealed class AgentPrismAssertionException : AgentPrismException
 {
-    /// <summary>Yeni bir iddia hatasi olusturur.</summary>
+    /// <summary>Creates a new assertion failure.</summary>
     public AgentPrismAssertionException()
     {
     }
 
-    /// <summary>Yeni bir iddia hatasi olusturur.</summary>
-    /// <param name="message">Beklenen ve bulunan degeri anlatan mesaj.</param>
+    /// <summary>Creates a new assertion failure.</summary>
+    /// <param name="message">Message describing the expected and actual value.</param>
     public AgentPrismAssertionException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir iddia hatasi olusturur.</summary>
-    /// <param name="message">Beklenen ve bulunan degeri anlatan mesaj.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new assertion failure.</summary>
+    /// <param name="message">Message describing the expected and actual value.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismAssertionException(string message, Exception innerException)
         : base(message, innerException)
     {

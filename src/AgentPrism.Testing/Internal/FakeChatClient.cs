@@ -5,15 +5,14 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Testing.Internal;
 
 /// <summary>
-/// Bir <see cref="FakeModelScript"/> tarafindan yonlendirilen, aga cikmayan
-/// sohbet istemcisi.
+/// A non-networked chat client driven by a <see cref="FakeModelScript"/>.
 /// </summary>
 /// <remarks>
-/// Metin yanitlari TEK bir guncelleme halinde doner (kelime kelime bolunmez).
-/// Coğu tuketici yalniz nihai metni denetler; parca parca gelen bir akis
-/// yalnizca kirilgan tam-metin eslesmesi (tek cerceve varsayan SSE testleri)
-/// uretirdi. Akisli/akissiz cagri ayrimi yine de <see cref="FakeModelRequest.IsStreaming"/>
-/// ile gozlemlenebilir.
+/// Text responses come back as a SINGLE update (not split word by word).
+/// Most consumers only check the final text; a piecemeal stream would only
+/// produce a brittle full-text match (SSE tests that assume one frame). The
+/// streaming/non-streaming call distinction is still observable through
+/// <see cref="FakeModelRequest.IsStreaming"/>.
 /// </remarks>
 internal sealed class FakeChatClient(FakeModelScript script, Action<FakeModelRequest> onRequest) : IChatClient
 {
@@ -47,7 +46,7 @@ internal sealed class FakeChatClient(FakeModelScript script, Action<FakeModelReq
 
     public void Dispose()
     {
-        // Sahte istemcinin serbest birakilacak kaynagi yok.
+        // The fake client has no resource to release.
     }
 
     private List<ChatResponseUpdate> BuildUpdates(IReadOnlyList<ChatMessage> messages)
@@ -112,7 +111,7 @@ internal sealed class FakeChatClient(FakeModelScript script, Action<FakeModelReq
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2075",
-        Justification = "Test yardimcisidir; uretimde calismaz. Anonim tip ozelliklerini kopyalamak icin yansima kullanilir.")]
+        Justification = "Test helper; does not run in production. Reflection copies anonymous-type properties.")]
     private static IDictionary<string, object?>? ToArguments(object? arguments)
     {
         if (arguments is null)

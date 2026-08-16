@@ -1,16 +1,16 @@
 # AgentPrism.Starter
 
-`dotnet new agentprism-api` ile üretildi. Çalışan bir [AgentPrism](https://github.com/farukatasoy/AgentPrism) kontrol düzlemidir.
+Generated with `dotnet new agentprism-api`. This is a working [AgentPrism](https://github.com/farukatasoy/AgentPrism) control plane.
 
-## 1. Sırları ayarlayın
+## 1. Set your secrets
 
-Bağlantı dizesi ve API anahtarı bu depoya **hiç girmez**. `appsettings.json` yalnız boş placeholder taşır. `dotnet user-secrets` kullanın:
+The connection string and API key **never** enter this repository. `appsettings.json` carries only empty placeholders. Use `dotnet user-secrets`:
 
 ```bash
 dotnet user-secrets init
 ```
 
-**Kalıcılık** — üretim sırasında seçtiğiniz `--persistence` değerine göre yalnız *birini* ayarlayın:
+**Persistence** — set only the *one* matching the `--persistence` value you chose at generation time:
 
 ```bash
 dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
@@ -18,41 +18,41 @@ dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString"  "Server=...,143
 dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString"     "Data Source=agentprism.db"
 ```
 
-Hiçbiri ayarlanmazsa depolama bellek içine düşer — hiçbir şey kırılmaz, veri süreçle birlikte biter.
+If none is set, storage falls back to in-memory — nothing breaks, data just ends with the process.
 
-**Model sağlayıcısı** — seçtiğiniz `--provider` değerine göre yalnız *birini* ayarlayın:
+**Model provider** — set only the *one* matching the `--provider` value you chose:
 
 ```bash
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"        "sk-..."
 dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey"     "sk-ant-..."
 dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey"        "AIza..."
-dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"
+dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<resource>.openai.azure.com/"
 dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:ApiKey"   "..."
 ```
 
-API anahtarı ayarlanmazsa uygulama yine ayağa kalkar; yalnızca modeli gerçekten çağıran çalıştırmalar hata döner.
+If the API key is not set, the app still starts; only runs that actually call the model return an error.
 
-## 2. Model adını seçin
+## 2. Choose the model name
 
-AgentPrism **yerleşik model listesi taşımaz** — model adları ve fiyatları bir NuGet paketinin yayın sıklığından hızlı değişir. [`Program.cs`](Program.cs) içindeki `MODEL_ADINI_BURAYA_YAZIN` placeholder'ını sağlayıcının bugünkü belgesindeki gerçek model adıyla değiştirin (örn. OpenAI için `gpt-5.4-mini`).
+AgentPrism **carries no built-in model list** — model names and pricing change faster than any NuGet package's release cadence. Replace the `WRITE_MODEL_NAME_HERE` placeholder in [`Program.cs`](Program.cs) with the real model name from the provider's current documentation (for example, `gpt-5.4-mini` for OpenAI).
 
-## 3. Çalıştırın
+## 3. Run it
 
 ```bash
 dotnet run
 ```
 
-`http://localhost:5081/agentprism` adresinde çalışan bir kontrol düzlemi açılır. Katalog, deneme çalıştırması ve OpenAI uyumlu uçlar için:
+A running control plane opens at `http://localhost:5081/agentprism`. For the catalog, trial runs, and OpenAI-compatible endpoints:
 
 ```bash
 curl http://localhost:5081/agentprism/api/agents
 ```
 
-## Tool ekleyin
+## Add a tool
 
-[`Tools/OrderTools.cs`](Tools/OrderTools.cs) içinde bir örnek tool var. Yeni bir tool eklemek için `[AgentPrismTool]` ile işaretli **statik** bir metot yazın ve `Program.cs`'te `AddToolsFrom(typeof(...))` ile kaydedin. Tool'lar yalnızca kodda tanımlanır — bu bir güvenlik sınırıdır; arayüz yalnızca kayıtlı tool'lardan seçim yaptırır.
+[`Tools/OrderTools.cs`](Tools/OrderTools.cs) has a sample tool. To add a new tool, write a **static** method marked with `[AgentPrismTool]` and register it in `Program.cs` with `AddToolsFrom(typeof(...))`. Tools are defined only in code — this is a security boundary; the UI only lets users pick from registered tools.
 
-## Daha fazla
+## More
 
-- [AgentPrism deposu](https://github.com/farukatasoy/AgentPrism)
+- [AgentPrism repository](https://github.com/farukatasoy/AgentPrism)
 - [`docs/MIMARI.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)

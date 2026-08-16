@@ -9,7 +9,7 @@
   ],
   "name": "AgentPrism control plane (ASP.NET Core)",
   "generatorVersions": "[1.0.0.0-*)",
-  "description": "Calisan bir AgentPrism kontrol duzlemi: AddAgentPrism + MapAgentPrism, ornek tool, bos appsettings.json placeholder'i.",
+  "description": "A working AgentPrism control plane: AddAgentPrism + MapAgentPrism, a sample tool, an empty appsettings.json placeholder.",
   "groupIdentity": "AgentPrism.Api.CSharp",
   "precedence": "100",
   "identity": "AgentPrism.Api.CSharp",
@@ -28,13 +28,13 @@
       "type": "parameter",
       "datatype": "choice",
       "choices": [
-        { "choice": "memory", "description": "Veritabani yok - kalicilik surecle birlikte biter" },
+        { "choice": "memory", "description": "No database - persistence ends with the process" },
         { "choice": "postgres", "description": "PostgreSQL" },
-        { "choice": "sqlite", "description": "SQLite (tek dosya)" },
+        { "choice": "sqlite", "description": "SQLite (single file)" },
         { "choice": "sqlserver", "description": "SQL Server / Azure SQL" }
       ],
       "defaultValue": "memory",
-      "description": "Kalicilik saglayicisi."
+      "description": "The persistence provider."
     },
     "provider": {
       "type": "parameter",
@@ -46,13 +46,13 @@
         { "choice": "azure", "description": "Azure OpenAI" }
       ],
       "defaultValue": "openai",
-      "description": "Model saglayicisi."
+      "description": "The model provider."
     },
     "ui": {
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Gomulu kontrol duzlemi arayuzunu dahil et."
+      "description": "Include the embedded control plane UI."
     },
     "UsePostgres": {
       "type": "computed",
@@ -87,12 +87,12 @@
       "datatype": "string",
       "defaultValue": "*-*",
       "replaces": "AGENTPRISM_TEMPLATE_PACKAGE_VERSION",
-      "description": "AgentPrism paketlerinin surumu. Varsayilan '*-*' yapilandirilan kaynaktaki en guncel on-surumu alir; belirli bir surume sabitlemek icin --AgentPrismVersion x.y.z verin."
+      "description": "The version of the AgentPrism packages. The default '*-*' takes the latest pre-release from the configured source; pass --AgentPrismVersion x.y.z to pin a specific version."
     },
     "skipRestore": {
       "type": "parameter",
       "datatype": "bool",
-      "description": "Verilirse proje olusturulduktan sonra otomatik 'dotnet restore' calistirilmaz.",
+      "description": "If set, 'dotnet restore' does not run automatically after the project is created.",
       "defaultValue": "false"
     }
   },
