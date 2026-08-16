@@ -1,17 +1,17 @@
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in kullandigi <see cref="SqliteDataSource"/> ornegini kurar.
+/// Builds the <see cref="SqliteDataSource"/> instance AgentPrism uses.
 /// </summary>
 /// <remarks>
-/// Tek bir veri kaynagi kullanilir ve DI icinde singleton olarak yasar.
+/// A single data source is used and lives as a singleton in DI.
 /// </remarks>
 internal static class SqliteDataSourceFactory
 {
-    /// <summary>Ayarlardan bir veri kaynagi olusturur.</summary>
-    /// <param name="options">SQLite ayarlari.</param>
-    /// <returns>Kullanima hazir veri kaynagi.</returns>
-    /// <exception cref="AgentPrismException">Baglanti dizesi tanimli degilse.</exception>
+    /// <summary>Builds a data source from settings.</summary>
+    /// <param name="options">SQLite settings.</param>
+    /// <returns>A data source ready for use.</returns>
+    /// <exception cref="AgentPrismException">The connection string is not defined.</exception>
     public static SqliteDataSource Create(AgentPrismSqliteOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -19,9 +19,9 @@ internal static class SqliteDataSourceFactory
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             throw new AgentPrismException(
-                "SQLite baglanti dizesi tanimli degil. `UseSqlite(connectionString)` cagrisinda verin " +
-                $"veya '{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
-                "ayarini yapilandirmada tanimlayin.");
+                "The SQLite connection string is not defined. Provide it in the `UseSqlite(connectionString)` call, " +
+                $"or define the '{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
+                "setting in configuration.");
         }
 
         return new SqliteDataSource(options.ConnectionString);

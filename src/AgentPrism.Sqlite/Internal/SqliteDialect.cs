@@ -7,79 +7,76 @@ using Microsoft.Data.Sqlite;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlDialect"/> soyutlamasinin SQLite uygulamasi.
+/// <see cref="SqlDialect"/> abstraction's SQLite implementation.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Paylasilan depo kodunun gordugu tek <c>Microsoft.Data.Sqlite</c> temas
-/// noktasi budur.
+/// This is the only <c>Microsoft.Data.Sqlite</c> contact point the shared store code sees.
 /// </para>
 /// <para>
-/// Uc nokta olculdu ve buradaki davranis onlara gore kuruldu (Faz 24 acilisi):
+/// Three points were measured and the behavior here was built on them (Phase 24 opening):
 /// </para>
 /// <list type="number">
 ///   <item><description>
-///     <strong>uuid BUYUK harfle yazilir, ozel islem GEREKMEZ.</strong>
-///     <c>Microsoft.Data.Sqlite</c> tipi verilmeden (<see cref="DbHelpers.Add"/>'in
-///     yaptigi gibi) veya <see cref="DbType.Guid"/> ile (taban sinifin
-///     <see cref="SqlDialect.AddUuid"/> varsayilani) BIREBIR AYNI buyuk harfli,
-///     tireli metni yazar — olculdu. Bu yuzden burada <c>AddUuid</c> ozellikle
-///     EZILMEZ: kucuk harfe cevirmek, zorunlu (nullable olmayan) Guid'lerin
-///     gectigi <see cref="DbHelpers.Add"/> yoluyla BUYUK harf, nullable Guid'lerin
-///     gectigi bu yol ile kucuk harf yazardi. Ayni mantiksal kimlik iki farkli
-///     metinle saklanir ve <c>WHERE</c>/<c>JOIN</c> esitligi (SQLite'ta BINARY,
-///     harf buyuklugune duyarli metin karsilastirmasidir) SESSIZCE BASARISIZ
-///     olurdu (ornek: <c>SqlTraceStore.UpsertTraceAsync</c> <c>Dialect.AddUuid</c>
-///     ile yazar, <c>GetTraceByRunAsync</c> <c>DbHelpers.Add</c> ile okur — ayni
-///     <c>run_id</c> sutunu). Harf buyuklugu tutarli oldugu surece uuid v7'nin
-///     zaman sirali onekinin sozluksel sirasi bozulmaz.
+///     <strong><c>uuid</c> is written UPPERCASE; no special handling is REQUIRED.</strong>
+///     Without a <c>Microsoft.Data.Sqlite</c> type given (as <see cref="DbHelpers.Add"/> does)
+///     or with <see cref="DbType.Guid"/> (the base class <see cref="SqlDialect.AddUuid"/>
+///     default), it writes the IDENTICAL uppercase, hyphenated text — measured. This is why
+///     <c>AddUuid</c> is NOT overridden here specifically: lowercasing it would make
+///     non-nullable Guids that pass through <see cref="DbHelpers.Add"/> write UPPERCASE and
+///     nullable Guids that pass through this path write lowercase. The same logical identity
+///     would then be stored with two different texts, and <c>WHERE</c>/<c>JOIN</c> equality
+///     (SQLite's default text comparison is BINARY, i.e. case-sensitive) would fail SILENTLY
+///     (example: <c>SqlTraceStore.UpsertTraceAsync</c> writes with <c>Dialect.AddUuid</c>,
+///     <c>GetTraceByRunAsync</c> reads with <c>DbHelpers.Add</c> — the same <c>run_id</c>
+///     column). As long as casing stays consistent, uuid v7's time-ordered prefix keeps its
+///     lexicographic order.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Zaman damgasi.</strong> <c>Microsoft.Data.Sqlite</c>'in varsayilan
-///     <see cref="DateTimeOffset"/> yazimi (bosluk ayracli, mikrosaniye kesinlikli)
-///     sozluksel olarak zaman sirali DEGILDIR; bu yuzden <c>AddTimestamp</c> elle
-///     bicimlendirir (<c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>). Zaman damgasi HER ZAMAN
-///     <see cref="SqlDialect.AddTimestamp"/> uzerinden, tek bir yoldan gecer — uuid'deki
-///     ikili yol sorunu burada yoktur.
+///     <strong>Timestamp.</strong> <c>Microsoft.Data.Sqlite</c>'s default <see cref="DateTimeOffset"/>
+///     write format (space-separated, microsecond precision) is NOT lexicographically
+///     time-ordered; this is why <c>AddTimestamp</c> formats it manually
+///     (<c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>). Timestamps ALWAYS pass through
+///     <see cref="SqlDialect.AddTimestamp"/>, a single path — the dual-path problem that
+///     affects uuid does not exist here.
 ///   </description></item>
 ///   <item><description>
-///     <strong><c>decimal</c> icin ozel islem GEREKMEZ.</strong> Surucu tipi
-///     verilmeden de (veya <see cref="DbType.Decimal"/> ile) her zaman TEXT
-///     olarak yazar ve kulturden bagimsizdir; <c>REAL</c>'e donusum yoktur.
-///     Olculdu: <c>0.1m + 0.2m</c> gidip donuste tam <c>0.3m</c> kaldi.
+///     <strong>No special handling is REQUIRED for <c>decimal</c>.</strong> Even without a
+///     driver type given (or with <see cref="DbType.Decimal"/>), it always writes as TEXT and
+///     is culture-independent; there is no round-trip through <c>REAL</c>. Measured:
+///     <c>0.1m + 0.2m</c> stayed exactly <c>0.3m</c> after a round trip.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Migration kilidi dosya tabanlidir.</strong> SQLite'ta
-///     <c>pg_advisory_lock</c>/<c>sp_getapplock</c> karsiligi yoktur ve
-///     <c>BEGIN IMMEDIATE</c>'i tum migration suresince acik tutmak
-///     <see cref="MigrationRunner"/>'in kendi ic-ice islemleriyle CATISIR
-///     (<c>Microsoft.Data.Sqlite</c> ic-ice islem desteklemez). Sidecar bir
-///     dosya kilidi (<c>&lt;veritabani&gt;.&lt;onek&gt;.agentprism-migration-lock</c>)
-///     baglantinin islem durumuna hic dokunmadan ayni korumayi verir. Kilit
-///     dosyasi TABLO ONEKINE kapsanmistir (K-389): SQLite'ta sema yoktur, tablo
-///     oneki AgentPrism kurulumlarini ayiran karsiligidir, kilit de ona gore
-///     kapsanmalidir. <c>:memory:</c> veritabanlarinda atlanir.
+///     <strong>The migration lock is file-based.</strong> SQLite has no equivalent of
+///     <c>pg_advisory_lock</c>/<c>sp_getapplock</c>, and holding <c>BEGIN IMMEDIATE</c> open
+///     for the entire migration duration CONFLICTS with <see cref="MigrationRunner"/>'s own
+///     nested transactions (<c>Microsoft.Data.Sqlite</c> does not support nested transactions).
+///     A sidecar file lock (<c>&lt;database&gt;.&lt;prefix&gt;.agentprism-migration-lock</c>)
+///     gives the same protection without touching the connection's transaction state at all.
+///     The lock file is scoped to the TABLE PREFIX (K-389): SQLite has no schema concept, the
+///     table prefix is the equivalent that separates AgentPrism installations, and the lock
+///     must be scoped the same way. Skipped for <c>:memory:</c> databases.
 ///   </description></item>
 /// </list>
 /// </remarks>
 internal sealed class SqliteDialect : SqlDialect, IDisposable
 {
-    /// <summary><c>SQLITE_CONSTRAINT_UNIQUE</c> uzatilmis hata kodu.</summary>
+    /// <summary><c>SQLITE_CONSTRAINT_UNIQUE</c> extended error code.</summary>
     private const int UniqueConstraint = 2067;
 
-    /// <summary><c>SQLITE_CONSTRAINT_PRIMARYKEY</c> uzatilmis hata kodu.</summary>
+    /// <summary><c>SQLITE_CONSTRAINT_PRIMARYKEY</c> extended error code.</summary>
     private const int PrimaryKeyConstraint = 1555;
 
-    /// <summary><c>SQLITE_CONSTRAINT_FOREIGNKEY</c> uzatilmis hata kodu.</summary>
+    /// <summary><c>SQLITE_CONSTRAINT_FOREIGNKEY</c> extended error code.</summary>
     private const int ForeignKeyConstraint = 787;
 
-    /// <summary>Migration kilit dosyasinin veritabani dosya adina eklenen soneki.</summary>
+    /// <summary>Suffix appended to the database file name for the migration lock file.</summary>
     private const string LockFileSuffix = ".agentprism-migration-lock";
 
-    /// <summary>Kilit yeniden deneme araligi (milisaniye).</summary>
+    /// <summary>Lock retry interval (milliseconds).</summary>
     private const int PollIntervalMilliseconds = 100;
 
-    /// <summary><c>commandTimeout</c> 0 (sinirsiz) verildiginde kullanilan varsayilan kilit bekleme suresi (saniye).</summary>
+    /// <summary>Default lock wait duration (seconds) used when <c>commandTimeout</c> is 0 (unlimited).</summary>
     private const int DefaultLockWaitSeconds = 30;
 
     private readonly SqliteQueries _queries;
@@ -87,8 +84,8 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     private FileStream? _lockFile;
 
-    /// <summary>Yeni bir SQLite diyalekti olusturur.</summary>
-    /// <param name="tablePrefix">Dogrulanacak tablo onceki.</param>
+    /// <summary>Creates a new SQLite dialect.</summary>
+    /// <param name="tablePrefix">The table prefix to validate.</param>
     public SqliteDialect(string tablePrefix)
     {
         _queries = new SqliteQueries(tablePrefix);
@@ -103,11 +100,11 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQLite dosyasinin yaninda bir kilit dosyasi acilir
-    /// (<see cref="FileShare.None"/>); ikinci bir surec ayni dosyayi acamaz ve
-    /// <paramref name="commandTimeout"/> saniye boyunca yoklayarak bekler.
-    /// <c>:memory:</c> veritabanlarinda (<see cref="SqliteConnection.DataSource"/>
-    /// bos) atlanir: baska bir surec ayni bellek ici veritabanini paylasamaz.
+    /// Opens a lock file next to the SQLite file (<see cref="FileShare.None"/>); a second
+    /// process cannot open the same file and waits, polling, for up to
+    /// <paramref name="commandTimeout"/> seconds. Skipped for <c>:memory:</c> databases
+    /// (<see cref="SqliteConnection.DataSource"/> empty): another process cannot share the
+    /// same in-memory database anyway.
     /// </remarks>
     public override async ValueTask AcquireMigrationLockAsync(
         DbConnection connection,
@@ -142,9 +139,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             catch (IOException ex)
             {
                 throw new AgentPrismException(
-                    $"AgentPrism migration kilidi alinamadi: '{lockPath}' baska bir surec tarafindan " +
-                    $"kullaniliyor. Kilit en cok {waitSeconds} saniye beklenir; baska bir ornek uzun suren " +
-                    "bir migration uyguluyor olabilir.",
+                    $"Could not acquire the AgentPrism migration lock: '{lockPath}' is in use by " +
+                    $"another process. The lock is waited on for at most {waitSeconds} seconds; another " +
+                    "instance may be applying a long-running migration.",
                     ex);
             }
         }
@@ -165,13 +162,13 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// <inheritdoc />
     public override string? DescribeDatabaseError(Exception exception)
         => exception is SqliteException sql
-            ? $"{sql.Message.TrimEnd()} (hata {sql.SqliteErrorCode}, uzatilmis {sql.SqliteExtendedErrorCode})"
+            ? $"{sql.Message.TrimEnd()} (error {sql.SqliteErrorCode}, extended {sql.SqliteExtendedErrorCode})"
             : null;
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQLite hem UNIQUE hem PRIMARY KEY ihlalinde temel hata kodu olarak
-    /// <c>SQLITE_CONSTRAINT</c> (19) doner; ayirt edici bilgi UZATILMIS koddadir.
+    /// SQLite returns <c>SQLITE_CONSTRAINT</c> (19) as the base error code for both UNIQUE and
+    /// PRIMARY KEY violations; the distinguishing information is in the EXTENDED code.
     /// </remarks>
     public override bool IsUniqueViolation(Exception exception)
         => exception is SqliteException sql
@@ -182,7 +179,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
         => exception is SqliteException sql && sql.SqliteExtendedErrorCode == ForeignKeyConstraint;
 
     /// <inheritdoc />
-    /// <remarks>SQLite duzenli ifadeyi hic sunucuya gondermez; bu yola girmez.</remarks>
+    /// <remarks>SQLite never sends the regular expression to a server; this path is never hit.</remarks>
     public override bool IsInvalidRegexError(Exception exception) => false;
 
     /// <inheritdoc />
@@ -219,9 +216,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQLite'ta <c>interval</c> tipi yoktur. Zaman serisi sorgusu kova genisligini
-    /// <c>@bucket_unit</c> metninden turetir; bu parametre yalnizca paylasilan
-    /// imzayi karsilamak icin dakika olarak gonderilir (SQL Server ile ayni desen).
+    /// SQLite has no <c>interval</c> type. The time-series query derives bucket width from
+    /// the <c>@bucket_unit</c> text; this parameter is only sent in minutes to satisfy the
+    /// shared signature (same pattern as SQL Server).
     /// </remarks>
     public override void AddInterval(DbCommand command, string name, TimeSpan value)
         => AddTyped(command, name, DbType.Int32, (int)value.TotalMinutes);
@@ -243,10 +240,10 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>Microsoft.Data.Sqlite</c>'in varsayilan <see cref="DateTimeOffset"/>
-    /// bicimi (<c>2026-08-05 06:41:38.390129+00:00</c>) sozluksel olarak zaman
-    /// sirali DEGILDIR (bosluk ayraci, altı basamak). Bicim elle sabitlenir:
-    /// <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>, her zaman UTC'ye cevrilerek.
+    /// 🚨 <c>Microsoft.Data.Sqlite</c>'s default <see cref="DateTimeOffset"/> format
+    /// (<c>2026-08-05 06:41:38.390129+00:00</c>) is NOT lexicographically time-ordered
+    /// (space separator, six fractional digits). The format is fixed manually:
+    /// <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>, always converted to UTC.
     /// </remarks>
     public override void AddTimestamp(DbCommand command, string name, DateTimeOffset? value)
         => AddTyped(
@@ -257,9 +254,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQLite'ta nesne adlari veritabani genelinde tek ad alanini paylasir;
-    /// sema yoktur, tablo adinin basina dogrudan onek eklenir (nokta YOKTUR).
-    /// Gerekce: <c>docs/hafiza/sql-saglayicilari.md</c>, K-193.
+    /// SQLite shares a single object namespace across the whole database; there is no schema,
+    /// the prefix is prepended directly to the table name (no dot). Rationale:
+    /// <c>docs/hafiza/sql-saglayicilari.md</c>, K-193.
     /// </remarks>
     public override string QualifyTable(string tableName) => $"{Queries.Schema}{tableName}";
 
@@ -279,9 +276,9 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// SQLite <c>DELETE ... LIMIT</c>'i varsayilan derlemede desteklemez
-    /// (<c>SQLITE_ENABLE_UPDATE_DELETE_LIMIT</c> gerekir); PostgreSQL'in
-    /// <c>ctid</c> deseniyle ayni gerekceyle <c>rowid</c> alt sorgusu kullanilir.
+    /// SQLite does not support <c>DELETE ... LIMIT</c> in the default build
+    /// (<c>SQLITE_ENABLE_UPDATE_DELETE_LIMIT</c> is required); a <c>rowid</c> subquery is used
+    /// for the same reason as PostgreSQL's <c>ctid</c> pattern.
     /// </remarks>
     public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
         => $"""
@@ -305,7 +302,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             LIMIT 1 OFFSET @n - 1;
             """;
 
-    /// <summary>Migration kilidi hala aciksa birakir.</summary>
+    /// <summary>Releases the migration lock if it is still open.</summary>
     public void Dispose()
     {
         _lockFile?.Dispose();

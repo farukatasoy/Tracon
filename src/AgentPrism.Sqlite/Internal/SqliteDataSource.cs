@@ -5,29 +5,28 @@ using Microsoft.Data.Sqlite;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="Microsoft.Data.Sqlite"/> icin bir <see cref="DbDataSource"/> uyarlayicisi.
+/// A <see cref="DbDataSource"/> adapter for <see cref="Microsoft.Data.Sqlite"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>Npgsql</c> <c>NpgsqlDataSource</c> tipini kendisi saglar; <c>Microsoft.Data.Sqlite</c>
-/// bir <see cref="DbDataSource"/> uygulamasi <strong>sunmaz</strong>. Paylasilan
-/// depo katmani veri kaynagini bu taban tip uzerinden tanidigi icin ince bir
-/// uyarlayici yazilir (SQL Server ile ayni desen).
+/// <c>Npgsql</c> provides the <c>NpgsqlDataSource</c> type itself; <c>Microsoft.Data.Sqlite</c>
+/// does <strong>not</strong> offer a <see cref="DbDataSource"/> implementation. Because the
+/// shared store layer knows the data source only through this base type, a thin adapter is
+/// written (same pattern as SQL Server).
 /// </para>
 /// <para>
-/// 🚨 <strong>WAL, <c>busy_timeout</c> ve yabanci anahtar zorlamasi HER YENI
-/// baglantida</strong> baglantinin durum degisikligi olayi ile ayarlanir.
-/// Bu ayarlar baglanti dizesi anahtar kelimeleriyle degil (WAL ve
-/// <c>busy_timeout</c> icin boyle bir anahtar kelime yoktur), acik <c>PRAGMA</c>
-/// komutlariyla yapilir; tuketicinin baglanti dizesine bagli degildir.
+/// 🚨 <strong>WAL, <c>busy_timeout</c>, and foreign-key enforcement are set on EVERY NEW
+/// connection</strong> via the connection's state-change event. These settings are done with
+/// explicit <c>PRAGMA</c> commands, not connection-string keywords (no such keyword exists for
+/// WAL or <c>busy_timeout</c>); they do not depend on the consumer's connection string.
 /// </para>
 /// </remarks>
 internal sealed class SqliteDataSource : DbDataSource
 {
     private readonly string _connectionString;
 
-    /// <summary>Yeni bir veri kaynagi olusturur.</summary>
-    /// <param name="connectionString">SQLite baglanti dizesi.</param>
+    /// <summary>Creates a new data source.</summary>
+    /// <param name="connectionString">The SQLite connection string.</param>
     public SqliteDataSource(string connectionString)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
@@ -48,12 +47,11 @@ internal sealed class SqliteDataSource : DbDataSource
     }
 
     /// <summary>
-    /// Baglanti acildiginda WAL, <c>busy_timeout</c> ve yabanci anahtar
-    /// zorlamasini ayarlar.
+    /// Sets WAL, <c>busy_timeout</c>, and foreign-key enforcement when a connection opens.
     /// </summary>
     /// <remarks>
-    /// <c>:memory:</c> veritabanlarinda <c>journal_mode=WAL</c> istegi sessizce
-    /// <c>memory</c> moduna duser (hata vermez); pragma yine de kosulsuz calistirilir.
+    /// For <c>:memory:</c> databases, the <c>journal_mode=WAL</c> request silently falls back
+    /// to <c>memory</c> mode (no error); the pragma is still run unconditionally.
     /// </remarks>
     private static void OnStateChange(object? sender, StateChangeEventArgs eventArgs)
     {

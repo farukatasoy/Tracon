@@ -1,99 +1,100 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="SqlQueriesBase"/> yuzeyinin SQLite metinleri.
+/// The SQLite text of the <see cref="SqlQueriesBase"/> surface.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sorgu <em>adlari</em> ve dondurdukleri sutun sirasi PostgreSQL ile birebir
-/// aynidir; paylasilan depo kodu ucunu de ayirt etmez. Farklar yalnizca metnin
-/// icindedir.
+/// Query <em>names</em> and the column order they return are identical to
+/// PostgreSQL; the shared store code does not distinguish the two providers
+/// either. The differences are only in the text itself.
 /// </para>
 /// <para>
-/// SQLite'ta sema kavrami yoktur; <see cref="SqlQueriesBase.Schema"/> burada
-/// dogrulanmis bir TABLO ONEKI tasir (varsayilan <c>agentprism_</c>) ve dogrudan
-/// tablo adinin basina eklenir — nokta YOKTUR (<c>{Schema}.tablo</c> degil,
-/// <c>{Schema}tablo</c>).
+/// SQLite has no schema concept; <see cref="SqlQueriesBase.Schema"/> here
+/// carries a validated TABLE PREFIX (default <c>agentprism_</c>) and is
+/// prepended directly to the table name — there is NO dot
+/// (not <c>{Schema}.table</c>, but <c>{Schema}table</c>).
 /// </para>
-/// <para>Uygulanan ceviri kurallari (olculdu, Faz 24 acilisi):</para>
+/// <para>Translation rules applied (measured, Phase 24 opening):</para>
 /// <list type="bullet">
 ///   <item><description>
-///     <strong>Upsert'ler PostgreSQL ile AYNI desendedir:</strong>
+///     <strong>Upserts follow the SAME pattern as PostgreSQL:</strong>
 ///     <c>INSERT ... ON CONFLICT (cols) DO UPDATE ... RETURNING</c>. SQLite 3.35+
-///     bunu tek ifadede, PostgreSQL'in <c>ON CONFLICT ... RETURNING</c>'iyle
-///     BIREBIR ayni semantikte destekler — SQL Server'in iki-dalli
+///     supports this in a single statement, with IDENTICAL semantics to
+///     PostgreSQL's <c>ON CONFLICT ... RETURNING</c> — SQL Server's two-branch
 ///     <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>
-///     deseni (K-177) burada GEREKMEZ. <c>ON CONFLICT</c> hedefinde
-///     <c>COALESCE(col, '')</c> gibi ifadeler de PostgreSQL gibi calisir: SQLite
-///     benzersiz kisitta NULL'lari PostgreSQL gibi birbirinden AYIRT EDER (SQL
-///     Server'in tersi, K-184'un SQLite'ta gecerli olmadigi anlamina gelir).
+///     pattern (K-177) is NOT NEEDED here. Expressions like <c>COALESCE(col, '')</c>
+///     in the <c>ON CONFLICT</c> target also behave like PostgreSQL: SQLite's
+///     unique constraint treats NULLs as DISTINCT from each other, same as
+///     PostgreSQL (the opposite of SQL Server, meaning K-184 does not apply to
+///     SQLite).
 ///   </description></item>
 ///   <item><description>
-///     <c>COUNT(*) FILTER (WHERE p)</c> SQLite'ta DOGRUDAN calisir (3.30+);
-///     SQL Server'in <c>COALESCE(SUM(CASE...))</c> donusumu GEREKMEZ.
+///     <c>COUNT(*) FILTER (WHERE p)</c> works DIRECTLY in SQLite (3.30+);
+///     SQL Server's <c>COALESCE(SUM(CASE...))</c> conversion is NOT NEEDED.
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>LEFT JOIN LATERAL ... ON TRUE</c> SQLite'ta YOKTUR (denendi:
-///     "near SELECT: syntax error"). Agac toplamlari (<c>SelectRun</c>,
-///     <c>SelectRuns</c>) SELECT listesinde ayri KORELE SKALER ALT SORGULARLA
-///     yazilir; her biri kendi <c>WHERE</c> kosulunu tasir.
+///     🚨 <c>LEFT JOIN LATERAL ... ON TRUE</c> DOES NOT EXIST in SQLite (tried:
+///     "near SELECT: syntax error"). Tree aggregates (<c>SelectRun</c>,
+///     <c>SelectRuns</c>) are written as separate CORRELATED SCALAR SUBQUERIES
+///     in the SELECT list; each carries its own <c>WHERE</c> condition.
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>generate_series</c> yoktur; ozyinelemeli bir CTE kullanilir (SQL
-///     Server ile ayni desen). <c>date_trunc(@unit, x)</c> yerine
-///     <c>strftime(bicim, x)</c> kullanilir; zaman damgalari zaten
-///     <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c> metni oldugu icin <c>strftime</c>
-///     dogrudan calisir.
+///     🚨 There is no <c>generate_series</c>; a recursive CTE is used instead
+///     (same pattern as SQL Server). <c>strftime(format, x)</c> is used instead
+///     of <c>date_trunc(@unit, x)</c>; since timestamps are already
+///     <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c> text, <c>strftime</c> works directly.
 ///   </description></item>
 ///   <item><description>
 ///     <c>EXTRACT(EPOCH FROM (a-b)) * 1000</c> -> <c>(julianday(a) - julianday(b)) * 86400000.0</c>.
 ///   </description></item>
 ///   <item><description>
-///     <c>UNNEST(@ids, @inputs) WITH ORDINALITY</c> -> iki <c>json_each()</c>
-///     cagrisi <c>key</c> (0 tabanli sira) uzerinden birlestirilir.
+///     <c>UNNEST(@ids, @inputs) WITH ORDINALITY</c> -> two <c>json_each()</c>
+///     calls joined on <c>key</c> (0-based index).
 ///   </description></item>
 ///   <item><description>
-///     <c>= ANY(dizi)</c> -> <c>EXISTS (SELECT 1 FROM json_each(dizi) WHERE value = @p)</c>.
+///     <c>= ANY(array)</c> -> <c>EXISTS (SELECT 1 FROM json_each(array) WHERE value = @p)</c>.
 ///   </description></item>
 ///   <item><description>
-///     <c>FOR UPDATE SKIP LOCKED</c> GEREKMEZ: SQLite tek yazicidir, ayni anda
-///     yalniz bir yazma islemi surer. Duz bir <c>WHERE id = (SELECT ... LIMIT 1)</c>
-///     alt sorgusu ayni sonucu verir.
+///     <c>FOR UPDATE SKIP LOCKED</c> is NOT NEEDED: SQLite is a single writer,
+///     only one write operation runs at a time. A plain
+///     <c>WHERE id = (SELECT ... LIMIT 1)</c> subquery gives the same result.
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>LEAST</c>/<c>GREATEST</c> SQLite'ta cok-argumanli <c>min()</c>/<c>max()</c>
-///     ile karsilanabilirdi AMA NULL davranisi TERSTIR: SQLite'in <c>max(a,b)</c>'si
-///     herhangi bir arguman NULL ise NULL doner (denendi), PostgreSQL'in
-///     <c>GREATEST</c>'i NULL'lari ATLAR. Bu yuzden SQL Server'daki gibi bir
-///     <c>CASE</c> zinciri kullanilir.
+///     🚨 <c>LEAST</c>/<c>GREATEST</c> could be met by SQLite's multi-argument
+///     <c>min()</c>/<c>max()</c>, BUT the NULL behavior is REVERSED: SQLite's
+///     <c>max(a,b)</c> returns NULL if any argument is NULL (tried), while
+///     PostgreSQL's <c>GREATEST</c> SKIPS NULLs. This is why a <c>CASE</c>
+///     chain is used, same as on SQL Server.
 ///   </description></item>
 ///   <item><description>
-///     🚨 Veri degistiren CTE (<c>WITH updated AS (UPDATE ... RETURNING) UPDATE ...</c>)
-///     SQLite'ta YOKTUR (denendi: "near UPDATE: syntax error", SQL Server ile
-///     ayni sinir). <c>ReportJobItem</c> iki ayri ifadeye bolunur; ikinci ifade
-///     SQLite'in <c>changes()</c> islevini kullanir — bu islev, AYNI baglantida
-///     EN SON tamamlanan INSERT/UPDATE/DELETE'in etkiledigi satir sayisini
-///     dondurur. Idempotentligi dogal olarak korur: ilk UPDATE 0 satir
-///     etkilerse (oge zaten raporlanmis) <c>changes()</c> sifir doner.
+///     🚨 A data-modifying CTE (<c>WITH updated AS (UPDATE ... RETURNING) UPDATE ...</c>)
+///     DOES NOT EXIST in SQLite (tried: "near UPDATE: syntax error", same limit
+///     as SQL Server). <c>ReportJobItem</c> is split into two separate
+///     statements; the second uses SQLite's <c>changes()</c> function — this
+///     function returns the number of rows affected by the MOST RECENTLY
+///     completed INSERT/UPDATE/DELETE on the SAME connection. It naturally
+///     preserves idempotency: if the first UPDATE affects 0 rows (item already
+///     reported), <c>changes()</c> returns zero.
 ///   </description></item>
 ///   <item><description>
-///     Sayfalama <c>LIMIT @take OFFSET @skip</c> PostgreSQL ile BIREBIR aynidir;
-///     SQL Server'in <c>@take = 0</c> tuzagi (FETCH hata verir) burada YOKTUR —
-///     SQLite'in <c>LIMIT 0</c> PostgreSQL gibi bos liste dondurur.
+///     Pagination <c>LIMIT @take OFFSET @skip</c> is IDENTICAL to PostgreSQL;
+///     SQL Server's <c>@take = 0</c> trap (FETCH errors) DOES NOT EXIST here —
+///     SQLite's <c>LIMIT 0</c> returns an empty list, like PostgreSQL.
 ///   </description></item>
 /// </list>
 /// </remarks>
 internal sealed class SqliteQueries : SqlQueriesBase
 {
-    /// <summary>Yeni bir sorgu kumesi olusturur.</summary>
-    /// <param name="tablePrefix">Dogrulanacak tablo oneki.</param>
-    /// <exception cref="AgentPrismException">Onek gecerli bir tanimlayici degilse.</exception>
+    /// <summary>Creates a new query set.</summary>
+    /// <param name="tablePrefix">The table prefix to validate.</param>
+    /// <exception cref="AgentPrismException">The prefix is not a valid identifier.</exception>
     public SqliteQueries(string tablePrefix)
     {
         Schema = SqlIdentifier.RequireSchemaName(tablePrefix);
 
-        // SQLite'ta sema olusturma kavrami yoktur; MigrationRunner yine de bu
-        // adimi cagirir, bu yuzden zararsiz bir no-op verilir.
+        // SQLite has no schema-creation concept; MigrationRunner still calls
+        // this step, so a harmless no-op is given.
         CreateSchema = "SELECT 1;";
 
         CreateMigrationsTable = $"""
