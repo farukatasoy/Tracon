@@ -231,15 +231,16 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|
-| 1 | [0–20](docs/YOL-HARITASI.md) | Çekirdek, kalıcılık, HTTP, arayüz, workflows, eval, maliyet | ✅ Bitti (7 beklemede) |
-| 2 | [21–30](docs/IKINCI-FAZ-YOL-HARITASI.md) | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
-| 3 | [31–52](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
-| 4 | [53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
-| 5 | [57–60](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
-| 6 | [61](docs/61-EF-CORE-PROJEKSIYONU-VE-GENISLETME.md) | EF Core projeksiyonu, `metadata` sütunu, sidecar deseni | 📋 Planlandı |
+| 1 | 0–20 | Çekirdek, kalıcılık, HTTP, arayüz, workflows, eval, maliyet | ✅ Bitti (7 beklemede) |
+| 2 | 21–30 | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
+| 3 | 31–52 | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
+| 4 | 53–56 | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
+| 5 | 57–60 | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
 
-**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–60 tek tek
-listelidir ve her fazın kendi dokümanından **üretilir**, elle yazılmaz.
+**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek
+listeler ve fazların kendi dokümanlarından **üretilir**, elle yazılmaz. Dalgaların
+sıralama gerekçesi (kapandı): [`docs/arsiv/`](docs/arsiv/).
+Seçilmemiş adaylar: [`docs/ADAYLAR.md`](docs/ADAYLAR.md).
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı
 
@@ -325,9 +326,10 @@ karıştırılmaz: `docs/` geliştirme günlüğüdür, `docs-site/` ürün dok�
 |--------|--------|
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
 | [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız ve bilerek kullanmadığımız MAF genişleme noktaları |
-| [docs/KARARLAR.md](docs/KARARLAR.md) · [indeks](docs/KARARLAR-INDEKS.md) · [reddedilen](docs/KARARLAR-INDEKS-REDDEDILEN.md) | Karar defteri — kalıcı tercihler ve reddedilen yaklaşımlar, gerekçeleriyle |
-| [docs/](docs/) | Faz dokümanları (00–59) — kapsam, tasarım kararları, DoD |
-| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Alan bazlı tuzaklar · faz anlatısı (tarihsel kayıt) |
+| [docs/KARARLAR.md](docs/KARARLAR.md) · [indeks](docs/KARARLAR-INDEKS.md) · [reddedilen](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | Karar defteri — kalıcı tercihler ve reddedilen yaklaşımlar, gerekçeleriyle |
+| [docs/](docs/) `NN-*.md` · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Faz dokümanları (kapsam, tasarım, DoD) · faz durumu (üretilen) · seçilmemiş adaylar |
+| [docs/manuel-test/](docs/manuel-test/) | Elle koşulan kabul testi spesifikasyonu; koşumu `manuel-test-kosumu` skill'i yürütür |
+| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Alan bazlı tuzaklar · kapanmış kayıt (faz anlatısı, koşum turları) |
 | [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent talimatları, hafıza yönlendirmesi, iş akışı skill'leri (`CLAUDE.md` → `AGENTS.md` symlink) |
 | [docs-site/](docs-site/) · [docfx/](docfx/) | **Ürün sitesi** (İngilizce, Astro Starlight) ve API referansı üreteci. Ayrı yayın hattı; `dotnet build`'e bağlanmaz. Node 22.12+ gerekir |
 | [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Karar indeksini üretir, doküman bütçelerini denetler |
