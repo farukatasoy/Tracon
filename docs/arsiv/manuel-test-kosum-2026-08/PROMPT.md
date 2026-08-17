@@ -3,7 +3,7 @@
 > **Bu dosya bir prompt'tur.** Yeni bir oturum açtığında bu dosyanın tamamını
 > yapıştır. Tek seferlik bir talimat değildir — senaryo dosyaları bitene kadar
 > her oturumda tekrar yapıştırılır. Oturum nerede kaldığını
-> [`00-INDEKS.md`](00-INDEKS.md)'deki üretim durumu tablosundan öğrenir.
+> [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md)'deki üretim durumu tablosundan öğrenir.
 
 ---
 
@@ -150,7 +150,7 @@ Kullanıcı bu dosyayı okurken düşünmemeli, **yapıştırmalı**. Her case:
 - Yapılandırma için: tam `dotnet user-secrets set` komutu
 
 "Bir agent oluştur" yetmez. Hangi ad, hangi talimat, hangi model, hangi tool —
-hepsi yazılır. Ortak veri [`00-INDEKS.md`](00-INDEKS.md)'deki fixture
+hepsi yazılır. Ortak veri [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md)'deki fixture
 kümesinden kimlikle çağrılır (`FIX-AGENT-01` gibi); tekrar tanımlanmaz.
 
 ### 4.3 Uydurma yok — her iddia koddan doğrulanır
@@ -269,7 +269,7 @@ klasörü kapsamaz; `docs/manuel-test/` sıcak yol değildir.
 Bu bölüm, senaryolar yazıldıktan **sonra**, kullanıcı testleri koşarken geçerlidir.
 
 - **Kusur** bulunursa: hemen kodla, düzelt, dört kapıyı çalıştır.
-- **Eksik yetenek** bulunursa: kodlama. `docs/UCUNCU-FAZ-ADAYLARI.md`'ye aday
+- **Eksik yetenek** bulunursa: kodlama. `docs/ADAYLAR.md`'ye aday
   olarak yaz; `faz-planlama` skill'i onu faza çevirir.
 
 Ayrım şudur: var olan bir davranış yanlışsa kusurdur; olmayan bir davranış

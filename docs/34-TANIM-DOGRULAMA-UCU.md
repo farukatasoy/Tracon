@@ -1,7 +1,7 @@
 # Faz 34 — Tanım Doğrulama Ucu
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-60**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-60**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok

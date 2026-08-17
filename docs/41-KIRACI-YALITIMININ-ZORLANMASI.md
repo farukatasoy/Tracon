@@ -1,7 +1,7 @@
 # Faz 41 — Kiracı Yalıtımının Zorlanması
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-76**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-76**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Core`, `.Abstractions`
 > **Yeni paket:** Yok · **Migration:** 🚨 **gerekti** — üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`)

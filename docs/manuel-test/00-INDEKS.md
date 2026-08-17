@@ -4,24 +4,27 @@
 > ortak fixture verisi, reset yordamı, hata bildirim şablonu ve dosya durum
 > tablosu buradadır.
 >
-> Senaryo dosyalarını **üretecek** oturum için: [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md).
-> Senaryoları **koşacak** oturum için: [`KOSUM-PLANI.md`](KOSUM-PLANI.md).
+> **Koşum protokolü bu dosyada değildir** —
+> [`.agents/skills/manuel-test-kosumu/SKILL.md`](../../.agents/skills/manuel-test-kosumu/SKILL.md).
+> Bu dosya turdan bağımsız **ortamı** tarif eder, koşumun kendisini değil.
 
 ---
 
-## 1. Bu setin iki aşaması
+## 1. Bu setin üç parçası
 
-| Aşama | Kim | Ne yapar |
+| Parça | Nerede | Ömrü |
 |---|---|---|
-| **Üretim** | AI oturumu | [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) protokolüyle senaryo dosyalarını yazar — **bitti** |
-| **Koşum** | AI oturumu + insan | [`KOSUM-PLANI.md`](KOSUM-PLANI.md) protokolüyle dört paralel şeritte koşar; fiziksel eylem isteyen case'ler insana kalır |
+| **Spec** — case metni (ön koşul, adımlar, beklenen sonuç) | `docs/manuel-test/<NN>-<ALAN>.md` | Kalıcı; turdan bağımsız |
+| **Protokol** — nasıl koşulur, nasıl kapatılır | [`manuel-test-kosumu`](../../.agents/skills/manuel-test-kosumu/SKILL.md) skill'i | Kalıcı; her tur aynısını uygular |
+| **Koşum kaydı** — `Gerçek sonuç` + `Durum` | [`kosumlar/<tarih>/`](kosumlar/) → kapanınca `docs/arsiv/` | Bir tura ait; donmuş (K-414) |
 
-İki aşama karışmaz. Üretim biterken hiçbir test koşulmuş olmaz.
+Üçü karışmaz. Spec dosyalarında `Durum:` satırı **yoktur**; ikinci bir tur
+spec'in üzerine yazmaz, `kosumlar/` altında yeni bir tarih dizini açar.
 
-> **Ortam kurulumu ve reset yordamı için tek kaynak
-> [`KOSUM-PLANI.md`](KOSUM-PLANI.md) §2.2 (`secret`'lar) ve §3.3 (reset)'tür.**
-> Bu dosyanın §2 bölümü ön koşulları ve fixture verisini tarif eder; şeride
-> özgü yordamları tekrarlamaz.
+> **Şeride özgü ortam kurulumu ve reset yordamı** skill'in
+> [`resources/serit-kurulumu.md`](../../.agents/skills/manuel-test-kosumu/resources/serit-kurulumu.md)
+> dosyasındadır. Bu dosyanın §2 bölümü tura bağımsız ön koşulları ve fixture
+> verisini tarif eder; şerit yordamlarını tekrarlamaz.
 
 ---
 
@@ -262,42 +265,66 @@ Bir case `Kaldı` işaretlendiğinde bu şablon doldurulur ve
 
 ## 7. Dosya durum tablosu
 
-`Üretim` sütunu senaryonun **yazılıp yazılmadığını**, `Koşum` sütunu
-**koşulup koşulmadığını** gösterir. Üretim oturumu yalnız `Üretim` sütununa
-dokunur.
+`Üretim` sütunu senaryonun **yazılıp yazılmadığını**, `Koşum` sütunu **son
+turun** sonucunu gösterir. Üretim oturumu yalnız `Üretim` sütununa dokunur.
 
-**Durum işaretleri:** ☐ beklemede · ◐ yarım · ✅ bitti · ⏭ atlandı
+**Koşum sütunu — son tur: 2026-08-13.** Sayılar
+[`kosumlar/2026-08-13/`](kosumlar/2026-08-13/) kayıtlarından **ölçülmüştür**
+(`manuel-test-kosumu` skill'i §7 sayım betiği). Biçim: `✅ geçen/toplam` ve
+varsa `N ☒` kaldı · `N ⏭` atlandı · `N ☐` beklemede · `N ⬜` hiç koşulmadı.
+Yeni bir tur bu sütunu kendi sayımıyla değiştirir.
+
+**Üretim işaretleri:** ☐ beklemede · ◐ yarım · ✅ bitti
 
 `Kaynak` sütunu, o dosyayı üretecek oturumun okuyacağı **tek** kaynak kümesidir.
 Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse düzeltir.
 
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
-| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` | **48** | ✅ | ☐ |
-| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **42** | ✅ | ✅ |
-| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ (2026-08-12: 29 geçti, 7 kaldı — bkz. [`SONUCLAR-2026-08-12.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-2026-08-12.md)) |
-| 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **40** | ✅ | ☐ |
-| 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/AgentPrism.OpenAI` (tümü) · devre kesici/sağlık için `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ☐ |
-| 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/AgentPrism.Anthropic` · `src/AgentPrism.Google` · `src/AgentPrism.Azure` | **39** | ✅ | ☐ |
-| 07 | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | `API` | 4, 34, 43, 44 | `src/AgentPrism.AspNetCore/Endpoints` (kısmi — bkz. dosyanın kaynak başlığı) | **43** | ✅ | ☐ |
-| 08 | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) | `COMPAT` | 50 | `src/AgentPrism.AspNetCore/OpenAICompat/` (gerçek klasör adı — bkz. not) | **49** | ✅ | ☐ |
-| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30 | `src/AgentPrism.UI/frontend/src` (kabuk, `access-gate`, `layout`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`; `settings`/`models`/`tools` ekranları yalnız genel kısım) | **43** | ✅ | ☐ |
-| 10 | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) | `UIAG` | 5, 19 | `screens/agent*.tsx` · `playground.tsx` | **51** | ✅ | ☐ |
-| 11 | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) | `UIRUN` | 5, 32, 47 | `screens/run*.tsx` · `session*.tsx` · `components/cancel-run-button.tsx` · `replay-panel.tsx` · `run-comparison.tsx` · `branch-button.tsx` | **46** | ✅ | ☐ |
-| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35 | `src/AgentPrism.Core` · `screens/dashboard.tsx` | **36** | ✅ | ☐ |
-| 13 | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) | `SEC` | 6, 9, 41, 50, 53 | `src/AgentPrism.AspNetCore/Security` · `Tenancy/` · `AgentPrismEndpointOptions.cs` · `Endpoints/ApiKeyEndpoints.cs`/`AuditEndpoints.cs`/`GovernanceEndpoints.cs` (yalnız `MapTenants`) · `AgentPrism.Abstractions/Security`, `Audit`, `Tenancy` · `AgentPrism.Core/Security`, `Audit`, `Tenancy` | **54** | ✅ | ☐ |
-| 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11 | `src/AgentPrism.Abstractions/Skills` · `src/AgentPrism.Core/Skills` (tümü) · `src/AgentPrism.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/skills.tsx` | **47** | ✅ | ✅ |
-| 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16 | `src/AgentPrism.Workflows` · `screens/workflow*.tsx` | **60** | ✅ | ✅ |
-| 16 | [`16-IS-KUYRUGU-VE-ZAMANLAMA.md`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | `JOB` | 17, 42, 46 | `src/AgentPrism.Core` (job) · `screens/job*.tsx` | **61** | ✅ | ☐ |
-| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56 | `src/AgentPrism.Abstractions/Evaluation`, `Experiments` · `src/AgentPrism.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ |
-| 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50 | `src/AgentPrism.Mcp` · `src/AgentPrism.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **43** | ✅ | ☐ |
-| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29 | `src/AgentPrism.Abstractions/Attachments`, `Voice` · `src/AgentPrism.Core/Attachments`, `Voice` · `src/AgentPrism.Voice` (tümü) · `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs` · `src/AgentPrism.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **61** | ✅ | ☐ |
-| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/AgentPrism.Core/Knowledge/*.cs` · `src/AgentPrism.PostgreSql/Migrations/0024_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ☐ |
-| 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55 (44/46/47 yalnız kesişim) | `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/AgentPrism.Abstractions/Approvals/` · `src/AgentPrism.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/AgentPrism.Core/Approvals/` · `src/AgentPrism.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `screens/approvals.tsx` | **28** | ✅ | ☐ |
-| 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48 | `src/AgentPrism.Abstractions/Guards`, `Agents/ResponseFormat.cs` · `src/AgentPrism.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Models/ModelProviderRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **35** | ✅ | ☐ |
-| 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36 | `src/AgentPrism.Abstractions/Retention`, `Quotas` · `src/AgentPrism.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs` · `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/AgentPrism.Api/FileSystemArchiveSink.cs` | **26** | ✅ | ☐ |
-| 24 | [`24-TEST-PAKETI-VE-SABLON.md`](24-TEST-PAKETI-VE-SABLON.md) | `TEST` | 37, 39 | `src/AgentPrism.Testing` · `src/AgentPrism.Templates` | **41** | ✅ | ✅ |
-| 25 | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) | `DIAG` | 33, 40 | `src/AgentPrism.AspNetCore` (health, diagnostics, OpenAPI) | **28** | ✅ | ☐ |
+| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` | **48** | ✅ | ✅ 48/48 |
+| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **42** | ✅ | ✅ 42/42 |
+| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ 36/36 |
+| 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **40** | ✅ | ✅ 37/40 · 3 ⏭ |
+| 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/AgentPrism.OpenAI` (tümü) · devre kesici/sağlık için `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ✅ 39/40 · 1 ⏭ |
+| 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/AgentPrism.Anthropic` · `src/AgentPrism.Google` · `src/AgentPrism.Azure` | **39** | ✅ | ✅ 30/39 · 9 ⏭ |
+| 07 | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | `API` | 4, 34, 43, 44 | `src/AgentPrism.AspNetCore/Endpoints` (kısmi — bkz. dosyanın kaynak başlığı) | **43** | ✅ | ✅ 43/43 |
+| 08 | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) | `COMPAT` | 50 | `src/AgentPrism.AspNetCore/OpenAICompat/` (gerçek klasör adı — bkz. not) | **49** | ✅ | ✅ 49/49 |
+| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30 | `src/AgentPrism.UI/frontend/src` (kabuk, `access-gate`, `layout`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`; `settings`/`models`/`tools` ekranları yalnız genel kısım) | **43** | ✅ | ✅ 35/43 · 1 ☒ · 7 ⏭ |
+| 10 | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) | `UIAG` | 5, 19 | `screens/agent*.tsx` · `playground.tsx` | **51** | ✅ | ✅ 49/51 · 2 ⏭ |
+| 11 | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) | `UIRUN` | 5, 32, 47 | `screens/run*.tsx` · `session*.tsx` · `components/cancel-run-button.tsx` · `replay-panel.tsx` · `run-comparison.tsx` · `branch-button.tsx` | **46** | ✅ | ✅ 44/46 · 1 ⏭ · 1 ☐ |
+| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35 | `src/AgentPrism.Core` · `screens/dashboard.tsx` | **36** | ✅ | ✅ 34/36 · 2 ⏭ |
+| 13 | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) | `SEC` | 6, 9, 41, 50, 53 | `src/AgentPrism.AspNetCore/Security` · `Tenancy/` · `AgentPrismEndpointOptions.cs` · `Endpoints/ApiKeyEndpoints.cs`/`AuditEndpoints.cs`/`GovernanceEndpoints.cs` (yalnız `MapTenants`) · `AgentPrism.Abstractions/Security`, `Audit`, `Tenancy` · `AgentPrism.Core/Security`, `Audit`, `Tenancy` | **54** | ✅ | ✅ 54/54 |
+| 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11 | `src/AgentPrism.Abstractions/Skills` · `src/AgentPrism.Core/Skills` (tümü) · `src/AgentPrism.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/skills.tsx` | **47** | ✅ | ✅ 45/46 · 1 ⬜ |
+| 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16 | `src/AgentPrism.Workflows` · `screens/workflow*.tsx` | **60** | ✅ | ✅ 58/60 · 2 ☒ |
+| 16 | [`16-IS-KUYRUGU-VE-ZAMANLAMA.md`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | `JOB` | 17, 42, 46 | `src/AgentPrism.Core` (job) · `screens/job*.tsx` | **61** | ✅ | ✅ 61/61 |
+| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56 | `src/AgentPrism.Abstractions/Evaluation`, `Experiments` · `src/AgentPrism.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 |
+| 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50 | `src/AgentPrism.Mcp` · `src/AgentPrism.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **43** | ✅ | ✅ 42/43 · 1 ☒ |
+| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29 | `src/AgentPrism.Abstractions/Attachments`, `Voice` · `src/AgentPrism.Core/Attachments`, `Voice` · `src/AgentPrism.Voice` (tümü) · `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs` · `src/AgentPrism.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **61** | ✅ | ✅ 59/61 · 2 ⏭ |
+| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/AgentPrism.Core/Knowledge/*.cs` · `src/AgentPrism.PostgreSql/Migrations/0024_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
+| 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55 (44/46/47 yalnız kesişim) | `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/AgentPrism.Abstractions/Approvals/` · `src/AgentPrism.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/AgentPrism.Core/Approvals/` · `src/AgentPrism.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `screens/approvals.tsx` | **28** | ✅ | ✅ 26/28 · 2 ⏭ |
+| 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48 | `src/AgentPrism.Abstractions/Guards`, `Agents/ResponseFormat.cs` · `src/AgentPrism.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Models/ModelProviderRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **35** | ✅ | ✅ 35/35 |
+| 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36 | `src/AgentPrism.Abstractions/Retention`, `Quotas` · `src/AgentPrism.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs` · `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/AgentPrism.Api/FileSystemArchiveSink.cs` | **26** | ✅ | ✅ 26/26 |
+| 24 | [`24-TEST-PAKETI-VE-SABLON.md`](24-TEST-PAKETI-VE-SABLON.md) | `TEST` | 37, 39 | `src/AgentPrism.Testing` · `src/AgentPrism.Templates` | **41** | ✅ | ✅ 41/41 |
+| 25 | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) | `DIAG` | 33, 40 | `src/AgentPrism.AspNetCore` (health, diagnostics, OpenAPI) | **28** | ✅ | ✅ 28/28 |
+
+### 7.1 Açık kalemler — 2026-08-13 turundan devreden
+
+Turun kusurları kodlandı ve kapandı (`docs/KARARLAR.md` K-392..K-407). Aşağıdaki
+altı case **kapanmadı** ve bir sonraki tura devreder. Kaynak: turun kapanış
+kaydı, [`../arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`](../arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md) §6, §10.
+
+| Case | Dosya | Durum | Neden açık |
+|---|---|---|---|
+| `MT-UI-005` | 09 | ☒ Kaldı | Kalıcı — soğuk tam sayfa yenilemede kabuk sunucu çöküşünü fark etmiyor; altyapısal sınır olarak kabul edildi |
+| `MT-WF-071` | 15 | ☒ Kaldı | Kalıcı — MAF'ın kapalı-kutu orkestrasyon durumuna bağımlı |
+| `MT-WF-073` | 15 | ☒ Kaldı | Kalıcı — aynı MAF sınırı |
+| `MT-MCP-052` | 18 | ☒ Kaldı | Kalıcı — Aile F kapsam düzeltmesi bu bulguyu ampirik olarak kapatmadı |
+| `MT-UIRUN-019` | 11 | ☐ Beklemede | Playwright/CDP çevrimdışı emülasyonu açık SSE akışını kesmiyor; **fiziksel ağ kesintisi** ister |
+| `MT-SKILL-057` | 14 | ⬜ Hiç koşulmadı | Koşum kaydı boş bırakılmış — sonraki turda koşulur |
+
+Ortam kurulumu bekleyen 21 case (Ollama, WebKit, ikinci örnek, Reader rollü
+anahtar fixture'ı vb.) ve kimlik olmadığı için kalıcı ⏭ Atlandı kalan 9 Azure
+case'i aynı kapanış kaydının §10 bölümündedir.
 
 **Toplam hedef:** ~980 case. Rakam bir kota değildir — gerçek yüzeye göre azalır
 ya da artar.
@@ -355,7 +382,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 >    (`TryAddSingleton`) artık her kiracı için `TenantPrefixingAgentFileStore`
 >    ile sarmalanıyor (`AgentDefinitionCompiler.RequireFileStore`) — kiracılar
 >    arası sızıntı KAPANDI. Aynı kiracı içindeki ajan/oturum sınırı **hâlâ
->    açık** — bkz. `docs/UCUNCU-FAZ-ADAYLARI.md` F-105 (yetenek adayı, mekanizma
+>    açık** — bkz. `docs/ADAYLAR.md` F-105 (yetenek adayı, mekanizma
 >    MAF'ın `TextSearchProvider` callback'inin oturum bilgisi taşımaması).
 > 3. **`HttpTenantContext.AllowedTenants` beyaz listesi gerçekten atlanıyordu**
 >    (bu turda notlarda "ölçüldü, KOŞULMADI" diye kaydedilmişti — kod okumasıyla
@@ -412,7 +439,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > ilgili notta zaten "ÇÖZÜLDÜ" işaretliydi, bu turda yeniden dokunulmadı.
 >
 > **Yetenek adayına dönüştürüldü (kusur değil — `docs/hafiza`'daki "kusur
-> kodla, yetenek planla" ayrımı):** `docs/UCUNCU-FAZ-ADAYLARI.md`'ye üç yeni
+> kodla, yetenek planla" ayrımı):** `docs/ADAYLAR.md`'ye üç yeni
 > kalem eklendi —
 > **F-103** (API anahtarı kapsam taksonomisinin genişletilmesi — bu bölümde
 > `RequireApiKeyScope` eksikliği DOKUZ ayrı notta tekrar tekrar bulunmuştu:
@@ -1177,7 +1204,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `QuotaUsage` sabiti yoktur. Veri kaybı riski taşımaz (kota geçmişi
   zararsızdır) ama eski dönem sayaçları sonsuza dek birikir. Kod
   değiştirilmedi; `MT-RET-042` bunu koşumda doğrulayan bir case olarak
-  ekledi; kalıcı çözüm `UCUNCU-FAZ-ADAYLARI.md`'ye aday olarak yazılabilir.
+  ekledi; kalıcı çözüm `ADAYLAR.md`'ye aday olarak yazılabilir.
 - **`docs/36-SAKLAMA-HACIM-SINIRI.md`'nin kendi "K-260: `MaxRows` kiracı
   başına değil, tablo genelinde çalışır" notu ARTIK YANLIŞ — kod ondan
   ileri gitmiş (2026-08-10, ölçüldü, `23-SAKLAMA-ARSIV-KOTA.md`
@@ -1260,7 +1287,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   HTTP boru hattını değil AgentPrism'in kendi zincirini test etmeyi
   hedefliyor) ama paketin dokümanında/README'sinde şu an açıkça YAZILI
   DEĞİL; ileride bir tüketici bu sınırla karşılaşabilir.
-  `UCUNCU-FAZ-ADAYLARI.md`'ye küçük bir doküman notu olarak eklenebilir
+  `ADAYLAR.md`'ye küçük bir doküman notu olarak eklenebilir
   (kodlama değil, bu oturumun kapsamı dışı).
 - **`docs/openapi/agentprism.json`'daki gerçek operasyon sayısı BUGÜN 143'tür,
   Faz 40'ın kapanışta kaydettiği 121/123/124 değil (2026-08-10, ölçüldü,

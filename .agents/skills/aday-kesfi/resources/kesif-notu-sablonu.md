@@ -2,7 +2,7 @@
 
 > Bu bir **koşum kaydıdır**, spec değildir. Sıcak yolda değildir ve baştan sona
 > okunmaz. Onaylanan kalemlerin tam metni
-> [`UCUNCU-FAZ-ADAYLARI.md`](../UCUNCU-FAZ-ADAYLARI.md) içinde yaşar; bu dosya
+> [`ADAYLAR.md`](../ADAYLAR.md) içinde yaşar; bu dosya
 > yalnız oraya işaret eder.
 
 **Tetikleyen:** <kullanıcının isteği, bir cümle>

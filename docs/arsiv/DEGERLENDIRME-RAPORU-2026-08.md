@@ -12,22 +12,22 @@
 > | §2.3 `BackgroundService` yarışı | **Düzeltildi** — `SchemaReadyGate`, sıra bağımsız. Karar **K-354** |
 > | §2.4 Alt yazmalarda kiracı | **Düzeltildi** — beklenen kiracı alanları + `[JsonIgnore]`. Karar **K-355** |
 > | §3 Faz 7 | **Beklemede** (kullanıcı kararı). Eşik kararı **yazılmadı**; yalnız durum kaydedildi |
-> | §5 F-56 / F-36 / F-69 / F-74 | **Plana dönüştü:** [Faz 53](53-KIRACI-API-ANAHTARLARI.md) · [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) · [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). **Kod yazılmadı** |
+> | §5 F-56 / F-36 / F-69 / F-74 | **Plana dönüştü:** [Faz 53](../53-KIRACI-API-ANAHTARLARI.md) · [Faz 54](../54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) · [Faz 55](../55-ASENKRON-ONAY-KUTUSU.md) · [Faz 56](../56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). **Kod yazılmadı** |
 > | §1 README test sayısı | **Düzeltildi** — "310 test" → ölçülen **3355 test, 16 proje** |
-> | §4 + §6 kapsam-dışı işler | **Numaralandırıldı:** F-90…F-102 ([aday listesi](UCUNCU-FAZ-ADAYLARI.md)) |
+> | §4 + §6 kapsam-dışı işler | **Numaralandırıldı:** F-90…F-102 ([aday listesi](../ADAYLAR.md)) |
 >
 > 🚨 **Bu raporun tek yanlış iddiası §2.1'in kapsamıdır** ("her çok-sağlayıcılı
 > tüketici kırık"). Ölçüm bunu yanlışladı; ayrıntı K-352'dedir.
 >
-> Güncel durum için bu rapor değil [`README.md`](../README.md),
+> Güncel durum için bu rapor değil [`README.md`](../../README.md),
 > [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) ve
-> [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) okunur.
+> [`ADAYLAR.md`](../ADAYLAR.md) okunur.
 
 ---
 
 > **Tek seferlik denetim belgesi.** Doküman bütçesi sistemine (`scripts/dokuman-bakim.py`)
 > dahil değildir ve sıcak okuma yoluna (`AGENTS.md`, `MEMORY.md`) eklenmemiştir.
-> İçerik `docs/UCUNCU-FAZ-ADAYLARI.md`, `docs/UCUNCU-FAZ-YOL-HARITASI.md` ve
+> İçerik `docs/ADAYLAR.md`, `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md` ve
 > `docs/KARARLAR-INDEKS.md`'nin **2026-08-08** tarihli durumundan derlenmiştir;
 > bu üç dosya birincil kaynaktır ve bayatladığında bu rapor değil onlar geçerlidir.
 >
@@ -44,12 +44,12 @@
 - **52 fazın tamamı tamamlandı** (Faz 7 hariç). Son commit `d168eea "faz 52"`,
   çalışma ağacı temiz.
 - Kod tabanında **sıfır** `TODO`/`FIXME`/`NotImplementedException` (proje
-  kuralı: "Start it = Finish it"). Açık iş kalemlerinin tamamı `docs/UCUNCU-FAZ-ADAYLARI.md`
+  kuralı: "Start it = Finish it"). Açık iş kalemlerinin tamamı `docs/ADAYLAR.md`
   içinde yaşıyor — bu rapor onu okunabilir hâle getirir, yerine geçmez.
 - **20 aday kalem** (F-numaralı) hâlâ plana dönüşmedi; bunlara ek olarak
   planlama ve uygulama sırasında bulunan **9 numaralandırılmamış** kapsam-dışı
   iş var (bkz. §4).
-- **Doküman kayması bulundu:** [`README.md:311`](../README.md#L311) `dotnet test`
+- **Doküman kayması bulundu:** [`README.md:311`](../../README.md#L311) `dotnet test`
   komutunu "# 310 test" notuyla belgeliyor. Depoda bugün 16 test projesi var
   (`AgentPrism.Generators.UnitTests` dahil) ve toplam `[Fact]`/`[Theory]`
   işaretli metot sayısı **~3.900**'ün üzerinde — sayı en az bir büyüklük
@@ -195,7 +195,7 @@ zaten numaralı, aday listesinde duruyor):
 ## 5. Öncelik Kümeleri (Kalan 20 Aday Kalem)
 
 Aday listesi kalemleri üç kümeye ayırıyor. Aşağıda her kümenin **neden
-aciliyetli** olduğu özetlenmiştir; ayrıntı için `docs/UCUNCU-FAZ-ADAYLARI.md`.
+aciliyetli** olduğu özetlenmiştir; ayrıntı için `docs/ADAYLAR.md`.
 
 ### 5.1 Kimlik ve çok kiracılılık — 🔴 en acil küme
 
@@ -303,12 +303,12 @@ en spekülatife:
 
 ## Kaynaklar
 
-- [`docs/UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) — 26 kalemin
+- [`docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) — 26 kalemin
   plana dönüşüm gerekçesi, ölçülen kanıtlar, Faz 7 etki tablosu
-- [`docs/UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) — kalan 20 kalemin
+- [`docs/ADAYLAR.md`](../ADAYLAR.md) — kalan 20 kalemin
   tam açıklaması (sorun, kapsam, değer, mercek, hazırlık, maliyet, risk,
   bağımlılık, ekosistem karşılaştırması)
-- [`docs/KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md) · [`docs/KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) —
+- [`docs/KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md) · [`docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) —
   alınmış ve reddedilmiş kararlar
-- [`docs/07-SAGLAMLASTIRMA-VE-YAYIN.md`](07-SAGLAMLASTIRMA-VE-YAYIN.md) — Faz 7
+- [`docs/07-SAGLAMLASTIRMA-VE-YAYIN.md`](../07-SAGLAMLASTIRMA-VE-YAYIN.md) — Faz 7
   kapsamı

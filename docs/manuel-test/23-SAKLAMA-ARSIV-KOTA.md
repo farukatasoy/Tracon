@@ -1138,7 +1138,7 @@ curl -s -i -X PUT "$APU/api/retention/quota_usage" \
   eski dönem sayaçları (aylar/yıllar sonra binlerce satır) sonsuza dek
   birikir. Bu bir veri kaybı riski değildir (kota geçmişi zararsızdır) ama
   **hacim boşluğudur** — `MT-RET-023`'ün de gösterdiği gibi tablo büyüklüğü
-  önemsenen bir sistemde eksik bir hedeftir. `UCUNCU-FAZ-ADAYLARI.md`'ye
+  önemsenen bir sistemde eksik bir hedeftir. `ADAYLAR.md`'ye
   aday olarak yazılabilir (kodlama değil, bu oturumun kapsamı dışı).
 
 ---

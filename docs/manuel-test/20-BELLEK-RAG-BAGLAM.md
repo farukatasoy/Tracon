@@ -713,7 +713,7 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
   `MT-MEM-014`'ün (kiracılar arası) kısmı düzeltildi (`TenantPrefixingAgentFileStore`),
   ama bu case'in ölçtüğü **aynı kiracı içindeki** ajan/oturum sınırı hâlâ
   YOKTUR — bu, beklenen (henüz düzeltilmemiş) bir davranıştır, bkz.
-  `docs/UCUNCU-FAZ-ADAYLARI.md` F-105. Bu case bu yüzden **"Geçti"** değil,
+  `docs/ADAYLAR.md` F-105. Bu case bu yüzden **"Geçti"** değil,
   **"Kaldı (bilinen, F-105'e bağlı)"** olarak kaydedilmelidir.
 
 ---
@@ -731,7 +731,7 @@ paylaşılan `AgentFileStore` tek bir süreç-çapında singleton olduğu için 
 hem yazma (`FileMemoryProvider`) hem okuma (`TextSearchProvider`) tarafı artık
 kendi kiracısının izole alt ağacında çalışıyor. Bu case artık düzeltilmiş
 davranışı doğrular; **aynı kiracı içindeki** ajan/oturum sınırı ise hâlâ
-YOKTUR (bkz. `MT-MEM-013`'ün güncellenmiş notu ve `docs/UCUNCU-FAZ-ADAYLARI.md`
+YOKTUR (bkz. `MT-MEM-013`'ün güncellenmiş notu ve `docs/ADAYLAR.md`
 F-105) — bu case'in kapsamı yalnız kiracı sınırıdır.
 
 | | |

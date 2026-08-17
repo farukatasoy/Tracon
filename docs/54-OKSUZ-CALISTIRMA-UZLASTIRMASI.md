@@ -1,7 +1,7 @@
 # Faz 54 — Öksüz Çalıştırma Uzlaştırması
 
 > **Durum:** ✅ Tamamlandı (2026-08-09)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-36**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-36**
 > **Önkoşul:** [Faz 42](42-TEK-YURUTUCU-SECIMI.md) — `ISingletonLeaseStore` · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — bu fazın kapsamını **daraltan** faz
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** gerekli — `runs` tablosuna heartbeat sütunu, numara uygulama anında alınır

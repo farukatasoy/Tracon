@@ -134,9 +134,9 @@ Fiziksel veya görsel eylem isteyen case (mikrofon, dosya yükleme, göz denetim
 `👤 insan gerekir` diye işaretlenir. Bu işaret bir eksiklik değil, koşum
 planının girdisidir.
 
-> Tam set koşumu ayrı bir iştir ([`KOSUM-PLANI.md`](../../../docs/manuel-test/KOSUM-PLANI.md))
-> ve sürüm öncesi yapılır. Bu adım yalnız **fazın kendi** case'lerini üretir ve
-> koşar.
+> Tam set koşumu ayrı bir iştir — [`manuel-test-kosumu`](../manuel-test-kosumu/SKILL.md)
+> skill'i yürütür ve sürüm öncesi yapılır. Bu adım yalnız **fazın kendi**
+> case'lerini üretir ve koşar.
 
 ---
 
@@ -150,7 +150,7 @@ taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulg
 **yeniden koşar** — düzeltme yeni kusur üretebilir.
 
 🟡 bulgular ya kapanır ya gerekçesi faz dokümanına yazılır. 🟢 bulgular
-`docs/UCUNCU-FAZ-ADAYLARI.md`'ye F-NN olarak gider.
+`docs/ADAYLAR.md`'ye F-NN olarak gider.
 
 ---
 
@@ -249,7 +249,7 @@ python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
 kodu 1 verir. Site gerçekten güncelleme gerektirmiyorsa gerekçesini faz
 dokümanına yaz ve `--site-gerekce-yazildi` ile geç.
 
-İlk komut iki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/KARARLAR-INDEKS-REDDEDILEN.md`
+İlk komut iki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
 dosyalarını yeniden üretir (K-214, Faz 32'de ikiye ayrıldı) ve sıcak yol
 bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
@@ -258,7 +258,7 @@ bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa i
 
 ```bash
 # Faz durumu tek yerde mi, çelişki var mı?
-grep -rn "Sıradaki faz" AGENTS.md README.md docs/IKINCI-FAZ-YOL-HARITASI.md
+grep -rn "Sıradaki faz" AGENTS.md README.md docs/arsiv/IKINCI-FAZ-YOL-HARITASI.md
 
 # Bayatlamış API adı kaldı mı? (fazda kaldırdığın tipi yaz)
 grep -rn "KaldirilanTipAdi" docs/ README.md src/

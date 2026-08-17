@@ -1,7 +1,7 @@
 # Faz 40 — OpenAPI Belgesinin Yayımlanması
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-63**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-63**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok — 🚨 gerekçe [40.1](#401--k-039-korunur--bu-fazın-ana-kısıtı) · **Migration:** Yok
@@ -496,7 +496,7 @@ src/AgentPrism.AspNetCore/
     └── OpenAICompatSupport.cs             — OpenAIErrorEnvelope/Body internal'a cikarildi
 
 docs/openapi/agentprism.json                            (YENI — 123 operasyon, 10892 satir)
-docs/UCUNCU-FAZ-ADAYLARI.md                              (F-76 eklendi)
+docs/ADAYLAR.md                              (F-76 eklendi)
 docs/KARARLAR.md                                         (K-272 – K-276 eklendi)
 
 tests/AgentPrism.AspNetCore.FunctionalTests/
@@ -578,7 +578,7 @@ değişikliğinde `OpenApiSnapshotTests` tarafından zorlanır — yenilemek iç
   `contentType` sessizce düşer (K-273). SSE için `Produces<string>`, ikili
   gövde için `Produces<Stream>` kullanılmalı.
 
-**Yarım kalan iş:** F-76 (`docs/UCUNCU-FAZ-ADAYLARI.md`) — `samples/AgentPrism.Api`
+**Yarım kalan iş:** F-76 (`docs/ADAYLAR.md`) — `samples/AgentPrism.Api`
 2+ SQL sağlayıcısı birlikte kuruluyken `AddOpenApi()` 500 veriyor. Ayrı bir
 kalem olarak durur; bu faz onu çözmedi.
 

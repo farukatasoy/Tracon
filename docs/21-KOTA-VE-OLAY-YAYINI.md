@@ -655,6 +655,6 @@ veridir.
 
 ### Sıradaki faz
 
-[`docs/IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md) sırasındadır. Bu
+[`docs/arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) sırasındadır. Bu
 fazdan devralınan altyapı: `IWebhookPublisher` (olay yaymak için),
 `QuotaEnforcer` (tüketim saymak için) ve geri adımlı bekleme taşıyan iş kuyruğu.

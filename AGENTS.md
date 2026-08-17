@@ -13,7 +13,8 @@ Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
 **Oturum başında yalnız:** bu dosya · [`MEMORY.md`](MEMORY.md) · çalıştığın fazın
 dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi.
 
-**Sonra, yalnız dokunduğun alan için:**
+**Sonra, yalnız dokunduğun alan için.** `docs/` altında **her dosyanın tek bir
+işi vardır**; aradığın iş bu tablodadır, başka yere bakma:
 
 | İhtiyaç | Yol |
 |---|---|
@@ -22,13 +23,15 @@ dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi.
 | Bir karar alınmış mı? | [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
 | Mimari resim (katman, veri modeli, çalıştırma yolu, güvenlik) | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |
 | MAF genişleme noktası | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) |
-| Geçmişte neden öyle yapıldı? | [`docs/arsiv/`](docs/arsiv/) — yalnız grep'le |
-| Paketler, kurulum, faz durumu | [`README.md`](README.md) |
+| Faz durumu (**üretilen**) · seçilmemiş adaylar · keşif turları | [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md) · [`docs/ADAYLAR.md`](docs/ADAYLAR.md) · [`docs/kesif/`](docs/kesif/) |
+| Elle koşulan kabul testi | [`docs/manuel-test/00-INDEKS.md`](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` skill'i yürütür |
+| Geçmişte neden öyle yapıldı? | [`docs/arsiv/`](docs/arsiv/) — kapanmış kayıt, yalnız grep'le |
+| Paketler ve kurulum | [`README.md`](README.md) |
 | Kullanıcıya dönük ürün metni | [`docs-site/`](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
 
-**`docs/KARARLAR.md` ve `docs/arsiv/*` hiçbir zaman baştan sona okunmaz.**
-İndeksten satır numarasını bul, `sed -n 'N,Np'` ile o satırı oku. Aramak
-okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/hafiza/`.
+**`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** İndeksten satır numarasını
+al, `sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur:
+`grep -rn "AsyncLocal" docs/hafiza/`.
 
 ---
 
@@ -53,7 +56,7 @@ aklına takılan en küçük şeyi bile sor.
 çözüm önerme.
 
 **Karar defteri:** Daha önce reddedilmiş işleri yeniden önerme — önce
-[`docs/KARARLAR-INDEKS-REDDEDILEN.md`](docs/KARARLAR-INDEKS-REDDEDILEN.md).
+[`docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md).
 
 ---
 
@@ -72,9 +75,9 @@ Kalite eşiğini bu belirler:
 
 ## Faz Akışı ve Doküman Disiplini
 
-**Geliştirme fazlar hâlinde, çoğu zaman ayrı sohbetlerde yapılır.** Sonraki oturum
-repo'yu sıfırdan okur ve yalnızca dokümanlara güvenir; bu yüzden her geliştirme
-sonrası dokümanlar gözden geçirilir ve ahenkli tutulur.
+**Geliştirme fazlar hâlinde, çoğu zaman ayrı sohbetlerde yapılır.** Sonraki
+oturum repo'yu sıfırdan okur ve yalnız dokümanlara güvenir; bu yüzden her
+geliştirme sonrası dokümanlar gözden geçirilir.
 
 | Kural | Neden |
 |-------|-------|
@@ -87,24 +90,19 @@ sonrası dokümanlar gözden geçirilir ve ahenkli tutulur.
 
 ### Doküman bütçesi (zorunlu)
 
-Sıcak yol dokümanları her oturumda okunur; büyümeleri her oturumu pahalılaştırır.
-Bütçeler `scripts/dokuman-bakim.py` içindedir ve faz kapanışında denetlenir
-(`python3 scripts/dokuman-bakim.py` — indeksi üretir + bütçeyi denetler). Bir
-dosya bütçeyi aşarsa **içerik silinmez**: alan dosyasına veya `docs/arsiv/`'e
-taşınır.
+Sıcak yol her oturumda okunur; büyümesi her oturumu pahalılaştırır. Bütçeler
+`scripts/dokuman-bakim.py` içindedir; `python3 scripts/dokuman-bakim.py` indeksi
+üretir ve bütçeyi denetler. Bütçe aşılırsa **içerik silinmez** — alan dosyasına
+veya `docs/arsiv/`'e taşınır.
 
 ### Faz durumu
 
-**Faz 0–59 tamam** (Faz 7 hariç, K-068). Durum tablosu
-[`README.md`](README.md)'de; faz sırası, migration numaraları ve açık kalemler
-tur yol haritalarındadır ([ikinci](docs/IKINCI-FAZ-YOL-HARITASI.md) ·
-[üçüncü](docs/UCUNCU-FAZ-YOL-HARITASI.md)), seçilmemiş kalemler
-[adaylardadır](docs/UCUNCU-FAZ-ADAYLARI.md). Bu listeyi başka dosyada
-tekrarlama — iki yerde tutmak kayma üretir.
+Tek kaynak [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)'dir — **üretilir**,
+elle yazılmaz (K-413). Seçilmemiş kalemler [`docs/ADAYLAR.md`](docs/ADAYLAR.md)
+içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
 
-Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz.
-Kapanış üç şeyi de kapsar: kod, `docs/manuel-test/` kabul case'leri ve
-`docs-site/` ürün dokümantasyonu.
+Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz; kapanış
+kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.
 
 ---
 
@@ -145,12 +143,13 @@ Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
 burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `aday-kesfi`
-(aday ararken; yalnız istek üzerine) → `faz-planlama`
-(aday F-NN faza dönüşürken) → `faz-baslangic` (okuma protokolü) →
+(aday ararken; yalnız istek üzerine) → `faz-planlama` (aday F-NN faza
+dönüşürken) → `faz-baslangic` (okuma protokolü) →
 `faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (taze bağlamlı
 bağımsız denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış).
-Zincir dışı: `maf-api-kesfi` (bir MAF tipini ilk kez kullanmadan önce) ·
-`kusur-giderme` (bir kusur bulunduğunda).
+Zincir dışı: `maf-api-kesfi` (MAF tipini ilk kez kullanmadan önce) ·
+`kusur-giderme` (kusur bulunduğunda) · `manuel-test-kosumu` (kabul setinin
+tamamı koşulurken).
 Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
@@ -161,14 +160,13 @@ Genel .NET kuralları `.editorconfig`'dedir. Aşağıdakiler analyzer'ın
 yakalayamadığı, projeye özgü kurallardır.
 
 **🚨 `docs/` ile `docs-site/` iki ayrı şeydir.** `docs/` Türkçe geliştirme
-günlüğüdür (faz dokümanları, kararlar, hafıza). `docs-site/` İngilizce **ürün
-dokümantasyonudur** ve `farukatasoy.github.io/AgentPrism` adresinde yayınlanır. Aynı
-içeriği iki yere yazma: kullanıcıya dönük anlatı siteye, geliştirme kaydı `docs/`'a.
-Site ayrı bir yayın hattıdır — `dotnet build`'e bağlanmaz, pakete girmez, Node
-**22.12+** ister. API referansı ve HTTP API sayfaları **üretilir** (`npm run
-generate`) ve commit edilmez; ekran görüntüleri E2E koşumundan üretilir
-(`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir. **Site fazın kapanışına
-dahildir** — sayfa eşlemesi ve denetimi `faz-tamamlama` Adım 7'dedir.
+günlüğü, `docs-site/` İngilizce **ürün dokümantasyonudur**
+(`farukatasoy.github.io/AgentPrism`). Aynı içeriği iki yere yazma: kullanıcıya
+dönük anlatı siteye, geliştirme kaydı `docs/`'a. Site ayrı bir yayın hattıdır —
+`dotnet build`'e bağlanmaz, pakete girmez, Node **22.12+** ister. API ve HTTP API
+sayfaları **üretilir** (`npm run generate`), commit edilmez; ekran görüntüleri
+E2E koşumundan üretilir (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir.
+**Site fazın kapanışına dahildir** — denetimi `faz-tamamlama` Adım 7'dedir.
 
 **🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
 Kod, yorum, XML dokümanı, `exception`/log/`ProblemDetails` metni, migration

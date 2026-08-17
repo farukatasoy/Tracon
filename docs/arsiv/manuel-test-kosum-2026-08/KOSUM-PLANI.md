@@ -1,13 +1,20 @@
-# AgentPrism — Manuel Kabul Testi Koşum Planı
+# AgentPrism — Manuel Kabul Testi Koşum Planı (2026-08-13 turu)
 
-> **Bu dosya bir ajan talimatıdır.** Koşum oturumunu açan ajan önce bu dosyayı
-> baştan sona okur, sonra kendi oturum satırındaki dosyayı açar. Senaryo
-> **üretimi** bitti; bu dosya **koşumu** yönetir. Üretim protokolü
-> [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md)'dedir ve artık kullanılmaz.
+> ## 📦 ARŞİV — bu bir TUR KAYDIDIR, protokol değildir
 >
-> Ortam kurulumu, fixture verisi, önem dereceleri ve hata şablonu
-> [`00-INDEKS.md`](00-INDEKS.md)'dedir. Bu dosya onu tekrarlamaz; **sapmaları**
-> yazar.
+> Bu dosya 2026-08-13 turunun şerit dağılımını, oturum sırasını ve o turda
+> bulunan hataları kaydeder. Tur **kapandı**.
+>
+> **Yeni bir koşum bu dosyayı okumaz.** Turdan bağımsız protokol —
+> değişmez kurallar, oturum yordamı, sonuç kaydı biçimi, kapanış, bitti
+> tanımı — şuradadır:
+> [`.agents/skills/manuel-test-kosumu/SKILL.md`](../../../.agents/skills/manuel-test-kosumu/SKILL.md).
+> Şerit kurulumu:
+> [`resources/serit-kurulumu.md`](../../../.agents/skills/manuel-test-kosumu/resources/serit-kurulumu.md).
+>
+> Turdan devreden açık kalemler
+> [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) §7.1'dedir.
+> Bu dosya yalnız "o turda ne oldu" sorusu için `grep`'lenir.
 
 ---
 
@@ -25,12 +32,12 @@ Açık kalanlar (Faz 58.3'te ölçüldü, bkz. `KAPANIS-PLANI.md` §12):
 | Nereye bakmalı | Dosya |
 |---|---|
 | Kapanış protokolü ve kusur ailelerinin kapanış kaydı | [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md) |
-| Şerit sonuç kayıtları (arşiv, yalnız grep'lenir) | [`../arsiv/manuel-test-kosum-2026-08/`](../arsiv/manuel-test-kosum-2026-08/) |
+| Şerit sonuç kayıtları (arşiv, yalnız grep'lenir) | [`../arsiv/manuel-test-kosum-2026-08/`](.) |
 | Kusurların karar gerekçeleri | `docs/KARARLAR.md` → K-392..K-407 |
 
 İkinci bir koşum bu dosyanın §2–§9 bölümlerini olduğu gibi kullanır; §1 yalnız
 son koşumun kapandığını söyler. Koşum kayıtları case dosyalarında **değil**,
-[`kosumlar/`](kosumlar/) altındadır.
+[`kosumlar/`](../../manuel-test/kosumlar) altındadır.
 
 ---
 
@@ -206,7 +213,7 @@ dotnet run --project samples/AgentPrism.Api -c Release --no-build --urls "http:/
 
 ### 3.3 Şeridin reset yordamı
 
-[`00-INDEKS.md`](00-INDEKS.md) §4 yerine bu kullanılır — şerit kapsamlıdır:
+[`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) §4 yerine bu kullanılır — şerit kapsamlıdır:
 
 ```bash
 # 1. Uygulamayi durdur.
@@ -281,9 +288,9 @@ alıntısı ve `dosya.cs:satır` referansı taşır.
 
 `docs/manuel-test/SONUCLAR-S<N>-<YYYY-AA-GG>.md`. Şerit başına ayrı dosya —
 birleştirmede çakışma olmaz. Biçim, koşulmuş
-[`SONUCLAR-2026-08-12.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-2026-08-12.md) dosyasıyla aynıdır:
+[`SONUCLAR-2026-08-12.md`](SONUCLAR-2026-08-12.md) dosyasıyla aynıdır:
 başlık bloğu (koşulan dosya, ortam, sayım, devir notu) + yalnız `Kaldı`
-case'lerin `HATA-NNN` kayıtları ([`00-INDEKS.md`](00-INDEKS.md) §6 şablonu).
+case'lerin `HATA-NNN` kayıtları ([`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) §6 şablonu).
 
 Hata numarası şerit önekiyle verilir: `HATA-S2-001`. Böylece dört şerit aynı
 numarayı üretmez.
@@ -334,13 +341,13 @@ Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `AgentPrism__Sqli
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S1-1 | [`04`](04-KALICILIK-DIGER.md) | §1–§3 | 19 | SQLite + SQL Server bağlantı, migration. `MT-SQL-001/021` koşuldu, atla. |
-| S1-2 | [`04`](04-KALICILIK-DIGER.md) | §4–§8 | 18 | Sağlayıcıya özgü davranış, bellek içi izlek, taşınabilirlik, yük. |
-| S1-3 | [`23`](23-SAKLAMA-ARSIV-KOTA.md) | tümü | 26 | SQLite ile koş — saklama silme yolları en hızlı orada görünür. |
-| S1-4 ✅ | [`20`](20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **Bitti** (2026-08-13): 13 Geçti, 10 Kaldı, 8 Beklemede (embedding erişimi yok — bkz. `SONUCLAR-S1-2026-08-13.md`). |
-| S1-5 | [`25`](25-SAGLIK-TESHIS-OPENAPI.md) | tümü | 28 | Üç sağlayıcıyı da sırayla dener; her geçişte reset. |
-| S1-6 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | **Bitti** (2026-08-13): 35 Geçti, 1 Kaldı (`HATA-S1-014`), 1 Atlandı (`MT-MM-047`, yapısal `maxOutputTokens` sınırı). Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
-| S1-7 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | **Bitti** (2026-08-13): 17 Geçti, 2 Kaldı (`HATA-S1-014` kapsam genişlemesi + yeni `HATA-S1-015`), 1 Atlandı (`MT-MM-089`, `AllowRemoteAccess` kapalı), 4 Beklemede (`MT-MM-086/087/088/090`). S1-8'de 2 Kaldı → Geçti; **S1-9'da 4 Beklemede → Geçti** (sahte `Voice:ApiKey`/`DefaultVoiceId` kök nedendi, gerçek mikrofon değil). **Dosya `19` TAMAMLANDI (61/61), 0 açık kalem.** Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
+| S1-1 | [`04`](../../manuel-test/04-KALICILIK-DIGER.md) | §1–§3 | 19 | SQLite + SQL Server bağlantı, migration. `MT-SQL-001/021` koşuldu, atla. |
+| S1-2 | [`04`](../../manuel-test/04-KALICILIK-DIGER.md) | §4–§8 | 18 | Sağlayıcıya özgü davranış, bellek içi izlek, taşınabilirlik, yük. |
+| S1-3 | [`23`](../../manuel-test/23-SAKLAMA-ARSIV-KOTA.md) | tümü | 26 | SQLite ile koş — saklama silme yolları en hızlı orada görünür. |
+| S1-4 ✅ | [`20`](../../manuel-test/20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **Bitti** (2026-08-13): 13 Geçti, 10 Kaldı, 8 Beklemede (embedding erişimi yok — bkz. `SONUCLAR-S1-2026-08-13.md`). |
+| S1-5 | [`25`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) | tümü | 28 | Üç sağlayıcıyı da sırayla dener; her geçişte reset. |
+| S1-6 ✅ | [`19`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | **Bitti** (2026-08-13): 35 Geçti, 1 Kaldı (`HATA-S1-014`), 1 Atlandı (`MT-MM-047`, yapısal `maxOutputTokens` sınırı). Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
+| S1-7 ✅ | [`19`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | **Bitti** (2026-08-13): 17 Geçti, 2 Kaldı (`HATA-S1-014` kapsam genişlemesi + yeni `HATA-S1-015`), 1 Atlandı (`MT-MM-089`, `AllowRemoteAccess` kapalı), 4 Beklemede (`MT-MM-086/087/088/090`). S1-8'de 2 Kaldı → Geçti; **S1-9'da 4 Beklemede → Geçti** (sahte `Voice:ApiKey`/`DefaultVoiceId` kök nedendi, gerçek mikrofon değil). **Dosya `19` TAMAMLANDI (61/61), 0 açık kalem.** Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
 
 ### Şerit 2 — HTTP ve güvenlik · port 5082 · şema `mt_s2`
 
@@ -349,13 +356,13 @@ en hızlı şerittir.
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S2-1 ✅ | [`07`](07-HTTP-YONETIM-API.md) | tümü | 43 | **Bitti** (2026-08-13): 41 Geçti, 2 Kaldı. |
-| S2-2 ✅ | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §1–§2 | 30 | **Bitti**, S2-3 ile birlikte dosya `08` TAMAMLANDI (49/49, 43 Geçti, 6 Kaldı). |
-| S2-3 ✅ | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §3–§5 | 19 | **Bitti** (yukarıdaki S2-2 toplamına dahil). |
-| S2-4 ✅ | [`13`](13-KIRACI-VE-GUVENLIK.md) | §1–§5 | 27 | **Bitti**: 27/27 tümü Geçti. |
-| S2-5 ✅ | [`13`](13-KIRACI-VE-GUVENLIK.md) | §6–§9 | 27 | **Bitti**, S2-4 ile birlikte dosya `13` TAMAMLANDI (54/54, 53 Geçti, 1 Kaldı). |
-| S2-6 ✅ | [`18`](18-MCP-VE-A2A.md) | tümü | 43 | **Bitti**: 38 Geçti, 5 Kaldı. |
-| S2-7 ✅ | [`21`](21-DAYANIKLILIK-VE-IPTAL.md) | tümü | 28 | **Bitti — ŞERİT 2 TAMAMEN BİTTİ**: 24 Geçti, 2 Kaldı, 2 Atlandı. Ayrıntı: `SONUCLAR-S2-2026-08-13.md`. |
+| S2-1 ✅ | [`07`](../../manuel-test/07-HTTP-YONETIM-API.md) | tümü | 43 | **Bitti** (2026-08-13): 41 Geçti, 2 Kaldı. |
+| S2-2 ✅ | [`08`](../../manuel-test/08-OPENAI-UYUMLU-UCLAR.md) | §1–§2 | 30 | **Bitti**, S2-3 ile birlikte dosya `08` TAMAMLANDI (49/49, 43 Geçti, 6 Kaldı). |
+| S2-3 ✅ | [`08`](../../manuel-test/08-OPENAI-UYUMLU-UCLAR.md) | §3–§5 | 19 | **Bitti** (yukarıdaki S2-2 toplamına dahil). |
+| S2-4 ✅ | [`13`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) | §1–§5 | 27 | **Bitti**: 27/27 tümü Geçti. |
+| S2-5 ✅ | [`13`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) | §6–§9 | 27 | **Bitti**, S2-4 ile birlikte dosya `13` TAMAMLANDI (54/54, 53 Geçti, 1 Kaldı). |
+| S2-6 ✅ | [`18`](../../manuel-test/18-MCP-VE-A2A.md) | tümü | 43 | **Bitti**: 38 Geçti, 5 Kaldı. |
+| S2-7 ✅ | [`21`](../../manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) | tümü | 28 | **Bitti — ŞERİT 2 TAMAMEN BİTTİ**: 24 Geçti, 2 Kaldı, 2 Atlandı. Ayrıntı: `SONUCLAR-S2-2026-08-13.md`. |
 
 ### Şerit 3 — Çekirdek ve sağlayıcı · port 5083 · şema `mt_s3`
 
@@ -363,28 +370,28 @@ Gerçek sağlayıcı çağrılarının çoğu buradadır. §2.5 maliyet kuralı 
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S3-1 ✅ | [`05`](05-SAGLAYICI-OPENAI.md) | §1–§4 | 13 | **Bitti** (2026-08-13): `02` dosyası zaten 42/42 tam (bkz. §1 düzeltme notu); S3-1 kapsamı yalnız `05` §1–§4'e daraldı. 11 Geçti, 2 Kaldı (`HATA-S3-001` Endpoint doğrulaması, `HATA-S3-002` boş model adı doğrulaması — ikisi de `Bind()`'ın doğrulayıcıya ulaşmadan geçersiz değeri sessizce elemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
-| S3-2 ✅ | [`05`](05-SAGLAYICI-OPENAI.md) | §5–§9 | 27 | **Bitti — dosya `05` TAMAMEN BİTTİ (40/40)** (2026-08-13): 26 Geçti, 1 Atlandı (`MT-OAI-053`, Ollama kurulu değil), 0 Kaldı. Yeni kusur yok. Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
-| S3-3 ✅ | [`06`](06-SAGLAYICI-DIGER.md) | §1–§8 | 30 | **Bitti** (2026-08-13): 28 Geçti, 2 Kaldı (`HATA-S3-003`, `HATA-S3-004` — `HATA-S3-001`/`002`'nin Anthropic+Google genellemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
-| S3-4 ✅ | [`06`](06-SAGLAYICI-DIGER.md) + [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | 06 §9 + 22 §1–§4 | 26 | **Bitti — dosya `06` TAMAMEN BİTTİ (39/39)** (2026-08-13): 06 §9 Azure 9 case ⏭ Atlandı (kimlik yok); 22 §1–4 17/17 Geçti. `HATA-S3-005` (akışsız `run` ucu K-296 düzeltmesini almamış). |
-| S3-5 ✅ | [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | §5–§8 | 18 | **Bitti — dosya `22` TAMAMEN BİTTİ (35/35)** (2026-08-13): 15 Geçti, 3 Kaldı. **`HATA-S3-006` (Kritik)** — guard'ın maskelediği/engellediği girdi `RunStarted` olayında kalıcı, ham hâliyle. `HATA-S3-007` — `errorType` sorgu filtresi sessizce yok sayılıyor. |
-| S3-6 ✅ | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §1–§5 | 37 | **Bitti** (2026-08-13): 37/37 Geçti, 0 Kaldı. Yeni kusur yok — iki doküman düzeltmesi (`PollInterval<=0` uygulamayı başlatmaz; örnek `curl` eksik başlık). |
-| S3-7 ✅ | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §6–§8 | 24 | **Bitti — dosya `16` TAMAMEN BİTTİ (61/61), ŞERİT 3 TAMAMEN BİTTİ** (2026-08-13): 22 Geçti, 2 Kaldı. `HATA-S3-008` (idempotency replay `Location` başlığını kaybediyor), `HATA-S3-009` (`RunsRead` anahtarı zamanlama silebiliyor — `MT-WF-100`'ün aynı kalıbı). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
+| S3-1 ✅ | [`05`](../../manuel-test/05-SAGLAYICI-OPENAI.md) | §1–§4 | 13 | **Bitti** (2026-08-13): `02` dosyası zaten 42/42 tam (bkz. §1 düzeltme notu); S3-1 kapsamı yalnız `05` §1–§4'e daraldı. 11 Geçti, 2 Kaldı (`HATA-S3-001` Endpoint doğrulaması, `HATA-S3-002` boş model adı doğrulaması — ikisi de `Bind()`'ın doğrulayıcıya ulaşmadan geçersiz değeri sessizce elemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
+| S3-2 ✅ | [`05`](../../manuel-test/05-SAGLAYICI-OPENAI.md) | §5–§9 | 27 | **Bitti — dosya `05` TAMAMEN BİTTİ (40/40)** (2026-08-13): 26 Geçti, 1 Atlandı (`MT-OAI-053`, Ollama kurulu değil), 0 Kaldı. Yeni kusur yok. Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
+| S3-3 ✅ | [`06`](../../manuel-test/06-SAGLAYICI-DIGER.md) | §1–§8 | 30 | **Bitti** (2026-08-13): 28 Geçti, 2 Kaldı (`HATA-S3-003`, `HATA-S3-004` — `HATA-S3-001`/`002`'nin Anthropic+Google genellemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
+| S3-4 ✅ | [`06`](../../manuel-test/06-SAGLAYICI-DIGER.md) + [`22`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | 06 §9 + 22 §1–§4 | 26 | **Bitti — dosya `06` TAMAMEN BİTTİ (39/39)** (2026-08-13): 06 §9 Azure 9 case ⏭ Atlandı (kimlik yok); 22 §1–4 17/17 Geçti. `HATA-S3-005` (akışsız `run` ucu K-296 düzeltmesini almamış). |
+| S3-5 ✅ | [`22`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | §5–§8 | 18 | **Bitti — dosya `22` TAMAMEN BİTTİ (35/35)** (2026-08-13): 15 Geçti, 3 Kaldı. **`HATA-S3-006` (Kritik)** — guard'ın maskelediği/engellediği girdi `RunStarted` olayında kalıcı, ham hâliyle. `HATA-S3-007` — `errorType` sorgu filtresi sessizce yok sayılıyor. |
+| S3-6 ✅ | [`16`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §1–§5 | 37 | **Bitti** (2026-08-13): 37/37 Geçti, 0 Kaldı. Yeni kusur yok — iki doküman düzeltmesi (`PollInterval<=0` uygulamayı başlatmaz; örnek `curl` eksik başlık). |
+| S3-7 ✅ | [`16`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §6–§8 | 24 | **Bitti — dosya `16` TAMAMEN BİTTİ (61/61), ŞERİT 3 TAMAMEN BİTTİ** (2026-08-13): 22 Geçti, 2 Kaldı. `HATA-S3-008` (idempotency replay `Location` başlığını kaybediyor), `HATA-S3-009` (`RunsRead` anahtarı zamanlama silebiliyor — `MT-WF-100`'ün aynı kalıbı). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
 
 ### Şerit 4 — Arayüz · port 5084 · şema `mt_s4` · Playwright
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S4-1 | [`09`](09-ARAYUZ-GENEL.md) | §1–§2 | 17 | Erişim kapısı, gezinme kabuğu, rol görünürlüğü. |
-| S4-2 | [`09`](09-ARAYUZ-GENEL.md) | §3–§5 | 17 | Komut paleti, kısayol, tema, i18n derin metin denetimi. |
-| S4-3 | [`09`](09-ARAYUZ-GENEL.md) + [`10`](10-ARAYUZ-AGENT-PLAYGROUND.md) | 09 §6–§8 + 10 §1–§2 | 22 | 09 §8 Safari → kullanıcıya (Playwright'ta WebKit varsa dene). |
-| S4-4 | [`10`](10-ARAYUZ-AGENT-PLAYGROUND.md) | §3–§5 | 11 | Agent düzenleme, detay, versiyon karşılaştırma. |
-| S4-5 | [`10`](10-ARAYUZ-AGENT-PLAYGROUND.md) | §6 | 16 | Playground temel akış — en yoğun tek bölüm. |
-| S4-6 | [`10`](10-ARAYUZ-AGENT-PLAYGROUND.md) + [`11`](11-ARAYUZ-RUN-SESSION-SSE.md) | 10 §7–§9 + 11 §1 | 17 | Ek ve ses UI katmanı; çalıştırma listesi. |
-| S4-7 | [`11`](11-ARAYUZ-RUN-SESSION-SSE.md) | §2–§4 | 19 | Çalıştırma detayı, SSE dayanıklılığı, iptal. |
-| S4-8 | [`11`](11-ARAYUZ-RUN-SESSION-SSE.md) | §5–§9 | 21 | Yeniden oynatma, karşılaştırma, oturum, dallandırma. |
-| S4-9 | [`12`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | §1–§7 | 20 | Dashboard, uyarılar, iz/waterfall. Veri gerekir → önce birkaç run üret. |
-| S4-10 | [`12`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | §8–§12 | 16 | Maliyet hesabı, zaman serisi ucu, `dotnet-counters`. |
+| S4-1 | [`09`](../../manuel-test/09-ARAYUZ-GENEL.md) | §1–§2 | 17 | Erişim kapısı, gezinme kabuğu, rol görünürlüğü. |
+| S4-2 | [`09`](../../manuel-test/09-ARAYUZ-GENEL.md) | §3–§5 | 17 | Komut paleti, kısayol, tema, i18n derin metin denetimi. |
+| S4-3 | [`09`](../../manuel-test/09-ARAYUZ-GENEL.md) + [`10`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md) | 09 §6–§8 + 10 §1–§2 | 22 | 09 §8 Safari → kullanıcıya (Playwright'ta WebKit varsa dene). |
+| S4-4 | [`10`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md) | §3–§5 | 11 | Agent düzenleme, detay, versiyon karşılaştırma. |
+| S4-5 | [`10`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md) | §6 | 16 | Playground temel akış — en yoğun tek bölüm. |
+| S4-6 | [`10`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md) + [`11`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) | 10 §7–§9 + 11 §1 | 17 | Ek ve ses UI katmanı; çalıştırma listesi. |
+| S4-7 | [`11`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) | §2–§4 | 19 | Çalıştırma detayı, SSE dayanıklılığı, iptal. |
+| S4-8 | [`11`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) | §5–§9 | 21 | Yeniden oynatma, karşılaştırma, oturum, dallandırma. |
+| S4-9 | [`12`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md) | §1–§7 | 20 | Dashboard, uyarılar, iz/waterfall. Veri gerekir → önce birkaç run üret. |
+| S4-10 | [`12`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md) | §8–§12 | 16 | Maliyet hesabı, zaman serisi ucu, `dotnet-counters`. |
 
 ### Ortak kuyruk — şeridi biten ajan buradan alır
 
@@ -394,15 +401,15 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 
 | Oturum | Dosya | Bölüm | Case | Kilit |
 |---|---|---|---|---|
-| K-1 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §1–§2 | 20 | **Bitti** (2026-08-13): 19 Geçti, 1 Kaldı (`HATA-K-001`). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-2 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §3–§5 | 18 | **Bitti** (2026-08-13): 18/18 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-3 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) + [`15`](15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | **Bitti** (2026-08-13): 21 Geçti, 7 Kaldı — **dosya `14` TAMAMEN BİTTİ (47/47)**. `HATA-K-002` (🚨 Kritik: script çalıştırma özelliği `JsonSerializerOptions` çökmesiyle tamamen işlevsiz). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-4 ✅ | [`15`](15-WORKFLOWS.md) | §2–§6 | 26 | **Bitti** (2026-08-13): 23 Geçti, 3 Kaldı. `HATA-K-003` (Yüksek: Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile çöküyor). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-5 ✅ | [`15`](15-WORKFLOWS.md) + [`17`](17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | **Bitti** (2026-08-14): 21 Geçti, 6 Kaldı — **dosya `15` TAMAMEN BİTTİ (60/60)**. `HATA-K-004/005/006`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-6 ✅ | [`17`](17-EVAL-VE-DENEYLER.md) | §3–§6 | 30 | **Bitti** (2026-08-14): 30/30 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-7 ✅ | [`17`](17-EVAL-VE-DENEYLER.md) | §7–§11 | 26 | **Bitti** (2026-08-14): 20 Geçti, 4 Kaldı — **dosya `17` TAMAMEN BİTTİ (69/69)**. `HATA-K-007/008`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-8 ✅ | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §1–§2 | 24 | **Bitti** (2026-08-14): 24/24 Geçti, kusur yok, 2 doküman düzeltmesi. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-9 ✅ | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §3–§5 | 17 | **Bitti** (2026-08-14): 16 Geçti, 1 Kaldı — **dosya `24` TAMAMEN BİTTİ (41/41)**. Doküman düzeltmesi (MT-TEST-044). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-1 ✅ | [`14`](../../manuel-test/14-SKILL-VE-SCRIPT.md) | §1–§2 | 20 | **Bitti** (2026-08-13): 19 Geçti, 1 Kaldı (`HATA-K-001`). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-2 ✅ | [`14`](../../manuel-test/14-SKILL-VE-SCRIPT.md) | §3–§5 | 18 | **Bitti** (2026-08-13): 18/18 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-3 ✅ | [`14`](../../manuel-test/14-SKILL-VE-SCRIPT.md) + [`15`](../../manuel-test/15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | **Bitti** (2026-08-13): 21 Geçti, 7 Kaldı — **dosya `14` TAMAMEN BİTTİ (47/47)**. `HATA-K-002` (🚨 Kritik: script çalıştırma özelliği `JsonSerializerOptions` çökmesiyle tamamen işlevsiz). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-4 ✅ | [`15`](../../manuel-test/15-WORKFLOWS.md) | §2–§6 | 26 | **Bitti** (2026-08-13): 23 Geçti, 3 Kaldı. `HATA-K-003` (Yüksek: Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile çöküyor). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-5 ✅ | [`15`](../../manuel-test/15-WORKFLOWS.md) + [`17`](../../manuel-test/17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | **Bitti** (2026-08-14): 21 Geçti, 6 Kaldı — **dosya `15` TAMAMEN BİTTİ (60/60)**. `HATA-K-004/005/006`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-6 ✅ | [`17`](../../manuel-test/17-EVAL-VE-DENEYLER.md) | §3–§6 | 30 | **Bitti** (2026-08-14): 30/30 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-7 ✅ | [`17`](../../manuel-test/17-EVAL-VE-DENEYLER.md) | §7–§11 | 26 | **Bitti** (2026-08-14): 20 Geçti, 4 Kaldı — **dosya `17` TAMAMEN BİTTİ (69/69)**. `HATA-K-007/008`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-8 ✅ | [`24`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md) | §1–§2 | 24 | **Bitti** (2026-08-14): 24/24 Geçti, kusur yok, 2 doküman düzeltmesi. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
+| K-9 ✅ | [`24`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md) | §3–§5 | 17 | **Bitti** (2026-08-14): 16 Geçti, 1 Kaldı — **dosya `24` TAMAMEN BİTTİ (41/41)**. Doküman düzeltmesi (MT-TEST-044). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 
 `14` dosyasının `MT-SKILL-071` case'i koşuldu; atla.
 
@@ -412,7 +419,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 sırayla kodla" seçildi: Kritik önce, sonra Yüksek, her düzeltmeden sonra dört
 doğrulama kapısı, her satır canlı sunucuda yeniden doğrulandı.** Ayrıntı ve
 karar gerekçeleri: `docs/KARARLAR.md` K-400..K-407,
-[`SONUCLAR-K-2026-08-13.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-K-2026-08-13.md).
+[`SONUCLAR-K-2026-08-13.md`](SONUCLAR-K-2026-08-13.md).
 
 | Hata | Önem | Durum |
 |---|---|---|
@@ -455,9 +462,9 @@ Sonra:
    birleştirilir; hatalar önem sırasına dizilir.
 2. `00-INDEKS.md` §7 tablosunun `Koşum` sütunu güncellenir.
 3. Kusurlar **kodlanır** — Kritik ve Yüksek olanlar önce. Her düzeltme sonrası
-   dört doğrulama kapısı ([`AGENTS.md`](../../AGENTS.md)) koşar.
+   dört doğrulama kapısı ([`AGENTS.md`](../../../AGENTS.md)) koşar.
 4. Yeni yetenek isteyen bulgular kodlanmaz; faz adayı olarak
-   [`docs/UCUNCU-FAZ-ADAYLARI.md`](../UCUNCU-FAZ-ADAYLARI.md)'ya yazılır.
+   [`docs/ADAYLAR.md`](../../ADAYLAR.md)'ya yazılır.
 5. `git worktree remove ../ap-s1 …` ile çalışma kopyaları silinir.
 
 ---

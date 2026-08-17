@@ -361,7 +361,7 @@ destekliyor.
 ## Sonraki Faza Devir Notu
 
 Bu faz ikinci faz turunun **son** kalemidir. Üçüncü tur adayları:
-[`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md). Ayrıca
+[`ADAYLAR.md`](ADAYLAR.md). Ayrıca
 [Faz 7 (yayın)](07-SAGLAMLASTIRMA-VE-YAYIN.md) hâlâ beklemededir (K-068).
 
 🚨 **Bundan sonra her yeni ekran metni iki dilde yazılır.** Unutulamaz: eksik

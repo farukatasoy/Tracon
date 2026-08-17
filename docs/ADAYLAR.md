@@ -1,8 +1,8 @@
-# UCUNCU-FAZ-ADAYLARI.md — Üçüncü Tur Aday Yetenekleri
+# ADAYLAR.md — Üçüncü Tur Aday Yetenekleri
 
 > **Durum (2026-08-08): FAZ 31–56 PLANLANDI; KALAN 15 KALEM SEÇİLMEDİ.**
 > İkinci tur (Faz 8–30) [Faz 30](30-ARAYUZ-CILASI.md) ile kapandı. Dalga 1, 2
-> ve 3'ün toplam **yirmi altı** kalemi [Faz 31–52](UCUNCU-FAZ-YOL-HARITASI.md)
+> ve 3'ün toplam **yirmi altı** kalemi [Faz 31–52](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)
 > olarak plana dönüştü ve bölümleri **bu dosyadan silindi**. Kalan kalemler
 > için seçim yapılmadan faz dokümanı yazılmaz.
 >
@@ -36,6 +36,13 @@
 > bağımlı bir yetenek adayıdır. Kullanıcı kararıyla, yetenek isteyen diğer
 > tüm bulgular doğrudan kodlandı; yalnız bu istisna faza döndü.
 >
+> 🚨 **2026-08-18: Kullanıcı sorusu F-108'i ekledi** — "paketi kullanan bir
+> arka uç, agent'ının **front-end tool'larını** çağırmasını isterse ne yapar?"
+> Ölçüm: altyapı **yok**, ama [Faz 55](55-ASENKRON-ONAY-KUTUSU.md)'in
+> duraklat/sürdür makinesi şeklin %80'ini veriyor. Kalem K2'yi **gevşetmez**
+> (bildirim kodda kalır, yalnız gövde istemcide çalışır); tanımın istemciden
+> bildirilmesi bilerek kapsam dışıdır.
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -45,7 +52,7 @@
 > **Okuma notu — bu dosya baştan sona okunmaz.** Seçim yaparken önce
 > [Bu Turda Neyin Değiştiği](#bu-turda-neyin-değiştiği), sonra
 > [Önerilen Sıralama](#önerilen-sıralama--üç-dalga) okunur. Tek bir kalemin
-> ayrıntısı için `grep -n "F-68" docs/UCUNCU-FAZ-ADAYLARI.md` yeterlidir.
+> ayrıntısı için `grep -n "F-68" docs/ADAYLAR.md` yeterlidir.
 > Bir kalem faz dokümanına dönüştürüldüğünde ilgili bölüm buradan **silinir**
 > ve faz dokümanına taşınır.
 
@@ -104,7 +111,7 @@ TypeScript/npm yayını ayrı bir dağıtım kanalıdır ve yeni bir aday kalemi
 ölçülmüş kanıt taşıyor.
 
 Planlama sırasında **on beş kanıt düzeltildi** (Dalga 1–2'de yedi, Dalga 3'te
-sekiz); ayrıntı [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md)
+sekiz); ayrıntı [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)
 içindedir.
 
 ---
@@ -762,6 +769,78 @@ ayrı sır gerekir ve K-059 deseni uygulanır.
 **Ekosistem:** n8n ve Dify'ın ana ekseni. Inngest olay tabanlı tetiklemeyi
 altyapı olarak satar.
 
+### F-108 · İstemci tarafında çalışan tool (front-end tool) **YENİ**
+
+**Sorun:** Paketi kullanan bir arka uç servisi, agent'ının **tarayıcıda**
+çalışan bir tool'u çağırmasını isteyebilir: kullanıcının o anki ekran
+durumunu okumak, dosya seçtirmek, yalnız tarayıcıda duran bir kimlik
+bilgisiyle çağrı yapmak. Bugün bu yol **yoktur**.
+[`IToolRegistry.TryGet`](../src/AgentPrism.Abstractions/Tools/IToolRegistry.cs)
+bir `AIFunction` döndürür ve MAF'ın `FunctionInvokingChatClient`'ı onu
+**sunucu sürecinde** çalıştırır. Çalıştırmayı duraklatıp çağrıyı çağırana
+yayınlayan ve **dışarıdan gelen bir sonuçla** sürdüren bir kanal yoktur.
+Ölçüldü: `grep -rn "ClientTool\|DeferredTool\|RemoteTool" src/` yalnız
+MCP'nin kendi `McpClientTool`'unu buluyor — sıfır altyapı.
+**Kapsam:** Gövdesi sunucuda olmayan yeni bir tool türü (bildirim **kodda**,
+gövde istemcide), bekleyen çağrı kaydı, sonucu geri alan uç, sürdürme işi.
+**Değer:** Agent, sunucunun erişemeyeceği bağlama ve yetkiye ulaşır. F-64'ü
+(gömülebilir sohbet) tek yönlü bir metin kutusu olmaktan çıkarır.
+**Mercek:** 1, 3, 6.
+**Hazırlık — bu kalemin en güçlü yanı.** [Faz 55](55-ASENKRON-ONAY-KUTUSU.md)
+duraklat/sürdür makinesinin **tamamını** kurdu ve şekil birebir aynıdır:
+`pending_approvals` (`0027` migration), `IPendingApprovalStore`,
+`JobKind.ApprovalResume` +
+[`ApprovalResumeJobHandler`](../src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs),
+`ApprovalExpirationService`, üç uç, bir ekran, `RunStatus.AwaitingApproval`.
+Eksik olan tek şey **kararın yerine sonucun** taşınmasıdır: Faz 55 oturuma
+`ToolApprovalResponseContent` yazar, bu kalem `FunctionResultContent`
+yazacaktır. Ayrıca
+[`OpenAIResponsesEndpoints.cs:286`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs)
+bekleyen çağrıyı çağırana **standart OpenAI `function_call` öğesi** olarak
+zaten yayınlıyor ve kendi yorumunda çağıranın "bir sonraki turda
+`function_call_output` verebileceğini" söylüyor.
+**🚨 Ölçülmedi — planlamanın ilk işi budur.** `OpenAIResponses.ToAgentRunRequest`
+(MAF) gelen bir `function_call_output` öğesini `FunctionResultContent`'e
+çeviriyor mu? Depoda bunu koşan **tek bir test yok**
+(`grep -rn "function_call_output" tests/` → sıfır). Yanıt "evet" ise maliyet
+düşük; "hayır" ise girdi dönüşümü elle yazılır ve maliyet ortaya çıkar.
+**Maliyet:** Orta.
+**Risk:** 🚨 **Sonuç güvenilmeyen bir istemciden gelir.** Bugün konuşmadaki
+her `FunctionResultContent`'i sunucu kodu üretir; istemciden gelen sonuç
+model bağlamına **yeni bir enjeksiyon yüzeyi** açar. İyi haber:
+[`ContentGuardMessageMasker.cs:156`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs)
+`FunctionResultContent`'i **bilerek** kapsıyor — Faz 48 bu şekli zaten görüyor.
+Sonuç kiracıya, çalıştırmaya, oturuma ve tek bir `CallId`'ye bağlanmalı ve
+**tek kullanımlık** olmalıdır; Faz 55.4'ün üç kuralı birebir geçerlidir.
+Süre sonu zorunludur (Faz 55.5): yanıt vermeyen bir istemci çalıştırmayı
+süresiz bekletmemelidir. Akışlı yolda çağrının SSE ortasında yayınlanması
+gerekir — [`AgentEndpoints.cs:881`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs)
+(K-296) başlıkların çoktan gönderilmiş olduğunu hatırlatır. `Prefer:
+respond-async` yolunda **bağlı istemci yoktur**; Faz 55.1'in sorunu birebir
+tekrar eder ve bekleyen çağrı kaydı bu yüzden zorunludur.
+**K2 sınırı — gevşemez.** Tool'un **bildirimi** (ad, açıklama, şema) kodda
+kalır; yalnız **gövdesi** istemcide çalışır. Bu, MCP'nin (K-058) desenidir:
+kayıt kodda, çalıştırma başka yerde. `AgentDefinitionValidator` (K-404) hiç
+değişmeden çalışmaya devam eder. 🚨 Tool tanımının **istemciden çalışma
+anında bildirilmesi** (Vercel AI SDK `useChat` deseni) ayrı bir iştir ve
+K2'nin **üçüncü istisnası** olurdu — bu kalem onu **kapsam dışı** bırakır.
+**Bugün ne yapılabilir:** Tüketici, gövdesi kendi gerçek zamanlı kanalına
+(SignalR/WebSocket) uzanan bir `AIFunction` yazıp
+`AgentPrismToolRegistration` ile kaydedebilir. 🚨 K-218: tool bağımlılıkları
+**kurulum anında** alınır — `AIFunctionArguments.Services` boştur, bu yüzden
+kayıt `services.AddSingleton(provider => new AgentPrismToolRegistration(new MyTool(provider)))`
+biçiminde fabrikadan yapılır. Sınırları: sunucu isteğini istemcinin yanıtı
+kadar bekletir, süreç yeniden başlarsa kaybolur, süre sonu/denetim izi/kiracı
+bağı yoktur ve `Prefer: respond-async` yolunda çalışmaz. Bu kalem o çözümü
+birinci sınıf, dayanıklı ve denetlenebilir yapar.
+**Bağımlılık:** [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) (makine),
+[Faz 53](53-KIRACI-API-ANAHTARLARI.md) (tarayıcıya yönetim token'ı konulamaz),
+[Faz 48](48-GUARDRAILS.md) (istemciden gelen sonuç guard'dan geçmelidir).
+F-64 ile doğal eştir; ikisi birlikte planlanmalıdır.
+**Ekosistem:** Vercel AI SDK'nın `onToolCall`'ı, CopilotKit ve OpenAI Realtime
+istemci tool'ları JS dünyasında **fiilî standarttır**. .NET kontrol
+düzleminde karşılığı yok.
+
 ---
 
 ## Ekosistem Boşluk Tablosu
@@ -788,11 +867,12 @@ Kalın yazılan kalemler **hâlâ bu listededir**; 📋 işaretliler plana dön�
 | **Sanal anahtar + anahtar başına bütçe** | LiteLLM · Portkey | **Yok** | **F-56** + F-40 (zemin: [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) 📋) |
 | **Prompt kütüphanesi ve şablon** | Langfuse · Braintrust · Portkey | Kısmen — sürümleme var (Faz 19), şablon yok | **F-34** |
 | **Olay tabanlı agent tetikleme** | n8n · Dify · Inngest | **Yok** | **F-65** |
+| **İstemci tarafında çalışan tool** | Vercel AI SDK `onToolCall` · CopilotKit · OpenAI Realtime | **Yok** | **F-108** |
 | **Taşınabilir çalışma anı politikası** | Microsoft ACS | .NET paketi **var** ama **beta ve native** (beş RID) | **F-72** ⏸ ertelendi |
 
-🚨 **Dokuz boşluğun dokuzu plana girdi.** Kalan beş satır bu listenin
+🚨 **Dokuz boşluğun dokuzu plana girdi.** Kalan altı satır bu listenin
 stratejik çekirdeğidir; ikisi kimlik (F-56, F-40), biri maliyet (F-44), biri
-ergonomi (F-34), biri tetikleme (F-65).
+ergonomi (F-34), biri tetikleme (F-65), biri dış tüketici yüzeyi (F-108).
 
 **Neden kimse yapmamış?** Üç yanıt vardır ve hepsi AgentPrism'in lehinedir:
 
@@ -907,7 +987,7 @@ flowchart LR
 
 ### Dalga 1 — ✅ planlandı (2026-08-06), bu listeden çıktı
 
-Sekiz kalemin tamamı [Faz 31–37](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
+Sekiz kalemin tamamı [Faz 31–37](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
 dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
 [Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
 
@@ -915,7 +995,7 @@ dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
 
 ### Dalga 2 — ✅ planlandı (2026-08-06), bu listeden çıktı
 
-Sekiz kalemin tamamı [Faz 38–45](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
+Sekiz kalemin tamamı [Faz 38–45](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
 dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
 [Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
 
@@ -944,7 +1024,7 @@ olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
 
 ### Dalga 3 — ✅ planlandı (2026-08-06), bu listeden çıktı
 
-Dokuz kalem [Faz 46–52](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana dönüştü.
+Dokuz kalem [Faz 46–52](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana dönüştü.
 Bölümleri bu dosyadan silindi; yönlendirme için
 [Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
 
@@ -961,7 +1041,7 @@ karşılığı **hiç bulunmayan** bir yetenek ekler.
 ### Dalga 3'ten doğan yeni aday kalemler
 
 Planlama **on** işi bilinçli olarak kapsam dışına çıkardı. Tam liste ve
-gerekçeleri [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md)'nin
+gerekçeleri [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)'nin
 "Dalga 3'ün Açtığı Yeni Aday Kalemler" bölümündedir; burada tekrarlanmaz.
 ID'ler **F-77'den** devam eder.
 
@@ -1055,7 +1135,7 @@ Yayından **önce** yapılırlarsa bedavadır. Sonra yapılırlarsa her biri bir
 sürüm kararıdır ve `PublicAPI.Shipped.txt` disiplinine girer.
 
 Plana dönüşen yirmi altı kalemin public yüzey listesi
-[`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md)'nin "Faz 7 (Yayın)
+[`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)'nin "Faz 7 (Yayın)
 Etkisi" bölümündedir; burada tekrarlanmaz.
 
 🚨 **Yayından sonra en pahalı üç değişiklik zaten plana alındı** — üçü de var

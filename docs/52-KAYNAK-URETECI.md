@@ -1,7 +1,7 @@
 # Faz 52 — Tool Kaynak Üreteci ve Derleme Anı Doğrulama
 
 > **Durum:** ✅ Tamamlandı (2026-08-08)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-47**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-47**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core` (üreteç `.Core`'un nupkg'sinde taşınır)
 > **Yeni paket:** 🚨 **Yok** — gerekçe [52.4](#524--üreteç-nerede-yaşar-yeni-paket-yok) · **Yeni NuGet:** `Microsoft.CodeAnalysis.CSharp` `4.8.0` (`PrivateAssets=all`) · **Migration:** Yok
@@ -789,6 +789,6 @@ AgentPrism.slnx, AgentPrism.src.slnf             (iki yeni proje/proje referansi
    regresyonu değildir. Sonraki oturum Docker'a daha fazla bellek/CPU
    ayrılmış bir ortamda tekrar denemelidir.
 6. **Faz 7 (yayın) hâlâ sıradaki faz DEĞİLDİR** (K-068 geçerli, kullanıcı
-   kararı bekliyor). Faz 52 F-47'yi kapattı; `UCUNCU-FAZ-ADAYLARI.md`'deki
+   kararı bekliyor). Faz 52 F-47'yi kapattı; `ADAYLAR.md`'deki
    kalan 20 kalemden biri seçilirse `faz-planlama` skill'i ile yeni bir faz
    dokümanına dönüştürülür.

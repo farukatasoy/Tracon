@@ -5,7 +5,7 @@ description: Bir aday yeteneği (F-NN) uygulanabilir bir faz dokümanına (docs/
 
 # Faz Planlama Protokolü
 
-Bu skill, **seçilmiş bir aday yetenek** (`docs/UCUNCU-FAZ-ADAYLARI.md` içindeki
+Bu skill, **seçilmiş bir aday yetenek** (`docs/ADAYLAR.md` içindeki
 bir F-NN kalemi) uygulanabilir bir faz dokümanına dönüştürülürken çalıştırılır.
 
 Yerini bilin — zincir beş halkadır:
@@ -43,7 +43,7 @@ Yazmaya başlamadan **önce** karar defterine bak. Kapatılmış tartışma yeni
 açılmaz:
 
 ```bash
-grep -n "<konu>" docs/KARARLAR-INDEKS-REDDEDILEN.md docs/KARARLAR-INDEKS.md
+grep -n "<konu>" docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md docs/KARARLAR-INDEKS.md
 grep -n "K-0NN" docs/KARARLAR.md      # bulduğun kalemin tam gerekçesi
 ```
 
@@ -233,7 +233,7 @@ yerde tekrarlanmaz**.
 |---|---|
 | `README.md` — Yol Haritası tablosu | Yeni satır: faz numarası, konu, durum `📋 Planlandı` |
 | Turun yol haritası dosyası | Sıra tablosuna satır: kalem, neden burada, yeni paket, migration |
-| `docs/UCUNCU-FAZ-ADAYLARI.md` | Plana dönüşen kalemin **bölümünü sil**; hangi faza gittiğini tek satırla yaz |
+| `docs/ADAYLAR.md` | Plana dönüşen kalemin **bölümünü sil**; hangi faza gittiğini tek satırla yaz |
 | `AGENTS.md` | Yalnız "sıradaki faz" satırı değiştiyse. Tam tablo **yalnız README'dedir** |
 
 Kalemi aday listesinde bırakma. İki yerde tutmak kayma üretir — belge zaten bu

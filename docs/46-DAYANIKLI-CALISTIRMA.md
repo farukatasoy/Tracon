@@ -1,7 +1,7 @@
 # Faz 46 — Dayanıklı Çalıştırma (`202 Accepted`)
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-68** (F-39 bu kalemin içinde yaşar)
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-68** (F-39 bu kalemin içinde yaşar)
 > **Önkoşul:** [Faz 43](43-IDEMPOTENCY-KEY.md) — yan etkili tool'un iki kez koşmasına karşı tek savunma. Faz 17'nin iş kuyruğu **hazır**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **Yok** — yeni tablo yoktur, `JobKind` ve `RunStatus` yalnız **sona** değer ekler
@@ -446,7 +446,7 @@ bilinmeyen bir durum kodu gelirse ekran onu ham gösterir.
 | `Queued` durum etiketi ve rengi | 🚨 **tahmin** — 0,5 KB gzip altı |
 | Playground'da "arka planda çalıştır" seçeneği | Açık Soru 4'e bağlı |
 
-Bugünkü kullanım (2026-08-06 ölçümü, [yol haritası](UCUNCU-FAZ-YOL-HARITASI.md)):
+Bugünkü kullanım (2026-08-06 ölçümü, [yol haritası](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)):
 **151,3 KB gzip / 250 KB**, kalan pay **98,7 KB**. Gerçek pay uygulama anında
 `postbuild.mjs` çıktısından okunur ve buraya yazılır.
 

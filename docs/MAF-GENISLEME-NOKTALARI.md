@@ -5,6 +5,12 @@
 > `MIMARI.md`'den ayrıldı çünkü her oturumda değil, **yalnız MAF'a dokunurken**
 > okunur.
 >
+> ⚠️ **EKSİK: bölümler Faz 13'te bitiyor** (son güncelleme 2026-08-07). Faz 15/16
+> (Workflows), 22 (MCP), 29 (gerçek zamanlı ses) ve 50 (MCP sunucusu · A2A) MAF
+> tipi kullandı ama buraya işlenmedi. Burada bulamadığın bir tip **kullanılmıyor
+> demek değildir** — `maf-api-kesfi` skill'i ile imzayı doğrula ve bulduğunu
+> buraya ekle.
+>
 > Bir tipin gerçek imzasını doğrulamadan kullanma — `maf-api-kesfi` skill'i.
 > Tuzaklar: [`hafiza/maf-api.md`](hafiza/maf-api.md).
 

@@ -9,7 +9,7 @@ okumaz; yalnız "bu fikir daha önce konuşulmuş muydu" sorusu için `grep`'len
 | Nerede ne yaşar | |
 |---|---|
 | Turun tamamı — ham liste, eleme, kanıt, ret gerekçeleri | **burada** |
-| Onaylanan kalemin tam metni (F-NN) | [`../UCUNCU-FAZ-ADAYLARI.md`](../UCUNCU-FAZ-ADAYLARI.md) |
+| Onaylanan kalemin tam metni (F-NN) | [`../ADAYLAR.md`](../ADAYLAR.md) |
 | Kalemin uygulanabilir planı | `docs/NN-*.md` — `faz-planlama` yazar |
 
 Dizin, doküman dizin bütçesinden **hariç** tutulur (K-426; K-412 deseni):

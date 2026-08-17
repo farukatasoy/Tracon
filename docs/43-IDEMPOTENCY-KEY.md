@@ -1,7 +1,7 @@
 # Faz 43 — `Idempotency-Key` Desteği
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-37**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-37**
 > **Önkoşul:** Yok. Ama [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama hedef kayıt defteri **kullanılır**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — bir tablo, üç set, numaralar uygulama anında alınır (K-178)

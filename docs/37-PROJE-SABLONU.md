@@ -1,7 +1,7 @@
 # Faz 37 — `dotnet new` Proje Şablonu
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-49**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-49**
 > **Önkoşul:** Yok. Faz 33 (sağlık denetimi) önce biterse şablon onu da taşır
 > **Paketler:** yeni — `AgentPrism.Templates`
 > **Yeni paket:** **Evet** — gerekçe aşağıda · **Migration:** Yok
@@ -423,7 +423,7 @@ tests/AgentPrism.Templates.Tests/
 
 Ek olarak güncellenenler: `AgentPrism.slnx` (iki proje), `README.md` (paket
 tablosu + kurulum + yol haritası), `scripts/dokuman-bakim.py` (bkz. altta),
-`docs/KARARLAR.md`/`KARARLAR-INDEKS.md`/`KARARLAR-INDEKS-ARSIV.md` (yeni).
+`docs/KARARLAR.md`/`KARARLAR-INDEKS.md`/`arsiv/KARARLAR-INDEKS-ARSIV.md` (yeni).
 
 ## Testler
 
@@ -457,11 +457,11 @@ Doğrulandı: `dotnet test tests/AgentPrism.Templates.Tests -c Release --no-buil
   ad alanı asla yeniden adlandırılmaz — şablon içeriği farklıdır.
 - **Karar defteri indeksi bölündü (K-214'ün sözü tutuldu).** `docs/KARARLAR-INDEKS.md`
   artık yalnız en yeni 150 kalıcı kararı taşır; daha eskisi
-  `docs/KARARLAR-INDEKS-ARSIV.md`'dedir (sıcak yol dışı). Yeni bir karar
+  `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`'dedir (sıcak yol dışı). Yeni bir karar
   eklerken hiçbir ek adım gerekmez — `python3 scripts/dokuman-bakim.py`
   bölünmeyi kendiliğinden korur (`ARSIV_ESIK = 150`).
 - **`samples/AgentPrism.Api`'ye dokunulmadı** — Açık Soru 1'in kararı (A:
   ayrı kalsın) korundu. Şablon ve örnek uygulama farklı amaçlar taşımaya
   devam ediyor.
 - **Yarım kalan iş yok.** Tüm DoD kalemleri karşılandı (bkz. aşağıdaki tablo).
-  Sıradaki faz kimliği bağımsızdır (`docs/UCUNCU-FAZ-YOL-HARITASI.md`).
+  Sıradaki faz kimliği bağımsızdır (`docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`).

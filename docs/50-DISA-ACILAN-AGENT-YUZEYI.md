@@ -1,7 +1,7 @@
 # Faz 50 — Dışa Açılan Agent Yüzeyi (MCP sunucusu ve A2A)
 
 > **Durum:** ✅ Tamamlandı (2026-08-08)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-31**, **F-33** (birleşti)
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-31**, **F-33** (birleşti)
 > **Önkoşul:** Yok. Faz 12'nin `ChildAgentInvoker` sınır denetimleri **yeniden kullanılır**
 > **Paketler:** `AgentPrism.AspNetCore` (yeni bağımlılıklar **yalnız burada**), `.Abstractions`, `.Core`
 > **Yeni paket:** Yok (AgentPrism paketi) · **Yeni NuGet:** `ModelContextProtocol.AspNetCore` (GA) + Açık Soru 1'e bağlı olarak A2A · **Migration:** Yok

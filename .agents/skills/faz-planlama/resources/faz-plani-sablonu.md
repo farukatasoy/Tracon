@@ -16,7 +16,7 @@
 # Faz <NN> — <Kısa Ad>
 
 > **Durum:** 📋 Planlandı (<YYYY-AA-GG>)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-<NN>**<, **F-<NN>**>
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-<NN>**<, **F-<NN>**>
 > **Önkoşul:** [Faz <N>](<N>-<AD>.md) — <neden gerekli> · <yoksa "Yok">
 > **Paketler:** `AgentPrism.<X>`, `.<Y>`
 > **Yeni paket:** <Yok · veya ad + K-007 gerekçesi> · **Migration:** <Yok · veya "gerekli — numara uygulama anında alınır">

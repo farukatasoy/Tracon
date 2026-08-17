@@ -666,8 +666,9 @@ ve ikisi de işaretlidir (K-350). **Önerilen yol** `AddGeneratedTools()`
 ## 10. İlgili Dokümanlar
 
 Faz listesi ve durumu **tek yerdedir**: [`YOL-HARITASI.md`](YOL-HARITASI.md),
-her fazın `Durum:` satırından üretilir. Turlar:
-[ikinci](IKINCI-FAZ-YOL-HARITASI.md) · [üçüncü](UCUNCU-FAZ-YOL-HARITASI.md).
+her fazın `Durum:` satırından üretilir. Seçilmemiş adaylar:
+[`ADAYLAR.md`](ADAYLAR.md). Dalgaların sıralama gerekçesi kapandı ve arşive
+taşındı (K-427); yalnız grep'lenir.
 
 Karar arıyorsan [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md)'ten satırı bul ve
 `KARARLAR.md`'yi **grep'le**. MAF'a dokunurken

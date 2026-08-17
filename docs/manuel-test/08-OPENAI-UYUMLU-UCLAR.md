@@ -1172,7 +1172,7 @@ curl -s "$APU/api/runs?agentName=support&sessionId=manuel-conv-029&take=1" -H "$
   `Completed` mi, başka bir şey mi) kaydedilir.
 - Bu iki gözlem tutarsızsa (örnek: HTTP yanıtı "tamamlandı" gibi görünürken run
   kaydı "girdi bekliyor" diyorsa) bu bir kusur adayıdır ve
-  `docs/UCUNCU-FAZ-ADAYLARI.md`'ye değil, doğrudan HATA şablonuyla kaydedilir
+  `docs/ADAYLAR.md`'ye değil, doğrudan HATA şablonuyla kaydedilir
   (`PROMPT.md` §8 ayrımı: var olan davranış yanlışsa kusurdur).
 
 ---

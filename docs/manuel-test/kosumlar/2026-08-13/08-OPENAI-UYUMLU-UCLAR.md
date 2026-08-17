@@ -496,7 +496,7 @@ HTTP: 200, data: [], has_more: false.
 
 # 4 — Stok Python `openai` SDK ile uçtan uca (K-036 / K-043 doğrulaması)
 
-Bu bölüm [`00-INDEKS.md`](00-INDEKS.md)'nin ortam tablosundaki *"Python — stok
+Bu bölüm [`00-INDEKS.md`](../../00-INDEKS.md)'nin ortam tablosundaki *"Python — stok
 `openai` istemcisi ile uyumluluk doğrulanır"* maddesini karşılar. K-036/K-043
 kararları bu akışı `openai` **2.52.0** ile bir kez ölçtü (üretim oturumunda);
 bu case'ler insan tarafından **yeniden** koşulur.

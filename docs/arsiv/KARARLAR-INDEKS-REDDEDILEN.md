@@ -1,10 +1,10 @@
 # KARARLAR — Reddedilen İşler
 
-> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).
+> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](../KARARLAR.md).
 > Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`
 
 Daha önce kanıtla reddedilmiş işlerin kontrol listesi — **bunları yeniden önerme.**
-Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
+Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
 ```bash
 sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
