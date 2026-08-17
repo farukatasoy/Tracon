@@ -236,7 +236,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 3 | [31–52](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
 | 4 | [53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
 | 5 | [57–60](docs/YOL-HARITASI.md) | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
-| 6 | [60](docs/60-PUBLIC-API-KAPISI.md) | Public API kapısı — kırıcı değişiklik derlemeyi kırar | 📋 Planlandı |
+| 6 | [61](docs/61-EF-CORE-PROJEKSIYONU-VE-GENISLETME.md) | EF Core projeksiyonu, `metadata` sütunu, sidecar deseni | 📋 Planlandı |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — 0–60 tek tek
 listelidir ve her fazın kendi dokümanından **üretilir**, elle yazılmaz.
@@ -336,4 +336,5 @@ karıştırılmaz: `docs/` geliştirme günlüğüdür, `docs-site/` ürün dok�
 
 ## Lisans
 
-MIT
+MIT — ticari katman planı ve "bugün MIT olan hiçbir şey ücretli olmayacak"
+taahhüdü için [COMMERCIAL.md](COMMERCIAL.md).
