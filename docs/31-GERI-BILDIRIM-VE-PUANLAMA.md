@@ -1,7 +1,7 @@
 # Faz 31 — Geri Bildirim ve Puanlama
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-52**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-52**
 > **Önkoşul:** Yok. Kalem önkoşulsuzdur ve bugün yapılabilir
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** uygulandı — PostgreSQL `0017`, SQL Server `0005`, SQLite `0005`

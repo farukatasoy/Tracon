@@ -1,7 +1,7 @@
 # Faz 33 — Sağlık Denetimi ve Yapılandırma Teşhisi
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-38** · **F-62**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-38** · **F-62**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok — `Microsoft.Extensions.Diagnostics.HealthChecks` paylaşılan çerçevededir · **Migration:** Yok

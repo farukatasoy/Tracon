@@ -1,7 +1,7 @@
 # Faz 56 — Kanarya Yayını ve Otomatik Geri Alma
 
 > **Durum:** ✅ Tamamlandı (2026-08-09)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-74**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-74**
 > **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) (deney altyapısı) · [Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md) · [Faz 44](44-HATA-SINIFLANDIRMA.md) · [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md) — üçü de **tamamlandı**
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — `experiments` tablosuna eşik alanları, numara uygulama anında alınır
@@ -497,4 +497,4 @@ docs/openapi/agentprism.json  (yenilendi)
 - Kanarya kararı `ExperimentResultsQuery`'nin AYNI sonuç setini kullanır; bir deneyin `results` ucu ile `canary.evaluation.canary`/`canary.evaluation.control` alanları HER ZAMAN tutarlıdır (aynı sorgu, aynı an) — ayrı bir önbellek YOKTUR.
 - SQL Server sözleşme testleri bu makinede (Apple Silicon) çalıştırılamadı (`mcr.microsoft.com/mssql/server` Rosetta hatası veriyor, bkz. `docs/hafiza/sql-server-yerel-test.md`) — SQL Server'a özgü T-SQL, Faz 44'ün kanıtlanmış `COL_LENGTH`/`EXEC`-sarmalı desenine BİREBİR uyularak yazıldı ama gerçek bir SQL Server'da DOĞRULANMADI. Postgres ve SQLite'ta 27/27 sözleşme testi geçti.
 
-**Sıradaki faz:** Bu faz `docs/UCUNCU-FAZ-YOL-HARITASI.md`'nin dördüncü dalgasının son planlı kalemiydi (53–56). Sıradaki kalem için `docs/UCUNCU-FAZ-ADAYLARI.md`'ye ve README'nin yol haritası tablosuna bakın.
+**Sıradaki faz:** Bu faz `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`'nin dördüncü dalgasının son planlı kalemiydi (53–56). Sıradaki kalem için `docs/ADAYLAR.md`'ye ve README'nin yol haritası tablosuna bakın.

@@ -360,7 +360,7 @@ curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(jso
 > AgentPrism dışı bir sınırda (MAF'ın `AgentWorkflowBuilder.BuildSequential`
 > grafiğinin dışarıdan gelen iptal token'ını çalışan bir adım ortasında
 > honor etmemesi); kullanıcı kararıyla (Karar 4) yetenek gerektiren bir
-> bulgu olarak **`docs/UCUNCU-FAZ-ADAYLARI.md` F-107**'ye faz adayı
+> bulgu olarak **`docs/ADAYLAR.md` F-107**'ye faz adayı
 > yazıldı, doğrudan kodlanmadı.
 - `POST /api/runs/{runId}/cancel` **202** döner.
 - 3 saniye sonra `GET /api/runs/{runId}`'in durumu `Completed`'dır (MAF'ın

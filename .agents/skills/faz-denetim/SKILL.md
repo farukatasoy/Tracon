@@ -161,7 +161,7 @@ Seviye tanımları:
 |---|---|---|
 | 🔴 | DoD ihlali, kusur, repo kuralı ihlali, güvenlik sınırı | Kapanmadan faz **bitmez** |
 | 🟡 | Test boşluğu, yanlış seviye, eksik hata yolu | Aynı fazda kapanır **veya** gerekçesi faz dokümanına yazılır |
-| 🟢 | İyileştirme, kapsam dışı gözlem | `docs/UCUNCU-FAZ-ADAYLARI.md`'ye F-NN olarak |
+| 🟢 | İyileştirme, kapsam dışı gözlem | `docs/ADAYLAR.md`'ye F-NN olarak |
 
 Bulgu yoksa bunu açıkça yaz: **"🔴 ve 🟡 yok."** Sessiz rapor, denetim
 yapılmadığından ayırt edilemez.

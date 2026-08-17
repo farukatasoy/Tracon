@@ -972,6 +972,6 @@ Server bağlantısıyla yeniden koşuldu. Tüm SQL Server case'leri gerçek
 | `MT-SQL-073` adım 3 | `sleep 15` | `until docker exec ... sqlcmd -Q "SELECT 1;"` hazırlık yoklaması — `sleep 15` yetersiz |
 | `MT-SQL-040` | fiyatın katalogdan geleceği varsayılıyor | `gpt-5.4-mini` katalogda fiyatsız; `AgentPrism:Pricing:<saglayici>:<model>:Input` ile verilmeli (`Providers` ara anahtarı YOK, alan adı `Input`/`Output`) |
 
-Ayrıntı ve hata kayıtları: [`SONUCLAR-S1-2026-08-13.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-S1-2026-08-13.md).
+Ayrıntı ve hata kayıtları: [`SONUCLAR-S1-2026-08-13.md`](../../../arsiv/manuel-test-kosum-2026-08/SONUCLAR-S1-2026-08-13.md).
 
 ---

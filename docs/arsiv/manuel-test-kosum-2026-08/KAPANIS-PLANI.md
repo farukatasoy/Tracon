@@ -1,13 +1,20 @@
-# Manuel Kabul Testi — Kapanış Planı (KOSUM-PLANI §8)
+# Manuel Kabul Testi — Kapanış Planı (2026-08-13 turu)
 
-> **Bu dosya bir ajan talimatıdır ve oturumlar arası tek referanstır.**
-> Kapanış **aile aile**, ayrı oturumlarda yapılır. Bir oturum açan ajan önce bu
-> dosyayı baştan sona okur, §1'deki protokolü uygular, kendi ailesini kodlar ve
-> §2'deki durum tablosunu günceller.
+> ## 📦 ARŞİV — bu bir TUR KAYDIDIR, protokol değildir
 >
-> Koşum protokolü (şerit izolasyonu, oturum bütçesi) [`KOSUM-PLANI.md`](KOSUM-PLANI.md)'dedir
-> ve **koşum bitti**; bu dosya onun §8'ini yürütür. Ortam kurulumu ve hata
-> şablonu [`00-INDEKS.md`](00-INDEKS.md)'dedir.
+> Bu dosya 2026-08-13 turunun kusur ailelerini (A–W), her ailenin kök nedenini,
+> düzeltmesini ve commit'ini kaydeder. Kapanış **bitti**; kararlar
+> `docs/KARARLAR.md` K-392..K-407'dedir.
+>
+> **Yeni bir kapanış bu dosyayı okumaz.** Turdan bağımsız kapanış protokolü —
+> aile aile oturum yordamı, "önce ampirik yeniden üret" kuralı, bitti tanımı ve
+> sayım betiği — şuradadır:
+> [`.agents/skills/manuel-test-kosumu/SKILL.md`](../../../.agents/skills/manuel-test-kosumu/SKILL.md) §6–§8.
+>
+> Turdan devreden açık kalemler
+> [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) §7.1'dedir.
+> Bu dosya bir kusurun **nasıl** çözüldüğünü ararken `grep`'lenir:
+> `grep -n "Aile F" docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`
 
 ---
 
@@ -1602,7 +1609,7 @@ geniş deneme `WorkflowRunnerTests.Kontrol_noktasindan_surdurulur`'u canlı
 (`WorkflowRunner.ToRunError`'ın `TargetInvocationException`/tek-elemanlı
 `AggregateException` soyması) önceki bir dalgada zaten yazılmış ve
 `MT-WF-071` için canlı doğrulanmıştı; kod incelemesiyle bu koşumda da
-mevcut olduğu teyit edildi. `F-106` (zarif durdurma, `docs/UCUNCU-FAZ-ADAYLARI.md`)
+mevcut olduğu teyit edildi. `F-106` (zarif durdurma, `docs/ADAYLAR.md`)
 zaten yazılı. İkisi de doğru şekilde **Kaldı** kalmaya devam ediyor —
 "temiz `Completed`" beklentisi hâlâ karşılanmıyor, bu bilinçli bir kapsam
 sınırı (F-106'ya devredildi), case dosyalarında değişiklik gerekmedi.
@@ -1621,7 +1628,7 @@ yapılacak):** `HATA-S2-010` — workflow iptali gerçekten çalışmıyor (`202
 alınsa da `Canceled` değil `Completed` oluyor). AgentPrism teli **doğru**
 (`WorkflowRunner.cs:356-368`, `:362`, `:589`, `:612`); şüpheli kaynak MAF
 `AgentWorkflowBuilder.BuildSequential` / `StreamingRun.WatchStreamAsync`.
-`docs/UCUNCU-FAZ-ADAYLARI.md`'ye **F-107** olarak yazılacak ve
+`docs/ADAYLAR.md`'ye **F-107** olarak yazılacak ve
 `MT-RES-005`'in **beklenen sonucu** gerçek davranışa göre düzeltilecek —
 bu, "Doküman" ailesinin (§8, `MT-RES-005` satırı) ve §11 kapanışının işi.
 
@@ -1979,7 +1986,7 @@ Kalan 21'i ortam kurulumuyla koşulabilir:
    - elle `Bind()` yazılan bir alan unutulur (Aile P) → `cekirdek-calistirma.md`
    - `dotnet test --no-build` kırık build'de eski ikiliyi koşar → `test-altyapisi.md`
    - zincirlenmemiş `Blob.arrayBuffer()` sıra/yarış üretir → `frontend.md`
-6. `docs/UCUNCU-FAZ-ADAYLARI.md`'ye `HATA-S2-010` **F-107** olarak eklenir
+6. `docs/ADAYLAR.md`'ye `HATA-S2-010` **F-107** olarak eklenir
    (son aday F-106).
 7. `git worktree remove ../ap-s1 …` — bu koşumda worktree kalmadı, atlanabilir.
 

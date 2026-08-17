@@ -1,7 +1,7 @@
 # Faz 36 — Saklama Hacim Sınırı (`MaxRows`)
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-73**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-73**
 > **Önkoşul:** [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — saklama altyapısı, üç diyalekt şablonu
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** Yok — sütun **zaten var**

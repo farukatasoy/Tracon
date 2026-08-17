@@ -448,7 +448,7 @@ bağımsızca yeniden koştu/doğruladı.
    (`AgentPrism.Core.UnitTests`, son değişikliği Faz 57) ara sıra görülen bir
    `ObjectDisposedException` (SemaphoreSlim) yarışını gözlemledi — iki yeniden
    koşumda geçti. Faz 60'ın diff'inde yok, bu fazı bloklamaz; ayrı bir kusur
-   olarak `docs/UCUNCU-FAZ-ADAYLARI.md`'ye değil, doğrudan bir sonraki
+   olarak `docs/ADAYLAR.md`'ye değil, doğrudan bir sonraki
    `kusur-giderme` oturumuna bırakılır.
 
 Denetim sonrası dört kapı yeniden koşuldu: `dotnet build` 0/0, `dotnet format

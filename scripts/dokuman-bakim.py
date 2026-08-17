@@ -80,7 +80,7 @@ BUTCE = {
     # SONUNDAKI boyuta gore konur. K-214'un "butce buyutulmez" sozu var olan
     # bir sinirin asilmasi icindir; burada sinir ilk kez konuyor.
     "docs/KARARLAR.md": 475_000,           # olculen 398_967 (faz kapanisindan sonra)
-    "docs/UCUNCU-FAZ-ADAYLARI.md": 80_000,  # olculen 67_195
+    "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 
 # Alan hafiza dosyalari tek tek buyuyebilir ama biri digerlerini yutmamali.
@@ -197,9 +197,9 @@ def kararlar_indeksi_uret() -> str:
         "",
         "Bul: `grep -n 'K-059\\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`."
         " Tarih yok (K-214). Reddedilenler:"
-        " [`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md)."
+        " [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)."
         f" En eski {len(kalici) - len(yeni)} karar:"
-        " [`KARARLAR-INDEKS-ARSIV.md`](KARARLAR-INDEKS-ARSIV.md)."
+        " [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md)."
         " 👤 kullanıcı kararı · 🔁 yeniden açılmış.",
         "",
         "---",
@@ -226,11 +226,11 @@ def kararlar_indeksi_arsiv_uret() -> str:
     ç = [
         "# KARARLAR — İndeks Arşivi",
         "",
-        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).",
+        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](../KARARLAR.md).",
         "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
         "",
         "En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme)."
-        " Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).",
+        " Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).",
         "",
         f"## Arşivlenen Kararlar ({len(eski)} kalem)",
         "",
@@ -252,11 +252,11 @@ def kararlar_reddedilen_uret() -> str:
     ç = [
         "# KARARLAR — Reddedilen İşler",
         "",
-        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).",
+        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](../KARARLAR.md).",
         "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
         "",
         "Daha önce kanıtla reddedilmiş işlerin kontrol listesi — **bunları yeniden önerme.**",
-        "Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).",
+        "Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).",
         "",
         "```bash",
         "sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe",
@@ -356,9 +356,10 @@ def yol_haritasi_uret() -> str:
             "|-----|------|-------|",
             *satirlar,
             "",
-            "Dalga yol haritaları: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md)"
-            " (21–30) · [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md) (31–56)."
-            " Seçilmemiş adaylar: [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md).",
+            "Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada,"
+            " hangi gerekçeyle sıralandığı (Faz 8–56, kapandı):"
+            " [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) ·"
+            " [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).",
             "",
         ]
     )
@@ -483,8 +484,8 @@ def main() -> int:
     if not a.denetle:
         for hedef, uret in (
             (ROOT / "docs" / "KARARLAR-INDEKS.md", kararlar_indeksi_uret),
-            (ROOT / "docs" / "KARARLAR-INDEKS-ARSIV.md", kararlar_indeksi_arsiv_uret),
-            (ROOT / "docs" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
+            (ROOT / "docs" / "arsiv" / "KARARLAR-INDEKS-ARSIV.md", kararlar_indeksi_arsiv_uret),
+            (ROOT / "docs" / "arsiv" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
             (ROOT / "docs" / "YOL-HARITASI.md", yol_haritasi_uret),
         ):
             yeni = uret()

@@ -1,7 +1,7 @@
 # Faz 38 — Yapılandırılmış Çıktı (JSON Şeması)
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-42**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-42**
 > **Önkoşul:** Yok. Kalem önkoşulsuzdur ve bugün yapılabilir
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — gerekçe [38.5](#385--neden-migration-yok)
@@ -619,4 +619,4 @@ değişmeden çalıştı.
   ikisinin çakıştığı durumda hangisinin kazanacağı tanımsız. Ayrı bir fazda
   ele alınmalı.
 - **Yarım kalan iş yok.** Tüm DoD kalemleri karşılandı (yukarıdaki tablo).
-  Sıradaki faz kimliği bağımsızdır (`docs/UCUNCU-FAZ-YOL-HARITASI.md`).
+  Sıradaki faz kimliği bağımsızdır (`docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`).

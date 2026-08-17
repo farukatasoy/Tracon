@@ -112,7 +112,7 @@ yazılıydı. `README.md`'deki "Faz dokümanları (00–32)" **zaten düzeltilmi
 | `manuel-test/KOSUM-PLANI.md` §1 | — | Dosya kendini "⛔ BAYATTIR" ilan ediyor |
 | `manuel-test/00-INDEKS.md` §2.4 + §4 | — | Dosya "geçerli değildir" diyor; yerine geçen kopya `KOSUM-PLANI.md`'de |
 | `BEYIN-FIRTINASI.md` | 19 KB | Tamamen tarihsel; üstü çizili kalemler → `docs/arsiv/` |
-| `UCUNCU-FAZ-ADAYLARI.md` F-72, F-76 bölümleri | ~80 satır | F-72 ertelendi, F-76 kapatıldı — aday değiller |
+| `ADAYLAR.md` F-72, F-76 bölümleri | ~80 satır | F-72 ertelendi, F-76 kapatıldı — aday değiller |
 
 ---
 
@@ -158,7 +158,7 @@ koşum kaydı `manuel-test/kosumlar/<tarih>/` altına çıkar.
 | Dosya / grup | Neden bugüne kadar denetimsizdi |
 |---|---|
 | `docs/KARARLAR.md` | En büyük md dosyası (389 KB); indeksi denetleniyor, kaynağı değil |
-| `docs/UCUNCU-FAZ-ADAYLARI.md` | 71 KB, her planlama turunda büyüyor |
+| `docs/ADAYLAR.md` | 71 KB, her planlama turunda büyüyor |
 | `docs/manuel-test/` (toplam) | 2,7 MB, `docs/`'un yarısı |
 | `docs/` (toplam) | Üst sınır — hangi dosyanın büyüdüğünden bağımsız fren |
 

@@ -497,7 +497,7 @@ meta 31→~95 satır), `docs/openapi/agentprism.json`, `.github/workflows/ci.yml
   fazdan **önce de** böyleydi ve bu faz çalışma anına dokunmadı; ölçülmemiş bir
   açık kalemdir.
 
-**Sıradaki faz:** `docs/UCUNCU-FAZ-YOL-HARITASI.md` ve README'nin yol haritası
+**Sıradaki faz:** `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md` ve README'nin yol haritası
 tablosu. Açık kalan büyük kalem **Faz 7**'dir (public API dondurma + NuGet yayını,
 K-068); bu faz onun için gereken tüketici dokümantasyonunu hazırladı.
 

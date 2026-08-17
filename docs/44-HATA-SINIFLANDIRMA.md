@@ -1,7 +1,7 @@
 # Faz 44 — Hata Sınıflandırma ve Arıza Kümeleme
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-55**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-55**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — iki sütun + bir indeks, üç set (K-178)

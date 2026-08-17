@@ -56,7 +56,7 @@ Sunucu surec, uzun bir yonlendirici calistirmasi baslar baslamaz (kill -9 ile) d
 **Doküman düzeltmesi (2026-08-15, KAPANIS-PLANI §5 Karar 4):** Beklenti
 gerçek (kabul edilmiş) davranışa göre düzeltildi. Kullanıcı kararıyla bu
 bulgu **kodlanmadı** — MAF sınırındaki bir yetenek boşluğu olarak
-`docs/UCUNCU-FAZ-ADAYLARI.md` **F-107**'ye faz adayı yazıldı.
+`docs/ADAYLAR.md` **F-107**'ye faz adayı yazıldı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

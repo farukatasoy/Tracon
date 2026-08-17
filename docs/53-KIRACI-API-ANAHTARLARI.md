@@ -1,7 +1,7 @@
 # Faz 53 — Kiracı Bazlı API Anahtarları ve Kapsamlar
 
 > **Durum:** ✅ Tamamlandı (2026-08-08)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-56**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-56**
 > **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı zemini · [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) — bu fazı **acil** kılan dış yüzey
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (üç sağlayıcı için ayrı)
@@ -607,5 +607,5 @@ grep raw-key /tmp/agentprism-api.log → 0 eşleşme
 2. Kapsam taksonomisinin geri kalan uçlara genişletilmesi (K-360'ın reopen koşulu).
 3. Anahtar başına hız sınırı/bütçe (Açık Soru 1, seçenek B — ayrı aday kalemi).
 
-**Sıradaki faz:** `docs/UCUNCU-FAZ-YOL-HARITASI.md`'de Faz 53 sonrası sıradaki
+**Sıradaki faz:** `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`'de Faz 53 sonrası sıradaki
 kalem — plan dokümanı henüz yazılmadıysa `faz-planlama` skill'i ile başlanır.

@@ -164,7 +164,7 @@ Case'in İzlek A/C'ye taşınması ayrı bir doküman görevi olarak açık kal�
 `MigrationRunner`/`MigrationHostedService` `AgentPrism.Sql.Shared` içinde
 yaşar ama davranışları PostgreSQL diyalektinin (`pg_advisory_lock`, gömülü
 `.sql` dosyaları) üzerinden gözlenir. Kapsam kararı (bkz.
-[`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3): migration üç
+[`PROMPT.md`](../../../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3): migration üç
 yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan şema
 üzerine.
 

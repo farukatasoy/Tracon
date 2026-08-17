@@ -1,7 +1,7 @@
 # Faz 35 — Maliyet ve Kota Metrikleri
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-70**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-70**
 > **Önkoşul:** Yok. Faz 20 (maliyet) ve Faz 21 (kota) hazır veriyi üretiyor
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok

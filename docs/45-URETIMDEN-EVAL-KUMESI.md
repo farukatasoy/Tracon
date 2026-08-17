@@ -1,7 +1,7 @@
 # Faz 45 — Üretimden Değerlendirme Veri Kümesi Toplama
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-53**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-53**
 > **Önkoşul:** [Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md) — puan bazlı terfi `run_scores` tablosunu ister. Durum bazlı terfi Faz 31 olmadan da çalışır ([45.1](#451--faz-31-ne-kadar-önkoşul))
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — `eval_cases`'e üç sütun, üç set (K-178). Gerekçe [45.5](#455--terfi-eden-vakanın-kökeni-izlenir)

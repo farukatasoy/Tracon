@@ -1,7 +1,7 @@
 # Faz 42 — Tek Yürütücü Seçimi (Çok Örnekli Koordinasyon)
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-57**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-57**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Mcp`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — bir tablo, üç set, numaralar uygulama anında alınır (K-178)

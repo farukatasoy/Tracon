@@ -1,11 +1,11 @@
 # KARARLAR — İndeks Arşivi
 
-> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).
+> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](../KARARLAR.md).
 > Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`
 
-En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
+En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (311 kalem)
+## Arşivlenen Kararlar (315 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -320,3 +320,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-309 | 354 | Varsayılan tool modu `ReplayTools`; kayıtlı sonucu olmayan bir çağrı yeniden oynatmayı DURDURUR ve `422` döner |
 | K-310 | 355 | `LiveTools` `Admin` rolü ister ve onay gerektiren bir tool taşıyan agent bu modda çalıştırılamaz (`409`) |
 | K-311 | 356 | Dallanma öğeleri KOPYALAR; işaretçi zinciri reddedildi |
+| K-312 | 357 | `conversations.parent_conversation_id` yabancı anahtar TAŞIMAZ |
+| K-313 | 358 | Konusma dallandırma yalnız SQL sağlayıcısı açıkken çalışır; bellek içi kurulumda uç `501` döner (kullanıcı kararı) 👤 |
+| K-314 | 359 | Kod kaynaklı agent'lar model bindirmesi ve `NoTools`/`ReplayTools` ile oynatılamaz; `400` döner (kullanıcı kararı) 👤 |
+| K-315 | 360 | Yeniden oynatma OTURUMSUZDUR |

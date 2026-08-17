@@ -11,7 +11,7 @@
 > disiplinine girer. Bugün `EnablePublicApiTracking` **`false`**'tur ve yayın
 > yapılana kadar öyle kalır. Yayın geciktikçe ilk `PublicAPI.Shipped.txt` dolumu
 > büyür; her faz dokümanının "Gerçekleşen Public API" bölümü o dolumun
-> kaynağıdır. İkinci faz planı: [IKINCI-FAZ-YOL-HARITASI.md](IKINCI-FAZ-YOL-HARITASI.md).
+> kaynağıdır. İkinci faz planı: [arsiv/IKINCI-FAZ-YOL-HARITASI.md](arsiv/IKINCI-FAZ-YOL-HARITASI.md).
 
 ---
 

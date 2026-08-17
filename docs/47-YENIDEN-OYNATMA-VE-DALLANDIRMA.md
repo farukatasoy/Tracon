@@ -1,7 +1,7 @@
 # Faz 47 — Yeniden Oynatma ve Konuşma Dallandırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-54**, **F-66** (birleşti)
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-54**, **F-66** (birleşti)
 > **Önkoşul:** Yok. [Faz 46](46-DAYANIKLI-CALISTIRMA.md) biterse yeniden oynatma `202` ile kuyruğa alınabilir — zorunlu değildir
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli** — bir tablo + iki sütun, üç set, numaralar uygulama anında alınır (K-178)

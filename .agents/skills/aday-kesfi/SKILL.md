@@ -53,7 +53,7 @@ Bir kalem bu dördünden en az birine dokunmalıdır. Hangisine dokunduğunu yaz
 Fikir üretmeden **önce** neyin bittiğini ve neyin kapatıldığını bil. Bu aşamada
 tek bir fikir yazılmaz.
 
-🚨 **`docs/UCUNCU-FAZ-ADAYLARI.md` baştan sona okunmaz** — 67 KB'dir. Yalnız
+🚨 **`docs/ADAYLAR.md` baştan sona okunmaz** — 67 KB'dir. Yalnız
 aşağıdaki bölümleri oku.
 
 | Ne okunur | Neden |
@@ -62,7 +62,7 @@ aşağıdaki bölümleri oku.
 | Aday dosyası § *Bu Turda Neyin Değiştiği* · § *Önerilen Sıralama* | Bugün masada ne var |
 | Aday dosyası § *Ekosistem Boşluk Tablosu* | En verimli aday damarı. Kalan satırlar stratejik çekirdektir |
 | Aday dosyası § *Bilerek Önerilmeyenler* | Bir daha önerilmeyecek işler |
-| `docs/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar |
+| `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar |
 | `MEMORY.md` + dokunulan alanın `docs/hafiza/` dosyası | Tuzaklar |
 | Son üç fazın § *Sonraki Faza Devir Notu* | **Bilerek bırakılmış iş** — en zengin damar |
 | `docs/manuel-test/00-INDEKS.md` | Gerçek koşumların düşürdüğü notlar |
@@ -167,7 +167,7 @@ Kurallar:
 
 ### 3.3 Yargıla — dört ölçüt, sekiz mercek
 
-Çerçeve `docs/UCUNCU-FAZ-ADAYLARI.md` § *Değerlendirme Ölçütleri* içindedir ve
+Çerçeve `docs/ADAYLAR.md` § *Değerlendirme Ölçütleri* içindedir ve
 burada **tekrarlanmaz**; iki yerde tutmak kayma üretir. Oradan oku, kaleme
 uygula.
 
@@ -205,7 +205,7 @@ güçlü gerekçe.
 ### 3.6 Reddedilmiş işi yeniden önerme
 
 ```bash
-grep -n "<konu>" docs/KARARLAR-INDEKS-REDDEDILEN.md docs/KARARLAR-INDEKS.md
+grep -n "<konu>" docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md docs/KARARLAR-INDEKS.md
 grep -n "K-0NN" docs/KARARLAR.md      # bulduğun kalemin tam gerekçesi
 ```
 
@@ -221,7 +221,7 @@ yaz. Kararın "yeniden açılma koşulu" varsa gerçekleşip gerçekleşmediğin
 | Çıktı | Yer | Ne taşır |
 |---|---|---|
 | Keşif notu | `docs/kesif/YYYY-AA-GG-<konu>.md` | Turun tamamı: ham liste, eleme, kanıtlar, ekosistem taraması, üç kanal, reddedilenler ve gerekçeleri |
-| Onaylanan aday | `docs/UCUNCU-FAZ-ADAYLARI.md` | Kalemin **tam bölümü** |
+| Onaylanan aday | `docs/ADAYLAR.md` | Kalemin **tam bölümü** |
 
 🚨 Kalem iki yerde tam yazılmaz. Onaylanan kalemin ayrıntısı aday dosyasına
 gider; keşif notu ondan yalnız tek satır tutar ve oraya işaret eder. Böylece

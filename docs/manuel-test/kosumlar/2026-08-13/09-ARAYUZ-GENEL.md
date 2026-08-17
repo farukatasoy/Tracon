@@ -787,7 +787,7 @@ gösteriyor — çağrılmış/çağrılmamış iki durum da doğru davranıyor.
 
 # 8 — Tarayıcı uyumluluğu (kısa kontrol)
 
-[`00-INDEKS.md`](00-INDEKS.md) §environment: "Safari kısa, dar ekran kısa" —
+[`00-INDEKS.md`](../../00-INDEKS.md) §environment: "Safari kısa, dar ekran kısa" —
 bu bölüm derinlemesine değil, kırıcı bir sorun var mı diye kısa bir taramadır.
 
 ---

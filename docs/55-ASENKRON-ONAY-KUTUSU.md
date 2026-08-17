@@ -1,7 +1,7 @@
 # Faz 55 — Asenkron Onay Kutusu
 
 > **Durum:** ✅ Tamamlandı (2026-08-09)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-69**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-69**
 > **Önkoşul:** [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — bu kalemi kolaylıktan **eksiğe** çeviren faz · [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — `pending_approvals` tablosu, numara uygulama anında alınır
@@ -329,7 +329,7 @@ curl -s http://localhost:5080/agentprism/api/runs/$RUN_ID | jq '.status'
 5. **Arayüz bundle payı ölçüldü, tahmin edilmedi.** Toplam JS payı **162,6 KB
    gzip / 250 KB bütçe** (87,4 KB kalan) — plan bölümündeki "tahminî 3–5 KB"
    yalnız bu ekranın payı değil, o an ölçülmemiş toplam paydı; gerçek toplam
-   `docs/UCUNCU-FAZ-YOL-HARITASI.md`'deki Faz 53 öncesi ölçümle (151,3 KB)
+   `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`'deki Faz 53 öncesi ölçümle (151,3 KB)
    karşılaştırılabilir bir sonraki fazda güncellenmelidir.
 
 ## Bu Fazda Verilen Kararlar
@@ -501,6 +501,6 @@ tests/Shared/Contracts/TenantCoverageTests.cs
 - **F-87 (kayıtlarda redaksiyon) ile örtüşme var.** `PendingApproval.Arguments`
   bugün yalnız `RunReconciliationOptions`/`AgentPrismRunRecordingOptions.RecordToolPayloads`
   ayarına uyuyor; F-87 karara bağlanırsa bu alan da onun kapsamına girmeli.
-- **Bir sonraki faz henüz seçilmedi** — `docs/UCUNCU-FAZ-ADAYLARI.md`'den
+- **Bir sonraki faz henüz seçilmedi** — `docs/ADAYLAR.md`'den
   seçim yapılacaksa `faz-planlama` skill'i uygulanır; bu doküman kendi
   başına yeterlidir, ek okuma gerektirmez.

@@ -32,9 +32,10 @@ aday-kesfi  →  aday listesi (F-NN)
 faz-planlama  →  docs/NN-*.md  →  faz-baslangic  →  faz-uygulama  →  faz-denetim  →  faz-tamamlama
                                                           ↑                                  │
                                        maf-api-kesfi (MAF tipi kullanmadan önce)              ▼
-                                                                                 docs-site + manuel-test
+                                                                            docs-site + fazın kendi case'leri
 
-kusur-giderme — zincirin dışındadır, bir kusur bulunduğunda her an koşar
+kusur-giderme       — zincirin dışındadır, bir kusur bulunduğunda her an koşar
+manuel-test-kosumu  — zincirin dışındadır, sürüm öncesi tam set koşumunu yürütür
 ```
 
 | Skill | Ne zaman |
@@ -47,3 +48,4 @@ kusur-giderme — zincirin dışındadır, bir kusur bulunduğunda her an koşar
 | `faz-tamamlama` | Kapanışta — kapılar, manuel case, site, doküman |
 | `maf-api-kesfi` | Bir MAF tipini ilk kez kullanmadan önce |
 | `kusur-giderme` | Bir kusur bulunduğunda — her an |
+| `manuel-test-kosumu` | `docs/manuel-test/` setinin **tamamı** koşulurken ve kusurları kapatılırken |

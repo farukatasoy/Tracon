@@ -1,7 +1,7 @@
 # Faz 48 — Guardrails ve İçerik Güvenliği Genişleme Noktası
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-32**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-32**
 > **Önkoşul:** Yok. Faz 8'in model boru hattı ve Faz 26'nın `ContentFilterDetectingChatClient`'ı **kullanılır**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`
 > **Yeni paket:** Yok — Azure adaptörü bilerek kapsam dışıdır ([48.6](#486--azure-ai-content-safety-bu-fazda-yok)) · **Migration:** Yok
@@ -1215,7 +1215,7 @@ data: {"type":"AgentPrismContentBlockedException","message":"Icerik 'pattern' gu
 
 ### Yeni aday kalemler (bu fazın kapsam dışına çıkardıkları)
 
-ID'ler `UCUNCU-FAZ-ADAYLARI.md` içinde **F-87'den** devam eder.
+ID'ler `ADAYLAR.md` içinde **F-87'den** devam eder.
 
 | Kapsam dışı iş | Neden ayrı bir kalem |
 |---|---|

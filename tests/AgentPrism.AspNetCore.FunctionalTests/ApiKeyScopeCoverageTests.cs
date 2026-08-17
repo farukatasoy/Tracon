@@ -19,7 +19,7 @@ public sealed class ApiKeyScopeCoverageTests
 {
     /// <summary>
     /// Endpoints that PASS bearer token validation but do NOT carry an
-    /// <c>ApiKeyScopeRequirement</c> (docs/manuel-test/KAPANIS-PLANI.md §7.2 +
+    /// <c>ApiKeyScopeRequirement</c> (docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md §7.2 +
     /// Family F note). Each one is justified; adding to the list is a
     /// deliberate decision. These ALWAYS map in the default test host (the UI
     /// shell and the voice endpoint never connect at all when the UI provider

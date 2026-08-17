@@ -1,7 +1,7 @@
 # Faz 39 — `AgentPrism.Testing` Paketi
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-46**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-46**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Testing` (**yeni**), `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`
 > **Yeni paket:** **`AgentPrism.Testing`** — K-007 gerekçesi [39.1](#391--k-007-gerekçesi-neden-ayrı-bir-paket) · **Migration:** Yok
@@ -729,6 +729,6 @@ tests/AgentPrism.Ui.E2ETests/UiTests.cs                                (4 sabit 
   AgentPrism.slnx` DoD kontrolü paket SAYISINI doğrular ama `.slnf`'in
   güncel olduğunu doğrulamaz (otomatik bir denetim yok).
 
-**Sıradaki faz:** `docs/UCUNCU-FAZ-YOL-HARITASI.md`'deki sıraya göre seçilir —
+**Sıradaki faz:** `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`'deki sıraya göre seçilir —
 Faz 39 dördüncü öncelikli yeni-pakete-genişleme fazıydı; kalan adaylar
-`docs/UCUNCU-FAZ-ADAYLARI.md`'dedir.
+`docs/ADAYLAR.md`'dedir.

@@ -1,7 +1,7 @@
 # Faz 32 — Çalıştırma İptali
 
 > **Durum:** ✅ Tamamlandı (2026-08-06)
-> **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-35**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-35**
 > **Önkoşul:** Yok. **Kapsam bilerek tek örnekle sınırlıdır** — gerekçe aşağıda
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok

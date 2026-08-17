@@ -540,5 +540,5 @@ ve `ApprovalWorkflow.cs`/`UiHost.cs`/`UiTests.cs` (workflow adı tutarlılığı
   zaman aşımına uğrayabilir (izole çalıştırıldığında hep geçer) — Playwright'ın
   paralel tarayıcı yükü altında bilinen bir kararsızlıktır, fazdan bağımsızdır.
 
-**Sıradaki faz:** `docs/UCUNCU-FAZ-YOL-HARITASI.md`'ye ve README'nin yol
+**Sıradaki faz:** `docs/arsiv/UCUNCU-FAZ-YOL-HARITASI.md`'ye ve README'nin yol
 haritası tablosuna bakın (**Faz 58 — Doküman Düzeni**).
