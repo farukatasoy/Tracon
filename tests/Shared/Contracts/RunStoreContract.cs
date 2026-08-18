@@ -196,6 +196,44 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Completion_overrides_the_model_id_when_a_fallback_answered()
+    {
+        // Phase 62, F-44: runs.model_id is written at start from the PRIMARY
+        // binding, before it is known whether a ModelBinding.Fallbacks link
+        // will answer instead; CompleteRunAsync corrects it so
+        // GetStatisticsAsync's ByModel breakdown groups by the model that
+        // really ran.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "primary-model" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            ModelId = "fallback-model",
+        });
+
+        (await Store.GetRunAsync(runId))!.ModelId.ShouldBe("fallback-model");
+    }
+
+    [Fact]
+    public async Task Completion_leaves_the_model_id_unchanged_when_no_override_is_given()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "primary-model" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        (await Store.GetRunAsync(runId))!.ModelId.ShouldBe("primary-model");
+    }
+
+    [Fact]
     public async Task Completion_stores_error_class_and_fingerprint()
     {
         var runId = AgentPrismId.NewId();

@@ -75,6 +75,12 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+
+    <!-- Phase 62, F-59 open question 1: explicit reference for pre-flight token counting. -->
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase" />
+    <!-- CVE zorlamasi (Directory.Packages.props, "Ic ucus token sayimi" grubu). -->
+    <PackageReference Include="Microsoft.Bcl.Memory" />
   </ItemGroup>
 
 </Project>

@@ -193,9 +193,29 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
-    public void ContextWindow_without_a_max_window_stops_compilation()
+    public void ContextWindow_without_a_max_window_derives_it_from_the_model_catalog()
     {
+        // FakeModelProvider's default catalog entry carries ContextWindowTokens
+        // = 8_192 (phase 62, F-59): compilation must succeed and use that value
+        // instead of failing, now that CompactionSettings.MaxContextWindowTokens
+        // is optional when the model catalog has an answer.
         var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.ContextWindow },
+        };
+
+        Should.NotThrow(() => compiler.Compile(definition));
+    }
+
+    [Fact]
+    public void ContextWindow_without_a_max_window_or_a_catalog_entry_stops_compilation()
+    {
+        // Neither source has an answer: the model catalog entry carries no
+        // ContextWindowTokens either, so derivation has nothing to derive from.
+        var provider = new FakeModelProvider(models: [new ModelDescriptor { Name = "fake-model" }]);
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(provider), TestData.Registry());
 
         var definition = TestData.Definition() with
         {

@@ -37,6 +37,9 @@ A useful production baseline is:
       "MaxDepth": 3,
       "MaxTotalTokens": 200000,
       "MaxTotalRuns": 25
+    },
+    "ModelConcurrency": {
+      "MaxConcurrentCallsPerProvider": null
     }
   }
 }
@@ -67,6 +70,66 @@ a successful probe closes the circuit.
 The breaker fails fast. It does not replay a complete direct run, and it does not
 roll back tool calls that already succeeded. Decide retry policy at the HTTP client,
 job, or business-operation boundary where idempotency is known.
+
+## Fall back to a secondary provider
+
+`ModelBinding.Fallbacks` is an ordered list of `{ provider, model }` links tried
+after the primary binding, without changing today's behavior when the list is
+empty:
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-5.4-mini",
+  "fallbacks": [
+    { "provider": "anthropic", "model": "claude-opus-5" },
+    { "provider": "google", "model": "gemini-3.6-flash" }
+  ]
+}
+```
+
+A fallback link carries only a provider and a model name — none of the primary
+binding's temperature, `maxOutputTokens`, or `providerSettings` carry over. Give
+the fallback model its own settings through a separate agent if it needs them.
+
+The chain tries the next link only for a transient failure: the local circuit
+already open, a `5xx`/`429` response, or a bare connection error. It never falls
+back on an authentication error (`401`/`403`) or a canceled request — masking a
+misconfigured key behind a silent provider switch costs more than the switch
+saves. A provider's own content/safety filter is not a fallback trigger either;
+that decision is made once, after whichever link actually answered.
+
+A fallback switch is never silent. The run record gets a `ModelFallbackUsed`
+event naming the primary and fallback bindings, and cost and the `runs.model_id`
+column both reflect the model that actually answered — not the primary
+binding. `RunStatistics.ByModel` groups by the real model too.
+
+If every link in the chain fails, the error surfaces the **first** failure, not
+the last one — the root cause across a chain of transient errors is more useful
+than whichever link happened to fail last — and its message names every
+provider that was tried.
+
+Because the fallback client wraps the whole tool-call loop, switching providers
+mid-turn restarts that turn from scratch on the fallback provider. A half-finished
+tool conversation cannot be resumed by a different model.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `ModelBinding.Fallbacks` | `[]` | Empty preserves today's behavior: an unavailable primary throws |
+
+## Limit outgoing concurrency per provider
+
+`ModelConcurrency.MaxConcurrentCallsPerProvider` bounds how many calls to one
+provider can be in flight at once, across every agent that binds to it. The goal
+is to avoid producing the burst of `429` responses that would eventually open
+the circuit breaker in the first place. A call over the limit **waits** for a
+slot — bounded by its own cancellation token — instead of being rejected; an
+immediate rejection would turn a short traffic spike into exactly the failure
+this setting exists to prevent.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `ModelConcurrency.MaxConcurrentCallsPerProvider` | `null` (unlimited) | `null` matches today's behavior; the hot path allocates nothing extra |
 
 ## Make supported HTTP submissions idempotent
 
@@ -198,6 +261,8 @@ budgets for externally exposed MCP and A2A agents.
 | Failure | AgentPrism response | Your responsibility |
 |---|---|---|
 | Consecutive provider errors | Open the local provider circuit and fail fast | Choose whether the whole business operation is safe to retry |
+| Primary provider unavailable, transiently | Try the next `ModelBinding.Fallbacks` link and record which one answered | Configure a fallback chain for agents where availability matters more than a fixed model |
+| Provider approaching its own rate limit | Queue outgoing calls at `ModelConcurrency.MaxConcurrentCallsPerProvider` instead of bursting | Set a limit sized to the provider's own quota, if bursts are a recurring problem |
 | Duplicate supported HTTP request | Replay the completed 2xx response or reject conflict | Keep key and serialized request stable |
 | Process dies during a direct run | Reconcile a stale `Running` record when enabled | Make external tool effects idempotent |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
@@ -217,6 +282,8 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | Symptom | Check |
 |---|---|
 | Every call fails fast with provider unavailable | Inspect the provider circuit and `RetryAfter`; fix upstream health before adding retries |
+| A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
+| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a `401`/`403` or a canceled request never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
