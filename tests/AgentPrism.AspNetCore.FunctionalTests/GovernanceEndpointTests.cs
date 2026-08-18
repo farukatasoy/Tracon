@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -382,6 +383,116 @@ public sealed class GovernanceEndpointTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task Conditioned_approval_rule_is_created_and_read_back()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            ApprovalRulesUri,
+            new ToolApprovalRuleRequest
+            {
+                ToolName = "refund_order",
+                ArgumentConditions =
+                [
+                    new ToolArgumentCondition
+                    {
+                        Path = "amount",
+                        Operator = ToolArgumentOperator.LessThanOrEqual,
+                        Value = JsonSerializer.SerializeToElement(100),
+                    },
+                ],
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var created = await AgentPrismTestHost.ReadJsonAsync(response);
+        created.GetProperty("toolName").GetString().ShouldBe("refund_order");
+
+        // Read the RAW JSON text, not the deserialized C# object: a missing
+        // [JsonConverter(typeof(JsonStringEnumConverter<...>))] on
+        // ToolArgumentOperator would round-trip fine through matching C# types
+        // on both ends and only show up as a wire-level number (K-040's
+        // recurring trap, docs/hafiza/aspnetcore-json.md).
+        created.GetProperty("argumentConditions")[0].GetProperty("operator").GetString()
+            .ShouldBe("LessThanOrEqual");
+
+        var rules = await host.Client.GetFromJsonAsync<List<ToolApprovalRule>>(ApprovalRulesUri);
+
+        var rule = rules.ShouldNotBeNull().ShouldHaveSingleItem();
+        var condition = rule.ArgumentConditions.ShouldHaveSingleItem();
+        condition.Path.ShouldBe("amount");
+        condition.Operator.ShouldBe(ToolArgumentOperator.LessThanOrEqual);
+        condition.Value.GetDouble().ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task Same_scope_and_conditions_written_twice_is_a_conflict()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var request = new ToolApprovalRuleRequest
+        {
+            ToolName = "refund_order",
+            ArgumentConditions =
+            [
+                new ToolArgumentCondition
+                {
+                    Path = "amount",
+                    Operator = ToolArgumentOperator.LessThanOrEqual,
+                    Value = JsonSerializer.SerializeToElement(100),
+                },
+            ],
+        };
+
+        using var first = await host.Client.PostAsJsonAsync(ApprovalRulesUri, request);
+        first.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var second = await host.Client.PostAsJsonAsync(ApprovalRulesUri, request);
+        second.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Numeric_operator_on_a_text_value_is_rejected()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            ApprovalRulesUri,
+            new ToolApprovalRuleRequest
+            {
+                ToolName = "refund_order",
+                ArgumentConditions =
+                [
+                    new ToolArgumentCondition
+                    {
+                        Path = "tier",
+                        Operator = ToolArgumentOperator.GreaterThan,
+                        Value = JsonSerializer.SerializeToElement("gold"),
+                    },
+                ],
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Reader_role_cannot_create_an_approval_rule()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => false)));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            ApprovalRulesUri,
+            new ToolApprovalRuleRequest { ToolName = "refund_order" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    private static readonly Uri ApprovalRulesUri = new("/agentprism/api/approvals/rules", UriKind.Relative);
 
     [Fact]
     public async Task Empty_run_request_is_rejected()

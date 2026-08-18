@@ -987,8 +987,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Tool approval rules ---
 
+        // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
+        // reads argument_conditions by fixed ordinal 7.
         const string approvalColumns = """
-            id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
+            id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
             """;
 
         SelectToolApprovalRules = $"""
@@ -1001,11 +1003,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // A second rule for the same scope is not opened; the existing record
         // is returned. The constraint is an expression index with COALESCE:
         // like PostgreSQL, SQLite does NOT count NULLs as equal to each
-        // other.
+        // other. conditions_hash (Phase 63) joined the key so a data-rule
+        // condition set is bound by the same rule as arguments_hash.
         InsertToolApprovalRule = $"""
-            INSERT INTO {Schema}tool_approval_rules ({approvalColumns})
-            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at)
-            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''))
+            INSERT INTO {Schema}tool_approval_rules ({approvalColumns}, conditions_hash)
+            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at, @argument_conditions, @conditions_hash)
+            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''), COALESCE(conditions_hash, ''))
                 DO UPDATE SET tool_name = {Schema}tool_approval_rules.tool_name
             RETURNING {approvalColumns};
             """;

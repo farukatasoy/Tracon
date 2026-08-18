@@ -918,8 +918,11 @@ olan bir **arayüze metot** ekliyor: [Faz 36](36-SAKLAMA-HACIM-SINIRI.md)
 (`IRetentionStore`), [Faz 45](45-URETIMDEN-EVAL-KUMESI.md) (`IEvalStore`) ve
 [Faz 52](52-KAYNAK-URETECI.md) (`IAgentPrismBuilder`).
 
-🚨 **Bu listede kalan en pahalı kalem F-61'dir**: `ToolApprovalRule` public bir
-`record`'tur ve alan eklemek ek kurucu ister. Faz 7'den önce yapmak bedavadır.
+~~🚨 **Bu listede kalan en pahalı kalem F-61'dir**: `ToolApprovalRule` public bir
+`record`'tur ve alan eklemek ek kurucu ister.~~ **Kapandı (2026-08-18, Faz 63):**
+iddia ölçülüp **yanlış** çıktı — `ToolApprovalRule` konumsal değil, `required init`
+özellikleri kullanıyor; `ArgumentConditions` alanı ek kurucu istemeden eklendi
+(bkz. Faz 63 kanıt tablosu).
 
 🚨 **Faz 67 bu tablodaki tek "sonradan imkânsız" kalemdir.** Diğerlerinin hepsi
 yayından sonra *pahalı* olur; Faz 67 **yapılamaz** hâle gelir, çünkü uygulanmış

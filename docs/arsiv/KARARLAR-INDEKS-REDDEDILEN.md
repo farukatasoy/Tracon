@@ -10,7 +10,7 @@ Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 ```
 
-## Reddedilen İşler (24 kalem)
+## Reddedilen İşler (25 kalem)
 
 | KARARLAR.md satırı | Karar |
 |---|---|
@@ -38,3 +38,4 @@ sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 | L36 | `run_events` gerçekten partition'lanmadı |
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
+| L39 | `MigrationRunner`'a deadlock (SQL Server hata 1205) için yeniden deneme eklenmedi (Faz 63) |

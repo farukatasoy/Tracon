@@ -16,6 +16,11 @@ namespace AgentPrism;
 /// approve" forms: <c>CreateAlwaysApproveToolResponse</c> and
 /// <c>CreateAlwaysApproveToolWithArgumentsResponse</c>.
 /// </para>
+/// <para>
+/// <see cref="ArgumentConditions"/> is a third, admin-authored form: instead of an exact
+/// argument fingerprint it carries a set of comparisons (for example "amount &lt;= 100")
+/// evaluated on every call. It is mutually exclusive with <see cref="ArgumentsHash"/>.
+/// </para>
 /// </remarks>
 public sealed record ToolApprovalRule
 {
@@ -39,6 +44,13 @@ public sealed record ToolApprovalRule
     /// made with the same arguments.
     /// </summary>
     public string? ArgumentsHash { get; init; }
+
+    /// <summary>
+    /// Gets the argument conditions. All conditions must match for the rule to apply
+    /// (<c>AND</c>); an empty list matches every call of the tool. Mutually exclusive
+    /// with <see cref="ArgumentsHash"/> — a rule carries one or the other, never both.
+    /// </summary>
+    public IReadOnlyList<ToolArgumentCondition> ArgumentConditions { get; init; } = [];
 
     /// <summary>Gets who created the rule, or <see langword="null"/> when there is no authentication.</summary>
     public string? CreatedBy { get; init; }
