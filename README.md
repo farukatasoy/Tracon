@@ -239,6 +239,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | ✅ Bitti |
 | 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK ve egress, gelen tetikleyiciler | 📋 Planlandı |
 | 8 | 67–72 | `pgvector` opt-in, çalıştırma kimliği ve token kırılımı, tool yetkilendirmesi ve timeout, olay hedefi, workflow kod düğümü, çok dilli talimat | 📋 Planlandı |
+| 9 | 73 | Tüketici agent desteği: derleme anı tanıları, üretilen yetenek haritası, kapsam kapısı | 📋 Planlandı |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek
 listeler ve fazların kendi dokümanlarından **üretilir**, elle yazılmaz. Dalgaların

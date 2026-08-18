@@ -220,6 +220,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             provider.GetService<TimeProvider>()));
 
+        // Per-provider outgoing concurrency limit (phase 62, F-44). Same
+        // registration rationale as the circuit breaker: registered BEFORE
+        // IModelProviderRegistry so its constructor can resolve it.
+        services.TryAddSingleton(static provider => new ProviderConcurrencyLimiter(
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>()));
+
         // Content moderation pipeline (Phase 48). Always registered, but when
         // HasGuards is false, the registry never adds the moderation wrapper.
         // Explicit factory: registration order does not matter, IContentGuard
@@ -242,7 +248,14 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<IAttachmentStore>(),
             provider.GetService<ITenantContext>(),
             provider.GetService<ContentGuardPipeline>(),
-            provider.GetService<ILoggerFactory>()));
+            provider.GetService<ILoggerFactory>(),
+            provider.GetService<ProviderConcurrencyLimiter>()));
+
+        // Pre-flight context-window estimator (phase 62, F-59). Registered
+        // unconditionally: POST /api/agents/{name}/estimate works regardless
+        // of AgentPrismPreflightOptions.Enabled — that flag only gates the
+        // inline check on the run endpoint, not the diagnostic endpoint.
+        services.TryAddSingleton<ContextWindowEstimator>();
 
         // Cost resolver (Phase 20): model catalog, then AgentPrism:Pricing.
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
@@ -826,6 +839,49 @@ public static class AgentPrismServiceCollectionExtensions
         BindPricing(section.GetSection(nameof(AgentPrismOptions.Pricing)), options.Pricing);
         options.UtilityModel = BindUtilityModel(section.GetSection(nameof(AgentPrismOptions.UtilityModel)));
         BindValidation(section.GetSection(nameof(AgentPrismOptions.Validation)), options.Validation);
+        BindPreflight(section.GetSection(nameof(AgentPrismOptions.Preflight)), options.Preflight);
+        BindModelConcurrency(section.GetSection(nameof(AgentPrismOptions.ModelConcurrency)), options.ModelConcurrency);
+    }
+
+    /// <summary>Binds the <c>AgentPrism:Preflight</c> section (phase 62, F-59).</summary>
+    private static void BindPreflight(IConfigurationSection section, AgentPrismPreflightOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismPreflightOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (double.TryParse(
+                section[nameof(AgentPrismPreflightOptions.ReserveRatio)],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var reserveRatio))
+        {
+            options.ReserveRatio = reserveRatio;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:ModelConcurrency</c> section (phase 62, F-44).</summary>
+    private static void BindModelConcurrency(IConfigurationSection section, AgentPrismModelConcurrencyOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismModelConcurrencyOptions.MaxConcurrentCallsPerProvider)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxConcurrentCallsPerProvider))
+        {
+            options.MaxConcurrentCallsPerProvider = maxConcurrentCallsPerProvider;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:Validation</c> section (K-253).</summary>

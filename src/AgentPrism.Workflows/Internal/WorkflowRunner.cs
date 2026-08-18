@@ -974,7 +974,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         // A workflow row has no model of its own (phase 20): only the agent
         // runs beneath it carry cost, which shows up in the tree total.
-        await writer.CompleteAsync(status, usage: null, error, cost: null, CancellationToken.None).ConfigureAwait(false);
+        await writer.CompleteAsync(status, usage: null, error, cost: null, modelId: null, CancellationToken.None).ConfigureAwait(false);
 
         await RecordQuotaAsync(execution, scope, CancellationToken.None).ConfigureAwait(false);
 

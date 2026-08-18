@@ -384,6 +384,44 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Fallback_list_is_saved_and_read_back()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+
+        await session.Page.GetByTestId("agent-name").FillAsync("fallback-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await session.Page.GetByTestId("add-fallback").ClickAsync();
+        await session.Page.GetByTestId("fallback-provider-0").SelectOptionAsync(ScriptedModels.ProviderName);
+        await session.Page.GetByTestId("fallback-model-0").FillAsync(ScriptedModels.Support);
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+
+        (await session.Page.GetByTestId("fallback-provider-0").InputValueAsync()).ShouldBe(ScriptedModels.ProviderName);
+        (await session.Page.GetByTestId("fallback-model-0").InputValueAsync()).ShouldBe(ScriptedModels.Support);
+
+        // Removing the only row returns to the empty-list hint, and a save
+        // round trip persists the now-empty list (K1: no lingering fallback).
+        await session.Page.GetByTestId("remove-fallback-0").ClickAsync();
+        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Context_panel_reflects_selected_strategy_in_request_preview()
     {
         await using var host = await UiHost.StartAsync();

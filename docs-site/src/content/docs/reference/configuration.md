@@ -141,6 +141,21 @@ The attachment guard checks file signatures. It does not trust the client's
 The on-demand model-health endpoint can still refresh a provider while background
 polling is off.
 
+### Model fallback and outgoing concurrency
+
+| Key | Default |
+|---|---:|
+| `Preflight:Enabled` | `false` |
+| `Preflight:ReserveRatio` | `0.2` |
+| `ModelConcurrency:MaxConcurrentCallsPerProvider` | `null`, unlimited |
+
+`Preflight` governs the inline pre-flight check on `POST /api/agents/{name}/run`;
+`POST /api/agents/{name}/estimate` reports the same numbers regardless of this
+flag. `ModelBinding.Fallbacks` (the fallback chain itself) is per-agent, defined
+on the model binding, not a global setting. See
+[Reliable runs](/AgentPrism/guides/reliability/) and
+[Model providers](/AgentPrism/guides/model-providers/).
+
 ### Observability
 
 | Key | Default |

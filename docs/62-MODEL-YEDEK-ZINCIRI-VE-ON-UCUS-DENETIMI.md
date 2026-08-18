@@ -1,6 +1,6 @@
 # Faz 62 — Model Yedek Zinciri ve Ön Uçuş Denetimi
 
-> **Durum:** 📋 Planlandı (2026-08-18)
+> **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-44**, **F-59**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
@@ -344,21 +344,21 @@ sağlayıcısı üzerinde koşar.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `Fallbacks` boşken bugünkü hata yolu **birebir** korunur (test kanıtlar)
-- [ ] Devre açıkken yedek devreye girer; `run` kaydı ve `RunStatistics.ByModel` **gerçekten çalışan** modeli gösterir
-- [ ] Kimlik doğrulama hatası, içerik filtresi ve iptal yedeği **tetiklemez**
-- [ ] Zincir tükendiğinde hata mesajı denenen sağlayıcıları sayar
-- [ ] Eşzamanlılık sınırı `null` iken sıcak yolda ek tahsis **yoktur**
-- [ ] `MaxContextWindowTokens` boşken değer `ModelDescriptor`'dan türetilir; ikisi de boşsa hata iki yolu da söyler
-- [ ] Ön uçuş **kapalı** varsayılandır; açıkken aşan istem model çağrısı **yapılmadan** `400` döner
-- [ ] `POST /api/agents/{name}/estimate` sağlayıcıya istek **göndermeden** sayı döner
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/model-providers.md`, `guides/reliability.md`, `reference/configuration.md`); `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] `Fallbacks` boşken bugünkü hata yolu **birebir** korunur (test kanıtlar) — `FallbackChatClientTests.Empty_fallbacks_preserves_todays_error_path`
+- [x] Devre açıkken yedek devreye girer; `run` kaydı ve `RunStatistics.ByModel` **gerçekten çalışan** modeli gösterir — `FallbackRecordingTests` (üç test), dört depo sözleşme testinde de doğrulandı
+- [x] Kimlik doğrulama hatası, içerik filtresi ve iptal yedeği **tetiklemez** — `Authentication_errors_are_not_retried`, `Content_filter_does_not_trigger_a_fallback_attempt`, `Canceled_calls_are_not_retried`; sarmalanmış biçimleri de (`An_authentication_failure_wrapped_the_same_way_still_does_not_retry`)
+- [x] Zincir tükendiğinde hata mesajı denenen sağlayıcıları sayar — `Exhausted_chain_throws_the_first_failure_not_the_last`
+- [x] Eşzamanlılık sınırı `null` iken sıcak yolda ek tahsis **yoktur** — `Unlimited_by_default_never_waits`; tasarım gereği hiç sarmalayıcı eklenmiyor
+- [x] `MaxContextWindowTokens` boşken değer `ModelDescriptor`'dan türetilir; ikisi de boşsa hata iki yolu da söyler — iki yeni `AgentDefinitionCompilerTests`
+- [x] Ön uçuş **kapalı** varsayılandır; açıkken aşan istem model çağrısı **yapılmadan** `400` döner — `PreflightEndpointTests` (gerçek HTTP host üzerinden)
+- [x] `POST /api/agents/{name}/estimate` sağlayıcıya istek **göndermeden** sayı döner — `PreflightEndpointTests`, `ContextWindowEstimatorTests`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format` tüm çözüm genelinde yeşil (bu turda birden fazla kez koşuldu)
+- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **YAPILAMADI**, bu ortamda gerçek sağlayıcı kimlik bilgisi yok (bkz. Plandan Sapmalar #7). Yerine: gerçek OpenAI SDK'sına karşı canlı bir bağlantı-hatası testi koşuldu (bkz. Denetim Bulguları #1) ve dört gerçek SQL/HTTP entegrasyon paketi (Postgres/Sqlite/SqlServer/AspNetCore.FunctionalTests) baştan sona koşuldu.
+- [x] `secret` taraması boş döndü
+- [x] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi (9 case); otomatikleştirilebilen KISMI (gerçek kimlik bilgisi gerektirmeyenler) otomatik testlerle zaten kapsanıyor — dosyanın kendisi gerçek kimlik bilgisiyle **henüz koşulmadı** (§7 `⬜`)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu **kapandı** (K-450)
+- [x] `docs-site/` güncellendi (`guides/model-providers.md`, `guides/reliability.md`, `reference/configuration.md`); `npm run build` + `check-links.mjs` temiz — 901 sayfa, 111.200 iç referans, sıfır kırık
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 166,2 KB gzip / 250 KB (Faz 61 taban: 165,4 KB; +0,8 KB)
 
 ### Doğrulama komutları
 
@@ -397,28 +397,277 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **Ön uçuş/`estimate` sayımı yalnız YENİ kullanıcı mesajını sayar, oturum
+   geçmişini DEĞİL.** Plan "istem token sayısı" diyordu ama tam konuşma
+   geçmişini (`ChatHistoryProvider` üzerinden) okumak preflight'ı "ucuz,
+   risksiz" olmaktan çıkarırdı — F-59'un kendi Amaç bölümü türetimi model
+   üstverisinden, sayımı ise yalnız "yaklaşık" bir kestirim olarak
+   çerçeveliyordu. `ContextWindowEstimator.Estimate` yalnız
+   `AgentRunRequest.Message` metnini sayar. Uzun bir oturumda geçmişin kendisi
+   pencereyi doldurmuşsa bu KAÇAR — bilinçli bir kapsam sınırıdır.
+2. **Tokenizer sabit bir referans kodlama kullanır (`o200k_base`/`gpt-4o`),
+   bağlanan sağlayıcıdan BAĞIMSIZ.** Açık Soru 1 seçenek A'yı seçti ama
+   "hangi model için hangi tokenizer" sorusunu açık bıraktı. Anthropic/Google
+   çevrimdışı bir tokenizer paketi yayınlamadığı için AgentPrism TEK bir sabit
+   kodlamayla her sağlayıcıyı yaklaşık sayar — K-448.
+3. **`Microsoft.Bcl.Memory` CVE zorlaması plan dışıydı.** Tokenizer veri
+   paketi (`Microsoft.ML.Tokenizers.Data.O200kBase`) ölçülene kadar
+   bilinmeyen bir NU1903 (yüksek önem) getirdi ve `dotnet restore`'u kırdı;
+   K-007 deseniyle sabitlendi — K-448.
+4. **`RunCompletion.ModelId` alanı ve `RunEventWriter.CompleteAsync`'in imza
+   değişikliği plandaki "Planlanan Public API" listesinde YOKTU.** DoD'nin
+   "`RunStatistics.ByModel` gerçekten çalışan modeli gösterir" satırı bunu
+   ZORUNLU kıldı: `runs.model_id` yalnız `RunStarted`'da (birincil modelle)
+   yazılıyordu, tamamlanmada güncellenecek bir yol yoktu. Dört depo
+   uygulamasının (InMemory/Postgres/Sqlite/SqlServer) DÖRDÜ de dokunuldu.
+5. **`ModelProviderRegistry` yeni bir `concurrencyLimiter` kurucu parametresi
+   aldı** — plan taslağında yoktu, F-44'ün eşzamanlılık sınırının boru
+   hattına girmesinin doğal sonucu.
+6. **Agent düzenleyicisine "tahmin rozeti" (estimate badge) EKLENMEDİ.**
+   Plan "model bölümüne kestirim rozeti eklenir" diyordu. Backend (`/estimate`
+   ucu, `ContextWindowEstimator`) TAM çalışır durumda ve UI'dan `curl` ile
+   kullanılabilir; canlı-güncellenen bir arayüz rozeti (debounce, yükleniyor/
+   hata durumları) ayrı bir iş parçası olarak KAPSAM DIŞI bırakıldı — zaman
+   bütçesi kararı. Yedek listesi editörü (add/remove, provider/model alanları,
+   E2E ile kanıtlanmış kayıt/geri-okuma) TAM uygulandı.
+7. **DoD'nin "`samples/AgentPrism.Api` ile gerçek `run` yapıldı" satırı
+   TAMAMLANAMADI.** Bu ortamda gerçek OpenAI/Anthropic kimlik bilgisi yok;
+   davranış bunun yerine gerçek bir Postgres/Sqlite/SqlServer konteynerine
+   karşı koşan sözleşme testleriyle VE `FallbackChatClientTests`/
+   `FallbackRecordingTests`'in uçtan uca (gerçek `ModelProviderRegistry` +
+   `RunRecordingAgent` boru hattı, yalnız ağ çağrısı sahte) testleriyle
+   kanıtlandı. Manuel kabul dosyası (`27-MODEL-YEDEK-VE-ON-UCUS.md`) gerçek
+   kimlik bilgisiyle koşulmayı bekliyor — §7 "Koşum" sütununda `⬜`.
+8. **`AgentDefinitionCompiler.FindModelDescriptor` paylaşılan
+   `ModelCatalogLookup.Find`'a çıkarıldı** (küçük bir DRY refaktörü,
+   `ContextWindowEstimator`'ın AYNI arama mantığına ihtiyacı olduğu için).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-443 — K-450 (sekiz karar), `docs/KARARLAR.md`'de:
+
+- **K-443** — Yedek zincirinin boru hattı konumu: devre kesici DIŞI, içerik
+  filtresi tespiti İÇİ (K-320'nin uygulanışı).
+- **K-444** — `ModelFallback` yalnız `Provider`+`Model` taşır (Açık Soru 2, A).
+- **K-445** — Eşzamanlılık sınırı reddetmez, bekler (Açık Soru 3, A).
+- **K-446** — Ön uçuş reddi `400` döner (Açık Soru 4, A).
+- **K-447** — Yedek olayı hem `run_events` hem span etiketine yazılır (Açık
+  Soru 5, A).
+- **K-448** — Tokenizer için açık `PackageReference` + `Microsoft.Bcl.Memory`
+  CVE zorlaması (Açık Soru 1, A + ölçülen bulgu).
+- **K-449** — Retryable olmayan hata (401/403, iptal) hangi halkada olursa
+  olsun anında ve sarmalanmadan fırlatılır; zincir yalnız tüm halkalar
+  retryable hatayla tükendiğinde "ilk hata" özetine sarılır.
+- **K-450** — `IsRetryable` istisnanın TAMAMINI (`InnerException` zinciri +
+  `AggregateException` kolları) gezer, yalnız en dıştakine bakmaz — bağımsız
+  denetimde bulunan 🔴 bulgunun düzeltmesi (bkz. Denetim Bulguları).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions — Agents/ModelBinding.cs
+public sealed record ModelBinding
+{
+    // ... mevcut alanlar değişmedi
+    public IReadOnlyList<ModelFallback> Fallbacks { get; init; } = [];
+}
+
+// AgentPrism.Abstractions — Agents/ModelFallback.cs (yeni)
+public sealed record ModelFallback
+{
+    public required string Provider { get; init; }
+    public required string Model { get; init; }
+}
+
+// AgentPrism.Abstractions — Models/ContextWindowEstimate.cs (yeni)
+public sealed record ContextWindowEstimate
+{
+    public required int PromptTokens { get; init; }
+    public required int? ContextWindowTokens { get; init; }
+    public required int? AllowedPromptTokens { get; init; }   // plandan fark: eklendi
+    public required bool WouldBeRejected { get; init; }
+}
+
+// AgentPrism.Abstractions — Options/AgentPrismPreflightOptions.cs (yeni)
+public sealed class AgentPrismPreflightOptions
+{
+    public bool Enabled { get; set; }
+    public double ReserveRatio { get; set; } = 0.2;
+}
+
+// AgentPrism.Abstractions — Options/AgentPrismModelConcurrencyOptions.cs (yeni)
+public sealed class AgentPrismModelConcurrencyOptions
+{
+    public int? MaxConcurrentCallsPerProvider { get; set; }
+}
+
+// AgentPrism.Abstractions — Runs/RunEventType.cs
+public enum RunEventType { /* ... */ ModelFallbackUsed = 22 }
+
+// AgentPrism.Abstractions — Runs/RunSupportTypes.cs (plandan fark: eklendi)
+public sealed record RunCompletion
+{
+    // ... mevcut alanlar
+    public string? ModelId { get; init; }
+}
+
+// AgentPrism.Core — AgentPrismOptions.cs
+public sealed class AgentPrismOptions
+{
+    // ... mevcut alanlar
+    public AgentPrismPreflightOptions Preflight { get; set; } = new();
+    public AgentPrismModelConcurrencyOptions ModelConcurrency { get; set; } = new();
+}
+
+// AgentPrism.Core — Models/ProviderConcurrencyLimiter.cs (yeni)
+public sealed class ProviderConcurrencyLimiter
+{
+    public ProviderConcurrencyLimiter(IOptionsMonitor<AgentPrismOptions> optionsMonitor);
+    public ValueTask<IDisposable?> AcquireAsync(string providerName, CancellationToken cancellationToken);
+}
+
+// AgentPrism.Core — Models/ContextWindowEstimator.cs (yeni)
+public sealed class ContextWindowEstimator
+{
+    public ContextWindowEstimator(IModelProviderRegistry registry, IOptionsMonitor<AgentPrismOptions> optionsMonitor);
+    public ContextWindowEstimate Estimate(ModelBinding binding, string? prompt);
+}
+
+// AgentPrism.Core — Models/ModelProviderRegistry.cs (plandan fark: yeni parametre)
+public sealed class ModelProviderRegistry : IModelProviderRegistry
+{
+    public ModelProviderRegistry(
+        IEnumerable<IModelProvider> providers,
+        ModelProviderCircuitBreaker? circuitBreaker = null,
+        IAttachmentStore? attachmentStore = null,
+        ITenantContext? tenantContext = null,
+        ContentGuardPipeline? contentGuards = null,
+        ILoggerFactory? loggerFactory = null,
+        ProviderConcurrencyLimiter? concurrencyLimiter = null);   // yeni
+}
+
+// AgentPrism.Core — Recording/RunEventWriter.cs (plandan fark: yeni parametre)
+public sealed class RunEventWriter
+{
+    public async ValueTask CompleteAsync(
+        RunStatus status, RunUsage? usage = null, RunError? error = null,
+        RunCost? cost = null, string? modelId = null,             // yeni
+        CancellationToken cancellationToken = default);
+}
+```
+
+`FallbackChatClient`, `FallbackRetryClassifier`, `ProviderConcurrencyLimitingChatClient`,
+`ModelCatalogLookup`, `ModelFallbackUsedEventPayload`, `FallbackModelAttribution`
+`internal`'dır — public API takibine girmez.
+
+### HTTP `endpoint`'i (gerçekleşen)
+
+| Metot | Yol | Rol · kapsam | Ne yapar |
+|---|---|---|---|
+| `POST` | `/api/agents/{name}/estimate` | Reader · `RunsRead` | Model çağrısı yapmadan `ContextWindowEstimate` döner; gövde `AgentRunRequest` — plan ayrı bir istek tipi öngörüyordu, var olan tip yeniden kullanıldı (kapsam küçültme) |
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Agents/ModelBinding.cs              (Fallbacks alanı — DEĞİŞTİ)
+├── Agents/ModelFallback.cs             (YENİ)
+├── Models/ContextWindowEstimate.cs     (YENİ)
+├── Options/AgentPrismPreflightOptions.cs        (YENİ)
+├── Options/AgentPrismModelConcurrencyOptions.cs (YENİ)
+├── Runs/RunEventType.cs                (ModelFallbackUsed — DEĞİŞTİ)
+└── Runs/RunSupportTypes.cs             (RunCompletion.ModelId — DEĞİŞTİ, plan dışı)
+
+src/AgentPrism.Core/
+├── AgentPrism.Core.csproj              (Tokenizer + Bcl.Memory paketleri — DEĞİŞTİ)
+├── AgentPrismCoreJsonContext.cs        (ModelFallbackUsedEventPayload — DEĞİŞTİ)
+├── AgentPrismOptions.cs                (Preflight/ModelConcurrency — DEĞİŞTİ)
+├── AgentPrismServiceCollectionExtensions.cs (Bind + DI kaydı — DEĞİŞTİ)
+├── Compilation/AgentDefinitionCompiler.cs   (BuildContextWindowStrategy türetimi — DEĞİŞTİ)
+├── Models/
+│   ├── ModelProviderRegistry.cs        (yedek + eşzamanlılık sarmalayıcıları — DEĞİŞTİ)
+│   ├── FallbackChatClient.cs           (YENİ — FallbackRetryClassifier, ModelFallbackUsedEventPayload dahil)
+│   ├── ProviderConcurrencyLimiter.cs   (YENİ — ProviderConcurrencyLimitingChatClient dahil)
+│   ├── ContextWindowEstimator.cs       (YENİ)
+│   └── ModelCatalogLookup.cs           (YENİ — plan dışı küçük refaktör)
+├── Recording/
+│   ├── AgentPrismRunContext.cs         (FallbackModelAttribution — DEĞİŞTİ)
+│   ├── RunEventWriter.cs               (CompleteAsync modelId parametresi — DEĞİŞTİ, plan dışı)
+│   └── RunRecordingAgent.cs            (fallback model attribution kullanımı — DEĞİŞTİ, plan dışı)
+└── Storage/InMemoryRunStore.cs         (ModelId override — DEĞİŞTİ, plan dışı)
+
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs        (model_id parametresi — DEĞİŞTİ, plan dışı)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs  (COALESCE — DEĞİŞTİ, plan dışı)
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs        (COALESCE — DEĞİŞTİ, plan dışı)
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs  (COALESCE — DEĞİŞTİ, plan dışı)
+src/AgentPrism.Workflows/Internal/WorkflowRunner.cs    (CompleteAsync çağrı sitesi — DEĞİŞTİ)
+
+src/AgentPrism.AspNetCore/
+├── Endpoints/AgentEndpoints.cs         (estimate ucu + /run ön uçuş kapısı — DEĞİŞTİ)
+└── RateLimiting/PreflightGate.cs       (YENİ)
+
+src/AgentPrism.UI/frontend/src/
+├── lib/types.ts                        (ModelFallback, ContextWindowEstimate — DEĞİŞTİ)
+├── locales/{en,tr}.ts                  (yeni anahtarlar — DEĞİŞTİ)
+└── screens/agent-editor.tsx            (yedek listesi editörü — DEĞİŞTİ; tahmin rozeti YOK, bkz. Plandan Sapmalar #6)
+
+tests/
+├── AgentPrism.Core.UnitTests/Models/{FallbackChatClient,ProviderConcurrencyLimiter,ContextWindowEstimator}Tests.cs (YENİ)
+├── AgentPrism.Core.UnitTests/Recording/FallbackRecordingTests.cs      (YENİ)
+├── AgentPrism.Core.UnitTests/Compilation/AgentDefinitionCompilerTests.cs (DEĞİŞTİ — türetim testi)
+├── AgentPrism.AspNetCore.FunctionalTests/PreflightEndpointTests.cs    (YENİ)
+├── AgentPrism.Ui.E2ETests/UiTests.cs   (Fallback_list_is_saved_and_read_back — DEĞİŞTİ)
+└── Shared/Contracts/RunStoreContract.cs (ModelId override testleri — DEĞİŞTİ)
+
+docs-site/src/content/docs/
+├── guides/reliability.md               (yedek zinciri + eşzamanlılık — DEĞİŞTİ)
+├── guides/model-providers.md           (ön uçuş/estimate — DEĞİŞTİ)
+├── reference/configuration.md          (Preflight/ModelConcurrency — DEĞİŞTİ)
+└── index.mdx                           (144 HTTP operasyonu — DEĞİŞTİ)
+
+docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md (YENİ, 9 case)
+docs/manuel-test/00-INDEKS.md                 (satır 27 — DEĞİŞTİ)
+Directory.Packages.props                       (Tokenizer + Bcl.Memory sürümleri — DEĞİŞTİ)
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+`faz-denetim` taze bağlamlı bağımsız bir alt agent olarak koşuldu (çalışma
+ağacı, faz 62 kapsamındaki dosyalarla sınırlı).
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | `FallbackRetryClassifier.IsRetryable` yalnız en dıştaki istisnaya bakıyordu; gerçek `OpenAI` 2.12.0 istemcisi dinlemeyen bir porta karşı `AggregateException → ClientResultException → HttpRequestException → SocketException` zinciri fırlatıyor (ölçüldü), hiçbiri eşleşmiyordu — canlı bir kesintide devre kesici açılana kadarki ilk `FailureThreshold` istek yedeğe hiç düşmeden çıplak hata dönüyordu. | 🔴 | **Düzeltildi** — K-450. `IsRetryable` artık `Flatten(exception)` ile tüm zinciri (kendisi + `InnerException` + her `AggregateException` kolu) gezer; `TransportExceptionTypePattern`'e SDK sarmalayıcı tipleri eklendi (yalnız hiçbir karede HTTP durum metni yokken devreye girer, güvenli). Gerçek SDK'ya karşı doğrulandı (canlı "connection refused" zincirinde `IsRetryable` artık `true`) + iki regresyon testi eklendi (`A_bare_connection_failure_wrapped_the_way_the_real_OpenAI_client_wraps_it_falls_over`, `An_authentication_failure_wrapped_the_same_way_still_does_not_retry`). Tuzak `docs/hafiza/openai-saglayici.md`'ye yazıldı. |
+| 2 | Agent düzenleyicisine "tahmin rozeti" eklenmedi — bilinçli bir kapsam kararı olarak bildirilmişti ama "Plandan Sapmalar" bölümü denetim anında boştu. | 🟡 | **Kapandı** — bu kapanış turunda "Plandan Sapmalar" #6 olarak yazıldı (yukarıda). Kod tarafında ek iş yok. |
+
+**Temiz çıkan başlıklar:** 3.1, 3.2, 3.3, 3.5, 3.6, 3.7, 3.8 (denetçinin tam
+gerekçesi ajan çıktısında; bu doküman yalnız 🔴/🟡 bulguları taşır).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **Devralınan sözleşme:** `ModelProviderRegistry.CreateChatClient`'ın boru
+  hattı sırası artık (dıştan içe) içerik filtresi tespiti → **yedek zinciri**
+  → devre kesici → ek çözme → `FunctionInvokingChatClient` → OTel → içerik
+  guard'ı → **eşzamanlılık sınırlayıcı** → ham istemci. Yeni bir halka
+  eklerken K-320'nin sorusu ("her gerçek model çağrısını görmesi gerekiyor
+  mu?") artık yedek zincirini de hesaba katmalı: yedek DIŞINDA bir halka
+  yalnız BİRİNCİL denemeyi görür, yedek İÇİNDE bir halka (eşzamanlılık
+  sınırlayıcı gibi) her halkayı ayrı ayrı görür.
+- **🚨 Bilinen tuzak (K-450, `docs/hafiza/openai-saglayici.md`):** bir
+  sağlayıcı SDK'sının fırlattığı istisnayı sınıflandırırken yalnız en dıştaki
+  istisnaya bakmak yeterli değildir — gerçek bağlantı hataları `AggregateException`
+  içinde çok katmanlı gelir. Yeni bir sınıflandırıcı yazan herkes
+  `Exception.InnerException`/`AggregateException.InnerExceptions` zincirini
+  gezmelidir.
+- **🚨 Bilinen tuzak (bu fazda ölçüldü, K-007 emsali):** `Microsoft.ML.Tokenizers`
+  gibi bir veri paketi eklerken transitif bir CVE zorlaması (NU1903) restore'u
+  KIRABİLİR; `dotnet restore` gerçekten çalıştırılmadan "paket eklendi"
+  denemez.
+- **Yarım kalan iş:** `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` gerçek
+  `OpenAI`/ikinci bir sağlayıcı kimlik bilgisiyle HENÜZ koşulmadı (bu ortamda
+  kimlik bilgisi yok — §7 `⬜`). Bir sonraki oturum, gerçek kimlik bilgisi
+  varsa bu dosyayı `manuel-test-kosumu` skill'iyle koşup kapatmalı; K-450'nin
+  düzeltmesi `MT-MYU-002`'yi artık geçirmelidir (denetimde ölçülen kanıt bunu
+  destekliyor, ama gerçek ortamda TEYİT edilmedi).
+- **Sıradaki faz:** `docs/ADAYLAR.md`'den seçilecek; bu fazın kapsamı dışında
+  yeni bir aday üretilmedi (denetimin 🟢 listesi boş çıktı).

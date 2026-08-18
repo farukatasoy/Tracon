@@ -119,4 +119,52 @@ public sealed record AgentRunScope
     /// side is in <c>ToolInvocationTracker</c>.
     /// </remarks>
     internal ToolUsageAccumulator? ToolUsage { get; init; }
+
+    /// <summary>
+    /// Gets the holder that records which model actually answered when a
+    /// <see cref="ModelBinding.Fallbacks"/> link was used instead of the
+    /// primary binding.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is <c>FallbackChatClient</c>; the read side is
+    /// <c>RunRecordingAgent.CompleteAsync</c>, which uses it in place of the
+    /// primary model for cost resolution, metrics, and the <c>runs.model_id</c>
+    /// override — the same ambient-write/scoped-read pattern as
+    /// <see cref="ToolUsage"/> (phase 28) applied to phase 62.
+    /// </remarks>
+    internal FallbackModelAttribution? FallbackAttribution { get; init; }
+}
+
+/// <summary>
+/// Records which model actually answered a run when a
+/// <see cref="ModelBinding.Fallbacks"/> link stood in for the primary binding.
+/// </summary>
+/// <remarks>
+/// A run can call the model more than once (a multi-turn tool loop); if a
+/// later turn falls back after an earlier turn already answered, the LAST
+/// recorded link wins — that is the model actually in use by the time the run
+/// completes, since a fallback stays selected until the run tries the primary
+/// again from a fresh recompiled agent, not mid-run.
+/// </remarks>
+internal sealed class FallbackModelAttribution
+{
+    private string? _provider;
+    private string? _model;
+
+    /// <summary>Records that <paramref name="provider"/>/<paramref name="model"/> answered instead of the primary binding.</summary>
+    public void Record(string provider, string model)
+    {
+        Volatile.Write(ref _provider, provider);
+        Volatile.Write(ref _model, model);
+    }
+
+    /// <summary>Gets the last recorded fallback provider and model, or <see langword="null"/> if none was recorded.</summary>
+    public (string Provider, string Model)? Current
+    {
+        get
+        {
+            var model = Volatile.Read(ref _model);
+            return model is null ? null : (Volatile.Read(ref _provider)!, model);
+        }
+    }
 }
