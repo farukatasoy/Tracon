@@ -27,4 +27,7 @@ namespace AgentPrism;
 // Conversation branching (Phase 47): reads the conversation identifier from the
 // session state bag and writes it to the new session.
 [JsonSerializable(typeof(ChatHistoryState))]
+
+// Phase 62: the ModelFallbackUsed run-event payload.
+[JsonSerializable(typeof(ModelFallbackUsedEventPayload))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

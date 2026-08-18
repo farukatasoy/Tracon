@@ -32,6 +32,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly ITenantContext? _tenantContext;
     private readonly ContentGuardPipeline? _contentGuards;
     private readonly ILoggerFactory? _loggerFactory;
+    private readonly ProviderConcurrencyLimiter? _concurrencyLimiter;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -53,6 +54,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// The logger factory for <c>UseFunctionInvocation()</c> and
     /// <c>UseOpenTelemetry()</c>. If <see langword="null"/>, MAF uses its own default.
     /// </param>
+    /// <param name="concurrencyLimiter">
+    /// The per-provider outgoing concurrency limiter (phase 62, F-44). If
+    /// <see langword="null"/>, no limiting wrapper is added.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">The same provider name has been registered more than once.</exception>
     public ModelProviderRegistry(
@@ -61,7 +66,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         IAttachmentStore? attachmentStore = null,
         ITenantContext? tenantContext = null,
         ContentGuardPipeline? contentGuards = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        ProviderConcurrencyLimiter? concurrencyLimiter = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -71,6 +77,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _tenantContext = tenantContext;
         _contentGuards = contentGuards;
         _loggerFactory = loggerFactory;
+        _concurrencyLimiter = concurrencyLimiter;
 
         foreach (var provider in providers)
         {
@@ -119,6 +126,17 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // The provider returns the RAW client; the entire pipeline is assembled here.
         IChatClient chatClient = provider.CreateChatClient(binding);
 
+        // The concurrency limiter sits closest to the wire: it must see every
+        // REAL network call, including every turn of the tool-call loop, not
+        // just one call per agent turn — the same "does it need every call?"
+        // question K-320 asks about the content guard. When no limit is
+        // configured, ProviderConcurrencyLimiter.AcquireAsync returns null and
+        // this line does nothing.
+        if (_concurrencyLimiter is not null)
+        {
+            chatClient = new ProviderConcurrencyLimitingChatClient(binding.Provider, chatClient, _concurrencyLimiter);
+        }
+
         // 🚨 The content guard sits right above the real client, INSIDE the
         // tool-call loop. This way a blocked request never reaches the network
         // and — more importantly — every turn of the loop is inspected: a tool
@@ -152,6 +170,21 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         if (_circuitBreaker is not null)
         {
             chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient);
+        }
+
+        // 🚨 The fallback chain sits OUTSIDE the circuit breaker (phase 62,
+        // F-44): trying a fallback link requires first seeing that the
+        // primary's circuit is open, which only the ring outside it can see.
+        // It sits INSIDE content-filter detection: a provider-filtered
+        // response is not an exception at this layer, only a ChatResponse
+        // with ChatFinishReason.ContentFilter, so it passes straight through
+        // and the outer detector makes the ONE filtering decision for
+        // whichever link actually answered — see FallbackChatClient's remarks.
+        // Empty by default (K1): with no configured fallback this line does
+        // nothing, and today's "an open circuit throws" behavior is unchanged.
+        if (binding.Fallbacks.Count > 0)
+        {
+            chatClient = new FallbackChatClient(binding, chatClient, CreateChatClient);
         }
 
         // Content-filter detection sits OUTERMOST — outside the circuit breaker.

@@ -185,6 +185,23 @@ public sealed record RunCompletion
     public RunCost? Cost { get; init; }
 
     /// <summary>
+    /// Gets the model that actually answered, overriding <c>runs.model_id</c>
+    /// when it differs from the value written at <c>RunStarted</c>.
+    /// <see langword="null"/> leaves the stored value unchanged.
+    /// </summary>
+    /// <remarks>
+    /// The row is written once, at run start, from the agent's primary
+    /// <see cref="ModelBinding"/> — before it is known whether a
+    /// <see cref="ModelBinding.Fallbacks"/> link will answer instead. This
+    /// field lets completion correct the record so
+    /// <c>IRunStore.GetStatisticsAsync</c>'s <c>ByModel</c> breakdown groups by
+    /// the model that really ran (phase 62). <see langword="null"/> is the
+    /// overwhelmingly common case (no fallback happened) and is a deliberate
+    /// no-op, not an omission.
+    /// </remarks>
+    public string? ModelId { get; init; }
+
+    /// <summary>
     /// Gets the EXPECTED tenant of the run being closed. Defence in depth; when
     /// <see langword="null"/> no tenant check is made.
     /// </summary>

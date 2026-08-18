@@ -152,4 +152,18 @@ public enum RunEventType
     /// <c>content_blocked</c>.
     /// </remarks>
     ContentBlocked = 21,
+
+    /// <summary>
+    /// The primary model provider was unavailable and a
+    /// <see cref="ModelBinding.Fallbacks"/> link answered instead. <c>Text</c>
+    /// carries the fallback provider and model (<c>"{provider}/{model}"</c>);
+    /// <c>Payload</c> carries the primary and fallback bindings and the reason
+    /// the primary was skipped.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A model switch is never silent (phase 62). This event is written in
+    /// addition to a span tag, not instead of it — an operator reading only
+    /// the run record must still see which model actually answered.
+    /// </remarks>
+    ModelFallbackUsed = 22,
 }
