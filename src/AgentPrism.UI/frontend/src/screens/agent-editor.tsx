@@ -26,6 +26,7 @@ import type {
   HarnessSettings,
   MemorySettings,
   ModelBinding,
+  ModelFallback,
   ValidationSeverity,
 } from '../lib/types';
 
@@ -74,6 +75,7 @@ export interface FormState {
   responseFormatSchema: string;
   responseFormatSchemaName: string;
   responseFormatSchemaDescription: string;
+  fallbacks: ModelFallback[];
   toolNames: string[];
   skillNames: string[];
   callableAgentNames: string[];
@@ -98,6 +100,7 @@ export const emptyForm: FormState = {
   responseFormatSchema: DEFAULT_SCHEMA_TEXT,
   responseFormatSchemaName: '',
   responseFormatSchemaDescription: '',
+  fallbacks: [],
   toolNames: [],
   skillNames: [],
   callableAgentNames: [],
@@ -146,6 +149,9 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     topP: toNumber(form.topP),
     reasoningEffort: form.reasoningEffort.length > 0 ? form.reasoningEffort : null,
     responseFormat: toResponseFormat(form),
+    fallbacks: form.fallbacks.filter(
+      (fallback) => fallback.provider.trim().length > 0 && fallback.model.trim().length > 0,
+    ),
   };
 
   return {
@@ -259,6 +265,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
           : DEFAULT_SCHEMA_TEXT,
       responseFormatSchemaName: definition.model.responseFormat?.schemaName ?? '',
       responseFormatSchemaDescription: definition.model.responseFormat?.schemaDescription ?? '',
+      fallbacks: definition.model.fallbacks ?? [],
       toolNames: [...definition.toolNames],
       skillNames: [...definition.skillNames],
       callableAgentNames: [...(definition.callableAgentNames ?? [])],
@@ -503,6 +510,85 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   </div>
                 </>
               )}
+
+              <div className="sm:col-span-2">
+                <Field label={t('fields.fallbacks')} hint={t('agentEditor.fallbacksHint')}>
+                  <div className="flex flex-col gap-2">
+                    {form.fallbacks.length === 0 && (
+                      <p className="text-[12px] text-subtle">{t('agentEditor.noFallbacks')}</p>
+                    )}
+
+                    {form.fallbacks.map((fallback, index) => {
+                      const fallbackModels =
+                        providers.data?.find((provider) => provider.name === fallback.provider)?.models ?? [];
+
+                      return (
+                        <div key={index} className="flex items-center gap-2">
+                          <Select
+                            value={fallback.provider}
+                            testId={`fallback-provider-${index}`}
+                            onChange={(value) =>
+                              setForm({
+                                ...form,
+                                fallbacks: form.fallbacks.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, provider: value } : item,
+                                ),
+                              })
+                            }
+                          >
+                            <option value="">{t('agentEditor.select')}</option>
+                            {(providers.data ?? []).map((provider) => (
+                              <option key={provider.name} value={provider.name}>
+                                {provider.displayName ?? provider.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <TextInput
+                            value={fallback.model}
+                            list={`agentprism-fallback-models-${index}`}
+                            placeholder="gpt-5.4-mini"
+                            data-testid={`fallback-model-${index}`}
+                            onChange={(event) =>
+                              setForm({
+                                ...form,
+                                fallbacks: form.fallbacks.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, model: event.target.value } : item,
+                                ),
+                              })
+                            }
+                          />
+                          <datalist id={`agentprism-fallback-models-${index}`}>
+                            {fallbackModels.map((model) => (
+                              <option key={model.name} value={model.name} />
+                            ))}
+                          </datalist>
+                          <Button
+                            type="button"
+                            tone="ghost"
+                            testId={`remove-fallback-${index}`}
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                fallbacks: form.fallbacks.filter((_, itemIndex) => itemIndex !== index),
+                              })
+                            }
+                          >
+                            {t('agentEditor.removeFallback')}
+                          </Button>
+                        </div>
+                      );
+                    })}
+
+                    <Button
+                      type="button"
+                      testId="add-fallback"
+                      onClick={() => setForm({ ...form, fallbacks: [...form.fallbacks, { provider: '', model: '' }] })}
+                    >
+                      {t('agentEditor.addFallback')}
+                    </Button>
+                  </div>
+                </Field>
+              </div>
             </div>
           </Panel>
 

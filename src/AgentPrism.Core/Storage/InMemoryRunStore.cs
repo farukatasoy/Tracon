@@ -167,6 +167,7 @@ public sealed class InMemoryRunStore : IRunStore
             Usage = completion.Usage,
             Error = completion.Error,
             Cost = completion.Cost,
+            ModelId = completion.ModelId ?? existing.ModelId,
         };
 
         return default;

@@ -173,6 +173,8 @@ internal static class AgentEndpoints
                 ITenantContext tenantContext,
                 ExperimentAssignmentResolver experimentAssignment,
                 IOptionsMonitor<AgentPrismAsyncRunOptions> asyncRunOptions,
+                IOptionsMonitor<AgentPrismOptions> optionsMonitor,
+                ContextWindowEstimator contextWindowEstimator,
                 [FromServices] QuotaEnforcer? quotaEnforcer,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
@@ -194,6 +196,16 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false) is { } quotaProblem)
                 {
                     return quotaProblem;
+                }
+
+                // Pre-flight context-window check (phase 62, F-59): disabled
+                // by default, and even when enabled it never touches a
+                // provider — only PreflightGate/ContextWindowEstimator run.
+                if (await PreflightGate
+                        .CheckAsync(optionsMonitor, contextWindowEstimator, catalog, name, request!.Message, cancellationToken)
+                        .ConfigureAwait(false) is { } preflightProblem)
+                {
+                    return preflightProblem;
                 }
 
                 if (WantsAsync(httpContext))
@@ -232,7 +244,10 @@ internal static class AgentEndpoints
             .Accepts<AgentRunRequest>("application/json")
             .WithDescription(
                 "If the quota is exceeded, the run does not start and a 429 is returned; the " +
-                "ProblemDetails carries which quota was exceeded and when the counter resets. A " +
+                "ProblemDetails carries which quota was exceeded and when the counter resets. When " +
+                "the pre-flight context-window check is enabled (disabled by default) and the prompt " +
+                "is estimated to exceed the model's window, the run does not start and a 400 is " +
+                "returned with the estimated and allowed token counts; no call reaches the provider. A " +
                 "request carrying the 'Idempotency-Key' header runs with a single JSON response " +
                 "(non-streaming) instead of SSE, because a replayed response cannot be " +
                 "reconstructed from a stream. A request carrying the 'Prefer: respond-async' " +
@@ -251,6 +266,58 @@ internal static class AgentEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
+
+        builder.MapPost("/api/agents/{name}/estimate", EstimateAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
+            .WithName("AgentPrismEstimateContextWindow")
+            .WithTags("AgentPrism", "Agents")
+            .WithSummary("Estimates a prompt's token count against the agent's model, without calling the provider.")
+            .WithDescription(
+                "The diagnostic surface of the pre-flight context-window check (phase 62, F-59): it " +
+                "returns the same numbers the check on 'POST /api/agents/{name}/run' would use, " +
+                "regardless of whether that check is enabled. No model provider is ever contacted. " +
+                "The estimate is approximate — it uses a fixed reference tokenizer, not the bound " +
+                "provider's own count. 'contextWindowTokens' and 'allowedPromptTokens' are null when " +
+                "the agent's model is not found in the catalog; in that case 'wouldBeRejected' is " +
+                "always false, since an unknown window can never be exceeded.")
+            .Accepts<AgentRunRequest>("application/json")
+            .Produces<ContextWindowEstimate>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static async Task<IResult> EstimateAsync(
+        string name,
+        IAgentCatalog catalog,
+        ContextWindowEstimator estimator,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var (request, bindError) = await RequestBodyBinding
+            .ReadAsync<AgentRunRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        if (await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false) is not { } descriptor)
+        {
+            return NotFound(name);
+        }
+
+        if (descriptor.Model is not { } binding)
+        {
+            return Results.Problem(
+                title: "Agent has no model binding",
+                detail: $"'{name}' has no resolvable model binding (a code agent built from a factory, " +
+                         "for example); its context window cannot be estimated.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return TypedResults.Ok(estimator.Estimate(binding, request!.Message));
     }
 
     /// <summary>
@@ -1168,7 +1235,7 @@ internal static class AgentEndpoints
         private sealed record AgentRunResult(Guid RunId, string? SessionId, Microsoft.Agents.AI.AgentResponse Response);
     }
 
-    private static async ValueTask<AgentDescriptor?> FindDescriptorAsync(
+    internal static async ValueTask<AgentDescriptor?> FindDescriptorAsync(
         IAgentCatalog catalog,
         string name,
         CancellationToken cancellationToken)

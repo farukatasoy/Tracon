@@ -52,6 +52,25 @@
     <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
   </ItemGroup>
 
+  <!--
+    Faz 62, F-59 acik soru 1: on ucus token sayimi icin ACIK PackageReference
+    (secenek A). Bugune kadar `Microsoft.ML.Tokenizers` yalniz MAF'in gecisli
+    bagimliligiydi (K-104) ve dogrudan cagrilmiyordu; burada CAGIRAN AgentPrism'dir,
+    bu yuzden gecisli surume guvenmek ust paket onu birakirsa derlemeyi kirar.
+  -->
+  <ItemGroup Label="Ic ucus token sayimi">
+    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
+    <PackageVersion Include="Microsoft.ML.Tokenizers.Data.O200kBase" Version="2.0.0" />
+    <!--
+      CVE zorlamasi (K-007 deseni, satir 220 ile ayni gerekce).
+      Microsoft.ML.Tokenizers 2.0.0'in net8.0 hedefi Microsoft.Bcl.Memory 9.0.4
+      cekiyor; o surumde yuksek onem dereceli bir acik var (NU1903,
+      GHSA-73j8-2gch-69rq). Gecisli sabitleme kapali (K-007) oldugu icin surum
+      AgentPrism.Core'da dogrudan bir PackageReference ile zorlanir.
+    -->
+    <PackageVersion Include="Microsoft.Bcl.Memory" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
   <ItemGroup Label="Microsoft.Extensions - barindirma ve DI">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />

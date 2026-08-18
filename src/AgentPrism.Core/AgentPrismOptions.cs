@@ -55,6 +55,12 @@ public sealed class AgentPrismOptions
 
     /// <summary>Gets or sets definition-validation endpoint options for phase 34, F-60.</summary>
     public AgentPrismValidationOptions Validation { get; set; } = new();
+
+    /// <summary>Gets or sets the pre-flight context-window check options, introduced in phase 62, F-59.</summary>
+    public AgentPrismPreflightOptions Preflight { get; set; } = new();
+
+    /// <summary>Gets or sets the per-provider outgoing concurrency limit, introduced in phase 62, F-44.</summary>
+    public AgentPrismModelConcurrencyOptions ModelConcurrency { get; set; } = new();
 }
 
 /// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>
