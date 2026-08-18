@@ -306,6 +306,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36 | `src/AgentPrism.Abstractions/Retention`, `Quotas` · `src/AgentPrism.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs` · `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/AgentPrism.Api/FileSystemArchiveSink.cs` | **26** | ✅ | ✅ 26/26 |
 | 24 | [`24-TEST-PAKETI-VE-SABLON.md`](24-TEST-PAKETI-VE-SABLON.md) | `TEST` | 37, 39 | `src/AgentPrism.Testing` · `src/AgentPrism.Templates` | **41** | ✅ | ✅ 41/41 |
 | 25 | [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md) | `DIAG` | 33, 40 | `src/AgentPrism.AspNetCore` (health, diagnostics, OpenAPI) | **28** | ✅ | ✅ 28/28 |
+| 26 | [`26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`](26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md) | `IST` | 61 | `src/AgentPrism.Core/Tools/AgentPrismClientToolExtensions.cs` · `src/AgentPrism.AspNetCore/Internal/{ClientToolResultResolver,AgentPrismCorsMiddleware}.cs` · `Endpoints/AgentEndpoints.cs` (`toolResults`) · `AgentPrismEndpointOptions.cs` (`AllowedOrigins`) · `src/AgentPrism.UI/frontend/src/embed/` | **13** | ✅ | ⬜ henüz koşulmadı |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 

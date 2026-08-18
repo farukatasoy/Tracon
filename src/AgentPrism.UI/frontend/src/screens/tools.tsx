@@ -84,6 +84,14 @@ export function ToolsScreen(): ReactNode {
                       {t('tools.approvalRequired')}
                     </Badge>
                   )}
+                  {tool.runsOnClient && (
+                    <Badge
+                      tone="accent"
+                      title={t('tools.runsOnClientTitle')}
+                    >
+                      {t('tools.runsOnClient')}
+                    </Badge>
+                  )}
                   {agentNames.length === 0 ? (
                     <Badge title={t('tools.unusedTitle')}>{t('tools.unused')}</Badge>
                   ) : (

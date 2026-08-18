@@ -103,6 +103,7 @@ export default defineConfig({
           items: [
             { label: 'OpenAI-compatible API', slug: 'guides/openai-api' },
             { label: 'MCP server and A2A', slug: 'guides/external-agents' },
+            { label: 'Client-side tools and the embeddable widget', slug: 'guides/client-side-tools' },
             { label: 'HTTP API conventions', slug: 'http-api' },
           ],
         },

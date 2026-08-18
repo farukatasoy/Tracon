@@ -412,6 +412,30 @@ sürümle, kod aktif sürümü çeker. Braintrust ve Portkey'de de var.
 
 ---
 
+### F-109 · İstemci tarafı tool taşıyan bir `run` sadık biçimde replay edilemez
+
+> Faz 61'in bağımsız denetiminde bulundu (2026-08-18, 🟢 bulgu).
+
+**Sorun:** `RunReplayService`'in `toolTransform`'u yalnız `AIFunction`'lara
+uygulanıyor (`AgentDefinitionCompiler.ResolveTools`'taki `is AIFunction`
+süzgeci — Faz 61, K-435). İstemci tarafı bir tool (`AddClientTool`) çağrısı
+taşıyan bir `run`'ı replay etmeye çalışmak, sunucunun hiçbir zaman
+çalıştıramayacağı bir çağrıda takılı kalır.
+**Kapsam:** Replay'in istemci tool çağrılarını nasıl ele alacağına karar
+vermek — kayıtlı sonucu aynen tekrar mı oynatır, yoksa bu tür `run`'ları
+baştan mı reddeder.
+**Değer:** Faz 61'den sonra kayıtlı her `run`'ın replay edilebilir
+olduğu varsayımı artık **tam doğru değil**; istemci tool'u kullanan
+agent'lar için bu görünür bir boşluktur.
+**Mercek:** 47 (yeniden oynatma).
+**Hazırlık:** Faz 47'nin `ReplayToolMode`'u okunmalı.
+**Maliyet:** Küçük–orta.
+**Risk:** Düşük — replay isteğe bağlı bir araçtır, çekirdek çalıştırma yolunu etkilemez.
+**Bağımlılık:** Faz 61 (K-435).
+**Ekosistem:** —
+
+---
+
 ## E. Ölçme–iyileştirme döngüsü
 
 Bu grup birlikte "agent'ı ölçerek iyileştirme" döngüsünü kurar. Bugün döngü

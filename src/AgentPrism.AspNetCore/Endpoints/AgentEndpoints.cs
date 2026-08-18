@@ -532,13 +532,17 @@ internal static class AgentEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        // Approval decisions are a valid request on their own: a user approving
-        // a pending tool call does not write a new message.
-        if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0 && request.AttachmentIds.Count == 0)
+        // Approval decisions and tool results are valid requests on their own:
+        // a user approving a pending call or answering a client-side tool call
+        // does not write a new message.
+        if (string.IsNullOrWhiteSpace(request.Message) &&
+            request.Approvals.Count == 0 &&
+            request.ToolResults.Count == 0 &&
+            request.AttachmentIds.Count == 0)
         {
             return Results.Problem(
                 title: "Empty request",
-                detail: "One of 'message', 'attachmentIds', or 'approvals' is required.",
+                detail: "One of 'message', 'attachmentIds', 'approvals', or 'toolResults' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -547,6 +551,14 @@ internal static class AgentEndpoints
             return Results.Problem(
                 title: "Session required for approval",
                 detail: "A pending approval request lives in session history; 'sessionId' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.ToolResults.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return Results.Problem(
+                title: "Session required for tool result",
+                detail: "A pending client-side tool call lives in session history; 'sessionId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -606,6 +618,56 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
+        // 🚨 Client-side tool results are matched against pending calls BEFORE
+        // the stream starts: the default streaming path sends the SSE headers
+        // (200, text/event-stream) before BuildMessagesAsync runs, so a 400/409
+        // ProblemDetails is no longer possible once execution reaches there
+        // (same physical constraint as decision K-324). BuildMessagesAsync
+        // matches again to build the actual message; matching has no side
+        // effects, so repeating it is safe.
+        if (request.ToolResults.Count > 0)
+        {
+            if (request.ToolResults.Any(static result =>
+                    (result.Result?.Length ?? 0) > ClientToolResultResolver.MaxResultLength ||
+                    (result.ErrorMessage?.Length ?? 0) > ClientToolResultResolver.MaxResultLength))
+            {
+                return Results.Problem(
+                    title: "Tool result too large",
+                    detail: $"'result' and 'errorMessage' cannot exceed {ClientToolResultResolver.MaxResultLength} " +
+                            "characters; an unbounded tool result would consume the model's context window.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var toolResultsSession = await sessions
+                .GetOrCreateSessionAsync(agent, request.SessionId!, cancellationToken)
+                .ConfigureAwait(false);
+
+            var chatHistory = httpContext.RequestServices.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>();
+
+            var match = await ClientToolResultResolver
+                .MatchAsync(request.ToolResults, agent, toolResultsSession, chatHistory, cancellationToken)
+                .ConfigureAwait(false);
+
+            switch (match.Kind)
+            {
+                case ClientToolResultMatchKind.UnknownCallId:
+                    return Results.Problem(
+                        title: "Unknown tool call",
+                        detail: $"There is no pending client-side tool call with id '{match.CallId}' in this session.",
+                        statusCode: StatusCodes.Status400BadRequest);
+
+                case ClientToolResultMatchKind.AlreadyAnswered:
+                    return Results.Problem(
+                        title: "Tool call already answered",
+                        detail: $"The client-side tool call with id '{match.CallId}' already has a result.",
+                        statusCode: StatusCodes.Status409Conflict);
+
+                case ClientToolResultMatchKind.Success:
+                default:
+                    break;
+            }
+        }
+
         // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
         // The stored response must be deduplicatable; storing an SSE body
         // (loss of timing information, unpredictable size) is out of scope for
@@ -623,10 +685,11 @@ internal static class AgentEndpoints
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Approval decisions and attachments are not supported in this version:
-    /// both assume a live client connection (approval: input for the next
-    /// turn; attachment: a <c>UriContent</c> reference that requires the path
-    /// prefix), and a job running from the queue has no such context.
+    /// Approval decisions, client-side tool results, and attachments are not
+    /// supported in this version: all three assume a live client connection
+    /// (approval and tool result: input for the next turn; attachment: a
+    /// <c>UriContent</c> reference that requires the path prefix), and a job
+    /// running from the queue has no such context.
     /// </para>
     /// <para>
     /// The run id generated here is the id of both the <c>runs</c> row and the
@@ -666,12 +729,12 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (request.Approvals.Count > 0 || request.AttachmentIds.Count > 0)
+        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0)
         {
             return Results.Problem(
                 title: "Not supported",
-                detail: "A queued run ('Prefer: respond-async') does not support approval decisions " +
-                        "or attachments in this version.",
+                detail: "A queued run ('Prefer: respond-async') does not support approval decisions, " +
+                        "client-side tool results, or attachments in this version.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -996,13 +1059,14 @@ internal static class AgentEndpoints
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
 
         /// <summary>
-        /// Builds the messages to send: approval responses if any, then the user message if any.
+        /// Builds the messages to send: approval responses, then client-side
+        /// tool results, then the user message — whichever of these apply.
         /// </summary>
         /// <remarks>
-        /// Approval responses come BEFORE the user message. Microsoft Agent
-        /// Framework cannot process a new user message without answering a
-        /// pending call first; the reverse order would leave the model facing
-        /// an unanswered approval request.
+        /// Both approval responses and tool results come BEFORE the user
+        /// message. Microsoft Agent Framework cannot process a new user
+        /// message without answering a pending call first; the reverse order
+        /// would leave the model facing an unanswered call.
         /// </remarks>
         private async ValueTask<List<ChatMessage>> BuildMessagesAsync(
             HttpContext httpContext,
@@ -1010,10 +1074,10 @@ internal static class AgentEndpoints
             CancellationToken cancellationToken)
         {
             var messages = new List<ChatMessage>(2);
+            var services = httpContext.RequestServices;
 
             if (request.Approvals.Count > 0 && session is not null)
             {
-                var services = httpContext.RequestServices;
                 var loggerFactory = services.GetRequiredService<ILoggerFactory>();
 
                 var approvalMessage = await ToolApprovalResolver.BuildResponseMessageAsync(
@@ -1032,6 +1096,42 @@ internal static class AgentEndpoints
                 if (approvalMessage is not null)
                 {
                     messages.Add(approvalMessage);
+                }
+            }
+
+            // Re-matches results against pending calls (RunAsync already
+            // validated this before the stream started — see the comment
+            // there). A mismatch here means the pending call was answered or
+            // removed between the two matches (a rare concurrent request);
+            // the result is silently dropped rather than failing a run whose
+            // headers may already be on the wire.
+            if (request.ToolResults.Count > 0 && session is not null)
+            {
+                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+
+                var match = await ClientToolResultResolver
+                    .MatchAsync(
+                        request.ToolResults,
+                        agent,
+                        session,
+                        services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (match.Kind == ClientToolResultMatchKind.Success)
+                {
+                    var toolResultsMessage = await ClientToolResultResolver.BuildResponseMessageAsync(
+                        match.Matched,
+                        services.GetRequiredService<ITenantContext>(),
+                        services.GetRequiredService<IAuditLog>(),
+                        services.GetRequiredService<IAuditActorResolver>(),
+                        loggerFactory.CreateLogger(typeof(ClientToolResultResolver).FullName!),
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (toolResultsMessage is not null)
+                    {
+                        messages.Add(toolResultsMessage);
+                    }
                 }
             }
 

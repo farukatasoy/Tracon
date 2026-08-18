@@ -76,6 +76,7 @@ AgentPrism.AgentPrismEndpointOptions.AuthToken.get -> string?
 AgentPrism.AgentPrismEndpointOptions.AuthToken.set -> void
 AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
 AgentPrism.AgentPrismEndpointOptions.EnableDiagnosticsEndpoint.set -> void
+AgentPrism.AgentPrismEndpointOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
 AgentPrism.AgentPrismEndpointOptions.RequireAuthorization(string! policyName) -> void
 AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.get -> bool
 AgentPrism.AgentPrismEndpointOptions.RequireRolePolicies.set -> void
@@ -160,6 +161,23 @@ AgentPrism.AgentRunRequest.Approvals.get -> System.Collections.Generic.IReadOnly
 AgentPrism.AgentRunRequest.Approvals.init -> void
 AgentPrism.AgentRunRequest.AttachmentIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
 AgentPrism.AgentRunRequest.AttachmentIds.init -> void
+AgentPrism.AgentRunRequest.ToolResults.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ClientToolResult!>!
+AgentPrism.AgentRunRequest.ToolResults.init -> void
+AgentPrism.ClientToolResult
+AgentPrism.ClientToolResult.CallId.get -> string!
+AgentPrism.ClientToolResult.CallId.init -> void
+AgentPrism.ClientToolResult.ClientToolResult() -> void
+AgentPrism.ClientToolResult.ErrorMessage.get -> string?
+AgentPrism.ClientToolResult.ErrorMessage.init -> void
+AgentPrism.ClientToolResult.Result.get -> string?
+AgentPrism.ClientToolResult.Result.init -> void
+override AgentPrism.ClientToolResult.Equals(object? obj) -> bool
+override AgentPrism.ClientToolResult.GetHashCode() -> int
+override AgentPrism.ClientToolResult.ToString() -> string!
+static AgentPrism.ClientToolResult.operator !=(AgentPrism.ClientToolResult? left, AgentPrism.ClientToolResult? right) -> bool
+static AgentPrism.ClientToolResult.operator ==(AgentPrism.ClientToolResult? left, AgentPrism.ClientToolResult? right) -> bool
+AgentPrism.ClientToolResult.Equals(AgentPrism.ClientToolResult? other) -> bool
+AgentPrism.ClientToolResult.<Clone>$() -> AgentPrism.ClientToolResult!
 AgentPrism.AgentRunRequest.Equals(AgentPrism.AgentRunRequest? other) -> bool
 AgentPrism.AgentRunRequest.Message.get -> string?
 AgentPrism.AgentRunRequest.Message.init -> void

@@ -435,6 +435,7 @@ configuration section.
 | `RequireRolePolicies` | `false` |
 | `EnableDiagnosticsEndpoint` | `false` |
 | `RunEventPollInterval` | 250 ms |
+| `AllowedOrigins` | empty (no CORS header sent) |
 
 ```csharp
 app.MapAgentPrism("/agentprism", options =>

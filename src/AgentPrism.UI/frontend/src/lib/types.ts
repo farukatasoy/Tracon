@@ -293,6 +293,8 @@ export interface ToolDescriptor {
   requiresApproval: boolean;
   /** Server name when the tool comes from a remote MCP server; null when defined in code. */
   source?: string | null;
+  /** Whether the tool's body runs on the caller (typically a browser) instead of on the server. */
+  runsOnClient: boolean;
 }
 
 export interface ToolInvocationRecord {

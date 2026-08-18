@@ -1,16 +1,17 @@
 ---
 title: Tools, skills, and MCP
-description: The three ways an agent gains a capability, and the guards on the two that cross the code-only boundary.
+description: The ways an agent gains a capability, and the guards on the ones that cross the code-only boundary.
 sidebar:
   order: 5
 ---
 
-An agent gains capability in three ways. They differ in where the code lives and who
+An agent gains capability in a few ways. They differ in where the code lives and who
 is allowed to add it.
 
 | | What it is | Where the code runs |
 |---|---|---|
 | **Tools** | Methods in your codebase | Your process |
+| **Client-side tools** | A declaration in your codebase, no server-side body | The caller's process (typically a browser) |
 | **Skills** | Markdown instructions plus resources | Nowhere — they are text |
 | **MCP tools** | Tools published by a remote MCP server | Someone else's process |
 
@@ -26,6 +27,15 @@ anyone who reached the console could execute code on your server.
 Wrapping for approval happens in the **registry**, not at the call site. The registry
 is the single place where "an agent may only point at a registered tool" is enforced,
 so no other code path can skip the wrapper.
+
+## Client-side tools
+
+`AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the
+declaration lives in code — but with no body at all. The model can still call it; the
+server returns the pending call to the caller instead of running anything, and the
+caller answers it on the next request. See
+[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+for the full mechanism and the chat widget built on it.
 
 ## Skills
 

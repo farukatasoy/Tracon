@@ -59,6 +59,65 @@ public sealed class ToolRegistrationTests
     }
 
     [Fact]
+    public void Server_side_tool_descriptor_does_not_run_on_client()
+    {
+        var registry = TestData.Registry(TestData.Tool("get_order"));
+
+        registry.List().ShouldHaveSingleItem().RunsOnClient.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AddClientTool_registers_a_declaration_that_runs_on_client()
+    {
+        var schema = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+            """{"type":"object","properties":{}}""");
+
+        var registry = BuildRegistry(
+            builder => builder.AddClientTool("read_page_title", "Reads the current page title.", schema));
+
+        var descriptor = registry.List().ShouldHaveSingleItem();
+
+        descriptor.Name.ShouldBe("read_page_title");
+        descriptor.Description.ShouldBe("Reads the current page title.");
+        descriptor.RunsOnClient.ShouldBeTrue();
+        descriptor.JsonSchema.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void AddClientTool_produces_a_tool_that_is_not_invocable()
+    {
+        var schema = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+            """{"type":"object","properties":{}}""");
+
+        var registry = BuildRegistry(
+            builder => builder.AddClientTool("read_page_title", "Reads the current page title.", schema));
+
+        registry.TryGet("read_page_title", out var tool).ShouldBeTrue();
+
+        // ShouldNotBeOfType checks EXACT type equality; AIFunction is abstract,
+        // so no instance could ever fail that check regardless of correctness.
+        // ShouldNotBeAssignableTo is the assertion that actually distinguishes
+        // an invocable AIFunction from a declaration-only AIFunctionDeclaration.
+        tool.ShouldNotBeAssignableTo<Microsoft.Extensions.AI.AIFunction>();
+    }
+
+    [Fact]
+    public void Client_tool_cannot_require_approval()
+    {
+        var schema = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+            """{"type":"object","properties":{}}""");
+
+        var declaration = Microsoft.Extensions.AI.AIFunctionFactory.CreateDeclaration(
+            "read_page_title", "Reads the current page title.", schema, returnJsonSchema: null);
+
+        var exception = Should.Throw<AgentPrismException>(
+            () => new ToolRegistry([new AgentPrismToolRegistration(declaration, requiresApproval: true)]));
+
+        exception.Message.ShouldContain("read_page_title");
+        exception.Message.ShouldContain("client");
+    }
+
+    [Fact]
     public void AddToolsFrom_registers_only_marked_methods()
     {
         var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(SampleToolClass)));

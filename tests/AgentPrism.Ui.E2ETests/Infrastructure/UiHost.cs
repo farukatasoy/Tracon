@@ -27,6 +27,9 @@ internal static class ScriptedModels
 
     /// <summary>Model for the "approval-agent" code agent: calls a tool that requests approval, then echoes its result (Phase 55).</summary>
     public const string Approval = "scripted-approval";
+
+    /// <summary>Model for the "client-tool-agent" code agent: calls a client-side tool, then echoes its result (Phase 61).</summary>
+    public const string ClientTool = "scripted-client-tool";
 }
 
 /// <summary>
@@ -72,11 +75,17 @@ internal sealed class UiHost : IAsyncDisposable
     /// <param name="configureServices">
     /// Extra service registration (e.g. authentication/authorization to test role policies).
     /// </param>
+    /// <param name="configureApp">
+    /// Wires up an additional route after <c>app.Build()</c> and before the
+    /// <c>MapAgentPrism</c> call (example: a static test page hosting the
+    /// embeddable widget's script tag, same origin as this host).
+    /// </param>
     /// <returns>The running server.</returns>
     public static async Task<UiHost> StartAsync(
         string prefix = "/agentprism",
         string? authToken = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        Action<WebApplication>? configureApp = null)
     {
         var builder = WebApplication.CreateSlimBuilder();
 
@@ -98,7 +107,10 @@ internal sealed class UiHost : IAsyncDisposable
                 .EchoesUserMessage())
             .ForModel(ScriptedModels.Approval, cfg => cfg
                 .CallsTool("cancel_order", new { orderId = "ORD-7" })
-                .EchoesLastToolResult());
+                .EchoesLastToolResult())
+            .ForModel(ScriptedModels.ClientTool, cfg => cfg
+                .CallsTool("read_page_title")
+                .EchoesLastToolResult("Title: "));
 
         // Voice endpoints need only these abstractions; there is NO reference
         // to the AgentPrism.Voice package. A single instance backs both.
@@ -111,6 +123,10 @@ internal sealed class UiHost : IAsyncDisposable
         builder.Services.AddAgentPrism()
             .AddModelProvider(provider)
             .AddToolsFrom(typeof(OrderTools))
+            .AddClientTool(
+                "read_page_title",
+                "Reads the current browser page title.",
+                System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>("""{"type":"object","properties":{}}"""))
             .UseUI()
             .UseWorkflows()
 
@@ -159,6 +175,20 @@ internal sealed class UiHost : IAsyncDisposable
                 ToolNames = ["cancel_order"],
                 Origin = AgentDefinitionOrigin.Code,
             })
+            .AddAgent(new AgentDefinition
+            {
+                Name = "client-tool-agent",
+                DisplayName = "Client tool agent",
+                Description = "Code agent used in E2E tests that carries a client-side tool (Phase 61).",
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding
+                {
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.ClientTool,
+                },
+                ToolNames = ["read_page_title"],
+                Origin = AgentDefinitionOrigin.Code,
+            })
 
             // Two workflows defined in code: one is a plain chain, the other is
             // a port waiting on human input. The UI tests verify graph rendering
@@ -179,6 +209,8 @@ internal sealed class UiHost : IAsyncDisposable
         // Port 0: the operating system picks a free port. A fixed port would
         // collide across tests running in parallel.
         app.Urls.Add("http://127.0.0.1:0");
+
+        configureApp?.Invoke(app);
 
         app.MapAgentPrism(prefix, options =>
         {

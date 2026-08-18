@@ -64,6 +64,11 @@ public sealed class SourceLanguageTests
         "tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
         "src/AgentPrism.UI/frontend/src/locales/tr.ts",
+        // The embeddable widget's own small dictionary (Phase 61) is deliberately
+        // separate from the console's locales/ — same K-228 status, split into
+        // its own file (not embed/locale.ts, which also carries English) so this
+        // exemption stays as narrow as the console's.
+        "src/AgentPrism.UI/frontend/src/embed/locale.tr.ts",
     ];
 
     /// <summary>

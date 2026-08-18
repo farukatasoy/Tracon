@@ -6270,6 +6270,13 @@
             },
             "description": "Approval decisions for pending tool calls."
           },
+          "toolResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientToolResult"
+            },
+            "description": "Results of client-side tool calls (Phase 61)."
+          },
           "attachmentIds": {
             "type": "array",
             "items": {
@@ -8202,6 +8209,33 @@
             "format": "int64"
           }
         }
+      },
+      "ClientToolResult": {
+        "required": [
+          "callId"
+        ],
+        "type": "object",
+        "properties": {
+          "callId": {
+            "type": "string",
+            "description": "Identifier of the pending call this result answers. Matches the\n\u0060FunctionCallContent.CallId\u0060 the run response carried."
+          },
+          "result": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The tool\u0027s result, given to the model as plain text. Required unless\nstring? ClientToolResult.ErrorMessage is given."
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A message describing why the client-side call failed, given to the\nmodel instead of string? ClientToolResult.Result."
+          }
+        },
+        "description": "The result of a single client-side tool call, sent back so the run can\ncontinue (Phase 61)."
       },
       "CompactionSettings": {
         "type": "object",
@@ -13282,6 +13316,10 @@
               "string"
             ],
             "description": "The tool\u0027s source. \u0060null\u0060 for tools defined in code;\nthe server name for tools coming from a remote MCP server."
+          },
+          "runsOnClient": {
+            "type": "boolean",
+            "description": "Whether the tool\u0027s body runs on the caller (typically a browser)\ninstead of on the server."
           }
         },
         "description": "The UI-facing definition of a tool registered in code. The agent editor\nshows a selection from this list; it does not accept free-text input."

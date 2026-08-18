@@ -214,8 +214,10 @@ public sealed class AgentDefinitionCompiler
         {
             for (var index = 0; index < tools.Count; index++)
             {
-                // The registry only ever returns AIFunction (IToolRegistry.TryGet
-                // signature); another AITool kind never enters here.
+                // IToolRegistry.TryGet returns AIFunctionDeclaration (Phase 61):
+                // a client-side tool (AddClientTool) is a declaration only, not
+                // an AIFunction, and this filter deliberately skips it — there is
+                // no server-side body to transform.
                 if (tools[index] is AIFunction function)
                 {
                     tools[index] = toolTransform(function);

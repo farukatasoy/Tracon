@@ -24,10 +24,20 @@ const COMPRESSIBLE = new Set(['.js', '.mjs', '.css', '.svg', '.json', '.map', '.
 /** gzip budget for JavaScript, in bytes. Exceeding it fails the build. */
 const JS_BUDGET_BYTES = 250 * 1024;
 
+// The embeddable chat widget (Phase 61) builds into wwwroot/embed/ via a
+// SEPARATE Vite config and has its OWN budget gate (postbuild-embed.mjs,
+// 30 KB). It is excluded here so it neither inflates the console's 250 KB
+// budget nor gets double-compressed.
+const EMBED_DIR_NAME = 'embed';
+
 function walk(directory) {
   const files = [];
 
   for (const entry of readdirSync(directory)) {
+    if (entry === EMBED_DIR_NAME && directory === OUT_DIR) {
+      continue;
+    }
+
     const path = join(directory, entry);
 
     if (statSync(path).isDirectory()) {

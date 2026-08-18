@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 60 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir, [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism) ve **public API kapısı** (`EnablePublicApiTracking`) yayın kararından bağımsız olarak açıktır — kayıtsız bir yüzey değişikliği derlemeyi kırar. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–60 bitti; kod dili birleştirme, doküman düzeni, ürün dokümantasyon sitesi ve public API kapısı tamamlandı.
+> **Durum:** Faz 61 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir, [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism) ve **public API kapısı** (`EnablePublicApiTracking`) yayın kararından bağımsız olarak açıktır — kayıtsız bir yüzey değişikliği derlemeyi kırar. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Bir tool'un gövdesi tarayıcıda çalışabilir (`AddClientTool`) ve gömülebilir bir sohbet bileşeni üçüncü taraf sayfalara CORS ile açılabilir. Faz 8–61 bitti; kod dili birleştirme, doküman düzeni, ürün dokümantasyon sitesi, public API kapısı ve istemci tarafı tool'lar tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -227,7 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–60 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**Faz 0–61 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|
@@ -236,7 +236,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 3 | 31–52 | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
 | 4 | 53–56 | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
 | 5 | 57–60 | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
-| 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | 📋 Planlandı |
+| 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | ✅ Bitti |
 | 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK, gelen tetikleyiciler | 📋 Planlandı |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek

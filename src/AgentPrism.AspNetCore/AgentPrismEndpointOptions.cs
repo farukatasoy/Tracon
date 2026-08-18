@@ -148,4 +148,35 @@ public sealed class AgentPrismEndpointOptions
     /// </para>
     /// </remarks>
     public bool EnableDiagnosticsEndpoint { get; set; }
+
+    /// <summary>
+    /// Origins allowed to call the AgentPrism endpoints from a browser. Empty
+    /// by default — no <c>Access-Control-Allow-Origin</c> header is ever
+    /// sent, so a cross-origin browser request is blocked by the browser
+    /// itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// There is no <c>AllowAnyOrigin</c> option: an endpoint that carries a
+    /// bearer token or an API key must not make a wildcard origin easy to
+    /// reach for (K1). Add exact origins, for example
+    /// <c>options.AllowedOrigins.Add("https://shop.example.com")</c>.
+    /// </para>
+    /// <para>
+    /// This exists for the embeddable chat component (Phase 61): a
+    /// consumer's own page, served from its own origin, calls
+    /// <c>{prefix}/api/agents/{name}/run</c> directly from the browser.
+    /// </para>
+    /// <para>
+    /// 🚨 An allowed origin can read a response from <strong>any</strong>
+    /// endpoint under <c>{prefix}</c>, not only the run endpoint — CORS is
+    /// applied to the whole group, not path by path. This is deliberately
+    /// broad rather than a source of extra privilege: reading a response
+    /// still requires a valid credential (bearer token or a correctly scoped
+    /// API key), and CORS only controls whether the browser lets the page's
+    /// own script read what that credential already permits. Add an origin
+    /// only where you also control which credential reaches that origin.
+    /// </para>
+    /// </remarks>
+    public IList<string> AllowedOrigins { get; } = [];
 }

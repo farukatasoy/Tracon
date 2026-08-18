@@ -36,4 +36,16 @@ public sealed record ToolDescriptor
     /// may change the definition.
     /// </remarks>
     public string? Source { get; init; }
+
+    /// <summary>
+    /// Whether the tool's body runs on the caller (typically a browser)
+    /// instead of on the server.
+    /// </summary>
+    /// <remarks>
+    /// A client-side tool (<c>AddClientTool</c>) is registered as a
+    /// declaration only: the model can call it, but the server never runs
+    /// it. The caller must send the result back via
+    /// <c>AgentRunRequest.ToolResults</c> for the run to continue.
+    /// </remarks>
+    public bool RunsOnClient { get; init; }
 }

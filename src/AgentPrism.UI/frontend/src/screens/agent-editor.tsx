@@ -551,6 +551,11 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                             approval
                           </Badge>
                         )}
+                        {tool.runsOnClient && (
+                          <Badge tone="accent" title={t('agentEditor.runsOnClientTitle')}>
+                            {t('tools.runsOnClient')}
+                          </Badge>
+                        )}
                         {tool.description !== null && tool.description !== undefined && (
                           <span className="block text-[12px] text-muted">{tool.description}</span>
                         )}
