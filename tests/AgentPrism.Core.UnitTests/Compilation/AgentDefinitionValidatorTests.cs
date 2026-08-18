@@ -233,14 +233,14 @@ public sealed class AgentDefinitionValidatorTests
     /// </summary>
     private sealed class MutableToolRegistry : IToolRegistry
     {
-        private readonly Dictionary<string, AIFunction> _tools = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, AIFunctionDeclaration> _tools = new(StringComparer.Ordinal);
 
         public void Add(AIFunction tool) => _tools[tool.Name] = tool;
 
         public IReadOnlyList<ToolDescriptor> List()
             => [.. _tools.Values.Select(static tool => new ToolDescriptor { Name = tool.Name })];
 
-        public bool TryGet(string name, [NotNullWhen(true)] out AIFunction? tool) => _tools.TryGetValue(name, out tool);
+        public bool TryGet(string name, [NotNullWhen(true)] out AIFunctionDeclaration? tool) => _tools.TryGetValue(name, out tool);
     }
 
     /// <summary>Fake refresher that controls fresh MCP scan requests.</summary>

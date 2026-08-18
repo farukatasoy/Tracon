@@ -1093,7 +1093,7 @@ AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolA
 AgentPrism.ToolRegistry
 AgentPrism.ToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
 AgentPrism.ToolRegistry.ToolRegistry(System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismToolRegistration!>! registrations) -> void
-AgentPrism.ToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunction? tool) -> bool
+AgentPrism.ToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunctionDeclaration? tool) -> bool
 AgentPrism.VoiceAudioFormats
 AgentPrism.VoiceConnectionLease
 AgentPrism.VoiceConnectionLease.Dispose() -> void
@@ -1388,3 +1388,5 @@ static AgentPrism.WorkflowDefinitionValidator.Validate(AgentPrism.WorkflowDefini
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
+AgentPrism.AgentPrismClientToolExtensions
+static AgentPrism.AgentPrismClientToolExtensions.AddClientTool(this AgentPrism.IAgentPrismBuilder! builder, string! name, string! description, System.Text.Json.JsonElement jsonSchema) -> AgentPrism.IAgentPrismBuilder!

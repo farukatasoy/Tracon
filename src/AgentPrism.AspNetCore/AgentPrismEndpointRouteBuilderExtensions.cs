@@ -86,6 +86,12 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
         MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);
 
+        // CORS (Phase 61). Off by default (AllowedOrigins is empty); added
+        // before the idempotency/JSON-binding middleware below so a preflight
+        // OPTIONS request (which never reaches a route handler) still gets a
+        // CORS response.
+        AgentPrismCorsMiddleware.Map(endpoints, options, normalizedPrefix);
+
         // Idempotency-Key support (Phase 43). Because the body can be consumed
         // BEFORE the filter's InvokeAsync (by minimal API's automatic binding
         // on some endpoints), reading the raw bytes afterward is only possible

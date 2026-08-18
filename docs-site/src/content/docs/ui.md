@@ -122,7 +122,10 @@ revoked.
 
 Tools with their generated JSON schemas — read-only, and permanently so. This screen
 is where the code-only rule is most visible: you can see every tool an agent may use,
-and there is no way to add one from here.
+and there is no way to add one from here. A tool registered with `AddClientTool(...)`
+carries a "client-side" badge: its declaration is still code-only, but its body runs
+on the caller instead of the server. See
+[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/).
 
 <a class="ui-shot" href="/AgentPrism/screenshots/models.png"><img src="/AgentPrism/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
@@ -161,6 +164,28 @@ app.MapAgentPrism("/agentprism", options =>
 
 Version, prefix, authentication method, active stores, theme, and language.
 
+## Embeddable chat widget
+
+`AgentPrism.UI` also builds a second, much smaller bundle: a floating chat widget
+meant for a **different** page — your own product's site, not the console. It ships
+from a separate Vite entry, with its own budget gate (30 KB gzip; current size:
+2.7 KB), so console code cannot leak into it. `UseUI()` serves both; no separate
+registration is needed.
+
+```html
+<script src="https://your-agentprism-host/agentprism/embed/embed.js"
+  data-server="https://your-agentprism-host"
+  data-agent="support"
+  data-api-key="sk_..."></script>
+```
+
+The widget calls the run endpoint directly from the embedding page's origin, so
+[`AllowedOrigins`](/AgentPrism/reference/configuration/) must list that origin —
+empty by default, so a page you have not explicitly allowed is blocked by the
+browser. See
+[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+for the full walkthrough, including how the widget runs a client-side tool.
+
 ## Things worth knowing
 
 - The console works under **any** prefix and learns it at run time
@@ -188,3 +213,5 @@ the management HTTP API so the fields remain explicit.
 - [Securing the endpoints](/AgentPrism/getting-started/security/) — why the shell is
   exempt from the bearer layer
 - [The HTTP API](/AgentPrism/http-api/) — everything the console does, as requests
+- [Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+  — a tool whose body runs in the browser, and the chat widget that runs it

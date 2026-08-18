@@ -138,6 +138,16 @@ var agentPrism = builder.AddAgentPrism()
     // warning. It finds every [AgentPrismTool]-marked method in this assembly
     // (OrderTools). Use AddToolsFrom for tools defined in another assembly.
     .AddGeneratedTools()
+    // A client-side tool (Phase 61): its DECLARATION lives here, in code, like
+    // every other tool (K2), but the server never runs it. The model's call
+    // is returned to the caller (a browser), which reads its own shopping
+    // cart from local storage — something only the browser can see — and
+    // sends the result back via `toolResults` on the next run request.
+    .AddClientTool(
+        "read_shopping_cart",
+        "Reads the items currently in the customer's shopping cart in the browser.",
+        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+            """{"type":"object","properties":{}}"""))
     // Remote MCP servers. A server definition is added from the UI or the
     // /api/mcp-servers endpoint; discovery runs in the background. Nothing
     // happens if no server is registered. MCP tools require approval by
@@ -348,11 +358,14 @@ agentPrism
         DisplayName = "Support Assistant",
         Description = "Answers order and shipping questions.",
         Instructions = "You are a support assistant. Answer briefly and clearly. " +
-                       "Always use a tool for order questions.",
+                       "Always use a tool for order questions. Use read_shopping_cart " +
+                       "when asked about the customer's current cart.",
         Model = model,
         // cancel_order requires approval: when the model tries to call it, the
-        // run pauses and an approval card appears in the UI.
-        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
+        // run pauses and an approval card appears in the UI. read_shopping_cart
+        // is a client-side tool (Phase 61): the server never runs it, and the
+        // model's call comes back to the caller as a pending FunctionCallContent.
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order", "read_shopping_cart"],
     })
 
     // A harness-configured agent: context compaction and todo tracking are on.
@@ -784,6 +797,13 @@ app.MapAgentPrism("/agentprism", options =>
     if (builder.Configuration.GetValue<bool?>("AgentPrism:Ui:AllowRemoteAccess") is { } allowRemoteAccess)
     {
         options.AllowRemoteAccess = allowRemoteAccess;
+    }
+
+    // CORS (Phase 61): empty by default (K1). Enables the embeddable chat
+    // widget to be hosted on a different origin than this API.
+    foreach (string origin in builder.Configuration.GetSection("AgentPrism:Ui:AllowedOrigins").Get<string[]>() ?? [])
+    {
+        options.AllowedOrigins.Add(origin);
     }
 
     // The diagnostics endpoint is OFF by default (K1: a surface that reveals

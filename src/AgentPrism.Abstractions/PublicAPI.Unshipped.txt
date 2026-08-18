@@ -195,8 +195,8 @@ AgentPrism.AgentPrismToolAttribute.Name.get -> string?
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.init -> void
 AgentPrism.AgentPrismToolRegistration
-AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunction! function, bool requiresApproval = false, string? source = null) -> void
-AgentPrism.AgentPrismToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunction!
+AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null) -> void
+AgentPrism.AgentPrismToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
 AgentPrism.AgentPrismToolRegistration.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolRegistration.Source.get -> string?
 AgentPrism.AgentResponseFormat
@@ -1148,7 +1148,7 @@ AgentPrism.IToolApprovalRuleStore.DeleteAsync(string! tenantId, System.Guid rule
 AgentPrism.IToolApprovalRuleStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.ToolApprovalRule!>!>
 AgentPrism.IToolRegistry
 AgentPrism.IToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
-AgentPrism.IToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunction? tool) -> bool
+AgentPrism.IToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunctionDeclaration? tool) -> bool
 AgentPrism.ITraceStore
 AgentPrism.ITraceStore.GetTraceByRunAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunTrace?>
 AgentPrism.ITraceStore.WriteSpansAsync(AgentPrism.TraceSpanBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -2603,6 +2603,8 @@ AgentPrism.ToolDescriptor.Name.get -> string!
 AgentPrism.ToolDescriptor.Name.init -> void
 AgentPrism.ToolDescriptor.RequiresApproval.get -> bool
 AgentPrism.ToolDescriptor.RequiresApproval.init -> void
+AgentPrism.ToolDescriptor.RunsOnClient.get -> bool
+AgentPrism.ToolDescriptor.RunsOnClient.init -> void
 AgentPrism.ToolDescriptor.Source.get -> string?
 AgentPrism.ToolDescriptor.Source.init -> void
 AgentPrism.ToolDescriptor.ToolDescriptor() -> void
