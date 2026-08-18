@@ -185,6 +185,12 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the audit log records with a filter.</summary>
     public string SelectAuditLog { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that reads the hash of a tenant's newest audit log record (phase 64).</summary>
+    public string SelectLastAuditHash { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads a tenant's audit log records, oldest first, for hash chain verification (phase 64).</summary>
+    public string SelectAuditChain { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts or updates a schedule.</summary>
     public string UpsertJobSchedule { get; protected set; } = string.Empty;
 

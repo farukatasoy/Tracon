@@ -203,6 +203,19 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
                     AgentPrismJsonContext.Default.StringArray));
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 Serialized through <see cref="AgentPrismJsonContext.StringArray"/> as
+    /// UPPERCASE text, NOT through the <c>GuidArray</c> converter's default
+    /// (lowercase) formatting. Measured: every scalar Guid parameter in this
+    /// dialect writes UPPERCASE text (see <see cref="SqlDialect.AddUuid"/>'s
+    /// remarks on this type, K-191), but <c>System.Text.Json</c>'s built-in
+    /// <see cref="Guid"/> converter always writes LOWERCASE — comparing a
+    /// lowercase array element against an uppercase stored id inside
+    /// <see cref="ArrayContains"/> then fails for every id containing an a-f
+    /// hex digit, SILENTLY (SQLite text comparison is case-sensitive), and
+    /// only for SOME rows depending on which hex digits their id happens to
+    /// contain, which read as flaky test failures before the pattern was clear.
+    /// </remarks>
     public override void AddUuidArray(DbCommand command, string name, IReadOnlyList<Guid>? values)
         => AddTyped(
             command,
@@ -211,8 +224,8 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             values is null
                 ? null
                 : JsonSerializer.Serialize(
-                    values.ToArray(),
-                    AgentPrismJsonContext.Default.GuidArray));
+                    values.Select(static value => value.ToString("D", CultureInfo.InvariantCulture).ToUpperInvariant()).ToArray(),
+                    AgentPrismJsonContext.Default.StringArray));
 
     /// <inheritdoc />
     /// <remarks>
@@ -222,6 +235,10 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// </remarks>
     public override void AddInterval(DbCommand command, string name, TimeSpan value)
         => AddTyped(command, name, DbType.Int32, (int)value.TotalMinutes);
+
+    /// <inheritdoc />
+    public override string ArrayContains(string column, string paramName)
+        => $"EXISTS (SELECT 1 FROM json_each(@{paramName}) WHERE value = {column})";
 
     /// <inheritdoc />
     public override IReadOnlyList<string> ReadTextArray(DbDataReader reader, int ordinal)

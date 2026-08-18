@@ -1229,12 +1229,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // --- Audit log ---
 
         InsertAuditEntry = $"""
-            INSERT INTO {Schema}audit_log (id, tenant_id, actor, action, entity, before, after, created_at)
-            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at);
+            INSERT INTO {Schema}audit_log (id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash)
+            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at, @prev_hash, @hash);
             """;
 
         SelectAuditLog = $"""
-            SELECT id, tenant_id, actor, action, entity, before, after, created_at
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
             FROM {Schema}audit_log
             WHERE tenant_id = @tenant_id
               AND (@actor      IS NULL OR actor  = @actor)
@@ -1244,6 +1244,32 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@started_before IS NULL OR created_at < @started_before)
             ORDER BY created_at DESC
             LIMIT @take;
+            """;
+
+        // --- Audit hash chain (Phase 64) ---
+
+        // 🚨 Ordered by `rowid`, NOT `(created_at, id)` — see PostgreSQL
+        // 0031_audit_chain.sql for why timestamp/uuid ordering is wrong here.
+        // SQLite's `audit_log` keeps its implicit rowid (the primary key is
+        // `id TEXT`, not `INTEGER PRIMARY KEY`, so it does not alias rowid and
+        // the table is not `WITHOUT ROWID`); rowid already assigns strictly
+        // increasing values in insertion order with no schema change needed.
+        SelectLastAuditHash = $"""
+            SELECT hash
+            FROM {Schema}audit_log
+            WHERE tenant_id = @tenant_id
+            ORDER BY rowid DESC
+            LIMIT 1;
+            """;
+
+        SelectAuditChain = $"""
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
+            FROM {Schema}audit_log
+            WHERE tenant_id = @tenant_id
+              AND hash IS NOT NULL
+              AND (@started_after  IS NULL OR created_at >= @started_after)
+              AND (@started_before IS NULL OR created_at <= @started_before)
+            ORDER BY rowid;
             """;
 
         // --- Scheduling and job queue ---

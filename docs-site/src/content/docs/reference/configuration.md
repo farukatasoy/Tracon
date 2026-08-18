@@ -480,6 +480,10 @@ freeze an exposure allowlist at registration, or define request-resolution polic
 - `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and criteria.
 - `AddAgent()`, `AddSkill()`, `AddWorkflow()`, and `AddEvalCheck()` define executable
   or compiled behavior.
+- `IDataSubjectResolver` (`services.AddSingleton<IDataSubjectResolver, ...>()`) maps a
+  data subject id to their sessions, runs, and conversations — no default
+  implementation, no configuration section; see
+  [Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
 
 Use the [API reference](/AgentPrism/api/) for every property on these code-only
 types. Their absence from this section table is deliberate.

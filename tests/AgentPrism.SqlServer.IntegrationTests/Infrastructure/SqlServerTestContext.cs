@@ -68,6 +68,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
         PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
+        DataSubjects = new SqlDataSubjectStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -178,6 +179,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
     /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
+
+    /// <summary>Data subject export/erasure data plane (Phase 64).</summary>
+    public SqlDataSubjectStore DataSubjects { get; }
 
     /// <summary>The schema name in use.</summary>
     public string SchemaName => Options.SchemaName;
@@ -518,6 +522,17 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
                 SELECT @sql += N'DROP TABLE {SchemaName}.' + QUOTENAME(t.name) + N';'
                 FROM sys.tables AS t
                 JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+                WHERE s.name = N'{SchemaName}';
+
+                EXEC sp_executesql @sql;
+                SET @sql = N'';
+
+                -- Phase 64: audit_chain_seq. A schema cannot be dropped while
+                -- a sequence still lives in it, the same reason tables are
+                -- dropped above first.
+                SELECT @sql += N'DROP SEQUENCE {SchemaName}.' + QUOTENAME(seq.name) + N';'
+                FROM sys.sequences AS seq
+                JOIN sys.schemas AS s ON seq.schema_id = s.schema_id
                 WHERE s.name = N'{SchemaName}';
 
                 EXEC sp_executesql @sql;

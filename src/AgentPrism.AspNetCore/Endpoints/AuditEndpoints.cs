@@ -86,5 +86,34 @@ internal static class AuditEndpoints
                 "one request answers 'who changed this and to what'. There is no paging: " +
                 "'?limit=' defaults to 100 and is clamped to 1..500, and only the newest entries " +
                 "are returned. An entity with no history returns an empty list, not 404.");
+
+        builder.MapGet("/api/audit/verify", async Task<Ok<AuditChainVerification>> (
+                IAuditLog auditLog,
+                ITenantContext tenants,
+                DateTimeOffset? after,
+                DateTimeOffset? before,
+                CancellationToken cancellationToken) =>
+            {
+                var result = await auditLog.VerifyChainAsync(
+                    new AuditChainQuery { TenantId = tenants.TenantId, After = after, Before = before },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(result);
+            })
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
+            .WithName("AgentPrismVerifyAuditChain")
+            .WithTags("AgentPrism", "Governance")
+            .WithSummary("Walks the tenant's audit trail hash chain and reports whether it is intact.")
+            .WithDescription(
+                "'Valid' means every entry's hash matches its content and links to the one " +
+                "before it. 'Broken' means an entry's stored hash no longer matches its content " +
+                "— it was altered after it was written. 'Gap' means a link between two entries " +
+                "is missing — a row was deleted, or a write never completed; " +
+                "'firstFailingEntryId' names where. An entry written before this feature shipped " +
+                "carries no hash and is excluded from the walk, not misreported as broken. " +
+                "Without '?after='/'?before=' the whole tenant history is walked; a narrower " +
+                "range is cheaper but cannot judge a break exactly at its own edge, because the " +
+                "entry just before the range is not read.");
     }
 }
