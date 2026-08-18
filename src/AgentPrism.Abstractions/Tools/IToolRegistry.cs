@@ -22,5 +22,15 @@ public interface IToolRegistry
     /// <param name="name">The tool name. Comparison is case-sensitive.</param>
     /// <param name="tool">The tool found.</param>
     /// <returns><see langword="true"/> if the tool is registered.</returns>
-    bool TryGet(string name, [NotNullWhen(true)] out AIFunction? tool);
+    /// <remarks>
+    /// The result is an <see cref="AIFunctionDeclaration"/>, not an
+    /// <see cref="AIFunction"/>: a client-side tool (<c>AddClientTool</c>) is
+    /// registered as a declaration-only <c>AIFunctionDeclaration</c>, which
+    /// is not an <see cref="AIFunction"/> and cannot be invoked. Every
+    /// registered tool — server-side or client-side — is an
+    /// <see cref="AIFunctionDeclaration"/>, so <see cref="AIFunctionDeclaration.JsonSchema"/>
+    /// is always available. Callers pass the result straight to
+    /// <c>ChatOptions.Tools</c>, which accepts the broader <c>AITool</c>.
+    /// </remarks>
+    bool TryGet(string name, [NotNullWhen(true)] out AIFunctionDeclaration? tool);
 }

@@ -67,7 +67,7 @@ public sealed class McpToolRegistry : IToolRegistry
     }
 
     /// <inheritdoc />
-    public bool TryGet(string name, [NotNullWhen(true)] out AIFunction? tool)
+    public bool TryGet(string name, [NotNullWhen(true)] out AIFunctionDeclaration? tool)
     {
         ArgumentNullException.ThrowIfNull(name);
 

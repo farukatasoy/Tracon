@@ -233,6 +233,26 @@ public sealed record AgentRunRequest
     public IReadOnlyList<ToolApprovalDecision> Approvals { get; init; } = [];
 
     /// <summary>
+    /// Results of client-side tool calls (Phase 61).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A client-side tool (<c>AddClientTool</c>) is registered as a
+    /// declaration only; the server never runs it. It produces a pending
+    /// call the model is waiting on, and the result is <strong>the next
+    /// turn's input</strong> — the same pattern <see cref="Approvals"/>
+    /// uses for <c>ToolApprovalRequestContent</c>. There is no separate
+    /// "continue" endpoint.
+    /// </para>
+    /// <para>
+    /// Results are processed only when <see cref="SessionId"/> is given: the
+    /// pending call lives in the session history and cannot be found in a
+    /// sessionless run.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<ClientToolResult> ToolResults { get; init; } = [];
+
+    /// <summary>
     /// Identifiers of attachments previously uploaded via <c>POST /api/attachments</c>.
     /// </summary>
     /// <remarks>
@@ -243,6 +263,44 @@ public sealed record AgentRunRequest
     /// Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.4.
     /// </remarks>
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
+}
+
+/// <summary>
+/// The result of a single client-side tool call, sent back so the run can
+/// continue (Phase 61).
+/// </summary>
+/// <remarks>
+/// <see cref="AgentPrismClientToolExtensions.AddClientTool"/>'s sibling on
+/// the run request: the model calls a client-side tool, the server returns
+/// the pending call to the caller instead of running it, and the caller
+/// sends the outcome back through this contract.
+/// </remarks>
+public sealed record ClientToolResult
+{
+    /// <summary>
+    /// Identifier of the pending call this result answers. Matches the
+    /// <c>FunctionCallContent.CallId</c> the run response carried.
+    /// </summary>
+    public required string CallId { get; init; }
+
+    /// <summary>
+    /// The tool's result, given to the model as plain text. Required unless
+    /// <see cref="ErrorMessage"/> is given.
+    /// </summary>
+    public string? Result { get; init; }
+
+    /// <summary>
+    /// A message describing why the client-side call failed, given to the
+    /// model instead of <see cref="Result"/>.
+    /// </summary>
+    /// <remarks>
+    /// A client-side tool can fail for reasons the server never sees — the
+    /// user denied a browser permission, a DOM element was not found. The
+    /// failure is reported to the model as ordinary tool output, not as an
+    /// HTTP error: the run continues and the model can recover (retry,
+    /// explain, ask a follow-up).
+    /// </remarks>
+    public string? ErrorMessage { get; init; }
 }
 
 /// <summary>

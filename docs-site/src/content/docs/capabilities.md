@@ -77,6 +77,7 @@ prices.
 | Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
 | Tool approval | `RequiresApproval` or the registration flag | A sensitive call cannot execute until a person or standing rule decides it |
+| Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults` |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
@@ -160,6 +161,7 @@ experiment, and automatic rollback is off until you configure it.
 | Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
+| Cross-origin access | `AgentPrismEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
 
 An API-key scope never grants a role. Effective authority is the intersection of the
 caller's role and key scopes. See the complete scope table in
@@ -187,6 +189,7 @@ caller's role and key scopes. See the complete scope table in
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |
+| Embeddable chat widget | `AgentPrism.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `AgentPrism.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapAgentPrismMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
 | A2A server | `UseA2A()` and `MapAgentPrismA2A()` | External agents that invoke an explicit allowlist of AgentPrism agents |
