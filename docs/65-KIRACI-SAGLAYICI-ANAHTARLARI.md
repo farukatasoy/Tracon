@@ -1,7 +1,7 @@
 # Faz 65 — Kiracı Sağlayıcı Anahtarları (BYOK)
 
 > **Durum:** 📋 Planlandı (2026-08-18)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-40**
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-40**, **F-119**
 > **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `tenant_provider_bindings` tablosu). Numara uygulama anında alınır (K-178)
@@ -51,6 +51,16 @@ kiracıya yansıtılamaz.
 
 - **F-40** — Kiracı başına sağlayıcı anahtarı. Kayıtta yalnız **yapılandırma
   anahtarının adı** durur; değer çalışma anında `IConfiguration`'dan çözülür.
+- **F-119** — Kiracı başına **izinli sağlayıcı listesi** (egress politikası).
+  Anahtarın *hangi* sağlayıcıya gidebileceğini sınırlar.
+
+🚨 **F-119 neden burada** (2026-08-18, tüketici raporu turu): ikisi de aynı
+çözümleme yolunda oturur. Ayrı fazlarda yapmak `IModelProvider` çözümlemesini
+iki kez elden geçirmek ve bu fazın "yayından sonra en pahalı" yüzeyine ikinci
+kez dokunmaktır. Kanıt: `grep -rn "AllowList\|Allowlist\|AllowedProviders" src`
+**üç** sonuç verir ve üçü de skill script ortam değişkenidir
+([`AgentPrismOptions.cs:207`](../src/AgentPrism.Core/AgentPrismOptions.cs));
+sağlayıcı tarafında allowlist **yoktur**.
 
 Karar (kullanıcı, 2026-08-18): **yeni `tenant_provider_bindings` tablosu.**
 Kiracı × sağlayıcı başına bir satır; sağlayıcıya özgü ek alanlara (uç adresi,
@@ -133,9 +143,14 @@ etkisiz kalır **veya** kiracılar arası sızar. Uygulamanın **ilk işi** bunu
 
 | Sıra | Kaynak |
 |---|---|
+| 0 | **Egress politikası** — sağlayıcı bu kiracıya izinli mi (F-119) |
 | 1 | Kiracının `tenant_provider_bindings` kaydı |
 | 2 | Kurulum anındaki global anahtar |
 | 3 | Yoksa bugünkü hata: sağlayıcı kayıtlı değil |
+
+🚨 **Sıfırıncı adım en başta durur.** İzin kontrolü anahtar çözümlemesinden
+**önce** yapılır: izinsiz bir sağlayıcı için anahtar aramak, olmaması gereken
+bir yola girmektir.
 
 Kiracının kaydı **varsa ve çözülemiyorsa** (ad var, değer yok) çağrı global
 anahtara **düşmez**; anlaşılır bir hata verir. Sessiz düşüş yanlış faturaya yol
@@ -154,6 +169,33 @@ Yanıt hiçbir zaman bir değer taşımaz; yalnız adı, sağlayıcıyı ve çö
 yazdım ama çalışmıyor" sorusunun teşhis yoludur.
 
 Her yazma bir denetim olayıdır (K-089: mutasyondan **önce**).
+
+## 65.6 — Egress politikası (F-119)
+
+Bir kiracının verisi yalnız izinli sağlayıcılara gidebilir. Bugün bir yönetici
+`OpenAICompatible` üzerinden **herhangi bir adrese** kiracı verisi gönderen bir
+agent tanımlayabilir.
+
+**Üç kural:**
+
+1. **Doğrulama derleme anındadır, çalışma anında değil.** Politikayı ihlal eden
+   bir agent tanımı `AgentDefinitionValidator`'da reddedilir. Çalışma anında
+   yakalamak, hatayı ilk gerçek `run`'a — yani ilk gerçek veri sızıntısı
+   denemesine — erteler.
+2. **Varsayılan: kısıt yok.** Politika tanımlanmamış bir kiracı bugünkü gibi
+   davranır (K1). Politika **eklemeli** bir kısıttır, varsayılan bir duvar değil.
+3. **Politika kiracı kaydını da bağlar.** `PUT .../providers/{provider}`
+   izinli olmayan bir sağlayıcı için `400` döner — iki yüzey birbiriyle
+   tutarlıdır.
+
+| Metot | Yol | Rol · kapsam |
+|---|---|---|
+| `GET` | `/api/tenants/{tenantId}/egress` | Admin · `SecurityAdmin` |
+| `PUT` | `/api/tenants/{tenantId}/egress` | Admin · `SecurityAdmin` |
+
+**Kapsam dışı:** PII maskeleme ve veri ikametgâhı sertifikasyonu. Guard'lar
+maskelemeyi zaten yapabiliyor ([Faz 48](48-GUARDRAILS.md)); bu faz yalnız
+**nereye gidilebileceğini** sınırlar.
 
 ---
 
@@ -274,6 +316,10 @@ src/AgentPrism.UI/frontend/src/
 | Bağlama yazımı denetim izine yazılmaz | Fonksiyonel | `TenantProviderAuditTests` (K-089) |
 | Üç sağlayıcıda tablo davranışı ayrışır | Sözleşme | `TenantProviderBindingContract` |
 | Sözlük anahtarı eksik | Derleme | `tsc --noEmit` (K-228) |
+| İzinsiz sağlayıcıya işaret eden tanım çalışma anında yakalanır | Fonksiyonel | `EgressPolicyValidationTests` — **derleme anında** reddedilmeli |
+| Politika tanımsız kiracıda davranış değişir | Birim | `EgressPolicyDefaultTests` |
+| İzinsiz sağlayıcı için anahtar kaydı kabul edilir | Fonksiyonel (HTTP) | `EgressPolicyBindingTests` — `400` |
+| Başka kiracının egress politikası görünür | Sözleşme | `TenantIsolationContract` |
 
 Sözleşme testi `tests/Shared/Contracts/` altına — hem bellek içi hem üç SQL
 sağlayıcısı üzerinde koşar.
@@ -330,6 +376,9 @@ sağlayıcısı üzerinde koşar.
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi (`guides/model-providers.md`, `concepts/governance.md`, `reference/configuration.md`); `npm run build` + `check-links.mjs` temiz
 - [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [ ] Egress politikası tanımsız kiracıda hiçbir davranış değişmez
+- [ ] İzinsiz sağlayıcıya işaret eden agent tanımı **kaydetme anında** reddedilir
+- [ ] İzinsiz sağlayıcı için anahtar kaydı `400` döner
 
 ### Doğrulama komutları
 

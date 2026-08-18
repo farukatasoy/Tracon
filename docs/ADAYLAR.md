@@ -170,10 +170,27 @@ içindedir.
 > kodlandı ve kapandı** (K-431, K-434, K-432). F-106 azaltıldı ama doğrulanmadı ve
 > açık kalır (K-433).
 
+> 🚨 **Aynı gün ikinci bir tur koştu — tüketici raporu turu.** Kaynağı bu depo
+> değildi: gerçek bir tüketici projesi `docs-site/`'ın 91 sayfasını tarayıp bir
+> uygulanabilirlik raporu üretti; rapor ölçüldü ve **on yeni kalem** doğdu
+> (F-110…F-119). Turun tamamı:
+> [`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
+>
+> 🚨 **Onu da aynı gün plana dönüştü** — altı yeni faz (67–72) ve F-119'un
+> [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı
+> **22'de kaldı**; gövdeler
+> [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'dedir.
+>
+> Turun kendisi bir ders verdi: on kalemin **hiçbiri** faz listesine bakarak
+> görünmüyordu. Üçü stratejik boşluktu (F-110 kurulum engeli, F-113 tool izni,
+> F-111 maliyet dağıtımı) ve üçü de ancak paketi **gömmeye çalışınca** ortaya
+> çıktı.
+
 | Ne | Sonuç |
 |---|---|
-| Bu listede kalan kalem | **22** (2026-08-18 ölçümü) — otuz üç ID plana dönüştü, altı kalem kapandı |
-| Plana dönüşen | **26** — Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
+| Bu listede kalan kalem | **22** (2026-08-18, iki tur sonrası) — kırk üç ID plana dönüştü, altı kalem kapandı |
+| Tüketici raporundan doğan | **10** — F-110…F-119, **onu da aynı gün plana dönüştü** (Faz 65, 67–72); ayrıca iki kalem kalıcı olarak reddedildi (fatura üretimi, harici hosted agent yönetimi) |
+| Plana dönüşen | **36** (2026-08-18 sonu) — Dalga 8: F-110…F-119 → Faz 65, 67–72 · önceki 26 kalem:  Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
 | İptal edilen | **1** — F-43, çünkü tamamlandı |
 | Seçildi ama **ertelendi** | **1** — F-72; ölçüm erteleme getirdi ve kanıt bölümüne yazıldı |
 | Kanıtı düzeltilen | **19** — Dalga 1–2'de 11, Dalga 3'te 8. Kalemler ayakta, gerekçeler değişti |
@@ -183,8 +200,9 @@ içindedir.
 | Aciliyeti **artan** | **4** — F-36, F-56, F-69, F-74; hepsi Dalga 3'ün çıktısına bağlı |
 
 **ID'ler sabittir.** F-35 her zaman "çalıştırma iptali"dir — kalem plana
-dönüşse bile ID yeniden kullanılmaz. Yeni kalemler F-77'den devam eder. Sabit
-ID olmadan sonraki oturumun referansları kaybolur.
+dönüşse bile ID yeniden kullanılmaz; ID olmadan sonraki oturumun referansları
+kaybolur. Bugün en büyük numara **F-119**'dur (2026-08-18, tüketici raporu
+turu); yeni kalemler oradan devam eder.
 
 **Kod kanıtları 2026-08-06'da bu depo üzerinde `grep` ile yeniden
 doğrulandı.** Depo ilerledikçe satır numaraları kayar. Bir kanıtı
@@ -263,6 +281,14 @@ Bir fikir yalnız bir mercekten iyi görünüyorsa zayıftır. Her kalemin
 > **Bu bölümün her iki kalemi de plana dönüştü (2026-08-08):** F-36 →
 > [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md), F-69 →
 > [Faz 55](55-ASENKRON-ONAY-KUTUSU.md). Bölümleri buradan silindi.
+>
+> 🚨 **2026-08-18 turunun üç kalemi de aynı gün plana dönüştü** (F-110, F-114,
+> F-115). Aşağıdaki satırlar yalnız **iz**dir; gövdeler arşivdedir. Bu bölümde
+> **seçilmemiş kalem kalmadı** ([keşif notu](kesif/2026-08-18-tuketici-raporu.md)).
+
+- **F-110** `pgvector`'ün isteğe bağlı olması → [Faz 67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-114** Tool yürütme timeout'u → [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-115** Çalıştırma olayı hedefi ve `ReasoningDelta` → [Faz 70](70-CALISTIRMA-OLAYI-HEDEFI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
 ## B. Model yüzeyi ve yönlendirme
 
@@ -283,6 +309,8 @@ anahtarında olmalıdır.
 ayrı bir kavramdır ve Faz 26'da zaten var.
 
 ---
+
+- **F-112** Cache ve reasoning token kırılımı → [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
 ## C. Güvenlik, yönetişim ve uyum
 
@@ -390,6 +418,9 @@ bilgisine dayanmalı, metin eşleştirme kırılgandır.
 > bitiriyor. Zorlama süper-adım sınırında ve pompa çıkışında yapılır.
 > Tam gerekçe: **K-432**.
 
+- **F-113** Tool düzeyinde yetkilendirme ve etki sınıfı → [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-119** Kiracı bazlı sağlayıcı allowlist'i → [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+
 ## D. Yetenek derinliği
 
 ### F-34 · Talimat şablonlama ve paylaşılan prompt kütüphanesi
@@ -436,6 +467,10 @@ agent'lar için bu görünür bir boşluktur.
 
 ---
 
+- **F-116** Workflow kod düğümü → [Faz 71](71-WORKFLOW-KOD-DUGUMU.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-117** Talimatta çok dillilik → [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-118** Zaman damgalı konuşma sentezi → [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+
 ## E. Ölçme–iyileştirme döngüsü
 
 Bu grup birlikte "agent'ı ölçerek iyileştirme" döngüsünü kurar. Bugün döngü
@@ -450,6 +485,14 @@ Bu grup birlikte "agent'ı ölçerek iyileştirme" döngüsünü kurar. Bugün d
 > 🚨 **Döngü kapandı (2026-08-08):** son halka F-74 da plana dönüştü →
 > [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). Bu bölümde kalem
 > kalmadı; bölümü buradan silindi.
+>
+> 🚨 **2026-08-18:** Döngü *ölçme→iyileştirme* yönünde kapanmıştı ama **kırılım
+> boyutu** eksikti — ölçüm kiracıdan ince bir yere inemiyordu. F-111 bunu kapatır
+> ve aynı gün [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md)'e dönüştü.
+> Bu bölümde **seçilmemiş kalem kalmadı**
+> ([keşif notu](kesif/2026-08-18-tuketici-raporu.md)).
+
+- **F-111** Çalıştırma kimliği ve maliyet kırılım boyutları → [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
 ## F. Paket ailesi ve geliştirici deneyimi
 
@@ -562,11 +605,16 @@ Kalın yazılan kalemler **hâlâ bu listededir**; 📋 işaretliler plana dön�
 | Olay tabanlı agent tetikleme | n8n · Dify · Inngest | **Yok** | F-65 → [Faz 66](66-GELEN-TETIKLEYICILER.md) 📋 |
 | İstemci tarafında çalışan tool | Vercel AI SDK `onToolCall` · CopilotKit · OpenAI Realtime | **Yok** | F-108 → [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) 📋 |
 | **Taşınabilir çalışma anı politikası** | Microsoft ACS | .NET paketi **var** ama **beta ve native** (beş RID) | **F-72** ⏸ ertelendi |
+| Tool başına izin (RBAC) | LiteLLM tool izin guardrail'i · LiteLLM MCP izin yönetimi · Portkey MCP Gateway | **Yok** — onay var, izin yok | F-113 → [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 |
+| Kullanıcı ve etiket bazlı maliyet dağıtımı | Langfuse (`user_id` + etiket) · Braintrust (özel etiketle harcama kırılımı) | **Yok** — kırılım kiracı · agent · modelde durur | F-111 → [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 |
 
-🚨 **Tablonun on üç boşluğundan on ikisi plana girdi (2026-08-18).** Kalın
-yazılı **iki** satır kaldı: biri ergonomi (F-34 şablon), biri ölçülüp ertelenen
-bir standart (F-72 ACS). Kimlik, maliyet ve tetikleme boşluklarının üçü de
-Faz 53, 62, 65 ve 66 ile kapandı.
+🚨 **Tablo 2026-08-18'de iki satır büyüdü ve ikisi de aynı gün plana girdi.**
+On beş boşluğun **on dördü** plana girmiştir; kalın yazılı **iki** satır kalır:
+biri ergonomi (F-34 şablon), biri ölçülüp ertelenen bir standart (F-72 ACS).
+
+Turun asıl dersi sayıda değil: **yetkilendirme ve maliyet dağıtımı boşlukları
+önceki turlarda görülmemişti.** İkisini de faz listesine bakmak değil, gerçek
+bir tüketicinin paketi gömmeye çalışması gösterdi.
 
 **Neden kimse yapmamış?** Üç yanıt vardır ve hepsi AgentPrism'in lehinedir:
 
@@ -611,6 +659,8 @@ kadar değerlidir.
 | **Yerleşik model listesi** | K-032 kararı. Model adları NuGet yayın hızından hızlı değişir |
 | **Declarative workflow (MAF)** | K-129 ölçtü: +19 paket ve Responses API şartı |
 | **Azure AI Foundry** | K-212 ölçtü: 37 geçişli paket ve doğrulanamazlık. Karar değişmedi |
+| **Fatura üretimi (dönem, kur, fatura satırı, dönem kapatma)** | Maliyet **hesaplanıyor** ve `RunCost` para birimi taşıyor. Dönem, kur dönüşümü, mark-up ve fatura satırı bir **iş katmanıdır**; muhasebe sistemine göre değişir. F-111 kırılım boyutlarını verince toplama katmanı tüketicide ucuzlar (2026-08-18) |
+| **Harici hosted agent yönetimi** (üçüncü partide koşan agent'ın konfigürasyonu) | Tek bir satıcının kontrol panelini sarmalamak demektir. MCP client uzak **tool'u**, A2A uzak **agent'ı** zaten konuşuyor; satıcı başına yüzey bakım borcudur (2026-08-18) |
 
 ---
 
@@ -620,7 +670,7 @@ Oklar **gerçek önkoşulları** gösterir. Ok yoksa kalemler bağımsızdır.
 Yuvarlak köşeli düğümler **plana dönüşmüş** kalemlerdir; bu listede yoktur ve
 yalnız önkoşul zincirini göstermek için durur.
 
-Grafik 2026-08-18'de yeniden çizildi: Faz 61–66 ile yedi kalem daha plana
+Grafik 2026-08-18'de yeniden çizildi: Faz 61–72 ile on yedi kalem daha plana
 dönüştüğü için eski okların çoğu artık plan içi bağımlılıktır.
 
 ```mermaid
@@ -647,6 +697,13 @@ flowchart LR
     class F34p,F40p,F52p,F33p,F51p,F48p,F45p,F47p,F64p,F51pp planlandi
     class F72 ertelendi
 ```
+
+> 🚨 **2026-08-18 turunun üç bağı grafikten çıktı** çünkü her üçü de plana
+> dönüştü ve artık **plan içi** bağımlılıktır: F-113+F-114 tek fazda
+> ([Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md)), F-111+F-112 tek fazda
+> ([Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md)), F-119
+> [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'in içinde. Gerekçeleri kendi faz
+> dokümanlarındadır.
 
 > **Yuvarlak köşeli yeşil düğümler plana dönüşmüştür** ve bu listede
 > **yoktur**; yalnız önkoşul zincirini göstermek için dururlar.
@@ -769,7 +826,7 @@ devam eder ve sabittir.
 | **F-99** | `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** (K-343) |
 | ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
 | **F-101** | RAG belge tazeliği takibi | 2026-08-08 denetimi | Faz 51 vektör aramayı getirdi ama gömülerin ne zaman bayatladığını izleyen bir mekanizma yok. `document_embeddings`'e `source_updated_at`/`last_indexed_at` karşılaştırması ve isteğe bağlı bir "yeniden indeksle" ucu. **Doğrulanmadı** — planlanmadan önce şema okunmalı |
-| ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../src/AgentPrism.PostgreSql/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
+| ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
 > bu denetim yalnız numara verdi ve gerekçeleri buraya taşıdı. F-101 **kod
@@ -779,8 +836,10 @@ devam eder ve sabittir.
 
 ## Bundan Sonra Ne Kaldı
 
-2026-08-18 turundan sonra **seçilmemiş 25 kalem** kalır. Ekosistem boşluk
-tablosunun on üç satırından on ikisi plana girmiştir.
+2026-08-18 turlarından sonra **seçilmemiş 22 kalem** kalır. Tüketici raporu
+turunun on kalemi aynı gün plana dönüştü
+([keşif notu](kesif/2026-08-18-tuketici-raporu.md)); ekosistem boşluk tablosunun
+on beş satırından **on dördü** plana girmiştir.
 
 | Küme | Kalemler | Ortak yanı |
 |---|---|---|
@@ -792,8 +851,17 @@ tablosunun on üç satırından on ikisi plana girmiştir.
 
 **Bunu yapmazsak ne olur:** Faz 31–66 AgentPrism'i Python ve TypeScript
 ekosisteminin bugün verdiği yeteneklere ulaştırır ve **çok kiracılı bir SaaS
-ürününün** altına koyabilecek düzleme taşır. Kalan kalemlerin çoğu artık
-stratejik boşluk değil, **derinleşme** ve **kusur** kalemidir.
+ürününün** altına koyabilecek düzleme taşır. Eski turlardan kalan kalemlerin
+çoğu artık stratejik boşluk değil, **derinleşme** ve **kusur** kalemidir.
+
+🚨 **Tüketici raporu turu bu değerlendirmeyi kısmen çürüttü.** Gerçek bir
+gömme denemesi iki **stratejik** boşluk buldu — tool başına izin
+([Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md)) ve kullanıcı/etiket bazlı
+maliyet dağıtımı ([Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md)) — ve
+bir **kurulum engeli** gösterdi
+([Faz 67](67-ISTEGE-BAGLI-MIGRATION-SETI.md)). Üçü de faz listesine bakarak
+değil, paketi kullanmaya çalışarak görünür oldu. Ders: aday damarlarına
+**"gerçek tüketici denemesi"** eklenmelidir.
 
 ---
 
@@ -815,6 +883,12 @@ bedavadır**, ilk yayından (Faz 7) sonra bir sürüm kararıdır.
 | **F-41** at-rest şifreleme | `IContentProtector` genişleme noktası | Yeni tip — ucuz |
 | **F-89** kiracı bazlı guard kuralları | Guard sözleşmesine kural kaynağı | Arayüz değişimi — pahalı |
 | **F-94** çok turlu eval vakası | `EvalCase` sözleşmesini değiştirir | `sealed record` — sürüm kararı |
+| 🚨 [**Faz 68**](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | `RunRecord` · `RunStartInfo` · `RunUsage` · `RunCost` · iki istatistik tipi | **Altı `sealed record`** + HTTP filtresi. F-50 dışında en geniş yüzey |
+| 🚨 [**Faz 67**](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | Public tip yok — **migration seti** | 🚨 **İmkânsız.** Uygulanmış migration dokunulmazdır (SHA-256); sıra sonradan değiştirilemez |
+| [**Faz 69**](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) | `ToolDescriptor` + tool attribute | İki kalem tek fazda — ikinci bir alan ekleme turu olmasın diye |
+| [**Faz 70**](70-CALISTIRMA-OLAYI-HEDEFI.md) | Yeni arayüz + `RunEventType`'a **ekleme** | Ucuz — enum sonuna ekleme K-040 ile serbest |
+| [**Faz 71**](71-WORKFLOW-KOD-DUGUMU.md) | `WorkflowDefinition` + `WorkflowNodeKind` | Orta |
+| [**Faz 72**](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | `AgentDefinition` · `SpeakRequest` · `SpeakResponse` | Orta |
 | Plana dönüşenler (F-44, F-59, F-61, F-75, F-58, F-40, F-108 …) | — | ✅ Yüzeyleri kendi faz dokümanlarındadır; üçü Faz 7'den **önce** kalmalıdır (Faz 62, 63, 65) |
 
 🚨 **Faz 65 en pahalı olanıdır:** `IModelProvider.CreateChatClient` bir
@@ -831,3 +905,8 @@ olan bir **arayüze metot** ekliyor: [Faz 36](36-SAKLAMA-HACIM-SINIRI.md)
 
 🚨 **Bu listede kalan en pahalı kalem F-61'dir**: `ToolApprovalRule` public bir
 `record`'tur ve alan eklemek ek kurucu ister. Faz 7'den önce yapmak bedavadır.
+
+🚨 **Faz 67 bu tablodaki tek "sonradan imkânsız" kalemdir.** Diğerlerinin hepsi
+yayından sonra *pahalı* olur; Faz 67 **yapılamaz** hâle gelir, çünkü uygulanmış
+bir migration'ın metni ve sırası dokunulmazdır. Faz 7 planlanırken bu faz önce
+koşulmalıdır.
