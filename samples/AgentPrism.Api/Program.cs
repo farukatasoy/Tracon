@@ -79,12 +79,50 @@ using AgentPrism;
 using AgentPrism.Api;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.AI;
 using OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
+
+// Role-based authorization (phase 9).
+//
+// 🚨 AgentPrism defines only the policy NAMES (AgentPrismPolicies.Reader /
+// Operator / Admin); the consumer binds them to its own identity system. When a
+// name is not registered, every RequireRole(...) call inside AgentPrism is a
+// NO-OP and the endpoint keeps only the three-layer guard (loopback, bearer
+// token, general policy). That is the documented upgrade-safe behavior — but it
+// also meant this reference application could never SHOW a role blocking
+// anything.
+//
+// Turning `AgentPrism:Demo:Roles:Enabled` on registers the three names and a
+// demonstration identity scheme that reads the role from a request header. The
+// scheme verifies NOTHING and is unfit for production; a real deployment binds
+// the same three names to OpenID Connect, JWT bearer or Windows authentication.
+var demoRolesEnabled = builder.Configuration.GetValue<bool>("AgentPrism:Demo:Roles:Enabled");
+
+if (demoRolesEnabled)
+{
+    builder.Services
+        .AddAuthentication(DemoRoleAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, DemoRoleAuthenticationHandler>(
+            DemoRoleAuthenticationHandler.SchemeName,
+            configureOptions: null);
+
+    // Reader ⊂ Operator ⊂ Admin: a higher role satisfies the lower policy too.
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy(
+            AgentPrismPolicies.Reader,
+            policy => policy.RequireRole(DemoRoles.Reader, DemoRoles.Operator, DemoRoles.Admin))
+        .AddPolicy(
+            AgentPrismPolicies.Operator,
+            policy => policy.RequireRole(DemoRoles.Operator, DemoRoles.Admin))
+        .AddPolicy(
+            AgentPrismPolicies.Admin,
+            policy => policy.RequireRole(DemoRoles.Admin));
+}
 
 // The OpenAPI document is the CONSUMER's choice. AgentPrism.AspNetCore does
 // NOT depend on this package; endpoints carry metadata from the shared
@@ -753,6 +791,12 @@ app.MapAgentPrism("/agentprism", options =>
     // demonstration; even without the Admin role registered, it still goes
     // through the three-layer guard (loopback + bearer token).
     options.EnableDiagnosticsEndpoint = true;
+
+    // 🚨 The gate that keeps the demo honest: when the role names are meant to
+    // be active, a missing registration must FAIL AT STARTUP instead of
+    // silently turning every RequireRole(...) into a no-op. If someone later
+    // removes the AddPolicy calls above, this application no longer starts.
+    options.RequireRolePolicies = demoRolesEnabled;
 });
 
 // MCP/A2A external surfaces. They inherit the SAME access protection as

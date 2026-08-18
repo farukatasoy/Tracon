@@ -7,11 +7,16 @@
 > **Önkoşul:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) — tamamlandı
 > **Sonraki:** Yok — bu faz 1.0 yayınını kapatır
 >
-> ⚠️ **Bu faz yapıldıktan sonra** başlayan her faz `PublicAPI.Unshipped.txt`
-> disiplinine girer. Bugün `EnablePublicApiTracking` **`false`**'tur ve yayın
-> yapılana kadar öyle kalır. Yayın geciktikçe ilk `PublicAPI.Shipped.txt` dolumu
-> büyür; her faz dokümanının "Gerçekleşen Public API" bölümü o dolumun
-> kaynağıdır. İkinci faz planı: [arsiv/IKINCI-FAZ-YOL-HARITASI.md](arsiv/IKINCI-FAZ-YOL-HARITASI.md).
+> ⚠️ 🚨 **Bu not 2026-08-18'de koda göre düzeltildi.**
+> `EnablePublicApiTracking` artık **`true`**'dur
+> ([`Directory.Build.props:58`](../Directory.Build.props), K-421, Faz 60):
+> takip yayın kararından **bağımsız** olarak açıldı ve kayıtsız bir yüzey
+> değişikliği derlemeyi kırar. Ama `PublicAPI.Shipped.txt` dosyalarının tamamı
+> hâlâ **boştur** (ölçüldü: 1 satır); tüm yüzey `Unshipped` içindedir. Bu faz
+> o dosyaları dolduracak ve **o andan sonra** her kırıcı değişiklik bir sürüm
+> kararı olacaktır. Yayın geciktikçe ilk dolum büyür; her faz dokümanının
+> "Gerçekleşen Public API" bölümü o dolumun kaynağıdır.
+> İkinci faz planı: [arsiv/IKINCI-FAZ-YOL-HARITASI.md](arsiv/IKINCI-FAZ-YOL-HARITASI.md).
 
 ---
 

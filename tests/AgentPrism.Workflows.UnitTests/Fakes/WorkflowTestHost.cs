@@ -94,6 +94,28 @@ internal sealed class WorkflowTestHost
     public ValueTask<WorkflowDefinition> SaveAsync(WorkflowDefinition definition)
         => DefinitionStore.SaveAsync(TenantContext.TenantId, definition);
 
+    /// <summary>
+    /// Adds an agent whose behavior the test controls, wrapped exactly like the
+    /// constructor wraps an <see cref="EchoAgent"/>.
+    /// </summary>
+    /// <remarks>
+    /// The catalog holds the same dictionary instance, so an agent added after
+    /// construction is resolved as well.
+    /// </remarks>
+    /// <param name="name">The catalog key.</param>
+    /// <param name="agent">The agent.</param>
+    public void AddAgent(string name, AIAgent agent)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+
+        _agents[name] = new RunRecordingAgent(
+            agent,
+            RunStore,
+            TenantContext,
+            new AgentPrismRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance);
+    }
+
     internal sealed class FixedTenantContext : ITenantContext
     {
         public string TenantId { get; set; } = "test";
