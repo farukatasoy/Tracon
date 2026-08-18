@@ -116,6 +116,9 @@ internal sealed class PostgresDialect : SqlDialect
         => AddNpgsql(command, name, NpgsqlDbType.Interval, value);
 
     /// <inheritdoc />
+    public override string ArrayContains(string column, string paramName) => $"{column} = ANY(@{paramName})";
+
+    /// <inheritdoc />
     public override IReadOnlyList<string> ReadTextArray(DbDataReader reader, int ordinal)
     {
         ArgumentNullException.ThrowIfNull(reader);

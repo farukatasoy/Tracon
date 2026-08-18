@@ -1419,3 +1419,17 @@ AgentPrism.ToolApprovalPolicyRegistry
 AgentPrism.ToolApprovalPolicyRegistry.ToolApprovalPolicyRegistry(System.Collections.Generic.IEnumerable<AgentPrism.ToolApprovalPolicyRegistration!>! registrations) -> void
 AgentPrism.ToolApprovalPolicyRegistry.TryGet(string! toolName, out System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>? policy) -> bool
 AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolApprovalRuleStore! rules, AgentPrism.ToolApprovalPolicyRegistry! policies, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalRuleEvaluator!>! logger) -> void
+AgentPrism.AuditChainHasher
+AgentPrism.AuditChainWalker
+AgentPrism.InMemoryAuditLog.VerifyChainAsync(AgentPrism.AuditChainQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AuditChainVerification!>
+AgentPrism.NullDataSubjectStore
+AgentPrism.NullDataSubjectStore.EraseAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Func<System.Collections.Generic.IReadOnlyDictionary<string!, int>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! beforeCommitAsync, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, int>!>
+AgentPrism.NullDataSubjectStore.ExportAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.DataSubjectExport!>
+AgentPrism.NullDataSubjectStore.NullDataSubjectStore() -> void
+AgentPrism.NullDataSubjectStore.PreviewAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, int>!>
+static AgentPrism.AuditChainHasher.ComputeHash(string? previousHash, string! tenantId, string? actor, string! action, string! entity, string? before, string? after, System.DateTimeOffset createdAt) -> string!
+static AgentPrism.AuditChainWalker.Verify(System.Collections.Generic.IReadOnlyList<AgentPrism.AuditEntry!>! entries, bool hasLowerBound = false) -> AgentPrism.AuditChainVerification!
+static AgentPrism.AuditChainHasher.TruncateToMicroseconds(System.DateTimeOffset value) -> System.DateTimeOffset
+AgentPrism.SessionConversationResolver
+AgentPrism.SessionConversationResolver.ResolveAsync(System.Collections.Generic.IReadOnlyList<string!>! sessionIds, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<System.Guid>!>
+AgentPrism.SessionConversationResolver.SessionConversationResolver(AgentPrism.ISessionStore! sessions, AgentPrism.IAgentCatalog! catalog, Microsoft.Extensions.Logging.ILogger<AgentPrism.SessionConversationResolver!>? logger = null) -> void

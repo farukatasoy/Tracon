@@ -40,6 +40,19 @@ public sealed class SqliteAuditLogContractTests(SqliteSchemaFixture schema)
         await schema.ResetAsync();
         return schema.Context.AuditLog;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawTamper => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedAuditLogTable => $"{schema.Context.TablePrefix}audit_log";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
+
+    /// <inheritdoc />
+    protected override string FormatIdForRawSql(Guid id)
+        => id.ToString("D", System.Globalization.CultureInfo.InvariantCulture).ToUpperInvariant();
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />

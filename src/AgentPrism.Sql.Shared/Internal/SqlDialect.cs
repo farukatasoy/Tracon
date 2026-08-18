@@ -262,6 +262,48 @@ internal abstract class SqlDialect
     public static string Combine(string predicate, string? extraPredicate)
         => string.IsNullOrWhiteSpace(extraPredicate) ? predicate : $"({predicate}) AND ({extraPredicate})";
 
+    // --- Data subject export/erasure (phase 64) ---
+
+    /// <summary>
+    /// Builds a fragment that is true when <paramref name="column"/>'s value is one
+    /// of the values bound to the array parameter <paramref name="paramName"/>
+    /// (bound with <see cref="AddTextArray"/> or <see cref="AddUuidArray"/>).
+    /// </summary>
+    /// <param name="column">The column to test, already schema-qualified if needed.</param>
+    /// <param name="paramName">The array parameter's name, WITHOUT the leading <c>@</c>.</param>
+    /// <returns>A boolean SQL fragment, safe to combine with <c>AND</c>/<c>OR</c>.</returns>
+    /// <remarks>
+    /// PostgreSQL has a native array type and uses <c>= ANY(@array)</c>; SQL Server
+    /// and SQLite receive the array as JSON text (K-182) and test membership with
+    /// <c>OPENJSON</c>/<c>json_each</c> — the mirror image of the <c>= ANY(events)</c>
+    /// pattern already used elsewhere (matching a stored JSON array against one
+    /// scalar parameter), with which value is the array and which is scalar swapped.
+    /// </remarks>
+    public abstract string ArrayContains(string column, string paramName);
+
+    /// <summary>Builds the SQL text that reads the given columns of the rows matching <paramref name="wherePredicate"/>.</summary>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="columns">The column list (<c>"*"</c> for every column; see <see cref="DataSubjectTargetRegistry"/>).</param>
+    /// <param name="wherePredicate">The <c>WHERE</c> condition.</param>
+    /// <returns>Runnable SQL.</returns>
+    /// <remarks>
+    /// Identical across all three providers — there is no provider-specific
+    /// batching or cursor concern here, unlike the retention read (phase 25),
+    /// because an export runs once for one data subject, not batch by batch over
+    /// an entire table. It still passes through the dialect so every runnable SQL
+    /// string has the same single gateway (K-176).
+    /// </remarks>
+    public virtual string BuildDataSubjectSelectSql(string table, string columns, string wherePredicate)
+        => $"SELECT {columns} FROM {table} WHERE {wherePredicate};";
+
+    /// <summary>Builds the SQL text that deletes every row matching <paramref name="wherePredicate"/>.</summary>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The <c>WHERE</c> condition.</param>
+    /// <returns>Runnable SQL.</returns>
+    /// <remarks>A single unbounded <c>DELETE</c>: a data subject's own rows are never large enough to need retention's batch loop.</remarks>
+    public virtual string BuildDataSubjectDeleteSql(string table, string wherePredicate)
+        => $"DELETE FROM {table} WHERE {wherePredicate};";
+
     // --- Common typings (overridden in a derived type when needed) ---
 
     /// <summary>Binds a timestamp to a parameter.</summary>

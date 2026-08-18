@@ -208,6 +208,10 @@ internal sealed class SqlServerDialect : SqlDialect
         => AddTyped(command, name, DbType.Int32, (int)value.TotalMinutes);
 
     /// <inheritdoc />
+    public override string ArrayContains(string column, string paramName)
+        => $"EXISTS (SELECT 1 FROM OPENJSON(@{paramName}) WHERE value = {column})";
+
+    /// <inheritdoc />
     public override IReadOnlyList<string> ReadTextArray(DbDataReader reader, int ordinal)
     {
         ArgumentNullException.ThrowIfNull(reader);

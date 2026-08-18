@@ -163,6 +163,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         ObservabilityEndpoints.Map(group, roles);
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);
+        DataSubjectEndpoints.Map(group, roles);
 
         if (options.EnableDiagnosticsEndpoint)
         {

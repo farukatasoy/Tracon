@@ -5433,6 +5433,113 @@
         }
       }
     },
+    "/agentprism/api/audit/verify": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Governance"
+        ],
+        "summary": "Walks the tenant\u0027s audit trail hash chain and reports whether it is intact.",
+        "description": "\u0027Valid\u0027 means every entry\u0027s hash matches its content and links to the one before it. \u0027Broken\u0027 means an entry\u0027s stored hash no longer matches its content \u2014 it was altered after it was written. \u0027Gap\u0027 means a link between two entries is missing \u2014 a row was deleted, or a write never completed; \u0027firstFailingEntryId\u0027 names where. An entry written before this feature shipped carries no hash and is excluded from the walk, not misreported as broken. Without \u0027?after=\u0027/\u0027?before=\u0027 the whole tenant history is walked; a narrower range is cheaper but cannot judge a break exactly at its own edge, because the entry just before the range is not read.",
+        "operationId": "AgentPrismVerifyAuditChain",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditChainVerification"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/data-subjects/{id}/export": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Governance"
+        ],
+        "summary": "Exports a data subject\u0027s content as one JSON document.",
+        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver, which is registered by the consumer \u2014 AgentPrism does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only \u2014 no file bytes, voice session summaries, run scores, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.",
+        "operationId": "AgentPrismExportDataSubject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/agentprism/api/data-subjects/{id}": {
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "Governance"
+        ],
+        "summary": "Deletes a data subject\u0027s content.",
+        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as \u0027already erased\u0027. \u0027?dryRun=\u0027 DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; \u0027?dryRun=false\u0027 deletes for real. The audit trail (audit_log) is never touched \u2014 it is deliberately outside a data subject\u0027s erasable content (phase 64\u0027s design decision: an audit record is \u0027who did what\u0027, not the subject\u0027s own data) \u2014 but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow (K-370).",
+        "operationId": "AgentPrismEraseDataSubject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dryRun",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSubjectErasureResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/v1/responses": {
       "post": {
         "tags": [
@@ -7967,6 +8074,45 @@
         },
         "description": "The metadata of an uploaded attachment."
       },
+      "AuditChainStatus": {
+        "enum": [
+          "Valid",
+          "Broken",
+          "Gap"
+        ],
+        "description": "The result of walking a tenant\u0027s audit trail hash chain."
+      },
+      "AuditChainVerification": {
+        "required": [
+          "status",
+          "entriesChecked"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "Gets the overall chain status.",
+            "$ref": "#/components/schemas/AuditChainStatus"
+          },
+          "entriesChecked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of entries walked.",
+            "format": "int32"
+          },
+          "firstFailingEntryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the id of the first entry where the chain fails; \u0060null\u0060\nwhen AuditChainStatus AuditChainVerification.Status is AuditChainStatus.Valid.",
+            "format": "uuid"
+          }
+        },
+        "description": "The result of verifying one tenant\u0027s audit trail hash chain."
+      },
       "AuditEntry": {
         "required": [
           "id",
@@ -8019,6 +8165,20 @@
             "type": "string",
             "description": "Gets the time the record was written (UTC).",
             "format": "date-time"
+          },
+          "previousHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the hash of the previous entry of the same tenant (phase 64).\n\u0060null\u0060 for the first entry of a tenant."
+          },
+          "hash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the hash of this entry (phase 64), derived from its canonical form\n(see \u0060AuditChainHasher\u0060 in \u0060AgentPrism.Core\u0060). The write path\ncomputes this value; a caller-supplied value is ignored."
           }
         },
         "description": "A row in the audit trail that records who changed which entity and when."
@@ -8532,6 +8692,32 @@
           }
         },
         "description": "Tenant of the current request."
+      },
+      "DataSubjectErasureResult": {
+        "required": [
+          "dryRun",
+          "rowsByTarget"
+        ],
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "description": "Gets whether this was a preview: \u0060true\u0060 means\nIReadOnlyDictionary\u0026lt;string, int\u0026gt; DataSubjectErasureResult.RowsByTarget shows what WOULD be deleted and nothing was\nactually removed."
+          },
+          "rowsByTarget": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            },
+            "description": "Gets the number of rows removed (or, for a preview, that would be removed), by target table."
+          }
+        },
+        "description": "The outcome of a data subject erasure request (phase 64)."
       },
       "DeletedResource": {
         "required": [

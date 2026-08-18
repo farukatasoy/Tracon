@@ -84,6 +84,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
         PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
+        DataSubjects = new SqlDataSubjectStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -197,6 +198,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Conversation branching store (Phase 47).</summary>
     public SqlConversationBranchStore ConversationBranches { get; }
+
+    /// <summary>Data subject export/erasure data plane (Phase 64).</summary>
+    public SqlDataSubjectStore DataSubjects { get; }
 
     /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }

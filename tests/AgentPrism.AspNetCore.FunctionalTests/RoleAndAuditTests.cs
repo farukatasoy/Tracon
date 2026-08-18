@@ -237,4 +237,38 @@ public sealed class RoleAndAuditTests
         roles.GetProperty("canAdminister").GetBoolean().ShouldBeFalse();
         roles.GetProperty("canRead").GetBoolean().ShouldBeTrue();
     }
+
+    // --- Audit trail hash chain (Phase 64) ---
+
+    [Fact]
+    public async Task Verify_reports_valid_for_a_freshly_written_chain()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        // Any admin action writes at least one audit entry (RetentionEndpoints
+        // writes on save) — cheaper than reaching into IAuditLog directly.
+        await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/retention/run_events", UriKind.Relative),
+            new { maxAgeDays = 30 });
+
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/audit/verify", UriKind.Relative));
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+        body.GetProperty("status").GetString().ShouldBe("Valid");
+        body.GetProperty("entriesChecked").GetInt32().ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task Verify_reports_valid_with_zero_entries_for_an_empty_tenant()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/audit/verify", UriKind.Relative));
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+        body.GetProperty("status").GetString().ShouldBe("Valid");
+        body.GetProperty("entriesChecked").GetInt32().ShouldBe(0);
+    }
 }

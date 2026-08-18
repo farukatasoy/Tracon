@@ -210,5 +210,8 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => new(Array.Empty<AuditEntry>());
+
+        public ValueTask<AuditChainVerification> VerifyChainAsync(AuditChainQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("not exercised by this test");
     }
 }

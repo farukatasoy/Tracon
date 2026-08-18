@@ -552,6 +552,32 @@ alanın değeri `"***"` olur (çoğul `tokens` — `maxOutputTokens` gibi sayım
 alanları — hariç). Denetim izi yazma hatası **çalıştırmayı kesmez**;
 "gözlemlenebilirlik işlevi bozmaz" kuralı burada da geçerlidir.
 
+### Denetim zinciri ve veri konusu hakları (Faz 64)
+
+**Değiştirilemezlik.** Her `audit_log` satırı kendi içeriğinin SHA-256 özetini
+(`hash`) ve bir önceki satırın özetini (`prev_hash`) taşır, kiracı başına
+zincirlenir. `IAuditLog.VerifyChainAsync` (`GET /api/audit/verify`) zinciri baştan
+sona yürür ve üç durumdan birini döner: `Valid`, `Broken` (bir satır değiştirildi)
+veya `Gap` (bir satır silindi ya da hiç yazılmadı). Kanonik biçim ve doğrulama
+mantığı tek bir yerdedir (`AgentPrism.Core.AuditChainHasher`/`AuditChainWalker`) —
+`InMemoryAuditLog` ve üç SQL sağlayıcısı aynı kodu çağırır. Eşzamanlı yazım,
+`(tenant_id, prev_hash)` üzerindeki benzersiz bir dizinin doğal olarak
+serileştirmesiyle çözülür; kaybeden yazıcı yeniden dener (oturum/advisory kilit
+**kullanılmaz** — K-284'ün "bağlantı havuzuna bağımlı kilitten kaçının" ilkesi).
+Bu özellikten ÖNCE yazılmış satırlar `hash` taşımaz ve zincire dahil edilmez;
+geriye dönük uyumluluk bu şekilde sağlanır.
+
+**Veri konusu hakları.** AgentPrism kişisel kimlik saklamaz. Bir tüketici
+`IDataSubjectResolver` kaydederse (`subjectId → sessions/runs/conversations`),
+`GET /api/data-subjects/{id}/export` ve `DELETE /api/data-subjects/{id}` uçları
+açılır; kayıtlı bir çözümleyici yoksa ikisi de `409` döner. Silme
+`IDataSubjectStore` (`SqlDataSubjectStore`) üzerinden çalışır: aynı `DELETE` sorgu
+kümesi hem önizleme (`dryRun=true`, varsayılan — her zaman `ROLLBACK`) hem gerçek
+silme (yalnız çağıranın denetim yazımı başarılı olursa `COMMIT`) için kullanılır.
+Silme **içerik** verisinde uygulanır (oturum, çalıştırma, konuşma, ek, puan, ses);
+`audit_log`'a hiç dokunmaz — "kim ne yaptı" bilgisi kişinin kendi verisi değildir,
+silme eylemi ise yeni bir denetim kaydı olarak eklenir.
+
 ### Skill script çalıştırma
 
 Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli

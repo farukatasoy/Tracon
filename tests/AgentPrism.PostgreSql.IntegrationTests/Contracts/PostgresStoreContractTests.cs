@@ -40,6 +40,15 @@ public sealed class PostgresAuditLogContractTests(PostgresSchemaFixture schema)
         await schema.ResetAsync();
         return schema.Context.AuditLog;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawTamper => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedAuditLogTable => $"{schema.Context.SchemaName}.audit_log";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
