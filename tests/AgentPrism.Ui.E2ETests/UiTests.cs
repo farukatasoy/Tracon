@@ -749,6 +749,32 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Approval_rule_with_condition_is_created_and_shown()
+    {
+        // Phase 63: an admin-authored, argument-conditioned approval rule
+        // ("amount <= 100") written from the screen, then read back — no
+        // free-text expression box, the operator is a closed dropdown (K2).
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/mcp");
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add rule" }).ClickAsync();
+
+        await session.Page.GetByPlaceholder("refund_order").FillAsync("refund_order");
+
+        await session.Page.GetByTestId("add-condition").ClickAsync();
+        await session.Page.GetByTestId("condition-path-0").FillAsync("amount");
+        await session.Page.GetByTestId("condition-operator-0").SelectOptionAsync("LessThanOrEqual");
+        await session.Page.GetByTestId("condition-value-0").FillAsync("100");
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+
+        await session.Page.GetByText("refund_order").First.WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("amount ≤ 100").WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    [Fact]
     public async Task Models_screen_shows_health_badge()
     {
         await using var host = await UiHost.StartAsync();

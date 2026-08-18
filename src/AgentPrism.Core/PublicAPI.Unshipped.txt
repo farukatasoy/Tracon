@@ -1089,7 +1089,6 @@ AgentPrism.ToolApprovalAgentDecorator.Order.get -> int
 AgentPrism.ToolApprovalAgentDecorator.ToolApprovalAgentDecorator(AgentPrism.ToolApprovalRuleEvaluator! evaluator) -> void
 AgentPrism.ToolApprovalRuleEvaluator
 AgentPrism.ToolApprovalRuleEvaluator.IsAutoApprovedAsync(string! agentName, Microsoft.Extensions.AI.FunctionCallContent! call, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
-AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolApprovalRuleStore! rules, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalRuleEvaluator!>! logger) -> void
 AgentPrism.ToolRegistry
 AgentPrism.ToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
 AgentPrism.ToolRegistry.ToolRegistry(System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismToolRegistration!>! registrations) -> void
@@ -1400,3 +1399,23 @@ AgentPrism.ProviderConcurrencyLimiter.ProviderConcurrencyLimiter(Microsoft.Exten
 AgentPrism.ContextWindowEstimator
 AgentPrism.ContextWindowEstimator.ContextWindowEstimator(AgentPrism.IModelProviderRegistry! registry, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>! optionsMonitor) -> void
 AgentPrism.ContextWindowEstimator.Estimate(AgentPrism.ModelBinding! binding, string? prompt) -> AgentPrism.ContextWindowEstimate!
+AgentPrism.AgentPrismToolApprovalPolicyExtensions
+AgentPrism.ToolApprovalPolicyRegistration
+AgentPrism.ToolApprovalPolicyRegistration.<Clone>$() -> AgentPrism.ToolApprovalPolicyRegistration!
+AgentPrism.ToolApprovalPolicyRegistration.Deconstruct(out string! ToolName, out System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>! Policy) -> void
+AgentPrism.ToolApprovalPolicyRegistration.Equals(AgentPrism.ToolApprovalPolicyRegistration? other) -> bool
+AgentPrism.ToolApprovalPolicyRegistration.Policy.get -> System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>!
+AgentPrism.ToolApprovalPolicyRegistration.Policy.init -> void
+AgentPrism.ToolApprovalPolicyRegistration.ToolApprovalPolicyRegistration(string! ToolName, System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>! Policy) -> void
+AgentPrism.ToolApprovalPolicyRegistration.ToolName.get -> string!
+AgentPrism.ToolApprovalPolicyRegistration.ToolName.init -> void
+override AgentPrism.ToolApprovalPolicyRegistration.Equals(object? obj) -> bool
+override AgentPrism.ToolApprovalPolicyRegistration.GetHashCode() -> int
+override AgentPrism.ToolApprovalPolicyRegistration.ToString() -> string!
+static AgentPrism.AgentPrismToolApprovalPolicyExtensions.AddToolApprovalPolicy(this AgentPrism.IAgentPrismBuilder! builder, string! toolName, System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>! policy) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.ToolApprovalPolicyRegistration.operator !=(AgentPrism.ToolApprovalPolicyRegistration? left, AgentPrism.ToolApprovalPolicyRegistration? right) -> bool
+static AgentPrism.ToolApprovalPolicyRegistration.operator ==(AgentPrism.ToolApprovalPolicyRegistration? left, AgentPrism.ToolApprovalPolicyRegistration? right) -> bool
+AgentPrism.ToolApprovalPolicyRegistry
+AgentPrism.ToolApprovalPolicyRegistry.ToolApprovalPolicyRegistry(System.Collections.Generic.IEnumerable<AgentPrism.ToolApprovalPolicyRegistration!>! registrations) -> void
+AgentPrism.ToolApprovalPolicyRegistry.TryGet(string! toolName, out System.Func<AgentPrism.ToolApprovalContext!, AgentPrism.ToolApprovalPolicyDecision>? policy) -> bool
+AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolApprovalRuleStore! rules, AgentPrism.ToolApprovalPolicyRegistry! policies, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalRuleEvaluator!>! logger) -> void

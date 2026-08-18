@@ -227,7 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–61 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**Faz 0–63 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|
@@ -237,7 +237,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 4 | 53–56 | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
 | 5 | 57–60 | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
 | 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | ✅ Bitti |
-| 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK ve egress, gelen tetikleyiciler | 📋 Planlandı |
+| 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK ve egress, gelen tetikleyiciler | 🔄 62–63 bitti · 64–66 planlı |
 | 8 | 67–72 | `pgvector` opt-in, çalıştırma kimliği ve token kırılımı, tool yetkilendirmesi ve timeout, olay hedefi, workflow kod düğümü, çok dilli talimat | 📋 Planlandı |
 | 9 | 73 | Tüketici agent desteği: derleme anı tanıları, üretilen yetenek haritası, kapsam kapısı | 📋 Planlandı |
 

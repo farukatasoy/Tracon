@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -572,6 +573,73 @@ internal static class GovernanceEndpoints
                 "hash the rule matches only that exact call; without one it matches every call " +
                 "to that tool. Rules do not expire — remove one to start asking again.");
 
+        builder.MapPost("/api/approvals/rules", async Task<Results<Created<ToolApprovalRule>, ProblemHttpResult>> (
+                HttpContext httpContext,
+                IToolApprovalRuleStore rules,
+                ITenantContext tenants,
+                IAuditActorResolver actorResolver,
+                CancellationToken cancellationToken) =>
+            {
+                var (bound, bindError) = await RequestBodyBinding
+                    .ReadAsync<ToolApprovalRuleRequest>(httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (bindError is not null)
+                {
+                    return bindError;
+                }
+
+                var request = bound!;
+
+                if (ValidateRule(request) is { } invalid)
+                {
+                    return invalid;
+                }
+
+                var id = AgentPrismId.NewId();
+
+                var saved = await rules.AddAsync(
+                    new ToolApprovalRule
+                    {
+                        Id = id,
+                        TenantId = tenants.TenantId,
+                        AgentName = request.AgentName,
+                        ToolName = request.ToolName,
+                        ArgumentConditions = request.ArgumentConditions,
+                        CreatedBy = actorResolver.Resolve(),
+                        CreatedAt = DateTimeOffset.UtcNow,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                // AddAsync is an idempotent upsert (see IToolApprovalRuleStore.AddAsync):
+                // a matching rule for the same scope already existed and its EXISTING id
+                // (not the one just generated above) came back. The "remember this
+                // decision" flow (ToolApprovalResolver) relies on that idempotence and
+                // must stay silent; this admin-authored path surfaces it as a conflict
+                // instead, so a second identical rule is never mistaken for a fresh one.
+                if (saved.Id != id)
+                {
+                    return TypedResults.Problem(
+                        title: "Rule already exists",
+                        detail: "A rule for the same tool, agent, and conditions is already registered.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                return TypedResults.Created($"/api/approvals/rules/{saved.Id}", saved);
+            })
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .WithName("AgentPrismCreateApprovalRule")
+            .WithTags("AgentPrism", "Governance")
+            .WithSummary("Creates a persistent, argument-conditioned approval rule.")
+            .Accepts<ToolApprovalRuleRequest>("application/json")
+            .WithDescription(
+                "Writes a standing 'don't ask again' rule with an admin-authored comparison " +
+                "(for example \"amount <= 100\"), evaluated on every call. There is no free-text " +
+                "expression field: the operator is a closed set and conditions combine with AND " +
+                "only. A code-defined policy (IAgentPrismBuilder.AddToolApprovalPolicy) always " +
+                "runs first and can override this rule in both directions.");
+
         builder.MapDelete("/api/approvals/rules/{ruleId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
                 Guid ruleId,
                 IToolApprovalRuleStore rules,
@@ -590,6 +658,118 @@ internal static class GovernanceEndpoints
             .WithSummary("Revokes a persistent approval rule.")
             .WithDescription("After the rule is deleted, approval is asked again for that tool.");
     }
+
+    private static ProblemHttpResult? ValidateRule(ToolApprovalRuleRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ToolName))
+        {
+            return TypedResults.Problem(
+                title: "Tool name empty",
+                detail: "'toolName' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.ArgumentConditions.Count > ToolArgumentConditionLimits.MaxConditions)
+        {
+            return TypedResults.Problem(
+                title: "Too many conditions",
+                detail: $"A rule can carry at most {ToolArgumentConditionLimits.MaxConditions} conditions.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        foreach (var condition in request.ArgumentConditions)
+        {
+            if (ValidateCondition(condition) is { } invalid)
+            {
+                return invalid;
+            }
+        }
+
+        return null;
+    }
+
+    private static ProblemHttpResult? ValidateCondition(ToolArgumentCondition condition)
+    {
+        if (string.IsNullOrWhiteSpace(condition.Path) || condition.Path.Length > ToolArgumentConditionLimits.MaxPathLength)
+        {
+            return TypedResults.Problem(
+                title: "Invalid condition path",
+                detail: $"'path' must be non-empty and at most {ToolArgumentConditionLimits.MaxPathLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (condition.Path.Split('.', StringSplitOptions.RemoveEmptyEntries).Length > ToolArgumentConditionLimits.MaxPathSegments)
+        {
+            return TypedResults.Problem(
+                title: "Invalid condition path",
+                detail: $"'path' can carry at most {ToolArgumentConditionLimits.MaxPathSegments} dotted segments.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        switch (condition.Operator)
+        {
+            case ToolArgumentOperator.Equals:
+            case ToolArgumentOperator.NotEquals:
+                if (condition.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+                {
+                    return InvalidValueProblem(condition.Operator, "text, number, or boolean");
+                }
+
+                break;
+
+            case ToolArgumentOperator.GreaterThan:
+            case ToolArgumentOperator.GreaterThanOrEqual:
+            case ToolArgumentOperator.LessThan:
+            case ToolArgumentOperator.LessThanOrEqual:
+                if (condition.Value.ValueKind != JsonValueKind.Number)
+                {
+                    return InvalidValueProblem(condition.Operator, "a number");
+                }
+
+                break;
+
+            case ToolArgumentOperator.In:
+            case ToolArgumentOperator.NotIn:
+                if (condition.Value.ValueKind != JsonValueKind.Array)
+                {
+                    return InvalidValueProblem(condition.Operator, "an array of text or numbers");
+                }
+
+                var count = 0;
+
+                foreach (var element in condition.Value.EnumerateArray())
+                {
+                    if (++count > ToolArgumentConditionLimits.MaxListLength)
+                    {
+                        return TypedResults.Problem(
+                            title: "List too long",
+                            detail: $"An 'in'/'notIn' value can carry at most {ToolArgumentConditionLimits.MaxListLength} entries.",
+                            statusCode: StatusCodes.Status400BadRequest);
+                    }
+
+                    if (element.ValueKind is not (JsonValueKind.String or JsonValueKind.Number))
+                    {
+                        return InvalidValueProblem(condition.Operator, "an array of text or numbers");
+                    }
+                }
+
+                break;
+
+            default:
+                return TypedResults.Problem(
+                    title: "Unknown operator",
+                    detail: $"'{condition.Operator}' is not a recognized operator.",
+                    statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return null;
+    }
+
+    private static ProblemHttpResult InvalidValueProblem(ToolArgumentOperator op, string expected)
+        => TypedResults.Problem(
+            title: "Invalid condition value",
+            detail: $"Operator '{op}' expects {expected}.",
+            statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult? Validate(string name, McpServerRequest request)
     {

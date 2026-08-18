@@ -1059,8 +1059,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Tool approval rules ---
 
+        // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
+        // reads argument_conditions by fixed ordinal 7 (docs/hafiza/postgresql.md's
+        // ordinal-position lesson applies equally here).
         const string approvalColumns = """
-            id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
+            id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
             """;
 
         SelectToolApprovalRules = $"""
@@ -1073,21 +1076,24 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // A second rule is not opened for the same scope; the existing record
         // is returned. UPDATE deliberately replaces a column with itself: the
         // goal is not to write, but to return the existing row via OUTPUT.
+        // conditions_hash (Phase 63) joined the WHERE match: a data-rule condition
+        // set is bound by the same "no unbounded duplicates" rule as arguments_hash.
         InsertToolApprovalRule = $"""
             UPDATE {Schema}.tool_approval_rules WITH (UPDLOCK, SERIALIZABLE)
                SET tool_name = tool_name
              OUTPUT inserted.id, inserted.tenant_id, inserted.agent_name, inserted.tool_name,
-                    inserted.arguments_hash, inserted.created_by, inserted.created_at
+                    inserted.arguments_hash, inserted.created_by, inserted.created_at, inserted.argument_conditions
              WHERE tenant_id = @tenant_id
                AND ISNULL(agent_name, N'') = ISNULL(@agent_name, N'')
                AND tool_name = @tool_name
-               AND ISNULL(arguments_hash, N'') = ISNULL(@arguments_hash, N'');
+               AND ISNULL(arguments_hash, N'') = ISNULL(@arguments_hash, N'')
+               AND ISNULL(conditions_hash, N'') = ISNULL(@conditions_hash, N'');
 
             IF @@ROWCOUNT = 0
-            INSERT INTO {Schema}.tool_approval_rules ({approvalColumns})
+            INSERT INTO {Schema}.tool_approval_rules ({approvalColumns}, conditions_hash)
             OUTPUT inserted.id, inserted.tenant_id, inserted.agent_name, inserted.tool_name,
-                   inserted.arguments_hash, inserted.created_by, inserted.created_at
-            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at);
+                   inserted.arguments_hash, inserted.created_by, inserted.created_at, inserted.argument_conditions
+            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at, @argument_conditions, @conditions_hash);
             """;
 
         DeleteToolApprovalRule = $"""

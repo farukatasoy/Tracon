@@ -148,3 +148,28 @@ public sealed record ToolApprovalDecision
     /// </summary>
     public bool RememberArgumentsOnly { get; init; }
 }
+
+/// <summary>
+/// Request to create a persistent, argument-conditioned approval rule (Phase 63).
+/// </summary>
+/// <remarks>
+/// This is a separate creation path from the "remember this decision" rule
+/// <see cref="ToolApprovalResolver"/> writes from the approve/reject flow — that
+/// path fingerprints an exact call (<c>ArgumentsHash</c>); this one writes a
+/// standing, admin-authored comparison instead. There is no free-text expression
+/// field here — the K2 limit applies to the HTTP surface too.
+/// </remarks>
+public sealed record ToolApprovalRuleRequest
+{
+    /// <summary>The agent the rule holds for. When empty it covers every agent of the tenant.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>The tool the rule holds for.</summary>
+    public required string ToolName { get; init; }
+
+    /// <summary>
+    /// All conditions must match for the rule to apply (<c>AND</c>). An empty list
+    /// (the default) matches every call of the tool.
+    /// </summary>
+    public IReadOnlyList<ToolArgumentCondition> ArgumentConditions { get; init; } = [];
+}

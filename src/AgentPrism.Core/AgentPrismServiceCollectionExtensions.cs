@@ -674,6 +674,11 @@ public static class AgentPrismServiceCollectionExtensions
         // RunRecordingAgentDecorator resolves it.
         services.TryAddSingleton<RunTraceCollector>();
 
+        // Code-defined approval policies (Phase 63, AddToolApprovalPolicy). Always
+        // registered, even with no policies added — the registry is then empty and
+        // every tool falls straight through to the data rules.
+        services.TryAddSingleton<ToolApprovalPolicyRegistry>();
+
         // Service that evaluates approval rules.
         services.TryAddSingleton<ToolApprovalRuleEvaluator>();
 

@@ -54,4 +54,9 @@ namespace AgentPrism;
 // Rationale: docs/KARARLAR.md, decision K-182.
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(Guid[]))]
+
+// Argument-level approval conditions (phase 63). Written to the
+// `tool_approval_rules.argument_conditions` jsonb/text column, independent of
+// AgentPrismCoreJsonContext's ToolApprovalRule graph.
+[JsonSerializable(typeof(IReadOnlyList<ToolArgumentCondition>))]
 internal sealed partial class AgentPrismJsonContext : JsonSerializerContext;

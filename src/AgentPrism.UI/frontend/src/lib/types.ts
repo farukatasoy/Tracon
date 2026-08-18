@@ -900,14 +900,40 @@ export interface McpResourceContent {
   truncated: boolean;
 }
 
+export type ToolArgumentOperator =
+  | 'Equals'
+  | 'NotEquals'
+  | 'GreaterThan'
+  | 'GreaterThanOrEqual'
+  | 'LessThan'
+  | 'LessThanOrEqual'
+  | 'In'
+  | 'NotIn';
+
+/** One comparison against a tool call argument: path · operator · value (phase 63). */
+export interface ToolArgumentCondition {
+  path: string;
+  operator: ToolArgumentOperator;
+  /** A JSON string/number/boolean, or (for In/NotIn) an array of text or numbers. */
+  value: string | number | boolean | (string | number)[];
+}
+
 export interface ToolApprovalRule {
   id: string;
   tenantId: string;
   agentName?: string | null;
   toolName: string;
   argumentsHash?: string | null;
+  argumentConditions: ToolArgumentCondition[];
   createdBy?: string | null;
   createdAt: string;
+}
+
+/** Request to create a persistent, argument-conditioned approval rule (phase 63). */
+export interface ToolApprovalRuleRequest {
+  agentName?: string | null;
+  toolName: string;
+  argumentConditions: ToolArgumentCondition[];
 }
 
 export interface TenantDescriptor {

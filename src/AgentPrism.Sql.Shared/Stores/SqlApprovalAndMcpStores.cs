@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -58,6 +59,13 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
         AddNullableText(command, "agent_name", rule.AgentName);
         DbHelpers.Add(command, "tool_name", rule.ToolName);
         AddNullableText(command, "arguments_hash", rule.ArgumentsHash);
+        Dialect.AddJsonb(
+            command,
+            "argument_conditions",
+            rule.ArgumentConditions.Count == 0
+                ? null
+                : JsonSerializer.Serialize(rule.ArgumentConditions, AgentPrismJsonContext.Default.IReadOnlyListToolArgumentCondition));
+        AddNullableText(command, "conditions_hash", ComputeConditionsHash(rule.ArgumentConditions));
         AddNullableText(command, "created_by", rule.CreatedBy);
         Dialect.AddTimestamp(command, "created_at", rule.CreatedAt);
 
@@ -68,6 +76,57 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 
         return saved ?? rule;
     }
+
+    /// <summary>
+    /// Computes the deterministic fingerprint of a condition set that backs the
+    /// <c>conditions_hash</c> column and its uniqueness key.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> for an empty list — symmetric with
+    /// <see cref="ToolApprovalRule.ArgumentsHash"/>'s "no constraint" meaning, and
+    /// keeps the <c>COALESCE(conditions_hash, '')</c> uniqueness index working the
+    /// same way for both columns. Conditions are sorted before hashing: the same
+    /// SET of conditions must produce the same hash regardless of the order they
+    /// were written in.
+    /// </remarks>
+    private static string? ComputeConditionsHash(IReadOnlyList<ToolArgumentCondition> conditions)
+    {
+        if (conditions.Count == 0)
+        {
+            return null;
+        }
+
+        var ordered = conditions
+            .Select(static condition => (condition.Path, condition.Operator, Text: CanonicalizeJson(condition.Value)))
+            .OrderBy(static entry => entry.Path, StringComparer.Ordinal)
+            .ThenBy(static entry => (int)entry.Operator)
+            .ThenBy(static entry => entry.Text, StringComparer.Ordinal);
+
+        var builder = new StringBuilder();
+
+        foreach (var entry in ordered)
+        {
+            // Same separator convention as ToolApprovalRuleEvaluator.ComputeArgumentsHash:
+            // the unit/record separator cannot appear in the fields being joined, so
+            // two different condition sets cannot collide.
+            builder.Append(entry.Path)
+                .Append('\u001F')
+                .Append((int)entry.Operator)
+                .Append('\u001F')
+                .Append(entry.Text)
+                .Append('\u001E');
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
+
+        return Convert.ToHexString(hash);
+    }
+
+    /// <summary>Renders a JSON value with no incidental whitespace, so equal values always hash the same.</summary>
+    private static string CanonicalizeJson(JsonElement value)
+        => value.ValueKind == JsonValueKind.Array
+            ? "[" + string.Join(",", value.EnumerateArray().Select(CanonicalizeJson)) + "]"
+            : value.GetRawText();
 
     /// <inheritdoc />
     public async ValueTask<bool> DeleteAsync(
@@ -86,6 +145,8 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
+    // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
+    // argument_conditions reads by fixed ordinal 7, after the original seven columns.
     private static ToolApprovalRule ReadRule(DbDataReader reader)
         => new()
         {
@@ -96,7 +157,13 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
             ArgumentsHash = DbHelpers.GetNullableString(reader, 4),
             CreatedBy = DbHelpers.GetNullableString(reader, 5),
             CreatedAt = DbHelpers.GetTimestamp(reader, 6),
+            ArgumentConditions = ReadConditions(DbHelpers.GetNullableString(reader, 7)),
         };
+
+    private static IReadOnlyList<ToolArgumentCondition> ReadConditions(string? json)
+        => string.IsNullOrEmpty(json)
+            ? []
+            : JsonSerializer.Deserialize(json, AgentPrismJsonContext.Default.IReadOnlyListToolArgumentCondition) ?? [];
 
     private void AddNullableText(DbCommand command, string name, string? value)
         => Dialect.AddText(command, name, value);

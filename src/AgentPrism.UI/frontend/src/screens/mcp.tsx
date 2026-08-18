@@ -21,7 +21,13 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { McpServerRequest, McpTransportMode, Meta } from '../lib/types';
+import type {
+  McpServerRequest,
+  McpTransportMode,
+  Meta,
+  ToolArgumentCondition,
+  ToolArgumentOperator,
+} from '../lib/types';
 
 const EMPTY_FORM: McpServerRequest & { name: string } = {
   name: '',
@@ -37,6 +43,82 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
   oauthScopes: '',
 };
 
+/** A condition row as edited in the form; `value` stays raw text until submit. */
+interface ConditionRow {
+  path: string;
+  operator: ToolArgumentOperator;
+  value: string;
+}
+
+interface RuleForm {
+  toolName: string;
+  agentName: string;
+  conditions: ConditionRow[];
+}
+
+const EMPTY_RULE_FORM: RuleForm = { toolName: '', agentName: '', conditions: [] };
+
+const EMPTY_CONDITION_ROW: ConditionRow = { path: '', operator: 'Equals', value: '' };
+
+const OPERATOR_SYMBOLS: Record<ToolArgumentOperator, string> = {
+  Equals: '=',
+  NotEquals: '≠',
+  GreaterThan: '>',
+  GreaterThanOrEqual: '≥',
+  LessThan: '<',
+  LessThanOrEqual: '≤',
+  In: '∈',
+  NotIn: '∉',
+};
+
+/**
+ * Parses a scalar token typed by hand into the JSON kind it looks like. No
+ * quoting syntax: "true"/"false" become booleans, a number-looking token
+ * becomes a number, anything else stays text.
+ */
+function parseScalar(token: string): string | number | boolean {
+  const trimmed = token.trim();
+
+  if (trimmed.toLowerCase() === 'true') return true;
+  if (trimmed.toLowerCase() === 'false') return false;
+
+  const numeric = Number(trimmed);
+
+  return trimmed.length > 0 && Number.isFinite(numeric) ? numeric : trimmed;
+}
+
+/**
+ * Builds the JSON value a condition row sends, following the operator's
+ * expected shape (K2: no expressions, a closed operator set decides the shape).
+ */
+function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolArgumentCondition['value'] {
+  if (operator === 'In' || operator === 'NotIn') {
+    return raw
+      .split(',')
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0)
+      .map((token) => {
+        const value = parseScalar(token);
+
+        // The server's In/NotIn only accepts text or numbers, never booleans
+        // (docs/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md, 63.2) — a "true"/"false"
+        // token inside a list stays text rather than becoming an invalid element.
+        return typeof value === 'boolean' ? token : value;
+      });
+  }
+
+  if (
+    operator === 'GreaterThan' ||
+    operator === 'GreaterThanOrEqual' ||
+    operator === 'LessThan' ||
+    operator === 'LessThanOrEqual'
+  ) {
+    return Number(raw.trim());
+  }
+
+  return parseScalar(raw);
+}
+
 /**
  * Remote MCP servers and the persistent approval rules.
  *
@@ -51,6 +133,8 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
+  const [showRuleForm, setShowRuleForm] = useState(false);
 
   const servers = useQuery({ queryKey: ['mcp-servers'], queryFn: api.mcpServers });
   const rules = useQuery({ queryKey: ['approval-rules'], queryFn: api.approvalRules });
@@ -95,6 +179,24 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const removeRule = useMutation({
     mutationFn: (id: string) => api.deleteApprovalRule(id),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['approval-rules'] }),
+  });
+
+  const createRule = useMutation({
+    mutationFn: () =>
+      api.createApprovalRule({
+        toolName: ruleForm.toolName,
+        agentName: ruleForm.agentName.length > 0 ? ruleForm.agentName : null,
+        argumentConditions: ruleForm.conditions.map((row) => ({
+          path: row.path,
+          operator: row.operator,
+          value: buildConditionValue(row.operator, row.value),
+        })),
+      }),
+    onSuccess: () => {
+      setRuleForm(EMPTY_RULE_FORM);
+      setShowRuleForm(false);
+      void client.invalidateQueries({ queryKey: ['approval-rules'] });
+    },
   });
 
   return (
@@ -376,7 +478,141 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
           ))}
       </Panel>
 
-      <Panel title={t('mcp.rememberedApprovals')}>
+      <Panel
+        title={t('mcp.rememberedApprovals')}
+        className="mb-4"
+        actions={
+          meta.roles.canAdminister && (
+            <Button tone="primary" onClick={() => setShowRuleForm((current) => !current)}>
+              <PlusIcon className="size-3.5" />
+              {t('mcp.addRule')}
+            </Button>
+          )
+        }
+      >
+        {showRuleForm && (
+          <form
+            className="grid gap-3 border-b border-line p-4 sm:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createRule.mutate();
+            }}
+          >
+            <Field label={t('mcp.tool')} required>
+              <TextInput
+                value={ruleForm.toolName}
+                required
+                placeholder="refund_order"
+                onChange={(event) => setRuleForm({ ...ruleForm, toolName: event.target.value })}
+              />
+            </Field>
+
+            <Field label={t('common.agent')} hint={t('mcp.ruleAgentHint')}>
+              <TextInput
+                value={ruleForm.agentName}
+                placeholder="support"
+                onChange={(event) => setRuleForm({ ...ruleForm, agentName: event.target.value })}
+              />
+            </Field>
+
+            <div className="sm:col-span-2">
+              <Field label={t('mcp.conditions')} hint={t('mcp.conditionsHint')}>
+                <div className="flex flex-col gap-2">
+                  {ruleForm.conditions.length === 0 && (
+                    <p className="text-[12px] text-subtle">{t('mcp.noConditions')}</p>
+                  )}
+
+                  {ruleForm.conditions.map((row, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <TextInput
+                        value={row.path}
+                        required
+                        placeholder="amount"
+                        data-testid={`condition-path-${index}`}
+                        onChange={(event) =>
+                          setRuleForm({
+                            ...ruleForm,
+                            conditions: ruleForm.conditions.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, path: event.target.value } : item,
+                            ),
+                          })
+                        }
+                      />
+                      <Select
+                        value={row.operator}
+                        testId={`condition-operator-${index}`}
+                        onChange={(value) =>
+                          setRuleForm({
+                            ...ruleForm,
+                            conditions: ruleForm.conditions.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, operator: value as ToolArgumentOperator }
+                                : item,
+                            ),
+                          })
+                        }
+                      >
+                        {(Object.keys(OPERATOR_SYMBOLS) as ToolArgumentOperator[]).map((operator) => (
+                          <option key={operator} value={operator}>
+                            {t(`mcp.operator.${operator}`)} ({OPERATOR_SYMBOLS[operator]})
+                          </option>
+                        ))}
+                      </Select>
+                      <TextInput
+                        value={row.value}
+                        required
+                        placeholder={row.operator === 'In' || row.operator === 'NotIn' ? 'eu, us' : '100'}
+                        data-testid={`condition-value-${index}`}
+                        onChange={(event) =>
+                          setRuleForm({
+                            ...ruleForm,
+                            conditions: ruleForm.conditions.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, value: event.target.value } : item,
+                            ),
+                          })
+                        }
+                      />
+                      <Button
+                        type="button"
+                        tone="ghost"
+                        testId={`remove-condition-${index}`}
+                        onClick={() =>
+                          setRuleForm({
+                            ...ruleForm,
+                            conditions: ruleForm.conditions.filter((_, itemIndex) => itemIndex !== index),
+                          })
+                        }
+                      >
+                        <TrashIcon className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    testId="add-condition"
+                    onClick={() =>
+                      setRuleForm({ ...ruleForm, conditions: [...ruleForm.conditions, EMPTY_CONDITION_ROW] })
+                    }
+                  >
+                    {t('mcp.addCondition')}
+                  </Button>
+                </div>
+              </Field>
+            </div>
+
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <Button type="submit" tone="primary" busy={createRule.isPending}>
+                {t('common.save')}
+              </Button>
+              <Button tone="ghost" onClick={() => setShowRuleForm(false)}>
+                {t('common.cancel')}
+              </Button>
+              {createRule.isError && <ErrorNote error={createRule.error} />}
+            </div>
+          </form>
+        )}
+
         {rules.isPending && <Loading />}
         {rules.isError && <ErrorNote error={rules.error} />}
 
@@ -402,7 +638,20 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td>{rule.agentName ?? <span className="text-subtle">{t('runs.allAgents')}</span>}</Td>
                     <Td>
-                      {rule.argumentsHash != null && rule.argumentsHash.length > 0 ? (
+                      {rule.argumentConditions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {rule.argumentConditions.map((condition, index) => (
+                            <Badge key={index} title={t('mcp.conditionedRuleTitle')}>
+                              <Mono className="text-[11px]">
+                                {condition.path} {OPERATOR_SYMBOLS[condition.operator]}{' '}
+                                {Array.isArray(condition.value)
+                                  ? condition.value.join(', ')
+                                  : String(condition.value)}
+                              </Mono>
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : rule.argumentsHash != null && rule.argumentsHash.length > 0 ? (
                         <Badge title={t('mcp.sameArgumentsTitle')}>{t('mcp.sameArguments')}</Badge>
                       ) : (
                         <Badge tone="warn" title={t('mcp.anyArgumentsTitle')}>

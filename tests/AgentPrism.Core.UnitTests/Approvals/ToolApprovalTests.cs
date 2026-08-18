@@ -200,8 +200,123 @@ public sealed class ToolApprovalTests
         (await store.DeleteAsync("default", rule.Id)).ShouldBeTrue();
     }
 
-    private static ToolApprovalRuleEvaluator CreateEvaluator(IToolApprovalRuleStore store)
-        => new(store, new FixedTenantContext(), NullLogger<ToolApprovalRuleEvaluator>.Instance);
+    [Fact]
+    public async Task Argument_condition_rule_matches_within_threshold()
+    {
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("refund_order", "support", argumentsHash: null) with
+        {
+            ArgumentConditions = [ThresholdCondition(100)],
+        });
+
+        var evaluator = CreateEvaluator(store);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 50)))).ShouldBeTrue();
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 500)))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Argument_condition_rule_asks_when_argument_missing()
+    {
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("refund_order", "support", argumentsHash: null) with
+        {
+            ArgumentConditions = [ThresholdCondition(100)],
+        });
+
+        var evaluator = CreateEvaluator(store);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Code_policy_required_overrides_a_matching_data_rule()
+    {
+        var store = new InMemoryToolApprovalRuleStore();
+        await store.AddAsync(Rule("refund_order", "support", argumentsHash: null));
+
+        var evaluator = CreateEvaluator(
+            store,
+            [new ToolApprovalPolicyRegistration("refund_order", static _ => ToolApprovalPolicyDecision.Required)]);
+
+        // Data alone would auto-approve (unconditional rule); code overrides it.
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Code_policy_not_required_overrides_absence_of_a_data_rule()
+    {
+        var evaluator = CreateEvaluator(
+            new InMemoryToolApprovalRuleStore(),
+            [new ToolApprovalPolicyRegistration("refund_order", static _ => ToolApprovalPolicyDecision.NotRequired)]);
+
+        // No data rule exists at all; code alone auto-approves.
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Undecided_code_policy_falls_through_to_data_rules()
+    {
+        var store = new InMemoryToolApprovalRuleStore();
+        await store.AddAsync(Rule("refund_order", "support", argumentsHash: null));
+
+        var evaluator = CreateEvaluator(
+            store,
+            [new ToolApprovalPolicyRegistration("refund_order", static _ => ToolApprovalPolicyDecision.Undecided)]);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_throwing_code_policy_requires_approval()
+    {
+        var store = new InMemoryToolApprovalRuleStore();
+        // Even an unconditional data rule that would otherwise auto-approve
+        // must not rescue a broken policy.
+        await store.AddAsync(Rule("refund_order", "support", argumentsHash: null));
+
+        var evaluator = CreateEvaluator(
+            store,
+            [new ToolApprovalPolicyRegistration("refund_order", static _ => throw new InvalidOperationException("boom"))]);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Code_policy_reads_the_call_arguments()
+    {
+        var evaluator = CreateEvaluator(
+            new InMemoryToolApprovalRuleStore(),
+            [
+                new ToolApprovalPolicyRegistration(
+                    "refund_order",
+                    static context => context.GetNumber("amount") is { } amount && amount <= 100
+                        ? ToolApprovalPolicyDecision.NotRequired
+                        : ToolApprovalPolicyDecision.Required),
+            ]);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 50)))).ShouldBeTrue();
+        (await evaluator.IsAutoApprovedAsync("support", Call("refund_order", ("amount", 500)))).ShouldBeFalse();
+    }
+
+    private static ToolArgumentCondition ThresholdCondition(double max)
+        => new()
+        {
+            Path = "amount",
+            Operator = ToolArgumentOperator.LessThanOrEqual,
+            Value = System.Text.Json.JsonSerializer.SerializeToElement(max),
+        };
+
+    private static ToolApprovalRuleEvaluator CreateEvaluator(
+        IToolApprovalRuleStore store,
+        IEnumerable<ToolApprovalPolicyRegistration>? policies = null)
+        => new(
+            store,
+            new ToolApprovalPolicyRegistry(policies ?? []),
+            new FixedTenantContext(),
+            NullLogger<ToolApprovalRuleEvaluator>.Instance);
 
     private static ToolApprovalRule Rule(string toolName, string? agentName, string? argumentsHash)
         => new()

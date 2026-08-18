@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
@@ -63,6 +65,79 @@ public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IT
     [Fact]
     public async Task Deleting_a_nonexistent_rule_returns_false()
         => (await Store.DeleteAsync("tenant-a", Guid.NewGuid())).ShouldBeFalse();
+
+    [Fact]
+    public async Task Argument_conditions_round_trip()
+    {
+        var conditions = new[]
+        {
+            new ToolArgumentCondition
+            {
+                Path = "amount",
+                Operator = ToolArgumentOperator.LessThanOrEqual,
+                Value = JsonSerializer.SerializeToElement(100),
+            },
+        };
+
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { ArgumentConditions = conditions });
+
+        var loaded = (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
+
+        var condition = loaded.ArgumentConditions.ShouldHaveSingleItem();
+        condition.Path.ShouldBe("amount");
+        condition.Operator.ShouldBe(ToolArgumentOperator.LessThanOrEqual);
+        condition.Value.GetDouble().ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task Condition_scoped_rule_added_twice_leaves_a_single_record()
+    {
+        // conditions_hash widens the uniqueness key the same way arguments_hash
+        // does: without it, a second identical condition-based rule would
+        // accumulate endlessly (0004_skill_scripts.sql's COALESCE lesson).
+        var conditions = new[]
+        {
+            new ToolArgumentCondition
+            {
+                Path = "amount",
+                Operator = ToolArgumentOperator.LessThanOrEqual,
+                Value = JsonSerializer.SerializeToElement(100),
+            },
+        };
+
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = conditions });
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = conditions });
+
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Different_conditions_become_a_separate_rule()
+    {
+        var lowThreshold = new[]
+        {
+            new ToolArgumentCondition
+            {
+                Path = "amount",
+                Operator = ToolArgumentOperator.LessThanOrEqual,
+                Value = JsonSerializer.SerializeToElement(100),
+            },
+        };
+        var highThreshold = new[]
+        {
+            new ToolArgumentCondition
+            {
+                Path = "amount",
+                Operator = ToolArgumentOperator.LessThanOrEqual,
+                Value = JsonSerializer.SerializeToElement(500),
+            },
+        };
+
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = lowThreshold });
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = highThreshold });
+
+        (await Store.ListAsync("tenant-a")).Count.ShouldBe(2);
+    }
 
     private static ToolApprovalRule Rule(string tenantId, string toolName)
         => new()

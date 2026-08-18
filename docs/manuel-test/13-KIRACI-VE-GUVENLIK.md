@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -10,7 +10,14 @@
 > `src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs` (yalnız erişim
 > katmanlaması — genel `MapAgentPrism` sözleşmesi `07`'nin işi) ·
 > `src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs`, `AuditEndpoints.cs`,
-> `GovernanceEndpoints.cs` (yalnız `MapTenants` — MCP/onay kuralı bölümleri `18`'in işi) ·
+> `GovernanceEndpoints.cs` (yalnız `MapTenants` + `MapApprovalRules` — MCP sunucu
+> bölümleri `18`'in işi) ·
+> `src/AgentPrism.Abstractions/Approvals/` (tümü — `ToolArgumentCondition`,
+> `ToolArgumentOperator`, `ToolApprovalPolicyDecision`, `ToolApprovalContext`) ·
+> `src/AgentPrism.Core/Approvals/` (tümü — `ToolArgumentConditionMatcher`,
+> `ToolApprovalPolicyRegistry`, `ToolApprovalRuleEvaluator`) ·
+> `src/AgentPrism.UI/frontend/src/screens/mcp.tsx` (yalnız "Remembered approvals"
+> paneli — sunucu CRUD kısmı `18`'in işi) ·
 > `src/AgentPrism.Abstractions/Security/` (tümü) · `src/AgentPrism.Abstractions/Audit/` (tümü) ·
 > `src/AgentPrism.Abstractions/Tenancy/` (tümü) ·
 > `src/AgentPrism.Core/Security/` (tümü) · `src/AgentPrism.Core/Audit/` (tümü) ·
@@ -1739,3 +1746,219 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/audit/agent:manuel-audit
 - `HTTP: 405` (Method Not Allowed) — `AuditEndpoints.cs` yalnız iki `MapGet`
   içerir (satır 20, 58), hiçbir `MapDelete`/`MapPut`/`MapPatch` yoktur; ASP.NET
   Core aynı şablona eşleşen ama kabul edilmeyen bir metotta `405` döner.
+
+---
+
+### MT-SEC-100 — Koşulsuz kural eskisi gibi çalışır: eşik altında otomatik geçer
+
+Faz 63. `ArgumentConditions` boşken bir kural `tool`'un HER çağrısıyla eşleşir — geriye dönük davranış birebir korunur.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | K-451, K-452 |
+
+**Adımlar**
+1. `refund_order` tool'unu onay isteyecek şekilde kaydet.
+2. Koşulsuz bir kural yaz (`argumentConditions: []`).
+3. Tool'u çağırt.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: application/json" -d '{
+  "toolName": "refund_order"
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 201`, gövdede `"argumentConditions":[]` — kural her çağrıyı otomatik onaylar (`ToolApprovalRuleEvaluator.IsAutoApprovedAsync`, "Neither an argument fingerprint nor conditions" dalı).
+
+---
+
+### MT-SEC-101 — `amount <= 100` koşullu kural: eşik altında otomatik geçer
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | K-451 |
+
+**Ön koşul**
+- `refund_order` tool'u onay ister, MT-SEC-100'ün kuralı SİLİNMİŞ (aksi hâlde koşulsuz kural her şeyi zaten onaylar).
+
+**Adımlar**
+1. `amount <= 100` koşullu kural yaz.
+2. `amount: 50` ile çağırt.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: application/json" -d '{
+  "toolName": "refund_order",
+  "argumentConditions": [{"path": "amount", "operator": "LessThanOrEqual", "value": 100}]
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 201`, gövdede `"operator":"LessThanOrEqual"` (SAYI değil, DİZE — `ToolArgumentOperator`
+  `JsonStringEnumConverter` ile işaretlidir, K-040). Ardından `amount: 50` ile
+  çağrılan `refund_order` onay İSTEMEDEN çalışır.
+
+---
+
+### MT-SEC-102 — Aynı kural, eşik üstünde onay ister
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-SEC-101'in kuralı kayıtlı.
+
+**Adımlar**
+1. `amount: 500` ile çağırt.
+
+**Beklenen sonuç**
+- Çağrı onay İSTER (`ToolApprovalRequestContent` döner) — 500, 100'den büyük olduğu için koşul eşleşmez ve kapalı düşme devreye girer.
+
+---
+
+### MT-SEC-103 — Argüman hiç gönderilmezse onay ister (yol çözülemez → kapalı düşme)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-SEC-101'in kuralı kayıtlı.
+
+**Adımlar**
+1. `amount` alanı OLMADAN `refund_order`'ı çağırt.
+
+**Beklenen sonuç**
+- Çağrı onay İSTER — `ToolArgumentConditionMatcher.TryResolvePath` yolu çözemez, koşul eşleşmez.
+
+---
+
+### MT-SEC-104 — Tip uyuşmazsa onay ister (`"50"` metni sayı kuralını geçemez)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-SEC-101'in kuralı kayıtlı.
+
+**Adımlar**
+1. `amount: "50"` (DİZE olarak) ile çağırt.
+
+**Beklenen sonuç**
+- Çağrı onay İSTER — sessiz tip dönüştürme yapılmaz; `"50"` metni ile `100` sayısı aynı JSON türünde değildir.
+
+---
+
+### MT-SEC-105 — Kodda kayıtlı politika veri kuralını EZER
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | K-451 |
+
+**Ön koşul**
+- Örnek uygulamada `AddToolApprovalPolicy("refund_order", ctx => ToolApprovalPolicyDecision.Required)` kayıtlı bir agent VAR (`samples/AgentPrism.Api` içinde bu tool için ayrı bir sabit politika örneği kurulmalı; yoksa 👤 insan gerekir — kodda geçici olarak eklenip test edilir, kalıcı örnek şart değil).
+- MT-SEC-100'ün koşulsuz kuralı (her çağrıyı otomatik onaylayan) kayıtlı.
+
+**Adımlar**
+1. `refund_order`'ı çağırt.
+
+**Beklenen sonuç**
+- Çağrı onay İSTER — veri kuralı otomatik onaylardı ama kod politikası `Required` döndüğü için kod kazanır (`IsAutoApprovedAsync`, politika `Required`/`NotRequired` dalı veri kurallarından ÖNCE değerlendirilir).
+
+**Not:** 👤 insan gerekir — `samples/AgentPrism.Api`'ye geçici bir `AddToolApprovalPolicy` çağrısı eklemeden koşulamaz.
+
+---
+
+### MT-SEC-106 — Aynı kapsam ve aynı koşulla ikinci kural `409` alır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | K-454 |
+
+**Ön koşul**
+- MT-SEC-101'in kuralı kayıtlı.
+
+**Adımlar**
+1. AYNI gövdeyle ikinci kez yaz.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: application/json" -d '{
+  "toolName": "refund_order",
+  "argumentConditions": [{"path": "amount", "operator": "LessThanOrEqual", "value": 100}]
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 409`, `title: "Rule already exists"` — `conditions_hash` benzersizlik anahtarına girdiği için (K-455) ikinci kural yeni bir satır AÇMAZ.
+
+---
+
+### MT-SEC-107 — Sayısal olmayan bir değerle `GreaterThan` yazmak `400` alır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `tier` (metin) alanına `GreaterThan` operatörüyle bir kural yazmayı dene.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/approvals/rules" -H "$APB" -H "content-type: application/json" -d '{
+  "toolName": "refund_order",
+  "argumentConditions": [{"path": "tier", "operator": "GreaterThan", "value": "gold"}]
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`, `title: "Invalid condition value"`, `detail: "Operator 'GreaterThan' expects a number."`
+
+---
+
+### MT-SEC-108 — Arayüzden koşullu kural eklenip geri okunur; serbest ifade kutusu YOKTUR
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 63 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `/mcp` ekranına git, "Add rule" ile aç.
+2. `toolName: refund_order`, koşul satırı ekle (`amount`, `LessThanOrEqual`, `100`), kaydet.
+3. Kural listede görünsün mü kontrol et. Operatör alanının bir AÇILIR LİSTE (dropdown) olduğunu, serbest metin bir "ifade" kutusu OLMADIĞINI doğrula.
+
+**Beklenen sonuç**
+- Yeni kural tabloda `amount ≤ 100` rozetiyle görünür; operatör seçimi yalnız
+  sekiz sabit değerden biri olabilir, hiçbir alanda ifade/formül yazılamaz (K2).
+  Otomatikleştirilmiş karşılığı: `UiTests.Approval_rule_with_condition_is_created_and_shown`.

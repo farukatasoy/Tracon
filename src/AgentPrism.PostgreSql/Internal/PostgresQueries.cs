@@ -960,8 +960,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Tool approval rules (Phase 6) ---
 
+        // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
+        // reads argument_conditions by fixed ordinal 7 (docs/hafiza/postgresql.md).
         SelectToolApprovalRules = $"""
-            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
+            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
             FROM {Schema}.tool_approval_rules
             WHERE tenant_id = @tenant_id
             ORDER BY created_at DESC;
@@ -971,13 +973,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // record is returned. The constraint is a COALESCE'd expression
         // index because NULLs are not considered equal to each other in
         // PostgreSQL, and a plain UNIQUE constraint would not prevent the duplicate.
+        // conditions_hash (Phase 63) joined the key so a data-rule condition set
+        // is bound by the same "no unbounded duplicates" rule as arguments_hash.
         InsertToolApprovalRule = $"""
             INSERT INTO {Schema}.tool_approval_rules
-                (id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at)
-            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at)
-            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''))
+                (id, tenant_id, agent_name, tool_name, arguments_hash, argument_conditions, conditions_hash, created_by, created_at)
+            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @argument_conditions, @conditions_hash, @created_by, @created_at)
+            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''), COALESCE(conditions_hash, ''))
                 DO UPDATE SET tool_name = {Schema}.tool_approval_rules.tool_name
-            RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at;
+            RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions;
             """;
 
         DeleteToolApprovalRule = $"""

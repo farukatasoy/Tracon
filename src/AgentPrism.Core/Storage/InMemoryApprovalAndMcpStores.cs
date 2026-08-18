@@ -72,7 +72,46 @@ public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
         => string.Equals(left.TenantId, right.TenantId, StringComparison.Ordinal)
             && string.Equals(left.AgentName, right.AgentName, StringComparison.Ordinal)
             && string.Equals(left.ToolName, right.ToolName, StringComparison.Ordinal)
-            && string.Equals(left.ArgumentsHash, right.ArgumentsHash, StringComparison.Ordinal);
+            && string.Equals(left.ArgumentsHash, right.ArgumentsHash, StringComparison.Ordinal)
+            && ConditionsEqual(left.ArgumentConditions, right.ArgumentConditions);
+
+    /// <summary>
+    /// Order-independent condition-set equality, mirroring the SQL stores'
+    /// <c>conditions_hash</c> uniqueness key (canonical order, exact JSON text).
+    /// </summary>
+    private static bool ConditionsEqual(IReadOnlyList<ToolArgumentCondition> left, IReadOnlyList<ToolArgumentCondition> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        if (left.Count == 0)
+        {
+            return true;
+        }
+
+        var leftSorted = left.OrderBy(static c => c.Path, StringComparer.Ordinal)
+            .ThenBy(static c => (int)c.Operator)
+            .ThenBy(static c => c.Value.GetRawText(), StringComparer.Ordinal)
+            .ToList();
+        var rightSorted = right.OrderBy(static c => c.Path, StringComparer.Ordinal)
+            .ThenBy(static c => (int)c.Operator)
+            .ThenBy(static c => c.Value.GetRawText(), StringComparer.Ordinal)
+            .ToList();
+
+        for (var i = 0; i < leftSorted.Count; i++)
+        {
+            if (!string.Equals(leftSorted[i].Path, rightSorted[i].Path, StringComparison.Ordinal)
+                || leftSorted[i].Operator != rightSorted[i].Operator
+                || !string.Equals(leftSorted[i].Value.GetRawText(), rightSorted[i].Value.GetRawText(), StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 /// <summary>

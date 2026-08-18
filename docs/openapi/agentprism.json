@@ -5248,6 +5248,37 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Governance"
+        ],
+        "summary": "Creates a persistent, argument-conditioned approval rule.",
+        "description": "Writes a standing \u0027don\u0027t ask again\u0027 rule with an admin-authored comparison (for example \u0022amount \u003C= 100\u0022), evaluated on every call. There is no free-text expression field: the operator is a closed set and conditions combine with AND only. A code-defined policy (IAgentPrismBuilder.AddToolApprovalPolicy) always runs first and can override this rule in both directions.",
+        "operationId": "AgentPrismCreateApprovalRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolApprovalRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolApprovalRule"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/agentprism/api/approvals/rules/{ruleId}": {
@@ -13131,6 +13162,13 @@
             ],
             "description": "Gets the argument fingerprint. When it is populated the rule covers only a call\nmade with the same arguments."
           },
+          "argumentConditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolArgumentCondition"
+            },
+            "description": "Gets the argument conditions. All conditions must match for the rule to apply\n(\u0060AND\u0060); an empty list matches every call of the tool. Mutually exclusive\nwith string? ToolApprovalRule.ArgumentsHash \u2014 a rule carries one or the other, never both."
+          },
           "createdBy": {
             "type": [
               "null",
@@ -13145,6 +13183,69 @@
           }
         },
         "description": "A persistent approval rule for a tool call the user said \u0022do not ask again\u0022 for."
+      },
+      "ToolApprovalRuleRequest": {
+        "required": [
+          "toolName"
+        ],
+        "type": "object",
+        "properties": {
+          "agentName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The agent the rule holds for. When empty it covers every agent of the tenant."
+          },
+          "toolName": {
+            "type": "string",
+            "description": "The tool the rule holds for."
+          },
+          "argumentConditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolArgumentCondition"
+            },
+            "description": "All conditions must match for the rule to apply (\u0060AND\u0060). An empty list\n(the default) matches every call of the tool."
+          }
+        },
+        "description": "Request to create a persistent, argument-conditioned approval rule (Phase 63)."
+      },
+      "ToolArgumentCondition": {
+        "required": [
+          "path",
+          "operator",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Gets the dotted path into the argument object, for example \u0060order.amount\u0060.\nNo array index is accepted."
+          },
+          "operator": {
+            "description": "Gets the comparison operator.",
+            "$ref": "#/components/schemas/ToolArgumentOperator"
+          },
+          "value": {
+            "description": "Gets the value compared against. For ToolArgumentOperator.In and\nToolArgumentOperator.NotIn this is a JSON array of text or numbers;\nfor every other operator it is a single text, number, or boolean.",
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "description": "One comparison against a tool call argument: \u003Cem\u003Epath \u00B7 operator \u00B7 value\u003C/em\u003E."
+      },
+      "ToolArgumentOperator": {
+        "enum": [
+          "Equals",
+          "NotEquals",
+          "GreaterThan",
+          "GreaterThanOrEqual",
+          "LessThan",
+          "LessThanOrEqual",
+          "In",
+          "NotIn"
+        ],
+        "description": "A comparison operator for a ToolArgumentCondition."
       },
       "ToolCallContent": {
         "type": "object",
