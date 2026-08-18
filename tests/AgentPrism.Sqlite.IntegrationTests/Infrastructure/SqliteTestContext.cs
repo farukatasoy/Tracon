@@ -65,6 +65,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
         PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
+        DataSubjects = new SqlDataSubjectStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -175,6 +176,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Migration runner.</summary>
     public MigrationRunner Migrations { get; }
+
+    /// <summary>Data subject export/erasure data plane (Phase 64).</summary>
+    public SqlDataSubjectStore DataSubjects { get; }
 
     /// <summary>The table prefix in use.</summary>
     public string TablePrefix => Options.TablePrefix;

@@ -45,7 +45,8 @@ public sealed class TenantCoverageTests
         ["SqlMcpServerStore"] = ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync"],
         ["SqlAttachmentStore"] =
             ["SaveAsync", "GetAsync", "OpenReadAsync", "ListAsync", "DeleteAsync", "DeleteBySessionAsync"],
-        ["SqlAuditLog"] = ["WriteAsync", "QueryAsync"],
+        ["SqlAuditLog"] = ["WriteAsync", "QueryAsync", "VerifyChainAsync"],
+        ["SqlDataSubjectStore"] = ["PreviewAsync", "ExportAsync", "EraseAsync"],
         ["SqlEvalStore"] =
             ["ListSuitesAsync", "GetSuiteAsync", "SaveSuiteAsync", "DeleteSuiteAsync", "CreateRunAsync",
              "GetRunAsync", "GetRunByJobIdAsync", "ListCaseResultsAsync", "QueryRunsAsync"],

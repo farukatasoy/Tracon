@@ -4154,3 +4154,87 @@ override AgentPrism.ToolArgumentCondition.GetHashCode() -> int
 override AgentPrism.ToolArgumentCondition.ToString() -> string!
 static AgentPrism.ToolArgumentCondition.operator !=(AgentPrism.ToolArgumentCondition? left, AgentPrism.ToolArgumentCondition? right) -> bool
 static AgentPrism.ToolArgumentCondition.operator ==(AgentPrism.ToolArgumentCondition? left, AgentPrism.ToolArgumentCondition? right) -> bool
+AgentPrism.AuditChainQuery
+AgentPrism.AuditChainQuery.<Clone>$() -> AgentPrism.AuditChainQuery!
+AgentPrism.AuditChainQuery.After.get -> System.DateTimeOffset?
+AgentPrism.AuditChainQuery.After.init -> void
+AgentPrism.AuditChainQuery.AuditChainQuery() -> void
+AgentPrism.AuditChainQuery.Before.get -> System.DateTimeOffset?
+AgentPrism.AuditChainQuery.Before.init -> void
+AgentPrism.AuditChainQuery.Equals(AgentPrism.AuditChainQuery? other) -> bool
+AgentPrism.AuditChainQuery.TenantId.get -> string?
+AgentPrism.AuditChainQuery.TenantId.init -> void
+AgentPrism.AuditChainStatus
+AgentPrism.AuditChainStatus.Broken = 1 -> AgentPrism.AuditChainStatus
+AgentPrism.AuditChainStatus.Gap = 2 -> AgentPrism.AuditChainStatus
+AgentPrism.AuditChainStatus.Valid = 0 -> AgentPrism.AuditChainStatus
+AgentPrism.AuditChainVerification
+AgentPrism.AuditChainVerification.<Clone>$() -> AgentPrism.AuditChainVerification!
+AgentPrism.AuditChainVerification.AuditChainVerification() -> void
+AgentPrism.AuditChainVerification.EntriesChecked.get -> int
+AgentPrism.AuditChainVerification.EntriesChecked.init -> void
+AgentPrism.AuditChainVerification.Equals(AgentPrism.AuditChainVerification? other) -> bool
+AgentPrism.AuditChainVerification.FirstFailingEntryId.get -> System.Guid?
+AgentPrism.AuditChainVerification.FirstFailingEntryId.init -> void
+AgentPrism.AuditChainVerification.Status.get -> AgentPrism.AuditChainStatus
+AgentPrism.AuditChainVerification.Status.init -> void
+AgentPrism.AuditEntry.Hash.get -> string?
+AgentPrism.AuditEntry.Hash.init -> void
+AgentPrism.AuditEntry.PreviousHash.get -> string?
+AgentPrism.AuditEntry.PreviousHash.init -> void
+AgentPrism.DataSubjectErasureResult
+AgentPrism.DataSubjectErasureResult.<Clone>$() -> AgentPrism.DataSubjectErasureResult!
+AgentPrism.DataSubjectErasureResult.DataSubjectErasureResult() -> void
+AgentPrism.DataSubjectErasureResult.DryRun.get -> bool
+AgentPrism.DataSubjectErasureResult.DryRun.init -> void
+AgentPrism.DataSubjectErasureResult.Equals(AgentPrism.DataSubjectErasureResult? other) -> bool
+AgentPrism.DataSubjectErasureResult.RowsByTarget.get -> System.Collections.Generic.IReadOnlyDictionary<string!, int>!
+AgentPrism.DataSubjectErasureResult.RowsByTarget.init -> void
+AgentPrism.DataSubjectExport
+AgentPrism.DataSubjectExport.<Clone>$() -> AgentPrism.DataSubjectExport!
+AgentPrism.DataSubjectExport.DataSubjectExport() -> void
+AgentPrism.DataSubjectExport.Equals(AgentPrism.DataSubjectExport? other) -> bool
+AgentPrism.DataSubjectExport.Json.get -> string!
+AgentPrism.DataSubjectExport.Json.init -> void
+AgentPrism.DataSubjectScope
+AgentPrism.DataSubjectScope.<Clone>$() -> AgentPrism.DataSubjectScope!
+AgentPrism.DataSubjectScope.ConversationIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
+AgentPrism.DataSubjectScope.ConversationIds.init -> void
+AgentPrism.DataSubjectScope.DataSubjectScope() -> void
+AgentPrism.DataSubjectScope.Equals(AgentPrism.DataSubjectScope? other) -> bool
+AgentPrism.DataSubjectScope.RunIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
+AgentPrism.DataSubjectScope.RunIds.init -> void
+AgentPrism.DataSubjectScope.SessionIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.DataSubjectScope.SessionIds.init -> void
+AgentPrism.IAuditLog.VerifyChainAsync(AgentPrism.AuditChainQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AuditChainVerification!>
+AgentPrism.IDataSubjectResolver
+AgentPrism.IDataSubjectResolver.ResolveAsync(string! subjectId, string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.DataSubjectScope!>
+AgentPrism.IDataSubjectStore
+AgentPrism.IDataSubjectStore.EraseAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Func<System.Collections.Generic.IReadOnlyDictionary<string!, int>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! beforeCommitAsync, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, int>!>
+AgentPrism.IDataSubjectStore.ExportAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.DataSubjectExport!>
+AgentPrism.IDataSubjectStore.PreviewAsync(string! tenantId, AgentPrism.DataSubjectScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyDictionary<string!, int>!>
+override AgentPrism.AuditChainQuery.Equals(object? obj) -> bool
+override AgentPrism.AuditChainQuery.GetHashCode() -> int
+override AgentPrism.AuditChainQuery.ToString() -> string!
+override AgentPrism.AuditChainVerification.Equals(object? obj) -> bool
+override AgentPrism.AuditChainVerification.GetHashCode() -> int
+override AgentPrism.AuditChainVerification.ToString() -> string!
+override AgentPrism.DataSubjectErasureResult.Equals(object? obj) -> bool
+override AgentPrism.DataSubjectErasureResult.GetHashCode() -> int
+override AgentPrism.DataSubjectErasureResult.ToString() -> string!
+override AgentPrism.DataSubjectExport.Equals(object? obj) -> bool
+override AgentPrism.DataSubjectExport.GetHashCode() -> int
+override AgentPrism.DataSubjectExport.ToString() -> string!
+override AgentPrism.DataSubjectScope.Equals(object? obj) -> bool
+override AgentPrism.DataSubjectScope.GetHashCode() -> int
+override AgentPrism.DataSubjectScope.ToString() -> string!
+static AgentPrism.AuditChainQuery.operator !=(AgentPrism.AuditChainQuery? left, AgentPrism.AuditChainQuery? right) -> bool
+static AgentPrism.AuditChainQuery.operator ==(AgentPrism.AuditChainQuery? left, AgentPrism.AuditChainQuery? right) -> bool
+static AgentPrism.AuditChainVerification.operator !=(AgentPrism.AuditChainVerification? left, AgentPrism.AuditChainVerification? right) -> bool
+static AgentPrism.AuditChainVerification.operator ==(AgentPrism.AuditChainVerification? left, AgentPrism.AuditChainVerification? right) -> bool
+static AgentPrism.DataSubjectErasureResult.operator !=(AgentPrism.DataSubjectErasureResult? left, AgentPrism.DataSubjectErasureResult? right) -> bool
+static AgentPrism.DataSubjectErasureResult.operator ==(AgentPrism.DataSubjectErasureResult? left, AgentPrism.DataSubjectErasureResult? right) -> bool
+static AgentPrism.DataSubjectExport.operator !=(AgentPrism.DataSubjectExport? left, AgentPrism.DataSubjectExport? right) -> bool
+static AgentPrism.DataSubjectExport.operator ==(AgentPrism.DataSubjectExport? left, AgentPrism.DataSubjectExport? right) -> bool
+static AgentPrism.DataSubjectScope.operator !=(AgentPrism.DataSubjectScope? left, AgentPrism.DataSubjectScope? right) -> bool
+static AgentPrism.DataSubjectScope.operator ==(AgentPrism.DataSubjectScope? left, AgentPrism.DataSubjectScope? right) -> bool

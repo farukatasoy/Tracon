@@ -197,6 +197,10 @@ public static class AgentPrismSqlServerBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
+        // Data subject export/erasure (Phase 64). Replaces the in-memory
+        // NullDataSubjectStore; meaningful only with a SQL provider on.
+        services.Replace(ServiceDescriptor.Singleton<IDataSubjectStore, SqlDataSubjectStore>());
+
         // Single-executor election (Phase 42). Replaces the in-memory
         // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
         // a multi-instance deployment.

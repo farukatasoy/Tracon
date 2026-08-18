@@ -44,15 +44,30 @@
   Guid'ler (`DbHelpers.Add`) ile nullable Guid'ler (`Dialect.AddUuid`) FARKLI
   harf buyuklugu kullansaydi ayni kimlik iki temsille saklanir ve
   `WHERE`/`JOIN` esitligi sessizce kirilirdi.
-- **🚨 K-191'in dizi kardesi: `AddUuidArray` KUCUK harfli JSON uretir** (2026-08-09,
-  Faz 54, K-365): SQL Server/SQLite `AddUuidArray` `System.Text.Json` ile
-  `Guid[]`'i serilestirir ve varsayilan format kucuk harftir; `runs.id` gibi
-  `DbHelpers.Add` ile yazilan bir sutuna karsi `WHERE id IN (SELECT value FROM
-  json_each(@ids))` yazarsan harf uyusmazligi SESSIZCE sifir satir gunceller.
-  Faz 54 bu riski almamak icin `TouchHeartbeatAsync`'i dizi/`IN` yerine tekil
-  `UPDATE` donguisune tasidi. Gercekten bir dizi-esitligi gerekiyorsa, ya
-  serilestirmeden ONCE `Guid.ToString("D").ToUpperInvariant()` uygula ya da
-  karsilastirmayi `UPPER(value) = UPPER(id)` ile harf-duyarsiz yap.
+- **🚨 K-191'in dizi kardesi: `AddUuidArray` artik BUYUK harfli JSON uretir —
+  ama uc kez bedel odedi** (K-365 → Faz 64, K-465): `System.Text.Json`'in
+  varsayilan Guid bicimi kucuk harftir; bu dialect'teki TUM DIGER Guid
+  baglamalari (K-191) BUYUK harf yazar. Faz 54 bu uyumsuzlugu ILK KEZ bulunca
+  KOKTEN DUZELTMEDI — yalniz `TouchHeartbeatAsync`'i dizi/`IN` yerine tekil
+  `UPDATE` donguisune TASIYARAK riski o TEK cagri yerinde bertaraf etti,
+  `AddUuidArray`'in kendisi kucuk harfli KALDI. Faz 64 `DataSubjectStore`'un
+  `ArrayContains` deseni (K-198 tarzi, `RetentionTargetRegistry`'nin dizi
+  eksenli kardesi) AYNI dizi-esitligi senaryosunu TEKRAR uretince ayni kusur
+  gercek bir SQLite kosumunda RASTGELE (id'nin `a`-`f` icerip icermemesine
+  bagli) yeniden patladi. Bu kez kok neden duzeltildi: `AddUuidArray`
+  serilestirmeden ONCE `Guid.ToString("D").ToUpperInvariant()` uygular. 🚨 Ders:
+  bir dialect metodunun kendisini degil bir CAGIRANINI duzeltmek (K-365'in
+  yaptigi) sorunu SAKLAR, cozmez — sonraki bir cagiran ayni tuzaga TEKRAR duser.
+- **🚨 `json_each()`'in KENDI `id` sutunu, `EXISTS` icindeki bare `id` referansini
+  GOLGELER** (2026-08-18, Faz 64, K-464): `json_each()` sabit sekilde
+  `key, value, type, atom, id, parent, fullkey, path` sutunlarini dondurur.
+  `EXISTS (SELECT 1 FROM json_each(@dizi) WHERE value = id)` yazarsan ic
+  kapsamin KENDI `id`'si (json_each'in sira numarasi) dis tablonun `id`'sini
+  GOLGELER — hicbir zaman eslesmez, hata da vermez. PostgreSQL'in `= ANY(...)`'i
+  ve SQL Server'in `OPENJSON`'i (yalniz `key`/`value`/`type` tasir, `id` YOK) bu
+  tuzagi TASIMAZ — yalniz SQLite'a ozgudur. Cozum: korele sutun HER ZAMAN tam
+  nitelikli (`{table}.id`), bare degil (`DataSubjectTargetRegistry.ArrayContains`
+  cagrilari artik boyle).
 - **`decimal` icin ozel islem GEREKMEZ**: surucu tipli/tipsiz fark etmeksizin
   her zaman TEXT yazar, kulturden bagimsizdir. SQL Server'in `Precision`/`Scale`
   zorunlulugu (`sql-saglayicilari.md`) burada YOKTUR.

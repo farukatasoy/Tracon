@@ -605,6 +605,19 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IRetentionStore, NullRetentionStore>();
         services.TryAddSingleton<RetentionPolicyResolver>();
 
+        // Data subject export/erasure (Phase 64). Same precedent as
+        // IRetentionStore above: the data plane is non-functional in an
+        // in-memory setup (NullDataSubjectStore). There is deliberately NO
+        // default registration for IDataSubjectResolver — AgentPrism does not
+        // store personal identity, so only the consumer can supply one; the
+        // endpoints return 409 until it is registered.
+        services.TryAddSingleton<IDataSubjectStore, NullDataSubjectStore>();
+
+        // Resolves the internal chat-history conversation a session carries
+        // (ISessionStore + IAgentCatalog are both always registered, so this has
+        // no separate on/off switch).
+        services.TryAddSingleton<SessionConversationResolver>();
+
         // An explicit factory is used: the built-in DI container does not fill
         // in constructor parameters that carry a default value (IArchiveSink,
         // TimeProvider, ILogger may not be registered).

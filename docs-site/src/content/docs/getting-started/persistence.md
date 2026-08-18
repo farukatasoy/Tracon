@@ -132,6 +132,14 @@ curl 'http://localhost:5081/agentprism/api/retention/preview'
 curl -X POST 'http://localhost:5081/agentprism/api/retention/run'
 ```
 
+## Durability also enables governance
+
+A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
+hash chain and reports whether any entry was altered or deleted after it was
+written. And because sessions, runs, and conversations are real rows now, a data
+subject's content can be found and erased by identity, not just aged out — see
+[Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
+
 ## Next
 
 [Securing the endpoints](/AgentPrism/getting-started/security/) — required reading

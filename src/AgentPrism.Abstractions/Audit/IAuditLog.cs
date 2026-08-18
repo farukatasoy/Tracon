@@ -26,4 +26,18 @@ public interface IAuditLog
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The records, newest first.</returns>
     ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>Walks a tenant's hash chain and reports whether it is intact (phase 64).</summary>
+    /// <param name="query">The scope: tenant and, optionally, a date range.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The verification result.</returns>
+    /// <remarks>
+    /// A date range narrows which entries are walked; it does not weaken the check
+    /// within that range. Because the entry immediately before the range's start is
+    /// not read, a break at the range's own boundary cannot be judged and is not
+    /// reported — an unbounded query is the only way to check a tenant's whole history.
+    /// </remarks>
+    ValueTask<AuditChainVerification> VerifyChainAsync(
+        AuditChainQuery query,
+        CancellationToken cancellationToken = default);
 }

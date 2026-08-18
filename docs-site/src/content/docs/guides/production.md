@@ -211,6 +211,13 @@ conversation deletion still require an explicit policy.
 Preview a retention rule before you execute it. If archival is enabled but no
 `IArchiveSink` is registered, AgentPrism does not delete the rows.
 
+Retention removes data by age; it never touches `audit_log`, which is a separate,
+tamper-evident trail (`GET /api/audit/verify`) and stays outside any retention
+target on purpose. If a data subject request (export or erasure by identity, not
+age) is part of your compliance posture, register an `IDataSubjectResolver` — see
+[Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights). Without
+one, the export and erasure endpoints return `409` rather than a silent no-op.
+
 ## Production-sensitive defaults
 
 | Boundary | Default | Production decision |
@@ -254,6 +261,7 @@ scaled without a matching quota.
 - [ ] Test direct and queued cancellation through the actual load balancer.
 - [ ] Export the `AgentPrism` activity source and meter; alert on readiness and job age.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
+- [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
 
 :::caution[Production caveat]

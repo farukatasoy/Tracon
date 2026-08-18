@@ -74,6 +74,30 @@ curl 'http://localhost:5081/agentprism/api/audit?action=agent.update'
 curl 'http://localhost:5081/agentprism/api/audit/quota:{id}'
 ```
 
+### Tamper detection
+
+Every entry carries a hash of its own content and the hash of the entry before it,
+chained per tenant. `GET /api/audit/verify` walks the chain and reports one of three
+outcomes:
+
+| Status | Meaning |
+|---|---|
+| `Valid` | Every entry's hash matches its content and links to the one before it |
+| `Broken` | An entry's stored hash no longer matches its content — it was altered after it was written |
+| `Gap` | A link between two entries is missing — a row was deleted, or a write never completed |
+
+`Broken` and `Gap` both name the first entry where the chain fails.
+
+```bash
+curl 'http://localhost:5081/agentprism/api/audit/verify'
+# {"status":"Valid","entriesChecked":42,"firstFailingEntryId":null}
+```
+
+:::note[Entries written before this feature ships have no hash]
+They are excluded from the walk rather than misreported as tampered — a chain starts
+at the first entry written after upgrading, not retroactively.
+:::
+
 ## Approvals
 
 Two shapes, matching how the run was started.
@@ -179,6 +203,57 @@ curl 'http://localhost:5081/agentprism/api/retention/history'
 ```
 
 The history of what was deleted is itself never cleaned up.
+
+## Data subject rights
+
+Retention removes data by **age**. Export and erasure remove it by **identity** — a
+data subject's own sessions, runs, and conversations, on request (a GDPR-style
+"right to erasure").
+
+AgentPrism does not store personal identity itself: `sessions.id` is a value your own
+application chose, and only your application knows which session, run, or
+conversation belongs to which end user. You supply that mapping by registering an
+`IDataSubjectResolver`:
+
+```csharp
+public sealed class MyResolver : IDataSubjectResolver
+{
+    public ValueTask<DataSubjectScope> ResolveAsync(
+        string subjectId, string tenantId, CancellationToken cancellationToken = default)
+        => new(new DataSubjectScope
+        {
+            SessionIds = LookUpSessionIds(subjectId),
+            RunIds = LookUpRunIds(subjectId),
+            ConversationIds = LookUpConversationIds(subjectId),
+        });
+}
+
+builder.Services.AddSingleton<IDataSubjectResolver, MyResolver>();
+```
+
+Without a resolver registered, both endpoints return `409` — never a silent empty
+result that could be misread as "already erased".
+
+```bash
+curl 'http://localhost:5081/agentprism/api/data-subjects/user-42/export'
+curl -X DELETE 'http://localhost:5081/agentprism/api/data-subjects/user-42'
+curl -X DELETE 'http://localhost:5081/agentprism/api/data-subjects/user-42?dryRun=false'
+```
+
+:::caution[`dryRun` defaults to `true`]
+A bare `DELETE` previews the row counts per target and deletes nothing.
+`?dryRun=false` is required to actually erase.
+:::
+
+Erasure removes the session, run, conversation, attachment, score, and voice-session
+rows that belong to the subject — including summarized conversation messages, which
+retention otherwise keeps forever. It never touches the audit trail: an audit record
+is "who did what", not the subject's own data, and stays intact and verifiable after
+an erasure. The erasure itself **is** written there, with the row count per target; if
+that write fails, the whole erasure rolls back.
+
+Export returns every matching row, keyed by target, as one JSON document.
+Attachment file bytes are not included — only their metadata.
 
 ## Content guards
 
