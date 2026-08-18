@@ -236,6 +236,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 3 | 31–52 | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
 | 4 | 53–56 | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
 | 5 | 57–60 | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
+| 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | 📋 Planlandı |
+| 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK, gelen tetikleyiciler | 📋 Planlandı |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek
 listeler ve fazların kendi dokümanlarından **üretilir**, elle yazılmaz. Dalgaların

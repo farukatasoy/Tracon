@@ -519,6 +519,23 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                 yield return produced.Event!;
             }
+
+            // 🚨 MAF ends the stream QUIETLY when the token is canceled: no
+            // OperationCanceledException reaches the pump, MoveNextAsync simply
+            // returns false. Measured on a real sequential graph (2026-08-18,
+            // defect F-107): the caller cancels, the graph stops after the
+            // running step, and without this line the run was recorded as
+            // Completed with error: null — the caller was told the opposite of
+            // what happened. A silent stop is a CANCELLATION, not a completion.
+            //
+            // Only a would-be Completed run is rewritten: a run that already
+            // failed keeps its error, and one waiting for a human answer keeps
+            // AwaitingInput, because that state is a legitimate pause rather
+            // than an outcome.
+            if (linked.IsCancellationRequested && status == RunStatus.Completed)
+            {
+                status = RunStatus.Canceled;
+            }
         }
 
         await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
@@ -616,6 +633,28 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 {
                     while (true)
                     {
+                        // 🚨 MAF does NOT honor an external cancellation token in
+                        // the middle of a running step. Measured (2026-08-18,
+                        // defect F-107) on a real sequential graph: the caller
+                        // cancels, MoveNextAsync still returns the remaining
+                        // events, the stream ends normally and the run was
+                        // recorded as Completed with error: null — the opposite
+                        // of what the caller was told, at full cost.
+                        //
+                        // The boundary between two super-steps is the first
+                        // place AgentPrism can see the request, so cancellation
+                        // is enforced HERE, using MAF's own CancelRunAsync path
+                        // rather than abandoning the enumerator: a half-run step
+                        // must still close through the framework.
+                        if (linked.IsCancellationRequested)
+                        {
+                            await CancelAsync(run).ConfigureAwait(false);
+
+                            yield return PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
+
+                            yield break;
+                        }
+
                         WorkflowEvent? workflowEvent = null;
                         PumpedEvent? stepFailure = null;
 
@@ -734,6 +773,26 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 }
 
                 if (!responded)
+                {
+                    break;
+                }
+
+                // 🚨 An answered request does NOT prove the orchestration still
+                // has work left. Measured (2026-08-14, defect F-106 / HATA-K-003,
+                // K-401): a Magentic orchestration that hits its round limit
+                // produces its own WorkflowOutputEvent and finishes; the pump
+                // then reopened the stream, Microsoft Agent Framework rejected
+                // the call with "the orchestration has already completed", and
+                // a run that had genuinely produced its result was recorded as
+                // RunFailed.
+                //
+                // The framework's OWN state answers the question, so no message
+                // text is matched: matching the round-limit sentence would break
+                // the moment MAF rewords it.
+                var statusBeforeReopen = await run.GetStatusAsync(CancellationToken.None).ConfigureAwait(false);
+
+                if (statusBeforeReopen is not Microsoft.Agents.AI.Workflows.RunStatus.PendingRequests
+                    and not Microsoft.Agents.AI.Workflows.RunStatus.Running)
                 {
                     break;
                 }
