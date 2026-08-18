@@ -235,6 +235,46 @@ This also means the catalog must be accurate. If a listed model leaves
 Schema output fails compilation. See
 [Structured output](/AgentPrism/guides/structured-output/).
 
+## Check a prompt against the context window before running it
+
+`ContextWindowTokens` on a catalog `ModelDescriptor` powers two features (F-59):
+derivation for `ContextWindow` compaction, and an optional pre-flight check on
+`POST /api/agents/{name}/run` that rejects an oversized prompt **before** any
+provider is called.
+
+```json
+{
+  "AgentPrism": {
+    "Preflight": {
+      "Enabled": true,
+      "ReserveRatio": 0.2
+    }
+  }
+}
+```
+
+`Preflight.Enabled` is off by default (K1): a wrong estimate stops a run that
+would have succeeded, and that risk needs an explicit opt-in.
+`ReserveRatio` (default `0.2`) sets aside a share of the window for the answer;
+a prompt estimated above the remaining budget returns `400` with the counted
+and allowed token numbers, and no provider is contacted.
+
+The count is **approximate** — it uses a single fixed OpenAI encoding
+regardless of the bound provider, because Anthropic and Google publish no
+equivalent offline tokenizer. Diagnose the estimate for any agent, independent
+of whether the check is enabled, with:
+
+```bash
+curl -X POST "http://localhost:5081/agentprism/api/agents/support/estimate" \
+  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"..."}'
+```
+
+`contextWindowTokens` and `allowedPromptTokens` come back `null` when the
+agent's model is not in the catalog — a missing catalog entry is never treated
+as a rejection, since there is nothing to compare the prompt against.
+
 ## Defaults and operational behavior
 
 | Setting | Default or rule |
@@ -247,6 +287,8 @@ Schema output fails compilation. See
 | Background health checks | Off; checks run on request unless an interval is configured |
 | Circuit breaker | On; 5 consecutive failures; one half-open attempt after 30 seconds |
 | Model catalog | Empty until the host supplies entries |
+| Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
+| Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
 
 Force a current, cost-free reachability check with:
 
@@ -281,8 +323,13 @@ maximum possible output. Set a realistic `ModelBinding.MaxOutputTokens` value.
 **Anthropic rejects a thinking request.** Keep the thinking budget below the output
 limit. Remove temperature or set it to `1`.
 
+**A working prompt gets rejected by the pre-flight check.** The token estimate is
+approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the
+counted value against the model's real `ContextWindowTokens` before deciding.
+
 ## Related
 
+- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
 - [Choosing packages](/AgentPrism/packages/)
 - [Agents and definitions](/AgentPrism/concepts/agents/)
 - [Model health HTTP API](/AgentPrism/http-api/models/)

@@ -200,6 +200,13 @@ public sealed class RunEventWriter
     /// <param name="usage">The token usage.</param>
     /// <param name="error">The error information.</param>
     /// <param name="cost">The computed cost. <see langword="null"/> if the model is unknown.</param>
+    /// <param name="modelId">
+    /// The model that actually answered, overriding <c>runs.model_id</c> when
+    /// a <see cref="ModelBinding.Fallbacks"/> link stood in for the primary
+    /// binding (phase 62). <see langword="null"/> leaves the value
+    /// <see cref="StartAsync"/> already wrote unchanged — the overwhelmingly
+    /// common case.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     public async ValueTask CompleteAsync(
@@ -207,6 +214,7 @@ public sealed class RunEventWriter
         RunUsage? usage = null,
         RunError? error = null,
         RunCost? cost = null,
+        string? modelId = null,
         CancellationToken cancellationToken = default)
     {
         if (IsDisabled)
@@ -244,6 +252,7 @@ public sealed class RunEventWriter
                     Usage = usage,
                     Error = error,
                     Cost = cost,
+                    ModelId = modelId,
 
                     // Expected tenant stamp (K-355).
                     TenantId = TenantId,

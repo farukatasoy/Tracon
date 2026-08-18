@@ -4062,3 +4062,48 @@ virtual AgentPrism.AgentPrismException.ErrorType.get -> string!
 ~AgentPrism.WebhookEventPayloadJsonContext.WebhookQuotaSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<AgentPrism.WebhookQuotaSummary>
 ~AgentPrism.WebhookEventPayloadJsonContext.WebhookRunSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<AgentPrism.WebhookRunSummary>
 ~AgentPrism.WebhookEventPayloadJsonContext.WebhookScoreSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<AgentPrism.WebhookScoreSummary>
+AgentPrism.AgentPrismModelConcurrencyOptions
+AgentPrism.AgentPrismModelConcurrencyOptions.AgentPrismModelConcurrencyOptions() -> void
+AgentPrism.AgentPrismModelConcurrencyOptions.MaxConcurrentCallsPerProvider.get -> int?
+AgentPrism.AgentPrismModelConcurrencyOptions.MaxConcurrentCallsPerProvider.set -> void
+AgentPrism.AgentPrismPreflightOptions
+AgentPrism.AgentPrismPreflightOptions.AgentPrismPreflightOptions() -> void
+AgentPrism.AgentPrismPreflightOptions.Enabled.get -> bool
+AgentPrism.AgentPrismPreflightOptions.Enabled.set -> void
+AgentPrism.AgentPrismPreflightOptions.ReserveRatio.get -> double
+AgentPrism.AgentPrismPreflightOptions.ReserveRatio.set -> void
+AgentPrism.ContextWindowEstimate
+AgentPrism.ContextWindowEstimate.<Clone>$() -> AgentPrism.ContextWindowEstimate!
+AgentPrism.ContextWindowEstimate.AllowedPromptTokens.get -> int?
+AgentPrism.ContextWindowEstimate.AllowedPromptTokens.init -> void
+AgentPrism.ContextWindowEstimate.ContextWindowEstimate() -> void
+AgentPrism.ContextWindowEstimate.ContextWindowTokens.get -> int?
+AgentPrism.ContextWindowEstimate.ContextWindowTokens.init -> void
+AgentPrism.ContextWindowEstimate.Equals(AgentPrism.ContextWindowEstimate? other) -> bool
+AgentPrism.ContextWindowEstimate.PromptTokens.get -> int
+AgentPrism.ContextWindowEstimate.PromptTokens.init -> void
+AgentPrism.ContextWindowEstimate.WouldBeRejected.get -> bool
+AgentPrism.ContextWindowEstimate.WouldBeRejected.init -> void
+AgentPrism.ModelBinding.Fallbacks.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelFallback!>!
+AgentPrism.ModelBinding.Fallbacks.init -> void
+AgentPrism.ModelFallback
+AgentPrism.ModelFallback.<Clone>$() -> AgentPrism.ModelFallback!
+AgentPrism.ModelFallback.Equals(AgentPrism.ModelFallback? other) -> bool
+AgentPrism.ModelFallback.Model.get -> string!
+AgentPrism.ModelFallback.Model.init -> void
+AgentPrism.ModelFallback.ModelFallback() -> void
+AgentPrism.ModelFallback.Provider.get -> string!
+AgentPrism.ModelFallback.Provider.init -> void
+AgentPrism.RunCompletion.ModelId.get -> string?
+AgentPrism.RunCompletion.ModelId.init -> void
+AgentPrism.RunEventType.ModelFallbackUsed = 22 -> AgentPrism.RunEventType
+override AgentPrism.ContextWindowEstimate.Equals(object? obj) -> bool
+override AgentPrism.ContextWindowEstimate.GetHashCode() -> int
+override AgentPrism.ContextWindowEstimate.ToString() -> string!
+override AgentPrism.ModelFallback.Equals(object? obj) -> bool
+override AgentPrism.ModelFallback.GetHashCode() -> int
+override AgentPrism.ModelFallback.ToString() -> string!
+static AgentPrism.ContextWindowEstimate.operator !=(AgentPrism.ContextWindowEstimate? left, AgentPrism.ContextWindowEstimate? right) -> bool
+static AgentPrism.ContextWindowEstimate.operator ==(AgentPrism.ContextWindowEstimate? left, AgentPrism.ContextWindowEstimate? right) -> bool
+static AgentPrism.ModelFallback.operator !=(AgentPrism.ModelFallback? left, AgentPrism.ModelFallback? right) -> bool
+static AgentPrism.ModelFallback.operator ==(AgentPrism.ModelFallback? left, AgentPrism.ModelFallback? right) -> bool

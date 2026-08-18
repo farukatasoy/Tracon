@@ -386,7 +386,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    input_cost     = @input_cost,
                    output_cost    = @output_cost,
                    cost_currency  = @cost_currency,
-                   pricing_source = @pricing_source
+                   pricing_source = @pricing_source,
+                   model_id       = COALESCE(@model_id, model_id)
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 

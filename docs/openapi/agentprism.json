@@ -392,7 +392,7 @@
           "Agents"
         ],
         "summary": "Runs an agent for trial purposes and streams the response via SSE.",
-        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 with a \u0027Location\u0027 header. If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and the run\u0027s error type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block arrives as an SSE \u0027error\u0027 event instead.",
+        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model\u0027s window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 with a \u0027Location\u0027 header. If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and the run\u0027s error type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block arrives as an SSE \u0027error\u0027 event instead.",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -477,6 +477,69 @@
           },
           "501": {
             "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/agents/{name}/estimate": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Agents"
+        ],
+        "summary": "Estimates a prompt\u0027s token count against the agent\u0027s model, without calling the provider.",
+        "description": "The diagnostic surface of the pre-flight context-window check (phase 62, F-59): it returns the same numbers the check on \u0027POST /api/agents/{name}/run\u0027 would use, regardless of whether that check is enabled. No model provider is ever contacted. The estimate is approximate \u2014 it uses a fixed reference tokenizer, not the bound provider\u0027s own count. \u0027contextWindowTokens\u0027 and \u0027allowedPromptTokens\u0027 are null when the agent\u0027s model is not found in the catalog; in that case \u0027wouldBeRejected\u0027 is always false, since an unknown window can never be exceeded.",
+        "operationId": "AgentPrismEstimateContextWindow",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextWindowEstimate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -8347,6 +8410,51 @@
         ],
         "description": "The kind of context compaction strategy that can be bound to an agent definition."
       },
+      "ContextWindowEstimate": {
+        "required": [
+          "promptTokens",
+          "contextWindowTokens",
+          "allowedPromptTokens",
+          "wouldBeRejected"
+        ],
+        "type": "object",
+        "properties": {
+          "promptTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the estimated token count of the prompt. The estimate is approximate.",
+            "format": "int32"
+          },
+          "contextWindowTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the model\u0027s context window size, taken from\nint? ModelDescriptor.ContextWindowTokens.\n\u0060null\u0060 when the model is not found in the catalog.",
+            "format": "int32"
+          },
+          "allowedPromptTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the token budget kept for the prompt after\ndouble AgentPrismPreflightOptions.ReserveRatio is set aside for\nthe answer. \u0060null\u0060 when int? ContextWindowEstimate.ContextWindowTokens is unknown.",
+            "format": "int32"
+          },
+          "wouldBeRejected": {
+            "type": "boolean",
+            "description": "Gets whether a real run with this prompt would be rejected by the\npre-flight check. Always \u0060false\u0060 when\nint? ContextWindowEstimate.ContextWindowTokens is unknown \u2014 an unknown window can never\nbe exceeded."
+          }
+        },
+        "description": "The result of a pre-flight context-window check, computed without calling\nthe model provider."
+      },
       "ConversationResource": {
         "required": [
           "id",
@@ -10282,6 +10390,13 @@
                 "$ref": "#/components/schemas/AgentResponseFormat"
               }
             ]
+          },
+          "fallbacks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelFallback"
+            },
+            "description": "Gets the ordered fallback chain tried when the primary provider is\nunavailable. Empty by default."
           }
         },
         "description": "Determines the provider and the model an agent runs with. It carries\n\u003Cem\u003Eno\u003C/em\u003E credentials; the API key is resolved from configuration."
@@ -10361,6 +10476,24 @@
           }
         },
         "description": "A model\u0027s capabilities and limits."
+      },
+      "ModelFallback": {
+        "required": [
+          "provider",
+          "model"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Gets the provider name, for example \u0060anthropic\u0060."
+          },
+          "model": {
+            "type": "string",
+            "description": "Gets the model name, for example \u0060claude-opus-5\u0060."
+          }
+        },
+        "description": "One link of a IReadOnlyList\u0026lt;ModelFallback\u0026gt; ModelBinding.Fallbacks chain."
       },
       "ModelProviderDescriptor": {
         "required": [

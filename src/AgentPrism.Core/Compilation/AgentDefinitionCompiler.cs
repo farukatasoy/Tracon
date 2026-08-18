@@ -493,25 +493,7 @@ public sealed class AgentDefinitionCompiler
     }
 
     private ModelDescriptor? FindModelDescriptor(string provider, string model)
-    {
-        foreach (var providerDescriptor in _models.List())
-        {
-            if (!string.Equals(providerDescriptor.Name, provider, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            foreach (var descriptor in providerDescriptor.Models)
-            {
-                if (string.Equals(descriptor.Name, model, StringComparison.OrdinalIgnoreCase))
-                {
-                    return descriptor;
-                }
-            }
-        }
-
-        return null;
-    }
+        => ModelCatalogLookup.Find(_models, provider, model);
 
     /// <summary>
     /// Converts a <see cref="ModelBinding.ReasoningEffort"/> value into a
@@ -686,13 +668,26 @@ public sealed class AgentDefinitionCompiler
         };
     }
 
-    private static ContextWindowCompactionStrategy BuildContextWindowStrategy(AgentDefinition definition, CompactionSettings settings)
+    /// <remarks>
+    /// 🚨 Phase 62, F-59: when <see cref="CompactionSettings.MaxContextWindowTokens"/>
+    /// is not given, it is DERIVED from <see cref="ModelDescriptor.ContextWindowTokens"/>
+    /// in the catalog instead of failing compilation outright — the value the
+    /// user would otherwise have to copy in by hand already sits on the model
+    /// binding. Compilation fails only when NEITHER source has a value, and
+    /// the message names both fields so the user knows which one to fill in.
+    /// </remarks>
+    private ContextWindowCompactionStrategy BuildContextWindowStrategy(AgentDefinition definition, CompactionSettings settings)
     {
-        if (settings.MaxContextWindowTokens is not { } maxContextWindowTokens)
+        var maxContextWindowTokens = settings.MaxContextWindowTokens
+            ?? FindModelDescriptor(definition.Model.Provider, definition.Model.Model)?.ContextWindowTokens;
+
+        if (maxContextWindowTokens is not { } resolvedMaxContextWindowTokens)
         {
             throw new AgentPrismCompilationException(
                 $"Agent '{definition.Name}' selected the ContextWindow compaction strategy but did not " +
-                $"supply {nameof(CompactionSettings.MaxContextWindowTokens)}.")
+                $"supply {nameof(CompactionSettings.MaxContextWindowTokens)}, and its model " +
+                $"('{definition.Model.Provider}/{definition.Model.Model}') has no context window size in " +
+                $"the catalog either. Set {nameof(CompactionSettings.MaxContextWindowTokens)} explicitly.")
             {
                 AgentName = definition.Name,
             };
@@ -707,7 +702,7 @@ public sealed class AgentDefinitionCompiler
         // include them) - reasonable constant values are used. If needed, add
         // them as a separate field later.
         return new ContextWindowCompactionStrategy(
-            maxContextWindowTokens,
+            resolvedMaxContextWindowTokens,
             maxOutputTokens,
             toolEvictionThreshold: 0.5,
             truncationThreshold: 0.7);

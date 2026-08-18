@@ -80,4 +80,30 @@ public sealed record ModelBinding
     /// while the agent is built, with <c>AgentPrismCompilationException</c>.
     /// </remarks>
     public AgentResponseFormat? ResponseFormat { get; init; }
+
+    /// <summary>
+    /// Gets the ordered fallback chain tried when the primary provider is
+    /// unavailable. Empty by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Empty by default (K1): with no fallback configured, today's behavior is
+    /// preserved exactly — a provider failure (for example an open circuit)
+    /// still throws, and no fallback code path runs.
+    /// </para>
+    /// <para>
+    /// A fallback link carries only a provider and a model, not a full
+    /// <see cref="ModelBinding"/>: <see cref="Temperature"/>,
+    /// <see cref="ProviderSettings"/>, and the other fields do not carry over
+    /// to the fallback call. A fallback model that needs its own settings is a
+    /// separate configuration concern, not something this chain expresses.
+    /// </para>
+    /// <para>
+    /// Switching to a fallback is never silent: the run record gets an
+    /// explicit <c>ModelFallbackUsed</c> event, and cost and model attribution
+    /// (<c>RunStatistics.ByModel</c>) reflect the model that actually answered,
+    /// not the primary binding.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<ModelFallback> Fallbacks { get; init; } = [];
 }

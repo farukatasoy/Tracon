@@ -169,6 +169,10 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
+        // NULL leaves the column at the value StartRunAsync already wrote
+        // (phase 62) — the SQL text COALESCEs it, this is not a conditional here.
+        AddNullableText(command, "model_id", completion.ModelId);
+
         // EXPECTED tenant (K-355). NULL means no check.
         AddNullableText(command, "tenant_id", completion.TenantId);
 

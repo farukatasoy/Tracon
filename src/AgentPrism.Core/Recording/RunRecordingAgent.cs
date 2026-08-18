@@ -510,6 +510,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             Writer = writer,
             ExtraUsage = new CompactionUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
+            FallbackAttribution = new FallbackModelAttribution(),
             AgentVersion = agentVersion,
             ExperimentId = prismOptions?.ExperimentId,
             Variant = prismOptions?.Variant,
@@ -573,7 +574,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             RootRunId: start.Scope.RootRunId,
             Depth: start.Scope.Depth,
             SessionId: start.SessionId,
-            Kind: start.Kind);
+            Kind: start.Kind,
+            FallbackAttribution: start.Scope.FallbackAttribution);
 
     /// <summary>
     /// Opens the run record: writes the <c>runs</c> row and the first <c>RunStarted</c>
@@ -768,6 +770,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         RunCost? cost,
         RunError? error,
         TimeSpan elapsed,
+        string? modelId,
         CancellationToken cancellationToken)
     {
         if (_webhookPublisher is null)
@@ -800,7 +803,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     RootRunId = scope.RootRunId.ToString(),
                     SessionId = scope.SessionId,
                     AgentName = scope.AgentName,
-                    ModelId = _modelId,
+                    ModelId = modelId,
                     Status = status.ToString(),
                     DurationMs = (long)elapsed.TotalMilliseconds,
                     InputTokens = usage?.InputTokens,
@@ -855,12 +858,35 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // stay incomplete.
         usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
 
+        // 🚨 A ModelBinding.Fallbacks link may have answered instead of the
+        // primary binding (phase 62). scope.FallbackAttribution is written by
+        // FallbackChatClient through the ambient AgentPrismRunContext, the
+        // same pattern AgentRunScope.ToolUsage uses (phase 28) — the model
+        // that actually ran is not known until the call already happened,
+        // long after this instance's own _modelId/_modelProvider were fixed
+        // at agent-compile time. Every downstream consumer of "the model"
+        // below uses this override so cost, metrics, and runs.model_id all
+        // agree with what really ran, not with the primary binding.
+        var fallbackUsed = scope.FallbackAttribution?.Current;
+        var modelProvider = fallbackUsed?.Provider ?? _modelProvider;
+        var modelId = fallbackUsed?.Model ?? _modelId;
+
         // The cost is calculated HERE, from the final (merged) usage — the price is a
         // snapshot (see docs/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
         // list changes later, the cost of this run does not change.
-        var cost = _pricingResolver?.Resolve(_modelProvider, _modelId, usage);
+        var cost = _pricingResolver?.Resolve(modelProvider, modelId, usage);
 
-        await scope.Writer.CompleteAsync(status, usage, error, cost, cancellationToken).ConfigureAwait(false);
+        await scope.Writer.CompleteAsync(
+            status,
+            usage,
+            error,
+            cost,
+
+            // null unless a fallback link answered: leaves runs.model_id at
+            // the value WriteRunStartAsync already wrote (the overwhelmingly
+            // common case), never a redundant write of the same value.
+            modelId: fallbackUsed?.Model,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // The budget is a single object that is shared across the tree; both the root and
         // the child runs feed the same counter. Otherwise the answer to the question "what
@@ -876,7 +902,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         if (scope.Depth == 0)
         {
             await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
-            await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, cancellationToken).ConfigureAwait(false);
+            await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
             await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }
 
@@ -884,7 +910,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             scope.AgentName,
             status,
             scope.TenantId,
-            _modelId,
+            modelId,
             elapsed,
             usage,
             agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
@@ -897,7 +923,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             _metrics?.RecordCost(
                 scope.AgentName,
-                _modelId,
+                modelId,
                 scope.TenantId,
                 (knownCost.InputCost ?? 0m) + (knownCost.OutputCost ?? 0m),
                 knownCost.Currency ?? "unknown");
@@ -909,6 +935,15 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         }
 
         scope.Activity.SetTag(AgentPrismDiagnostics.Tags.Status, status.ToString());
+
+        // A fallback link answering instead of the primary binding updates the
+        // root span's model tag too — not just the run record — so a trace
+        // viewer shows the model that actually ran without cross-referencing
+        // the run's events (phase 62).
+        if (fallbackUsed is not null)
+        {
+            scope.Activity.SetTag(AgentPrismDiagnostics.Tags.ModelId, fallbackUsed.Value.Model);
+        }
 
         if (error is not null)
         {
@@ -1105,5 +1140,6 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         Guid RootRunId,
         int Depth,
         string? SessionId,
-        RunKind Kind);
+        RunKind Kind,
+        FallbackModelAttribution? FallbackAttribution);
 }

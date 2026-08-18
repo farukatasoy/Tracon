@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (327 kalem)
+## Arşivlenen Kararlar (335 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -336,3 +336,11 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-325 | 370 | Engellenen veya maskelenen içerik HİÇBİR yere yazılmaz |
 | K-326 | 371 | `RunErrorClass.ContentBlocked` `ContentFiltered`'dan AYRIDIR |
 | K-327 | 372 | `AIJudgeLoopEvaluator` KULLANILMADI; `IRunJudge` sıfırdan yazıldı (Faz 49) |
+| K-328 | 373 | Yargıç maliyeti `RunKind.Eval` dışlamasıyla ayrılır; yeni bir sütun açılmadı (Faz 49) |
+| K-329 | 374 | İki kapılı varsayılan: `OnlineEvaluationOptions.Enabled = false` VE `SampleRate = 0.0` (Faz 49) |
+| K-330 | 375 | Yargıcın `IChatClient`'ı guard boru hattından GEÇER; engelleme özel olarak ele alınmadı (Faz 49, D1) |
+| K-331 | 376 | `RunScore.Author` yargıç puanlarında `judge:{ad}` ile BİLEREK DOLU yazılır (Faz 49) |
+| K-332 | 377 | Cevrimiçi değerlendirme pencere özeti BELLEK İÇİDİR; yeni bir SQL sorgu yüzeyi açılmadı (Faz 49) |
+| K-333 | 378 | `OnlineEvalJobHandler` DI'da hem `IJobHandler` hem KENDİ somut tipiyle kayıtlıdır (Faz 49) |
+| K-334 | 379 | K-057 güncellendi: AgentPrism artık MCP istemcisi VE sunucusudur (Faz 50) |
+| K-335 | 380 | A2A sunucu maliyeti yeniden ölçüldü: "+2 paket" değil "+4 paket"; iki paket plan taslağında hiç yoktu (Faz 50) |
