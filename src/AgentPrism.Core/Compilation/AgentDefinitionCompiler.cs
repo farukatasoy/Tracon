@@ -842,7 +842,12 @@ public sealed class AgentDefinitionCompiler
                 AgentName = definition.Name,
             };
 
-        return new TenantPrefixingAgentFileStore(_fileStore, tenantId);
+        // 🚨 The agent name is part of the prefix as well (defect F-105): the
+        // tenant boundary alone let one agent's private file be found by
+        // another agent's text search inside the SAME tenant. The name is known
+        // here, at compile time, and is already part of the CompiledAgentCache
+        // key, so the boundary needs no ambient state.
+        return new TenantPrefixingAgentFileStore(_fileStore, tenantId, definition.Name);
     }
 
     /// <summary>

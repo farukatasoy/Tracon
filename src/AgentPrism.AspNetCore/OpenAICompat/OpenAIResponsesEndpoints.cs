@@ -270,9 +270,22 @@ internal static class OpenAIResponsesEndpoints
     /// (id/type/status/call_id/name/arguments). This is also the exact shape
     /// MAF produces for a NORMAL (non-approval) tool call — indistinguishable
     /// from the SDK's point of view from an ordinary pending function call,
-    /// which is the correct behavior: the caller can follow the standard
-    /// OpenAI flow and supply <c>function_call_output</c> on the next turn (or
-    /// go to the management API and use the official approval flow).
+    /// which is the correct behavior: the caller learns that the call exists.
+    /// </para>
+    /// <para>
+    /// 🚨 <strong>The caller cannot answer that call over this endpoint.</strong>
+    /// Measured on 2026-08-18 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
+    /// 1.16.0-alpha.260730.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
+    /// deserializes <em>every</em> item of the <c>input</c> array into its
+    /// internal <c>Responses.Models.InputMessage</c>, which declares <c>role</c>
+    /// and <c>content</c> as required. There is no polymorphic dispatch on the
+    /// item's <c>type</c>, so a <c>function_call_output</c> (and a
+    /// <c>function_call</c>) item fails with
+    /// <c>JsonException: ... was missing required properties including: 'role',
+    /// 'content'</c>, which this endpoint answers with <c>400</c>. The tool-call
+    /// round trip therefore exists on the <em>output</em> side only. To answer a
+    /// pending call, use the management approval API
+    /// (<c>POST /api/approvals/{id}/decide</c>, Phase 55).
     /// </para>
     /// <para>
     /// The <c>status</c> field is <em>not changed</em> (still

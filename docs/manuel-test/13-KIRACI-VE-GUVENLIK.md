@@ -34,6 +34,16 @@ Rol tabanlı yetkilendirme (`AgentPrismPolicies`) da burada — AgentPrism kulla
 veya rol saklamaz; roller tüketicinin kimlik sisteminden gelir, bu yüzden bazı
 case'ler geçici bir test kimlik doğrulama şeması gerektirir (aşağıda §8).
 
+> 🚨 **§8 artık ELLE KOD YAZMAYI gerektirmez (2026-08-18, K-431).** Örnek
+> uygulama gösterim amaçlı bir rol şeması taşıyor: `AgentPrism:Demo:Roles:Enabled`
+> `true` yapılır (ortam değişkeni yeter:
+> `AgentPrism__Demo__Roles__Enabled=true`), rol `X-AgentPrism-Demo-Role:
+> reader|operator|admin` başlığıyla gönderilir. Bayrak açıkken üç politika
+> kaydedilir **ve** `RequireRolePolicies` açılır. §8'in `RoleTestAuthHandler.cs`
+> yazma adımları bu yüzden bayrağı açıp kapamaya iner; aşağıdaki case'lerde
+> `X-Test-Role` yerine yeni başlık kullanılır. Bayrak kapalıyken davranış
+> eskisiyle birebir aynıdır (MT-SEC-080 hâlâ geçerlidir).
+
 ```mermaid
 flowchart TD
     A["Istek"] --> B{"Loopback disi mi?"}

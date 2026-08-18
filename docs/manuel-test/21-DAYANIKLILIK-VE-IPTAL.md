@@ -355,19 +355,22 @@ curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(jso
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §5 Karar 4 ve §8):** Açık soru bu
-> koşumda kapatıldı — `Completed` yazılıyor, `Canceled` DEĞİL. Kök neden
-> AgentPrism dışı bir sınırda (MAF'ın `AgentWorkflowBuilder.BuildSequential`
-> grafiğinin dışarıdan gelen iptal token'ını çalışan bir adım ortasında
-> honor etmemesi); kullanıcı kararıyla (Karar 4) yetenek gerektiren bir
-> bulgu olarak **`docs/ADAYLAR.md` F-107**'ye faz adayı
-> yazıldı, doğrudan kodlanmadı.
+> 🚨 **Beklenti 2026-08-18'de DEĞİŞTİ (F-107 kapatıldı, K-432).** Kök neden
+> ölçüldü ve kaydedilenden daha keskin çıktı: MAF grafiği iptal token'ını honor
+> etmiyor **ve istisna da atmıyor** — akışı **sessizce** bitiriyor, bu yüzden
+> pompanın iptal dalı hiç çalışmıyor ve varsayılan `Completed` olduğu gibi
+> kalıyordu. `WorkflowRunner` artık iptali kendisi zorluyor: her süper-adım
+> sınırında MAF'ın kendi `CancelRunAsync` yolunu çağırıyor ve pompa çıkışında
+> `Completed` görürse `Canceled`'a çeviriyor. Süreç içi düşen test
+> (`WorkflowCancellationTests`) düzeltmeden önce kırmızıydı.
 - `POST /api/runs/{runId}/cancel` **202** döner.
-- 3 saniye sonra `GET /api/runs/{runId}`'in durumu `Completed`'dır (MAF'ın
-  grafik-içi iptal sınırı nedeniyle `Canceled` DEĞİL), `error: null`.
+- 3 saniye sonra `GET /api/runs/{runId}`'in durumu **`Canceled`**'dır.
+- 🚨 `error` alanı yine `null` olabilir (bkz. MT-RES-006); iptal bir hata
+  değildir.
 
-~~Eski beklenti (şüphe — Faz 32 kendisi bunu kanıtlayamadı): İstenen
-`Canceled`; MAF'ın gerçekten kesip kesmediği HENÜZ bilinmiyordu.~~
+~~Eski beklenti (2026-08-15 koşumu): `Completed` — MAF'ın grafik-içi iptal
+sınırı nedeniyle. Bu sınır hâlâ vardır ama artık AgentPrism onu kaydına
+yansıtmıyor.~~
 
 ---
 

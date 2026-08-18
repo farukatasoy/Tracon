@@ -113,7 +113,7 @@ plan yanlıştır.
 | **Kullanıcıya dönük yüzey** | Plan başlığındaki **Site etkisi** satırı hangi `docs-site/` sayfasının değişeceğini yazar. `api/` ve `http-api/` üretilir — orada iş XML dokümanı ve `.WithTags`/`.Produces` üstverisidir |
 | **`secret`** | Dosyaya **ve veritabanına** yazılmaz. Kayıtta yalnız yapılandırma anahtarının **adı** durur (K-059) |
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan tasarım bu paketlere giremez |
-| **Public API** | `EnablePublicApiTracking` bugün `false`. Public yüzeyi büyüten kalem Faz 7'den **önce** ucuzdur; sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler |
+| **Public API** | `EnablePublicApiTracking` **`true`**'dur (K-421) ama `PublicAPI.Shipped.txt` dosyaları **boştur** — yüzeyi büyüten kalem Faz 7'den **önce** hâlâ ucuzdur, sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler ve iddiayı `wc -l src/*/PublicAPI.Shipped.txt` ile **ölçer** |
 
 ### Sözleşme değişikliği kırıcı mıdır?
 

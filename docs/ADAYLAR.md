@@ -36,12 +36,26 @@
 > bağımlı bir yetenek adayıdır. Kullanıcı kararıyla, yetenek isteyen diğer
 > tüm bulgular doğrudan kodlandı; yalnız bu istisna faza döndü.
 >
-> 🚨 **2026-08-18: Kullanıcı sorusu F-108'i ekledi** — "paketi kullanan bir
-> arka uç, agent'ının **front-end tool'larını** çağırmasını isterse ne yapar?"
-> Ölçüm: altyapı **yok**, ama [Faz 55](55-ASENKRON-ONAY-KUTUSU.md)'in
-> duraklat/sürdür makinesi şeklin %80'ini veriyor. Kalem K2'yi **gevşetmez**
-> (bildirim kodda kalır, yalnız gövde istemcide çalışır); tanımın istemciden
-> bildirilmesi bilerek kapsam dışıdır.
+> 🚨 **2026-08-18: Kullanıcı sorusu F-108'i ekledi ve aynı gün F-64 ile birlikte
+> plana dönüştü** → [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md).
+> İkisinin bölümü bu dosyadan **silindi**. Planlama sırasında yapılan ölçüm iki
+> iddiayı düzeltti: (1) MAF'ın OpenAI uyumlu girdi dönüşümü
+> `function_call_output` öğesini **reddediyor** — o yüzey sonuç kanalı olamaz;
+> (2) **CORS kodda hiç yok**, bu F-64'ün gerçek ön koşuludur ve aday bölümü
+> bunu yazmamıştı. Ayrıca `AIFunction.AsDeclarationOnly()` ile bildirim-yalnız
+> tool'un modele gidip **sunucuda çalışmadığı** davranış probuyla kanıtlandı.
+>
+> 🚨 **2026-08-18 (ikinci tur): beş faz daha planlandı, üç kalem kapandı.**
+> F-44+F-59 → [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) ·
+> F-61 → [Faz 63](63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) ·
+> F-75+F-58 → [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) ·
+> F-40 → [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) ·
+> F-65 → [Faz 66](66-GELEN-TETIKLEYICILER.md). Aynı turda **F-100, F-102 ve
+> F-103 ölçümle kapandı** — üçü de artık bir aday değildir. Planlama sırasında
+> düzeltilen iddialar: `ToolApprovalRule` konumsal **değildir** (ek kurucu
+> istemez), `CompiledAgentCache` anahtarı kiracıyı **zaten** taşır (K-380) ve
+> `Microsoft.ML.Tokenizers` geçişli olarak var olsa da AgentPrism onu **hiç
+> doğrudan çağırmıyor**.
 >
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
@@ -103,6 +117,35 @@ faz dokümanındadır; bu tablo yalnız yönlendirmedir.
 | **F-68** Dayanıklı çalıştırma (F-39 içinde) | [Faz 46](46-DAYANIKLI-CALISTIRMA.md) |
 | **F-71** Çevrimiçi değerlendirme | [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md) |
 
+### Dalga 6 → Faz 61
+
+| Kalem | Faz |
+|---|---|
+| **F-108** İstemci tarafında çalışan tool | [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
+| **F-64** Gömülebilir sohbet bileşeni | [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
+
+İkisi tek fazdadır: gömülebilir bileşen, istemci tool'unu **çalıştıran**
+taraftır ve CORS ikisinin ortak ön koşuludur.
+
+### Dalga 7 → Faz 62–66
+
+| Kalem | Faz |
+|---|---|
+| **F-44** Model yedek zinciri · **F-59** Ön uçuş bütçe denetimi | [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) |
+| **F-61** Argüman düzeyinde onay politikası | [Faz 63](63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) |
+| **F-75** Denetim hash zinciri · **F-58** Veri konusu hakları | [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) |
+| **F-40** Kiracı sağlayıcı anahtarları (BYOK) | [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) |
+| **F-65** Gelen tetikleyiciler | [Faz 66](66-GELEN-TETIKLEYICILER.md) |
+
+Üç faz iki kalemi birleştirir ve gerekçesi her birinde yazılıdır: F-44 ile F-59
+aynı sözleşmeyi (`ModelBinding`) ve aynı boru hattını paylaşır; F-75 ile F-58
+**aynı tabloda çatışır** ve ayrı planlanırsa ikincisi birincisini bozar.
+
+🚨 **Faz 64 iki tasarım kararını plan anında verdi:** denetim izi
+**dokunulmazdır** (silme yalnız içerik verisinde uygulanır) ve veri konusu
+kimliği bir **genişleme noktasıyla** (`IDataSubjectResolver`) çözülür —
+AgentPrism kişisel kimlik **saklamaz**.
+
 🚨 **F-63'ün kapsamı daraldı.** Kalem "TypeScript istemci paketi **ve** OpenAPI
 yayını" idi; [Faz 40](40-OPENAPI-YAYINI.md) yalnız **belgeyi** kapsar.
 TypeScript/npm yayını ayrı bir dağıtım kanalıdır ve yeni bir aday kalemidir.
@@ -118,9 +161,18 @@ içindedir.
 
 ## Bu Turda Neyin Değiştiği
 
+> 🚨 **2026-08-18 turu bu tabloyu değiştirdi.** Yedi kalem daha plana dönüştü
+> (Dalga 6 ve 7 → Faz 61–66) ve **üç kalem ölçümle kapandı**: F-100 (kota eşiği
+> webhook'u kodda **var**), F-102 (yeniden deneme sınırı K-385 ile 10'a çıktı),
+> F-103 (kapsam taksonomisi K-397/K-405/K-407 ile tamamlandı; `ApiKeyScope`
+> bugün **17 üye** taşıyor ve yalnız `MetaEndpoints`/`UiEndpoints` muaf).
+> Kalan açık kalem sayısı **22** — aynı turda **F-104, F-105 ve F-107 kusur olarak
+> kodlandı ve kapandı** (K-431, K-434, K-432). F-106 azaltıldı ama doğrulanmadı ve
+> açık kalır (K-433).
+
 | Ne | Sonuç |
 |---|---|
-| Bu listede kalan kalem | **20** — üç dalganın yirmi altı ID'si plana dönüştü ve bölümleri silindi |
+| Bu listede kalan kalem | **22** (2026-08-18 ölçümü) — otuz üç ID plana dönüştü, altı kalem kapandı |
 | Plana dönüşen | **26** — Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
 | İptal edilen | **1** — F-43, çünkü tamamlandı |
 | Seçildi ama **ertelendi** | **1** — F-72; ölçüm erteleme getirdi ve kanıt bölümüne yazıldı |
@@ -214,72 +266,6 @@ Bir fikir yalnız bir mercekten iyi görünüyorsa zayıftır. Her kalemin
 
 ## B. Model yüzeyi ve yönlendirme
 
-### F-44 · Model yedek zinciri ve yönlendirme 🔥
-
-**Sorun:** Faz 8 devre kesiciyi verdi — yarısı. Eksik yarı: "sağlayıcı A
-kesikse B'ye geç". Bugün devre açılınca çalıştırma yalnız **hata veriyor**
-([`ModelProviderRegistry.cs:100-109`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)).
-Giden trafikte eşzamanlılık sınırı da yok; 429 fırtınasına karşı savunma
-yalnız devre kesicidir.
-**Kapsam:** `ModelBinding.Fallbacks` (sıralı liste) + sağlayıcı başına giden
-eşzamanlılık sınırı. Entegrasyon noktası tektir:
-`ModelProviderRegistry.CreateChatClient` — Faz 8 zaten oraya dokundu.
-**Değer:** Sağlayıcı kesintisi tüketicinin hizmetini durdurmaz.
-**Mercek:** 2, 3, 8.
-**Hazırlık:** Tek entegrasyon noktası hazır. `VoiceConnectionLimiter` (Faz 29)
-eşzamanlılık sayacı için kullanılabilir bir desen taşıyor.
-**Maliyet:** Düşük-orta.
-**Risk:** Yedek model **farklı fiyatlıdır**. Faz 20'nin maliyet raporu hangi
-modelin çalıştığını yazmalıdır — `RunStatistics.ByModel` zaten var. Yedek
-varsayılan **kapalı** gelir (K1). Sessiz model değişimi bir sürprizdir;
-çalıştırma kaydına açık bir olay yazılmalıdır.
-**Bağımlılık:** F-42 ile aynı sözleşmeye (`ModelBinding`) dokunur.
-[Faz 38](38-YAPILANDIRILMIS-CIKTI.md) planlandı; devir notu bu kalemin
-ekleyeceği `Fallbacks` alanının nasıl oturacağını yazacaktır.
-**Ekosistem:** LiteLLM ve Portkey'de temel yetenek: model başına yedek, bütçe
-aşımında yedek, otomatik devir. **.NET'te açık kaynak bir karşılığı yok.**
-
-### F-59 · Ön uçuş bütçe denetimi ve bağlam penceresi koruması 🔥
-
-**Sorun:** `ModelDescriptor.ContextWindowTokens`
-([`ModelDescriptor.cs:13`](../src/AgentPrism.Abstractions/Models/ModelDescriptor.cs))
-**tanımlı ama hiç okunmuyor.** Dört sağlayıcı paketi onu yapılandırmadan
-*yazıyor* (`OpenAIProviderExtensions.cs:204`, `AnthropicProviderExtensions.cs:176`,
-`GoogleProviderExtensions.cs:172`, `AzureOpenAIProviderExtensions.cs:197`), hiçbir
-kod *okumuyor*. Kullanıcı aynı sayıyı `HarnessSettings.MaxContextWindowTokens`
-ve `CompactionSettings.MaxContextWindowTokens` alanlarına elle yazıyor. Yanlış
-yazarsa hata sağlayıcıdan gelir.
-**Kapsam:** Model üstverisinden varsayılan türetme, çağrı öncesi token sayımı,
-aşımda erken ve anlaşılır red. `POST /api/agents/{name}/estimate` ucu.
-**Değer:** Kota (Faz 21) ve ağaç bütçesi (Faz 12) bu sayıyı **zaten** istiyor;
-ikisi de çağrıdan sonra ölçüyor. Ön uçuş denetimi para harcanmadan reddeder.
-**Mercek:** 2, 5, 8.
-**Hazırlık:** Tokenizer `Microsoft.ML.Tokenizers` üzerinden geçişli
-bağımlılıkta hazır (K-104) — Faz 13'te gerçek çalıştırmayla doğrulandı.
-**Maliyet:** Düşük.
-**Risk:** Token sayımı yaklaşıktır. Erken red yanlış olursa çalışan bir agent
-durur; eşik gevşek tutulmalı ve varsayılan **kapalı** gelmelidir.
-**Bağımlılık:** Yok. Bugün yapılabilir.
-**Ekosistem:** LiteLLM `max_input_tokens` denetimi yapar.
-
-### F-40 · Kiracı başına sağlayıcı anahtarı (BYOK)
-
-**Sorun:** Sağlayıcı anahtarı global yapılandırmadadır. Tüm kiracılar aynı
-faturayı paylaşır. Çok kiracılı SaaS için kabul edilemez.
-**Kapsam:** Kiracı kaydında **yapılandırma anahtarının adı** durur, değer
-çalışma anında `IConfiguration`'dan çözülür. Sır veritabanına yazılmaz.
-**Değer:** Kiracı kendi faturasını taşır.
-**Mercek:** 3, 8.
-**Hazırlık:** K-059 deseni birebir uygulanabilir — MCP kimlik doğrulamasında
-zaten kullanılıyor.
-**Maliyet:** Orta. `ModelProviderRegistry` kiracı farkındalığı kazanır;
-`CreateChatClient` bugün kiracıyı bilmiyor.
-**Risk:** `CompiledAgentCache` anahtarı kiracı içermelidir, yoksa bir kiracının
-istemcisi diğerine sızar. Bu **gerçek bir güvenlik riskidir** ve testle
-kapatılmalıdır.
-**Bağımlılık:** F-56 ile aynı kiracı modeline dokunur.
-**Ekosistem:** LiteLLM'in "virtual keys" kavramının giden yarısı.
-
 ### F-45 · Yanıt önbelleği
 
 **Sorun:** Aynı soru iki kez sorulursa iki kez ödenir. Önbellek yok.
@@ -306,49 +292,10 @@ ayrı bir kavramdır ve Faz 26'da zaten var.
 > şeması, kesişim noktaları, eşleme tablosu) arşivdedir:
 > [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md).
 
-### F-75 · Denetim izi değişmezliği (hash zinciri) **YENİ**
-
-**Sorun:** `audit_log` append-only **ruhla** yazılır ama **teknik olarak
-değişmez değildir.** Migration'larda hash zinciri veya imza yok. Veritabanına
-yazma yetkisi olan biri geçmişi sessizce düzenleyebilir. Bir denetçi bunu
-sorar.
-**Kapsam:** Satır başına `prev_hash` + `hash` sütunu, açılışta ve istek
-üzerine zincir doğrulaması, `GET /api/audit/verify`. Bir migration.
-**Değer:** Denetlenebilirlik iddiası kanıtlanabilir olur.
-**Mercek:** 3.
-**Hazırlık:** SHA-256 hazır. `TraceSpanIdentity` deposunda benzer bir türetme
-deseni zaten var.
-**Maliyet:** Düşük.
-**Risk:** Zincir **yazma sırasına** bağlıdır; eşzamanlı yazımda sıralama
-gerekir. Denetim kaydı yazımı bugün hata yutuyor (`AuditRecorder`) — hash
-zinciri bunu zorlaştırır. Yavaşlama **ölçülmeli**.
-**Bağımlılık:** F-58 ile çatışır — silme hakkı ile değişmezlik aynı tabloda
-buluşur. İkisi **birlikte** tasarlanmalıdır.
-**Ekosistem:** AWS CloudTrail ve GCP Cloud Audit Logs bunu yapar.
-
 ### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması — KAPATILDI (2026-08-08)
 
 > **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi;
 > tam gerekçe ve koruma testi **K-352**'dedir.
-
-### F-58 · Veri konusu silme ve ihracı (GDPR)
-
-**Sorun:** Faz 25 **yaşa göre** temizliyor; **kişiye göre** silme yolu yok.
-K-107 "özetlenen mesajlar silinmez" diyor — depo tüm hassas içeriği bilerek
-biriktiriyor. Saklama uçları yalnız hedef bazlıdır (`/api/retention/{target}`).
-**Kapsam:** Konu kimliğine göre arama, dışa aktarım, silme veya maskeleme.
-**Değer:** AB'de kurumsal kapı.
-**Mercek:** 3.
-**Hazırlık:** Sıfırdan. Konu kimliğinin **nerede** yaşadığı bugün belirsiz —
-`sessions` tablosunda kullanıcı kimliği yok.
-**Maliyet:** Orta-yüksek.
-**Risk:** 🚨 **Gerçek bir tasarım çatışması:** denetim izi değişmez olmalıdır
-(F-75), veri konusu ise silme hakkına sahiptir. Silme işaretlemesi mi, alan
-bazlı maskeleme mi? `KARARLAR.md`'ye yazılacak cinsten bir karardır ve
-atlanamaz.
-**Bağımlılık:** F-75 ile birlikte tasarlanır.
-**Ekosistem:** Langfuse ve Braintrust'ta veri saklama ve silme birinci sınıf
-yetenektir.
 
 ### F-41 · İçerik şifreleme (at-rest)
 
@@ -366,167 +313,32 @@ etkilenir. Anahtar döndürme bir tasarım kararıdır.
 **Bağımlılık:** F-58 ile aynı veriye dokunur.
 **Ekosistem:** Genel veritabanı deseni; agent'a özgü değil.
 
-### F-61 · Argüman düzeyinde tool politikası
+### F-104 · Örnek uygulama rol politikaları — ✅ KAPATILDI (2026-08-18)
 
-**Sorun:** Onay kuralları **tool düzeyindedir**.
-[`ToolApprovalRule.cs:41`](../src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs)
-yalnız `ArgumentsHash` taşır — bu **birebir aynı argüman** demektir, koşul
-değil. `refund_order` ya hep onay ister ya hiç. Gerçek ihtiyaç "100 TL altı
-otomatik, üstü onay" biçimindedir.
-**Kapsam:** `ToolApprovalRule`'a argüman koşulu; izin verilen değer listesi ve
-sayısal eşik.
-**Değer:** Bugünkü kabalık onay yorgunluğu üretir. Kullanıcı her şeyi
-onaylamayı öğrenir ve onay akışı değerini kaybeder.
-**Mercek:** 2, 3.
-**Hazırlık:** `ApprovalRequiredAIFunction` sarmalaması `ToolRegistry` içinde
-tek kapıdır — yer hazır.
-**Maliyet:** Düşük.
-**Risk:** Koşul dili bir güvenlik yüzeyidir. **İfade değil**, yalnız
-karşılaştırma desteklenmelidir. `ToolApprovalRule` public API'dir; alan
-eklemek `record` olduğu için ek kurucu ister.
-**Bağımlılık:** F-69 ile birlikte değerli.
-🚨 [Faz 48](48-GUARDRAILS.md) içerik denetimini **model sınırına** koydu ve
-tool **argümanı** denetimini bilerek kapsam dışı bıraktı. O boşluğun sahibi bu
-kalemdir; Faz 48'in devir notu bunu yazıyor.
-**Ekosistem:** ACS'nin (F-72) `pre_tool_call` kesişim noktası tam olarak bunu
-tanımlar.
+> **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi. `samples/AgentPrism.Api`
+> artık `AgentPrism:Demo:Roles:Enabled` bayrağıyla üç politikayı kaydeder ve o anda
+> `RequireRolePolicies`'i açar — kayıt silinirse uygulama **başlamaz**. Gerçek koşumla
+> kanıtlandı: başlıksız `401`, `reader` liste `200`, `reader` yazma `403`, `admin` `201`;
+> bayrak kapalıyken davranış birebir eskisi (`200`/`201`). Tam gerekçe: **K-431**.
 
----
+### F-105 · Dosya belleği kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18)
 
-### F-103 · API anahtarı kapsam (`scope`) taksonomisinin genişletilmesi
-
-**Sorun:** `RequireApiKeyScope` yalnız DoD'nin adlandırdığı yüzeye uygulandı
-(K-360, Faz 53) — `AgentEndpoints`, `RunEndpoints`'in bir kısmı, MCP/A2A dış
-yüzey grupları. Tam taksonomi **bilinçli olarak ertelendi**; K-360'ın kendi
-metni bunu "ayrı bir aday kalemi" olarak öngörmüştü. O zamandan beri kapanan
-her yeni endpoint ailesi aynı boşluğu miras aldı — manuel kabul testi
-senaryoları yazılırken **dokuz bağımsız oturumda** aynı örüntü yeniden
-keşfedildi (`docs/manuel-test/00-INDEKS.md` §8): `WorkflowEndpoints`,
-`SchedulingEndpoints`, `EvalEndpoints`/`ExperimentEndpoints`,
-`GovernanceEndpoints` (`/api/mcp-servers/*`), `KnowledgeEndpoints`,
-`ApprovalEndpoints`, `RetentionEndpoints`, `QuotaEndpoints`. Bu oturumun kendi
-taraması (`grep -L RequireApiKeyScope src/AgentPrism.AspNetCore/Endpoints/*.cs`)
-listeyi genişletti: `AttachmentEndpoints`, `AuditEndpoints`, `CatalogEndpoints`,
-`ModelHealthEndpoints`, `ObservabilityEndpoints`, `SessionEndpoints`,
-`SkillEndpoints`, `SkillScriptGrantEndpoints`, `VoiceEndpoints`,
-`WebhookEndpoints` de dahil — bazıları kasıtlı olarak muaf olabilir
-(`MetaEndpoints`/`UiEndpoints` tasarım gereği kimlik doğrulamasız;
-`ApiKeyEndpoints`'in kendisi `docs/53-KIRACI-API-ANAHTARLARI.md`'ye göre
-bilerek "kapsamsız uç, yalnız Admin rolü") ama geri kalanı **doğrulanmadı** —
-sonraki planlama oturumu dosya dosya karar vermeli. Sonuç: `EvalEndpoints`/
-`ExperimentEndpoints` için `ApiKeyScope` hiç uygun bir üye taşımıyor (beş üye:
-`RunsRead/RunsWrite/AgentsRead/AgentsAdmin/ExternalInvoke`); diğerleri için üye
-var ama uç onu hiç çağırmıyor. Salt-okunur (`RunsRead`) bir otomasyon anahtarı
-bugün bu uçlarda pratikte TAM yetki taşıyabilir.
-**Kapsam:** (a) yeni `ApiKeyScope` üyeleri mi yoksa var olanların yeniden
-kullanımı mı — tasarım kararı; (b) 10-19 `Endpoints.cs` dosyasına
-`RequireApiKeyScope(...)` eklenmesi; (c) `docs/53-KIRACI-API-ANAHTARLARI.md`'nin
-kapsam-kapsama tablosunun güncellenmesi.
-**Değer:** Bugün salt-okunur amaçla verilmiş bir otomasyon anahtarı, kapsam
-dışı hiçbir uyarı almadan idari eylem (workflow silme, kota değiştirme, MCP
-sunucusu kaydetme) yapabilir — en az ayrıcalık ilkesinin sessizce delinmesi.
-**Mercek:** 2, 3.
-**Hazırlık:** Mekanizma zaten var (`RequireApiKeyScope` uzantısı,
-`ApiKeyScopeRequirement`) — yalnız kapsam genişletilir, yeni bir mekanizma
-icat edilmez.
-**Maliyet:** Orta. Enum'a üye eklemek kırıcı değildir (K-360'ın kendi notu) ama
-her uç için DOĞRU granülerliği seçmek (aşırı-ince taksonomi ile birkaç geniş
-katman arasında) bir tasarım kararıdır ve 10-19 dosyada mekanik uygulama
-gerektirir.
-**Risk:** Var olan API anahtarları, bugün "kapsamsız" olan bir uca erişimi
-varken, yeni bir zorunlu kapsam eklendiğinde o erişimi KAYBEDER — geriye dönük
-uyumluluk/geçiş notu (`docs/KARARLAR.md`'ye) gerekir. `EnablePublicApiTracking=false`
-(Faz 7 beklemede) olduğu için bugün derleme-zamanı bir kırılma değildir ama
-çalışma-zamanı davranış değişikliğidir.
-**Bağımlılık:** Rol politikalarının örnek uygulamada kayıtlı olmaması (bkz.
-F-104) ile birlikte ele alınmalı — ikisi birlikte "API anahtarı kapsamı ∩ rol"
-yetkilendirme modelinin BÜTÜNÜNÜ oluşturur; biri düzeltilip diğeri
-düzeltilmezse örnek uygulamada gözlemlenebilir fark küçük kalır.
-**Ekosistem:** —
-
----
-
-### F-104 · Örnek uygulama rol politikalarını hiç kaydetmiyor — `RequireRole` her yerde no-op
-
-**Sorun:** `RoleEndpointConventionBuilderExtensions.RequireRole`, policy adı
-`null` çözülürse HİÇBİR yetkilendirme eklemeyen bilinçli bir tasarımdır (bir
-policy kayıtlı değilse uç yalnız üç katmanlı korumadan geçer — eski davranış
-korunur, K1). `samples/AgentPrism.Api/Program.cs` `AgentPrismPolicies.Reader`/
-`.Operator`/`.Admin`'i **hiçbir zaman** `AuthorizationOptions`'a kaydetmiyor
-(`grep -rn "AgentPrismPolicies\." samples/AgentPrism.Api/Program.cs` boş
-döner) — bu üç adı kullanan HER `RequireRole(...)` çağrısı (Skill, Approval,
-Retention, Quota, Workflow'un `respond` ucu, …) örnek uygulamada sessizce
-etkisizdir. Statik bearer token her role açık uçlara eşit erişir. Sonuç: Faz
-55'in kendi "Reader karar veremez" DoD iddiası (izole fonksiyonel test
-host'unda doğrulanmıştı) referans dağıtımda GÖZLEMLENEMEZ — manuel kabul testi
-bu yüzden birden çok dosyada (`13-KIRACI-VE-GUVENLIK.md`, `14-SKILL-VE-SCRIPT.md`,
-`21-DAYANIKLILIK-VE-IPTAL.md`) aynı ortam kısıtını ayrı ayrı kaydetmek zorunda
-kaldı.
-**Kapsam:** Örnek uygulamaya gerçek bir rol kaynağı bağlamak — en basit yol:
-`AuthorizationBuilder.AddPolicy(AgentPrismPolicies.Reader, ...)` + statik
-bearer token'ın yanına (yalnız gösterim amaçlı) bir rol claim'i üreten basit
-bir test/örnek kimlik doğrulama şeması, VEYA API anahtarı kayıtlarına bir rol
-alanı eklenip API-anahtarı doğrulamasının bunu bir claim'e çevirmesi (ikincisi
-F-103 ile kesişir — bkz. Bağımlılık).
-**Değer:** Rol tabanlı yetkilendirmenin gerçek bir dağıtımda NASIL
-görüneceğini gösteren tek referans örnek uygulamadır; bugün bu hikayenin en
-kritik parçası (rolün gerçekten bir şey engellediği) hiç gösterilmiyor.
-**Mercek:** 1, 3.
-**Hazırlık:** Mekanizma zaten var (`AgentPrismPolicies`, `RequireRole`); yalnız
-örnek uygulamanın DI kaydı eksik.
-**Maliyet:** Düşük — tek dosya (`samples/AgentPrism.Api/Program.cs`) + belki
-küçük bir test kimlik doğrulama şeması.
-**Risk:** Örnek uygulamaya statik/sahte bir rol şeması eklemek, gerçek bir
-kimlik sağlayıcısı (OIDC vb.) entegrasyonu gerektiren üretim kurulumuyla
-karıştırılabilir — yorum ile net ayrılmalı ("bu yalnız gösterim amaçlıdır").
-**Bağımlılık:** F-103 (API anahtarı kapsamı) ile birlikte ele alınmalı.
-**Ekosistem:** —
-
----
-
-### F-105 · Dosya belleği/metin araması aynı kiracı içinde ajan/oturum sınırını gözetmiyor
-
-**Sorun:** `20-BELLEK-RAG-BAGLAM.md` üretilirken bulunan bir kiracı-yalıtımı
-şüphesi bu oturumda kod okumasıyla doğrulandı ve **kiracı boyutu** düzeltildi
-(`TenantPrefixingAgentFileStore` — bkz. `docs/KARARLAR.md`). Ama düzeltme
-kasıtlı olarak **kiracı sınırıyla sınırlı** bırakıldı: `TextSearchProvider`'ın
-arama callback'i (`Func<string, CancellationToken, Task<...>>`) tek başına
-`query` alır — hangi ajan/oturumun aramayı tetiklediğini bilmez. Callback
-`AgentDefinitionCompiler.Compile(...)` anında (bir kez, `CompiledAgentCache`'e
-GİREN paylaşılan `AIAgent`'a bağlı) kurulur ve o compiled agent AYNI kiracının
-TÜM oturumlarınca yeniden kullanılır. Sonuç: aynı kiracı içinde
-`EnableFileMemory` açık bir ajanın/oturumun yazdığı dosya, `EnableTextSearch`
-açık BAŞKA bir ajan/oturum tarafından hâlâ bulunabilir — yalnız kiracılar
-arası sızıntı kapandı, kiracı-İÇİ sızıntı kapanmadı.
-**Kapsam:** Arama callback'inin RUN ZAMANINDA "hangi oturum/ajan çağırıyor"
-sorusuna cevap verebilmesi gerekir — bugünkü derleme-zamanı closure yaklaşımı
-bunu yapısal olarak veremez. Olası yön: `AmbientTenantScope`'a benzer bir
-ambient/`AsyncLocal` "güncel oturum" kapsamı açıp `TenantPrefixingAgentFileStore`'u
-oturum bazında ikinci bir alt önekle (`/{tenantId}/{sessionId}`) sarmalamak —
-YA DA `FileMemoryProvider`'ın kendi (MAF varsayılanı) oturum bazlı çalışma
-klasörü şemasını decompile ederek aynı şemayı arama tarafında yeniden
-üretmek.
-**Değer:** `EnableFileMemory` + `EnableTextSearch` birlikte kullanan HERHANGİ
-bir dağıtımda gerçek bir veri sızıntısı riski — Kritik olmasa da (kiracı
-sınırı değil) Yüksek önemde bir kusur adayı.
-**Mercek:** 2, 3.
-**Hazırlık:** Yok — `AsyncLocal` tabanlı ambient kapsam bu kod tabanında DÖRT
-kez yanlış açılıp düzeltildi (Faz 6, 11, 12, 15 — `docs/hafiza/cekirdek-calistirma.md`);
-bu kalem BEŞİNCİ bir deneme olacak, dikkatli tasarım ister.
-**Maliyet:** Orta-Yüksek. MAF'ın `FileMemoryProvider`'ının kapalı-kutu
-davranışına bağımlı (reflection/decompile ile keşif gerekir — `maf-api-kesfi`
-skill'i kullanılmalı) veya MAF'ın kendi API'sinde bir genişleme noktası
-istenebilir.
-**Risk:** Yanlış uygulanan bir ambient kapsam, sessizce YANLIŞ oturumun
-bağlamını sızdırabilir — tam da düzeltmeye çalıştığı sınıf hatayı üretme
-riski taşır. Kapsamlı testle (farklı ajan/oturum, ardışık ve eşzamanlı
-çalıştırma) doğrulanmalı.
-**Bağımlılık:** Yok.
-**Ekosistem:** —
-
----
+> **Aday değildir.** Kusur olarak düzeltildi: `TenantPrefixingAgentFileStore` öneki artık
+> `{tenantId}/{agentName}`'dir. 🚨 Adayın önerdiği `AsyncLocal` yolu **alınmadı** —
+> gerek yoktu: agent adı derleme anında bilinir (`CompiledAgentCache` anahtarı zaten
+> taşır). Oturum boyutu **bilerek** kapsam dışıdır; dosya belleği agent düzeyinde bir
+> bellektir ve oturum başına yalıtmak yeteneği yok ederdi. Tam gerekçe: **K-434**.
 
 ### F-106 · Magentic orkestrasyonu round-limit'e ulaştıktan sonra zarif durmuyor — `WorkflowRunner` bunu önceden kestiremiyor
+
+> 🚨 **Durum (2026-08-18): AZALTILDI, DOĞRULANMADI — kalem AÇIK kalır.**
+> Pompa artık akışı yeniden açmadan önce MAF'ın kendi durumunu soruyor
+> (`run.GetStatusAsync()`, **K-433**), yani bildirilen `RunFailed` yolunun sebebi
+> kapatıldı. Ama düşen bir test **yoktur**: sahte katılımcılarla iki repro denendi
+> (`MaxIterations` 1 ve 2, tek ve çift onay turu) ve ikisi de düzeltme kapalıyken
+> **geçti**. Test tiyatrosu bırakmamak için o dosya silindi. Kapı manuel kabul
+> case'idir (gerçek model + `requirePlanApproval`).
+
 
 **Sorun:** `HATA-K-003` (manuel kabul testi, K-401) bir Magentic +
 `requirePlanApproval` iş akışında `maxIterations` plan+onay-sonrası-devam+
@@ -570,51 +382,13 @@ bilgisine dayanmalı, metin eşleştirme kırılgandır.
 
 ---
 
-### F-107 · `WorkflowRunner` iptali MAF'ın sıralı grafiğini gerçekten kesmiyor — çalıştırma sessizce `Completed` ile bitiyor
+### F-107 · Workflow iptali — ✅ KAPATILDI (2026-08-18)
 
-**Sorun:** `MT-RES-005` (manuel kabul testi, `HATA-S2-010`), Faz 32'nin
-kendi kapanışında KANITLANAMAMIŞ bıraktığı açık soruyu (`docs/32-CALISTIRMA-IPTALI.md`
-"Plandan Sapmalar") gerçek bir kayıtlı workflow'la (`ozetle-ve-cevir`)
-kapattı: uzun bir mesajla başlatılan çalıştırma akış sürerken
-`POST /api/runs/{id}/cancel` ile iptal edildi (`202` döndü, iptal öncesi
-durumun gerçekten `Running` olduğu ayrı bir `GET` ile doğrulandı — yarış
-koşulu değil), ama 3 saniye sonra durum `Canceled` DEĞİL `Completed` oldu,
-`error: null`. Kod okuması `WorkflowRunner.cs:356-368`'in AgentPrism
-seviyesinde DOĞRU çalıştığını gösterdi: tek bir `linked`
-`CancellationTokenSource` hem `IRunCancellationRegistry.Register`'a
-(satır 362) hem `run.WatchStreamAsync`'e (satır 589, `linked.Token`)
-besleniyor, `OperationCanceledException` doğru yakalanıyor (satır 612).
-**Kök neden AgentPrism dışı bir sınırda:** MAF'ın `AgentWorkflowBuilder
-.BuildSequential` grafiğinin (`StreamingRun.WatchStreamAsync` iç
-uygulaması) dışarıdan gelen iptal token'ını çalışan bir adım ortasında
-GERÇEKTEN honor etmiyor gibi görünüyor — ama kullanıcıya göre sonuç aynı:
-bir workflow çalıştırması iptal edilemiyor, sessizce tamamlanıyor
-(maliyet/zaman israfı + kullanıcı yanıltılması).
-**Kapsam:** MAF'ın `BuildSequential` (ve muhtemelen diğer orkestrasyon
-tipleri) grafiğinin, kendisine geçirilen `CancellationToken`'ı çalışan bir
-adımın ORTASINDA da honor ettiğini doğrulamak; honor etmiyorsa AgentPrism
-tarafında bir üst düzey zorlama (her süper-adım sınırında token'ı elle
-denetleyip akışı kesme) eklemek gerekebilir — bu, MAF'ın kapalı-kutu
-yürütme modeline bağımlı, `maf-api-kesfi` ile araştırılmadan kapsam
-netleşmez.
-**Değer:** Uzun süren herhangi bir workflow çalıştırmasını iptal etmeye
-çalışan her tüketici sessizce yanıltılıyor — çalıştırma görünürde
-`Canceled` olması beklenirken gerçekte tam maliyetle `Completed` oluyor.
-**Mercek:** 16 (Workflow yürütme), 32 (Çalıştırma iptali).
-**Hazırlık:** MAF'ın `AgentWorkflowBuilder`/`StreamingRun` iç yürütme
-modelinin bir adım ortasında iptali nasıl (ve honor edip etmediğini)
-işlediği `maf-api-kesfi` skill'iyle doğrulanmalı.
-**Maliyet:** Belirsiz — MAF kaynağına bakılmadan tahmin edilemez; MAF
-gerçekten honor etmiyorsa çözüm MAF'a bağımlı olabilir (üstündeki bir
-sarmalama yetmeyebilir).
-**Risk:** Üst düzey bir zorlama eklenirse, adım ortasında kesilen bir
-workflow'un kısmi durumunun (bellek/araç yan etkileri) tutarsız kalması
-riski taşır — MAF'ın kendi iptal semantiğini atlamak yeni bir sınıf hata
-üretebilir.
-**Bağımlılık:** K-245 (birleşik `CancellationTokenSource`) zaten main'de.
-**Ekosistem:** —
-
----
+> **Aday değildir.** Kusur olarak düzeltildi ve süreç içinde **yeniden üretildi**
+> (düşen test önce kırmızıydı: `Completed`, beklenen `Canceled`). Kök neden ölçüldü:
+> MAF grafiği token'ı honor etmiyor **ve istisna da atmıyor** — akışı sessizce
+> bitiriyor. Zorlama süper-adım sınırında ve pompa çıkışında yapılır.
+> Tam gerekçe: **K-432**.
 
 ## D. Yetenek derinliği
 
@@ -732,114 +506,9 @@ zaten var.
 
 ## G. Dış tüketici yüzeyi
 
-### F-64 · Gömülebilir sohbet bileşeni
-
-**Sorun:** Arayüz **tam bir kontrol düzlemidir**. Tüketicinin kendi
-uygulamasına koyacağı küçük bir sohbet kutusu yok.
-**Kapsam:** Ayrı, küçük bir bundle. Hedef **<30 KB gzip**.
-**Değer:** Tüketici son kullanıcıya agent açabilir.
-**Mercek:** 1.
-**Hazırlık:** Playground'un akış mantığı yeniden kullanılabilir.
-**Maliyet:** Orta.
-**Risk:** 🚨 **Bundle bütçesi ayrı tutulmalıdır.** Bugün kontrol düzlemi
-151,3 KB / 250 KB kullanıyor, kalan pay ~99 KB. Sohbet bileşeni bu paya
-**girmemelidir**; ayrı bir çıktı ve ayrı bir kapı ister. Kontrol düzlemi
-bileşenleri bu pakete sızmamalıdır — sızarsa 30 KB hedefi tutmaz.
-**Bağımlılık:** F-56 (API anahtarı) olmadan güvenli gömülemez — son
-kullanıcının tarayıcısına yönetim token'ı konulamaz.
-[Faz 46](46-DAYANIKLI-CALISTIRMA.md)'nın `202 Accepted` sözleşmesi uzun süren
-bir sohbet için ikinci bir okuma yolu verir.
-**Ekosistem:** Vercel AI SDK'nın `useChat` kancası ve Dify'ın gömülebilir
-widget'ı.
-
-### F-65 · Gelen tetikleyiciler
-
-**Sorun:** Faz 21 **giden** webhook'u verdi. Tersi yok: dış bir olay (Slack
-mesajı, e-posta, kuyruk) bir çalıştırma başlatamıyor.
-**Kapsam:** İmzalı gelen webhook ucu, olay → agent eşlemesi, Faz 17'nin
-kuyruğuna düşürme.
-**Değer:** Agent olaya tepki verir; yalnız sorulunca konuşmaz.
-**Mercek:** 1, 3.
-**Hazırlık:** Faz 17'nin kuyruğu ve Faz 21'in imza doğrulayıcısı hazır —
-`WebhookSigner` ters yönde de kullanılır.
-**Maliyet:** Düşük.
-**Risk:** Gelen uç **kimlik doğrulaması olmadan** açılamaz. Her kaynak için
-ayrı sır gerekir ve K-059 deseni uygulanır.
-**Bağımlılık:** F-56'dan sonra doğal.
-**Ekosistem:** n8n ve Dify'ın ana ekseni. Inngest olay tabanlı tetiklemeyi
-altyapı olarak satar.
-
-### F-108 · İstemci tarafında çalışan tool (front-end tool) **YENİ**
-
-**Sorun:** Paketi kullanan bir arka uç servisi, agent'ının **tarayıcıda**
-çalışan bir tool'u çağırmasını isteyebilir: kullanıcının o anki ekran
-durumunu okumak, dosya seçtirmek, yalnız tarayıcıda duran bir kimlik
-bilgisiyle çağrı yapmak. Bugün bu yol **yoktur**.
-[`IToolRegistry.TryGet`](../src/AgentPrism.Abstractions/Tools/IToolRegistry.cs)
-bir `AIFunction` döndürür ve MAF'ın `FunctionInvokingChatClient`'ı onu
-**sunucu sürecinde** çalıştırır. Çalıştırmayı duraklatıp çağrıyı çağırana
-yayınlayan ve **dışarıdan gelen bir sonuçla** sürdüren bir kanal yoktur.
-Ölçüldü: `grep -rn "ClientTool\|DeferredTool\|RemoteTool" src/` yalnız
-MCP'nin kendi `McpClientTool`'unu buluyor — sıfır altyapı.
-**Kapsam:** Gövdesi sunucuda olmayan yeni bir tool türü (bildirim **kodda**,
-gövde istemcide), bekleyen çağrı kaydı, sonucu geri alan uç, sürdürme işi.
-**Değer:** Agent, sunucunun erişemeyeceği bağlama ve yetkiye ulaşır. F-64'ü
-(gömülebilir sohbet) tek yönlü bir metin kutusu olmaktan çıkarır.
-**Mercek:** 1, 3, 6.
-**Hazırlık — bu kalemin en güçlü yanı.** [Faz 55](55-ASENKRON-ONAY-KUTUSU.md)
-duraklat/sürdür makinesinin **tamamını** kurdu ve şekil birebir aynıdır:
-`pending_approvals` (`0027` migration), `IPendingApprovalStore`,
-`JobKind.ApprovalResume` +
-[`ApprovalResumeJobHandler`](../src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs),
-`ApprovalExpirationService`, üç uç, bir ekran, `RunStatus.AwaitingApproval`.
-Eksik olan tek şey **kararın yerine sonucun** taşınmasıdır: Faz 55 oturuma
-`ToolApprovalResponseContent` yazar, bu kalem `FunctionResultContent`
-yazacaktır. Ayrıca
-[`OpenAIResponsesEndpoints.cs:286`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs)
-bekleyen çağrıyı çağırana **standart OpenAI `function_call` öğesi** olarak
-zaten yayınlıyor ve kendi yorumunda çağıranın "bir sonraki turda
-`function_call_output` verebileceğini" söylüyor.
-**🚨 Ölçülmedi — planlamanın ilk işi budur.** `OpenAIResponses.ToAgentRunRequest`
-(MAF) gelen bir `function_call_output` öğesini `FunctionResultContent`'e
-çeviriyor mu? Depoda bunu koşan **tek bir test yok**
-(`grep -rn "function_call_output" tests/` → sıfır). Yanıt "evet" ise maliyet
-düşük; "hayır" ise girdi dönüşümü elle yazılır ve maliyet ortaya çıkar.
-**Maliyet:** Orta.
-**Risk:** 🚨 **Sonuç güvenilmeyen bir istemciden gelir.** Bugün konuşmadaki
-her `FunctionResultContent`'i sunucu kodu üretir; istemciden gelen sonuç
-model bağlamına **yeni bir enjeksiyon yüzeyi** açar. İyi haber:
-[`ContentGuardMessageMasker.cs:156`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs)
-`FunctionResultContent`'i **bilerek** kapsıyor — Faz 48 bu şekli zaten görüyor.
-Sonuç kiracıya, çalıştırmaya, oturuma ve tek bir `CallId`'ye bağlanmalı ve
-**tek kullanımlık** olmalıdır; Faz 55.4'ün üç kuralı birebir geçerlidir.
-Süre sonu zorunludur (Faz 55.5): yanıt vermeyen bir istemci çalıştırmayı
-süresiz bekletmemelidir. Akışlı yolda çağrının SSE ortasında yayınlanması
-gerekir — [`AgentEndpoints.cs:881`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs)
-(K-296) başlıkların çoktan gönderilmiş olduğunu hatırlatır. `Prefer:
-respond-async` yolunda **bağlı istemci yoktur**; Faz 55.1'in sorunu birebir
-tekrar eder ve bekleyen çağrı kaydı bu yüzden zorunludur.
-**K2 sınırı — gevşemez.** Tool'un **bildirimi** (ad, açıklama, şema) kodda
-kalır; yalnız **gövdesi** istemcide çalışır. Bu, MCP'nin (K-058) desenidir:
-kayıt kodda, çalıştırma başka yerde. `AgentDefinitionValidator` (K-404) hiç
-değişmeden çalışmaya devam eder. 🚨 Tool tanımının **istemciden çalışma
-anında bildirilmesi** (Vercel AI SDK `useChat` deseni) ayrı bir iştir ve
-K2'nin **üçüncü istisnası** olurdu — bu kalem onu **kapsam dışı** bırakır.
-**Bugün ne yapılabilir:** Tüketici, gövdesi kendi gerçek zamanlı kanalına
-(SignalR/WebSocket) uzanan bir `AIFunction` yazıp
-`AgentPrismToolRegistration` ile kaydedebilir. 🚨 K-218: tool bağımlılıkları
-**kurulum anında** alınır — `AIFunctionArguments.Services` boştur, bu yüzden
-kayıt `services.AddSingleton(provider => new AgentPrismToolRegistration(new MyTool(provider)))`
-biçiminde fabrikadan yapılır. Sınırları: sunucu isteğini istemcinin yanıtı
-kadar bekletir, süreç yeniden başlarsa kaybolur, süre sonu/denetim izi/kiracı
-bağı yoktur ve `Prefer: respond-async` yolunda çalışmaz. Bu kalem o çözümü
-birinci sınıf, dayanıklı ve denetlenebilir yapar.
-**Bağımlılık:** [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) (makine),
-[Faz 53](53-KIRACI-API-ANAHTARLARI.md) (tarayıcıya yönetim token'ı konulamaz),
-[Faz 48](48-GUARDRAILS.md) (istemciden gelen sonuç guard'dan geçmelidir).
-F-64 ile doğal eştir; ikisi birlikte planlanmalıdır.
-**Ekosistem:** Vercel AI SDK'nın `onToolCall`'ı, CopilotKit ve OpenAI Realtime
-istemci tool'ları JS dünyasında **fiilî standarttır**. .NET kontrol
-düzleminde karşılığı yok.
+> **Bu bölümün üç kalemi de plana dönüştü ve bölümleri silindi (2026-08-18):**
+> F-64 ve F-108 → [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md),
+> F-65 → [Faz 66](66-GELEN-TETIKLEYICILER.md).
 
 ---
 
@@ -863,16 +532,17 @@ Kalın yazılan kalemler **hâlâ bu listededir**; 📋 işaretliler plana dön�
 | Derleme anında tool doğrulama | — | **Yalnız .NET'te mümkün** | F-47 → [Faz 52](52-KAYNAK-URETECI.md) ✅ |
 | Tipli yapılandırılmış çıktı | Pydantic AI · OpenAI · Instructor | **Yok** | F-42 → [Faz 38](38-YAPILANDIRILMIS-CIKTI.md) 📋 |
 | Maliyet metriğinin Prometheus'a akması | LiteLLM | **Yok** | F-70 → [Faz 35](35-MALIYET-VE-KOTA-METRIKLERI.md) 📋 |
-| **Model yedek zinciri ve yönlendirme** | LiteLLM · Portkey · Kong AI Gateway | **Yok** | **F-44** |
-| **Sanal anahtar + anahtar başına bütçe** | LiteLLM · Portkey | **Yok** | **F-56** + F-40 (zemin: [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) 📋) |
+| Model yedek zinciri ve yönlendirme | LiteLLM · Portkey · Kong AI Gateway | **Yok** | F-44 → [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) 📋 |
+| Sanal anahtar + anahtar başına bütçe | LiteLLM · Portkey | **Yok** | F-56 → [Faz 53](53-KIRACI-API-ANAHTARLARI.md) ✅ · F-40 → [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 |
 | **Prompt kütüphanesi ve şablon** | Langfuse · Braintrust · Portkey | Kısmen — sürümleme var (Faz 19), şablon yok | **F-34** |
-| **Olay tabanlı agent tetikleme** | n8n · Dify · Inngest | **Yok** | **F-65** |
-| **İstemci tarafında çalışan tool** | Vercel AI SDK `onToolCall` · CopilotKit · OpenAI Realtime | **Yok** | **F-108** |
+| Olay tabanlı agent tetikleme | n8n · Dify · Inngest | **Yok** | F-65 → [Faz 66](66-GELEN-TETIKLEYICILER.md) 📋 |
+| İstemci tarafında çalışan tool | Vercel AI SDK `onToolCall` · CopilotKit · OpenAI Realtime | **Yok** | F-108 → [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) 📋 |
 | **Taşınabilir çalışma anı politikası** | Microsoft ACS | .NET paketi **var** ama **beta ve native** (beş RID) | **F-72** ⏸ ertelendi |
 
-🚨 **Dokuz boşluğun dokuzu plana girdi.** Kalan altı satır bu listenin
-stratejik çekirdeğidir; ikisi kimlik (F-56, F-40), biri maliyet (F-44), biri
-ergonomi (F-34), biri tetikleme (F-65), biri dış tüketici yüzeyi (F-108).
+🚨 **Tablonun on üç boşluğundan on ikisi plana girdi (2026-08-18).** Kalın
+yazılı **iki** satır kaldı: biri ergonomi (F-34 şablon), biri ölçülüp ertelenen
+bir standart (F-72 ACS). Kimlik, maliyet ve tetikleme boşluklarının üçü de
+Faz 53, 62, 65 ve 66 ile kapandı.
 
 **Neden kimse yapmamış?** Üç yanıt vardır ve hepsi AgentPrism'in lehinedir:
 
@@ -926,60 +596,49 @@ Oklar **gerçek önkoşulları** gösterir. Ok yoksa kalemler bağımsızdır.
 Yuvarlak köşeli düğümler **plana dönüşmüş** kalemlerdir; bu listede yoktur ve
 yalnız önkoşul zincirini göstermek için durur.
 
+Grafik 2026-08-18'de yeniden çizildi: Faz 61–66 ile yedi kalem daha plana
+dönüştüğü için eski okların çoğu artık plan içi bağımlılıktır.
+
 ```mermaid
 flowchart LR
-    F31p(["F-52 - Faz 31<br/>Geri bildirim"]) --> F49p(["F-71 - Faz 49<br/>Cevrimici eval"])
-    F44p(["F-55 - Faz 44<br/>Hata sinifi"]) --> F74["F-74<br/>Kanarya"]
-    F31p --> F74
-    F49p --> F74
-
-    F42p(["F-57 - Faz 42<br/>Tek yurutucu"]) --> F36["F-36<br/>Oksuz uzlastirma"]
-    F46p(["F-68 - Faz 46<br/>Dayanikli calistirma"]) --> F36
-    F46p --> F69["F-69<br/>Onay kutusu"]
-    F61["F-61<br/>Arguman politikasi"] --> F69
-    F48p(["F-32 - Faz 48<br/>Guardrails"]) --> F61
-    F48p --> F72["F-72 - ERTELENDI<br/>ACS uyumu"]
-
-    F38p(["F-42 - Faz 38<br/>Yapilandirilmis cikti"]) --> F44["F-44<br/>Yedek zinciri"]
-    F41p(["F-76 - Faz 41<br/>Kiraci yalitimi"]) --> F56["F-56<br/>API anahtarlari"]
-    F41p --> F40["F-40<br/>BYOK"]
-    F50p(["F-31+F-33 - Faz 50<br/>Disa acilan yuzey"]) -->|"acil kilar"| F56
-    F56 --> F64["F-64<br/>Gomulebilir sohbet"]
-    F56 --> F65["F-65<br/>Gelen tetikleyici"]
-    F75["F-75<br/>Denetim zinciri"] --> F58["F-58<br/>GDPR silme"]
-
     F34p(["F-60 - Faz 34<br/>Dogrulama ucu"]) --> F48["F-48<br/>GitOps"]
     F40p(["F-63 - Faz 40<br/>OpenAPI"]) --> F50["F-50<br/>Istemci + CLI"]
     F52p(["F-47 - Faz 52<br/>Kaynak ureteci"]) --> F50
     F33p(["F-38 - Faz 33<br/>Health check"]) --> F51["F-51<br/>Aspire"]
     F51p(["F-30 - Faz 51<br/>Vektor bellek"]) --> F67["F-67<br/>Performans kapisi"]
 
+    F48p(["F-32 - Faz 48<br/>Guardrails"]) --> F72["F-72 - ERTELENDI<br/>ACS uyumu"]
+    F48p --> F87["F-87<br/>Kayit redaksiyonu"]
+    F45p(["F-53 - Faz 45<br/>Uretimden eval"]) --> F87
+    F47p(["F-54 - Faz 47<br/>Yeniden oynatma"]) --> F87
+    F48p --> F88["F-88<br/>Guard karari transcript"]
+    F48p --> F89["F-89<br/>Kiraci bazli guard"]
+
+    F64p(["F-75 + F-58 - Faz 64<br/>Denetim ve veri haklari"]) --> F41["F-41<br/>At-rest sifreleme"]
+    F51pp(["F-30 - Faz 51<br/>Vektor bellek"]) --> F99["F-99<br/>Vektor SQL Server ve SQLite"]
+    F51pp --> F101["F-101<br/>RAG tazeligi"]
+
     classDef planlandi fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef ertelendi fill:#5a5a5a,stroke:#2c2c2c,color:#ffffff
-    class F31p,F44p,F49p,F42p,F46p,F48p,F38p,F41p,F50p,F34p,F40p,F52p,F33p,F51p planlandi
+    class F34p,F40p,F52p,F33p,F51p,F48p,F45p,F47p,F64p,F51pp planlandi
     class F72 ertelendi
 ```
 
 > **Yuvarlak köşeli yeşil düğümler plana dönüşmüştür** ve bu listede
-> **yoktur**; yalnız önkoşul zincirini göstermek için dururlar. On dört düğüm
-> bu durumdadır — Faz 31–52.
-
-> 🚨 **Üç ok yön değiştirdi.** Dalga 3 planlandıktan sonra bazı bağımlılıklar
-> tersine döndü: Faz 46 artık F-36'nın **sebebi**, Faz 50 F-56'nın **sebebi**,
-> Faz 49 F-74'ün **son eksik önkoşulu**. Bunlar önkoşul değil, **aciliyet**
-> oklarıdır ve etiketleriyle ayrılmıştır.
+> **yoktur**; yalnız önkoşul zincirini göstermek için dururlar.
 
 > **F-35 kısmen kapandı.** [Faz 32](32-CALISTIRMA-IPTALI.md) iptali **tek
 > örnek** için çözer; çok örnekli yarısı
 > [Faz 42](42-TEK-YURUTUCU-SECIMI.md)'nin `ISingletonLeaseStore`'unu bekler.
+> 🚨 Faz 32'nin **kanıtlanamamış** yarısı F-107'dir ve bugün açıktır.
 
 > **F-63'ün oku daraldı.** [Faz 40](40-OPENAPI-YAYINI.md) yalnız belgeyi
 > yayımlar; F-50'nin istemci üretimi için gereken kaynak budur, ama TypeScript
-> tarafı ayrı bir kalemdir.
+> tarafı (F-93) ayrı bir kalemdir.
 
 > Grafikte yalnız **önkoşulu veya bağımlısı olan** kalemler görünür. Tam
-> bağımsız kalemler (F-34, F-41, F-45, F-59) grafikte yoktur ve istenen sırada
-> yapılabilir.
+> bağımsız kalemler (F-34, F-45 ve kusur kalemleri F-104…F-107) grafikte yoktur
+> ve istenen sırada yapılabilir.
 
 ---
 
@@ -1084,9 +743,9 @@ devam eder ve sabittir.
 | **F-97** | OpenAI uyumlu uçların asenkron sözleşmesi (`background: true`) | [Faz 46](46-DAYANIKLI-CALISTIRMA.md) | Faz 46 `202 Accepted` + `Location` sözleşmesini **yönetim API'sinde** verdi; OpenAI uyumlu yüzeyin kendi sözleşmesi (`response.id` ile yoklama) ayrı bir iştir |
 | **F-98** | Azure AI Content Safety adaptörü | [Faz 48](48-GUARDRAILS.md) | Ağırlık **4 paket** (ölçüldü) — sorun değil. Erteleme gerekçesi doğrulanamazlıktır (K-212 emsali) |
 | **F-99** | `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** (K-343) |
-| **F-100** | Bütçe eşiği uyarısı (proaktif kota alarmı) | 2026-08-08 denetimi | Faz 35 kota ölçerlerini (OTel gauge), Faz 21 giden webhook'u verdi; ikisini bağlayan "eşik aşılınca webhook tetikle" mantığı **yok**. Operatör kota aşımını bugün yalnız gösterge panelinde **görerek** fark ediyor. Var olan iki altyapıyı birleştirir |
+| ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
 | **F-101** | RAG belge tazeliği takibi | 2026-08-08 denetimi | Faz 51 vektör aramayı getirdi ama gömülerin ne zaman bayatladığını izleyen bir mekanizma yok. `document_embeddings`'e `source_updated_at`/`last_indexed_at` karşılaştırması ve isteğe bağlı bir "yeniden indeksle" ucu. **Doğrulanmadı** — planlanmadan önce şema okunmalı |
-| **F-102** | `EvalStoreContract` eşzamanlılık testi yük altında kırılgan | 2026-08-08 denetimi | 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
+| ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../src/AgentPrism.PostgreSql/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
 > bu denetim yalnız numara verdi ve gerekçeleri buraya taşıdı. F-101 **kod
@@ -1096,43 +755,46 @@ devam eder ve sabittir.
 
 ## Bundan Sonra Ne Kaldı
 
-Üç dalga bittiğinde ekosistem boşluk tablosunun **dokuz satırı** kapanmış olur.
-2026-08-08 denetiminden sonra **seçilmemiş 15 kalem** kalır (F-90…F-102 hariç):
+2026-08-18 turundan sonra **seçilmemiş 25 kalem** kalır. Ekosistem boşluk
+tablosunun on üç satırından on ikisi plana girmiştir.
 
 | Küme | Kalemler | Ortak yanı |
 |---|---|---|
-| **Kimlik ve çok kiracılılık** | F-40, F-64, F-65 | 🚨 Zinciri F-56 açıyordu; o artık [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — bu üçünün **önkoşulu planlandı** |
-| **İşletim boşlukları** | F-44, F-59, F-45 | Üçü de planlanmış bir fazın **doğrudan devamıdır**. F-36, F-69 ve F-74 [Faz 54–56](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) oldu |
-| **Uyum ve veri hakları** | F-72 ⏸, F-75, F-58, F-41, F-61 | Kurumsal kapı. F-75 ve F-58 **birlikte** tasarlanmalıdır (silme hakkı ↔ değişmezlik) |
+| **Kusur kalemleri** | F-106 | Üç kardeşi (F-104, F-105, F-107) 2026-08-18'de kodlandı ve kapandı. F-106 azaltıldı ama sahte katılımcılarla **yeniden üretilemedi**; kapısı manuel kabul case'idir |
+| **Uyum ve veri hakları** | F-72 ⏸, F-41 | Kurumsal kapı. F-41 artık [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md)'ün kararını bekler |
+| **Guardrail devamı** | F-87, F-88, F-89, F-98 | Dördü de [Faz 48](48-GUARDRAILS.md)'in bilerek kapsam dışı bıraktığı işlerdir |
+| **Faz devamları (numaralı)** | F-90…F-99, F-101 | Bir fazın kapanışında bilerek dışarıda bırakılan işler |
+| **Bağımsız** | F-34 (şablon), F-45 (yanıt önbelleği), F-48 (GitOps), F-50 (istemci+CLI), F-51 (Aspire), F-67 (performans kapısı) | Önkoşulsuz; istenen sırada yapılabilir |
 
-Geriye kalanlar bağımsızdır: F-34 (şablon), F-48 (GitOps), F-50 (istemci+CLI),
-F-51 (Aspire), F-67 (performans kapısı).
-
-**Bunu yapmazsak ne olur:** Üç dalga AgentPrism'i Python ve TypeScript
-ekosisteminin bugün verdiği yeteneklere ulaştırır. Kalan 20 kalem onu
-**çok kiracılı bir SaaS ürününün** altına koyabilecek düzleme taşır; en zayıf
-halka bugün **kimliktir** ve dış yüzey açıldıktan sonra en görünür eksik odur.
+**Bunu yapmazsak ne olur:** Faz 31–66 AgentPrism'i Python ve TypeScript
+ekosisteminin bugün verdiği yeteneklere ulaştırır ve **çok kiracılı bir SaaS
+ürününün** altına koyabilecek düzleme taşır. Kalan kalemlerin çoğu artık
+stratejik boşluk değil, **derinleşme** ve **kusur** kalemidir.
 
 ---
 
 ## Faz 7 Hatırlatması
 
-`EnablePublicApiTracking` bugün **`false`**. **Bu listede kalan** ve public
-yüzeyi genişleten kalemler:
+🚨 **Bu bölüm 2026-08-18'de düzeltildi.** `EnablePublicApiTracking` artık
+**`true`**'dur ([`Directory.Build.props:58`](../Directory.Build.props), K-421,
+Faz 60): kayıtsız bir yüzey değişikliği **derlemeyi kırar**. Ama **hiçbir şey
+yayınlanmamıştır** — her paketin `PublicAPI.Shipped.txt` dosyası boştur
+(ölçüldü: 1 satır, yalnız `#nullable enable`) ve tüm yüzey `Unshipped`
+içindedir.
+
+Sonuç değişmez: **public yüzeyi büyüten veya değiştiren her kalem bugün
+bedavadır**, ilk yayından (Faz 7) sonra bir sürüm kararıdır.
 
 | Kalem | Yeni public yüzey | Yayından sonra maliyeti |
 |---|---|---|
-| **F-56** kiracı API anahtarları | Anahtar tipi, kapsam enum'u, depo arayüzü | Yeni tip — ucuz |
-| **F-44** model yedek zinciri | 🚨 `ModelBinding`'e bir alan | `sealed record` — sürüm kararı |
-| **F-40** BYOK | `ModelBinding` veya kiracı kaydına bir alan | `sealed record` — sürüm kararı |
 | **F-50** istemci + CLI | 🚨 **İki yeni paketin tamamı** | En geniş yüzey |
-| **F-59** ön uçuş bütçe denetimi | Bir uç, bir ayar | Ucuz |
-| **F-61** argüman düzeyinde tool politikası | 🚨 `ToolApprovalRule`'a alan — `record` olduğu için ek kurucu ister | `sealed record` — sürüm kararı |
-| **F-75** denetim hash zinciri | Denetim kaydına iki alan | `sealed record` — sürüm kararı |
-| **F-30/F-32/F-68 vb.** | — | ✅ Artık **plana dönüştü**; yüzeyleri yol haritasındadır |
+| **F-41** at-rest şifreleme | `IContentProtector` genişleme noktası | Yeni tip — ucuz |
+| **F-89** kiracı bazlı guard kuralları | Guard sözleşmesine kural kaynağı | Arayüz değişimi — pahalı |
+| **F-94** çok turlu eval vakası | `EvalCase` sözleşmesini değiştirir | `sealed record` — sürüm kararı |
+| Plana dönüşenler (F-44, F-59, F-61, F-75, F-58, F-40, F-108 …) | — | ✅ Yüzeyleri kendi faz dokümanlarındadır; üçü Faz 7'den **önce** kalmalıdır (Faz 62, 63, 65) |
 
-Yayından **önce** yapılırlarsa bedavadır. Sonra yapılırlarsa her biri bir
-sürüm kararıdır ve `PublicAPI.Shipped.txt` disiplinine girer.
+🚨 **Faz 65 en pahalı olanıdır:** `IModelProvider.CreateChatClient` bir
+**arayüz imzasıdır**. Yayından sonra genişletmek her tüketicinin kodunu kırar.
 
 Plana dönüşen yirmi altı kalemin public yüzey listesi
 [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)'nin "Faz 7 (Yayın)

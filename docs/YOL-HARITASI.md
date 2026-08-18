@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (61 kalem)
+## Fazlar (67 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -72,5 +72,11 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [58](58-DOKUMAN-DUZENI.md) | Doküman Düzeni | ✅ Tamamlandı |
 | [59](59-URUN-DOKUMANTASYONU.md) | Ürün Dokümantasyonu (Doküman Sitesi) | ✅ Tamamlandı |
 | [60](60-PUBLIC-API-KAPISI.md) | Public API Kapısı | ✅ Tamamlandı |
+| [61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) | İstemci Tool'ları ve Gömülebilir Sohbet | 📋 Planlandı |
+| [62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) | Model Yedek Zinciri ve Ön Uçuş Denetimi | 📋 Planlandı |
+| [63](63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) | Argüman Düzeyinde Onay Politikası | 📋 Planlandı |
+| [64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) | Denetim Zinciri ve Veri Konusu Hakları | 📋 Planlandı |
+| [65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | 📋 Planlandı |
+| [66](66-GELEN-TETIKLEYICILER.md) | Gelen Tetikleyiciler | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

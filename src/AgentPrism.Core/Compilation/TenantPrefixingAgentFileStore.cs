@@ -5,8 +5,8 @@ namespace AgentPrism;
 #pragma warning disable MAAI001
 
 /// <summary>
-/// A wrapper that behaves like a tenant-isolated subtree over a shared
-/// <see cref="Microsoft.Agents.AI.AgentFileStore"/>.
+/// A wrapper that behaves like a private subtree, isolated per tenant AND per
+/// agent, over a shared <see cref="Microsoft.Agents.AI.AgentFileStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,10 +18,23 @@ namespace AgentPrism;
 /// breach of tenant isolation.
 /// </para>
 /// <para>
-/// Every incoming path is routed to the inner store with a <c>/{tenantId}/...</c>
-/// prefix; the same prefix is also stripped from outgoing path/name fields.
-/// The result: on the wrapped side, both the write path
-/// (<c>FileMemoryProvider</c>) and the read path (<c>TextSearchProvider</c>) of
+/// 🚨 The tenant segment alone is NOT enough (defect F-105). Two agents of the
+/// same tenant shared one subtree, so a private note written by one agent was
+/// found by another agent's text search. The prefix therefore carries the agent
+/// name as well: <c>/{tenantId}/{agentName}/...</c>. The agent name is known at
+/// COMPILE time and is already part of the <c>CompiledAgentCache</c> key, so
+/// this needs no ambient state - unlike a per-session boundary, which would.
+/// </para>
+/// <para>
+/// Files stay shared between the SESSIONS of one agent, and that is deliberate:
+/// file memory is an agent-level memory, and isolating it per session would
+/// erase what the agent remembers at the start of every conversation.
+/// </para>
+/// <para>
+/// Every incoming path is routed to the inner store with the prefix above; the
+/// same prefix is also stripped from outgoing path/name fields. The result: on
+/// the wrapped side, both the write path (<c>FileMemoryProvider</c>) and the
+/// read path (<c>TextSearchProvider</c>) of
 /// <see cref="AgentDefinitionCompiler"/> operate with <c>"/"</c> as if it were
 /// their own private root directory; the real prefix in the inner store never
 /// leaks to the calling side.
@@ -32,16 +45,21 @@ internal sealed class TenantPrefixingAgentFileStore : Microsoft.Agents.AI.AgentF
     private readonly Microsoft.Agents.AI.AgentFileStore _inner;
     private readonly string _prefix;
 
-    /// <summary>Creates a new tenant-isolated wrapper.</summary>
+    /// <summary>Creates a new wrapper isolated to one agent of one tenant.</summary>
     /// <param name="inner">The shared store being wrapped.</param>
     /// <param name="tenantId">Identifier of the tenant being isolated.</param>
-    public TenantPrefixingAgentFileStore(Microsoft.Agents.AI.AgentFileStore inner, string tenantId)
+    /// <param name="agentName">Name of the agent being isolated inside that tenant.</param>
+    public TenantPrefixingAgentFileStore(
+        Microsoft.Agents.AI.AgentFileStore inner,
+        string tenantId,
+        string agentName)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentException.ThrowIfNullOrEmpty(tenantId);
+        ArgumentException.ThrowIfNullOrEmpty(agentName);
 
         _inner = inner;
-        _prefix = tenantId;
+        _prefix = tenantId + "/" + agentName;
     }
 
     /// <inheritdoc />
