@@ -96,10 +96,45 @@ places with that inversion, and both are places where the missing record would b
 whole problem.
 :::
 
-Standing decisions are **approval rules** — a pre-approval for a tool, optionally
-narrowed to one exact set of arguments by hash. They do not expire. `GET
-/api/approvals/rules` is the list to review periodically, because each entry is a tool
-call that will never ask again.
+Standing decisions are **approval rules** — a pre-approval for a tool. They do not
+expire. `GET /api/approvals/rules` is the list to review periodically, because each
+entry is a tool call that will never ask again.
+
+A rule narrows its scope one of three ways: to one exact set of arguments (a hash,
+written by the "don't ask again" flow above), to a set of argument **conditions** (for
+example `amount <= 100`, written with `POST /api/approvals/rules`), or not at all —
+matching every call of the tool. A rule carries a hash or conditions, never both.
+
+Conditions are comparisons, never expressions: a dotted path into the arguments, one
+operator from a closed set (`Equals`, `NotEquals`, `GreaterThan`,
+`GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `In`, `NotIn`), and a value. All
+of a rule's conditions must match — there is no `OR`; write two rules instead. A
+condition fails closed: an unresolved path, a missing argument, or a type mismatch
+(text `"100"` does not satisfy a numeric rule) all mean the call still asks for
+approval.
+
+```mermaid
+flowchart TD
+    accTitle: Approval decision order
+    accDescr: A code-defined policy runs first and can force or waive approval; only when it is undecided do the persisted data rules decide, falling back to asking the user.
+    A["tool call requiring approval"] --> B{"code policy registered?"}
+    B -->|"no"| D["data rules"]
+    B -->|"yes"| P["policy runs"]
+    P --> R{"result"}
+    R -->|"Required"| ASK["ask the user"]
+    R -->|"NotRequired"| GO["run without asking"]
+    R -->|"Undecided"| D
+    D --> M{"a rule matches?"}
+    M -->|"yes"| GO
+    M -->|"no"| ASK
+```
+
+A **code-defined policy**, registered with
+`builder.AddToolApprovalPolicy("refund_order", context => ...)`, runs before the data
+rules and can override them in both directions. Code is a security boundary; the data
+rules are writable from the UI and are not allowed to loosen a policy that says
+`Required`. An unhandled exception in a policy is treated as `Required` and logged —
+a broken policy never silently releases a tool from approval.
 
 ## Quotas and rate limits
 

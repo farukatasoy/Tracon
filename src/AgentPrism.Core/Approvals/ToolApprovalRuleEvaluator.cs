@@ -23,39 +23,59 @@ namespace AgentPrism;
 /// <strong>A store error does not grant approval.</strong> If a rule cannot be read,
 /// the call is not automatically approved and the system asks the user. This is the safe default.
 /// </para>
+/// <para>
+/// <strong>A code-defined policy (Phase 63) runs before the data rules and can
+/// override them.</strong> Code is a security boundary; data — writable from the
+/// UI — is not allowed to loosen it. See <see cref="ToolApprovalContext"/> and
+/// <c>IAgentPrismBuilder.AddToolApprovalPolicy(...)</c>.
+/// </para>
 /// </remarks>
 public sealed class ToolApprovalRuleEvaluator
 {
     private readonly IToolApprovalRuleStore _rules;
+    private readonly ToolApprovalPolicyRegistry _policies;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<ToolApprovalRuleEvaluator> _logger;
 
     /// <summary>Initializes a new evaluator.</summary>
     /// <param name="rules">The rule store.</param>
+    /// <param name="policies">The code-defined policy registry.</param>
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public ToolApprovalRuleEvaluator(
         IToolApprovalRuleStore rules,
+        ToolApprovalPolicyRegistry policies,
         ITenantContext tenantContext,
         ILogger<ToolApprovalRuleEvaluator> logger)
     {
         ArgumentNullException.ThrowIfNull(rules);
+        ArgumentNullException.ThrowIfNull(policies);
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(logger);
 
         _rules = rules;
+        _policies = policies;
         _tenantContext = tenantContext;
         _logger = logger;
     }
 
     /// <summary>
-    /// Determines whether a persistent rule automatically approves a tool call.
+    /// Determines whether a call is auto-approved: either a code-defined policy decides
+    /// so, or — when the policy is silent — a persistent data rule matches.
     /// </summary>
     /// <param name="agentName">The agent that makes the call.</param>
     /// <param name="call">The tool call.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> if the call is automatically approved.</returns>
+    /// <remarks>
+    /// 🚨 Code runs first and can override data in both directions: a
+    /// <see cref="ToolApprovalPolicyDecision.Required"/> policy forces approval even if a
+    /// data rule would otherwise auto-approve the call, and
+    /// <see cref="ToolApprovalPolicyDecision.NotRequired"/> auto-approves even with no
+    /// matching data rule. Only <see cref="ToolApprovalPolicyDecision.Undecided"/> (or no
+    /// registered policy) falls through to the data rules.
+    /// </remarks>
     public async ValueTask<bool> IsAutoApprovedAsync(
         string agentName,
         FunctionCallContent call,
@@ -64,6 +84,22 @@ public sealed class ToolApprovalRuleEvaluator
         ArgumentNullException.ThrowIfNull(call);
 
         var tenantId = _tenantContext.TenantId;
+
+        if (_policies.TryGet(call.Name, out var policy))
+        {
+            var decision = EvaluatePolicy(policy, tenantId, agentName, call);
+
+            switch (decision)
+            {
+                case ToolApprovalPolicyDecision.Required:
+                    return false;
+                case ToolApprovalPolicyDecision.NotRequired:
+                    return true;
+                case ToolApprovalPolicyDecision.Undecided:
+                default:
+                    break;
+            }
+        }
 
         IReadOnlyList<ToolApprovalRule> rules;
 
@@ -87,6 +123,7 @@ public sealed class ToolApprovalRuleEvaluator
         }
 
         string? argumentsHash = null;
+        IReadOnlyDictionary<string, object?>? arguments = null;
 
         foreach (var rule in rules)
         {
@@ -101,21 +138,74 @@ public sealed class ToolApprovalRuleEvaluator
                 continue;
             }
 
-            if (rule.ArgumentsHash is null)
+            if (rule.ArgumentsHash is { } hash)
             {
-                return true;
+                argumentsHash ??= ComputeArgumentsHash(call.Arguments);
+
+                if (string.Equals(hash, argumentsHash, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                continue;
             }
 
-            argumentsHash ??= ComputeArgumentsHash(call.Arguments);
-
-            if (string.Equals(rule.ArgumentsHash, argumentsHash, StringComparison.Ordinal))
+            if (rule.ArgumentConditions.Count > 0)
             {
-                return true;
+                arguments ??= ToArguments(call.Arguments);
+
+                if (ToolArgumentConditionMatcher.Matches(rule.ArgumentConditions, arguments))
+                {
+                    return true;
+                }
+
+                continue;
             }
+
+            // Neither an argument fingerprint nor conditions: the rule matches every call.
+            return true;
         }
 
         return false;
     }
+
+    private ToolApprovalPolicyDecision EvaluatePolicy(
+        Func<ToolApprovalContext, ToolApprovalPolicyDecision> policy,
+        string tenantId,
+        string agentName,
+        FunctionCallContent call)
+    {
+        try
+        {
+            return policy(new ToolApprovalContext
+            {
+                TenantId = tenantId,
+                ToolName = call.Name,
+                AgentName = agentName,
+                Arguments = ToArguments(call.Arguments),
+            });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "The approval policy for tool '{ToolName}' threw; the call will require approval.",
+                call.Name);
+
+            return ToolApprovalPolicyDecision.Required;
+        }
+    }
+
+    private static IReadOnlyDictionary<string, object?> ToArguments(IDictionary<string, object?>? arguments)
+        => arguments switch
+        {
+            null => EmptyArguments,
+            IReadOnlyDictionary<string, object?> readOnly => readOnly,
+            _ => new Dictionary<string, object?>(arguments, StringComparer.Ordinal),
+        };
+
+    private static readonly IReadOnlyDictionary<string, object?> EmptyArguments =
+        new Dictionary<string, object?>(StringComparer.Ordinal);
 
     /// <summary>
     /// Produces a deterministic fingerprint from tool arguments.

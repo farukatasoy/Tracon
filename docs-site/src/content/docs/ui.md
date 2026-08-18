@@ -113,8 +113,10 @@ Tool calls waiting on a human, with the arguments as they were recorded and an e
 Approving or rejecting both resume the run — the model has to see a result or a
 refusal and carry on.
 
-Standing "don't ask again" rules live under Governance, where they can be reviewed and
-revoked.
+Standing "don't ask again" rules live under Governance, where they can be reviewed,
+revoked, or written by hand with an argument condition (for example `amount <= 100`)
+instead of an exact-argument fingerprint. The condition editor is a closed set of
+comparisons, not a free-text expression box.
 
 ## Catalog
 

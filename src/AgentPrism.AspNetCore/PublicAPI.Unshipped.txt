@@ -979,3 +979,18 @@ static AgentPrism.WorkflowRunHttpRequest.operator !=(AgentPrism.WorkflowRunHttpR
 static AgentPrism.WorkflowRunHttpRequest.operator ==(AgentPrism.WorkflowRunHttpRequest? left, AgentPrism.WorkflowRunHttpRequest? right) -> bool
 static AgentPrism.WorkflowSaveRequest.operator !=(AgentPrism.WorkflowSaveRequest? left, AgentPrism.WorkflowSaveRequest? right) -> bool
 static AgentPrism.WorkflowSaveRequest.operator ==(AgentPrism.WorkflowSaveRequest? left, AgentPrism.WorkflowSaveRequest? right) -> bool
+AgentPrism.ToolApprovalRuleRequest
+AgentPrism.ToolApprovalRuleRequest.<Clone>$() -> AgentPrism.ToolApprovalRuleRequest!
+AgentPrism.ToolApprovalRuleRequest.AgentName.get -> string?
+AgentPrism.ToolApprovalRuleRequest.AgentName.init -> void
+AgentPrism.ToolApprovalRuleRequest.ArgumentConditions.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolArgumentCondition!>!
+AgentPrism.ToolApprovalRuleRequest.ArgumentConditions.init -> void
+AgentPrism.ToolApprovalRuleRequest.Equals(AgentPrism.ToolApprovalRuleRequest? other) -> bool
+AgentPrism.ToolApprovalRuleRequest.ToolApprovalRuleRequest() -> void
+AgentPrism.ToolApprovalRuleRequest.ToolName.get -> string!
+AgentPrism.ToolApprovalRuleRequest.ToolName.init -> void
+override AgentPrism.ToolApprovalRuleRequest.Equals(object? obj) -> bool
+override AgentPrism.ToolApprovalRuleRequest.GetHashCode() -> int
+override AgentPrism.ToolApprovalRuleRequest.ToString() -> string!
+static AgentPrism.ToolApprovalRuleRequest.operator !=(AgentPrism.ToolApprovalRuleRequest? left, AgentPrism.ToolApprovalRuleRequest? right) -> bool
+static AgentPrism.ToolApprovalRuleRequest.operator ==(AgentPrism.ToolApprovalRuleRequest? left, AgentPrism.ToolApprovalRuleRequest? right) -> bool

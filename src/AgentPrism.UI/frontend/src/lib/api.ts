@@ -70,6 +70,7 @@ import type {
   TimeSeriesBucket,
   TimeSeriesPoint,
   ToolApprovalRule,
+  ToolApprovalRuleRequest,
   ToolDescriptor,
   ToolInvocationRecord,
   ToolUsage,
@@ -404,6 +405,8 @@ export const api = {
     send<McpOAuthStartResponse>('POST', `api/mcp-servers/${encodeURIComponent(name)}/oauth/start`, {}),
 
   approvalRules: () => request<ToolApprovalRule[]>('api/approvals/rules'),
+  createApprovalRule: (body: ToolApprovalRuleRequest) =>
+    send<ToolApprovalRule>('POST', 'api/approvals/rules', body),
   deleteApprovalRule: (id: string) =>
     request<void>(`api/approvals/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 

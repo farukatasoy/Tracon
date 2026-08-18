@@ -4107,3 +4107,50 @@ static AgentPrism.ContextWindowEstimate.operator !=(AgentPrism.ContextWindowEsti
 static AgentPrism.ContextWindowEstimate.operator ==(AgentPrism.ContextWindowEstimate? left, AgentPrism.ContextWindowEstimate? right) -> bool
 static AgentPrism.ModelFallback.operator !=(AgentPrism.ModelFallback? left, AgentPrism.ModelFallback? right) -> bool
 static AgentPrism.ModelFallback.operator ==(AgentPrism.ModelFallback? left, AgentPrism.ModelFallback? right) -> bool
+AgentPrism.ToolApprovalContext
+AgentPrism.ToolApprovalContext.AgentName.get -> string?
+AgentPrism.ToolApprovalContext.AgentName.init -> void
+AgentPrism.ToolApprovalContext.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+AgentPrism.ToolApprovalContext.Arguments.init -> void
+AgentPrism.ToolApprovalContext.GetNumber(string! path) -> double?
+AgentPrism.ToolApprovalContext.GetString(string! path) -> string?
+AgentPrism.ToolApprovalContext.TenantId.get -> string!
+AgentPrism.ToolApprovalContext.TenantId.init -> void
+AgentPrism.ToolApprovalContext.ToolApprovalContext() -> void
+AgentPrism.ToolApprovalContext.ToolName.get -> string!
+AgentPrism.ToolApprovalContext.ToolName.init -> void
+AgentPrism.ToolApprovalPolicyDecision
+AgentPrism.ToolApprovalPolicyDecision.NotRequired = 1 -> AgentPrism.ToolApprovalPolicyDecision
+AgentPrism.ToolApprovalPolicyDecision.Required = 2 -> AgentPrism.ToolApprovalPolicyDecision
+AgentPrism.ToolApprovalPolicyDecision.Undecided = 0 -> AgentPrism.ToolApprovalPolicyDecision
+AgentPrism.ToolApprovalRule.ArgumentConditions.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolArgumentCondition!>!
+AgentPrism.ToolApprovalRule.ArgumentConditions.init -> void
+AgentPrism.ToolArgumentCondition
+AgentPrism.ToolArgumentCondition.<Clone>$() -> AgentPrism.ToolArgumentCondition!
+AgentPrism.ToolArgumentCondition.Equals(AgentPrism.ToolArgumentCondition? other) -> bool
+AgentPrism.ToolArgumentCondition.Operator.get -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentCondition.Operator.init -> void
+AgentPrism.ToolArgumentCondition.Path.get -> string!
+AgentPrism.ToolArgumentCondition.Path.init -> void
+AgentPrism.ToolArgumentCondition.ToolArgumentCondition() -> void
+AgentPrism.ToolArgumentCondition.Value.get -> System.Text.Json.JsonElement
+AgentPrism.ToolArgumentCondition.Value.init -> void
+AgentPrism.ToolArgumentConditionLimits
+AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.Equals = 0 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.GreaterThan = 2 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.GreaterThanOrEqual = 3 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.In = 6 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.LessThan = 4 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.LessThanOrEqual = 5 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.NotEquals = 1 -> AgentPrism.ToolArgumentOperator
+AgentPrism.ToolArgumentOperator.NotIn = 7 -> AgentPrism.ToolArgumentOperator
+const AgentPrism.ToolArgumentConditionLimits.MaxConditions = 10 -> int
+const AgentPrism.ToolArgumentConditionLimits.MaxListLength = 50 -> int
+const AgentPrism.ToolArgumentConditionLimits.MaxPathLength = 200 -> int
+const AgentPrism.ToolArgumentConditionLimits.MaxPathSegments = 10 -> int
+override AgentPrism.ToolArgumentCondition.Equals(object? obj) -> bool
+override AgentPrism.ToolArgumentCondition.GetHashCode() -> int
+override AgentPrism.ToolArgumentCondition.ToString() -> string!
+static AgentPrism.ToolArgumentCondition.operator !=(AgentPrism.ToolArgumentCondition? left, AgentPrism.ToolArgumentCondition? right) -> bool
+static AgentPrism.ToolArgumentCondition.operator ==(AgentPrism.ToolArgumentCondition? left, AgentPrism.ToolArgumentCondition? right) -> bool
