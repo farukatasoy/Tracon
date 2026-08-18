@@ -113,6 +113,19 @@ export interface ModelBinding {
   topP?: number | null;
   reasoningEffort?: string | null;
   responseFormat?: AgentResponseFormat | null;
+  fallbacks?: ModelFallback[] | null;
+}
+
+export interface ModelFallback {
+  provider: string;
+  model: string;
+}
+
+export interface ContextWindowEstimate {
+  promptTokens: number;
+  contextWindowTokens?: number | null;
+  allowedPromptTokens?: number | null;
+  wouldBeRejected: boolean;
 }
 
 export interface HarnessSettings {

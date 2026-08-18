@@ -159,6 +159,20 @@ içindedir.
 
 ---
 
+### Dalga 9 → Faz 73
+
+| Kalem | Faz |
+|---|---|
+| **F-120** Tüketici agent desteği (tanılar + üretilen yetenek haritası) | [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) |
+
+Bu kalem bir tüketici sorusundan doğdu: paketi entegre eden uygulamaların **kod
+agent'ları** yeteneklere hâkim değil. Dört seçenek tartıldı (RAG · MCP · yalnız
+doküman · derleme anı tanıları); RAG **elendi** — chunk sınırı imza ile kullanımı
+koparır, ve indeks tüketicinin kurduğu sürümden kayar. Kalan üç katmanın ikisi
+(tanılar + üretilen harita) tek faz oldu; üçüncüsü F-121'dir.
+
+---
+
 ## Bu Turda Neyin Değiştiği
 
 > 🚨 **2026-08-18 turu bu tabloyu değiştirdi.** Yedi kalem daha plana dönüştü
@@ -188,9 +202,9 @@ içindedir.
 
 | Ne | Sonuç |
 |---|---|
-| Bu listede kalan kalem | **22** (2026-08-18, iki tur sonrası) — kırk üç ID plana dönüştü, altı kalem kapandı |
+| Bu listede kalan kalem | **23** (2026-08-18, üç tur sonrası) — kırk dört ID plana dönüştü, altı kalem kapandı |
 | Tüketici raporundan doğan | **10** — F-110…F-119, **onu da aynı gün plana dönüştü** (Faz 65, 67–72); ayrıca iki kalem kalıcı olarak reddedildi (fatura üretimi, harici hosted agent yönetimi) |
-| Plana dönüşen | **36** (2026-08-18 sonu) — Dalga 8: F-110…F-119 → Faz 65, 67–72 · önceki 26 kalem:  Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
+| Plana dönüşen | **37** (2026-08-18 sonu) — Dalga 9: F-120 → Faz 73 · Dalga 8: F-110…F-119 → Faz 65, 67–72 · önceki 26 kalem:  Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
 | İptal edilen | **1** — F-43, çünkü tamamlandı |
 | Seçildi ama **ertelendi** | **1** — F-72; ölçüm erteleme getirdi ve kanıt bölümüne yazıldı |
 | Kanıtı düzeltilen | **19** — Dalga 1–2'de 11, Dalga 3'te 8. Kalemler ayakta, gerekçeler değişti |
@@ -826,6 +840,7 @@ devam eder ve sabittir.
 | **F-99** | `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** (K-343) |
 | ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
 | **F-101** | RAG belge tazeliği takibi | 2026-08-08 denetimi | Faz 51 vektör aramayı getirdi ama gömülerin ne zaman bayatladığını izleyen bir mekanizma yok. `document_embeddings`'e `source_updated_at`/`last_indexed_at` karşılaştırması ve isteğe bağlı bir "yeniden indeksle" ucu. **Doğrulanmadı** — planlanmadan önce şema okunmalı |
+| **F-121** | Geliştirici MCP sunucusu (`dotnet tool`) | 2026-08-18 tüketici agent turu · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) | Faz 73 tanıları ve haritayı verir; **detay sorgusunu** vermez. 6905 satırlık public API yüzeyi ve 6.8 MB üretilen referans hiçbir bağlama sığmaz. Sunucu cevabı tüketicinin **kurulu paketinden** okur; sürüm kayması yapısal olarak imkânsızdır. 🚨 **Ölçülmedi** — Faz 73 kapandıktan sonra kalan sorgu hacmi ölçülmeden planlanmaz. [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md)'nin MCP sunucusuyla **karıştırılmaz**: o çalışma anında tüketicinin agent'larını dışa açar, bu derleme anında paketin bilgisini kod agent'ına açar |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
