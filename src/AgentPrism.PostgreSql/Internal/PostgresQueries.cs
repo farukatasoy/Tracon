@@ -285,10 +285,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id)
+                                       replay_of_run_id, user_id, labels)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id)
+                    @replay_of_run_id, @user_id, @labels)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_id     = EXCLUDED.tenant_id,
                 agent_name    = EXCLUDED.agent_name,
@@ -305,7 +305,17 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 agent_version = EXCLUDED.agent_version,
                 experiment_id = EXCLUDED.experiment_id,
                 variant       = EXCLUDED.variant,
-                replay_of_run_id = EXCLUDED.replay_of_run_id;
+                replay_of_run_id = EXCLUDED.replay_of_run_id,
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
+                -- 46): a queued run's placeholder row is written during the HTTP
+                -- request, where the user IS known, and rewritten later by the
+                -- background worker, where it is NOT (an HTTP-bound
+                -- IRunAttributionContext has no request to read). A plain
+                -- overwrite would ERASE the attribution the first write got
+                -- right. Attribution never legitimately goes from set back to
+                -- unset for the same run, so preserving is always correct.
+                user_id       = COALESCE(EXCLUDED.user_id, {Schema}.runs.user_id),
+                labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels);
             """;
 
         UpdateRunCompletion = $"""
@@ -316,12 +326,17 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 input_tokens   = @input_tokens,
                 output_tokens  = @output_tokens,
                 total_tokens   = @total_tokens,
+                cached_input_tokens = @cached_input_tokens,
+                reasoning_tokens    = @reasoning_tokens,
+                audio_input_tokens  = @audio_input_tokens,
+                audio_output_tokens = @audio_output_tokens,
                 error_type     = @error_type,
                 error_message  = @error_message,
                 error_class    = @error_class,
                 error_fingerprint = @error_fingerprint,
                 input_cost     = @input_cost,
                 output_cost    = @output_cost,
+                cached_input_cost = @cached_input_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
                 model_id       = COALESCE(@model_id, model_id)
@@ -334,6 +349,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             UPDATE {Schema}.runs
             SET input_cost     = @input_cost,
                 output_cost    = @output_cost,
+                cached_input_cost = @cached_input_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -407,8 +423,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        COALESCE(SUM(sub.output_tokens), 0)::bigint AS output_tokens,
                        COALESCE(SUM(sub.total_tokens), 0)::bigint  AS total_tokens,
                        COUNT(sub.total_tokens)::bigint             AS usage_rows,
+                       -- 🚨 NOT COALESCE'd to zero, unlike the three above: a
+                       -- descendant tree in which nobody reported cache usage
+                       -- must read as "not measured", not "measured zero".
+                       SUM(sub.cached_input_tokens)::bigint        AS cached_input_tokens,
+                       SUM(sub.reasoning_tokens)::bigint           AS reasoning_tokens,
+                       SUM(sub.audio_input_tokens)::bigint         AS audio_input_tokens,
+                       SUM(sub.audio_output_tokens)::bigint        AS audio_output_tokens,
                        SUM(sub.input_cost)                         AS cost_input,
                        SUM(sub.output_cost)                        AS cost_output,
+                       SUM(sub.cached_input_cost)                  AS cost_cached_input,
                        MAX(sub.cost_currency)                      AS cost_currency,
                        COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
                        COUNT(sub.pricing_source)::bigint           AS pricing_rows
@@ -416,6 +440,26 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
             ) AS tree ON TRUE
             """;
+
+        // Phase 68 attribution filter, written ONCE and reused by the run list
+        // and by every result set of the statistics query. Repeating it by hand
+        // in eight places is how the copies drift apart.
+        //
+        // 🚨 Both shapes are GIN-servable by the jsonb_ops index on `labels`:
+        // jsonb_exists is the function form of `?` (the operator itself is
+        // avoided so no driver can mistake it for a parameter placeholder), and
+        // `@>` is containment. A NULL labels column makes both return NULL, so a
+        // run carrying no labels never matches a label filter.
+        static string AttributionFilter(string prefix) => $"""
+                      AND (@user_id IS NULL OR {prefix}user_id = @user_id)
+                      AND (@label_key IS NULL
+                           OR (jsonb_exists({prefix}labels, @label_key)
+                               AND (@label_value IS NULL
+                                    OR {prefix}labels @> jsonb_build_object(@label_key, @label_value))))
+            """;
+
+        var runListAttributionFilter = AttributionFilter("r.");
+        var statisticsAttributionFilter = AttributionFilter(string.Empty);
 
         // 🚨 New columns are ALWAYS appended at the end, never inserted in
         // between: the reader (PostgresRunStore.ReadRun) reads by fixed
@@ -430,7 +474,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
             tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows,
             r.error_class, r.error_fingerprint,
-            r.replay_of_run_id
+            r.replay_of_run_id,
+            r.user_id, r.labels,
+            r.cached_input_tokens, r.reasoning_tokens, r.audio_input_tokens, r.audio_output_tokens,
+            r.cached_input_cost,
+            tree.cached_input_tokens, tree.reasoning_tokens, tree.audio_input_tokens, tree.audio_output_tokens,
+            tree.cost_cached_input
             """;
 
         SelectRun = $"""
@@ -465,6 +514,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     )
               )
               AND (@started_after IS NULL OR r.started_at > @started_after)
+            {runListAttributionFilter}
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
               AND (
                     -- When a parent filter is given, the root filter is
@@ -498,6 +548,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND r2.kind <> @kind_eval
               AND (@agent_name IS NULL OR r2.agent_name = @agent_name)
               AND (@started_after IS NULL OR r2.started_at > @started_after)
+            {AttributionFilter("r2.")}
             """;
 
         SelectRunStatistics = $"""
@@ -510,8 +561,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
                    COALESCE(SUM(total_tokens), 0)::bigint,
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
+                   -- 🚨 cached_input_cost is a THIRD ADDEND, not a subset of
+                   -- input_cost: the resolver already subtracted the cached
+                   -- tokens out of input_cost. Omitting it under-reports every
+                   -- run that hit the prompt cache.
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END,
                    MAX(cost_currency),
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint,
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter})::bigint,
@@ -519,12 +574,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
                                 ELSE (COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1))::float8
                                      / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
                            END
-                    FROM {matchedRunScoresFilter})
+                    FROM {matchedRunScoresFilter}),
+                   -- Ordinals 14-17, APPENDED so the reader's fixed positions
+                   -- above do not move. These four are counted INSIDE the
+                   -- input/output totals and are reported beside them.
+                   COALESCE(SUM(cached_input_tokens), 0)::bigint,
+                   COALESCE(SUM(reasoning_tokens), 0)::bigint,
+                   COALESCE(SUM(audio_input_tokens), 0)::bigint,
+                   COALESCE(SUM(audio_output_tokens), 0)::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
-              AND (@started_after IS NULL OR started_at > @started_after);
+              AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter};
 
             SELECT agent_name,
                    COUNT(*)::bigint,
@@ -535,6 +598,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY agent_name
             ORDER BY COUNT(*) DESC, agent_name
             LIMIT @max_agents;
@@ -544,14 +608,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
                    COALESCE(SUM(total_tokens), 0)::bigint,
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
               AND model_id IS NOT NULL
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY model_id
             ORDER BY COUNT(*) DESC, model_id
             LIMIT @max_agents;
@@ -567,6 +632,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND agent_version IS NOT NULL
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY agent_name, agent_version
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
@@ -583,6 +649,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND status = @status_failed
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY COALESCE(error_class, 0)
             ORDER BY COUNT(*) DESC;
 
@@ -613,6 +680,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                   AND status = @status_failed
                   AND (@agent_name IS NULL OR agent_name = @agent_name)
                   AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             ),
             samples AS (
                 SELECT error_class, error_fingerprint, cluster_count, last_seen_at,
@@ -629,6 +697,51 @@ internal sealed class PostgresQueries : SqlQueriesBase
             FROM ranked
             WHERE cluster_rank <= @top_clusters
             ORDER BY error_class, cluster_count DESC;
+
+            -- Seventh result set: breakdown by user (phase 68). Runs carrying no
+            -- user stay OUT of this list but remain in the totals, exactly as
+            -- runs with an unknown model do -- otherwise the two figures would
+            -- disagree. APPENDED after the existing sets so their positions in
+            -- SqlRunStore hold.
+            SELECT user_id,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint,
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
+              AND user_id IS NOT NULL
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
+            GROUP BY user_id
+            ORDER BY COUNT(*) DESC, user_id
+            LIMIT @max_agents;
+
+            -- Eighth result set: breakdown by label. jsonb_each_text expands the
+            -- map, so a run carrying three labels contributes to THREE rows.
+            -- 🚨 These rows therefore do NOT sum to TotalRuns, unlike every other
+            -- breakdown: a label set is not a partition of the runs.
+            SELECT kv.key,
+                   kv.value,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE r.status = @status_failed)::bigint,
+                   COALESCE(SUM(r.total_tokens), 0)::bigint,
+                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END
+            FROM {Schema}.runs AS r
+            CROSS JOIN LATERAL jsonb_each_text(r.labels) AS kv(key, value)
+            WHERE r.tenant_id = @tenant_id
+              AND r.kind <> @kind_eval
+              AND r.labels IS NOT NULL
+              AND (@agent_name IS NULL OR r.agent_name = @agent_name)
+              AND (@started_after IS NULL OR r.started_at > @started_after)
+            {runListAttributionFilter}
+            GROUP BY kv.key, kv.value
+            ORDER BY COUNT(*) DESC, kv.key, kv.value
+            LIMIT @max_agents;
             """;
 
         // 🚨 SELECT ... WHERE EXISTS, not VALUES: the write applies only if
@@ -889,8 +1002,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    COALESCE(SUM(r.output_tokens), 0)::bigint,
                    COALESCE(SUM(r.total_tokens), 0)::bigint,
                    AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at)) * 1000) FILTER (WHERE r.completed_at IS NOT NULL),
-                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) END,
+                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END,
                    MAX(r.cost_currency),
                    AVG(s.avg_score)
             FROM {Schema}.runs r
@@ -924,8 +1037,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        COUNT(*) FILTER (WHERE status = @status_failed)::bigint AS failed_runs,
                        COALESCE(SUM(input_tokens), 0)::bigint AS input_tokens,
                        COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
-                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END AS cost,
+                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END AS cost,
                        AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
                            FILTER (WHERE completed_at IS NOT NULL) AS avg_duration_ms
                 FROM {Schema}.runs

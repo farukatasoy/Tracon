@@ -59,14 +59,21 @@ internal static class CatalogEndpoints
         builder.MapGet("/api/stats", async Task<Ok<RunStatistics>> (
                 IRunStore runs,
                 string? agentName,
+                string? userId,
+                string? label,
                 DateTimeOffset? startedAfter,
                 int? maxAgents,
                 CancellationToken cancellationToken) =>
             {
+                var (labelKey, labelValue) = RunAttributionGate.ParseLabelFilter(label);
+
                 var statistics = await runs.GetStatisticsAsync(
                     new RunStatisticsQuery
                     {
                         AgentName = agentName,
+                        UserId = userId,
+                        LabelKey = labelKey,
+                        LabelValue = labelValue,
                         StartedAfter = startedAfter,
                         MaxAgents = maxAgents is { } max ? Math.Clamp(max, 0, 200) : 20,
                     },
@@ -83,7 +90,13 @@ internal static class CatalogEndpoints
                 "The summary is computed in the store itself. Cost is populated " +
                 "only when pricing is configured (model catalog or AgentPrism:Pricing); " +
                 "the count of models with undefined pricing is counted separately in the " +
-                "RunsWithUnknownPricing field — it is not written as zero.");
+                "RunsWithUnknownPricing field — it is not written as zero. Every breakdown " +
+                "(byAgent, byModel, byVersion, byUser, byLabel) is ALWAYS returned; there is no " +
+                "groupBy switch. 'userId' and 'label' ('key:value') narrow the whole summary " +
+                "rather than choosing a breakdown. 🚨 byLabel rows do NOT sum to totalRuns: a run " +
+                "carrying three labels appears in three of them. cachedInputTokens and " +
+                "reasoningTokens are counted INSIDE inputTokens/outputTokens, so adding them " +
+                "double counts.");
 
         builder.MapGet("/api/stats/timeseries", async Task<Results<Ok<IReadOnlyList<TimeSeriesPoint>>, ProblemHttpResult>> (
                 IRunStore runs,

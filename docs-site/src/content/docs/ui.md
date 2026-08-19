@@ -33,6 +33,12 @@ Runs, errors, tokens, and cost across every agent, over a window you choose. Cos
 appears only when pricing is configured; models with no pricing are counted
 separately rather than silently written as zero.
 
+A **token breakdown** bar shows where the tokens actually went: prompt-cache hits,
+fresh input, reasoning, and plain output. The four slices are disjoint — cache hits
+and reasoning are re-cut out of the input and output totals rather than added
+beside them, so the bar is never longer than the tokens that were spent. Each slice
+is named with its own count underneath, so colour is never the only signal.
+
 The footer always states which storage is active. In the screenshot above it says
 in-memory — a reminder that this data ends with the process.
 
@@ -68,9 +74,13 @@ live conversation mode.
 
 <a class="ui-shot" href="/AgentPrism/screenshots/runs.png"><img src="/AgentPrism/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
-Every execution, filterable by agent, status, and kind. Only root runs are shown by
-default — otherwise a single question that fanned out to four agents would fill the
-list with rows nobody started.
+Every execution, filterable by agent, status, and kind — and, once your application
+binds `IRunAttributionContext`, by **user** and by **label** (`key:value`, or a bare
+key to match any value of it). Only root runs are shown by default — otherwise a
+single question that fanned out to four agents would fill the list with rows nobody
+started.
+
+A run's detail header names the user it belongs to and shows its labels as badges.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
 tool calls with arguments and results, errors with their class. A run that called

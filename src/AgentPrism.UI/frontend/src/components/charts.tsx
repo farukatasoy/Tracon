@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
-import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices } from '../lib/chart';
+import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from '../lib/chart';
 import { count, money } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { RunModelStatistics, TimeSeriesPoint } from '../lib/types';
+import type { RunModelStatistics, RunStatistics, TimeSeriesPoint } from '../lib/types';
 
 /**
  * A faint wash of a theme colour. Same trick as the workflow graph: mixed at
@@ -154,6 +154,91 @@ export function ModelBreakdownChart({
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Where the tokens actually went: cache hits, fresh input, reasoning, plain output.
+ *
+ * 🚨 The four slices are DISJOINT, produced by subtraction in
+ * {@link tokenBreakdown}. `cachedInputTokens` and `reasoningTokens` are counted
+ * INSIDE the input and output totals, so stacking the raw counters would draw a
+ * bar longer than the tokens that were spent.
+ *
+ * Colour is never the only signal: every slice is also named in the legend
+ * underneath, with its own token count.
+ */
+export function TokenBreakdownChart({ stats }: { stats: RunStatistics }): ReactNode {
+  const t = useT();
+
+  const slices = useMemo(
+    () =>
+      tokenBreakdown({
+        inputTokens: stats.inputTokens,
+        outputTokens: stats.outputTokens,
+        cachedInputTokens: stats.cachedInputTokens,
+        reasoningTokens: stats.reasoningTokens,
+      }),
+    [stats],
+  );
+
+  if (slices.length === 0) {
+    return <EmptyChart height={80} />;
+  }
+
+  // Solid tokens, not tints: four adjacent slices have to stay apart from each
+  // other. Every one of these is defined in BOTH themes in styles.css.
+  const colours: Record<string, string> = {
+    cachedInput: 'var(--ap-emerald)',
+    input: 'var(--ap-violet)',
+    reasoning: 'var(--ap-amber)',
+    output: 'var(--ap-cyan)',
+  };
+
+  const labels: Record<string, string> = {
+    cachedInput: t('dashboard.tokens.cachedInput'),
+    input: t('dashboard.tokens.input'),
+    reasoning: t('dashboard.tokens.reasoning'),
+    output: t('dashboard.tokens.output'),
+  };
+
+  return (
+    <div data-testid="token-breakdown-chart" className="flex flex-col gap-3 p-4">
+      <div
+        role="img"
+        aria-label={t('dashboard.tokens.label')}
+        className="flex h-4 overflow-hidden rounded bg-raised"
+      >
+        {slices.map((slice) => (
+          <div
+            key={slice.key}
+            style={{ width: `${slice.share * 100}%`, background: colours[slice.key] }}
+            title={`${labels[slice.key]}: ${count(slice.tokens)}`}
+            className="h-full"
+          />
+        ))}
+      </div>
+
+      <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+        {slices.map((slice) => (
+          <div key={slice.key} className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              style={{ background: colours[slice.key] }}
+              className="size-2.5 shrink-0 rounded-sm"
+            />
+            <dt className="text-muted">{labels[slice.key]}</dt>
+            <dd className="font-medium">{count(slice.tokens)}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/*
+        The one thing a reader cannot infer from the bar: these slices are a
+        RE-CUT of the input/output totals, not extra tokens beside them.
+      */}
+      <p className="text-[11px] text-subtle">{t('dashboard.tokens.hint')}</p>
     </div>
   );
 }

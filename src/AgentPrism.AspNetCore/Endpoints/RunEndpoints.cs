@@ -47,6 +47,8 @@ internal static class RunEndpoints
                 [FromQuery] RunKind? kind,
                 [FromQuery] string? sessionId,
                 [FromQuery] string? errorType,
+                [FromQuery] string? userId,
+                [FromQuery] string? label,
                 [FromQuery] DateTimeOffset? startedAfter,
                 [FromQuery] bool? includeChildren,
                 [FromQuery] Guid? parentRunId,
@@ -55,6 +57,8 @@ internal static class RunEndpoints
                 [FromQuery] int? take,
                 CancellationToken cancellationToken) =>
             {
+                var (labelKey, labelValue) = RunAttributionGate.ParseLabelFilter(label);
+
                 var records = await runs.QueryRunsAsync(
                     new RunQuery
                     {
@@ -63,6 +67,9 @@ internal static class RunEndpoints
                         Kind = kind,
                         SessionId = sessionId,
                         ErrorType = errorType,
+                        UserId = userId,
+                        LabelKey = labelKey,
+                        LabelValue = labelValue,
                         StartedAfter = startedAfter,
 
                         // The default is root runs only: when an agent calls other
@@ -85,7 +92,10 @@ internal static class RunEndpoints
             .WithDescription(
                 "By default, ONLY root runs are returned. To also see child runs, use " +
                 "'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for " +
-                "the direct children of a run.");
+                "the direct children of a run. 'userId' narrows the list to one user's runs, and " +
+                "'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' " +
+                "matches any value of that key. Both dimensions are recorded from the server-side " +
+                "IRunAttributionContext, never from the run request body.");
 
         builder.MapGet("/api/runs/{runId:guid}/tree", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (
                 Guid runId,

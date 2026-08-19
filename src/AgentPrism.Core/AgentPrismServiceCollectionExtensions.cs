@@ -223,6 +223,12 @@ public static class AgentPrismServiceCollectionExtensions
         // their own implementation before this call.
         services.TryAddSingleton<ITenantContext, SingleTenantContext>();
 
+        // Run attribution: who ran this, and for which job. The default reports
+        // only what AmbientRunAttributionScope carries, so an application that
+        // registers nothing keeps its exact current behaviour. A consumer binds
+        // this to its own identity pipeline; TryAdd makes that registration win.
+        services.TryAddSingleton<IRunAttributionContext, DefaultRunAttributionContext>();
+
         // Registries.
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
 
@@ -820,7 +826,11 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<RunSampler>(),
                 // HATA-S3-006: without this line, the input written to the
                 // RunStarted event and IRunInputStore never passes through the guards.
-                provider.GetRequiredService<ContentGuardPipeline>())));
+                provider.GetRequiredService<ContentGuardPipeline>(),
+                // 🚨 Phase 68, and the SAME trap the comment above describes:
+                // without this line every run records a NULL user and NULL
+                // labels while the build and the tests stay green.
+                provider.GetRequiredService<IRunAttributionContext>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
@@ -1014,6 +1024,12 @@ public static class AgentPrismServiceCollectionExtensions
                 var input = ReadDecimal(modelSection, "Input");
                 var output = ReadDecimal(modelSection, "Output");
 
+                // "CachedInput" is OPTIONAL and, unlike Input/Output, its absence
+                // is NOT a configuration fault: a model without a cache rate keeps
+                // pricing its cached tokens at the plain input rate. It therefore
+                // does NOT take part in the "at least one value" check below.
+                var cachedInput = ReadDecimal(modelSection, "CachedInput");
+
                 // 🚨 The record is ADDED even when both are null (K-034): a
                 // price entry written with a key name other than
                 // "Input"/"Output" (e.g. the C# property name
@@ -1026,6 +1042,7 @@ public static class AgentPrismServiceCollectionExtensions
                 {
                     InputCostPerMillionTokens = input,
                     OutputCostPerMillionTokens = output,
+                    CachedInputCostPerMillionTokens = cachedInput,
                 };
             }
 

@@ -1157,7 +1157,7 @@
           "Runs"
         ],
         "summary": "Lists runs from newest to oldest.",
-        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run.",
+        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body.",
         "operationId": "AgentPrismListRuns",
         "parameters": [
           {
@@ -1190,6 +1190,20 @@
           },
           {
             "name": "errorType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
             "in": "query",
             "schema": {
               "type": "string"
@@ -3259,11 +3273,25 @@
           "Agents"
         ],
         "summary": "Returns run counts, token totals, and the error rate.",
-        "description": "The summary is computed in the store itself. Cost is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero.",
+        "description": "The summary is computed in the store itself. Cost is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero. Every breakdown (byAgent, byModel, byVersion, byUser, byLabel) is ALWAYS returned; there is no groupBy switch. \u0027userId\u0027 and \u0027label\u0027 (\u0027key:value\u0027) narrow the whole summary rather than choosing a breakdown. \uD83D\uDEA8 byLabel rows do NOT sum to totalRuns: a run carrying three labels appears in three of them. cachedInputTokens and reasoningTokens are counted INSIDE inputTokens/outputTokens, so adding them double counts.",
         "operationId": "AgentPrismStats",
         "parameters": [
           {
             "name": "agentName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "label",
             "in": "query",
             "schema": {
               "type": "string"
@@ -11271,6 +11299,16 @@
             ],
             "description": "The cost per million output tokens. For reporting only.",
             "format": "double"
+          },
+          "cachedInputCostPerMillionTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "The cost per million input tokens that were served from the provider\u0027s\nprompt cache. For reporting only.",
+            "format": "double"
           }
         },
         "description": "A model\u0027s capabilities and limits."
@@ -12295,6 +12333,16 @@
             "description": "Gets the output token cost, or \u0060null\u0060 when the price is unknown.",
             "format": "double"
           },
+          "cachedInputCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the cost of the input tokens that were served from the prompt\ncache, or \u0060null\u0060 when no cache read was priced.",
+            "format": "double"
+          },
           "currency": {
             "type": [
               "null",
@@ -12544,6 +12592,63 @@
         ],
         "description": "Reports what a \u0060runs\u0060 row records."
       },
+      "RunLabelStatistics": {
+        "required": [
+          "key",
+          "value",
+          "totalRuns",
+          "failedRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The label key."
+          },
+          "value": {
+            "type": "string",
+            "description": "The label value."
+          },
+          "totalRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The number of runs carrying this exact key/value pair.",
+            "format": "int64"
+          },
+          "failedRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This label\u0027s number of runs that ended in an error.",
+            "format": "int64"
+          },
+          "totalTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This label\u0027s total token usage.",
+            "format": "int64"
+          },
+          "totalCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "This label\u0027s total cost. \u0060null\u0060 if no run carrying it was ever priced.",
+            "format": "double"
+          }
+        },
+        "description": "A label\u0027s run summary; one entry per distinct key/value pair."
+      },
       "RunModelStatistics": {
         "required": [
           "modelId",
@@ -12656,6 +12761,23 @@
               "string"
             ],
             "description": "Gets the tenant the run belongs to."
+          },
+          "userId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the user the run belongs to, or \u0060null\u0060 when it was\nnot known."
+          },
+          "labels": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Gets the labels the run carries, or \u0060null\u0060 when it\ncarries none."
           },
           "sessionId": {
             "type": [
@@ -13059,6 +13181,42 @@
             "description": "The total tokens.",
             "format": "int64"
           },
+          "cachedInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The input tokens that were served from the prompt cache. Counted INSIDE\nlong RunStatistics.InputTokens, so the two must not be added together.",
+            "format": "int64"
+          },
+          "reasoningTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The tokens spent on reasoning. Counted INSIDE long RunStatistics.OutputTokens.",
+            "format": "int64"
+          },
+          "audioInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The audio input tokens. Counted INSIDE long RunStatistics.InputTokens.",
+            "format": "int64"
+          },
+          "audioOutputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The audio output tokens. Counted INSIDE long RunStatistics.OutputTokens.",
+            "format": "int64"
+          },
           "byAgent": {
             "type": "array",
             "items": {
@@ -13079,6 +13237,20 @@
               "$ref": "#/components/schemas/RunVersionStatistics"
             },
             "description": "The breakdown by definition version. Runs with an unknown version do not appear in this list."
+          },
+          "byUser": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunUserStatistics"
+            },
+            "description": "The breakdown by user. Runs that carry no user identity do not appear\nin this list; they are still counted in the totals."
+          },
+          "byLabel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunLabelStatistics"
+            },
+            "description": "The breakdown by label. One entry per distinct key/value pair, so a run\ncarrying three labels contributes to three entries."
           },
           "byErrorClass": {
             "type": "array",
@@ -13233,6 +13405,16 @@
             "description": "Gets the total output cost across the tree.",
             "format": "double"
           },
+          "cachedInputCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the total cached-input cost across the tree.",
+            "format": "double"
+          },
           "currency": {
             "type": [
               "null",
@@ -13284,9 +13466,101 @@
             ],
             "description": "Gets the total number of tokens.",
             "format": "int64"
+          },
+          "cachedInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the input tokens that were served from the provider\u0027s prompt\ncache. Counted INSIDE long? RunUsage.InputTokens.",
+            "format": "int64"
+          },
+          "reasoningTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the tokens the model spent on reasoning. Counted INSIDE\nlong? RunUsage.OutputTokens.",
+            "format": "int64"
+          },
+          "audioInputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the audio input tokens. Counted INSIDE long? RunUsage.InputTokens.",
+            "format": "int64"
+          },
+          "audioOutputTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the audio output tokens. Counted INSIDE long? RunUsage.OutputTokens.",
+            "format": "int64"
           }
         },
         "description": "Token usage of a run."
+      },
+      "RunUserStatistics": {
+        "required": [
+          "userId",
+          "totalRuns",
+          "failedRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The user identity."
+          },
+          "totalRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This user\u0027s total number of runs.",
+            "format": "int64"
+          },
+          "failedRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This user\u0027s number of runs that ended in an error.",
+            "format": "int64"
+          },
+          "totalTokens": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "This user\u0027s total token usage.",
+            "format": "int64"
+          },
+          "totalCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "This user\u0027s total cost. \u0060null\u0060 if no run of theirs was ever priced.",
+            "format": "double"
+          }
+        },
+        "description": "A user\u0027s run summary."
       },
       "RunVersionStatistics": {
         "required": [

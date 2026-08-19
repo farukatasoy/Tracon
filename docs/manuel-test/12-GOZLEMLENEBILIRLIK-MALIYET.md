@@ -1,7 +1,8 @@
 # 12 — Gözlemlenebilirlik ve Maliyet (`OBS`)
 
 > **Alan kodu:** `OBS` · **Faz:** 6 (iz/span), 20 (maliyet + gösterge paneli),
-> 35 (maliyet/kota metrikleri — OTel enstrümanları)
+> 35 (maliyet/kota metrikleri — OTel enstrümanları),
+> 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1055,5 +1056,272 @@ az bir çalıştırma yapılmış olmalı.
   `quota_metric` (`Runs`) görünür.
 - `usage`'ın değeri o ana kadarki run sayısına, `limit`'in değeri `1000`'e
   eşittir (`MT-OBS-035`'in tanımladığı kural).
+
+---
+
+### MT-OBS-037 — `IRunAttributionContext` kayıtlı DEĞİLKEN hiçbir davranış değişmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-478 |
+
+**Ön koşul**
+Uygulamada `IRunAttributionContext` kaydı YOK (örnek uygulamada
+`DemoRunAttributionContext` kaydı geçici olarak kaldırılmış ya da hiçbir
+`X-Demo-*` başlığı gönderilmiyor).
+
+**Adımlar**
+```bash
+curl -s -X POST "$BASE/api/agents/summarizer/run" \
+  -H "Authorization: Bearer $TOKEN" -H "$ROLE" -H "Content-Type: application/json" \
+  -d '{"message":"merhaba"}' -N
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | jq '.[0] | {userId, labels}'
+```
+
+**Beklenen sonuç**
+- Çalıştırma `200` ile normal biter.
+- `userId` ve `labels` **`null`** döner (boş nesne `{}` DEĞİL).
+
+---
+
+### MT-OBS-038 — 🚨 İstek gövdesindeki `userId` YOK SAYILIR (sahteleştirme reddi)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-478 |
+
+**Ön koşul**
+`IRunAttributionContext` kimlik hattına bağlı (örnek uygulamada
+`DemoRunAttributionContext`; kullanıcı `X-Demo-User` başlığından gelir).
+
+**Adımlar**
+```bash
+curl -s -X POST "$BASE/api/agents/summarizer/run" \
+  -H "Authorization: Bearer $TOKEN" -H "$ROLE" -H "Content-Type: application/json" \
+  -H "X-Demo-User: ada" -H "X-Demo-Labels: team=payments,ticket=OPS-1" \
+  -d '{"message":"Özetle: AgentPrism çalıştırmaları kaydeder.","userId":"ATTACKER"}' -N
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | jq '.[0] | {userId, labels}'
+```
+
+**Beklenen sonuç**
+- `userId` **`"ada"`** — sunucunun çözdüğü kimlik.
+- `userId` hiçbir koşulda `"ATTACKER"` OLMAZ; gövdedeki alan bağlanmaz.
+- `labels` `{"team":"payments","ticket":"OPS-1"}` döner.
+
+---
+
+### MT-OBS-039 — Kullanıcı ve etiket kırılımı `/api/stats` içinde döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-485 |
+
+**Ön koşul**
+`MT-OBS-038` koşulmuş; ayrıca `X-Demo-User: grace` + `X-Demo-Labels: team=billing`
+ile bir, `X-Demo-User: ada` + `X-Demo-Labels: team=payments` ile bir çalıştırma
+daha yapılmış (toplam üç atıflı çalıştırma).
+
+**Adımlar**
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/stats" \
+  | jq '{byUser: [.byUser[] | {userId, totalRuns}], byLabel: [.byLabel[] | {key, value, totalRuns}]}'
+```
+
+**Beklenen sonuç**
+- `byUser` iki satır: `ada` → 2 çalıştırma, `grace` → 1 çalıştırma.
+- `byLabel` üç satır: `team=payments` → 2, `team=billing` → 1, `ticket=OPS-1` → 1.
+- 🚨 `byLabel` satırlarının toplamı (4) `totalRuns`'tan **BÜYÜKTÜR** — iki etiket
+  taşıyan çalıştırma iki satıra girer. Bu bir kusur değil, etiket kümesinin
+  çalıştırmaları bölümlemiyor olmasının sonucudur.
+- Atıfsız eski çalıştırmalar `totalRuns` içinde kalır ama `byUser`'da GÖRÜNMEZ.
+
+---
+
+### MT-OBS-040 — Çalıştırma listesi kullanıcıya ve etikete göre süzülür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+`MT-OBS-039` koşulmuş.
+
+**Adımlar**
+```bash
+for q in "?userId=ada" "?userId=grace" "?label=team:payments" "?label=team:billing" "?label=team"; do
+  echo -n "$q -> "
+  curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs$q" | jq 'length'
+done
+```
+
+**Beklenen sonuç**
+- `?userId=ada` → `2` · `?userId=grace` → `1`
+- `?label=team:payments` → `2` · `?label=team:billing` → `1`
+- `?label=team` (değersiz, yalnız anahtar) → `3` — anahtarın HER değerini eşler.
+
+---
+
+### MT-OBS-041 — 🚨 Etiket sınırı aşımı `400` verir; çalıştırma HİÇ başlamaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-480 |
+
+**Ön koşul**
+`IRunAttributionContext` kimlik hattına bağlı. Önce `/api/stats` çağrılıp
+`totalRuns` not edilir.
+
+**Adımlar**
+```bash
+curl -s -w "\nHTTP %{http_code}\n" -X POST "$BASE/api/agents/summarizer/run" \
+  -H "Authorization: Bearer $TOKEN" -H "$ROLE" -H "Content-Type: application/json" \
+  -H "X-Demo-User: ada" -H "X-Demo-Labels: a=1,b=2,c=3,d=4,e=5,f=6,g=7,h=8,i=9" \
+  -d '{"message":"merhaba"}'
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/stats" | jq '.totalRuns'
+```
+
+**Beklenen sonuç**
+- `HTTP 400`; `title` = `"Invalid run attribution"`.
+- `detail` sınırı SAYIYLA söyler: `"The run carries 9 labels; at most 8 are allowed."`
+- 🚨 `totalRuns` **DEĞİŞMEZ** — reddedilen istek hiçbir satır açmaz. Dokuzuncu
+  etiket sessizce KIRPILMAZ; kırpılmış bir etiket kümesi raporu okuyana eksiksiz
+  bir ölçüm gibi görünürdü.
+
+---
+
+### MT-OBS-042 — Prompt cache isabetinde maliyet cache oranıyla hesaplanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-483 |
+
+**Ön koşul**
+Gerçek bir OpenAI anahtarı tanımlı ve cache oranı YAPILANDIRILMIŞ:
+```bash
+export "AgentPrism__Pricing__Currency=USD"
+export "AgentPrism__Pricing__openai__gpt-5.4-mini__Input=0.25"
+export "AgentPrism__Pricing__openai__gpt-5.4-mini__Output=2"
+export "AgentPrism__Pricing__openai__gpt-5.4-mini__CachedInput=0.025"
+```
+Uygulama bu ayarlarla yeniden başlatılmış olmalı.
+
+**Adımlar**
+1. **AYNI** uzun ön ekli (>1024 token; ~1500 kelimelik tekrar eden metin) bir
+   mesajı `summarizer`'a arka arkaya **iki kez** gönder.
+2. İki çalıştırmanın `usage` ve `cost` alanlarını oku:
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=2" \
+  | jq '.[] | {input: .usage.inputTokens, cached: .usage.cachedInputTokens,
+               inputCost: .cost.inputCost, cachedCost: .cost.cachedInputCost, source: .cost.source}'
+```
+
+**Beklenen sonuç**
+- Birinci çalıştırma: `cached` = `0`, `inputCost` = `input × 0.25 / 1e6`.
+- İkinci çalıştırma: `cached` **> 0**; `inputCost` = `(input − cached) × 0.25 / 1e6`
+  ve `cachedCost` = `cached × 0.025 / 1e6`.
+- İkinci çalıştırmanın TOPLAM maliyeti birincinin maliyetinden **belirgin biçimde
+  düşüktür**.
+- 🚨 Hesap ÇIKARMALIdır: `cachedInputTokens` `inputTokens`'ın **içinde** sayılır;
+  tam fiyatlı girdiye eklenmez.
+
+---
+
+### MT-OBS-043 — Cache fiyatı TANIMSIZKEN maliyet eskisiyle aynı kalır, `Unknown`'a DÜŞMEZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-483 |
+
+**Ön koşul**
+`MT-OBS-042` ile aynı, ama `CachedInput` ayarı **VERİLMEDEN** (yalnız
+`Input`/`Output`) yeniden başlatılmış.
+
+**Adımlar**
+`MT-OBS-042`'nin adımlarını tekrarla (aynı uzun mesaj, iki kez).
+
+**Beklenen sonuç**
+- `cachedInputTokens` yine sağlayıcının bildirdiği değeri taşır (**> 0**).
+- `inputCost` girdinin **TAMAMI** tam fiyattan hesaplanır — cache oranı yokken
+  hiçbir çıkarma yapılmaz; değer bu faz ÖNCESİYLE birebir aynıdır.
+- `cachedInputCost` **`null`**.
+- 🚨 `cost.source` **`Unknown` DEĞİL** (`Catalog` veya `Configuration`). Eksik
+  cache oranı ile eksik MODEL fiyatı iki ayrı arızadır ve karıştırılmaz.
+
+---
+
+### MT-OBS-044 — Sağlayıcının bildirmediği sayaç `null` kalır, `0` OLMAZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | K-482 |
+
+**Ön koşul**
+Herhangi bir OpenAI çalıştırması yapılmış.
+
+**Adımlar**
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | jq '.[0].usage'
+```
+
+**Beklenen sonuç**
+- `cachedInputTokens` ve `reasoningTokens` sayısal değer taşır (sağlayıcı bunları
+  bildirir; `0` da geçerli bir ÖLÇÜMdür).
+- `audioInputTokens` ve `audioOutputTokens` **`null`** — sağlayıcı bunları hiç
+  bildirmez.
+- 🚨 Ayrım taşıyıcıdır: `0` "ölçüldü, yoktu" der; `null` "hiç ölçülmedi" der.
+  İkisini ayıramayan bir rapor, susan her sağlayıcı için kendinden emin bir
+  %0 cache isabet oranı gösterir.
+
+---
+
+### MT-OBS-045 — 👤 Gösterge panelinde token kırılım çubuğu ve listede kullanıcı süzgeci
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 68 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+`MT-OBS-042` koşulmuş (cache isabetli en az iki çalıştırma var).
+
+**Adımlar**
+1. Konsolda **Gösterge Paneli**'ni aç; "Token kırılımı" panelini bul.
+2. **Çalıştırmalar** ekranına geç; "Kullanıcı kimliği" kutusuna `ada` yaz.
+3. Bir çalıştırmanın ayrıntısına gir.
+
+**Beklenen sonuç**
+- 👤 Kırılım çubuğu dört dilime kadar gösterir (cache isabeti · girdi · akıl
+  yürütme · çıktı); her dilim altındaki açıklamada adı ve token sayısıyla yazılır.
+- 👤 Çubuğun altındaki not, cache ve akıl yürütmenin girdi/çıktı toplamlarının
+  **içinden** ayrıldığını söyler.
+- 👤 Kullanıcı süzgeci listeyi daraltır; ayrıntı sayfasında "çalıştıran `ada`"
+  ve etiket rozetleri görünür.
+- 👤 Dil `tr`'ye çevrildiğinde tüm bu metinler Türkçe gelir.
 
 ---

@@ -271,6 +271,10 @@ export const api = {
       agentName?: string;
       status?: RunStatus;
       sessionId?: string;
+      /** Narrows to one user. The server records it from IRunAttributionContext, never from a run body. */
+      userId?: string;
+      /** `key:value`, or a bare `key` to match any value of that key. */
+      label?: string;
       startedAfter?: string;
       /** Include child runs. The server returns only root runs by default. */
       includeChildren?: boolean;
@@ -365,7 +369,16 @@ export const api = {
     request<ModelProviderHealth>(
       `api/models/health/${encodeURIComponent(name)}${query({ refresh: refresh ? 'true' : undefined })}`,
     ),
-  stats: (params: { agentName?: string; startedAfter?: string; maxAgents?: number } = {}) =>
+  stats: (
+    params: {
+      agentName?: string;
+      userId?: string;
+      /** `key:value`, or a bare `key` to match any value of that key. */
+      label?: string;
+      startedAfter?: string;
+      maxAgents?: number;
+    } = {},
+  ) =>
     request<RunStatistics>(`api/stats${query(params)}`),
   timeseries: (
     params: {

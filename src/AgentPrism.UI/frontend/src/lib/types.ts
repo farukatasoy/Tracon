@@ -464,6 +464,20 @@ export interface RunUsage {
   inputTokens?: number | null;
   outputTokens?: number | null;
   totalTokens?: number | null;
+  /**
+   * Input tokens served from the provider's prompt cache.
+   *
+   * Counted INSIDE `inputTokens`, never beside it — adding the two counts the
+   * same tokens twice. Null means the provider reported nothing, which is a
+   * different statement from a reported zero.
+   */
+  cachedInputTokens?: number | null;
+  /** Tokens spent on reasoning. Counted INSIDE `outputTokens`. */
+  reasoningTokens?: number | null;
+  /** Audio input tokens. Counted INSIDE `inputTokens`. */
+  audioInputTokens?: number | null;
+  /** Audio output tokens. Counted INSIDE `outputTokens`. */
+  audioOutputTokens?: number | null;
 }
 
 export interface RunError {
@@ -484,6 +498,14 @@ export type PricingSource = 'Catalog' | 'Configuration' | 'Unknown';
 export interface RunCost {
   inputCost?: number | null;
   outputCost?: number | null;
+  /**
+   * Cache-read charge.
+   *
+   * The cached tokens are SUBTRACTED out of `inputCost` and billed here, so the
+   * two add up to the run's input spend rather than overlapping. Null means no
+   * cache rate was configured — which does NOT make `source` `Unknown`.
+   */
+  cachedInputCost?: number | null;
   currency?: string | null;
   source: PricingSource;
 }
@@ -499,6 +521,13 @@ export interface RunTreeCost {
   outputCost?: number | null;
   currency?: string | null;
   runsWithUnknownPricing: number;
+  /**
+   * Cache-read charge across the tree.
+   *
+   * A THIRD addend of the total, not a subset of `inputCost`: every run's own
+   * `inputCost` already has its cached tokens subtracted out.
+   */
+  cachedInputCost?: number | null;
 }
 
 export interface RunRecord {
@@ -512,6 +541,14 @@ export interface RunRecord {
   startedAt: string;
   completedAt?: string | null;
   tenantId?: string | null;
+  /**
+   * Who the run belongs to. Opaque — AgentPrism repeats what the application's
+   * IRunAttributionContext gave it and resolves nothing about it. Null on runs
+   * recorded before attribution existed, and wherever no context is registered.
+   */
+  userId?: string | null;
+  /** What job the run was made for. A query dimension only; never a metric tag. */
+  labels?: Record<string, string> | null;
   sessionId?: string | null;
   modelId?: string | null;
   isStreaming: boolean;
@@ -738,6 +775,25 @@ export interface RunErrorStatistics {
   topClusters: RunErrorCluster[];
 }
 
+/** One user's run summary. */
+export interface RunUserStatistics {
+  userId: string;
+  totalRuns: number;
+  failedRuns: number;
+  totalTokens: number;
+  totalCost?: number | null;
+}
+
+/** One label key/value pair's run summary. */
+export interface RunLabelStatistics {
+  key: string;
+  value: string;
+  totalRuns: number;
+  failedRuns: number;
+  totalTokens: number;
+  totalCost?: number | null;
+}
+
 export interface RunStatistics {
   totalRuns: number;
   completedRuns: number;
@@ -749,6 +805,14 @@ export interface RunStatistics {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Prompt-cache hits. Counted INSIDE `inputTokens`; adding them double counts. */
+  cachedInputTokens: number;
+  /** Reasoning tokens. Counted INSIDE `outputTokens`. */
+  reasoningTokens: number;
+  /** Audio input tokens. Counted INSIDE `inputTokens`. */
+  audioInputTokens: number;
+  /** Audio output tokens. Counted INSIDE `outputTokens`. */
+  audioOutputTokens: number;
   /** Total cost across priced runs only. Null when nothing here has a configured price. */
   totalCost?: number | null;
   currency?: string | null;
@@ -756,6 +820,15 @@ export interface RunStatistics {
   runsWithUnknownPricing: number;
   byAgent: RunAgentStatistics[];
   byModel: RunModelStatistics[];
+  /** Per-user breakdown. Runs carrying no user stay out of it but stay in the totals. */
+  byUser: RunUserStatistics[];
+  /**
+   * Per-label breakdown, one row per distinct key/value pair.
+   *
+   * These rows do NOT sum to `totalRuns`: a run carrying three labels appears in
+   * three of them. A label set is not a partition of the runs.
+   */
+  byLabel: RunLabelStatistics[];
   /** Failed-run breakdown by class. Rows written before error classification existed fall into `Unknown`. */
   byErrorClass: RunErrorStatistics[];
   errorRate?: number | null;

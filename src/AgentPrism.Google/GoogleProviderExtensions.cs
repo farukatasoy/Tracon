@@ -179,6 +179,12 @@ public static class GoogleProviderExtensions
                 SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
                 InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
                 OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
+
+                // 🚨 Without this line the catalog can never carry a cache rate, and
+                // AgentPrism:Pricing cannot supply one either: the catalog price WINS
+                // over the configured one, so a model priced here would silently fall
+                // back to charging every cached token at the full input rate.
+                CachedInputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
             });
         }
     }

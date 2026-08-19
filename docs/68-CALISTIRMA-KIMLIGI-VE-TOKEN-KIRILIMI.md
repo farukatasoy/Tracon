@@ -1,6 +1,6 @@
 # Faz 68 — Çalıştırma Kimliği ve Token Kırılımı
 
-> **Durum:** 📋 Planlandı (2026-08-18)
+> **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-111**, **F-112**
 > **Önkoşul:** [Faz 20](20-MALIYET-VE-GOSTERGE-PANELI.md) — maliyet hesabı ve gösterge paneli · [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı sözleşmesi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
@@ -247,7 +247,7 @@ public sealed record RunRecord
 | Metot | Yol | Rol | Ne yapar |
 |---|---|---|---|
 | `GET` | `/api/runs?userId=&label=k:v` | Reader | Yeni boyutlarla filtreler |
-| `GET` | `/api/stats?groupBy=user\|label` | Reader | Yeni kırılımı döner |
+| `GET` | `/api/stats?userId=&label=k:v` | Reader | Süzer; `byUser`/`byLabel` **her zaman** döner (K-485 — `groupBy` eklenmedi) |
 
 🚨 `POST /api/agents/{name}/run` gövdesi **değişmez**. Kullanıcı kimliği
 istemciden alınmaz.
@@ -313,7 +313,7 @@ düşerse `run` **devam eder** (var olan kural).
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
 | 1 | `IRunAttributionContext` kayıtlı değil | Bir `run` çalıştır | `run` başarılı; `user_id` ve etiket `NULL`. Hiçbir davranış değişmez |
-| 2 | Kimlik hattına bağlı bir uygulama | İki farklı kullanıcıyla birer `run` | `GET /api/stats?groupBy=user` iki satır döner, toplamları doğru |
+| 2 | Kimlik hattına bağlı bir uygulama | İki farklı kullanıcıyla birer `run` | `GET /api/stats`'ın `byUser` alanı iki satır döner, toplamları doğru |
 | 3 | Aynı ortam | `POST .../run` gövdesine `userId` alanı eklenerek istek | Alan **yok sayılır**; kayıt kimlik hattındaki kullanıcıyı gösterir |
 | 4 | Prompt caching açık Anthropic agent'ı | Aynı uzun ön ekle iki `run` | İkinci `run`'da `CachedInputTokens > 0`; maliyet birinciden **düşük** |
 | 5 | Cache fiyatı tanımsız | Aynı senaryo | Maliyet bugünküyle aynı; `PricingSource` `Unknown` **değil** |
@@ -336,37 +336,93 @@ düşerse `run` **devam eder** (var olan kural).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `IRunAttributionContext` kayıtlı değilken hiçbir davranış değişmez;
-      `user_id` ve etiket `NULL` yazılır
-- [ ] İstek gövdesine konan `userId` **yok sayılır** (test kanıtıyla)
-- [ ] `GET /api/stats?groupBy=user` doğru toplamlar döner
-- [ ] Cache token'ı bildiren bir sağlayıcıda maliyet, cache oranı uygulanarak
-      hesaplanır; komut ve çıktı belgeye yazıldı
-- [ ] Cache token'ı bildirmeyen sağlayıcıda alan `null` kalır — **sıfır değil**
-- [ ] Etiket sınırı aşımı `400` verir
-- [ ] Metrik etiket kümesi değişmedi (kardinalite testi yeşil)
-- [ ] Üç SQL sağlayıcısı + bellek içi sözleşme koşumları geçer
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri
-      [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
-      içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+Hepsi gerçek ölçümle karşılandı; kanıtlar örnek uygulamada **gerçek OpenAI
+çağrılarıyla** ve gerçek PostgreSQL'e karşı alındı.
 
-### Doğrulama komutları
+- [x] `IRunAttributionContext` kayıtlı değilken hiçbir davranış değişmez;
+      `user_id` ve etiket `NULL` yazılır — `Nothing_changes_when_no_attribution_context_is_registered`
+      + sözleşme testi `A_run_without_attribution_reads_back_as_null_not_as_an_empty_map`
+- [x] İstek gövdesine konan `userId` **yok sayılır** — gerçek çağrı:
+      `{"message":"...","userId":"ATTACKER"}` → kayıt `userId: "ada"`.
+      Test: `A_userId_in_the_request_body_is_ignored` (+ tersi yönü de)
+- [x] `GET /api/stats` `byUser`/`byLabel` kırılımını doğru toplamlarla döner
+      (`groupBy` eklenmedi — K-485). Gerçek çıktı:
+      `byUser: [('ada',2,108), ('grace',1,47)]`,
+      `byLabel: [('team','payments',2), ('team','billing',1), ('ticket','OPS-1',1)]`
+- [x] Cache token'ı bildiren bir sağlayıcıda maliyet, cache oranı uygulanarak
+      hesaplanır — **gerçek OpenAI prompt cache isabeti** (aşağıdaki komut ve çıktı)
+- [x] Cache token'ı bildirmeyen sağlayıcıda alan `null` kalır — **sıfır değil**.
+      Gerçek çıktı aynı satırda ikisini birden gösteriyor:
+      `cachedInputTokens: 0` (bildirildi) yanında `audioInputTokens: null` (bildirilmedi)
+- [x] Etiket sınırı aşımı `400` verir — gerçek çıktı:
+      `"The run carries 9 labels; at most 8 are allowed."`, `totalRuns` **değişmedi**
+- [x] Metrik etiket kümesi değişmedi — `TelemetryTagTests` üç testle sabitliyor
+- [x] Üç SQL sağlayıcısı + bellek içi sözleşme koşumları geçer —
+      SQLite 570 · PostgreSQL 1114 (bellek içi dâhil) · SQL Server 556, hepsi yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı verir — build ✅ (0 uyarı, 0 hata) · test **4248/0** ✅ ·
+      pack ✅ (0 hata, 0 uyarı) · format ✅
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü (eşleşmeler faz öncesinden gelen yer tutucu
+      yorum satırları; gerçek değer yok)
+- [x] Manuel kabul case'leri `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`
+      içine eklendi (**MT-OBS-037…045**); 👤 işaretli olan biri dışında hepsi koşuldu
+- [x] `faz-denetim` koşuldu; **dört 🔴 bulgu üretildi ve dördü de kapatıldı**
+- [x] `docs-site/` güncellendi (`concepts/runs.md`, `concepts/governance.md`,
+      `guides/observability.md`, `reference/configuration.md`)
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+
+### Ölçülen bundle payı
+
+| | Faz öncesi | Faz sonrası | Fark |
+|---|---:|---:|---:|
+| `index-*.js.br` | 140.614 B | 145.822 B | +5.208 B |
+| `index-*.css.br` | 5.490 B | 5.497 B | +7 B |
+| **Toplam brotli** | **146.104 B** | **151.319 B** | **+5.215 B** |
+
+Bütçe 250 KB gzip; derleme `172,2 KB gzipped (budget 250 KB)` raporladı. Yeni
+bağımlılık **alınmadı** — kırılım çubuğu var olan bileşenlerle çizildi.
+
+### Doğrulama komutları ve gerçek çıktılar
 
 ```bash
-# Kullanıcı kırılımı
-curl -s "http://localhost:5081/agentprism/api/stats?groupBy=user" | jq
+# Kullanıcı ve etiket kırılımı
+curl -s "http://localhost:5080/agentprism/api/stats" | jq '.byUser, .byLabel'
+# byUser  : ada 2 run / 108 token · grace 1 run / 47 token
+# byLabel : team=payments 2 · team=billing 1 · ticket=OPS-1 1
+#           (toplam 4 > 3 atıflı run — etiket kümesi run'ları BÖLÜMLEMEZ)
+
+# Süzgeçler
+?userId=ada -> 2 · ?userId=grace -> 1
+?label=team:payments -> 2 · ?label=team:billing -> 1 · ?label=team -> 3
 
 # Cache token'ı gerçekten ayrı yazılmış mı
-curl -s "http://localhost:5081/agentprism/api/runs?take=1" | jq '.items[0].usage'
+curl -s "http://localhost:5080/agentprism/api/runs?take=1" | jq '.[0].usage'
+# { inputTokens: 39, outputTokens: 20, totalTokens: 59,
+#   cachedInputTokens: 0, reasoningTokens: 0,        <- sağlayıcı BİLDİRDİ (0 bir ölçümdür)
+#   audioInputTokens: null, audioOutputTokens: null } <- sağlayıcı HİÇ bildirmedi
 ```
 
----
+**Gerçek prompt cache isabeti** — aynı ~2560 token'lık ön ek iki kez, fiyatlar
+`Input=0.25 / Output=2 / CachedInput=0.025`:
+
+```
+1. run (soğuk): input=2560 cached=0     -> inputCost=0.00064   cachedCost=0
+2. run (sıcak): input=2560 cached=2304  -> inputCost=6.4e-05   cachedCost=5.76e-05
+```
+
+`(2560−2304) × 0.25/1e6 = 6,4e-05` ve `2304 × 0.025/1e6 = 5,76e-05` — çıkarmalı
+hesap birebir tutuyor; ikinci `run` yaklaşık **3,9 kat ucuz**.
+
+**Aynı senaryo, `CachedInput` ayarı KALDIRILARAK** (DoD "cache fiyatı tanımsız"):
+
+```
+input=2560 cached=2304 -> inputCost=0.00064  (girdinin TAMAMI tam fiyattan)
+                          cachedInputCost=null
+                          source=Configuration   <- `Unknown` DEĞİL
+```
+
+Faz öncesiyle birebir aynı değer; eksik cache oranı ile eksik model fiyatı iki
+ayrı arıza olarak ayrık kaldı.
 
 ## Riskler
 
@@ -388,24 +444,213 @@ curl -s "http://localhost:5081/agentprism/api/runs?take=1" | jq '.items[0].usage
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+| # | Plan ne diyordu | Ne yapıldı | Gerekçe |
+|---|---|---|---|
+| 1 | `GET /api/stats?groupBy=user\|label` | `groupBy` **eklenmedi**; `byUser`/`byLabel` her zaman döner, `userId`/`label` ise **özetin tamamını** daraltır | K-485. `ByAgent`/`ByModel`/`ByVersion`/`ByErrorClass`'ın hiçbiri koşullu değil ve `SqlRunStore.GetStatisticsAsync` sonuç kümelerini **konuma göre** okuyor; kümeleri koşullu yapmak o okuyucuyu kırılgan hâle getirirdi |
+| 2 | Plan `RunStartInfo` üretim noktalarını saymamıştı | **Beş** üretim noktası bulundu (`RunRecordingAgent`, `AgentEndpoints`, `ApprovalEndpoints`, `WorkflowRunner`, `InboundTriggerDispatcher`) ve her biri elle izlendi | `faz-uygulama` Adım 4. Kuyruğa alınan `run` yolu attribution'ı **kaybediyordu** → UPSERT'te `COALESCE` koruması (K-486) |
+| 3 | Ses alanları "bedava" sayılıyordu | `InputAudioTokenCount`/`OutputAudioTokenCount` MEAI 10.8.3'te **`[Experimental]`** çıktı (`MEAI001` → hata) | K-484. Bastırma iki `return` deyimine daraltıldı ve `UsageBreakdown` içinde toplandı |
+| 4 | Plan yalnız `RunUsage`/`RunCost`/`RunRecord`/istatistik tiplerini listeliyordu | `RunCost.Total()`/`RunTreeCost.Total()` ve `RunAttributionReader` **plan dışı** eklendi | Denetim 🔴#1/#2/#4'ün kök nedeni: elle yazılmış iki terimli maliyet toplamları ve iki ayrı attribution okuması. Tek bir doğruluk kaynağı sınıfın tamamını kapatır |
+| 5 | Plan `RunStatistics`'e yalnız kırılım ekliyordu | `CachedInputTokens`/`ReasoningTokens`/`AudioInputTokens`/`AudioOutputTokens` toplamları da eklendi | Gösterge panelindeki kırılım çubuğu bu dört sayaç olmadan çizilemez; aynı `record`'a ikinci kez dokunmak Faz 7 sonrası kırıcı olurdu |
+| 6 | Plan `CachedInputCost`'u yalnız `RunCost`'a koyuyordu | `RunTreeCost`'a da eklendi ve **her** maliyet toplamı tarandı (üç dialektte 24 nokta + bellek içi + çalışma anı) | Cache ücreti üçüncü bir terimdir: `runs.input_cost` cache'i zaten dışarıda bırakır, iki terim toplayan her sorgu **eksik** raporlar |
+
+> **Kapsam dışı bırakıldı, gerekçesiyle:** Faz 64'ün veri konusu silme akışı
+> `runs.user_id` üzerinden **eşleşmez**. `IDataSubjectResolver`'ın kendi
+> dokümanı "subject id'yi AgentPrism'in satırlarında saklamak" alternatifini
+> açıkça reddediyor; hangi `user_id`'nin hangi veri konusuna ait olduğunu yalnız
+> tüketici bilir. Çözüm yolu `docs-site/concepts/governance.md`'ye yazıldı:
+> resolver `GET /api/runs?userId={id}&includeChildren=true` ile `run` kimliklerini
+> bulup `RunIds`'e koyar; `runs` satırı silindiğinde `user_id` de gider.
+> `DataSubjectScope`'a `UserIds` alanı eklemek ayrı bir aday kalemidir.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+| K | Konu |
+|---|---|
+| **K-478** | Çalıştırma kimliği `IRunAttributionContext`'ten gelir; istek **gövdesinden asla alınmaz** |
+| **K-479** | Etiketler ayrı tabloya değil `runs.labels` JSON sütununa yazılır (açık soru 1) |
+| **K-480** | Sınır aşımı **kırpılmaz, reddedilir**; gürültülü sınır HTTP'de (`400`), sessiz düşürme kayıt yolunda |
+| **K-481** | Kullanıcı ve etiket **metrik etiketi olmaz**; kapı `TelemetryTagTests` |
+| **K-482** | Kırılım toplamların **içinde** sayılır; bildirilmeyen sayaç `null` kalır, `0` olmaz |
+| **K-483** | Fiyat **çıkarmalı**; tanımsız cache oranı `Unknown`'a düşürmez (açık soru 2/3) |
+| **K-484** | `MEAI001` bastırması tek dosyada (`UsageBreakdown`) toplandı |
+| **K-485** | `groupBy` eklenmedi; kırılımlar her zaman döner |
+| **K-486** | Attribution UPSERT'te `COALESCE` ile **korunur**, üzerine yazılmaz |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// AgentPrism.Abstractions
+public interface IRunAttributionContext
+{
+    string? UserId { get; }
+    IReadOnlyDictionary<string, string>? Labels { get; }
+}
+
+// Plan dışı — denetim 🔴#4'ün kapanışı. İki kayıt yolu (agent + workflow) ayrı
+// ayrı okuyordu; garantiler (istisna yutma, bütün-hâlinde düşürme, dondurma)
+// tek uygulamada toplandı.
+public static class RunAttributionReader
+{
+    public static (string? UserId, IReadOnlyDictionary<string, string>? Labels) Read(
+        IRunAttributionContext? context,
+        Action<string, Exception?>? onFault = null);
+}
+
+public static class AmbientRunAttributionScope
+{
+    public static string? CurrentUserId { get; }
+    public static IReadOnlyDictionary<string, string>? CurrentLabels { get; }
+    public static bool IsActive { get; }                       // plan dışı, teşhis için
+    public static IDisposable Begin(string? userId, IReadOnlyDictionary<string, string>? labels);
+}
+
+public static class RunLabels                                   // plan dışı — sınırlar tek yerde
+{
+    public const int MaxCount = 8;
+    public const int MaxKeyLength = 64;
+    public const int MaxValueLength = 256;
+    public const int MaxUserIdLength = 200;                     // SQL Server nvarchar(200) indeks sınırı
+    public static string? Validate(string? userId, IReadOnlyDictionary<string, string>? labels);
+    public static string? ValidateUserId(string? userId);
+    public static string? ValidateLabels(IReadOnlyDictionary<string, string>? labels);
+    public static IReadOnlyDictionary<string, string> Freeze(IReadOnlyDictionary<string, string> labels);
+}
+
+public sealed record RunUsage        // + CachedInputTokens, ReasoningTokens, AudioInputTokens, AudioOutputTokens
+public sealed record RunCost         // + CachedInputCost, + decimal? Total()
+public sealed record RunTreeCost     // + CachedInputCost, + decimal? Total()
+public sealed record RunRecord       // + UserId, Labels
+public sealed record RunStartInfo    // + UserId, Labels
+public sealed record RunQuery        // + UserId, LabelKey, LabelValue
+public sealed record RunStatisticsQuery  // + UserId, LabelKey, LabelValue
+public sealed record RunStatistics   // + CachedInputTokens, ReasoningTokens, AudioInputTokens,
+                                     //   AudioOutputTokens, ByUser, ByLabel
+public sealed record RunUserStatistics  { string UserId; long TotalRuns, FailedRuns, TotalTokens; decimal? TotalCost; }
+public sealed record RunLabelStatistics { string Key, Value; long TotalRuns, FailedRuns, TotalTokens; decimal? TotalCost; }
+public sealed record ModelDescriptor    // + CachedInputCostPerMillionTokens
+public sealed class  ModelPriceOverride // + CachedInputCostPerMillionTokens
+
+// AgentPrism.Core
+public sealed class DefaultRunAttributionContext : IRunAttributionContext
+public sealed class RunPricingResolver   // ctor + ILogger<RunPricingResolver>? (kırıcı: eski ctor kaldırıldı)
+public sealed class RunRecordingAgent    // ctor + IRunAttributionContext? attributionContext = null
+public sealed class RunRecordingAgentDecorator // ctor + IRunAttributionContext? attributionContext = null
+```
+
+> `PublicAPI.Shipped.txt` faz başında **boştu** (16 satır, hepsi
+> `#nullable enable`) — bu yüzden `RunPricingResolver`/`RunRecordingAgent`
+> kurucularının imza değişimi **kırıcı değildir**. `Unshipped.txt`'e 115 satır
+> eklendi, 3 bayat satır kaldırıldı.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+YENİ
+src/AgentPrism.Abstractions/Runs/IRunAttributionContext.cs      (+ RunAttributionReader)
+src/AgentPrism.Abstractions/Runs/AmbientRunAttributionScope.cs
+src/AgentPrism.Abstractions/Runs/RunLabels.cs
+src/AgentPrism.Core/Runs/DefaultRunAttributionContext.cs
+src/AgentPrism.Core/Recording/UsageBreakdown.cs                 (MEAI001 tek nokta)
+src/AgentPrism.AspNetCore/RateLimiting/RunAttributionGate.cs
+src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql
+src/AgentPrism.SqlServer/Migrations/0021_run_attribution.sql
+src/AgentPrism.Sqlite/Migrations/0021_run_attribution.sql
+samples/AgentPrism.Api/DemoRunAttributionContext.cs             (plan dışı — DoD gerçek run gerektiriyordu)
+
+DEĞİŞTİ (öne çıkanlar)
+src/AgentPrism.Abstractions/Runs/{RunSupportTypes,RunRecord,RunStatistics}.cs
+src/AgentPrism.Abstractions/Models/ModelDescriptor.cs
+src/AgentPrism.Core/Recording/{RunRecordingAgent,RunRecordingAgentDecorator,CompactionUsageAccumulator}.cs
+src/AgentPrism.Core/Models/RunPricingResolver.cs                (çıkarmalı hesap + logger)
+src/AgentPrism.Core/Storage/InMemoryRunStore.cs
+src/AgentPrism.Core/Evaluation/{ModelRunJudge,OnlineEvalSummaryService}.cs   (denetim 🔴#1 sınıf taraması)
+src/AgentPrism.Core/{AgentPrismOptions,AgentPrismOptionsValidator,AgentPrismServiceCollectionExtensions}.cs
+src/AgentPrism.{OpenAI,Anthropic,Google,Azure}/*ProviderExtensions.cs        (denetim 🔴#3)
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/Internal/*Queries.cs
+src/AgentPrism.AspNetCore/Endpoints/{AgentEndpoints,ApprovalEndpoints,RunEndpoints,CatalogEndpoints}.cs
+src/AgentPrism.Workflows/Internal/WorkflowRunner.cs
+src/AgentPrism.UI/frontend/src/{lib/types.ts,lib/api.ts,lib/chart.ts,components/charts.tsx,
+                                components/run-comparison.tsx,screens/runs.tsx,screens/dashboard.tsx,
+                                screens/run-detail.tsx,locales/en.ts,locales/tr.ts}
+docs/openapi/agentprism.json                                    (üretildi)
+```
+
+## Testler
+
+| Sınıf | Seviye | Ne kanıtlar | Adet |
+|---|---|---|---|
+| `PricingResolverCacheTests` | Birim | Çıkarmalı hesap · cache isabeti daha ucuz · tanımsız oran davranışı değiştirmez ve `Unknown`'a düşürmez · `0` oranı ≠ tanımsız · bildirilmeyen sayaç ücret üretmez · veri hatasında negatife düşmez · `Total()` üç terimi toplar | 11 |
+| `RunUsageMappingTests` | Birim | `UsageDetails` → `RunUsage` eşlemesi; bildirilmeyen alan `null`, bildirilen `0` korunur; kırılım toplamların içinde kalır | 4 |
+| `CompactionUsageAccumulatorTests` | Birim | Özetleme yan kanalında sayaç başına "bildirildi mi" bayrağı; tek başına `0` bile kayıt üretir | 6 |
+| `TelemetryTagTests` | Birim (uçtan uca metrik) | Dört enstrümanın etiket kümesi **sabitlenir**; attribution metrik boyutuna sızmaz; `direction` yalnız `input`/`output` | 3 |
+| `AmbientAttributionStreamingTests` | Fonksiyonel (akış) | Ambient kapsam akışlı yolda korunur; **kapsam akış ortasında kapansa bile** kayıt doğru; iç içe kapsam; sınır aşımında `ArgumentException`; sözlük dondurulur | 7 |
+| `RunAttributionEndpointTests` | Fonksiyonel (HTTP) | 🚨 Gövdedeki `userId` **yok sayılır** (iki yönlü); kayıt yokken davranış değişmez; sınır aşımı `400` ve `run` **hiç açılmaz**; liste ve istatistik süzgeçleri | 8 |
+| `RunStoreContract` (yeni case'ler) | **Sözleşme** — bellek + PostgreSQL + SQL Server + SQLite | Attribution gidiş-dönüş · `null` ≠ `{}` · UPSERT koruması · kullanıcı/etiket süzgeci · çıplak anahtar · kırılım toplamları · etiket satırları `totalRuns`'a toplanmaz · ağaç kırılımı ve ağaç cache ücreti · **her maliyet toplamı (özet + zaman serisi + deney + ağaç) cache ücretini içerir** | 14 × 4 koşum |
+| `chart.test.ts` (`tokenBreakdown`) | Birim (Vitest) | Dilimler çıkarmayla üretilir, toplamı aşmaz, boş dilim düşer, negatif üretmez | 5 |
+
+**Toplam:** `dotnet test AgentPrism.slnx` → **4248 test, 0 başarısız** (denetim bulgularının kapanışıyla birlikte).
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+`faz-denetim` taze bağlamlı bağımsız bir denetçiyle koşuldu. **Dört 🔴 bulgu
+üretildi ve dördü de kapatıldı.**
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | `cached_input_cost` **çalışma anındaki** toplamların hiçbirinde yoktu: kota muhasebesi, `agentprism.run.cost` metriği, webhook özeti, workflow kotası. Maliyet tavanı olan bir kiracı tavanı **aşabilirdi** | **Düzeltildi.** `RunCost.Total()`/`RunTreeCost.Total()` eklendi ve elle yazılmış iki terimli her toplam ona bağlandı. Sınıf taraması `ModelRunJudge`, `OnlineEvalSummaryService` ve arayüzdeki `run-comparison.tsx`'i de yakaladı (denetçinin 🟢#10'u) |
+| 2 | 🔴 | Aynı eksiklik **bellek içi** store'un zaman serisi ve deney sonuçlarındaydı; üç SQL dialektinde ise düzeltilmişti → **aynı sorgu store'a göre farklı yanıt** veriyordu | **Düzeltildi.** İkisi de `RunCost.Total()` kullanıyor. Kapı: `Every_cost_total_includes_the_cache_charge` — özet, zaman serisi, deney sonucu ve ağaç toplamını **tek testte** ve dört koşumda birden iddia eder |
+| 3 | 🔴 | Katalogla fiyatlanan bir modele cache oranı **hiçbir yoldan verilemiyordu**: dört sağlayıcı uzantısı anahtarı okumuyordu ve katalog fiyatı `AgentPrism:Pricing`'i eziyor. `docs-site` bu anahtarın çalıştığını söylüyordu | **Düzeltildi.** `OpenAI`/`Anthropic`/`Google`/`Azure` uzantıları `CachedInputCostPerMillionTokens`'ı okuyor |
+| 4 | 🔴 | Workflow yolu attribution'ı **doğrulamadan, dondurmadan, korumasız** okuyordu: tüketicinin implementasyonu fırlatırsa workflow `run`'ı ölürdü; 200 karakterden uzun `userId` SQL Server insert'ini patlatıp **workflow'un tüm kaydını sessizce kaybettirirdi** | **Düzeltildi.** Garantiler `RunAttributionReader`'a çıkarıldı; agent ve workflow yolu aynı uygulamayı paylaşıyor |
+| 5 | 🟡 | Faz dokümanı hâlâ `?groupBy=user` diyordu | **Düzeltildi** — DoD, `endpoint` tablosu, manuel case ve doğrulama komutu gerçeğe hizalandı (K-485) |
+| 6 | 🟡 | Cache oranı tanımlıyken sağlayıcı bildirmezse `CachedInputCost` `0` yazılıyordu — fazın kendi "sıfır bir iddiadır" kuralına aykırı | **Düzeltildi** + iki test (`A_defined_rate_produces_no_cache_charge_when_the_provider_reported_nothing`, `A_reported_zero_cache_count_does_produce_a_zero_charge`) |
+| 7 | 🟡 | `ModelRunJudge` kendi `RunUsage`'ını dört alan olmadan kuruyordu | **Düzeltildi** — `UsageBreakdown` kullanıyor |
+| 8 | 🟡 | Sözleşme testi cache ücretini zaman serisi ve deney sonucu için hiç sormuyordu (1–2'nin testten kaçma sebebi) | **Düzeltildi** — bulgu 2'nin kapısı |
+| 9 | 🟢 | SQL Server'ın CI collation'ı `user_id` karşılaştırmasını harf duyarsız yapar | **Devredildi** — var olan desen (`agent_name`, `session_id` aynı durumda), bu fazın sapması değil |
+| 10 | 🟢 | `run-comparison.tsx` maliyet toplamı | Bulgu 1'in sınıf taramasıyla birlikte **kapatıldı** |
+| 11 | 🟢 | Yeni süzgeçlerde debounce yok | **Devredildi** — ölçülmedi, kapsam dışı iyileştirme |
+
+**Denetçinin temiz bulduğu başlıklar:** test tiyatrosu · test seviyesi ·
+imza-gövde kayması (dört token alanı beş toplama noktasında da eksiksiz) ·
+public API kaydı · repo kuralları (dil sınırı, XML doküman, `TryAdd`, `secret`,
+MAF sarmalama) · ürün yüzeyi. Ayrıca ölçtü: üç dialektin `runColumns` sırası
+birebir aynı (0–51) ve `SqlRunStore.ReadRun`'ın sabit ordinal'leriyle eşleşiyor.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+**Devralınan sözleşmeler**
+
+- `IRunAttributionContext` — `TryAdd` ile kayıtlı, varsayılan
+  `DefaultRunAttributionContext` yalnız `AmbientRunAttributionScope`'u okur.
+  🚨 Bir kayıt yolunda **doğrudan okuma**; `RunAttributionReader.Read(...)`
+  kullan — istisna yutma, bütün-hâlinde düşürme ve dondurma orada.
+- `RunCost.Total()` / `RunTreeCost.Total()` — 🚨 "bu `run` ne tuttu" sorusunun
+  **tek** cevabı. `InputCost + OutputCost` elle toplanmaz; cache ücreti üçüncü
+  terimdir ve unutulursa toplam sessizce eksik çıkar (denetimin birinci bulgusu
+  tam olarak buydu).
+- `RunLabels` — sınırların tek kaynağı. Yeni bir giriş noktası eklersen
+  gürültülü reddi (`400` / `ArgumentException`) orada kur.
+- `UsageBreakdown` — `UsageDetails`'in dört kırılım sayacına **tek** erişim
+  noktası; `MEAI001` bastırması burada yaşar.
+
+**Bilinen tuzaklar**
+
+- 🚨 `runs` tablosuna sütun eklerken `runColumns` sırası üç dialektte de
+  **sona** eklenir; `SqlRunStore.ReadRun` sabit ordinal okur. Bugünkü son
+  ordinal **51**'dir.
+- 🚨 `SelectRunStatistics` sonuç kümeleri **konuma göre** okunur. Bugün
+  **sekiz** küme var (özet · agent · model · sürüm · hata sınıfı · küme ·
+  kullanıcı · etiket). Yeni küme **sona** eklenir.
+- 🚨 Bir maliyet toplamı eklediğinde `cached_input_cost`'u unutma — üç dialekt,
+  bellek içi store, çalışma anı (kota/metrik/webhook) ve arayüz. Kapı:
+  `Every_cost_total_includes_the_cache_charge`.
+- 🚨 Tek `$` işaretli raw interpolated string'de `{{` kaçış **değildir**; SQL'e
+  literal süslü parantez yazmak yerine `IS NOT NULL` guard'ı kullan.
+- 🚨 Gösterge panelinde boş grafik metni artık **iki** panelde görünür;
+  Playwright'ta `GetByText(...).First` zorunlu.
+
+**Açık uçlar**
+
+- `DataSubjectScope`'a `UserIds` alanı (yukarıdaki kapsam-dışı notu).
+- SQL Server collation duyarsızlığı (denetim 🟢#9) — var olan desen, ayrı kalem.
+- Süzgeç debounce'u (denetim 🟢#11).

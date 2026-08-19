@@ -52,6 +52,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly SemaphoreSlim _concurrency;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
+    private readonly IRunAttributionContext? _attributionContext;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -71,6 +72,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The quota enforcer. When <see langword="null"/>, workflow consumption is not written to the quota
     /// counters (the SAME behaviour as the agent run path, see <c>RunRecordingAgent</c>).
     /// </param>
+    /// <param name="attributionContext">
+    /// The attribution context (phase 68). When <see langword="null"/>, the workflow's run row records
+    /// no user and no labels.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -84,7 +89,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunTraceCollector? traceCollector = null,
         TimeProvider? timeProvider = null,
         IRunCancellationRegistry? cancellationRegistry = null,
-        QuotaEnforcer? quotaEnforcer = null)
+        QuotaEnforcer? quotaEnforcer = null,
+        IRunAttributionContext? attributionContext = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -107,6 +113,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _concurrency = new SemaphoreSlim(Math.Max(options.Value.MaxConcurrentRuns, 1));
         _cancellationRegistry = cancellationRegistry;
         _quotaEnforcer = quotaEnforcer;
+        _attributionContext = attributionContext;
     }
 
     /// <inheritdoc />
@@ -439,6 +446,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         AgentPrismRunContext.SetCurrent(scope);
 
+        var attribution = RunAttributionReader.Read(
+            _attributionContext,
+            (message, exception) => _logger.LogWarning(
+                exception,
+                "{Message} Workflow run {RunId} continues and is recorded with no user and no labels.",
+                message,
+                execution.RunId));
+
         await writer.StartAsync(
             new RunStartInfo
             {
@@ -448,6 +463,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 WorkflowName = execution.WorkflowName,
                 StartedAt = _timeProvider.GetUtcNow(),
                 TenantId = scope.TenantId,
+
+                // A workflow is ONE run for quota purposes (K-394), so it is one
+                // run for attribution too: the whole workflow belongs to whoever
+                // started it. The agent steps underneath resolve the same
+                // ambient attribution independently and record it on their own
+                // child rows.
+                //
+                // 🚨 Read through RunAttributionReader, NOT straight off the
+                // interface: a consumer implementation can throw, and an
+                // over-long user id would fail the insert on SQL Server
+                // (user_id is nvarchar(200)) and silently disable the writer for
+                // the whole workflow. The agent path shares this reader.
+                UserId = attribution.UserId,
+                Labels = attribution.Labels,
                 SessionId = execution.SessionId,
                 IsStreaming = true,
             },
@@ -1061,7 +1090,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 Runs = 1,
                 Tokens = record?.TreeUsage?.TotalTokens ?? 0,
                 Cost = record?.TreeCost is { } treeCost
-                    ? (treeCost.InputCost ?? 0m) + (treeCost.OutputCost ?? 0m)
+                    ? treeCost.Total()
                     : null,
                 OccurredAt = _timeProvider.GetUtcNow(),
             },

@@ -18,6 +18,20 @@ internal sealed class CompactionUsageAccumulator
     private long _outputTokens;
     private long _totalTokens;
 
+    // 🚨 The breakdown counters carry their own "was this ever reported" flag
+    // instead of leaning on "the sum is still zero". A provider that reports
+    // CachedInputTokenCount = 0 has MEASURED a cache miss; one that reports
+    // nothing has measured nothing, and the two must not collapse into the same
+    // record (the null-not-zero rule of RunUsage).
+    private long _cachedInputTokens;
+    private long _reasoningTokens;
+    private long _audioInputTokens;
+    private long _audioOutputTokens;
+    private int _cachedInputReported;
+    private int _reasoningReported;
+    private int _audioInputReported;
+    private int _audioOutputReported;
+
     /// <summary>Adds usage from one summarization call to the accumulator.</summary>
     /// <param name="usage">The call usage details. Ignores <see langword="null"/>.</param>
     public void Add(UsageDetails? usage)
@@ -41,6 +55,11 @@ internal sealed class CompactionUsageAccumulator
         {
             Interlocked.Add(ref _totalTokens, total);
         }
+
+        AddReported(UsageBreakdown.CachedInputTokens(usage), ref _cachedInputTokens, ref _cachedInputReported);
+        AddReported(UsageBreakdown.ReasoningTokens(usage), ref _reasoningTokens, ref _reasoningReported);
+        AddReported(UsageBreakdown.AudioInputTokens(usage), ref _audioInputTokens, ref _audioInputReported);
+        AddReported(UsageBreakdown.AudioOutputTokens(usage), ref _audioOutputTokens, ref _audioOutputReported);
     }
 
     /// <summary>Converts the accumulated usage to <see cref="RunUsage"/>.</summary>
@@ -51,7 +70,13 @@ internal sealed class CompactionUsageAccumulator
         var output = Interlocked.Read(ref _outputTokens);
         var total = Interlocked.Read(ref _totalTokens);
 
-        if (input == 0 && output == 0 && total == 0)
+        var cachedInput = ReadReported(ref _cachedInputTokens, ref _cachedInputReported);
+        var reasoning = ReadReported(ref _reasoningTokens, ref _reasoningReported);
+        var audioInput = ReadReported(ref _audioInputTokens, ref _audioInputReported);
+        var audioOutput = ReadReported(ref _audioOutputTokens, ref _audioOutputReported);
+
+        if (input == 0 && output == 0 && total == 0 &&
+            cachedInput is null && reasoning is null && audioInput is null && audioOutput is null)
         {
             return null;
         }
@@ -61,6 +86,24 @@ internal sealed class CompactionUsageAccumulator
             InputTokens = input == 0 ? null : input,
             OutputTokens = output == 0 ? null : output,
             TotalTokens = total == 0 ? null : total,
+            CachedInputTokens = cachedInput,
+            ReasoningTokens = reasoning,
+            AudioInputTokens = audioInput,
+            AudioOutputTokens = audioOutput,
         };
     }
+
+    private static void AddReported(long? value, ref long counter, ref int reported)
+    {
+        if (value is not { } amount)
+        {
+            return;
+        }
+
+        Interlocked.Add(ref counter, amount);
+        Interlocked.Exchange(ref reported, 1);
+    }
+
+    private static long? ReadReported(ref long counter, ref int reported)
+        => Interlocked.CompareExchange(ref reported, 0, 0) == 0 ? null : Interlocked.Read(ref counter);
 }

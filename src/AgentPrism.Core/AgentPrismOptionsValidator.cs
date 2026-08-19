@@ -223,7 +223,9 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         {
             foreach (var (modelName, price) in models)
             {
-                if (price.InputCostPerMillionTokens is < 0 || price.OutputCostPerMillionTokens is < 0)
+                if (price.InputCostPerMillionTokens is < 0
+                    || price.OutputCostPerMillionTokens is < 0
+                    || price.CachedInputCostPerMillionTokens is < 0)
                 {
                     (failures ??= []).Add(
                         $"{nameof(AgentPrismPricingOptions)}: price for '{providerName}:{modelName}' cannot be negative.");
@@ -233,6 +235,9 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 // values are empty. This explicitly rejects a price written with
                 // a key other than Input or Output, such as the C# property name
                 // InputCostPerMillionTokens, rather than silently discarding it.
+                // 🚨 CachedInput is DELIBERATELY absent from this condition: a model
+                // priced with only a cache rate has no base price at all, which is
+                // the same silent-typo fault this check exists to catch.
                 if (price.InputCostPerMillionTokens is null && price.OutputCostPerMillionTokens is null)
                 {
                     (failures ??= []).Add(

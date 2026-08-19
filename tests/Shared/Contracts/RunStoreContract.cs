@@ -277,6 +277,551 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.GetRunAsync(runId))!.Usage.ShouldBeNull();
     }
 
+    // ---------------------------------------------------------------------
+    // Phase 68 -- run attribution and the token breakdown.
+    // ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task Attribution_round_trips()
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with
+        {
+            UserId = "user-1",
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["team"] = "payments",
+                ["ticket"] = "OPS-1",
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.UserId.ShouldBe("user-1");
+        record.Labels.ShouldNotBeNull();
+        record.Labels.Count.ShouldBe(2);
+        record.Labels["team"].ShouldBe("payments");
+        record.Labels["ticket"].ShouldBe("OPS-1");
+    }
+
+    [Fact]
+    public async Task A_run_without_attribution_reads_back_as_null_not_as_an_empty_map()
+    {
+        // The default behaviour of an application that registers no
+        // IRunAttributionContext. An empty dictionary would make "no labels" and
+        // "labels were considered and there were none" indistinguishable.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.UserId.ShouldBeNull();
+        record.Labels.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_second_start_without_attribution_does_not_erase_the_first_one()
+    {
+        // 🚨 The queued-run path: the placeholder row is written inside the HTTP
+        // request where the user IS known, then rewritten by a background worker
+        // where it is NOT. A plain overwrite would erase it.
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with
+        {
+            Status = RunStatus.Queued,
+            UserId = "user-1",
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        });
+
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.UserId.ShouldBe("user-1");
+        record.Labels.ShouldNotBeNull();
+        record.Labels["team"].ShouldBe("payments");
+    }
+
+    [Fact]
+    public async Task Query_filters_by_user()
+    {
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { UserId = "ada" });
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { UserId = "grace" });
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()));
+
+        var records = await Store.QueryRunsAsync(new RunQuery { UserId = "ada" });
+
+        records.Count.ShouldBe(1);
+        records[0].UserId.ShouldBe("ada");
+    }
+
+    [Fact]
+    public async Task Query_filters_by_a_label_key_and_value_together()
+    {
+        // 🚨 The key alone is not the filter: asking for team=payments must not
+        // return team=billing.
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with
+        {
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        });
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with
+        {
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "billing" },
+        });
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()));
+
+        var records = await Store.QueryRunsAsync(new RunQuery { LabelKey = "team", LabelValue = "payments" });
+
+        records.Count.ShouldBe(1);
+        records[0].Labels!["team"].ShouldBe("payments");
+    }
+
+    [Fact]
+    public async Task A_label_key_without_a_value_matches_any_value_of_that_key()
+    {
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with
+        {
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        });
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with
+        {
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "billing" },
+        });
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with
+        {
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["env"] = "prod" },
+        });
+
+        var records = await Store.QueryRunsAsync(new RunQuery { LabelKey = "team" });
+
+        records.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task The_token_breakdown_round_trips_and_stays_null_when_it_was_never_reported()
+    {
+        var withBreakdown = AgentPrismId.NewId();
+        var withoutBreakdown = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(withBreakdown));
+        await Store.StartRunAsync(TestData.Run(withoutBreakdown));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = withBreakdown,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 100,
+                OutputTokens = 50,
+                TotalTokens = 150,
+                CachedInputTokens = 40,
+                ReasoningTokens = 30,
+                AudioInputTokens = 20,
+                AudioOutputTokens = 10,
+            },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = withoutBreakdown,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150 },
+        });
+
+        var reported = (await Store.GetRunAsync(withBreakdown))!.Usage.ShouldNotBeNull();
+        reported.CachedInputTokens.ShouldBe(40);
+        reported.ReasoningTokens.ShouldBe(30);
+        reported.AudioInputTokens.ShouldBe(20);
+        reported.AudioOutputTokens.ShouldBe(10);
+
+        // 🚨 The load-bearing half: NOT reported must read back as null, never 0.
+        var silent = (await Store.GetRunAsync(withoutBreakdown))!.Usage.ShouldNotBeNull();
+        silent.CachedInputTokens.ShouldBeNull();
+        silent.ReasoningTokens.ShouldBeNull();
+        silent.AudioInputTokens.ShouldBeNull();
+        silent.AudioOutputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_run_that_reports_only_a_cache_count_still_produces_a_usage_record()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { CachedInputTokens = 0 },
+        });
+
+        var usage = (await Store.GetRunAsync(runId))!.Usage.ShouldNotBeNull();
+        usage.CachedInputTokens.ShouldBe(0);
+        usage.InputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task The_cache_charge_round_trips_and_counts_toward_the_total()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150 },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                OutputCost = 2m,
+                CachedInputCost = 0.5m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Cost.ShouldNotBeNull();
+        record.Cost.CachedInputCost.ShouldBe(0.5m);
+
+        // 🚨 The tree total must include the cache charge as a THIRD addend.
+        // Omitting it under-reports every tree that hit the prompt cache.
+        record.TreeCost.ShouldNotBeNull();
+        record.TreeCost.CachedInputCost.ShouldBe(0.5m);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+        statistics.TotalCost.ShouldBe(3.5m);
+    }
+
+    [Fact]
+    public async Task Statistics_break_down_by_user()
+    {
+        await CompleteRunWithAttributionAsync("ada", labels: null, totalTokens: 10, failed: false);
+        await CompleteRunWithAttributionAsync("ada", labels: null, totalTokens: 20, failed: true);
+        await CompleteRunWithAttributionAsync("grace", labels: null, totalTokens: 5, failed: false);
+        await CompleteRunWithAttributionAsync(userId: null, labels: null, totalTokens: 7, failed: false);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        // Runs with no user stay OUT of the breakdown but stay IN the totals.
+        statistics.TotalRuns.ShouldBe(4);
+        statistics.TotalTokens.ShouldBe(42);
+
+        statistics.ByUser.Count.ShouldBe(2);
+
+        var ada = statistics.ByUser.Single(user => string.Equals(user.UserId, "ada", StringComparison.Ordinal));
+        ada.TotalRuns.ShouldBe(2);
+        ada.FailedRuns.ShouldBe(1);
+        ada.TotalTokens.ShouldBe(30);
+    }
+
+    [Fact]
+    public async Task Statistics_break_down_by_label_and_the_rows_do_not_partition_the_runs()
+    {
+        // 🚨 One run carrying two labels contributes to TWO rows. The rows
+        // therefore do NOT sum to TotalRuns, unlike every other breakdown.
+        await CompleteRunWithAttributionAsync(
+            userId: null,
+            labels: new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments", ["env"] = "prod" },
+            totalTokens: 10,
+            failed: false);
+
+        await CompleteRunWithAttributionAsync(
+            userId: null,
+            labels: new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+            totalTokens: 20,
+            failed: true);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.TotalRuns.ShouldBe(2);
+        statistics.ByLabel.Count.ShouldBe(2);
+
+        var team = statistics.ByLabel.Single(label =>
+            string.Equals(label.Key, "team", StringComparison.Ordinal));
+
+        team.Value.ShouldBe("payments");
+        team.TotalRuns.ShouldBe(2);
+        team.FailedRuns.ShouldBe(1);
+        team.TotalTokens.ShouldBe(30);
+
+        statistics.ByLabel.Sum(static label => label.TotalRuns).ShouldBeGreaterThan(statistics.TotalRuns);
+    }
+
+    [Fact]
+    public async Task Statistics_narrow_to_one_user_when_asked()
+    {
+        await CompleteRunWithAttributionAsync("ada", labels: null, totalTokens: 10, failed: false);
+        await CompleteRunWithAttributionAsync("grace", labels: null, totalTokens: 20, failed: false);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery { UserId = "ada" });
+
+        statistics.TotalRuns.ShouldBe(1);
+        statistics.TotalTokens.ShouldBe(10);
+        statistics.ByUser.ShouldHaveSingleItem().UserId.ShouldBe("ada");
+    }
+
+    [Fact]
+    public async Task Statistics_narrow_to_one_label_when_asked()
+    {
+        await CompleteRunWithAttributionAsync(
+            userId: null,
+            labels: new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+            totalTokens: 10,
+            failed: false);
+
+        await CompleteRunWithAttributionAsync(
+            userId: null,
+            labels: new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "billing" },
+            totalTokens: 20,
+            failed: false);
+
+        var statistics = await Store.GetStatisticsAsync(
+            new RunStatisticsQuery { LabelKey = "team", LabelValue = "payments" });
+
+        statistics.TotalRuns.ShouldBe(1);
+        statistics.TotalTokens.ShouldBe(10);
+    }
+
+    [Fact]
+    public async Task Statistics_total_the_token_breakdown_beside_the_input_and_output_totals()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 100,
+                OutputTokens = 50,
+                TotalTokens = 150,
+                CachedInputTokens = 40,
+                ReasoningTokens = 30,
+            },
+        });
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.InputTokens.ShouldBe(100);
+        statistics.OutputTokens.ShouldBe(50);
+
+        // Counted INSIDE the two totals above; a caller that adds them double counts.
+        statistics.CachedInputTokens.ShouldBe(40);
+        statistics.ReasoningTokens.ShouldBe(30);
+    }
+
+    [Fact]
+    public async Task Tree_usage_sums_the_breakdown_across_child_runs()
+    {
+        // 🚨 The phase 20 lesson applied to four new fields at once: a field can
+        // be added to the record, written to the row, read back correctly, and
+        // STILL be dropped by the tree aggregation. This is the only test that
+        // looks at that specific seam.
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId) with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = rootId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 100,
+                OutputTokens = 50,
+                TotalTokens = 150,
+                CachedInputTokens = 40,
+                ReasoningTokens = 5,
+            },
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = childId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage
+            {
+                InputTokens = 10,
+                OutputTokens = 5,
+                TotalTokens = 15,
+                CachedInputTokens = 3,
+            },
+        });
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.ChildRunCount.ShouldBe(1);
+
+        root.TreeUsage.ShouldNotBeNull();
+        root.TreeUsage.InputTokens.ShouldBe(110);
+        root.TreeUsage.CachedInputTokens.ShouldBe(43);
+
+        // Only the root reported reasoning tokens; a child reporting none must
+        // not reset the tree total to null.
+        root.TreeUsage.ReasoningTokens.ShouldBe(5);
+
+        // Neither run reported audio, so the tree must say "not measured".
+        root.TreeUsage.AudioInputTokens.ShouldBeNull();
+        root.TreeUsage.AudioOutputTokens.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Tree_cost_adds_the_cache_charge_of_every_run_in_the_tree()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId) with { ModelId = "m" });
+        await Store.StartRunAsync(TestData.Run(childId) with
+        {
+            ModelId = "m",
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        await CompleteWithCostAsync(rootId, input: 1m, output: 2m, cached: 0.5m);
+        await CompleteWithCostAsync(childId, input: 0.25m, output: 0.25m, cached: 0.25m);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.TreeCost.ShouldNotBeNull();
+        root.TreeCost.InputCost.ShouldBe(1.25m);
+        root.TreeCost.OutputCost.ShouldBe(2.25m);
+
+        // 🚨 The third addend. Its absence would silently under-report the tree.
+        root.TreeCost.CachedInputCost.ShouldBe(0.75m);
+    }
+
+    private async Task CompleteWithCostAsync(Guid runId, decimal input, decimal output, decimal cached)
+        => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1, OutputTokens = 1, TotalTokens = 2 },
+            Cost = new RunCost
+            {
+                InputCost = input,
+                OutputCost = output,
+                CachedInputCost = cached,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+    [Fact]
+    public async Task Every_cost_total_includes_the_cache_charge()
+    {
+        // 🚨 The seam an independent audit found open: `cached_input_cost` had
+        // been added to the summary and the tree but NOT to the time series or
+        // the experiment results, so the SAME cost answered differently
+        // depending on which query — and which store — you asked. One test,
+        // every total, all four stores.
+        var experimentId = AgentPrismId.NewId();
+        var runId = AgentPrismId.NewId();
+        var startedAt = DateTimeOffset.UtcNow;
+
+        await Store.StartRunAsync(TestData.Run(runId) with
+        {
+            ModelId = "m",
+            StartedAt = startedAt,
+            ExperimentId = experimentId,
+            Variant = "a",
+        });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = startedAt.AddSeconds(1),
+            Usage = new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15 },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                OutputCost = 2m,
+                CachedInputCost = 0.5m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+        // A two-term sum would answer 3 everywhere below; the right answer is 3.5.
+        const decimal Expected = 3.5m;
+
+        (await Store.GetStatisticsAsync(new RunStatisticsQuery())).TotalCost.ShouldBe(Expected);
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = startedAt.AddHours(-1),
+            To = startedAt.AddHours(1),
+            Bucket = TimeSeriesBucket.Hour,
+        });
+
+        points.Sum(static point => point.Cost ?? 0m).ShouldBe(Expected);
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId });
+
+        results.ShouldHaveSingleItem().TotalCost.ShouldBe(Expected);
+
+        var record = await Store.GetRunAsync(runId);
+        record.ShouldNotBeNull();
+        record.Cost!.Total().ShouldBe(Expected);
+        record.TreeCost!.Total().ShouldBe(Expected);
+    }
+
+    private async Task CompleteRunWithAttributionAsync(
+        string? userId,
+        IReadOnlyDictionary<string, string>? labels,
+        long totalTokens,
+        bool failed)
+    {
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with { UserId = userId, Labels = labels });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = failed ? RunStatus.Failed : RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { TotalTokens = totalTokens },
+            Error = failed ? new RunError { Type = "T", Message = "m" } : null,
+        });
+    }
+
     [Fact]
     public async Task Query_filters_by_agent_name()
     {

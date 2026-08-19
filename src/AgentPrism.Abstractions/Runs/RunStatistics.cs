@@ -19,9 +19,32 @@ public sealed record RunStatisticsQuery
     public DateTimeOffset? StartedAfter { get; init; }
 
     /// <summary>
+    /// Count only this user's runs. <see langword="null"/> counts every user.
+    /// </summary>
+    public string? UserId { get; init; }
+
+    /// <summary>
+    /// Count only runs carrying this label key. <see langword="null"/> applies
+    /// no label filter.
+    /// </summary>
+    public string? LabelKey { get; init; }
+
+    /// <summary>
+    /// The value <see cref="LabelKey"/> must have. <see langword="null"/>
+    /// matches any value of that key, and the field is ignored when
+    /// <see cref="LabelKey"/> is <see langword="null"/>.
+    /// </summary>
+    public string? LabelValue { get; init; }
+
+    /// <summary>
     /// The maximum number of rows to return in the agent breakdown. Agents
     /// with the highest run count are returned first.
     /// </summary>
+    /// <remarks>
+    /// The same ceiling bounds every other breakdown — model, version, user and
+    /// label. A statistics response is a summary; paging belongs to
+    /// <c>GET /api/runs</c>.
+    /// </remarks>
     public int MaxAgents { get; init; } = 20;
 }
 
@@ -74,6 +97,28 @@ public sealed record RunStatistics
     /// <summary>The total tokens.</summary>
     public long TotalTokens { get; init; }
 
+    /// <summary>
+    /// The input tokens that were served from the prompt cache. Counted INSIDE
+    /// <see cref="InputTokens"/>, so the two must not be added together.
+    /// </summary>
+    /// <remarks>
+    /// Runs whose provider does not report cache usage contribute nothing here,
+    /// exactly as a run that reports no usage contributes nothing to
+    /// <see cref="TotalTokens"/>.
+    /// </remarks>
+    public long CachedInputTokens { get; init; }
+
+    /// <summary>
+    /// The tokens spent on reasoning. Counted INSIDE <see cref="OutputTokens"/>.
+    /// </summary>
+    public long ReasoningTokens { get; init; }
+
+    /// <summary>The audio input tokens. Counted INSIDE <see cref="InputTokens"/>.</summary>
+    public long AudioInputTokens { get; init; }
+
+    /// <summary>The audio output tokens. Counted INSIDE <see cref="OutputTokens"/>.</summary>
+    public long AudioOutputTokens { get; init; }
+
     /// <summary>The breakdown by agent.</summary>
     public IReadOnlyList<RunAgentStatistics> ByAgent { get; init; } = [];
 
@@ -85,6 +130,28 @@ public sealed record RunStatistics
 
     /// <summary>The breakdown by definition version. Runs with an unknown version do not appear in this list.</summary>
     public IReadOnlyList<RunVersionStatistics> ByVersion { get; init; } = [];
+
+    /// <summary>
+    /// The breakdown by user. Runs that carry no user identity do not appear
+    /// in this list; they are still counted in the totals.
+    /// </summary>
+    /// <remarks>
+    /// Bounded by <see cref="RunStatisticsQuery.MaxAgents"/>, users with the
+    /// highest run count first. Rows written before the column existed carry no
+    /// user and therefore never appear here (K-014 — no backfill).
+    /// </remarks>
+    public IReadOnlyList<RunUserStatistics> ByUser { get; init; } = [];
+
+    /// <summary>
+    /// The breakdown by label. One entry per distinct key/value pair, so a run
+    /// carrying three labels contributes to three entries.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The entries therefore do NOT sum to <see cref="TotalRuns"/>, unlike
+    /// <see cref="ByAgent"/>: a label set is not a partition of the runs.
+    /// Bounded by <see cref="RunStatisticsQuery.MaxAgents"/>.
+    /// </remarks>
+    public IReadOnlyList<RunLabelStatistics> ByLabel { get; init; } = [];
 
     /// <summary>
     /// The breakdown by error class. Only runs that ended in an error are
@@ -208,6 +275,51 @@ public sealed record RunVersionStatistics
 
     /// <summary>This version's total token usage.</summary>
     public long TotalTokens { get; init; }
+}
+
+/// <summary>A user's run summary.</summary>
+/// <remarks>
+/// The identity is opaque: AgentPrism repeats the value the consumer's
+/// <see cref="IRunAttributionContext"/> gave it and resolves nothing about it.
+/// </remarks>
+public sealed record RunUserStatistics
+{
+    /// <summary>The user identity.</summary>
+    public required string UserId { get; init; }
+
+    /// <summary>This user's total number of runs.</summary>
+    public required long TotalRuns { get; init; }
+
+    /// <summary>This user's number of runs that ended in an error.</summary>
+    public required long FailedRuns { get; init; }
+
+    /// <summary>This user's total token usage.</summary>
+    public long TotalTokens { get; init; }
+
+    /// <summary>This user's total cost. <see langword="null"/> if no run of theirs was ever priced.</summary>
+    public decimal? TotalCost { get; init; }
+}
+
+/// <summary>A label's run summary; one entry per distinct key/value pair.</summary>
+public sealed record RunLabelStatistics
+{
+    /// <summary>The label key.</summary>
+    public required string Key { get; init; }
+
+    /// <summary>The label value.</summary>
+    public required string Value { get; init; }
+
+    /// <summary>The number of runs carrying this exact key/value pair.</summary>
+    public required long TotalRuns { get; init; }
+
+    /// <summary>This label's number of runs that ended in an error.</summary>
+    public required long FailedRuns { get; init; }
+
+    /// <summary>This label's total token usage.</summary>
+    public long TotalTokens { get; init; }
+
+    /// <summary>This label's total cost. <see langword="null"/> if no run carrying it was ever priced.</summary>
+    public decimal? TotalCost { get; init; }
 }
 
 /// <summary>An agent's run summary.</summary>

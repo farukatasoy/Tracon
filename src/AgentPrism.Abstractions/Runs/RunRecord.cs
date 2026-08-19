@@ -34,6 +34,28 @@ public sealed record RunRecord
     /// <summary>Gets the tenant the run belongs to.</summary>
     public string? TenantId { get; init; }
 
+    /// <summary>
+    /// Gets the user the run belongs to, or <see langword="null"/> when it was
+    /// not known.
+    /// </summary>
+    /// <remarks>
+    /// The value is opaque and comes from
+    /// <see cref="IRunAttributionContext"/>, never from the request body. Rows
+    /// written before the column existed hold <see langword="null"/>; they are
+    /// not backfilled (K-014).
+    /// </remarks>
+    public string? UserId { get; init; }
+
+    /// <summary>
+    /// Gets the labels the run carries, or <see langword="null"/> when it
+    /// carries none.
+    /// </summary>
+    /// <remarks>
+    /// A query dimension only. Labels never become metric tags — see
+    /// <see cref="IRunAttributionContext.Labels"/>.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Labels { get; init; }
+
     /// <summary>Gets the id of the session that was used.</summary>
     public string? SessionId { get; init; }
 
