@@ -12446,6 +12446,7 @@
           "Canceled",
           "ContentBlocked",
           "Infrastructure",
+          "ToolTimeout",
           null
         ]
       },
@@ -14698,9 +14699,37 @@
           "runsOnClient": {
             "type": "boolean",
             "description": "Whether the tool\u0027s body runs on the caller (typically a browser)\ninstead of on the server."
+          },
+          "effect": {
+            "description": "The tool\u0027s effect class. Defaults to ToolEffect.Read.",
+            "$ref": "#/components/schemas/ToolEffect"
+          },
+          "requiredPermission": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The permission name a caller must hold to call this tool, or\n\u0060null\u0060 when the tool declares none."
+          },
+          "timeout": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The longest duration this tool\u0027s call may run, or \u0060null\u0060\nto use the installation default (\u0060AgentPrismOptions.Tools.DefaultTimeout\u0060)."
           }
         },
         "description": "The UI-facing definition of a tool registered in code. The agent editor\nshows a selection from this list; it does not accept free-text input."
+      },
+      "ToolEffect": {
+        "enum": [
+          "Read",
+          "Write",
+          "Destructive",
+          "External"
+        ],
+        "description": "Classifies the blast radius of a tool call."
       },
       "ToolInvocationRecord": {
         "required": [
@@ -14783,6 +14812,14 @@
                 "$ref": "#/components/schemas/ToolCallUsage"
               }
             ]
+          },
+          "authorizationDenied": {
+            "type": "boolean",
+            "description": "Whether IToolAuthorizationHandler denied this call before it ran."
+          },
+          "timedOut": {
+            "type": "boolean",
+            "description": "Whether the call ended because its execution timeout elapsed\n(AgentPrismToolTimeoutException)."
           },
           "succeeded": {
             "type": "boolean",

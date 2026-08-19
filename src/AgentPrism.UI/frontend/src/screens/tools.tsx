@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
-import { count, prettyJson, relativeTime } from '../lib/format';
+import { count, prettyJson, relativeTime, timeSpanMs } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
   Badge,
@@ -15,7 +15,7 @@ import {
   Panel,
 } from '../components/ui';
 import { formatMs } from '../components/waterfall';
-import type { ToolUsage } from '../lib/types';
+import type { ToolEffect, ToolUsage } from '../lib/types';
 
 /**
  * Registered tools.
@@ -76,6 +76,17 @@ export function ToolsScreen(): ReactNode {
                       mcp: {tool.source}
                     </Badge>
                   )}
+                  <EffectBadge effect={tool.effect} />
+                  {tool.requiredPermission != null && (
+                    <Badge title={t('tools.permissionTitle', { permission: tool.requiredPermission })}>
+                      {tool.requiredPermission}
+                    </Badge>
+                  )}
+                  {tool.timeout != null && (
+                    <Badge title={t('tools.timeoutTitle', { seconds: timeoutSeconds(tool.timeout) })}>
+                      {timeoutSeconds(tool.timeout)}s
+                    </Badge>
+                  )}
                   {tool.requiresApproval && (
                     <Badge
                       tone="warn"
@@ -123,6 +134,43 @@ export function ToolsScreen(): ReactNode {
       </p>
     </>
   );
+}
+
+function timeoutSeconds(value: string): number {
+  return Math.round((timeSpanMs(value) ?? 0) / 1000);
+}
+
+/**
+ * The tool's effect class (F-113). Read shows no badge — a neutral default
+ * would only add noise to the common case; Write/Destructive/External are
+ * shown because they change what a caller should think about before using
+ * the tool.
+ */
+function EffectBadge({ effect }: { effect: ToolEffect }): ReactNode {
+  const t = useT();
+
+  switch (effect) {
+    case 'Destructive':
+      return (
+        <Badge tone="danger" title={t('tools.effect.destructiveTitle')}>
+          {t('tools.effect.destructive')}
+        </Badge>
+      );
+    case 'External':
+      return (
+        <Badge tone="warn" title={t('tools.effect.externalTitle')}>
+          {t('tools.effect.external')}
+        </Badge>
+      );
+    case 'Write':
+      return (
+        <Badge tone="info" title={t('tools.effect.writeTitle')}>
+          {t('tools.effect.write')}
+        </Badge>
+      );
+    case 'Read':
+      return null;
+  }
 }
 
 /** Recorded call counts for one tool. Absent until the tool has actually run. */

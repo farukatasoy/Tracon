@@ -299,6 +299,8 @@ export interface AgentSkillRequest {
   scripts: AgentSkillScriptDefinition[];
 }
 
+export type ToolEffect = 'Read' | 'Write' | 'Destructive' | 'External';
+
 export interface ToolDescriptor {
   name: string;
   description?: string | null;
@@ -308,6 +310,12 @@ export interface ToolDescriptor {
   source?: string | null;
   /** Whether the tool's body runs on the caller (typically a browser) instead of on the server. */
   runsOnClient: boolean;
+  /** The tool's effect class. Defaults to 'Read'. */
+  effect: ToolEffect;
+  /** The permission name a caller must hold to call this tool, or null when the tool declares none. */
+  requiredPermission?: string | null;
+  /** .NET TimeSpan serialises as "hh:mm:ss.fffffff"; null when the installation default applies. */
+  timeout?: string | null;
 }
 
 export interface ToolInvocationRecord {
@@ -757,7 +765,8 @@ export type RunErrorClass =
   | 'CompilationFailed'
   | 'BudgetExceeded'
   | 'Canceled'
-  | 'ContentBlocked';
+  | 'ContentBlocked'
+  | 'ToolTimeout';
 
 /** Runs sharing the same normalized-message fingerprint. */
 export interface RunErrorCluster {

@@ -101,6 +101,11 @@ internal static class SourceWriter
         {
             sb.Append("                new(new ").Append(model.GeneratedClassName).Append("(), requiresApproval: ")
               .Append(model.RequiresApproval ? "true" : "false")
+              .Append(", effect: (global::AgentPrism.ToolEffect)").Append(model.Effect)
+              .Append(", requiredPermission: ").Append(model.RequiredPermission is null ? "null" : ToStringLiteral(model.RequiredPermission))
+              .Append(", timeout: ").Append(model.TimeoutSeconds > 0
+                  ? $"global::System.TimeSpan.FromSeconds({model.TimeoutSeconds})"
+                  : "null")
               .Append("),\n");
         }
 

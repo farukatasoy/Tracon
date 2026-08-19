@@ -1,3 +1,4 @@
+using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -14,28 +15,50 @@ public sealed class ToolApprovalTests
         // Wrapping MUST happen HERE: the registry is the only place where the
         // rule "an agent can only reference a registered tool" is enforced. No
         // other code path should be able to skip the wrapping.
-        var registry = new ToolRegistry(
-        [
-            new AgentPrismToolRegistration(Function("safe_tool")),
-            new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
-        ]);
+        //
+        // Every server-side tool is wrapped in AuthorizingAIFunction (F-113)
+        // and TimeoutAIFunction (F-114), whether it requires approval or not
+        // (docs/69, section 69.1); approval alone no longer determines the
+        // outermost type. The descriptor's RequiresApproval flag is the
+        // stable, wrapping-order-independent way to observe approval.
+        var withApproval = new ToolRegistry(
+            [
+                new AgentPrismToolRegistration(Function("safe_tool")),
+                new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
+            ],
+            new AllowAllToolAuthorizationHandler(),
+            TestData.DefaultOptionsMonitor(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
 
-        registry.TryGet("safe_tool", out var safe).ShouldBeTrue();
-        safe.ShouldNotBeOfType<ApprovalRequiredAIFunction>();
+        withApproval.TryGet("safe_tool", out var safe).ShouldBeTrue();
+        safe.ShouldBeOfType<AuthorizingAIFunction>();
 
-        registry.TryGet("dangerous_tool", out var dangerous).ShouldBeTrue();
-        dangerous.ShouldBeOfType<ApprovalRequiredAIFunction>();
+        withApproval.TryGet("dangerous_tool", out var dangerous).ShouldBeTrue();
+        dangerous.ShouldBeOfType<AuthorizingAIFunction>();
+
+        withApproval.List().Single(d => string.Equals(d.Name, "safe_tool", StringComparison.Ordinal))
+            .RequiresApproval.ShouldBeFalse();
+        withApproval.List().Single(d => string.Equals(d.Name, "dangerous_tool", StringComparison.Ordinal))
+            .RequiresApproval.ShouldBeTrue();
     }
 
     [Fact]
     public void Wrapping_preserves_name_and_description()
     {
-        // ApprovalRequiredAIFunction is a DelegatingAIFunction; wrapping it
-        // must not change the contract the model sees.
+        // AuthorizingAIFunction/TimeoutAIFunction/ApprovalRequiredAIFunction
+        // are all DelegatingAIFunction; wrapping must not change the contract
+        // the model sees.
         var registry = new ToolRegistry(
-        [
-            new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
-        ]);
+            [
+                new AgentPrismToolRegistration(Function("dangerous_tool"), requiresApproval: true),
+            ],
+            new AllowAllToolAuthorizationHandler(),
+            TestData.DefaultOptionsMonitor(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
 
         registry.TryGet("dangerous_tool", out var tool).ShouldBeTrue();
 
@@ -50,9 +73,14 @@ public sealed class ToolApprovalTests
     public void Source_information_is_carried_to_the_descriptor()
     {
         var registry = new ToolRegistry(
-        [
-            new AgentPrismToolRegistration(Function("remote_tool"), requiresApproval: true, source: "github"),
-        ]);
+            [
+                new AgentPrismToolRegistration(Function("remote_tool"), requiresApproval: true, source: "github"),
+            ],
+            new AllowAllToolAuthorizationHandler(),
+            TestData.DefaultOptionsMonitor(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
 
         var descriptor = registry.List().ShouldHaveSingleItem();
 

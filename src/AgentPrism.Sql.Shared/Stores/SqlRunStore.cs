@@ -663,6 +663,12 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
         AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
 
+        // Authorization decision and timeout marker (Phase 69). Both NOT
+        // NULL: a call that is neither denied nor timed out writes false,
+        // not NULL — this is a settled fact about the call, not an unknown.
+        Dialect.AddBoolean(command, "authorization_denied", invocation.AuthorizationDenied);
+        Dialect.AddBoolean(command, "timed_out", invocation.TimedOut);
+
         // EXPECTED tenant (K-355). NULL means no check.
         AddNullableText(command, "tenant_id", invocation.TenantId);
 
@@ -1015,6 +1021,13 @@ internal sealed class SqlRunStore : IRunStore
             Error = DbHelpers.GetNullableString(reader, 8),
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
             Usage = ReadToolCallUsage(reader),
+
+            // Indexes 15-16 (Phase 69). SQLite has no boolean type and
+            // returns long (0/1) instead (K-195), the same reason
+            // ReadToolCallUsage below reads `usage_estimated` through
+            // DbHelpers.ToBoolean rather than reader.GetBoolean.
+            AuthorizationDenied = DbHelpers.ToBoolean(reader.GetValue(15)),
+            TimedOut = DbHelpers.ToBoolean(reader.GetValue(16)),
         };
 
     /// <summary>

@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -134,7 +136,13 @@ public static class AgentPrismMcpBuilderExtensions
         // earlier in the chain and has already registered ToolRegistry. The new
         // registry wraps the old one; tools registered in code keep priority.
         services.Replace(ServiceDescriptor.Singleton<IToolRegistry>(static provider => new McpToolRegistry(
-            new ToolRegistry(provider.GetServices<AgentPrismToolRegistration>()),
+            new ToolRegistry(
+                provider.GetServices<AgentPrismToolRegistration>(),
+                provider.GetRequiredService<IToolAuthorizationHandler>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
+                provider.GetService<IRunAttributionContext>(),
+                provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
+                provider.GetRequiredService<ILogger<TimeoutAIFunction>>()),
             provider.GetRequiredService<McpToolCatalog>(),
             provider.GetRequiredService<ITenantContext>())));
 

@@ -129,6 +129,20 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
 
         ValidatePricing(options.Pricing, ref failures);
 
+        var tools = options.Tools;
+
+        if (tools is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Tools)} cannot be empty.");
+        }
+        else if (tools.DefaultTimeout <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismToolOptions)}.{nameof(AgentPrismToolOptions.DefaultTimeout)} " +
+                $"must be greater than zero. Actual value: {tools.DefaultTimeout}.");
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

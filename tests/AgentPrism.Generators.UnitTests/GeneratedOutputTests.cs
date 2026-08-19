@@ -75,6 +75,62 @@ public sealed class GeneratedOutputTests
     }
 
     [Fact]
+    public void Effect_permission_and_timeout_carry_into_the_generated_registration()
+    {
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal static class Tools
+            {
+                [AgentPrismTool(
+                    "cancel_order",
+                    "Cancels an order.",
+                    RequiresApproval = true,
+                    Effect = ToolEffect.Destructive,
+                    RequiredPermission = "orders.cancel",
+                    TimeoutSeconds = 5)]
+                public static void CancelOrder(string orderId) { }
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        result.Diagnostics.ShouldBeEmpty();
+
+        var aggregate = result.GeneratedFiles()["AgentPrismGeneratedTools.g.cs"];
+
+        aggregate.ShouldContain("effect: (global::AgentPrism.ToolEffect)2");
+        aggregate.ShouldContain("requiredPermission: \"orders.cancel\"");
+        aggregate.ShouldContain("timeout: global::System.TimeSpan.FromSeconds(5)");
+    }
+
+    [Fact]
+    public void Undeclared_effect_permission_and_timeout_generate_defaults()
+    {
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal static class Tools
+            {
+                [AgentPrismTool("get_order_status", "Returns the order status.")]
+                public static string GetOrderStatus(string orderId) => orderId;
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var aggregate = result.GeneratedFiles()["AgentPrismGeneratedTools.g.cs"];
+
+        aggregate.ShouldContain("effect: (global::AgentPrism.ToolEffect)0");
+        aggregate.ShouldContain("requiredPermission: null");
+        aggregate.ShouldContain("timeout: null");
+    }
+
+    [Fact]
     public void The_JSON_schema_contains_parameters_and_required()
     {
         const string Source = """

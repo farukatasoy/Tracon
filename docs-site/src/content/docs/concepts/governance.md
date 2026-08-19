@@ -210,6 +210,16 @@ rules are writable from the UI and are not allowed to loosen a policy that says
 `Required`. An unhandled exception in a policy is treated as `Required` and logged —
 a broken policy never silently releases a tool from approval.
 
+### Tool authorization
+
+Approval and authorization answer different questions. Approval asks "is this call okay
+this time" and stops to wait for a person; authorization asks "can this caller call this
+tool at all" and answers instantly from `IToolAuthorizationHandler` — your own policy,
+checked before approval and before the call's timeout even starts. A denied call does not
+fail the run: the model gets the reason as an ordinary tool result and continues its
+turn. See [Tools, skills, and MCP](/AgentPrism/concepts/tools/#authorization-and-timeout)
+for the interface and an example.
+
 ## Quotas and rate limits
 
 Two different mechanisms, deliberately not merged. Rate limits work at second and

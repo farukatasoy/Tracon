@@ -87,4 +87,19 @@ public enum RunErrorClass
     /// this one requires a separate class because NO response was ever received.
     /// </remarks>
     Infrastructure = 12,
+
+    /// <summary>
+    /// A tool call did not settle within its configured timeout
+    /// (<see cref="AgentPrismToolTimeoutException"/>).
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Canceled"/>: the wrapper's own linked
+    /// cancellation looks identical to a user cancellation at the exception
+    /// type level (<see cref="OperationCanceledException"/>), and merging the
+    /// two would hide the reason for every tool timeout behind "the user
+    /// canceled". This class does not fail a run — the run continues with a
+    /// tool error — but the taxonomy applies wherever this exception's stable
+    /// identity is classified.
+    /// </remarks>
+    ToolTimeout = 13,
 }

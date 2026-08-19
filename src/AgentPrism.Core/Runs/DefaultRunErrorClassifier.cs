@@ -35,6 +35,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         ["AgentPrism.AgentPrismCompilationException"] = RunErrorClass.CompilationFailed,
         [AgentPrismProviderUnavailableException.ProviderUnavailableErrorType] = RunErrorClass.ProviderUnavailable,
         ["AgentPrism.AgentPrismProviderUnavailableException"] = RunErrorClass.ProviderUnavailable,
+        [AgentPrismToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
     };
 
     /// <inheritdoc />

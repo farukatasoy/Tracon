@@ -219,7 +219,7 @@ AgentPrism.AgentPrismToolAttribute.Name.get -> string?
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.init -> void
 AgentPrism.AgentPrismToolRegistration
-AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null) -> void
+AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, AgentPrism.ToolEffect effect = AgentPrism.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null) -> void
 AgentPrism.AgentPrismToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
 AgentPrism.AgentPrismToolRegistration.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolRegistration.Source.get -> string?
@@ -4459,3 +4459,78 @@ virtual AgentPrism.AgentPrismException.ErrorType.get -> string!
 ~override AgentPrism.ConversationBranch.ToString() -> string
 ~override AgentPrism.McpRefreshOutcome.Equals(object obj) -> bool
 ~override AgentPrism.McpRefreshOutcome.ToString() -> string
+AgentPrism.AgentPrismToolAttribute.Effect.get -> AgentPrism.ToolEffect
+AgentPrism.AgentPrismToolAttribute.Effect.init -> void
+AgentPrism.AgentPrismToolAttribute.RequiredPermission.get -> string?
+AgentPrism.AgentPrismToolAttribute.RequiredPermission.init -> void
+AgentPrism.AgentPrismToolAttribute.TimeoutSeconds.get -> int
+AgentPrism.AgentPrismToolAttribute.TimeoutSeconds.init -> void
+AgentPrism.AgentPrismToolRegistration.Effect.get -> AgentPrism.ToolEffect
+AgentPrism.AgentPrismToolRegistration.RequiredPermission.get -> string?
+AgentPrism.AgentPrismToolRegistration.Timeout.get -> System.TimeSpan?
+AgentPrism.AgentPrismToolTimeoutException
+AgentPrism.AgentPrismToolTimeoutException.AgentPrismToolTimeoutException() -> void
+AgentPrism.AgentPrismToolTimeoutException.AgentPrismToolTimeoutException(string! message) -> void
+AgentPrism.AgentPrismToolTimeoutException.AgentPrismToolTimeoutException(string! message, System.Exception! innerException) -> void
+AgentPrism.AgentPrismToolTimeoutException.Timeout.get -> System.TimeSpan?
+AgentPrism.AgentPrismToolTimeoutException.Timeout.init -> void
+AgentPrism.AgentPrismToolTimeoutException.ToolName.get -> string?
+AgentPrism.AgentPrismToolTimeoutException.ToolName.init -> void
+AgentPrism.IToolAuthorizationHandler
+AgentPrism.IToolAuthorizationHandler.AuthorizeAsync(AgentPrism.ToolAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolAuthorizationResult!>
+AgentPrism.RunErrorClass.ToolTimeout = 13 -> AgentPrism.RunErrorClass
+AgentPrism.ToolAuthorizationRequest
+AgentPrism.ToolAuthorizationRequest.<Clone>$() -> AgentPrism.ToolAuthorizationRequest!
+AgentPrism.ToolAuthorizationRequest.AgentName.get -> string!
+AgentPrism.ToolAuthorizationRequest.AgentName.init -> void
+AgentPrism.ToolAuthorizationRequest.Effect.get -> AgentPrism.ToolEffect
+AgentPrism.ToolAuthorizationRequest.Effect.init -> void
+AgentPrism.ToolAuthorizationRequest.Equals(AgentPrism.ToolAuthorizationRequest? other) -> bool
+AgentPrism.ToolAuthorizationRequest.RequiredPermission.get -> string?
+AgentPrism.ToolAuthorizationRequest.RequiredPermission.init -> void
+AgentPrism.ToolAuthorizationRequest.RunId.get -> System.Guid
+AgentPrism.ToolAuthorizationRequest.RunId.init -> void
+AgentPrism.ToolAuthorizationRequest.TenantId.get -> string!
+AgentPrism.ToolAuthorizationRequest.TenantId.init -> void
+AgentPrism.ToolAuthorizationRequest.ToolAuthorizationRequest() -> void
+AgentPrism.ToolAuthorizationRequest.ToolName.get -> string!
+AgentPrism.ToolAuthorizationRequest.ToolName.init -> void
+AgentPrism.ToolAuthorizationRequest.UserId.get -> string?
+AgentPrism.ToolAuthorizationRequest.UserId.init -> void
+AgentPrism.ToolAuthorizationResult
+AgentPrism.ToolAuthorizationResult.<Clone>$() -> AgentPrism.ToolAuthorizationResult!
+AgentPrism.ToolAuthorizationResult.Equals(AgentPrism.ToolAuthorizationResult? other) -> bool
+AgentPrism.ToolAuthorizationResult.IsAllowed.get -> bool
+AgentPrism.ToolAuthorizationResult.IsAllowed.init -> void
+AgentPrism.ToolAuthorizationResult.Reason.get -> string?
+AgentPrism.ToolAuthorizationResult.Reason.init -> void
+AgentPrism.ToolAuthorizationResult.ToolAuthorizationResult() -> void
+AgentPrism.ToolDescriptor.Effect.get -> AgentPrism.ToolEffect
+AgentPrism.ToolDescriptor.Effect.init -> void
+AgentPrism.ToolDescriptor.RequiredPermission.get -> string?
+AgentPrism.ToolDescriptor.RequiredPermission.init -> void
+AgentPrism.ToolDescriptor.Timeout.get -> System.TimeSpan?
+AgentPrism.ToolDescriptor.Timeout.init -> void
+AgentPrism.ToolEffect
+AgentPrism.ToolEffect.Destructive = 2 -> AgentPrism.ToolEffect
+AgentPrism.ToolEffect.External = 3 -> AgentPrism.ToolEffect
+AgentPrism.ToolEffect.Read = 0 -> AgentPrism.ToolEffect
+AgentPrism.ToolEffect.Write = 1 -> AgentPrism.ToolEffect
+AgentPrism.ToolInvocationRecord.AuthorizationDenied.get -> bool
+AgentPrism.ToolInvocationRecord.AuthorizationDenied.init -> void
+AgentPrism.ToolInvocationRecord.TimedOut.get -> bool
+AgentPrism.ToolInvocationRecord.TimedOut.init -> void
+const AgentPrism.AgentPrismToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
+override AgentPrism.AgentPrismToolTimeoutException.ErrorType.get -> string!
+override AgentPrism.ToolAuthorizationRequest.Equals(object? obj) -> bool
+override AgentPrism.ToolAuthorizationRequest.GetHashCode() -> int
+override AgentPrism.ToolAuthorizationRequest.ToString() -> string!
+override AgentPrism.ToolAuthorizationResult.Equals(object? obj) -> bool
+override AgentPrism.ToolAuthorizationResult.GetHashCode() -> int
+override AgentPrism.ToolAuthorizationResult.ToString() -> string!
+static AgentPrism.ToolAuthorizationRequest.operator !=(AgentPrism.ToolAuthorizationRequest? left, AgentPrism.ToolAuthorizationRequest? right) -> bool
+static AgentPrism.ToolAuthorizationRequest.operator ==(AgentPrism.ToolAuthorizationRequest? left, AgentPrism.ToolAuthorizationRequest? right) -> bool
+static AgentPrism.ToolAuthorizationResult.Allow() -> AgentPrism.ToolAuthorizationResult!
+static AgentPrism.ToolAuthorizationResult.Deny(string! reason) -> AgentPrism.ToolAuthorizationResult!
+static AgentPrism.ToolAuthorizationResult.operator !=(AgentPrism.ToolAuthorizationResult? left, AgentPrism.ToolAuthorizationResult? right) -> bool
+static AgentPrism.ToolAuthorizationResult.operator ==(AgentPrism.ToolAuthorizationResult? left, AgentPrism.ToolAuthorizationResult? right) -> bool

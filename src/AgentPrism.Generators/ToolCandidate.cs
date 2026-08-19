@@ -35,7 +35,10 @@ internal sealed record ToolEmitModel(
     bool RequiresApproval,
     ReturnKind Return,
     EquatableArray<ParameterModel> Parameters,
-    string GeneratedClassName);
+    string GeneratedClassName,
+    int Effect,
+    string? RequiredPermission,
+    int TimeoutSeconds);
 
 /// <summary>The analysis result for a single method marked with <c>[AgentPrismTool]</c>.</summary>
 /// <remarks>Either <see cref="Emit"/> is populated (emittable) or <see cref="Diagnostics"/> contains a blocking error (both can hold at once - APG0006 is a warning and does not block).</remarks>
@@ -65,7 +68,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             blocking = true;
         }
 
-        var (explicitName, description, requiresApproval) = ReadAttribute(attribute);
+        var (explicitName, description, requiresApproval, effect, requiredPermission, timeoutSeconds) = ReadAttribute(attribute);
         var toolName = explicitName ?? method.Name;
 
         if (!ToolNameValidator.IsValid(toolName))
@@ -113,7 +116,10 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             requiresApproval,
             ClassifyReturn(method.ReturnType),
             parameters.ToImmutable(),
-            GeneratedClassName(method));
+            GeneratedClassName(method),
+            effect,
+            requiredPermission,
+            timeoutSeconds);
 
         return new ToolCandidate(SourceLocation.From(location), diagnostics.ToImmutable(), emit);
     }
@@ -151,7 +157,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         return hash;
     }
 
-    private static (string? Name, string? Description, bool RequiresApproval) ReadAttribute(AttributeData attribute)
+    private static (string? Name, string? Description, bool RequiresApproval, int Effect, string? RequiredPermission, int TimeoutSeconds) ReadAttribute(AttributeData attribute)
     {
         string? name = null;
         string? description = null;
@@ -169,6 +175,9 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         }
 
         var requiresApproval = false;
+        var effect = 0;
+        string? requiredPermission = null;
+        var timeoutSeconds = 0;
 
         foreach (var named in attribute.NamedArguments)
         {
@@ -180,10 +189,19 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
                 case "RequiresApproval" when named.Value.Value is bool value:
                     requiresApproval = value;
                     break;
+                case "Effect" when named.Value.Value is int effectValue:
+                    effect = effectValue;
+                    break;
+                case "RequiredPermission" when named.Value.Value is string permissionValue:
+                    requiredPermission = permissionValue;
+                    break;
+                case "TimeoutSeconds" when named.Value.Value is int timeoutValue:
+                    timeoutSeconds = timeoutValue;
+                    break;
             }
         }
 
-        return (name, description, requiresApproval);
+        return (name, description, requiresApproval, effect, requiredPermission, timeoutSeconds);
     }
 
     private static ReturnKind ClassifyReturn(ITypeSymbol returnType)

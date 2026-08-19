@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -24,7 +24,10 @@
 > `src/AgentPrism.Abstractions/Security/` (tümü) · `src/AgentPrism.Abstractions/Audit/` (tümü) ·
 > `src/AgentPrism.Abstractions/Tenancy/` (tümü) ·
 > `src/AgentPrism.Core/Security/` (tümü) · `src/AgentPrism.Core/Audit/` (tümü) ·
-> `src/AgentPrism.Core/Tenancy/` (tümü).
+> `src/AgentPrism.Core/Tenancy/` (tümü) ·
+> `src/AgentPrism.Abstractions/Tools/ToolEffect.cs`, `ToolAuthorizationTypes.cs` (Faz 69) ·
+> `src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs`, `TimeoutAIFunction.cs`,
+> `AllowAllToolAuthorizationHandler.cs`, `ToolRegistry.cs` (Faz 69).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2237,3 +2240,195 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/acme/egress" -H 
 - Form yalnız sağlayıcı adı, yapılandırma anahtarı ADI ve isteğe bağlı uç adresi
   ister. Hiçbir alan doğrudan bir `secret`/API anahtarı DEĞERİ istemez; çözümleme
   durumu (`resolved`) salt-okunur bir rozet olarak gösterilir.
+
+---
+
+### MT-SEC-120 — Yetkilendirme kancası kayıtlı değilken davranış değişmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+`Program.cs`'de özel bir `IToolAuthorizationHandler` KAYITLI DEĞİL —
+`AddAgentPrism()`'in varsayılan `AllowAllToolAuthorizationHandler`'ı geçerli.
+
+**Adımlar**
+1. `get_order_status` tool'unu çağıran bir `run` başlat (gerçek bir model
+   anahtarı gerekir).
+
+**Beklenen sonuç**
+- Çağrı bugünkü gibi çalışır; ek bir gecikme veya davranış farkı yoktur. Ret
+  metni, yetki reddi olayı yoktur.
+
+---
+
+### MT-SEC-121 — Reddeden bir kanca `run`'ı düşürmez, model devam eder
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+Her çağrıyı reddeden bir `IToolAuthorizationHandler`
+(`ToolAuthorizationResult.Deny(...)`) `Program.cs`'de kayıtlı (geçici test
+kaydı; kalıcı değil).
+
+**Adımlar**
+1. `cancel_order` tool'unu çağıran bir `run` başlat.
+
+**Beklenen sonuç**
+- Model ret metnini bir tool sonucu olarak alır ve turuna devam eder; `run`
+  `Completed` durumunda biter, `Failed` DEĞİL. `GET /api/runs/{id}/tools`
+  kaydında `authorizationDenied: true`, `error: null`.
+
+---
+
+### MT-SEC-122 — Yetki reddi olay akışında `ToolFailed`'den ayırt edilebilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Ön koşul** MT-SEC-121 ile aynı.
+
+**Adımlar**
+1. MT-SEC-121'deki `run`'ın kimliğiyle `GET /api/runs/{id}/tools` çağır.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/runs/$RUN_ID/tools" -H "$APB" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Kayıtta `authorizationDenied: true` ve `timedOut: false` alanları vardır;
+  `error` alanı BOŞTUR (ret bir hata değildir). Aynı kayıt genel bir
+  `ToolFailed`/hata görünümünden ayırt edilebilir.
+
+---
+
+### MT-SEC-123 — Timeout'lu bir tool ~1 saniyede kesilir, `run` devam eder
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+`samples/AgentPrism.Api`'nin `get_slow_report` tool'u (1 sn timeout, 5 sn
+uyuyan gövde) kayıtlı — bkz. `samples/AgentPrism.Api/OrderTools.cs`.
+
+**Adımlar**
+1. `get_slow_report` tool'unu çağıran bir `run` başlat, süreyi ölç.
+
+**Girilecek veri**
+```bash
+time curl -s -X POST "$APU/api/agents/order-support/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"Fetch report R-1 with get_slow_report."}'
+```
+
+**Beklenen sonuç**
+- İstek ~1 saniyede döner (gerçek gövdenin 5 saniyesini BEKLEMEZ). Model bir
+  tool hatası görür ve `run` `Completed` durumunda biter. `GET
+  /api/runs/{id}/tools` kaydında `timedOut: true`, `error` dolu.
+
+---
+
+### MT-SEC-124 — Aynı tool arka arkaya 6 kez zaman aşımına uğrarsa devre kesici AÇILMAZ
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Ön koşul** MT-SEC-123 ile aynı tool.
+
+**Adımlar**
+1. `get_slow_report`'u art arda 6 kez çağıran 6 ayrı `run` başlat.
+2. Her `run`'dan sonra `GET /api/models/health`'i kontrol et.
+
+**Beklenen sonuç**
+- Sağlayıcının devresi (`circuit breaker`) AÇILMAZ — tool zaman aşımı
+  `ModelProviderCircuitBreaker`'a hiç ulaşmaz, yalnız model çağrısı hataları
+  ulaşır. 7. `run` de aynı hızda başlar.
+
+---
+
+### MT-SEC-125 — Onay bekleme süresi timeout'a düşmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | K-368 |
+
+**Ön koşul**
+`cancel_order` (`RequiresApproval = true`, artık `TimeoutSeconds` de kısa
+ayarlanmış bir kopyası — bkz. faz dokümanı) çağıran bir `run`.
+
+**Adımlar**
+1. `cancel_order`'ı çağıran bir `run` başlat; model onay isteği üretsin.
+2. En az 2 dakika bekle.
+3. `POST /api/approvals/{id}/decide` ile onayla.
+
+**Beklenen sonuç**
+- 2 dakikalık bekleme timeout'a düşmez (`ToolTimeout` üretmez) — onay bekleme
+  süresi hiçbir zaman `TimeoutAIFunction`'ın içinden geçmez (K-368: onay kararı
+  YENİ bir `run` açar). Onaydan sonra ikinci `run` normal hızda tamamlanır.
+
+---
+
+### MT-SEC-126 — Tool kataloğunda etki rozeti ve izin adı görünür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Arayüzde Tools ekranını aç.
+2. `cancel_order` satırını bul.
+
+**Beklenen sonuç**
+- `cancel_order` satırında 🔴 kırmızı "geri alınamaz" rozeti VE
+  `orders.cancel` izin rozeti görünür. `get_order_status`/`list_recent_orders`
+  satırlarında etki rozeti YOKTUR (`Read` nötrdür, rozet basılmaz).
+
+---
+
+### MT-SEC-127 — Token okumayan tool: `run` 1 saniyede devam eder, gövde arkada biter
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 69 |
+| **İlgili karar** | — |
+
+**Ön koşul** MT-SEC-123 ile aynı (`get_slow_report`, `CancellationToken` PARAMETRESİ ALMAZ).
+
+**Adımlar**
+1. MT-SEC-123'ü koş; sunucu loglarını izle.
+
+**Beklenen sonuç**
+- `run` ~1 saniyede devam eder (MT-SEC-123). ~4 saniye sonra sunucu loglarında
+  `Tool 'get_slow_report' finished after its 1s timeout had already been
+  reported to the model.` uyarısı görünür — gövde arka planda gerçekten
+  bitmiştir, yalnız BEKLEME kesilmiştir. **Belgelenmiş sınır**: `run`'ın
+  kendisi bu ikinci tamamlanmayı bir olay olarak yazmaz.

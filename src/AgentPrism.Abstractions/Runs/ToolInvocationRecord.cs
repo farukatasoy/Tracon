@@ -86,6 +86,24 @@ public sealed record ToolInvocationRecord
     [JsonIgnore]
     public string? TenantId { get; init; }
 
+    /// <summary>
+    /// Whether <see cref="IToolAuthorizationHandler"/> denied this call before it ran.
+    /// </summary>
+    /// <remarks>
+    /// A denied call is <strong>not</strong> an error: <see cref="Error"/>
+    /// stays empty and <see cref="Result"/> carries the denial text the model
+    /// saw. This field is the only way to tell "the model chose not to call
+    /// it" apart from "the caller was not allowed to call it" when reading
+    /// the record back.
+    /// </remarks>
+    public bool AuthorizationDenied { get; init; }
+
+    /// <summary>
+    /// Whether the call ended because its execution timeout elapsed
+    /// (<see cref="AgentPrismToolTimeoutException"/>).
+    /// </summary>
+    public bool TimedOut { get; init; }
+
     /// <summary>Whether the call finished successfully.</summary>
     public bool Succeeded => Error is null;
 }

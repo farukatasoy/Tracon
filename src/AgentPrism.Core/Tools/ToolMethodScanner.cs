@@ -57,7 +57,10 @@ internal static class ToolMethodScanner
 
             registrations.Add(new AgentPrismToolRegistration(
                 CreateFunction(type, method, attribute),
-                attribute.RequiresApproval));
+                attribute.RequiresApproval,
+                effect: attribute.Effect,
+                requiredPermission: attribute.RequiredPermission,
+                timeout: attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null));
         }
 
         if (registrations.Count == 0)

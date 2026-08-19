@@ -28,6 +28,54 @@ Wrapping for approval happens in the **registry**, not at the call site. The reg
 is the single place where "an agent may only point at a registered tool" is enforced,
 so no other code path can skip the wrapper.
 
+### Authorization and timeout
+
+Two more wrappers apply next to approval, in a fixed order: **authorization** (outermost),
+**timeout**, then **approval** (innermost), then the real method.
+
+Authorization asks a different question than approval. Approval asks "is this call okay
+this time" and stops to wait for a person. Authorization asks "can this caller call this
+tool at all" and answers instantly from your own policy — implement
+`IToolAuthorizationHandler` and register it; the default allows every call, so an
+application that registers nothing keeps today's behavior exactly.
+
+```csharp
+public sealed class MyAuthorizationHandler : IToolAuthorizationHandler
+{
+    public ValueTask<ToolAuthorizationResult> AuthorizeAsync(
+        ToolAuthorizationRequest request, CancellationToken cancellationToken = default)
+        => request.RequiredPermission is "orders.cancel" && !CallerHasPermission(request)
+            ? ValueTask.FromResult(ToolAuthorizationResult.Deny("You cannot cancel orders."))
+            : ValueTask.FromResult(ToolAuthorizationResult.Allow());
+}
+
+services.AddSingleton<IToolAuthorizationHandler, MyAuthorizationHandler>();
+```
+
+A denied call does not fail the run: the model receives the reason text as an ordinary
+tool result and continues its turn — the same way a search that finds nothing is not an
+error. If your handler throws, the call is denied (fail-closed), never allowed.
+
+`[AgentPrismTool]` also carries an effect class and a per-tool timeout:
+
+```csharp
+[AgentPrismTool(
+    "cancel_order",
+    "Cancels an order.",
+    RequiresApproval = true,
+    Effect = ToolEffect.Destructive,
+    RequiredPermission = "orders.cancel",
+    TimeoutSeconds = 30)]
+public static string CancelOrder(string orderId) => ...;
+```
+
+`Effect` (`Read`/`Write`/`Destructive`/`External`) is information, not a gate — the
+console shows it as a badge, and the audit trail records it. A call that outlives its
+timeout does not fail the run either: the model sees a tool error and continues, the same
+as a denial. `CancellationToken` is cooperative, so a tool body that never reads its own
+token is not forcibly stopped — only the *wait* is cut short; the timeout applies to
+execution only, never to a pending approval, which can wait indefinitely.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the

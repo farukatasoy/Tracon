@@ -68,4 +68,24 @@ public sealed class AgentPrismToolAttribute : Attribute
     /// deletion, payment) this way.
     /// </remarks>
     public bool RequiresApproval { get; init; }
+
+    /// <summary>The tool's effect class. Defaults to <see cref="ToolEffect.Read"/>.</summary>
+    public ToolEffect Effect { get; init; }
+
+    /// <summary>
+    /// The permission name a caller must hold to call this tool, or
+    /// <see langword="null"/> to declare none.
+    /// </summary>
+    /// <remarks>Checked by the registered <c>IToolAuthorizationHandler</c> before every call.</remarks>
+    public string? RequiredPermission { get; init; }
+
+    /// <summary>
+    /// The longest duration this tool's call may run, in seconds. Zero (the
+    /// default) uses the installation default instead of a fixed value.
+    /// </summary>
+    /// <remarks>
+    /// An attribute argument cannot be a <see cref="TimeSpan"/>, so seconds is
+    /// the unit; the registry converts it.
+    /// </remarks>
+    public int TimeoutSeconds { get; init; }
 }

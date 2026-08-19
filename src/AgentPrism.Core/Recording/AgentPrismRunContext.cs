@@ -121,6 +121,16 @@ public sealed record AgentRunScope
     internal ToolUsageAccumulator? ToolUsage { get; init; }
 
     /// <summary>
+    /// Gets the authorization decisions made by <see cref="AuthorizingAIFunction"/>, keyed by call identity.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is <see cref="AuthorizingAIFunction"/>; the read side
+    /// is <c>ToolInvocationTracker</c>. Same ambient-write/scoped-read pattern
+    /// as <see cref="ToolUsage"/> (phase 28), applied in phase 69.
+    /// </remarks>
+    internal ToolAuthorizationAccumulator? ToolAuthorization { get; init; }
+
+    /// <summary>
     /// Gets the holder that records which model actually answered when a
     /// <see cref="ModelBinding.Fallbacks"/> link was used instead of the
     /// primary binding.
