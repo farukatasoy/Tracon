@@ -4,6 +4,10 @@
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
+>
+> **Paketleme ve tuketiciye teslim ayri bir dosyadadir:**
+> [`paketleme-ve-dagitim.md`](paketleme-ve-dagitim.md) (`dotnet pack`,
+> `.nuspec`, `buildTransitive/`, sablon, tuketicinin agacina yazma).
 
 - **`Enum.TryParse<T>` / `Enum.IsDefined` / `Enum.GetNames<T>()` AOT temiz** (2026-08-02): `ReasoningEffort` çevrimi bunlarla yazıldı, hiçbir `IL2026`/`IL3050` çıkmadı.
 - **AOT üç yerde ödün istedi** (2026-08-02): `ValidateDataAnnotations()` → elle validator; `optionsBuilder.Bind()` → elle bağlama; tool argümanı serileştirme → elle biçimlendirme. Faz 2'de `jsonb` için `JsonSerializerContext` gerekecek.
@@ -51,46 +55,6 @@
   csproj'dan **once** yuklendigi icin orada turetmek tuketicinin `false` tercihini
   yok sayardi (K-006).
 
-## `IncludeBuildOutput=false` paketleri (Templates, meta) — pack tuzaklari
-
-> Faz 37'de `AgentPrism.Templates` (dotnet new sablonu) paketlenirken kesfedildi.
-> Meta paket (`AgentPrism.csproj`) de `IncludeBuildOutput=false` oldugu icin
-> ayni sinifta risk tasir. K-262/K-263/K-264.
->
-> Bu bolumun uzun tanilama anlatilari (nasil izole edildi, hangi olcum yapildi)
-> [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md)'ye tasindi
-> (2026-08-15, Faz 58.0). Asagida yalnizca **kural** durur.
-
-- **🚨 Bos sembol paketi `NU5017` ile ANA paketi de basarisiz gosterir**
-  (Faz 37): `IncludeBuildOutput=false` olan projede `.pdb` yoktur, `.snupkg`
-  bos kalir ve pack reddeder. Hata mesaji hangi paketten geldigini SOYLEMEZ.
-  Cozum: `<IncludeSymbols>false</IncludeSymbols>`.
-- **🚨 `TargetFrameworks` (cogul) miras kalirsa `dotnet pack` sessizce
-  capraz-hedefler** (Faz 37): tekil `TargetFramework` yazmak `dotnet build`i
-  tek TFM'e indirger ama pack orkestrasyonu COGUL degeri okumaya devam eder.
-  Cozum: `<TargetFrameworks></TargetFrameworks>` ile bosalt (derlenmeyen paket)
-  veya `<TargetFrameworks>net10.0</TargetFrameworks>` ile tek degere sabitle —
-  **tekil ozelligi kullanma**. `AgentPrism.Testing` bu ikinci hali kullanir:
-  `Microsoft.AspNetCore.TestHost` surumu barindirma framework'uyle BIREBIR
-  eslenir, tek surum coklu TFM'i desteklemez (`NU1202`, Faz 39).
-- **`<None Include Pack="true" PackagePath="...">` ile keyfi dosya paketleme**
-  (Faz 37): resmi desen budur. `PackagePath`'i acikca
-  `content/%(RecursiveDir)%(Filename)%(Extension)` ile yaz ve
-  `ContentTargetFolders`'i HIC kullanma — ikisi birlikte `content/content/...`
-  cift onegi uretir.
-- **🚨 `dotnet pack <cozum>` cozumdeki HER projeyi (test projeleri dahil)
-  restore+build eder** (Faz 39): paketlenemeyen projede Pack no-op'tur ama Build
-  ONA BAGIMLI oldugu icin yine calisir. Olculdu: `TemplateFixture` bu yuzden
-  ~1 saat suruyordu. Cozum: `AgentPrism.src.slnf` cozum filtresi (yalniz `src/`);
-  warm pack ~30 sn.
-- **🚨 `wwwroot` + damga birlikte silinip SOLUTION derlenirse arayuz derlemesi
-  YINE yarisir** (Faz 48; K-050'nin kapatmadigi bosluk). Belirti:
-  `ENOENT: ... unlink '.../wwwroot/assets/index-*.js'`. **Cozum: damga
-  silindikten sonra ONCE tek basina
-  `dotnet build src/AgentPrism.UI/AgentPrism.UI.csproj -c Release` calistir,
-  sonra solution'i derle.** Damga guncelken yaris hic olusmaz — normal artimli
-  derlemede gorulmez, yalniz kopya dosya temizliginden sonra gorulur.
-
 ## PublicApiAnalyzers (RS00xx, Faz 60)
 
 - **🚨 `dotnet format analyzers --diagnostics RS0016` tek koşumda bitmez —
@@ -126,12 +90,3 @@
 - MSBuild item'i olcerken hedefe `DependsOnTargets` ver; `-t:` bagimliyi
   kosmaz, cikti bos gelir.
 - **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.
-
-## Tüketiciye giden MSBuild (Faz 73)
-
-> Analyzer YAZIMI ayrı bir alan dosyasındadır:
-> [`analyzer-yazimi.md`](analyzer-yazimi.md).
-
-- **🚨 `<None Update=...>` çapraz-hedefli projede SESSİZCE hiçbir şey yapmaz** (2026-08-19): SDK'nın varsayılan `None` glob'u yalnız **iç** (TFM'e özgü) derlemelerde uygulanır; `dotnet pack` paket dosyalarını **dış** çapraz-hedefleme derlemesinde toplar. Ölçüldü: dışarıda 2, içeride 7 `None` öğesi. `Update` eşleşecek bir öğe bulamaz, dosya pakete girmez ve **hiçbir uyarı çıkmaz**. Doğrusu `<None Remove="dizin/**" />` + `<None Include=... Pack="true" PackagePath="..." />` — `Remove` iç derlemelerdeki glob kopyasını düşürür, `Include` her iki derlemede de görünür. `README.md`'nin `Include` ile paketlenmesinin sebebi de budur. Doğrulama tek komuttur: `unzip -l <nupkg>`.
-- **Git kökünü MSBuild'de bulmak**: `$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.git/config'))` normal klonu bulur; worktree ve submodule'de `.git` bir DOSYA olduğu için ikinci bir deneme (`'.git'`) gerekir. İkisi de boşsa proje dizinine düş — tüketicinin build'ini kırma.
-- **Tüketicinin ağacına dosya yazan `Copy` `ContinueOnError` taşımalıdır**: salt-okunur depo kökü (yaygın CI mount'u) aksi hâlde `MSB3021` ile build'i düşürür. Kolaylık amaçlı bir dosya, tüketicinin derlemesini kıramaz.

@@ -209,6 +209,7 @@ exists. Two channels tell it, and both are generated from this page.
 | Capability | Enable it | Boundary |
 |---|---|---|
 | Agent map file | `AgentPrismWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
+| Local reference file | `AgentPrismWriteLocalReference`, on by default with the map | Writes `AgentPrism.LocalReference.md` beside each project, naming the API documentation and the HTTP API document of the exact version that project restored; regenerated every build, never committed |
 | Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register |
 | Usage diagnostics | Automatic with `AgentPrism.Core`; `AgentPrismUsageDiagnostics` turns the family off | The `AgentPrism.Usage` category reports absent wiring, a literal secret, and hand-written substitutes for shipped behaviour |
 | Tool diagnostics | Automatic with `AgentPrism.Core` | The `AgentPrism.Tools` category reports a tool method the generator cannot use |
@@ -217,6 +218,17 @@ The map is refreshed by deleting `AGENTS.md` and building again; the file is nev
 rewritten in place because you may have added notes to it. The template
 `dotnet new agentprism-api` sets the property, so a generated project has the map
 from its first build.
+
+The map names every entry point; it explains none of them. `AgentPrism.LocalReference.md`
+answers the next question by pointing at what is already on your disk: the XML
+documentation each package carries into the NuGet cache, where every entry point
+carries a worked example, and the OpenAPI document that `AgentPrism.AspNetCore`
+ships. One file is written beside each project, not one at the repository root:
+a solution that splits a web host from a worker gives each project a different
+set of packages, and one shared file could hold only one of those answers. The
+paths are specific to your machine and to the versions that project restored, so
+the file is regenerated on every build and belongs in `.gitignore` — the
+template's `.gitignore` already covers it.
 
 ## Storage and testability
 

@@ -227,7 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–72 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**Faz 0–74 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|
@@ -240,6 +240,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK ve egress, gelen tetikleyiciler | ✅ Bitti |
 | 8 | 67–72 | `pgvector` opt-in, çalıştırma kimliği ve token kırılımı, tool yetkilendirmesi ve timeout, olay hedefi, workflow kod düğümü, çok dilli talimat ve zaman damgalı sentez | ✅ Bitti |
 | 9 | 73 | Tüketici agent desteği: derleme anı tanıları, üretilen yetenek haritası, kapsam kapısı | ✅ Bitti |
+| 10 | 74 | Yerel referans yüzeyi: üretilen yerel referans dosyası, paketlenen OpenAPI belgesi, örnek kapısı | ✅ Bitti |
 
 **Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek
 listeler ve fazların kendi dokümanlarından **üretilir**, elle yazılmaz. Dalgaların

@@ -22,7 +22,8 @@ arıyorsan dosyayı açmak yerine grep et: `grep -rn "AsyncLocal" docs/hafiza/`.
 | SQLite'a özgü (indeks ad alanı, upsert, `ExecuteScalarAsync` CLR tipi) | [`docs/hafiza/sqlite.md`](docs/hafiza/sqlite.md) |
 | Minimal API ucu, DI kaydı, HTTP davranışı | [`docs/hafiza/aspnetcore-di.md`](docs/hafiza/aspnetcore-di.md) |
 | Enum/alan JSON serileştirme, `.WithTags`/`.Produces` | [`aspnetcore-json.md`](docs/hafiza/aspnetcore-json.md) |
-| MSBuild, csproj, NuGet, AOT, paketleme | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
+| MSBuild, csproj, AOT, `.editorconfig`, analyzer tanısı | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
+| `dotnet pack`, `.nuspec`, `buildTransitive/`, şablon, tüketiciye yazılan dosya | [`paketleme-ve-dagitim.md`](docs/hafiza/paketleme-ve-dagitim.md) |
 | Kaynak üreteci veya analyzer **yazımı** (`APG*`) | [`docs/hafiza/analyzer-yazimi.md`](docs/hafiza/analyzer-yazimi.md) |
 | Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |

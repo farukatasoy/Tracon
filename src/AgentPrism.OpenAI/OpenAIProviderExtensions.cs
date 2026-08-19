@@ -17,6 +17,17 @@ public static class OpenAIProviderExtensions
     /// <returns>The same chain, for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
+    /// <remarks>
+    /// The key is passed in by the caller; AgentPrism never reads
+    /// <c>IConfiguration</c> on its own, and the key is never written to the
+    /// database.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseOpenAI(
         this IAgentPrismBuilder builder,
         string apiKey,

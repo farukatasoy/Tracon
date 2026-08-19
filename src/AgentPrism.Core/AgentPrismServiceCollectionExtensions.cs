@@ -19,6 +19,20 @@ public static class AgentPrismServiceCollectionExtensions
     /// <param name="builder">The host application builder.</param>
     /// <returns>The configuration chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The one call every AgentPrism application starts with. On its own it
+    /// runs with in-memory stores and needs no database; a provider and a store
+    /// are added to the chain it returns.
+    /// <example>
+    /// <code>
+    /// var builder = WebApplication.CreateBuilder(args);
+    ///
+    /// builder.AddAgentPrism()
+    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    ///        .UsePostgreSql(builder.Configuration.GetConnectionString("AgentPrism")!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder AddAgentPrism(this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -858,6 +872,11 @@ public static class AgentPrismServiceCollectionExtensions
     /// Phase 18 (eval) adds its own handler with this method.
     /// <c>TryAddEnumerable</c> is used: if the same type is added twice, only
     /// the first counts.
+    /// <example>
+    /// <code>
+    /// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;();
+    /// </code>
+    /// </example>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection AddJobHandler<
@@ -884,6 +903,12 @@ public static class AgentPrismServiceCollectionExtensions
     /// turning off this process's background worker with
     /// <c>o.RunWorker = false</c>). <c>PostConfigure</c> is used, so the value
     /// given from code always wins over the value coming from the configuration file.
+    /// <example>
+    /// <code>
+    /// // A web instance that serves requests and leaves the jobs to a worker process.
+    /// builder.Services.UseScheduling(o => o.RunWorker = false);
+    /// </code>
+    /// </example>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection UseScheduling(

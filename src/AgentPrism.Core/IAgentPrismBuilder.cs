@@ -16,17 +16,49 @@ namespace AgentPrism;
 public interface IAgentPrismBuilder
 {
     /// <summary>The underlying service collection.</summary>
+    /// <remarks>
+    /// The escape hatch: anything AgentPrism does not model is registered here,
+    /// and a registration made before <c>AddAgentPrism()</c> wins over
+    /// AgentPrism's own, because every AgentPrism service is registered with
+    /// <c>TryAdd</c>.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .Services.AddSingleton&lt;IOrderGateway, OrderGateway&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
     IServiceCollection Services { get; }
 
     /// <summary>Modifies the runtime settings.</summary>
     /// <param name="configure">The settings modifier.</param>
     /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Runs after the configuration section is bound, so a value set here wins
+    /// over <c>appsettings.json</c>.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .Configure(options => options.Tools.DefaultTimeout = TimeSpan.FromSeconds(60));
+    /// </code>
+    /// </example>
+    /// </remarks>
     IAgentPrismBuilder Configure(Action<AgentPrismOptions> configure);
 
     /// <summary>Registers a tool.</summary>
     /// <param name="tool">The tool to register.</param>
     /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
     /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// The AOT-safe overload: the caller supplies the built
+    /// <see cref="AIFunction"/>, so no reflection is involved.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddTool(refundTool, requiresApproval: true);
+    /// </code>
+    /// </example>
+    /// </remarks>
     IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval);
 
     /// <summary>
@@ -74,6 +106,12 @@ public interface IAgentPrismBuilder
     /// scenarios. Applications targeting AOT should use the
     /// <see cref="AddTool(AIFunction, bool)"/> overload instead.
     /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddToolsFrom&lt;OrderTools&gt;();
+    /// </code>
+    /// </example>
     /// </remarks>
     [RequiresUnreferencedCode("Tool scanning uses reflection; method information may be lost in trimmed applications.")]
     [RequiresDynamicCode("Tool scanning may require code generation at runtime.")]
@@ -104,6 +142,20 @@ public interface IAgentPrismBuilder
     /// </summary>
     /// <param name="definition">The agent definition.</param>
     /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddAgent(new AgentDefinition
+    ///        {
+    ///            Name = "support",
+    ///            Instructions = "Answer support questions from the order data.",
+    ///            Model = new ModelBinding { Provider = "openai", Model = "gpt-4o-mini" },
+    ///            ToolNames = ["get_order_status"],
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
     IAgentPrismBuilder AddAgent(AgentDefinition definition);
 
     /// <summary>
@@ -112,6 +164,21 @@ public interface IAgentPrismBuilder
     /// </summary>
     /// <param name="skill">The skill to register.</param>
     /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// A skill is instruction text an agent loads by name; it carries no code.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddSkill(new AgentSkillDefinition
+    ///        {
+    ///            TenantId = "default",
+    ///            Name = "refund-policy",
+    ///            Description = "How a refund decision is made.",
+    ///            Instructions = "A refund under 100 USD is approved without review.",
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
     IAgentPrismBuilder AddSkill(AgentSkillDefinition skill);
 
     /// <summary>
@@ -127,6 +194,17 @@ public interface IAgentPrismBuilder
     /// <summary>Registers a model provider.</summary>
     /// <param name="provider">The provider.</param>
     /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// The shipped provider packages (<c>UseOpenAI()</c>, <c>UseAnthropic()</c>,
+    /// and the rest) call this method. Register your own provider here when the
+    /// model sits behind an endpoint none of them describes.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddModelProvider(new OnPremiseModelProvider(endpoint));
+    /// </code>
+    /// </example>
+    /// </remarks>
     IAgentPrismBuilder AddModelProvider(IModelProvider provider);
 
     /// <summary>Registers a model provider through a factory.</summary>
@@ -146,6 +224,14 @@ public interface IAgentPrismBuilder
     /// <c>Microsoft.Agents.AI.FunctionEvaluator.Create(...)</c> is expected.
     /// Same rationale as tools: custom logic is only defined in code, and a
     /// free-form expression cannot be written from the interface.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddEvalCheck("mentionsOrderId", FunctionEvaluator.Create(
+    ///            "mentionsOrderId",
+    ///            response => response.Contains("order", StringComparison.OrdinalIgnoreCase)));
+    /// </code>
+    /// </example>
     /// </remarks>
     IAgentPrismBuilder AddEvalCheck(string kind, Microsoft.Agents.AI.EvalCheck check);
 }

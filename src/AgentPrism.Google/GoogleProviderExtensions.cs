@@ -17,6 +17,14 @@ public static class GoogleProviderExtensions
     /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseGoogle(builder.Configuration["Google:ApiKey"]!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseGoogle(
         this IAgentPrismBuilder builder,
         string apiKey,

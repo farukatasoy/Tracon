@@ -80,6 +80,13 @@ public static class AgentPrismContentGuardBuilderExtensions
     /// <remarks>
     /// Multiple guards can be registered; all of them run in sequence and
     /// <strong>the strictest decision wins</strong>.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddPatternContentGuard()
+    ///        .AddContentGuard&lt;CustomerNameGuard&gt;();
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder AddContentGuard<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TGuard>(

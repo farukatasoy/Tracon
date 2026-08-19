@@ -18,6 +18,14 @@ public static class AgentPrismSqlServerBuilderExtensions
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseSqlServer(builder.Configuration.GetConnectionString("AgentPrism")!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseSqlServer(this IAgentPrismBuilder builder, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(builder);
