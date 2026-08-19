@@ -25,6 +25,11 @@ public sealed class DefaultRunErrorClassifierTests
     [InlineData("System.Exception", "the operation has timed out", RunErrorClass.Timeout)]
     [InlineData("System.OperationCanceledException", "canceled", RunErrorClass.Canceled)]
     [InlineData("System.Threading.Tasks.TaskCanceledException", "canceled", RunErrorClass.Canceled)]
+    // Phase 69: a tool timeout must NOT fall into Canceled (its wrapper races
+    // the call using its own linked cancellation, which looks identical to a
+    // user cancellation at the exception-type level) nor into the run-level
+    // Timeout class (that one means the WHOLE run exceeded its limit).
+    [InlineData("tool_timeout", "Tool 'slow_tool' did not complete within 1s.", RunErrorClass.ToolTimeout)]
     public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });

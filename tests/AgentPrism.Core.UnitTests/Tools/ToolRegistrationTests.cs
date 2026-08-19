@@ -44,9 +44,15 @@ public sealed class ToolRegistrationTests
     [Fact]
     public void Approval_requirement_is_carried_to_the_descriptor()
     {
-        var registry = new ToolRegistry([new AgentPrismToolRegistration(TestData.Tool("delete"), requiresApproval: true)]);
+        var withApproval = new ToolRegistry(
+            [new AgentPrismToolRegistration(TestData.Tool("delete"), requiresApproval: true)],
+            new AllowAllToolAuthorizationHandler(),
+            TestData.DefaultOptionsMonitor(),
+            attribution: null,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizingAIFunction>.Instance,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance);
 
-        registry.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
+        withApproval.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
     }
 
     [Fact]
@@ -111,7 +117,13 @@ public sealed class ToolRegistrationTests
             "read_page_title", "Reads the current page title.", schema, returnJsonSchema: null);
 
         var exception = Should.Throw<AgentPrismException>(
-            () => new ToolRegistry([new AgentPrismToolRegistration(declaration, requiresApproval: true)]));
+            () => new ToolRegistry(
+                [new AgentPrismToolRegistration(declaration, requiresApproval: true)],
+                new AllowAllToolAuthorizationHandler(),
+                TestData.DefaultOptionsMonitor(),
+                attribution: null,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<AuthorizingAIFunction>.Instance,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<TimeoutAIFunction>.Instance));
 
         exception.Message.ShouldContain("read_page_title");
         exception.Message.ShouldContain("client");

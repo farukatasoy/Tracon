@@ -915,9 +915,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         InsertToolInvocation = $"""
             INSERT INTO {Schema}.tool_invocations
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
-                 usage_unit, usage_quantity, usage_estimated, cost, cost_currency)
+                 usage_unit, usage_quantity, usage_estimated, cost, cost_currency,
+                 authorization_denied, timed_out)
             SELECT @id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
-                   @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency
+                   @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency,
+                   @authorization_denied, @timed_out
             WHERE EXISTS (
                 SELECT 1 FROM {Schema}.runs r
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
@@ -929,7 +931,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
-                   t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency
+                   t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency,
+                   t.authorization_denied, t.timed_out
             FROM {Schema}.tool_invocations t
             JOIN {Schema}.runs r ON r.id = t.run_id
             WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id

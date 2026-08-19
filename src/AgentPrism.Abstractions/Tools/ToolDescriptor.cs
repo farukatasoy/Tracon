@@ -48,4 +48,29 @@ public sealed record ToolDescriptor
     /// <c>AgentRunRequest.ToolResults</c> for the run to continue.
     /// </remarks>
     public bool RunsOnClient { get; init; }
+
+    /// <summary>The tool's effect class. Defaults to <see cref="ToolEffect.Read"/>.</summary>
+    /// <remarks>
+    /// Information, not a gate — see <see cref="ToolEffect"/>. An MCP-sourced
+    /// tool defaults to <see cref="ToolEffect.External"/> instead: its
+    /// definition lives on a remote server and can change, so the most
+    /// cautious class is the honest default.
+    /// </remarks>
+    public ToolEffect Effect { get; init; }
+
+    /// <summary>
+    /// The permission name a caller must hold to call this tool, or
+    /// <see langword="null"/> when the tool declares none.
+    /// </summary>
+    /// <remarks>
+    /// Passed to <see cref="IToolAuthorizationHandler"/> as-is; AgentPrism
+    /// does not resolve or validate its meaning.
+    /// </remarks>
+    public string? RequiredPermission { get; init; }
+
+    /// <summary>
+    /// The longest duration this tool's call may run, or <see langword="null"/>
+    /// to use the installation default (<c>AgentPrismOptions.Tools.DefaultTimeout</c>).
+    /// </summary>
+    public TimeSpan? Timeout { get; init; }
 }

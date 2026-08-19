@@ -1210,7 +1210,7 @@ AgentPrism.ToolApprovalRuleEvaluator.IsAutoApprovedAsync(string! agentName, Micr
 AgentPrism.ToolApprovalRuleEvaluator.ToolApprovalRuleEvaluator(AgentPrism.IToolApprovalRuleStore! rules, AgentPrism.ToolApprovalPolicyRegistry! policies, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILogger<AgentPrism.ToolApprovalRuleEvaluator!>! logger) -> void
 AgentPrism.ToolRegistry
 AgentPrism.ToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
-AgentPrism.ToolRegistry.ToolRegistry(System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismToolRegistration!>! registrations) -> void
+AgentPrism.ToolRegistry.ToolRegistry(System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismToolRegistration!>! registrations, AgentPrism.IToolAuthorizationHandler! authorizationHandler, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>! optionsMonitor, AgentPrism.IRunAttributionContext? attribution, Microsoft.Extensions.Logging.ILogger<AgentPrism.AuthorizingAIFunction!>! authorizingLogger, Microsoft.Extensions.Logging.ILogger<AgentPrism.TimeoutAIFunction!>! timeoutLogger) -> void
 AgentPrism.ToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunctionDeclaration? tool) -> bool
 AgentPrism.VoiceAudioFormats
 AgentPrism.VoiceConnectionLease
@@ -1531,3 +1531,16 @@ static AgentPrism.WorkflowDefinitionValidator.Validate(AgentPrism.WorkflowDefini
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
+AgentPrism.AgentPrismOptions.Tools.get -> AgentPrism.AgentPrismToolOptions!
+AgentPrism.AgentPrismOptions.Tools.set -> void
+AgentPrism.AgentPrismToolOptions
+AgentPrism.AgentPrismToolOptions.AgentPrismToolOptions() -> void
+AgentPrism.AgentPrismToolOptions.DefaultTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismToolOptions.DefaultTimeout.set -> void
+AgentPrism.AllowAllToolAuthorizationHandler
+AgentPrism.AllowAllToolAuthorizationHandler.AllowAllToolAuthorizationHandler() -> void
+AgentPrism.AllowAllToolAuthorizationHandler.AuthorizeAsync(AgentPrism.ToolAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolAuthorizationResult!>
+AgentPrism.AuthorizingAIFunction
+AgentPrism.AuthorizingAIFunction.AuthorizingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, AgentPrism.IToolAuthorizationHandler! handler, AgentPrism.ToolEffect effect, string? requiredPermission, AgentPrism.IRunAttributionContext? attribution, Microsoft.Extensions.Logging.ILogger<AgentPrism.AuthorizingAIFunction!>! logger) -> void
+AgentPrism.TimeoutAIFunction
+AgentPrism.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<AgentPrism.TimeoutAIFunction!>! logger) -> void

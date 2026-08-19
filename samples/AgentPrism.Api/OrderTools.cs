@@ -36,7 +36,28 @@ internal static class OrderTools
     /// Microsoft Agent Framework produces an approval request instead of running
     /// the call, and the UI shows an approval card.
     /// </remarks>
-    [AgentPrismTool("cancel_order", "Cancels an order.", RequiresApproval = true)]
+    [AgentPrismTool(
+        "cancel_order",
+        "Cancels an order.",
+        RequiresApproval = true,
+        Effect = ToolEffect.Destructive,
+        RequiredPermission = "orders.cancel")]
     public static string CancelOrder(string orderId)
         => $"Order {orderId} has been canceled.";
+
+    /// <summary>
+    /// Demo tool for F-114 (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md): its
+    /// body sleeps far longer than its own 1-second timeout, showing that the
+    /// registry's <c>TimeoutAIFunction</c> wrapper cuts the WAIT short — the
+    /// body itself keeps running in the background, a documented limit of
+    /// cooperative cancellation (Manual Case 8).
+    /// </summary>
+    /// <param name="reportId">The report number.</param>
+    /// <returns>The report text — never actually reached at the default timeout.</returns>
+    [AgentPrismTool("get_slow_report", "Fetches a report that is slow to generate.", TimeoutSeconds = 1)]
+    public static async Task<string> GetSlowReport(string reportId)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        return $"Report {reportId} is ready.";
+    }
 }

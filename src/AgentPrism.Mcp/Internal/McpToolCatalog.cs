@@ -39,6 +39,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<McpToolCatalog> _logger;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
+    private readonly IToolAuthorizationHandler _authorizationHandler;
+    private readonly IRunAttributionContext? _attribution;
 
     // The read path is lock-free: every refresh builds a new dictionary and
     // swaps the reference atomically. Readers always see a consistent snapshot.
@@ -59,7 +61,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         IOptions<AgentPrismOptions> coreOptions,
         IOptions<AgentPrismMcpOptions> options,
         ILoggerFactory loggerFactory,
-        McpOAuthTokenCacheRegistry tokenCaches)
+        McpOAuthTokenCacheRegistry tokenCaches,
+        IToolAuthorizationHandler authorizationHandler,
+        IRunAttributionContext? attribution)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(tenants);
@@ -68,6 +72,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(tokenCaches);
+        ArgumentNullException.ThrowIfNull(authorizationHandler);
 
         _servers = servers;
         _tenants = tenants;
@@ -77,6 +82,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<McpToolCatalog>();
         _tokenCaches = tokenCaches;
+        _authorizationHandler = authorizationHandler;
+        _attribution = attribution;
     }
 
     /// <summary>Returns a tenant's discovered tools.</summary>
@@ -142,7 +149,14 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
                 if (registrations.Count > 0)
                 {
-                    byTenant[tenantId] = McpTenantTools.Create(registrations, _logger);
+                    byTenant[tenantId] = McpTenantTools.Create(
+                        registrations,
+                        _logger,
+                        _authorizationHandler,
+                        _coreOptions.Value.Tools.DefaultTimeout,
+                        _attribution,
+                        _loggerFactory.CreateLogger<AuthorizingAIFunction>(),
+                        _loggerFactory.CreateLogger<TimeoutAIFunction>());
                     total += registrations.Count;
                 }
             }

@@ -33,6 +33,11 @@ internal sealed class McpTenantTools
     /// <summary>Builds an immutable set from registrations.</summary>
     /// <param name="registrations">The discovered tool registrations.</param>
     /// <param name="logger">The logger name collisions are reported to.</param>
+    /// <param name="authorizationHandler">The authorization policy applied before every call (F-113).</param>
+    /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none (F-114).</param>
+    /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
+    /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
+    /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
     /// <returns>The set.</returns>
     /// <remarks>
     /// A name collision is <strong>not an error</strong>. In the code
@@ -43,7 +48,12 @@ internal sealed class McpTenantTools
     /// </remarks>
     public static McpTenantTools Create(
         IReadOnlyList<AgentPrismToolRegistration> registrations,
-        ILogger logger)
+        ILogger logger,
+        IToolAuthorizationHandler authorizationHandler,
+        TimeSpan defaultTimeout,
+        IRunAttributionContext? attribution,
+        ILogger<AuthorizingAIFunction> authorizingLogger,
+        ILogger<TimeoutAIFunction> timeoutLogger)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
         var descriptors = new List<ToolDescriptor>(registrations.Count);
@@ -52,24 +62,42 @@ internal sealed class McpTenantTools
         {
             var name = registration.Function.Name;
 
-            // The approval wrapping happens here. For tools registered in
-            // code, ToolRegistry does the same job; MCP tools do not go
-            // through that registry, so the wrapping is repeated on this path.
-            // MCP tools are always real AIFunctions (McpClientTool : AIFunction);
-            // the guard below only ever fires for a misconfigured direct
-            // AgentPrismToolRegistration registration, same as in ToolRegistry.
+            // Wrapping happens here. For tools registered in code, ToolRegistry
+            // does the same job; MCP tools do not go through that registry, so
+            // the wrapping is repeated on this path (docs/69, section 69.1 for
+            // the ordering rationale). MCP tools are always real AIFunctions
+            // (McpClientTool : AIFunction); the guard below only ever fires for
+            // a misconfigured direct AgentPrismToolRegistration registration,
+            // same as in ToolRegistry.
+            //
+            // An MCP tool's definition lives on a remote server the moment it is
+            // read; it never carries its own effect classification, so it
+            // defaults to External — the most cautious class, not Read.
+            var effect = registration.Effect == ToolEffect.Read ? ToolEffect.External : registration.Effect;
+
             AIFunctionDeclaration function;
 
-            if (registration.RequiresApproval)
+            if (registration.Function is AIFunction invocable)
             {
-                if (registration.Function is not AIFunction invocable)
-                {
-                    throw new AgentPrismException(
-                        $"Tool '{name}' cannot require approval: it runs on the client and has no " +
-                        "server-side body to defer. Approval and client-side tools are separate mechanisms.");
-                }
+                AIFunction wrapped = registration.RequiresApproval
+                    ? new ApprovalRequiredAIFunction(invocable)
+                    : invocable;
 
-                function = new ApprovalRequiredAIFunction(invocable);
+                wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
+
+                function = new AuthorizingAIFunction(
+                    wrapped,
+                    authorizationHandler,
+                    effect,
+                    registration.RequiredPermission,
+                    attribution,
+                    authorizingLogger);
+            }
+            else if (registration.RequiresApproval)
+            {
+                throw new AgentPrismException(
+                    $"Tool '{name}' cannot require approval: it runs on the client and has no " +
+                    "server-side body to defer. Approval and client-side tools are separate mechanisms.");
             }
             else
             {
@@ -96,6 +124,9 @@ internal sealed class McpTenantTools
                 RequiresApproval = registration.RequiresApproval,
                 Source = registration.Source,
                 RunsOnClient = registration.Function is not AIFunction,
+                Effect = effect,
+                RequiredPermission = registration.RequiredPermission,
+                Timeout = registration.Timeout,
             });
         }
 

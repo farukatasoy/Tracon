@@ -315,6 +315,14 @@ export const en = {
   'tools.failed': 'failed',
   'tools.average': 'avg',
   'tools.last': 'last',
+  'tools.effect.write': 'write',
+  'tools.effect.writeTitle': 'This tool changes persistent data.',
+  'tools.effect.destructive': 'destructive',
+  'tools.effect.destructiveTitle': 'This tool cannot be undone.',
+  'tools.effect.external': 'external',
+  'tools.effect.externalTitle': 'This tool sends data outside the process.',
+  'tools.permissionTitle': 'A caller needs the permission "{permission}" to call this tool.',
+  'tools.timeoutTitle': 'This tool call is cut off after {seconds}s if it does not settle.',
 
   /* ------------------------------------------------------------ models */
   'models.description': 'Providers registered in the host application, the models configured for them, and whether they answer.',
@@ -612,6 +620,7 @@ export const en = {
   'dashboard.errorClass.BudgetExceeded': 'Budget exceeded',
   'dashboard.errorClass.Canceled': 'Canceled',
   'dashboard.errorClass.ContentBlocked': 'Content blocked by policy',
+  'dashboard.errorClass.ToolTimeout': 'Tool timed out',
 
   /* --------------------------------------------------------- workflows */
   'workflows.description': 'Agents from the catalogue wired together with one of five ready-made patterns. A workflow run is one row in Runs, and every agent it calls is a child of that row.',

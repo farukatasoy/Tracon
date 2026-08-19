@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -13,45 +15,79 @@ public sealed class ToolRegistry : IToolRegistry
 
     /// <summary>Initializes a new registry from registrations.</summary>
     /// <param name="registrations">The tool registrations.</param>
+    /// <param name="authorizationHandler">The authorization policy applied before every server-side call (F-113).</param>
+    /// <param name="optionsMonitor">Supplies the installation's default tool timeout (F-114).</param>
+    /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
+    /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
+    /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
     /// <exception cref="ArgumentNullException"><paramref name="registrations"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
     /// The same name is registered more than once, or a client-side tool
     /// (one whose body is not an <see cref="AIFunction"/>) is registered
     /// with <c>requiresApproval: true</c>.
     /// </exception>
-    public ToolRegistry(IEnumerable<AgentPrismToolRegistration> registrations)
+    public ToolRegistry(
+        IEnumerable<AgentPrismToolRegistration> registrations,
+        IToolAuthorizationHandler authorizationHandler,
+        IOptionsMonitor<AgentPrismOptions> optionsMonitor,
+        IRunAttributionContext? attribution,
+        ILogger<AuthorizingAIFunction> authorizingLogger,
+        ILogger<TimeoutAIFunction> timeoutLogger)
     {
         ArgumentNullException.ThrowIfNull(registrations);
+        ArgumentNullException.ThrowIfNull(authorizationHandler);
+        ArgumentNullException.ThrowIfNull(optionsMonitor);
+        ArgumentNullException.ThrowIfNull(authorizingLogger);
+        ArgumentNullException.ThrowIfNull(timeoutLogger);
 
         _tools = new Dictionary<string, AIFunctionDeclaration>(StringComparer.Ordinal);
         _descriptors = [];
+
+        var defaultTimeout = optionsMonitor.CurrentValue.Tools.DefaultTimeout;
 
         foreach (var registration in registrations)
         {
             var name = registration.Function.Name;
 
-            // Apply the approval wrapper here, not in the compiler. The registry is
+            // Every wrapper is applied here, not in the compiler. The registry is
             // the only place that enforces the "an agent can only refer to a registered
-            // tool" rule. Enforcing approval here prevents another code path from bypassing it.
+            // tool" rule. Enforcing wrapping here prevents another code path from bypassing it.
             //
-            // ApprovalRequiredAIFunction is a DelegatingAIFunction. Its name,
-            // description, and JSON schema do not change. Instead of running the
-            // wrapped tool, Microsoft Agent Framework produces ToolApprovalRequestContent.
+            // Composition order (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1):
+            // Authorizing (outermost) -> Timeout -> ApprovalRequired (innermost) -> real function.
+            // Authorization runs before anything else: asking for approval or waiting
+            // out a timeout for a call the caller could never make is backwards.
+            // Timeout sits OUTSIDE approval: ApprovalRequiredAIFunction never blocks on
+            // the human decision within one call (K-368 — the decision resumes as a NEW
+            // run), so this ordering only ever bounds the tool's own execution.
             AIFunctionDeclaration function;
 
-            if (registration.RequiresApproval)
+            if (registration.Function is AIFunction invocable)
             {
-                if (registration.Function is not AIFunction invocable)
-                {
-                    throw new AgentPrismException(
-                        $"Tool '{name}' cannot require approval: it runs on the client and has no " +
-                        "server-side body to defer. Approval and client-side tools are separate mechanisms.");
-                }
+                AIFunction wrapped = registration.RequiresApproval
+                    ? new ApprovalRequiredAIFunction(invocable)
+                    : invocable;
 
-                function = new ApprovalRequiredAIFunction(invocable);
+                wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
+
+                function = new AuthorizingAIFunction(
+                    wrapped,
+                    authorizationHandler,
+                    registration.Effect,
+                    registration.RequiredPermission,
+                    attribution,
+                    authorizingLogger);
+            }
+            else if (registration.RequiresApproval)
+            {
+                throw new AgentPrismException(
+                    $"Tool '{name}' cannot require approval: it runs on the client and has no " +
+                    "server-side body to defer. Approval and client-side tools are separate mechanisms.");
             }
             else
             {
+                // Declaration-only (client-side) tool: the server never invokes it,
+                // so there is no execution to authorize or bound with a timeout.
                 function = registration.Function;
             }
 
@@ -71,6 +107,9 @@ public sealed class ToolRegistry : IToolRegistry
                 RequiresApproval = registration.RequiresApproval,
                 Source = registration.Source,
                 RunsOnClient = registration.Function is not AIFunction,
+                Effect = registration.Effect,
+                RequiredPermission = registration.RequiredPermission,
+                Timeout = registration.Timeout,
             });
         }
 
