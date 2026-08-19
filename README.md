@@ -227,7 +227,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ## Yol Haritası
 
-**Faz 0–65 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+**Faz 0–69 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
 
 | Dalga | Fazlar | Konu | Durum |
 |-------|--------|------|-------|

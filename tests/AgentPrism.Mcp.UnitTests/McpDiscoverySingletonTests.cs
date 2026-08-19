@@ -61,7 +61,9 @@ public sealed class McpDiscoverySingletonTests
             Options(new AgentPrismOptions()),
             mcpOptions,
             NullLoggerFactory.Instance,
-            new McpOAuthTokenCacheRegistry());
+            new McpOAuthTokenCacheRegistry(),
+            new AllowAllToolAuthorizationHandler(),
+            attribution: null);
 
         // No SQL persistence provider is registered: the gate is open by
         // itself, and discovery starts without waiting (K-354).

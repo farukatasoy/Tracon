@@ -247,6 +247,63 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 }
 
 /// <summary>
+/// Thrown when a tool call does not settle within its configured timeout.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Thrown by the wrapper installed in the tool registry (F-114,
+/// <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>), never by the tool body
+/// itself. Microsoft Agent Framework's function-invoking client catches it and
+/// turns it into a tool result carrying the error — the run is
+/// <strong>not</strong> dropped, and the model sees a tool failure and can
+/// continue the turn.
+/// </para>
+/// <para>
+/// 🚨 <see cref="CancellationToken"/> is cooperative. A tool body that never
+/// reads its token is not forcibly stopped by this timeout — only the
+/// <em>wait</em> for it is cut short. The underlying work keeps running in the
+/// background until it finishes on its own; this is a documented limit, not a
+/// bug (Manual Case 8, <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>).
+/// </para>
+/// </remarks>
+public sealed class AgentPrismToolTimeoutException : AgentPrismException
+{
+    /// <summary>
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
+    /// </summary>
+    public const string ToolTimeoutErrorType = "tool_timeout";
+
+    /// <summary>Creates a new error.</summary>
+    public AgentPrismToolTimeoutException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    public AgentPrismToolTimeoutException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public AgentPrismToolTimeoutException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the name of the tool that timed out.</summary>
+    public string? ToolName { get; init; }
+
+    /// <summary>Gets the timeout that elapsed.</summary>
+    public TimeSpan? Timeout { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ToolTimeoutErrorType;
+}
+
+/// <summary>
 /// Thrown for the losing request when two concurrent first requests arrive for the
 /// same NEW session id.
 /// </summary>

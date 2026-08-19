@@ -138,6 +138,9 @@ and there is no way to add one from here. A tool registered with `AddClientTool(
 carries a "client-side" badge: its declaration is still code-only, but its body runs
 on the caller instead of the server. See
 [Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/).
+A destructive tool carries a red badge, one that sends data outside the process an
+orange one, and a tool with a declared permission or a non-default timeout shows both
+next to it — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout).
 
 <a class="ui-shot" href="/AgentPrism/screenshots/models.png"><img src="/AgentPrism/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

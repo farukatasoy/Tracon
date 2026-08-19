@@ -31,14 +31,32 @@ public sealed class AgentPrismToolRegistration
     /// The tool's source. <see langword="null"/> for tools defined in code;
     /// the server name for tools coming from a remote MCP server.
     /// </param>
+    /// <param name="effect">The tool's effect class. Defaults to <see cref="ToolEffect.Read"/>.</param>
+    /// <param name="requiredPermission">
+    /// The permission name a caller must hold to call this tool, or
+    /// <see langword="null"/> to declare none.
+    /// </param>
+    /// <param name="timeout">
+    /// The longest duration this tool's call may run, or <see langword="null"/>
+    /// to use the installation default.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="function"/> is <see langword="null"/>.</exception>
-    public AgentPrismToolRegistration(AIFunctionDeclaration function, bool requiresApproval = false, string? source = null)
+    public AgentPrismToolRegistration(
+        AIFunctionDeclaration function,
+        bool requiresApproval = false,
+        string? source = null,
+        ToolEffect effect = ToolEffect.Read,
+        string? requiredPermission = null,
+        TimeSpan? timeout = null)
     {
         ArgumentNullException.ThrowIfNull(function);
 
         Function = function;
         RequiresApproval = requiresApproval;
         Source = source;
+        Effect = effect;
+        RequiredPermission = requiredPermission;
+        Timeout = timeout;
     }
 
     /// <summary>The registered tool.</summary>
@@ -49,4 +67,19 @@ public sealed class AgentPrismToolRegistration
 
     /// <summary>The tool's source. <see langword="null"/> for tools defined in code.</summary>
     public string? Source { get; }
+
+    /// <summary>The tool's effect class.</summary>
+    public ToolEffect Effect { get; }
+
+    /// <summary>
+    /// The permission name a caller must hold to call this tool, or
+    /// <see langword="null"/> when the tool declares none.
+    /// </summary>
+    public string? RequiredPermission { get; }
+
+    /// <summary>
+    /// The longest duration this tool's call may run, or <see langword="null"/>
+    /// to use the installation default.
+    /// </summary>
+    public TimeSpan? Timeout { get; }
 }

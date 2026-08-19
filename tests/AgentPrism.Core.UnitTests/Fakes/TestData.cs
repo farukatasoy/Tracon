@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -29,7 +30,22 @@ internal static class TestData
         => AIFunctionFactory.Create(() => "result", name, description);
 
     public static ToolRegistry Registry(params AIFunction[] tools)
-        => new(tools.Select(static tool => new AgentPrismToolRegistration(tool)));
+        => new(
+            tools.Select(static tool => new AgentPrismToolRegistration(tool)),
+            new AllowAllToolAuthorizationHandler(),
+            DefaultOptionsMonitor(),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
+
+    /// <summary>An <see cref="IOptionsMonitor{TOptions}"/> carrying default <see cref="AgentPrismOptions"/>.</summary>
+    public static IOptionsMonitor<AgentPrismOptions> DefaultOptionsMonitor()
+    {
+        var services = new ServiceCollection();
+        services.AddOptions<AgentPrismOptions>();
+
+        return services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<AgentPrismOptions>>();
+    }
 
     public static ModelProviderRegistry Providers(params IModelProvider[] providers)
         => new(providers);

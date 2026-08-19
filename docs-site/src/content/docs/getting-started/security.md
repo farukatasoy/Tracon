@@ -146,6 +146,8 @@ leave a time-of-check/time-of-use gap.
 - [ ] Quotas are set, so one caller cannot spend the whole model budget
 - [ ] Retention policies exist for run events and traces
 - [ ] Skill script execution is left off unless you have read what it does
+- [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
+      by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
 
 ## Next
 

@@ -34,6 +34,7 @@ internal sealed class ToolInvocationTracker
     private readonly TimeProvider _timeProvider;
     private readonly ToolUsageAccumulator? _usage;
     private readonly string? _tenantId;
+    private readonly ToolAuthorizationAccumulator? _authorization;
 
     /// <summary>Creates a new tracker.</summary>
     /// <param name="runId">The run identity.</param>
@@ -48,12 +49,18 @@ internal sealed class ToolInvocationTracker
     /// if <see langword="null"/>, the store performs no tenant check.
     /// Rationale: K-355.
     /// </param>
+    /// <param name="authorization">
+    /// The authorization decisions reported by tools within a run. If
+    /// <see langword="null"/>, no denial is ever recorded — used for a run
+    /// that never wraps a tool with <c>AuthorizingAIFunction</c>.
+    /// </param>
     public ToolInvocationTracker(
         Guid runId,
         bool measureDuration,
         TimeProvider timeProvider,
         ToolUsageAccumulator? usage = null,
-        string? tenantId = null)
+        string? tenantId = null,
+        ToolAuthorizationAccumulator? authorization = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
@@ -62,6 +69,7 @@ internal sealed class ToolInvocationTracker
         _timeProvider = timeProvider;
         _usage = usage;
         _tenantId = tenantId;
+        _authorization = authorization;
     }
 
     /// <summary>Records that a tool call started.</summary>
@@ -127,6 +135,13 @@ internal sealed class ToolInvocationTracker
             // identity. The vast majority of calls carry no metric and the
             // field stays empty.
             Usage = _usage?.Take(result.CallId),
+
+            // A denial returns a normal (non-exceptional) result, so it can
+            // only be told apart from an ordinary success through this marker.
+            AuthorizationDenied = _authorization?.TakeDenied(result.CallId) ?? false,
+
+            // A timeout is an exception with a stable, known identity.
+            TimedOut = result.Exception is AgentPrismToolTimeoutException,
 
             // Expected tenant stamp (K-355).
             TenantId = _tenantId,

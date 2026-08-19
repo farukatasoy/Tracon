@@ -314,6 +314,14 @@ export const tr: Messages = {
   'tools.failed': 'başarısız',
   'tools.average': 'ortalama',
   'tools.last': 'son',
+  'tools.effect.write': 'yazma',
+  'tools.effect.writeTitle': "Bu tool kalıcı veriyi değiştirir.",
+  'tools.effect.destructive': 'geri alınamaz',
+  'tools.effect.destructiveTitle': "Bu tool'un etkisi geri alınamaz.",
+  'tools.effect.external': 'dış',
+  'tools.effect.externalTitle': "Bu tool veriyi süreç dışına gönderir.",
+  'tools.permissionTitle': 'Bu tool\'u çağırmak için "{permission}" izni gerekir.',
+  'tools.timeoutTitle': 'Bu tool çağrısı {seconds} saniyede tamamlanmazsa kesilir.',
 
   /* ------------------------------------------------------------ models */
   'models.description': 'Ana uygulamada kayıtlı sağlayıcılar, onlar için tanımlı modeller ve erişilebilir olup olmadıkları.',
@@ -612,6 +620,7 @@ export const tr: Messages = {
   'dashboard.errorClass.BudgetExceeded': 'Bütçe aşıldı',
   'dashboard.errorClass.Canceled': 'İptal edildi',
   'dashboard.errorClass.ContentBlocked': 'İçerik politika ile engellendi',
+  'dashboard.errorClass.ToolTimeout': "Tool zaman aşımına uğradı",
 
   /* --------------------------------------------------------- workflows */
   'workflows.description': "Katalogdaki agent'ların beş hazır desenden biriyle birbirine bağlanması. Bir workflow çalıştırması Çalıştırmalar listesinde tek satırdır; çağırdığı her agent o satırın altındadır.",

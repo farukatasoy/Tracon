@@ -229,6 +229,11 @@ public static class AgentPrismServiceCollectionExtensions
         // this to its own identity pipeline; TryAdd makes that registration win.
         services.TryAddSingleton<IRunAttributionContext, DefaultRunAttributionContext>();
 
+        // Tool authorization (phase 69, F-113): allows every call by default, so
+        // an application that registers nothing keeps today's behaviour exactly.
+        // A consumer replaces this registration to enforce its own policy.
+        services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
+
         // Registries.
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
 
@@ -923,6 +928,24 @@ public static class AgentPrismServiceCollectionExtensions
         BindValidation(section.GetSection(nameof(AgentPrismOptions.Validation)), options.Validation);
         BindPreflight(section.GetSection(nameof(AgentPrismOptions.Preflight)), options.Preflight);
         BindModelConcurrency(section.GetSection(nameof(AgentPrismOptions.ModelConcurrency)), options.ModelConcurrency);
+        BindTools(section.GetSection(nameof(AgentPrismOptions.Tools)), options.Tools);
+    }
+
+    /// <summary>Binds the <c>AgentPrism:Tools</c> section (phase 69, F-114).</summary>
+    private static void BindTools(IConfigurationSection section, AgentPrismToolOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismToolOptions.DefaultTimeout)],
+                CultureInfo.InvariantCulture,
+                out var defaultTimeout))
+        {
+            options.DefaultTimeout = defaultTimeout;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:Preflight</c> section (phase 62, F-59).</summary>

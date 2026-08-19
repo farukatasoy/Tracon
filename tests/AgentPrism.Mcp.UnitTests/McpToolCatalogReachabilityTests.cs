@@ -39,7 +39,9 @@ public sealed class McpToolCatalogReachabilityTests
             Options.Create(new AgentPrismOptions()),
             Options.Create(new AgentPrismMcpOptions { ConnectionTimeout = TimeSpan.FromSeconds(5) }),
             NullLoggerFactory.Instance,
-            new McpOAuthTokenCacheRegistry());
+            new McpOAuthTokenCacheRegistry(),
+            new AllowAllToolAuthorizationHandler(),
+            attribution: null);
 
         var outcome = await catalog.RefreshAsync();
 
@@ -57,7 +59,9 @@ public sealed class McpToolCatalogReachabilityTests
             Options.Create(new AgentPrismOptions()),
             Options.Create(new AgentPrismMcpOptions()),
             NullLoggerFactory.Instance,
-            new McpOAuthTokenCacheRegistry());
+            new McpOAuthTokenCacheRegistry(),
+            new AllowAllToolAuthorizationHandler(),
+            attribution: null);
 
         var outcome = await catalog.RefreshAsync();
 

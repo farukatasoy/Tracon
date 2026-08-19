@@ -61,6 +61,25 @@ public sealed class AgentPrismOptions
 
     /// <summary>Gets or sets the per-provider outgoing concurrency limit, introduced in phase 62, F-44.</summary>
     public AgentPrismModelConcurrencyOptions ModelConcurrency { get; set; } = new();
+
+    /// <summary>Gets or sets tool execution options, introduced in phase 69, F-114.</summary>
+    public AgentPrismToolOptions Tools { get; set; } = new();
+}
+
+/// <summary>Defines tool execution options.</summary>
+public sealed class AgentPrismToolOptions
+{
+    /// <summary>
+    /// Gets or sets the longest duration one tool call may run when its own
+    /// registration does not set <see cref="ToolDescriptor.Timeout"/>.
+    /// </summary>
+    /// <remarks>
+    /// 30 seconds matches the skill-script default
+    /// (<see cref="AgentPrismSkillScriptOptions.Timeout"/>); this value was
+    /// not measured against production traffic and should be revisited after
+    /// the first real run (open question 5, phase 69).
+    /// </remarks>
+    public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>
