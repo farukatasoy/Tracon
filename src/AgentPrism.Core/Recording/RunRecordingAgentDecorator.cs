@@ -29,6 +29,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
     private readonly IRunAttributionContext? _attributionContext;
+    private readonly IReadOnlyList<IRunEventSink> _sinks;
 
     /// <summary>Creates a new recording decorator.</summary>
     /// <param name="runStore">The store the events are written to.</param>
@@ -52,6 +53,10 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="attributionContext">
     /// The attribution context (Phase 68). If <see langword="null"/>, the run records no user and no labels.
     /// </param>
+    /// <param name="sinks">
+    /// The run event observers (Phase 70). If <see langword="null"/> or empty, every event
+    /// goes to <paramref name="runStore"/> only.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -69,7 +74,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         IRunInputStore? runInputStore = null,
         RunSampler? runSampler = null,
         ContentGuardPipeline? contentGuardPipeline = null,
-        IRunAttributionContext? attributionContext = null)
+        IRunAttributionContext? attributionContext = null,
+        IEnumerable<IRunEventSink>? sinks = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -92,6 +98,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _runSampler = runSampler;
         _contentGuardPipeline = contentGuardPipeline;
         _attributionContext = attributionContext;
+        _sinks = sinks?.ToArray() ?? [];
     }
 
     /// <inheritdoc />
@@ -129,6 +136,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _runInputStore,
             _runSampler,
             _contentGuardPipeline,
-            _attributionContext);
+            _attributionContext,
+            _sinks);
     }
 }

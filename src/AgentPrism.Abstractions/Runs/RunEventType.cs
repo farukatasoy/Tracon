@@ -166,4 +166,10 @@ public enum RunEventType
     /// the run record must still see which model actually answered.
     /// </remarks>
     ModelFallbackUsed = 22,
+
+    /// <summary>
+    /// A reasoning (thinking) delta arrived from the model. Off by default
+    /// (<c>AgentPrismRunRecordingOptions.RecordReasoningDeltas</c>).
+    /// </summary>
+    ReasoningDelta = 23,
 }

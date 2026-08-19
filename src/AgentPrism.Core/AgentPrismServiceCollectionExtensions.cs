@@ -835,7 +835,10 @@ public static class AgentPrismServiceCollectionExtensions
                 // 🚨 Phase 68, and the SAME trap the comment above describes:
                 // without this line every run records a NULL user and NULL
                 // labels while the build and the tests stay green.
-                provider.GetRequiredService<IRunAttributionContext>())));
+                provider.GetRequiredService<IRunAttributionContext>(),
+                // Phase 70. GetServices resolves lazily and never throws when
+                // no IRunEventSink is registered — an empty sequence.
+                provider.GetServices<IRunEventSink>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
@@ -2057,6 +2060,14 @@ public static class AgentPrismServiceCollectionExtensions
         if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordToolPayloads), out var recordPayloads))
         {
             options.RecordToolPayloads = recordPayloads;
+        }
+
+        if (TryReadBool(
+                recording,
+                nameof(AgentPrismRunRecordingOptions.RecordReasoningDeltas),
+                out var recordReasoningDeltas))
+        {
+            options.RecordReasoningDeltas = recordReasoningDeltas;
         }
 
         if (int.TryParse(

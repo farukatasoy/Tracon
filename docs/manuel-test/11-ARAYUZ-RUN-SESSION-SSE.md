@@ -1,7 +1,8 @@
 # 11 — Arayüz: Çalıştırma, Oturum ve SSE (`UIRUN`)
 
 > **Alan kodu:** `UIRUN` · **Faz:** 5 (çalıştırma/oturum ekranları), 32
-> (çalıştırma iptali), 47 (yeniden oynatma, karşılaştırma, dallandırma)
+> (çalıştırma iptali), 47 (yeniden oynatma, karşılaştırma, dallandırma), 70
+> (`ReasoningDelta` olayı, `IRunEventSink`)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/runs.tsx` (liste) ·
 > `screens/run-detail.tsx` (tek çalıştırma: özet, canlı/geçmiş SSE, olay
 > zaman çizelgesi, çağrı ağacı) · `screens/sessions.tsx` (liste) ·
@@ -1493,5 +1494,100 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - `404`, `"Oturum bulunamadi"`.
+
+---
+
+### MT-UIRUN-047 — `RecordReasoningDeltas` kapalıyken (varsayılan) düşünme içeriği olay akışına HİÇ girmez
+
+Sınır durumu — F-115'in K1 uyumu: seçenek kapalıyken sıcak yol Faz 70'ten
+önceki koddan farksızdır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 70 |
+| **İlgili karar** | K-493 |
+
+**Ön koşul**
+- Örnek uygulama `AgentPrism:RunRecording:RecordReasoningDeltas` AYARLANMADAN
+  (veya açıkça `false` ile) çalışır — `samples/AgentPrism.Api/appsettings.json`
+  bunu `true` yapar, bu case için geçici olarak kaldırılır ya da
+  `AgentPrism__RunRecording__RecordReasoningDeltas=false` ortam değişkeniyle
+  ezilir.
+
+**Adımlar**
+1. `curl -N -s -X POST "http://localhost:5080/agentprism/api/agents/claude-thinking/run/stream" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile akışı izle, `runId`'yi not al.
+2. `curl -N -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" | grep -c "ReasoningDelta"`.
+
+**Beklenen sonuç**
+- Adım 1: canlı akışta `$type: "reasoning"` içerikli `update` çerçeveleri YİNE
+  DE görünür — bu, MAF'ın ham akışıdır ve `RecordReasoningDeltas`'tan
+  ETKİLENMEZ (gözlemlenebilirlik işlevi değiştirmez).
+- Adım 2: `0` — kayıtlı olay akışında `ReasoningDelta` YOKTUR.
+
+---
+
+### MT-UIRUN-048 — `RecordReasoningDeltas` açıkken düşünme içeriği ayrı ve boşluksuz sıra numaralı `ReasoningDelta` olayları üretir
+
+Gerçek bir Anthropic extended-thinking çağrısıyla ölçüldü (2026-08-19,
+`claude-thinking` agent'ı, `samples/AgentPrism.Api/Program.cs`).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 70 |
+| **İlgili karar** | K-493 |
+
+**Ön koşul**
+- Örnek uygulama `AgentPrism:RunRecording:RecordReasoningDeltas = true` ile
+  çalışır (bu, örnek uygulamanın kendi `appsettings.json`'undaki varsayılandır
+  — sample bilinçli olarak açık gösterir).
+
+**Adımlar**
+1. `curl -s -X POST "http://localhost:5080/agentprism/api/agents/claude-thinking/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"17 çarpı 24 kaç eder? Adım adım düşün."}'` ile `runId`'yi al.
+2. `curl -N -s "http://localhost:5080/agentprism/api/runs/<runId>/events" -H "Authorization: Bearer manuel-test-token-2026" > /tmp/events.txt`.
+3. `grep -o '"type":"[A-Za-z]*"' /tmp/events.txt | sort | uniq -c` ile olay tipi dağılımına bak.
+4. Olayların `sequence` alanlarının boşluksuz olduğunu doğrula.
+
+**Beklenen sonuç — gerçek koşumda ölçülen**
+- Adım 3: `ReasoningDelta` `MessageDelta`'dan AYRI ve BİRDEN FAZLA kez görünür
+  (ölçülen: 7 `ReasoningDelta`, 2 `MessageDelta`, 1 `RunStarted`, 1
+  `RunCompleted` — toplam 11 olay).
+- Adım 4: sıra numaraları `0`'dan başlayıp boşluksuz artar (ölçülen: `0..10`).
+- Düşünme metninin toplam karakter sayısı yanıt metninden UZUN olabilir
+  (ölçülen: 253 karakter düşünme / 143 karakter yanıt — plan dokümanının
+  "hacim ölçülmedi" riskine ilk somut veri noktası).
+
+---
+
+### MT-UIRUN-049 — 👤 Arayüzde düşünme bloğu katlanabilir ve transkriptteki yanıttan ayrı görünür
+
+Bu case görsel doğrulama gerektirir; API düzeyinde aynı veri MT-UIRUN-048'de
+doğrulandı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 70 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-UIRUN-048'in çalıştırması bitmiş durumda; `RecordReasoningDeltas = true`.
+
+**Adımlar**
+1. `runs/{id}` sayfasını arayüzde aç, "Transkript" panelini incele.
+2. Düşünme bloğunun başlığına tıkla.
+
+**Beklenen sonuç**
+- Adım 1: yanıt metninin ÜSTÜNDE, kapalı (katlanmış) bir "Akıl yürütme"
+  ("Reasoning") bloğu görünür — `components/transcript.tsx`'teki
+  `ReasoningBlock`, `kind: 'reasoning'` öğesini render eder.
+- Adım 2: blok açılır, düşünme metni düz metin olarak görünür; kapatınca
+  tekrar gizlenir.
+- Olay Zaman Çizelgesi'nde `reasoning.delta` satırları mor renkte
+  (`--ap-violet`), `message.delta`'dan (camgöbeği) AYRI görünür.
 
 ---
