@@ -38,6 +38,67 @@ Which fields are required depends on the kind, and the definition is validated w
 is **saved** using the same rules the compiler applies. A shape that could not run is
 rejected at write time rather than on the first execution.
 
+## Function nodes
+
+A real pipeline has steps that are not AI calls — a file download, a format
+conversion, a database write. `AddWorkflowFunction` registers one by name:
+
+```csharp
+agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "word-count",
+    services => (messages, context, cancellationToken) =>
+    {
+        var text = messages[^1].Text;
+        return ValueTask.FromResult<List<ChatMessage>>([new(ChatRole.User, $"{text}\n\n({text.Split(' ').Length} words)")]);
+    },
+    "Appends a word count. Runs no model call.");
+```
+
+A `Sequential` definition's `Nodes` list can then mix that name in with catalog
+agents, in order:
+
+```csharp
+new WorkflowDefinition
+{
+    Name = "summarize-and-count",
+    Kind = WorkflowKind.Sequential,
+    Nodes =
+    [
+        new WorkflowNodeReference { Name = "summarizer", Kind = WorkflowNodeKind.Agent },
+        new WorkflowNodeReference { Name = "word-count", Kind = WorkflowNodeKind.Function },
+    ],
+}
+```
+
+`Nodes` and `AgentNames` are mutually exclusive — a definition sets one or the
+other. Only `Sequential` supports function nodes: the ready-made builders for
+the other four patterns accept only agents.
+
+The factory passed to `AddWorkflowFunction` runs once, when the function
+registry is built — not once per run. Every workflow compile shares the same
+handler closure, so **the handler must be thread-safe**: a captured counter or
+non-thread-safe client needs its own guard.
+
+:::note[Code only, same boundary as tools]
+A function's body is never written from the UI or the database — only its
+*name* crosses that boundary, the identical shape `AgentDefinition.ToolNames`
+already uses for tools. `GET /api/workflows/functions` lists what is
+registered, for a picker to choose from.
+:::
+
+A function node opens no `runs` row of its own and contributes nothing to
+cost or token totals — it made no model call. `ExecutorInvoked` /
+`ExecutorCompleted` / `ExecutorFailed` still fire for it, same as any node, so
+it is visible in the run's event stream and colored live in the graph.
+
+:::caution[The handler must be idempotent]
+Resuming from the run's *latest* checkpoint after it already completed does
+not call the handler again — there is nothing left to run. Resuming from an
+**earlier** checkpoint (the shape a real crash recovery takes) replays the
+super-step that follows it, and the handler runs again with the same input. A
+handler with a real side effect must tolerate being called more than once.
+:::
+
 Workflows can also be built in code with MAF's own builder.
 
 :::caution[The registration key is what routing uses]

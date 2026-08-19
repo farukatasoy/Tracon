@@ -47,6 +47,20 @@ internal static class WorkflowEndpoints
                 "are listed — managing definitions does not require the engine, but running them " +
                 "does.");
 
+        builder.MapGet("/api/workflows/functions", ListFunctionsAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
+            .WithName("AgentPrismListWorkflowFunctions")
+            .WithTags("AgentPrism", "Workflows")
+            .WithSummary("Lists function nodes registered in code.")
+            .WithDescription(
+                "Function nodes are defined only in code, with AddWorkflowFunction() (phase 71) - " +
+                "the same K2 boundary AddTool draws for tools. This endpoint does not offer a write " +
+                "path; the UI lets users pick from this list when building a Sequential workflow's " +
+                "node list. An empty list means no function was registered, or the workflow engine " +
+                "was never turned on with UseWorkflows() - either way, existing agent-only " +
+                "workflows are unaffected.");
+
         builder.MapGet("/api/workflows/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
@@ -193,6 +207,14 @@ internal static class WorkflowEndpoints
             [.. stored.Select(Describe)]);
     }
 
+    private static Ok<IReadOnlyList<WorkflowFunctionResponse>> ListFunctionsAsync(
+        [FromServices] IWorkflowFunctionCatalog? functions)
+        // No function is ever registered, or UseWorkflows() was never called:
+        // an empty list, not a 501 - listing functions does not need the
+        // execution engine, the same reasoning ListAsync applies to workflows.
+        => TypedResults.Ok<IReadOnlyList<WorkflowFunctionResponse>>(
+            [.. (functions?.List() ?? []).Select(WorkflowFunctionResponse.From)]);
+
     private static async Task<Results<Ok<WorkflowDefinition>, ProblemHttpResult>> GetAsync(
         string name,
         [FromServices] IWorkflowDefinitionStore store,
@@ -263,6 +285,7 @@ internal static class WorkflowEndpoints
         HttpContext httpContext,
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
+        [FromServices] IWorkflowFunctionCatalog? functions,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -283,6 +306,7 @@ internal static class WorkflowEndpoints
             Description = request.Description,
             Kind = request.Kind,
             AgentNames = request.AgentNames ?? [],
+            Nodes = request.Nodes ?? [],
             ManagerAgentName = request.ManagerAgentName,
             MaxIterations = request.MaxIterations,
             HandoffInstructions = request.HandoffInstructions,
@@ -299,6 +323,28 @@ internal static class WorkflowEndpoints
                 title: "Workflow definition invalid",
                 detail: message,
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // A function node's name IS checked at save time, unlike an agent
+        // name (agents live in a store that can change after save; the
+        // function registry is fixed in code for the process lifetime, so
+        // checking early gives an honest guarantee - phase 71).
+        foreach (var node in definition.Nodes)
+        {
+            if (node.Kind != WorkflowNodeKind.Function)
+            {
+                continue;
+            }
+
+            if (functions is null || !functions.Contains(node.Name))
+            {
+                return TypedResults.Problem(
+                    title: "Workflow definition invalid",
+                    detail: $"Workflow '{name}' uses function '{node.Name}', but no such function is " +
+                            "registered. Register it with AddWorkflowFunction() before referencing it " +
+                            "from a workflow definition.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
         }
 
         var saved = await store.SaveAsync(tenants.TenantId, definition, cancellationToken).ConfigureAwait(false);
@@ -514,6 +560,7 @@ internal static class WorkflowEndpoints
             Origin = AgentDefinitionOrigin.Database,
             Kind = definition.Kind,
             AgentNames = definition.AgentNames,
+            Nodes = definition.Nodes,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };

@@ -851,6 +851,7 @@ export const en = {
   'graph.label': '{name} workflow graph',
   'graph.nodeTitle': '{id} — agent {agent}',
   'graph.legend.agent': 'agent',
+  'graph.legend.function': 'function',
   'graph.legend.orchestration': 'orchestration',
   'graph.legend.requestPort': 'request port',
   'graph.legend.output': 'output',

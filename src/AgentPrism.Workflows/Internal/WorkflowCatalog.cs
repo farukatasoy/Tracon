@@ -142,6 +142,7 @@ internal sealed class WorkflowCatalog
             Origin = AgentDefinitionOrigin.Database,
             Kind = definition.Kind,
             AgentNames = definition.AgentNames,
+            Nodes = definition.Nodes,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };

@@ -4537,3 +4537,41 @@ static AgentPrism.ToolAuthorizationResult.Allow() -> AgentPrism.ToolAuthorizatio
 static AgentPrism.ToolAuthorizationResult.Deny(string! reason) -> AgentPrism.ToolAuthorizationResult!
 static AgentPrism.ToolAuthorizationResult.operator !=(AgentPrism.ToolAuthorizationResult? left, AgentPrism.ToolAuthorizationResult? right) -> bool
 static AgentPrism.ToolAuthorizationResult.operator ==(AgentPrism.ToolAuthorizationResult? left, AgentPrism.ToolAuthorizationResult? right) -> bool
+AgentPrism.IWorkflowFunctionCatalog
+AgentPrism.IWorkflowFunctionCatalog.Contains(string! name) -> bool
+AgentPrism.IWorkflowFunctionCatalog.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowFunctionDescriptor!>!
+AgentPrism.WorkflowDefinition.Nodes.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowNodeReference!>!
+AgentPrism.WorkflowDefinition.Nodes.init -> void
+AgentPrism.WorkflowFunctionDescriptor
+AgentPrism.WorkflowFunctionDescriptor.Description.get -> string?
+AgentPrism.WorkflowFunctionDescriptor.Description.init -> void
+AgentPrism.WorkflowFunctionDescriptor.Equals(AgentPrism.WorkflowFunctionDescriptor? other) -> bool
+AgentPrism.WorkflowFunctionDescriptor.InputType.get -> System.Type!
+AgentPrism.WorkflowFunctionDescriptor.InputType.init -> void
+AgentPrism.WorkflowFunctionDescriptor.Name.get -> string!
+AgentPrism.WorkflowFunctionDescriptor.Name.init -> void
+AgentPrism.WorkflowFunctionDescriptor.OutputType.get -> System.Type!
+AgentPrism.WorkflowFunctionDescriptor.OutputType.init -> void
+AgentPrism.WorkflowFunctionDescriptor.WorkflowFunctionDescriptor() -> void
+AgentPrism.WorkflowNodeKind.Function = 5 -> AgentPrism.WorkflowNodeKind
+AgentPrism.WorkflowNodeReference
+AgentPrism.WorkflowNodeReference.Equals(AgentPrism.WorkflowNodeReference? other) -> bool
+AgentPrism.WorkflowNodeReference.Kind.get -> AgentPrism.WorkflowNodeKind
+AgentPrism.WorkflowNodeReference.Kind.init -> void
+AgentPrism.WorkflowNodeReference.Name.get -> string!
+AgentPrism.WorkflowNodeReference.Name.init -> void
+AgentPrism.WorkflowNodeReference.WorkflowNodeReference() -> void
+override AgentPrism.WorkflowFunctionDescriptor.Equals(object? obj) -> bool
+override AgentPrism.WorkflowFunctionDescriptor.GetHashCode() -> int
+override AgentPrism.WorkflowFunctionDescriptor.ToString() -> string!
+override AgentPrism.WorkflowNodeReference.Equals(object? obj) -> bool
+override AgentPrism.WorkflowNodeReference.GetHashCode() -> int
+override AgentPrism.WorkflowNodeReference.ToString() -> string!
+static AgentPrism.WorkflowFunctionDescriptor.operator !=(AgentPrism.WorkflowFunctionDescriptor? left, AgentPrism.WorkflowFunctionDescriptor? right) -> bool
+static AgentPrism.WorkflowFunctionDescriptor.operator ==(AgentPrism.WorkflowFunctionDescriptor? left, AgentPrism.WorkflowFunctionDescriptor? right) -> bool
+static AgentPrism.WorkflowNodeReference.operator !=(AgentPrism.WorkflowNodeReference? left, AgentPrism.WorkflowNodeReference? right) -> bool
+static AgentPrism.WorkflowNodeReference.operator ==(AgentPrism.WorkflowNodeReference? left, AgentPrism.WorkflowNodeReference? right) -> bool
+AgentPrism.WorkflowFunctionDescriptor.<Clone>$() -> AgentPrism.WorkflowFunctionDescriptor!
+AgentPrism.WorkflowNodeReference.<Clone>$() -> AgentPrism.WorkflowNodeReference!
+AgentPrism.WorkflowDescriptor.Nodes.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowNodeReference!>!
+AgentPrism.WorkflowDescriptor.Nodes.init -> void
