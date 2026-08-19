@@ -53,6 +53,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
     private readonly IRunAttributionContext? _attributionContext;
+    private readonly IReadOnlyList<IRunEventSink> _sinks;
 
     /// <summary>Creates a new recording wrapper.</summary>
     /// <param name="innerAgent">The wrapped agent.</param>
@@ -122,6 +123,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// user and no labels — the same outcome as the built-in
     /// <see cref="DefaultRunAttributionContext"/> with no ambient scope open.
     /// </param>
+    /// <param name="sinks">
+    /// The run event observers (phase 70). When <see langword="null"/> or empty, every
+    /// event goes to <paramref name="runStore"/> only — the identical hot path as before
+    /// this extension point existed.
+    /// </param>
     /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -145,7 +151,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         IRunInputStore? runInputStore = null,
         RunSampler? runSampler = null,
         ContentGuardPipeline? contentGuardPipeline = null,
-        IRunAttributionContext? attributionContext = null)
+        IRunAttributionContext? attributionContext = null,
+        IReadOnlyList<IRunEventSink>? sinks = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -174,6 +181,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _runSampler = runSampler;
         _contentGuardPipeline = contentGuardPipeline;
         _attributionContext = attributionContext;
+        _sinks = sinks is { Count: > 0 } ? sinks : [];
     }
 
     /// <inheritdoc />
@@ -504,7 +512,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // does not flow back to the caller; if the writer were created there, a child call
         // could not see the writer in the scope and could not write its summary events into
         // the root stream.
-        var writer = new RunEventWriter(_runStore, _options, _logger, runId);
+        var writer = new RunEventWriter(_runStore, _options, _logger, runId, _sinks);
 
         var scope = new AgentRunScope
         {
@@ -1009,6 +1017,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 case TextContent text when _options.RecordMessageDeltas && !string.IsNullOrEmpty(text.Text):
                     await scope.Writer.AppendAsync(
                         new RunEventDraft(RunEventType.MessageDelta) { Text = text.Text },
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+
+                // Separate event type — never merged into MessageDelta (docs/70).
+                case TextReasoningContent reasoning
+                    when _options.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text):
+                    await scope.Writer.AppendAsync(
+                        new RunEventDraft(RunEventType.ReasoningDelta) { Text = reasoning.Text },
                         cancellationToken).ConfigureAwait(false);
                     break;
 

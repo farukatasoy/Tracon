@@ -77,6 +77,38 @@ curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
 Tool calls are also written individually — name, arguments, result, duration, error —
 so "which tool failed and with what input" is a query, not a log search.
 
+A reasoning model's thinking is a separate event type, `ReasoningDelta`, never merged
+into `MessageDelta`. It is off by default — reasoning output can run far longer than
+the answer, and it can restate user input in a form the final answer never shows:
+
+```csharp
+services.Configure<AgentPrismOptions>(options =>
+    options.RunRecording.RecordReasoningDeltas = true);
+```
+
+With it off, a reasoning model still streams its thinking to the caller in real time —
+this setting only controls whether it is **recorded**.
+
+## Observing events beyond the store
+
+Register an `IRunEventSink` to receive every event as it is written, in addition to
+the store — a live dashboard, a message queue, a second archive:
+
+```csharp
+public sealed class QueueRunEventSink(IMessageQueue queue) : IRunEventSink
+{
+    public async ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        => await queue.PublishAsync(runEvent, cancellationToken);
+}
+
+services.AddSingleton<IRunEventSink, QueueRunEventSink>();
+```
+
+A sink runs on the hot path — queue and return, do not block on further I/O — and one
+instance serves every concurrent run, so it must be thread-safe. A sink that throws is
+disabled for the rest of that run and logged; neither the store write nor any other
+registered sink is affected. Register none and nothing changes.
+
 ## Who ran it, and for what
 
 A run also records **who** it belongs to and **which job** it was made for. Both

@@ -482,6 +482,21 @@ public sealed class AgentPrismRunRecordingOptions
     /// </para>
     /// </remarks>
     public bool RecordRunInput { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether a reasoning (thinking) delta from the model is written as a
+    /// <see cref="RunEventType.ReasoningDelta"/> event.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see langword="false"/>, unlike <see cref="RecordMessageDeltas"/>, for
+    /// three reasons: reasoning output can run far longer than the answer and its recorded
+    /// volume was not measured; intermediate reasoning can repeat user data in forms the
+    /// final answer never shows; and some providers restrict storing raw reasoning text,
+    /// a restriction that has not been verified. Turning it on is a one-line change and
+    /// does not conflict with the retention policy (phase 25) — reasoning shares
+    /// <see cref="RecordMessageDeltas"/>'s retention bucket, it is not tracked separately.
+    /// </remarks>
+    public bool RecordReasoningDeltas { get; set; }
 }
 
 /// <summary>

@@ -69,6 +69,14 @@ internal sealed class WorkflowTestHost
         Action<AgentPrismWorkflowOptions>? configure = null,
         IServiceProvider? services = null,
         params CodeWorkflowRegistration[] codeWorkflows)
+        => CreateRunner(configure, services, sinks: null, codeWorkflows);
+
+    /// <summary>Same as <see cref="CreateRunner(Action{AgentPrismWorkflowOptions}?, IServiceProvider?, CodeWorkflowRegistration[])"/>, with observers attached.</summary>
+    public WorkflowRunner CreateRunner(
+        Action<AgentPrismWorkflowOptions>? configure,
+        IServiceProvider? services,
+        IEnumerable<IRunEventSink>? sinks,
+        params CodeWorkflowRegistration[] codeWorkflows)
     {
         var settings = new AgentPrismWorkflowOptions();
         configure?.Invoke(settings);
@@ -87,7 +95,8 @@ internal sealed class WorkflowTestHost
             TenantContext,
             Options.Create(settings),
             Options.Create(new AgentPrismOptions()),
-            NullLogger<WorkflowRunner>.Instance);
+            NullLogger<WorkflowRunner>.Instance,
+            sinks: sinks);
     }
 
     /// <summary>Saves a definition for the tenant.</summary>
