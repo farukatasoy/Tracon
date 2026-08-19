@@ -76,7 +76,7 @@ prices.
 | Direct tools | `AddTool(AIFunction, requiresApproval)` | Exact tool instance and approval policy |
 | Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
-| Tool approval | `RequiresApproval` or the registration flag | A sensitive call cannot execute until a person or standing rule decides it |
+| Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
 | Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults` |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
@@ -117,6 +117,7 @@ claim to provide an operating-system sandbox.
 | Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
 | Job queue | Registered by `AddAgentPrism()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>()` | Your handler receives a durable job kind without changing the core queue |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` | A typed function runs as a graph node without an agent of its own |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution |
@@ -184,7 +185,7 @@ caller's role and key scopes. See the complete scope table in
 
 | Surface | Registration | Intended caller |
 |---|---|---|
-| .NET API | `AddAgentPrism()` and `IAgentCatalog` | Application code that wants direct MAF objects |
+| .NET API | `AddAgentPrism()` and `IAgentCatalog`, tuned with `IAgentPrismBuilder.Configure(...)` and extended through `IAgentPrismBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
@@ -199,6 +200,23 @@ caller's role and key scopes. See the complete scope table in
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
 143-operation HTTP reference.
+
+## Coding-agent support
+
+A coding agent working in your repository cannot use a capability it does not know
+exists. Two channels tell it, and both are generated from this page.
+
+| Capability | Enable it | Boundary |
+|---|---|---|
+| Agent map file | `AgentPrismWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
+| Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register |
+| Usage diagnostics | Automatic with `AgentPrism.Core`; `AgentPrismUsageDiagnostics` turns the family off | The `AgentPrism.Usage` category reports absent wiring, a literal secret, and hand-written substitutes for shipped behaviour |
+| Tool diagnostics | Automatic with `AgentPrism.Core` | The `AgentPrism.Tools` category reports a tool method the generator cannot use |
+
+The map is refreshed by deleting `AGENTS.md` and building again; the file is never
+rewritten in place because you may have added notes to it. The template
+`dotnet new agentprism-api` sets the property, so a generated project has the map
+from its first build.
 
 ## Storage and testability
 

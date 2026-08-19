@@ -22,7 +22,8 @@ arıyorsan dosyayı açmak yerine grep et: `grep -rn "AsyncLocal" docs/hafiza/`.
 | SQLite'a özgü (indeks ad alanı, upsert, `ExecuteScalarAsync` CLR tipi) | [`docs/hafiza/sqlite.md`](docs/hafiza/sqlite.md) |
 | Minimal API ucu, DI kaydı, HTTP davranışı | [`docs/hafiza/aspnetcore-di.md`](docs/hafiza/aspnetcore-di.md) |
 | Enum/alan JSON serileştirme, `.WithTags`/`.Produces` | [`aspnetcore-json.md`](docs/hafiza/aspnetcore-json.md) |
-| MSBuild, csproj, NuGet, AOT, analyzer tanısı | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
+| MSBuild, csproj, NuGet, AOT, paketleme | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
+| Kaynak üreteci veya analyzer **yazımı** (`APG*`) | [`docs/hafiza/analyzer-yazimi.md`](docs/hafiza/analyzer-yazimi.md) |
 | Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |
 | Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |

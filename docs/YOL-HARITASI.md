@@ -84,6 +84,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [70](70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | ✅ Tamamlandı |
 | [71](71-WORKFLOW-KOD-DUGUMU.md) | Workflow Kod Düğümü | ✅ Tamamlandı |
 | [72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | Çok Dilli Talimat ve Zaman Damgalı Sentez | ✅ Tamamlandı |
-| [73](73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | 📋 Planlandı |
+| [73](73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
