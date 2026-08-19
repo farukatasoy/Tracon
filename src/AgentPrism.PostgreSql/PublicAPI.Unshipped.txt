@@ -8,6 +8,8 @@ AgentPrism.AgentPrismPostgreSqlOptions.CommandTimeoutSeconds.get -> int
 AgentPrism.AgentPrismPostgreSqlOptions.CommandTimeoutSeconds.set -> void
 AgentPrism.AgentPrismPostgreSqlOptions.ConnectionString.get -> string?
 AgentPrism.AgentPrismPostgreSqlOptions.ConnectionString.set -> void
+AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.get -> bool
+AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.set -> void
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.get -> string!
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.set -> void
 AgentPrism.AgentPrismPostgreSqlOptionsValidator

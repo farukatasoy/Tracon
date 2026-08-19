@@ -32,6 +32,17 @@ internal sealed class SqlStoreContext
     /// <summary>Gets a value indicating whether pending migrations are applied automatically at application start.</summary>
     public bool AutoApplyMigrations { get; init; } = true;
 
+    /// <summary>
+    /// Gets the names of the optional migration sets to apply, in addition to
+    /// the core set that always applies. Empty by default (K1).
+    /// </summary>
+    /// <remarks>
+    /// Every name must be a key of <see cref="SqlDialect.OptionalMigrationResourcePrefixes"/>;
+    /// an unknown name fails at startup, the first time <see cref="MigrationRunner"/> runs.
+    /// </remarks>
+    public IReadOnlySet<string> EnabledMigrationSets { get; init; } =
+        System.Collections.Immutable.ImmutableHashSet<string>.Empty;
+
     /// <summary>Gets the name of the provider that built this context. It appears in log messages.</summary>
     public required string ProviderName { get; init; }
 

@@ -103,14 +103,18 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
                 ProviderName = "PostgreSQL",
-                // Phase 51: the {dimension} placeholder of migration 0024. Kept
-                // SEPARATE from the fixed schema placeholder (schema) because it
-                // comes from AgentPrismKnowledgeOptions at startup, not headed by
-                // the provider.
+                // Phase 51: the {dimension} placeholder of the knowledge set's
+                // 0001_vector migration. Kept SEPARATE from the fixed schema
+                // placeholder (schema) because it comes from
+                // AgentPrismKnowledgeOptions at startup, not headed by the provider.
                 MigrationTemplateValues = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["dimension"] = knowledgeOptions.Dimensions.ToString(CultureInfo.InvariantCulture),
                 },
+                // Phase 67: the "knowledge" set needs pgvector and is opt-in.
+                EnabledMigrationSets = options.EnableKnowledge
+                    ? new HashSet<string>(StringComparer.Ordinal) { "knowledge" }
+                    : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
             };
         }));
 
@@ -318,10 +322,25 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // Vector-based semantic search (Phase 51). K4: the ONLY concrete
         // implementation. TryAdd: if a consumer has already registered their
         // own IVectorSearchStore (for SQL Server/SQLite), theirs wins.
-        services.TryAddSingleton<IVectorSearchStore>(static provider => new PgVectorSearchStore(
-            provider.GetRequiredService<NpgsqlDataSource>(),
-            provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
-            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value));
+        //
+        // Phase 67: returns null while EnableKnowledge is off, so
+        // provider.GetService<IVectorSearchStore>() sees "not available" the
+        // same way it would if this line never ran — an agent definition
+        // requesting EnableVectorSearch fails compilation with a clear error
+        // (AgentPrismServiceCollectionExtensions) instead of the
+        // "document_embeddings does not exist" database error the store
+        // would otherwise hit, because the "knowledge" migration set never applied.
+        services.TryAddSingleton<IVectorSearchStore>(static provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
+
+            return options.EnableKnowledge
+                ? new PgVectorSearchStore(
+                    provider.GetRequiredService<NpgsqlDataSource>(),
+                    options,
+                    provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value)
+                : null!;
+        });
 
         return builder;
     }
@@ -358,6 +377,11 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 out var commandTimeout))
         {
             options.CommandTimeoutSeconds = commandTimeout;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismPostgreSqlOptions.EnableKnowledge)], out var enableKnowledge))
+        {
+            options.EnableKnowledge = enableKnowledge;
         }
     }
 }

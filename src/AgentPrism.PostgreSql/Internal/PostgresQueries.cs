@@ -20,20 +20,50 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         CreateSchema = $"CREATE SCHEMA IF NOT EXISTS {Schema};";
 
+        // set_name (phase 67): each migration SET numbers its own files from
+        // 0001, so id alone is no longer unique — the primary key is
+        // (set_name, id). A fresh database gets this shape directly; an
+        // existing one (created before phase 67) is upgraded by
+        // UpgradeMigrationsTable below — NOT a numbered migration file
+        // (K-475: it would collide with InsertMigration's fixed text, see
+        // SqlDialect.UpgradeMigrationsTableAsync).
         CreateMigrationsTable = $"""
             CREATE TABLE IF NOT EXISTS {Schema}.__migrations (
-                id         integer     NOT NULL PRIMARY KEY,
+                set_name   text        NOT NULL DEFAULT 'core',
+                id         integer     NOT NULL,
                 name       text        NOT NULL,
                 checksum   text        NOT NULL,
-                applied_at timestamptz NOT NULL
+                applied_at timestamptz NOT NULL,
+                PRIMARY KEY (set_name, id)
             );
             """;
 
-        SelectAppliedMigrations = $"SELECT id, name, checksum FROM {Schema}.__migrations ORDER BY id;";
+        SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Schema}.__migrations ORDER BY set_name, id;";
 
         InsertMigration = $"""
-            INSERT INTO {Schema}.__migrations (id, name, checksum, applied_at)
-            VALUES (@id, @name, @checksum, @applied_at);
+            INSERT INTO {Schema}.__migrations (set_name, id, name, checksum, applied_at)
+            VALUES (@set_name, @id, @name, @checksum, @applied_at);
+            """;
+
+        // Idempotent: a fresh database's __migrations already has this shape
+        // (both statements no-op there). An existing pre-phase-67 table gets
+        // the column backfilled to 'core' and its single-column primary key
+        // widened. Runs as its own command — see SqlDialect.UpgradeMigrationsTableAsync.
+        UpgradeMigrationsTable = $"""
+            ALTER TABLE {Schema}.__migrations ADD COLUMN IF NOT EXISTS set_name text NOT NULL DEFAULT 'core';
+
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = '__migrations_pkey'
+                      AND conrelid = '{Schema}.__migrations'::regclass
+                      AND cardinality(conkey) = 1
+                ) THEN
+                    ALTER TABLE {Schema}.__migrations DROP CONSTRAINT __migrations_pkey;
+                    ALTER TABLE {Schema}.__migrations ADD CONSTRAINT __migrations_pkey PRIMARY KEY (set_name, id);
+                END IF;
+            END $$;
             """;
 
         UpsertTenant = $"""

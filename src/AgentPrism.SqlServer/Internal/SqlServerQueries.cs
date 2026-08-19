@@ -78,21 +78,53 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                 EXEC(N'CREATE SCHEMA {Schema};');
             """;
 
+        // set_name (phase 67): each migration SET numbers its own files from
+        // 0001, so id alone is no longer unique — the primary key is
+        // (set_name, id). A fresh database gets this shape directly; an
+        // existing one (created before phase 67) is upgraded by
+        // UpgradeMigrationsTable below — NOT a numbered migration file
+        // (K-475: it would collide with InsertMigration's fixed text, see
+        // SqlDialect.UpgradeMigrationsTableAsync).
         CreateMigrationsTable = $"""
             IF OBJECT_ID(N'{Schema}.__migrations', N'U') IS NULL
             CREATE TABLE {Schema}.__migrations (
-                id         int               NOT NULL CONSTRAINT __migrations_pk PRIMARY KEY,
+                set_name   nvarchar(64)      NOT NULL CONSTRAINT __migrations_set_name_df DEFAULT (N'core'),
+                id         int               NOT NULL,
                 name       nvarchar(200)     NOT NULL,
                 checksum   nvarchar(64)      NOT NULL,
-                applied_at datetimeoffset(7) NOT NULL
+                applied_at datetimeoffset(7) NOT NULL,
+                CONSTRAINT __migrations_pk PRIMARY KEY (set_name, id)
             );
             """;
 
-        SelectAppliedMigrations = $"SELECT id, name, checksum FROM {Schema}.__migrations ORDER BY id;";
+        SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Schema}.__migrations ORDER BY set_name, id;";
 
         InsertMigration = $"""
-            INSERT INTO {Schema}.__migrations (id, name, checksum, applied_at)
-            VALUES (@id, @name, @checksum, @applied_at);
+            INSERT INTO {Schema}.__migrations (set_name, id, name, checksum, applied_at)
+            VALUES (@set_name, @id, @name, @checksum, @applied_at);
+            """;
+
+        // Idempotent: a fresh database's __migrations already has this shape
+        // (both statements no-op there). An existing pre-phase-67 table gets
+        // the column backfilled to 'core' and its single-column primary key
+        // widened. Runs as its own command — see SqlDialect.UpgradeMigrationsTableAsync.
+        // 🚨 The constraint swap is wrapped in EXEC: it references set_name,
+        // which the ADD COLUMN statement above added in the SAME batch —
+        // without EXEC this gives "Invalid column name" (0018_audit_chain.sql).
+        UpgradeMigrationsTable = $"""
+            IF COL_LENGTH(N'{Schema}.__migrations', N'set_name') IS NULL
+                ALTER TABLE {Schema}.__migrations
+                    ADD set_name nvarchar(64) NOT NULL CONSTRAINT __migrations_set_name_df DEFAULT (N'core');
+
+            IF (
+                SELECT COUNT(*)
+                FROM sys.index_columns ic
+                JOIN sys.key_constraints kc
+                  ON kc.parent_object_id = ic.object_id AND kc.unique_index_id = ic.index_id
+                WHERE kc.name = N'__migrations_pk'
+            ) = 1
+            EXEC(N'ALTER TABLE {Schema}.__migrations DROP CONSTRAINT __migrations_pk;
+            ALTER TABLE {Schema}.__migrations ADD CONSTRAINT __migrations_pk PRIMARY KEY (set_name, id);');
             """;
 
         UpsertTenant = $"""

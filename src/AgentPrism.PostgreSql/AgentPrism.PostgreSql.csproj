@@ -18,6 +18,16 @@
   </ItemGroup>
 
   <!--
+    Optional migration set (Phase 67): applied only when EnableKnowledge is
+    turned on, because it needs the pgvector extension. Kept in a SEPARATE
+    folder (and therefore a separate embedded-resource prefix) so
+    MigrationDescriptor.Discover can select it independently of the core set.
+  -->
+  <ItemGroup Label="Optional 'knowledge' migration set (Phase 67)">
+    <EmbeddedResource Include="MigrationsKnowledge/**/*.sql" />
+  </ItemGroup>
+
+  <!--
     Shared source (Phase 23). AgentPrism.Sql.Shared is NOT a package and has no
     csproj file of its own; its files compile directly here and into
     AgentPrism.SqlServer. This way store logic lives in one place without

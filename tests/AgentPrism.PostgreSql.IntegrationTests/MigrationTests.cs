@@ -9,15 +9,29 @@ namespace AgentPrism.PostgreSql.IntegrationTests;
 public sealed class MigrationRunnerTests(PostgresFixture fixture)
 {
     /// <summary>
-    /// The count of embedded migrations. Not written as a constant: every new
-    /// migration file would break these tests, and the break would be
-    /// unrelated to the behavior the test verifies.
+    /// The count of embedded CORE migrations. Not written as a constant:
+    /// every new migration file would break these tests, and the break would
+    /// be unrelated to the behavior the test verifies.
     /// </summary>
-    private static int EmbeddedMigrationCount { get; } = typeof(MigrationRunner).Assembly
+    private static int EmbeddedCoreMigrationCount { get; } = typeof(MigrationRunner).Assembly
         .GetManifestResourceNames()
         .Count(static name =>
             name.StartsWith("AgentPrism.PostgreSql.Migrations.", StringComparison.Ordinal)
             && name.EndsWith(".sql", StringComparison.Ordinal));
+
+    /// <summary>
+    /// The count of embedded "knowledge" migrations (phase 67; needs
+    /// <c>pgvector</c>). <see cref="PostgresTestContext"/> enables this set by
+    /// default so the ~40 unrelated contract test classes stay unchanged.
+    /// </summary>
+    private static int EmbeddedKnowledgeMigrationCount { get; } = typeof(MigrationRunner).Assembly
+        .GetManifestResourceNames()
+        .Count(static name =>
+            name.StartsWith("AgentPrism.PostgreSql.MigrationsKnowledge.", StringComparison.Ordinal)
+            && name.EndsWith(".sql", StringComparison.Ordinal));
+
+    /// <summary>The total embedded migration count when the knowledge set is enabled (the test default).</summary>
+    private static int EmbeddedMigrationCount => EmbeddedCoreMigrationCount + EmbeddedKnowledgeMigrationCount;
 
     [Fact]
     public async Task First_run_creates_the_schema_and_tables()
@@ -61,6 +75,10 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // Phase 55 added the `pending_approvals` table: 45 -> 46.
         // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
         // Phase 66 added the `inbound_triggers` table: 48 -> 49.
+        // Phase 67 relocated `document_embeddings` out of the core set into the
+        // optional "knowledge" set; PostgresTestContext enables it by default
+        // (applyMigrations: false + Migrations.ApplyAsync() below applies BOTH
+        // sets), so the table still gets created here and the total is unchanged.
         tableCount.ShouldBe(49);
     }
 
@@ -80,12 +98,12 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
         var name = await context.ScalarAsync<string>(
-            $"SELECT name FROM {context.SchemaName}.__migrations ORDER BY id LIMIT 1;");
+            $"SELECT name FROM {context.SchemaName}.__migrations WHERE set_name = 'core' ORDER BY id LIMIT 1;");
 
         name.ShouldBe("0001_initial");
 
         var checksum = await context.ScalarAsync<string>(
-            $"SELECT checksum FROM {context.SchemaName}.__migrations ORDER BY id LIMIT 1;");
+            $"SELECT checksum FROM {context.SchemaName}.__migrations WHERE set_name = 'core' ORDER BY id LIMIT 1;");
 
         checksum.ShouldNotBeNullOrWhiteSpace();
     }
@@ -95,9 +113,10 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);
 
-        // Corrupts the ledger's checksum to simulate a modified file.
+        // Corrupts the ledger's checksum to simulate a modified file. set_name
+        // is required: id 1 also exists in the "knowledge" set (0001_vector).
         await context.ExecuteAsync(
-            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'CORRUPTED' WHERE id = 1;");
+            $"UPDATE {context.SchemaName}.__migrations SET checksum = 'CORRUPTED' WHERE set_name = 'core' AND id = 1;");
 
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await context.Migrations.ApplyAsync());
