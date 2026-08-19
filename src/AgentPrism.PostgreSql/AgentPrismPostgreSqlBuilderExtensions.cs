@@ -18,6 +18,17 @@ public static class AgentPrismPostgreSqlBuilderExtensions
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
+    /// <remarks>
+    /// The schema is created and migrated at startup; no separate migration
+    /// step is needed.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    ///        .UsePostgreSql(builder.Configuration.GetConnectionString("AgentPrism")!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UsePostgreSql(this IAgentPrismBuilder builder, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(builder);

@@ -22,6 +22,14 @@ public static class AzureOpenAIProviderExtensions
     /// To use a managed credential, use
     /// <see cref="UseAzureOpenAI(IAgentPrismBuilder, Action{AzureOpenAIProviderOptions})"/>
     /// instead of this overload, and give <see cref="AzureOpenAIProviderOptions.CredentialFactory"/>.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseAzureOpenAI(
+    ///            new Uri(builder.Configuration["AzureOpenAI:Endpoint"]!),
+    ///            builder.Configuration["AzureOpenAI:ApiKey"]!);
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder UseAzureOpenAI(
         this IAgentPrismBuilder builder,

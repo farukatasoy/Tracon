@@ -70,6 +70,15 @@ public static class AgentPrismWorkflowFunctionExtensions
     /// insert) must therefore tolerate being called more than once for the
     /// same logical step.
     /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseWorkflows()
+    ///        .AddWorkflowFunction&lt;string, string&gt;(
+    ///            "normalise",
+    ///            provider => (input, context, cancellationToken) => ValueTask.FromResult(input.Trim().ToUpperInvariant()));
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder AddWorkflowFunction<TInput, TOutput>(
         this IAgentPrismBuilder builder,

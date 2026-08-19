@@ -17,6 +17,14 @@ public static class AnthropicProviderExtensions
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseAnthropic(builder.Configuration["Anthropic:ApiKey"]!);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseAnthropic(
         this IAgentPrismBuilder builder,
         string apiKey,

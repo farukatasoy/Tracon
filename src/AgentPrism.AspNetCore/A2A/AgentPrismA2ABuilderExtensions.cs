@@ -28,6 +28,12 @@ public static class AgentPrismA2ABuilderExtensions
     /// WHICH names exist in A2A is frozen at registration time (section 50.5).
     /// </para>
     /// <para>By default no agent is exposed (K1).</para>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseA2A(o => o.ExposedAgents.Add("support"));
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder UseA2A(
         this IAgentPrismBuilder builder,
