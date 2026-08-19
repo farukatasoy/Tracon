@@ -4300,3 +4300,55 @@ static AgentPrism.TenantEgressPolicy.operator ==(AgentPrism.TenantEgressPolicy? 
 static AgentPrism.TenantProviderBinding.operator !=(AgentPrism.TenantProviderBinding? left, AgentPrism.TenantProviderBinding? right) -> bool
 static AgentPrism.TenantProviderBinding.operator ==(AgentPrism.TenantProviderBinding? left, AgentPrism.TenantProviderBinding? right) -> bool
 AgentPrism.IModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.AgentPrismInboundTriggerOptions
+AgentPrism.AgentPrismInboundTriggerOptions.AgentPrismInboundTriggerOptions() -> void
+AgentPrism.AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix.get -> string!
+AgentPrism.AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix.set -> void
+AgentPrism.AgentPrismInboundTriggerOptions.MaxBodyBytes.get -> int
+AgentPrism.AgentPrismInboundTriggerOptions.MaxBodyBytes.set -> void
+AgentPrism.AgentPrismInboundTriggerOptions.MaxRequestsPerMinute.get -> int
+AgentPrism.AgentPrismInboundTriggerOptions.MaxRequestsPerMinute.set -> void
+AgentPrism.AgentPrismInboundTriggerOptions.TimestampTolerance.get -> System.TimeSpan
+AgentPrism.AgentPrismInboundTriggerOptions.TimestampTolerance.set -> void
+AgentPrism.IInboundTriggerStore
+AgentPrism.IInboundTriggerStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.IInboundTriggerStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTrigger?>
+AgentPrism.IInboundTriggerStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.InboundTrigger!>!>
+AgentPrism.IInboundTriggerStore.UpsertAsync(AgentPrism.InboundTrigger! trigger, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTrigger!>
+AgentPrism.InboundTrigger
+AgentPrism.InboundTrigger.<Clone>$() -> AgentPrism.InboundTrigger!
+AgentPrism.InboundTrigger.CreatedAt.get -> System.DateTimeOffset
+AgentPrism.InboundTrigger.CreatedAt.init -> void
+AgentPrism.InboundTrigger.Enabled.get -> bool
+AgentPrism.InboundTrigger.Enabled.init -> void
+AgentPrism.InboundTrigger.Equals(AgentPrism.InboundTrigger? other) -> bool
+AgentPrism.InboundTrigger.Id.get -> System.Guid
+AgentPrism.InboundTrigger.Id.init -> void
+AgentPrism.InboundTrigger.InboundTrigger() -> void
+AgentPrism.InboundTrigger.Name.get -> string!
+AgentPrism.InboundTrigger.Name.init -> void
+AgentPrism.InboundTrigger.PayloadMode.get -> AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTrigger.PayloadMode.init -> void
+AgentPrism.InboundTrigger.PayloadPath.get -> string?
+AgentPrism.InboundTrigger.PayloadPath.init -> void
+AgentPrism.InboundTrigger.SigningSecretConfigurationName.get -> string!
+AgentPrism.InboundTrigger.SigningSecretConfigurationName.init -> void
+AgentPrism.InboundTrigger.TargetKind.get -> AgentPrism.InboundTriggerTargetKind
+AgentPrism.InboundTrigger.TargetKind.init -> void
+AgentPrism.InboundTrigger.TargetName.get -> string!
+AgentPrism.InboundTrigger.TargetName.init -> void
+AgentPrism.InboundTrigger.TenantId.get -> string!
+AgentPrism.InboundTrigger.TenantId.init -> void
+AgentPrism.InboundTrigger.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.InboundTrigger.UpdatedAt.init -> void
+AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTriggerPayloadMode.Path = 1 -> AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTriggerPayloadMode.WholeBody = 0 -> AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTriggerTargetKind
+AgentPrism.InboundTriggerTargetKind.Agent = 0 -> AgentPrism.InboundTriggerTargetKind
+AgentPrism.InboundTriggerTargetKind.Workflow = 1 -> AgentPrism.InboundTriggerTargetKind
+override AgentPrism.InboundTrigger.Equals(object? obj) -> bool
+override AgentPrism.InboundTrigger.GetHashCode() -> int
+override AgentPrism.InboundTrigger.ToString() -> string!
+static AgentPrism.InboundTrigger.operator !=(AgentPrism.InboundTrigger? left, AgentPrism.InboundTrigger? right) -> bool
+static AgentPrism.InboundTrigger.operator ==(AgentPrism.InboundTrigger? left, AgentPrism.InboundTrigger? right) -> bool

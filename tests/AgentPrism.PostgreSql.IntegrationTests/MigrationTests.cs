@@ -60,7 +60,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // Phase 53 added the `api_keys` table: 44 -> 45.
         // Phase 55 added the `pending_approvals` table: 45 -> 46.
         // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 46 -> 48.
-        tableCount.ShouldBe(48);
+        // Phase 66 added the `inbound_triggers` table: 48 -> 49.
+        tableCount.ShouldBe(49);
     }
 
     [Fact]

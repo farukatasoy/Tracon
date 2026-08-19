@@ -1246,6 +1246,39 @@ export interface JobTriggerRequest {
   payload?: unknown;
 }
 
+/** What kind of target an inbound trigger starts (phase 66). */
+export type InboundTriggerTargetKind = 'Agent' | 'Workflow';
+
+/** How an inbound trigger's request body becomes the run's message. */
+export type InboundTriggerPayloadMode = 'WholeBody' | 'Path';
+
+/**
+ * An inbound trigger definition. Carries no signing secret VALUE, only the
+ * configuration key's name (K-059) and whether it currently resolves.
+ */
+export interface InboundTriggerResponse {
+  name: string;
+  targetKind: InboundTriggerTargetKind;
+  targetName: string;
+  signingSecretConfigurationName: string;
+  resolved: boolean;
+  payloadMode: InboundTriggerPayloadMode;
+  payloadPath?: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body of PUT `/api/triggers/{name}`. */
+export interface InboundTriggerSaveRequest {
+  targetKind: InboundTriggerTargetKind;
+  targetName: string;
+  signingSecretConfigurationName: string;
+  payloadMode: InboundTriggerPayloadMode;
+  payloadPath?: string | null;
+  enabled: boolean;
+}
+
 /** A queued job: the header row for its items. */
 export interface JobRecord {
   id: string;

@@ -271,6 +271,19 @@ public sealed class SqliteTenantProviderBindingStoreContractTests(SqliteSchemaFi
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteInboundTriggerStoreContractTests(SqliteSchemaFixture schema)
+    : InboundTriggerStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IInboundTriggerStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.InboundTriggers;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteTenantEgressPolicyStoreContractTests(SqliteSchemaFixture schema)
     : TenantEgressPolicyStoreContract, IClassFixture<SqliteSchemaFixture>
 {

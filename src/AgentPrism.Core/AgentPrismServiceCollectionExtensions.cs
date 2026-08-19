@@ -152,6 +152,11 @@ public static class AgentPrismServiceCollectionExtensions
         // Enabled flag is needed.
         services.AddOptions<AgentPrismTenantProviderOptions>().ValidateOnStart();
 
+        // Inbound triggers (Phase 66). Same rationale as tenant providers:
+        // carries its own section, requires no separate Use...() call. The
+        // default prefix is restrictive on its own (section 66.2).
+        services.AddOptions<AgentPrismInboundTriggerOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -176,6 +181,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindCanary(configurationSection.GetSection("Canary"), options));
             services.Configure<AgentPrismTenantProviderOptions>(
                 options => BindTenantProviders(configurationSection.GetSection("TenantProviders"), options));
+            services.Configure<AgentPrismInboundTriggerOptions>(
+                options => BindInboundTriggers(configurationSection.GetSection("InboundTriggers"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -502,6 +509,31 @@ public static class AgentPrismServiceCollectionExtensions
         // carries its own state machine, and an audit trail can be added here in Phase 18.
         services.TryAddSingleton<IJobStore, InMemoryJobStore>();
         services.TryAddSingleton<IJobScheduleStore, InMemoryJobScheduleStore>();
+
+        // Inbound triggers (Phase 66): an external, signed event queues a run
+        // through the SAME job queue as everything else. The store is always
+        // registered (K-018); the accept endpoint is unauthenticated by
+        // design (K-395's pattern), so the dispatcher itself, not an
+        // ASP.NET Core filter, verifies the signature. Explicit factories:
+        // IConfiguration may not be registered outside ASP.NET Core hosting,
+        // and the built-in DI container does not fill in constructor
+        // parameters that carry a default value.
+        services.TryAddSingleton<IInboundTriggerStore, InMemoryInboundTriggerStore>();
+        services.TryAddSingleton(static provider => new InboundTriggerSecretResolver(
+            provider.GetService<IConfiguration>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismInboundTriggerOptions>>()));
+        services.TryAddSingleton(static provider => new InboundTriggerRateLimiter(
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismInboundTriggerOptions>>(),
+            provider.GetService<TimeProvider>()));
+        services.TryAddSingleton(static provider => new InboundTriggerDispatcher(
+            provider.GetRequiredService<IInboundTriggerStore>(),
+            provider.GetRequiredService<InboundTriggerSecretResolver>(),
+            provider.GetRequiredService<InboundTriggerRateLimiter>(),
+            provider.GetRequiredService<IIdempotencyStore>(),
+            provider.GetRequiredService<IJobStore>(),
+            provider.GetRequiredService<IRunStore>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismInboundTriggerOptions>>(),
+            provider.GetService<TimeProvider>()));
 
         // Three built-in handlers: agent batch run, queued single run (Phase
         // 46), and workflow. All three are added with TryAddEnumerable; Phase
@@ -1691,6 +1723,46 @@ public static class AgentPrismServiceCollectionExtensions
         if (section[nameof(AgentPrismTenantProviderOptions.AllowedConfigurationPrefix)] is { Length: > 0 } prefix)
         {
             options.AllowedConfigurationPrefix = prefix;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:InboundTriggers</c> section.</summary>
+    private static void BindInboundTriggers(IConfigurationSection section, AgentPrismInboundTriggerOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismInboundTriggerOptions.TimestampTolerance)],
+                CultureInfo.InvariantCulture,
+                out var timestampTolerance))
+        {
+            options.TimestampTolerance = timestampTolerance;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismInboundTriggerOptions.MaxBodyBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxBodyBytes))
+        {
+            options.MaxBodyBytes = maxBodyBytes;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismInboundTriggerOptions.MaxRequestsPerMinute)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxRequestsPerMinute))
+        {
+            options.MaxRequestsPerMinute = maxRequestsPerMinute;
+        }
+
+        if (section[nameof(AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix)] is { Length: > 0 } allowedPrefix)
+        {
+            options.AllowedConfigurationPrefix = allowedPrefix;
         }
     }
 

@@ -311,7 +311,7 @@ if (existsSync(publishedOpenApi)) {
     }
   }
 
-  const expectedAnonymous = ['AgentPrismMcpOAuthCallback', 'AgentPrismMeta'];
+  const expectedAnonymous = ['AgentPrismAcceptInboundTrigger', 'AgentPrismMcpOAuthCallback', 'AgentPrismMeta'];
   if (anonymousOperations.sort().join(',') !== expectedAnonymous.join(',')) {
     errors.push(`public OpenAPI anonymous-operation drift: ${anonymousOperations.join(', ')}`);
   }

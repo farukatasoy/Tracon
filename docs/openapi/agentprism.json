@@ -4094,6 +4094,130 @@
         }
       }
     },
+    "/agentprism/api/triggers": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Triggers"
+        ],
+        "summary": "Lists a tenant\u0027s inbound triggers.",
+        "description": "The response carries no signing secret value, only the configuration key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027) \u2014 the diagnosis path for \u0027I set the secret but signatures still fail\u0027.",
+        "operationId": "AgentPrismListInboundTriggers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InboundTriggerResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/triggers/{name}": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Triggers"
+        ],
+        "summary": "Gets a single inbound trigger.",
+        "description": "An unknown name returns 404.",
+        "operationId": "AgentPrismGetInboundTrigger",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundTriggerResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AgentPrism",
+          "Triggers"
+        ],
+        "summary": "Creates or updates an inbound trigger.",
+        "description": "\u0027signingSecretConfigurationName\u0027 carries only the configuration key\u0027s NAME, never its value; the name must be under the configured allowed prefix (400 otherwise). \u0027payloadPath\u0027 is required when \u0027payloadMode\u0027 is \u0027path\u0027.",
+        "operationId": "AgentPrismSaveInboundTrigger",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboundTriggerSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundTriggerResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "Triggers"
+        ],
+        "summary": "Deletes an inbound trigger.",
+        "description": "After deletion, the accept endpoint returns 404 for this name. An unknown name returns 404.",
+        "operationId": "AgentPrismDeleteInboundTrigger",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/agentprism/api/approvals/pending": {
       "get": {
         "tags": [
@@ -6095,6 +6219,97 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/agentprism/api/triggers/{tenantId}/{name}": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Triggers"
+        ],
+        "summary": "Accepts a signed external event and queues a run.",
+        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-AgentPrism-Timestamp\u0027 \u002B \u0027X-AgentPrism-Signature\u0027, the same headers Phase 21\u0027s outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names.",
+        "operationId": "AgentPrismAcceptInboundTrigger",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundTriggerAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -9821,6 +10036,155 @@
       "IMcpToolRefresher": {
         "type": "object",
         "description": "Refreshes the tool list of remote MCP servers on demand."
+      },
+      "InboundTriggerAcceptedResponse": {
+        "required": [
+          "jobId",
+          "location"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the identifier of the queued run, when the trigger targets an\nagent. \u0060null\u0060 for a workflow target \u2014 a workflow job\nis not tied to a single run id until it is picked up from the queue.",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "description": "Gets the identifier of the queued job.",
+            "format": "uuid"
+          },
+          "location": {
+            "type": "string",
+            "description": "Gets the address to poll for the outcome. Same as the \u0060Location\u0060 header."
+          },
+          "eventsLocation": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the address of the run\u0027s event stream. \u0060null\u0060 for a workflow target."
+          }
+        },
+        "description": "The response for a successfully accepted inbound trigger event."
+      },
+      "InboundTriggerPayloadMode": {
+        "enum": [
+          "WholeBody",
+          "Path"
+        ],
+        "description": "How an inbound trigger\u0027s request body becomes the agent/workflow message."
+      },
+      "InboundTriggerResponse": {
+        "required": [
+          "name",
+          "targetKind",
+          "targetName",
+          "signingSecretConfigurationName",
+          "resolved",
+          "payloadMode",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the trigger name."
+          },
+          "targetKind": {
+            "description": "Gets the kind of target the trigger starts.",
+            "$ref": "#/components/schemas/InboundTriggerTargetKind"
+          },
+          "targetName": {
+            "type": "string",
+            "description": "Gets the agent or workflow name the trigger starts."
+          },
+          "signingSecretConfigurationName": {
+            "type": "string",
+            "description": "Gets the configuration key name the signing secret is read from."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "Gets whether string InboundTriggerResponse.SigningSecretConfigurationName currently resolves to a value."
+          },
+          "payloadMode": {
+            "description": "Gets how the request body becomes the run\u0027s message.",
+            "$ref": "#/components/schemas/InboundTriggerPayloadMode"
+          },
+          "payloadPath": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerResponse.PayloadMode is InboundTriggerPayloadMode.Path."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Gets whether the trigger accepts requests."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Gets the creation time (UTC).",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Gets the last-updated time (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "The response describing an inbound trigger definition."
+      },
+      "InboundTriggerSaveRequest": {
+        "type": "object",
+        "properties": {
+          "targetKind": {
+            "description": "Gets the kind of target the trigger starts. Default InboundTriggerTargetKind.Agent.",
+            "$ref": "#/components/schemas/InboundTriggerTargetKind"
+          },
+          "targetName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the agent or workflow name to run."
+          },
+          "signingSecretConfigurationName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the configuration key name the signing secret is read from. Never a value."
+          },
+          "payloadMode": {
+            "description": "Gets how the request body becomes the run\u0027s message. Default InboundTriggerPayloadMode.WholeBody.",
+            "$ref": "#/components/schemas/InboundTriggerPayloadMode"
+          },
+          "payloadPath": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerSaveRequest.PayloadMode is InboundTriggerPayloadMode.Path."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Gets whether the trigger accepts requests. Default \u0060true\u0060."
+          }
+        },
+        "description": "The request body for creating or replacing an inbound trigger."
+      },
+      "InboundTriggerTargetKind": {
+        "enum": [
+          "Agent",
+          "Workflow"
+        ],
+        "description": "What kind of target an inbound trigger fires."
       },
       "ItemContent": {
         "required": [
@@ -15536,6 +15900,9 @@
     },
     {
       "name": "TenantProviders"
+    },
+    {
+      "name": "Triggers"
     },
     {
       "name": "Approvals"

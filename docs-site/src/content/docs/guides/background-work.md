@@ -290,6 +290,7 @@ idempotent.
 
 ## Read next
 
+- [Inbound triggers](/AgentPrism/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
 - [Reliable runs](/AgentPrism/guides/reliability/)
 - [Production deployment](/AgentPrism/guides/production/)
 - [HTTP API conventions](/AgentPrism/http-api/)

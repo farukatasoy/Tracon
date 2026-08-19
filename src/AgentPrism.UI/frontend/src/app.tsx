@@ -27,6 +27,7 @@ import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
 import { McpScreen } from './screens/mcp';
+import { TriggerEditorScreen, TriggersScreen } from './screens/triggers';
 import { ApprovalsScreen } from './screens/approvals';
 import { SettingsScreen } from './screens/settings';
 import { AuditScreen } from './screens/audit';
@@ -84,6 +85,12 @@ const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'tools', render: () => <ToolsScreen /> },
   { pattern: 'models', render: () => <ModelsScreen /> },
   { pattern: 'mcp', render: () => <McpScreen meta={meta} /> },
+  { pattern: 'triggers', render: () => <TriggersScreen meta={meta} /> },
+  { pattern: 'triggers/new', render: () => <TriggerEditorScreen meta={meta} /> },
+  {
+    pattern: 'triggers/:name/edit',
+    render: (params) => <TriggerEditorScreen name={params['name'] ?? ''} meta={meta} />,
+  },
   { pattern: 'approvals', render: () => <ApprovalsScreen meta={meta} /> },
   { pattern: 'audit', render: () => <AuditScreen /> },
   { pattern: 'diagnostics', render: () => <DiagnosticsScreen /> },

@@ -136,6 +136,7 @@ public static class AgentPrismSqliteBuilderExtensions
 
         services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
         services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
+        services.Replace(ServiceDescriptor.Singleton<IInboundTriggerStore, SqlInboundTriggerStore>());
 
         services.Replace(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
 

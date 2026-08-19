@@ -47,6 +47,7 @@ public sealed class AuditContentPolicyTests
         "src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs",
         "src/AgentPrism.AspNetCore/Endpoints/SessionEndpoints.cs",
         "src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs",
+        "src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs",
         "src/AgentPrism.AspNetCore/Endpoints/WebhookEndpoints.cs",
 
         // AspNetCore internals — tool approval/result resolution, external call audit.
