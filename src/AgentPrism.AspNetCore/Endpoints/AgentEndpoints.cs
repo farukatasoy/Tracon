@@ -176,6 +176,7 @@ internal static class AgentEndpoints
                 IOptionsMonitor<AgentPrismOptions> optionsMonitor,
                 ContextWindowEstimator contextWindowEstimator,
                 [FromServices] QuotaEnforcer? quotaEnforcer,
+                [FromServices] IRunAttributionContext? attributionContext,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
@@ -186,6 +187,16 @@ internal static class AgentEndpoints
                 if (bindError is not null)
                 {
                     return bindError;
+                }
+
+                // 🚨 Attribution is checked BEFORE the run starts, so an
+                // oversized label set is REJECTED rather than trimmed. The
+                // AgentRunRequest body is deliberately NOT a source of
+                // attribution: a userId field there would let any client write
+                // spend against another user's name.
+                if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+                {
+                    return attributionProblem;
                 }
 
                 // 🚨 The quota check happens BEFORE the run starts. An in-progress
@@ -217,6 +228,7 @@ internal static class AgentEndpoints
                         jobStore,
                         runStore,
                         tenantContext,
+                        attributionContext,
                         asyncRunOptions.CurrentValue,
                         prefix,
                         httpContext,
@@ -774,6 +786,7 @@ internal static class AgentEndpoints
         IJobStore jobStore,
         IRunStore runStore,
         ITenantContext tenantContext,
+        IRunAttributionContext? attributionContext,
         AgentPrismAsyncRunOptions options,
         string prefix,
         HttpContext httpContext,
@@ -843,6 +856,15 @@ internal static class AgentEndpoints
                 Status = RunStatus.Queued,
                 StartedAt = now,
                 TenantId = tenantContext.TenantId,
+
+                // 🚨 Attribution is captured HERE, inside the HTTP request, and
+                // not later by the worker: an HTTP-bound IRunAttributionContext
+                // has no request to read from a background job. The worker's
+                // second StartRunAsync call carries no user, and the store's
+                // upsert COALESCEs rather than overwrites, so this value
+                // survives.
+                UserId = attributionContext?.UserId,
+                Labels = attributionContext?.Labels,
                 SessionId = request.SessionId,
             },
             cancellationToken).ConfigureAwait(false);

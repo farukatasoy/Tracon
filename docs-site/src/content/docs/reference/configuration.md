@@ -197,13 +197,41 @@ prices all start empty. The supported shape is:
 AgentPrism:Pricing:Currency
 AgentPrism:Pricing:{provider}:{model}:Input
 AgentPrism:Pricing:{provider}:{model}:Output
+AgentPrism:Pricing:{provider}:{model}:CachedInput
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMinute
 ```
 
 Values label and calculate reports only. AgentPrism performs no currency conversion.
-The shorter configuration keys `Input` and `Output` bind to the code properties
-`InputCostPerMillionTokens` and `OutputCostPerMillionTokens`.
+The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
+properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
+`CachedInputCostPerMillionTokens`.
+
+`CachedInput` is the rate for input tokens the provider served from its prompt
+cache. It is optional, and its absence is not a configuration error — unlike
+`Input` and `Output`, where an entry with neither is rejected at startup as a
+likely typo.
+
+Cost is computed by **subtraction**, because a provider counts cached tokens
+*inside* the input total rather than beside it:
+
+```text
+full_price_input = InputTokens - CachedInputTokens
+cost             = full_price_input   * Input
+                 + CachedInputTokens  * CachedInput
+                 + OutputTokens       * Output
+```
+
+:::note
+Leave `CachedInput` unset and the whole input is priced at `Input`, exactly as
+before the rate existed. A missing cache rate never makes a run's `pricingSource`
+`Unknown` — that value means the **model** price is missing, which is a different
+fault. Set it to `0` to state that cache reads are free.
+:::
+
+Reasoning tokens are recorded (`reasoningTokens`) but priced at the output rate:
+providers do not bill them separately today, and an unmeasured distinction is not
+worth widening the price schema.
 
 ## Operational sections
 

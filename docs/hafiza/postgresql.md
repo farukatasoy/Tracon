@@ -54,3 +54,4 @@
   olurdu. Isaretlenmezse OpenAPI belgesi **hicbir zaman dolmayan** bir alan ilan
   eder — `OpenApiSnapshotTests` bunu yakaladi ve `[JsonIgnore]` sonrasi
   `docs/openapi/agentprism.json` degismedi.
+- **Düz bir `string→string` haritası için `jsonb` DOĞRUDUR; K-027'nin yasağı POLİMORFİK yükler içindir** (2026-08-19, Faz 68, K-479): `runs.labels` `$type` ayracı taşımaz, dolayısıyla `jsonb`'nin anahtar yeniden sıralaması zararsızdır ve GIN indeksi kazançtır (K-345'in `document_embeddings.metadata` ile aynı gerekçe). Süzgeç `jsonb_exists(labels, @key)` + `labels @> jsonb_build_object(...)` ile yazılır — ikisi de `gin (labels)`'tan yararlanır; `?` operatörü yerine FONKSİYON biçimi seçildi ki hiçbir sürücü onu parametre yer tutucusu sanmasın. SQL Server/SQLite'ta harita JSON metnidir (`OPENJSON`/`json_each`) ve indeks YOKTUR: serbest bir etiket kümesi, hesaplanmış sütun indeksinin isteyeceği önceden bilinen anahtar listesini veremez.

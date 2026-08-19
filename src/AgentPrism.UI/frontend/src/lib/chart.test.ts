@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices } from './chart';
+import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from './chart';
 
 describe('scaleLinear', () => {
   it('maps domain edges to range edges', () => {
@@ -87,5 +87,68 @@ describe('tickIndices', () => {
 
   it('returns nothing for an empty series', () => {
     expect(tickIndices(0, 5)).toEqual([]);
+  });
+});
+
+describe('tokenBreakdown', () => {
+  it('subtracts the cached and reasoning slices out of their totals', () => {
+    // 🚨 The regression this guards: stacking the four raw counters would draw a
+    // bar of 100+50+40+30 = 220 tokens for a run that spent 150.
+    const slices = tokenBreakdown({
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedInputTokens: 40,
+      reasoningTokens: 30,
+    });
+
+    expect(slices.map((slice) => [slice.key, slice.tokens])).toEqual([
+      ['cachedInput', 40],
+      ['input', 60],
+      ['reasoning', 30],
+      ['output', 20],
+    ]);
+
+    expect(slices.reduce((sum, slice) => sum + slice.tokens, 0)).toBe(150);
+  });
+
+  it('sums the shares to one', () => {
+    const slices = tokenBreakdown({
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedInputTokens: 40,
+      reasoningTokens: 30,
+    });
+
+    expect(slices.reduce((sum, slice) => sum + slice.share, 0)).toBeCloseTo(1, 10);
+  });
+
+  it('drops empty slices so a provider that reports no cache draws two bands', () => {
+    const slices = tokenBreakdown({
+      inputTokens: 100,
+      outputTokens: 50,
+      cachedInputTokens: 0,
+      reasoningTokens: 0,
+    });
+
+    expect(slices.map((slice) => slice.key)).toEqual(['input', 'output']);
+  });
+
+  it('returns nothing when no token was spent', () => {
+    expect(
+      tokenBreakdown({ inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 }),
+    ).toEqual([]);
+  });
+
+  it('never produces a negative slice when a provider contradicts itself', () => {
+    // More cached tokens than input tokens is a data fault, not a layout case.
+    const slices = tokenBreakdown({
+      inputTokens: 10,
+      outputTokens: 10,
+      cachedInputTokens: 999,
+      reasoningTokens: 0,
+    });
+
+    expect(slices.every((slice) => slice.tokens >= 0)).toBe(true);
+    expect(slices.reduce((sum, slice) => sum + slice.tokens, 0)).toBe(20);
   });
 });

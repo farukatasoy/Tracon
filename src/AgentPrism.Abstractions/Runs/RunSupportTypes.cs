@@ -3,6 +3,21 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>Token usage of a run.</summary>
+/// <remarks>
+/// <para>
+/// 🚨 The breakdown fields are counted <strong>inside</strong> the three
+/// totals, never beside them — the contract is inherited verbatim from
+/// <c>Microsoft.Extensions.AI.UsageDetails</c>, whose documentation states that
+/// cached input tokens are part of the input token count. Adding
+/// <see cref="CachedInputTokens"/> to <see cref="InputTokens"/> therefore
+/// counts the same tokens twice.
+/// </para>
+/// <para>
+/// 🚨 A field a provider does not report stays <see langword="null"/>; it is
+/// never written as zero. Zero is the claim "this was measured and it was
+/// none", which is a different statement from "this was not measured".
+/// </para>
+/// </remarks>
 public sealed record RunUsage
 {
     /// <summary>Gets the number of input tokens.</summary>
@@ -13,6 +28,36 @@ public sealed record RunUsage
 
     /// <summary>Gets the total number of tokens.</summary>
     public long? TotalTokens { get; init; }
+
+    /// <summary>
+    /// Gets the input tokens that were served from the provider's prompt
+    /// cache. Counted INSIDE <see cref="InputTokens"/>.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="null"/> when the provider does not report it. While it is
+    /// <see langword="null"/> the whole input is priced at the full input rate,
+    /// which is what AgentPrism did before this field existed.
+    /// </remarks>
+    public long? CachedInputTokens { get; init; }
+
+    /// <summary>
+    /// Gets the tokens the model spent on reasoning. Counted INSIDE
+    /// <see cref="OutputTokens"/>.
+    /// </summary>
+    /// <remarks>
+    /// Recorded for reporting. It is priced at the output rate, because
+    /// providers do not currently bill it separately; a separate rate would be
+    /// an unmeasured distinction baked into the price schema (the K-032 line).
+    /// </remarks>
+    public long? ReasoningTokens { get; init; }
+
+    /// <summary>Gets the audio input tokens. Counted INSIDE <see cref="InputTokens"/>.</summary>
+    /// <remarks>Recorded for reporting; it carries no separate rate yet.</remarks>
+    public long? AudioInputTokens { get; init; }
+
+    /// <summary>Gets the audio output tokens. Counted INSIDE <see cref="OutputTokens"/>.</summary>
+    /// <remarks>Recorded for reporting; it carries no separate rate yet.</remarks>
+    public long? AudioOutputTokens { get; init; }
 }
 
 /// <summary>Error information for a failed run.</summary>
@@ -52,11 +97,51 @@ public sealed record RunCost
     /// <summary>Gets the output token cost, or <see langword="null"/> when the price is unknown.</summary>
     public decimal? OutputCost { get; init; }
 
+    /// <summary>
+    /// Gets the cost of the input tokens that were served from the prompt
+    /// cache, or <see langword="null"/> when no cache read was priced.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cached tokens are <strong>subtracted</strong> from
+    /// <see cref="InputCost"/> and charged here instead, so the two fields
+    /// still add up to the run's input spend and must not be double counted.
+    /// </para>
+    /// <para>
+    /// 🚨 An undefined cache rate does NOT push the run to
+    /// <see cref="PricingSource.Unknown"/>: the cached tokens are then priced
+    /// at the normal input rate and the total stays exactly what it was before
+    /// this field existed. <see cref="PricingSource.Unknown"/> means the MODEL
+    /// price is missing, which is a different fault.
+    /// </para>
+    /// </remarks>
+    public decimal? CachedInputCost { get; init; }
+
     /// <summary>Gets the currency, taken from <c>AgentPrism:Pricing:Currency</c>.</summary>
     public string? Currency { get; init; }
 
     /// <summary>Gets where the price came from.</summary>
     public required PricingSource Source { get; init; }
+
+    /// <summary>
+    /// Gets the run's total cost — input, output and cache read together.
+    /// </summary>
+    /// <returns>
+    /// <see langword="null"/> when the run was never priced at all. Zero would
+    /// say "it cost nothing", which is a different claim.
+    /// </returns>
+    /// <remarks>
+    /// 🚨 Every caller that needs "what did this run cost" must use THIS, never
+    /// <c>InputCost + OutputCost</c>. <see cref="CachedInputCost"/> is a third
+    /// addend, not a subset of <see cref="InputCost"/>: the resolver subtracts
+    /// the cached tokens out of the input charge and bills them here. A hand
+    /// written two-term sum under-reports every run that hit the prompt cache —
+    /// and a quota ceiling computed that way can be exceeded.
+    /// </remarks>
+    public decimal? Total()
+        => this is { InputCost: null, OutputCost: null, CachedInputCost: null }
+            ? null
+            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m);
 }
 
 /// <summary>
@@ -76,11 +161,28 @@ public sealed record RunTreeCost
     /// <summary>Gets the total output cost across the tree.</summary>
     public decimal? OutputCost { get; init; }
 
+    /// <summary>Gets the total cached-input cost across the tree.</summary>
+    /// <remarks>
+    /// 🚨 This is a THIRD addend of the tree's total, not a subset of
+    /// <see cref="InputCost"/>: every run's own <see cref="RunCost.InputCost"/>
+    /// already has its cached tokens subtracted out. A total that adds only
+    /// input and output under-reports every tree that hit the prompt cache.
+    /// </remarks>
+    public decimal? CachedInputCost { get; init; }
+
     /// <summary>Gets the currency.</summary>
     public string? Currency { get; init; }
 
     /// <summary>Gets how many runs in the tree have an unknown price.</summary>
     public long RunsWithUnknownPricing { get; init; }
+
+    /// <summary>Gets the tree's total cost — input, output and cache read together.</summary>
+    /// <returns><see langword="null"/> when no run in the tree was ever priced.</returns>
+    /// <remarks>Same rule as <see cref="RunCost.Total"/>: never add only two of the three.</remarks>
+    public decimal? Total()
+        => this is { InputCost: null, OutputCost: null, CachedInputCost: null }
+            ? null
+            : (InputCost ?? 0m) + (OutputCost ?? 0m) + (CachedInputCost ?? 0m);
 }
 
 /// <summary>Everything needed to open a new run.</summary>
@@ -118,6 +220,24 @@ public sealed record RunStartInfo
 
     /// <summary>Gets the tenant id.</summary>
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Gets the user the run belongs to, resolved from
+    /// <see cref="IRunAttributionContext"/>, or <see langword="null"/> when it
+    /// is unknown.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The value never comes from the request body. See
+    /// <see cref="IRunAttributionContext.UserId"/>.
+    /// </remarks>
+    public string? UserId { get; init; }
+
+    /// <summary>
+    /// Gets the labels of the run, resolved from
+    /// <see cref="IRunAttributionContext"/>, or <see langword="null"/> when
+    /// there are none.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Labels { get; init; }
 
     /// <summary>Gets the session id.</summary>
     public string? SessionId { get; init; }
@@ -230,6 +350,35 @@ public sealed record RunQuery
 
     /// <summary>Gets the tenant whose runs are returned.</summary>
     public string? TenantId { get; init; }
+
+    /// <summary>
+    /// Gets the user whose runs are returned. <see langword="null"/> includes
+    /// every user, including runs that carry no user at all.
+    /// </summary>
+    public string? UserId { get; init; }
+
+    /// <summary>
+    /// Gets the label a returned run must carry, or <see langword="null"/> to
+    /// apply no label filter.
+    /// </summary>
+    /// <remarks>
+    /// The filter matches a key AND a value together: asking for
+    /// <c>team=payments</c> must not also return <c>team=billing</c>. Give
+    /// <see cref="LabelValue"/> alongside it; a key on its own matches any
+    /// value of that key.
+    /// </remarks>
+    public string? LabelKey { get; init; }
+
+    /// <summary>
+    /// Gets the value <see cref="LabelKey"/> must have.
+    /// <see langword="null"/> matches any value of that key.
+    /// </summary>
+    /// <remarks>
+    /// The field is ignored when <see cref="LabelKey"/> is
+    /// <see langword="null"/>: a value with no key names no dimension, and
+    /// silently returning an empty list is hard to debug.
+    /// </remarks>
+    public string? LabelValue { get; init; }
 
     /// <summary>Gets the session whose runs are returned.</summary>
     public string? SessionId { get; init; }

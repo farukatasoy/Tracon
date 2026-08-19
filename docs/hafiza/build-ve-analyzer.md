@@ -135,3 +135,4 @@
   `ProjectReference` tuketicisi etkilenir, paket tuketicisi degil.
 - MSBuild item'i olcerken hedefe `DependsOnTargets` ver; `-t:` bagimliyi
   kosmaz, cikti bos gelir.
+- **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.

@@ -341,10 +341,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
         InsertRun = $"""
             INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id)
+                                       replay_of_run_id, user_id, labels)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id)
+                    @replay_of_run_id, @user_id, @labels)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_id     = excluded.tenant_id,
                 agent_name    = excluded.agent_name,
@@ -361,7 +361,17 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 agent_version = excluded.agent_version,
                 experiment_id = excluded.experiment_id,
                 variant       = excluded.variant,
-                replay_of_run_id = excluded.replay_of_run_id;
+                replay_of_run_id = excluded.replay_of_run_id,
+                -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
+                -- 46): a queued run's placeholder row is written during the HTTP
+                -- request, where the user IS known, and rewritten later by the
+                -- background worker, where it is NOT (an HTTP-bound
+                -- IRunAttributionContext has no request to read). A plain
+                -- overwrite would ERASE the attribution the first write got
+                -- right. Attribution never legitimately goes from set back to
+                -- unset for the same run, so preserving is always correct.
+                user_id       = COALESCE(excluded.user_id, user_id),
+                labels        = COALESCE(excluded.labels, labels);
             """;
 
         UpdateRunCompletion = $"""
@@ -372,12 +382,17 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 input_tokens   = @input_tokens,
                 output_tokens  = @output_tokens,
                 total_tokens   = @total_tokens,
+                cached_input_tokens = @cached_input_tokens,
+                reasoning_tokens    = @reasoning_tokens,
+                audio_input_tokens  = @audio_input_tokens,
+                audio_output_tokens = @audio_output_tokens,
                 error_type     = @error_type,
                 error_message  = @error_message,
                 error_class    = @error_class,
                 error_fingerprint = @error_fingerprint,
                 input_cost     = @input_cost,
                 output_cost    = @output_cost,
+                cached_input_cost = @cached_input_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
                 model_id       = COALESCE(@model_id, model_id)
@@ -388,6 +403,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             UPDATE {Schema}runs
             SET input_cost     = @input_cost,
                 output_cost    = @output_cost,
+                cached_input_cost = @cached_input_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -437,6 +453,27 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     @type, @text, @created_at);
             """;
 
+        // Phase 68 attribution filter, written ONCE and reused by the run list
+        // and by every result set of the statistics query.
+        //
+        // 🚨 The NULL check is an explicit guard, not a COALESCE to an empty
+        // object: json_each over NULL is not worth relying on, and a literal
+        // brace cannot appear in a single-'$' raw interpolated string anyway.
+        // json_each is a BUILT-IN table-valued function and therefore carries no
+        // schema prefix -- unlike every real table here (K-193/K-259).
+        static string AttributionFilter(string prefix) => $"""
+                      AND (@user_id IS NULL OR {prefix}user_id = @user_id)
+                      AND (@label_key IS NULL
+                           OR ({prefix}labels IS NOT NULL
+                               AND EXISTS (
+                                   SELECT 1 FROM json_each({prefix}labels) AS kv
+                                   WHERE kv.key = @label_key
+                                     AND (@label_value IS NULL OR kv.value = @label_value))))
+            """;
+
+        var runListAttributionFilter = AttributionFilter("r.");
+        var statisticsAttributionFilter = AttributionFilter(string.Empty);
+
         // 🚨 SQLite has no LATERAL JOIN. Tree aggregates are computed with
         // correlated scalar subqueries in the SELECT list; each does a
         // separate scan, but the read path is cheaper than updating a
@@ -458,7 +495,18 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT COUNT(*) FILTER (WHERE sub.pricing_source = 2) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(sub.pricing_source) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.error_class, r.error_fingerprint,
-            r.replay_of_run_id
+            r.replay_of_run_id,
+            r.user_id, r.labels,
+            r.cached_input_tokens, r.reasoning_tokens, r.audio_input_tokens, r.audio_output_tokens,
+            r.cached_input_cost,
+            -- 🚨 NOT COALESCE'd to zero, unlike the token totals above: a
+            -- descendant tree in which nobody reported cache usage must read as
+            -- "not measured", not "measured zero".
+            (SELECT SUM(sub.cached_input_tokens) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.reasoning_tokens)    FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.audio_input_tokens)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.audio_output_tokens) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
             """;
 
         SelectRun = $"""
@@ -491,6 +539,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     )
               )
               AND (@started_after IS NULL OR r.started_at > @started_after)
+            {runListAttributionFilter}
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
               AND (
                     (@parent_run_id IS NOT NULL AND r.parent_run_id = @parent_run_id)
@@ -512,6 +561,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND r2.kind <> @kind_eval
               AND (@agent_name IS NULL OR r2.agent_name = @agent_name)
               AND (@started_after IS NULL OR r2.started_at > @started_after)
+            {AttributionFilter("r2.")}
             """;
 
         SelectRunStatistics = $"""
@@ -524,8 +574,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COALESCE(SUM(input_tokens), 0),
                    COALESCE(SUM(output_tokens), 0),
                    COALESCE(SUM(total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END,
                    MAX(cost_currency),
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown),
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter}),
@@ -533,12 +583,20 @@ internal sealed class SqliteQueries : SqlQueriesBase
                                 ELSE CAST(COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1) AS REAL)
                                      / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
                            END
-                    FROM {matchedRunScoresFilter})
+                    FROM {matchedRunScoresFilter}),
+                   -- Ordinals 14-17, APPENDED so the reader's fixed positions
+                   -- above do not move. These four are counted INSIDE the
+                   -- input/output totals and are reported beside them.
+                   COALESCE(SUM(cached_input_tokens), 0),
+                   COALESCE(SUM(reasoning_tokens), 0),
+                   COALESCE(SUM(audio_input_tokens), 0),
+                   COALESCE(SUM(audio_output_tokens), 0)
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
-              AND (@started_after IS NULL OR started_at > @started_after);
+              AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter};
 
             SELECT agent_name,
                    COUNT(*),
@@ -549,6 +607,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY agent_name
             ORDER BY COUNT(*) DESC, agent_name
             LIMIT @max_agents;
@@ -558,14 +617,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COALESCE(SUM(input_tokens), 0),
                    COALESCE(SUM(output_tokens), 0),
                    COALESCE(SUM(total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
               AND model_id IS NOT NULL
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY model_id
             ORDER BY COUNT(*) DESC, model_id
             LIMIT @max_agents;
@@ -581,6 +641,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND agent_version IS NOT NULL
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY agent_name, agent_version
             ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
@@ -597,6 +658,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND status = @status_failed
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             GROUP BY COALESCE(error_class, 0)
             ORDER BY COUNT(*) DESC;
 
@@ -624,6 +686,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                   AND status = @status_failed
                   AND (@agent_name IS NULL OR agent_name = @agent_name)
                   AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
             ),
             samples AS (
                 SELECT error_class, error_fingerprint, cluster_count, last_seen_at,
@@ -640,7 +703,51 @@ internal sealed class SqliteQueries : SqlQueriesBase
             FROM ranked
             WHERE cluster_rank <= @top_clusters
             ORDER BY error_class, cluster_count DESC;
-            """;
+            
+            -- Seventh result set: breakdown by user (phase 68). Runs carrying no
+            -- user stay OUT of this list but remain in the totals, exactly as
+            -- runs with an unknown model do. APPENDED after the existing sets so
+            -- their positions in SqlRunStore hold.
+            SELECT user_id,
+                   COUNT(*),
+                   COUNT(*) FILTER (WHERE status = @status_failed),
+                   COALESCE(SUM(total_tokens), 0),
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
+            FROM {Schema}runs
+            WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
+              AND user_id IS NOT NULL
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            {statisticsAttributionFilter}
+            GROUP BY user_id
+            ORDER BY COUNT(*) DESC, user_id
+            LIMIT @max_agents;
+
+            -- Eighth result set: breakdown by label. json_each is the
+            -- counterpart of PostgreSQL's jsonb_each_text, so a run carrying
+            -- three labels contributes to THREE rows.
+            -- 🚨 These rows therefore do NOT sum to TotalRuns, unlike every other
+            -- breakdown: a label set is not a partition of the runs.
+            SELECT kv.key,
+                   kv.value,
+                   COUNT(*),
+                   COUNT(*) FILTER (WHERE r.status = @status_failed),
+                   COALESCE(SUM(r.total_tokens), 0),
+                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END
+            FROM {Schema}runs AS r, json_each(r.labels) AS kv
+            WHERE r.tenant_id = @tenant_id
+              AND r.kind <> @kind_eval
+              AND r.labels IS NOT NULL
+              AND (@agent_name IS NULL OR r.agent_name = @agent_name)
+              AND (@started_after IS NULL OR r.started_at > @started_after)
+            {runListAttributionFilter}
+            GROUP BY kv.key, kv.value
+            ORDER BY COUNT(*) DESC, kv.key, kv.value
+            LIMIT @max_agents;
+""";
 
         // 🚨 SELECT ... WHERE EXISTS instead of VALUES: the write applies only
         // if the target run belongs to the EXPECTED tenant (K-355). If
@@ -884,8 +991,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COALESCE(SUM(r.total_tokens), 0),
                    AVG(CASE WHEN r.completed_at IS NOT NULL
                             THEN (julianday(r.completed_at) - julianday(r.started_at)) * 86400000.0 END),
-                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) END,
+                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END,
                    MAX(r.cost_currency),
                    AVG(s.avg_score)
             FROM {Schema}runs r
@@ -923,8 +1030,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        COUNT(*) FILTER (WHERE status = @status_failed) AS failed_runs,
                        COALESCE(SUM(input_tokens), 0) AS input_tokens,
                        COALESCE(SUM(output_tokens), 0) AS output_tokens,
-                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END AS cost,
+                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
+                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END AS cost,
                        AVG(CASE WHEN completed_at IS NOT NULL
                                 THEN (julianday(completed_at) - julianday(started_at)) * 86400000.0 END) AS avg_duration_ms
                 FROM {Schema}runs

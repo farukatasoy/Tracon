@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace AgentPrism;
 
@@ -64,6 +66,8 @@ internal sealed class SqlRunStore : IRunStore
             Status = info.Status,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
+            UserId = info.UserId,
+            Labels = info.Labels is { Count: > 0 } ? info.Labels : null,
             SessionId = info.SessionId,
             ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
@@ -93,6 +97,8 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableUuid(command, "experiment_id", record.ExperimentId);
         AddNullableText(command, "variant", record.Variant);
         AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
+        AddNullableText(command, "user_id", record.UserId);
+        Dialect.AddJsonb(command, "labels", SerializeLabels(record.Labels));
 
         // The depth column is smallint; its source is the budget's MaxDepth
         // value and never comes close to the short limit in any deployment.
@@ -160,12 +166,22 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableInt64(command, "input_tokens", completion.Usage?.InputTokens);
         AddNullableInt64(command, "output_tokens", completion.Usage?.OutputTokens);
         AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
+
+        // 🚨 These four are counted INSIDE the totals above (the
+        // Microsoft.Extensions.AI contract) and are written beside them, never
+        // added to them. A counter the provider did not report stays NULL:
+        // writing zero claims a measurement that was never made.
+        AddNullableInt64(command, "cached_input_tokens", completion.Usage?.CachedInputTokens);
+        AddNullableInt64(command, "reasoning_tokens", completion.Usage?.ReasoningTokens);
+        AddNullableInt64(command, "audio_input_tokens", completion.Usage?.AudioInputTokens);
+        AddNullableInt64(command, "audio_output_tokens", completion.Usage?.AudioOutputTokens);
         AddNullableText(command, "error_type", completion.Error?.Type);
         AddNullableText(command, "error_message", completion.Error?.Message);
         Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
         AddNullableText(command, "error_fingerprint", completion.Error?.Fingerprint);
         AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
         AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
+        AddNullableDecimal(command, "cached_input_cost", completion.Cost?.CachedInputCost);
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
@@ -199,6 +215,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "id", runId);
         AddNullableDecimal(command, "input_cost", cost?.InputCost);
         AddNullableDecimal(command, "output_cost", cost?.OutputCost);
+        AddNullableDecimal(command, "cached_input_cost", cost?.CachedInputCost);
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
 
@@ -312,6 +329,8 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddInt16(command, "kind", (short?)query.Kind);
         AddNullableText(command, "session_id", query.SessionId);
         AddNullableText(command, "error_type", query.ErrorType);
+        AddNullableText(command, "user_id", query.UserId);
+        AddLabelFilter(command, query.LabelKey, query.LabelValue);
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         AddNullableUuid(command, "parent_run_id", query.ParentRunId);
         AddNullableUuid(command, "root_run_id", query.RootRunId);
@@ -332,6 +351,8 @@ internal sealed class SqlRunStore : IRunStore
         var command = CreateCommand(_sql.SelectRunStatistics);
         DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
         AddNullableText(command, "agent_name", query.AgentName);
+        AddNullableText(command, "user_id", query.UserId);
+        AddLabelFilter(command, query.LabelKey, query.LabelValue);
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         DbHelpers.Add(command, "max_agents", Math.Max(query.MaxAgents, 0));
         DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
@@ -371,6 +392,14 @@ internal sealed class SqlRunStore : IRunStore
                 var runsWithUnknownPricing = reader.GetInt64(11);
                 var scoredRuns = reader.GetInt64(12);
                 var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
+
+                // 🚨 14-17: appended in phase 68 so the fixed positions above do
+                // not move. Counted INSIDE inputTokens/outputTokens, reported
+                // beside them.
+                var cachedInputTokens = reader.GetInt64(14);
+                var reasoningTokens = reader.GetInt64(15);
+                var audioInputTokens = reader.GetInt64(16);
+                var audioOutputTokens = reader.GetInt64(17);
 
                 // Second result set: the breakdown by agent.
                 var byAgent = new List<RunAgentStatistics>();
@@ -468,6 +497,47 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
+                // Seventh result set: the breakdown by user (phase 68). Runs
+                // that carry no user are excluded by the query but are still
+                // counted in the totals.
+                var byUser = new List<RunUserStatistics>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        byUser.Add(new RunUserStatistics
+                        {
+                            UserId = reader.GetString(0),
+                            TotalRuns = reader.GetInt64(1),
+                            FailedRuns = reader.GetInt64(2),
+                            TotalTokens = reader.GetInt64(3),
+                            TotalCost = DbHelpers.GetNullableDecimal(reader, 4),
+                        });
+                    }
+                }
+
+                // Eighth result set: the breakdown by label. 🚨 One row per
+                // distinct key/value pair, so these rows do NOT sum to
+                // TotalRuns -- a run carrying three labels appears three times.
+                var byLabel = new List<RunLabelStatistics>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        byLabel.Add(new RunLabelStatistics
+                        {
+                            Key = reader.GetString(0),
+                            Value = reader.GetString(1),
+                            TotalRuns = reader.GetInt64(2),
+                            FailedRuns = reader.GetInt64(3),
+                            TotalTokens = reader.GetInt64(4),
+                            TotalCost = DbHelpers.GetNullableDecimal(reader, 5),
+                        });
+                    }
+                }
+
                 var byErrorClass = errorTotals
                     .Select(pair => new RunErrorStatistics
                     {
@@ -490,6 +560,10 @@ internal sealed class SqlRunStore : IRunStore
                     InputTokens = inputTokens,
                     OutputTokens = outputTokens,
                     TotalTokens = totalTokens,
+                    CachedInputTokens = cachedInputTokens,
+                    ReasoningTokens = reasoningTokens,
+                    AudioInputTokens = audioInputTokens,
+                    AudioOutputTokens = audioOutputTokens,
                     TotalCost = totalCost,
                     Currency = currency,
                     RunsWithUnknownPricing = runsWithUnknownPricing,
@@ -498,6 +572,8 @@ internal sealed class SqlRunStore : IRunStore
                     ByAgent = byAgent,
                     ByModel = byModel,
                     ByVersion = byVersion,
+                    ByUser = byUser,
+                    ByLabel = byLabel,
                     ByErrorClass = byErrorClass,
                 };
             }
@@ -762,6 +838,13 @@ internal sealed class SqlRunStore : IRunStore
             // the row is not a replay.
             ReplayOfRunId = reader.IsDBNull(39) ? null : reader.GetGuid(39),
 
+            // 🚨 40-41: Appended at the END in Phase 68. NULL on every row
+            // written before the columns existed, and on every run of an
+            // application that registers no IRunAttributionContext (K-014 -- no
+            // backfill).
+            UserId = DbHelpers.GetNullableString(reader, 40),
+            Labels = DeserializeLabels(DbHelpers.GetNullableString(reader, 41)),
+
             // 🚨 37-38: Columns ALWAYS appended at the end (Phase 44). On old
             // rows error_class is NULL -- it falls into the Unknown bucket
             // (RunStatistics.ByErrorClass, K-014 -- no backfill).
@@ -799,12 +882,36 @@ internal sealed class SqlRunStore : IRunStore
             InputTokens = (reader.IsDBNull(19) ? 0 : reader.GetInt64(19)) + (ownUsage?.InputTokens ?? 0),
             OutputTokens = (reader.IsDBNull(20) ? 0 : reader.GetInt64(20)) + (ownUsage?.OutputTokens ?? 0),
             TotalTokens = (reader.IsDBNull(21) ? 0 : reader.GetInt64(21)) + (ownUsage?.TotalTokens ?? 0),
+
+            // 🚨 Ordinals 47-50 use a NULL-PRESERVING sum, unlike the three
+            // totals above: the SQL text deliberately does NOT COALESCE them to
+            // zero, so "nobody in this tree reported cache usage" survives as
+            // null instead of becoming an observed zero.
+            CachedInputTokens = AddTreeCounter(reader, 47, ownUsage?.CachedInputTokens),
+            ReasoningTokens = AddTreeCounter(reader, 48, ownUsage?.ReasoningTokens),
+            AudioInputTokens = AddTreeCounter(reader, 49, ownUsage?.AudioInputTokens),
+            AudioOutputTokens = AddTreeCounter(reader, 50, ownUsage?.AudioOutputTokens),
         };
     }
 
+    /// <summary>Adds a descendant total to the record's own counter, staying null when NEITHER exists.</summary>
+    private static long? AddTreeCounter(DbDataReader reader, int ordinal, long? own)
+    {
+        var descendants = reader.IsDBNull(ordinal) ? (long?)null : reader.GetInt64(ordinal);
+
+        return descendants is null && own is null ? null : (descendants ?? 0) + (own ?? 0);
+    }
+
+    /// <remarks>
+    /// 🚨 Ordinals 42-45 are the phase 68 breakdown. They participate in the
+    /// "did the provider report anything at all" test below: a provider that
+    /// reports ONLY a cache count still measured something, and returning
+    /// <see langword="null"/> would throw that measurement away.
+    /// </remarks>
     private static RunUsage? ReadUsage(DbDataReader reader)
     {
-        if (reader.IsDBNull(8) && reader.IsDBNull(9) && reader.IsDBNull(10))
+        if (reader.IsDBNull(8) && reader.IsDBNull(9) && reader.IsDBNull(10)
+            && reader.IsDBNull(42) && reader.IsDBNull(43) && reader.IsDBNull(44) && reader.IsDBNull(45))
         {
             return null;
         }
@@ -814,6 +921,10 @@ internal sealed class SqlRunStore : IRunStore
             InputTokens = reader.IsDBNull(8) ? null : reader.GetInt64(8),
             OutputTokens = reader.IsDBNull(9) ? null : reader.GetInt64(9),
             TotalTokens = reader.IsDBNull(10) ? null : reader.GetInt64(10),
+            CachedInputTokens = reader.IsDBNull(42) ? null : reader.GetInt64(42),
+            ReasoningTokens = reader.IsDBNull(43) ? null : reader.GetInt64(43),
+            AudioInputTokens = reader.IsDBNull(44) ? null : reader.GetInt64(44),
+            AudioOutputTokens = reader.IsDBNull(45) ? null : reader.GetInt64(45),
         };
     }
 
@@ -834,6 +945,10 @@ internal sealed class SqlRunStore : IRunStore
         {
             InputCost = DbHelpers.GetNullableDecimal(reader, 28),
             OutputCost = DbHelpers.GetNullableDecimal(reader, 29),
+
+            // Ordinal 46, appended in phase 68. NULL when no cache rate was
+            // configured -- which is NOT the same as PricingSource.Unknown.
+            CachedInputCost = DbHelpers.GetNullableDecimal(reader, 46),
             Currency = DbHelpers.GetNullableString(reader, 30),
             Source = (PricingSource)reader.GetInt16(31),
         };
@@ -866,10 +981,21 @@ internal sealed class SqlRunStore : IRunStore
         var unknownPricing = (reader.IsDBNull(35) ? 0 : reader.GetInt64(35))
             + (ownCost?.Source == PricingSource.Unknown ? 1 : 0);
 
+        // Ordinal 51: the descendants' cache charge. A THIRD addend of the tree
+        // total, not a subset of InputCost -- every run's own InputCost already
+        // excludes its cached tokens.
+        var cachedInputCost = DbHelpers.GetNullableDecimal(reader, 51);
+
+        if (ownCost?.CachedInputCost is { } ownCached)
+        {
+            cachedInputCost = (cachedInputCost ?? 0) + ownCached;
+        }
+
         return new RunTreeCost
         {
             InputCost = inputCost,
             OutputCost = outputCost,
+            CachedInputCost = cachedInputCost,
             Currency = DbHelpers.GetNullableString(reader, 34) ?? ownCost?.Currency,
             RunsWithUnknownPricing = unknownPricing,
         };
@@ -957,6 +1083,108 @@ internal sealed class SqlRunStore : IRunStore
             Currency = DbHelpers.GetNullableString(reader, 11),
             AverageScore = reader.IsDBNull(12) ? null : reader.GetDouble(12),
         };
+
+    /// <summary>
+    /// Binds the label filter parameters.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A value with no key is DROPPED rather than applied: a value alone
+    /// names no dimension, and every dialect's predicate is gated on the key
+    /// being non-null, so leaving the value bound would look like an active
+    /// filter that quietly does nothing. Same rationale as the parent/root
+    /// contradiction in <see cref="RunQuery.ParentRunId"/>.
+    /// </remarks>
+    private void AddLabelFilter(DbCommand command, string? labelKey, string? labelValue)
+    {
+        var key = labelKey is { Length: > 0 } ? labelKey : null;
+
+        Dialect.AddText(command, "label_key", key);
+        Dialect.AddText(command, "label_value", key is null ? null : labelValue);
+    }
+
+    /// <summary>
+    /// Writes a label map as JSON text.
+    /// </summary>
+    /// <returns><see langword="null"/> when there is nothing to write, so the column stays NULL.</returns>
+    /// <remarks>
+    /// 🚨 Written with <see cref="Utf8JsonWriter"/> rather than
+    /// <see cref="JsonSerializer"/>: reflection-based serialization is not
+    /// AOT-safe, and a flat string map does not justify a source-generated
+    /// context. This is the same DOM-level approach <c>PgVectorSearchStore</c>
+    /// uses for <c>document_embeddings.metadata</c> (K-345).
+    /// </remarks>
+    private static string? SerializeLabels(IReadOnlyDictionary<string, string>? labels)
+    {
+        if (labels is null or { Count: 0 })
+        {
+            return null;
+        }
+
+        var buffer = new ArrayBufferWriter<byte>();
+
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+
+            foreach (var (key, value) in labels)
+            {
+                writer.WriteString(key, value);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    /// <summary>
+    /// Reads a label map back from JSON text.
+    /// </summary>
+    /// <returns>
+    /// <see langword="null"/> when the column is empty OR the text does not
+    /// parse.
+    /// </returns>
+    /// <remarks>
+    /// 🚨 Malformed JSON returns <see langword="null"/> instead of throwing.
+    /// Labels are observability data, and observability must not break
+    /// functionality: a single unreadable map must not fail the whole run list
+    /// (this is the same class of fault as an unassigned <c>JsonElement</c>
+    /// taking down an entire list endpoint). PostgreSQL validates the column at
+    /// write time, but SQL Server and SQLite hold plain text.
+    /// </remarks>
+    private static Dictionary<string, string>? DeserializeLabels(string? json)
+    {
+        if (json is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.String)
+                {
+                    labels[property.Name] = property.Value.GetString()!;
+                }
+            }
+
+            return labels.Count == 0 ? null : labels;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     private void AddNullableText(DbCommand command, string name, string? value)
         => Dialect.AddText(command, name, value);

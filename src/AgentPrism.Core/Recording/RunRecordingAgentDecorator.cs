@@ -28,6 +28,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly IRunInputStore? _runInputStore;
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
+    private readonly IRunAttributionContext? _attributionContext;
 
     /// <summary>Creates a new recording decorator.</summary>
     /// <param name="runStore">The store the events are written to.</param>
@@ -48,6 +49,9 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// The content guard pipeline (Phase 48). If <see langword="null"/>, recorded
     /// input is written without inspection. See the note in the <see cref="RunRecordingAgent"/> constructor (HATA-S3-006).
     /// </param>
+    /// <param name="attributionContext">
+    /// The attribution context (Phase 68). If <see langword="null"/>, the run records no user and no labels.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -64,7 +68,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         IRunErrorClassifier? errorClassifier = null,
         IRunInputStore? runInputStore = null,
         RunSampler? runSampler = null,
-        ContentGuardPipeline? contentGuardPipeline = null)
+        ContentGuardPipeline? contentGuardPipeline = null,
+        IRunAttributionContext? attributionContext = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -86,6 +91,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _runInputStore = runInputStore;
         _runSampler = runSampler;
         _contentGuardPipeline = contentGuardPipeline;
+        _attributionContext = attributionContext;
     }
 
     /// <inheritdoc />
@@ -122,6 +128,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _errorClassifier,
             _runInputStore,
             _runSampler,
-            _contentGuardPipeline);
+            _contentGuardPipeline,
+            _attributionContext);
     }
 }

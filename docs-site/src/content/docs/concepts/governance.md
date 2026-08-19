@@ -48,6 +48,32 @@ Isolation is enforced by contract tests that check it in both directions, across
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.
 
+### Attributing spend below the tenant
+
+The tenant answers "whose data is this". Two further questions — which **user**
+spent this, and which **job** it was spent on — are answered by
+`IRunAttributionContext`, the sibling interface described in
+[Runs](/AgentPrism/concepts/runs/#who-ran-it-and-for-what).
+
+The security property is the same one the tenant header has: the value is never
+taken from the run request body. A `userId` field there would let any client
+write spend against another user's name and forge the cost record outright, so
+the body is not a source of attribution at all — the server resolves it from your
+identity pipeline, and a `userId` sent in the body is ignored.
+
+The recorded user id is an **opaque string**. AgentPrism does not resolve it,
+does not validate it, and stores no personal detail of its own; what it
+identifies is your application's decision.
+
+:::caution
+Erasure does **not** match on `runs.user_id`. `IDataSubjectResolver` is the only
+thing that knows which subject a value belongs to — AgentPrism deliberately
+holds no mapping — so a resolver must return those runs itself. Find them with
+`GET /api/runs?userId={id}&includeChildren=true` and include their ids in the
+scope's `RunIds`. Erasing a run row removes its `user_id` along with everything
+else on it.
+:::
+
 ## Per-tenant provider credentials and egress
 
 By default every tenant shares the model provider credential a `Use...()` call

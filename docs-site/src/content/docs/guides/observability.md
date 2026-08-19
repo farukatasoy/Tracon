@@ -59,6 +59,42 @@ it is not converted to zero. AgentPrism also does not invent a price. A run can 
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
+:::caution
+This tag set is **fixed**, and run attribution is deliberately absent from it.
+Neither the user id nor the labels of a run become metric tags: both are
+unbounded key spaces, and promoting either would multiply the time series of
+`agentprism.tokens` and `agentprism.run.cost` without limit. Attribution is a
+query dimension — break costs down with `GET /api/stats` instead, which returns
+`byUser` and `byLabel`.
+:::
+
+`agentprism.tokens` reports only two `direction` values, `input` and `output`.
+The finer counters a provider may report — prompt-cache hits, reasoning tokens,
+audio tokens — are counted **inside** those two totals and are recorded on the
+`runs` row rather than emitted as extra metric series, for the same reason:
+adding them would double count every token on the dashboard.
+
+Where the tokens actually went is a query:
+
+```bash
+curl -s "http://localhost:5081/agentprism/api/runs?take=1" | jq '.[0].usage'
+```
+
+```json
+{
+  "inputTokens": 12480,
+  "outputTokens": 310,
+  "totalTokens": 12790,
+  "cachedInputTokens": 11900,
+  "reasoningTokens": 128
+}
+```
+
+A counter the provider never reported stays `null`, not `0`. The distinction is
+load-bearing: `0` claims a measured cache miss, `null` says nothing was measured
+— and a report that cannot tell them apart will show a confident 0% cache hit
+rate for every provider that stays silent.
+
 ## Configure trace persistence
 
 The internal trace store keeps a sampled copy for run-level inspection:

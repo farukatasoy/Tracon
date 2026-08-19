@@ -67,6 +67,7 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   `WaitForExitAsync` ~15 dk bloke kalır; çözüm `MSBUILDDISABLENODEREUSE=1`
   (8 dk+ → 18,5 sn). İkinci sebep: `-p:AgentPrismFrontendEnabled=false` ile
   derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
+- **🚨 Bir toplama/hesaplama ifadesi kodun BEŞ farklı yerinde elle tekrarlanıyorsa, ona bir terim eklemek sessiz bir kusur SINIFI üretir.** Faz 68'de `InputCost + OutputCost` yedi yerde elle yazılıydı; üçüncü bir maliyet terimi (cache ücreti) eklenince SQL tarafı düzeltildi, çalışma anı (kota · metrik · webhook · workflow kotası · judge · online eval · arayüz) düzeltilmedi — **maliyet tavanı olan bir kiracı tavanı aşabilirdi** ve 4241 test yakalamadı. Bağımsız denetim buldu. Kural: bir `record`'a toplama girecek bir alan eklerken ona bir `Total()` metodu ver ve `grep` ile sınıfı tara.
 - **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` yoktur (`MSB1001`).
   Tek test: `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"`.

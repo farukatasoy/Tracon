@@ -82,11 +82,18 @@ function flatten(side: RunComparisonSide): Record<string, unknown> {
     modelId: side.modelId,
     durationMs: side.durationMs,
     totalTokens: side.usage?.totalTokens,
+    // 🚨 All THREE terms. `cachedInputCost` is a third addend, not a subset of
+    // `inputCost`: the server already subtracts the cached tokens out of the
+    // input charge. A two-term sum under-reports every run that hit the cache.
     cost:
-      side.cost?.inputCost == null && side.cost?.outputCost == null
+      side.cost?.inputCost == null &&
+      side.cost?.outputCost == null &&
+      side.cost?.cachedInputCost == null
         ? null
         : money(
-            (side.cost.inputCost ?? 0) + (side.cost.outputCost ?? 0),
+            (side.cost.inputCost ?? 0) +
+              (side.cost.outputCost ?? 0) +
+              (side.cost.cachedInputCost ?? 0),
             side.cost.currency,
           ),
     toolCallCount: side.toolCallCount,

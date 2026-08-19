@@ -3,7 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count, money, percent, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
-import { ModelBreakdownChart, StatusDistributionChart, TimeSeriesChart } from '../components/charts';
+import {
+  ModelBreakdownChart,
+  StatusDistributionChart,
+  TimeSeriesChart,
+  TokenBreakdownChart,
+} from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
 import { Link } from '../lib/router';
 import type { Meta, RunErrorStatistics, RunStatistics, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
@@ -108,6 +113,16 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           {stats.isSuccess && (
             <ModelBreakdownChart models={stats.data.byModel} currency={stats.data.currency} />
           )}
+        </Panel>
+
+        <Panel title={t('dashboard.tokens.title')}>
+          {stats.isPending && <Loading />}
+          {stats.isError && (
+            <div className="p-4">
+              <ErrorNote error={stats.error} />
+            </div>
+          )}
+          {stats.isSuccess && <TokenBreakdownChart stats={stats.data} />}
         </Panel>
 
         <Panel title={t('dashboard.topAgents')}>
