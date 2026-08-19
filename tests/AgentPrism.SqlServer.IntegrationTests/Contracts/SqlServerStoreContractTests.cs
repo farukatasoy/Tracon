@@ -267,6 +267,19 @@ public sealed class SqlServerTenantProviderBindingStoreContractTests(SqlServerSc
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerInboundTriggerStoreContractTests(SqlServerSchemaFixture schema)
+    : InboundTriggerStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IInboundTriggerStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.InboundTriggers;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerTenantEgressPolicyStoreContractTests(SqlServerSchemaFixture schema)
     : TenantEgressPolicyStoreContract, IClassFixture<SqlServerSchemaFixture>
 {

@@ -267,6 +267,19 @@ public sealed class PostgresTenantProviderBindingStoreContractTests(PostgresSche
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresInboundTriggerStoreContractTests(PostgresSchemaFixture schema)
+    : InboundTriggerStoreContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IInboundTriggerStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.InboundTriggers;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresTenantEgressPolicyStoreContractTests(PostgresSchemaFixture schema)
     : TenantEgressPolicyStoreContract, IClassFixture<PostgresSchemaFixture>
 {

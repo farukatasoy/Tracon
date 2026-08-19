@@ -35,6 +35,10 @@ public sealed class ApiKeyScopeCoverageTests
         // Describes the caller's own identity; adding a scope would needlessly
         // break every narrowly scoped key's startup probe.
         "/agentprism/api/tenants/current",
+        // An external system (e.g. Slack) cannot carry our bearer token or an
+        // API key; its identity is an HMAC signature verified by
+        // InboundTriggerDispatcher itself (phase 66, K-395's pattern).
+        "/agentprism/api/triggers/{tenantId}/{name}",
     };
 
     /// <summary>

@@ -1323,6 +1323,43 @@ internal sealed class SqliteQueries : SqlQueriesBase
              WHERE id = @id AND next_run_at = @expected_next_run_at;
             """;
 
+        // --- Inbound triggers (Phase 66) ---
+
+        const string inboundTriggerColumns = """
+            id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
+            payload_mode, payload_path, enabled, created_at, updated_at
+            """;
+
+        UpsertInboundTrigger = $"""
+            INSERT INTO {Schema}inbound_triggers ({inboundTriggerColumns})
+            VALUES (@id, @tenant_id, @name, @target_kind, @target_name, @signing_secret_configuration_name,
+                    @payload_mode, @payload_path, @enabled, @created_at, @updated_at)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET target_kind                        = excluded.target_kind,
+                    target_name                         = excluded.target_name,
+                    signing_secret_configuration_name   = excluded.signing_secret_configuration_name,
+                    payload_mode                        = excluded.payload_mode,
+                    payload_path                         = excluded.payload_path,
+                    enabled                              = excluded.enabled,
+                    updated_at                           = excluded.updated_at
+            RETURNING id, created_at;
+            """;
+
+        SelectInboundTrigger = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}inbound_triggers
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectInboundTriggers = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}inbound_triggers
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteInboundTrigger = $"DELETE FROM {Schema}inbound_triggers WHERE tenant_id = @tenant_id AND name = @name;";
+
         InsertJob = $"""
             INSERT INTO {Schema}jobs
                 (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,

@@ -209,6 +209,18 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that tries to advance the next run time of a schedule atomically.</summary>
     public string TryClaimJobScheduleNextRun { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that inserts or updates an inbound trigger.</summary>
+    public string UpsertInboundTrigger { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads a single inbound trigger.</summary>
+    public string SelectInboundTrigger { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists the inbound triggers of a tenant.</summary>
+    public string SelectInboundTriggers { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that deletes an inbound trigger.</summary>
+    public string DeleteInboundTrigger { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts a new job.</summary>
     public string InsertJob { get; protected set; } = string.Empty;
 

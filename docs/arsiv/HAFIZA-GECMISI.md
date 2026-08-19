@@ -12,6 +12,16 @@
 
 ---
 
+## `docs/hafiza/aspnetcore-di.md`'den
+
+### `OpenAIProviderOptions.Endpoint` ve F-03'un gercek kapsami
+
+`OpenAIProviderOptions.Endpoint` zaten vardi ve yapilandirmadan baglaniyordu.
+F-03'un gercek isi taban adres degil, **adlandirilmis coklu saglayici**
+destegiydi (`alreadyRegistered` bayragi ve sabit `OpenAIProviderNames` engel) —
+aday tanimlanirken kapsam bu ayrimla netlestirildi (bayat, tarihsiz not,
+2026-08-19'da butce icin buraya tasindi).
+
 ## `docs/hafiza/kod-haritasi.md`'den
 
 ### Agac toplamlari SQL'de, okumada hesaplanir (2026-08-02, Faz 12)

@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66
 > **Kaynak:** `src/AgentPrism.Abstractions/Scheduling/` (tümü) ·
 > `src/AgentPrism.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -23,7 +23,15 @@
 > `/cancel` dalı ve SSE akışının `Queued` beklemesi) ·
 > `src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs` (yalnız
 > `AcceptedRunResponse`) · `src/AgentPrism.UI/frontend/src/screens/jobs.tsx`,
-> `job-detail.tsx`.
+> `job-detail.tsx` · `src/AgentPrism.Abstractions/Triggers/` (tümü) ·
+> `src/AgentPrism.Core/Triggers/` (tümü — `InboundTriggerDispatcher`,
+> `InboundTriggerSecretResolver`, `InboundTriggerRateLimiter`,
+> `InboundTriggerPayloadReader`) · `src/AgentPrism.Core/Storage/InMemoryInboundTriggerStore.cs` ·
+> `src/AgentPrism.Sql.Shared/Stores/SqlInboundTriggerStore.cs` ·
+> `src/AgentPrism.PostgreSql/Migrations/0033_inbound_triggers.sql` ·
+> `src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs` ·
+> `src/AgentPrism.AspNetCore/Contracts/TriggerContracts.cs` ·
+> `src/AgentPrism.UI/frontend/src/screens/triggers.tsx` (Faz 66).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -1804,3 +1812,351 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   edilmeyen diğer uçlar) mevcuttur — **Kusur, Önem: Yüksek**, kapsam
   sisteminin `RequireApiKeyScope` eklenmesi UNUTULMUŞ uç gruplarını
   tarayan sistematik bir denetim önerilir.
+
+---
+
+## Gelen Tetikleyiciler (Faz 66)
+
+Bu bölümün kaynağı `docs/66-GELEN-TETIKLEYICILER.md`'dir. İmza `openssl` ile
+elle hesaplanır — `$APU`/`$APB` bu dosyanın da temel değişkenleridir
+([`00-INDEKS.md`](00-INDEKS.md)), ayrıca `$TRIGSECRET` bu bölüme özeldir.
+
+**Ortak kurulum (her case'den önce, bir kez):**
+```bash
+export TRIGSECRET="whsec_manuel_test_66"
+dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "$TRIGSECRET" \
+  --project samples/AgentPrism.Api
+
+curl -s -X PUT "$APU/api/triggers/slack" -H "$APB" -H "content-type: application/json" -d '{
+  "targetKind":"agent","targetName":"support",
+  "signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack",
+  "payloadMode":"path","payloadPath":"event.text"
+}'
+```
+
+İmzalı bir istek göndermenin yordamı (her case bunu `BODY`/`TS` değerleriyle
+tekrarlar):
+```bash
+BODY='{"event":{"text":"merhaba"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+
+curl -s -i -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" \
+  -H "X-AgentPrism-Signature: $SIG" \
+  -d "$BODY"
+```
+
+### MT-JOB-091 — Doğru imzalı istek `202` döner ve çalıştırma kuyruktan koşar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Ön koşul:** ortak kurulum uygulandı.
+
+**Girilecek veri**
+```bash
+BODY='{"event":{"text":"merhaba manuel test"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+
+curl -s -i -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+```
+
+**Beklenen sonuç**
+- `HTTP: 202`, `Location` başlığı `/agentprism/api/runs/{runId}` biçiminde.
+- Gövdede `runId` ve `jobId` **aynı** değeri taşır (Faz 46'nın kalıbı).
+- `GET $APU/api/runs/{runId}` birkaç saniye içinde `status: "Completed"`
+  (veya modele bağlı `Failed`) gösterir — `Queued` değil.
+
+---
+
+### MT-JOB-092 — İmzasız istek `401` döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" -d '{"event":{"text":"x"}}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 401`, `title: "Signature verification failed"`.
+
+---
+
+### MT-JOB-093 — Gövde bir bayt değişince aynı imza artık geçmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+BODY='{"event":{"text":"orijinal"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" \
+  -d '{"event":{"text":"degistirildi"}}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 401` — imza gövde+zaman damgası üzerinden hesaplanır, tek bir
+  karakter değişikliği `WebhookSigner.Verify`'ı geçersiz kılar.
+
+---
+
+### MT-JOB-094 — On dakika eski zaman damgası `401` döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+BODY='{"event":{"text":"eski"}}'
+TS=$(( $(date +%s) - 600 ))
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+```
+
+**Beklenen sonuç**
+- `HTTP: 401` — varsayılan `TimestampTolerance` beş dakikadır; on dakika
+  eski bir damga pencere dışındadır (imza doğru hesaplanmış olsa bile).
+
+---
+
+### MT-JOB-095 — Aynı imza ikinci kez `409` döner; ikinci çalıştırma açılmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. MT-JOB-091'deki gibi bir istek gönder, `runId`'yi not al.
+2. **Aynı** `BODY`/`TS`/`SIG` ile isteği tekrar gönder.
+3. `GET /api/runs` listesinde bu `targetName` için tek bir yeni satır
+   olduğunu doğrula (ikinci istek yeni bir `runs` satırı AÇMADI).
+
+**Beklenen sonuç**
+- Adım 2: `HTTP: 409`, `title: "Request already processed"`.
+- Adım 3: ikinci bir çalıştırma yok.
+
+---
+
+### MT-JOB-096 — Bilinmeyen kiracı `401` döner; varsayılan kiracıya düşmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | K-382 emsali |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/boyle-bir-kiraci-yok/slack" \
+  -H "content-type: application/json" -d '{}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 401` (`title: "Signature verification failed"`) — `default`
+  kiracısındaki `slack` tetikleyicisi bu isteğe **cevap vermez**;
+  `tenant_id` sütunu tam eşleşme arar, `??` zinciriyle varsayılana
+  düşmez. Kod `404` DEĞİL: 66.2'nin "tetikleyici yok ile imza yanlış aynı
+  gövde/kod" kuralı gereği bilinmeyen kiracı da imza hatasıyla AYNI
+  jenerik `401` yanıtını alır (bkz. MT-JOB-092/093/094).
+
+---
+
+### MT-JOB-097 — Devre dışı tetikleyici reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Tetikleyiciyi `enabled: false` ile güncelle.
+2. MT-JOB-091'deki gibi geçerli imzalı bir istek gönder.
+3. Tetikleyiciyi tekrar `enabled: true` yaparak eski haline getir (sonraki
+   case'ler için).
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/triggers/slack" -H "$APB" -H "content-type: application/json" -d '{
+  "targetKind":"agent","targetName":"support",
+  "signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack",
+  "payloadMode":"path","payloadPath":"event.text","enabled":false
+}'
+
+BODY='{"event":{"text":"devre disi test"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+```
+
+**Beklenen sonuç**
+- `HTTP: 401` — devre dışı bir tetikleyici, imza-hatalı bir istekle AYNI
+  jenerik gövdeyi döner (bilinmeyen isimden de ayırt edilmez).
+
+---
+
+### MT-JOB-098 — Kota dolu olunca `429` döner, kota bypass edilmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | K-394 emsali |
+
+**Ön koşul:** `support` agent'ı için `runs` metriğinde düşük bir kota
+tanımlı (`13-KIRACI-VE-GUVENLIK.md`'nin kota case'lerindeki desen).
+
+**Adımlar**
+1. Kotayı 1 istek/dakika olacak şekilde ayarla.
+2. MT-JOB-091'deki gibi bir istek gönder (kabul edilmeli).
+3. Farklı bir `BODY`/imzayla hemen ikinci bir istek gönder.
+
+**Beklenen sonuç**
+- Adım 3: `HTTP: 429`, `Retry-After` başlığı mevcut. Tetikleyici, bearer
+  token taşımadığı için kota kapısını ATLAYAMAZ — `QuotaGate.CheckAsync`
+  agent uçlarıyla aynı `QuotaEnforcer`'ı kullanır.
+
+---
+
+### MT-JOB-099 — `Path` modunda alan yoksa `400` döner, çalıştırma başlamaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+BODY='{"event":{"baska_alan":"x"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/slack" \
+  -H "content-type: application/json" \
+  -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`, `detail` `"event.text"` yolunun gövdede çözülemediğini söyler.
+- `GET /api/runs` listesinde bu istek için **hiçbir** yeni satır yok.
+
+---
+
+### MT-JOB-100 — İmza `secret`'ı veritabanında hiç yaşamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | K-059 |
+
+**Girilecek veri**
+```bash
+# PostgreSQL örneği; sağlayıcıya göre bağlan
+psql "$PGCONN" -c "SELECT signing_secret_configuration_name FROM agentprism.inbound_triggers;"
+pg_dump "$PGCONN" --schema=agentprism | grep -c "$TRIGSECRET"
+```
+
+**Beklenen sonuç**
+- Sütun yalnız `AgentPrism:TriggerSecrets:Slack` (yapılandırma anahtarının
+  ADI) taşır.
+- `grep -c` çıktısı `0` — gerçek `secret` değeri (`$TRIGSECRET`) dökümde
+  hiç geçmez.
+
+---
+
+### MT-JOB-101 — 100 istek arka arkaya gönderilince hız sınırı devreye girer
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | K-158 |
+
+**Girilecek veri**
+```bash
+for i in $(seq 1 100); do
+  BODY="{\"event\":{\"text\":\"yuk-$i\"}}"
+  TS=$(date +%s)
+  SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+  curl -s -o /dev/null -w "%{http_code} " -X POST "$APU/api/triggers/default/slack" \
+    -H "content-type: application/json" \
+    -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" -d "$BODY"
+done
+echo
+```
+
+**Beklenen sonuç**
+- Varsayılan `MaxRequestsPerMinute` (60) aşıldıktan sonraki istekler
+  `429` döner; bu, tek bir süreç içindir (K-158: dağıtık sayaç yok).
+
+---
+
+### MT-JOB-102 — Tetikleyici arayüzden tanımlanır ve listelenir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 66 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Arayüzde **Triggers** ekranına git, **New trigger** ile bir tetikleyici
+   oluştur (`name`, `targetName`, `signingSecretConfigurationName`
+   doldurulmuş).
+2. Kaydet, liste ekranına dön.
+3. Yeni tetikleyicinin satırında `Resolved`/`Unresolved` rozetini kontrol
+   et (`AgentPrism:TriggerSecrets:...` anahtarı `user-secrets`'ta tanımlı
+   değilse `Unresolved` beklenir).
+4. Düzenleme ekranında **Accept URL** alanının `{origin}/agentprism/api/
+   triggers/{tenantId}/{name}` biçiminde göründüğünü doğrula.
+
+**Beklenen sonuç**
+- Yeni tetikleyici listede görünür; `Resolved` rozeti gerçek durumu
+  yansıtır; **Accept URL** alanı gerçek kabul adresini gösterir ve
+  hiçbir yerde `secret` değeri görünmez.

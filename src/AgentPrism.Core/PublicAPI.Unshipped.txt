@@ -1458,3 +1458,70 @@ AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! defi
 AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.ModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.InMemoryInboundTriggerStore
+AgentPrism.InMemoryInboundTriggerStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.InMemoryInboundTriggerStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTrigger?>
+AgentPrism.InMemoryInboundTriggerStore.InMemoryInboundTriggerStore() -> void
+AgentPrism.InMemoryInboundTriggerStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.InboundTrigger!>!>
+AgentPrism.InMemoryInboundTriggerStore.UpsertAsync(AgentPrism.InboundTrigger! trigger, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTrigger!>
+AgentPrism.InboundTriggerDispatchResult
+AgentPrism.InboundTriggerDispatchResult.<Clone>$() -> AgentPrism.InboundTriggerDispatchResult!
+AgentPrism.InboundTriggerDispatchResult.Equals(AgentPrism.InboundTriggerDispatchResult? other) -> bool
+AgentPrism.InboundTriggerDispatchResult.InboundTriggerDispatchResult() -> void
+AgentPrism.InboundTriggerDispatchResult.JobId.get -> System.Guid
+AgentPrism.InboundTriggerDispatchResult.JobId.init -> void
+AgentPrism.InboundTriggerDispatchResult.RunId.get -> System.Guid?
+AgentPrism.InboundTriggerDispatchResult.RunId.init -> void
+AgentPrism.InboundTriggerDispatcher
+AgentPrism.InboundTriggerDispatcher.EnqueueAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerDispatchResult!>
+AgentPrism.InboundTriggerDispatcher.InboundTriggerDispatcher(AgentPrism.IInboundTriggerStore! triggerStore, AgentPrism.InboundTriggerSecretResolver! secretResolver, AgentPrism.InboundTriggerRateLimiter! rateLimiter, AgentPrism.IIdempotencyStore! idempotencyStore, AgentPrism.IJobStore! jobStore, AgentPrism.IRunStore! runStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options, System.TimeProvider? timeProvider = null) -> void
+AgentPrism.InboundTriggerDispatcher.ReleaseAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.InboundTriggerDispatcher.ValidateAsync(string! tenantId, string! name, string! rawBody, string? timestampHeader, string? signatureHeader, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerValidationResult!>
+AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.InvalidPayload = 4 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.RateLimited = 2 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Replayed = 3 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Unauthorized = 1 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Valid = 0 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerRateLimiter
+AgentPrism.InboundTriggerRateLimiter.InboundTriggerRateLimiter(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null) -> void
+AgentPrism.InboundTriggerRateLimiter.TryAcquire(System.Guid triggerId) -> bool
+AgentPrism.InboundTriggerSecretResolver
+AgentPrism.InboundTriggerSecretResolver.InboundTriggerSecretResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options) -> void
+AgentPrism.InboundTriggerSecretResolver.Resolve(AgentPrism.InboundTrigger! trigger) -> string?
+AgentPrism.InboundTriggerSecretResolver.ValidatePrefix(string! configurationKeyName) -> void
+AgentPrism.InboundTriggerValidatedRequest
+AgentPrism.InboundTriggerValidatedRequest.<Clone>$() -> AgentPrism.InboundTriggerValidatedRequest!
+AgentPrism.InboundTriggerValidatedRequest.Equals(AgentPrism.InboundTriggerValidatedRequest? other) -> bool
+AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.get -> string!
+AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.init -> void
+AgentPrism.InboundTriggerValidatedRequest.InboundTriggerValidatedRequest() -> void
+AgentPrism.InboundTriggerValidatedRequest.Message.get -> string!
+AgentPrism.InboundTriggerValidatedRequest.Message.init -> void
+AgentPrism.InboundTriggerValidatedRequest.Trigger.get -> AgentPrism.InboundTrigger!
+AgentPrism.InboundTriggerValidatedRequest.Trigger.init -> void
+AgentPrism.InboundTriggerValidationResult
+AgentPrism.InboundTriggerValidationResult.<Clone>$() -> AgentPrism.InboundTriggerValidationResult!
+AgentPrism.InboundTriggerValidationResult.Equals(AgentPrism.InboundTriggerValidationResult? other) -> bool
+AgentPrism.InboundTriggerValidationResult.ErrorDetail.get -> string?
+AgentPrism.InboundTriggerValidationResult.ErrorDetail.init -> void
+AgentPrism.InboundTriggerValidationResult.InboundTriggerValidationResult() -> void
+AgentPrism.InboundTriggerValidationResult.Outcome.get -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerValidationResult.Outcome.init -> void
+AgentPrism.InboundTriggerValidationResult.Validated.get -> AgentPrism.InboundTriggerValidatedRequest?
+AgentPrism.InboundTriggerValidationResult.Validated.init -> void
+override AgentPrism.InboundTriggerDispatchResult.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerDispatchResult.GetHashCode() -> int
+override AgentPrism.InboundTriggerDispatchResult.ToString() -> string!
+override AgentPrism.InboundTriggerValidatedRequest.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerValidatedRequest.GetHashCode() -> int
+override AgentPrism.InboundTriggerValidatedRequest.ToString() -> string!
+override AgentPrism.InboundTriggerValidationResult.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerValidationResult.GetHashCode() -> int
+override AgentPrism.InboundTriggerValidationResult.ToString() -> string!
+static AgentPrism.InboundTriggerDispatchResult.operator !=(AgentPrism.InboundTriggerDispatchResult? left, AgentPrism.InboundTriggerDispatchResult? right) -> bool
+static AgentPrism.InboundTriggerDispatchResult.operator ==(AgentPrism.InboundTriggerDispatchResult? left, AgentPrism.InboundTriggerDispatchResult? right) -> bool
+static AgentPrism.InboundTriggerValidatedRequest.operator !=(AgentPrism.InboundTriggerValidatedRequest? left, AgentPrism.InboundTriggerValidatedRequest? right) -> bool
+static AgentPrism.InboundTriggerValidatedRequest.operator ==(AgentPrism.InboundTriggerValidatedRequest? left, AgentPrism.InboundTriggerValidatedRequest? right) -> bool
+static AgentPrism.InboundTriggerValidationResult.operator !=(AgentPrism.InboundTriggerValidationResult? left, AgentPrism.InboundTriggerValidationResult? right) -> bool
+static AgentPrism.InboundTriggerValidationResult.operator ==(AgentPrism.InboundTriggerValidationResult? left, AgentPrism.InboundTriggerValidationResult? right) -> bool

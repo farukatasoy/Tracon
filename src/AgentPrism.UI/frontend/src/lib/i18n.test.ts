@@ -146,6 +146,9 @@ describe('catalogues', () => {
       'apiKeys.scope.PlatformAdmin',
       'apiKeys.scope.SecurityAdmin',
       'apiKeys.scope.AuditRead',
+      'triggers.secret',
+      'triggers.targetKind.agent',
+      'triggers.targetKind.workflow',
     ]);
 
     for (const key of keys) {

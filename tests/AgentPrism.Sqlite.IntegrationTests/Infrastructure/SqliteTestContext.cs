@@ -58,6 +58,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         ApiKeys = new SqlApiKeyStore(wrapped);
         TenantProviderBindings = new SqlTenantProviderBindingStore(wrapped);
         TenantEgressPolicies = new SqlTenantEgressPolicyStore(wrapped);
+        InboundTriggers = new SqlInboundTriggerStore(wrapped);
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
@@ -157,6 +158,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Tenant egress policy store (Phase 65, F-119).</summary>
     public SqlTenantEgressPolicyStore TenantEgressPolicies { get; }
+
+    /// <summary>Inbound trigger definition store (Phase 66).</summary>
+    public SqlInboundTriggerStore InboundTriggers { get; }
 
     /// <summary>Retention policy and run history store (Phase 25).</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }

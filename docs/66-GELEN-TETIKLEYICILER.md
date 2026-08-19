@@ -1,6 +1,6 @@
 # Faz 66 — Gelen Tetikleyiciler
 
-> **Durum:** 📋 Planlandı (2026-08-18)
+> **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-65**
 > **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
@@ -331,63 +331,68 @@ sağlayıcısı üzerinde koşar.
 
 ---
 
-## Açık Sorular
+## Açık Sorular (kapanışta verilen kararlar)
 
-> Planı bloklamayan, faz uygulanırken karara bağlanacak sorular.
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Kiracı yolda mı görünsün, imzadan mı türetilsin? | A: Yolda (`/api/triggers/{tenantId}/{name}`) · B: Opak bir tetikleyici anahtarı (`/api/triggers/{key}`) | **B ölçülmeli.** A basittir ama kiracı slug'ını dışarı verir; B numaralandırmayı zorlaştırır. Karar uygulama anında verilir ve gerekçesi yazılır |
-| 2 | İmza başlıkları hangi adları taşır? | A: Faz 21'in giden başlıklarıyla **aynı** adlar · B: Yeni adlar | **A.** Aynı ürün iki farklı imza sözleşmesi taşımamalıdır; giden ile gelen simetrik olur |
-| 3 | Tetikleyici workflow'u da hedefleyebilmeli mi? | A: Evet, `TargetKind` ilk sürümde iki değer · B: Yalnız agent | **A.** `JobKind.Workflow` zaten var; sonradan eklemek `record` ve tabloyu ikinci kez değiştirir |
-| 4 | Reddedilen istekler kaydedilsin mi? | A: Yalnız metrik ve log · B: Ayrı bir tabloya | **A.** B saldırı yüzeyini veriye çevirir ve saklama politikası ister; metrik teşhis için yeterlidir |
-| 5 | Tekrar koruması neyi anahtar alır? | A: İmza · B: Gövdedeki bir olay kimliği | **A** varsayılan; B tetikleyici başına seçenek olabilir. Dış sistemler olay kimliğini her zaman vermez |
+| # | Soru | Verilen karar |
+|---|---|---|
+| 1 | Kiracı yolda mı görünsün, imzadan mı türetilsin? | **A — yolda** (`/api/triggers/{tenantId}/{name}`). Ölçüm: bir kiracı slug'ının dışarı verilmesi, K-382'nin "tam eşleşme arar, varsayılana düşmez" korumasıyla zaten kapanıyor; opak anahtar (B) ayrı bir kayıt alanı ve yönetim yükü ekler, karşılığında kazandırdığı gizlilik K-4xx'in "aynı 401" birleşmesiyle zaten sağlanıyor |
+| 2 | İmza başlıkları hangi adları taşır? | **A** — `WebhookSigner.TimestampHeader`/`SignatureHeader` birebir yeniden kullanıldı |
+| 3 | Tetikleyici workflow'u da hedefleyebilmeli mi? | **A** — `InboundTriggerTargetKind.Workflow` uygulandı |
+| 4 | Reddedilen istekler kaydedilsin mi? | **A** — yalnız metrik/log; ayrı tablo açılmadı |
+| 5 | Tekrar koruması neyi anahtar alır? | **A** — imza; `IIdempotencyStore` rezervasyonu asla tamamlanmaz (bkz. K-4xx) |
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Doğru imzalı istek `202` + `Location` döner ve çalıştırma kuyruktan koşar
-- [ ] İmzasız, yanlış imzalı ve pencere dışı istek `401` döner
-- [ ] Aynı istek ikinci kez `409` döner; ikinci çalıştırma açılmaz
-- [ ] Bilinmeyen kiracı `404` alır; varsayılana **düşmez**
-- [ ] Yanıt "tetikleyici yok" ile "imza yanlış" arasında fark **göstermez**
-- [ ] Tetikleyici çalıştırması kota kapısından geçer
-- [ ] Hız sınırı ve gövde boyutu sınırı çalışır (`429` / `413`)
-- [ ] İmza `secret`'ının değeri hiçbir yerde saklanmaz; yalnız yapılandırma adı durur
-- [ ] Önek dışındaki bir yapılandırma adı `400` ile reddedilir
-- [ ] Başka kiracının tetikleyicisi ne görünür ne çalışır (sözleşme testi, dört koşum)
-- [ ] Tetikleyici yazımı denetim izine mutasyondan **önce** yazılır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/background-work.md`, `guides/inbound-triggers.md`, `concepts/runs.md`); `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] Doğru imzalı istek `202` + `Location` döner ve çalıştırma kuyruktan koşar — `samples/AgentPrism.Api`'de doğrulandı: `202`, `Location: /agentprism/api/runs/{runId}`, run birkaç saniyede `Completed`
+- [x] İmzasız, yanlış imzalı ve pencere dışı istek `401` döner — `TriggerEndpointTests` + `InboundTriggerDispatcherTests`
+- [x] Aynı istek ikinci kez `409` döner; ikinci çalıştırma açılmaz — `A_replayed_request_is_rejected_the_second_time`
+- [x] Bilinmeyen kiracı `401` alır (**K-472**, plandaki `404` değil), varsayılana **düşmez** — `An_unknown_tenant_does_not_fall_back_to_the_default_tenant`
+- [x] Yanıt "tetikleyici yok" ile "imza yanlış" arasında fark **göstermez** — `An_unknown_trigger_name_and_a_wrong_signature_return_the_identical_response` iki gövdeyi bayt bayt karşılaştırır
+- [x] Tetikleyici çalıştırması kota kapısından geçer — `A_full_quota_rejects_the_trigger_with_429_and_does_not_bypass_it`
+- [x] Hız sınırı ve gövde boyutu sınırı çalışır (`429` / `413`) — `The_trigger_rate_limit_rejects_requests_beyond_the_per_minute_cap`, `A_body_larger_than_the_configured_limit_is_rejected`
+- [x] İmza `secret`'ının değeri hiçbir yerde saklanmaz; yalnız yapılandırma adı durur — `pg_dump` taraması 0 eşleşme (aşağıda)
+- [x] Önek dışındaki bir yapılandırma adı `400` ile reddedilir — `Name_outside_the_allowed_prefix_is_rejected`
+- [x] Başka kiracının tetikleyicisi ne görünür ne çalışır (sözleşme testi, dört koşum) — `InboundTriggerStoreContract`, InMemory + 3 SQL sağlayıcısı
+- [x] Tetikleyici yazımı denetim izine mutasyondan **önce** yazılır — `Save_writes_an_audit_trail_entry_before_the_definition_is_readable`; kodda `ApprovalEndpoints`/K-370 ile birebir aynı desen
+- [x] Dört doğrulama kapısı sıfır uyarı verir — build/test/pack/format hepsi temiz
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Doğrulama komutları" bölümü gerçek çıktıyla güncellendi
+- [x] `secret` taraması boş döndü
+- [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi (MT-JOB-091..102); otomatikleştirilebilenler (091-101) `samples/AgentPrism.Api`'ye karşı koşuldu, 102 (arayüz) 👤 insan gerekir
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
+- [x] `docs-site/` güncellendi (`guides/background-work.md`, `guides/inbound-triggers.md`, `concepts/runs.md`); `npm run build` + `check-links.mjs` temiz — 970 sayfa, 122628 iç bağlantı, kırık yok
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 165,4 KB → **171,3 KB** gzip / 250 KB (+5,9 KB)
 
 ### Doğrulama komutları
 
+Gerçek koşum çıktısı (2026-08-19, `samples/AgentPrism.Api`, gerçek PostgreSQL + gerçek `support` agent):
+
 ```bash
-# Imza secret'i yalniz user-secrets'ta
-dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "whsec_..." \
+dotnet user-secrets set "AgentPrism:TriggerSecrets:Slack" "whsec_manual_test_66" \
   --project samples/AgentPrism.Api
 
-# Tetikleyici tanimla - yalniz AD
-curl -s -X PUT http://localhost:5081/agentprism/api/triggers/slack \
-  -H 'Content-Type: application/json' \
-  -d '{"targetKind":"agent","targetName":"demo","signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack","payloadMode":"path","payloadPath":"event.text"}'
+curl -s -X PUT http://localhost:5000/agentprism/api/triggers/slack \
+  -H 'Authorization: Bearer manuel-test-token-2026' -H 'Content-Type: application/json' \
+  -d '{"targetKind":"agent","targetName":"support","signingSecretConfigurationName":"AgentPrism:TriggerSecrets:Slack","payloadMode":"path","payloadPath":"event.text"}'
+# -> {"name":"slack",...,"resolved":true,...}
 
-# Olay gonder - imzali
-curl -s -i -X POST http://localhost:5081/agentprism/api/triggers/default/slack \
-  -H 'Content-Type: application/json' \
-  -H 'X-AgentPrism-Timestamp: <zaman>' \
-  -H 'X-AgentPrism-Signature: <imza>' \
-  -d '{"event":{"text":"merhaba"}}'
+# imzali istek (X-AgentPrism-Timestamp/-Signature hesabi WebhookSigner.Sign ile)
+curl -s -i -X POST http://localhost:5000/agentprism/api/triggers/default/slack \
+  -H 'Content-Type: application/json' -H "X-AgentPrism-Timestamp: $TS" -H "X-AgentPrism-Signature: $SIG" \
+  --data-binary @body.json
+# -> HTTP/1.1 202 Accepted
+#    Location: /agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3
+#    {"runId":"01a01890-...","jobId":"01a01890-...", "location":"...","eventsLocation":".../events"}
 
-# Imzasiz reddedilir
-curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  http://localhost:5081/agentprism/api/triggers/default/slack -d '{}'
+curl -s http://localhost:5000/agentprism/api/runs/01a01890-1652-7183-9d50-6efd430644a3 -H "$AUTH"
+# -> "status":"Completed", modelId gpt-5.4-mini, usage.totalTokens 246
+
+# ayni imza tekrar -> 409; imzasiz -> 401; bilinmeyen kiraci -> 401; bilinmeyen isim -> 401
+# path cozulmezse -> 400 detail: "The payload path 'event.text' did not resolve..."
+
+pg_dump -U postgres -d agentprism --schema=agentprism | grep -c "whsec_manual_test_66"
+# -> 0
 ```
 
 ---
@@ -398,9 +403,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 |------|-------|
 | 🚨 Gelen uç internete açıktır | İmza zorunlu; zaman penceresi; tekrar koruması; hız sınırı; gövde boyutu sınırı |
 | 🚨 Tekrar saldırısı çalıştırma çoğaltır | `IIdempotencyStore` (Faz 43) ve zaman penceresi; test iki katmanı da koşar |
-| 🚨 `secret` veritabanına yazılır | K-059: yalnız ad; önek kısıtı; `secret` taraması |
-| Kiracı numaralandırılır | Aynı yanıt gövdesi ve kodu; kiracı yolu için Açık Soru 1 |
-| Kota bypass edilir | Tetikleyici çalıştırması aynı `QuotaGate`'ten geçer (K-394) |
+| 🚨 `secret` veritabanına yazılır | K-059: yalnız ad; önek kısıtı; `secret` taraması (`pg_dump` ile 0 eşleşme) |
+| Kiracı/tetikleyici adı numaralandırılır | **K-472**: bilinmeyen kiracı, bilinmeyen/devre dışı ad ve her imza hatası TEK jenerik `401`'e birleşir — bağımsız denetimde bulunup düzeltildi (ilk uygulama 404/401 ayırıyordu) |
+| Kimliksiz akış hız sınırını tüketir | **K-473**: imza doğrulaması hız sınırından ÖNCE çalışır; yalnız kanıtlanmış istek bütçe harcar |
+| Kota bypass edilir | Tetikleyici çalıştırması aynı `QuotaGate`'ten geçer (K-394); `A_full_quota_rejects_the_trigger_with_429_and_does_not_bypass_it` ile kanıtlandı |
 | Çift tetikleme | Benzersiz kısıt (K-138 dersi) ve tekrar koruması |
 | Şablon dili sızar | Yalnız `WholeBody` ve `Path`; yol dili Faz 63 ile **aynı** |
 | Hız sınırı çok örnekte örnek başına uygulanır | K-158 kararı korunur; belge sınırın kapsamını açıkça yazar |
@@ -414,28 +420,145 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **404 → 401 birleşmesi (K-472).** İlk uygulama planın taslak public API'sindeki
+   `NotFound`/`Unauthorized` ayrımını birebir kodladı (bilinmeyen kiracı/isim/devre
+   dışı → `404`; imza hatası → `401`). Bağımsız denetim bunun 66.2'nin "aynı gövde
+   ve kod" kuralını (ve manuel case 7'nin `404` beklentisiyle o kuralın kendi
+   içindeki çelişkiyi) ihlal ettiğini, ve bunun gerçek bir numaralandırma açığı
+   olduğunu gösterdi. Kapanışta TÜM bu durumlar TEK bir jenerik `401`'e birleştirildi;
+   manuel case 96/97 buna göre güncellendi.
+2. **İmza/hız sınırı sırası (K-473).** Plan sıralamayı açıkça belirtmiyordu; ilk
+   uygulama hız sınırını imzadan ÖNCE kontrol etti ("her istek sayılır" sezgisiyle).
+   Bağımsız denetim bunun kimliksiz bir saldırganın gerçek gönderenin bütçesini
+   tüketmesine izin verdiğini gösterdi; sıra ters çevrildi.
+3. **Hedef varlığı doğrulanmıyor (K-474, gerekçelendi — sapma değil).** Plan bunu
+   açıkça belirtmiyordu; `SchedulingEndpoints`/Faz 17 emsaliyle tutarlı olacak
+   şekilde kabul anında agent/workflow varlığı kontrol EDİLMEDİ — hata işleyici
+   seviyesinde (`run` → `Failed`) yakalanır. Bağımsız denetimde sorgulandı, emsal
+   ile doğrulanıp onaylandı.
+4. **Rate limiter `System.Threading.RateLimiting` yerine elle yazıldı.** Plan
+   Faz 21'in `AgentPrismRateLimitFilter`'ıyla aynı altyapıyı ima ediyordu, ama o
+   tip ASP.NET Core paylaşılan çerçevesinden gelir ve `AgentPrism.Core` (düz sınıf
+   kütüphanesi, web bağımlılığı yok) onu göremez. `InboundTriggerRateLimiter`
+   bağımsız, sabit pencereli bir sayaçla yazıldı (K1: dispatcher'ın bir web
+   çerçevesine bağımlı olmaması).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+- **K-472** — "tetikleyici yok" ile "imza yanlış" TEK `401`'e birleşir (bkz. `docs/KARARLAR.md`).
+- **K-473** — imza doğrulaması hız sınırından önce çalışır (bkz. `docs/KARARLAR.md`).
+- **K-474** — hedef agent/workflow varlığı kabul anında doğrulanmaz (bkz. `docs/KARARLAR.md`).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Plandaki taslaktan farklar: `IInboundTriggerStore.UpsertAsync` dönüş tipi
+`ValueTask<InboundTrigger>` (taslakta belirtilmemişti, `IJobScheduleStore.SaveAsync`
+emsaliyle tutarlı). `AgentPrismInboundTriggerOptions` planla birebir aynı.
+Ayrıca planda olmayan, `AgentPrism.Core`'da public olarak eklenen orkestrasyon
+tipleri (QuotaEnforcer/AgentSessionManager emsaliyle tutarlı, K1 gerekçesi
+`InboundTriggerDispatcher`'ın XML dokümanında yazılı):
+
+```csharp
+// AgentPrism.Core
+public enum InboundTriggerOutcome { Valid, Unauthorized, RateLimited, Replayed, InvalidPayload }
+public sealed record InboundTriggerValidationResult { Outcome, ErrorDetail, Validated }
+public sealed record InboundTriggerValidatedRequest { Trigger, Message, IdempotencyKey }
+public sealed record InboundTriggerDispatchResult { RunId, JobId }
+public sealed class InboundTriggerDispatcher { ValidateAsync(...), EnqueueAsync(...), ReleaseAsync(...) }
+public sealed class InboundTriggerSecretResolver { ValidatePrefix(...), Resolve(...) }
+public sealed class InboundTriggerRateLimiter { TryAcquire(Guid) }
+public sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
+
+// AgentPrism.AspNetCore
+public sealed record InboundTriggerResponse { ... Resolved, ... }
+public sealed record InboundTriggerSaveRequest { ... }
+public sealed record InboundTriggerAcceptedResponse { RunId, JobId, Location, EventsLocation }
+```
+
+Tam liste `PublicAPI.Unshipped.txt` (üç projede) içindedir.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+Planlanan listeyle birebir eşleşir, artı test/doküman dosyaları:
+
+```
+src/AgentPrism.Abstractions/Triggers/{InboundTrigger,IInboundTriggerStore,InboundTriggerTargetKind,InboundTriggerPayloadMode}.cs
+src/AgentPrism.Abstractions/Options/AgentPrismInboundTriggerOptions.cs
+src/AgentPrism.Core/Triggers/{InboundTriggerDispatcher,InboundTriggerSecretResolver,InboundTriggerRateLimiter,InboundTriggerPayloadReader}.cs
+src/AgentPrism.Core/Storage/InMemoryInboundTriggerStore.cs
+src/AgentPrism.Sql.Shared/Stores/SqlInboundTriggerStore.cs
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/Migrations/{0033,0020,0020}_inbound_triggers.sql
+src/AgentPrism.AspNetCore/Endpoints/TriggerEndpoints.cs
+src/AgentPrism.AspNetCore/Contracts/TriggerContracts.cs
+src/AgentPrism.UI/frontend/src/screens/triggers.tsx
+
+tests/AgentPrism.Core.UnitTests/Triggers/{InboundTriggerDispatcherTests,InboundTriggerSecretResolverTests,InboundTriggerPayloadReaderTests}.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/TriggerEndpointTests.cs
+tests/Shared/Contracts/InboundTriggerStoreContract.cs (+ InMemory/Postgres/SqlServer/Sqlite kayıtları)
+tests/AgentPrism.Ui.E2ETests/UiTests.cs (Trigger_created_from_UI_is_listed eklendi)
+
+docs-site/src/content/docs/guides/inbound-triggers.md (yeni)
+docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md (MT-JOB-091..102 eklendi)
+```
+
+Ayrıca dokunulan paylaşılan dosyalar: `AgentPrismServiceCollectionExtensions.cs`
+(DI), `AgentPrismEndpointRouteBuilderExtensions.cs` (uç kaydı, üçüncü kimlik
+doğrulamasız grup), `SqlQueriesBase.cs` + üç sağlayıcının `*Queries.cs`'i,
+üç sağlayıcının `TestContext.cs`'i, `TenantCoverageTests.cs`,
+`ApiKeyScopeCoverageTests.cs`, `AuditContentPolicyTests.cs`, migration sayısı
+testleri (üç sağlayıcı), frontend `app.tsx`/`layout.tsx`/`icons.tsx`/`api.ts`/
+`types.ts`/`locales/{en,tr}.ts`/`i18n.test.ts`, `docs-site/astro.config.mjs`,
+`docs-site/scripts/{build-http-api.mjs,check-content.mjs}`.
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+`faz-denetim` bir kez koşuldu (2026-08-19, taze bağlamlı bağımsız agent).
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | "Tetikleyici yok" ile "imza yanlış" farklı kodlarla (`404`/`401`) dönüyordu; 66.2'nin "aynı gövde/kod" kuralını ihlal ediyordu; iddia eden test aslında karşılaştırmıyordu (test tiyatrosu) | 🔴 | **Düzeltildi** — tek `Unauthorized=401`'e birleştirildi (K-472); test artık iki gövdeyi bayt bayt karşılaştırıyor |
+| 2 | Hız sınırı imzadan önce kontrol ediliyordu; kimliksiz bir istek akını gerçek gönderenin bütçesini tüketebiliyordu | 🔴 | **Düzeltildi** — sıra ters çevrildi (K-473); yeni test `An_unsigned_flood_does_not_consume_a_legitimate_senders_rate_limit_budget` |
+| 3 | `SqlInboundTriggerStore`'un çalışma anı `exception.Message`'ı Türkçe idi (dil sınırı ihlali) | 🔴 | **Düzeltildi** — İngilizce'ye çevrildi |
+| 4 | "Kota kapısından geçer" DoD satırı hiçbir testle doğrulanmamıştı | 🟡 | **Düzeltildi** — `A_full_quota_rejects_the_trigger_with_429_and_does_not_bypass_it` eklendi |
+| 5 | `EnqueueAsync` başarısız olursa `ValidateAsync`'in açtığı idempotency rezervasyonu asla serbest bırakılmıyordu; retry sonsuza dek `409` alırdı | 🟡 | **Düzeltildi** — `AcceptAsync` artık `EnqueueAsync`'i try/catch'e alıp hata durumunda `ReleaseAsync` çağırıyor |
+
+**Ek doğrulanan noktalar (soruldu, kusur çıkmadı):** K-089/K-370 audit-önce
+deseni birebir doğru uygulanmış; `EnqueueAsync`'in hedef varlığını doğrulamaması
+kasıtlı ve `SchedulingEndpoints` emsaliyle tutarlı (K-474); migration/tablo
+sayısı testleri üç sağlayıcıda da doğru; `PublicAPI.Unshipped.txt` üç dosyada
+da gerçek yüzeyle eşleşiyor.
+
+Düzeltmelerden sonra dört doğrulama kapısı yeniden koşuldu — hepsi temiz.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+**Devralınan sözleşmeler:**
+- `IInboundTriggerStore`/`InboundTrigger` (Abstractions), `InboundTriggerDispatcher`
+  (Core, host-agnostic — `ValidateAsync` → `EnqueueAsync`/`ReleaseAsync` iki
+  aşamalı akışı, HTTP katmanının arasına kota kontrolü sokabilmesi için).
+- `POST /api/triggers/{tenantId}/{name}` kimlik doğrulamasız üçüncü uç grubu
+  (`requireBearerToken:false, requireLoopback:false`, `AuthorizationPolicy`
+  BİLEREK uygulanmaz) — internete açık, imzayla korunan bir uca ihtiyaç duyan
+  gelecekteki her faz bu deseni tekrar kullanabilir.
+
+**Bilinen tuzaklar (🚨):**
+- 🚨 Bu fazdan sonra eklenecek her yeni "kimlik doğrulamasız" uç,
+  `docs-site/scripts/build-http-api.mjs`'in `readEndpointAuthorization`
+  fonksiyonundaki `anonymous` kontrolüne VE `check-content.mjs`'in
+  `expectedAnonymous` listesine eklenmelidir — yoksa `npm run generate`/`npm run
+  check:content` kırılır (`AgentPrismAcceptInboundTrigger` örneği).
+- 🚨 `tests/AgentPrism.AspNetCore.FunctionalTests/ApiKeyScopeCoverageTests.cs`'in
+  `ExemptRoutePatterns`'ı da aynı şekilde her yeni kimlik doğrulamasız/kapsamsız
+  uç için güncellenmelidir.
+- 🚨 `AgentPrism.Core`'da `System.Threading.RateLimiting` KULLANILAMAZ (ASP.NET
+  Core paylaşılan çerçevesinden gelir); host-agnostic bir sınırlayıcı gerekiyorsa
+  elle yazılmalıdır (`InboundTriggerRateLimiter` örneği).
+- 🚨 Bir kaynağın "yok" durumuyla "yetkisiz" durumunu birleştirmek isteyen her
+  yeni uç için: plan taslağı ile manuel case tablosunun aynı HTTP kodunu
+  iddia ettiğinden EMİN OL — K-472'nin çelişkisi ikisinin ayrı yazılmasından
+  doğdu.
+
+**Yarım kalan işler:** Yok — DoD'nin tamamı kapalı, 🔴/🟡 denetim bulgusu kalmadı.
+
+**Sıradaki faz:** `docs/YOL-HARITASI.md`'de üretilir; bu faz kapanınca yeniden
+üretilmelidir (`python3 scripts/dokuman-bakim.py`).

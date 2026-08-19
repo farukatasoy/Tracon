@@ -310,3 +310,10 @@ export const ApprovalsIcon = ({ className }: IconProps): ReactNode => (
     <path d="M9 12l2 2 4-4.5" />
   </Icon>
 );
+
+/** A lightning bolt: an inbound event starting a run. */
+export const TriggersIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M13 3 5 13.5h5.5L11 21l8-10.5h-5.5z" />
+  </Icon>
+);

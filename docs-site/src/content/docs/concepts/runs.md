@@ -84,11 +84,16 @@ so "which tool failed and with what input" is a query, not a log search.
 | **Streaming** | `POST /api/agents/{name}/run` | `text/event-stream`, one frame per event |
 | **Deduplicated** | the same call with `Idempotency-Key` | a single JSON response — a replay cannot be reconstructed from a stream |
 | **Queued** | the same call with `Prefer: respond-async` | `202 Accepted` and a `Location` header |
+| **Triggered** | `POST /api/triggers/{tenantId}/{name}`, signed by an external system | `202 Accepted` and a `Location` header |
 
 A queued run behaves the same once a worker picks it up. The difference shows at the
 end: if a queued run needs a tool approval it closes as `AwaitingApproval` and the
 request lands in the approval mailbox, whereas a streaming run carries the approval in
 its next turn.
+
+A triggered run is a queued run under the hood — same placeholder row, same worker —
+started by a signed HTTP request instead of a management API caller. See
+[Inbound triggers](/AgentPrism/guides/inbound-triggers/).
 
 :::caution[A closed run is never rewritten]
 A run that ended `AwaitingApproval` stays that way forever. Deciding the approval

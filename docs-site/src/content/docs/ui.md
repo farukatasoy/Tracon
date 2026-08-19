@@ -143,7 +143,9 @@ Who changed what, when, and from what to what — filterable by actor, action, e
 and date range. Secret-looking fields are masked before anything is stored.
 
 Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
-policy (BYOK), and skill script grants have their own screens in the same area.
+policy (BYOK), skill script grants, and inbound triggers have their own screens in
+the same area. A trigger's editor shows the exact signed-request URL to configure
+in the external system — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
 
 <a class="ui-shot" href="/AgentPrism/screenshots/diagnostics.png"><img src="/AgentPrism/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
