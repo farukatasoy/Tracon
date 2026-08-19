@@ -678,8 +678,8 @@ internal static class AgentEndpoints
         try
         {
             agent = assignment is null
-                ? await catalog.ResolveAsync(name, cancellationToken).ConfigureAwait(false)
-                : await catalog.ResolveAsync(name, assignment.Version, cancellationToken).ConfigureAwait(false);
+                ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
+                : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {
@@ -822,7 +822,7 @@ internal static class AgentEndpoints
 
         try
         {
-            agent = await catalog.ResolveAsync(name, cancellationToken).ConfigureAwait(false);
+            agent = await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {

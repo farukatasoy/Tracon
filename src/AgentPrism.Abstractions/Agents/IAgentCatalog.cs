@@ -21,9 +21,14 @@ public interface IAgentCatalog
     /// recording decorator; every run is written into <see cref="IRunStore"/>.
     /// </summary>
     /// <param name="agentName">The agent name.</param>
+    /// <param name="culture">
+    /// The requested culture, resolved against the definition's culture-keyed instructions
+    /// (see <c>AgentDefinition.InstructionsByCulture</c>). <see langword="null"/> uses the
+    /// definition's default instructions.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The agent, or <see langword="null"/> when no source holds it.</returns>
-    ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken);
+    ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken);
 
     /// <summary>
     /// Resolves an agent by name and by <strong>a specific definition version</strong>.
@@ -34,7 +39,10 @@ public interface IAgentCatalog
     /// <param name="agentName">The agent name.</param>
     /// <param name="version">
     /// The requested definition version. When <see langword="null"/> it behaves like
-    /// <see cref="ResolveAsync(string, CancellationToken)"/> (the current version).
+    /// <see cref="ResolveAsync(string, string, CancellationToken)"/> (the current version).
+    /// </param>
+    /// <param name="culture">
+    /// See <see cref="ResolveAsync(string, string, CancellationToken)"/>.
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The agent, or <see langword="null"/> when it is not found.</returns>
@@ -42,5 +50,9 @@ public interface IAgentCatalog
     /// <paramref name="version"/> is given and the agent comes from code, or that version
     /// does not exist.
     /// </exception>
-    ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default);
+    ValueTask<AIAgent?> ResolveAsync(
+        string agentName,
+        int? version,
+        string? culture = null,
+        CancellationToken cancellationToken = default);
 }

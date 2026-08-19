@@ -103,7 +103,7 @@ public sealed class AgentDelegationTests
     {
         var catalog = host.Services.GetRequiredService<IAgentCatalog>();
 
-        return (await catalog.ResolveAsync("yonlendirici", CancellationToken.None)).ShouldNotBeNull();
+        return (await catalog.ResolveAsync("yonlendirici", culture: null, CancellationToken.None)).ShouldNotBeNull();
     }
 
     private static async Task AssertTreeAsync(AgentPrismTestHost host)

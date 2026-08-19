@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// It follows the same HTTP-independent path as the HTTP layer to resolve and run
-/// agents. An agent resolved by <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>
+/// agents. An agent resolved by <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>
 /// is already wrapped in the run-recording decorator, so every run writes a normal
 /// <c>runs</c> row through <see cref="IRunStore"/>. It processes items <strong>in sequence</strong>
 /// because provider rate limits would constrain parallelism. Parallelism between jobs
@@ -26,7 +26,7 @@ internal sealed class AgentBatchJobHandler(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var agent = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken).ConfigureAwait(false)
+        var agent = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
                 $"The agent named '{context.Job.TargetName}' was not found. The job will be marked as failed.");
 

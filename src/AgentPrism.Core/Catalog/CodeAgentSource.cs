@@ -91,7 +91,7 @@ public sealed class CodeAgentSource : IAgentSource
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
 
@@ -114,7 +114,7 @@ public sealed class CodeAgentSource : IAgentSource
         // CompiledAgentCache entirely in that case — independent audit finding.
         if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
         {
-            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+            return await _compiler.CompileAsync(definition, callable, culture, cancellationToken).ConfigureAwait(false);
         }
 
         var agent = await _cache.GetOrAddAsync(
@@ -122,7 +122,8 @@ public sealed class CodeAgentSource : IAgentSource
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
+            culture ?? string.Empty,
+            () => _compiler.CompileAsync(definition, callable, culture, cancellationToken)).ConfigureAwait(false);
 
         return agent;
     }

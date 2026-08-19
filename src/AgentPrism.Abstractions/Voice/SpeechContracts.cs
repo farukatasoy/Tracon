@@ -121,6 +121,9 @@ public sealed record SpeakRequest
 
     /// <summary>The identifier of the voice to use. The default voice if empty.</summary>
     public string? VoiceId { get; init; }
+
+    /// <summary>Requests character-level timing alongside the audio. Default <see langword="false"/>.</summary>
+    public bool IncludeTimestamps { get; init; }
 }
 
 /// <summary>The result of speech synthesis.</summary>
@@ -140,6 +143,12 @@ public sealed record SpeakResponse
 
     /// <summary>The currency label.</summary>
     public string? Currency { get; init; }
+
+    /// <summary>
+    /// Character-level timing. <see langword="null"/> when not requested via
+    /// <see cref="SpeakRequest.IncludeTimestamps"/>, or when the provider does not support it.
+    /// </summary>
+    public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
 }
 
 /// <summary>Checks the voice provider's reachability.</summary>

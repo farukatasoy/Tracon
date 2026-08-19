@@ -30,6 +30,17 @@ public sealed record SpeechRequest
 
     /// <summary>The language's ISO 639-1 code. The provider detects it itself if empty.</summary>
     public string? LanguageCode { get; init; }
+
+    /// <summary>
+    /// Requests character-level timing alongside the audio. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Not supported together with <see cref="ISpeechSynthesizer.SynthesizeStreamingAsync"/>:
+    /// that method returns raw audio chunks only and has no channel for alignment
+    /// data. A synthesizer implementation MUST reject the combination explicitly
+    /// rather than silently drop the alignment (K1).
+    /// </remarks>
+    public bool IncludeTimestamps { get; init; }
 }
 
 /// <summary>Generated audio.</summary>
@@ -62,6 +73,31 @@ public sealed class SpeechAudio
     /// Showing an estimate as a measurement fabricates a price (K-032).
     /// </remarks>
     public SpeechUsageSource UsageSource { get; init; }
+
+    /// <summary>
+    /// Character-level timing, requested via <see cref="SpeechRequest.IncludeTimestamps"/>.
+    /// <see langword="null"/> when not requested, or when the provider does not support it.
+    /// </summary>
+    public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
+}
+
+/// <summary>One character's position in the generated audio.</summary>
+/// <remarks>
+/// Character-level, not word-level: this is the granularity ElevenLabs' <c>.../with-timestamps</c>
+/// endpoint reports (verified against its published OpenAPI document, 2026-08-19).
+/// Grouping characters into words or producing a subtitle format (SRT/VTT) is left
+/// to the consumer - the raw form is enough (docs/72, section 72.2).
+/// </remarks>
+public sealed record SpeechAlignment
+{
+    /// <summary>The character, as sent in the request text.</summary>
+    public required string Character { get; init; }
+
+    /// <summary>When the character starts, relative to the start of the audio.</summary>
+    public required TimeSpan Start { get; init; }
+
+    /// <summary>When the character ends, relative to the start of the audio.</summary>
+    public required TimeSpan End { get; init; }
 }
 
 /// <summary>The source of a speech measurement.</summary>

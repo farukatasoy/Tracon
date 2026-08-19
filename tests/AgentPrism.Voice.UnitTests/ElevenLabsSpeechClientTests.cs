@@ -55,6 +55,116 @@ public sealed class ElevenLabsSpeechClientTests
     }
 
     [Fact]
+    public async Task Timestamped_synthesis_goes_to_the_with_timestamps_path_and_decodes_the_response()
+    {
+        var audioBase64 = Convert.ToBase64String(Mp3Bytes);
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            $$"""
+            {
+              "audio_base64": "{{audioBase64}}",
+              "alignment": {
+                "characters": ["H", "i"],
+                "character_start_times_seconds": [0.0, 0.1],
+                "character_end_times_seconds": [0.1, 0.2]
+              },
+              "normalized_alignment": {
+                "characters": ["H", "i"],
+                "character_start_times_seconds": [0.0, 0.1],
+                "character_end_times_seconds": [0.1, 0.2]
+              }
+            }
+            """));
+
+        using var client = CreateClient(handler);
+
+        var audio = await client.SynthesizeAsync(
+            new SpeechRequest { Text = "Hi", IncludeTimestamps = true },
+            TestContext.Current.CancellationToken);
+
+        handler.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/voice-1/with-timestamps");
+        audio.Data.ToArray().ShouldBe(Mp3Bytes);
+        audio.Alignment.ShouldNotBeNull();
+        audio.Alignment.Count.ShouldBe(2);
+        audio.Alignment[0].Character.ShouldBe("H");
+        audio.Alignment[0].Start.ShouldBe(TimeSpan.Zero);
+        audio.Alignment[0].End.ShouldBe(TimeSpan.FromSeconds(0.1));
+        audio.Alignment[1].Character.ShouldBe("i");
+        audio.Alignment[1].End.ShouldBe(TimeSpan.FromSeconds(0.2));
+    }
+
+    [Fact]
+    public async Task Without_IncludeTimestamps_alignment_is_null_and_the_plain_path_is_used()
+    {
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
+        using var client = CreateClient(handler);
+
+        var audio = await client.SynthesizeAsync(
+            new SpeechRequest { Text = "hello" },
+            TestContext.Current.CancellationToken);
+
+        handler.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe("/v1/text-to-speech/voice-1");
+        audio.Alignment.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Missing_alignment_in_a_timestamped_response_yields_null_not_an_error()
+    {
+        var audioBase64 = Convert.ToBase64String(Mp3Bytes);
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(
+            $$"""{"audio_base64": "{{audioBase64}}"}"""));
+
+        using var client = CreateClient(handler);
+
+        var audio = await client.SynthesizeAsync(
+            new SpeechRequest { Text = "Hi", IncludeTimestamps = true },
+            TestContext.Current.CancellationToken);
+
+        audio.Alignment.ShouldBeNull();
+        audio.Data.ToArray().ShouldBe(Mp3Bytes);
+    }
+
+    [Fact]
+    public async Task Streaming_synthesis_rejects_IncludeTimestamps_explicitly()
+    {
+        var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Binary(Mp3Bytes));
+        using var client = CreateClient(handler);
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
+        {
+            await foreach (var _ in client.SynthesizeStreamingAsync(
+                               new SpeechRequest { Text = "hello", IncludeTimestamps = true },
+                               TestContext.Current.CancellationToken))
+            {
+            }
+        });
+
+        exception.Message.ShouldContain(nameof(SpeechRequest.IncludeTimestamps));
+        handler.Requests.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Mismatched_alignment_array_lengths_yield_null_rather_than_throwing(int startCount)
+    {
+        var alignment = new ElevenLabsCharacterAlignment
+        {
+            Characters = ["H", "i"],
+            CharacterStartTimesSeconds = [.. Enumerable.Repeat(0.0, startCount)],
+            CharacterEndTimesSeconds = [0.1, 0.2],
+        };
+
+        ElevenLabsSpeechClient.ToAlignment(alignment).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Null_or_empty_alignment_yields_null()
+    {
+        ElevenLabsSpeechClient.ToAlignment(null).ShouldBeNull();
+        ElevenLabsSpeechClient.ToAlignment(new ElevenLabsCharacterAlignment { Characters = [] }).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Voice_list_is_read_from_the_v2_endpoint_and_sorted_by_name()
     {
         var handler = new StubHttpMessageHandler(_ => StubHttpMessageHandler.Json(

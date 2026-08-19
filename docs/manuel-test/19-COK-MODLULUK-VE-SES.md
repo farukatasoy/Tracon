@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72
 > **Kaynak:** `src/AgentPrism.Abstractions/Attachments/` (tümü) ·
 > `src/AgentPrism.Core/Attachments/` (tümü) ·
 > `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -1932,3 +1932,127 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
   kalmaz (`en.ts`/`tr.ts` anahtar kümesi K-228 gereği derleme zamanında
   eşleşir, bu yalnız GÖRSEL bir gözle kontrol). Tema değişince kontrast
   bozulmaz, ses seviyesi çubukları her iki temada da okunur kalır.
+
+---
+
+### MT-MM-091 — `includeTimestamps` verilmeden `POST /api/voice/speak` bugünkü yanıtla birebir aynıdır (F-118)
+
+Gerçek entegrasyon — mutlu yol, kritik. Regresyon: F-118 öncesi davranışın
+değişmediğini kanıtlar.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `$VOICE_ID` MT-MM-038'den dolu.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H "content-type: application/json" -d "{
+  \"text\": \"Zaman damgasiz sentez.\",
+  \"sessionId\": \"manuel-mm-timestamps-off\",
+  \"voiceId\": \"$VOICE_ID\"
+}" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Gövdede `alignment` alanı ya hiç yok ya da `null` — dolu bir
+  liste DEĞİL. `attachment`/`characters`/`isEstimated`/`cost` MT-MM-040 ile
+  birebir aynı şekilde davranır.
+
+---
+
+### MT-MM-092 — `includeTimestamps: true` karakter hizalaması döner, süreler ses uzunluğuyla tutarlıdır (F-118)
+
+Gerçek entegrasyon — mutlu yol, kritik.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `$VOICE_ID` MT-MM-038'den dolu.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H "content-type: application/json" -d "{
+  \"text\": \"Merhaba\",
+  \"sessionId\": \"manuel-mm-timestamps-on\",
+  \"voiceId\": \"$VOICE_ID\",
+  \"includeTimestamps\": true
+}" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. `alignment` alanı `"Merhaba"` metnindeki karakter sayısı kadar
+  öge taşır (kelime değil — sağlayıcının verdiği granülerlik budur, bkz.
+  `docs-site/src/content/docs/guides/voice.md`). Her ögede `character`,
+  `start`, `end`; `start`/`end` artan sıradadır ve son ögenin `end` değeri
+  indirilen sesin gerçek süresine yakındır (kulakla veya ses dosyasının
+  meta verisiyle karşılaştır). 🚨 `alignment[i].character` "orijinal metin"
+  hizalamasıdır (`normalized_alignment` DEĞİL) — sağlayıcının sayı/kısaltma
+  normalizasyonu yaptığı bir metinle tekrarlanırsa karakterler girdiyle
+  birebir eşleşmeye devam eder.
+
+---
+
+### MT-MM-093 — Akışlı sentezde `includeTimestamps: true` açıkça reddedilir, sessizce yok sayılmaz (F-118)
+
+Sınır senaryosu — `ISpeechSynthesizer.SynthesizeStreamingAsync` ham ses
+parçası dışında hiçbir şey döndürmez; hizalama verisini taşıyacak bir kanal
+yoktur. Kombinasyon istisna ile reddedilir (K1).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `AgentPrism.Voice.UnitTests.ElevenLabsSpeechClientTests.Streaming_synthesis_rejects_IncludeTimestamps_explicitly`
+   testini çalıştır (otomatik koşum; bu case elle tekrar üretmeye gerek
+   bırakmaz, davranışın belgesidir):
+   ```bash
+   dotnet test tests/AgentPrism.Voice.UnitTests -c Release \
+     --filter "FullyQualifiedName~Streaming_synthesis_rejects_IncludeTimestamps_explicitly"
+   ```
+
+**Beklenen sonuç**
+- Test yeşil. `ISpeechSynthesizer.SynthesizeStreamingAsync` çağrısı
+  `request.IncludeTimestamps == true` iken `AgentPrismException` fırlatır;
+  hiçbir HTTP isteği ElevenLabs'e gitmez (`handler.Requests` boştur —
+  kredi harcanmaz). Akışlı sentez zaten `POST /api/voice/speak`'ten
+  ULAŞILAMAZ (o uç her zaman `SynthesizeAsync`'i çağırır); bu case yalnız
+  `ISpeechSynthesizer`'ı doğrudan kullanan bir tüketicinin göreceği
+  davranışı kanıtlar.
+
+---
+
+### MT-MM-094 — Hizalama istemek ayrı bir fatura birimi DEĞİLDİR (F-118)
+
+Negatif/maliyet senaryosu. MT-MM-091 ve MT-MM-092'nin karşılaştırması.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-MM-091 ve MT-MM-092 aynı metinle (`"Merhaba"`) koşuldu.
+
+**Beklenen sonuç**
+- İki yanıttaki `characters` ve `cost` (yapılandırılmışsa) değerleri
+  BİREBİR AYNIDIR. Hizalama listesinin uzunluğu maliyeti etkilemez —
+  `VoicePricingTests` zaten karakter tabanlı hesaba dokunulmadığını
+  birim seviyesinde kanıtlıyor; bu case aynı iddiayı gerçek sağlayıcıya
+  karşı doğrular.

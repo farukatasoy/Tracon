@@ -183,6 +183,7 @@ export interface AgentDefinition {
   displayName?: string | null;
   description?: string | null;
   instructions?: string | null;
+  instructionsByCulture?: Record<string, string> | null;
   model: ModelBinding;
   toolNames: string[];
   skillNames: string[];
@@ -209,6 +210,7 @@ export interface AgentDefinitionRequest {
   displayName?: string | null;
   description?: string | null;
   instructions?: string | null;
+  instructionsByCulture?: Record<string, string> | null;
   model: ModelBinding;
   toolNames: string[];
   skillNames: string[];

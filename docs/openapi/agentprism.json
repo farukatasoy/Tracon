@@ -6433,6 +6433,16 @@
             ],
             "description": "Gets the system instructions passed to the model."
           },
+          "instructionsByCulture": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Gets culture-keyed instructions. The key is a BCP-47 tag (\u0060\u0022en\u0022\u0060, \u0060\u0022tr\u0022\u0060);\na region subtag (\u0060\u0022tr-TR\u0022\u0060) falls back to its parent (\u0060\u0022tr\u0022\u0060). A run\u0027s\nrequested culture that matches neither falls back to string? AgentDefinition.Instructions -\nresolution never fails."
+          },
           "model": {
             "description": "Gets the provider and model binding to use.",
             "$ref": "#/components/schemas/ModelBinding"
@@ -6571,6 +6581,16 @@
               "string"
             ],
             "description": "System instructions."
+          },
+          "instructionsByCulture": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Culture-keyed instructions. See IReadOnlyDictionary\u0026lt;string, string\u0026gt;? AgentDefinition.InstructionsByCulture."
           },
           "model": {
             "description": "Model binding: provider, model, and sampling settings.",
@@ -6949,6 +6969,13 @@
               "string"
             ],
             "description": "Session identifier. If not given, the run is sessionless and no history\nis carried."
+          },
+          "culture": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The culture to resolve the agent\u0027s instructions with (see\n\u0060AgentDefinition.InstructionsByCulture\u0060). \u0060null\u0060 uses the\nagent\u0027s default instructions."
           },
           "approvals": {
             "type": "array",
@@ -13989,6 +14016,10 @@
               "string"
             ],
             "description": "The identifier of the voice to use. The default voice if empty."
+          },
+          "includeTimestamps": {
+            "type": "boolean",
+            "description": "Requests character-level timing alongside the audio. Default \u0060false\u0060."
           }
         },
         "description": "A speech synthesis request as an operator action."
@@ -14034,9 +14065,44 @@
               "string"
             ],
             "description": "The currency label."
+          },
+          "alignment": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SpeechAlignment"
+            },
+            "description": "Character-level timing. \u0060null\u0060 when not requested via\nbool SpeakRequest.IncludeTimestamps, or when the provider does not support it."
           }
         },
         "description": "The result of speech synthesis."
+      },
+      "SpeechAlignment": {
+        "required": [
+          "character",
+          "start",
+          "end"
+        ],
+        "type": "object",
+        "properties": {
+          "character": {
+            "type": "string",
+            "description": "The character, as sent in the request text."
+          },
+          "start": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string",
+            "description": "When the character starts, relative to the start of the audio."
+          },
+          "end": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string",
+            "description": "When the character ends, relative to the start of the audio."
+          }
+        },
+        "description": "One character\u0027s position in the generated audio."
       },
       "Stream": {
         "type": "string",

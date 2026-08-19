@@ -42,7 +42,7 @@ public sealed class CallableAgentResolver
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The agent wrapped with the run-recording wrapper; <see langword="null"/> when absent.</returns>
     public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
-        => ResolveCatalog().ResolveAsync(agentName, cancellationToken);
+        => ResolveCatalog().ResolveAsync(agentName, culture: null, cancellationToken);
 
     /// <summary>Lists the agent summaries in the catalog.</summary>
     /// <param name="cancellationToken">Cancellation token.</param>

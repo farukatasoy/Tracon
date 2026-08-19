@@ -142,7 +142,12 @@ internal static class VoiceEndpoints
         {
             audio = await synthesizer
                 .SynthesizeAsync(
-                    new SpeechRequest { Text = request.Text, VoiceId = request.VoiceId },
+                    new SpeechRequest
+                    {
+                        Text = request.Text,
+                        VoiceId = request.VoiceId,
+                        IncludeTimestamps = request.IncludeTimestamps,
+                    },
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -190,6 +195,7 @@ internal static class VoiceEndpoints
             IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
             Cost = pricing?.ForCharacters(characters),
             Currency = pricing?.Currency,
+            Alignment = audio.Alignment,
         });
     }
 

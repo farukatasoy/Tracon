@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// The same HTTP-independent path used by the HTTP layer and
 /// <see cref="AgentBatchJobHandler"/> to resolve and run an agent is followed
 /// here: each case is run in a <strong>new session</strong> (session: null) on
-/// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>.
+/// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>.
 /// Since the agent is already wrapped by the run-recording decorator, each
 /// case naturally produces its own <c>runs</c> row
 /// (docs/18-DEGERLENDIRME.md, section 18.3).
@@ -107,9 +107,9 @@ internal sealed class EvalJobHandler(
         // a fixed version, not a variant. Rationale: docs/19-SURUM-KARSILASTIRMA-VE-AB.md,
         // open question 2.
         var agent = agentVersion is { } version
-            ? await catalog.ResolveAsync(suite.AgentName, version, cancellationToken).ConfigureAwait(false)
+            ? await catalog.ResolveAsync(suite.AgentName, version, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException($"Version {version} of agent '{suite.AgentName}' was not found.")
-            : await catalog.ResolveAsync(suite.AgentName, cancellationToken).ConfigureAwait(false)
+            : await catalog.ResolveAsync(suite.AgentName, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
                     $"No agent named '{suite.AgentName}' exists in the catalog. The eval suite's agent may have been deleted.");
 
