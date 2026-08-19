@@ -59,6 +59,11 @@ one-click rollback.
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool or skill name is refused at write time, not on the first run.
 
+The instructions panel also holds a culture-keyed section: add a culture tag
+(`tr`, `de`, ...) with its own instructions text, and a run requesting that
+culture picks it up (see [Culture-keyed instructions](/AgentPrism/concepts/agents/#culture-keyed-instructions)).
+The version diff screen shows each culture's text as its own section.
+
 ## Playground
 
 <a class="ui-shot" href="/AgentPrism/screenshots/playground.png"><img src="/AgentPrism/screenshots/playground.png" alt="The playground, with a streaming reply and tool calls rendered as cards" width="2880" height="1800" loading="lazy" decoding="async" /></a>

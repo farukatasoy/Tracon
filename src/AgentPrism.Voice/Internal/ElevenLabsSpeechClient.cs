@@ -85,30 +85,72 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         try
         {
-            using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false);
-            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
-
-            await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
-
-            var data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-            var billed = ReadBilledCharacters(response);
-
-            return new SpeechAudio
-            {
-                Data = data,
-                MediaType = MediaTypeForFormat(format),
-                CharactersBilled = billed ?? request.Text.Length,
-
-                // When the provider does not report the count, the value is an
-                // ESTIMATE and is marked as such. Presenting an estimate as a
-                // measurement would be inventing a price.
-                UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
-            };
+            return request.IncludeTimestamps
+                ? await SynthesizeWithTimestampsAsync(request, voiceId, format, cancellationToken).ConfigureAwait(false)
+                : await SynthesizePlainAsync(request, voiceId, format, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _concurrency.Release();
         }
+    }
+
+    private async ValueTask<SpeechAudio> SynthesizePlainAsync(
+        SpeechRequest request,
+        string voiceId,
+        string format,
+        CancellationToken cancellationToken)
+    {
+        using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false, withTimestamps: false);
+        using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
+
+        var data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var billed = ReadBilledCharacters(response);
+
+        return new SpeechAudio
+        {
+            Data = data,
+            MediaType = MediaTypeForFormat(format),
+            CharactersBilled = billed ?? request.Text.Length,
+
+            // When the provider does not report the count, the value is an
+            // ESTIMATE and is marked as such. Presenting an estimate as a
+            // measurement would be inventing a price.
+            UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
+        };
+    }
+
+    /// <remarks>
+    /// 🚨 The <c>.../with-timestamps</c> endpoint returns a JSON body
+    /// (<c>audio_base64</c> + <c>alignment</c>), not raw audio bytes - a
+    /// different response shape from the plain synthesis endpoint. Verified
+    /// against the provider's published OpenAPI document, 2026-08-19
+    /// (<c>AudioWithTimestampsResponseModel</c>).
+    /// </remarks>
+    private async ValueTask<SpeechAudio> SynthesizeWithTimestampsAsync(
+        SpeechRequest request,
+        string voiceId,
+        string format,
+        CancellationToken cancellationToken)
+    {
+        using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false, withTimestamps: true);
+        using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
+
+        var billed = ReadBilledCharacters(response);
+        var payload = await ReadTimestampedAudioAsync(response, cancellationToken).ConfigureAwait(false);
+
+        return new SpeechAudio
+        {
+            Data = payload.Data,
+            MediaType = MediaTypeForFormat(format),
+            CharactersBilled = billed ?? request.Text.Length,
+            UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
+            Alignment = payload.Alignment,
+        };
     }
 
     /// <inheritdoc />
@@ -118,6 +160,18 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // 🚨 This method returns raw audio chunks only; there is no channel to
+        // carry alignment data back to the caller. Silently dropping the
+        // alignment would be a surprise (K1) - the combination is rejected
+        // explicitly instead. SynthesizeAsync supports timestamps.
+        if (request.IncludeTimestamps)
+        {
+            throw new AgentPrismException(
+                $"{nameof(SpeechRequest.IncludeTimestamps)} is not supported together with streaming synthesis: " +
+                $"{nameof(SynthesizeStreamingAsync)} returns raw audio chunks only and has no channel for " +
+                $"alignment data. Use {nameof(SynthesizeAsync)} for timestamped speech.");
+        }
+
         var voiceId = ResolveVoiceId(request);
         var format = request.OutputFormat ?? _options.OutputFormat;
 
@@ -125,7 +179,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         try
         {
-            using var message = BuildSynthesisRequest(request, voiceId, format, streaming: true);
+            using var message = BuildSynthesisRequest(request, voiceId, format, streaming: true, withTimestamps: false);
 
             using var response = await _http
                 .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
@@ -312,11 +366,20 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         SpeechRequest request,
         string voiceId,
         string format,
-        bool streaming)
+        bool streaming,
+        bool withTimestamps)
     {
-        var path = streaming
-            ? $"v1/text-to-speech/{Uri.EscapeDataString(voiceId)}/stream"
-            : $"v1/text-to-speech/{Uri.EscapeDataString(voiceId)}";
+        var escapedVoiceId = Uri.EscapeDataString(voiceId);
+
+        // withTimestamps and streaming are never both true: SynthesizeStreamingAsync
+        // rejects IncludeTimestamps before reaching here.
+        var path = (streaming, withTimestamps) switch
+        {
+            (true, false) => $"v1/text-to-speech/{escapedVoiceId}/stream",
+            (false, true) => $"v1/text-to-speech/{escapedVoiceId}/with-timestamps",
+            (false, false) => $"v1/text-to-speech/{escapedVoiceId}",
+            (true, true) => throw new UnreachableException(),
+        };
 
         var uri = BuildUri($"{path}?output_format={Uri.EscapeDataString(format)}");
 
@@ -420,6 +483,72 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         }
 
         return null;
+    }
+
+    /// <summary>Parses the <c>.../with-timestamps</c> response body.</summary>
+    /// <remarks>
+    /// <c>internal</c>: unit tests verify this with a prepared body. A missing
+    /// <c>alignment</c> object (the provider does not always report it) is not
+    /// an error - the caller gets <see langword="null"/> for
+    /// <see cref="SpeechAudio.Alignment"/>, exactly like a provider that never
+    /// supported timestamps at all (K1: same input, same behavior everywhere).
+    /// </remarks>
+    internal static async ValueTask<(byte[] Data, IReadOnlyList<SpeechAlignment>? Alignment)> ReadTimestampedAudioAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (stream.ConfigureAwait(false))
+        {
+            var payload = await JsonSerializer
+                .DeserializeAsync(
+                    stream,
+                    ElevenLabsJsonContext.Default.ElevenLabsAudioWithTimestampsResponse,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            var data = payload?.AudioBase64 is { Length: > 0 } base64
+                ? Convert.FromBase64String(base64)
+                : [];
+
+            return (data, ToAlignment(payload?.Alignment));
+        }
+    }
+
+    /// <summary>
+    /// Converts the provider's parallel-array shape into
+    /// <see cref="SpeechAlignment"/> entries.
+    /// </summary>
+    /// <remarks>
+    /// The three arrays are contractually the same length; a malformed body
+    /// (mismatched lengths) is treated as "no alignment" rather than throwing -
+    /// the audio itself is still valid and usable.
+    /// </remarks>
+    internal static IReadOnlyList<SpeechAlignment>? ToAlignment(ElevenLabsCharacterAlignment? alignment)
+    {
+        if (alignment is not { Characters.Count: > 0 } ||
+            alignment.CharacterStartTimesSeconds is not { } starts ||
+            alignment.CharacterEndTimesSeconds is not { } ends ||
+            starts.Count != alignment.Characters.Count ||
+            ends.Count != alignment.Characters.Count)
+        {
+            return null;
+        }
+
+        var result = new List<SpeechAlignment>(alignment.Characters.Count);
+
+        for (var index = 0; index < alignment.Characters.Count; index++)
+        {
+            result.Add(new SpeechAlignment
+            {
+                Character = alignment.Characters[index],
+                Start = TimeSpan.FromSeconds(starts[index]),
+                End = TimeSpan.FromSeconds(ends[index]),
+            });
+        }
+
+        return result;
     }
 
     /// <summary>Parses the voice list body.</summary>

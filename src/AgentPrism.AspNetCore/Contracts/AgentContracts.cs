@@ -23,6 +23,9 @@ public sealed record AgentDefinitionRequest
     /// <summary>System instructions.</summary>
     public string? Instructions { get; init; }
 
+    /// <summary>Culture-keyed instructions. See <see cref="AgentDefinition.InstructionsByCulture"/>.</summary>
+    public IReadOnlyDictionary<string, string>? InstructionsByCulture { get; init; }
+
     /// <summary>Model binding: provider, model, and sampling settings.</summary>
     public required ModelBinding Model { get; init; }
 
@@ -62,6 +65,7 @@ public sealed record AgentDefinitionRequest
             DisplayName = DisplayName,
             Description = Description,
             Instructions = Instructions,
+            InstructionsByCulture = InstructionsByCulture,
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
@@ -212,6 +216,20 @@ public sealed record AgentRunRequest
     /// is carried.
     /// </summary>
     public string? SessionId { get; init; }
+
+    /// <summary>
+    /// The culture to resolve the agent's instructions with (see
+    /// <c>AgentDefinition.InstructionsByCulture</c>). <see langword="null"/> uses the
+    /// agent's default instructions.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Read only from this field. The <c>Accept-Language</c> HTTP header is
+    /// deliberately <strong>not</strong> consulted: a browser header silently
+    /// changing the content sent to the model would be a surprise (K1), and it
+    /// conflicts with decision K-232's line that server-facing content is not
+    /// translated from ambient request state.
+    /// </remarks>
+    public string? Culture { get; init; }
 
     /// <summary>
     /// Approval decisions for pending tool calls.

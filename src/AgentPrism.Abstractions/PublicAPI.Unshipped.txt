@@ -15,6 +15,8 @@ AgentPrism.AgentDefinition.Harness.get -> AgentPrism.HarnessSettings?
 AgentPrism.AgentDefinition.Harness.init -> void
 AgentPrism.AgentDefinition.Instructions.get -> string?
 AgentPrism.AgentDefinition.Instructions.init -> void
+AgentPrism.AgentDefinition.InstructionsByCulture.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.AgentDefinition.InstructionsByCulture.init -> void
 AgentPrism.AgentDefinition.McpResourceUris.get -> System.Collections.Generic.IReadOnlyList<string!>!
 AgentPrism.AgentDefinition.McpResourceUris.init -> void
 AgentPrism.AgentDefinition.Memory.get -> AgentPrism.MemorySettings?
@@ -958,8 +960,8 @@ AgentPrism.HarnessSettings.MaximumIterationsPerRequest.get -> int?
 AgentPrism.HarnessSettings.MaximumIterationsPerRequest.init -> void
 AgentPrism.IAgentCatalog
 AgentPrism.IAgentCatalog.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
-AgentPrism.IAgentCatalog.ResolveAsync(string! agentName, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
-AgentPrism.IAgentCatalog.ResolveAsync(string! agentName, int? version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.IAgentCatalog.ResolveAsync(string! agentName, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.IAgentCatalog.ResolveAsync(string! agentName, int? version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.IAgentDecorator
 AgentPrism.IAgentDecorator.Decorate(Microsoft.Agents.AI.AIAgent! agent, AgentPrism.AgentDescriptor! descriptor) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.IAgentDecorator.Order.get -> int
@@ -980,7 +982,7 @@ AgentPrism.IAgentSource
 AgentPrism.IAgentSource.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
 AgentPrism.IAgentSource.Name.get -> string!
 AgentPrism.IAgentSource.Priority.get -> int
-AgentPrism.IAgentSource.ResolveAsync(string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.IAgentSource.ResolveAsync(string! agentName, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.IApiKeyStore
 AgentPrism.IApiKeyStore.CreateAsync(AgentPrism.ApiKeyDraft! draft, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ApiKeyCreationResult!>
 AgentPrism.IApiKeyStore.FindByHashAsync(System.ReadOnlyMemory<byte> keyHash, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ApiKeyRecord?>
@@ -1237,7 +1239,7 @@ AgentPrism.IVectorSearchStore.ListSourcesAsync(string! tenantId, string! collect
 AgentPrism.IVectorSearchStore.SearchAsync(AgentPrism.VectorSearchRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.VectorSearchHit!>!>
 AgentPrism.IVectorSearchStore.UpsertAsync(string! tenantId, string! collection, string! sourceId, System.Collections.Generic.IReadOnlyList<AgentPrism.VectorChunk!>! chunks, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IVersionedAgentSource
-AgentPrism.IVersionedAgentSource.ResolveVersionAsync(string! agentName, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.IVersionedAgentSource.ResolveVersionAsync(string! agentName, int version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.IVoiceHealthCheck
 AgentPrism.IVoiceHealthCheck.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.VoiceHealth!>
 AgentPrism.IVoicePricingReader
@@ -2692,6 +2694,8 @@ AgentPrism.SkillScriptGrant.TenantId.init -> void
 AgentPrism.SpeakRequest
 AgentPrism.SpeakRequest.<Clone>$() -> AgentPrism.SpeakRequest!
 AgentPrism.SpeakRequest.Equals(AgentPrism.SpeakRequest? other) -> bool
+AgentPrism.SpeakRequest.IncludeTimestamps.get -> bool
+AgentPrism.SpeakRequest.IncludeTimestamps.init -> void
 AgentPrism.SpeakRequest.SessionId.get -> string?
 AgentPrism.SpeakRequest.SessionId.init -> void
 AgentPrism.SpeakRequest.SpeakRequest() -> void
@@ -2701,6 +2705,8 @@ AgentPrism.SpeakRequest.VoiceId.get -> string?
 AgentPrism.SpeakRequest.VoiceId.init -> void
 AgentPrism.SpeakResponse
 AgentPrism.SpeakResponse.<Clone>$() -> AgentPrism.SpeakResponse!
+AgentPrism.SpeakResponse.Alignment.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.SpeechAlignment!>?
+AgentPrism.SpeakResponse.Alignment.init -> void
 AgentPrism.SpeakResponse.Attachment.get -> AgentPrism.AttachmentDescriptor!
 AgentPrism.SpeakResponse.Attachment.init -> void
 AgentPrism.SpeakResponse.Characters.get -> int
@@ -2714,6 +2720,8 @@ AgentPrism.SpeakResponse.IsEstimated.get -> bool
 AgentPrism.SpeakResponse.IsEstimated.init -> void
 AgentPrism.SpeakResponse.SpeakResponse() -> void
 AgentPrism.SpeechAudio
+AgentPrism.SpeechAudio.Alignment.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.SpeechAlignment!>?
+AgentPrism.SpeechAudio.Alignment.init -> void
 AgentPrism.SpeechAudio.CharactersBilled.get -> int?
 AgentPrism.SpeechAudio.CharactersBilled.init -> void
 AgentPrism.SpeechAudio.Data.get -> System.ReadOnlyMemory<byte>
@@ -2728,6 +2736,8 @@ AgentPrism.SpeechAudio.UsageSource.init -> void
 AgentPrism.SpeechRequest
 AgentPrism.SpeechRequest.<Clone>$() -> AgentPrism.SpeechRequest!
 AgentPrism.SpeechRequest.Equals(AgentPrism.SpeechRequest? other) -> bool
+AgentPrism.SpeechRequest.IncludeTimestamps.get -> bool
+AgentPrism.SpeechRequest.IncludeTimestamps.init -> void
 AgentPrism.SpeechRequest.LanguageCode.get -> string?
 AgentPrism.SpeechRequest.LanguageCode.init -> void
 AgentPrism.SpeechRequest.ModelId.get -> string?
@@ -2739,6 +2749,16 @@ AgentPrism.SpeechRequest.Text.get -> string!
 AgentPrism.SpeechRequest.Text.init -> void
 AgentPrism.SpeechRequest.VoiceId.get -> string?
 AgentPrism.SpeechRequest.VoiceId.init -> void
+AgentPrism.SpeechAlignment
+AgentPrism.SpeechAlignment.<Clone>$() -> AgentPrism.SpeechAlignment!
+AgentPrism.SpeechAlignment.Character.get -> string!
+AgentPrism.SpeechAlignment.Character.init -> void
+AgentPrism.SpeechAlignment.End.get -> System.TimeSpan
+AgentPrism.SpeechAlignment.End.init -> void
+AgentPrism.SpeechAlignment.Equals(AgentPrism.SpeechAlignment? other) -> bool
+AgentPrism.SpeechAlignment.SpeechAlignment() -> void
+AgentPrism.SpeechAlignment.Start.get -> System.TimeSpan
+AgentPrism.SpeechAlignment.Start.init -> void
 AgentPrism.SpeechTranscript
 AgentPrism.SpeechTranscript.<Clone>$() -> AgentPrism.SpeechTranscript!
 AgentPrism.SpeechTranscript.AudioDuration.get -> System.TimeSpan?
@@ -3940,6 +3960,9 @@ override AgentPrism.SpeakRequest.ToString() -> string!
 override AgentPrism.SpeakResponse.Equals(object? obj) -> bool
 override AgentPrism.SpeakResponse.GetHashCode() -> int
 override AgentPrism.SpeakResponse.ToString() -> string!
+override AgentPrism.SpeechAlignment.Equals(object? obj) -> bool
+override AgentPrism.SpeechAlignment.GetHashCode() -> int
+override AgentPrism.SpeechAlignment.ToString() -> string!
 override AgentPrism.SpeechRequest.Equals(object? obj) -> bool
 override AgentPrism.SpeechRequest.GetHashCode() -> int
 override AgentPrism.SpeechRequest.ToString() -> string!
@@ -4343,6 +4366,8 @@ static AgentPrism.SpeakRequest.operator !=(AgentPrism.SpeakRequest? left, AgentP
 static AgentPrism.SpeakRequest.operator ==(AgentPrism.SpeakRequest? left, AgentPrism.SpeakRequest? right) -> bool
 static AgentPrism.SpeakResponse.operator !=(AgentPrism.SpeakResponse? left, AgentPrism.SpeakResponse? right) -> bool
 static AgentPrism.SpeakResponse.operator ==(AgentPrism.SpeakResponse? left, AgentPrism.SpeakResponse? right) -> bool
+static AgentPrism.SpeechAlignment.operator !=(AgentPrism.SpeechAlignment? left, AgentPrism.SpeechAlignment? right) -> bool
+static AgentPrism.SpeechAlignment.operator ==(AgentPrism.SpeechAlignment? left, AgentPrism.SpeechAlignment? right) -> bool
 static AgentPrism.SpeechRequest.operator !=(AgentPrism.SpeechRequest? left, AgentPrism.SpeechRequest? right) -> bool
 static AgentPrism.SpeechRequest.operator ==(AgentPrism.SpeechRequest? left, AgentPrism.SpeechRequest? right) -> bool
 static AgentPrism.SpeechTranscript.operator !=(AgentPrism.SpeechTranscript? left, AgentPrism.SpeechTranscript? right) -> bool

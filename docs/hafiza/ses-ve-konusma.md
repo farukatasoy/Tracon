@@ -41,3 +41,24 @@
   Faz 41): ses ucunun "baskasinin oturumu" reddi bellek ici oturum deposunun
   kiraci-agnostik davranisina dayaniyordu; depo kiraciyla sinirlaninca red
   etkisiz kaldi. Birim degil **fonksiyonel** testler yakaladi.
+- **ElevenLabs'ın zaman damgalı uçları KARAKTER bazlıdır, kelime bazlı DEĞİL**
+  (2026-08-19, Faz 72, K-501): `POST /v1/text-to-speech/{voiceId}/with-timestamps`
+  ve `.../stream/with-timestamps` — ikisi de doğrulandı
+  (`api.elevenlabs.io/openapi.json`, `AudioWithTimestampsResponseModel`/
+  `StreamingAudioChunkWithTimestampsResponseModel`). Yanıt `audio_base64` +
+  `alignment`/`normalized_alignment`; her ikisi de `CharacterAlignmentResponseModel`
+  — `characters`/`character_start_times_seconds`/`character_end_times_seconds`
+  PARALEL dizileri. `alignment` (orijinal metin) kullanılır, `normalized_alignment`
+  (sağlayıcının normalize ettiği metin — sayı/kısaltma açılımı) DEĞİL: ikincisi
+  çağıranın gönderdiği ham metinle hizalanmaz. Yeni bir sağlayıcı entegre
+  edilirken "word-level" varsayılmaz — her sağlayıcının kendi granülerliği
+  ölçülür.
+- **🚨 `ISpeechSynthesizer.SynthesizeStreamingAsync` hizalama TAŞIYAMAZ —
+  `IncludeTimestamps` bu yolda istisna fırlatır, sessizce yok saymaz**
+  (2026-08-19, Faz 72, K-502): dönüş tipi `IAsyncEnumerable<ReadOnlyMemory<byte>>`,
+  yalnız ham ses baytı. ElevenLabs'ın akışlı zaman damgalı ucu (`/stream/with-timestamps`)
+  AYRI bir JSON-parça protokolü konuşur (her parça `audio_base64` + `alignment`
+  taşıyan bir JSON nesnesi) — bugünkü arayüz bunu hiç modelleyemez. Akışta
+  hizalama gerçek bir ihtiyaç olursa `ISpeechSynthesizer`'a yeni bir üye
+  eklemek gerekir (mevcut üye kırılmadan); mevcut `SynthesizeStreamingAsync`'i
+  "bazen JSON bazen ham bayt" döndürecek şekilde değiştirmek K1'i ihlal eder.

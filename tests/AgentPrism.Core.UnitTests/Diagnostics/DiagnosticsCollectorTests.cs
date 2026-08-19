@@ -171,12 +171,14 @@ public sealed class DiagnosticsCollectorTests
 
         public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(
             string agentName,
+            string? culture,
             CancellationToken cancellationToken)
             => throw new InvalidOperationException("relation \"agent_definitions\" does not exist");
 
         public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(
             string agentName,
             int? version,
+            string? culture = null,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("relation \"agent_definitions\" does not exist");
     }

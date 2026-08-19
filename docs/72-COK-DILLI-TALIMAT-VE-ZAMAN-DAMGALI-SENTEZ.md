@@ -1,13 +1,13 @@
 # Faz 72 — Çok Dilli Talimat ve Zaman Damgalı Sentez
 
-> **Durum:** 📋 Planlandı (2026-08-18)
+> **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-117**, **F-118**
 > **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
-> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Voice`, `AgentPrism.Sql.Shared`, `AgentPrism.{PostgreSql,SqlServer,Sqlite}`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
-> **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (talimat sözlüğü). Numara uygulama anında alınır (K-178)
-> **Public API:** **büyüyor** — `AgentDefinition` ve `SpeakRequest`/`SpeakResponse` alan alır. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
-> **Site etkisi:** `concepts/agents.md`, `guides/voice.md`, `reference/configuration.md`
-> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md) · [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Voice`, `AgentPrism.Sql.Shared`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+> **Yeni paket:** Yok · **Migration:** **YOK** — plan yanlıştı, bkz. Plandan Sapmalar ve K-499
+> **Public API:** **büyüdü** — `AgentDefinition.InstructionsByCulture`, `AgentDefinitionRequest.InstructionsByCulture`, `AgentRunRequest.Culture`, `IAgentSource`/`IAgentCatalog`/`IVersionedAgentSource` imzalarına `culture`, `CompiledAgentCache`'e culture'lı aşırı yükler, `InstructionCultureResolver` (yeni tip), `SpeechRequest.IncludeTimestamps`, `SpeechAudio.Alignment`, `SpeechAlignment` (yeni tip), `SpeakRequest.IncludeTimestamps`, `SpeakResponse.Alignment`. `PublicAPI.Shipped.txt` hâlâ boş — bedavaydı.
+> **Site etkisi:** `concepts/agents.md`, `guides/voice.md` güncellendi. `reference/configuration.md`'ye dokunulmadı — gerekçe: bu faz `AgentPrismOptions`/`VoiceOptions`'a yeni bir yapılandırma anahtarı eklemedi (`culture`/`includeTimestamps` istek başına alan, config değil)
+> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md) (MT-MM-091..094) · [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) (MT-CORE-075..081)
 
 ---
 
@@ -284,43 +284,78 @@ listeye kültür girmelidir.
 
 ### F-117
 
-- [ ] Kültür sözlüğü boşken hiçbir davranış değişmez
-- [ ] `tr-TR` → `tr` → varsayılan geri düşüş zinciri çalışır; eşleşmeyen kültür
-      **hata vermez**
-- [ ] `CompiledAgentCache` anahtarı kültürü taşır (Manuel Case 6 kanıtıyla)
-- [ ] `Accept-Language` başlığı talimatı **değiştirmez**
-- [ ] Sürüm diff'i çok dilli metni gösterir
-- [ ] Üç SQL sağlayıcısı + bellek içi sözleşme koşumları geçer
+- [x] Kültür sözlüğü boşken hiçbir davranış değişmez — `InstructionCultureResolutionTests`,
+      MT-CORE-075 (gerçek `samples/AgentPrism.Api` koşumu)
+- [x] `tr-TR` → `tr` → varsayılan geri düşüş zinciri çalışır; eşleşmeyen kültür
+      **hata vermez** — `InstructionCultureResolutionTests`, MT-CORE-076..078
+      (gerçek Anthropic Claude'a karşı koşuldu, bkz. Doğrulama komutları)
+- [x] `CompiledAgentCache` anahtarı kültürü taşır — `CompiledAgentCacheTests.Recompiles_when_the_culture_changes`,
+      `CultureInstructionEndpointTests.Back_to_back_runs...`, MT-CORE-080
+- [x] `Accept-Language` başlığı talimatı **değiştirmez** — `CultureInstructionEndpointTests.Accept_Language_header_is_ignored`,
+      MT-CORE-079
+- [x] Sürüm diff'i çok dilli metni gösterir — `agent-detail.tsx`'te `cultureUnion` ile
+      per-culture `DiffView` bölümü; manuel doğrulama MT-CORE-081 (👤 gerekir)
+- [x] Üç SQL sağlayıcısı + bellek içi sözleşme koşumları geçer — `AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields`,
+      gerçek Postgres (1118/1118), SqlServer (558/558), Sqlite (572/572) koşuldu
 
 ### F-118
 
-- [ ] `includeTimestamps` verilmediğinde bugünkü yanıt birebir aynı
-- [ ] `includeTimestamps: true` hizalama listesi döner; çıktı belgeye yazıldı
-- [ ] Sağlayıcı desteklemiyorsa `null` döner — hata değil
-- [ ] Akışlı yol davranışı ölçüldü ve belgelendi
-- [ ] Maliyet muhasebesi değişmedi
+- [x] `includeTimestamps` verilmediğinde bugünkü yanıt birebir aynı —
+      `ElevenLabsSpeechClientTests.Without_IncludeTimestamps_alignment_is_null_and_the_plain_path_is_used`,
+      `VoiceEndpointTests.IncludeTimestamps_false_returns_no_alignment`, MT-MM-091
+- [x] `includeTimestamps: true` hizalama listesi döner; çıktı belgeye yazıldı —
+      MT-MM-092, gerçek ElevenLabs'a karşı koşuldu (bkz. Doğrulama komutları:
+      "Hello world" → 11 karakterlik hizalama, artan `start`/`end`)
+- [x] Sağlayıcı desteklemiyorsa `null` döner — hata değil —
+      `ElevenLabsSpeechClientTests.Missing_alignment_in_a_timestamped_response_yields_null_not_an_error`,
+      `Mismatched_alignment_array_lengths_yield_null_rather_than_throwing`
+- [x] Akışlı yol davranışı ölçüldü ve belgelendi — **desteklenmiyor, açıkça
+      reddediliyor**: `ElevenLabsSpeechClientTests.Streaming_synthesis_rejects_IncludeTimestamps_explicitly`,
+      K-502, MT-MM-093
+- [x] Maliyet muhasebesi değişmedi — `VoiceEndpointTests.IncludeTimestamps_true_returns_the_alignment_and_the_same_cost_accounting`,
+      MT-MM-094 (gerçek ElevenLabs'a karşı: `characters`/`cost` iki çağrıda birebir aynı)
 
 ### Ortak
 
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`
+      tüm çözümde 0 uyarı/0 hata (bu kapanıştan hemen önce yeniden koşuldu)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
+      aşağıdaki Doğrulama komutları bölümü gerçek çıktı taşır
+- [x] `secret` taraması boş döndü — bu fazın eklediği hiçbir dosyada eşleşme yok
+      (taramanın gösterdiği tüm satırlar önceki fazlardan kalma, yerel dev
+      şifreleri/örnek metinler)
+- [x] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler
+      koşuldu — MT-CORE-075..081, MT-MM-091..094; HTTP ile koşulabilenler
+      (075-080, 091-094) gerçek sunucuya karşı çalıştırıldı, 081 ve MT-MM-093'ün
+      insan-gerekli/otomatik parçaları işaretlendi
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1 🔴 bulundu
+      (`SourceLanguageTests` ihlali, test verisindeki Türkçe örnek metin) ve
+      düzeltildi; 2 🟡 kararlara yazıldı (K-503, K-504); 3 🟢 ADAYLAR.md'ye
+      (F-123) veya kapsam dışı bırakıldı
+- [x] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz —
+      `concepts/agents.md`, `guides/voice.md`
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı —
+      `i18n.test.ts` geçti; javascript 173.5 KB gzip / embedded 148.8 KB brotli
+      (budget 250 KB), Faz 68 sonrası ölçülen 151.3 KB'den **düşük**
+      (araya giren fazların küçültmesi bu fazın payını maskeliyor; ayrı
+      ölçülemedi)
 
-### Doğrulama komutları
+### Doğrulama komutları — gerçek çıktı (2026-08-19, `samples/AgentPrism.Api`, gerçek Anthropic + ElevenLabs)
 
 ```bash
-# Kültür çözümlemesi
-curl -s -X POST http://localhost:5081/agentprism/api/agents/greeter/run \
-  -H 'content-type: application/json' -d '{"message":"merhaba","culture":"tr"}' | jq -r '.text'
+# Kültür çözümlemesi — agent instructionsByCulture={"tr": "..."} ile oluşturuldu
+curl -s -X POST "$APU/api/agents/faz72-polyglot/run" -H "$APB" -H 'content-type: application/json' \
+  -H 'Idempotency-Key: demo' -d '{"message":"how are you?","culture":"tr"}' | jq -r '.response.messages[0].contents[0].text'
+# → "İyiyim, teşekkür ederim, sen nasılsın?"
 
-# Hizalama
-curl -s -X POST http://localhost:5081/agentprism/api/voice/speak \
-  -H 'content-type: application/json' -d '{"text":"merhaba dunya","includeTimestamps":true}' \
-  | jq '.alignment | length'
+curl -s -X POST "$APU/api/agents/faz72-polyglot/run" -H "$APB" -H 'content-type: application/json' \
+  -H 'Idempotency-Key: demo2' -d '{"message":"how are you?","culture":"de"}' | jq -r '.response.messages[0].contents[0].text'
+# → "I'm doing well, thank you for asking!"  (de eşleşmiyor, varsayılana düşer — hata YOK)
+
+# Hizalama — gerçek ElevenLabs
+curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H 'content-type: application/json' \
+  -d '{"text":"Hello world","voiceId":"hpp4J3VqNfWAUOO0d1Us","includeTimestamps":true}' | jq '.alignment | length'
+# → 11  ("Hello world" = 11 karakter)
 ```
 
 ---
@@ -345,24 +380,239 @@ curl -s -X POST http://localhost:5081/agentprism/api/voice/speak \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+1. **Migration seti yazılmadı (K-499).** Plan "üç migration seti gerekli" diyordu.
+   Uygulama başlamadan önce ölçüldü: `agent_definitions.definition` zaten TÜM
+   `AgentDefinition` içeriğini `jsonb` blob'unda taşıyor (`AgentDefinitionPayload`,
+   K-027'nin polimorfik-olmayan istisnası); `InstructionsByCulture` yeni bir
+   sütun değil, mevcut blob'un yeni bir alanıdır. Bu, `faz-uygulama` Adım 1'in
+   ("planın yapısal iddiasını kabul etmeden ölç") tam bir örneğidir.
+2. **`SpeechAlignment` KARAKTER bazlıdır, planın taslağı "word-level"
+   varsayıyordu (K-501).** Plan bunu bilerek "doğrulanmadı" işaretlemişti
+   (Açık Soru 4). ElevenLabs'ın gerçek OpenAPI şeması (`api.elevenlabs.io/openapi.json`,
+   doğrulandı) `CharacterAlignmentResponseModel` döner — karakter granülerliği.
+   `SpeechAlignment.Character` alan adı `Text` değil `Character`'dır.
+3. **`Tools/SpeakTool.cs`'e dokunulmadı (K-504).** Plan dosya listesi bunu
+   "değişir" diye işaretlemişti. Model-çağrılabilir `speak` tool'unun şeması
+   `includeTimestamps` almaz; hizalama yalnız operatör HTTP yolunda
+   (`POST /api/voice/speak`) — planın kendi HTTP uç tablosu zaten yalnız o
+   ucu adlandırıyordu.
+4. **Kültür yalnız KÖK agent'ın derlenmesinde kullanılır (K-503, denetimde
+   bulundu).** `CallableAgentResolver`/`ChildAgentInvoker`, `EvalJobHandler`,
+   `RunReplayService` her zaman `culture: null` çözümler. Plan bu sınırı
+   adlandırmadı; ADAYLAR.md'ye F-123 olarak yazıldı.
+5. **`IAgentSource`/`IAgentCatalog`/`IVersionedAgentSource` imzaları
+   değiştirildi, yeni aşırı yükleme eklenmedi.** `culture` parametresi mevcut
+   `ResolveAsync`/`ResolveVersionAsync` metotlarına eklendi (yeni bir aşırı
+   yükleme değil) — pakette hiçbir şey henüz yayınlanmadığı için (`PublicAPI.Shipped.txt`
+   boş) kırıcı değişiklik bedavaydı; ~20 üretim çağrı yeri ve ~9 test dosyası
+   mekanik olarak güncellendi (imza değişikliği derleyiciyi zorladı).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-499, K-500, K-501, K-502, K-503, K-504 — bkz. `docs/KARARLAR.md`. Ayrıca
+kapsam dışı archival: K-422 ve K-389'un tam gerekçesi `docs/arsiv/KARARLAR-GECMISI.md`'ye
+taşındı (`KARARLAR.md` bütçesini bu fazın altı yeni kararı aştırdığı için —
+içerik silinmedi, taşındı).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// AgentPrism.Abstractions — F-117
+public sealed record AgentDefinition
+{
+    // ... mevcut alanlar ...
+    public IReadOnlyDictionary<string, string>? InstructionsByCulture { get; init; }
+}
+
+public interface IAgentSource
+{
+    ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default);
+}
+
+public interface IAgentCatalog
+{
+    ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken);
+    ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default);
+}
+
+public interface IVersionedAgentSource : IAgentSource
+{
+    ValueTask<AIAgent?> ResolveVersionAsync(string agentName, int version, string? culture = null, CancellationToken cancellationToken = default);
+}
+
+public static class InstructionCultureResolver
+{
+    public static string? Resolve(AgentDefinition definition, string? culture);
+}
+
+public sealed class CompiledAgentCache
+{
+    // Yeni aşırı yükler — culture parametresi son (factory'den önce)
+    public AIAgent GetOrAdd(string tenantId, string name, int version, string dependencyFingerprint, string culture, Func<AIAgent> factory);
+    public ValueTask<AIAgent> GetOrAddAsync(string tenantId, string name, int version, string dependencyFingerprint, string culture, Func<ValueTask<AIAgent>> factory);
+}
+
+// AgentPrism.AspNetCore — F-117
+public sealed record AgentRunRequest
+{
+    // ... mevcut alanlar ...
+    public string? Culture { get; init; }
+}
+
+public sealed record AgentDefinitionRequest
+{
+    // ... mevcut alanlar ...
+    public IReadOnlyDictionary<string, string>? InstructionsByCulture { get; init; }
+}
+
+// AgentPrism.Abstractions — F-118
+public sealed record SpeechRequest
+{
+    // ... mevcut alanlar ...
+    public bool IncludeTimestamps { get; init; }
+}
+
+public sealed class SpeechAudio
+{
+    // ... mevcut alanlar ...
+    public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
+}
+
+public sealed record SpeechAlignment
+{
+    public required string Character { get; init; }   // KARAKTER, kelime DEĞİL — bkz. Plandan Sapmalar #2
+    public required TimeSpan Start { get; init; }
+    public required TimeSpan End { get; init; }
+}
+
+// AgentPrism.AspNetCore — F-118
+public sealed record SpeakRequest
+{
+    // ... mevcut alanlar ...
+    public bool IncludeTimestamps { get; init; }
+}
+
+public sealed record SpeakResponse
+{
+    // ... mevcut alanlar ...
+    public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
+}
+```
+
+### HTTP `endpoint`'leri (gerçekleşen — plandakiyle aynı)
+
+| Metot | Yol | Gövde/yanıt eklentisi |
+|---|---|---|
+| `POST` | `/api/agents/{name}/run` | Gövdeye `culture` |
+| `PUT`/`POST` | `/api/agents` (`AgentDefinitionRequest`) | Gövdeye `instructionsByCulture` |
+| `POST` | `/api/voice/speak` | Gövdeye `includeTimestamps`, yanıta `alignment` |
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Agents/AgentDefinition.cs               (değişti — InstructionsByCulture)
+├── Agents/IAgentSource.cs                  (değişti — culture parametresi)
+├── Agents/IAgentCatalog.cs                 (değişti — culture parametresi, iki metot)
+├── Agents/IVersionedAgentSource.cs         (değişti — culture parametresi)
+└── Voice/SpeechModels.cs                   (değişti — IncludeTimestamps, Alignment, SpeechAlignment YENİ)
+    Voice/SpeechContracts.cs                (değişti — SpeakRequest.IncludeTimestamps, SpeakResponse.Alignment)
+
+src/AgentPrism.Core/
+├── Compilation/InstructionCultureResolver.cs   (YENİ)
+├── Compilation/CompiledAgentCache.cs           (değişti — Culture anahtar bileşeni)
+├── Compilation/AgentDefinitionCompiler.cs      (değişti — culture Compile/CompileAsync'e eklendi)
+├── Compilation/AgentDefinitionValidator.cs     (değişti — çağrı yeri düzeltmesi)
+├── Catalog/CodeAgentSource.cs                  (değişti)
+├── Catalog/DefinitionStoreAgentSource.cs       (değişti)
+├── Catalog/CompositeAgentCatalog.cs            (değişti)
+├── Graph/CallableAgentResolver.cs              (değişti — çağrı yeri, culture: null)
+├── Replay/RunReplayService.cs                  (değişti — çağrı yeri, culture: null)
+├── Evaluation/EvalJobHandler.cs                (değişti — çağrı yeri, culture: null)
+├── Scheduling/Agent{Batch,Run}JobHandler.cs    (değişti — çağrı yeri, culture: null)
+├── Approvals/ApprovalResumeJobHandler.cs       (değişti — çağrı yeri, culture: null)
+├── Sessions/ConversationBranchService.cs       (değişti — çağrı yeri, culture: null)
+├── Privacy/SessionConversationResolver.cs      (değişti — çağrı yeri, culture: null)
+└── Voice/VoiceConversationDriver.cs            (değişti — çağrı yeri, culture: null)
+
+src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs   (değişti — InstructionsByCulture, migration YOK)
+
+src/AgentPrism.AspNetCore/
+├── Contracts/AgentContracts.cs                 (değişti — AgentRunRequest.Culture, AgentDefinitionRequest.InstructionsByCulture)
+├── Endpoints/AgentEndpoints.cs                 (değişti — request.Culture iki run yoluna geçirildi)
+├── Endpoints/VoiceEndpoints.cs                 (değişti — IncludeTimestamps/Alignment geçirildi)
+├── A2A/ExternalAgentProxy.cs                   (değişti — çağrı yeri)
+├── Internal/ChatHistoryReader.cs               (değişti — çağrı yeri)
+├── McpServer/CatalogToolCallHandler.cs         (değişti — çağrı yeri)
+└── OpenAICompat/OpenAI{ChatCompletions,Responses}Endpoints.cs   (değişti — çağrı yeri)
+
+src/AgentPrism.Voice/Internal/
+├── ElevenLabsJson.cs                (değişti — ElevenLabsAudioWithTimestampsResponse, ElevenLabsCharacterAlignment YENİ DTO'lar)
+└── ElevenLabsSpeechClient.cs        (değişti — SynthesizeWithTimestampsAsync, ReadTimestampedAudioAsync, ToAlignment,
+                                       SynthesizeStreamingAsync artık IncludeTimestamps'i reddediyor)
+
+src/AgentPrism.UI/frontend/src/
+├── screens/agent-editor.tsx         (değişti — Instructions by culture bölümü)
+├── screens/agent-detail.tsx         (değişti — sürüm diff'inde per-culture bölüm)
+├── lib/types.ts                     (değişti — instructionsByCulture alanları)
+└── locales/{en,tr}.ts               (değişti)
+
+tests/
+├── AgentPrism.Core.UnitTests/Compilation/InstructionCultureResolutionTests.cs   (YENİ)
+├── AgentPrism.Core.UnitTests/Compilation/CompiledAgentCacheTests.cs             (değişti — iki yeni test)
+├── AgentPrism.Core.UnitTests/{Catalog,Diagnostics,Evaluation,Scheduling,Graph,Fakes}/*  (değişti — fake imza güncellemesi)
+├── AgentPrism.Voice.UnitTests/ElevenLabsSpeechClientTests.cs                    (değişti — 8 yeni test)
+├── AgentPrism.AspNetCore.FunctionalTests/CultureInstructionEndpointTests.cs     (YENİ)
+├── AgentPrism.AspNetCore.FunctionalTests/VoiceEndpointTests.cs                  (değişti — 2 yeni test)
+├── AgentPrism.Workflows.UnitTests/Fakes/WorkflowTestHost.cs                     (değişti — fake imza güncellemesi)
+├── Shared/Contracts/AgentDefinitionStoreContract.cs                            (değişti — round-trip testine InstructionsByCulture eklendi)
+└── AgentPrism.PostgreSql.IntegrationTests/*, AgentPrism.AspNetCore.FunctionalTests/AgentDelegationTests.cs  (değişti — çağrı yeri)
+
+docs-site/src/content/docs/
+├── concepts/agents.md               (değişti — Culture-keyed instructions bölümü)
+└── guides/voice.md                  (değişti — Character-level timing bölümü)
+
+docs/manuel-test/
+├── 02-CEKIRDEK-VE-KATALOG.md        (değişti — MT-CORE-075..081)
+└── 19-COK-MODLULUK-VE-SES.md        (değişti — MT-MM-091..094)
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+Bağımsız denetim taze bağlamlı bir alt agent ile koşuldu (`.agents/skills/faz-denetim/SKILL.md`).
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | `SourceLanguageTests` ihlali: test verisindeki örnek talimat metni gerçek Türkçe sözcükler taşıyordu (`tests/**` K-408 kapsamında) | **Düzeltildi** — `CultureInstructionEndpointTests.cs` ve `AgentDefinitionStoreContract.cs`'teki örnek metinler İngilizce köklü, dil-nötr placeholder'a çevrildi (`"Answer using the tr/fr culture text."`); `dotnet test` yeniden koşuldu, 998/998 |
+| 2 | 🟡 | `CallableAgentResolver` her zaman `culture: null` gönderiyor — alt agent ebeveynin kültürünü görmez | **Gerekçelendi** — K-503 olarak karar defterine yazıldı; F-123 olarak ADAYLAR.md'ye eklendi |
+| 3 | 🟡 | Planlanan dosya listesi `Tools/SpeakTool.cs`'in değişeceğini söylüyordu, dokunulmadı | **Gerekçelendi** — K-504 olarak karar defterine yazıldı, Plandan Sapmalar #3 |
+| 4 | 🟢 | `EvalJobHandler` kültüre özgü talimatı test edemiyor | ADAYLAR.md F-123'e dahil edildi |
+| 5 | 🟢 | `RunReplayService` orijinal `run`'ın kültürünü saklamadığı için yeniden oynatma kültürü koruyamıyor | ADAYLAR.md F-123'e dahil edildi |
+| 6 | 🟢 | `agent-editor.tsx`'te kültür satırları `key={index}` kullanıyor | Devredilmedi — kontrollü input deseni (mevcut `fallbacks` listesiyle aynı desen) satır silindiğinde değer kaymasını önlüyor; gerçek bir kusur değil |
+
+🔴 kapandıktan sonra dört kapı (`build`/`test`/`pack`/`format`) yeniden koşuldu — hepsi 0 uyarı/0 hata.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+- **Kültür yalnız kök agent'ta çalışır (K-503/F-123).** Faz 73 (tüketici agent
+  desteği) veya sonrası çok dilli bir alt-agent zinciri isterse önce `run`
+  kaydına kültür alanı eklemek gerekir — bugün hiçbir yerde saklanmıyor.
+- **`InstructionCultureResolver.Resolve` saf bir statik fonksiyondur** —
+  `AgentDefinitionCompiler`'ın DIŞINDA, bağımsız test edilebilir. Yeni bir
+  kültür kaynağı (ör. oturum bazlı varsayılan) eklenirse buraya dokunulur.
+  `CompiledAgentCache`'in culture'ı anahtara EKLEMESİ gerektiğini unutma —
+  yeni bir istek-bazlı boyut eklerken bu deseni tekrarla (bkz. K-380'in aynı
+  dersi tenant için verdiği).
+- **`SpeechAlignment` karakter bazlıdır.** Bir tüketici kelime/cümle
+  granülerliği isterse (altyazı üretimi gibi) bu AgentPrism'in işi değil —
+  `docs/72`'nin kapsam dışı tablosu ve `docs-site/guides/voice.md` bunu açıkça
+  söylüyor. Yanlışlıkla "AgentPrism SRT üretsin" gibi bir işe girişilmesin.
+- **Akışlı zaman damgalı sentez YAZILMADI (K-502).** ElevenLabs'ın
+  `/stream/with-timestamps` ucu ayrı bir JSON-parça protokolü konuşur; bugünkü
+  `ISpeechSynthesizer.SynthesizeStreamingAsync` imzası bunu taşıyamaz. Gerçek
+  bir ihtiyaç ölçülürse yeni bir arayüz üyesi gerekir (mevcut üye
+  kırılmadan) — `docs/hafiza/ses-ve-konusma.md`'de şema notu var.
+- **`docs/KARARLAR.md` bütçesi bu fazda aşıldı ve iki eski karar (K-389,
+  K-422) arşive taşındı.** Bir sonraki faz altı+ yeni karar eklerse aynı
+  duruma düşer — `python3 scripts/dokuman-bakim.py` erken koşulmalı, bütçe
+  aşımı fazın SONUNDA sürpriz olmasın.

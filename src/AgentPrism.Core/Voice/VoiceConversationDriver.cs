@@ -417,7 +417,7 @@ public sealed class VoiceConversationDriver
 
             try
             {
-                _agent = await driver._catalog.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+                _agent = await driver._catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
             }
             catch (AgentPrismException exception)
             {

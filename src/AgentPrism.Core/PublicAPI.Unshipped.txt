@@ -13,11 +13,13 @@ AgentPrism.AgentDefinitionCompiler
 AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5) -> void
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents) -> Microsoft.Agents.AI.AIAgent!
-AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform) -> Microsoft.Agents.AI.AIAgent!
-AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
-AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture = null) -> Microsoft.Agents.AI.AIAgent!
+AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.InstructionCultureResolver
+static AgentPrism.InstructionCultureResolver.Resolve(AgentPrism.AgentDefinition! definition, string? culture) -> string?
 AgentPrism.AgentDefinitionValidator
 AgentPrism.AgentDefinitionValidator.AgentDefinitionValidator(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, AgentPrism.AgentSkillCatalog! skills, AgentPrism.IAgentCatalog! catalog, AgentPrism.AgentDefinitionCompiler! compiler, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options, AgentPrism.IMcpToolRefresher? mcpRefresher = null) -> void
 AgentPrism.AgentDefinitionValidator.ValidateAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentValidationReport!>
@@ -478,7 +480,7 @@ AgentPrism.CodeAgentSource.CodeAgentSource(System.Collections.Generic.IEnumerabl
 AgentPrism.CodeAgentSource.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
 AgentPrism.CodeAgentSource.Name.get -> string!
 AgentPrism.CodeAgentSource.Priority.get -> int
-AgentPrism.CodeAgentSource.ResolveAsync(string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.CodeAgentSource.ResolveAsync(string! agentName, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.CompiledAgentCache
 AgentPrism.CompiledAgentCache.Clear() -> void
 AgentPrism.CompiledAgentCache.CompiledAgentCache() -> void
@@ -486,12 +488,14 @@ AgentPrism.CompiledAgentCache.Count.get -> int
 AgentPrism.CompiledAgentCache.Evict(string! name) -> void
 AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
+AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.CompositeAgentCatalog
 AgentPrism.CompositeAgentCatalog.CompositeAgentCatalog(System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! sources, System.Collections.Generic.IEnumerable<AgentPrism.IAgentDecorator!>! decorators, Microsoft.Extensions.Logging.ILogger<AgentPrism.CompositeAgentCatalog!>! logger) -> void
 AgentPrism.CompositeAgentCatalog.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
-AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
-AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, int? version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, int? version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.ContentGuardPipeline
 AgentPrism.ContentGuardPipeline.ContentGuardPipeline(System.Collections.Generic.IEnumerable<AgentPrism.IContentGuard!>! guards, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismContentGuardOptions!>! options, AgentPrism.IAuditLog! auditLog, AgentPrism.IAuditActorResolver! actorResolver, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory) -> void
 AgentPrism.ContentGuardPipeline.HasGuards.get -> bool
@@ -519,8 +523,8 @@ AgentPrism.DefinitionStoreAgentSource.DefinitionStoreAgentSource(AgentPrism.IAge
 AgentPrism.DefinitionStoreAgentSource.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
 AgentPrism.DefinitionStoreAgentSource.Name.get -> string!
 AgentPrism.DefinitionStoreAgentSource.Priority.get -> int
-AgentPrism.DefinitionStoreAgentSource.ResolveAsync(string! agentName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
-AgentPrism.DefinitionStoreAgentSource.ResolveVersionAsync(string! agentName, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.DefinitionStoreAgentSource.ResolveAsync(string! agentName, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.DefinitionStoreAgentSource.ResolveVersionAsync(string! agentName, int version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.EvalCheckRegistry
 AgentPrism.EvalCheckRegistry.BuildChecks(System.Text.Json.JsonElement checks) -> System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.EvalCheck!>!
 AgentPrism.EvalCheckRegistry.EvalCheckRegistry(System.Collections.Generic.IEnumerable<AgentPrism.AgentPrismEvalCheckRegistration!>! registrations) -> void

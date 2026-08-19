@@ -47,7 +47,7 @@ internal static class ChatHistoryReader
     {
         try
         {
-            var agent = await catalog.ResolveAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
+            var agent = await catalog.ResolveAsync(record.AgentName, culture: null, cancellationToken).ConfigureAwait(false);
 
             if (agent is null)
             {

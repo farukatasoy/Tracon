@@ -25,6 +25,24 @@ new AgentDefinition
 Because it is data, it can be edited without a deployment — and versioned, diffed,
 rolled back, and A/B tested. That is the whole reason for the shape.
 
+## Culture-keyed instructions
+
+`InstructionsByCulture` maps a culture tag (`"en"`, `"tr"`) to its own instructions
+text. `POST /api/agents/{name}/run` accepts an optional `culture` field; the compiler
+resolves it in this order:
+
+1. An exact match (`culture: "tr"` → the `"tr"` entry)
+2. The requested culture's parent subtag (`"tr-TR"` → the `"tr"` entry)
+3. `Instructions` — the default, used whenever nothing else matches
+
+An unmatched culture never fails the run; it falls back to the default. The
+`Accept-Language` HTTP header is not consulted — a browser header silently changing
+the content sent to the model would be a surprise, so the culture is always an
+explicit field on the request.
+
+A compiled agent is cached per resolved culture: two runs of the same agent in
+different cultures never share a compiled instance.
+
 ## Where agents come from
 
 The catalog merges two sources, in priority order:

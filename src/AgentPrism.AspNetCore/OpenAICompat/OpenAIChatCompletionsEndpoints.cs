@@ -102,7 +102,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
         try
         {
-            agent = await catalog.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {

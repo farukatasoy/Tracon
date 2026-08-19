@@ -327,7 +327,7 @@ public sealed class AgentDefinitionValidator
         {
             var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-            _ = await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+            _ = await _compiler.CompileAsync(definition, callable, culture: null, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismCompilationException ex)
         {

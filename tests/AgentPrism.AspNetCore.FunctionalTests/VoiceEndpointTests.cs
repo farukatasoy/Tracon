@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -84,6 +85,50 @@ public sealed class VoiceEndpointTests
 
         download.EnsureSuccessStatusCode();
         download.Content.Headers.ContentType?.MediaType.ShouldBe("audio/mpeg");
+    }
+
+    [Fact]
+    public async Task IncludeTimestamps_false_returns_no_alignment()
+    {
+        await using var host = await StartWithVoiceAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/voice/speak", UriKind.Relative),
+            new { text = "hi" });
+
+        response.EnsureSuccessStatusCode();
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        (!body.TryGetProperty("alignment", out var alignment) || alignment.ValueKind == JsonValueKind.Null)
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task IncludeTimestamps_true_returns_the_alignment_and_the_same_cost_accounting()
+    {
+        await using var host = await StartWithVoiceAsync();
+
+        using var plain = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/voice/speak", UriKind.Relative),
+            new { text = "hi" });
+        plain.EnsureSuccessStatusCode();
+        var plainBody = await AgentPrismTestHost.ReadJsonAsync(plain);
+
+        using var timestamped = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/voice/speak", UriKind.Relative),
+            new { text = "hi", includeTimestamps = true });
+        timestamped.EnsureSuccessStatusCode();
+        var timestampedBody = await AgentPrismTestHost.ReadJsonAsync(timestamped);
+
+        var alignment = timestampedBody.GetProperty("alignment");
+        alignment.GetArrayLength().ShouldBe(2);
+        alignment[0].GetProperty("character").GetString().ShouldBe("h");
+        alignment[1].GetProperty("character").GetString().ShouldBe("i");
+
+        // Alignment is not a separate billing unit (docs/72, section 72.2, rule 3).
+        timestampedBody.GetProperty("characters").GetInt32().ShouldBe(plainBody.GetProperty("characters").GetInt32());
+        timestampedBody.GetProperty("isEstimated").GetBoolean().ShouldBe(plainBody.GetProperty("isEstimated").GetBoolean());
     }
 
     [Fact]
@@ -175,7 +220,25 @@ public sealed class VoiceEndpointTests
                 MediaType = "audio/mpeg",
                 CharactersBilled = request.Text.Length,
                 UsageSource = SpeechUsageSource.Provider,
+                Alignment = request.IncludeTimestamps ? BuildAlignment(request.Text) : null,
             });
+
+        private static List<SpeechAlignment> BuildAlignment(string text)
+        {
+            var result = new List<SpeechAlignment>(text.Length);
+
+            for (var index = 0; index < text.Length; index++)
+            {
+                result.Add(new SpeechAlignment
+                {
+                    Character = text[index].ToString(),
+                    Start = TimeSpan.FromSeconds(index * 0.1),
+                    End = TimeSpan.FromSeconds((index + 1) * 0.1),
+                });
+            }
+
+            return result;
+        }
 
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
             SpeechRequest request,

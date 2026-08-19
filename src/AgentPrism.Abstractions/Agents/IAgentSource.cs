@@ -38,7 +38,12 @@ public interface IAgentSource
 
     /// <summary>Resolves the agent with the given name and makes it runnable.</summary>
     /// <param name="agentName">The agent name.</param>
+    /// <param name="culture">
+    /// The requested culture, resolved against the definition's culture-keyed instructions
+    /// (see <c>AgentDefinition.InstructionsByCulture</c>). <see langword="null"/> uses the
+    /// definition's default instructions.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The agent, or <see langword="null"/> when this source does not hold it.</returns>
-    ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default);
+    ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default);
 }

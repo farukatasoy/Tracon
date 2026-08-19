@@ -125,7 +125,7 @@ public sealed class ConversationBranchService
                 "an existing session; give a different id or leave it empty to have one generated.");
         }
 
-        var agent = await _catalog.ResolveAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
+        var agent = await _catalog.ResolveAsync(record.AgentName, culture: null, cancellationToken).ConfigureAwait(false);
 
         if (agent is null)
         {

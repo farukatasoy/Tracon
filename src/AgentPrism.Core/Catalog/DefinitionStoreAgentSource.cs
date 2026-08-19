@@ -74,7 +74,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
 
@@ -94,7 +94,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         // CompiledAgentCache entirely in that case — independent audit finding.
         if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
         {
-            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+            return await _compiler.CompileAsync(definition, callable, culture, cancellationToken).ConfigureAwait(false);
         }
 
         return await _cache.GetOrAddAsync(
@@ -102,11 +102,16 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
+            culture ?? string.Empty,
+            () => _compiler.CompileAsync(definition, callable, culture, cancellationToken)).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveVersionAsync(string agentName, int version, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveVersionAsync(
+        string agentName,
+        int version,
+        string? culture = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
 
@@ -124,7 +129,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         // be cached.
         if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
         {
-            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+            return await _compiler.CompileAsync(definition, callable, culture, cancellationToken).ConfigureAwait(false);
         }
 
         return await _cache.GetOrAddAsync(
@@ -132,6 +137,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
+            culture ?? string.Empty,
+            () => _compiler.CompileAsync(definition, callable, culture, cancellationToken)).ConfigureAwait(false);
     }
 }

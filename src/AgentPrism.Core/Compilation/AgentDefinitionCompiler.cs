@@ -160,7 +160,7 @@ public sealed class AgentDefinitionCompiler
     /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
     public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents)
-        => Compile(definition, callableAgents, toolTransform: null);
+        => Compile(definition, callableAgents, toolTransform: null, culture: null);
 
     /// <summary>
     /// Compiles a definition together with its resolved sub-agents, transforming its tools.
@@ -172,6 +172,11 @@ public sealed class AgentDefinitionCompiler
     /// <param name="toolTransform">
     /// Transform applied to every tool resolved from the registry. When <see langword="null"/>,
     /// tools are bound as-is.
+    /// </param>
+    /// <param name="culture">
+    /// The requested culture, resolved against <see cref="AgentDefinition.InstructionsByCulture"/>
+    /// (see <see cref="InstructionCultureResolver"/>). <see langword="null"/> uses
+    /// <see cref="AgentDefinition.Instructions"/> unconditionally.
     /// </param>
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
@@ -202,11 +207,12 @@ public sealed class AgentDefinitionCompiler
     public AIAgent Compile(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
-        Func<AIFunction, AIFunction>? toolTransform)
+        Func<AIFunction, AIFunction>? toolTransform,
+        string? culture = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        return BuildAgent(definition, callableAgents, toolTransform, CreateChatClient(definition));
+        return BuildAgent(definition, callableAgents, toolTransform, culture, CreateChatClient(definition));
     }
 
     /// <summary>Converts a definition into an executable agent (phase 65, BYOK).</summary>
@@ -227,7 +233,7 @@ public sealed class AgentDefinitionCompiler
     /// to the sync overload (K1).
     /// </remarks>
     public ValueTask<AIAgent> CompileAsync(AgentDefinition definition, CancellationToken cancellationToken)
-        => CompileAsync(definition, ResolvedCallableAgents.Empty, cancellationToken);
+        => CompileAsync(definition, ResolvedCallableAgents.Empty, culture: null, cancellationToken);
 
     /// <summary>
     /// Converts a definition, together with its resolved sub-agents, into an executable agent
@@ -237,6 +243,7 @@ public sealed class AgentDefinitionCompiler
     /// <param name="callableAgents">
     /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
     /// </param>
+    /// <param name="culture">See <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction}, string)"/>.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
@@ -244,8 +251,9 @@ public sealed class AgentDefinitionCompiler
     public ValueTask<AIAgent> CompileAsync(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
+        string? culture,
         CancellationToken cancellationToken)
-        => CompileAsync(definition, callableAgents, toolTransform: null, cancellationToken);
+        => CompileAsync(definition, callableAgents, toolTransform: null, culture, cancellationToken);
 
     /// <summary>
     /// Compiles a definition together with its resolved sub-agents, transforming its tools
@@ -257,7 +265,10 @@ public sealed class AgentDefinitionCompiler
     /// </param>
     /// <param name="toolTransform">
     /// Transform applied to every tool resolved from the registry. See
-    /// <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction})"/>.
+    /// <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction}, string)"/>.
+    /// </param>
+    /// <param name="culture">
+    /// See <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction}, string)"/>.
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
@@ -267,13 +278,14 @@ public sealed class AgentDefinitionCompiler
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
         Func<AIFunction, AIFunction>? toolTransform,
+        string? culture,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
         var chatClient = await CreateChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return BuildAgent(definition, callableAgents, toolTransform, chatClient);
+        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient);
     }
 
     /// <summary>
@@ -296,6 +308,7 @@ public sealed class AgentDefinitionCompiler
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
         Func<AIFunction, AIFunction>? toolTransform,
+        string? culture,
         IChatClient chatClient)
     {
         var tools = ResolveTools(definition);
@@ -316,7 +329,7 @@ public sealed class AgentDefinitionCompiler
             }
         }
 
-        var chatOptions = BuildChatOptions(definition, tools);
+        var chatOptions = BuildChatOptions(definition, tools, culture);
 
         return definition.Harness is null
             ? CompileChatAgent(definition, chatClient, chatOptions, callableAgents)
@@ -484,11 +497,11 @@ public sealed class AgentDefinitionCompiler
         return tools;
     }
 
-    private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools)
+    private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture)
     {
         var options = new ChatOptions
         {
-            Instructions = definition.Instructions,
+            Instructions = InstructionCultureResolver.Resolve(definition, culture),
             ModelId = definition.Model.Model,
             Temperature = definition.Model.Temperature,
             TopP = definition.Model.TopP,

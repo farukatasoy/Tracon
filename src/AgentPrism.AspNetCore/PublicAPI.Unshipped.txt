@@ -27,6 +27,8 @@ AgentPrism.AgentDefinitionRequest.Harness.get -> AgentPrism.HarnessSettings?
 AgentPrism.AgentDefinitionRequest.Harness.init -> void
 AgentPrism.AgentDefinitionRequest.Instructions.get -> string?
 AgentPrism.AgentDefinitionRequest.Instructions.init -> void
+AgentPrism.AgentDefinitionRequest.InstructionsByCulture.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.AgentDefinitionRequest.InstructionsByCulture.init -> void
 AgentPrism.AgentDefinitionRequest.Memory.get -> AgentPrism.MemorySettings?
 AgentPrism.AgentDefinitionRequest.Memory.init -> void
 AgentPrism.AgentDefinitionRequest.Model.get -> AgentPrism.ModelBinding!
@@ -181,6 +183,8 @@ AgentPrism.ClientToolResult.<Clone>$() -> AgentPrism.ClientToolResult!
 AgentPrism.AgentRunRequest.Equals(AgentPrism.AgentRunRequest? other) -> bool
 AgentPrism.AgentRunRequest.Message.get -> string?
 AgentPrism.AgentRunRequest.Message.init -> void
+AgentPrism.AgentRunRequest.Culture.get -> string?
+AgentPrism.AgentRunRequest.Culture.init -> void
 AgentPrism.AgentRunRequest.SessionId.get -> string?
 AgentPrism.AgentRunRequest.SessionId.init -> void
 AgentPrism.AgentSkillRequest

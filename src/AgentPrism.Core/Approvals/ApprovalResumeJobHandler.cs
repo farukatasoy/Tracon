@@ -64,7 +64,7 @@ internal sealed class ApprovalResumeJobHandler(
 
         try
         {
-            agent = await catalog.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false)
+            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
                     $"The agent named '{agentName}' was not found. The job will be marked as failed.");
 

@@ -3,7 +3,7 @@ using Microsoft.Agents.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>
-/// A fake catalog that returns a fixed descriptor list. <see cref="ResolveAsync(string, CancellationToken)"/>
+/// A fake catalog that returns a fixed descriptor list. <see cref="ResolveAsync(string, string, CancellationToken)"/>
 /// never produces a real agent — the call graph and validation tests only need
 /// <see cref="ListAsync"/>.
 /// </summary>
@@ -20,9 +20,9 @@ internal sealed class FakeAgentCatalog(IReadOnlyList<AgentDescriptor> descriptor
     public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
         => new(descriptors);
 
-    public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
+    public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
         => new((AIAgent?)null);
 
-    public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
-        => ResolveAsync(agentName, cancellationToken);
+    public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        => ResolveAsync(agentName, culture, cancellationToken);
 }

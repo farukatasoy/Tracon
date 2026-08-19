@@ -4,7 +4,7 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Caches compiled agents keyed by <c>(tenant, name, version, skill fingerprint)</c>.
+/// Caches compiled agents keyed by <c>(tenant, name, version, skill fingerprint, culture)</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -42,7 +42,7 @@ public sealed class CompiledAgentCache
     /// <returns>The compiled agent.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public AIAgent GetOrAdd(string tenantId, string name, int version, Func<AIAgent> factory)
-        => GetOrAdd(tenantId, name, version, string.Empty, factory);
+        => GetOrAdd(tenantId, name, version, string.Empty, string.Empty, factory);
 
     /// <summary>
     /// Retrieves the agent from the cache together with its dependency
@@ -60,16 +60,45 @@ public sealed class CompiledAgentCache
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
     public AIAgent GetOrAdd(string tenantId, string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
+        => GetOrAdd(tenantId, name, version, dependencyFingerprint, string.Empty, factory);
+
+    /// <summary>
+    /// Retrieves the agent from the cache together with its dependency fingerprint and
+    /// requested culture; if absent, produces it with <paramref name="factory"/> and adds it.
+    /// </summary>
+    /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
+    /// <param name="name">Agent name.</param>
+    /// <param name="version">Definition version.</param>
+    /// <param name="dependencyFingerprint">
+    /// See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.
+    /// </param>
+    /// <param name="culture">
+    /// The culture the definition was compiled with (see <see cref="InstructionCultureResolver"/>).
+    /// An empty string when the run requested no culture. Part of the key: two runs of the
+    /// same definition in different cultures must not share a compiled agent - the requested
+    /// instructions text is baked into <see cref="Microsoft.Extensions.AI.ChatOptions"/> at
+    /// compile time.
+    /// </param>
+    /// <param name="factory">Producer called when absent from the cache.</param>
+    /// <returns>The compiled agent.</returns>
+    public AIAgent GetOrAdd(
+        string tenantId,
+        string name,
+        int version,
+        string dependencyFingerprint,
+        string culture,
+        Func<AIAgent> factory)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
+        ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
         // GetOrAdd(key, valueFactory) can run the factory more than once for the
         // same key. Agent production is side-effect free, so this is not a
         // problem; any extra-produced instance is discarded.
-        return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint), _ => factory());
+        return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint, culture), _ => factory());
     }
 
     /// <summary>
@@ -90,19 +119,41 @@ public sealed class CompiledAgentCache
     /// once, production is side-effect free, an extra instance is discarded"
     /// guarantee as the sync overload applies here too.
     /// </remarks>
-    public async ValueTask<AIAgent> GetOrAddAsync(
+    public ValueTask<AIAgent> GetOrAddAsync(
         string tenantId,
         string name,
         int version,
         string dependencyFingerprint,
         Func<ValueTask<AIAgent>> factory)
+        => GetOrAddAsync(tenantId, name, version, dependencyFingerprint, string.Empty, factory);
+
+    /// <summary>
+    /// Retrieves the agent from the cache together with its dependency fingerprint and
+    /// requested culture; if absent, produces it asynchronously with
+    /// <paramref name="factory"/> and adds it.
+    /// </summary>
+    /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
+    /// <param name="name">Agent name.</param>
+    /// <param name="version">Definition version.</param>
+    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.</param>
+    /// <param name="culture">See <see cref="GetOrAdd(string, string, int, string, string, Func{AIAgent})"/>.</param>
+    /// <param name="factory">Producer called when absent from the cache.</param>
+    /// <returns>The compiled agent.</returns>
+    public async ValueTask<AIAgent> GetOrAddAsync(
+        string tenantId,
+        string name,
+        int version,
+        string dependencyFingerprint,
+        string culture,
+        Func<ValueTask<AIAgent>> factory)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
+        ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
-        var key = new CacheKey(tenantId, name, version, dependencyFingerprint);
+        var key = new CacheKey(tenantId, name, version, dependencyFingerprint, culture);
 
         if (_entries.TryGetValue(key, out var existing))
         {
@@ -148,5 +199,5 @@ public sealed class CompiledAgentCache
     /// <summary>Empties the cache entirely.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string TenantId, string Name, int Version, string DependencyFingerprint);
+    private readonly record struct CacheKey(string TenantId, string Name, int Version, string DependencyFingerprint, string Culture);
 }

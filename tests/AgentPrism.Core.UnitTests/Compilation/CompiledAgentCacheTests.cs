@@ -75,6 +75,32 @@ public sealed class CompiledAgentCacheTests
     }
 
     [Fact]
+    public void Recompiles_when_the_culture_changes()
+    {
+        var cache = new CompiledAgentCache();
+        var compiler = CreateCompiler();
+
+        var first = cache.GetOrAdd("tenant-1", "a", 1, "", "en", () => compiler.Compile(TestData.Definition("a")));
+        var second = cache.GetOrAdd("tenant-1", "a", 1, "", "tr", () => compiler.Compile(TestData.Definition("a")));
+
+        second.ShouldNotBeSameAs(first);
+        cache.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void No_culture_and_empty_culture_share_the_same_entry()
+    {
+        var cache = new CompiledAgentCache();
+        var compiler = CreateCompiler();
+
+        var first = cache.GetOrAdd("tenant-1", "a", 1, () => compiler.Compile(TestData.Definition("a")));
+        var second = cache.GetOrAdd("tenant-1", "a", 1, "", "", () => compiler.Compile(TestData.Definition("a")));
+
+        second.ShouldBeSameAs(first);
+        cache.Count.ShouldBe(1);
+    }
+
+    [Fact]
     public void Evict_drops_all_tenants_and_versions_of_an_agent()
     {
         var cache = new CompiledAgentCache();

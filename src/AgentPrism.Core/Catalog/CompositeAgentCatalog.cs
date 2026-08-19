@@ -72,13 +72,13 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken)
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
         foreach (var source in _sources)
         {
-            var agent = await source.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+            var agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
 
             if (agent is null)
             {
@@ -99,11 +99,15 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
     }
 
     /// <inheritdoc />
-    public async ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveAsync(
+        string agentName,
+        int? version,
+        string? culture = null,
+        CancellationToken cancellationToken = default)
     {
         if (version is null)
         {
-            return await ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+            return await ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
@@ -126,7 +130,7 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
                     "(code source). Runs or experiments against a specific version are not supported for this agent.");
             }
 
-            var agent = await versioned.ResolveVersionAsync(agentName, version.Value, cancellationToken).ConfigureAwait(false)
+            var agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException($"Version {version.Value} of agent '{agentName}' was not found.");
 
             foreach (var decorator in _decorators)

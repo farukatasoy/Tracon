@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72
 > **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
 >
@@ -2010,3 +2010,197 @@ curl -s "$APU/api/agents" -H "$APB" \
 ```sql
 SELECT name, version, origin FROM agentprism.agent_definitions ORDER BY name;
 ```
+
+---
+
+### MT-CORE-075 — Kültür sözlüğü boş agent'ta `culture` verilse de davranış değişmez (F-117)
+
+Regresyon — mutlu yol.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `InstructionsByCulture` boş bir agent (`kod-agent` gibi kod kaynaklı bir agent yeterli).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/kod-agent/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"merhaba","culture":"tr"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Yanıt, `culture` alanı hiç gönderilmemiş gibi davranır —
+  `Instructions` kullanılır, hata veya farklı davranış yoktur.
+
+---
+
+### MT-CORE-076 — Eşleşen kültür kendi talimatını seçer (F-117)
+
+Gerçek entegrasyon — mutlu yol, kritik.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `en` ve `tr` talimatlı bir agent (`POST /api/agents` ile `instructionsByCulture: {"tr": "Kisa cevap ver ve TAMAMEN TURKCE yaz."}` alanıyla oluştur; `instructions` alanına İngilizce bir varsayılan yaz).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"nasilsin","culture":"tr"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Model yanıtı Türkçe talimata **uyar** (modelin kendi
+  yorumuna bağlı olduğundan "birebir" değil, gözle kontrol: yanıt açıkça
+  Türkçe ve kısa).
+
+---
+
+### MT-CORE-077 — Bölge alt etiketi ebeveynine düşer: `tr-TR` → `tr` (F-117)
+
+Sınır senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-076'daki agent.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"nasilsin","culture":"tr-TR"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Yanıt MT-CORE-076 ile aynı şekilde Türkçe talimata uyar —
+  `tr-TR` girdisi `tr` sözlük anahtarına düşer.
+
+---
+
+### MT-CORE-078 — Eşleşmeyen kültür varsayılana düşer, hata VERMEZ (F-117)
+
+Negatif senaryo — K1: sessiz geri düşüş, patlama değil.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-076'daki agent.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/$AGENT/run" -H "$APB" \
+  -H "content-type: application/json" -d '{"message":"nasilsin","culture":"de"}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 200` — `de` sözlükte yoktur ama istek **reddedilmez**. Yanıt,
+  agent'ın varsayılan (`en`) talimatına göre üretilir.
+
+---
+
+### MT-CORE-079 — `Accept-Language` başlığı talimatı DEĞİŞTİRMEZ (F-117)
+
+Negatif senaryo — K-232'nin çizgisiyle tutarlı: sunucu içeriği ambient bir
+tarayıcı başlığından beslenmez.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-076'daki agent.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -H "Accept-Language: tr" -d '{"message":"nasilsin"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Gövdede `culture` **verilmediği** için yanıt agent'ın
+  varsayılan (İngilizce) talimatına göre üretilir — `Accept-Language: tr`
+  başlığı **yok sayılır**, Türkçeye çevrilmez.
+
+---
+
+### MT-CORE-080 — Arka arkaya farklı kültürlerle `run` — önbellek yanlış dili TUTMAZ (F-117)
+
+Sınır senaryosu — bu case `CompiledAgentCache` anahtarına kültürün
+eklendiğini kanıtlar; eklenmeseydi ikinci çağrı ilk çağrının dilinde
+kalırdı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-076'daki agent.
+
+**Adımlar**
+1. `culture: "tr"` ile `run` çağır, yanıtı kaydet.
+2. Hemen ardından, aynı agent'a `culture` **vermeden** (veya `"en"` ile) `run` çağır.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"nasilsin","culture":"tr"}' | python3 -m json.tool
+
+curl -s -X POST "$APU/api/agents/$AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"nasilsin"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- İlk yanıt Türkçe talimata uyar. İkinci yanıt İngilizce talimata uyar —
+  ilk çağrının derlenmiş agent'ı ikinciye SIZMAZ.
+
+---
+
+### MT-CORE-081 — Agent editöründe dil sekmesi; sürüm diff'i iki dili de gösterir (F-117)
+
+Arayüz — mutlu yol.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 72 |
+| **İlgili karar** | K-228 |
+
+**Adımlar**
+1. Konsolda MT-CORE-076'daki agent'ın düzenleme ekranını aç.
+2. "Instructions" panelindeki "Instructions by culture" bölümünü bul.
+3. Yeni bir satır ekle (`de` / `Kurz antworten.`), kaydet.
+4. Agent'ın sürüm geçmişine git, son iki sürümü karşılaştır.
+
+**Beklenen sonuç**
+- 👤 Panelde her kültür satırı için bir dil kodu alanı ve bir metin alanı
+  vardır; satır eklenip kaydedilince yeni sürüm oluşur. Sürüm karşılaştırma
+  ekranında `de` için ayrı bir "Instructions (de)" bölümü belirir ve iki
+  sürüm arasındaki fark (eklenen metin) vurgulanır. Dil TR↔EN değişince
+  panel etiketleri çevrilir (`en.ts`/`tr.ts`, K-228).
