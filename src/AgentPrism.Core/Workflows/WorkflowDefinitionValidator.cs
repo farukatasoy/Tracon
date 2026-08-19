@@ -40,39 +40,92 @@ public static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}' uses an unknown pattern: '{definition.Kind}'.";
         }
 
-        if (definition.AgentNames.Count == 0)
-        {
-            return $"Workflow '{definition.Name}' has no agents. " +
-                   "'agentNames' must carry at least one name.";
-        }
+        HashSet<string> seen;
 
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var agentName in definition.AgentNames)
+        // A definition either lists plain agent names (AgentNames, every
+        // pattern) or an ordered mix of agent and function nodes (Nodes,
+        // Sequential only, phase 71). The two are mutually exclusive: letting
+        // both be set would raise the question of which one the compiler
+        // should trust, and a silent "one wins" rule invites the exact class
+        // of surprise K1 exists to rule out.
+        if (definition.Nodes.Count > 0)
         {
-            if (string.IsNullOrWhiteSpace(agentName))
+            if (definition.AgentNames.Count > 0)
             {
-                return $"Workflow '{definition.Name}' has an empty name in its agent list.";
+                return $"Workflow '{definition.Name}' sets both 'agentNames' and 'nodes'. " +
+                       "A definition that uses function nodes must list every node - agents included - " +
+                       "in 'nodes'; 'agentNames' must stay empty.";
             }
 
-            // A duplicate name is deliberately rejected. Microsoft Agent
-            // Framework derives executor identities FROM the agent INSTANCE;
-            // the same name appearing twice would produce two nodes that
-            // cannot be distinguished in the UI or the event stream. If a
-            // role repeats, a second agent must be defined.
-            if (!seen.Add(agentName))
+            if (definition.Kind != WorkflowKind.Sequential)
             {
-                return $"Agent '{agentName}' appears more than once in workflow '{definition.Name}'. " +
-                       "A workflow's agent list must have no duplicates; define a second agent if the " +
-                       "same role is needed twice.";
+                return $"Workflow '{definition.Name}' uses 'nodes' with the '{definition.Kind}' pattern. " +
+                       "Function nodes are only supported in the 'Sequential' pattern: Microsoft Agent " +
+                       "Framework's ready-made builders for the other patterns accept only agents.";
+            }
+
+            seen = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var node in definition.Nodes)
+            {
+                if (string.IsNullOrWhiteSpace(node.Name))
+                {
+                    return $"Workflow '{definition.Name}' has an empty name in its node list.";
+                }
+
+                if (node.Kind is not (WorkflowNodeKind.Agent or WorkflowNodeKind.Function))
+                {
+                    return $"Node '{node.Name}' in workflow '{definition.Name}' uses kind '{node.Kind}'. " +
+                           "A definition's node list may only reference an 'Agent' or a 'Function' node; " +
+                           "the other kinds are added by the compiler, never named directly.";
+                }
+
+                // Same rationale as the AgentNames duplicate check below: a
+                // repeated node name would produce two indistinguishable
+                // nodes in the UI and the event stream.
+                if (!seen.Add(node.Name))
+                {
+                    return $"Node '{node.Name}' appears more than once in workflow '{definition.Name}'. " +
+                           "A workflow's node list must have no duplicates.";
+                }
             }
         }
-
-        if (definition.Kind is WorkflowKind.Concurrent or WorkflowKind.Handoff or WorkflowKind.GroupChat &&
-            definition.AgentNames.Count < 2)
+        else
         {
-            return $"Workflow '{definition.Name}' uses the '{definition.Kind}' pattern, which requires " +
-                   $"at least two agents; the list has {definition.AgentNames.Count}.";
+            if (definition.AgentNames.Count == 0)
+            {
+                return $"Workflow '{definition.Name}' has no agents. " +
+                       "'agentNames' must carry at least one name.";
+            }
+
+            seen = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var agentName in definition.AgentNames)
+            {
+                if (string.IsNullOrWhiteSpace(agentName))
+                {
+                    return $"Workflow '{definition.Name}' has an empty name in its agent list.";
+                }
+
+                // A duplicate name is deliberately rejected. Microsoft Agent
+                // Framework derives executor identities FROM the agent INSTANCE;
+                // the same name appearing twice would produce two nodes that
+                // cannot be distinguished in the UI or the event stream. If a
+                // role repeats, a second agent must be defined.
+                if (!seen.Add(agentName))
+                {
+                    return $"Agent '{agentName}' appears more than once in workflow '{definition.Name}'. " +
+                           "A workflow's agent list must have no duplicates; define a second agent if the " +
+                           "same role is needed twice.";
+                }
+            }
+
+            if (definition.Kind is WorkflowKind.Concurrent or WorkflowKind.Handoff or WorkflowKind.GroupChat &&
+                definition.AgentNames.Count < 2)
+            {
+                return $"Workflow '{definition.Name}' uses the '{definition.Kind}' pattern, which requires " +
+                       $"at least two agents; the list has {definition.AgentNames.Count}.";
+            }
         }
 
         if (definition.Kind == WorkflowKind.Magentic)

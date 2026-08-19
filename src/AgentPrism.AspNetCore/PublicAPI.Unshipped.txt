@@ -1119,3 +1119,23 @@ static AgentPrism.InboundTriggerResponse.operator !=(AgentPrism.InboundTriggerRe
 static AgentPrism.InboundTriggerResponse.operator ==(AgentPrism.InboundTriggerResponse? left, AgentPrism.InboundTriggerResponse? right) -> bool
 static AgentPrism.InboundTriggerSaveRequest.operator !=(AgentPrism.InboundTriggerSaveRequest? left, AgentPrism.InboundTriggerSaveRequest? right) -> bool
 static AgentPrism.InboundTriggerSaveRequest.operator ==(AgentPrism.InboundTriggerSaveRequest? left, AgentPrism.InboundTriggerSaveRequest? right) -> bool
+AgentPrism.WorkflowSaveRequest.Nodes.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowNodeReference!>?
+AgentPrism.WorkflowSaveRequest.Nodes.init -> void
+AgentPrism.WorkflowFunctionResponse
+AgentPrism.WorkflowFunctionResponse.Description.get -> string?
+AgentPrism.WorkflowFunctionResponse.Description.init -> void
+AgentPrism.WorkflowFunctionResponse.Equals(AgentPrism.WorkflowFunctionResponse? other) -> bool
+AgentPrism.WorkflowFunctionResponse.InputType.get -> string!
+AgentPrism.WorkflowFunctionResponse.InputType.init -> void
+AgentPrism.WorkflowFunctionResponse.Name.get -> string!
+AgentPrism.WorkflowFunctionResponse.Name.init -> void
+AgentPrism.WorkflowFunctionResponse.OutputType.get -> string!
+AgentPrism.WorkflowFunctionResponse.OutputType.init -> void
+AgentPrism.WorkflowFunctionResponse.WorkflowFunctionResponse() -> void
+override AgentPrism.WorkflowFunctionResponse.Equals(object? obj) -> bool
+override AgentPrism.WorkflowFunctionResponse.GetHashCode() -> int
+override AgentPrism.WorkflowFunctionResponse.ToString() -> string!
+static AgentPrism.WorkflowFunctionResponse.From(AgentPrism.WorkflowFunctionDescriptor! descriptor) -> AgentPrism.WorkflowFunctionResponse!
+static AgentPrism.WorkflowFunctionResponse.operator !=(AgentPrism.WorkflowFunctionResponse? left, AgentPrism.WorkflowFunctionResponse? right) -> bool
+static AgentPrism.WorkflowFunctionResponse.operator ==(AgentPrism.WorkflowFunctionResponse? left, AgentPrism.WorkflowFunctionResponse? right) -> bool
+AgentPrism.WorkflowFunctionResponse.<Clone>$() -> AgentPrism.WorkflowFunctionResponse!

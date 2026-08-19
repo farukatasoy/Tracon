@@ -1736,6 +1736,32 @@
         }
       }
     },
+    "/agentprism/api/workflows/functions": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Workflows"
+        ],
+        "summary": "Lists function nodes registered in code.",
+        "description": "Function nodes are defined only in code, with AddWorkflowFunction() (phase 71) - the same K2 boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow\u0027s node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.",
+        "operationId": "AgentPrismListWorkflowFunctions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowFunctionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/workflows/{name}": {
       "get": {
         "tags": [
@@ -15708,6 +15734,13 @@
             ],
             "description": "Gets the manager agent\u0027s name. Required for\nWorkflowKind.Magentic, unused in other patterns."
           },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNodeReference"
+            },
+            "description": "Gets the ordered node list for a WorkflowKind.Sequential\nworkflow that mixes agent and function nodes."
+          },
           "maxIterations": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -15803,6 +15836,13 @@
             },
             "description": "Gets the agent names entering the graph. Can be empty for code-defined workflows."
           },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNodeReference"
+            },
+            "description": "Gets the mixed agent/function node list for a Sequential workflow that\nuses function nodes (phase 71). Empty for every other definition."
+          },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -15830,6 +15870,36 @@
           "FanIn"
         ],
         "description": "Represents the kind of an edge."
+      },
+      "WorkflowFunctionResponse": {
+        "required": [
+          "name",
+          "inputType",
+          "outputType"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The function\u0027s unique name."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The short description of what the function does."
+          },
+          "inputType": {
+            "type": "string",
+            "description": "The display name of the CLR type the function accepts."
+          },
+          "outputType": {
+            "type": "string",
+            "description": "The display name of the CLR type the function returns."
+          }
+        },
+        "description": "Wire-safe view of a registered function node."
       },
       "WorkflowGraph": {
         "required": [
@@ -15944,9 +16014,28 @@
           "Agent",
           "Orchestration",
           "RequestPort",
-          "Output"
+          "Output",
+          "Function"
         ],
         "description": "Represents the role of a graph node."
+      },
+      "WorkflowNodeReference": {
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the referenced name: an agent name from the catalog when\nWorkflowNodeKind WorkflowNodeReference.Kind is WorkflowNodeKind.Agent, or a\nfunction name from the code registry when it is\nWorkflowNodeKind.Function."
+          },
+          "kind": {
+            "description": "Gets which registry string WorkflowNodeReference.Name is looked up in.",
+            "$ref": "#/components/schemas/WorkflowNodeKind"
+          }
+        },
+        "description": "Points to a single node entering a workflow\u0027s graph: an agent from the\ncatalog, or a function registered in code."
       },
       "WorkflowPendingRequest": {
         "required": [
@@ -16120,6 +16209,16 @@
               "type": "string"
             },
             "description": "Names of agents to add to the graph."
+          },
+          "nodes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNodeReference"
+            },
+            "description": "Ordered agent/function node list for a Sequential workflow that mixes\nfunction nodes in with agents. Mutually exclusive with\nIReadOnlyList\u0026lt;string\u0026gt;? WorkflowSaveRequest.AgentNames; leave both empty or set only one."
           },
           "managerAgentName": {
             "type": [

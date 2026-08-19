@@ -96,6 +96,16 @@ internal static class WorkflowGraphReader
             return agent.Agent.Name;
         }
 
+        // An agent step inside a mixed Sequential chain (phase 71) is bound
+        // as a WorkflowAgentStepExecutor, not an AIAgentBinding, so there is
+        // no Agent property to read - but WorkflowDefinitionCompiler always
+        // sets its id to the agent's own catalog name, so the id already IS
+        // the answer.
+        if (binding.ExecutorType.Name.Equals(nameof(WorkflowAgentStepExecutor), StringComparison.Ordinal))
+        {
+            return id;
+        }
+
         // 🚨 Composite ids are not parsed. Measured (phase 16): the `Concurrent`
         // pattern adds a `Batcher/{name}_{id}` node for every agent, and the
         // trailing id fragment has the same format; without checking for the
@@ -134,6 +144,14 @@ internal static class WorkflowGraphReader
         if (agentName is not null)
         {
             return WorkflowNodeKind.Agent;
+        }
+
+        // A registered code function (phase 71). The bound type is literally
+        // FunctionExecutor<TInput,TOutput> - reflected as "FunctionExecutor`2"
+        // - so this is a reliable signal, unlike guessing from the node id.
+        if (binding.ExecutorType.Name.StartsWith("FunctionExecutor", StringComparison.Ordinal))
+        {
+            return WorkflowNodeKind.Function;
         }
 
         // Output nodes are appended at the end of the ready-made patterns and

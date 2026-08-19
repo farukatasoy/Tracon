@@ -91,6 +91,7 @@ export function WorkflowGraphView({
 /** Fill and text colour per node role. Shape and label carry the meaning too. */
 const KIND_STYLE: Record<WorkflowNodeKind, { fill: string; stroke: string; radius: number }> = {
   Agent: { fill: tint('--ap-violet'), stroke: 'var(--ap-violet)', radius: 8 },
+  Function: { fill: tint('--ap-cyan'), stroke: 'var(--ap-cyan)', radius: 2 },
   Orchestration: { fill: 'var(--ap-raised)', stroke: 'var(--ap-line-strong)', radius: 8 },
   RequestPort: { fill: tint('--ap-amber'), stroke: 'var(--ap-amber)', radius: 20 },
   Output: { fill: tint('--ap-emerald'), stroke: 'var(--ap-emerald)', radius: 20 },
@@ -117,7 +118,11 @@ const STATE_STROKE: Record<NodeState, string | null> = {
 
 function NodeBox({ node, state }: { node: LaidOutNode; state: NodeState }): ReactNode {
   const t = useT();
-  const style = KIND_STYLE[node.kind];
+  // A server newer than this build can name a kind this union does not know
+  // yet (measured, phase 71) — falling back to `Unknown`'s style instead of
+  // crashing on `undefined` is what "an unknown kind is ignored" actually
+  // requires on the console side.
+  const style = KIND_STYLE[node.kind] ?? KIND_STYLE.Unknown;
   const stroke = STATE_STROKE[state] ?? style.stroke;
 
   return (
@@ -178,6 +183,7 @@ export function WorkflowGraphLegend(): ReactNode {
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-subtle">
       <Badge tone="accent">{t('graph.legend.agent')}</Badge>
+      <Badge tone="info">{t('graph.legend.function')}</Badge>
       <Badge>{t('graph.legend.orchestration')}</Badge>
       <Badge tone="warn">{t('graph.legend.requestPort')}</Badge>
       <Badge tone="success">{t('graph.legend.output')}</Badge>

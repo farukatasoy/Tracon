@@ -13,9 +13,11 @@ AgentPrism.AgentPrismWorkflowOptions.MaxSuperSteps.get -> int
 AgentPrism.AgentPrismWorkflowOptions.MaxSuperSteps.set -> void
 AgentPrism.AgentPrismWorkflowOptions.RunTimeout.get -> System.TimeSpan
 AgentPrism.AgentPrismWorkflowOptions.RunTimeout.set -> void
+AgentPrism.AgentPrismWorkflowFunctionExtensions
 AgentPrism.AgentPrismWorkflowsBuilderExtensions
 AgentPrism.WorkflowAgentBinding
 const AgentPrism.AgentPrismWorkflowOptions.SectionName = "AgentPrism:Workflows" -> string!
+static AgentPrism.AgentPrismWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput>(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismWorkflowsBuilderExtensions.AddWorkflow(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismWorkflowsBuilderExtensions.UseWorkflows(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismWorkflowOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!

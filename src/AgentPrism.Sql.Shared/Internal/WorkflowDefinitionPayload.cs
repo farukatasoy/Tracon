@@ -32,6 +32,9 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets the names of the agents that enter the graph.</summary>
     public IReadOnlyList<string> AgentNames { get; init; } = [];
 
+    /// <summary>Gets the mixed agent/function node list (phase 71, Sequential only).</summary>
+    public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
+
     /// <summary>Gets the name of the manager agent.</summary>
     public string? ManagerAgentName { get; init; }
 
@@ -54,6 +57,7 @@ internal sealed record WorkflowDefinitionPayload
             Description = definition.Description,
             Kind = definition.Kind,
             AgentNames = definition.AgentNames,
+            Nodes = definition.Nodes,
             ManagerAgentName = definition.ManagerAgentName,
             MaxIterations = definition.MaxIterations,
             HandoffInstructions = definition.HandoffInstructions,
@@ -74,6 +78,7 @@ internal sealed record WorkflowDefinitionPayload
             Description = Description,
             Kind = Kind,
             AgentNames = AgentNames,
+            Nodes = Nodes,
             ManagerAgentName = ManagerAgentName,
             MaxIterations = MaxIterations,
             HandoffInstructions = HandoffInstructions,

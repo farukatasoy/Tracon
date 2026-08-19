@@ -851,6 +851,7 @@ export const tr: Messages = {
   'graph.label': '{name} workflow grafiği',
   'graph.nodeTitle': '{id} — agent {agent}',
   'graph.legend.agent': 'agent',
+  'graph.legend.function': 'fonksiyon',
   'graph.legend.orchestration': 'düzenleme',
   'graph.legend.requestPort': 'istek kapısı',
   'graph.legend.output': 'çıktı',

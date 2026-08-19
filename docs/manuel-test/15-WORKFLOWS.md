@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71
 > **Kaynak:** `src/AgentPrism.Workflows/` (tümü: `AgentPrismWorkflowOptions`,
 > `AgentPrismWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/AgentPrism.Abstractions/Workflows/` (tümü) ·
@@ -17,7 +17,8 @@
 > `src/AgentPrism.UI/frontend/src/components/workflow-graph.tsx` ·
 > `src/AgentPrism.UI/frontend/src/lib/workflow-graph.ts` ·
 > `samples/AgentPrism.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
-> `ozetle-ve-cevir`, `ozetle-ve-onayla`).
+> `ozetle-ve-cevir`, `ozetle-ve-onayla`; ve Faz 71'in `AddWorkflowFunction(...)`
+> bloğu: `word-count`).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -1932,3 +1933,213 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   gerçek para harcayabilir ve workflow tanımlarını değiştirebilir/silebilir.
   Çürürse (ör. çalışma zamanında farklı bir mekanizma devredeyse) not
   güncellenir.
+
+---
+
+## Fonksiyon Düğümleri (Faz 71, F-116)
+
+Faz 71 `AddWorkflowFunction` ile kod içinde kayıtlı bir fonksiyonu `Sequential`
+bir tanımın `nodes` listesine karıştırma yeteneği getirdi. Kanıt:
+`src/AgentPrism.Workflows/AgentPrismWorkflowFunctionExtensions.cs`,
+`Internal/WorkflowFunctionRegistry.cs`, `Internal/WorkflowAgentStepExecutor.cs`,
+`Internal/WorkflowDefinitionCompiler.cs` (`BuildMixedSequentialAsync`).
+
+### MT-WF-110 — Kod düğümü hiç kaydedilmemişken mevcut davranış birebir korunur
+
+Regresyon kapısı — `Nodes` boşken hiçbir kod yolu değişmemeli.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-494 |
+
+**Adımlar**
+1. `AddWorkflowFunction` hiç çağrılmamış bir kurulumda, sıradan bir
+   `AgentNames`-tabanlı `Sequential` tanımı kaydet ve çalıştır (ör.
+   `ozetle-ve-cevir`, mevcut `MT-WF-040`).
+
+**Beklenen sonuç**
+- Davranış `Faz 15/16`'daki ile birebir aynı: `GET /api/workflows/functions`
+  boş liste döner, graf ve çalıştırma hiçbir `Function` türü düğüm göstermez.
+
+---
+
+### MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
+
+**Gerçekten koşuldu ve doğrulandı** (2026-08-19, `samples/AgentPrism.Api`,
+port 5091, EchoModelProvider — bkz. `docs/71-WORKFLOW-KOD-DUGUMU.md` "Doğrulama
+komutları" bölümü).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs`'te `word-count` adıyla kayıtlı bir
+  fonksiyon (Faz 71'in kendi örneği).
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/workflows/functions" -H "$APB" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`; dizide `name: "word-count"`, `description`, `inputType`/
+  `outputType` (CLR tip görünen adı, ör.
+  `System.Collections.Generic.List\`1[[Microsoft.Extensions.AI.ChatMessage, ...]]`)
+  alanları dolu.
+
+---
+
+### MT-WF-112 — Agent → fonksiyon → agent zinciri uçtan uca koşar; graf üçünü ayırt edilebilir çizer
+
+**Gerçekten koşuldu ve doğrulandı** (2026-08-19). `summarize-and-count` adıyla
+`{summarizer: Agent, word-count: Function}` düğüm listeli bir `Sequential`
+tanım kaydedildi ve çalıştırıldı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-495 |
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/workflows/summarize-and-count" -H "$APB" \
+     -H "content-type: application/json" \
+     -d '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"word-count","kind":"Function"}]}'
+
+curl -s "$APU/api/workflows/summarize-and-count/graph" -H "$APB" \
+  | python3 -c "import json,sys; g=json.load(sys.stdin); print([(n['id'], n['kind'], n.get('agentName')) for n in g['nodes']])"
+
+curl -N -s -X POST "$APU/api/workflows/summarize-and-count/run" -H "$APB" \
+     -H "content-type: application/json" -d '{"message":"..."}'
+```
+
+**Beklenen sonuç**
+- Graf: `[('summarizer', 'Agent', 'summarizer'), ('word-count', 'Function', None)]`
+  — iki düğüm de doğru `kind` taşır; `word-count` fonksiyonu `agentName: null`.
+- Çalıştırma: SSE akışında her iki düğüm için `ExecutorInvoked` ve
+  `ExecutorCompleted` görülür; `WorkflowOutput` fonksiyonun eklediği metni
+  taşır (agent'ın çıktısına eklenmiş kelime sayısı).
+- `GET /api/runs/{runId}/tree`: yalnız `summarizer` için bir `Agent` satırı
+  açılır (`childRunCount: 1`); `word-count` HİÇ `runs` satırı açmaz — bu,
+  kod düğümünün maliyet toplamına neden sıfır katkı verdiğinin kanıtıdır
+  (özel bir durum kodu YAZILMADAN).
+- Arayüzde `word-count` düğümü `summarizer`'dan **farklı renk/köşe
+  yarıçapıyla** çizilir (`WorkflowGraphView`'in `KIND_STYLE` haritası); yeni
+  bir “fonksiyon” lejant rozeti görünür.
+
+---
+
+### MT-WF-113 — Kayıtlı olmayan fonksiyon adı **kaydetme anında** reddedilir
+
+**Gerçekten koşuldu ve doğrulandı** (unit + fonksiyonel test, ayrıca gerçek
+API'ye karşı da).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-496 |
+
+**Adımlar**
+1. `nodes` listesinde var olmayan bir fonksiyon adı taşıyan bir tanımı
+   `PUT` ile kaydetmeyi dene.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kayitsiz-fonksiyon" -H "$APB" \
+     -H "content-type: application/json" \
+     -d '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"yok-boyle-bir-fonksiyon","kind":"Function"}]}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`; `detail` alanı `'yok-boyle-bir-fonksiyon'` adını ve "no such
+  function is registered" ifadesini içerir. Tanım hiç kaydedilmez —
+  çalıştırma denemesi GEREKMEZ, hata kaydetme anında gelir.
+
+---
+
+### MT-WF-114 — Patlayan fonksiyon düğümü → `ExecutorFailed`, gerçek hata mesajı görünür
+
+**Gerçekten koşuldu ve doğrulandı** (unit test:
+`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_with_the_real_error`).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-401 (aynı sarmalayıcı-soyma mekanizması) |
+
+**Beklenen sonuç**
+- Çalıştırma `Failed` olarak kapanır; kaydedilen hata mesajı fonksiyonun
+  gerçekten fırlattığı istisnanın metnini taşır (K-401'in
+  `TargetInvocationException`/tek-elemanlı `AggregateException` soyma
+  mantığı, MAF'ın kendi çağrı zincirinden gelen sarmalayıcıyı da kapsar).
+
+---
+
+### MT-WF-115 — İptal, fonksiyon düğümünün ortasında istense de çalıştırmayı `Canceled` yapar
+
+**Gerçekten koşuldu ve doğrulandı** (unit test:
+`WorkflowFunctionNodeTests.Cancellation_requested_inside_a_function_node_still_records_Canceled`).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-432 (aynı süper-adım-sınırı mekanizması) |
+
+**Beklenen sonuç**
+- MAF adım ORTASINDA dış iptali onurlandırmaz (K-432); `WorkflowRunner`'ın
+  kendi süper-adım-sınırı denetimi kod düğümü için de aynı şekilde çalışır —
+  düğüm türüne özel bir kod GEREKMEDİ. Çalıştırma `Canceled` olarak kapanır.
+
+---
+
+### MT-WF-116 — 🚨 Kontrol noktasından devam: kod düğümü İDEMPOTENT olmak ZORUNDADIR
+
+**Gerçekten koşuldu ve doğrulandı** — planın kendi "en riskli hata modu"
+sorusunun cevabı iki ayrı unit testle ÖLÇÜLDÜ:
+`WorkflowFunctionNodeTests.Resuming_an_ALREADY_COMPLETED_mixed_chain_does_NOT_re_run_its_function_node`
+ve
+`WorkflowFunctionNodeTests.Resuming_from_an_EARLIER_checkpoint_RE_RUNS_the_function_node_that_follows_it`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 |
+| **İlgili karar** | K-498 |
+
+**Ölçülen sözleşme**
+- Tamamlanmış bir çalıştırmayı EN SON kontrol noktasından (açık bir
+  `checkpointId` verilmeden — `/resume`'un varsayılanı) sürdürmek fonksiyonu
+  YENİDEN ÇAĞIRMAZ: kontrol noktası zaten bitmiş grafı yansıtır, yapılacak
+  bir şey kalmamıştır.
+- Fonksiyonun KENDİ süper-adımından ÖNCEKİ bir kontrol noktasından
+  sürdürmek — gerçek bir çökme kurtarmasının alacağı biçim — o süper-adımı
+  YENİDEN OYNATIR ve fonksiyon AYNI girdiyle TEKRAR çalışır.
+- Sonuç: `AddWorkflowFunction` ile kaydedilen her işleyici, checkpoint
+  yazımı açıkken (varsayılan) İKİ KEZ çağrılmaya dayanıklı olmalıdır — bir
+  dosya yazan, bir HTTP çağıran veya bir veritabanına satır ekleyen kod
+  düğümü kendi idempotency anahtarını taşımalıdır.
+
+**Adımlar (elle koşum için)**
+1. Yan etkisi olan (ör. bir sayaç artıran) bir fonksiyon kaydet, agent →
+   fonksiyon zinciri kur ve çalıştır.
+2. `GET /api/workflows/runs/{runId}/checkpoints` ile İKİ kontrol noktası
+   olduğunu doğrula (fonksiyondan önce ve sonra).
+3. `POST /api/workflows/runs/{runId}/resume` ile İLK (fonksiyondan önceki)
+   kontrol noktasının id'sini vererek sürdür.
+4. Yan etkinin (sayaç) İKİNCİ kez tetiklendiğini doğrula.

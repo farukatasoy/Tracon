@@ -2,6 +2,39 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
+/// <summary>Wire-safe view of a registered function node.</summary>
+/// <remarks>
+/// <see cref="WorkflowFunctionDescriptor"/> carries <see cref="Type"/>
+/// properties, and <c>System.Text.Json</c> refuses to serialize a
+/// <see cref="Type"/> instance (measured: <c>NotSupportedException</c>) - the
+/// HTTP layer projects the CLR type down to its display name instead.
+/// </remarks>
+public sealed record WorkflowFunctionResponse
+{
+    /// <summary>The function's unique name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>The short description of what the function does.</summary>
+    public string? Description { get; init; }
+
+    /// <summary>The display name of the CLR type the function accepts.</summary>
+    public required string InputType { get; init; }
+
+    /// <summary>The display name of the CLR type the function returns.</summary>
+    public required string OutputType { get; init; }
+
+    /// <summary>Projects a descriptor into its wire-safe view.</summary>
+    /// <param name="descriptor">The descriptor to project.</param>
+    public static WorkflowFunctionResponse From(WorkflowFunctionDescriptor descriptor)
+        => new()
+        {
+            Name = descriptor.Name,
+            Description = descriptor.Description,
+            InputType = descriptor.InputType.FullName ?? descriptor.InputType.Name,
+            OutputType = descriptor.OutputType.FullName ?? descriptor.OutputType.Name,
+        };
+}
+
 /// <summary>Request to save a workflow definition.</summary>
 /// <remarks>
 /// The name comes from the <em>path</em>, not the body. Having two sources
@@ -20,6 +53,13 @@ public sealed record WorkflowSaveRequest
 
     /// <summary>Names of agents to add to the graph.</summary>
     public IReadOnlyList<string>? AgentNames { get; init; }
+
+    /// <summary>
+    /// Ordered agent/function node list for a Sequential workflow that mixes
+    /// function nodes in with agents. Mutually exclusive with
+    /// <see cref="AgentNames"/>; leave both empty or set only one.
+    /// </summary>
+    public IReadOnlyList<WorkflowNodeReference>? Nodes { get; init; }
 
     /// <summary>Name of the manager agent. Only for <see cref="WorkflowKind.Magentic"/>.</summary>
     public string? ManagerAgentName { get; init; }

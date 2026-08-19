@@ -1179,6 +1179,12 @@ export interface WorkflowDefinition {
   description?: string | null;
   kind: WorkflowKind;
   agentNames: string[];
+  /**
+   * Ordered agent/function node list for a `Sequential` workflow that mixes
+   * function nodes in with agents (phase 71). Mutually exclusive with
+   * `agentNames` — a definition sets one or the other, never both.
+   */
+  nodes: WorkflowNodeReference[];
   /** Required by `Magentic`, rejected by every other pattern (decision K-125). */
   managerAgentName?: string | null;
   maxIterations?: number | null;
@@ -1197,6 +1203,7 @@ export interface WorkflowSaveRequest {
   description?: string | null;
   kind: WorkflowKind;
   agentNames: string[];
+  nodes?: WorkflowNodeReference[] | null;
   managerAgentName?: string | null;
   maxIterations?: number | null;
   handoffInstructions?: string | null;
@@ -1204,13 +1211,34 @@ export interface WorkflowSaveRequest {
 }
 
 /**
+ * Points to a single node entering a `Sequential` workflow's node list
+ * (phase 71): an agent from the catalog, or a function registered in code.
+ */
+export interface WorkflowNodeReference {
+  /** Agent name (catalog) when `kind` is `'Agent'`, function name (code registry) when `'Function'`. */
+  name: string;
+  kind: 'Agent' | 'Function';
+}
+
+/** A function node registered in code. Read-only — see GET `/api/workflows/functions`. */
+export interface WorkflowFunctionDescriptor {
+  name: string;
+  description?: string | null;
+  /** Display name of the CLR type the function accepts. */
+  inputType: string;
+  /** Display name of the CLR type the function returns. */
+  outputType: string;
+}
+
+/**
  * What a node in the graph represents.
  *
  * `Orchestration` nodes are added by the pattern itself — the user never wrote
  * them, but run events name them, so hiding them would leave those events
- * pointing at nothing.
+ * pointing at nothing. `Function` is a code-registered function node
+ * (phase 71) — same K2 boundary as `Agent`, its body lives only in code.
  */
-export type WorkflowNodeKind = 'Unknown' | 'Agent' | 'Orchestration' | 'RequestPort' | 'Output';
+export type WorkflowNodeKind = 'Unknown' | 'Agent' | 'Orchestration' | 'RequestPort' | 'Output' | 'Function';
 
 export type WorkflowEdgeKind = 'Direct' | 'FanOut' | 'FanIn';
 

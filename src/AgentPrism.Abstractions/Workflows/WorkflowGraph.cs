@@ -107,6 +107,9 @@ public enum WorkflowNodeKind
 
     /// <summary>A node that collects the graph's output.</summary>
     Output = 4,
+
+    /// <summary>A node that runs a function registered in code.</summary>
+    Function = 5,
 }
 
 /// <summary>Represents the kind of an edge.</summary>
