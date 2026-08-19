@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.Extensions.AI;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -118,6 +119,144 @@ public sealed class WorkflowEndpointTests
         });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Functions_endpoint_lists_registered_functions()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(static builder => builder
+            .AddAgent(TestData.Definition("writer"))
+            .UseWorkflows()
+            .AddWorkflowFunction<string, string>(
+                "uppercase",
+                static _ => (input, _, _) => new ValueTask<string>(input.ToUpperInvariant()),
+                "Uppercases the input."));
+
+        using var response = await host.Client.GetAsync("/agentprism/api/workflows/functions");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+        var function = body.EnumerateArray().Single();
+
+        function.GetProperty("name").GetString().ShouldBe("uppercase");
+        function.GetProperty("description").GetString().ShouldBe("Uppercases the input.");
+    }
+
+    [Fact]
+    public async Task Functions_endpoint_returns_an_empty_list_when_none_registered()
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using var response = await host.Client.GetAsync("/agentprism/api/workflows/functions");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        body.EnumerateArray().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Definition_pointing_to_an_unregistered_function_is_rejected_AT_SAVE_TIME()
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using var response = await SaveAsync(host, "mixed-chain", new WorkflowSaveRequest
+        {
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference { Name = "missing-function", Kind = WorkflowNodeKind.Function },
+            ],
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var problem = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        problem.GetProperty("detail").GetString()!.ShouldContain("'missing-function'", Case.Sensitive);
+        problem.GetProperty("detail").GetString()!.ShouldContain("no such function is registered", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Mixed_node_definition_is_saved_and_read_back()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(static builder => builder
+            .AddAgent(TestData.Definition("writer"))
+            .AddAgent(TestData.Definition("editor"))
+            .UseWorkflows()
+            .AddWorkflowFunction<string, string>(
+                "uppercase",
+                static _ => (input, _, _) => new ValueTask<string>(input.ToUpperInvariant())));
+
+        using var saved = await SaveAsync(host, "mixed-chain", new WorkflowSaveRequest
+        {
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference { Name = "uppercase", Kind = WorkflowNodeKind.Function },
+                new WorkflowNodeReference { Name = "editor", Kind = WorkflowNodeKind.Agent },
+            ],
+        });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var read = await host.Client.GetAsync("/agentprism/api/workflows/mixed-chain");
+
+        read.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(read);
+        var nodes = body.GetProperty("nodes").EnumerateArray().ToList();
+
+        nodes.Count.ShouldBe(3);
+        nodes[1].GetProperty("name").GetString().ShouldBe("uppercase");
+        nodes[1].GetProperty("kind").GetString().ShouldBe("Function");
+    }
+
+    [Fact]
+    public async Task Mixed_chain_runs_over_SSE_end_to_end()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(static builder => builder
+            .AddAgent(TestData.Definition("writer"))
+            .AddAgent(TestData.Definition("editor"))
+            .UseWorkflows()
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                "uppercase",
+                static _ => (messages, _, _) =>
+                {
+                    var text = messages.LastOrDefault()?.Text ?? string.Empty;
+
+                    return new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, text.ToUpperInvariant())]);
+                }));
+
+        using (var saved = await SaveAsync(host, "mixed-chain", new WorkflowSaveRequest
+        {
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference { Name = "uppercase", Kind = WorkflowNodeKind.Function },
+                new WorkflowNodeReference { Name = "editor", Kind = WorkflowNodeKind.Agent },
+            ],
+        }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/agentprism/api/workflows/mixed-chain/run",
+            new WorkflowRunHttpRequest { Message = "hello" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+
+        frames.ShouldContain(frame => string.Equals(frame.Event, "event", StringComparison.Ordinal) &&
+                                       frame.Data.Contains("\"type\":\"ExecutorInvoked\"", StringComparison.Ordinal) &&
+                                       frame.Data.Contains("\"text\":\"uppercase\"", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -525,6 +525,35 @@ agentPrism.AddWorkflow(
     },
     "Summarizes text, then waits for human approval to publish. Defined in code.");
 
+// A code function usable as a workflow node (phase 71). AddWorkflowFunction
+// registers the function by NAME; a Sequential definition's `nodes` list can
+// then mix it in with catalog agents (K2: only the name crosses into the
+// definition, the body always lives in code - the same shape
+// AgentDefinition.ToolNames already uses for tools). This particular node
+// makes NO model call - it demonstrates the phase's own motivation: a real
+// pipeline has steps (formatting, counting, file I/O) that are not AI calls
+// and previously could not enter a workflow graph at all.
+//
+// A workflow whose "nodes" field uses this function is created through
+// PUT /agentprism/api/workflows/{name} - AddWorkflow() is for a free-form
+// graph defined ENTIRELY in code; a "nodes" list is a stored definition like
+// any agent-only Sequential workflow, just with a function mixed in. 🚨 The
+// console's workflow editor does NOT offer a function picker yet (phase 71
+// shipped the read side only - the graph draws a function node distinctly
+// from an agent node); building one from the UI still requires this HTTP
+// call directly, or a future phase's editor work.
+agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "word-count",
+    static _ => (messages, _, _) =>
+    {
+        var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                   ?? string.Empty;
+        var count = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+
+        return new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, $"{text}\n\n(word count: {count})")]);
+    },
+    "Appends a word count to the incoming text. Runs no model call.");
+
 if (openRouterEnabled)
 {
     // Same support scenario, different provider. Proof of provider expansion:

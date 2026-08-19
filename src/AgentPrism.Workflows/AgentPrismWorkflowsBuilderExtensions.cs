@@ -70,6 +70,15 @@ public static class AgentPrismWorkflowsBuilderExtensions
         // The cache MUST be SINGLETON: executor identity stability - and
         // therefore resuming from checkpoints - depends on it.
         services.TryAddSingleton<WorkflowAgentCache>();
+
+        // Registered here TOO (not only by AddWorkflowFunction), so that a
+        // definition compiles into an EMPTY registry - not a missing
+        // dependency - when no function was ever registered in code. DoD:
+        // behavior with zero function nodes must stay identical.
+        services.TryAddSingleton<WorkflowFunctionRegistry>();
+        services.TryAddSingleton<IWorkflowFunctionCatalog>(
+            static provider => provider.GetRequiredService<WorkflowFunctionRegistry>());
+
         services.TryAddSingleton<WorkflowDefinitionCompiler>();
         services.TryAddSingleton<WorkflowCatalog>();
         services.TryAddSingleton<IWorkflowRunner, WorkflowRunner>();

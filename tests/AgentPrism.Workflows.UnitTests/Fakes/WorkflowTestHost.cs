@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -18,6 +19,7 @@ namespace AgentPrism.Workflows.UnitTests.Fakes;
 internal sealed class WorkflowTestHost
 {
     private readonly Dictionary<string, AIAgent> _agents = new(StringComparer.Ordinal);
+    private readonly List<WorkflowFunctionRegistration> _functionRegistrations = [];
 
     public WorkflowTestHost(params string[] agentNames)
     {
@@ -40,7 +42,6 @@ internal sealed class WorkflowTestHost
 
         Resolver = new CallableAgentResolver(new CatalogServices(_agents));
         AgentCache = new WorkflowAgentCache(Resolver, TenantContext, NullLoggerFactory.Instance);
-        Compiler = new WorkflowDefinitionCompiler(Resolver, AgentCache);
     }
 
     public FixedTenantContext TenantContext { get; }
@@ -56,7 +57,32 @@ internal sealed class WorkflowTestHost
     /// <summary>Cache of agent wrappers with a stable id.</summary>
     public WorkflowAgentCache AgentCache { get; }
 
-    public WorkflowDefinitionCompiler Compiler { get; }
+    /// <summary>
+    /// The registry of code-registered function nodes, rebuilt from every
+    /// <see cref="AddFunction{TInput,TOutput}"/> call made so far. A fresh
+    /// snapshot every time keeps this in step with the production registry,
+    /// which is also built once and never mutated after construction.
+    /// </summary>
+    public WorkflowFunctionRegistry Functions => new(_functionRegistrations, EmptyServices.Instance);
+
+    public WorkflowDefinitionCompiler Compiler => new(Resolver, AgentCache, Functions);
+
+    /// <summary>Registers a function node.</summary>
+    public void AddFunction<TInput, TOutput>(
+        string name,
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>> handler,
+        string? description = null)
+    {
+        _functionRegistrations.Add(new WorkflowFunctionRegistration(
+            new WorkflowFunctionDescriptor
+            {
+                Name = name,
+                Description = description,
+                InputType = typeof(TInput),
+                OutputType = typeof(TOutput),
+            },
+            _ => executorId => new FunctionExecutor<TInput, TOutput>(executorId, handler)));
+    }
 
     /// <summary>Builds a runner. Code workflows are optional.</summary>
     /// <remarks>

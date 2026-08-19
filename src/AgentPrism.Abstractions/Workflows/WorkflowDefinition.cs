@@ -46,6 +46,34 @@ public sealed record WorkflowDefinition
     public string? ManagerAgentName { get; init; }
 
     /// <summary>
+    /// Gets the ordered node list for a <see cref="WorkflowKind.Sequential"/>
+    /// workflow that mixes agent and function nodes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Empty for every definition that does not use a function node - which
+    /// keeps <see cref="AgentNames"/> driving the graph exactly as before this
+    /// field existed (phase 71). When non-empty, <see cref="Kind"/> must be
+    /// <see cref="WorkflowKind.Sequential"/> and <see cref="AgentNames"/> must
+    /// be empty; the validator in <c>AgentPrism.Core</c> enforces both
+    /// rules. Microsoft Agent Framework's ready-made builders for the other
+    /// four patterns (<c>Concurrent</c>, <c>Handoff</c>, <c>GroupChat</c>,
+    /// <c>Magentic</c>) accept only agents, so a function node cannot enter
+    /// those graphs without hand-writing their orchestration logic - out of
+    /// scope for phase 71.
+    /// </para>
+    /// <para>
+    /// Whether each function name is actually registered is checked at
+    /// <em>save</em> time (the HTTP layer, via <see cref="IWorkflowFunctionCatalog"/>)
+    /// and again at <em>compile</em> time, unlike agent names - which are
+    /// checked only at compile time because the agent catalog can change
+    /// between the two. The function registry cannot: it is fixed for the
+    /// lifetime of the process, so checking early gives an honest guarantee.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
+
+    /// <summary>
     /// Gets the maximum number of turns. The only guard against an infinite
     /// loop in the <see cref="WorkflowKind.GroupChat"/>,
     /// <see cref="WorkflowKind.Handoff"/>, and <see cref="WorkflowKind.Magentic"/>

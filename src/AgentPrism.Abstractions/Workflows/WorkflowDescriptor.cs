@@ -34,6 +34,12 @@ public sealed record WorkflowDescriptor
     /// <summary>Gets the agent names entering the graph. Can be empty for code-defined workflows.</summary>
     public IReadOnlyList<string> AgentNames { get; init; } = [];
 
+    /// <summary>
+    /// Gets the mixed agent/function node list for a Sequential workflow that
+    /// uses function nodes (phase 71). Empty for every other definition.
+    /// </summary>
+    public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
+
     /// <summary>Gets the definition version. Always 1 for code-defined workflows.</summary>
     public int Version { get; init; } = 1;
 

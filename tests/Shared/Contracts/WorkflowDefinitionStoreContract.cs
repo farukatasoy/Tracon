@@ -82,6 +82,35 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task Node_list_survives_the_round_trip()
+    {
+        // Added in phase 71. The same hand-written DTO trap the remark above
+        // describes: a missing field here would silently vanish on save.
+        var definition = new WorkflowDefinition
+        {
+            Name = "mixed-chain",
+            Kind = WorkflowKind.Sequential,
+            AgentNames = [],
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference { Name = "uppercase", Kind = WorkflowNodeKind.Function },
+                new WorkflowNodeReference { Name = "editor", Kind = WorkflowNodeKind.Agent },
+            ],
+        };
+
+        await Store.SaveAsync("tenant-a", definition);
+
+        var loaded = await Store.GetAsync("tenant-a", "mixed-chain");
+
+        loaded.ShouldNotBeNull();
+        loaded.Nodes.Count.ShouldBe(3);
+        loaded.Nodes[1].Name.ShouldBe("uppercase");
+        loaded.Nodes[1].Kind.ShouldBe(WorkflowNodeKind.Function);
+        loaded.AgentNames.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Magentic_manager_name_is_preserved()
     {
         var definition = Definition() with
