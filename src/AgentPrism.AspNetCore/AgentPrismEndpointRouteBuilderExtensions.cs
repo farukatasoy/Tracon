@@ -156,6 +156,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         WebhookEndpoints.Map(group, roles);
         ApiKeyEndpoints.Map(group, roles);
         TenantProviderEndpoints.Map(group, roles);
+        TriggerEndpoints.Map(group, roles);
         ApprovalEndpoints.Map(group, roles);
         RetentionEndpoints.Map(group, roles);
         KnowledgeEndpoints.Map(group, roles);
@@ -177,6 +178,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
 
         MapUi(endpoints, services, options, normalizedPrefix);
         MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
+        MapInboundTriggerAccept(endpoints, options, normalizedPrefix);
         MapVoiceConversation(endpoints, services, options, normalizedPrefix, roles);
 
         // Phase 50: MapAgentPrismMcpServer/MapAgentPrismA2A are separate,
@@ -350,6 +352,37 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         }
 
         GovernanceEndpoints.MapMcpOAuthCallback(callbackGroup);
+    }
+
+    /// <summary>
+    /// Connects the inbound trigger accept endpoint (phase 66).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Connected to its own group, the same pattern as <see cref="MapMcpOAuthCallback"/>
+    /// and <see cref="MapUi"/>: <c>requireBearerToken: false</c> because the
+    /// caller (an external system such as Slack) cannot present our bearer
+    /// token, and <c>requireLoopback: false</c> because, unlike the OAuth
+    /// callback, the caller is NOT the operator's own browser — it is a
+    /// third-party server reaching in from the open internet by design.
+    /// </para>
+    /// <para>
+    /// 🚨 Deliberately does NOT apply <see cref="AgentPrismEndpointOptions.AuthorizationPolicy"/>,
+    /// unlike every other <c>requireBearerToken: false</c> group: a consumer's
+    /// ASP.NET Core authorization policy is normally satisfied by an
+    /// interactive human (SSO, a cookie) — a webhook sender can never
+    /// complete that challenge. Applying it here would let turning on SSO for
+    /// the admin console silently break every inbound trigger at the same
+    /// time. The HMAC signature IS this endpoint's complete authentication
+    /// story (section 66.2); it does not layer under a second one.
+    /// </para>
+    /// </remarks>
+    private static void MapInboundTriggerAccept(IEndpointRouteBuilder endpoints, AgentPrismEndpointOptions options, string prefix)
+    {
+        var triggerGroup = endpoints.MapGroup(prefix).WithTags("AgentPrism");
+        triggerGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false, requireLoopback: false));
+
+        TriggerEndpoints.MapAccept(triggerGroup, prefix);
     }
 
     /// <summary>

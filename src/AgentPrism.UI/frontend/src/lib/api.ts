@@ -30,6 +30,8 @@ import type {
   ExperimentCanaryResponse,
   ExperimentResultsResponse,
   ExperimentSaveRequest,
+  InboundTriggerResponse,
+  InboundTriggerSaveRequest,
   JobDetailResponse,
   JobKind,
   JobRecord,
@@ -639,6 +641,13 @@ export const api = {
   ) => request<AuditEntry[]>(`api/audit${query(params)}`),
   entityAudit: (entity: string, limit?: number) =>
     request<AuditEntry[]>(`api/audit/${encodeURIComponent(entity)}${query({ limit })}`),
+
+  triggers: () => request<InboundTriggerResponse[]>('api/triggers'),
+  trigger: (name: string) => request<InboundTriggerResponse>(`api/triggers/${encodeURIComponent(name)}`),
+  saveTrigger: (name: string, body: InboundTriggerSaveRequest) =>
+    send<InboundTriggerResponse>('PUT', `api/triggers/${encodeURIComponent(name)}`, body),
+  deleteTrigger: (name: string) =>
+    request<void>(`api/triggers/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 export type { RunEvent };

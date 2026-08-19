@@ -1052,3 +1052,70 @@ static AgentPrism.TenantProviderBindingRequest.operator !=(AgentPrism.TenantProv
 static AgentPrism.TenantProviderBindingRequest.operator ==(AgentPrism.TenantProviderBindingRequest? left, AgentPrism.TenantProviderBindingRequest? right) -> bool
 static AgentPrism.TenantProviderBindingResponse.operator !=(AgentPrism.TenantProviderBindingResponse? left, AgentPrism.TenantProviderBindingResponse? right) -> bool
 static AgentPrism.TenantProviderBindingResponse.operator ==(AgentPrism.TenantProviderBindingResponse? left, AgentPrism.TenantProviderBindingResponse? right) -> bool
+AgentPrism.InboundTriggerAcceptedResponse
+AgentPrism.InboundTriggerAcceptedResponse.<Clone>$() -> AgentPrism.InboundTriggerAcceptedResponse!
+AgentPrism.InboundTriggerAcceptedResponse.Equals(AgentPrism.InboundTriggerAcceptedResponse? other) -> bool
+AgentPrism.InboundTriggerAcceptedResponse.EventsLocation.get -> string?
+AgentPrism.InboundTriggerAcceptedResponse.EventsLocation.init -> void
+AgentPrism.InboundTriggerAcceptedResponse.InboundTriggerAcceptedResponse() -> void
+AgentPrism.InboundTriggerAcceptedResponse.JobId.get -> System.Guid
+AgentPrism.InboundTriggerAcceptedResponse.JobId.init -> void
+AgentPrism.InboundTriggerAcceptedResponse.Location.get -> string!
+AgentPrism.InboundTriggerAcceptedResponse.Location.init -> void
+AgentPrism.InboundTriggerAcceptedResponse.RunId.get -> System.Guid?
+AgentPrism.InboundTriggerAcceptedResponse.RunId.init -> void
+AgentPrism.InboundTriggerResponse
+AgentPrism.InboundTriggerResponse.<Clone>$() -> AgentPrism.InboundTriggerResponse!
+AgentPrism.InboundTriggerResponse.CreatedAt.get -> System.DateTimeOffset
+AgentPrism.InboundTriggerResponse.CreatedAt.init -> void
+AgentPrism.InboundTriggerResponse.Enabled.get -> bool
+AgentPrism.InboundTriggerResponse.Enabled.init -> void
+AgentPrism.InboundTriggerResponse.Equals(AgentPrism.InboundTriggerResponse? other) -> bool
+AgentPrism.InboundTriggerResponse.InboundTriggerResponse() -> void
+AgentPrism.InboundTriggerResponse.Name.get -> string!
+AgentPrism.InboundTriggerResponse.Name.init -> void
+AgentPrism.InboundTriggerResponse.PayloadMode.get -> AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTriggerResponse.PayloadMode.init -> void
+AgentPrism.InboundTriggerResponse.PayloadPath.get -> string?
+AgentPrism.InboundTriggerResponse.PayloadPath.init -> void
+AgentPrism.InboundTriggerResponse.Resolved.get -> bool
+AgentPrism.InboundTriggerResponse.Resolved.init -> void
+AgentPrism.InboundTriggerResponse.SigningSecretConfigurationName.get -> string!
+AgentPrism.InboundTriggerResponse.SigningSecretConfigurationName.init -> void
+AgentPrism.InboundTriggerResponse.TargetKind.get -> AgentPrism.InboundTriggerTargetKind
+AgentPrism.InboundTriggerResponse.TargetKind.init -> void
+AgentPrism.InboundTriggerResponse.TargetName.get -> string!
+AgentPrism.InboundTriggerResponse.TargetName.init -> void
+AgentPrism.InboundTriggerResponse.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.InboundTriggerResponse.UpdatedAt.init -> void
+AgentPrism.InboundTriggerSaveRequest
+AgentPrism.InboundTriggerSaveRequest.<Clone>$() -> AgentPrism.InboundTriggerSaveRequest!
+AgentPrism.InboundTriggerSaveRequest.Enabled.get -> bool
+AgentPrism.InboundTriggerSaveRequest.Enabled.init -> void
+AgentPrism.InboundTriggerSaveRequest.Equals(AgentPrism.InboundTriggerSaveRequest? other) -> bool
+AgentPrism.InboundTriggerSaveRequest.InboundTriggerSaveRequest() -> void
+AgentPrism.InboundTriggerSaveRequest.PayloadMode.get -> AgentPrism.InboundTriggerPayloadMode
+AgentPrism.InboundTriggerSaveRequest.PayloadMode.init -> void
+AgentPrism.InboundTriggerSaveRequest.PayloadPath.get -> string?
+AgentPrism.InboundTriggerSaveRequest.PayloadPath.init -> void
+AgentPrism.InboundTriggerSaveRequest.SigningSecretConfigurationName.get -> string?
+AgentPrism.InboundTriggerSaveRequest.SigningSecretConfigurationName.init -> void
+AgentPrism.InboundTriggerSaveRequest.TargetKind.get -> AgentPrism.InboundTriggerTargetKind
+AgentPrism.InboundTriggerSaveRequest.TargetKind.init -> void
+AgentPrism.InboundTriggerSaveRequest.TargetName.get -> string?
+AgentPrism.InboundTriggerSaveRequest.TargetName.init -> void
+override AgentPrism.InboundTriggerAcceptedResponse.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerAcceptedResponse.GetHashCode() -> int
+override AgentPrism.InboundTriggerAcceptedResponse.ToString() -> string!
+override AgentPrism.InboundTriggerResponse.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerResponse.GetHashCode() -> int
+override AgentPrism.InboundTriggerResponse.ToString() -> string!
+override AgentPrism.InboundTriggerSaveRequest.Equals(object? obj) -> bool
+override AgentPrism.InboundTriggerSaveRequest.GetHashCode() -> int
+override AgentPrism.InboundTriggerSaveRequest.ToString() -> string!
+static AgentPrism.InboundTriggerAcceptedResponse.operator !=(AgentPrism.InboundTriggerAcceptedResponse? left, AgentPrism.InboundTriggerAcceptedResponse? right) -> bool
+static AgentPrism.InboundTriggerAcceptedResponse.operator ==(AgentPrism.InboundTriggerAcceptedResponse? left, AgentPrism.InboundTriggerAcceptedResponse? right) -> bool
+static AgentPrism.InboundTriggerResponse.operator !=(AgentPrism.InboundTriggerResponse? left, AgentPrism.InboundTriggerResponse? right) -> bool
+static AgentPrism.InboundTriggerResponse.operator ==(AgentPrism.InboundTriggerResponse? left, AgentPrism.InboundTriggerResponse? right) -> bool
+static AgentPrism.InboundTriggerSaveRequest.operator !=(AgentPrism.InboundTriggerSaveRequest? left, AgentPrism.InboundTriggerSaveRequest? right) -> bool
+static AgentPrism.InboundTriggerSaveRequest.operator ==(AgentPrism.InboundTriggerSaveRequest? left, AgentPrism.InboundTriggerSaveRequest? right) -> bool

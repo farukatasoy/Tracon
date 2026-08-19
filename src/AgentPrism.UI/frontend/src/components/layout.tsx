@@ -26,6 +26,7 @@ import {
   SettingsIcon,
   SunIcon,
   ToolsIcon,
+  TriggersIcon,
   WorkflowIcon,
 } from './icons';
 import type { Meta } from '../lib/types';
@@ -52,6 +53,7 @@ const NAV = [
   { path: 'skills', label: 'nav.skills', icon: ToolsIcon, hue: 'var(--ap-cyan)' },
   { path: 'models', label: 'nav.models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
   { path: 'mcp', label: 'nav.mcp', icon: McpIcon, hue: 'var(--ap-amber)' },
+  { path: 'triggers', label: 'nav.triggers', icon: TriggersIcon, hue: 'var(--ap-cyan)', adminOnly: true },
   { path: 'approvals', label: 'nav.approvals', icon: ApprovalsIcon, hue: 'var(--ap-rose)' },
   { path: 'audit', label: 'nav.audit', icon: AuditIcon, hue: 'var(--ap-indigo)', adminOnly: true },
   { path: 'diagnostics', label: 'nav.diagnostics', icon: DiagnosticsIcon, hue: 'var(--ap-rose)', adminOnly: true },

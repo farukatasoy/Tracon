@@ -1429,6 +1429,47 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND next_run_at = @expected_next_run_at;
             """;
 
+        // --- Inbound triggers (Phase 66) ---
+
+        const string inboundTriggerColumns = """
+            id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
+            payload_mode, payload_path, enabled, created_at, updated_at
+            """;
+
+        UpsertInboundTrigger = $"""
+            UPDATE {Schema}.inbound_triggers WITH (UPDLOCK, SERIALIZABLE)
+               SET target_kind                        = @target_kind,
+                   target_name                         = @target_name,
+                   signing_secret_configuration_name   = @signing_secret_configuration_name,
+                   payload_mode                        = @payload_mode,
+                   payload_path                         = @payload_path,
+                   enabled                              = @enabled,
+                   updated_at                           = @updated_at
+             OUTPUT inserted.id, inserted.created_at
+             WHERE tenant_id = @tenant_id AND name = @name;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.inbound_triggers ({inboundTriggerColumns})
+            OUTPUT inserted.id, inserted.created_at
+            VALUES (@id, @tenant_id, @name, @target_kind, @target_name, @signing_secret_configuration_name,
+                    @payload_mode, @payload_path, @enabled, @created_at, @updated_at);
+            """;
+
+        SelectInboundTrigger = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}.inbound_triggers
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectInboundTriggers = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}.inbound_triggers
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteInboundTrigger = $"DELETE FROM {Schema}.inbound_triggers WHERE tenant_id = @tenant_id AND name = @name;";
+
         InsertJob = $"""
             INSERT INTO {Schema}.jobs
                 (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,

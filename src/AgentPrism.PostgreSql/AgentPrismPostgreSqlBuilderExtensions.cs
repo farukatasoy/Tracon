@@ -178,6 +178,7 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // same rationale as the workflow checkpoint store.
         services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
         services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
+        services.Replace(ServiceDescriptor.Singleton<IInboundTriggerStore, SqlInboundTriggerStore>());
 
         // Eval suite/case/run store (Phase 18). Not wrapped: same rationale as
         // the job queue stores, it carries its own state machine.

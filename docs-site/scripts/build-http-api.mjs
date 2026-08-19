@@ -397,7 +397,8 @@ function readEndpointAuthorization() {
       const role = /\.RequireRole\(roles\.(Reader|Operator|Admin)\)/.exec(chain)?.[1];
       const scope = /\.RequireApiKeyScope\(ApiKeyScope\.(\w+)\)/.exec(chain)?.[1];
       const anonymous = /\.AllowAnonymous\(\)/.test(chain) ||
-        operationId === 'AgentPrismMcpOAuthCallback';
+        operationId === 'AgentPrismMcpOAuthCallback' ||
+        operationId === 'AgentPrismAcceptInboundTrigger';
 
       result.set(operationId, { role, scope, anonymous });
     }

@@ -1303,6 +1303,45 @@ internal sealed class PostgresQueries : SqlQueriesBase
              WHERE id = @id AND next_run_at = @expected_next_run_at;
             """;
 
+        // --- Inbound triggers (Phase 66) ---
+
+        UpsertInboundTrigger = $"""
+            INSERT INTO {Schema}.inbound_triggers
+                (id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
+                 payload_mode, payload_path, enabled, created_at, updated_at)
+            VALUES (@id, @tenant_id, @name, @target_kind, @target_name, @signing_secret_configuration_name,
+                    @payload_mode, @payload_path, @enabled, @created_at, @updated_at)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET target_kind                       = EXCLUDED.target_kind,
+                    target_name                        = EXCLUDED.target_name,
+                    signing_secret_configuration_name  = EXCLUDED.signing_secret_configuration_name,
+                    payload_mode                       = EXCLUDED.payload_mode,
+                    payload_path                        = EXCLUDED.payload_path,
+                    enabled                             = EXCLUDED.enabled,
+                    updated_at                          = EXCLUDED.updated_at
+            RETURNING id, created_at;
+            """;
+
+        const string inboundTriggerColumns = """
+            id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
+            payload_mode, payload_path, enabled, created_at, updated_at
+            """;
+
+        SelectInboundTrigger = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}.inbound_triggers
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectInboundTriggers = $"""
+            SELECT {inboundTriggerColumns}
+            FROM {Schema}.inbound_triggers
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteInboundTrigger = $"DELETE FROM {Schema}.inbound_triggers WHERE tenant_id = @tenant_id AND name = @name;";
+
         InsertJob = $"""
             INSERT INTO {Schema}.jobs
                 (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
