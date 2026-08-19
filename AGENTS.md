@@ -139,6 +139,14 @@ Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 
 ---
 
+## MCP Yetenekleri
+
+`.mcp.json` iki server tanımlar (onay sonrası aktif): `playwright` arayüz
+değişikliğini tarayıcıda görsel doğrular; `context7` MAF-dışı bağımlılık
+dokümanı getirir — MAF tipi için `maf-api-kesfi` kullan.
+
+---
+
 ## Skill'ler (Ortak İş Akışları)
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
