@@ -68,6 +68,12 @@ public sealed class InMemoryRunStore : IRunStore
             Status = info.Status,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
+            // 🚨 Set BELOW, after the upsert check: on the second StartRunAsync
+            // of a queued run the caller (a background worker) usually does not
+            // know the user, and overwriting would erase what the first write
+            // got right. The SQL providers COALESCE for the same reason.
+            UserId = info.UserId,
+            Labels = info.Labels,
             SessionId = info.SessionId,
             ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
@@ -85,7 +91,16 @@ public sealed class InMemoryRunStore : IRunStore
         // Running). This is an UPSERT: if the row already exists, do NOT
         // RESET the event/tool-invocation logs (even if no event has been
         // written yet), and do not enqueue it a SECOND time.
-        var isNew = !_runs.ContainsKey(record.Id);
+        var isNew = !_runs.TryGetValue(record.Id, out var previous);
+
+        if (!isNew)
+        {
+            record = record with
+            {
+                UserId = record.UserId ?? previous!.UserId,
+                Labels = record.Labels ?? previous!.Labels,
+            };
+        }
 
         _runs[record.Id] = record;
 
@@ -311,6 +326,33 @@ public sealed class InMemoryRunStore : IRunStore
         return new ValueTask<RunRecord?>(record is null ? null : WithTreeTotals(record));
     }
 
+    /// <summary>
+    /// Says whether a record satisfies a label filter.
+    /// </summary>
+    /// <remarks>
+    /// A <see langword="null"/> key applies no filter. A key with no value
+    /// matches any value of that key; the value alone is meaningless without a
+    /// key and is ignored, which mirrors the SQL providers.
+    /// </remarks>
+    private static bool MatchesLabel(RunRecord record, string? labelKey, string? labelValue)
+    {
+        if (labelKey is not { Length: > 0 })
+        {
+            return true;
+        }
+
+        if (record.Labels is not { } labels || !labels.TryGetValue(labelKey, out var actual))
+        {
+            return false;
+        }
+
+        return labelValue is null || string.Equals(actual, labelValue, StringComparison.Ordinal);
+    }
+
+    /// <summary>Adds an optional counter, staying <see langword="null"/> while NEITHER side reported one.</summary>
+    private static long? Accumulate(long? running, long? value)
+        => value is null ? running : (running ?? 0) + value.Value;
+
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
     {
@@ -355,6 +397,16 @@ public sealed class InMemoryRunStore : IRunStore
             }
 
             if (query.Kind is { } kind && record.Kind != kind)
+            {
+                continue;
+            }
+
+            if (query.UserId is { } userId && !string.Equals(record.UserId, userId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!MatchesLabel(record, query.LabelKey, query.LabelValue))
             {
                 continue;
             }
@@ -454,13 +506,32 @@ public sealed class InMemoryRunStore : IRunStore
         long input = 0, output = 0, total = 0;
         var sawUsage = record.Usage is not null;
 
-        input += record.Usage?.InputTokens ?? 0;
-        output += record.Usage?.OutputTokens ?? 0;
-        total += record.Usage?.TotalTokens ?? 0;
+        // 🚨 The four breakdown counters stay NULL-PRESERVING while the three
+        // totals above sum from zero: a tree in which no provider ever reported
+        // cache usage must report "not measured", not "measured zero".
+        long? cachedInput = null, reasoning = null, audioInput = null, audioOutput = null;
+
+        void AccumulateUsage(RunUsage usage)
+        {
+            input += usage.InputTokens ?? 0;
+            output += usage.OutputTokens ?? 0;
+            total += usage.TotalTokens ?? 0;
+
+            cachedInput = Accumulate(cachedInput, usage.CachedInputTokens);
+            reasoning = Accumulate(reasoning, usage.ReasoningTokens);
+            audioInput = Accumulate(audioInput, usage.AudioInputTokens);
+            audioOutput = Accumulate(audioOutput, usage.AudioOutputTokens);
+        }
+
+        if (record.Usage is { } ownUsage)
+        {
+            AccumulateUsage(ownUsage);
+        }
 
         var sawCost = false;
         decimal? inputCost = null;
         decimal? outputCost = null;
+        decimal? cachedInputCost = null;
         string? costCurrency = null;
         long unknownPricing = 0;
 
@@ -488,6 +559,14 @@ public sealed class InMemoryRunStore : IRunStore
             {
                 outputCost = (outputCost ?? 0) + oc;
             }
+
+            // 🚨 A THIRD addend of the tree total, not a subset of InputCost: each
+            // run's own InputCost already excludes its cached tokens. Leaving it
+            // out under-reports every tree that hit the prompt cache.
+            if (cost.CachedInputCost is { } cc)
+            {
+                cachedInputCost = (cachedInputCost ?? 0) + cc;
+            }
         }
 
         AccumulateCost(record.Cost);
@@ -507,9 +586,7 @@ public sealed class InMemoryRunStore : IRunStore
             if (candidate.Usage is { } usage)
             {
                 sawUsage = true;
-                input += usage.InputTokens ?? 0;
-                output += usage.OutputTokens ?? 0;
-                total += usage.TotalTokens ?? 0;
+                AccumulateUsage(usage);
             }
 
             AccumulateCost(candidate.Cost);
@@ -519,13 +596,23 @@ public sealed class InMemoryRunStore : IRunStore
         {
             ChildRunCount = children,
             TreeUsage = sawUsage
-                ? new RunUsage { InputTokens = input, OutputTokens = output, TotalTokens = total }
+                ? new RunUsage
+                {
+                    InputTokens = input,
+                    OutputTokens = output,
+                    TotalTokens = total,
+                    CachedInputTokens = cachedInput,
+                    ReasoningTokens = reasoning,
+                    AudioInputTokens = audioInput,
+                    AudioOutputTokens = audioOutput,
+                }
                 : null,
             TreeCost = sawCost
                 ? new RunTreeCost
                 {
                     InputCost = inputCost,
                     OutputCost = outputCost,
+                    CachedInputCost = cachedInputCost,
                     Currency = costCurrency,
                     RunsWithUnknownPricing = unknownPricing,
                 }
@@ -542,9 +629,12 @@ public sealed class InMemoryRunStore : IRunStore
 
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
+        long cachedInputTokens = 0, reasoningTokens = 0, audioInputTokens = 0, audioOutputTokens = 0;
         long scoredRuns = 0, binaryScores = 0, positiveBinaryScores = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
+        var perUser = new Dictionary<string, BreakdownTally>(StringComparer.Ordinal);
+        var perLabel = new Dictionary<(string Key, string Value), BreakdownTally>();
         var perVersion = new Dictionary<(string AgentName, int Version), AgentTally>();
         var perErrorClass = new Dictionary<RunErrorClass, long>();
         var perErrorCluster = new Dictionary<(RunErrorClass Class, string Fingerprint), ErrorClusterTally>();
@@ -565,6 +655,16 @@ public sealed class InMemoryRunStore : IRunStore
             }
 
             if (query.StartedAfter is { } after && record.StartedAt <= after)
+            {
+                continue;
+            }
+
+            if (query.UserId is { } filterUserId && !string.Equals(record.UserId, filterUserId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!MatchesLabel(record, query.LabelKey, query.LabelValue))
             {
                 continue;
             }
@@ -638,6 +738,13 @@ public sealed class InMemoryRunStore : IRunStore
             outputTokens += record.Usage?.OutputTokens ?? 0;
             totalTokens += record.Usage?.TotalTokens ?? 0;
 
+            // These four are counted INSIDE the totals above and are reported
+            // beside them; a caller that adds them counts the same tokens twice.
+            cachedInputTokens += record.Usage?.CachedInputTokens ?? 0;
+            reasoningTokens += record.Usage?.ReasoningTokens ?? 0;
+            audioInputTokens += record.Usage?.AudioInputTokens ?? 0;
+            audioOutputTokens += record.Usage?.AudioOutputTokens ?? 0;
+
             if (record.Cost is { } cost)
             {
                 if (cost.Source == PricingSource.Unknown)
@@ -655,7 +762,37 @@ public sealed class InMemoryRunStore : IRunStore
                     costSum = (costSum ?? 0) + oc;
                 }
 
+                // The run's own InputCost already has its cached tokens subtracted
+                // out, so the cache charge is a third addend of the total.
+                if (cost.CachedInputCost is { } cc)
+                {
+                    costSum = (costSum ?? 0) + cc;
+                }
+
                 currency ??= cost.Currency;
+            }
+
+            var runCost = RunCostTotal(record.Cost);
+
+            // Runs carrying no user identity stay out of the breakdown but remain
+            // in the totals, exactly as runs with an unknown model do.
+            if (record.UserId is { Length: > 0 } breakdownUserId)
+            {
+                perUser.TryGetValue(breakdownUserId, out var userTally);
+                perUser[breakdownUserId] = userTally.Add(record, runCost);
+            }
+
+            // 🚨 A run carrying three labels contributes to THREE entries, so this
+            // breakdown does not partition the runs and its rows do not sum to
+            // TotalRuns. That is inherent to a label set, not a defect.
+            if (record.Labels is { Count: > 0 } recordLabels)
+            {
+                foreach (var (labelKey, labelValue) in recordLabels)
+                {
+                    var key = (labelKey, labelValue);
+                    perLabel.TryGetValue(key, out var labelTally);
+                    perLabel[key] = labelTally.Add(record, runCost);
+                }
             }
 
             perAgent.TryGetValue(record.AgentName, out var tally);
@@ -681,8 +818,8 @@ public sealed class InMemoryRunStore : IRunStore
             if (record.ModelId is { Length: > 0 } modelId)
             {
                 perModel.TryGetValue(modelId, out var modelTally);
-                var modelCost = record.Cost is { InputCost: not null } or { OutputCost: not null }
-                    ? (modelTally.CostSum ?? 0) + (record.Cost!.InputCost ?? 0) + (record.Cost!.OutputCost ?? 0)
+                var modelCost = runCost is { } modelRunCost
+                    ? (modelTally.CostSum ?? 0) + modelRunCost
                     : modelTally.CostSum;
                 perModel[modelId] = new ModelTally(
                     modelTally.TotalRuns + 1,
@@ -740,6 +877,10 @@ public sealed class InMemoryRunStore : IRunStore
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,
+            CachedInputTokens = cachedInputTokens,
+            ReasoningTokens = reasoningTokens,
+            AudioInputTokens = audioInputTokens,
+            AudioOutputTokens = audioOutputTokens,
             TotalCost = costSum,
             Currency = currency,
             RunsWithUnknownPricing = runsWithUnknownPricing,
@@ -769,12 +910,50 @@ public sealed class InMemoryRunStore : IRunStore
                 })
                 .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
                 .ThenByDescending(static version => version.Version)],
+            ByUser = [.. perUser
+                .Select(static pair => new RunUserStatistics
+                {
+                    UserId = pair.Key,
+                    TotalRuns = pair.Value.TotalRuns,
+                    FailedRuns = pair.Value.FailedRuns,
+                    TotalTokens = pair.Value.TotalTokens,
+                    TotalCost = pair.Value.CostSum,
+                })
+                .OrderByDescending(static user => user.TotalRuns)
+                .ThenBy(static user => user.UserId, StringComparer.Ordinal)
+                .Take(Math.Max(query.MaxAgents, 0))],
+            ByLabel = [.. perLabel
+                .Select(static pair => new RunLabelStatistics
+                {
+                    Key = pair.Key.Key,
+                    Value = pair.Key.Value,
+                    TotalRuns = pair.Value.TotalRuns,
+                    FailedRuns = pair.Value.FailedRuns,
+                    TotalTokens = pair.Value.TotalTokens,
+                    TotalCost = pair.Value.CostSum,
+                })
+                .OrderByDescending(static label => label.TotalRuns)
+                .ThenBy(static label => label.Key, StringComparer.Ordinal)
+                .ThenBy(static label => label.Value, StringComparer.Ordinal)
+                .Take(Math.Max(query.MaxAgents, 0))],
             ByErrorClass = byErrorClass,
         };
     }
 
     /// <summary>The upper bound applied when selecting an error class's most frequent clusters.</summary>
     private const int TopErrorClusterCount = 3;
+
+    /// <summary>
+    /// Sums a run's own cost the same way every breakdown does.
+    /// </summary>
+    /// <returns>
+    /// <see langword="null"/> when the run was never priced — writing zero would
+    /// make "no price is known" look like "it cost nothing".
+    /// </returns>
+    private static decimal? RunCostTotal(RunCost? cost)
+        => cost is { InputCost: not null } or { OutputCost: not null } or { CachedInputCost: not null }
+            ? (cost!.InputCost ?? 0) + (cost.OutputCost ?? 0) + (cost.CachedInputCost ?? 0)
+            : null;
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
@@ -1024,6 +1203,29 @@ public sealed class InMemoryRunStore : IRunStore
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct AgentTally(long TotalRuns, long FailedRuns, long TotalTokens);
 
+    /// <summary>The running tally of one user or one label key/value pair.</summary>
+    private readonly record struct BreakdownTally(
+        long TotalRuns,
+        long FailedRuns,
+        long TotalTokens,
+        decimal? CostSum)
+    {
+        /// <summary>Folds one run into the tally.</summary>
+        /// <param name="record">The run being counted.</param>
+        /// <param name="runCost">The run's own total cost, or <see langword="null"/> when it was never priced.</param>
+        /// <returns>The updated tally.</returns>
+        public BreakdownTally Add(RunRecord record, decimal? runCost)
+            => new(
+                TotalRuns + 1,
+                FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
+                TotalTokens + (record.Usage?.TotalTokens ?? 0),
+
+                // An unpriced run leaves the sum untouched rather than adding
+                // zero: the difference between "free" and "unknown" is the whole
+                // point of RunsWithUnknownPricing.
+                runCost is { } cost ? (CostSum ?? 0) + cost : CostSum);
+    }
+
     /// <summary>Accumulated counters for a model.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ModelTally(
@@ -1077,9 +1279,13 @@ public sealed class InMemoryRunStore : IRunStore
             var settled = record.CompletedAt is { } completedAt;
             var costSum = CostSum;
 
-            if (record.Cost is { InputCost: not null } or { OutputCost: not null })
+            // RunCost.Total() rather than a hand written two-term sum: the cache
+            // charge is a third addend, and the SQL providers total all three.
+            // Diverging here would make the SAME query answer differently
+            // depending on which store is registered.
+            if (record.Cost?.Total() is { } runCost)
             {
-                costSum = (costSum ?? 0) + (record.Cost!.InputCost ?? 0) + (record.Cost!.OutputCost ?? 0);
+                costSum = (costSum ?? 0) + runCost;
             }
 
             return new VariantTally(
@@ -1134,9 +1340,13 @@ public sealed class InMemoryRunStore : IRunStore
             var settled = record.CompletedAt is { } completedAt;
             var costSum = CostSum;
 
-            if (record.Cost is { InputCost: not null } or { OutputCost: not null })
+            // RunCost.Total() rather than a hand written two-term sum: the cache
+            // charge is a third addend, and the SQL providers total all three.
+            // Diverging here would make the SAME query answer differently
+            // depending on which store is registered.
+            if (record.Cost?.Total() is { } runCost)
             {
-                costSum = (costSum ?? 0) + (record.Cost!.InputCost ?? 0) + (record.Cost!.OutputCost ?? 0);
+                costSum = (costSum ?? 0) + runCost;
             }
 
             return new BucketTally(

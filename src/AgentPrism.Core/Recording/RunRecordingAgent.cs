@@ -52,6 +52,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly IRunInputStore? _runInputStore;
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
+    private readonly IRunAttributionContext? _attributionContext;
 
     /// <summary>Creates a new recording wrapper.</summary>
     /// <param name="innerAgent">The wrapped agent.</param>
@@ -116,6 +117,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <see cref="ContentGuardingChatClient"/> sends to the model — if the two diverge, masked
     /// or blocked content stays raw in the durable store (HATA-S3-006).
     /// </param>
+    /// <param name="attributionContext">
+    /// The attribution context (phase 68). When <see langword="null"/>, the run records no
+    /// user and no labels — the same outcome as the built-in
+    /// <see cref="DefaultRunAttributionContext"/> with no ambient scope open.
+    /// </param>
     /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -138,7 +144,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         IRunErrorClassifier? errorClassifier = null,
         IRunInputStore? runInputStore = null,
         RunSampler? runSampler = null,
-        ContentGuardPipeline? contentGuardPipeline = null)
+        ContentGuardPipeline? contentGuardPipeline = null,
+        IRunAttributionContext? attributionContext = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -166,6 +173,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _runInputStore = runInputStore;
         _runSampler = runSampler;
         _contentGuardPipeline = contentGuardPipeline;
+        _attributionContext = attributionContext;
     }
 
     /// <inheritdoc />
@@ -442,6 +450,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         var runId = prismOptions?.RunId ?? AgentPrismId.NewId();
         var agentName = Name ?? InnerAgent.Id;
         var tenantId = _tenantContext.TenantId;
+
+        // 🚨 Attribution is resolved HERE, in a SYNCHRONOUS body, for the same
+        // reason the span and the run scope are: AmbientRunAttributionScope is an
+        // AsyncLocal, and resolving it from inside an async continuation would
+        // read whatever the caller's execution context happened to restore.
+        var attribution = ResolveAttribution(runId);
         var sessionId = session is null ? null : GetSessionId(session);
         var depth = Math.Max(prismOptions?.Depth ?? 0, 0);
         var agentVersion = prismOptions?.AgentVersion ?? _agentVersion;
@@ -530,7 +544,13 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
             // The lineage link is meaningful only on a ROOT run: the child calls of a replay
             // do not correspond to the child calls of the source tree.
-            depth == 0 ? prismOptions?.ReplayOfRunId : null);
+            depth == 0 ? prismOptions?.ReplayOfRunId : null,
+
+            // Attribution IS written on child runs too, unlike the lineage link: a
+            // per-user cost report that stopped at the root would under-report every
+            // agent that calls other agents.
+            attribution.UserId,
+            attribution.Labels);
     }
 
     /// <summary>
@@ -619,6 +639,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 Kind = start.Kind,
                 StartedAt = _timeProvider.GetUtcNow(),
                 TenantId = start.Scope.TenantId,
+                UserId = start.UserId,
+                Labels = start.Labels,
                 SessionId = start.SessionId,
                 ModelId = _modelId,
                 IsStreaming = start.IsStreaming,
@@ -713,7 +735,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 Runs = 1,
                 Tokens = usage?.TotalTokens ?? 0,
                 Cost = cost is { Source: not PricingSource.Unknown }
-                    ? (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m)
+                    ? cost.Total()
                     : null,
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
@@ -809,7 +831,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     InputTokens = usage?.InputTokens,
                     OutputTokens = usage?.OutputTokens,
                     Cost = cost is { Source: not PricingSource.Unknown }
-                        ? (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m)
+                        ? cost.Total()
                         : null,
                     Currency = cost?.Currency,
                     Error = error?.Message,
@@ -925,7 +947,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 scope.AgentName,
                 modelId,
                 scope.TenantId,
-                (knownCost.InputCost ?? 0m) + (knownCost.OutputCost ?? 0m),
+                knownCost.Total() ?? 0m,
                 knownCost.Currency ?? "unknown");
         }
 
@@ -1068,6 +1090,25 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private static string? ExtractQuery(IReadOnlyList<ChatMessage> messages)
         => messages.FirstOrDefault(static message => message.Role == ChatRole.User)?.Text;
 
+    /// <summary>
+    /// Reads the run's attribution.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Must be called from a SYNCHRONOUS body. See the note at the call site.
+    /// The guarantees (a faulty implementation cannot kill the run, an oversized
+    /// attribution is dropped whole rather than trimmed, the label map is frozen)
+    /// live in <see cref="RunAttributionReader"/> so that every recording path —
+    /// agent and workflow alike — shares ONE implementation of them.
+    /// </remarks>
+    private (string? UserId, IReadOnlyDictionary<string, string>? Labels) ResolveAttribution(Guid runId)
+        => RunAttributionReader.Read(
+            _attributionContext,
+            (message, exception) => _logger.LogWarning(
+                exception,
+                "{Message} Run {RunId} continues and is recorded with no user and no labels.",
+                message,
+                runId));
+
     private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
     {
         if (extra is null)
@@ -1085,8 +1126,22 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             InputTokens = (primary.InputTokens ?? 0) + (extra.InputTokens ?? 0),
             OutputTokens = (primary.OutputTokens ?? 0) + (extra.OutputTokens ?? 0),
             TotalTokens = (primary.TotalTokens ?? 0) + (extra.TotalTokens ?? 0),
+
+            // 🚨 The breakdown fields use a NULL-PRESERVING sum, unlike the three
+            // totals above. `(a ?? 0) + (b ?? 0)` would turn "neither side
+            // measured this" into the claim "measured, and it was zero"; on a run
+            // whose provider never reports cache usage that would report a 0%
+            // cache hit rate as if it had been observed.
+            CachedInputTokens = AddOrNull(primary.CachedInputTokens, extra.CachedInputTokens),
+            ReasoningTokens = AddOrNull(primary.ReasoningTokens, extra.ReasoningTokens),
+            AudioInputTokens = AddOrNull(primary.AudioInputTokens, extra.AudioInputTokens),
+            AudioOutputTokens = AddOrNull(primary.AudioOutputTokens, extra.AudioOutputTokens),
         };
     }
+
+    /// <summary>Adds two optional counters, staying <see langword="null"/> when NEITHER side reported one.</summary>
+    private static long? AddOrNull(long? left, long? right)
+        => left is null && right is null ? null : (left ?? 0) + (right ?? 0);
 
     private static RunUsage? ToRunUsage(UsageDetails? usage)
         => usage is null
@@ -1096,6 +1151,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 InputTokens = usage.InputTokenCount,
                 OutputTokens = usage.OutputTokenCount,
                 TotalTokens = usage.TotalTokenCount,
+
+                // 🚨 These four are counted INSIDE the three totals above (the
+                // Microsoft.Extensions.AI contract), so they are recorded beside
+                // them, never added to them. A provider that does not report one
+                // leaves it null; writing zero would claim a measurement that was
+                // never made.
+                CachedInputTokens = UsageBreakdown.CachedInputTokens(usage),
+                ReasoningTokens = UsageBreakdown.ReasoningTokens(usage),
+                AudioInputTokens = UsageBreakdown.AudioInputTokens(usage),
+                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(usage),
             };
 
     // AgentPrism exceptions can carry their own stable error type name (for example
@@ -1122,7 +1187,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         int? AgentVersion,
         Guid? ExperimentId,
         string? Variant,
-        Guid? ReplayOfRunId);
+        Guid? ReplayOfRunId,
+        string? UserId,
+        IReadOnlyDictionary<string, string>? Labels);
 
     /// <summary>The recording state of a single run.</summary>
     private sealed record RunScope(

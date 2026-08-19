@@ -128,7 +128,7 @@ public sealed class OnlineEvalSummaryService(
                 continue;
             }
 
-            judgeCost = (judgeCost ?? 0m) + (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m);
+            judgeCost = (judgeCost ?? 0m) + (cost.Total() ?? 0m);
             judgeCostCurrency ??= cost.Currency;
         }
 

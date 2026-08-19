@@ -171,6 +171,14 @@ internal static class ApprovalEndpoints
                 Status = RunStatus.Queued,
                 StartedAt = now,
                 TenantId = tenants.TenantId,
+
+                // 🚨 Attribution is INHERITED from the run being resumed, not
+                // read from the current request: the person who approved the
+                // tool call is not the person whose budget the run spends. The
+                // approver is recorded in the audit trail, which is where "who
+                // decided" belongs.
+                UserId = originalRun.UserId,
+                Labels = originalRun.Labels,
                 SessionId = approval.SessionId,
             },
             cancellationToken).ConfigureAwait(false);

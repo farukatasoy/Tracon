@@ -77,6 +77,73 @@ curl -N http://localhost:5081/agentprism/api/runs/{runId}/events
 Tool calls are also written individually — name, arguments, result, duration, error —
 so "which tool failed and with what input" is a query, not a log search.
 
+## Who ran it, and for what
+
+A run also records **who** it belongs to and **which job** it was made for. Both
+answer questions the tenant cannot: a tenant tells you whose data this is, not
+which of that tenant's users spent the money.
+
+Neither value is ever read from the run request body. A `userId` field on
+`POST /api/agents/{name}/run` would let any client write spend against another
+user's name, so the body is not a source of attribution at all. The value comes
+from `IRunAttributionContext`, which your application binds to its own identity
+pipeline:
+
+```csharp
+public sealed class ClaimsRunAttributionContext(IHttpContextAccessor accessor)
+    : IRunAttributionContext
+{
+    public string? UserId =>
+        accessor.HttpContext?.User.FindFirst("sub")?.Value;
+
+    public IReadOnlyDictionary<string, string>? Labels =>
+        accessor.HttpContext?.Request.Headers.TryGetValue("X-Job", out var job) == true
+            ? new Dictionary<string, string> { ["job"] = job.ToString() }
+            : null;
+}
+
+// Registered BEFORE AddAgentPrism(); AgentPrism uses TryAdd, so yours wins.
+builder.Services.AddSingleton<IRunAttributionContext, ClaimsRunAttributionContext>();
+```
+
+Register nothing and nothing changes: both columns stay `NULL` and no behaviour
+differs. For work that runs outside a request — a queued job, a scheduled run, a
+direct .NET call — use the ambient scope instead:
+
+```csharp
+using (AmbientRunAttributionScope.Begin("user-42", labels: null))
+{
+    await agent.RunAsync("summarise this ticket");
+}
+```
+
+The user id is an **opaque string**. AgentPrism neither resolves nor validates
+what it means and stores no personal detail of its own — the same stance the
+data-subject erasure flow takes, which covers this column too.
+
+Labels are bounded on purpose: at most **8** per run, keys up to **64**
+characters, values up to **256**. Breaking a limit **rejects the request with
+400**; nothing is trimmed to fit, because a trimmed label set still reads as a
+complete measurement to whoever queries the report later.
+
+:::caution
+Labels and user ids are **query** dimensions, not **metric** dimensions. They
+live in the `runs` table and are never added to `agentprism.tokens` or
+`agentprism.run.cost` — promoting a free-form label set to a metric tag has no
+upper bound on time-series cardinality.
+:::
+
+Both are filters on the run list and breakdowns in the summary:
+
+```bash
+curl "http://localhost:5081/agentprism/api/runs?userId=user-42"
+curl "http://localhost:5081/agentprism/api/runs?label=team:payments"
+curl "http://localhost:5081/agentprism/api/stats" | jq '.byUser, .byLabel'
+```
+
+`byLabel` rows do **not** sum to `totalRuns`: a run carrying three labels appears
+in three of them. A label set is not a partition of the runs.
+
 ## Three ways to start a run
 
 | | How | Response |

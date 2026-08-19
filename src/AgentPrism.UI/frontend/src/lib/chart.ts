@@ -133,3 +133,61 @@ export function tickIndices(count: number, maxTicks: number): number[] {
 function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
+
+/** One slice of the token breakdown bar. */
+export interface TokenSlice {
+  /** Message key naming this slice. */
+  key: 'cachedInput' | 'input' | 'reasoning' | 'output';
+  /** Token count in this slice. */
+  tokens: number;
+  /** Share of the whole bar, 0-1. */
+  share: number;
+}
+
+/** The four counters a token breakdown bar is drawn from. */
+export interface TokenTotals {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  reasoningTokens: number;
+}
+
+/**
+ * Splits input/output totals into the four disjoint slices of a breakdown bar.
+ *
+ * 🚨 `cachedInputTokens` and `reasoningTokens` are counted INSIDE the input and
+ * output totals, so the bar is built by SUBTRACTION: the plain "input" slice is
+ * the input that was NOT served from cache. Stacking the four raw counters would
+ * draw a bar longer than the tokens actually spent.
+ *
+ * A breakdown larger than the total it belongs to is a provider data fault; the
+ * slice is floored at zero rather than drawn as a negative width, and the
+ * remaining slices stay truthful.
+ *
+ * @param totals The four counters from `GET /api/stats`.
+ * @returns The slices in draw order, empty ones dropped. Empty when nothing was spent.
+ */
+export function tokenBreakdown(totals: TokenTotals): TokenSlice[] {
+  const cached = Math.max(0, Math.min(totals.cachedInputTokens, totals.inputTokens));
+  const reasoning = Math.max(0, Math.min(totals.reasoningTokens, totals.outputTokens));
+
+  const freshInput = Math.max(0, totals.inputTokens - cached);
+  const plainOutput = Math.max(0, totals.outputTokens - reasoning);
+
+  const slices: { key: TokenSlice['key']; tokens: number }[] = [
+    { key: 'cachedInput', tokens: cached },
+    { key: 'input', tokens: freshInput },
+    { key: 'reasoning', tokens: reasoning },
+    { key: 'output', tokens: plainOutput },
+  ];
+
+  const total = slices.reduce((sum, slice) => sum + slice.tokens, 0);
+
+  if (total === 0) {
+    return [];
+  }
+
+  return slices
+    .filter((slice) => slice.tokens > 0)
+    .map((slice) => ({ ...slice, share: slice.tokens / total }));
+}

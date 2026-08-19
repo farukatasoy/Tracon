@@ -130,6 +130,14 @@ if (demoRolesEnabled)
 // called.
 builder.Services.AddOpenApi();
 
+// Run attribution (phase 68): who ran this, and for which job. Registered BEFORE
+// AddAgentPrism() so it wins the TryAdd — the consumer's binding to its own
+// identity pipeline always beats the built-in default.
+//
+// 🚨 The user is NEVER read from the run request body; see the class remarks.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IRunAttributionContext, DemoRunAttributionContext>();
+
 var agentPrism = builder.AddAgentPrism()
     // Tools are defined ONLY in code. The UI lets a user pick from this list;
     // it never lets them write tool code. This is a security boundary.

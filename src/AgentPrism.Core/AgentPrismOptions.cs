@@ -531,4 +531,14 @@ public sealed class ModelPriceOverride
 
     /// <summary>Gets or sets cost per million output tokens.</summary>
     public decimal? OutputCostPerMillionTokens { get; set; }
+
+    /// <summary>
+    /// Gets or sets cost per million input tokens served from the prompt cache.
+    /// </summary>
+    /// <remarks>
+    /// Leaving it unset prices cached tokens at
+    /// <see cref="InputCostPerMillionTokens"/>; it never makes the price
+    /// unknown. See <see cref="ModelDescriptor.CachedInputCostPerMillionTokens"/>.
+    /// </remarks>
+    public decimal? CachedInputCostPerMillionTokens { get; set; }
 }

@@ -15,6 +15,7 @@ import {
   Select,
   Table,
   Td,
+  TextInput,
   Th,
 } from '../components/ui';
 import { Pager } from './sessions';
@@ -52,6 +53,8 @@ export function RunsScreen(): ReactNode {
   const [agentName, setAgentName] = useState('');
   const [status, setStatus] = useState('');
   const [includeChildren, setIncludeChildren] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [label, setLabel] = useState('');
   const [page, setPage] = useState(0);
   // `?sessionId=...` (session-detail.tsx's "N runs" button) — a link-driven
   // filter, not a control on this screen, so it has no `<Select>` of its own.
@@ -59,18 +62,25 @@ export function RunsScreen(): ReactNode {
 
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
   const stats = useQuery({
-    queryKey: ['stats', agentName],
-    queryFn: () => api.stats({ agentName: agentName.length > 0 ? agentName : undefined }),
+    queryKey: ['stats', agentName, userId, label],
+    queryFn: () =>
+      api.stats({
+        agentName: agentName.length > 0 ? agentName : undefined,
+        userId: userId.length > 0 ? userId : undefined,
+        label: label.length > 0 ? label : undefined,
+      }),
   });
 
   const runs = useQuery({
-    queryKey: ['runs', agentName, status, includeChildren, page, sessionId],
+    queryKey: ['runs', agentName, status, includeChildren, page, sessionId, userId, label],
     queryFn: () =>
       api.runs({
         agentName: agentName.length > 0 ? agentName : undefined,
         status: status.length > 0 ? (status as RunStatus) : undefined,
         includeChildren: includeChildren ? true : undefined,
         sessionId: sessionId ?? undefined,
+        userId: userId.length > 0 ? userId : undefined,
+        label: label.length > 0 ? label : undefined,
         skip: page * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
@@ -125,6 +135,29 @@ export function RunsScreen(): ReactNode {
               <option value="roots">{t('runs.rootOnly')}</option>
               <option value="all">{t('runs.includeChildren')}</option>
             </Select>
+            {/*
+              Free text rather than a <Select>: the server does not expose a user
+              list, and building one from the visible page would silently offer
+              only the users on THIS page.
+            */}
+            <TextInput
+              value={userId}
+              placeholder={t('runs.filter.userPlaceholder')}
+              aria-label={t('runs.filter.user')}
+              onChange={(event) => {
+                setUserId(event.target.value);
+                setPage(0);
+              }}
+            />
+            <TextInput
+              value={label}
+              placeholder={t('runs.filter.labelPlaceholder')}
+              aria-label={t('runs.filter.label')}
+              onChange={(event) => {
+                setLabel(event.target.value);
+                setPage(0);
+              }}
+            />
           </>
         }
       />

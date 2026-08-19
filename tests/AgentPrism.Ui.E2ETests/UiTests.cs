@@ -70,7 +70,12 @@ public sealed class UiTests(BrowserFixture browsers)
         // Buckets are filled with zeros even for an empty store; charts still render.
         await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
         await session.Page.GetByTestId("status-distribution-chart").WaitForAsync();
-        await session.Page.GetByText("No run in this window").WaitForAsync();
+
+        // 🚨 `.First` is REQUIRED: the empty-state text is shared by every chart
+        // panel, and an empty dashboard now shows it in two of them (the model
+        // breakdown and, since phase 68, the token breakdown). A bare
+        // GetByText resolves to both and fails Playwright's strict mode.
+        await session.Page.GetByText("No run in this window").First.WaitForAsync();
 
         // Changing the range must trigger a new /api/stats/timeseries request
         // (the 30d range switches from an hour bucket to a day bucket, to stay

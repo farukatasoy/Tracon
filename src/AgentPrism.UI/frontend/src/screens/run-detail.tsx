@@ -197,6 +197,21 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                 </Link>
               </>
             )}
+            {record.userId != null && (
+              <>
+                , {t('runDetail.forUser')} <Mono>{record.userId}</Mono>
+              </>
+            )}
+            {record.labels != null && Object.keys(record.labels).length > 0 && (
+              <>
+                {', '}
+                {Object.entries(record.labels).map(([key, value]) => (
+                  <Badge key={key} tone="neutral">
+                    {key}: {value}
+                  </Badge>
+                ))}
+              </>
+            )}
             {record.parentRunId != null && (
               <>
                 , {t('runDetail.calledBy')}{' '}

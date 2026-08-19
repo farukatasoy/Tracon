@@ -122,6 +122,14 @@ public sealed class ModelRunJudge(
                 InputTokens = responseUsage.InputTokenCount,
                 OutputTokens = responseUsage.OutputTokenCount,
                 TotalTokens = responseUsage.TotalTokenCount,
+
+                // The judge is a normal model call and hits the same prompt cache:
+                // without these the judge's own cost is resolved as if every input
+                // token were fresh.
+                CachedInputTokens = UsageBreakdown.CachedInputTokens(responseUsage),
+                ReasoningTokens = UsageBreakdown.ReasoningTokens(responseUsage),
+                AudioInputTokens = UsageBreakdown.AudioInputTokens(responseUsage),
+                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(responseUsage),
             }
             : null;
 
@@ -138,7 +146,7 @@ public sealed class ModelRunJudge(
                 Name,
                 options.Model.Model,
                 tenantContext.TenantId,
-                (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m),
+                cost.Total() ?? 0m,
                 cost.Currency ?? "unknown");
         }
 
