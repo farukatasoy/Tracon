@@ -108,12 +108,21 @@ public sealed class CodeAgentSource : IAgentSource
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        var agent = _cache.GetOrAdd(
+        // 🚨 A tenant-specific provider credential (phase 65, BYOK) gets baked
+        // into the compiled agent's chat client; caching it would let a
+        // rotated or deleted binding keep working silently. Bypass
+        // CompiledAgentCache entirely in that case — independent audit finding.
+        if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
+        {
+            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+        }
+
+        var agent = await _cache.GetOrAddAsync(
             _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.Compile(definition, callable));
+            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
 
         return agent;
     }

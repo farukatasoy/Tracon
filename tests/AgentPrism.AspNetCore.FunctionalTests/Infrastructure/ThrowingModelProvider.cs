@@ -19,7 +19,7 @@ internal sealed class ThrowingModelProvider(string name = "kirik") : IModelProvi
 
     public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "kirik-1" }];
 
-    public IChatClient CreateChatClient(ModelBinding binding) => new ThrowingChatClient();
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => new ThrowingChatClient();
 
     private sealed class ThrowingChatClient : IChatClient
     {

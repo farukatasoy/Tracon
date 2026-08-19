@@ -254,6 +254,32 @@ public sealed class PostgresApiKeyStoreContractTests(PostgresSchemaFixture schem
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresTenantProviderBindingStoreContractTests(PostgresSchemaFixture schema)
+    : TenantProviderBindingStoreContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantProviderBindingStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantProviderBindings;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresTenantEgressPolicyStoreContractTests(PostgresSchemaFixture schema)
+    : TenantEgressPolicyStoreContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantEgressPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantEgressPolicies;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresVoiceSessionStoreContractTests(PostgresSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<PostgresSchemaFixture>
 {

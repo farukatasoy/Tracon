@@ -258,6 +258,32 @@ public sealed class SqliteApiKeyStoreContractTests(SqliteSchemaFixture schema)
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteTenantProviderBindingStoreContractTests(SqliteSchemaFixture schema)
+    : TenantProviderBindingStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantProviderBindingStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantProviderBindings;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteTenantEgressPolicyStoreContractTests(SqliteSchemaFixture schema)
+    : TenantEgressPolicyStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantEgressPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantEgressPolicies;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteVoiceSessionStoreContractTests(SqliteSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<SqliteSchemaFixture>
 {

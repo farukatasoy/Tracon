@@ -6,7 +6,7 @@ AgentPrism.AzureOpenAIModelCatalog
 AgentPrism.AzureOpenAIModelProvider
 AgentPrism.AzureOpenAIModelProvider.AzureOpenAIModelProvider(string! name, AgentPrism.AzureOpenAIChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.AzureOpenAIModelProvider!>? logger = null, AgentPrism.AzureOpenAIProviderOptions? healthCheckOptions = null) -> void
 AgentPrism.AzureOpenAIModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.AzureOpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.AzureOpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AzureOpenAIModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
 AgentPrism.AzureOpenAIModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 AgentPrism.AzureOpenAIModelProvider.Name.get -> string!

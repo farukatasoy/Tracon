@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -11,7 +11,10 @@
 > katmanlaması — genel `MapAgentPrism` sözleşmesi `07`'nin işi) ·
 > `src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs`, `AuditEndpoints.cs`,
 > `GovernanceEndpoints.cs` (yalnız `MapTenants` + `MapApprovalRules` — MCP sunucu
-> bölümleri `18`'in işi) ·
+> bölümleri `18`'in işi), `TenantProviderEndpoints.cs` (Faz 65 — kiracı sağlayıcı
+> bağlamaları/BYOK ve egress politikası) ·
+> `src/AgentPrism.Abstractions/Options/AgentPrismTenantProviderOptions.cs` (Faz 65) ·
+> `src/AgentPrism.Core/Models/ProviderCredentialClientCache.cs` (Faz 65) ·
 > `src/AgentPrism.Abstractions/Approvals/` (tümü — `ToolArgumentCondition`,
 > `ToolArgumentOperator`, `ToolApprovalPolicyDecision`, `ToolApprovalContext`) ·
 > `src/AgentPrism.Core/Approvals/` (tümü — `ToolArgumentConditionMatcher`,
@@ -1962,3 +1965,275 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/approvals/rules" -H "$APB"
 - Yeni kural tabloda `amount ≤ 100` rozetiyle görünür; operatör seçimi yalnız
   sekiz sabit değerden biri olabilir, hiçbir alanda ifade/formül yazılamaz (K2).
   Otomatikleştirilmiş karşılığı: `UiTests.Approval_rule_with_condition_is_created_and_shown`.
+
+---
+
+### MT-SEC-109 — Bağlama önek dışındaki bir yapılandırma anahtarı adıyla reddedilir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467 |
+
+**Adımlar**
+1. `ConnectionStrings:Default` gibi önek dışı bir ad ile bağlama yazmayı dene.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/acme/providers/openai" -H "$APB" -H "content-type: application/json" -d '{
+  "apiKeyConfigurationName": "ConnectionStrings:Default"
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`, `title: "Invalid request"`; gövde "AgentPrism:ProviderKeys:" önekini anar.
+  Kayıt hiç oluşmaz — `GET /api/tenants/acme/providers` boş liste döner.
+
+---
+
+### MT-SEC-110 — Anahtar değeri `user-secrets`'e yazılınca bağlama `resolved: true` olur; hiçbir yanıt DEĞERİ TAŞIMAZ
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-059, K-467 |
+
+**Adımlar**
+1. `dotnet user-secrets set "AgentPrism:ProviderKeys:Acme:OpenAI" "sk-..." --project samples/AgentPrism.Api`
+2. Bağlamayı kaydet, sonra listele.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/tenants/acme/providers/openai" -H "$APB" -H "content-type: application/json" -d '{
+  "apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"
+}'
+
+curl -s "$APU/api/tenants/acme/providers" -H "$APB"
+```
+
+**Beklenen sonuç**
+- İlk çağrı `resolved: true` döner (adım 1'de anahtar zaten yazılıydıysa) veya
+  önce `resolved: false` görülür, sunucu yeniden başlatılmadan `user-secrets`
+  yazıldıktan SONRAKİ istekte `true`'ya döner (önbellek yok, K1). İkinci çağrının
+  gövdesinde `sk-` ile başlayan hiçbir metin, hiçbir alan adı `apiKey`/`value`
+  YOKTUR — yalnız `providerName`, `apiKeyConfigurationName` (ADIN kendisi),
+  `endpoint`, `resolved`, `updatedAt`.
+
+---
+
+### MT-SEC-111 — Ad var, değer yok: çalıştırma global anahtara SESSİZCE düşmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467 |
+
+**Adımlar**
+1. `dotnet user-secrets remove "AgentPrism:ProviderKeys:Acme:OpenAI" --project samples/AgentPrism.Api` (değeri sil, bağlama kaydı DURSUN).
+2. `acme` kiracısı olarak bir `run` başlat.
+
+**Beklenen sonuç**
+- Çalıştırma **global anahtarla devam ETMEZ**; `AgentPrismException` kaynaklı
+  anlaşılır bir hata alınır ve mesaj `AgentPrism:ProviderKeys:Acme:OpenAI`
+  adını ve `dotnet user-secrets set` ipucunu içerir. Otomatikleştirilmiş
+  karşılığı: `ModelProviderRegistryTenantCredentialTests.A_binding_that_exists_but_resolves_to_no_value_does_not_fall_back_silently`.
+
+---
+
+### MT-SEC-112 — İki kiracı, iki farklı anahtar: her çağrı kendi anahtarını kullanır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467, K-468 |
+
+**Adımlar**
+1. `acme` ve `globex` kiracılarına FARKLI `user-secrets` anahtarlarıyla birer
+   OpenAI bağlaması yaz.
+2. Her iki kiracı olarak sırayla bir `run` başlat (gerçek bir sahte/gözlemlenebilir
+   uca karşı, örn. istek başlıklarını loglayan bir `openai-compatible` sunucu).
+
+**Beklenen sonuç**
+- İki çağrı da FARKLI `Authorization` başlığıyla gider; hiçbir çağrı diğer
+  kiracının anahtarını kullanmaz. Otomatikleştirilmiş karşılığı: sözleşme testi
+  `TenantProviderBindingStoreContract` (bellek içi + üç SQL sağlayıcısı).
+
+---
+
+### MT-SEC-113 — Bağlama yazımından sonra veritabanında `secret` YOKTUR
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-059 |
+
+**Adımlar**
+1. MT-SEC-110/112'nin ardından, PostgreSQL/SQL Server/SQLite'a doğrudan bağlanıp
+   `tenant_provider_bindings` tablosunu oku.
+
+**Girilecek veri**
+```bash
+psql "$PG_CONN" -c "SELECT tenant_id, provider_name, api_key_configuration_name, endpoint FROM agentprism.tenant_provider_bindings;"
+```
+
+**Beklenen sonuç**
+- `api_key_configuration_name` sütunu yalnız ADI taşır (`AgentPrism:ProviderKeys:...`);
+  hiçbir satırda `sk-` ile başlayan bir metin veya gerçek anahtar değeri YOKTUR.
+
+---
+
+### MT-SEC-114 — Bağlama yazımı ve silinmesi denetim izine düşer
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Bir bağlama kaydet, sonra sil.
+2. Denetim iznini aç.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/audit/tenant_provider:default:openai" -H "$APB"
+```
+
+**Beklenen sonuç**
+- İki kayıt görünür: `tenant_provider.save` ve `tenant_provider.delete`.
+  `save` kaydının `after` alanında `configKeyName` görünür ama gerçek anahtar
+  DEĞERİ hiçbir zaman görünmez.
+
+---
+
+### MT-SEC-115 — Egress politikası tanımlanmamış bir kiracıda davranış DEĞİŞMEZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467 |
+
+**Adımlar**
+1. Hiç egress politikası kaydetmeden `GET /api/tenants/acme/egress` çağır.
+2. `acme` kiracısı olarak herhangi bir sağlayıcıya `run` başlat.
+
+**Beklenen sonuç**
+- `allowedProviders: null` (kısıtsız, K1). `run` bugünkü gibi çalışır, hiçbir
+  sağlayıcı reddedilmez.
+
+---
+
+### MT-SEC-116 — İzinsiz sağlayıcıya işaret eden agent tanımı DERLEME ANINDA reddedilir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467 |
+
+**Adımlar**
+1. `acme` kiracısı için egress politikasını yalnız `["anthropic"]` olarak kaydet.
+2. `openai` sağlayıcısına bağlı bir agent tanımını `POST /api/agents/validate`
+   (veya doğrudan bir `run`) ile derlemeyi dene.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/tenants/acme/egress" -H "$APB" -H "content-type: application/json" \
+  -d '{"allowedProviders": ["anthropic"]}'
+```
+
+**Beklenen sonuç**
+- `AgentPrismCompilationException` kaynaklı bir hata; mesaj `openai` adını ve
+  izinli listeyi (`anthropic`) anar. Gerçek bir model çağrısı YAPILMAZ — hata
+  ağa hiç çıkmadan, derleme adımında oluşur. Otomatikleştirilmiş karşılığı:
+  `AgentDefinitionCompilerEgressTests.Compiling_an_agent_bound_to_a_forbidden_provider_throws_a_compilation_exception`.
+
+---
+
+### MT-SEC-117 — İzinsiz sağlayıcı için bağlama yazımı da `400` alır (iki yüzey tutarlı)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-467 |
+
+**Adımlar**
+1. MT-SEC-116'nın egress politikası dururken, `openai` için bir bağlama yazmayı dene.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/acme/providers/openai" -H "$APB" -H "content-type: application/json" -d '{
+  "apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`; egress kontrolü kayıt zamanında da çalışır — bağlama uçuyla
+  agent derleme yolu aynı kısıtı uygular.
+
+---
+
+### MT-SEC-119 — Egress politikası silinince kiracı tekrar kısıtsız olur
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Bir egress politikası kaydet.
+2. Sil, sonra tekrar oku.
+3. Aynı politikayı ikinci kez silmeyi dene.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/tenants/acme/egress" -H "$APB" -H "content-type: application/json" -d '{"allowedProviders": ["openai"]}'
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/acme/egress" -H "$APB"
+curl -s "$APU/api/tenants/acme/egress" -H "$APB"
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/acme/egress" -H "$APB"
+```
+
+**Beklenen sonuç**
+- İlk silme `HTTP: 204`; ardından `GET` `allowedProviders: null` döner (kısıtsız,
+  politika hiç kaydedilmemiş gibi). İkinci silme `HTTP: 404`,
+  `title: "Policy not found"`. Boş bir dizi (`allowedProviders: []`, hiçbir
+  sağlayıcıya izin yok) ile "politika yok" (kısıtsız) durumu AYNI ŞEY DEĞİLDİR —
+  bu yüzden ayrı bir `DELETE` ucu vardır.
+
+---
+
+### MT-SEC-118 — Arayüzden bağlama ekranında değer girme alanı YOKTUR
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 65 |
+| **İlgili karar** | K-059 |
+
+**Adımlar**
+1. Kiracı ekranını aç, sağlayıcı bağlama panelini bul.
+2. Yeni bağlama formunu incele: hangi alanlar var?
+
+**Beklenen sonuç**
+- Form yalnız sağlayıcı adı, yapılandırma anahtarı ADI ve isteğe bağlı uç adresi
+  ister. Hiçbir alan doğrudan bir `secret`/API anahtarı DEĞERİ istemez; çözümleme
+  durumu (`resolved`) salt-okunur bir rozet olarak gösterilir.

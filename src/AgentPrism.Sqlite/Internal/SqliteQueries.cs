@@ -2020,5 +2020,64 @@ internal sealed class SqliteQueries : SqlQueriesBase
              RETURNING id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
                        decided_by, decided_at, expires_at, created_at;
             """;
+
+        // -------------------------------------------------------------------
+        // Phase 65 -- tenant provider bindings (BYOK) and egress policy
+        // -------------------------------------------------------------------
+        // 🚨 The column list contains NO SECRET VALUE: only the NAME of the
+        // configuration key the value is read from at call time (K-059,
+        // section 65.1). Table/index names carry the PREFIX (K-193).
+        const string tenantProviderBindingColumns =
+            "tenant_id, provider_name, api_key_configuration_name, endpoint, updated_at";
+
+        UpsertTenantProviderBinding = $"""
+            INSERT INTO {Schema}tenant_provider_bindings
+                ({tenantProviderBindingColumns})
+            VALUES
+                (@tenant_id, @provider_name, @api_key_configuration_name, @endpoint, @updated_at)
+            ON CONFLICT (tenant_id, provider_name) DO UPDATE
+                SET api_key_configuration_name = excluded.api_key_configuration_name,
+                    endpoint = excluded.endpoint,
+                    updated_at = excluded.updated_at;
+            """;
+
+        SelectTenantProviderBinding = $"""
+            SELECT {tenantProviderBindingColumns}
+            FROM {Schema}tenant_provider_bindings
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        SelectTenantProviderBindings = $"""
+            SELECT {tenantProviderBindingColumns}
+            FROM {Schema}tenant_provider_bindings
+            WHERE tenant_id = @tenant_id
+            ORDER BY provider_name;
+            """;
+
+        DeleteTenantProviderBinding = $"""
+            DELETE FROM {Schema}tenant_provider_bindings
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        UpsertTenantEgressPolicy = $"""
+            INSERT INTO {Schema}tenant_egress_policies
+                (tenant_id, allowed_providers, updated_at)
+            VALUES
+                (@tenant_id, @allowed_providers, @updated_at)
+            ON CONFLICT (tenant_id) DO UPDATE
+                SET allowed_providers = excluded.allowed_providers,
+                    updated_at = excluded.updated_at;
+            """;
+
+        SelectTenantEgressPolicy = $"""
+            SELECT tenant_id, allowed_providers, updated_at
+            FROM {Schema}tenant_egress_policies
+            WHERE tenant_id = @tenant_id;
+            """;
+
+        DeleteTenantEgressPolicy = $"""
+            DELETE FROM {Schema}tenant_egress_policies
+            WHERE tenant_id = @tenant_id;
+            """;
     }
 }

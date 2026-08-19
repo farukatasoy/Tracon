@@ -354,7 +354,7 @@ public sealed class RunToCasePromotionEndpointTests
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "throws-1" }];
 
-        public IChatClient CreateChatClient(ModelBinding binding) => new ThrowingChatClient();
+        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => new ThrowingChatClient();
 
         private sealed class ThrowingChatClient : IChatClient
         {

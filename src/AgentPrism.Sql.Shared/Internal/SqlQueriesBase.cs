@@ -655,6 +655,27 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string ExpirePendingApprovals { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that creates or replaces a tenant's provider binding (phase 65, BYOK).</summary>
+    public string UpsertTenantProviderBinding { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads a single tenant provider binding.</summary>
+    public string SelectTenantProviderBinding { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists every provider binding of a tenant.</summary>
+    public string SelectTenantProviderBindings { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that deletes a tenant provider binding.</summary>
+    public string DeleteTenantProviderBinding { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that creates or replaces a tenant's egress policy (phase 65, F-119).</summary>
+    public string UpsertTenantEgressPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads a tenant's egress policy.</summary>
+    public string SelectTenantEgressPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that deletes a tenant's egress policy.</summary>
+    public string DeleteTenantEgressPolicy { get; protected set; } = string.Empty;
+
     /// <summary>Replaces the schema placeholder in the embedded migration text with the real name.</summary>
     /// <param name="sql">The raw migration text.</param>
     /// <returns>Runnable SQL.</returns>

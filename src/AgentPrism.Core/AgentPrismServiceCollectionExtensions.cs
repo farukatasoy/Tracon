@@ -146,6 +146,12 @@ public static class AgentPrismServiceCollectionExtensions
         // its own unless turned on.
         services.AddOptions<CanaryOptions>().ValidateOnStart();
 
+        // Tenant provider bindings / BYOK (Phase 65). Same rationale: carries
+        // its own section, requires no separate Use...() call. The default
+        // prefix is restrictive on its own (section 65.2); no separate
+        // Enabled flag is needed.
+        services.AddOptions<AgentPrismTenantProviderOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -168,6 +174,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindOnlineEvaluation(configurationSection.GetSection("OnlineEvaluation"), options));
             services.Configure<CanaryOptions>(
                 options => BindCanary(configurationSection.GetSection("Canary"), options));
+            services.Configure<AgentPrismTenantProviderOptions>(
+                options => BindTenantProviders(configurationSection.GetSection("TenantProviders"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -238,6 +246,17 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<ILoggerFactory>()));
 
+        // Tenant provider bindings / BYOK (Phase 65). The stores are always
+        // registered (K-018: first-class); nothing changes for a tenant with
+        // no binding (K1). Explicit factory: TenantProviderCredentialResolver
+        // needs IConfiguration, which may not be registered outside ASP.NET
+        // Core hosting (see its own null-safety remark).
+        services.TryAddSingleton<ITenantProviderBindingStore, InMemoryTenantProviderBindingStore>();
+        services.TryAddSingleton<ITenantEgressPolicyStore, InMemoryTenantEgressPolicyStore>();
+        services.TryAddSingleton(static provider => new TenantProviderCredentialResolver(
+            provider.GetService<IConfiguration>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismTenantProviderOptions>>()));
+
         // Sets up the WHOLE registry pipeline (moved out of the provider
         // packages in Phase 48). An explicit factory is required: the built-in
         // DI container does not fill in constructor parameters that carry a
@@ -249,7 +268,10 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<ITenantContext>(),
             provider.GetService<ContentGuardPipeline>(),
             provider.GetService<ILoggerFactory>(),
-            provider.GetService<ProviderConcurrencyLimiter>()));
+            provider.GetService<ProviderConcurrencyLimiter>(),
+            provider.GetService<ITenantProviderBindingStore>(),
+            provider.GetService<ITenantEgressPolicyStore>(),
+            provider.GetService<TenantProviderCredentialResolver>()));
 
         // Pre-flight context-window estimator (phase 62, F-59). Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless
@@ -1655,6 +1677,20 @@ public static class AgentPrismServiceCollectionExtensions
                 out var scanInterval))
         {
             options.ScanInterval = scanInterval;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:TenantProviders</c> section.</summary>
+    private static void BindTenantProviders(IConfigurationSection section, AgentPrismTenantProviderOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (section[nameof(AgentPrismTenantProviderOptions.AllowedConfigurationPrefix)] is { Length: > 0 } prefix)
+        {
+            options.AllowedConfigurationPrefix = prefix;
         }
     }
 

@@ -3877,6 +3877,223 @@
         }
       }
     },
+    "/agentprism/api/tenants/{tenantId}/providers": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Lists a tenant\u0027s model provider bindings.",
+        "description": "The response carries neither the credential value nor its configuration key\u0027s value \u2014 only the key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027). This is the diagnosis path for \u0027I set the key but it does not work\u0027.",
+        "operationId": "AgentPrismListTenantProviderBindings",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantProviderBindingResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/tenants/{tenantId}/providers/{provider}": {
+      "put": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Creates or replaces a tenant\u0027s binding for a provider.",
+        "description": "The body carries only the configuration key\u0027s NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix (400 otherwise), and the provider must be allowed by the tenant\u0027s egress policy, if one is defined (400 otherwise).",
+        "operationId": "AgentPrismSaveTenantProviderBinding",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantProviderBindingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantProviderBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Deletes a tenant\u0027s binding for a provider.",
+        "description": "After deletion, calls for that provider use the setup-time global credential again (K1).",
+        "operationId": "AgentPrismDeleteTenantProviderBinding",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/agentprism/api/tenants/{tenantId}/egress": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Returns a tenant\u0027s model provider egress policy.",
+        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved, K1); an empty or populated array means the tenant may call only those providers.",
+        "operationId": "AgentPrismGetTenantEgressPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantEgressPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Creates or replaces a tenant\u0027s egress policy.",
+        "description": "Saving a policy is an ADDITIVE restriction (K1): a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted.",
+        "operationId": "AgentPrismSaveTenantEgressPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantEgressPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantEgressPolicyResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "TenantProviders"
+        ],
+        "summary": "Deletes a tenant\u0027s egress policy.",
+        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved (K1).",
+        "operationId": "AgentPrismDeleteTenantEgressPolicy",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/agentprism/api/approvals/pending": {
       "get": {
         "tags": [
@@ -13189,6 +13406,109 @@
         },
         "description": "A registered tenant."
       },
+      "TenantEgressPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "allowedProviders": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of allowed provider names. An empty list allows no provider."
+          }
+        },
+        "description": "The request body for creating or replacing a tenant\u0027s egress policy."
+      },
+      "TenantEgressPolicyResponse": {
+        "required": [
+          "tenantId"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Gets the tenant this policy belongs to."
+          },
+          "allowedProviders": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the closed set of allowed provider names, or \u0060null\u0060\nwhen the tenant is unrestricted (no policy saved, K1)."
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the time the policy was last written; \u0060null\u0060 when unrestricted.",
+            "format": "date-time"
+          }
+        },
+        "description": "The response describing a tenant\u0027s egress policy."
+      },
+      "TenantProviderBindingRequest": {
+        "type": "object",
+        "properties": {
+          "apiKeyConfigurationName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the configuration key name the credential is read from. Never a value."
+          },
+          "endpoint": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the optional endpoint override."
+          }
+        },
+        "description": "The request body for creating or replacing a tenant provider binding."
+      },
+      "TenantProviderBindingResponse": {
+        "required": [
+          "providerName",
+          "apiKeyConfigurationName",
+          "resolved",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "providerName": {
+            "type": "string",
+            "description": "Gets the provider name."
+          },
+          "apiKeyConfigurationName": {
+            "type": "string",
+            "description": "Gets the configuration key name the credential is read from."
+          },
+          "endpoint": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the optional endpoint override."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "Gets whether string TenantProviderBindingResponse.ApiKeyConfigurationName currently resolves to a value."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Gets the time this binding was last written.",
+            "format": "date-time"
+          }
+        },
+        "description": "The response describing a tenant provider binding."
+      },
       "TenantRequest": {
         "type": "object",
         "properties": {
@@ -15213,6 +15533,9 @@
     },
     {
       "name": "ApiKeys"
+    },
+    {
+      "name": "TenantProviders"
     },
     {
       "name": "Approvals"
