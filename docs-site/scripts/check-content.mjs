@@ -9,6 +9,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
 
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const docsRoot = resolve(here, '../src/content/docs');
@@ -273,6 +274,24 @@ for (const directory of [join(docsRoot, 'http-api')]) {
     if (/\brationale\b|\b(?:int|long|decimal|double|string|float\[\])\?\s+[A-Z][A-Za-z0-9_.]+/i.test(text)) {
       errors.push(`${relative(docsRoot, file)}: malformed source prose leaked into HTTP reference`);
     }
+  }
+}
+
+// The agent map is generated from capabilities.md and COMMITTED: `dotnet pack`
+// reads it, so the Node chain must not be part of `dotnet build`. That trade
+// needs this gate - a map that drifts from its source ships a stale capability
+// list to every consumer.
+const agentMap = buildAgentMap();
+
+errors.push(...verifyBudget(agentMap));
+
+for (const [key, path] of Object.entries(agentMapOutputs)) {
+  const published = existsSync(path) ? readFileSync(path, 'utf8') : null;
+
+  if (published !== agentMap[key]) {
+    errors.push(
+      `${relative(repositoryRoot, path)} does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs`,
+    );
   }
 }
 

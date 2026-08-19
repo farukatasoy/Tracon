@@ -11,6 +11,14 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Core/AgentPrism.Core.csproj" />
+    <!--
+      Phase 73: AgentPrismUsageAnalyzer resolves REAL symbols. APG0101 needs
+      MapAgentPrism (AspNetCore) and APG0102 needs UseOpenAI (OpenAI); a stub
+      declared in the test source would prove only that the analyzer matches a
+      name, not that it matches this package's API.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

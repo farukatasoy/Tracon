@@ -19,7 +19,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | Package | What it does |
 |---|---|
 | `AgentPrism.Abstractions` | Contracts. No provider, no web framework, no database |
-| `AgentPrism.Core` | Catalog, definition compiler, tool registry, run recording |
+| `AgentPrism.Core` | Catalog, definition compiler, tool registry, run recording, and the build-time analyzer |
 | `AgentPrism.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `AgentPrism.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `AgentPrism.AspNetCore` | The HTTP API and the access layers |
