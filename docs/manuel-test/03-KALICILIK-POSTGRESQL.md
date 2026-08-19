@@ -36,7 +36,7 @@ flowchart TD
     B --> C["NpgsqlDataSource"]
     C --> D["SqlStoreContext (PostgresDialect)"]
     D --> E["MigrationHostedService"]
-    E -->|"pg_advisory_lock"| F["MigrationRunner: 28 migration"]
+    E -->|"pg_advisory_lock"| F["MigrationRunner: 32 cekirdek + istege bagli knowledge"]
     F --> G["SchemaReadyGate acilir"]
     D --> H["Depo kayitlari: Replace / TryAdd"]
     H --> I["Denetim izi dekoratorleri"]
@@ -489,7 +489,7 @@ SELECT count(*) FROM agentprism.audit_log WHERE before::text ILIKE '%Password=%'
   değer yalnız `dotnet user-secrets` içindedir.
 - Her iki SQL sorgusu da **0** döner.
 
-### MT-PG-020 — Boş DB'de 28 migration sırayla uygulanır
+### MT-PG-020 — Boş DB'de çekirdek + knowledge seti sırayla uygulanır
 
 | | |
 |---|---|
@@ -512,14 +512,20 @@ cd samples/AgentPrism.Api && dotnet run
 ```
 ```sql
 SELECT count(*) FROM agentprism.__migrations;
-SELECT id, name FROM agentprism.__migrations ORDER BY id;
+SELECT set_name, count(*) FROM agentprism.__migrations GROUP BY set_name ORDER BY set_name;
+SELECT set_name, id, name FROM agentprism.__migrations ORDER BY set_name, id;
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 28 migration uyguladi. Sema: agentprism.` satırını taşır.
-- `count(*)` **28** döner.
-- `id` sütunu 1'den 28'e **boşluksuz** sıralıdır; son satır
-  `0028_experiment_canary`'dir.
+- Açılış logu `AgentPrism 33 migration uyguladi. Sema: agentprism.` satırını taşır
+  (örnek uygulama `EnableKnowledge: true` taşır, Faz 67 — bkz. MT-PG-062 knowledge
+  KAPALIYKEN davranışı ayrıca sınar).
+- `count(*)` **33** döner; `set_name` grubu **32** (`core`) ve **1** (`knowledge`) döner.
+- `core` seti `id 1`'den `id 33`'e sıralıdır ama **id 24 boştur** (0024_vector
+  çekirdekten `knowledge` setine taşındı, Faz 67, K-475 — sayı geri
+  dönüştürülmez); son satır `0033_inbound_triggers`'dır, toplam 32 satır.
+  `knowledge` seti tek başına `id 1`, `0001_vector`'dir — `core`'un `id 1`'i
+  (`0001_initial`) ile **çakışmaz**: birincil anahtar `(set_name, id)`'dir.
 
 ---
 
@@ -548,7 +554,7 @@ cd samples/AgentPrism.Api && dotnet run
 **Beklenen sonuç**
 - `"... migration uyguladi."` satırı **görünmez** (uygulanan migration sayısı
   0'dır; kod bu durumda log basmaz).
-- `__migrations` hâlâ **28** satır taşır.
+- `__migrations` hâlâ **33** satır taşır (32 `core` + 1 `knowledge`).
 - Uygulama normal başlar, hiçbir hata görünmez.
 
 ---
@@ -563,8 +569,12 @@ cd samples/AgentPrism.Api && dotnet run
 | **İlgili karar** | — |
 
 Sınır senaryosu. İlk beş migration ELLE uygulanır ve `__migrations` defterine
-doğru checksum'la kaydedilir — bir önceki AgentPrism sürümünün yarım bıraktığı
-bir dağıtımı simüler. Uygulama geri kalan 23'ünü uygulamalıdır.
+(Faz 67 ÖNCESİ şekliyle — `id` tek başına birincil anahtar, `set_name` sütunu
+YOK) doğru checksum'la kaydedilir — hem bir önceki AgentPrism sürümünün yarım
+bıraktığı bir dağıtımı, hem de Faz 67 öncesi bir veritabanının şema
+yükseltmesini (K-475) aynı anda simüler. Uygulama geri kalan çekirdek
+migration'ları VE knowledge setini uygulamalı, `set_name` sütununu geriye dönük
+eklemeli, birincil anahtarı `(set_name, id)`'ye genişletmelidir.
 
 **Ön koşul**
 - Reset yordamı uygulanmış, uygulama HENÜZ başlatılmamış.
@@ -609,14 +619,17 @@ done
 cd samples/AgentPrism.Api && dotnet run
 ```
 ```sql
-SELECT id, name, applied_at FROM agentprism.__migrations ORDER BY id LIMIT 7;
+SELECT set_name, id, name, applied_at FROM agentprism.__migrations ORDER BY set_name, id LIMIT 8;
 ```
 
 **Beklenen sonuç**
-- Açılış logu `AgentPrism 23 migration uyguladi.` yazar (28 − 5).
+- Açılış logu `AgentPrism 28 migration uyguladi.` yazar (32 çekirdek − 5 elle
+  uygulanmış + 1 knowledge).
 - Hiçbir checksum uyuşmazlığı hatası oluşmaz.
-- `__migrations`'ta 28 satır vardır; id 1–5'in `applied_at` değeri elle yazılan
-  zaman, id 6–28'inki uygulamanın az önceki açılış zamanıdır.
+- `__migrations`'ta **33** satır vardır (32 `core` + 1 `knowledge`); id 1–5'in
+  `set_name` değeri `core`'a **geriye dönük dolmuştur** ve `applied_at` elle
+  yazılan zamandır, kalan çekirdek satırların `applied_at`'i uygulamanın az
+  önceki açılış zamanıdır.
 
 ---
 
@@ -633,16 +646,17 @@ Negatif senaryo. Uygulanmış bir migration dosyasının içeriği (temsili olar
 değişmiş gibi simüle edilir — `__migrations.checksum` elle bozulur.
 
 **Ön koşul**
-- MT-PG-020 veya MT-PG-021 geçti (28 migration uygulanmış, uygulama DURDURULMUŞ).
+- MT-PG-020 veya MT-PG-021 geçti (33 migration uygulanmış, uygulama DURDURULMUŞ).
 
 **Adımlar**
-1. `__migrations` tablosunda `id=1`'in checksum'ını boz.
+1. `__migrations` tablosunda `core` setinin `id=1`'inin (`0001_initial`)
+   checksum'ını boz.
 2. Uygulamayı başlat.
 3. Doğru checksum'ı hesapla (temizlik için).
 
 **Girilecek veri**
 ```bash
-$PG -c "UPDATE agentprism.__migrations SET checksum = 'BOZUK0000000000000000000000000000000000000000000000000000000' WHERE id = 1;"
+$PG -c "UPDATE agentprism.__migrations SET checksum = 'BOZUK0000000000000000000000000000000000000000000000000000000' WHERE set_name = 'core' AND id = 1;"
 cd samples/AgentPrism.Api && dotnet run
 ```
 ```bash
@@ -694,11 +708,11 @@ SELECT count(*) FROM agentprism.__migrations;
 ```
 
 **Beklenen sonuç**
-- Yalnız BİR terminalin logu `AgentPrism 28 migration uyguladi.` yazar; diğeri
+- Yalnız BİR terminalin logu `AgentPrism 33 migration uyguladi.` yazar; diğeri
   0 migration uygular (log satırı görünmez) çünkü kilidi aldığında migration'lar
   zaten bitmiştir.
 - Hiçbir terminalde checksum hatası veya çökme olmaz.
-- `count(*)` tam olarak **28** döner (56 değil — birincil anahtar çakışması yoktur).
+- `count(*)` tam olarak **33** döner (66 değil — birincil anahtar çakışması yoktur).
 
 ---
 
@@ -791,14 +805,14 @@ SELECT count(*) FROM agentprism_ikinci.__migrations;
 | **İlgili faz** | Faz 51 |
 | **İlgili karar** | — |
 
-Sınır senaryosu. `0024_vector.sql`'in `{dimension}` yer tutucusu bir sema
-yer tutucusu GİBİ davranmaz: checksum ham (değiştirilmemiş) metin üzerinden
-hesaplanır, bu yüzden `Dimensions` ayarını değiştirip yeniden başlatmak checksum
-hatası VERMEZ — ama var olan sütunun boyutunu da değiştirmez. Kod bunu 🚨 ile
-işaretler; bu case operasyonel tuzağı doğrular.
+Sınır senaryosu. Knowledge setinin `0001_vector.sql`'indeki `{dimension}` yer
+tutucusu bir sema yer tutucusu GİBİ davranmaz: checksum ham (değiştirilmemiş)
+metin üzerinden hesaplanır, bu yüzden `Dimensions` ayarını değiştirip yeniden
+başlatmak checksum hatası VERMEZ — ama var olan sütunun boyutunu da
+değiştirmez. Kod bunu 🚨 ile işaretler; bu case operasyonel tuzağı doğrular.
 
 **Ön koşul**
-- MT-PG-020 geçti (`0024` migration'ı 1536 boyutla uygulanmış).
+- MT-PG-020 geçti (knowledge setinin `0001_vector` migration'ı 1536 boyutla uygulanmış).
 
 **Adımlar**
 1. Bilgi tabanı boyutunu `3`'e ayarla.
@@ -1121,7 +1135,7 @@ rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-PG-020 geçti (`0024_vector.sql` uygulanmış).
+- MT-PG-020 geçti (knowledge setinin `0001_vector.sql`'i uygulanmış).
 
 **Adımlar**
 1. Eklenti kurulumunu doğrula.
@@ -1765,3 +1779,204 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-esz-1/run" -
 - Container yeniden başladıktan sonra AYNI istek başarıyla tamamlanır — Npgsql
   havuzu kendiliğinden yeniden bağlanır, uygulamanın yeniden başlatılması
   GEREKMEZ.
+
+---
+
+## İsteğe bağlı `knowledge` migration seti (Faz 67)
+
+`0024_vector.sql`, `MigrationsKnowledge/0001_vector.sql`'a taşındı ve yalnız
+`AgentPrism:PostgreSql:EnableKnowledge = true` iken uygulanır (K1, varsayılan
+kapalı). Karar: K-475/K-476/K-477. Aşağıdaki beş case, faz dokümanının
+([`67-ISTEGE-BAGLI-MIGRATION-SETI.md`](../67-ISTEGE-BAGLI-MIGRATION-SETI.md))
+manuel kabul tablosunun karşılığıdır; MT-PG-062/063/064 kapanışta **gerçek**
+konteynerlere karşı koşuldu (kanıt aşağıda).
+
+### MT-PG-062 — `pgvector` kurulu olmayan PostgreSQL'de knowledge kapalıyken uygulama sorunsuz açılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 67 |
+| **İlgili karar** | K-475, K-476 |
+
+**Ön koşul**
+- `pgvector` uzantısı **kurulu olmayan** düz bir `postgres` imajı (`pgvector/pgvector` DEĞİL).
+- `EnableKnowledge` verilmez (varsayılan `false`).
+
+**Adımlar**
+1. Uygulamayı başlat.
+2. Açılış logunu oku.
+3. `/api/diagnostics`'i çağır.
+4. `\dx` ile kurulu uzantıları listele.
+
+**Girilecek veri**
+```bash
+docker run -d --name ap-pg-plain -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=agentprism -p 55433:5432 postgres:18-alpine
+cd samples/AgentPrism.Api && dotnet run -- \
+  --AgentPrism:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=agentprism;Username=postgres;Password=postgres" \
+  --AgentPrism:PostgreSql:SchemaName=agentprism_case1 \
+  --AgentPrism:PostgreSql:EnableKnowledge=false
+```
+```bash
+curl -s http://localhost:5099/agentprism/api/diagnostics -H "Authorization: Bearer $TOKEN"
+docker exec ap-pg-plain psql -U postgres -d agentprism -c "\dx"
+```
+
+**Beklenen sonuç**
+- Açılış logu `AgentPrism 32 migration uyguladi.` yazar; hiçbir hata yoktur.
+- `/api/diagnostics`: `"canConnect": true`, `"migrationsUpToDate": true`,
+  `"pendingMigrations": []`.
+- `\dx` yalnız `plpgsql` listeler — `vector` **yoktur**.
+- `/api/tools` çıktısında knowledge arama tool'u YOKTUR (K1: kayıt hiç olmaz).
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: yukarıdaki adımlar `postgres:18-alpine`
+konteynerine karşı BİREBİR çalıştırıldı. Sonuç: `__migrations` 32 satır (hepsi
+`set_name='core'`), `\dx` yalnız `plpgsql`, `/api/diagnostics` `canConnect: true`
+/ `pendingMigrations: []`, `/api/tools` `search_knowledge`'ı DEĞİL yalnız
+`cancel_order`/`get_order_status`/`list_recent_orders`/`list_voices`/
+`read_shopping_cart`/`speak`/`transcribe`'ı listeledi.
+
+---
+
+### MT-PG-063 — Aynı ortamda `EnableKnowledge = true` açık ve okunur bir başlangıç hatası verir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 67 |
+| **İlgili karar** | K-475 |
+
+Negatif senaryo. `pgvector` sunucuda YÜKLÜ değilken `CREATE EXTENSION vector`
+PostgreSQL'in kendi hatasını (`0A000`) verir; `MigrationRunner` bunu
+`AgentPrismException`'a sarar.
+
+**Ön koşul**
+- MT-PG-062'nin konteyneri (`pgvector` yok).
+
+**Adımlar**
+1. `EnableKnowledge = true` ile başlat.
+2. Konsol çıktısını oku.
+
+**Girilecek veri**
+```bash
+cd samples/AgentPrism.Api && dotnet run -- \
+  --AgentPrism:PostgreSql:ConnectionString="Host=localhost;Port=55433;Database=agentprism;Username=postgres;Password=postgres" \
+  --AgentPrism:PostgreSql:SchemaName=agentprism_case2 \
+  --AgentPrism:PostgreSql:EnableKnowledge=true
+```
+
+**Beklenen sonuç**
+- Uygulama başlamayı reddeder (fail-fast, mevcut MT-PG-007 emsali).
+- Konsolun İLK satırı **okunur** bir mesaj taşır:
+  `AgentPrism.AgentPrismException: Migration '0001_vector' could not be applied: extension "vector" is not available (SQLSTATE 0A000).`
+- Bu istek hiçbir HTTP istemcisine ULAŞMAZ (süreç HTTP dinlemeye başlamadan çöker) —
+  "`DbException` yığın izi kullanıcıya gitmez" burada "hiçbir kullanıcı isteği
+  hiç işlenmez" anlamına gelir; ayrıntılı .NET yığın izi yalnızca operatörün
+  KONSOLUNDA görünür (K-354'ün "hata yutulmaz" ilkesiyle tutarlı).
+- Çekirdek migration'ların hiçbiri GERİ ALINMAZ: konteyneri düz `postgres` imajıyla
+  değiştirmeden `agentprism_case2` şeması silinip yeniden denenirse çekirdek
+  32'si yine sorunsuz uygulanır (yalnız `0001_vector` başarısız olur).
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: aynı konteynere karşı çalıştırıldı.
+Gerçek hata: `ERROR: 0A000: extension "vector" is not available` /
+`HINT: The extension must first be installed on the system where PostgreSQL is
+running.`; uygulamanın fırlattığı üst seviye istisna tam olarak yukarıdaki
+metni taşıdı. `agentprism_case2.__migrations` sorgulandığında `core` setinin
+**32** satırının TAMAMININ başarıyla uygulandığı, yalnız `knowledge` setinin
+hiç satır yazmadığı doğrulandı.
+
+---
+
+### MT-PG-064 — `pgvector` kurulu PostgreSQL'de `EnableKnowledge = true` gerçek bir belge yükleme + arama turu tamamlar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 67 (ayrıca 51) |
+| **İlgili karar** | K-476 |
+
+**Ön koşul**
+- `ap-pg` (`pgvector/pgvector:pg18`) çalışıyor.
+- `EnableKnowledge = true`.
+- `AgentPrism:Providers:OpenAI:ApiKey` `dotnet user-secrets`'ta tanımlı
+  (gerçek gömü üretimi için).
+
+**Adımlar**
+1. Uygulamayı başlat.
+2. Bir belge yükle (`POST /api/knowledge/{collection}/documents`).
+3. Aynı koleksiyonda anlamsal arama yap (`POST /api/knowledge/{collection}/search`).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/knowledge/faz67-test/documents" -H "$APB" -H "content-type: application/json" \
+  -d '{"sourceId":"doc-1","text":"AgentPrism Faz 67, PostgreSQL migration setlerini istege bagli hale getirir."}'
+curl -s -X POST "$APU/api/knowledge/faz67-test/search" -H "$APB" -H "content-type: application/json" \
+  -d '{"query":"migration set nedir","maxResults":3}'
+```
+
+**Beklenen sonuç**
+- Yükleme `200` ve `{"sourceId":"doc-1","chunkCount":1}` döner.
+- `document_embeddings` tablosu şemada VARDIR.
+- Arama yüklenen parçayı döndürür (`distance` alanı ile sıralı).
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: gerçek `ap-pg` konteynerine ve
+gerçek bir OpenAI gömü çağrısına karşı çalıştırıldı. Yükleme `{"sourceId":"doc-1","chunkCount":1}`
+döndü; arama `[{"sourceId":"doc-1","chunkIndex":0,"content":"...","distance":0.693...}]`
+ile yüklenen içeriği BİREBİR döndürdü.
+
+---
+
+### MT-PG-065 — Case 062'nin veritabanı sonradan `EnableKnowledge = true` ile yeniden başlatılınca yalnız knowledge seti uygulanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 67 |
+| **İlgili karar** | K-475, K-477 |
+
+**Ön koşul**
+- MT-PG-062'nin şeması (32 çekirdek migration uygulanmış, `pgvector` bu kez KURULU
+  bir sunucuya taşınmış — veya doğrudan `ap-pg` üzerinde tekrarlanabilir).
+
+**Adımlar**
+1. `EnableKnowledge = true` ile yeniden başlat.
+2. Açılış logunu oku.
+
+**Beklenen sonuç**
+- Açılış logu `AgentPrism 1 migration uyguladi.` yazar (yalnız `0001_vector`;
+  çekirdek 32'si zaten uygulanmıştı, YENİDEN uygulanmaz).
+- `__migrations` toplam **33** satıra çıkar.
+
+Otomatik eşdeğeri (gerçek `ap-pg` konteynerine karşı, kapanışta koşuldu, yeşil):
+`OptionalMigrationSetTests.Enabling_knowledge_later_applies_only_the_new_set`.
+
+---
+
+### MT-PG-066 — SQL Server ve SQLite bu fazdan etkilenmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 67 |
+| **İlgili karar** | — |
+
+SQL Server ve SQLite hiçbir zaman bir vektör migration'ı taşımadı (bkz. faz
+dokümanının kanıt tablosu); bu fazın tek gözlemlenebilir etkisi `__migrations`
+defterinin `set_name` sütunu kazanmasıdır — sözleşme testleri davranış
+değişikliği olmadan geçmelidir.
+
+**Adımlar**
+1. Tam sözleşme test koşumunu çalıştır (`AgentPrism.SqlServer.IntegrationTests`,
+   `AgentPrism.Sqlite.IntegrationTests`).
+
+**Beklenen sonuç**
+- 👤 Fark yok — iki sağlayıcıda da davranış AYNI kalır.
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: `AgentPrism.SqlServer.IntegrationTests`
+540/540, `AgentPrism.Sqlite.IntegrationTests` 554/554 (ledger yükseltme testi
+dahil) — ikisi de gerçek konteynerlere karşı yeşil.

@@ -193,6 +193,56 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             .Count.ShouldBe(EmbeddedMigrationCount);
     }
 
+    /// <summary>
+    /// A database that already applied the core set under the shape that
+    /// existed before phase 67 (id-only ledger primary key, no
+    /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
+    /// </summary>
+    /// <remarks>
+    /// This is the specific scenario that requires
+    /// <see cref="SqlDialect.UpgradeMigrationsTableAsync"/> to run as its OWN
+    /// command, never combined with a migration's <c>InsertMigration</c>
+    /// text: SQL Server compiles a whole batch up front and a statement
+    /// referencing a column added earlier IN THE SAME BATCH via plain
+    /// <c>ALTER TABLE</c> fails with "Invalid column name" — this test would
+    /// catch a regression back to the combined-batch approach.
+    /// </remarks>
+    [Fact]
+    public async Task Pre_phase_67_ledger_shape_upgrades_without_data_loss()
+    {
+        var schemaName = SqlServerTestContext.NewSchemaName();
+        await using var context = SqlServerTestContext.Create(fixture, schemaName);
+
+        var realCoreMigrations = MigrationDescriptor
+            .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.SqlServer.Migrations.");
+
+        await context.ExecuteAsync($"CREATE SCHEMA {schemaName};");
+        await context.ExecuteAsync($"""
+            CREATE TABLE {schemaName}.__migrations (
+                id         int               NOT NULL CONSTRAINT __migrations_pk PRIMARY KEY,
+                name       nvarchar(200)     NOT NULL,
+                checksum   nvarchar(64)      NOT NULL,
+                applied_at datetimeoffset(7) NOT NULL
+            );
+            """);
+
+        foreach (var migration in realCoreMigrations)
+        {
+            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteAsync(
+                $"INSERT INTO {schemaName}.__migrations (id, name, checksum, applied_at) " +
+                $"VALUES ({migration.Id}, N'{migration.Name}', N'{migration.Checksum}', SYSDATETIMEOFFSET());");
+        }
+
+        // Nothing left to apply; only the shape upgrade runs.
+        (await context.Migrations.ApplyAsync()).ShouldBe(0);
+
+        var coreRowCount = await context.ScalarAsync<int>(
+            $"SELECT COUNT(*) FROM {schemaName}.__migrations WHERE set_name = N'core';");
+
+        coreRowCount.ShouldBe(realCoreMigrations.Count);
+    }
+
     [Fact]
     public void Migration_runner_cannot_be_constructed_with_an_invalid_schema()
     {

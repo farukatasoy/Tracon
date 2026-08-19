@@ -21,12 +21,13 @@ namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 /// </para>
 /// <para>
 /// 🚨 The image is <c>pgvector/pgvector:pg18</c>, NOT <c>postgres:18-alpine</c>
-/// (Phase 51). Migration 0024 runs <c>CREATE EXTENSION IF NOT EXISTS vector;</c>,
-/// and it applies on EVERY test (not just vector tests); since the plain
-/// Postgres image does not carry the extension, the migration set would blow up
-/// across the whole test suite. The <c>pgvector/pgvector</c> image adds only
-/// this extension on top of the official <c>postgres</c> image and creates no
-/// other behavioral difference.
+/// (Phase 51). The "knowledge" set's <c>0001_vector</c> migration runs
+/// <c>CREATE EXTENSION IF NOT EXISTS vector;</c>; <see cref="PostgresTestContext"/>
+/// enables that set by DEFAULT (phase 67), so it applies on EVERY test (not
+/// just vector tests) and the plain Postgres image would blow up the whole
+/// test suite for lacking the extension. The <c>pgvector/pgvector</c> image
+/// adds only this extension on top of the official <c>postgres</c> image and
+/// creates no other behavioral difference.
 /// </para>
 /// </remarks>
 public sealed class PostgresFixture : IAsyncLifetime
@@ -42,9 +43,9 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <inheritdoc />
     /// <remarks>
     /// 🚨 The <c>vector</c> extension is created here right after the container
-    /// starts, BEFORE any schema class fixture migrates. Migration 0024's own
-    /// <c>CREATE EXTENSION IF NOT EXISTS vector;</c> statement is also
-    /// idempotent and correct on its own, but the <c>pg_extension</c> catalog is
+    /// starts, BEFORE any schema class fixture migrates. The <c>0001_vector</c>
+    /// migration's own <c>CREATE EXTENSION IF NOT EXISTS vector;</c> statement is
+    /// also idempotent and correct on its own, but the <c>pg_extension</c> catalog is
     /// shared DATABASE-WIDE — when dozens of schema class fixtures (see
     /// <see cref="PostgresSchemaFixture"/>) run their first migration
     /// concurrently, all of them try to create the same row and hit a

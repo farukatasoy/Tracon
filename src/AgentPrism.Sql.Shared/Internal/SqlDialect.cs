@@ -51,6 +51,36 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract string MigrationResourcePrefix { get; }
 
+    /// <summary>
+    /// Gets the optional migration sets this provider offers, keyed by set
+    /// name, each value the embedded resource prefix for that set.
+    /// </summary>
+    /// <remarks>
+    /// Empty by default (K1): a provider opts in by overriding this. Today
+    /// only PostgreSQL offers one ("knowledge", phase 67) — it needs the
+    /// <c>pgvector</c> extension and is therefore not part of the core set
+    /// that every consumer pays for. <see cref="SqlStoreContext.EnabledMigrationSets"/>
+    /// selects which of these actually apply.
+    /// </remarks>
+    public virtual IReadOnlyDictionary<string, string> OptionalMigrationResourcePrefixes { get; }
+        = System.Collections.Immutable.ImmutableDictionary<string, string>.Empty;
+
+    /// <summary>
+    /// Gets the core-set sequence numbers that used to belong to a migration
+    /// file later relocated into an optional set, mapped to the set it moved
+    /// to.
+    /// </summary>
+    /// <remarks>
+    /// Empty by default. A database that applied the migration back when it
+    /// was still numbered under the core set carries a ledger row the current
+    /// core file list no longer discovers; <see cref="MigrationRunner"/> uses
+    /// this map to log (once, at information level) that the row is orphaned
+    /// but harmless when the corresponding optional set stays disabled
+    /// (phase 67, decision 67.3 — no migration code, a diagnostic only).
+    /// </remarks>
+    public virtual IReadOnlyDictionary<int, string> RelocatedCoreMigrationSets { get; }
+        = System.Collections.Immutable.ImmutableDictionary<int, string>.Empty;
+
     // --- Migration lock ---
 
     /// <summary>Acquires the migration lock.</summary>
@@ -76,6 +106,61 @@ internal abstract class SqlDialect
         DbConnection connection,
         int commandTimeout,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Upgrades an existing ledger table created before phase 67 (no
+    /// <c>set_name</c> column, a single-column primary key) to the shape a
+    /// fresh database now gets directly from <see cref="SqlQueriesBase.CreateMigrationsTable"/>.
+    /// </summary>
+    /// <param name="connection">The connection to run on. Runs OUTSIDE any migration's own transaction (see remarks).</param>
+    /// <param name="commandTimeout">The command timeout, in seconds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <remarks>
+    /// <para>
+    /// Called once per <see cref="MigrationRunner.ApplyAsync"/>, right after
+    /// <see cref="SqlQueriesBase.CreateMigrationsTable"/> and BEFORE any
+    /// migration applies. It must be idempotent — safe to run on every
+    /// startup, including a fresh database that already has the target shape.
+    /// </para>
+    /// <para>
+    /// 🚨 This intentionally runs as ITS OWN command, never combined with a
+    /// migration's <c>InsertMigration</c> text. SQL Server compiles a whole
+    /// batch up front; a statement that references a column ADDED earlier IN
+    /// THE SAME BATCH via plain <c>ALTER TABLE</c> fails with "Invalid column
+    /// name" (the same trap documented on PostgreSQL 0031/SqlServer
+    /// 0018_audit_chain.sql) — and <c>InsertMigration</c>'s fixed text
+    /// references <c>set_name</c> on <em>every</em> migration insert from
+    /// phase 67 onward. Running the upgrade as a separate, already-completed
+    /// command before the per-migration loop starts means the column exists
+    /// in the catalog by the time any <c>InsertMigration</c> text is compiled.
+    /// </para>
+    /// <para>
+    /// The default implementation runs <see cref="SqlQueriesBase.UpgradeMigrationsTable"/>
+    /// as plain SQL when it is not empty (PostgreSQL, SQL Server: a single
+    /// idempotent statement suffices). SQLite cannot express "add this column
+    /// only if missing" or change a primary key in a static SQL string at
+    /// all — <c>SqliteDialect</c> overrides this method with the check +
+    /// rebuild done in code (the same technique as K-278/0006_sessions_tenant_key.sql).
+    /// </para>
+    /// </remarks>
+    public virtual async ValueTask UpgradeMigrationsTableAsync(
+        DbConnection connection,
+        int commandTimeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        if (Queries.UpgradeMigrationsTable.Length == 0)
+        {
+            return;
+        }
+
+        var command = connection.CreateCommand();
+        command.CommandText = Queries.UpgradeMigrationsTable;
+        command.CommandTimeout = commandTimeout;
+
+        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Converts a provider-specific error raised while a migration is applied into

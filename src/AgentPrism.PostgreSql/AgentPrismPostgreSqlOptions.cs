@@ -42,4 +42,18 @@ public sealed class AgentPrismPostgreSqlOptions
 
     /// <summary>The upper time limit for a single SQL command (seconds). 0 means unlimited.</summary>
     public int CommandTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Whether the "knowledge" migration set is applied. Default <see langword="false"/> (K1).
+    /// </summary>
+    /// <remarks>
+    /// The knowledge set needs the <c>pgvector</c> extension (phase 51); a
+    /// consumer on a managed PostgreSQL without permission to install
+    /// extensions never sees it unless this is turned on. While it is
+    /// <see langword="false"/>, no <see cref="IVectorSearchStore"/> is
+    /// registered — an agent definition that requests vector search fails
+    /// compilation with a clear error instead of a database error at run
+    /// time. Rationale: <c>docs/67-ISTEGE-BAGLI-MIGRATION-SETI.md</c>.
+    /// </remarks>
+    public bool EnableKnowledge { get; set; }
 }

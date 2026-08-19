@@ -50,7 +50,7 @@ and production topology are not identical.
 
 | | Vector search | Notes |
 |---|---|---|
-| `AgentPrism.PostgreSql` | **yes** | The default. Requires pgvector even before Knowledge is enabled; no ORM |
+| `AgentPrism.PostgreSql` | **yes** | The default. `pgvector` is only needed when `EnableKnowledge` is turned on; no ORM |
 | `AgentPrism.SqlServer` | no | Knowledge endpoints answer `501` |
 | `AgentPrism.Sqlite` | no | Ships a native library, so not AOT-compatible |
 

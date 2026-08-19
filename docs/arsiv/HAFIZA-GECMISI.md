@@ -151,6 +151,15 @@ testin tamami kirildi. Uc kok sebep cikti (K-187, K-188, K-189):
    dogal dizi destegine (`GetFieldValue<string[]>`) dayaniyordu; PostgreSQL'de
    sessizce calisiyordu, SQL Server'da `InvalidCastException` verdi.
 
+### Kucuk notlar (Faz 67 bütçe tasarrufu icin arsivlendi)
+
+- **`DbDataSource` uyarlayicisi elle yazildi**: `Microsoft.Data.SqlClient` bir
+  `DbDataSource` uygulamasi sunmaz (Npgsql sunar). `SqlServerDataSource`
+  yalnizca `CreateDbConnection()`'i uygular; taban sinifin `CreateCommand`
+  uygulamasi baglanti omrunu Npgsql ile ayni sekilde yonetir.
+- **Pencere fonksiyonu/filtreli indeks uc diyalekt ayni sozdizim** (K-299): ilk
+  `ROW_NUMBER()`/`COUNT() OVER`; SQLite dogrulandi, SQL Server olculmedi.
+
 ### Linked-source tiplerin XML doku kimligi catismasi (2026-08-07, Faz 40, K-276)
 
 `MigrationRunner`, `SqlStoreContext` gibi paylasilan (K-176) tipler

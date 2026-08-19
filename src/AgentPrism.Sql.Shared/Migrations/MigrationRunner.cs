@@ -52,6 +52,9 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// <inheritdoc />
     public string ProviderName => _context.ProviderName;
 
+    /// <summary>The name of the set every provider always applies.</summary>
+    private const string CoreSetName = "core";
+
     /// <summary>
     /// Reads the connection and migration status WITHOUT applying any migration (Phase 33).
     /// </summary>
@@ -59,11 +62,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// <returns><c>CanConnect: false</c> if the connection could not be established; otherwise the list of pending migrations.</returns>
     public async ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        var dialect = _context.Dialect;
-
-        var migrations = MigrationDescriptor.Discover(
-            dialect.GetType().Assembly,
-            dialect.MigrationResourcePrefix);
+        var sets = DiscoverActiveSets();
 
         DbConnection connection;
 
@@ -82,10 +81,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             {
                 var applied = await ReadAppliedAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                var pending = migrations
-                    .Where(migration => !applied.ContainsKey(migration.Id))
-                    .Select(static migration => migration.Name)
-                    .ToArray();
+                var pending = EnumeratePending(sets, applied).ToArray();
 
                 return new SqlPersistenceDiagnosticsSnapshot { CanConnect = true, PendingMigrations = pending };
             }
@@ -97,7 +93,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                 return new SqlPersistenceDiagnosticsSnapshot
                 {
                     CanConnect = true,
-                    PendingMigrations = migrations.Select(static migration => migration.Name).ToArray(),
+                    PendingMigrations = EnumeratePending(sets, new Dictionary<MigrationKey, AppliedMigration>()).ToArray(),
                 };
             }
         }
@@ -107,36 +103,33 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of applied migrations. 0 if everything is current.</returns>
     /// <exception cref="AgentPrismException">
-    /// An applied migration file has been modified (checksum mismatch), or an
-    /// error occurred while running a migration.
+    /// An applied migration file has been modified (checksum mismatch), an
+    /// unknown migration set is enabled, or an error occurred while running a
+    /// migration.
     /// </exception>
     public async ValueTask<int> ApplyAsync(CancellationToken cancellationToken = default)
     {
-        var dialect = _context.Dialect;
-
-        var migrations = MigrationDescriptor.Discover(
-            dialect.GetType().Assembly,
-            dialect.MigrationResourcePrefix);
+        var sets = DiscoverActiveSets();
 
         var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
         await using (connection.ConfigureAwait(false))
         {
-            await dialect.AcquireMigrationLockAsync(
+            await _context.Dialect.AcquireMigrationLockAsync(
                 connection,
                 _context.CommandTimeoutSeconds,
                 cancellationToken).ConfigureAwait(false);
 
             try
             {
-                return await ApplyPendingAsync(connection, migrations, cancellationToken).ConfigureAwait(false);
+                return await ApplyPendingAsync(connection, sets, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 // The lock is released in every case. It would also drop if the
                 // connection closed; releasing it explicitly still frees waiting
                 // replicas earlier.
-                await dialect.ReleaseMigrationLockAsync(
+                await _context.Dialect.ReleaseMigrationLockAsync(
                     connection,
                     _context.CommandTimeoutSeconds,
                     CancellationToken.None).ConfigureAwait(false);
@@ -144,9 +137,71 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         }
     }
 
+    /// <summary>
+    /// Discovers the core set plus every enabled optional set (phase 67).
+    /// </summary>
+    /// <exception cref="AgentPrismException">
+    /// <see cref="SqlStoreContext.EnabledMigrationSets"/> names a set this
+    /// provider does not offer.
+    /// </exception>
+    private List<MigrationSet> DiscoverActiveSets()
+    {
+        var dialect = _context.Dialect;
+        var assembly = dialect.GetType().Assembly;
+
+        var sets = new List<MigrationSet>
+        {
+            new(CoreSetName, MigrationDescriptor.Discover(assembly, dialect.MigrationResourcePrefix)),
+        };
+
+        foreach (var setName in _context.EnabledMigrationSets)
+        {
+            if (!dialect.OptionalMigrationResourcePrefixes.TryGetValue(setName, out var prefix))
+            {
+                var known = string.Join(", ", dialect.OptionalMigrationResourcePrefixes.Keys);
+
+                throw new AgentPrismException(
+                    $"Unknown migration set '{setName}' for provider '{_context.ProviderName}'. " +
+                    (known.Length == 0
+                        ? "This provider offers no optional migration sets."
+                        : $"Known optional sets: {known}."));
+            }
+
+            sets.Add(new MigrationSet(setName, MigrationDescriptor.Discover(assembly, prefix)));
+        }
+
+        return sets;
+    }
+
+    /// <summary>
+    /// Formats the still-pending migrations of every set. A non-core set's
+    /// entries are prefixed with the set name (<c>"knowledge:0001_vector"</c>)
+    /// so two sets numbering from <c>0001</c> stay distinguishable; the core
+    /// set keeps its bare name for backward compatibility.
+    /// </summary>
+    private static IEnumerable<string> EnumeratePending(
+        IReadOnlyList<MigrationSet> sets,
+        IReadOnlyDictionary<MigrationKey, AppliedMigration> applied)
+    {
+        foreach (var set in sets)
+        {
+            foreach (var migration in set.Migrations)
+            {
+                if (applied.ContainsKey(new MigrationKey(set.Name, migration.Id)))
+                {
+                    continue;
+                }
+
+                yield return string.Equals(set.Name, CoreSetName, StringComparison.Ordinal)
+                    ? migration.Name
+                    : $"{set.Name}:{migration.Name}";
+            }
+        }
+    }
+
     private async ValueTask<int> ApplyPendingAsync(
         DbConnection connection,
-        IReadOnlyList<MigrationDescriptor> migrations,
+        IReadOnlyList<MigrationSet> sets,
         CancellationToken cancellationToken)
     {
         var sql = _context.Sql;
@@ -154,20 +209,34 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         await ExecuteAsync(connection, sql.CreateSchema, cancellationToken).ConfigureAwait(false);
         await ExecuteAsync(connection, sql.CreateMigrationsTable, cancellationToken).ConfigureAwait(false);
 
+        // Runs as its OWN command, completed before any InsertMigration text
+        // is compiled — see the 🚨 on SqlDialect.UpgradeMigrationsTableAsync.
+        await _context.Dialect.UpgradeMigrationsTableAsync(
+            connection,
+            _context.CommandTimeoutSeconds,
+            cancellationToken).ConfigureAwait(false);
+
         var applied = await ReadAppliedAsync(connection, cancellationToken).ConfigureAwait(false);
         var count = 0;
 
-        foreach (var migration in migrations)
+        foreach (var set in sets)
         {
-            if (applied.TryGetValue(migration.Id, out var record))
+            foreach (var migration in set.Migrations)
             {
-                VerifyChecksum(migration, record);
-                continue;
-            }
+                var key = new MigrationKey(set.Name, migration.Id);
 
-            await ApplyOneAsync(connection, migration, cancellationToken).ConfigureAwait(false);
-            count++;
+                if (applied.TryGetValue(key, out var record))
+                {
+                    VerifyChecksum(migration, record);
+                    continue;
+                }
+
+                await ApplyOneAsync(connection, set.Name, migration, cancellationToken).ConfigureAwait(false);
+                count++;
+            }
         }
+
+        LogOrphanedRelocatedMigrations(applied);
 
         if (count > 0)
         {
@@ -178,6 +247,36 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         }
 
         return count;
+    }
+
+    /// <summary>
+    /// Logs (once, at information level) a core-numbered ledger row whose
+    /// migration was later relocated to an optional set that is not enabled
+    /// (phase 67, decision 67.3). The row and whatever it created are
+    /// harmless — this is a diagnostic, not a migration.
+    /// </summary>
+    private void LogOrphanedRelocatedMigrations(IReadOnlyDictionary<MigrationKey, AppliedMigration> applied)
+    {
+        foreach (var (id, setName) in _context.Dialect.RelocatedCoreMigrationSets)
+        {
+            if (!applied.ContainsKey(new MigrationKey(CoreSetName, id)))
+            {
+                continue;
+            }
+
+            if (_context.EnabledMigrationSets.Contains(setName))
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "AgentPrism's migration ledger has a core-numbered entry (id {Id}) whose file was later " +
+                "relocated to the optional '{Set}' migration set, which is not enabled here. The row and " +
+                "whatever it created remain in place and are harmless; enable the set if the feature is " +
+                "still wanted, or ignore this message otherwise.",
+                id,
+                setName);
+        }
     }
 
     private static void VerifyChecksum(MigrationDescriptor migration, AppliedMigration record)
@@ -203,6 +302,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
 
     private async ValueTask ApplyOneAsync(
         DbConnection connection,
+        string setName,
         MigrationDescriptor migration,
         CancellationToken cancellationToken)
     {
@@ -226,6 +326,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     var command = _context.CreateCommand(sql, connection, transaction);
                     var dialect = _context.Dialect;
 
+                    dialect.AddText(command, "set_name", setName);
                     dialect.AddInt32(command, "id", migration.Id);
                     dialect.AddText(command, "name", migration.Name);
                     dialect.AddText(command, "checksum", migration.Checksum);
@@ -285,7 +386,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         return sql;
     }
 
-    private async ValueTask<Dictionary<int, AppliedMigration>> ReadAppliedAsync(
+    private async ValueTask<Dictionary<MigrationKey, AppliedMigration>> ReadAppliedAsync(
         DbConnection connection,
         CancellationToken cancellationToken)
     {
@@ -293,14 +394,18 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
 
         var rows = await DbHelpers.ReadListAsync(
             command,
-            static reader => new AppliedMigration(reader.GetInt32(0), reader.GetString(1), reader.GetString(2)),
+            static reader => new AppliedMigration(
+                reader.GetString(0),
+                reader.GetInt32(1),
+                reader.GetString(2),
+                reader.GetString(3)),
             cancellationToken).ConfigureAwait(false);
 
-        var applied = new Dictionary<int, AppliedMigration>(rows.Count);
+        var applied = new Dictionary<MigrationKey, AppliedMigration>(rows.Count);
 
         foreach (var row in rows)
         {
-            applied[row.Id] = row;
+            applied[new MigrationKey(row.SetName, row.Id)] = row;
         }
 
         return applied;
@@ -316,5 +421,11 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
-    private sealed record AppliedMigration(int Id, string Name, string Checksum);
+    private sealed record AppliedMigration(string SetName, int Id, string Name, string Checksum);
+
+    /// <summary>A discovered migration set: its name and the migrations found under its resource prefix.</summary>
+    private sealed record MigrationSet(string Name, IReadOnlyList<MigrationDescriptor> Migrations);
+
+    /// <summary>The ledger lookup key: a migration set name plus its within-set sequence number.</summary>
+    private readonly record struct MigrationKey(string SetName, int Id);
 }
