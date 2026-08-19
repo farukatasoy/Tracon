@@ -38,6 +38,15 @@ public static class AgentPrismClientToolExtensions
     /// startup if attempted through a direct
     /// <see cref="AgentPrismToolRegistration"/> registration.
     /// </para>
+    /// <example>
+    /// <code>
+    /// var schema = JsonSerializer.Deserialize&lt;JsonElement&gt;(
+    ///     """{"type":"object","properties":{"path":{"type":"string"}}}""");
+    ///
+    /// builder.AddAgentPrism()
+    ///        .AddClientTool("open_page", "Opens a page in the user's browser.", schema);
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder AddClientTool(
         this IAgentPrismBuilder builder,

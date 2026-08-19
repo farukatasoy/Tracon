@@ -32,6 +32,17 @@ public static class VoiceConversationBuilderExtensions
     /// <param name="configurationSection">The <c>AgentPrism:Voice:Conversation</c> section.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// A speech provider is registered separately; this call only opens the
+    /// conversation layer over it.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseVoice(builder.Configuration.GetSection("AgentPrism:Voice"))
+    ///        .UseVoiceConversation(builder.Configuration.GetSection("AgentPrism:Voice:Conversation"));
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseVoiceConversation(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection)

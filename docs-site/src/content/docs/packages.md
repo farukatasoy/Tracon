@@ -123,6 +123,13 @@ is the recommended path — filled in at compile time, no reflection at all.
 `.Hosting.OpenAI` (alpha). Every pre-release dependency is deliberately concentrated
 there, so a consumer using only the runtime never takes one.
 
+The same package also carries the OpenAPI document for the endpoints it serves,
+under `buildTransitive/agentprism.json`. It is a static file and adds no
+dependency; `AgentPrism.LocalReference.md` names its path so a coding agent can
+read the HTTP surface without leaving the machine. The document describes the
+surface `MapAgentPrism()` always serves — opt-in endpoints such as A2A exposure,
+the diagnostics route, and the voice stream are served but not listed.
+
 AgentPrism publishes as `1.0.0-preview.N` until those two go GA. See [Versions and
 upgrades](/AgentPrism/reference/versioning/) for pinning the whole package family and
 upgrading safely between previews.

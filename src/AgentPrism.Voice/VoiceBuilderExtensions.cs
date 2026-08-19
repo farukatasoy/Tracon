@@ -15,6 +15,17 @@ public static class VoiceBuilderExtensions
     /// <param name="configure">Changes to apply after configuration binding.</param>
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException">When a dependency is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Registers the speech tools an agent can call. The real-time
+    /// conversation layer is a separate, opt-in call
+    /// (<c>UseVoiceConversation()</c>).
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseVoice(builder.Configuration.GetSection("AgentPrism:Voice"));
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseVoice(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection,

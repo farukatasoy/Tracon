@@ -263,6 +263,7 @@ function renderMap({ lead, sections }, packages) {
   lines.push('');
   lines.push('## Where to look');
   lines.push('');
+  lines.push('- Exact local paths for the version you have: AgentPrism.LocalReference.md, beside each project that references AgentPrism');
   lines.push(`- Capability map, with the boundary of each capability: ${siteUrl}capabilities/`);
   lines.push(`- Guides, concepts, and configuration reference: ${siteUrl}`);
   lines.push(`- HTTP API reference: ${siteUrl}http-api/`);

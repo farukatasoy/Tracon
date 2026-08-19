@@ -17,6 +17,14 @@ public static class AgentPrismSqliteBuilderExtensions
     /// <returns>The continuation of the chain.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="connectionString"/> is empty.</exception>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseSqlite("Data Source=agentprism.db");
+    /// </code>
+    /// </example>
+    /// </remarks>
     public static IAgentPrismBuilder UseSqlite(this IAgentPrismBuilder builder, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(builder);

@@ -49,6 +49,12 @@ public static class AgentPrismMcpServerExtensions
     /// pattern as K-354), completes by the first request, and no request can
     /// get ahead of it.
     /// </para>
+    /// <example>
+    /// <code>
+    /// app.MapAgentPrism();
+    /// app.MapAgentPrismMcpServer();
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IEndpointConventionBuilder MapAgentPrismMcpServer(
         this IEndpointRouteBuilder endpoints,

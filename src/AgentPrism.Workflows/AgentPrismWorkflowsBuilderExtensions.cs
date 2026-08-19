@@ -102,6 +102,13 @@ public static class AgentPrismWorkflowsBuilderExtensions
     /// database definition with the same name. The same rule applies to the
     /// agent catalog (K-019): someone with write access to the database cannot
     /// take over a behavior registered in code.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseWorkflows()
+    ///        .AddWorkflow("triage", provider => BuildTriageGraph(provider), "Routes an incoming ticket.");
+    /// </code>
+    /// </example>
     /// </remarks>
     public static IAgentPrismBuilder AddWorkflow(
         this IAgentPrismBuilder builder,

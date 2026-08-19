@@ -565,3 +565,32 @@ rm AGENTS.md && dotnet build
 The same map is published for web-based agents at
 [`/AgentPrism/llms.txt`](/AgentPrism/llms.txt), with every hand-written page
 concatenated at [`/AgentPrism/llms-full.txt`](/AgentPrism/llms-full.txt).
+
+### The agent knows a capability exists but not how to call it
+
+The map names every entry point; it explains none of them. The explanation is
+already on your disk, and `AgentPrism.LocalReference.md` names where. The same
+property writes it, beside each project that references AgentPrism:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+</PropertyGroup>
+```
+
+The file lists one XML documentation file per referenced package, and — when you
+reference `AgentPrism.AspNetCore` — the OpenAPI document that describes the HTTP
+surface. Every entry point in those files carries a worked example, so an agent
+answers a call-shape question with a search rather than a guess:
+
+```bash
+grep -A 12 'AddToolApprovalPolicy' <api-doc>
+```
+
+One file is written per project, not one for the repository: a solution that
+splits a web host from a worker gives each project a different set of packages,
+and only the web host's file names the HTTP API document. The paths are specific
+to your machine and to the versions that project restored, so the file is
+regenerated on every build and belongs in `.gitignore`; a project created with
+`dotnet new agentprism-api` already ignores it. To write the map but not the
+pointer file, set `AgentPrismWriteLocalReference` to `false`.
