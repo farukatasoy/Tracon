@@ -25,6 +25,15 @@ public interface IModelProvider
     /// Produces a <strong>raw</strong> chat client for the given binding.
     /// </summary>
     /// <param name="binding">The model binding.</param>
+    /// <param name="credential">
+    /// A resolved per-tenant credential (phase 65, BYOK). When
+    /// <see langword="null"/>, the provider's own setup-time credential is
+    /// used and behavior is <strong>identical</strong> to before phase 65.
+    /// When given, the provider builds (or reuses a cached) client using
+    /// <see cref="ModelProviderCredential.ApiKey"/> and, if present,
+    /// <see cref="ModelProviderCredential.Endpoint"/>, instead of its
+    /// setup-time credential.
+    /// </param>
     /// <returns>
     /// The provider-specific client. Decorators <em>specific</em> to the
     /// provider (example: Anthropic's settings decorator) may be added here.
@@ -46,5 +55,5 @@ public interface IModelProvider
     /// wrapping, a misleading span tree).
     /// </para>
     /// </remarks>
-    IChatClient CreateChatClient(ModelBinding binding);
+    IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null);
 }

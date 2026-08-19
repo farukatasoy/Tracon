@@ -132,5 +132,11 @@ public sealed class ModelRunJudgeTests
         public IReadOnlyList<ModelProviderDescriptor> List() => [];
 
         public IChatClient CreateChatClient(ModelBinding binding) => chatClient;
+
+        public ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(chatClient);
+
+        public ValueTask<bool> HasTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(false);
     }
 }

@@ -43,7 +43,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     private readonly ModelBinding _primaryBinding;
     private readonly IChatClient _primaryClient;
     private readonly IReadOnlyList<ModelFallback> _fallbacks;
-    private readonly Func<ModelBinding, IChatClient> _buildClient;
+    private readonly Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> _buildClient;
     private readonly Dictionary<int, IChatClient> _fallbackClients = [];
 
     /// <summary>Creates a new fallback client.</summary>
@@ -55,14 +55,28 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// actually reached, not once per configured link.
     /// </param>
     /// <remarks>
+    /// <para>
     /// 🚨 <c>DelegatingChatClient</c> keeps its wrapped client in a PRIVATE
     /// field and exposes no protected accessor for it (measured via
     /// <c>maf-api-kesfi</c>) — <paramref name="primaryClient"/> is therefore
     /// also kept in <see cref="_primaryClient"/> and called directly; the base
     /// class is used only for its <see cref="IDisposable"/>/<c>GetService</c>
     /// passthrough, never for <c>base.GetResponseAsync</c>.
+    /// </para>
+    /// <para>
+    /// 🚨 <paramref name="buildClient"/> is ASYNC (phase 65, independent audit
+    /// finding). It MUST be <c>ModelProviderRegistry.CreateChatClientAsync</c>,
+    /// never the sync <c>CreateChatClient</c>: a fallback link is itself a
+    /// <see cref="ModelBinding"/> with its own <see cref="ModelBinding.Provider"/>,
+    /// and it must go through the SAME tenant credential/egress resolution as
+    /// the primary — otherwise a fallback would silently use the global
+    /// credential and bypass the tenant's egress policy entirely.
+    /// </para>
     /// </remarks>
-    public FallbackChatClient(ModelBinding primaryBinding, IChatClient primaryClient, Func<ModelBinding, IChatClient> buildClient)
+    public FallbackChatClient(
+        ModelBinding primaryBinding,
+        IChatClient primaryClient,
+        Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> buildClient)
         : base(primaryClient)
     {
         _primaryBinding = primaryBinding;
@@ -82,7 +96,9 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
         for (var index = 0; index <= _fallbacks.Count; index++)
         {
-            var client = index == 0 ? _primaryClient : ResolveFallbackClient(index - 1);
+            var client = index == 0
+                ? _primaryClient
+                : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -135,7 +151,9 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
         for (var index = 0; index <= _fallbacks.Count; index++)
         {
-            var client = index == 0 ? _primaryClient : ResolveFallbackClient(index - 1);
+            var client = index == 0
+                ? _primaryClient
+                : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
             var sawUpdate = false;
 
             // 🚨 A stream cannot be retried past its first frame: once a chunk
@@ -213,7 +231,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         throw ChainExhausted(firstFailure!);
     }
 
-    private IChatClient ResolveFallbackClient(int fallbackIndex)
+    private async ValueTask<IChatClient> ResolveFallbackClientAsync(int fallbackIndex, CancellationToken cancellationToken)
     {
         if (_fallbackClients.TryGetValue(fallbackIndex, out var existing))
         {
@@ -228,7 +246,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             Model = link.Model,
         };
 
-        var client = _buildClient(binding);
+        var client = await _buildClient(binding, cancellationToken).ConfigureAwait(false);
         _fallbackClients[fallbackIndex] = client;
         return client;
     }

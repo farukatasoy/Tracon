@@ -24,9 +24,13 @@ internal sealed class FakeModelProvider : IModelProvider
     /// <summary>The last requested binding. Tests verify option mapping through this.</summary>
     public ModelBinding? LastBinding { get; private set; }
 
-    public IChatClient CreateChatClient(ModelBinding binding)
+    /// <summary>The last credential passed in (phase 65, BYOK). Tests verify tenant resolution through this.</summary>
+    public ModelProviderCredential? LastCredential { get; private set; }
+
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         LastBinding = binding;
+        LastCredential = credential;
         return _client;
     }
 }

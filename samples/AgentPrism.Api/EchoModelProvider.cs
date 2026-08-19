@@ -34,7 +34,7 @@ internal sealed class EchoModelProvider : IModelProvider
         },
     ];
 
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
         return new EchoChatClient(binding.Model);

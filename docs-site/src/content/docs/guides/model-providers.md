@@ -197,11 +197,56 @@ agentPrism.UseAzureOpenAI(options =>
 the credential implementation. Azure OpenAI Responses, On Your Data, and Azure AI
 Foundry Agents are not exposed by this provider.
 
+## Per-tenant credentials (BYOK)
+
+By default every tenant shares the credential a `Use...()` call registered at startup.
+A multi-tenant host can instead let each tenant bring its own key — its usage and its
+bill stay separate from every other tenant's.
+
+A tenant's binding stores only the **name** of a configuration key, never the value:
+
+```bash
+dotnet user-secrets set "AgentPrism:ProviderKeys:Acme:OpenAI" "<acme's key>"
+```
+
+```bash
+curl -X PUT "http://localhost:5081/agentprism/api/tenants/acme/providers/openai" \
+  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"apiKeyConfigurationName": "AgentPrism:ProviderKeys:Acme:OpenAI"}'
+```
+
+The name must sit under the configured prefix (default `AgentPrism:ProviderKeys:`); a
+name outside it is rejected with `400` both when it is saved and again when it is
+resolved. `GET /api/tenants/acme/providers` reports whether the name currently
+resolves to a value (`resolved: true`/`false`) — never the value itself. A tenant with
+no binding for a provider keeps using the global setup-time credential; nothing changes
+until a binding is written. A binding that exists but resolves to no value does not
+fall back to the global credential silently — the run fails with a clear error instead,
+so a misconfigured tenant is never billed to the wrong account.
+
+Restrict which providers a tenant's agents may call with an egress policy:
+
+```bash
+curl -X PUT "http://localhost:5081/agentprism/api/tenants/acme/egress" \
+  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"allowedProviders": ["openai", "anthropic"]}'
+```
+
+A tenant with no saved policy is unrestricted — saving one is an additive
+restriction, not a default wall. An agent definition naming a provider outside the
+saved list is rejected **at compile time**, before any request reaches the network;
+the same check also protects `PUT .../providers/{provider}` itself, so both surfaces
+agree. The console's Settings screen exposes both panels; no field there accepts a
+credential value, only a configuration key name and an optional endpoint override.
+
 ## A provider without a package
 
 `AddModelProvider()` registers a provider AgentPrism does not ship a package for.
 Implement `IModelProvider` — a stable `Name`, a `Models` catalog, and
-`CreateChatClient(ModelBinding)` returning a raw `IChatClient` — and register it:
+`CreateChatClient(ModelBinding, ModelProviderCredential?)` returning a raw `IChatClient`
+— and register it:
 
 ```csharp
 public sealed class ContosoModelProvider(HttpClient httpClient) : IModelProvider
@@ -211,13 +256,18 @@ public sealed class ContosoModelProvider(HttpClient httpClient) : IModelProvider
     public IReadOnlyList<ModelDescriptor> Models { get; } =
         [new ModelDescriptor { Name = "contoso-large", SupportsTools = true }];
 
-    public IChatClient CreateChatClient(ModelBinding binding)
-        => new ContosoChatClient(httpClient, binding.Model);
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+        => new ContosoChatClient(httpClient, binding.Model, credential?.ApiKey);
 }
 
 agentPrism.AddModelProvider(services =>
     new ContosoModelProvider(services.GetRequiredService<HttpClient>()));
 ```
+
+`credential` carries a resolved per-tenant key when the host and the requesting
+tenant both opt into BYOK (see [Per-tenant credentials](#per-tenant-credentials-byok)
+above); it is `null` for every call that does not, and a provider that ignores the
+parameter keeps working exactly as before — it simply never honors a tenant's own key.
 
 `ModelProviderRegistry` wraps every provider — built-in or custom — with the same
 pipeline: function invocation, OpenTelemetry, the content guard, and the circuit
@@ -289,6 +339,9 @@ as a rejection, since there is nothing to compare the prompt against.
 | Model catalog | Empty until the host supplies entries |
 | Pre-flight context-window check | Off; `POST /api/agents/{name}/estimate` still works when off |
 | Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
+| Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
+| Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
+| Allowed configuration prefix for a binding | `AgentPrism:ProviderKeys:`; a name outside it is rejected with `400` |
 
 Force a current, cost-free reachability check with:
 

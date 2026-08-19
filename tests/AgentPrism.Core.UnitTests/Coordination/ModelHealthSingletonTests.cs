@@ -62,7 +62,7 @@ public sealed class ModelHealthSingletonTests
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [];
 
-        public IChatClient CreateChatClient(ModelBinding binding) => throw new NotSupportedException();
+        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => throw new NotSupportedException();
 
         public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
         {

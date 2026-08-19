@@ -48,6 +48,30 @@ Isolation is enforced by contract tests that check it in both directions, across
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.
 
+## Per-tenant provider credentials and egress
+
+By default every tenant shares the model provider credential a `Use...()` call
+registered at startup — one key, one bill, one usage pool. A tenant can instead bring
+its own key (BYOK): its usage and its bill stay separate. A record for this binds a
+tenant and a provider to the **name** of a configuration key, never to the key's
+value — the value is read from `IConfiguration` only at call time and is never
+written to a database, a log line, or an HTTP response. A tenant with no binding for
+a provider keeps using the shared setup-time credential; nothing changes until an
+administrator writes one, and a binding whose configuration key carries no value does
+not fall back to the shared key silently — the run fails with a clear error, so a
+misconfigured tenant is never billed against the wrong account.
+
+An egress policy narrows which providers a tenant's agents may call at all. A tenant
+with no saved policy is unrestricted; saving one is an additive restriction. Naming a
+forbidden provider in an agent definition is rejected **at compile time** — before any
+request reaches the network — and writing a credential binding for a forbidden
+provider is rejected too, so the two surfaces cannot disagree.
+
+Both are managed under `/api/tenants/{tenantId}/providers` and
+`/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. See
+[Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok)
+for the full HTTP contract.
+
 ## The audit trail
 
 Who changed what, when, and from what to what. Agent definitions, MCP servers,

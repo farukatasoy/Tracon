@@ -11,7 +11,7 @@ AgentPrism.OpenAIModelCatalog
 AgentPrism.OpenAIModelProvider
 AgentPrism.OpenAIModelProvider.ApiSurface.get -> AgentPrism.OpenAIApiSurface
 AgentPrism.OpenAIModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.OpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.OpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.OpenAIModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
 AgentPrism.OpenAIModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 AgentPrism.OpenAIModelProvider.Name.get -> string!

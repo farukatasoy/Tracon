@@ -146,7 +146,13 @@ public sealed class RunReplayService
         // 🚨 The cache (CompiledAgentCache) is DELIBERATELY skipped: the
         // overridden model and played-back tools are specific to this call;
         // letting them enter the cache would also corrupt later normal runs.
-        var agent = _compiler.Compile(effective, callable, playback is null ? null : playback.Wrap);
+        // The async overload is used so a replay honors the run's own
+        // tenant's provider credential and egress policy (phase 65) the same
+        // way the original run did, instead of silently falling back to the
+        // global setup-time credential.
+        var agent = await _compiler
+            .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, cancellationToken)
+            .ConfigureAwait(false);
 
         // 🚨 The guard sits INSIDE the decorators; the rationale is in the
         // note on ReplayMismatchGuard (the exception must land in the
