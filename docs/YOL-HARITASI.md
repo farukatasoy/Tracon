@@ -81,7 +81,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | ✅ Tamamlandı |
 | [68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | Çalıştırma Kimliği ve Token Kırılımı | ✅ Tamamlandı |
 | [69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) | Tool Yetkilendirmesi ve Yürütme Timeout'u | ✅ Tamamlandı |
-| [70](70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | 📋 Planlandı |
+| [70](70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | ✅ Tamamlandı |
 | [71](71-WORKFLOW-KOD-DUGUMU.md) | Workflow Kod Düğümü | 📋 Planlandı |
 | [72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | Çok Dilli Talimat ve Zaman Damgalı Sentez | 📋 Planlandı |
 | [73](73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | 📋 Planlandı |

@@ -52,7 +52,9 @@ export type RunEventType =
   | 'WorkflowRequest'
   | 'RunAwaitingInput'
   | 'ContentMasked'
-  | 'ContentBlocked';
+  | 'ContentBlocked'
+  | 'ModelFallbackUsed'
+  | 'ReasoningDelta';
 
 export type CompactionStrategyKind =
   | 'None'

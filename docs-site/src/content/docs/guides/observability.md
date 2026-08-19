@@ -171,6 +171,7 @@ run inspection:
       "Enabled": true,
       "RecordMessageDeltas": true,
       "RecordToolPayloads": true,
+      "RecordReasoningDeltas": false,
       "MaxPayloadLength": 8192,
       "RecordRunInput": true
     }
@@ -183,13 +184,16 @@ run inspection:
 | `RunRecording.Enabled` | `true` | When false, no run event is written |
 | `RecordMessageDeltas` | `true` | Turning it off reduces write volume for streaming runs |
 | `RecordToolPayloads` | `true` | Tool arguments and results can contain personal or secret data |
+| `RecordReasoningDeltas` | `false` | Off unlike the other flags: reasoning output can run far longer than the answer and can restate input the answer never shows |
 | `MaxPayloadLength` | 8,192 characters | Valid range is 0 through 1,048,576; `0` means no truncation |
 | `RecordRunInput` | `true` | Required for run replay; input is not truncated by `MaxPayloadLength` |
 
 Event-store failures are logged and then event writes stop for that run. The agent
 run continues. A run-input write failure also leaves execution intact, but that run
 cannot be replayed. This failure isolation prevents an observability outage from
-becoming an agent outage.
+becoming an agent outage. A registered [`IRunEventSink`](/AgentPrism/concepts/runs/#observing-events-beyond-the-store)
+is held to the same rule: a sink failure never stops the store write, and a store
+failure never stops a sink from seeing the rest of the run.
 
 `RecordSensitiveData=false` does not redact run events, tool payloads, or saved run
 input. It applies to span tags. Configure both sections and retention according to
@@ -266,6 +270,8 @@ operational information.
 | Run cost is absent | Confirm that the provider reported tokens and that the exact provider/model has a catalog or configured price |
 | Replay says input is unavailable | Keep `RecordRunInput=true`; inspect logs for an input-store failure or retention deletion |
 | The run succeeded but events stopped | Inspect the first run-store write error; AgentPrism disables later event writes for that run so execution can continue |
+| A reasoning model's thinking never appears in recorded events | Set `RunRecording.RecordReasoningDeltas = true`; the live stream shows it either way, only recording is gated |
+| A registered `IRunEventSink` stops receiving events partway through a run | Check the warning log for that sink's exception; it is disabled for the rest of that run only, other sinks and the store are unaffected |
 | Readiness starts as `Degraded` | Refresh `/api/models/health?refresh=true` or configure a background health interval |
 | Health is `Unhealthy` after deployment | Check database reachability and pending migrations before investigating providers |
 | Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected |

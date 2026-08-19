@@ -1147,6 +1147,8 @@ AgentPrism.IRunCancellationRegistry.Register(System.Guid runId, System.Guid root
 AgentPrism.IRunCancellationRegistry.TryCancel(System.Guid runId, string? tenantId) -> bool
 AgentPrism.IRunErrorClassifier
 AgentPrism.IRunErrorClassifier.Classify(AgentPrism.RunError! runError) -> AgentPrism.RunErrorClassification!
+AgentPrism.IRunEventSink
+AgentPrism.IRunEventSink.OnEventAsync(AgentPrism.RunEvent! runEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IRunInputStore
 AgentPrism.IRunInputStore.GetAsync(string! tenantId, System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunInputRecord?>
 AgentPrism.IRunInputStore.SaveAsync(AgentPrism.RunInputRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -2152,6 +2154,7 @@ AgentPrism.RunEventType.HistoryCompacted = 10 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.MessageCompleted = 2 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.MessageDelta = 1 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.ModelFallbackUsed = 22 -> AgentPrism.RunEventType
+AgentPrism.RunEventType.ReasoningDelta = 23 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.RunAwaitingInput = 19 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.RunCompleted = 6 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.RunFailed = 7 -> AgentPrism.RunEventType

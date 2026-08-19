@@ -83,9 +83,10 @@ started.
 A run's detail header names the user it belongs to and shows its labels as badges.
 
 Opening a run gives the summary and the full event stream in order: message deltas,
-tool calls with arguments and results, errors with their class. A run that called
-other agents shows the whole tree, and each agent's tokens and duration are attributed
-separately.
+tool calls with arguments and results, errors with their class. When a reasoning
+model's thinking is recorded, it renders as its own collapsible block, separate from
+the answer. A run that called other agents shows the whole tree, and each agent's
+tokens and duration are attributed separately.
 
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.

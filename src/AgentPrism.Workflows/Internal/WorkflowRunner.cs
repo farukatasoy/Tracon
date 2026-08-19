@@ -53,6 +53,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IRunAttributionContext? _attributionContext;
+    private readonly IReadOnlyList<IRunEventSink> _sinks;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -76,6 +77,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The attribution context (phase 68). When <see langword="null"/>, the workflow's run row records
     /// no user and no labels.
     /// </param>
+    /// <param name="sinks">
+    /// The run event observers (phase 70). Empty when none is registered — the identical
+    /// hot path as before this extension point existed.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -90,7 +95,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         TimeProvider? timeProvider = null,
         IRunCancellationRegistry? cancellationRegistry = null,
         QuotaEnforcer? quotaEnforcer = null,
-        IRunAttributionContext? attributionContext = null)
+        IRunAttributionContext? attributionContext = null,
+        IEnumerable<IRunEventSink>? sinks = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -114,6 +120,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _cancellationRegistry = cancellationRegistry;
         _quotaEnforcer = quotaEnforcer;
         _attributionContext = attributionContext;
+        _sinks = sinks?.ToArray() ?? [];
     }
 
     /// <inheritdoc />
@@ -413,7 +420,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationTokenSource linked)
     {
         var recording = _prismOptions.Value.RunRecording;
-        var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId);
+        var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId, _sinks);
 
         // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
         // is an AsyncLocal, and an assignment made inside a helper method does not

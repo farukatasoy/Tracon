@@ -218,6 +218,17 @@ sorgusuyla turetilir. Hata parmak izi SABIT `"orphaned"` dizesidir,
 `ErrorFingerprint.Compute` DEGIL (K-364 — o tip `AgentPrism.Core`'da
 internal'dir, `AgentPrism.Sql.Shared` ona erisemez).
 
+### MAF tool'a bos servis saglayici gecirir; `AIFunctionArguments.Services` kullanilamaz (Faz 28, K-218)
+
+Tool govdesinde `arguments.Services` `EmptyServiceProvider`'dir.
+`ChatClientAgentOptions` bir `Services` ozelligi tasimaz ve
+`AsAIAgent(..., _services)` saglayicisi fonksiyon cagrisina AKMAZ. Tool
+bagimliliklarini KURULUM aninda alin:
+`services.AddSingleton(p => new AgentPrismToolRegistration(new BenimTool(p)))`.
+
+Ayni sebeple `AddToolsFrom` ile kaydedilen **ornek metot** tool'lari da
+calismaz; Faz 52'de `ToolMethodScanner` reddi TARAMA ANINA tasidi (K-347).
+
 ---
 
 ## `docs/hafiza/maf-api.md`'den

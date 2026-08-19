@@ -24,6 +24,8 @@ public sealed class RunEventWriter
     private readonly IRunStore _store;
     private readonly AgentPrismRunRecordingOptions _options;
     private readonly ILogger _logger;
+    private readonly IReadOnlyList<IRunEventSink> _sinks;
+    private readonly bool[] _sinkDisabled;
     private long _sequence;
 
     /// <summary>Creates a new writer.</summary>
@@ -31,8 +33,18 @@ public sealed class RunEventWriter
     /// <param name="options">The recording detail settings.</param>
     /// <param name="logger">The logger write failures are reported to.</param>
     /// <param name="runId">The run identity.</param>
-    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public RunEventWriter(IRunStore store, AgentPrismRunRecordingOptions options, ILogger logger, Guid runId)
+    /// <param name="sinks">
+    /// The observers to fan every event out to, in addition to <paramref name="store"/>.
+    /// <see langword="null"/> or empty runs the identical hot path as before this
+    /// extension point existed (K1) — no allocation, no branching difference.
+    /// </param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
+    public RunEventWriter(
+        IRunStore store,
+        AgentPrismRunRecordingOptions options,
+        ILogger logger,
+        Guid runId,
+        IReadOnlyList<IRunEventSink>? sinks = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(options);
@@ -42,6 +54,8 @@ public sealed class RunEventWriter
         _options = options;
         _logger = logger;
         RunId = runId;
+        _sinks = sinks is { Count: > 0 } ? sinks : [];
+        _sinkDisabled = new bool[_sinks.Count];
     }
 
     /// <summary>Gets the identity of the run this writer writes to.</summary>
@@ -148,21 +162,60 @@ public sealed class RunEventWriter
             TenantId = TenantId,
         };
 
-        if (IsDisabled)
+        if (!IsDisabled)
         {
-            return runEvent;
+            try
+            {
+                await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Disable(ex, "failed to write run event");
+            }
         }
 
-        try
-        {
-            await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            Disable(ex, "failed to write run event");
-        }
+        // Sink dispatch is INDEPENDENT of the store: a sink failure never
+        // disables the store, and a store failure never skips the sinks —
+        // observability targets do not share a single point of failure.
+        await DispatchToSinksAsync(runEvent, cancellationToken).ConfigureAwait(false);
 
         return runEvent;
+    }
+
+    /// <summary>Fans the event out to every registered, not-yet-failed sink.</summary>
+    private async ValueTask DispatchToSinksAsync(RunEvent runEvent, CancellationToken cancellationToken)
+    {
+        // K1: no sink registered ⇒ this is the only cost paid on the hot path.
+        if (_sinks.Count == 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _sinks.Count; i++)
+        {
+            if (_sinkDisabled[i])
+            {
+                continue;
+            }
+
+            try
+            {
+                await _sinks[i].OnEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Disabled for THIS run only — the sink instance is shared
+                // across every concurrent run, and the field lives on this
+                // (per-run) writer instance.
+                _sinkDisabled[i] = true;
+
+                _logger.LogWarning(
+                    ex,
+                    "AgentPrism run event sink {SinkType} was disabled for run {RunId} after a failure. The run continues normally.",
+                    _sinks[i].GetType().Name,
+                    RunId);
+            }
+        }
     }
 
     /// <summary>
@@ -217,11 +270,11 @@ public sealed class RunEventWriter
         string? modelId = null,
         CancellationToken cancellationToken = default)
     {
-        if (IsDisabled)
-        {
-            return;
-        }
-
+        // 🚨 NOT gated on IsDisabled here (unlike every other method on this
+        // type): IsDisabled tracks the STORE only, and AppendAsync below still
+        // dispatches the closing event to every registered sink even when the
+        // store already failed earlier in this run — a sink must never miss
+        // the terminal event just because the store did (docs/70).
         var closingEvent = status switch
         {
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),

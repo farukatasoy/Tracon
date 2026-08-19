@@ -56,6 +56,12 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // and a block shares the danger hue with the other run-ending failures.
   ContentMasked: { label: 'content.masked', hue: 'var(--ap-violet)' },
   ContentBlocked: { label: 'content.blocked', hue: 'var(--ap-danger)' },
+  // Phase 62. Shares the amber "needs attention" hue with the other
+  // structural events — a fallback is a mitigation the operator should notice.
+  ModelFallbackUsed: { label: 'model.fallback-used', hue: 'var(--ap-amber)' },
+  // Phase 70. Distinct from MessageDelta's cyan: this is the model's
+  // reasoning, not its answer.
+  ReasoningDelta: { label: 'reasoning.delta', hue: 'var(--ap-violet)' },
 };
 
 /**

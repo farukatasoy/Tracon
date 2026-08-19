@@ -7,7 +7,9 @@
         "-y",
         "@playwright/mcp@latest"
       ],
-      "env": {}
+      "env": {
+        "NODE_EXTRA_CA_CERTS": "/opt/homebrew/etc/ca-certificates/cert.pem"
+      }
     },
     "context7": {
       "type": "stdio",
@@ -16,7 +18,9 @@
         "-y",
         "@upstash/context7-mcp@latest"
       ],
-      "env": {}
+      "env": {
+        "NODE_EXTRA_CA_CERTS": "/opt/homebrew/etc/ca-certificates/cert.pem"
+      }
     }
   }
 }

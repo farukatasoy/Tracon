@@ -335,6 +335,14 @@ export function foldRunEvents(events: readonly RunEvent[]): TranscriptState {
         break;
       }
 
+      case 'ReasoningDelta': {
+        if (typeof event.text === 'string' && event.text.length > 0) {
+          appendText(state.items, 'reasoning', event.text);
+        }
+
+        break;
+      }
+
       case 'ToolInvoking': {
         const callId = event.toolCallId ?? `seq-${event.sequence}`;
 
