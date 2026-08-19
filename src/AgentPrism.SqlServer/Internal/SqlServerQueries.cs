@@ -2221,5 +2221,69 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                      ORDER BY expires_at ASC
                    );
             """;
+
+        // -------------------------------------------------------------------
+        // Phase 65 -- tenant provider bindings (BYOK) and egress policy
+        // -------------------------------------------------------------------
+        // 🚨 The column list contains NO SECRET VALUE: only the NAME of the
+        // configuration key the value is read from at call time (K-059,
+        // section 65.1).
+        const string tenantProviderBindingColumns =
+            "tenant_id, provider_name, api_key_configuration_name, endpoint, updated_at";
+
+        // Two-branch upsert (K-177: no MERGE). Neither branch needs OUTPUT --
+        // UpsertAsync returns no value -- so the K-187/188/189 "OUTPUT lands
+        // in the second result set" pitfall does not apply here.
+        UpsertTenantProviderBinding = $"""
+            UPDATE {Schema}.tenant_provider_bindings WITH (UPDLOCK, SERIALIZABLE)
+               SET api_key_configuration_name = @api_key_configuration_name,
+                   endpoint = @endpoint,
+                   updated_at = @updated_at
+             WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.tenant_provider_bindings ({tenantProviderBindingColumns})
+            VALUES (@tenant_id, @provider_name, @api_key_configuration_name, @endpoint, @updated_at);
+            """;
+
+        SelectTenantProviderBinding = $"""
+            SELECT {tenantProviderBindingColumns}
+            FROM {Schema}.tenant_provider_bindings
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        SelectTenantProviderBindings = $"""
+            SELECT {tenantProviderBindingColumns}
+            FROM {Schema}.tenant_provider_bindings
+            WHERE tenant_id = @tenant_id
+            ORDER BY provider_name;
+            """;
+
+        DeleteTenantProviderBinding = $"""
+            DELETE FROM {Schema}.tenant_provider_bindings
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        UpsertTenantEgressPolicy = $"""
+            UPDATE {Schema}.tenant_egress_policies WITH (UPDLOCK, SERIALIZABLE)
+               SET allowed_providers = @allowed_providers,
+                   updated_at = @updated_at
+             WHERE tenant_id = @tenant_id;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.tenant_egress_policies (tenant_id, allowed_providers, updated_at)
+            VALUES (@tenant_id, @allowed_providers, @updated_at);
+            """;
+
+        SelectTenantEgressPolicy = $"""
+            SELECT tenant_id, allowed_providers, updated_at
+            FROM {Schema}.tenant_egress_policies
+            WHERE tenant_id = @tenant_id;
+            """;
+
+        DeleteTenantEgressPolicy = $"""
+            DELETE FROM {Schema}.tenant_egress_policies
+            WHERE tenant_id = @tenant_id;
+            """;
     }
 }

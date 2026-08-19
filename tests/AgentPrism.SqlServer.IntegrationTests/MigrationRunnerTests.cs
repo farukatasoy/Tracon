@@ -41,7 +41,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         // Phase 47 added the `run_inputs` table: 42 -> 43.
         // Phase 53 added the `api_keys` table: 43 -> 44.
         // Phase 55 added the `pending_approvals` table: 44 -> 45.
-        tableCount.ShouldBe(45);
+        // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
+        tableCount.ShouldBe(47);
     }
 
     [Fact]

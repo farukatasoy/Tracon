@@ -6,7 +6,7 @@ AgentPrism.AnthropicModelCatalog
 AgentPrism.AnthropicModelProvider
 AgentPrism.AnthropicModelProvider.AnthropicModelProvider(string! name, AgentPrism.AnthropicChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.AnthropicModelProvider!>? logger = null, AgentPrism.AnthropicProviderOptions? healthCheckOptions = null) -> void
 AgentPrism.AnthropicModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.AnthropicModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.AnthropicModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AnthropicModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
 AgentPrism.AnthropicModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 AgentPrism.AnthropicModelProvider.Name.get -> string!

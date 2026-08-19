@@ -25,6 +25,13 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
     private readonly HashSet<string> _knownModels;
     private readonly GoogleProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
+    private readonly GoogleProviderOptions? _baseOptions;
+
+    // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
+    // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); cached
+    // entries here are never disposed, the same bounded, admin-controlled
+    // trade-off ProviderCredentialClientCache documents.
+    private readonly ProviderCredentialClientCache<GoogleChatClientFactory> _credentialFactories = new();
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
@@ -57,6 +64,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
+        _baseOptions = healthCheckOptions;
     }
 
     /// <inheritdoc />
@@ -66,7 +74,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
@@ -77,7 +85,30 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
             LogUnknownModel(binding.Model);
         }
 
-        return _chatClientFactory.CreateChatClient(binding);
+        var factory = credential is null
+            ? _chatClientFactory
+            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+
+        return factory.CreateChatClient(binding);
+    }
+
+    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>
+    private GoogleChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
+    {
+        var options = new GoogleProviderOptions
+        {
+            ApiKey = credential.ApiKey,
+            DefaultModel = _baseOptions?.DefaultModel,
+            ApiVersion = _baseOptions?.ApiVersion,
+            Timeout = _baseOptions?.Timeout,
+        };
+
+        options.Endpoint = credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+            ? endpointUri
+            : _baseOptions?.Endpoint;
+
+        return new GoogleChatClientFactory(options);
     }
 
     /// <inheritdoc />

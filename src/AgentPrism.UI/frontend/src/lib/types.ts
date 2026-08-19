@@ -1702,3 +1702,34 @@ export interface ApiKeyCreationResult {
   record: ApiKeyRecord;
   plaintextKey: string;
 }
+
+/**
+ * A tenant's binding to a model provider (BYOK, phase 65).
+ *
+ * Carries no credential value — only the NAME of the configuration key the
+ * value is read from at call time, and whether that key currently resolves.
+ */
+export interface TenantProviderBinding {
+  providerName: string;
+  apiKeyConfigurationName: string;
+  endpoint?: string | null;
+  resolved: boolean;
+  updatedAt: string;
+}
+
+export interface TenantProviderBindingRequest {
+  apiKeyConfigurationName: string;
+  endpoint?: string | null;
+}
+
+/**
+ * A tenant's model provider egress policy (F-119, phase 65).
+ *
+ * `allowedProviders: null` means the tenant is unrestricted — no policy was
+ * ever saved.
+ */
+export interface TenantEgressPolicy {
+  tenantId: string;
+  allowedProviders: string[] | null;
+  updatedAt?: string | null;
+}

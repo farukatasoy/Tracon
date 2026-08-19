@@ -53,6 +53,14 @@
   gecerse kilit cakismasidir. Ayni kosumda iki kez ust uste duserse gercek
   kusurdur. Faz 58'de tam paket bir kez 3695/3695 yesil, ikinci kez bu tek
   testte dustu, izole kosumda 10/10 gecti.
+- **🚨 `AgentPrism.Ui.E2ETests` tam kosarken (55 test) zamanlama yarisi altinda
+  kirilgan tekil testler cikabilir — F-102'nin Playwright hali** (2026-08-19,
+  Faz 65 kapanisi). `Runs_button_on_session_page_navigates_to_filtered_list`
+  tam kosumda 3 denemeden 2'sinde dustu (`tbody tr` sayisi dugme etiketiyle
+  eslesmeden okundu), izolasyonda 3/3 gecti. Kok sebep tarayici/`Docker`
+  kaynak cekismesi, urun kusuru degil. **Ayirt etme**: ayni desen — tek basina
+  kostur, gecerse yuk altinda kirilganlik, ikinci tam kosumda da duserse
+  gercek kusur. Aday: **F-122**.
 
 - **🚨 `dotnet test ... | grep ... | head -N` KOSUMU ERKEN KESER.** `head` N
   satiri alinca boruyu kapatir, `dotnet test` SIGPIPE alir ve kalan test

@@ -76,7 +76,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) | Model Yedek Zinciri ve Ön Uçuş Denetimi | ✅ Tamamlandı |
 | [63](63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) | Argüman Düzeyinde Onay Politikası | ✅ Tamamlandı |
 | [64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) | Denetim Zinciri ve Veri Konusu Hakları | ✅ Tamamlandı |
-| [65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | 📋 Planlandı |
+| [65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | ✅ Tamamlandı |
 | [66](66-GELEN-TETIKLEYICILER.md) | Gelen Tetikleyiciler | 📋 Planlandı |
 | [67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | 📋 Planlandı |
 | [68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | Çalıştırma Kimliği ve Token Kırılımı | 📋 Planlandı |

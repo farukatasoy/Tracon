@@ -25,6 +25,10 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
     private readonly HashSet<string> _knownModels;
     private readonly AnthropicProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
+    private readonly AnthropicProviderOptions? _baseOptions;
+
+    // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
+    private readonly ProviderCredentialClientCache<AnthropicChatClientFactory> _credentialFactories = new();
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
@@ -57,6 +61,7 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new AnthropicProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
+        _baseOptions = healthCheckOptions;
     }
 
     /// <inheritdoc />
@@ -66,7 +71,7 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
@@ -79,7 +84,33 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
             LogUnknownModel(binding.Model);
         }
 
-        return _chatClientFactory.CreateChatClient(binding);
+        var factory = credential is null
+            ? _chatClientFactory
+            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+
+        return factory.CreateChatClient(binding);
+    }
+
+    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>
+    private AnthropicChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
+    {
+        var options = new AnthropicProviderOptions
+        {
+            ApiKey = credential.ApiKey,
+            DefaultModel = _baseOptions?.DefaultModel,
+            DefaultMaxOutputTokens = _baseOptions?.DefaultMaxOutputTokens ?? 4096,
+            MaxRetries = _baseOptions?.MaxRetries,
+            Timeout = _baseOptions?.Timeout,
+        };
+
+        options.Endpoint = credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+            ? endpointUri
+            : _baseOptions?.Endpoint;
+
+        var client = AnthropicChatClientFactory.CreateClient(options);
+
+        return AnthropicChatClientFactory.FromClient(client, options.DefaultModel, options.DefaultMaxOutputTokens);
     }
 
     /// <inheritdoc />

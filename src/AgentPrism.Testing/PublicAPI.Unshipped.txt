@@ -22,7 +22,7 @@ AgentPrism.Testing.AgentPrismTestHostOptions.Prefix.get -> string!
 AgentPrism.Testing.AgentPrismTestHostOptions.Prefix.set -> void
 AgentPrism.Testing.FakeModelProvider
 AgentPrism.Testing.FakeModelProvider.CallsTool(string! toolName, object? arguments = null) -> AgentPrism.Testing.FakeModelProvider!
-AgentPrism.Testing.FakeModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.Testing.FakeModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.Testing.FakeModelProvider.Dispose() -> void
 AgentPrism.Testing.FakeModelProvider.EchoesLastToolResult(string! prefix = "", int? inputTokens = null, int? outputTokens = null) -> AgentPrism.Testing.FakeModelProvider!
 AgentPrism.Testing.FakeModelProvider.EchoesUserMessage() -> AgentPrism.Testing.FakeModelProvider!

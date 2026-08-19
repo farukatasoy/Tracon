@@ -90,6 +90,9 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyCreationResult,
   ApiKeyRecord,
+  TenantEgressPolicy,
+  TenantProviderBinding,
+  TenantProviderBindingRequest,
   WorkflowCheckpointRecord,
   WorkflowDefinition,
   WorkflowDescriptor,
@@ -589,6 +592,28 @@ export const api = {
     send<ApiKeyCreationResult>('POST', 'api/api-keys', body),
   revokeApiKey: (id: string) =>
     request<void>(`api/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  tenantProviderBindings: (tenantId: string) =>
+    request<TenantProviderBinding[]>(`api/tenants/${encodeURIComponent(tenantId)}/providers`),
+  saveTenantProviderBinding: (tenantId: string, provider: string, body: TenantProviderBindingRequest) =>
+    send<TenantProviderBinding>(
+      'PUT',
+      `api/tenants/${encodeURIComponent(tenantId)}/providers/${encodeURIComponent(provider)}`,
+      body,
+    ),
+  deleteTenantProviderBinding: (tenantId: string, provider: string) =>
+    request<void>(
+      `api/tenants/${encodeURIComponent(tenantId)}/providers/${encodeURIComponent(provider)}`,
+      { method: 'DELETE' },
+    ),
+  tenantEgressPolicy: (tenantId: string) =>
+    request<TenantEgressPolicy>(`api/tenants/${encodeURIComponent(tenantId)}/egress`),
+  saveTenantEgressPolicy: (tenantId: string, allowedProviders: string[]) =>
+    send<TenantEgressPolicy>('PUT', `api/tenants/${encodeURIComponent(tenantId)}/egress`, {
+      allowedProviders,
+    }),
+  deleteTenantEgressPolicy: (tenantId: string) =>
+    request<void>(`api/tenants/${encodeURIComponent(tenantId)}/egress`, { method: 'DELETE' }),
 
   retentionPolicies: () => request<RetentionPolicy[]>('api/retention'),
   saveRetentionPolicy: (target: string, body: RetentionPolicySaveRequest) =>

@@ -83,7 +83,7 @@ public sealed class AgentDefinitionValidator
         var messages = new List<ValidationMessage>();
         var inconclusive = false;
 
-        CheckModel(definition, messages);
+        await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
 
         await CheckToolsAsync(
             definition,
@@ -124,7 +124,7 @@ public sealed class AgentDefinitionValidator
         return false;
     }
 
-    private void CheckModel(AgentDefinition definition, List<ValidationMessage> messages)
+    private async ValueTask CheckModelAsync(AgentDefinition definition, List<ValidationMessage> messages, CancellationToken cancellationToken)
     {
         var providers = _models.List();
         var registered = false;
@@ -158,9 +158,10 @@ public sealed class AgentDefinitionValidator
 
         try
         {
-            // This is the same call as the real path. It creates the chat client
-            // but sends no request.
-            _ = _models.CreateChatClient(definition.Model);
+            // This is the same call as the real path (phase 65: including the
+            // requesting tenant's own provider credential and egress policy).
+            // It creates the chat client but sends no request.
+            _ = await _models.CreateChatClientAsync(definition.Model, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {
@@ -326,7 +327,7 @@ public sealed class AgentDefinitionValidator
         {
             var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-            _ = _compiler.Compile(definition, callable);
+            _ = await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismCompilationException ex)
         {

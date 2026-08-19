@@ -6,7 +6,7 @@ AgentPrism.GoogleChatClientFactory.GoogleChatClientFactory(AgentPrism.GoogleProv
 AgentPrism.GoogleModelCatalog
 AgentPrism.GoogleModelProvider
 AgentPrism.GoogleModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.GoogleModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.GoogleModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.GoogleModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
 AgentPrism.GoogleModelProvider.GoogleModelProvider(string! name, AgentPrism.GoogleChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.GoogleModelProvider!>? logger = null, AgentPrism.GoogleProviderOptions? healthCheckOptions = null) -> void
 AgentPrism.GoogleModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!

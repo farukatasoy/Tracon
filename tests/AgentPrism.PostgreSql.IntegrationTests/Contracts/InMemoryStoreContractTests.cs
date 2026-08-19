@@ -152,6 +152,22 @@ public sealed class InMemoryApiKeyStoreContractTests : ApiKeyStoreContract
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryTenantProviderBindingStoreContractTests : TenantProviderBindingStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<ITenantProviderBindingStore> CreateStoreAsync()
+        => ValueTask.FromResult<ITenantProviderBindingStore>(new InMemoryTenantProviderBindingStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryTenantEgressPolicyStoreContractTests : TenantEgressPolicyStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<ITenantEgressPolicyStore> CreateStoreAsync()
+        => ValueTask.FromResult<ITenantEgressPolicyStore>(new InMemoryTenantEgressPolicyStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryRetentionPolicyStoreContractTests : RetentionPolicyStoreContract
 {
     /// <inheritdoc />

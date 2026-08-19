@@ -254,6 +254,32 @@ public sealed class SqlServerApiKeyStoreContractTests(SqlServerSchemaFixture sch
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerTenantProviderBindingStoreContractTests(SqlServerSchemaFixture schema)
+    : TenantProviderBindingStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantProviderBindingStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantProviderBindings;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerTenantEgressPolicyStoreContractTests(SqlServerSchemaFixture schema)
+    : TenantEgressPolicyStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<ITenantEgressPolicyStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.TenantEgressPolicies;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerSchemaFixture schema)
     : VoiceSessionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {

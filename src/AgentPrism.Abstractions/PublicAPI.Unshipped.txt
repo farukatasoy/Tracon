@@ -1036,7 +1036,7 @@ AgentPrism.IMcpServerStore.SaveAsync(AgentPrism.McpServerDefinition! server, Sys
 AgentPrism.IMcpToolRefresher
 AgentPrism.IMcpToolRefresher.RefreshAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.McpRefreshOutcome>
 AgentPrism.IModelProvider
-AgentPrism.IModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.IModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.IModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 AgentPrism.IModelProvider.Name.get -> string!
 AgentPrism.IModelProviderConfigurationDiagnostics
@@ -1045,6 +1045,7 @@ AgentPrism.IModelProviderHealthCheck
 AgentPrism.IModelProviderHealthCheck.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
 AgentPrism.IModelProviderRegistry
 AgentPrism.IModelProviderRegistry.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.IModelProviderRegistry.CreateChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
 AgentPrism.IModelProviderRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelProviderDescriptor!>!
 AgentPrism.IPendingApprovalStore
 AgentPrism.IPendingApprovalStore.CreateAsync(AgentPrism.PendingApproval! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -4238,3 +4239,64 @@ static AgentPrism.DataSubjectExport.operator !=(AgentPrism.DataSubjectExport? le
 static AgentPrism.DataSubjectExport.operator ==(AgentPrism.DataSubjectExport? left, AgentPrism.DataSubjectExport? right) -> bool
 static AgentPrism.DataSubjectScope.operator !=(AgentPrism.DataSubjectScope? left, AgentPrism.DataSubjectScope? right) -> bool
 static AgentPrism.DataSubjectScope.operator ==(AgentPrism.DataSubjectScope? left, AgentPrism.DataSubjectScope? right) -> bool
+AgentPrism.AgentPrismTenantProviderOptions
+AgentPrism.AgentPrismTenantProviderOptions.AgentPrismTenantProviderOptions() -> void
+AgentPrism.AgentPrismTenantProviderOptions.AllowedConfigurationPrefix.get -> string!
+AgentPrism.AgentPrismTenantProviderOptions.AllowedConfigurationPrefix.set -> void
+AgentPrism.ITenantEgressPolicyStore
+AgentPrism.ITenantEgressPolicyStore.DeleteAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.ITenantEgressPolicyStore.GetAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.TenantEgressPolicy?>
+AgentPrism.ITenantEgressPolicyStore.UpsertAsync(string! tenantId, System.Collections.Generic.IReadOnlyList<string!>! allowedProviders, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.TenantEgressPolicy!>
+AgentPrism.ITenantProviderBindingStore
+AgentPrism.ITenantProviderBindingStore.DeleteAsync(string! tenantId, string! providerName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.ITenantProviderBindingStore.GetAsync(string! tenantId, string! providerName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.TenantProviderBinding?>
+AgentPrism.ITenantProviderBindingStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.TenantProviderBinding!>!>
+AgentPrism.ITenantProviderBindingStore.UpsertAsync(AgentPrism.TenantProviderBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.ModelProviderCredential
+AgentPrism.ModelProviderCredential.<Clone>$() -> AgentPrism.ModelProviderCredential!
+AgentPrism.ModelProviderCredential.ApiKey.get -> string!
+AgentPrism.ModelProviderCredential.ApiKey.init -> void
+AgentPrism.ModelProviderCredential.Endpoint.get -> string?
+AgentPrism.ModelProviderCredential.Endpoint.init -> void
+AgentPrism.ModelProviderCredential.Equals(AgentPrism.ModelProviderCredential? other) -> bool
+AgentPrism.ModelProviderCredential.ModelProviderCredential() -> void
+AgentPrism.TenantEgressPolicy
+AgentPrism.TenantEgressPolicy.<Clone>$() -> AgentPrism.TenantEgressPolicy!
+AgentPrism.TenantEgressPolicy.AllowedProviders.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.TenantEgressPolicy.AllowedProviders.init -> void
+AgentPrism.TenantEgressPolicy.Equals(AgentPrism.TenantEgressPolicy? other) -> bool
+AgentPrism.TenantEgressPolicy.TenantEgressPolicy() -> void
+AgentPrism.TenantEgressPolicy.TenantId.get -> string!
+AgentPrism.TenantEgressPolicy.TenantId.init -> void
+AgentPrism.TenantEgressPolicy.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.TenantEgressPolicy.UpdatedAt.init -> void
+AgentPrism.TenantProviderBinding
+AgentPrism.TenantProviderBinding.<Clone>$() -> AgentPrism.TenantProviderBinding!
+AgentPrism.TenantProviderBinding.ApiKeyConfigurationName.get -> string!
+AgentPrism.TenantProviderBinding.ApiKeyConfigurationName.init -> void
+AgentPrism.TenantProviderBinding.Endpoint.get -> string?
+AgentPrism.TenantProviderBinding.Endpoint.init -> void
+AgentPrism.TenantProviderBinding.Equals(AgentPrism.TenantProviderBinding? other) -> bool
+AgentPrism.TenantProviderBinding.ProviderName.get -> string!
+AgentPrism.TenantProviderBinding.ProviderName.init -> void
+AgentPrism.TenantProviderBinding.TenantId.get -> string!
+AgentPrism.TenantProviderBinding.TenantId.init -> void
+AgentPrism.TenantProviderBinding.TenantProviderBinding() -> void
+AgentPrism.TenantProviderBinding.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.TenantProviderBinding.UpdatedAt.init -> void
+override AgentPrism.ModelProviderCredential.Equals(object? obj) -> bool
+override AgentPrism.ModelProviderCredential.GetHashCode() -> int
+override AgentPrism.ModelProviderCredential.ToString() -> string!
+override AgentPrism.TenantEgressPolicy.Equals(object? obj) -> bool
+override AgentPrism.TenantEgressPolicy.GetHashCode() -> int
+override AgentPrism.TenantEgressPolicy.ToString() -> string!
+override AgentPrism.TenantProviderBinding.Equals(object? obj) -> bool
+override AgentPrism.TenantProviderBinding.GetHashCode() -> int
+override AgentPrism.TenantProviderBinding.ToString() -> string!
+static AgentPrism.ModelProviderCredential.operator !=(AgentPrism.ModelProviderCredential? left, AgentPrism.ModelProviderCredential? right) -> bool
+static AgentPrism.ModelProviderCredential.operator ==(AgentPrism.ModelProviderCredential? left, AgentPrism.ModelProviderCredential? right) -> bool
+static AgentPrism.TenantEgressPolicy.operator !=(AgentPrism.TenantEgressPolicy? left, AgentPrism.TenantEgressPolicy? right) -> bool
+static AgentPrism.TenantEgressPolicy.operator ==(AgentPrism.TenantEgressPolicy? left, AgentPrism.TenantEgressPolicy? right) -> bool
+static AgentPrism.TenantProviderBinding.operator !=(AgentPrism.TenantProviderBinding? left, AgentPrism.TenantProviderBinding? right) -> bool
+static AgentPrism.TenantProviderBinding.operator ==(AgentPrism.TenantProviderBinding? left, AgentPrism.TenantProviderBinding? right) -> bool
+AgentPrism.IModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>

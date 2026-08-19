@@ -88,12 +88,21 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return _cache.GetOrAdd(
+        // 🚨 A tenant-specific provider credential (phase 65, BYOK) gets baked
+        // into the compiled agent's chat client; caching it would let a
+        // rotated or deleted binding keep working silently. Bypass
+        // CompiledAgentCache entirely in that case — independent audit finding.
+        if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
+        {
+            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await _cache.GetOrAddAsync(
             _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.Compile(definition, callable));
+            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -111,11 +120,18 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return _cache.GetOrAdd(
+        // See ResolveAsync's remark: a tenant-specific credential must never
+        // be cached.
+        if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
+        {
+            return await _compiler.CompileAsync(definition, callable, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await _cache.GetOrAddAsync(
             _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-            () => _compiler.Compile(definition, callable));
+            () => _compiler.CompileAsync(definition, callable, cancellationToken)).ConfigureAwait(false);
     }
 }

@@ -72,6 +72,48 @@ public sealed class CompiledAgentCache
         return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint), _ => factory());
     }
 
+    /// <summary>
+    /// Retrieves the agent from the cache together with its dependency
+    /// fingerprint; if absent, produces it asynchronously with
+    /// <paramref name="factory"/> and adds it.
+    /// </summary>
+    /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
+    /// <param name="name">Agent name.</param>
+    /// <param name="version">Definition version.</param>
+    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.</param>
+    /// <param name="factory">Producer called when absent from the cache.</param>
+    /// <returns>The compiled agent.</returns>
+    /// <remarks>
+    /// Phase 65 (BYOK): compiling now needs an async credential lookup on a
+    /// cache miss. <see cref="ConcurrentDictionary{TKey,TValue}"/> has no
+    /// native async <c>GetOrAdd</c>; the same "the factory may run more than
+    /// once, production is side-effect free, an extra instance is discarded"
+    /// guarantee as the sync overload applies here too.
+    /// </remarks>
+    public async ValueTask<AIAgent> GetOrAddAsync(
+        string tenantId,
+        string name,
+        int version,
+        string dependencyFingerprint,
+        Func<ValueTask<AIAgent>> factory)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(dependencyFingerprint);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        var key = new CacheKey(tenantId, name, version, dependencyFingerprint);
+
+        if (_entries.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
+        var produced = await factory().ConfigureAwait(false);
+
+        return _entries.GetOrAdd(key, produced);
+    }
+
     /// <summary>Combines multiple dependency fingerprints into a single key component.</summary>
     /// <param name="first">First fingerprint.</param>
     /// <param name="second">Second fingerprint.</param>

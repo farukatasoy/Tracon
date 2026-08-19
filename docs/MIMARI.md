@@ -203,6 +203,8 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `voice_sessions` | Konuşma bağlantısı özeti: tur, süre, karakter, kapanış nedeni. **Ses içermez**; `session_id` FK **değil** |
 | `run_scores` | Çalıştırma/mesaj puanı: ikili/yıldız, yorum. `runs` FK yok |
 | `pending_approvals` | Kuyruktan koşan bir çalıştırmanın bekleyen tool onayı — MAF oturum durumunun **izdüşümü**, sahibi değil. `run_id` FK **CASCADE** |
+| `tenant_provider_bindings` | Kiracı × sağlayıcı başına BYOK bağlaması: yalnız yapılandırma anahtarının **adı** (`secret` değil, K-059), isteğe bağlı uç adresi. Anahtar `(tenant_id, provider_name)` (Faz 65) |
+| `tenant_egress_policies` | Kiracı başına izinli sağlayıcı listesi; satır **yoksa** kiracı kısıtsızdır (K1, Faz 65) |
 
 Kurallar:
 
@@ -228,7 +230,7 @@ flowchart TD
     V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
     R["IAgentCatalog.ResolveAsync(name)"]
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
-    COMP["CompiledAgentCache.GetOrAdd(name, version, bagimlilikParmakIzi)<br/>AgentDefinitionCompiler.Compile(definition, callableAgents)"]
+    COMP["CompiledAgentCache.GetOrAddAsync(name, version, bagimlilikParmakIzi)<br/>AgentDefinitionCompiler.CompileAsync(definition, callableAgents)<br/>kiraci egress + BYOK kimlik bilgisi burada cozulur (Faz 65)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
     REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>store hatası çalıştırmayı KESMEZ"]
     OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
@@ -512,6 +514,21 @@ sınar (B görmemeli · A kendi verisini görmeli) ve dört koşumda çalışır
 içi + üç SQL); `TenantCoverageTests` her public depo metodunun ya sınandığını
 ya `[TenantAgnostic]` ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar:
 K-277, K-278, K-279.
+
+**Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
+**kapalıdır**: kiracı `store`'larından biri bile kayıtlı değilse veya
+tenant context yoksa `ModelProviderRegistry.CreateChatClientAsync` sync
+`CreateChatClient` ile birebir davranır. Açıldığında, her model çağrısından
+önce iki kontrol TEK yerde sırayla çalışır: (0) **egress** — kiracının
+`tenant_egress_policies` kaydı sağlayıcıyı izin veriyor mu (politika yoksa
+kısıtsız); (1) **kimlik bilgisi** — kiracının `tenant_provider_bindings`
+kaydı var mı, varsa yapılandırma anahtarının **adı** (asla değeri, K-059)
+`IConfiguration`'dan çözülür. Kayıt var ama değer yoksa çağrı global
+anahtara **düşmez**; anlaşılır bir hata verir. Bu tek nokta hem gerçek
+`run` derlemesini (`CompiledAgentCache` → `AgentDefinitionCompiler.CompileAsync`)
+hem `AgentDefinitionValidator`'ın ön-uçuş kontrolünü besler — izinsiz bir
+sağlayıcıya işaret eden tanım **derleme anında**, gerçek bir ağ çağrısı
+olmadan reddedilir.
 
 ### Roller ve denetim izi
 

@@ -210,7 +210,7 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
 

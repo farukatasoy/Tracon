@@ -221,7 +221,7 @@ public sealed class AgentDefinitionValidatorTests
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "fake-model" }];
 
-        public IChatClient CreateChatClient(ModelBinding binding)
+        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
             => throw new AgentPrismException(
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} contains unrecognized keys: bogus.");
     }

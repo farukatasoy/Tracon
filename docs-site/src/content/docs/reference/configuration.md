@@ -55,6 +55,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:RunReconciliation` | `RunReconciliationOptions` | `AddAgentPrism()` |
 | `AgentPrism:Scheduling` | `AgentPrismSchedulingOptions` | `AddAgentPrism()`; `UseScheduling()` can override from code |
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
+| `AgentPrism:TenantProviders` | `AgentPrismTenantProviderOptions` | `AddAgentPrism()` |
 | `AgentPrism:Webhooks` | `AgentPrismWebhookOptions` | `AddAgentPrism()` |
 | `AgentPrism:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
 | `AgentPrism:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
@@ -365,6 +366,13 @@ library default.
 `CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
 not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
 identity is required.
+
+| `AgentPrism:TenantProviders` | `AllowedConfigurationPrefix="AgentPrism:ProviderKeys:"` |
+
+A tenant provider binding's configuration key name must start with
+`AllowedConfigurationPrefix`; a name outside it is rejected with `400`, both when the
+binding is saved and again when it is resolved. See
+[Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok).
 
 ## MCP, workflows, and voice
 

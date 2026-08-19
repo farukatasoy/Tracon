@@ -29,6 +29,13 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     private readonly HashSet<string> _knownModels;
     private readonly OpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
+    private readonly OpenAIProviderOptions? _baseOptions;
+
+    // Phase 65 (BYOK). Measured: OpenAIClient is built once and shared, so a
+    // tenant credential cannot reuse it — a second client is built and cached
+    // per distinct credential, the same pattern OpenAINamedChatClientFactoryCache
+    // already uses for named OpenAI-compatible providers.
+    private readonly ProviderCredentialClientCache<OpenAIChatClientFactory> _credentialFactories = new();
 
     /// <summary>Initializes a new provider.</summary>
     /// <param name="name">The provider name. The <see cref="ModelBinding.Provider"/> of agent definitions matches this value.</param>
@@ -72,6 +79,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions, configurationSectionKey);
+        _baseOptions = healthCheckOptions;
     }
 
     /// <inheritdoc />
@@ -84,7 +92,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
@@ -98,7 +106,42 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
             LogUnknownModel(binding.Model);
         }
 
-        return _chatClientFactory.CreateChatClient(binding, ApiSurface);
+        var factory = credential is null
+            ? _chatClientFactory
+            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+
+        return factory.CreateChatClient(binding, ApiSurface);
+    }
+
+    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <remarks>
+    /// The endpoint falls back to the setup-time endpoint when the credential
+    /// carries none: a globally configured OpenAI-compatible base address
+    /// (for example a proxy) should still apply even when a tenant overrides
+    /// only the key. The key itself never falls back to the setup-time key.
+    /// </remarks>
+    private OpenAIChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
+    {
+        var options = new OpenAIProviderOptions
+        {
+            ApiKey = credential.ApiKey,
+            DefaultModel = _baseOptions?.DefaultModel,
+            Organization = _baseOptions?.Organization,
+            Timeout = _baseOptions?.Timeout,
+        };
+
+        if (credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+        {
+            options.Endpoint = endpointUri;
+        }
+        else
+        {
+            options.Endpoint = _baseOptions?.Endpoint;
+        }
+
+        var client = OpenAIChatClientFactory.CreateClient(options);
+
+        return OpenAIChatClientFactory.FromClient(client, options.DefaultModel);
     }
 
     /// <inheritdoc />

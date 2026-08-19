@@ -994,3 +994,61 @@ override AgentPrism.ToolApprovalRuleRequest.GetHashCode() -> int
 override AgentPrism.ToolApprovalRuleRequest.ToString() -> string!
 static AgentPrism.ToolApprovalRuleRequest.operator !=(AgentPrism.ToolApprovalRuleRequest? left, AgentPrism.ToolApprovalRuleRequest? right) -> bool
 static AgentPrism.ToolApprovalRuleRequest.operator ==(AgentPrism.ToolApprovalRuleRequest? left, AgentPrism.ToolApprovalRuleRequest? right) -> bool
+AgentPrism.TenantEgressPolicyRequest
+AgentPrism.TenantEgressPolicyRequest.<Clone>$() -> AgentPrism.TenantEgressPolicyRequest!
+AgentPrism.TenantEgressPolicyRequest.AllowedProviders.get -> System.Collections.Generic.IReadOnlyList<string!>?
+AgentPrism.TenantEgressPolicyRequest.AllowedProviders.init -> void
+AgentPrism.TenantEgressPolicyRequest.Equals(AgentPrism.TenantEgressPolicyRequest? other) -> bool
+AgentPrism.TenantEgressPolicyRequest.TenantEgressPolicyRequest() -> void
+AgentPrism.TenantEgressPolicyResponse
+AgentPrism.TenantEgressPolicyResponse.<Clone>$() -> AgentPrism.TenantEgressPolicyResponse!
+AgentPrism.TenantEgressPolicyResponse.AllowedProviders.get -> System.Collections.Generic.IReadOnlyList<string!>?
+AgentPrism.TenantEgressPolicyResponse.AllowedProviders.init -> void
+AgentPrism.TenantEgressPolicyResponse.Equals(AgentPrism.TenantEgressPolicyResponse? other) -> bool
+AgentPrism.TenantEgressPolicyResponse.TenantEgressPolicyResponse() -> void
+AgentPrism.TenantEgressPolicyResponse.TenantId.get -> string!
+AgentPrism.TenantEgressPolicyResponse.TenantId.init -> void
+AgentPrism.TenantEgressPolicyResponse.UpdatedAt.get -> System.DateTimeOffset?
+AgentPrism.TenantEgressPolicyResponse.UpdatedAt.init -> void
+AgentPrism.TenantProviderBindingRequest
+AgentPrism.TenantProviderBindingRequest.<Clone>$() -> AgentPrism.TenantProviderBindingRequest!
+AgentPrism.TenantProviderBindingRequest.ApiKeyConfigurationName.get -> string?
+AgentPrism.TenantProviderBindingRequest.ApiKeyConfigurationName.init -> void
+AgentPrism.TenantProviderBindingRequest.Endpoint.get -> string?
+AgentPrism.TenantProviderBindingRequest.Endpoint.init -> void
+AgentPrism.TenantProviderBindingRequest.Equals(AgentPrism.TenantProviderBindingRequest? other) -> bool
+AgentPrism.TenantProviderBindingRequest.TenantProviderBindingRequest() -> void
+AgentPrism.TenantProviderBindingResponse
+AgentPrism.TenantProviderBindingResponse.<Clone>$() -> AgentPrism.TenantProviderBindingResponse!
+AgentPrism.TenantProviderBindingResponse.ApiKeyConfigurationName.get -> string!
+AgentPrism.TenantProviderBindingResponse.ApiKeyConfigurationName.init -> void
+AgentPrism.TenantProviderBindingResponse.Endpoint.get -> string?
+AgentPrism.TenantProviderBindingResponse.Endpoint.init -> void
+AgentPrism.TenantProviderBindingResponse.Equals(AgentPrism.TenantProviderBindingResponse? other) -> bool
+AgentPrism.TenantProviderBindingResponse.ProviderName.get -> string!
+AgentPrism.TenantProviderBindingResponse.ProviderName.init -> void
+AgentPrism.TenantProviderBindingResponse.Resolved.get -> bool
+AgentPrism.TenantProviderBindingResponse.Resolved.init -> void
+AgentPrism.TenantProviderBindingResponse.TenantProviderBindingResponse() -> void
+AgentPrism.TenantProviderBindingResponse.UpdatedAt.get -> System.DateTimeOffset
+AgentPrism.TenantProviderBindingResponse.UpdatedAt.init -> void
+override AgentPrism.TenantEgressPolicyRequest.Equals(object? obj) -> bool
+override AgentPrism.TenantEgressPolicyRequest.GetHashCode() -> int
+override AgentPrism.TenantEgressPolicyRequest.ToString() -> string!
+override AgentPrism.TenantEgressPolicyResponse.Equals(object? obj) -> bool
+override AgentPrism.TenantEgressPolicyResponse.GetHashCode() -> int
+override AgentPrism.TenantEgressPolicyResponse.ToString() -> string!
+override AgentPrism.TenantProviderBindingRequest.Equals(object? obj) -> bool
+override AgentPrism.TenantProviderBindingRequest.GetHashCode() -> int
+override AgentPrism.TenantProviderBindingRequest.ToString() -> string!
+override AgentPrism.TenantProviderBindingResponse.Equals(object? obj) -> bool
+override AgentPrism.TenantProviderBindingResponse.GetHashCode() -> int
+override AgentPrism.TenantProviderBindingResponse.ToString() -> string!
+static AgentPrism.TenantEgressPolicyRequest.operator !=(AgentPrism.TenantEgressPolicyRequest? left, AgentPrism.TenantEgressPolicyRequest? right) -> bool
+static AgentPrism.TenantEgressPolicyRequest.operator ==(AgentPrism.TenantEgressPolicyRequest? left, AgentPrism.TenantEgressPolicyRequest? right) -> bool
+static AgentPrism.TenantEgressPolicyResponse.operator !=(AgentPrism.TenantEgressPolicyResponse? left, AgentPrism.TenantEgressPolicyResponse? right) -> bool
+static AgentPrism.TenantEgressPolicyResponse.operator ==(AgentPrism.TenantEgressPolicyResponse? left, AgentPrism.TenantEgressPolicyResponse? right) -> bool
+static AgentPrism.TenantProviderBindingRequest.operator !=(AgentPrism.TenantProviderBindingRequest? left, AgentPrism.TenantProviderBindingRequest? right) -> bool
+static AgentPrism.TenantProviderBindingRequest.operator ==(AgentPrism.TenantProviderBindingRequest? left, AgentPrism.TenantProviderBindingRequest? right) -> bool
+static AgentPrism.TenantProviderBindingResponse.operator !=(AgentPrism.TenantProviderBindingResponse? left, AgentPrism.TenantProviderBindingResponse? right) -> bool
+static AgentPrism.TenantProviderBindingResponse.operator ==(AgentPrism.TenantProviderBindingResponse? left, AgentPrism.TenantProviderBindingResponse? right) -> bool

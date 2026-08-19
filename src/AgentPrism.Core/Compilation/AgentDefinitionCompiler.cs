@@ -206,7 +206,98 @@ public sealed class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var chatClient = CreateChatClient(definition);
+        return BuildAgent(definition, callableAgents, toolTransform, CreateChatClient(definition));
+    }
+
+    /// <summary>Converts a definition into an executable agent (phase 65, BYOK).</summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// The model provider cannot be found, the definition references a tool name that is not
+    /// registered, the current tenant's egress policy forbids the provider, or the tenant's
+    /// provider binding cannot be resolved to a credential value.
+    /// </exception>
+    /// <remarks>
+    /// The async counterpart of <see cref="Compile(AgentDefinition)"/>: resolves the
+    /// requesting tenant's own provider credential and egress policy
+    /// (<see cref="IModelProviderRegistry.CreateChatClientAsync"/>) before building the client.
+    /// When no tenant context or provider binding is registered, behavior is identical
+    /// to the sync overload (K1).
+    /// </remarks>
+    public ValueTask<AIAgent> CompileAsync(AgentDefinition definition, CancellationToken cancellationToken)
+        => CompileAsync(definition, ResolvedCallableAgents.Empty, cancellationToken);
+
+    /// <summary>
+    /// Converts a definition, together with its resolved sub-agents, into an executable agent
+    /// (phase 65, BYOK).
+    /// </summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="callableAgents">
+    /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.</exception>
+    public ValueTask<AIAgent> CompileAsync(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        CancellationToken cancellationToken)
+        => CompileAsync(definition, callableAgents, toolTransform: null, cancellationToken);
+
+    /// <summary>
+    /// Compiles a definition together with its resolved sub-agents, transforming its tools
+    /// (phase 65, BYOK).
+    /// </summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="callableAgents">
+    /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
+    /// </param>
+    /// <param name="toolTransform">
+    /// Transform applied to every tool resolved from the registry. See
+    /// <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction})"/>.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.</exception>
+    public async ValueTask<AIAgent> CompileAsync(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        Func<AIFunction, AIFunction>? toolTransform,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var chatClient = await CreateChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        return BuildAgent(definition, callableAgents, toolTransform, chatClient);
+    }
+
+    /// <summary>
+    /// Reports whether compiling <paramref name="binding"/> for the current
+    /// tenant would bake a tenant-specific provider credential into the
+    /// resulting chat client (phase 65, BYOK).
+    /// </summary>
+    /// <param name="binding">The model binding to check — usually an <see cref="AgentDefinition.Model"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if the caller must not hand the compiled agent
+    /// to <see cref="CompiledAgentCache"/>: see
+    /// <see cref="IModelProviderRegistry.HasTenantProviderOverrideAsync"/> for
+    /// the full rationale.
+    /// </returns>
+    public ValueTask<bool> UsesTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
+        => _models.HasTenantProviderOverrideAsync(binding, cancellationToken);
+
+    private AIAgent BuildAgent(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        Func<AIFunction, AIFunction>? toolTransform,
+        IChatClient chatClient)
+    {
         var tools = ResolveTools(definition);
         AddVectorSearchTool(definition, tools);
 
@@ -325,6 +416,26 @@ public sealed class AgentDefinitionCompiler
         try
         {
             return _models.CreateChatClient(binding);
+        }
+        catch (AgentPrismException ex)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' could not be compiled: {ex.Message}",
+                ex)
+            {
+                AgentName = definition.Name,
+            };
+        }
+    }
+
+    private ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, CancellationToken cancellationToken)
+        => CreateChatClientAsync(definition, definition.Model, cancellationToken);
+
+    private async ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, ModelBinding binding, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _models.CreateChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {

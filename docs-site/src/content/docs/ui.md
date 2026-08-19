@@ -142,8 +142,8 @@ The MCP screen lists remote servers and the tools discovered from them.
 Who changed what, when, and from what to what — filterable by actor, action, entity,
 and date range. Secret-looking fields are masked before anything is stored.
 
-Quotas, retention policies, API keys, tenants, and skill script grants have their own
-screens in the same area.
+Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
+policy (BYOK), and skill script grants have their own screens in the same area.
 
 <a class="ui-shot" href="/AgentPrism/screenshots/diagnostics.png"><img src="/AgentPrism/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
@@ -200,7 +200,7 @@ for the full walkthrough, including how the widget runs a client-side tool.
 - The token is kept in `sessionStorage` and is gone when the tab closes; theme and
   language live in `localStorage`
 - The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  165.4 KB
+  169.4 KB
 
 ### Editor boundaries
 

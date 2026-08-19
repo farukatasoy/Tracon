@@ -56,6 +56,8 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         Quotas = new SqlQuotaStore(wrapped);
         Webhooks = new SqlWebhookStore(wrapped);
         ApiKeys = new SqlApiKeyStore(wrapped);
+        TenantProviderBindings = new SqlTenantProviderBindingStore(wrapped);
+        TenantEgressPolicies = new SqlTenantEgressPolicyStore(wrapped);
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
@@ -149,6 +151,12 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Tenant-scoped API key store (Phase 53).</summary>
     public SqlApiKeyStore ApiKeys { get; }
+
+    /// <summary>Tenant provider binding store (Phase 65, BYOK).</summary>
+    public SqlTenantProviderBindingStore TenantProviderBindings { get; }
+
+    /// <summary>Tenant egress policy store (Phase 65, F-119).</summary>
+    public SqlTenantEgressPolicyStore TenantEgressPolicies { get; }
 
     /// <summary>Retention policy and run history store (Phase 25).</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }

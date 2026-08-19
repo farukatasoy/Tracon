@@ -204,6 +204,12 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // trail separately at the HTTP layer.
         services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
+        // Tenant provider bindings (BYOK) and egress policy (Phase 65). Same
+        // rationale as the API key store: not wrapped, administrator actions
+        // are written to the audit trail separately at the HTTP layer.
+        services.Replace(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
+        services.Replace(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+
         // Retention and archival (Phase 25). The policy/run store (control
         // plane) is NOT wrapped in the audit-trail decorator: same rationale as
         // the webhook/quota stores (administrator actions are written

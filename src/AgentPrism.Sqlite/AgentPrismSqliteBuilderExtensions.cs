@@ -147,6 +147,12 @@ public static class AgentPrismSqliteBuilderExtensions
         // audit log in the HTTP layer.
         services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
+        // Tenant provider bindings (BYOK) and egress policy (Phase 65). Same
+        // rationale as the API key store: not wrapped, administrator actions
+        // are written to the audit trail separately at the HTTP layer.
+        services.Replace(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
+        services.Replace(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+
         // Data retention and archiving (Phase 25).
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());

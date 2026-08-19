@@ -27,6 +27,10 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     private readonly HashSet<string> _knownDeployments;
     private readonly AzureOpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
+    private readonly AzureOpenAIProviderOptions? _baseOptions;
+
+    // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
+    private readonly ProviderCredentialClientCache<AzureOpenAIChatClientFactory> _credentialFactories = new();
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">The provider name. <see cref="ModelBinding.Provider"/> in agent definitions matches this value.</param>
@@ -60,6 +64,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         _knownDeployments = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
+        _baseOptions = healthCheckOptions;
     }
 
     /// <inheritdoc />
@@ -69,7 +74,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding)
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
@@ -82,7 +87,39 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
             LogUnknownDeployment(binding.Model);
         }
 
-        return _chatClientFactory.CreateChatClient(binding);
+        var factory = credential is null
+            ? _chatClientFactory
+            : _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
+
+        return factory.CreateChatClient(binding);
+    }
+
+    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <remarks>
+    /// See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint
+    /// fallback rationale. Unlike the other three providers, a missing endpoint
+    /// here is not optional: Azure has no single global address, so when
+    /// neither the credential nor the base setup carries one,
+    /// <see cref="AzureOpenAIChatClientFactory.CreateClient"/> throws its own
+    /// clear <see cref="AgentPrismException"/>.
+    /// </remarks>
+    private AzureOpenAIChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
+    {
+        var options = new AzureOpenAIProviderOptions
+        {
+            ApiKey = credential.ApiKey,
+            DefaultDeployment = _baseOptions?.DefaultDeployment,
+            Audience = _baseOptions?.Audience,
+            Timeout = _baseOptions?.Timeout,
+        };
+
+        options.Endpoint = credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+            ? endpointUri
+            : _baseOptions?.Endpoint;
+
+        var client = AzureOpenAIChatClientFactory.CreateClient(options);
+
+        return AzureOpenAIChatClientFactory.FromClient(client, options.DefaultDeployment);
     }
 
     /// <inheritdoc />
