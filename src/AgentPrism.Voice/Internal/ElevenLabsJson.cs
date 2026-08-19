@@ -16,6 +16,39 @@ internal sealed class ElevenLabsSynthesisRequest
     public string? LanguageCode { get; set; }
 }
 
+/// <summary>ElevenLabs <c>.../with-timestamps</c> response.</summary>
+/// <remarks>
+/// Verified against the provider's published OpenAPI document (2026-08-19):
+/// <c>AudioWithTimestampsResponseModel</c>. <see cref="Alignment"/> carries the
+/// timing for the text AS SENT; <see cref="NormalizedAlignment"/> carries timing
+/// for the provider's own normalized text (numbers spelled out, etc.) and would
+/// not line up with the caller's original string - only <see cref="Alignment"/> is used.
+/// </remarks>
+internal sealed class ElevenLabsAudioWithTimestampsResponse
+{
+    [JsonPropertyName("audio_base64")]
+    public string? AudioBase64 { get; set; }
+
+    [JsonPropertyName("alignment")]
+    public ElevenLabsCharacterAlignment? Alignment { get; set; }
+
+    [JsonPropertyName("normalized_alignment")]
+    public ElevenLabsCharacterAlignment? NormalizedAlignment { get; set; }
+}
+
+/// <summary>ElevenLabs <c>CharacterAlignmentResponseModel</c>: parallel arrays, one entry per character.</summary>
+internal sealed class ElevenLabsCharacterAlignment
+{
+    [JsonPropertyName("characters")]
+    public List<string>? Characters { get; set; }
+
+    [JsonPropertyName("character_start_times_seconds")]
+    public List<double>? CharacterStartTimesSeconds { get; set; }
+
+    [JsonPropertyName("character_end_times_seconds")]
+    public List<double>? CharacterEndTimesSeconds { get; set; }
+}
+
 /// <summary>ElevenLabs speech-to-text response.</summary>
 internal sealed class ElevenLabsTranscriptionResponse
 {
@@ -62,6 +95,8 @@ internal sealed class ElevenLabsVoice
 /// </remarks>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ElevenLabsSynthesisRequest))]
+[JsonSerializable(typeof(ElevenLabsAudioWithTimestampsResponse))]
+[JsonSerializable(typeof(ElevenLabsCharacterAlignment))]
 [JsonSerializable(typeof(ElevenLabsTranscriptionResponse))]
 [JsonSerializable(typeof(ElevenLabsVoicesResponse))]
 [JsonSerializable(typeof(ElevenLabsVoice))]

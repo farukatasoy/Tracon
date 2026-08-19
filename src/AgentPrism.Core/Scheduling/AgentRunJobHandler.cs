@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// Follows the same pattern as <see cref="AgentBatchJobHandler"/>: the agent is
-/// resolved through <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>,
+/// resolved through <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>,
 /// the resolved agent is already wrapped by the recording decorator, and the
 /// run is written to <see cref="IRunStore"/> as a normal <c>runs</c> row.
 /// </para>
@@ -65,7 +65,7 @@ internal sealed class AgentRunJobHandler(
 
         try
         {
-            agent = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken).ConfigureAwait(false)
+            agent = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
                     $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
 

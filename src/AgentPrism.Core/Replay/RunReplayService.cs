@@ -151,7 +151,7 @@ public sealed class RunReplayService
         // way the original run did, instead of silently falling back to the
         // global setup-time credential.
         var agent = await _compiler
-            .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, cancellationToken)
+            .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, culture: null, cancellationToken)
             .ConfigureAwait(false);
 
         // 🚨 The guard sits INSIDE the decorators; the rationale is in the
@@ -206,7 +206,7 @@ public sealed class RunReplayService
                 "ACTUALLY run and produce side effects.");
         }
 
-        var agent = await _catalog.ResolveAsync(source.AgentName, cancellationToken).ConfigureAwait(false);
+        var agent = await _catalog.ResolveAsync(source.AgentName, culture: null, cancellationToken).ConfigureAwait(false);
 
         if (agent is null)
         {

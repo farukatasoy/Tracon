@@ -29,6 +29,9 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the system instructions.</summary>
     public string? Instructions { get; init; }
 
+    /// <summary>Gets the culture-keyed instructions.</summary>
+    public Dictionary<string, string>? InstructionsByCulture { get; init; }
+
     /// <summary>Gets the provider and model binding.</summary>
     public required ModelBinding Model { get; init; }
 
@@ -62,6 +65,9 @@ internal sealed record AgentDefinitionPayload
             DisplayName = definition.DisplayName,
             Description = definition.Description,
             Instructions = definition.Instructions,
+            InstructionsByCulture = definition.InstructionsByCulture is { Count: > 0 } byCulture
+                ? new Dictionary<string, string>(byCulture, StringComparer.Ordinal)
+                : null,
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
@@ -87,6 +93,7 @@ internal sealed record AgentDefinitionPayload
             DisplayName = DisplayName,
             Description = Description,
             Instructions = Instructions,
+            InstructionsByCulture = InstructionsByCulture,
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,

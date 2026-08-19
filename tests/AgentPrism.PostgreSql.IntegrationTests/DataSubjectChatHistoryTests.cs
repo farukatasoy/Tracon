@@ -132,7 +132,7 @@ public sealed class DataSubjectChatHistoryTests(PostgresFixture fixture)
     }
 
     private static async ValueTask<Microsoft.Agents.AI.AIAgent> ResolveAsync(IServiceProvider provider, string name)
-        => await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(name, CancellationToken.None)
+        => await provider.GetRequiredService<IAgentCatalog>().ResolveAsync(name, culture: null, CancellationToken.None)
            ?? throw new InvalidOperationException($"Could not resolve agent '{name}'.");
 
     private ServiceProvider BuildProvider(PostgresTestContext context)

@@ -60,11 +60,17 @@ const COMPACTION_STRATEGIES: CompactionStrategyKind[] = [
 const emptyCompaction: CompactionSettings = { strategy: 'None' };
 const emptyMemory: MemorySettings = {};
 
+export interface CultureInstructions {
+  culture: string;
+  text: string;
+}
+
 export interface FormState {
   name: string;
   displayName: string;
   description: string;
   instructions: string;
+  instructionsByCulture: CultureInstructions[];
   provider: string;
   model: string;
   temperature: string;
@@ -90,6 +96,7 @@ export const emptyForm: FormState = {
   displayName: '',
   description: '',
   instructions: '',
+  instructionsByCulture: [],
   provider: '',
   model: '',
   temperature: '',
@@ -159,6 +166,7 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     displayName: form.displayName.trim().length > 0 ? form.displayName.trim() : null,
     description: form.description.trim().length > 0 ? form.description.trim() : null,
     instructions: form.instructions.trim().length > 0 ? form.instructions.trim() : null,
+    instructionsByCulture: toInstructionsByCulture(form.instructionsByCulture),
     model,
     toolNames: form.toolNames,
     skillNames: form.skillNames,
@@ -167,6 +175,19 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
     memory: memoryHasAnything(form.memory) ? form.memory : null,
   };
+}
+
+/** Rows with an empty culture code or empty text are dropped; a later row wins on a duplicate code. */
+function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, string> | null {
+  const entries = rows
+    .map((row) => ({ culture: row.culture.trim(), text: row.text.trim() }))
+    .filter((row) => row.culture.length > 0 && row.text.length > 0);
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return Object.fromEntries(entries.map((row) => [row.culture, row.text]));
 }
 
 function memoryHasAnything(memory: MemorySettings): boolean {
@@ -252,6 +273,10 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
       displayName: definition.displayName ?? '',
       description: definition.description ?? '',
       instructions: definition.instructions ?? '',
+      instructionsByCulture: Object.entries(definition.instructionsByCulture ?? {}).map(([culture, text]) => ({
+        culture,
+        text,
+      })),
       provider: definition.model.provider,
       model: definition.model.model,
       temperature: definition.model.temperature?.toString() ?? '',
@@ -385,7 +410,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
           </Panel>
 
           <Panel title={t('agentDetail.instructions')}>
-            <div className="p-4">
+            <div className="flex flex-col gap-4 p-4">
               <TextArea
                 rows={7}
                 value={form.instructions}
@@ -393,6 +418,76 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                 data-testid="agent-instructions"
                 onChange={(event) => setForm({ ...form, instructions: event.target.value })}
               />
+
+              <Field label={t('agentEditor.instructionsByCulture')} hint={t('agentEditor.instructionsByCultureHint')}>
+                <div className="flex flex-col gap-3">
+                  {form.instructionsByCulture.length === 0 && (
+                    <p className="text-[12px] text-subtle">{t('agentEditor.noCultures')}</p>
+                  )}
+
+                  {form.instructionsByCulture.map((entry, index) => (
+                    <div key={index} className="flex flex-col gap-2 rounded border border-line p-3">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          value={entry.culture}
+                          placeholder="tr"
+                          data-testid={`culture-code-${index}`}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              instructionsByCulture: form.instructionsByCulture.map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, culture: event.target.value } : item,
+                              ),
+                            })
+                          }
+                        />
+                        <Button
+                          type="button"
+                          tone="ghost"
+                          testId={`remove-culture-${index}`}
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              instructionsByCulture: form.instructionsByCulture.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            })
+                          }
+                        >
+                          {t('agentEditor.removeCulture')}
+                        </Button>
+                      </div>
+                      <TextArea
+                        rows={4}
+                        value={entry.text}
+                        placeholder={t('agentEditor.instructionsPlaceholder')}
+                        data-testid={`culture-text-${index}`}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            instructionsByCulture: form.instructionsByCulture.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, text: event.target.value } : item,
+                            ),
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    testId="add-culture"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        instructionsByCulture: [...form.instructionsByCulture, { culture: '', text: '' }],
+                      })
+                    }
+                  >
+                    {t('agentEditor.addCulture')}
+                  </Button>
+                </div>
+              </Field>
             </div>
           </Panel>
 

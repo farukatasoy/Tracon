@@ -32,6 +32,14 @@ public sealed record AgentDefinition
     /// <summary>Gets the system instructions passed to the model.</summary>
     public string? Instructions { get; init; }
 
+    /// <summary>
+    /// Gets culture-keyed instructions. The key is a BCP-47 tag (<c>"en"</c>, <c>"tr"</c>);
+    /// a region subtag (<c>"tr-TR"</c>) falls back to its parent (<c>"tr"</c>). A run's
+    /// requested culture that matches neither falls back to <see cref="Instructions"/> -
+    /// resolution never fails.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? InstructionsByCulture { get; init; }
+
     /// <summary>Gets the provider and model binding to use.</summary>
     public required ModelBinding Model { get; init; }
 

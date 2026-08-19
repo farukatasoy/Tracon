@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The agent is resolved with <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>;
+/// The agent is resolved with <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>;
 /// the returned agent is already wrapped with <c>RunRecordingAgent</c>, so this
 /// call produces a normal <c>runs</c> row and normal quota consumption — a
 /// second recording path is NOT written.
@@ -55,7 +55,7 @@ internal static class CatalogToolCallHandler
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+        var agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false);
 
         if (agent is null)
         {

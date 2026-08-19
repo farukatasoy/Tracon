@@ -177,6 +177,11 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     {
         var original = TestData.Definition("full") with
         {
+            InstructionsByCulture = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["en"] = "Reply briefly.",
+                ["fr"] = "Answer using the fr culture text.",
+            },
             Model = new ModelBinding
             {
                 Provider = "echo",
@@ -224,6 +229,8 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.DisplayName.ShouldBe(original.DisplayName);
         loaded.Description.ShouldBe(original.Description);
         loaded.Instructions.ShouldBe(original.Instructions);
+        loaded.InstructionsByCulture.ShouldNotBeNull();
+        loaded.InstructionsByCulture!.ShouldBe(original.InstructionsByCulture);
         loaded.Model.Provider.ShouldBe("echo");
         loaded.Model.Model.ShouldBe("echo-1");
         loaded.Model.Temperature.ShouldBe(0.5f);

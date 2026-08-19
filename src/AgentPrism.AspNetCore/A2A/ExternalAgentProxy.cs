@@ -185,7 +185,7 @@ internal sealed class ExternalAgentProxy : AIAgent
             "The call to MapAgentPrismA2A() may be missing.");
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(_agentName, cancellationToken).ConfigureAwait(false);
+        var agent = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false);
 
         return agent ?? throw new AgentPrismExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
         {

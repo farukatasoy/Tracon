@@ -64,6 +64,21 @@ If pricing is not configured, cost stays `null`; zero would claim the call was f
 If the provider omits billed characters, the text length is used and marked as an
 estimate.
 
+### Character-level timing
+
+`POST /api/voice/speak` accepts `includeTimestamps` (default `false`). When set, the
+response's `alignment` field carries one entry per character — the character itself
+and its start/end offset from the beginning of the audio. Alignment is not a separate
+billing unit: `characters` and `cost` are computed exactly as without it.
+
+Timestamps are not available on the streaming synthesis path
+(`ISpeechSynthesizer.SynthesizeStreamingAsync`): that method returns raw audio chunks
+only and has no channel to carry per-character timing back to the caller. Requesting
+both together throws rather than silently dropping the alignment. Grouping characters
+into words, or producing a subtitle format such as SRT or VTT, is left to the
+consumer — the raw per-character form is what the provider gives, and turning it into
+something else is application-specific.
+
 The built-in implementation uses ElevenLabs through raw `HttpClient` and
 source-generated JSON. The package adds no NuGet dependency and remains AOT
 compatible. To replace it, register your implementation first; `TryAdd` preserves it:

@@ -322,6 +322,17 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
               <DiffView left={diff.data.left.instructions ?? ''} right={diff.data.right.instructions ?? ''} />
             </Section>
 
+            {cultureUnion(diff.data.left.instructionsByCulture, diff.data.right.instructionsByCulture).map(
+              (culture) => (
+                <Section key={culture} title={t('agentDetail.instructionsForCulture', { culture })}>
+                  <DiffView
+                    left={diff.data.left.instructionsByCulture?.[culture] ?? ''}
+                    right={diff.data.right.instructionsByCulture?.[culture] ?? ''}
+                  />
+                </Section>
+              ),
+            )}
+
             <Section title={t('common.model')}>
               <FieldDiffTable
                 left={diff.data.left.model}
@@ -405,6 +416,14 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
       </div>
     </Panel>
   );
+}
+
+/** Sorted union of culture keys present on either side of a diff — a culture removed entirely on one side must still get its own section. */
+function cultureUnion(
+  left: Record<string, string> | null | undefined,
+  right: Record<string, string> | null | undefined,
+): string[] {
+  return [...new Set([...Object.keys(left ?? {}), ...Object.keys(right ?? {})])].sort();
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }): ReactNode {
