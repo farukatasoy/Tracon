@@ -12,3 +12,9 @@ APG0004 | AgentPrism.Tools | Error | A generic method cannot be a tool. See docs
 APG0005 | AgentPrism.Tools | Error | No marked tool method. See docs/52-KAYNAK-URETECI.md
 APG0006 | AgentPrism.Tools | Warning | Tool description missing. See docs/52-KAYNAK-URETECI.md
 APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See docs/52-KAYNAK-URETECI.md
+APG0101 | AgentPrism.Usage | Warning | AgentPrism is mapped but not registered. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0102 | AgentPrism.Usage | Warning | The bound model provider is not registered. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0301 | AgentPrism.Usage | Warning | A retry loop is written by hand around a chat client. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0302 | AgentPrism.Usage | Warning | An agent is wrapped by hand. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0401 | AgentPrism.Usage | Warning | The agent map file is stale. See docs/73-TUKETICI-AGENT-DESTEGI.md

@@ -62,6 +62,14 @@ jobs:
         # Bicim sapmasi build'i kirar. Duzeltmek icin: dotnet format AgentPrism.slnx
         run: dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
+      # Agent haritasi (buildTransitive/AgentPrism.AgentMap.md) capabilities.md'den
+      # URETILIR ama COMMIT edilir: `dotnet pack` onu okur, bu yuzden Node zinciri
+      # `dotnet build`e baglanmaz. Bedeli sudur - kaynak degisip uretec kosulmazsa
+      # dort kapinin dordu de yesil kalir ve nupkg BAYAT harita sevk eder. Bu adim
+      # o bosluktur; hicbir npm bagimliligi istemez.
+      - name: Agent haritasi kaynagiyla ayni mi
+        run: node docs-site/scripts/build-agent-map.mjs --check
+
       - name: Derle
         run: dotnet build AgentPrism.slnx -c Release --no-restore
 

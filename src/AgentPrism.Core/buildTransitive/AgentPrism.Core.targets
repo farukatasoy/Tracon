@@ -1,0 +1,86 @@
+<Project>
+
+  <!--
+    Delivers the capability map that a coding agent reads, and feeds the two
+    files APG0401 compares.
+
+    Opt-in by design (K1, zero surprise): with AgentPrismWriteAgentsFile unset,
+    this file writes nothing. `dotnet new agentprism-api` sets the property, so a
+    generated project gets the map without asking; an existing project turns it
+    on deliberately.
+
+    buildTransitive/, not build/: a consumer usually references the AgentPrism
+    meta package, and a build/ asset does not flow across a transitive reference.
+  -->
+
+  <PropertyGroup>
+    <AgentPrismAgentMapFile>$(MSBuildThisFileDirectory)AgentPrism.AgentMap.md</AgentPrismAgentMapFile>
+
+    <!--
+      The repository root, not the project directory: an agent reads AGENTS.md
+      from the root of the repository it was started in. A normal clone is found
+      through .git/config; in a worktree or a submodule .git is a FILE, which the
+      first probe cannot see, so the second one looks for it directly.
+    -->
+    <_AgentPrismRepositoryRoot Condition="'$(_AgentPrismRepositoryRoot)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.git/config'))</_AgentPrismRepositoryRoot>
+    <_AgentPrismRepositoryRoot Condition="'$(_AgentPrismRepositoryRoot)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.git'))</_AgentPrismRepositoryRoot>
+
+    <_AgentPrismAgentsFileRoot>$(_AgentPrismRepositoryRoot)</_AgentPrismAgentsFileRoot>
+    <_AgentPrismAgentsFileRoot Condition="'$(_AgentPrismAgentsFileRoot)' == ''">$(MSBuildProjectDirectory)</_AgentPrismAgentsFileRoot>
+
+    <_AgentPrismAgentsFile>$([MSBuild]::NormalizePath('$(_AgentPrismAgentsFileRoot)', 'AGENTS.md'))</_AgentPrismAgentsFile>
+  </PropertyGroup>
+
+  <!--
+    One switch for the whole usage family. The diagnostics are warnings because
+    an Info diagnostic never appears in `dotnet build` output (measured), and a
+    diagnostic a coding agent cannot read is not a diagnostic. The cost is that
+    APG0101 and APG0102 cannot see a registration that lives in another
+    assembly; a consumer whose composition root is split sets this property
+    instead of writing six .editorconfig entries.
+  -->
+  <PropertyGroup Condition="'$(AgentPrismUsageDiagnostics)' == 'false'">
+    <NoWarn>$(NoWarn);APG0101;APG0102;APG0201;APG0301;APG0302;APG0401</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    APG0401 compares the revision marker of the two files. An analyzer must not
+    read from disk (RS1035), so both arrive as additional files. This happens
+    whether or not the property is set: a consumer who turned the property on
+    once and off again still has a file that can go stale. A hand-written
+    AGENTS.md carries no marker and is never reported.
+  -->
+  <ItemGroup Condition="Exists('$(_AgentPrismAgentsFile)') And Exists('$(AgentPrismAgentMapFile)')">
+    <AdditionalFiles Include="$(_AgentPrismAgentsFile)" />
+    <AdditionalFiles Include="$(AgentPrismAgentMapFile)" />
+  </ItemGroup>
+
+  <Target Name="AgentPrismWriteAgentsFile"
+          AfterTargets="Build"
+          Condition="'$(AgentPrismWriteAgentsFile)' == 'true' And Exists('$(AgentPrismAgentMapFile)')">
+
+    <Message Condition="'$(_AgentPrismRepositoryRoot)' == ''"
+             Importance="high"
+             Text="AgentPrism: no repository root was found above '$(MSBuildProjectDirectory)'. AGENTS.md is written next to the project instead." />
+
+    <!--
+      An existing file is NEVER overwritten. The consumer may have edited it, and
+      losing those edits on a routine build would be worse than a stale map;
+      APG0401 reports staleness and names the two steps that refresh it. The
+      condition also makes a parallel build harmless: whichever project runs
+      first writes, and the rest find the file already there.
+    -->
+    <!--
+      ContinueOnError: this file is a convenience, and a convenience must never
+      fail a build. A read-only repository root - an ordinary CI mount - would
+      otherwise stop the build with MSB3021, and the template turns the property
+      on for every generated project. The same flag covers the narrow race where
+      two parallel projects both pass the Exists check.
+    -->
+    <Copy SourceFiles="$(AgentPrismAgentMapFile)"
+          DestinationFiles="$(_AgentPrismAgentsFile)"
+          Condition="!Exists('$(_AgentPrismAgentsFile)')"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
+
+</Project>

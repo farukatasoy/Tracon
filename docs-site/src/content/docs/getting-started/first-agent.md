@@ -48,6 +48,12 @@ dotnet run
 Open the address `dotnet run` prints, with `/agentprism` on the end — the
 template listens on `http://localhost:5081` by default.
 
+The first build also writes `AGENTS.md` at the root of your repository: the
+AgentPrism capability map, for a coding agent working in the project. An
+existing file is never overwritten, and
+[the property that writes it](/AgentPrism/troubleshooting/#agentsmd-does-not-appear)
+can be removed from the project file.
+
 ## By hand
 
 ```bash

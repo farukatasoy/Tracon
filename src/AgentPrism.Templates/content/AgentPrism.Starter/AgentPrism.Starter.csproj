@@ -7,6 +7,12 @@
     <RootNamespace>AgentPrism.Starter</RootNamespace>
     <UserSecretsId>agentprism-starter-10000000-0000-0000-0000-000000000001</UserSecretsId>
     <!--
+      Writes AGENTS.md at the repository root on the first build, so a coding
+      agent working in this project starts from the AgentPrism capability map.
+      An existing AGENTS.md is never overwritten. Remove this line to opt out.
+    -->
+    <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+    <!--
       🚨 InvariantGlobalization is NEVER enabled. `Microsoft.Data.SqlClient` does
       NOT SUPPORT Globalization Invariant Mode; this template offers the
       UseSqlServer option, and a project generated with that option would NEVER

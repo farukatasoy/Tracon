@@ -498,3 +498,70 @@ First identify the package or call:
 Use [Compatibility](/AgentPrism/reference/compatibility/) to choose an AOT-safe
 package set. Do not silence a warning from a public API; select a generated or
 source-generated path, or accept and document that the application is not AOT-safe.
+
+## Build diagnostics and the agent map
+
+### The build reports an APG diagnostic
+
+`AgentPrism.Core` ships an analyzer with two families.
+
+| Ids | Category | What it reports |
+|---|---|---|
+| `APG0001`–`APG0007` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
+| `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
+| `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
+| `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
+| `APG0401` | `AgentPrism.Usage` | `AGENTS.md` was generated from an older capability map. |
+
+Each message names the API that resolves it, and each diagnostic links to the
+section of the [capability map](/AgentPrism/capabilities/) that documents it.
+
+### APG0101 or APG0102 fires although the registration exists
+
+An analyzer sees a single compilation. When `AddAgentPrism()` or a provider
+registration lives in another assembly, the diagnostic cannot see it. Turn the
+whole usage family off with one property:
+
+```xml
+<PropertyGroup>
+  <AgentPrismUsageDiagnostics>false</AgentPrismUsageDiagnostics>
+</PropertyGroup>
+```
+
+To keep the rest, silence one rule in `.editorconfig` instead:
+
+```ini
+[*.cs]
+dotnet_diagnostic.APG0101.severity = none
+```
+
+The `AgentPrism.Tools` family is unaffected by either switch; those diagnostics
+report a tool that cannot be generated at all.
+
+### AGENTS.md does not appear
+
+Writing it is opt-in, so that adding a package reference never changes files in
+your repository:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+</PropertyGroup>
+```
+
+The next build writes the capability map to `AGENTS.md` at the root of the
+repository, next to the project when there is no repository. A project created
+with `dotnet new agentprism-api` sets the property already.
+
+### AGENTS.md is out of date (APG0401)
+
+An existing file is never overwritten, because you may have added notes to it.
+Refresh it by deleting it and building again:
+
+```bash
+rm AGENTS.md && dotnet build
+```
+
+The same map is published for web-based agents at
+[`/AgentPrism/llms.txt`](/AgentPrism/llms.txt), with every hand-written page
+concatenated at [`/AgentPrism/llms-full.txt`](/AgentPrism/llms-full.txt).

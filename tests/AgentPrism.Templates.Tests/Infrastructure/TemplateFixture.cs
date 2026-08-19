@@ -38,6 +38,8 @@ public sealed class TemplateFixture : IAsyncLifetime
 
         Version = ResolveMetaPackageVersion();
 
+        ClearGlobalPackageCache();
+
         // Remove any registration left over from a previous run first - an
         // explicit error is preferred over silently running with a stale version.
         await ProcessRunner.RunAsync("dotnet", $"new uninstall \"{RepoPaths.TemplatesProjectDirectory}\"", timeout: InstallTimeout);
@@ -50,6 +52,44 @@ public sealed class TemplateFixture : IAsyncLifetime
         if (installResult.ExitCode != 0)
         {
             throw new InvalidOperationException($"'dotnet new install' failed:{Environment.NewLine}{installResult.Combined}");
+        }
+    }
+
+    /// <summary>
+    /// Removes the just-packed version from the global package folder.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <strong>Without this, these tests silently run against a STALE
+    /// package.</strong> MinVer derives the version from the git height, so
+    /// every pack between two commits produces the SAME version string. NuGet
+    /// extracts a version into the global packages folder ONCE and reuses it
+    /// afterwards, so a rebuilt <c>.nupkg</c> with an unchanged version is
+    /// never unpacked again - the consumer keeps compiling against the
+    /// assemblies and analyzers of the first pack of the day. Measured in Phase
+    /// 73: an analyzer change was invisible to every consumer test until this
+    /// directory was removed.
+    /// </remarks>
+    private void ClearGlobalPackageCache()
+    {
+        var root = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".nuget",
+                "packages");
+
+        if (!Directory.Exists(root))
+        {
+            return;
+        }
+
+        foreach (var package in Directory.EnumerateDirectories(root, "agentprism*"))
+        {
+            var extracted = Path.Combine(package, Version);
+
+            if (Directory.Exists(extracted))
+            {
+                Directory.Delete(extracted, recursive: true);
+            }
         }
     }
 

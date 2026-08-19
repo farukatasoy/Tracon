@@ -91,16 +91,6 @@
   sonra solution'i derle.** Damga guncelken yaris hic olusmaz — normal artimli
   derlemede gorulmez, yalniz kopya dosya temizliginden sonra gorulur.
 
-## Roslyn kaynak üreteci projesi (Faz 52)
-
-- **`netstandard2.0`'da `record`/`init` için `IsExternalInit` yok** (2026-08-08): net5.0+ BCL'si taşır. Çözüm: `namespace System.Runtime.CompilerServices { internal static class IsExternalInit; }` polyfill'i — derleyici yalnız VARLIĞA bakar.
-- **🚨 `SymbolDisplayFormat.FullyQualifiedFormat`, `UseSpecialTypes` yüzünden ilkel tipleri anahtar kelimeyle yazar** (`int`), `global::System.Int32` DEĞİL (2026-08-08): tip adına göre `switch` yapan kod (dönüştürücü seçimi) sessizce hiç eşleşmez; yalnız GERÇEK bir `int`/`bool` parametreli tool ile ortaya çıktı, `string`-only birim testleri yakalamadı. Çözüm: `UseSpecialTypes` bayrağı çıkarılmış özel format.
-- **🚨 `OutputItemType=Analyzer`, çok-sıçramalı `ProjectReference` zincirinde YAYILMAZ**: `A → B → Generator` ise `A` üreteci YÜKLEMEZ — yalnız `A` PAKET (`PackageReference`) tükettiğinde NuGet'in `analyzers/dotnet/cs` yayılımı çalışır. Aynı çözümdeki bir örnek/tüketici (ProjectReference) Analyzer referansını AYRICA almalı; gerçek dış (paket) tüketici etkilenmez.
-- **Çok-hedefli (net8/9/10) projede `@(Analyzer)` yalnız İÇ derlemede doludur**: `dotnet pack`'in dış derlemesinde `BeforeTargets="_GetPackageFiles"` BOŞ döner. Çözüm `TargetsForTfmSpecificContentInPackage` + `TfmSpecificPackageFile`; TFM-bağımsız dosyayı üç kez eklemek `NU5118` verir, `Condition="'$(TargetFramework)'=='netX.0'"` ile tek TFM'e sabitlenir.
-- **`namespace X;` dosya başına TEK ad alanıyla sınırlıdır** (`CS8954`): iki ad alanı gereken üretilmiş dosyada blok biçimi (`namespace X { }`) kullanılır.
-- **3. taraf soyut/sanal üye override ederken NRT imzasını TAHMİN ETME** (`Microsoft.Extensions.AI.AITool.Description`): reflection dökümü nullable ek açıklamasını GÖSTERMEZ; derleyici `CS8764` ile gerçek imzayı söyler. `NullableAttribute` YOKLUĞU genelde NON-nullable demektir.
-
-
 ## PublicApiAnalyzers (RS00xx, Faz 60)
 
 - **🚨 `dotnet format analyzers --diagnostics RS0016` tek koşumda bitmez —
@@ -136,3 +126,12 @@
 - MSBuild item'i olcerken hedefe `DependsOnTargets` ver; `-t:` bagimliyi
   kosmaz, cikti bos gelir.
 - **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.
+
+## Tüketiciye giden MSBuild (Faz 73)
+
+> Analyzer YAZIMI ayrı bir alan dosyasındadır:
+> [`analyzer-yazimi.md`](analyzer-yazimi.md).
+
+- **🚨 `<None Update=...>` çapraz-hedefli projede SESSİZCE hiçbir şey yapmaz** (2026-08-19): SDK'nın varsayılan `None` glob'u yalnız **iç** (TFM'e özgü) derlemelerde uygulanır; `dotnet pack` paket dosyalarını **dış** çapraz-hedefleme derlemesinde toplar. Ölçüldü: dışarıda 2, içeride 7 `None` öğesi. `Update` eşleşecek bir öğe bulamaz, dosya pakete girmez ve **hiçbir uyarı çıkmaz**. Doğrusu `<None Remove="dizin/**" />` + `<None Include=... Pack="true" PackagePath="..." />` — `Remove` iç derlemelerdeki glob kopyasını düşürür, `Include` her iki derlemede de görünür. `README.md`'nin `Include` ile paketlenmesinin sebebi de budur. Doğrulama tek komuttur: `unzip -l <nupkg>`.
+- **Git kökünü MSBuild'de bulmak**: `$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.git/config'))` normal klonu bulur; worktree ve submodule'de `.git` bir DOSYA olduğu için ikinci bir deneme (`'.git'`) gerekir. İkisi de boşsa proje dizinine düş — tüketicinin build'ini kırma.
+- **Tüketicinin ağacına dosya yazan `Copy` `ContinueOnError` taşımalıdır**: salt-okunur depo kökü (yaygın CI mount'u) aksi hâlde `MSB3021` ile build'i düşürür. Kolaylık amaçlı bir dosya, tüketicinin derlemesini kıramaz.

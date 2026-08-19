@@ -64,6 +64,26 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    Phase 73: the consumer-facing MSBuild target and the generated capability
+    map. buildTransitive/ is what makes them flow through the AgentPrism meta
+    package; build/ would stop at a direct reference.
+
+    🚨 `Update` does NOT work here, and the failure is silent: the SDK's default
+    None glob is applied only in the INNER (TFM-specific) builds, while `dotnet
+    pack` collects package files in the OUTER cross-targeting build - measured,
+    2 None items outside versus 7 inside. An Update there matches nothing and
+    the files leave the package without a warning. Remove + Include is the
+    working form: the Remove drops the globbed copy in the inner builds so the
+    Include is not a duplicate item, and the Include is what the outer build
+    sees. The same reason README.md is packed with an Include.
+  -->
+  <ItemGroup>
+    <None Remove="buildTransitive/**" />
+    <None Include="buildTransitive/AgentPrism.Core.targets" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/AgentPrism.AgentMap.md" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI" />
     <PackageReference Include="Microsoft.Agents.AI.Harness" />
