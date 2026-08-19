@@ -160,6 +160,60 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// SQLite cannot express "add this column only if missing" or change a
+    /// primary key in a single static SQL string, so this is done in code
+    /// instead of through <see cref="SqlQueriesBase.UpgradeMigrationsTable"/>
+    /// (left empty). The rebuild technique is the same as
+    /// 0006_sessions_tenant_key.sql (K-278): SQLite cannot alter a primary
+    /// key in place.
+    /// </remarks>
+    public override async ValueTask UpgradeMigrationsTableAsync(
+        DbConnection connection,
+        int commandTimeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var table = $"{_tablePrefix}__migrations";
+
+        var checkCommand = connection.CreateCommand();
+        checkCommand.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = 'set_name';";
+        checkCommand.CommandTimeout = commandTimeout;
+
+        var hasSetNameColumn = Convert.ToInt64(
+            await checkCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false),
+            CultureInfo.InvariantCulture) > 0;
+
+        if (hasSetNameColumn)
+        {
+            return;
+        }
+
+        var rebuildCommand = connection.CreateCommand();
+        rebuildCommand.CommandText = $"""
+            CREATE TABLE {table}_new (
+                set_name   TEXT    NOT NULL DEFAULT 'core',
+                id         INTEGER NOT NULL,
+                name       TEXT    NOT NULL,
+                checksum   TEXT    NOT NULL,
+                applied_at TEXT    NOT NULL,
+                PRIMARY KEY (set_name, id)
+            );
+
+            INSERT INTO {table}_new (set_name, id, name, checksum, applied_at)
+            SELECT 'core', id, name, checksum, applied_at FROM {table};
+
+            DROP TABLE {table};
+
+            ALTER TABLE {table}_new RENAME TO {table};
+            """;
+        rebuildCommand.CommandTimeout = commandTimeout;
+
+        await DbHelpers.ExecuteAsync(rebuildCommand, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public override string? DescribeDatabaseError(Exception exception)
         => exception is SqliteException sql
             ? $"{sql.Message.TrimEnd()} (error {sql.SqliteErrorCode}, extended {sql.SqliteExtendedErrorCode})"

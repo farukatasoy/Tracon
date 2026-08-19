@@ -13,7 +13,8 @@
 > `src/AgentPrism.Core/Knowledge/` (tümü: `AgentPrismKnowledgeOptions.cs`,
 > `TextChunker.cs`, `KnowledgeIngestionService.cs`, `VectorSearchToolFactory.cs`) ·
 > `src/AgentPrism.PostgreSql/Stores/PgVectorSearchStore.cs` ·
-> `src/AgentPrism.PostgreSql/Migrations/0024_vector.sql` ·
+> `src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql` (Faz 67
+> öncesi: `Migrations/0024_vector.sql`) ·
 > `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs` ·
 > `src/AgentPrism.AspNetCore/Contracts/KnowledgeContracts.cs` ·
 > `samples/AgentPrism.Api/Program.cs` (yalnız embedding kaydı ve

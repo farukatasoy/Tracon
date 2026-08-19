@@ -266,6 +266,13 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the statement that creates the migration ledger.</summary>
     public string CreateMigrationsTable { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the statement that upgrades a pre-phase-67 ledger (no <c>set_name</c>
+    /// column) to the current shape. Empty when the provider does this in code
+    /// instead (see <see cref="SqlDialect.UpgradeMigrationsTableAsync"/>).
+    /// </summary>
+    public string UpgradeMigrationsTable { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that reads the applied migrations.</summary>
     public string SelectAppliedMigrations { get; protected set; } = string.Empty;
 

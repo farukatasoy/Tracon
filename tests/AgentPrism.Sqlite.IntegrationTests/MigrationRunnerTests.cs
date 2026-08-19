@@ -198,6 +198,52 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             .Count.ShouldBe(EmbeddedMigrationCount);
     }
 
+    /// <summary>
+    /// A database that already applied the core set under the shape that
+    /// existed before phase 67 (id-only ledger primary key, no
+    /// <c>set_name</c> column — simulated here with raw DDL) upgrades safely.
+    /// </summary>
+    /// <remarks>
+    /// SQLite cannot alter a primary key in place; <c>SqliteDialect</c>
+    /// overrides <see cref="SqlDialect.UpgradeMigrationsTableAsync"/> to
+    /// rebuild the table (the same technique as 0006_sessions_tenant_key.sql,
+    /// K-278) — this test proves the rebuild preserves the pre-existing rows.
+    /// </remarks>
+    [Fact]
+    public async Task Pre_phase_67_ledger_shape_upgrades_without_data_loss()
+    {
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
+        await using var context = SqliteTestContext.Create(fixture, tablePrefix);
+
+        var realCoreMigrations = MigrationDescriptor
+            .Discover(typeof(MigrationRunner).Assembly, "AgentPrism.Sqlite.Migrations.");
+
+        await context.ExecuteAsync($"""
+            CREATE TABLE {tablePrefix}__migrations (
+                id         INTEGER NOT NULL PRIMARY KEY,
+                name       TEXT    NOT NULL,
+                checksum   TEXT    NOT NULL,
+                applied_at TEXT    NOT NULL
+            );
+            """);
+
+        foreach (var migration in realCoreMigrations)
+        {
+            await context.ExecuteAsync(context.StoreContext.Sql.ApplySchema(migration.Sql));
+            await context.ExecuteAsync(
+                $"INSERT INTO {tablePrefix}__migrations (id, name, checksum, applied_at) " +
+                $"VALUES ({migration.Id}, '{migration.Name}', '{migration.Checksum}', '2026-01-01T00:00:00.0000000Z');");
+        }
+
+        // Nothing left to apply; only the shape upgrade (rebuild) runs.
+        (await context.Migrations.ApplyAsync()).ShouldBe(0);
+
+        var coreRowCount = await context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {tablePrefix}__migrations WHERE set_name = 'core';");
+
+        coreRowCount.ShouldBe(realCoreMigrations.Count);
+    }
+
     [Fact]
     public void Migration_runner_cannot_be_constructed_with_an_invalid_prefix()
     {

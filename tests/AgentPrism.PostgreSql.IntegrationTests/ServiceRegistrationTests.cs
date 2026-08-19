@@ -57,6 +57,29 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         provider.GetRequiredService<MigrationRunner>().ShouldNotBeNull();
     }
 
+    /// <summary>
+    /// Phase 67, K-476: <c>IVectorSearchStore</c> stays REGISTERED either way
+    /// (<c>TryAddSingleton</c> ran); the factory decides whether it resolves
+    /// to a real store or <see langword="null"/> based on <c>EnableKnowledge</c>,
+    /// reusing the "GetService null = not available" gate from phase 51
+    /// (<c>AgentPrismServiceCollectionExtensions</c>, <c>EnableVectorSearch</c>).
+    /// </summary>
+    [Fact]
+    public void IVectorSearchStore_resolves_to_null_when_knowledge_is_disabled()
+    {
+        using var provider = BuildProvider(static options => options.EnableKnowledge = false);
+
+        provider.GetService<IVectorSearchStore>().ShouldBeNull();
+    }
+
+    [Fact]
+    public void IVectorSearchStore_resolves_to_the_real_store_when_knowledge_is_enabled()
+    {
+        using var provider = BuildProvider(static options => options.EnableKnowledge = true);
+
+        provider.GetService<IVectorSearchStore>().ShouldBeOfType<PgVectorSearchStore>();
+    }
+
     [Fact]
     public void Settings_are_read_from_configuration()
     {

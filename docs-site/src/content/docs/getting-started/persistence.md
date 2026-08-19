@@ -46,7 +46,8 @@ Binding from configuration is the usual shape:
       "ConnectionString": "",
       "SchemaName": "agentprism",
       "AutoApplyMigrations": true,
-      "CommandTimeoutSeconds": 30
+      "CommandTimeoutSeconds": 30,
+      "EnableKnowledge": false
     }
   }
 }
@@ -64,12 +65,25 @@ Rename `SchemaName` or `TablePrefix` when your conventions require it. A bare SQ
 `Data Source=:memory:` connection is rejected because each opened connection would
 see a different database; use a shared in-memory URI for tests.
 
-:::caution[PostgreSQL requires pgvector]
-The PostgreSQL migration set creates the `vector` extension even when no agent uses
-Knowledge yet. Use a PostgreSQL installation that has pgvector available and grant
-the migration identity permission to create or use the extension. Embedding
+:::note[Knowledge is opt-in and needs pgvector]
+The migration set that creates the `vector` extension and the `document_embeddings`
+table only applies when `EnableKnowledge` is `true` — off by default, so a managed
+PostgreSQL instance without permission to install extensions works with no
+configuration at all. Turn it on only if an agent uses Knowledge:
+
+```csharp
+.UsePostgreSql(options =>
+{
+    options.ConnectionString = connectionString;
+    options.EnableKnowledge = true;
+})
+```
+
+With it off, an agent definition that sets `Memory.EnableVectorSearch` fails
+compilation with a clear error instead of a database error at run time. Embedding
 `Dimensions` become part of the column type: changing embedding models later needs a
-schema migration and a re-embed of existing documents.
+schema migration and a re-embed of existing documents. See
+[Knowledge](/AgentPrism/guides/knowledge/).
 :::
 
 ## Migrations run at startup

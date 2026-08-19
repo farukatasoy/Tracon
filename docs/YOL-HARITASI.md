@@ -78,7 +78,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) | Denetim Zinciri ve Veri Konusu Hakları | ✅ Tamamlandı |
 | [65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | ✅ Tamamlandı |
 | [66](66-GELEN-TETIKLEYICILER.md) | Gelen Tetikleyiciler | ✅ Tamamlandı |
-| [67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | 📋 Planlandı |
+| [67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | ✅ Tamamlandı |
 | [68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | Çalıştırma Kimliği ve Token Kırılımı | 📋 Planlandı |
 | [69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) | Tool Yetkilendirmesi ve Yürütme Timeout'u | 📋 Planlandı |
 | [70](70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | 📋 Planlandı |

@@ -64,19 +64,40 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
         .AsIEmbeddingGenerator());
 ```
 
+A third setting is required: `AgentPrismPostgreSqlOptions.EnableKnowledge` is `false`
+by default (a managed PostgreSQL instance without permission to install extensions
+should never see `pgvector` unless it asked for it). Turn it on wherever
+`PostgreSql` is configured:
+
+```json title="appsettings.json"
+{
+  "AgentPrism": {
+    "PostgreSql": {
+      "EnableKnowledge": true
+    }
+  }
+}
+```
+
+With it off, `IVectorSearchStore` never resolves and an agent definition that sets
+`EnableVectorSearch` fails compilation with a clear error — see
+[Persistence](/AgentPrism/getting-started/persistence/#pick-one).
+
 The embedding model in this example produces 1,536 dimensions. If you choose another
-model, set `Dimensions` to its actual output size **before migration 0024 runs**.
+model, set `Dimensions` to its actual output size **before the knowledge migration
+set first runs**.
 
 :::caution[Dimensions are schema, not a live tuning knob]
 PostgreSQL creates `document_embeddings.embedding` as `vector({dimension})`. Changing
-`AgentPrismKnowledgeOptions.Dimensions` after migration 0024 has run does not alter
-the existing column. Plan a new database migration and re-embed every document.
+`AgentPrismKnowledgeOptions.Dimensions` after the knowledge set has applied does not
+alter the existing column. Plan a new database migration and re-embed every document.
 :::
 
-The PostgreSQL migration runs `CREATE EXTENSION IF NOT EXISTS vector`, creates the
-`document_embeddings` table, and adds an HNSW cosine-distance index. The database
-role that applies migrations must be allowed to create the `vector` extension, or an
-operator must install it first.
+Turning `EnableKnowledge` on applies one additional migration set: it runs
+`CREATE EXTENSION IF NOT EXISTS vector`, creates the `document_embeddings` table, and
+adds an HNSW cosine-distance index. The database role that applies migrations must be
+allowed to create the `vector` extension, or an operator must install it first —
+while the option stays off, none of this runs and no permission is needed.
 
 ## Give an agent access to one collection
 
@@ -223,11 +244,13 @@ with `EnableVectorSearch = true` fails compilation instead of receiving an empty
 
 ## Troubleshooting
 
-**Knowledge endpoints return `501`.** Register both `UsePostgreSql()` and an
-`IEmbeddingGenerator<string, Embedding<float>>`. One without the other is not enough.
+**Knowledge endpoints return `501`.** Register `UsePostgreSql()` with `EnableKnowledge
+= true` and an `IEmbeddingGenerator<string, Embedding<float>>`. Any one missing is not
+enough.
 
-**PostgreSQL startup fails around `vector`.** Install the pgvector extension, or let a
-database role with extension permission apply migration 0024.
+**PostgreSQL startup fails around `vector`.** `EnableKnowledge = true` is set but the
+server has no pgvector. Install the extension first, or turn `EnableKnowledge` off
+until it is available — the core migration set never touches `vector`.
 
 **Upload says the embedding length is wrong.** The generator output and the migrated
 column dimension differ. Do not change only the option. Migrate the schema and

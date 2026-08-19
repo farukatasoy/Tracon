@@ -55,7 +55,7 @@ public sealed class KnowledgeRetentionTests(PostgresFixture fixture) : IAsyncLif
     {
         var schema = _context.SchemaName;
 
-        // The metadata column is not specified; migration 0024's DEFAULT '{}'::jsonb kicks in.
+        // The metadata column is not specified; 0001_vector's DEFAULT '{}'::jsonb kicks in.
         await _context.ExecuteAsync($"""
             INSERT INTO {schema}.document_embeddings
                 (id, tenant_id, collection, source_id, chunk_index, content, embedding, created_at)

@@ -47,6 +47,8 @@
   `SELECT ... WHERE EXISTS (SELECT 1 FROM runs r WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id))`.
   PostgreSQL parametre tiplerini hedef sutunlardan cozer; `INSERT ... SELECT`
   ek cast gerektirmedi. Uc lehcede de yesil kostu.
+- **Migration setleri (opsiyonel, Faz 67, K-475/K-476): `0024_vector.sql` `MigrationsKnowledge/0001_vector.sql`'a tasindi** — knowledge seti yalniz `EnableKnowledge = true` iken uygulanir (K1, varsayilan kapali). Iki setin numaralari BAGIMSIZDIR (core `0001`, knowledge de `0001`); ledger'in birincil anahtari bu yuzden `(set_name, id)`'dir, `id` tek basina degil. `IVectorSearchStore` kapaliyken KAYITSIZ degildir — fabrikasi `null` doner (Faz 51'in "GetService null = yok" kuralinin tekrar kullanimi).
+
 - **🚨 YALNIZ YAZMA tarafindaki bir alan `[JsonIgnore]` ISTER.** Alan bir sutuna
   yazilmaz, yalnizca `WHERE` muhafizidir; geri okundugunda her zaman `null`
   olurdu. Isaretlenmezse OpenAPI belgesi **hicbir zaman dolmayan** bir alan ilan

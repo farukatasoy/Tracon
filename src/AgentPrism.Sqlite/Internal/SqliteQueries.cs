@@ -97,20 +97,29 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // this step, so a harmless no-op is given.
         CreateSchema = "SELECT 1;";
 
+        // set_name (phase 67): each migration SET numbers its own files from
+        // 0001, so id alone is no longer unique — the primary key is
+        // (set_name, id). A fresh database gets this shape directly; an
+        // existing one (created before phase 67) is upgraded by
+        // SqliteDialect.UpgradeMigrationsTableAsync — NOT a numbered migration
+        // file (K-475). SQLite cannot ALTER a primary key in place (K-278's
+        // sibling), so that override rebuilds the table in code.
         CreateMigrationsTable = $"""
             CREATE TABLE IF NOT EXISTS {Schema}__migrations (
-                id         INTEGER NOT NULL PRIMARY KEY,
+                set_name   TEXT    NOT NULL DEFAULT 'core',
+                id         INTEGER NOT NULL,
                 name       TEXT    NOT NULL,
                 checksum   TEXT    NOT NULL,
-                applied_at TEXT    NOT NULL
+                applied_at TEXT    NOT NULL,
+                PRIMARY KEY (set_name, id)
             );
             """;
 
-        SelectAppliedMigrations = $"SELECT id, name, checksum FROM {Schema}__migrations ORDER BY id;";
+        SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Schema}__migrations ORDER BY set_name, id;";
 
         InsertMigration = $"""
-            INSERT INTO {Schema}__migrations (id, name, checksum, applied_at)
-            VALUES (@id, @name, @checksum, @applied_at);
+            INSERT INTO {Schema}__migrations (set_name, id, name, checksum, applied_at)
+            VALUES (@set_name, @id, @name, @checksum, @applied_at);
             """;
 
         UpsertTenant = $"""

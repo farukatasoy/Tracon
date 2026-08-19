@@ -28,7 +28,8 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         NpgsqlDataSource dataSource,
         AgentPrismPostgreSqlOptions options,
         ITenantContext tenantContext,
-        int vectorDimensions)
+        int vectorDimensions,
+        bool enableKnowledge)
     {
         DataSource = dataSource;
         Options = options;
@@ -45,6 +46,15 @@ internal sealed class PostgresTestContext : IAsyncDisposable
             {
                 ["dimension"] = vectorDimensions.ToString(CultureInfo.InvariantCulture),
             },
+            // Phase 67: the "knowledge" set is opt-in in production (K1), but
+            // the shared test schema fixtures pre-date that flag and most
+            // tests were written when the vector migration was unconditional
+            // — default TRUE here keeps ~40 unrelated contract test classes
+            // unchanged. Tests that specifically exercise phase 67's K1
+            // default pass enableKnowledge: false explicitly.
+            EnabledMigrationSets = enableKnowledge
+                ? new HashSet<string>(StringComparer.Ordinal) { "knowledge" }
+                : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
         };
 
         StoreContext = wrapped;
@@ -231,8 +241,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         PostgresFixture fixture,
         string tenantId = "default",
         bool applyMigrations = true,
-        int vectorDimensions = DefaultVectorDimensions)
-        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions);
+        int vectorDimensions = DefaultVectorDimensions,
+        bool enableKnowledge = true)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions, enableKnowledge);
 
     /// <summary>
     /// Setup with the tenant context supplied externally. The tenant
@@ -247,11 +258,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         PostgresFixture fixture,
         ITenantContext tenantContext,
         bool applyMigrations = true,
-        int vectorDimensions = DefaultVectorDimensions)
+        int vectorDimensions = DefaultVectorDimensions,
+        bool enableKnowledge = true)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantContext, vectorDimensions);
+        var context = Create(fixture, NewSchemaName(), tenantContext, vectorDimensions, enableKnowledge);
 
         if (applyMigrations)
         {
@@ -273,20 +285,23 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         PostgresFixture fixture,
         string schemaName,
         string tenantId = "default",
-        int vectorDimensions = DefaultVectorDimensions)
-        => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions);
+        int vectorDimensions = DefaultVectorDimensions,
+        bool enableKnowledge = true)
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions, enableKnowledge);
 
     /// <summary>Setup with the tenant context supplied externally.</summary>
     /// <param name="fixture">The running PostgreSQL container.</param>
     /// <param name="schemaName">The schema name to use.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
-    /// <param name="vectorDimensions">The embedding dimension to apply to migration 0024 (Phase 51).</param>
+    /// <param name="vectorDimensions">The embedding dimension to apply to the knowledge set's 0001_vector migration (Phase 51).</param>
+    /// <param name="enableKnowledge">Whether the "knowledge" migration set applies (Phase 67). Default <see langword="true"/> to keep existing contract tests unchanged.</param>
     /// <returns>A new context pointing at the same backend.</returns>
     public static PostgresTestContext Create(
         PostgresFixture fixture,
         string schemaName,
         ITenantContext tenantContext,
-        int vectorDimensions = DefaultVectorDimensions)
+        int vectorDimensions = DefaultVectorDimensions,
+        bool enableKnowledge = true)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -296,11 +311,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
             SchemaName = schemaName,
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
+            EnableKnowledge = enableKnowledge,
         };
 
         var dataSource = new NpgsqlDataSourceBuilder(options.ConnectionString).Build();
 
-        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions);
+        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions, enableKnowledge);
     }
 
     /// <summary>Generates a new, unique test schema name.</summary>

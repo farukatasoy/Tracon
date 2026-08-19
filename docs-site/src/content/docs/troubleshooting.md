@@ -318,9 +318,11 @@ report shows applied and pending state, but its endpoint must be enabled explici
 
 ### Knowledge endpoints return `501`
 
-Both dependencies must exist:
+All three dependencies must exist:
 
-- `UsePostgreSql()` supplies `IVectorSearchStore` and pgvector storage.
+- `UsePostgreSql()` with `EnableKnowledge = true` supplies `IVectorSearchStore` and
+  pgvector storage. It is off by default; with it off, `IVectorSearchStore` never
+  resolves.
 - The application registers `IEmbeddingGenerator<string, Embedding<float>>`.
 
 SQL Server and SQLite implement the other durable stores but do not implement vector
@@ -328,10 +330,11 @@ knowledge search.
 
 ### PostgreSQL migration cannot create the vector extension
 
-The server must have pgvector available, and the migration identity needs permission
-to create or use the extension. The PostgreSQL migration creates that extension even
-when no agent uses knowledge search. Use SQL Server or SQLite when pgvector cannot be
-installed and vector search is not required.
+`EnableKnowledge = true` is set but the server has no pgvector available, or the
+migration identity lacks permission to create it. This migration set applies only
+when `EnableKnowledge` is on — while it is off, no agent can request knowledge
+search and this step never runs, so no extension permission is needed. Install
+pgvector, or use SQL Server or SQLite when vector search is not required.
 
 ### Search fails after changing the embedding model
 

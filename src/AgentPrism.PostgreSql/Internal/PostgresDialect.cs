@@ -49,6 +49,26 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
+    /// The "knowledge" set needs the <c>pgvector</c> extension (phase 51) and
+    /// is therefore opt-in (phase 67); a consumer without permission to
+    /// install extensions on a managed PostgreSQL never sees it.
+    /// </remarks>
+    public override IReadOnlyDictionary<string, string> OptionalMigrationResourcePrefixes { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["knowledge"] = "AgentPrism.PostgreSql.MigrationsKnowledge.",
+        };
+
+    /// <inheritdoc />
+    /// <remarks>Core id 24 (<c>0024_vector</c>) relocated to the "knowledge" set as <c>0001_vector</c> (phase 67).</remarks>
+    public override IReadOnlyDictionary<int, string> RelocatedCoreMigrationSets { get; } =
+        new Dictionary<int, string>
+        {
+            [24] = "knowledge",
+        };
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The lock key is scoped to the schema (K-389): <see cref="MigrationLockKey"/>
     /// derives a deterministic key from the schema name so that independent
     /// AgentPrism deployments sharing the same database with different

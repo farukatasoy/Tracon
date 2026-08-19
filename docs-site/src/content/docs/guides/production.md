@@ -143,13 +143,16 @@ not a warning to bypass.
 |---|---:|---|
 | PostgreSQL schema | `agentprism` | Lowercase unquoted identifier, at most 63 characters |
 | `AutoApplyMigrations` | `true` | A failed migration prevents startup |
+| `EnableKnowledge` (PostgreSQL) | `false` | Applies the `pgvector`-dependent migration set; needs no extension permission while off |
 | `CommandTimeoutSeconds` | `30` | Valid range 0 through 3,600; `0` means unlimited |
 | Persistence without `Use*Sql*` | In memory | State disappears on process exit |
 | SQL provider count | One | If several are registered, the last wins and diagnostics become degraded |
 
-PostgreSQL is the only AgentPrism storage provider with vector search. Use it when
-the deployment includes the knowledge system, and install the required `pgvector`
-extension before migrations run.
+PostgreSQL is the only AgentPrism storage provider with vector search. It is opt-in:
+`EnableKnowledge` defaults to `false`, so a deployment that never turns it on needs
+no `pgvector` extension and no extension-creation permission at all. Turn it on and
+install `pgvector` before migrations run only when the deployment includes the
+knowledge system.
 
 ## Design the process topology
 

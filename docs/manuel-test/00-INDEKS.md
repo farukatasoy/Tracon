@@ -216,8 +216,11 @@ cd samples/AgentPrism.Api && dotnet run
 ```
 
 Şema düşürüldükten sonra migration'lar açılışta yeniden uygulanır
-(`AutoApplyMigrations: true`). PostgreSQL için **29 migration** dosyası vardır;
-açılış logunda sayı doğrulanır.
+(`AutoApplyMigrations: true`). PostgreSQL'de **32 çekirdek** migration dosyası
+vardır; örnek uygulamanın `appsettings.json`'ı `EnableKnowledge: true` taşır
+(bir `EnableVectorSearch` agent'ı demoluyor, Faz 67), bu yüzden isteğe bağlı
+"knowledge" setinin **1** migration'ı da uygulanır — açılış logunda toplam
+**33** doğrulanır. Ayrıntı: [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md).
 
 ---
 
@@ -300,7 +303,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56 | `src/AgentPrism.Abstractions/Evaluation`, `Experiments` · `src/AgentPrism.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 |
 | 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50 | `src/AgentPrism.Mcp` · `src/AgentPrism.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **43** | ✅ | ✅ 42/43 · 1 ☒ |
 | 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29 | `src/AgentPrism.Abstractions/Attachments`, `Voice` · `src/AgentPrism.Core/Attachments`, `Voice` · `src/AgentPrism.Voice` (tümü) · `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs` · `src/AgentPrism.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **61** | ✅ | ✅ 59/61 · 2 ⏭ |
-| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/AgentPrism.Core/Knowledge/*.cs` · `src/AgentPrism.PostgreSql/Migrations/0024_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
+| 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/AgentPrism.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/AgentPrism.Core/Knowledge/*.cs` · `src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/AgentPrism.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
 | 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55 (44/46/47 yalnız kesişim) | `src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/AgentPrism.Abstractions/Approvals/` · `src/AgentPrism.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/AgentPrism.Core/Approvals/` · `src/AgentPrism.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `screens/approvals.tsx` | **28** | ✅ | ✅ 26/28 · 2 ⏭ |
 | 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48 | `src/AgentPrism.Abstractions/Guards`, `Agents/ResponseFormat.cs` · `src/AgentPrism.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Models/ModelProviderRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/AgentPrism.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **35** | ✅ | ✅ 35/35 |
 | 23 | [`23-SAKLAMA-ARSIV-KOTA.md`](23-SAKLAMA-ARSIV-KOTA.md) | `RET` | 21 (yalnız kota), 25, 36 | `src/AgentPrism.Abstractions/Retention`, `Quotas` · `src/AgentPrism.Core/Retention`, `Quotas`, `Recording/RunRecordingAgent.cs` · `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` · `src/AgentPrism.AspNetCore/Endpoints/{Retention,Quota}Endpoints.cs` · `samples/AgentPrism.Api/FileSystemArchiveSink.cs` | **26** | ✅ | ✅ 26/26 |
