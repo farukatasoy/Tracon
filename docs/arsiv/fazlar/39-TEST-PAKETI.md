@@ -53,12 +53,16 @@ yetenek **kullanılabilir hâle** getirilir.
 
 Beş ayrı sahte sağlayıcı, beş ayrı test projesinde yaşıyor:
 
+> Aşağıdaki yollar **faz öncesi** durumu anlatır; hepsi bu fazda
+> `AgentPrism.Testing/FakeModelProvider.cs` içinde birleştirilip silindi.
+> Bu yüzden bağlantı değil düz metindirler.
+
 | Kanıt | Satır | Gözlem |
 |---|---|---|
-| [`EchoModelProvider.cs`](../tests/AgentPrism.AspNetCore.FunctionalTests/Infrastructure/EchoModelProvider.cs) | 65 | `public` ama test projesinin içinde; tüketici erişemez |
-| [`EchoModelProvider.cs`](../tests/AgentPrism.PostgreSql.IntegrationTests/Infrastructure/EchoModelProvider.cs) | 65 | 🚨 **İkinci kopya ve içerik AYNI DEĞİL** — `diff` fark bildiriyor |
-| [`ScriptedModelProvider.cs`](../tests/AgentPrism.Ui.E2ETests/Infrastructure/ScriptedModelProvider.cs) | 190 | `internal`; senaryolu yanıt üretir |
-| [`RoutingModelProvider.cs`](../tests/AgentPrism.AspNetCore.FunctionalTests/Infrastructure/RoutingModelProvider.cs) | 171 | `internal`; model adına göre yönlendirir |
+| `AspNetCore.FunctionalTests/Infrastructure/EchoModelProvider.cs` | 65 | `public` ama test projesinin içinde; tüketici erişemez |
+| `PostgreSql.IntegrationTests/Infrastructure/EchoModelProvider.cs` | 65 | 🚨 **İkinci kopya ve içerik AYNI DEĞİL** — `diff` fark bildiriyor |
+| `Ui.E2ETests/Infrastructure/ScriptedModelProvider.cs` | 190 | `internal`; senaryolu yanıt üretir |
+| `AspNetCore.FunctionalTests/Infrastructure/RoutingModelProvider.cs` | 171 | `internal`; model adına göre yönlendirir |
 | [`FakeModelProvider.cs`](../../../tests/AgentPrism.Core.UnitTests/Fakes/FakeModelProvider.cs) | 32 | `internal`; en yalın |
 | [`AgentPrismTestHost.cs`](../../../tests/AgentPrism.AspNetCore.FunctionalTests/Infrastructure/AgentPrismTestHost.cs) | — | `StartAsync(…)` bellek içi bir host kurar. **Tüketicinin en çok isteyeceği tip budur ve erişilemez** |
 

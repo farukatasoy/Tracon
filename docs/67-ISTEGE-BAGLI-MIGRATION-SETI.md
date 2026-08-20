@@ -46,7 +46,7 @@ olmayan yönetilen bir PostgreSQL üzerinde çalışan tüketicidir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`0024_vector.sql:16`](../src/AgentPrism.PostgreSql/Migrations/0024_vector.sql) | `CREATE EXTENSION IF NOT EXISTS vector;` — koşulsuz |
+| `0024_vector.sql:16` *(faz sonrası: [`MigrationsKnowledge/0001_vector.sql`](../src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql))* | `CREATE EXTENSION IF NOT EXISTS vector;` — koşulsuz |
 | [`MigrationDescriptor.cs:37-39`](../src/AgentPrism.Sql.Shared/Migrations/MigrationDescriptor.cs) | `GetManifestResourceNames()` üzerinde tek ölçüt `resourcePrefix`; koşullu set kavramı **yok** |
 | `ls src/AgentPrism.PostgreSql/Migrations/*.sql \| wc -l` → **29** | Yirmi dokuzunun hepsi her başlangıçta sıraya girer |
 | `grep -ln "document_embeddings\|vector" src/AgentPrism.PostgreSql/Migrations/*.sql` → **yalnız 0024** | Başka hiçbir migration bu tabloya dayanmıyor — taşıma güvenli |
