@@ -22,6 +22,39 @@ destegiydi (`alreadyRegistered` bayragi ve sabit `OpenAIProviderNames` engel) �
 aday tanimlanirken kapsam bu ayrimla netlestirildi (bayat, tarihsiz not,
 2026-08-19'da butce icin buraya tasindi).
 
+### `BackgroundService.StartAsync` migration yarisi (2026-08-07, Faz 42) — Faz 77 butce rahatlatmasi
+
+- **🚨 `BackgroundService.StartAsync` HOST'u BLOKLAMAZ; kayit SIRASI oncelikli olan bir `IHostedService`'in migration'dan ONCE calismasina izin verir** (2026-08-07, Faz 42, gercek `samples/AgentPrism.Api` kosumunda olculdu): Genel Host, `IHostedService.StartAsync`'i KAYIT SIRASINA gore art arda cagirir; `MigrationHostedService.StartAsync` migration'lari TAM olarak bekler (`await _runner.ApplyAsync(...)`) ama `BackgroundService.StartAsync` (taban sinif) `ExecuteAsync`'i baslatir ve HEMEN doner — sonraki hosted service'i beklemez. `.UseMcp()` `.UseSqlite()`'tan ONCE cagrilirsa `McpDiscoveryService.ExecuteAsync` (dolayisiyla `SingletonGuard`'in ilk `TryAcquireAsync`'i) migration'lar bitmeden calisabilir ve "no such table" ile basarisiz olur (guard hatayi yutar, loglar, bir sonraki yenileme turunda kendiliginden duzelir). Yeni bir kusur degildir — `McpDiscoveryService` zaten ilk turunda `mcp_servers`'i okuyordu ve ayni yarisa acikti. Bir `BackgroundService` SQL-destekli bir depoya ilk turunda dokunacaksa bu yarisi HESABA KAT.
+
+### `RequireRole` sessiz gecersizligi (2026-08-18, F-104/K-431) — Faz 77 butce rahatlatmasi
+
+- **🚨 "Kayıtlı değilse hiçbir şey yapmaz" tasarımı örnek uygulamada GÖRÜNMEZ bir delik üretir** (2026-08-18, F-104/K-431): `RequireRole(policyName)` politika adı `null` çözünce hiçbir yetkilendirme eklemez — yükselten kurulumu kırmamak için bilinçlidir (K1), ama `samples/AgentPrism.Api` üç politikayı hiç kaydetmediği için Skill/Approval/Retention/Quota/Workflow uçlarındaki HER `RequireRole` çağrısı referans dağıtımda **sessizce etkisizdi**; fonksiyonel testler izole host'ta politikayı kendileri kaydettiği için yeşildi. Ders: sessiz geri düşüş (`fallback`) tasarlarken **referans dağıtımın onu nasıl göstereceğini** de tasarla. Kalıcı kapı: bayrak açıkken `AgentPrismEndpointOptions.RequireRolePolicies = true` yazılır ve kayıt silinirse uygulama **başlamaz**. Gösterim şeması `X-AgentPrism-Demo-Role` başlığını okur, hiçbir doğrulama yapmaz ve varsayılan **kapalıdır**.
+
+### `AddAgentPrismHealthChecks` on-kontrol tuzagi (2026-08-06, Faz 33, K-251) — Faz 77 butce rahatlatmasi
+
+- **🚨 `IServiceCollection` KURULUM ANINDA sira-bagimsizdir; `MapAgentPrism`in `app.Build()` SONRASI kontrol deseni burada TEKRARLANAMAZ** (2026-08-06, Faz 33, K-251): `MapAgentPrism` `IAgentCatalog` kayitli mi diye `endpoints.ServiceProvider` (TAMAMLANMIS bir kap) uzerinden bakar — bu guvenlidir cunku o noktada tum `Add*()` cagrilari bitmistir. `AddAgentPrismHealthChecks()` gibi bir `IServiceCollection` UZANTISI ayni kontrolu (`services.Any(d => d.ServiceType == typeof(IAgentCatalog))`) yaparsa YANLIS SONUC uretebilir: tuketici `services.AddHealthChecks().AddAgentPrismHealthChecks()`'i `services.AddAgentPrism()`'DEN ONCE cagirabilir ve o an henuz kayitli olmayan bir servis icin gecerli bir kurulumu hatali reddeder. Cozum: kurulum anindaki uzantilar boyle bir on-kontrol YAPMAZ; DI, servis ilk cozulmeye calisildiginda (`/health` ilk yoklandiginda) zaten acik bir hata verir.
+
+### Minimal API govde cikarimi — iki vaka (Faz 9 ve Faz 28) — Faz 77 butce rahatlatmasi
+
+- **🚨 Minimal API'de nullable/opsiyonel bir servis parametresi `[FromServices]` olmadan "Body" sayılabilir ve TÜM route'ları kırar** (2026-08-02, Faz 9): Ölçüldü — `IAuthorizationService? authorizationService` parametresi (test barındırıcısında `AddAuthorization()` çağrılmadığı için) minimal API'nin servis çıkarımını geçemedi ve `InvalidOperationException: Body was inferred but the method does not allow inferred body parameters` fırlattı. Hata tek bir uçta oluşsa da `RouteEndpointDataSource` tüm uçları TEK bir DFA matcher'da birleştirdiği için **119 testin 112'si** aynı anda kırıldı — semptom hedeften kopuk görünüyordu. Çözüm: `[FromServices]` özniteliği eklemek servis çözümlemesini kayıt durumundan bağımsız zorunlu kılar. Kayıtlı olmayabilecek her opsiyonel servis parametresinde bu öznitelik kullanılmalıdır.
+- **🚨 Minimal API'de KAYITLI OLMAYAN bir servis parametresi GOVDE sanilir** (2026-08-05, Faz 28): istege bagli bir bagimliligi (`ISpeechSynthesizer? synthesizer`) DI'dan almak icin nullable yazmak YETMEZ. ASP.NET Core kaynak cikarimini `IServiceProviderIsService`'e sorar; tip kayitli degilse parametreyi govdeden baglamaya calisir ve uc kurulumu `InvalidOperationException: Body was inferred but the method does not allow inferred body parameters` ile patlar. Etki tek uçla sinirli DEGILDIR — `MapAgentPrism` cagrisinin tamami coker ve **her** fonksiyonel test duser (olculdu: 252/261). Cozum: `[FromServices]` ile acikca isaretleyin. Ozellik istege bagli bir paketle geliyorsa (ornek: `AgentPrism.Voice` kurulu degilse) bu durum NORMALDIR ve uc `501` donmelidir.
+
+### `WorkflowJobHandler` optional kurucu bagimliligi (2026-08-03, Faz 17) — Faz 77 butce rahatlatmasi
+
+- **🚨 Yerlesik DI kabi, C# varsayilan parametre degeri olsa BILE optional constructor bagimliligini bazen zorunlu sayar** (2026-08-03, Faz 17): `WorkflowJobHandler(IWorkflowRunner? runner, ILogger? logger = null)` — yalnizca `logger`'da `= null` vardi, `runner`'da yoktu; `TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>())` (kurucu otomatik cozumleme) `IWorkflowRunner` kayitli degilken `InvalidOperationException` firlatti. `runner`'a da `= null` eklemek yetmedi (aciklamasi zaten satir ~95'te); cozum acik fabrika: `ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>(provider => new WorkflowJobHandler(provider.GetService<IWorkflowRunner>(), ...))`.
+
+### Bearer token muaf ucuncu uc grubu deseni (2026-08-04, Faz 22) — Faz 77 butce rahatlatmasi
+
+- **Bir HTTP uc grubunu bearer token denetiminden muaf tutmak icin `AgentPrismEndpointFilter(options, requireBearerToken: false)` ile AYRI bir `MapGroup` kur** (2026-08-04, Faz 22): OAuth `/oauth/callback` ucu, saglayicinin yonlendirdigi tarayicidan gelir ve bizim bearer token'imizi tasiyamaz — `/api/meta` gibi tamamen acik olamaz (loopback + policy hala gecerli olmali) ama standart korumali gruba da giremez. Cozum, arayuz kabugunun (`MapUi`) kullandigi UCUNCU grup deseninin tekrarlanmasidir: kendi `MapGroup`, `AgentPrismEndpointFilter(options, requireBearerToken: false)`, istege bagli `RequireAuthorization(policy)`. Ayrinti: `GovernanceEndpoints.MapMcpOAuthCallback` + `AgentPrismEndpointRouteBuilderExtensions.MapMcpOAuthCallback`.
+
+### `T? param = null` deseni ne zaman GUVENLIDIR (2026-08-06, Faz 31, K-241) — Faz 77 butce rahatlatmasi
+
+  - **Tersi de doğrudur ve GÜVENLİDİR** (2026-08-06, Faz 31, K-241): tip HER ZAMAN kayıtlıysa (koşullu bir özellik değil, `AddAgentPrism()`'in kayıtsız şartsız kaydettiği bir servisse), `T? param = null` deseni DI'da güvenle **gerçek** örneği alır — C# varsayılanı yalnız tip HİÇ kayıtlı değilken devreye girer. `InMemoryRunStore(IRunScoreStore? scores = null)` bunu kullanır: DI yolunda paylaşılan tekil `IRunScoreStore`'u alır, yalnız `new InMemoryRunStore()` ile elle kurulan (test) kod özel bir örnek üretir. Yukarıdaki uyarı yalnız "kayıtlı OLMAYABİLECEK" (opsiyonel özellik) servisler içindir.
+
+### Kestrel WebSocket feature'i ve kosullu ara yazilim (2026-08-05, Faz 29) — Faz 77 butce rahatlatmasi
+
+- **🚨 Kestrel `IHttpWebSocketFeature` SAGLAMAZ; `UseWebSockets()` sart** (2026-08-05, Faz 29): onu `WebSocketMiddleware` kurar. Kutuphane kodunda tuketiciden ayrica cagri istemek `MapAgentPrism`'in tek giris noktasi olma kuralini (K1) bozar ve hata yalnizca ilk WebSocket denemesinde gorunur. `MapAgentPrism` ara yazilimi **kosullu** kurar: yalniz ilgili servis kayitliyken ve `endpoints is IApplicationBuilder` iken (K-223). Ikinci bir `WebSocketMiddleware` ornegi zararsizdir — feature'i dolu bulup gecer. `TestServer` WebSocket yukseltmesini kendisi taklit eder, `CreateWebSocketClient()` ile surec ici test edilebilir.
+
 ## `docs/hafiza/kod-haritasi.md`'den
 
 ### Agac toplamlari SQL'de, okumada hesaplanir (2026-08-02, Faz 12)
@@ -344,3 +377,210 @@ okunarak yapildi.
 <!-- MEMORY.md'de ozeti var; tam metin burada korunur -->
 - **`dotnet test` MTP'de `--filter-query` MSBuild anahtarı DEGIL** (2026-08-03, Faz 19): xunit v3 (Microsoft.Testing.Platform) filtre sozdizimi VSTest'ten farklidir; `dotnet test <proj> --filter-query ...` `MSB1001: Unknown switch` verir. Tek bir testi kosmak icin butun projeyi calistirip cikan metin grep'lemek daha guvenilir (proje kucukse maliyeti onemsiz).
 
+## `docs/hafiza/cekirdek-calistirma.md`'den — Faz 77 bütçe rahatlatması
+
+### Agac genelinde W3C trace kimligi (2026-08-02, Faz 12)
+
+- **🚨 Bir agactaki tum calistirmalar ayni W3C trace kimligini paylasir** (2026-08-02, Faz 12): `RunTraceCollector` tamponu trace kimligiyle anahtarlar ve `CompleteRunAsync` tamponu **kaldirir**. Alt calistirma once bittigi icin tum agacin span'lerini o sahipleniyordu; gercek bir cagrida kokun `/trace` ucu `404`, alt calistirmanınki dolu geldi. Toplayici artik yalnizca `Depth == 0` iken cagrilir. Yalnizca birim testleriyle yakalanamazdi — ornek uygulamayi gercekten calistirmak ortaya cikardi.
+
+### `AuditSecretFilter` ad-tabanli suzme (Faz 65)
+
+- **🚨 `AuditSecretFilter` alan ADINA bakar, DEGERE degil — "apikey" fragmani tasiyan her alan icerik zararsiz olsa da `***` olur** (Faz 65): zararsiz oldugu KANITLANMIS bir alani denetime yazarken adinda `apikey`/`authorization`/`token` (tekil)/`password`/`secret` gecmediginden emin ol — geciyorsa filtre teshis degerini sessizce yok eder. Cozum alani degistirmek degil, denetim ozetinde farkli adlandirmaktir (`configKeyName`). Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### Tool token disi olcum zinciri (2026-08-05, Faz 28)
+
+- **Tool'un token DISI olcumu cagri kimligiyle kayda baglanir** (2026-08-05, Faz 28): `AgentPrismToolUsage.Report(...)` → `AgentRunScope.ToolUsage` (`ToolUsageAccumulator`, cagri kimligine gore) → `ToolInvocationTracker.OnResult` `Take(result.CallId)`. Cagri kimligi `FunctionInvokingChatClient.CurrentContext.CallContent.CallId`'den okunur — tool govdesinde DOLUDUR (olculdu). `AIFunctionArguments.Context` ise `null` gelir ve kimligi tasimaz. Bildirim baglanamazsa `false` doner ve tool'un isi bozulmaz.
+
+### `AgentRunScope.SessionId` sahiplik kapsami (2026-08-05, Faz 28, K-217)
+
+- **`AgentRunScope.SessionId` tool'un urettigi icerigin sahibidir** (2026-08-05, Faz 28): bir tool `AgentSession`'a erisemez. Oturumsuz yazilan bir ek saklama politikasi tarafindan **sahipsiz** sayilip silinir (`RetentionTargetRegistry`, `session_id IS NULL`) — oturum hala yasarken icerik kaybolur. Kapsamdaki kimlik `runs.session_id` sutunundan GENIS tanimlidir: alt calistirmaya MAF oturum gecirmez ama uretilen icerik yine kok oturuma aittir (`AgentPrismRunOptions.SessionId` ile tasinir). Karar K-217.
+
+### Saglayici SDK istisna tipleri (2026-08-07, Faz 44, K-296)
+
+- **🚨 Resmi saglayici SDK'lari `HttpRequestException` FIRLATMAZ** (2026-08-07, Faz 44, K-296): `DefaultRunErrorClassifier` ilk taslakta yalniz `HttpRequestException`/`SocketException`/`IOException` ariyordu; birim testleri gecti ama gercek bir OpenAI 404'unde SDK **`System.ClientModel.ClientResultException`** firlatti ve hata `Unknown`'a dustu. Desen simdi `ClientResultException`/`RequestFailedException`/`ApiException` ve mesajdaki `HTTP 4xx/5xx`'i de kapsar. Yeni saglayici eklerken gercek istisna adini `samples/AgentPrism.Api` ile olcun, tahmin etmeyin.
+
+### `ISessionStore.SaveAsync` yalniz basari yolunda (2026-08-07, Faz 45, K-300)
+
+- **🚨 `ISessionStore.SaveAsync` YALNIZ basari yolunda cagrilir; basarisiz calistirmanin oturumu HIC kaydedilmez** (2026-08-07, Faz 45, K-300): `AgentEndpoints.AgentRunStream` `sessions.SaveSessionAsync(...)`'i yalniz basari sonrasi cagirir, `catch` bloklari cagirmaz — oturum/`ChatHistoryProvider` uzerinden girdi metni okumaya calisan bir tasarim basarisiz calistirmalarda hep bosa cikar (olculdu). Girdi metni bunun yerine `RunEventWriter.StartAsync`'in yazdigi `RunStarted.Text`'ten okunur (`RunRecordingAgent.ExtractQuery`, `messages`'ten senkron cikarilir) — oturumsuz calistirmalar dahil HER zaman dolu tek kaynak budur.
+
+### Skill script iki sessiz cokme yolu (Faz 65 oncesi, Aile W)
+
+- **🚨 Skill script: korumasiz `StandardInput.Close()` + JSON'a cevrilmemis denetim `after`'i ikisi de sessizce coker** (Faz 65 oncesi, Aile W): `Close()`'un ic flush'i `Pipe is broken` firlatip TUM calistirmayi cokertebilir — kendi `catch(IOException)`'ina alinir. `jsonb` sutununa JSON'a CEVRILMEDEN yazilan red nedeni Postgres `22P02` verir ve HER iz kaybolur. Ikisi de gercek alt surec+Postgres gerektirir; sahte `IAuditLog` YAKALAMAZ. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## `docs/hafiza/openai-saglayici.md`'den — Faz 77 bütçe rahatlatması
+
+### `RawRepresentationFactory` uzerine yazma olcumu (Anthropic)
+
+- **🚨 Bir SDK'nin ham gosterimini kullanirken alanin uzerine yazilip yazilmadigini OLC.** `ChatOptions.RawRepresentationFactory` ile verilen nesneyi Anthropic adaptoru **oldugu gibi kullanir** ve `model`/`max_tokens` alanlarinin uzerine yazmaz. Olculdu: yer tutucu `Model = "PLACEHOLDER-MODEL"` ile gonderilen istek gercekten o adla gitti (`404 not_found_error: model: PLACEHOLDER-MODEL`). Bu yuzden `AnthropicProviderSettingsChatClient` model adini ve token sinirini kendisi yazar. Varsayim yerine bir yer tutucu degerle gercek cagri yapin.
+
+### `Azure.AI.OpenAI` surum kaymasi olcumu (K-211)
+
+- **🚨 Bir SDK baska bir SDK'nin tipini genisletiyorsa, surum kaymasini CALISMA ANINDA olcun.** `Azure.AI.OpenAI` 2.1.0, `OpenAI` **2.1.0**'a karsi derlendi; biz `OpenAI` **2.12.0** kullaniyoruz. NuGet cakismayi sessizce cozer, `dotnet build` **sifir uyari** verir — ama `Azure.AI.OpenAI.Chat.AzureChatExtensions`'in istek tarafi metotlarinin TAMAMI (`AddDataSource`, `GetDataSources`, `SetNewMaxCompletionTokensPropertyEnabled`) `MissingMethodException: 'OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData()' bulunamadi` atar. Derleme yesilligi burada hicbir sey kanitlamaz. Bu yuzden `AgentPrism.Azure` o yuzeye hic dokunmaz ve **hicbir `ProviderSettings` anahtari sunmaz** (K-211).
+
+### `UseOpenAICompatible()` yapilandirma bolumu farki (2026-08-06, Faz 33, K-249)
+
+- **🚨 `UseOpenAI()` sabit `AgentPrism:Providers:OpenAI` bölümüne bağlıdır, `UseOpenAICompatible()` DEĞİLDİR** (2026-08-06, Faz 33, K-249): ikincisi ayarları KODDA alır (`o.ApiKey = configuration["OpenRouter:ApiKey"]` gibi rastgele bir kaynaktan) — sabit bir bölüm yolu yoktur. `OpenAIModelProvider`'ın teşhis raporu (`IModelProviderConfigurationDiagnostics`) bu farkı `configurationSectionKey: string?` parametresiyle ayırt eder; `UseOpenAICompatible()` `null` geçer ve o sağlayıcı için hiçbir `ConfigurationDiagnostic` üretilmez. Sabit bir bölüm varsayıp hep aynı anahtarı raporlamak yanlış anahtar adı gösterirdi.
+
+### Baglanti hatasi istisna zinciri — olculen dort katman
+
+- **🚨 Gercek bir baglanti hatasi tek bir istisna DEGIL, IC ICE bir zincirdir; en disi asla tahmin ettigin tip DEGILDIR.** `faz-denetim`'in bagimsiz denetcisi olctu: gercek `OpenAI` 2.12.0 istemcisini dinlemeyen bir porta baglamak `System.AggregateException` ("Retry failed after 4 tries...") firlatiyor; onun `InnerException`'i `System.ClientModel.ClientResultException` ("Connection refused (...)" — HTTP durumu YOK, cunku hic yanit alinmadi); ONUN da `InnerException`'i `System.Net.Http.HttpRequestException`, ONUN da `System.Net.Sockets.SocketException`. Toplam 4 kez tekrarlanir (4 deneme). K-296'nin "resmi SDK'lar HttpRequestException firlatmaz, tahmin etme, olc" dersi bir katman DAHA derine uygulanmali: en disi de tahmin edilemez, ZINCIRIN TAMAMI gezilmelidir (`AggregateException.InnerExceptions` + `Exception.InnerException` ozyinelemeli).
+
+### `ClientResultException` mesaj bicimi ve siniflandirma sirasi
+
+- **Sinif adi eslemesi TEK BASINA yetmez — mesaj metni sinif kararini DEGISTIRIR.** `ClientResultException`'in mesaji gercek bir HTTP yaniti ALINDIYSA "HTTP {kod} (...)" bicimindedir (olculdu: bir 503 icin `"HTTP 503 (...)"`); HIC yanit alinamadiysa (baglanti reddi gibi) HTTP onekini TASIMAZ, yalnizca ham hata metnini tasir (`"Connection refused (...)"`). Bu, "mesajda HTTP durumu YOKSA sinif tipi kendisi sinyal olur" seklinde bir SONRAKI-ADIM kuralini guvenli kilar: 401/403 gibi kimlik dogrulama hatalari HER ZAMAN "HTTP 401/403" metniyle gelir (olculmustur), bu yuzden durum-metni denetimi ONCE calisirsa, tip-tabanli "baglanti hatasi" varsayimi SONRA calistiginda yanlislikla bir kimlik hatasini yeniden denemez.
+
+## `docs/hafiza/maf-api.md`'den — Faz 77 bütçe rahatlatması
+
+### MAF OpenAI storage arayuzlerinin erisilebilirligi (2026-08-02)
+
+- **🚨 MAF'ın OpenAI `storage` arayüzleri `internal`** (2026-08-02): `IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor` — dördü de `svcPublic=False`; `AddOpenAIResponses()` bunları `TryAddSingleton` ile kaydeder ama tüketici tipi **adlandıramaz**. Yeni bir MAF genişleme noktası kullanmadan önce tipin **public** olduğunu doğrula — `TryAdd` kaydı görmek yetmez.
+
+### MAF alt agent cagrisinda `options = null` (2026-08-02, Faz 12)
+
+- **🚨 MAF alt agent'i `options = null` ile cagirir** (2026-08-02, Faz 12): `BackgroundAgentsProvider`'in `background_agents_start_task` tool'u alt agent'i cagirirken hicbir `AgentRunOptions` gecmez. Agac bilgisi gelen ayarlardan okunamaz; sarmalayici ambient `scope`'tan okuyup `AgentPrismRunOptions` nesnesini kendisi kurar. Bir `AIContextProvider`'in actigi tool'dan tetiklenen her cagride ayni varsayim gecerlidir.
+
+### MAF Harness + tool cagrisi (K-053)
+
+- **🚨 `Microsoft.Agents.AI.Harness` + tool çağrısı = kırık akış** (K-053): Harness'lı bir agent tool çağırınca fonksiyon hiç çalışmaz, akış `done` olmadan kesilir ve sonraki tur OpenAI'dan `HTTP 400` alır. Düz `ChatClientAgent` temiz çalışır — kusur MAF'ın onay-bağlama zincirindedir, AgentPrism kodunda değil. Ölçüm: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `AIContextProvider` alt sinifi yazma reçetesi (Faz 22)
+
+- **Kendi `AIContextProvider` alt sinifini yazmak icin** (Faz 22, ornek `McpResourceContextProvider`): taban ctor'un uc filtre parametresinin de varsayilani vardir — `: base()` ile hicbir sey verme. Ezilecek metot `protected virtual ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)`; `= default` KOYULMAZSA `MA0061` hatasi verir. `AIContext { Instructions = "..." }` donerek metni baglama enjekte eder.
+
+### `ChatClientAgentRunOptions` sealed kisiti (Faz 47)
+
+- **`ChatClientAgentRunOptions` `sealed`dir; `AgentPrismRunOptions` ondan TÜREYEMEZ** (Faz 47): çalıştırma başına `ChatOptions` (model/tool bindirmesi) ile AgentPrism'in kendi çalıştırma ayarları BİRLİKTE kullanılamaz. Bu yüzden bindirme çalıştırma anında değil **tanım düzeyinde** yapılır: `AgentDefinition` kopyalanır, üzerine yazılır ve `Compile(definition, callable, toolTransform)` ile yeniden derlenir (sonuç `CompiledAgentCache`'e GİRMEZ).
+
+### `AgentFileStore` yalitim sinirlari (2026-08-18, F-105/K-434)
+
+- **🚨 `AgentFileStore` süreç genelinde TEK ve paylaşılandır; yalıtım sarmalayıcıdadır** (2026-08-18, F-105/K-434): kiracı öneki yetmez — aynı kiracının iki agent'ı da aynı alt ağacı paylaşır ve biri `EnableFileMemory` ile yazdığını diğeri `EnableTextSearch` ile bulur. Önek `{tenantId}/{agentName}`'dir. Agent adı **derleme anında** bilinir (`CompiledAgentCache` anahtarı zaten taşır), bu yüzden `AsyncLocal` gerekmez — beşinci bir ambient kapsam denemesinden kaçınıldı. Oturum boyutu bilerek yalıtılmaz: dosya belleği agent düzeyinde bir bellektir.
+
+### `CreateDeclaration` ile declaration-only tool (2026-08-18, F-108/K-436)
+
+- **`AIFunctionFactory.CreateDeclaration(name, description, jsonSchema, returnJsonSchema)` doğrudan `AIFunctionDeclaration` döndürür** (2026-08-18, F-108/K-436): sahte gövde kurup `.AsDeclarationOnly()` ile atmaya GEREK YOK. Ölçüldü: `is AIFunction` → `false`, `is AITool` → `true`; `FunctionInvokingChatClient` çağrıyı `FunctionCallContent` olarak döndürür, **çalıştırmaz** — declaration-only tool kurmanın en kısa yolu budur.
+
+### `FunctionResultContent` rolu (2026-08-18, F-108/K-437)
+
+- **🚨 İstemciden/çağırandan gelen bir `FunctionResultContent` `ChatRole.Tool` altında gönderilir, `ChatRole.User` DEĞİL** (2026-08-18, F-108/K-437): `ToolApprovalResponseContent` (onay yanıtı, FARKLI bir içerik tipi) bu depoda `ChatRole.User` altında gönderiliyor (`ToolApprovalResolver`, `ApprovalResumeJobHandler`) — bu ikisini karıştırıp `FunctionResultContent`'i de `ChatRole.User` ile göndermeye kalkma. Gerçek bir OpenAI çağrısıyla ölçüldü: `new ChatMessage(ChatRole.Tool, [new FunctionResultContent(callId, sonuç)])` turu tamamlıyor; `tool_call_id` eşleşmesi rol bazlı çalışıyor.
+
+## `docs/hafiza/sql-saglayicilari.md`'den — Faz 77 bütçe rahatlatması
+
+### NULL benzersizliginin saglayici bazli tersligi (K-184)
+
+- **🚨 NULL benzersizligi TERS calisir** (K-184): PostgreSQL'de NULL hicbir NULL'a esit degildir → `COALESCE`'li ifade indeksi gerekiyordu. SQL Server NULL'lari ESIT sayar → duz `UNIQUE` yeter. Ama ayni kural `jobs (schedule_id, scheduled_for)` kisitinda ters tarafa duser: SQL Server ikinci bir zamanlamasiz isi engellerdi, bu yuzden orada kisit `WHERE schedule_id IS NOT NULL` filtreli benzersiz indekstir. Sorgu tarafinda eslesme `ISNULL(c, N'') = ISNULL(@p, N'')` ile yazilir; `@p` NULL iken duz `=` UNKNOWN dondururdu.
+
+### `QualifyTable` ve korelasyonlu alt sorgular (2026-08-06, Faz 36)
+
+- **🚨 `EXISTS`/`NOT EXISTS` korelasyonunda BARE tablo adı YAZMA, `QualifyTable(name)` kullan (2026-08-06, Faz 36, K-259)**: `WHERE er.id = eval_case_results.eval_run_id` PostgreSQL/SQL Server'da calisir (bare ad aliassiz FROM'u da bulur) ama SQLite'ta gercek nesne `onek+ad` bitisigidir (K-193) ve bare ad HICBIR ZAMAN eslesmez — "no such column", yalniz CALISMA ANINDA. `RetentionTargetRegistry` (Faz 25) bunu 3 hedefte tasiyordu, Faz 36'nin SQLite testi yakaladi.
+
+### Kimlik bazli toplu silme ile cutoff yolunun ayriligi
+
+- **Kimlik bazlı toplu silme, `IRetentionStore`'un cutoff-tabanlı arayüzünü YENİDEN KULLANMAZ; paralel bir kayıt (`DataSubjectTargetRegistry`) yazılır (2026-08-18, Faz 64)**: yapı farklı (tek `@cutoff` yerine çok parametreli `IN`/`EXISTS`, tabloya göre değişen topoloji — `responses`'ın `tenant_id`'si bile yok, `sessions` üzerinden EXISTS ile doğrulanır). Ortak olan yalnız K-198'in "tek kayıt, üç dialekt şablonu" deseni.
+
+### `__migrations` sema yukseltmesi (Faz 67, K-475)
+
+- **🚨 `__migrations` defterinin KENDI semasini degistiren islem, K-388'in tek-toplu-komut birlestirmesiyle CELISIR** (Faz 67, K-475): SQL Server toplu isi BASTAN derler; `ALTER TABLE ... ADD set_name` sonrasi AYNI iste `InsertMigration`'in `set_name` referansli SABIT metni "Invalid column name" verir ve `EXEC` ile de SARILAMAZ. Cozum: dongu BASLAMADAN ONCE calisan `SqlDialect.UpgradeMigrationsTableAsync`. SQLite (K-278) bunu KODDA rebuild ile yapar. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `runs` ordinal sirasi ve kume sayisi (2026-08-19, Faz 68)
+
+- **🚨 `runs` gibi ordinal okunan bir tabloya sütun eklerken sıra ÜÇ dialektte de sona eklenir** (2026-08-19, Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur ve üç `runColumns` metni birebir aynı sırayı taşımak ZORUNDADIR. Faz 68 sonunda son ordinal **51**'dir (40-41 attribution · 42-45 token kırılımı · 46 cache maliyeti · 47-50 ağaç token · 51 ağaç cache maliyeti). Aynı kural `SelectRunStatistics`'in sonuç kümeleri için de geçerlidir: bugün **sekiz** küme var ve yenisi SONA eklenir.
+
+### UPSERT'te `COALESCE` korumasi (2026-08-19, Faz 68, K-486)
+
+- **🚨 UPSERT'te bir alanı düz üzerine yazmak, ONU DOĞRU BİLEN yazımı silebilir** (2026-08-19, Faz 68, K-486): kuyruğa alınmış `run` (Faz 46) `StartRunAsync`'i iki kez çağırır — yer tutucu satır HTTP isteği içinde (kullanıcı BİLİNİR), sonra arka plan işçisi (HTTP'ye bağlı bir bağlam `null` döner). `user_id = EXCLUDED.user_id` atfı SİLERDİ; `COALESCE(EXCLUDED.user_id, user_id)` korur. `InMemoryRunStore` aynı davranışı kodda tekrarlar. Bir alan "set → unset" yönünde MEŞRU olarak değişmiyorsa `COALESCE` her zaman doğrudur.
+
+### `CompleteAsync` erken-don korumasi (Faz 70, K-493) — ikinci tur
+
+- **🚨 `RunEventWriter.CompleteAsync`'in USTUNDEKI `if (IsDisabled) return;` koruması, depo DAHA ONCE basarisiz olduysa kapanis olayinin (RunCompleted/RunFailed) HIC URETILMEMESINE yol acar** (2026-08-19, Faz 70, K-493): `IRunEventSink` eklenince bu koruma **sink'i de** terminal olaydan mahrum birakiyordu — depo ve sink BAGIMSIZ olmali kuralinin ihlaliydi. Koruma kaldirildi; yalniz `_store.CompleteRunAsync` cagrisi `IsDisabled`'a bagli kaldi (kapanis olayi HER ZAMAN uretilir ve sink'lere dagitilir). Yeni bir "erken don" optimizasyonu eklerken ayni soruyu sor: bu optimizasyon YALNIZ depo icin mi, yoksa depo-DISI bir tuketiciyi de sessizce susturuyor mu?
+
+### `InputCost + OutputCost` sinif taramasi (Faz 68, K-483) — ikinci tur
+
+- **🚨 Elle yazilmis `InputCost + OutputCost` toplami, ucuncu bir maliyet terimi eklendigi an SESSIZCE eksik raporlar — bagimsiz denetim YEDI yerde birden buldu** (2026-08-19, Faz 68, K-483): cache ucreti `input_cost`'un ALT KUMESI degil UCUNCU terimidir. Etki teorik degil — **maliyet tavani olan bir kiraci tavani asabilirdi**. Kural: `RunCost.Total()`/`RunTreeCost.Total()` "bu run ne tuttu" sorusunun TEK cevabidir; `RunCost`'a alan eklerken `Total()`'i guncelle ve `grep -rn "InputCost ?? 0" src/` ile sinifi tara. Kapi: `Every_cost_total_includes_the_cache_charge`. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `AgentRunScope.SessionId` kapsami (Faz 28, K-217) — ikinci tur
+
+- **`AgentRunScope.SessionId` tool'un urettigi icerigin sahibidir** (2026-08-05, Faz 28, K-217): bir tool `AgentSession`'a erisemez; oturumsuz yazilan ek, saklama politikasi tarafindan **sahipsiz** sayilip silinir (`session_id IS NULL`). Kapsamdaki kimlik `runs.session_id`'den GENIS tanimlidir — alt calistirma MAF oturumu almaz ama icerik yine kok oturuma aittir. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `secret` filtresi cogul/tekil ayrimi (Faz 9, K-081) — ikinci tur
+
+- **🚨 `secret` filtresinde alt dize eşlemesi çoğul/tekil ayrımı gözetmezse yanlış alanları gizler** (Faz 9, K-081): gerçek bir `agent.create` denetim kaydında `model.maxOutputTokens` `"***"` ile gizlenmişti — "token" fragmanı "Tokens"ı da eşliyordu. Birim testleri yakalamadı (sentetik veri gerçek `AgentDefinition` şeklini taşımıyordu). Çözüm: `AuditSecretFilter.IsSecretKey`, "token" eşleştiğinde anahtar "tokens" (çoğul) içeriyorsa eşleşmeyi iptal eder.
+
+### `ITenantStore` kayit boslugu (Faz 35, K-257) — ikinci tur
+
+- **`ITenantStore` kaydi zorunlu degildir — kayitsiz bir kiracinin verisi `ITenantStore.ListAsync()` ile YAPILAN bir taramada GORUNMEZ** (2026-08-06, Faz 35): `IQuotaStore`'da "tum kiracilari listele" yoktur, yalniz `ListAsync(tenantId)` (tek kiracili). `QuotaUsageObserver` bu yuzden yalniz KAYITLI kiracilari tarar; `QuotaEnforcer` etkilenmez (o zaten `ITenantContext.TenantId`'den tek bir kiraciyi bilir). Çapraz kiraci bir rapor/gosterge yazarken bu bosluk unutulmamali — K-257.
+
+### `SaveAsync` yalniz basari yolunda (Faz 45, K-300) — ikinci tur
+
+- **🚨 `ISessionStore.SaveAsync` YALNIZ basari yolunda cagrilir; basarisiz calistirmanin oturumu HIC kaydedilmez** (2026-08-07, Faz 45, K-300): `catch` bloklari onu cagirmaz, bu yuzden oturum/`ChatHistoryProvider` uzerinden girdi metni okuyan tasarim basarisiz calistirmalarda hep bosa cikar. Girdi metni `RunEventWriter.StartAsync`'in yazdigi `RunStarted.Text`'ten okunur — HER zaman dolu tek kaynak budur. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### Sayacta `null` ile `0` ayrimi (Faz 68, K-482) — ikinci tur
+
+- **🚨 Bir saglayici sayacinin `null` gelmesi ile `0` gelmesi AYRI bilgidir** (2026-08-19, Faz 68, K-482): `0` "olculdu, yoktu" IDDIASIDIR ve susan her saglayici icin kendinden emin bir %0 cache isabet orani uretir. Uc toplama noktasi: `MergeUsage` (`AddOrNull`), `CompactionUsageAccumulator` (sayac basina "bildirildi mi" bayragi), `TreeUsage` (`COALESCE(...,0)` KASITLI uygulanmaz). Fiyat tarafinda da gecerli: sayac bildirilmediyse ucret `0m` degil `null` olur.
+
+### `FallbackRetryClassifier` ilk uygulamasi — ikinci tur
+
+- **Bir istisna siniflandiricisi yazarken `exception.InnerException`'i KONTROL ETMEDEN "tip adi eslesmedi -> retry etme" sonucuna varma.** `FallbackRetryClassifier`'in ilk uygulamasi tam olarak bu hatayi yapti: yalniz en disi istisnayi (`AggregateException`) kontrol ediyordu, mesaji da tipi de eslesmedigi icin "retryable degil" diyordu — canli bir kesintide ILK `FailureThreshold` istegin HEPSI kullaniciya cIPLAK hata olarak dusuyordu (devre kesici acilana kadar). Duzeltme: `Flatten(exception)` yardimcisi (kendisi + `InnerException` zinciri + her `AggregateException` kolu) UZERINDE gez, HER ADIMDA ayni kural setini uygula.
+
+### Saglayici ayar okuma yardimcisi (Faz 26) — ikinci tur
+
+- **Sağlayıcıya özgü ayarlar tek yardımcıdan okunur** (2026-08-05, Faz 26): `Abstractions/Agents/ModelProviderSettings.cs` doğrulama + tipli okuma yapar. Her sağlayıcı yalnız önek sabitini ve desteklenen anahtar listesini (`*ProviderNames.SupportedSettings`) yazar. Ayarlar `ChatOptions.RawRepresentationFactory` ile gönderilir; her paketin kendi `*ProviderSettingsChatClient` dekoratörü vardır — **`AgentPrism.Azure` hariç**, o hiç ayar sunmaz ve dekoratörü yoktur (K-211).
+
+### Azure yonetilen kimlik ve `scope` metni (K-210) — ikinci tur
+
+- **Yonetilen kimlik `Azure.Identity` GEREKTIRMEZ.** `AzureOpenAIClient(Uri, Azure.Core.TokenCredential, AzureOpenAIClientOptions)` kurucusu vardir ve `TokenCredential` `Azure.Core` derlemesindedir. AgentPrism yalniz `Azure.Core`'a baglanir; `Func<TokenCredential>` tuketiciden gelir (K-210). Token `scope`'u `AzureOpenAIAudience.AzurePublicCloud` = `https://cognitiveservices.azure.com/.default` — bu deger zaten tam `scope` metnidir, `/.default` eklenmez.
+
+### `AIContextProvider` alt sinifi (Faz 22) — ikinci tur
+
+- **Kendi `AIContextProvider` alt sinifini yazmak icin** (Faz 22, ornek `McpResourceContextProvider`): `: base()` ile hicbir filtre verme (ucunun de varsayilani var). Ezilecek metot `protected virtual ValueTask<AIContext> ProvideAIContextAsync(InvokingContext, CancellationToken = default)` — `= default` KOYULMAZSA `MA0061`. `AIContext { Instructions = "..." }` metni baglama enjekte eder. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `FunctionResultContent` rolu (F-108/K-437) — ikinci tur
+
+- **🚨 Istemciden gelen bir `FunctionResultContent` `ChatRole.Tool` altinda gonderilir, `ChatRole.User` DEGIL** (2026-08-18, F-108/K-437): `ToolApprovalResponseContent` (FARKLI bir icerik tipi) bu depoda `ChatRole.User` altinda gonderilir — ikisini karistirma. Gercek OpenAI cagrisiyla olculdu: `new ChatMessage(ChatRole.Tool, [new FunctionResultContent(callId, sonuc)])` turu tamamlar. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `AgentFileStore` yalitimi (F-105/K-434) — ikinci tur
+
+- **🚨 `AgentFileStore` surec genelinde TEK ve paylasilandir; yalitim SARMALAYICIDADIR** (2026-08-18, F-105/K-434): kiraci oneki YETMEZ — ayni kiracinin iki agent'i alt agaci paylasir. Onek `{tenantId}/{agentName}`'dir; agent adi **derleme aninda** bilinir, bu yuzden `AsyncLocal` gerekmez (besinci ambient kapsam denemesinden kacinildi). Oturum boyutu bilerek yalitilmaz. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `.JsonSchema` zincirdeki konumu (F-108/K-435) — ikinci tur
+
+- **🚨 `AIFunctionDeclaration`'ın kendisi `.JsonSchema` taşır, ama çıplak `AITool` tabanı TAŞIMAZ** (2026-08-18, F-108/K-435): bir tool sözleşmesini `AIFunction`'dan genişletirken hedef `AITool` değil `AIFunctionDeclaration` olmalı — `AIFunction : AIFunctionDeclaration : AITool` zincirinde şema yalnız orta katmanda tanımlı. `AITool`'a genişletmek `.JsonSchema` erişiminde `CS1061` ile patlar (ölçüldü).
+
+### `ChatClientAgentRunOptions` sealed (Faz 47) — ikinci tur
+
+- **`ChatClientAgentRunOptions` `sealed`dir; `AgentPrismRunOptions` ondan TUREYEMEZ** (Faz 47): calistirma basina `ChatOptions` bindirmesi ile AgentPrism'in kendi ayarlari BIRLIKTE kullanilamaz. Bindirme bu yuzden **tanim duzeyinde** yapilir: `AgentDefinition` kopyalanir, uzerine yazilir, yeniden derlenir (sonuc `CompiledAgentCache`'e GIRMEZ). Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### Responses API + ChatHistoryProvider (K-030) — ikinci tur
+
+- **🚨 Responses API + `ChatHistoryProvider` = çalışma anı hatası** (K-030): `AsIChatClient(ResponsesClient, model)` sunucu tarafı `storage`'i açık bırakır; `ChatClientAgent` `Only ConversationId or ChatHistoryProvider may be used, but not both` atar. **Yalnızca `UsePostgreSql()` açıkken** görülür. Çözüm `AsIChatClientWithStoredOutputDisabled(model)`.
+
+### NULL benzersizliginin saglayici bazli tersligi (K-184) — ikinci tur
+
+- **🚨 NULL benzersizligi saglayicilar arasinda TERS calisir** (K-184): PostgreSQL'de NULL hicbir NULL'a esit degildir (`COALESCE`'li ifade indeksi gerekir); SQL Server NULL'lari ESIT sayar (duz `UNIQUE` yeter). Ayni kural `jobs (schedule_id, scheduled_for)`'da ters tarafa duser — orada kisit `WHERE schedule_id IS NOT NULL` filtreli benzersiz indekstir. Sorgu tarafinda eslesme `ISNULL(c, N'') = ISNULL(@p, N'')` ile yazilir; `@p` NULL iken duz `=` UNKNOWN dondururdu. Vakalarin tamami: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### UPSERT `COALESCE` korumasi (Faz 68, K-486) — ikinci tur
+
+- **🚨 UPSERT'te bir alani duz uzerine yazmak, ONU DOGRU BILEN yazimi silebilir** (2026-08-19, Faz 68, K-486): kuyruga alinmis `run` `StartRunAsync`'i IKI kez cagirir — once HTTP isteginde (kullanici BILINIR), sonra arka plan iscisinde (`null`). `user_id = EXCLUDED.user_id` atfi SILERDI; `COALESCE(EXCLUDED.user_id, user_id)` korur (`InMemoryRunStore` ayni davranisi kodda tekrarlar). Bir alan "set → unset" yonunde MESRU degismiyorsa `COALESCE` her zaman dogrudur. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `__migrations` sema yukseltmesi (Faz 67, K-475) — ikinci tur
+
+- **🚨 `__migrations` defterinin KENDI semasini degistiren islem, K-388'in tek-toplu-komut birlestirmesiyle CELISIR** (Faz 67, K-475): SQL Server toplu isi BASTAN derler; `ALTER TABLE ... ADD set_name` sonrasi AYNI iste `set_name` referansli SABIT metin "Invalid column name" verir ve `EXEC` ile SARILAMAZ. Cozum: dongu BASLAMADAN ONCE calisan `SqlDialect.UpgradeMigrationsTableAsync` (SQLite bunu K-278 ile kodda rebuild eder). Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `runs` ordinal sirasi (Faz 68) — ikinci tur
+
+- **🚨 `runs` gibi ordinal okunan bir tabloya sutun eklerken sira UC dialektte de SONA eklenir** (2026-08-19, Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur ve uc `runColumns` metni birebir ayni sirayi tasimak ZORUNDADIR. Faz 68 sonunda son ordinal **51**'dir. Ayni kural `SelectRunStatistics`'in sonuc kumeleri icin de gecerlidir (bugun **sekiz** kume; yenisi SONA eklenir). Kirilim: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### Kiraci yuklemi ve saklama hedefleri (Faz 41, K-279) — ikinci tur
+
+- **🚨 Kiraci basina tanimlanan bir politika, kiraci suzgeci OLMAYAN bir veri duzlemiyle calisamaz** (Faz 41, K-279): `RetentionTargetDefinition.TenantPredicate`'i unutma — yanlis yuklem sessizce calisir ve BUTUN kiracilarin satirlarini siler. Kendi `tenant_id`'si olmayan hedef sahibine bakan `EXISTS` ile suzulur (korelasyon FULL NITELENDIRILMIS adla — K-259). Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `TenantCoverageTests` kapsam kapisi (Faz 41, K-281) — ikinci tur
+
+- **Kapsam kapisi: `TenantCoverageTests`** (2026-08-07, Faz 41): `Stores/` altindaki her public metot ya `TenantCoverageTests.Covered` tablosunda ya `[TenantAgnostic("gerekce")]` ile isaretli olmalidir. Yeni bir metot eklediginde build yesil kalir ama bu test duser. Muafiyet gerekcesi 40 karakterden kisa olamaz (ayri test). Yansima yalniz test projesindedir; oznitelik `Sql.Shared/Internal/` icinde ve `internal`'dir (K-281).
+
+### `SqlQueriesBase` bos sorgu tuzagi — ikinci tur
+
+- **🚨 `SqlQueriesBase`'e yeni sorgu eklerken HER alt sinifta karsiligini yaz.** Ozellikler `{ get; protected set; } = string.Empty;`'dir; yazilmayan sorgu bos metin kalir ve hata yalnizca CALISMA ANINDA gorunur — derleme de test de kirilmaz. Sorgu sayisi saglayici sayisiyla carpiliyorsa desen degistirilir (K-198: tek kayit + `SqlDialect` sablon yontemi). Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### `ArrayContains` diyalekt eslemesi (Faz 64) — ikinci tur
+
+- **`SqlDialect.ArrayContains(column, paramName)` eklendi (2026-08-18, Faz 64)**: "sütun bir dizi parametrenin içinde mi" için — `= ANY(events)` deseninin ayna yönü. PostgreSQL `col = ANY(@dizi)`; SQL Server/SQLite dizi JSON metnidir (K-182), `EXISTS (SELECT 1 FROM OPENJSON/json_each(@dizi) WHERE value = col)` ile eşlenir. `DataSubjectTargetRegistry` (Faz 64) dokuz hedefi bununla filtreler.
