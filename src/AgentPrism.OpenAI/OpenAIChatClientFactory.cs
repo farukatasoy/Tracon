@@ -12,10 +12,10 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The factory returns a <strong>RAW</strong> client. The shared pipeline
+/// The factory returns a <strong>RAW</strong> client. The shared pipeline
 /// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content guard,
 /// the circuit breaker and attachment resolution) is built inside
-/// <c>ModelProviderRegistry.CreateChatClient</c> — it moved there in phase 48. Reason:
+/// <c>ModelProviderRegistry.CreateChatClient</c> — it.
 /// when the loop was built here, no decorator wrapped by the recorder could observe
 /// the tool call turns.
 /// </para>

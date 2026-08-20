@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Shell access and background agents are <em>deliberately absent</em> from these
 /// settings. Those two capabilities open a code execution surface on the server and
-/// need a separate security review; phase 6 covers them.
+/// need a separate security review.
 /// </remarks>
 public sealed record HarnessSettings
 {

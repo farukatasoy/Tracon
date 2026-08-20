@@ -29,6 +29,6 @@ public sealed record WorkflowNodeReference
     /// </summary>
     public required string Name { get; init; }
 
-    /// <summary>Gets which registry <see cref="Name"/> is looked up in.</summary>
+    /// <summary>Gets which registry <c>Name</c> is looked up in.</summary>
     public required WorkflowNodeKind Kind { get; init; }
 }

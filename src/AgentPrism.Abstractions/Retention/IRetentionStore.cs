@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// the implementation; the caller knows only the target name and the cutoff date.
 /// </para>
 /// <para>
-/// 🚨 <strong>Tenant scoping is mandatory (Phase 41).</strong> A retention
+/// <strong>Tenant scoping is mandatory.</strong> A retention
 /// policy is defined per tenant; if <c>tenantId</c> is not given, the
 /// operation touches <em>every</em> tenant's rows. Only the installation-wide
 /// (<c>'*'</c>) policy should pass <see langword="null"/>.
@@ -83,24 +83,31 @@ public interface IRetentionStore
 
     /// <summary>
     /// Counting from newest, returns the ordering column's value at row
-    /// <paramref name="maxRows"/> as the cutoff date.
+    /// <paramref name="maxRows"/>
+    /// as the cutoff date.
     /// </summary>
-    /// <param name="target">The target name.</param>
-    /// <param name="tenantId">
-    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
-    /// (the <c>'*'</c> policy).
+    /// <param name="target">
+    /// The target name.
     /// </param>
-    /// <param name="maxRows">The maximum number of rows to keep (at least 1).</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="tenantId">
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide (the
+    /// <c>'*'</c> policy).
+    /// </param>
+    /// <param name="maxRows">
+    /// The maximum number of rows to keep (at least 1).
+    /// </param>
+    /// <param name="cancellationToken">
+    /// The cancellation token.
+    /// </param>
     /// <returns>
     /// The cutoff date; <see langword="null"/> if the target holds FEWER than
-    /// <paramref name="maxRows"/> rows (the volume limit is not exceeded).
+    /// <paramref name="maxRows"/>
+    /// rows (the volume limit is not exceeded).
     /// </returns>
     /// <remarks>
-    /// The returned value can be passed directly into this interface's other
-    /// three methods (the <c>@cutoff</c> parameter): volume-based trimming
-    /// uses the SAME batch mechanism as age-based deletion. See
-    /// <c>docs/KARARLAR.md</c>, decision K-200, for the rationale.
+    /// The returned value can be passed directly into this interface's other three
+    /// methods (the <c>@cutoff</c> parameter): volume-based trimming uses the SAME
+    /// batch mechanism as age-based deletion.
     /// </remarks>
     ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
@@ -114,12 +121,12 @@ public interface IRetentionStore
 /// </summary>
 /// <remarks>
 /// <para>
-/// There is NO default implementation (decision K-007 — no cloud SDK
+/// There is NO default implementation (no cloud SDK
 /// dependency is taken). The consumer writes their own sink, based on the
 /// file-system example under <c>samples/</c>, and registers it as <c>IArchiveSink</c>.
 /// </para>
 /// <para>
-/// 🚨 If none is registered, a policy with <c>archive = true</c> deletes NO
+/// If none is registered, a policy with <c>archive = true</c> deletes NO
 /// row — data that cannot be archived is never dropped. This prevents silent data loss.
 /// </para>
 /// </remarks>

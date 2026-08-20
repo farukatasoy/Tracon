@@ -10,8 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// The assignment is <strong>deterministic</strong>: the same key always
 /// produces the same bucket. A random assignment would change the
-/// instructions mid-conversation. Rationale:
-/// docs/19-SURUM-KARSILASTIRMA-VE-AB.md, section 19.3.
+/// instructions mid-conversation.
 /// </remarks>
 public sealed class ExperimentAssignmentResolver
 {
@@ -97,14 +96,13 @@ public sealed class ExperimentAssignmentResolver
     /// Variant order used for the bucket range computation.
     /// </summary>
     /// <remarks>
-    /// 🚨 Phase 56: when <see cref="Experiment.Canary"/> is defined, the canary
+    /// When <see cref="Experiment.Canary"/> is defined, the canary
     /// bucket is ALWAYS processed FIRST and thus takes the
     /// <c>[0, canaryWeight)</c> range - this range is INDEPENDENT of the
     /// physical order in <see cref="Experiment.Variants"/>. Since ramping up
     /// only raises the canary weight, this range only GROWS; a key once
-    /// assigned to the canary never SHIFTS to control
-    /// (docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md, section 56.4).
-    /// When there is NO canary policy (i.e. the Phase 19 A/B experiments
+    /// assigned to the canary never SHIFTS to control.
+    /// When there is NO canary policy (i.e. plain A/B experiments
     /// referenced above), the order is unchanged.
     /// </remarks>
     private static IReadOnlyList<ExperimentVariant> OrderForAssignment(Experiment experiment)

@@ -96,7 +96,7 @@ public sealed class SkillScriptSupport
     /// <param name="script">The script definition.</param>
     /// <returns>The delegate MAF will call.</returns>
     /// <remarks>
-    /// The parameter's default value (K-400) is deliberate: MAF's generator
+    /// The parameter's default value is deliberate: MAF's generator
     /// marks this field "required" in the argument schema (even though it is
     /// nullable) and rejects the model sending JSON `null` as "value missing"
     /// (<c>Microsoft.Agents.AI.AgentSkillsProvider</c>, <c>Throw.ArgumentException</c>)

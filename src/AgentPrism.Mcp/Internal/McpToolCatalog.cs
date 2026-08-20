@@ -95,7 +95,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// <summary>
     /// Returns a tenant's live connection to a specific server (Mode A).
     /// </summary>
-    /// <returns><see langword="true"/> if the connection is currently up; <see langword="false"/> if the server is unreachable or disabled.</returns>
+    /// <returns>
+    /// <see langword="true"/> if the connection is currently up; <see langword="false"/> if the server is unreachable or disabled.
+    /// </returns>
     public bool TryGetConnection(string tenantId, string serverName, [NotNullWhen(true)] out McpConnection? connection)
         => _connections.TryGetValue($"{tenantId}{serverName}", out connection);
 
@@ -109,7 +111,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// server's tools drop out of the list, the others keep working, and a
     /// warning is logged. A remote server crashing must not stop AgentPrism —
     /// but the caller can learn about it through
-    /// <see cref="McpRefreshOutcome.HadUnreachableServers"/> (HATA-006, MT-CORE-006).
+    /// <see cref="McpRefreshOutcome.HadUnreachableServers"/>.
     /// </remarks>
     public async ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
     {

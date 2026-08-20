@@ -21,11 +21,10 @@ public static class AgentPrismMcpServerBuilderExtensions
     /// Registration happens HERE, not in <c>MapAgentPrismMcpServer</c>: the MCP
     /// SDK's <c>AddMcpServer()</c> call operates on <see cref="IServiceCollection"/>
     /// and must happen BEFORE the application is <c>Build()</c>-ed. The
-    /// `Map...` extensions only connect already-built services to HTTP
-    /// (K-251 pattern).
+    /// `Map...` extensions only connect already-built services to HTTP.
     /// </para>
     /// <para>
-    /// By default <strong>no agent is exposed</strong> (K1). Exposing one
+    /// By default <strong>no agent is exposed</strong>. Exposing one
     /// requires an explicit choice via
     /// <see cref="AgentPrismMcpServerOptions.ExposedAgents"/> or
     /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/>.

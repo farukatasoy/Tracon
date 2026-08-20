@@ -47,7 +47,7 @@ application:
   what was applied, startup **fails loudly** rather than continuing against a schema
   that is not what the code expects.
 
-> 🚨 That checksum covers the file's whole text, comments included. Editing an
+> That checksum covers the file's whole text, comments included. Editing an
 > applied migration is not supported — add a new one. If you must take a change to an
 > already-applied file, drop and recreate the schema in that environment first.
 

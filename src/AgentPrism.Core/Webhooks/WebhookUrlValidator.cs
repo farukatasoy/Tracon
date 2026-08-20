@@ -18,7 +18,7 @@ public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, 
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>This phase's biggest security risk.</strong> The webhook
+/// <strong>This phase's biggest security risk.</strong> The webhook
 /// address is given by the <em>user</em>, and the server sends a request to
 /// that address. If left uncontrolled, it becomes a means of reaching
 /// internal-network services — including cloud metadata endpoints
@@ -27,9 +27,13 @@ public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, 
 /// </para>
 /// <para>Defense layers:</para>
 /// <list type="number">
-///   <item><description>Scheme: <c>https</c> only; <c>http</c> only for loopback and with explicit permission.</description></item>
+/// <item>
+/// <description>Scheme: <c>https</c> only; <c>http</c> only for loopback and with explicit permission.</description>
+/// </item>
 ///   <item><description>Address: DNS is resolved, private network ranges are rejected.</description></item>
-///   <item><description>Rebinding: connects directly to the resolved IP, with the <c>Host</c> header preserved.</description></item>
+/// <item>
+/// <description>Rebinding: connects directly to the resolved IP, with the <c>Host</c> header preserved.</description>
+/// </item>
 ///   <item><description>Redirects: not followed — a redirect is an escape route into a private network.</description></item>
 /// </list>
 /// </remarks>
@@ -156,14 +160,14 @@ public static class WebhookUrlValidator
     /// <returns><see langword="true"/> if a connection to the address can be made.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Loopback is accepted while <see cref="AgentPrismWebhookOptions.AllowInsecureHttp"/>
-    /// is enabled. Reason: that setting already means "this is a local
+    /// Loopback is accepted while <see cref="AgentPrismWebhookOptions.AllowInsecureHttp"/>
+    /// is enabled. That setting already means "this is a local
     /// development setup" and applies only to loopback targets. Otherwise,
     /// testing a local listener would require
     /// <see cref="AgentPrismWebhookOptions.AllowPrivateNetworkTargets"/>,
     /// which opens the <strong>entire</strong> private network, including
     /// <c>10/8</c> and <c>169.254.169.254</c> — this would trade production
-    /// security for development convenience (K-167).
+    /// security for development convenience.
     /// </para>
     /// <para>
     /// No private range other than loopback is opened by this setting.

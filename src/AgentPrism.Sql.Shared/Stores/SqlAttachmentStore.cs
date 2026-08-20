@@ -8,7 +8,6 @@ namespace AgentPrism;
 /// <c>attachments.content</c> stays <c>NULL</c>, and <c>external_uri</c> is filled
 /// in. When it is not registered, the content is carried directly in the
 /// <c>bytea</c> column.
-/// Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.3.
 /// </remarks>
 internal sealed class SqlAttachmentStore : IAttachmentStore
 {

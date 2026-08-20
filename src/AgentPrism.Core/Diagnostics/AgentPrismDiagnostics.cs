@@ -60,10 +60,10 @@ public static class AgentPrismDiagnostics
     /// <summary>Gets the observable gauge that shows the configured quota-scope limit.</summary>
     public const string QuotaLimitGaugeName = "agentprism.quota.limit";
 
-    /// <summary>Gets the counter name for the judge's own cost, introduced in phase 49.</summary>
+    /// <summary>Gets the counter name for the judge's own cost.</summary>
     public const string JudgeCostCounterName = "agentprism.judge.cost";
 
-    /// <summary>Gets the histogram name for judge scores from 0 to 100, introduced in phase 49.</summary>
+    /// <summary>Gets the histogram name for judge scores from 0 to 100.</summary>
     public const string JudgeScoreHistogramName = "agentprism.judge.score";
 
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
@@ -135,7 +135,7 @@ public static class AgentPrismDiagnostics
         /// <summary>Gets the applied quota metric tag name: <c>Runs</c>, <c>Tokens</c>, or <c>Cost</c>.</summary>
         public const string QuotaMetric = "agentprism.quota.metric";
 
-        /// <summary>Gets the judge name tag name from <see cref="IRunJudge.Name"/>, introduced in phase 49.</summary>
+        /// <summary>Gets the judge name tag name from <see cref="IRunJudge.Name"/>.</summary>
         public const string JudgeName = "agentprism.judge.name";
     }
 }

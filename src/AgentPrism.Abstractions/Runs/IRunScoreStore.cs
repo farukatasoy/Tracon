@@ -7,12 +7,15 @@ namespace AgentPrism;
 /// Not added as a member to <see cref="IRunStore"/>: a score follows a
 /// different lifecycle (written rarely, whereas <see cref="IRunStore"/> is on
 /// the hot path written on every run), and a separate interface fits better
-/// with the rule that every extension point must be replaceable (K4).
+/// with the rule that every extension point must be replaceable.
 /// </remarks>
 public interface IRunScoreStore
 {
     /// <summary>Adds or updates a score.</summary>
-    /// <param name="score">The score. If <see cref="RunScore.Id"/> is empty (<see cref="Guid.Empty"/>), a new identifier is generated.</param>
+    /// <param name="score">
+    /// The score. If <see cref="RunScore.Id"/> is empty (<see cref="Guid.Empty"/>), a
+    /// new identifier is generated.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The score written.</returns>
     /// <remarks>

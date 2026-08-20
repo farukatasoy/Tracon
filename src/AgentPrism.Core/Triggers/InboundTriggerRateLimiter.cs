@@ -6,18 +6,18 @@ namespace AgentPrism;
 /// <summary>Applies a fixed-window rate limit per inbound trigger.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 The limit lives in process memory (K-158): AgentPrism does not ship a
+/// The limit lives in process memory: AgentPrism does not ship a
 /// distributed rate limiter. In a multi-instance deployment the limit applies
 /// PER INSTANCE, not per trigger across the whole deployment — the same
-/// documented scope as <c>AgentPrismRateLimitOptions</c> (phase 21).
+/// documented scope as <c>AgentPrismRateLimitOptions</c>.
 /// </para>
 /// <para>
-/// 🚨 Hand-written rather than built on <c>System.Threading.RateLimiting</c>
+/// Hand-written rather than built on <c>System.Threading.RateLimiting</c>
 /// (the type <c>AgentPrismRateLimitFilter</c> uses): that namespace ships in
 /// the ASP.NET Core shared framework's reference pack, which
 /// <c>AgentPrism.Core</c> — a plain class library with no dependency on
 /// ASP.NET Core — cannot see. A dispatcher that validates a signature and
-/// queues a job has no reason to depend on a web framework (K1).
+/// queues a job has no reason to depend on a web framework.
 /// </para>
 /// </remarks>
 public sealed class InboundTriggerRateLimiter

@@ -10,7 +10,7 @@ public sealed record ExperimentResultsQuery
     public string? TenantId { get; init; }
 }
 
-/// <summary>Summarizes run results for an experiment variant (K-041: calculated in the store).</summary>
+/// <summary>Summarizes run results for an experiment variant (calculated in the store).</summary>
 public sealed record ExperimentVariantResult
 {
     /// <summary>Gets the variant name.</summary>
@@ -43,7 +43,7 @@ public sealed record ExperimentVariantResult
     /// <summary>Gets the total cost for this variant. Returns <see langword="null"/> when pricing is undefined.</summary>
     public decimal? TotalCost { get; init; }
 
-    /// <summary>Gets the currency. It is populated when <see cref="TotalCost"/> is populated.</summary>
+    /// <summary>Gets the currency. It is populated when <c>TotalCost</c> is populated.</summary>
     public string? Currency { get; init; }
 
     /// <summary>
@@ -53,8 +53,8 @@ public sealed record ExperimentVariantResult
     public double? AverageDurationMs { get; init; }
 
     /// <summary>
-    /// Gets the error rate among settled runs, from 0 through 1. This follows the
-    /// same rationale as <see cref="RunStatistics.ErrorRate"/>.
+    /// Gets the error rate among settled runs, from 0 through 1. It uses the same
+    /// calculation as <c>RunStatistics.ErrorRate</c>.
     /// </summary>
     public double? ErrorRate
     {
@@ -67,7 +67,7 @@ public sealed record ExperimentVariantResult
 
     /// <summary>
     /// Gets the average numeric score from 0 through 100 for runs assigned to this
-    /// variant. It uses the <c>RunScoreKind.Numeric</c> scores from Phase 49.
+    /// variant. It uses the <c>RunScoreKind.Numeric</c> scores written by online evaluation.
     /// Returns <see langword="null"/> when no run is scored. This is not
     /// <c>0</c>; it means unknown, consistent with the existing <c>RunCost</c>
     /// contract.

@@ -23,7 +23,7 @@ public sealed record WorkflowDefinition
     /// <summary>Gets the workflow's unique name. Serves as the key in the catalog and in API routes.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Gets the display name shown in the UI. <see cref="Name"/> is used if left empty.</summary>
+    /// <summary>Gets the display name shown in the UI. <c>Name</c> is used if left empty.</summary>
     public string? DisplayName { get; init; }
 
     /// <summary>Gets the short description of what the workflow does.</summary>
@@ -53,14 +53,14 @@ public sealed record WorkflowDefinition
     /// <para>
     /// Empty for every definition that does not use a function node - which
     /// keeps <see cref="AgentNames"/> driving the graph exactly as before this
-    /// field existed (phase 71). When non-empty, <see cref="Kind"/> must be
+    /// field existed. When non-empty, <see cref="Kind"/> must be
     /// <see cref="WorkflowKind.Sequential"/> and <see cref="AgentNames"/> must
     /// be empty; the validator in <c>AgentPrism.Core</c> enforces both
     /// rules. Microsoft Agent Framework's ready-made builders for the other
     /// four patterns (<c>Concurrent</c>, <c>Handoff</c>, <c>GroupChat</c>,
     /// <c>Magentic</c>) accept only agents, so a function node cannot enter
     /// those graphs without hand-writing their orchestration logic - out of
-    /// scope for phase 71.
+    /// scope.
     /// </para>
     /// <para>
     /// Whether each function name is actually registered is checked at
@@ -102,10 +102,10 @@ public sealed record WorkflowDefinition
     /// approved or sent back with revision text.
     /// </para>
     /// <para>
-    /// 🚨 <strong>Cost.</strong> The manager agent runs again on every turn;
+    /// <strong>Cost.</strong> The manager agent runs again on every turn;
     /// a revision request makes it rebuild the plan from scratch. The default
     /// of <see langword="false"/> is deliberate: a run never stalls half-way
-    /// unless a definition opts in explicitly (K1 - zero surprises).
+    /// unless a definition opts in explicitly (the no-surprises rule - zero surprises).
     /// </para>
     /// </remarks>
     public bool RequirePlanApproval { get; init; }

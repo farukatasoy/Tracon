@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// <summary>A store that keeps singleton execution leases in process memory.</summary>
 /// <remarks>
 /// <para>
-/// In a single-process deployment, it always acquires the lease (K-018) because
+/// In a single-process deployment, it always acquires the lease because
 /// there is no competitor. A multi-process deployment needs a SQL provider,
 /// <c>SqlSingletonLeaseStore</c>, for real coordination.
 /// </para>

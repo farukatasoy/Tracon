@@ -4,11 +4,11 @@ namespace AgentPrism;
 /// Converts between an agent name in the catalog and an MCP tool name.
 /// </summary>
 /// <remarks>
-/// The direction mirrors Phase 22's <c>McpToolNaming</c> (which produces
+/// The direction mirrors the <c>McpToolNaming</c> (which produces
 /// <c>{server}_{tool}</c> for remote server tools): here it produces
 /// <c>{prefix}_{agent}</c>. The logic is deliberately re-implemented; no
 /// dependency on the <c>AgentPrism.Mcp</c> client package is added from the
-/// server side (K-057's dependency direction).
+/// server side, which keeps the dependency direction intact.
 /// </remarks>
 internal static class ExternalAgentToolNaming
 {

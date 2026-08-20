@@ -23,7 +23,7 @@ public sealed record AgentDefinition
     /// <summary>Gets the unique name of the agent, used as the key in the catalog and in API routes.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Gets the name shown in the user interface. <see cref="Name"/> is used when it is empty.</summary>
+    /// <summary>Gets the name shown in the user interface. <c>Name</c> is used when it is empty.</summary>
     public string? DisplayName { get; init; }
 
     /// <summary>Gets a short description of what the agent does.</summary>
@@ -35,7 +35,7 @@ public sealed record AgentDefinition
     /// <summary>
     /// Gets culture-keyed instructions. The key is a BCP-47 tag (<c>"en"</c>, <c>"tr"</c>);
     /// a region subtag (<c>"tr-TR"</c>) falls back to its parent (<c>"tr"</c>). A run's
-    /// requested culture that matches neither falls back to <see cref="Instructions"/> -
+    /// requested culture that matches neither falls back to <c>Instructions</c> -
     /// resolution never fails.
     /// </summary>
     public IReadOnlyDictionary<string, string>? InstructionsByCulture { get; init; }
@@ -82,8 +82,8 @@ public sealed record AgentDefinition
     /// </summary>
     /// <remarks>
     /// Reading resources requires the <c>AgentPrism.Mcp</c> package to be registered
-    /// (<c>UseMcp()</c>); otherwise building the agent fails. A size limit applies
-    /// (docs/22-MCP-DERINLESMESI.md, section 22.2): 64 KB per resource, 256 KB in total.
+    /// (<c>UseMcp()</c>); otherwise building the agent fails. A size limit applies:
+    /// 64 KB per resource, 256 KB in total.
     /// </remarks>
     public IReadOnlyList<string> McpResourceUris { get; init; } = [];
 

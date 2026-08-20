@@ -11,15 +11,14 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Unlike the other 20 stores, this one does NOT go through
+/// Unlike the other 20 stores, this one does NOT go through
 /// <c>AgentPrism.Sql.Shared</c>'s provider-independent layer: it exists
 /// <strong>only</strong> for PostgreSQL, so a <see cref="SqlDialect"/> abstraction
-/// is unnecessary; it uses Npgsql directly. Rationale:
-/// <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.3.
+/// is unnecessary; it uses Npgsql directly.
 /// </para>
 /// <para>
 /// The embedding is sent as <strong>text</strong> (<c>@embedding::vector</c> cast).
-/// No vector package dependency was added (second application of K-007/K-211);
+/// No vector package dependency was added;
 /// AOT compatibility is therefore unaffected.
 /// </para>
 /// </remarks>

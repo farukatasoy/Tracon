@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <para>
 /// The validation is written by hand; <c>ValidateDataAnnotations()</c> relies on
 /// reflection and produces <c>IL2026</c>. <c>AgentPrism.OpenAI</c> must stay AOT
-/// compatible. Reason: <c>docs/KARARLAR.md</c>, decision K-006.
+/// compatible.
 /// </para>
 /// <para>
 /// <strong>The failure messages never contain the API key.</strong> Validation messages

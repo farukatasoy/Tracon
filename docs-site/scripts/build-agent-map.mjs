@@ -120,8 +120,17 @@ function parseCapabilities() {
 
   for (const section of sections) {
     // The paragraph that follows a capability table states that section's rule;
-    // its first sentence is the part an agent must not violate.
+    // its first sentence is the part an agent must not violate. A section with a
+    // table but no such paragraph would ship a rule-less block, so the generator
+    // refuses rather than producing a map that is quietly incomplete.
     section.rule = section.rows.length > 0 ? firstSentence(section.prose.join(' ')) : null;
+
+    if (section.rows.length > 0 && !section.rule) {
+      throw new Error(
+        `capabilities.md: section '${section.title}' has a capability table but no rule paragraph. ` +
+          'Add one sentence stating the rule an agent must not violate.',
+      );
+    }
   }
 
   if (sections.every((section) => section.rows.length === 0)) {
@@ -329,7 +338,13 @@ function firstSentence(text) {
 }
 
 function shorten(text, limit) {
-  return text.length <= limit ? text : `${text.slice(0, limit - 1).trimEnd()}…`;
+  if (text.length <= limit) return text;
+  // Cut at the last word boundary that fits: 'a non-networked model provide…'
+  // reads as a defect, not an abbreviation.
+  const clipped = text.slice(0, limit - 1);
+  const boundary = clipped.lastIndexOf(' ');
+  const kept = (boundary > limit / 2 ? clipped.slice(0, boundary) : clipped).trimEnd();
+  return `${kept.replace(/[,;:]$/, '')}…`;
 }
 
 const isCheck = process.argv.includes('--check');

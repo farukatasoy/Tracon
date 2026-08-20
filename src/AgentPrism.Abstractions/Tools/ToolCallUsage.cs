@@ -5,16 +5,15 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Phase 20's cost model assumes tokens and writes to the <c>runs</c> table. A
-/// tool may spend no tokens but still incur a charge: text-to-speech is
-/// billed by <em>character</em>, speech-to-text by <em>second</em>. These
-/// measurements are <strong>not summed</strong> with token cost — two
-/// different units cannot be added. They are shown as a separate line item in reports.
+/// The cost model assumes tokens and writes to the <c>runs</c> table. A tool may spend
+/// no tokens but still incur a charge: text-to-speech is billed by <em>character</em>,
+/// speech-to-text by <em>second</em>. These measurements are <strong>not
+/// summed</strong> with token cost — two different units cannot be added. They are
+/// shown as a separate line item in reports.
 /// </para>
 /// <para>
 /// The measurement is reported by the tool itself:
-/// <c>AgentPrismToolUsage.Report(...)</c>. See
-/// <c>docs/28-SES-TOOLLARI.md</c>, section 28.5, for the rationale.
+/// <c>AgentPrismToolUsage.Report(...)</c>.
 /// </para>
 /// </remarks>
 public sealed record ToolCallUsage
@@ -27,7 +26,7 @@ public sealed record ToolCallUsage
 
     /// <summary>
     /// The computed amount. Stays <see langword="null"/> if the
-    /// configuration has no price for this tool — <strong>not</strong> zero (K-032).
+    /// configuration has no price for this tool — <strong>not</strong> zero.
     /// </summary>
     public decimal? Cost { get; init; }
 

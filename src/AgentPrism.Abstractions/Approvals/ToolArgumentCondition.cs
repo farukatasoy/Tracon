@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// A comparison only, never an expression. There is no <c>OR</c> — a rule's
 /// conditions are combined with <c>AND</c>; two rules are written instead of one
 /// with an <c>OR</c>. There is no array index in <see cref="Path"/>. This is a
-/// deliberate limit (K2, decision K-012's sibling): the language must never grow
+/// deliberate limit ('s sibling): the language must never grow
 /// into a rule engine.
 /// </para>
 /// </remarks>

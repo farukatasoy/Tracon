@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// A/B experiment management, lifecycle, and result viewing endpoints (Phase 19.3-19.4).
+/// A/B experiment management, lifecycle, and result viewing endpoints.
 /// </summary>
 /// <remarks>
-/// 🚨 All dependencies outside of <see cref="IExperimentStore"/> are marked
+/// All dependencies outside of <see cref="IExperimentStore"/> are marked
 /// <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale is the
 /// same as in <see cref="EvalEndpoints"/>. Results do not come from this store;
 /// they come through <see cref="IRunStore.GetExperimentResultsAsync"/>
-/// (K-041: the computation happens in the store).
+/// (the computation happens in the store).
 /// </remarks>
 internal static class ExperimentEndpoints
 {

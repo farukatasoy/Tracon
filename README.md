@@ -1,10 +1,28 @@
 # AgentPrism
 
-**Microsoft Agent Framework için üretim seviyesi agent kontrol düzlemi.**
+**A production-grade agent control plane for the Microsoft Agent Framework.**
 
-AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
+AgentPrism is a .NET package family built on
+[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
+You write the AI harness; you operate it at `/agentprism`.
 
-> **Durum:** Faz 73 tamamlandı — AgentPrism **işletilebilirdir**, kaynak kodu **İngilizce**dir, [ürün dokümantasyonu yayınlanmıştır](https://farukatasoy.github.io/AgentPrism) ve **public API kapısı** (`EnablePublicApiTracking`) yayın kararından bağımsız olarak açıktır — kayıtsız bir yüzey değişikliği derlemeyi kırar. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Bir tool'un gövdesi tarayıcıda çalışabilir (`AddClientTool`) ve gömülebilir bir sohbet bileşeni üçüncü taraf sayfalara CORS ile açılabilir. Denetim izi hash zinciriyle değiştirilemez hâle getirilir (`GET /api/audit/verify`) ve bir veri konusunun içeriği kimliğe göre dışa aktarılıp silinebilir (`IDataSubjectResolver`). Bir kiracı kendi model sağlayıcı anahtarını getirebilir (BYOK) ve agent'larının hangi sağlayıcılara gidebileceği bir egress politikasıyla kısıtlanabilir — izinsiz bir sağlayıcı derleme anında reddedilir. Dış bir sistem (Slack gibi) imzalı bir HTTP isteğiyle, hiçbir API anahtarı taşımadan, kuyruklu bir agent veya workflow çalıştırması başlatabilir (`POST /api/triggers/{tenantId}/{name}`). Faz 8–73 bitti; dalga tablosu aşağıdadır. Paketi entegre eden **kod agent'ı** derleme anı tanılarından ve opt-in `AGENTS.md` haritasından öğrenir (Faz 73).
+> **Status:** preview. AgentPrism is **operable**, its
+> [product documentation is published](https://farukatasoy.github.io/AgentPrism), and the
+> **public API gate** (`EnablePublicApiTracking`) is on independently of any release
+> decision — an unrecorded surface change breaks the build. Start with
+> `dotnet new agentprism-api` and test without calling a model using
+> `AgentPrism.Testing`. Runs are recorded with spans, metrics, and cost; tenants are
+> isolated; agents can be exposed over MCP and A2A; `pgvector` powers semantic search;
+> API keys narrow access; A/B experiments roll back automatically under a canary rule.
+> A tool body can run in the browser (`AddClientTool`), and an embeddable chat widget
+> can be served to third-party pages over CORS. The audit trail is made tamper-evident
+> with a hash chain (`GET /api/audit/verify`), and a data subject's content can be
+> exported and erased by identity (`IDataSubjectResolver`). A tenant can bring its own
+> model provider key (BYOK), and an egress policy limits which providers its agents may
+> reach — an unauthorised provider is rejected at compile time. An external system such
+> as Slack can start a queued agent or workflow run with one signed HTTP request and no
+> API key (`POST /api/triggers/{tenantId}/{name}`). The **coding agent** integrating the
+> package learns from build-time diagnostics and an opt-in `AGENTS.md` capability map.
 
 ```csharp
 builder.AddAgentPrism()
@@ -16,167 +34,172 @@ builder.AddAgentPrism()
 app.MapAgentPrism("/agentprism");
 ```
 
-İki satır: çalışan bir agent, kalıcı oturumlar, `http://localhost:5080/agentprism`
-adresinde bir kontrol düzlemi.
+Two lines: a working agent, durable sessions, and a control plane at
+`http://localhost:5080/agentprism`.
 
-### Arayüz
+### The console
 
 Dashboard, Agents, Skills, Playground, Sessions, Runs, Workflows, Jobs, Evals,
-Experiments, Approvals, Tools, Models, MCP, Audit, Diagnostics, Settings —
-**27 ekran, 33 route**; liste ve düzenleyiciler dâhil.
+Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics, Settings —
+**28 screens across 36 routes**, lists and editors included.
 
-React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
-sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
-`node_modules` klasörü gerekmez. JavaScript bütçesi **165,8 KB gzip** (kapı: 250 KB).
+Written in React 19 and TypeScript, built with Vite, and embedded in the assembly
+**Brotli-compressed**. No JavaScript dependency appears in the consuming project and no
+`node_modules` folder is needed. The JavaScript budget is **180.2 KB gzip** (gate: 250 KB).
 
-Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
-çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
+The console runs under any prefix (`/agentprism`, `/panel`, …) and learns the prefix at
+run time. Light and dark themes; the default follows the operating system.
 
-**HTTP yüzeyinden bir kesit:**
+**A slice of the HTTP surface:**
 
 ```csharp
-// Tek giris noktasi; erisim varsayilan olarak loopback ile sinirli.
+// One entry point; access is restricted to loopback by default.
 app.MapAgentPrism("/agentprism", options => options.RequireAuthorization("AgentPrismAdmin"));
 ```
 
 ```
-GET    /agentprism/api/meta                    surum · kimlik yontemi · aktif depolar  [kimliksiz]
-GET    /agentprism/api/agents                  katalog (kod + veritabani)
-POST   /agentprism/api/agents                  yeni tanim        · PUT · DELETE · /versions · /rollback
-POST   /agentprism/api/agents/{name}/run       SSE akisli deneme calistirmasi
-GET    /agentprism/api/sessions[/{id}]         oturumlar ve sohbet gecmisi · DELETE
-GET    /agentprism/api/runs[/{id}]             calistirma kaydi
-GET    /agentprism/api/runs/{id}/events        SSE; canli veya replay, Last-Event-ID ile devam
+GET    /agentprism/api/meta                    version · auth method · active stores  [anonymous]
+GET    /agentprism/api/agents                  catalog (code + database)
+POST   /agentprism/api/agents                  new definition    · PUT · DELETE · /versions · /rollback
+POST   /agentprism/api/agents/{name}/run       streaming trial run over SSE
+GET    /agentprism/api/sessions[/{id}]         sessions and conversation history · DELETE
+GET    /agentprism/api/runs[/{id}]             run record
+GET    /agentprism/api/runs/{id}/events        SSE; live or replay, resumable with Last-Event-ID
 GET    /agentprism/api/tools · /api/models · /api/stats · /api/diagnostics
-POST   /agentprism/api/attachments             ek yukle · GET/DELETE
+POST   /agentprism/api/attachments             upload an attachment · GET/DELETE
 
-POST   /agentprism/v1/responses                OpenAI Responses API uyumlu
-POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API uyumlu
-POST   /agentprism/v1/conversations            konusma ac · GET/DELETE · /items
+POST   /agentprism/v1/responses                OpenAI Responses API compatible
+POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API compatible
+POST   /agentprism/v1/conversations            open a conversation · GET/DELETE · /items
 ```
 
-Stok OpenAI SDK'si ile:
+With the stock OpenAI SDK:
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(base_url="https://app.example.com/agentprism/v1", api_key="...")
 
-# 'model' alani agent adini tasir - ek alan gerekmez.
-r = client.responses.create(model="support", input="ORD-3 siparisim nerede")
-print(r.output_text)          # ORD-3 siparisiniz kargoya verilmis. Tahmini teslimat: 2 gun.
+# The 'model' field carries the agent name - no extra field is needed.
+r = client.responses.create(model="support", input="Where is my order ORD-3")
+print(r.output_text)          # Order ORD-3 has shipped. Estimated delivery: 2 days.
 
-# Konusma zincirleme: previous_response_id VEYA conversation — ikisi de calisir.
-r2 = client.responses.create(model="support", input="Peki ya ORD-9?", previous_response_id=r.id)
+# Chaining a conversation: previous_response_id OR conversation - both work.
+r2 = client.responses.create(model="support", input="And ORD-9?", previous_response_id=r.id)
 ```
 
-Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
-oynatılabilir.
+The tool loop completes on the server, and every run is recorded event by event and can
+be replayed over SSE.
 
-**Kodda agent ve tool tanımı:**
+**Defining an agent and its tools in code:**
 
 ```csharp
 builder.AddAgentPrism()
-       .AddToolsFrom(typeof(OrderTools))      // [AgentPrismTool] ile işaretli metotlar
+       .AddToolsFrom(typeof(OrderTools))      // methods marked with [AgentPrismTool]
        .UseOpenAI(apiKey)
        .AddAgent(new AgentDefinition
        {
            Name = "support",
-           Instructions = "Sen bir destek asistanısın.",
+           Instructions = "You are a support assistant.",
            Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status", "cancel_order"],
        })
-       .UsePostgreSql(connectionString)       // isteğe bağlı
-       .UseMcp()                              // uzak MCP tool'ları, isteğe bağlı
-       .UseUI();                              // gömülü arayüz
+       .UsePostgreSql(connectionString)       // optional
+       .UseMcp()                              // remote MCP tools, optional
+       .UseUI();                              // embedded console
 
-// Kalıcı oturumla çalıştır
+// Run with a durable session
 var agent = await catalog.ResolveAsync("support");
-var session = await sessions.GetOrCreateSessionAsync(agent!, "musteri-42");
-var response = await agent!.RunAsync("Siparişim nerede?", session);
+var session = await sessions.GetOrCreateSessionAsync(agent!, "customer-42");
+var response = await agent!.RunAsync("Where is my order?", session);
 await sessions.SaveSessionAsync(agent, session);
 ```
 
 ```csharp
 internal static class OrderTools
 {
-    [AgentPrismTool("get_order_status", "Bir siparişin kargo durumunu döndürür.")]
+    [AgentPrismTool("get_order_status", "Returns the shipping status of an order.")]
     public static string GetOrderStatus(string orderId) => ...;
 
-    public static string Helper() => "...";   // işaretsiz — tool olmaz
+    public static string Helper() => "...";   // unmarked - not a tool
 }
 ```
 
-`UseOpenAI()` **iki** sağlayıcı kaydeder: `openai` (Chat Completions) ve
-`openai-responses`; seçim `ModelBinding.Provider` ile yapılır.
-`UseOpenAICompatible(ad, ...)` aynı paketle **herhangi bir** OpenAI uyumlu uca
-bağlanır — OpenRouter, Groq, vLLM, yerel Ollama/LM Studio (yerel sunucular
-`ApiKey` istemez). Her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir
-ve ardışık hata veren bir sağlayıcıyı devre kesici geçici olarak durdurur.
+`UseOpenAI()` registers **two** providers: `openai` (Chat Completions) and
+`openai-responses`; `ModelBinding.Provider` picks one. `UseOpenAICompatible(name, ...)`
+connects the same package to **any** OpenAI-compatible endpoint — OpenRouter, Groq,
+vLLM, a local Ollama or LM Studio (local servers need no `ApiKey`). Each provider is
+checked for free with `GET {endpoint}/models`, and a circuit breaker stops a provider
+that fails repeatedly.
 
-`UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz.
-Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur;
-uygulamanızın `public` şemasına dokunulmaz.
+Without `UsePostgreSql()`, storage falls back to memory and nothing breaks. The schema
+is created by embedded SQL migrations in a separate `agentprism` schema; your
+application's `public` schema is left alone.
 
-Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
+A running example: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
 
 ---
 
-## Neden?
+## Why?
 
-Microsoft Agent Framework 1.16.0 ile GA oldu. Güçlü bir agent runtime sunar. Ancak resmî geliştirici arayüzü **DevUI** hâlâ preview ve dokümanı açıkça şunu söyler:
+Microsoft Agent Framework reached GA with 1.16.0 and offers a capable agent runtime.
+Its official developer interface, **DevUI**, is still preview, and its own
+documentation says so plainly:
 
-> "DevUI is a **sample app** to help you visualize and debug your agents and workflows during development. It is **not** intended for production use."
+> "DevUI is a **sample app** to help you visualize and debug your agents and workflows
+> during development. It is **not** intended for production use."
 
-AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yerden devam eder.
+AgentPrism fills that gap. It does not replace DevUI — it continues where DevUI stops.
 
 | | DevUI | AgentPrism |
 |---|-------|------------|
-| Amaç | Geliştirme sırasında görselleştirme | Üretimde çalışan kontrol düzlemi |
-| Kalıcılık | Bellek içi | PostgreSQL (ayrı `agentprism` şeması) |
-| Erişim | Loopback + sabit token | Loopback + token + authorization policy |
-| Agent tanımı | Salt okunur | Kod + veritabanı, versiyonlu, geri alınabilir |
-| Çok kiracılılık | Yok | Her sorguda `tenant_id` |
-| Denetim izi | Yok | `audit_log` |
-| .NET dokümanı | "Coming soon" | Var |
+| Purpose | Visualising during development | A control plane that runs in production |
+| Persistence | In memory | PostgreSQL (separate `agentprism` schema) |
+| Access | Loopback + static token | Loopback + token + authorization policy |
+| Agent definitions | Read-only | Code + database, versioned, rollback-able |
+| Multi-tenancy | None | `tenant_id` on every query |
+| Audit trail | None | `audit_log` |
+| .NET documentation | "Coming soon" | Published |
 
 ---
 
-## Paketler
+## Packages
 
-| Paket | Ne yapar |
-|-------|----------|
-| `AgentPrism` | Meta paket — hepsini tek referansla getirir |
-| `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
-| `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
-| `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri gerçek `mssql/server` ile doğrulandı (K-386) |
-| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosya, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**. Tek yazıcılıdır; çok örnekli dağıtımda kullanılmaz |
-| `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
-| `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil** |
-| `AgentPrism.Google` | ✅ Google Gemini sağlayıcı adaptörü — resmî SDK, güvenlik eşikleri, düşünme bütçesi. **Meta pakete dâhil değil**; geçişli `Google.Apis.Auth` zinciri gelir |
-| `AgentPrism.Azure` | ✅ Azure OpenAI sağlayıcı adaptörü — deployment tabanlı model çözümü, API anahtarı veya Entra kimliği. **Meta pakete dâhil değil**; `Azure.Identity` **yoktur**, kimlik fabrikası tüketiciden gelir |
-| `AgentPrism.Voice` | ✅ Ses tool'ları: `speak`, `transcribe`, `list_voices`. Ölçüm `tool_invocations`'a yazılır. **Sıfır NuGet bağımlılığı**; meta pakete dâhil değil. Gerçek zamanlı konuşma `Core`'dadır: `UseVoiceConversation()` |
-| `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, onay varsayılan |
-| `AgentPrism.Workflows` | ✅ Workflow yürütme — beş desen, kontrol noktası, sürdürme, human-in-the-loop |
-| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si, OpenAI uyumlu uçlar, çok kiracılılık |
-| `AgentPrism.UI` | ✅ Gömülü React arayüzü — 27 ekran / 33 route, sıfır JavaScript bağımlılığı |
-| `AgentPrism.Templates` | ✅ `dotnet new agentprism-api` şablonu — meta pakete dâhil değil |
-| `AgentPrism.Testing` | ✅ `FakeModelProvider`/`AgentPrismTestHost`/`RunAssertions`; çerçeveden bağımsız, meta pakete dâhil değil |
+| Package | What it does |
+|---------|--------------|
+| `AgentPrism` | Meta package — brings everything in with one reference |
+| `AgentPrism.Abstractions` | Contracts; enough on its own if you write your own implementations |
+| `AgentPrism.Core` | Runtime, catalog, definition compiler, tool registry, session management. **No database required.** |
+| `AgentPrism.PostgreSql` | Persistence — embedded SQL migrations, separate `agentprism` schema |
+| `AgentPrism.SqlServer` | SQL Server 2019+ and Azure SQL persistence — same schema, its own migration set. **Not in the meta package.** Contract tests run against a real `mssql/server` |
+| `AgentPrism.Sqlite` | SQLite persistence — one file, table prefix, its own migration set. **Not in the meta package.** Single-writer; not for a multi-instance deployment |
+| `AgentPrism.OpenAI` | OpenAI provider adapter — Chat Completions and Responses, tool calling, OpenTelemetry |
+| `AgentPrism.Anthropic` | Anthropic (Claude) provider adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
+| `AgentPrism.Google` | Google Gemini provider adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
+| `AgentPrism.Azure` | Azure OpenAI provider adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency, the credential factory comes from you |
+| `AgentPrism.Voice` | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation lives in `Core`: `UseVoiceConversation()` |
+| `AgentPrism.Mcp` | Tool discovery from remote MCP servers — HTTP only, approval by default |
+| `AgentPrism.Workflows` | Workflow execution — five patterns, checkpoints, resume, human-in-the-loop |
+| `AgentPrism.AspNetCore` | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
+| `AgentPrism.UI` | Embedded React console — 28 screens across 36 routes, zero JavaScript dependencies |
+| `AgentPrism.Templates` | The `dotnet new agentprism-api` template — not in the meta package |
+| `AgentPrism.Testing` | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
 
-**Hedef framework:** `net8.0`/`net9.0`/`net10.0` · **Lisans:** MIT
+**Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
 
 ---
 
-## Kurulum
+## Installation
 
 ```bash
 dotnet add package AgentPrism --prerelease
 ```
 
-### Model kataloğu
+### The model catalog
 
-AgentPrism **yerleşik model listesi taşımaz**. OpenAI model adları ve fiyatları bir NuGet paketinin yayın sıklığından hızlı değişir; koda gömülü bir liste kısa sürede yanıltıcı olur. Katalog yapılandırmadan gelir:
+AgentPrism **ships no built-in model list**. Model names and prices change faster than
+a NuGet package is released, and a list baked into code turns misleading quickly. The
+catalog comes from configuration:
 
 ```json
 {
@@ -190,67 +213,61 @@ AgentPrism **yerleşik model listesi taşımaz**. OpenAI model adları ve fiyatl
 }
 ```
 
-Katalog bir **doğrulama listesi değildir**: burada olmayan bir model adı da kullanılabilir. Liste yalnızca arayüzün model seçim ekranını ve maliyet hesabını besler.
+The catalog is **not an allowlist**: a model name that is absent can still be used. The
+list only feeds the console's model picker and the cost calculation.
 
-### Sırları ayarlayın
+### Set your secrets
 
-Bağlantı dizesi ve API anahtarı repoya **hiç girmez**. `dotnet user-secrets` kullanılır:
+A connection string and an API key **never** enter the repository. Use
+`dotnet user-secrets`:
 
 ```bash
-cd <projeniz>
+cd <your project>
 dotnet user-secrets init
 dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
 
-# veya SQL Server, veya SQLite (üçü AYNI ANDA verilmez; verilirse son kayıt kazanır ve uyarı loglanır)
+# or SQL Server, or SQLite (never all three at once; the last registration wins and a warning is logged)
 dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=...,1433;Database=AgentPrism;User Id=...;Password=...;TrustServerCertificate=true"
 dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString"    "Data Source=agentprism.db"
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"     "sk-..."
 ```
 
-`appsettings.json` yalnız şemayı gösterir, değer taşımaz.
+`appsettings.json` shows the shape only; it carries no value.
 
 ---
 
-## Tasarım Kuralları
+## Design rules
 
-Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
+Four rules that do not change. Detail: [docs/MIMARI.md](docs/MIMARI.md) (Turkish).
 
-**1. Sıfır sürpriz.** `AddAgentPrism()` tek başına çalışır. PostgreSQL yapılandırılmazsa depolama bellek içine düşer. Veritabanı zorunlu değildir.
+**1. No surprises.** `AddAgentPrism()` works alone. Without PostgreSQL configured,
+storage falls back to memory. A database is never required.
 
-**2. Tool'lar yalnız kodda tanımlanır.** Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadece kodda kayıtlı tool'lardan seçim yaptırır. Bu bir güvenlik sınırıdır.
+**2. Tools are defined in code only.** The console can create an agent; it can never
+write tool **code**. It only lets you pick from the tools registered in code. This is a
+security boundary.
 
-**3. MAF nesneleri sızdırılır, sarmalanmaz.** `AIAgent`, `AgentSession`, `ChatMessage` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir soyutlama katmanı değil.
+**3. MAF objects are passed through, not wrapped.** `AIAgent`, `AgentSession`, and
+`ChatMessage` are used directly. AgentPrism is a control plane, not an abstraction
+layer.
 
-**4. Her genişleme noktası değiştirilebilir.** Tüm servisler `TryAdd*` ile kaydedilir. Kendi implementasyonunuzu önce kaydederseniz sizinki kazanır.
+**4. Every extension point is replaceable.** Every service is registered with
+`TryAdd*`. Register your own implementation first and yours wins.
 
 ---
 
-## Yol Haritası
+## Roadmap
 
-**Faz 0–74 bitti** (7 hariç — yayın zamanı kullanıcı kararı, K-068).
+Development runs in numbered phases. Every one is complete except the release phase,
+which stays open because the release date is a deliberate decision, and two
+documentation phases that are planned. The full list is generated from each phase
+document into [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md); unselected candidates are in
+[docs/ADAYLAR.md](docs/ADAYLAR.md).
 
-| Dalga | Fazlar | Konu | Durum |
-|-------|--------|------|-------|
-| 1 | 0–20 | Çekirdek, kalıcılık, HTTP, arayüz, workflows, eval, maliyet | ✅ Bitti (7 beklemede) |
-| 2 | 21–30 | Kota, MCP, SQL Server, SQLite, saklama, sağlayıcılar, ses | ✅ Bitti |
-| 3 | 31–52 | Puanlama, iptal, teşhis, şablon, guardrail, RAG, üreteç | ✅ Bitti |
-| 4 | 53–56 | API anahtarı, öksüz çalıştırma, onay kutusu, kanarya | ✅ Bitti |
-| 5 | 57–60 | Kod dili, doküman düzeni, ürün dokümantasyonu, public API kapısı | ✅ Bitti |
-| 6 | 61 | İstemci tarafı tool'lar ve gömülebilir sohbet | ✅ Bitti |
-| 7 | 62–66 | Model yedek zinciri, onay politikası, denetim zinciri ve veri hakları, BYOK ve egress, gelen tetikleyiciler | ✅ Bitti |
-| 8 | 67–72 | `pgvector` opt-in, çalıştırma kimliği ve token kırılımı, tool yetkilendirmesi ve timeout, olay hedefi, workflow kod düğümü, çok dilli talimat ve zaman damgalı sentez | ✅ Bitti |
-| 9 | 73 | Tüketici agent desteği: derleme anı tanıları, üretilen yetenek haritası, kapsam kapısı | ✅ Bitti |
-| 10 | 74 | Yerel referans yüzeyi: üretilen yerel referans dosyası, paketlenen OpenAPI belgesi, örnek kapısı | ✅ Bitti |
+### Skill script execution and the isolation boundary
 
-**Tam liste: [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)** — her fazı tek tek
-listeler ve fazların kendi dokümanlarından **üretilir**, elle yazılmaz. Dalgaların
-sıralama gerekçesi (kapandı): [`docs/arsiv/`](docs/arsiv/).
-Seçilmemiş adaylar: [`docs/ADAYLAR.md`](docs/ADAYLAR.md).
-
-### ⚠️ Skill script çalıştırma ve izolasyon sınırı
-
-Faz 11, skill script'lerinin **sunucuda** çalıştırılmasına izin verir. Özellik
-varsayılan olarak **kapalıdır** ve yalnız kodda açılır:
+Skill scripts can run **on the server**. The feature is **off by default** and can only
+be turned on in code:
 
 ```csharp
 builder.Services.AddAgentPrism()
@@ -261,87 +278,89 @@ builder.Services.AddAgentPrism()
     });
 ```
 
-**AgentPrism işletim sistemi seviyesinde yalıtım sağlamaz.** Script, AgentPrism
-sürecinin kullanıcı hakları ve ağ erişimiyle çalışır. AgentPrism yorumlayıcı ve
-ortam değişkeni beyaz listesi, zaman aşımı + süreç ağacı öldürme, çıktı kırpma,
-eşzamanlılık sınırı ve kiracı bazlı izin kaydı + denetim izi sağlar; **dosya
-sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme sağlamaz.** Bunlar
-barındırma ortamında kurulmalıdır: **container** içinde, **ayrıcalıksız bir
-kullanıcı** ile ve **kısıtlı ağ** ile çalıştırın.
-`PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden özelliğin açılmasını
-engeller; eksikse uygulama **açılışta** hata verir. Ayrıntı:
-[`docs/11-SKILL-SCRIPT-CALISTIRMA.md`](docs/11-SKILL-SCRIPT-CALISTIRMA.md).
+**AgentPrism provides no operating-system isolation.** A script runs with the user
+rights and network access of the AgentPrism process. AgentPrism gives you an
+interpreter and environment-variable allowlist, a timeout with process-tree kill,
+output truncation, a concurrency limit, and per-tenant grants with an audit trail; it
+gives you **no filesystem jail, no network restriction, no memory or CPU quota, and no
+privilege dropping**. Those belong to the hosting environment: run inside a
+**container**, as an **unprivileged user**, on a **restricted network**. The
+`PlatformIsolationAcknowledged` flag stops the feature being enabled without seeing
+this boundary; without it the application fails **at startup**.
 
-### İçerik denetimi (guardrails)
+### Content guards
 
-Varsayılan **kapalıdır**: `AddAgentPrism()` hiç guard kaydetmez ve model boru
-hattına halka eklenmez. Açmak açık bir tercihtir — yerleşik desen guard'ı için
-`.AddPatternContentGuard(o => o.MaskedPii = PiiPatterns.CreditCard)`, kendi
-kural kümeniz için `IContentGuard` + `.AddContentGuard<T>()`. Birden çok guard
-sırayla çalışır ve **en sert karar kazanır**; engellenen içerik hiçbir yere
-yazılmaz. Ayrıntı: [`docs/48-GUARDRAILS.md`](docs/48-GUARDRAILS.md).
+**Off by default**: `AddAgentPrism()` registers no guard and adds no link to the model
+pipeline. Turning it on is an explicit choice — `.AddPatternContentGuard(o =>
+o.MaskedPii = PiiPatterns.CreditCard)` for the built-in pattern guard, or
+`IContentGuard` with `.AddContentGuard<T>()` for your own rules. Several guards run in
+order and **the strictest decision wins**; blocked content is written nowhere.
 
-### Sürüm politikası
+### Version policy
 
-`Microsoft.Agents.AI.Hosting` (preview) ve `Microsoft.Agents.AI.Hosting.OpenAI` (alpha) hâlâ ön sürümdür. AgentPrism, bu iki paket GA olana kadar `1.0.0-preview.N` olarak yayınlanır.
+`Microsoft.Agents.AI.Hosting` (preview) and `Microsoft.Agents.AI.Hosting.OpenAI`
+(alpha) are still pre-release. AgentPrism publishes as `1.0.0-preview.N` until both
+reach GA.
 
-Ön sürüm bağımlılığı yalnızca `AgentPrism.AspNetCore` içindedir. Diğer paketler yalnız GA paketlere bağlıdır.
+The pre-release dependency lives only in `AgentPrism.AspNetCore`. Every other package
+depends on GA packages only.
 
 ---
 
-## Geliştirme
+## Development
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 3695 test, 16 proje
+dotnet build  AgentPrism.slnx -c Release              # 0 warnings expected
+dotnet test   AgentPrism.slnx -c Release --no-build   # 4408 tests, 16 projects
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```
 
-`TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır.
+`TreatWarningsAsErrors` is on — there are no warnings, only errors.
 
-Gereksinimler: .NET SDK 10.0.100+, **Node.js 20.19+** (arayüz derlemesi), **Docker**
-(entegrasyon testleri Testcontainers ile gerçek veritabanı kaldırır). Arayüz E2E
-testleri Chromium'u ilk çalıştırmada kendisi indirir.
+Requirements: .NET SDK 10.0.100+, **Node.js 20.19+** (the console build), and **Docker**
+(integration tests bring up a real database with Testcontainers). The console's
+end-to-end tests download Chromium themselves on first run.
 
-`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → Vitest → Vite →
-Brotli sıkıştırma → bundle bütçesi kapısı. Adımlar artımsaldır; kaynak
-değişmediyse atlanır. Hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
+`dotnet build` builds the console too: `npm ci` → type check → Vitest → Vite → Brotli
+compression → bundle budget gate. The steps are incremental and skipped when nothing
+changed. For a fast inner loop, use `-p:AgentPrismFrontendEnabled=false`.
 
 ```bash
 cd samples/AgentPrism.Api && dotnet run     # http://localhost:5080/agentprism
 
-# Yalnız arayüz: Vite geliştirme sunucusu daha hızlıdır (5173 → 5080'e vekil)
+# Console only: the Vite dev server is faster (5173, proxying to 5080)
 cd src/AgentPrism.UI/frontend && npm run dev
 ```
 
 ---
 
-## Dokümantasyon
+## Documentation
 
-**Kullanıcıya dönük ürün dokümantasyonu ayrı bir sitededir ve İngilizce'dir:**
-<https://farukatasoy.github.io/AgentPrism> — kurulum, ilk agent, kavramlar, arayüz
-turu, HTTP API (143 operasyon) ve 588 public tipin API referansı. Kaynağı
-[`docs-site/`](docs-site/); `main`'e her push'ta yayınlanır.
+**The user-facing product documentation is a separate site:**
+<https://farukatasoy.github.io/AgentPrism> — installation, your first agent, concepts, a
+console tour, the HTTP API (160 operations), and an API reference for 671 public types.
+Its source is [`docs-site/`](docs-site/), published on every push to `main`.
 
-Aşağıdaki tablo **geliştirme dokümantasyonudur** (Türkçe, repo içi). İkisi
-karıştırılmaz: `docs/` geliştirme günlüğüdür, `docs-site/` ürün dokümantasyonudur.
+The table below is the **development documentation**, which is written in Turkish and
+lives in this repository. The two are never mixed: `docs/` is the development journal,
+`docs-site/` is the product documentation.
 
-| Kaynak | İçerik |
-|--------|--------|
-| [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
-| [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız ve bilerek kullanmadığımız MAF genişleme noktaları |
-| [docs/KARARLAR.md](docs/KARARLAR.md) · [indeks](docs/KARARLAR-INDEKS.md) · [reddedilen](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | Karar defteri — kalıcı tercihler ve reddedilen yaklaşımlar, gerekçeleriyle |
-| [docs/](docs/) `NN-*.md` · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Faz dokümanları (kapsam, tasarım, DoD) · faz durumu (üretilen) · seçilmemiş adaylar |
-| [docs/manuel-test/](docs/manuel-test/) | Elle koşulan kabul testi spesifikasyonu; koşumu `manuel-test-kosumu` skill'i yürütür |
-| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Alan bazlı tuzaklar · kapanmış kayıt (faz anlatısı, koşum turları) |
-| [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent talimatları, hafıza yönlendirmesi, iş akışı skill'leri (`CLAUDE.md` → `AGENTS.md` symlink) |
-| [docs-site/](docs-site/) · [docfx/](docfx/) | **Ürün sitesi** (İngilizce, Astro Starlight) ve API referansı üreteci. Ayrı yayın hattı; `dotnet build`'e bağlanmaz. Node 22.12+ gerekir |
-| [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Karar indeksini üretir, doküman bütçelerini denetler |
+| Source | Contents |
+|--------|----------|
+| [docs/MIMARI.md](docs/MIMARI.md) | Architecture — layers, data model, execution path, security model |
+| [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | The MAF extension points we use, and the ones we deliberately do not |
+| [docs/KARARLAR.md](docs/KARARLAR.md) · [index](docs/KARARLAR-INDEKS.md) · [rejected](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | The decision ledger — lasting choices and rejected approaches, with their reasons |
+| [docs/](docs/) `NN-*.md` · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Phase documents (scope, design, definition of done) · phase status (generated) · unselected candidates |
+| [docs/manuel-test/](docs/manuel-test/) | The manual acceptance-test specification; the `manuel-test-kosumu` skill drives a run |
+| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Area-specific traps · closed record (phase narrative, run rounds) |
+| [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent instructions, memory routing, workflow skills (`CLAUDE.md` is a symlink to `AGENTS.md`) |
+| [docs-site/](docs-site/) · [docfx/](docfx/) | **The product site** (English, Astro Starlight) and the API reference generator. A separate publishing pipeline; not attached to `dotnet build`. Needs Node 22.12+ |
+| [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Generates the decision index and checks the documentation budgets |
 
 ---
 
-## Lisans
+## License
 
-MIT — ticari katman planı ve "bugün MIT olan hiçbir şey ücretli olmayacak"
-taahhüdü için [COMMERCIAL.md](COMMERCIAL.md).
+MIT — see [COMMERCIAL.md](COMMERCIAL.md) for the commercial-tier plan and the promise
+that nothing which is MIT today will become paid.

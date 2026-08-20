@@ -4,11 +4,11 @@ namespace AgentPrism;
 
 /// <summary>
 /// Executes <see cref="JobKind.OnlineEval"/> jobs: scores a sampled production
-/// run with every registered <see cref="IRunJudge"/> - Phase 49.
+/// run with every registered <see cref="IRunJudge"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 A judge's failure does NOT affect the run being scored. The run has
+/// A judge's failure does NOT affect the run being scored. The run has
 /// already completed; this job runs in the background. This rule is a direct
 /// application of the principle that observability must not break functionality.
 /// </para>
@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// The score row's <see cref="RunScore.Author"/> field is INTENTIONALLY filled
 /// with <c>judge:{name}</c> (NOT <see langword="null"/> like a human score):
 /// this way the <c>run_scores</c> table's <c>(tenant_id, run_id, message_id, author)</c>
-/// uniqueness constraint kicks in (K-239), and retrying this job or manually
+/// uniqueness constraint kicks in, and retrying this job or manually
 /// repeating it via <c>POST /api/runs/{id}/judge</c> produces an update of the
 /// existing row for the SAME judge, NOT a second row.
 /// </para>

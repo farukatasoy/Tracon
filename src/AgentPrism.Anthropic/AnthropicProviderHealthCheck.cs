@@ -10,7 +10,6 @@ namespace AgentPrism;
 /// <para>
 /// This endpoint returns model names and <strong>incurs no cost</strong> — no model
 /// call is made. The pattern is identical to <c>OpenAIProviderHealthCheck</c>
-/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3).
 /// </para>
 /// <para>
 /// <see cref="HttpClient"/> is used directly instead of the SDK: this lets the

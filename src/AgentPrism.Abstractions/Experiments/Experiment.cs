@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// Code-based agents (<see cref="AgentDefinitionOrigin.Code"/>) cannot have an
-/// experiment because they have no version history (decision K-003). The endpoint
+/// experiment because they have no version history. The endpoint
 /// states this clearly with HTTP 400.
 /// </para>
 /// </remarks>
@@ -43,18 +43,25 @@ public sealed record Experiment
     /// </summary>
     public string? AssignmentKey { get; init; }
 
-    /// <summary>Gets the time when the experiment entered <see cref="ExperimentStatus.Running"/>. Returns <see langword="null"/> while it is a draft.</summary>
+    /// <summary>
+    /// Gets the time when the experiment entered <see
+    /// cref="ExperimentStatus.Running"/>. Returns <see langword="null"/> while it is a
+    /// draft.
+    /// </summary>
     public DateTimeOffset? StartedAt { get; init; }
 
-    /// <summary>Gets the time when the experiment stopped. Returns <see langword="null"/> when it runs or never started.</summary>
+    /// <summary>
+    /// Gets the time when the experiment stopped. Returns <see langword="null"/> when
+    /// it runs or never started.
+    /// </summary>
     public DateTimeOffset? EndedAt { get; init; }
 
     /// <summary>Gets the UTC time of the last update.</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
 
     /// <summary>
-    /// Gets the canary policy. <see langword="null"/> disables automatic decisions
-    /// (K1), so no background service evaluates this experiment.
+    /// Gets the canary policy. <see langword="null"/> disables automatic decisions,
+    /// so no background service evaluates this experiment.
     /// </summary>
     public CanaryPolicy? Canary { get; init; }
 

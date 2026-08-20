@@ -2,7 +2,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Computes the cost from a model+usage pair. Pricing order: the model
-/// catalog, then the <c>AgentPrism:Pricing</c> configuration (K-032).
+/// catalog, then the <c>AgentPrism:Pricing</c> configuration.
 /// </summary>
 public interface IRunPricingResolver
 {

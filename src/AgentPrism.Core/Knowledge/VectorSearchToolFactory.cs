@@ -4,10 +4,10 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Produces the <c>search_knowledge</c> tool (Phase 51).
+/// Produces the <c>search_knowledge</c> tool.
 /// </summary>
 /// <remarks>
-/// K2 is preserved: the tool is defined here, in code; <see cref="AgentDefinitionCompiler"/>
+/// the code-only tools rule is preserved: the tool is defined here, in code; <see cref="AgentDefinitionCompiler"/>
 /// binds this tool only while <see cref="MemorySettings.EnableVectorSearch"/> is
 /// on, and it cannot be written from the interface.
 /// </remarks>

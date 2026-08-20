@@ -10,20 +10,20 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The adapter lives <strong>in this package</strong>. Reason: the checkpoint
+/// The adapter lives <strong>in this package</strong>. The checkpoint
 /// store is in <c>AgentPrism.PostgreSql</c>, and that package must not see the
 /// workflow engine's types. The contract is expressed with
 /// <see cref="JsonElement"/>; the conversion to the MAF type happens only here.
 /// </para>
 /// <para>
-/// 🚨 <strong>AgentPrism generates the checkpoint id.</strong> MAF expects a
+/// <strong>AgentPrism generates the checkpoint id.</strong> MAF expects a
 /// <see cref="CheckpointInfo"/> and its content is our own decision; using a
 /// time-ordered UUID moves the list's natural ordering into the id itself.
 /// </para>
 /// <para>
 /// The tenant and run id are read from the <em>ambient scope</em>: MAF's write
 /// call carries no context parameter. The same solution was used for
-/// <c>PostgresAgentFileStore</c> in phase 14 (K-114).
+/// <c>PostgresAgentFileStore</c>.
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>

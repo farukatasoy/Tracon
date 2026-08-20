@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// The types audited today, such as <c>McpServerDefinition</c>, do not contain
-/// secrets (K-059), but the filter still applies because a future type might.
+/// secrets, but the filter still applies because a future type might.
 /// </para>
 /// <para>Does not use reflection; it operates manually with <c>Utf8JsonWriter</c> and <c>JsonDocument</c>.</para>
 /// </remarks>

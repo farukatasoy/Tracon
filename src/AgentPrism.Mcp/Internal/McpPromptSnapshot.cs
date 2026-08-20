@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// It is pure and stateless, needs no network, and is verified by direct unit tests.
 /// The UI compares the hash with <c>mcp.prompt.hash</c> metadata and shows a badge
-/// for a server-side change. See section 22.1.
+/// for a server-side change.
 /// </remarks>
 internal static class McpPromptSnapshot
 {

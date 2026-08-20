@@ -22,8 +22,8 @@ namespace AgentPrism;
 /// agent's compiled copy does not go stale when the sub-agent's definition changes.
 /// </para>
 /// <para>
-/// 🚨 Microsoft Agent Framework calls the sub-agent with <c>options = null</c>
-/// (measured in Phase 12). Tree information therefore cannot be read from the
+/// Microsoft Agent Framework calls the sub-agent with <c>options = null</c>
+/// (). Tree information therefore cannot be read from the
 /// incoming options; the wrapper reads it from the <see cref="AgentPrismRunContext"/>
 /// scope and builds the <see cref="AgentPrismRunOptions"/> object itself.
 /// </para>
@@ -313,9 +313,9 @@ public sealed class ChildAgentInvoker : AIAgent
 /// the other would fall behind.
 /// </para>
 /// <para>
-/// Starting in Phase 50, the MCP/A2A external call handlers in
+/// The MCP and A2A external call handlers in
 /// <c>AgentPrism.AspNetCore</c> use the same detection too (the second
-/// application of K-103: it is not an external caller, it cannot give
+/// application of the same rule: it is not an external caller, it cannot give
 /// approval). This is why the type is <strong>public</strong>.
 /// </para>
 /// </remarks>

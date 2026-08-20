@@ -46,7 +46,7 @@ public sealed record CompactionSettings
 
     /// <summary>
     /// Gets the upper output token limit for <see cref="CompactionStrategyKind.ContextWindow"/>.
-    /// When it is not given, <see cref="ModelBinding.MaxOutputTokens"/> from the agent's own
+    /// When it is not given, <c>ModelBinding.MaxOutputTokens</c> from the agent's own
     /// model binding is used, and 4096 when that is missing too.
     /// </summary>
     public int? MaxOutputTokens { get; init; }

@@ -3,17 +3,17 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// The extension point that scores a completed production run (Phase 49).
+/// The extension point that scores a completed production run.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This interface does NOT wrap MAF's <c>AIJudgeLoopEvaluator</c>.
+/// This interface does NOT wrap MAF's <c>AIJudgeLoopEvaluator</c>.
 /// Measured (MAF 1.16.0): <c>LoopEvaluation</c> does not return a SCORE (only
 /// <c>ShouldReinvoke</c> and <c>Feedback</c>), and <c>LoopContext</c> requires
 /// a live <c>AIAgent</c> + <c>AgentSession</c>. It is not suited to scoring a
-/// finished run — see <c>docs/KARARLAR.md</c>, the decision reopening K-140.
+/// finished run —
 /// </para>
-/// <para>K4: registered with <c>TryAddEnumerable</c>; multiple judges may score the same run.</para>
+/// <para>Registered with <c>TryAddEnumerable</c>; multiple judges may score the same run.</para>
 /// <para>
 /// If more than one <see cref="IRunJudge"/> is registered in a setup, the
 /// online evaluation job runs all of them; each writes its own
@@ -50,7 +50,7 @@ public sealed record RunJudgeContext
     /// The run's input.
     /// </summary>
     /// <remarks>
-    /// 🚨 Read from <c>run_inputs</c> (Phase 47, <see cref="IRunInputStore"/>);
+    /// Read from <c>run_inputs</c> (<see cref="IRunInputStore"/>);
     /// if no record exists, the run is not sampled and this type is never produced.
     /// </remarks>
     public required IReadOnlyList<ChatMessage> Input { get; init; }
@@ -67,7 +67,7 @@ public sealed record RunJudgment
 {
     /// <summary>The score, 0-100. <see langword="null"/> if the judge could not decide.</summary>
     /// <remarks>
-    /// 🚨 When no decision can be made, <see langword="null"/> is returned,
+    /// When no decision can be made, <see langword="null"/> is returned,
     /// NOT <c>0</c>. Zero is a measurement; the absence of a measurement is not.
     /// </remarks>
     public int? Score { get; init; }

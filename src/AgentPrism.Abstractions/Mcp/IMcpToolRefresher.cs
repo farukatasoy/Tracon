@@ -35,7 +35,7 @@ public readonly record struct McpRefreshOutcome
     /// connection refusal). Deliberately skipping a server (a persistent
     /// configuration problem such as an invalid name/address or a missing
     /// OAuth callback configuration) is NOT included here — that is never the
-    /// kind of situation that "fixes itself on retry" (HATA-006).
+    /// kind of situation that "fixes itself on retry".
     /// </summary>
     public required bool HadUnreachableServers { get; init; }
 }

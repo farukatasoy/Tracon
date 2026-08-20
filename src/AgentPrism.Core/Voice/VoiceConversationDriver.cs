@@ -10,7 +10,7 @@ namespace AgentPrism;
 
 /// <summary>The immutable facts of a conversation connection.</summary>
 /// <remarks>
-/// 🚨 The tenant and the session resolve while the connection is established and
+/// The tenant and the session resolve while the connection is established and
 /// stay <strong>constant</strong> for the whole connection (29.3). A tenant or
 /// session value that arrives inside a frame is not accepted: to change the tenant
 /// on a long-lived connection is to move authorization after the handshake.
@@ -33,18 +33,17 @@ public sealed record VoiceConversationRequest
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>Option A.</strong> Audio is not proxied to the real-time API of the
+/// <strong>Option A.</strong> Audio is not proxied to the real-time API of the
 /// provider; the streaming run path of the agent itself is called. The price is
 /// latency, and the return is <em>everything</em>: the run record, spans, cost,
 /// tool approval, tenancy and quota all work in a voice turn exactly as they do
 /// elsewhere. AgentPrism is a control plane; it cannot suspend those promises for
-/// voice. Rationale: <c>docs/29-KONUSMA-KATMANI.md</c>, section 29.1.
+/// voice.
 /// </para>
 /// <para>
 /// The driver lives in <c>AgentPrism.Core</c> and is <strong>provider
 /// independent</strong>: it knows only the <see cref="ISpeechTranscriber"/> and
-/// <see cref="ISpeechSynthesizer"/> abstractions. ElevenLabs is one implementation
-/// (K-215).
+/// <see cref="ISpeechSynthesizer"/> abstractions. ElevenLabs is one implementation.
 /// </para>
 /// <para>
 /// The concurrency model is three rules: a <em>single</em> receive loop reads the
@@ -492,7 +491,7 @@ public sealed class VoiceConversationDriver
 
         /// <summary>Handles an interruption (barge-in).</summary>
         /// <remarks>
-        /// 🚨 The state <strong>does not change</strong> here. Only the turn task
+        /// The state <strong>does not change</strong> here. Only the turn task
         /// returns to listening (<see cref="FinishTurn"/>); otherwise the client could
         /// send a new <c>commit</c> at once and two turns would run at the same time.
         /// </remarks>
@@ -697,7 +696,7 @@ public sealed class VoiceConversationDriver
         /// Writes the partial answer of an interrupted turn to the session history.
         /// </summary>
         /// <remarks>
-        /// 🚨 This step cannot be skipped. When a streaming run is cancelled the
+        /// This step cannot be skipped. When a streaming run is cancelled the
         /// Microsoft Agent Framework does not write the history; on the next turn the
         /// model DOES NOT SEE its own half sentence, and the conversation breaks the
         /// moment the user says "what you said a moment ago". The record states
@@ -745,10 +744,9 @@ public sealed class VoiceConversationDriver
 
         /// <summary>Stores the spoken response as an attachment.</summary>
         /// <remarks>
-        /// 🚨 Only the <strong>audio that the agent produced</strong> is stored. The
+        /// Only the <strong>audio that the agent produced</strong> is stored. The
         /// audio of the user is never written: voice is biometric data, and the record
         /// of what was said is already the transcript in the session history.
-        /// Rationale: <c>docs/29-KONUSMA-KATMANI.md</c>, section 29.3.
         /// </remarks>
         /// <returns>The attachment identifier, or <see langword="null"/> when it could not be stored.</returns>
         private async Task<string?> PersistAudioAsync(MemoryStream audio, CancellationToken cancellationToken)

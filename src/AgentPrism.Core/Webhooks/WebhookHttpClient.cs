@@ -9,15 +9,15 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Protection is built into <strong>the client itself</strong>, not caller
+/// Protection is built into <strong>the client itself</strong>, not caller
 /// code. A single path that accidentally used an unprotected <see cref="HttpClient"/>
 /// would defeat the entire defense. This type does not accept an external
 /// <see cref="HttpMessageHandler"/>; an <c>internal</c> constructor exists only for tests.
 /// </para>
 /// <para>
 /// <c>IHttpClientFactory</c> is not used because it would add
-/// <c>Microsoft.Extensions.Http</c> to the dependency graph (K-007), and a
-/// consumer could reconfigure the factory and remove the protection (K-164).
+/// <c>Microsoft.Extensions.Http</c> to the dependency graph, and a
+/// consumer could reconfigure the factory and remove the protection.
 /// </para>
 /// </remarks>
 public sealed class WebhookHttpClient : IDisposable

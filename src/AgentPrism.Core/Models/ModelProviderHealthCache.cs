@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// <see cref="IModelProvider"/> singletons directly through
 /// <c>IEnumerable&lt;IModelProvider&gt;</c>. This lets it check whether each
 /// provider implements <see cref="IModelProviderHealthCheck"/> without adding a
-/// member to the <see cref="IModelProvider"/> interface (K4); a provider that
+/// member to the <see cref="IModelProvider"/> interface; a provider that
 /// does not implement it has a status of <see cref="ModelProviderHealthStatus.Unknown"/>.
 /// </para>
 /// <para>
@@ -42,7 +42,12 @@ public sealed class ModelProviderHealthCache
     /// <param name="optionsMonitor">Settings used to read the cache TTL.</param>
     /// <param name="circuitBreaker">The circuit breaker used to reflect circuit state into the result.</param>
     /// <param name="timeProvider">The time source. If <see langword="null"/>, the system clock is used.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="providers"/> or <paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="providers"/>
+    /// or
+    /// <paramref name="optionsMonitor"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     public ModelProviderHealthCache(
         IEnumerable<IModelProvider> providers,
         IOptionsMonitor<AgentPrismOptions> optionsMonitor,

@@ -23,7 +23,7 @@ public static class AgentPrismWorkflowsBuilderExtensions
     /// not produce new behavior: it only sequences catalog agents with
     /// ready-made patterns whose order is fixed. A free-form graph - custom
     /// <c>Executor</c> types, conditional edges, sub-workflows - is only
-    /// defined in code, with <see cref="AddWorkflow"/>. Design rule K2 is
+    /// defined in code, with <see cref="AddWorkflow"/>. The code-only tools rule is
     /// preserved this way.
     /// </para>
     /// <para>
@@ -34,7 +34,7 @@ public static class AgentPrismWorkflowsBuilderExtensions
     /// </para>
     /// <para>
     /// <see cref="AgentPrismWorkflowOptions.SectionName"/> (<c>AgentPrism:Workflows</c>)
-    /// is BOUND from <c>IConfiguration</c> (K-402) - the same contract as
+    /// is BOUND from <c>IConfiguration</c> - the same contract as
     /// every other <c>Use*()</c> extension (<c>UseOpenAI</c>,
     /// <c>UsePostgreSql</c>, <c>UseSkillScripts</c>, and so on).
     /// <paramref name="configure"/> runs AFTER this binding, so code can still
@@ -100,7 +100,7 @@ public static class AgentPrismWorkflowsBuilderExtensions
     /// <remarks>
     /// A workflow defined in code <strong>takes precedence over</strong> a
     /// database definition with the same name. The same rule applies to the
-    /// agent catalog (K-019): someone with write access to the database cannot
+    /// agent catalog: someone with write access to the database cannot
     /// take over a behavior registered in code.
     /// <example>
     /// <code>

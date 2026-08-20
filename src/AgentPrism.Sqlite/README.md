@@ -76,3 +76,9 @@ typically affects publish behavior. Use `AgentPrism.PostgreSql` for setups that 
 If `UsePostgreSql()`, `UseSqlServer()`, and `UseSqlite()` are called in the same chain, **the
 last registration wins** and a warning is logged at startup. This is a configuration error;
 call only one.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/getting-started/persistence/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

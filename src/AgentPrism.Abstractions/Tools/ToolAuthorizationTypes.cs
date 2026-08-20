@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// registration to enforce its own rule.
 /// </para>
 /// <para>
-/// 🚨 If this handler throws, the call is <strong>denied</strong> (fail-closed).
+/// If this handler throws, the call is <strong>denied</strong> (fail-closed).
 /// A gate that fails open on an exception is not a gate.
 /// </para>
 /// </remarks>
@@ -79,7 +79,7 @@ public sealed record ToolAuthorizationResult
     /// </summary>
     /// <remarks>
     /// This text is sent to the model, not shown to the user directly — the
-    /// same rule K-232 applies to every other model-facing string. It carries
+    /// same rule applies to every other model-facing string. It carries
     /// no secret.
     /// </remarks>
     public string? Reason { get; init; }

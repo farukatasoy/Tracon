@@ -12,11 +12,11 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The <see cref="IWorkflowRunner"/> and <c>IWorkflowCheckpointStore</c>
+/// The <see cref="IWorkflowRunner"/> and <c>IWorkflowCheckpointStore</c>
 /// parameters are <strong>explicitly</strong> marked with <c>[FromServices]</c>.
 /// Minimal API, seeing a type that may not be registered, falls back to body
 /// inference, and this mistake on a single endpoint breaks <em>all</em>
-/// endpoints - measured in Phase 9 (112 of 119 tests failed at once, and the
+/// endpoints - (112 of 119 tests failed at once, and the
 /// error message was disconnected from the cause).
 /// </para>
 /// <para>
@@ -54,8 +54,8 @@ internal static class WorkflowEndpoints
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Lists function nodes registered in code.")
             .WithDescription(
-                "Function nodes are defined only in code, with AddWorkflowFunction() (phase 71) - " +
-                "the same K2 boundary AddTool draws for tools. This endpoint does not offer a write " +
+                "Function nodes are defined only in code, with AddWorkflowFunction() - " +
+                "the same code-only boundary AddTool draws for tools. This endpoint does not offer a write " +
                 "path; the UI lets users pick from this list when building a Sequential workflow's " +
                 "node list. An empty list means no function was registered, or the workflow engine " +
                 "was never turned on with UseWorkflows() - either way, existing agent-only " +

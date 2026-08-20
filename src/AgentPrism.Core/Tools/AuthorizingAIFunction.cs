@@ -5,26 +5,26 @@ namespace AgentPrism;
 
 /// <summary>
 /// Wraps an <see cref="AIFunction"/> with an <see cref="IToolAuthorizationHandler"/>
-/// check that runs before every call (F-113).
+/// check that runs before every call.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Installed by the tool registry as the <strong>outermost</strong> layer —
-/// see <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>, section 69.1. If a
+///  If a
 /// caller cannot make a call at all, there is no point waiting for its
 /// timeout or asking a human to approve it.
 /// </para>
 /// <para>
-/// 🚨 A denial does <strong>not</strong> throw. Microsoft Agent Framework
+/// A denial does <strong>not</strong> throw. Microsoft Agent Framework
 /// turns a thrown exception into a tool result too, but denial and failure
-/// are different things at the record level (K-232's model-facing-text rule
+/// are different things at the record level (the model-facing-text rule
 /// applies here the same way): the reason text is returned as an ordinary
 /// successful result, the call is marked in the tenant's authorization
 /// accumulator so <c>ToolInvocationTracker</c> can tell a denial apart from
 /// an ordinary success, and the model continues its turn.
 /// </para>
 /// <para>
-/// 🚨 If <see cref="IToolAuthorizationHandler.AuthorizeAsync"/> throws, the
+/// If <see cref="IToolAuthorizationHandler.AuthorizeAsync"/> throws, the
 /// call is denied (fail-closed). A gate that fails open on an exception is
 /// not a gate.
 /// </para>

@@ -18,7 +18,7 @@ Every `IChatClient` produced goes through the same pipeline as `AgentPrism.OpenA
 content filter detection live at the `ModelProviderRegistry` level; this package gets
 both without any extra code.
 
-## 🚨 Deployment ≠ model
+## Deployment is not the model
 
 What gets called in Azure is **the deployment name, not the model name**. The
 deployment name is chosen by whoever provisioned the Azure resource; the same model
@@ -70,7 +70,7 @@ key at all.
 })
 ```
 
-🚨 **`Azure.Identity` is NOT a dependency of this package.** The package only binds to
+**`Azure.Identity` is NOT a dependency of this package.** The package only binds to
 the `Azure.Core` abstraction (`TokenCredential`); the consumer chooses the credential,
 and a consumer that doesn't use managed identity never pulls in the `Azure.Identity`
 chain at all.
@@ -88,12 +88,11 @@ Default: `https://cognitiveservices.azure.com/.default`.
 This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. If a
 defined key is present, the build stops with a clear error.
 
-The reason is measured (2026-08-05): the only way to write extra fields onto an
+The reason is measured: the only way to write extra fields onto an
 Azure chat request is `Azure.AI.OpenAI.Chat.AzureChatExtensions` (`AddDataSource`,
 `SetNewMaxCompletionTokensPropertyEnabled`, `GetDataSources`), and **all** of these
 extensions throw `MissingMethodException` at runtime against the OpenAI SDK version
 we use. Offering a setting that doesn't work is worse than not offering it at all.
-Details: `docs/KARARLAR.md`, decision K-211.
 
 The `max_completion_tokens` field is already sent correctly — the OpenAI SDK uses
 this name itself, no Azure extension is needed (measured).
@@ -120,7 +119,6 @@ Transitive dependencies: `Azure.Core`, `OpenAI`, `System.ClientModel`,
   above.
 - **Azure AI Foundry Agents.** This is a separate capability (`IAgentSource`, not
   `IModelProvider`) and has been left to a separate package; see
-  `docs/27-AZURE-FOUNDRY.md`.
 
 ## Health check
 
@@ -133,13 +131,14 @@ key and resource address are **never leaked**.
 GET /agentprism/api/models/health/azure-openai
 ```
 
-🚨 The list returned is a **model** list, not a deployment list. What the health
+The list returned is a **model** list, not a deployment list. What the health
 check proves is: the address is correct, the credential is valid, the resource is
 up. Whether the deployment name is correct is only known on the first real call.
 
 ## Model catalog
 
-AgentPrism does not ship a built-in model list (decision K-032). The catalog comes
+AgentPrism does not ship a built-in model list: model names change faster than a
+NuGet release. The catalog comes
 entirely from configuration and **is not a validation list** — a deployment name not
 listed here can still be used. The `Name` field of each entry is **the deployment
 name**.
@@ -166,3 +165,9 @@ name**.
 `ApiKey` is **never** written to this file — use `dotnet user-secrets`.
 `CredentialFactory` is a delegate and is not read from configuration; it is
 supplied in code.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

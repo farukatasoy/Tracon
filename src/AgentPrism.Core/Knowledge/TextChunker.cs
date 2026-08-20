@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// It is intentionally simple. Intelligent chunking based on headings or semantics
-/// is outside the library boundary. See <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, Open Question 4.
+/// is outside the library boundary.
 /// Consumers can send their own chunks directly.
 /// </remarks>
 public static class TextChunker

@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The in-memory implementation is <strong>first class</strong> (K-018). Replay
+/// The in-memory implementation is <strong>first class</strong>. Replay
 /// works in a deployment without a SQL provider. Records live for the process lifetime,
 /// and the oldest record is removed when <see cref="MaxRuns"/> is exceeded.
 /// </para>

@@ -8,23 +8,23 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The extension point alone is not enough: K-018 says "an in-memory
+/// The extension point alone is not enough: the rule is that an in-memory
 /// implementation is first-class," and without a built-in implementation
 /// <see cref="IContentGuard"/> would be an empty promise. It carries three
 /// pattern families: a denied-term list (<see cref="ContentGuardAction.Block"/>),
 /// PII patterns, and <c>secret</c> patterns (<see cref="ContentGuardAction.Mask"/>).
 /// </para>
 /// <para>
-/// 🚨 <strong>Every pattern is written with the source generator</strong>
+/// <strong>Every pattern is written with the source generator</strong>
 /// (<see cref="GeneratedRegexAttribute"/>). <c>AgentPrism.Core</c> is
 /// AOT-compatible; a <see cref="Regex"/> compiled at runtime would break that.
 /// </para>
 /// <para>
-/// 🚨 <strong>Every pattern carries a timeout</strong> (1000 ms). This is the
+/// <strong>Every pattern carries a timeout</strong> (1000 ms). This is the
 /// only defense against ReDoS and is mandatory on the hot path.
 /// </para>
 /// <para>
-/// 🚨 Card and Turkish national ID patterns are validated with <see cref="CheckDigits"/>.
+/// Card and Turkish national ID patterns are validated with <see cref="CheckDigits"/>.
 /// Without it, every order number would be masked and the guard would get turned off.
 /// </para>
 /// <para>

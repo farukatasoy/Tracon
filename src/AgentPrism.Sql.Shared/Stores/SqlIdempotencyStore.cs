@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Stores idempotency records in the SQL database (Phase 43).</summary>
+/// <summary>Stores idempotency records in the SQL database.</summary>
 /// <remarks>
 /// <para>
 /// The behavior contract is identical to <see cref="InMemoryIdempotencyStore"/>

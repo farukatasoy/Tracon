@@ -45,18 +45,18 @@ public sealed record AuditEntry
     public required DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>
-    /// Gets the hash of the previous entry of the same tenant (phase 64).
+    /// Gets the hash of the previous entry of the same tenant.
     /// <see langword="null"/> for the first entry of a tenant.
     /// </summary>
     /// <remarks>
-    /// The chain is per <see cref="TenantId"/>: one tenant's write rate never waits on
+    /// The chain is per <c>TenantId</c>: one tenant's write rate never waits on
     /// another tenant's chain. The write path computes this value; a caller-supplied
     /// value is ignored.
     /// </remarks>
     public string? PreviousHash { get; init; }
 
     /// <summary>
-    /// Gets the hash of this entry (phase 64), derived from its canonical form
+    /// Gets the hash of this entry, derived from its canonical form
     /// (see <c>AuditChainHasher</c> in <c>AgentPrism.Core</c>). The write path
     /// computes this value; a caller-supplied value is ignored.
     /// </summary>

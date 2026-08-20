@@ -7,8 +7,7 @@ namespace AgentPrism;
 /// <para>
 /// <strong>AgentPrism carries no built-in model list.</strong> Model names and
 /// prices change far faster than a NuGet package's release cadence; a list baked
-/// into the code goes stale quickly. Rationale: <c>docs/KARARLAR.md</c>,
-/// decision K-032.
+/// into the code goes stale quickly.
 /// </para>
 /// <para>
 /// The catalog is <em>not a validation list</em>: a model name absent from it can

@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// to break a cost report down further than the tenant.
 /// </para>
 /// <para>
-/// 🚨 <strong>The user identity is never read from the request body.</strong>
+/// <strong>The user identity is never read from the request body.</strong>
 /// A <c>userId</c> field on <c>POST /api/agents/{name}/run</c> would let any
 /// client write spend against another user's name, which forges the cost
 /// record outright. The consumer binds this interface to its OWN identity
@@ -38,10 +38,10 @@ public interface IRunAttributionContext
     /// when it is unknown.
     /// </summary>
     /// <remarks>
-    /// 🚨 The value is an <strong>opaque string</strong>. AgentPrism neither
+    /// The value is an <strong>opaque string</strong>. AgentPrism neither
     /// resolves nor validates its meaning, and stores no personal detail of
     /// its own; the consumer decides what the identifier means. This is the
-    /// same stance <c>IDataSubjectResolver</c> takes (phase 64), and the data
+    /// same stance <c>IDataSubjectResolver</c> takes, and the data
     /// subject erasure flow covers this column too.
     /// </remarks>
     string? UserId { get; }
@@ -51,7 +51,7 @@ public interface IRunAttributionContext
     /// there are none.
     /// </summary>
     /// <remarks>
-    /// 🚨 Labels are a <strong>query dimension, not a metric dimension</strong>.
+    /// Labels are a <strong>query dimension, not a metric dimension</strong>.
     /// They live in the <c>runs</c> table and are never added to
     /// <c>agentprism.tokens</c> or <c>agentprism.run.cost</c>: turning a free
     /// label set into a metric dimension blows up time-series cardinality. The
@@ -65,7 +65,7 @@ public interface IRunAttributionContext
 /// Reads an <see cref="IRunAttributionContext"/> safely on a recording path.
 /// </summary>
 /// <remarks>
-/// 🚨 Every deep call site must go through this rather than touching the
+/// Every deep call site must go through this rather than touching the
 /// interface directly. Two guarantees are easy to lose and expensive to lose:
 /// a consumer implementation reaches into its OWN identity pipeline and can
 /// throw there, and it can return a value it never validated. Neither may take

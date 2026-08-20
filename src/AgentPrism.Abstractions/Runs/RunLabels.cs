@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// into a scan over an unbounded key space.
 /// </para>
 /// <para>
-/// 🚨 Breaking a limit REJECTS the value; it is never trimmed. A trimmed label
+/// Breaking a limit REJECTS the value; it is never trimmed. A trimmed label
 /// set still looks like a complete measurement to whoever reads the report
 /// later, and that is worse than an error at the boundary.
 /// </para>

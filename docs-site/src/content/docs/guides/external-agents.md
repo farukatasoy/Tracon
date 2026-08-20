@@ -150,6 +150,13 @@ AgentPrism declares streaming, push notifications, and background A2A runs as
 unsupported. The same `ExternalInvoke`, approval, tenant, and budget boundaries as
 the MCP server apply.
 
+Both surfaces are configured in code, never from the console:
+`AgentPrismMcpServerOptions` for the MCP server and `AgentPrismA2AOptions` for A2A.
+Each starts empty — `ExposedAgents` names the agents you publish, and
+`ExposeAllAgents` opts out of naming them one by one. `ToolNamePrefix` keeps the
+published tool names from colliding with another server's, and `Budget` bounds what
+an external caller may spend.
+
 ## Production checklist
 
 - [ ] Expose only names whose input contract is safe for another system.

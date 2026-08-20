@@ -5,8 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// The binary content is NOT CARRIED here. It is read separately with
-/// <see cref="IAttachmentStore.OpenReadAsync"/>. Rationale:
-/// <c>docs/14-COK-MODLULUK.md</c>, section 14.1 — the message body must stay small.
+/// <see cref="IAttachmentStore.OpenReadAsync"/>.
 /// </remarks>
 public sealed record AttachmentDescriptor
 {
@@ -16,7 +15,10 @@ public sealed record AttachmentDescriptor
     /// <summary>Gets the tenant the attachment belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Gets the session the attachment was uploaded to. <see langword="null"/> for an upload without a session.</summary>
+    /// <summary>
+    /// Gets the session the attachment was uploaded to. <see langword="null"/> for an
+    /// upload without a session.
+    /// </summary>
     public string? SessionId { get; init; }
 
     /// <summary>Gets the run that produced the attachment. <see langword="null"/> for a user upload.</summary>

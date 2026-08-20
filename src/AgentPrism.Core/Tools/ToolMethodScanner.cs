@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// <see cref="IAgentPrismBuilder.AddTool(AIFunction, bool)"/>.
 /// </para>
 /// <para>
-/// 🚨 Only <strong>static</strong> methods are supported (K-218). MAF supplies
+/// Only <strong>static</strong> methods are supported. MAF supplies
 /// an empty provider as <see cref="AIFunctionArguments.Services"/>
 /// (<c>Microsoft.Extensions.AI.EmptyServiceProvider</c>), so this path cannot
 /// resolve an instance method's target object. Marking an instance method throws

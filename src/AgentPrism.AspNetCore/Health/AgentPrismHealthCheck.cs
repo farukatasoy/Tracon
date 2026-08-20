@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace AgentPrism;
 
 /// <summary>
-/// Check that connects the AgentPrism setup to the standard .NET health check system (Phase 33).
+/// Check that connects the AgentPrism setup to the standard.NET health check system.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -11,15 +11,19 @@ namespace AgentPrism;
 /// <strong>produces</strong> no model call or extra database query, other than the
 /// active SQL provider's lightweight connection probe (see <c>ISqlPersistenceDiagnostics</c>).
 /// </para>
-/// <para>Three states. Rationale: <c>docs/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, section 33.3.</para>
+/// <para>Three states.</para>
 /// <list type="bullet">
-/// <item><description><see cref="HealthStatus.Unhealthy"/>: the database is unreachable, or a migration is pending.</description></item>
+/// <item>
+/// <description><see cref="HealthStatus.Unhealthy"/>: the database is unreachable, or a migration is pending.</description>
+/// </item>
 /// <item><description>
 /// <see cref="HealthStatus.Degraded"/>: the database is reachable, but a model provider's
-/// circuit is open, more than one persistence provider is registered (K-183), or no model
+/// circuit is open, more than one persistence provider is registered, or no model
 /// provider has yet been confirmed healthy.
 /// </description></item>
-/// <item><description><see cref="HealthStatus.Healthy"/>: the database is reachable, no migration is pending, and at least one model provider is healthy.</description></item>
+/// <item>
+/// <description><see cref="HealthStatus.Healthy"/>: the database is reachable, no migration is pending, and at least one model provider is healthy.</description>
+/// </item>
 /// </list>
 /// </remarks>
 internal sealed class AgentPrismHealthCheck(AgentPrismDiagnosticsCollector collector) : IHealthCheck

@@ -19,8 +19,8 @@ public interface IModelProviderRegistry
     /// No provider is registered with the name in <see cref="ModelBinding.Provider"/>.
     /// </exception>
     /// <remarks>
-    /// 🚨 This overload does <strong>not</strong> resolve a tenant provider
-    /// binding (phase 65, BYOK) or check an egress policy (F-119): both need
+    /// This overload does <strong>not</strong> resolve a tenant provider
+    /// binding (BYOK) or check an egress policy: both need
     /// an async store lookup, which this synchronous method cannot perform.
     /// Callers that must honor a tenant's own credential and egress policy —
     /// this includes the real agent-run compile path — use
@@ -30,7 +30,7 @@ public interface IModelProviderRegistry
 
     /// <summary>
     /// Produces a chat client for the given binding, first resolving the
-    /// current tenant's own provider credential and egress policy (phase 65).
+    /// current tenant's own provider credential and egress policy.
     /// </summary>
     /// <param name="binding">The model binding.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -43,14 +43,14 @@ public interface IModelProviderRegistry
     /// <remarks>
     /// When no tenant context is registered, or the tenant has no binding for
     /// the provider, behavior is identical to <see cref="CreateChatClient"/>
-    /// (K1: zero surprise when BYOK is not configured).
+    /// (the no-surprises rule: zero surprise when BYOK is not configured).
     /// </remarks>
     ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reports whether the current tenant has its own provider binding for
     /// <paramref name="binding"/>'s primary provider or any of its
-    /// <see cref="ModelBinding.Fallbacks"/> (phase 65, BYOK).
+    /// <see cref="ModelBinding.Fallbacks"/> (BYOK).
     /// </summary>
     /// <param name="binding">The model binding to check.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -60,7 +60,7 @@ public interface IModelProviderRegistry
     /// this binding.
     /// </returns>
     /// <remarks>
-    /// 🚨 A compiled agent's chat client is a fixed pipeline object — once a
+    /// A compiled agent's chat client is a fixed pipeline object — once a
     /// tenant's credential is resolved into it, changing or deleting the
     /// underlying binding has no further effect on that object. A cache
     /// keyed only by definition identity (<c>CompiledAgentCache</c>) must

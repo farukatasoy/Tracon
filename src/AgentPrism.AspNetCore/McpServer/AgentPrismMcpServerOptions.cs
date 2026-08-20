@@ -2,8 +2,8 @@ namespace AgentPrism;
 
 /// <summary>Settings for publishing AgentPrism agents as MCP tools.</summary>
 /// <remarks>
-/// This type is deliberately <strong>not</strong> a <c>record</c> (K-035
-/// pattern): the options object carries no <c>secret</c>, but the compiler-
+/// This type is deliberately <strong>not</strong> a <c>record</c>: the options
+/// object carries no <c>secret</c> today, but the compiler-
 /// generated <c>ToString</c> could repeat the same trap for a field added in
 /// the future; the class keeps this type discipline.
 /// </remarks>
@@ -17,7 +17,7 @@ public sealed class AgentPrismMcpServerOptions
 
     /// <summary>
     /// Exposes every agent in the catalog. Default <see langword="false"/>;
-    /// enabling it is an explicit choice (K1).
+    /// enabling it is an explicit choice.
     /// </summary>
     public bool ExposeAllAgents { get; set; }
 

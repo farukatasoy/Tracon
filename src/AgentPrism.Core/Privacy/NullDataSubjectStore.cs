@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>
 /// The default (in-memory) <see cref="IDataSubjectStore"/>: export and erasure are
 /// meaningful only once a SQL provider is enabled — the same precedent as
-/// <c>NullRetentionStore</c> (phase 25).
+/// <c>NullRetentionStore</c>.
 /// </summary>
 public sealed class NullDataSubjectStore : IDataSubjectStore
 {

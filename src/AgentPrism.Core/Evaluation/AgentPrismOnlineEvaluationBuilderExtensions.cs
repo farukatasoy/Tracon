@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
-/// <summary>Chain extensions that turn on the built-in model-based judge - Phase 49.</summary>
+/// <summary>Chain extensions that turn on the built-in model-based judge.</summary>
 /// <remarks>
 /// This is an extension method, not a member of <see cref="IAgentPrismBuilder"/>:
 /// adding a member to the interface is a breaking change after release, adding
@@ -18,12 +18,17 @@ public static class AgentPrismOnlineEvaluationBuilderExtensions
     /// <param name="builder">Configuration chain.</param>
     /// <param name="configure">The judge's model, criteria, and instructions.</param>
     /// <returns>The continuation of the chain.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/>
+    /// or
+    /// <paramref name="configure"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     /// <remarks>
     /// <para>
-    /// 🚨 This call ALONE scores nothing. The actual gate for online evaluation
+    /// This call ALONE scores nothing. The actual gate for online evaluation
     /// is <c>AgentPrism:OnlineEvaluation:Enabled</c> AND
-    /// <c>AgentPrism:OnlineEvaluation:SampleRate</c> (K1: no run is sampled
+    /// <c>AgentPrism:OnlineEvaluation:SampleRate</c> (the no-surprises rule: no run is sampled
     /// unless both are on). This extension only registers which model is USED
     /// as the judge.
     /// </para>

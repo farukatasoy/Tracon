@@ -43,7 +43,7 @@ public static class GoogleProviderNames
     /// <remarks>
     /// The valid range is <c>[-1, 65535]</c>; <c>-1</c> means "leave it to the
     /// model" and <c>0</c> turns thinking off. An out-of-range value causes the
-    /// request to be rejected — measured (2026-08-05).
+    /// request to be rejected — measured against the live API.
     /// </remarks>
     public const string ThinkingBudgetTokensSetting = "google.thinking.budgetTokens";
 

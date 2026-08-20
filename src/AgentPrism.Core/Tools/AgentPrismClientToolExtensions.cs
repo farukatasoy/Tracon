@@ -6,7 +6,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Registers a client-side tool: its declaration (name, description, JSON
-/// schema) lives in code, like every other tool (design rule K2), but its
+/// schema) lives in code, like every other tool (the code-only tools rule), but its
 /// body runs on the caller instead of on the server.
 /// </summary>
 public static class AgentPrismClientToolExtensions

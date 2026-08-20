@@ -2,7 +2,7 @@ namespace AgentPrism;
 
 /// <summary>Settings for the voice tools.</summary>
 /// <remarks>
-/// 🚨 The type <strong>cannot</strong> be a <c>record</c> (K-035): the compiler-generated
+/// The type <strong>cannot</strong> be a <c>record</c>: the compiler-generated
 /// <c>ToString</c> writes every property, and a single <c>LogDebug("{Options}", o)</c>
 /// call would leak <see cref="ApiKey"/> into the log.
 /// <c>SecretLeakTests</c> verifies the type does not define its own <c>ToString</c>.
@@ -14,7 +14,7 @@ public sealed class VoiceOptions
 
     /// <summary>Default output format.</summary>
     /// <remarks>
-    /// 🚨 MP3 is chosen because the attachment store does type checking from the
+    /// MP3 is chosen because the attachment store does type checking from the
     /// <strong>magic byte</strong>. <c>pcm_*</c> and <c>ulaw_*</c> outputs have no header
     /// and are rejected.
     /// </remarks>
@@ -28,7 +28,7 @@ public sealed class VoiceOptions
     /// <c>dotnet user-secrets</c> or an environment variable.
     /// </summary>
     /// <remarks>
-    /// The key's <em>value</em> is held here, not its <em>name</em>. K-059 forbids
+    /// The key's <em>value</em> is held here, not its <em>name</em>. The rule forbids
     /// writing secrets to the DATABASE; voice configuration never reaches the
     /// database, and the other four provider packages also carry a plain <c>ApiKey</c>.
     /// </remarks>
@@ -80,6 +80,6 @@ public sealed class VoiceOptions
 /// <summary>Names of known voice providers.</summary>
 public static class VoiceProviderNames
 {
-    /// <summary>ElevenLabs. 🚨 STABLE name: stored in usage records.</summary>
+    /// <summary>ElevenLabs. STABLE name: stored in usage records.</summary>
     public const string ElevenLabs = "elevenlabs";
 }

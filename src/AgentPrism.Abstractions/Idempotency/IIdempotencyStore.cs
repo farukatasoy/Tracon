@@ -5,18 +5,17 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A request that carries an <c>Idempotency-Key</c> header is processed
-/// <strong>at most once</strong>, exactly as the HTTP <c>Idempotency-Key</c>
-/// standard (the pattern Stripe follows) prescribes: while the first request
-/// is running, a second request with the same key either gets the stored
-/// response, or (if still processing) gets <c>409</c>. See
-/// <c>docs/43-IDEMPOTENCY-KEY.md</c>, section 43.2, for the rationale and state table.
+/// A request that carries an <c>Idempotency-Key</c> header is processed <strong>at most
+/// once</strong>, exactly as the HTTP <c>Idempotency-Key</c> standard (the pattern
+/// Stripe follows) prescribes: while the first request is running, a second request
+/// with the same key either gets the stored response, or (if still processing) gets
+/// <c>409</c>.
 /// </para>
 /// <para>
 /// The default (in-memory) setup registers the first-class
-/// <c>InMemoryIdempotencyStore</c> (K-018); it is sufficient for a single-instance
-/// deployment. A multi-instance deployment requires a SQL provider — otherwise
-/// each instance keeps its own key set and deduplication is lost across instances.
+/// <c>InMemoryIdempotencyStore</c>; it is sufficient for a single-instance deployment.
+/// A multi-instance deployment requires a SQL provider — otherwise each instance keeps
+/// its own key set and deduplication is lost across instances.
 /// </para>
 /// </remarks>
 public interface IIdempotencyStore
@@ -57,7 +56,7 @@ public interface IIdempotencyStore
     /// <param name="key">The key.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <remarks>
-    /// 🚨 A failed run's record is NOT kept. The purpose of idempotency is to
+    /// A failed run's record is NOT kept. The purpose of idempotency is to
     /// make retries safe; keeping a failure would mean the client can never
     /// retry after a transient error.
     /// </remarks>

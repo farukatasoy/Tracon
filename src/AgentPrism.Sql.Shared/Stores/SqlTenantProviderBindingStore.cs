@@ -2,11 +2,11 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>SQL-backed store for per-tenant model provider bindings (phase 65, BYOK).</summary>
+/// <summary>SQL-backed store for per-tenant model provider bindings (BYOK).</summary>
 /// <remarks>
-/// 🚨 This store never writes or reads a secret value, only the
+/// This store never writes or reads a secret value, only the
 /// <strong>name</strong> of the configuration key the value is read from at
-/// call time (decision K-059). See docs/65-KIRACI-SAGLAYICI-ANAHTARLARI.md.
+/// call time.
 /// </remarks>
 internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStore
 {

@@ -9,8 +9,8 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>The estimate is approximate</strong> (phase 62, F-59, open
-/// question 1): counting is done with a single fixed OpenAI encoding
+/// <strong>The estimate is approximate</strong>: counting is done with a single
+/// fixed OpenAI encoding
 /// (<c>o200k_base</c>, via <see cref="TiktokenTokenizer"/>) regardless of the
 /// bound provider — Anthropic and Google publish no equivalent offline
 /// tokenizer package. The count is close enough to size a prompt against a

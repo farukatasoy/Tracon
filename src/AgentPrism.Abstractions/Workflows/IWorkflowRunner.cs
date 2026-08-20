@@ -96,7 +96,7 @@ public interface IWorkflowRunner
     /// <returns>The ordered event stream.</returns>
     /// <remarks>
     /// Resuming opens a <strong>new run record</strong>. Reopening the same
-    /// row would break the event stream's append-only rule (K-014) and would
+    /// row would break the event stream's append-only rule and would
     /// leave "when did this run end" unanswered.
     /// </remarks>
     IAsyncEnumerable<RunEvent> ResumeStreamingAsync(
@@ -117,7 +117,7 @@ public sealed record WorkflowRunRequest
     /// The execution session's identifier. Generated if left empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 The value <strong>comes from the client and is untrusted input</strong>.
+    /// The value <strong>comes from the client and is untrusted input</strong>.
     /// Since checkpoints are grouped under this value, using it without
     /// validation means access to another execution's state.
     /// </remarks>

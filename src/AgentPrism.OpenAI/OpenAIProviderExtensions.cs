@@ -79,7 +79,7 @@ public static class OpenAIProviderExtensions
     /// Registration goes through <c>AddModelProvider(...)</c>; no existing service is
     /// <em>replaced</em>. <c>UsePostgreSql()</c> uses <c>Replace</c> because it takes the
     /// place of the existing stores; this call <em>adds</em> a new provider, so it has no
-    /// such need. Reason: <c>docs/KARARLAR.md</c>, decision K-025.
+    /// such need.
     /// </para>
     /// <para>
     /// When it is called more than once, the options are merged; the providers are
@@ -153,7 +153,6 @@ public static class OpenAIProviderExtensions
     /// <para>
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// When a new option is added, it must be added to this method too.
-    /// Reason: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </para>
     /// <para>
     /// <c>internal</c>: <c>OpenAICompatibleProviderExtensions</c> uses the same binding

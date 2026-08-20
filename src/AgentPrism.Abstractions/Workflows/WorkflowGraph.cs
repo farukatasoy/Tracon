@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// The type carries no Microsoft Agent Framework type: the HTTP layer does
-/// not depend on the <c>AgentPrism.Workflows</c> package (K-118).
+/// not depend on the <c>AgentPrism.Workflows</c> package.
 /// </para>
 /// </remarks>
 public sealed record WorkflowGraph
@@ -37,7 +37,7 @@ public sealed record WorkflowGraph
     /// Gets the Mermaid text produced by Microsoft Agent Framework.
     /// </summary>
     /// <remarks>
-    /// The UI draws the graph itself (bundle budget, K-002); this text is
+    /// The UI draws the graph itself (bundle budget); this text is
     /// for <em>export</em>. Users can copy it to the clipboard and paste it
     /// into a document - project convention requires diagrams to be written
     /// in Mermaid.
@@ -87,7 +87,7 @@ public sealed record WorkflowGraphEdge
 
 /// <summary>Represents the role of a graph node.</summary>
 /// <remarks>
-/// Written as a name in JSON (K-040). The UI picks the node shape based on
+/// Written as a name in JSON. The UI picks the node shape based on
 /// it.
 /// </remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowNodeKind>))]
@@ -113,7 +113,7 @@ public enum WorkflowNodeKind
 }
 
 /// <summary>Represents the kind of an edge.</summary>
-/// <remarks>Written as a name in JSON (K-040).</remarks>
+/// <remarks>Written as a name in JSON.</remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowEdgeKind>))]
 public enum WorkflowEdgeKind
 {

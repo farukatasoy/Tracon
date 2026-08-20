@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// An application that registers nothing gets exactly its previous behaviour:
 /// both members are <see langword="null"/>, the <c>user_id</c> and
 /// <c>labels</c> columns stay NULL, and no other behaviour changes. This is the
-/// K1 "no surprises" default.
+/// the no-surprises rule "no surprises" default.
 /// </para>
 /// <para>
 /// The ambient scope is still honoured here so that a queued job, a scheduled
@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// The registration uses <c>TryAdd</c>, so a consumer implementation that binds
-/// the interface to a real identity pipeline always wins (K4).
+/// the interface to a real identity pipeline always wins.
 /// </para>
 /// </remarks>
 public sealed class DefaultRunAttributionContext : IRunAttributionContext

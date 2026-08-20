@@ -21,7 +21,7 @@ public sealed record JobScheduleSaveRequest
     /// </summary>
     public string? Cron { get; init; }
 
-    /// <summary>Time zone the <see cref="Cron"/> expression is interpreted in.</summary>
+    /// <summary>Time zone the <c>Cron</c> expression is interpreted in.</summary>
     public string TimeZone { get; init; } = "UTC";
 
     /// <summary>Input set or parameters.</summary>

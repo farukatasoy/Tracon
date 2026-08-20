@@ -6,14 +6,14 @@ namespace AgentPrism;
 
 /// <summary>
 /// Provides the default <see cref="IRunPricingResolver"/> implementation. It
-/// resolves prices from the model catalog, then <c>AgentPrism:Pricing</c> configuration (K-032).
+/// resolves prices from the model catalog, then <c>AgentPrism:Pricing</c> configuration.
 /// </summary>
 /// <remarks>
 /// When no provider is supplied, such as during historical recalculation, the
 /// first provider that has the model name is used from either source. The
 /// <c>runs</c> table has no provider column and <see cref="IModelProviderRegistry.List"/>
 /// already orders providers alphabetically. Different prices for a same-named
-/// model across providers are a known, accepted limitation (see K-154); it
+/// model across providers are a known, accepted limitation; it
 /// cannot be resolved without adding a provider column to <c>runs</c>.
 /// </remarks>
 public sealed class RunPricingResolver : IRunPricingResolver
@@ -141,7 +141,7 @@ public sealed class RunPricingResolver : IRunPricingResolver
     /// rate and then adding a cache charge would bill the cached tokens twice.
     /// </para>
     /// <para>
-    /// 🚨 Two invariants hold here. When <paramref name="cachedRate"/> is
+    /// Two invariants hold here. When <paramref name="cachedRate"/> is
     /// <see langword="null"/> NOTHING is subtracted and
     /// <see cref="RunCost.CachedInputCost"/> stays <see langword="null"/>: the
     /// result is byte-for-byte the value this method produced before cache

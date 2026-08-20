@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// fixed value and requires no additional configuration.
 /// </summary>
 /// <remarks>
-/// In multi-tenant scenarios (Phase 6), the application binds this interface
+/// In multi-tenant scenarios, the application binds this interface
 /// to its own identity infrastructure: an HTTP header, a claim, or a subdomain.
 /// </remarks>
 public interface ITenantContext

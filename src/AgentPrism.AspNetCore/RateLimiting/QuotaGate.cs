@@ -10,13 +10,13 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// The check is called <strong>explicitly</strong> at every endpoint that starts a
-/// run; it is not an endpoint filter. Reason: on OpenAI-compatible endpoints, the
+/// run; it is not an endpoint filter. On OpenAI-compatible endpoints, the
 /// agent name is not in the route value but in the body's <c>model</c> field, and a
 /// filter reading the body would require parsing the request twice.
 /// </para>
 /// <para>
-/// 🚨 An ongoing run is <strong>not cut off</strong> when the quota is exceeded
-/// (K-162). This gate only stops a <em>new</em> run.
+/// An ongoing run is <strong>not cut off</strong> when the quota is exceeded.
+/// This gate only stops a <em>new</em> run.
 /// </para>
 /// </remarks>
 internal static class QuotaGate

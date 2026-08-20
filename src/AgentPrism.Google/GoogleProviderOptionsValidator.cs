@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <para>
 /// Validation is written by hand; <c>ValidateDataAnnotations()</c> relies on
 /// reflection and produces <c>IL2026</c>. <c>AgentPrism.Google</c> must stay AOT
-/// compatible. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// compatible.
 /// </para>
 /// <para>
 /// <strong>Error messages never include the API key.</strong>

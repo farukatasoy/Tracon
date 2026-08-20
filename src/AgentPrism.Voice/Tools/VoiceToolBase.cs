@@ -9,21 +9,19 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Tools are hand-derived, NOT written with <c>AIFunctionFactory</c>.
-/// The factory uses reflection and carries <c>[RequiresUnreferencedCode]</c> +
-/// <c>[RequiresDynamicCode]</c>; that path is closed because the package is
-/// marked AOT compatible. The JSON schema is hand-written for the same
-/// reason — the three tools have three parameters in total, so the cost is low.
+/// Tools are hand-derived, NOT written with <c>AIFunctionFactory</c>. The factory uses
+/// reflection and carries <c>[RequiresUnreferencedCode]</c> +
+/// <c>[RequiresDynamicCode]</c>; that path is closed because the package is marked AOT
+/// compatible. The JSON schema is hand-written for the same reason — the three tools
+/// have three parameters in total, so the cost is low.
 /// </para>
 /// <para>
-/// 🚨 <strong>Dependencies are taken at SETUP time, not at call time.</strong>
+/// <strong>Dependencies are taken at SETUP time, not at call time.</strong>
 /// <c>AIFunctionArguments.Services</c> <strong>cannot be used</strong> in
-/// AgentPrism's pipeline: measured (2026-08-05, sample application) —
-/// Microsoft Agent Framework passes the tool a
-/// <c>Microsoft.Extensions.AI.EmptyServiceProvider</c> and no service resolves.
-/// The error appears only on a REAL tool call; a unit test passes a fake
-/// provider and does not catch it.
-/// Details: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G4.
+/// AgentPrism's pipeline: measured against a running application — Microsoft Agent
+/// Framework passes the tool a <c>Microsoft.Extensions.AI.EmptyServiceProvider</c>
+/// and no service resolves. The error appears only on a REAL tool call; a unit test
+/// passes a fake provider and does not catch it.
 /// </para>
 /// </remarks>
 internal abstract class VoiceToolBase : AIFunction

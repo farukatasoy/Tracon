@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// <c>WorkflowVisualizer</c> also produces a ready-made Mermaid string; that
 /// string is <em>not rendered</em> in the UI, it is only exported - rendering
 /// Mermaid in the browser costs ~100 KB gzipped and the bundle budget is
-/// 250 KB (K-002).
+/// 250 KB.
 /// </para>
 /// <para>
 /// Node ids are kept <strong>identical</strong> to the executor ids in run

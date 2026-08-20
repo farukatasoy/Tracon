@@ -55,4 +55,4 @@ curl http://localhost:5081/agentprism/api/agents
 ## More
 
 - [AgentPrism repository](https://github.com/farukatasoy/AgentPrism)
-- [`docs/MIMARI.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- [Architecture](https://farukatasoy.github.io/AgentPrism/concepts/)

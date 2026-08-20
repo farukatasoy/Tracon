@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <param name="OrderColumn">
 /// The ordering column used for determinism in the archive read. When the target
 /// has no time column of its own (<c>eval_case_results</c>), <c>id</c> is used,
-/// because a UUID v7 identifier is time-ordered (K-015).
+/// because a UUID v7 identifier is time-ordered.
 /// </param>
 /// <param name="TenantPredicate">
 /// The SQL condition that binds the row to a tenant; it refers to the
@@ -19,11 +19,11 @@ namespace AgentPrism;
 /// own, it is a direct comparison; otherwise (<c>run_events</c>,
 /// <c>tool_invocations</c>, <c>eval_case_results</c>) it is an <c>EXISTS</c> clause
 /// that looks at the owner.
-/// 🚨 Phase 41: without this field, a policy defined for one tenant deleted the
+/// Without this field, a policy defined for one tenant deleted the
 /// rows of ALL tenants.
 /// </param>
 /// <param name="RowLimitOrderExpression">
-/// For <c>MaxRows</c> (phase 36): the SQL expression used to find the Nth row from
+/// For <c>MaxRows</c>: the SQL expression used to find the Nth row from
 /// the newest. On most targets it is THE SAME COLUMN that
 /// <see cref="WherePredicate"/> compares with <c>@cutoff</c> (the threshold can be
 /// fed straight into the same condition). On targets that look at a related table
@@ -48,11 +48,11 @@ internal readonly record struct RetentionTargetDefinition(
 /// <strong>per provider</strong>; <see cref="SqlDialect"/> supplies only 3 template
 /// methods (count/delete/read) and the table qualification
 /// (<see cref="SqlDialect.QualifyTable"/>), while the table and condition are
-/// defined in ONE place here. Rationale: a single data table instead of 30
-/// hand-written queries (docs/KARARLAR.md, decision K-198).
+/// defined in ONE place here. A single data table instead of 30
+/// hand-written queries.
 /// </para>
 /// <para>
-/// 🚨 <c>audit_log</c> is DELIBERATELY absent here and must never be added.
+/// <c>audit_log</c> is DELIBERATELY absent here and must never be added.
 /// </para>
 /// </remarks>
 internal static class RetentionTargetRegistry

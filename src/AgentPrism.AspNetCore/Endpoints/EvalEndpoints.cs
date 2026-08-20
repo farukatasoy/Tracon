@@ -10,10 +10,10 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Endpoints for eval suite/case management, run triggering, and result viewing (Phase 18).
+/// Endpoints for eval suite/case management, run triggering, and result viewing.
 /// </summary>
 /// <remarks>
-/// 🚨 All dependencies other than <see cref="IEvalStore"/> are marked
+/// All dependencies other than <see cref="IEvalStore"/> are marked
 /// <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale is the
 /// same as <see cref="SchedulingEndpoints"/>. Triggering a run uses the existing
 /// job queue (<see cref="IJobStore"/>, <see cref="JobKind.Eval"/>); there is no separate execution path.
@@ -163,7 +163,7 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetOnlineEvaluationSummary")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Returns a summary of the online evaluation window (Phase 49).")
+            .WithSummary("Returns a summary of the online evaluation window.")
             .WithDescription(
                 "Returns the average judge score, sample count, and judge cost within the " +
                 "window. The summary is in-memory (it resets when the process restarts); for " +
@@ -174,7 +174,7 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismJudgeRun")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Manually has judge(s) score a run (Phase 49).")
+            .WithSummary("Manually has judge(s) score a run.")
             .WithDescription(
                 "This SKIPS the sampling decision; it is for calibration and debugging. " +
                 "If no IRunJudge is registered, or the run's input/output cannot be read, " +

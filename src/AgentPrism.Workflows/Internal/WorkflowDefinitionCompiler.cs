@@ -13,9 +13,9 @@ namespace AgentPrism;
 /// <para>
 /// The compiler binds <strong>agents from the catalog</strong>. Every agent is
 /// wrapped with <see cref="ChildAgentInvoker"/>; this way every agent that
-/// runs inside a workflow attaches under the workflow run through phase 12's
+/// runs inside a workflow attaches under the workflow run through the
 /// tree mechanism, and depth, budget, and tenant limits are applied
-/// automatically. This wrapper was written in phase 12 and is <em>reused</em>
+/// automatically. This wrapper is <em>reused</em>
 /// here: rewriting the sub-execution rules a second time would let the two
 /// copies drift apart over time.
 /// </para>
@@ -102,9 +102,9 @@ internal sealed class WorkflowDefinitionCompiler
     /// assembled node by node with <see cref="WorkflowBuilder"/> instead.
     /// </para>
     /// <para>
-    /// 🚨 <strong>An agent node is bound as a <see cref="WorkflowAgentStepExecutor"/>
+    /// <strong>An agent node is bound as a <see cref="WorkflowAgentStepExecutor"/>
     /// (a <see cref="FunctionExecutor{TInput,TOutput}"/> subtype), never as an
-    /// <see cref="AIAgentBinding"/>.</strong> Measured (phase 71): an
+    /// <see cref="AIAgentBinding"/>.</strong> Measured: an
     /// <c>AIAgentBinding</c> that is not the graph's entry point never calls
     /// its wrapped agent when wired with a plain <c>AddEdge</c> - it accepts
     /// the incoming chat messages but sits idle (no failure, no run row, no

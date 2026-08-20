@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Each call creates a separate short-lived connection. This has the same rationale
 /// as <see cref="McpPromptClient"/>. <see cref="ReadResourceAsync"/> accepts only
-/// URIs declared by the server. Reading arbitrary URIs has SSRF risk. See section 22.2.
+/// URIs declared by the server. Reading an arbitrary URI carries an SSRF risk.
 /// </remarks>
 internal sealed class McpResourceClient : IMcpResourceClient
 {

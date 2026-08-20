@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// The schedule record defining when and how a job runs.
 /// </summary>
 /// <remarks>
-/// If <see cref="Cron"/> is left empty, the schedule is triggered only
+/// If <c>Cron</c> is left empty, the schedule is triggered only
 /// manually (<c>POST .../trigger</c>); no automatic next-run time is computed.
 /// </remarks>
 public sealed record JobSchedule
@@ -32,7 +32,7 @@ public sealed record JobSchedule
     /// </summary>
     public string? Cron { get; init; }
 
-    /// <summary>The time zone the <see cref="Cron"/> expression is interpreted in.</summary>
+    /// <summary>The time zone the <c>Cron</c> expression is interpreted in.</summary>
     public string TimeZone { get; init; } = "UTC";
 
     /// <summary>The input set or parameters. Interpreted according to the job kind.</summary>

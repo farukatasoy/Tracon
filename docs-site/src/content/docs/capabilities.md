@@ -108,6 +108,9 @@ claim to provide an operating-system sandbox.
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 
+A run is the unit of evidence. Everything that happened is recorded against a run id,
+and a store failure never gets permission to stop the run itself.
+
 ## Workflows and background work
 
 | Capability | Enable it | Storage and execution model |
@@ -181,6 +184,9 @@ caller's role and key scopes. See the complete scope table in
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
 | Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
 
+Observability never changes behavior. Every signal here is a side effect of a run, and
+a failure to record one is logged and stepped over rather than raised to the caller.
+
 ## Integration surfaces
 
 | Surface | Registration | Intended caller |
@@ -242,6 +248,9 @@ template's `.gitignore` already covers it.
 | Provider-free tests | `AgentPrism.Testing.FakeModelProvider` scripts deterministic model turns |
 | Integrated tests | `AgentPrismTestHost` builds a real catalog and in-memory stores |
 | Assertions | `RunAssertions` checks recorded runs without binding to a unit-test framework |
+
+In-memory stores make every contract usable before any database exists, and the
+consumer's own registration always wins over the built-in one.
 
 Use [Compatibility](/AgentPrism/reference/compatibility/) before you choose packages
 for a target framework or native AOT application. Use

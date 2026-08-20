@@ -4,10 +4,10 @@ namespace AgentPrism;
 /// An API key's database-stored view, WHICH CARRIES NO RAW VALUE.
 /// </summary>
 /// <remarks>
-/// 🚨 This record <strong>has no</strong> raw key. Only an irreversible
+/// This record <strong>has no</strong> raw key. Only an irreversible
 /// SHA-256 digest sits in the database (nowhere but <see cref="KeyPrefix"/>);
 /// the raw value is returned <strong>once</strong>, only at creation time,
-/// via <see cref="ApiKeyCreationResult.PlaintextKey"/> (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
+/// via <see cref="ApiKeyCreationResult.PlaintextKey"/>.
 /// </remarks>
 public sealed record ApiKeyRecord
 {
@@ -50,7 +50,7 @@ public sealed record ApiKeyRecord
 }
 
 /// <summary>The result of a key creation operation.</summary>
-/// <remarks>The raw key is returned ONLY here, at creation time (section 53.2).</remarks>
+/// <remarks>The raw key is returned ONLY here, at creation time.</remarks>
 public sealed record ApiKeyCreationResult
 {
     /// <summary>The saved view, which carries no raw value.</summary>

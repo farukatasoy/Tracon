@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>SQL-backed store for per-tenant model provider egress policies (phase 65, F-119).</summary>
+/// <summary>SQL-backed store for per-tenant model provider egress policies.</summary>
 internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
 {
     private readonly SqlStoreContext _context;

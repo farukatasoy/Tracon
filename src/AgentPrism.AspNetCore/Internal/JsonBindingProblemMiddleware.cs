@@ -13,8 +13,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// AgentPrism is a library; it CANNOT depend on whether the consumer calls
-/// <c>AddProblemDetails()</c>/<c>UseExceptionHandler()</c> (HATA-S2-006,
-/// HATA-S2-007). This middleware is attached from
+/// <c>AddProblemDetails()</c> or <c>UseExceptionHandler()</c>. This middleware is attached from
 /// <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>,
 /// INDEPENDENTLY of the consumer's setup, and catches the exception at its
 /// source, before it reaches the consumer's own global handler.
@@ -28,7 +27,7 @@ namespace AgentPrism;
 /// reaches this point on such endpoints.
 /// </para>
 /// <para>
-/// 🚨 This middleware is NOT sufficient BY ITSELF: minimal API's automatic body
+/// This middleware is NOT sufficient BY ITSELF: minimal API's automatic body
 /// binding only throws <c>JsonException</c> when
 /// <c>RouteHandlerOptions.ThrowOnBadRequest</c> is enabled (default: only under
 /// <c>IHostEnvironment.IsDevelopment()</c>). In production (the default environment)
@@ -37,7 +36,7 @@ namespace AgentPrism;
 /// <c>ProblemDetails</c> either). This middleware CANNOT see that path. That is why
 /// EVERY endpoint that binds a body (all of them, whether they formerly used
 /// <c>[FromBody]</c> or implicit binding — see the routes carrying
-/// <c>requestBody</c> in <c>docs/openapi/agentprism.json</c>) reads the body BY
+/// <c>requestBody</c> in the published OpenAPI document) reads the body BY
 /// HAND ITSELF (<see cref="RequestBodyBinding.ReadAsync{T}"/>) — this works
 /// INDEPENDENTLY of the environment. This middleware is only a defense-in-depth
 /// layer: it prevents a 500 (in Development) for an endpoint that, in the future,

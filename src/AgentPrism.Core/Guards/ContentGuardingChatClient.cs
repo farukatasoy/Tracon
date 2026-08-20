@@ -10,15 +10,15 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>The layer choice was measured and deviated from the plan.</strong>
+/// <strong>The layer choice was measured and deviated from the plan.</strong>
 /// An <c>IAgentDecorator</c> sees only the agent's first input and final output;
 /// it does not see the turns in between. A tool result enters the model on the
 /// <em>second</em> call, and that is the most common path for prompt injection.
 /// This is why the guard sits at the <c>IChatClient</c> layer.
 /// </para>
 /// <para>
-/// 🚨 It also sits <strong>INSIDE</strong> <c>UseFunctionInvocation()</c>.
-/// Measured (Phase 48): the tool-call loop is driven by MAF's
+/// It also sits <strong>INSIDE</strong> <c>UseFunctionInvocation()</c>.
+/// Measured: the tool-call loop is driven by MAF's
 /// <c>FunctionInvokingChatClient</c>, and every turn of that loop goes to the
 /// same inner client. If the decorator sat outside the loop it would see only
 /// ONE call per agent turn and tool results would never be inspected. The entire
@@ -124,7 +124,7 @@ internal sealed class ContentGuardingChatClient(
     /// Inspects the messages to be sent and, if needed, builds a masked copy.
     /// </summary>
     /// <remarks>
-    /// 🚨 The caller's list is <strong>not modified</strong>. Masking changes the
+    /// The caller's list is <strong>not modified</strong>. Masking changes the
     /// prompt going to the model, not the conversation history: if it were
     /// written to the history the mask would become permanent and the user's own
     /// text would be lost irrecoverably.
@@ -154,7 +154,7 @@ internal sealed class ContentGuardingChatClient(
     /// Inspects the response and replaces it with masked messages if needed.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="ChatMessage"/> objects are <strong>not modified in place</strong>.
+    /// <see cref="ChatMessage"/> objects are <strong>not modified in place</strong>.
     /// The inner client may reuse the same instance (a caching client, or a
     /// pre-built fake client); modifying in place would permanently corrupt that
     /// instance, and a second call would mistake the masked text for "the
@@ -306,7 +306,7 @@ internal sealed class ContentGuardingChatClient(
     /// text is preserved, and neither recording nor metrics are broken.
     /// </para>
     /// <para>
-    /// 🚨 Frames are <strong>copied</strong>, not modified in place: the inner
+    /// Frames are <strong>copied</strong>, not modified in place: the inner
     /// client may reuse the same instances.
     /// </para>
     /// </remarks>

@@ -5,24 +5,23 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Reason:</strong> the startup service that applies migrations is an
-/// <c>IHostedService</c> and waits for them in <c>StartAsync</c>. However,
-/// <c>BackgroundService.StartAsync</c> returns without waiting for
-/// <c>ExecuteAsync</c>. <c>IHostedService</c> instances start in registration
-/// order. If the chain calls <c>.UseMcp()</c> before <c>.UseSqlite()</c>, the
-/// background service can make its first SQL attempt before migrations complete
-/// and receive "no such table". Measured in Phase 42.
+/// The startup service that applies migrations is an <c>IHostedService</c> and waits
+/// for them in <c>StartAsync</c>. However, <c>BackgroundService.StartAsync</c> returns
+/// without waiting for <c>ExecuteAsync</c>. <c>IHostedService</c> instances start in
+/// registration order. If the chain calls <c>.UseMcp()</c> before <c>.UseSqlite()</c>,
+/// the background service can make its first SQL attempt before migrations complete and
+/// receive "no such table".
 /// </para>
 /// <para>
-/// The gate is <strong>independent of registration order</strong>. The waiting
-/// side does not know the order and waits only for the ready signal. Enforcing an
-/// order would be fragile because the consumer writes the chain and no ordering
-/// can cover every configuration.
+/// The gate is <strong>independent of registration order</strong>. The waiting side
+/// does not know the order and waits only for the ready signal. Enforcing an order
+/// would be fragile because the consumer writes the chain and no ordering can cover
+/// every configuration.
 /// </para>
 /// <para>
 /// The gate <em>opens automatically</em> when no SQL persistence provider is
-/// registered, such as for in-memory stores. Otherwise, background services
-/// would wait forever in an in-memory installation.
+/// registered, such as for in-memory stores. Otherwise, background services would wait
+/// forever in an in-memory installation.
 /// </para>
 /// </remarks>
 public sealed class SchemaReadyGate

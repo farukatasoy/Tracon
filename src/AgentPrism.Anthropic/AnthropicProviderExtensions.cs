@@ -72,7 +72,7 @@ public static class AnthropicProviderExtensions
     /// </para>
     /// <para>
     /// Registration uses <c>AddModelProvider(...)</c>; no existing service is
-    /// <em>replaced</em> (decision K-025). Calling this more than once merges the
+    /// <em>replaced</em>. Calling this more than once merges the
     /// settings; the provider is registered only once.
     /// </para>
     /// </remarks>
@@ -127,7 +127,6 @@ public static class AnthropicProviderExtensions
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// When a new setting is added, it must also be added here and inside
     /// <see cref="AnthropicProviderOptionsValidator"/>.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     internal static void Bind(IConfiguration section, AnthropicProviderOptions options)
     {

@@ -11,7 +11,7 @@ internal sealed class AgentPrismSkillsSource : AgentSkillsSource
     /// MAF calls <c>MakeReadOnly()</c> on this instance in
     /// <c>AgentInlineSkill</c>/<c>AddScript</c>. Without a source-generated
     /// <c>TypeInfoResolver</c>, this throws an exception that a resolver is required
-    /// before it can be read-only (K-400). Script arguments always flow through
+    /// before it can be read-only. Script arguments always flow through
     /// MarshalArguments as <see cref="JsonElement"/>, which the source generator resolves without reflection.
     /// </summary>
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)

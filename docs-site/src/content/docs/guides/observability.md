@@ -54,6 +54,43 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.judge.cost` | Cost reported for evaluation judges |
 | `agentprism.judge.score` | Judge score distribution |
 
+### The attribute names
+
+These are the tag keys the instruments and the run span carry. They are the names you
+group and filter by in a dashboard or an alert rule, so they are as stable as the
+metric names above.
+
+| Attribute | Carried by | Value |
+|---|---|---|
+| `agentprism.agent.name` | Every run signal | The agent's registered name |
+| `agentprism.agent.version` | Run signals for a versioned definition | The definition version that ran |
+| `agentprism.run.status` | `agentprism.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
+| `agentprism.run.streaming` | Run signals | Whether the caller asked for a stream |
+| `agentprism.model.id` | Run and cost signals | The model the run was bound to |
+| `agentprism.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
+| `agentprism.tool.name` | `agentprism.tool.invocations`, `agentprism.tool.duration` | The invoked tool |
+| `agentprism.token.direction` | `agentprism.tokens` | `input` or `output`, and nothing else |
+| `agentprism.cost.currency` | `agentprism.run.cost` | The currency the configured price is expressed in |
+| `agentprism.quota.scope` · `agentprism.quota.period` · `agentprism.quota.metric` | Quota gauges | Which quota the gauge reports |
+| `agentprism.judge.name` | `agentprism.judge.cost`, `agentprism.judge.score` | The judge that produced the score |
+| `agentprism.skill.name` | Skill signals | The loaded skill |
+| `agentprism.script.name` · `agentprism.script.exit_code` · `agentprism.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
+| `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
+
+Three spans and one tool name are not metrics at all, and are named here because a
+trace search needs them: `execute_skill_script` (a skill script's own span, carrying
+the three `agentprism.script.*` attributes), `compact_history` (the summarization
+call, carrying the two `agentprism.compaction.*` attributes), and the tool name
+`skill_script`, which is what a script-backed skill appears as in
+`agentprism.tool.invocations`.
+
+:::caution
+Four of these are **span attributes only** and are deliberately not metric tags:
+`agentprism.run.id`, `agentprism.session.id`, `agentprism.run.parent_id`, and
+`agentprism.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
+new time series per run. Use them to find a trace, not to group a chart.
+:::
+
 Token and cost data depend on the provider response. Missing usage remains unknown;
 it is not converted to zero. AgentPrism also does not invent a price. A run can have
 token metrics but no cost metric when neither the model catalog nor your pricing

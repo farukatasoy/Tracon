@@ -30,7 +30,7 @@ namespace AgentPrism;
 ///   <item><description>Was the audit trail entry written</description></item>
 /// </list>
 /// <para>
-/// 🚨 The last item is a <strong>deliberate exception</strong> to Phase 9's
+/// The last item is a <strong>deliberate exception</strong> to the
 /// "observability does not break functionality" rule: a script run that
 /// cannot be written to the audit trail would be a remote code execution
 /// with no record at all.

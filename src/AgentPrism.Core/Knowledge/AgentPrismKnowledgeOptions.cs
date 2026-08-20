@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Options for the knowledge base (semantic search) — Phase 51.</summary>
+/// <summary>Options for the knowledge base (semantic search).</summary>
 /// <remarks>
 /// Reads values from the <c>AgentPrism:Knowledge</c> configuration section. It does
 /// not require a separate <c>Use...()</c> call, for the same reason as scheduling
@@ -14,7 +14,7 @@ public sealed class AgentPrismKnowledgeOptions
 
     /// <summary>
     /// The embedding dimensions. They are fixed with the schema. Changing them
-    /// invalidates all embeddings. See <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>.
+    /// invalidates all embeddings.
     /// </summary>
     public int Dimensions { get; set; } = 1536;
 

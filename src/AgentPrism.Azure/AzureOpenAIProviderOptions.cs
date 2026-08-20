@@ -7,12 +7,11 @@ namespace AgentPrism;
 /// <para>
 /// This type is deliberately a <c>class</c>, not a <c>record</c>: the
 /// <c>ToString</c> a <c>record</c> generates writes every property, and a
-/// single log line would expose the API key. Rationale: <c>docs/KARARLAR.md</c>,
-/// decision K-035.
+/// single log line would expose the API key.
 /// </para>
 /// <para>
 /// Validation is done by hand inside <see cref="AzureOpenAIProviderOptionsValidator"/>;
-/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility (decision K-006).
+/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility.
 /// </para>
 /// </remarks>
 public sealed class AzureOpenAIProviderOptions
@@ -50,13 +49,12 @@ public sealed class AzureOpenAIProviderOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>The factory deliberately comes from the consumer.</strong> The
+    /// <strong>The factory deliberately comes from the consumer.</strong> The
     /// <c>DefaultAzureCredential</c> type needed for a managed credential lives
     /// in the <c>Azure.Identity</c> package; that package is not small and pulls
     /// in the <c>Microsoft.Identity.Client</c> chain too. <c>AgentPrism.Azure</c>
     /// does not take it as a dependency; it only binds to the <c>Azure.Core</c>
-    /// abstraction and leaves the credential choice to the consumer. Rationale:
-    /// <c>docs/KARARLAR.md</c>, decision K-210.
+    /// abstraction and leaves the credential choice to the consumer.
     /// </para>
     /// <example>
     /// <code>
@@ -76,7 +74,7 @@ public sealed class AzureOpenAIProviderOptions
     /// is left empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 What Azure calls is not a model name, it is a <strong>deployment
+    /// What Azure calls is not a model name, it is a <strong>deployment
     /// name</strong>. The same model can be deployed under different names, and
     /// the person who sets up the resource chooses the deployment name. Detail:
     /// <see cref="AzureOpenAIChatClientFactory"/>.
@@ -110,8 +108,7 @@ public sealed class AzureOpenAIProviderOptions
     /// <remarks>
     /// AgentPrism carries no built-in model list; the catalog comes entirely
     /// from here. This list is <em>not a validation list</em>: a deployment name
-    /// absent from it can still be used. Rationale: <c>docs/KARARLAR.md</c>,
-    /// decision K-032.
+    /// absent from it can still be used.
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 }

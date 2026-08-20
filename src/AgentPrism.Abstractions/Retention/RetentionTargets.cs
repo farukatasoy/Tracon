@@ -8,8 +8,8 @@ namespace AgentPrism;
 /// injection surface.
 /// </para>
 /// <para>
-/// 🚨 <c>audit_log</c> is DELIBERATELY <strong>absent</strong> from this list.
-/// The audit trail is never automatically deleted (the Phase 25 decision).
+/// <c>audit_log</c> is DELIBERATELY <strong>absent</strong> from this list.
+/// The audit trail is never automatically deleted.
 /// </para>
 /// </remarks>
 public static class RetentionTargets
@@ -48,7 +48,7 @@ public static class RetentionTargets
     public const string Conversations = "conversations";
 
     /// <summary>
-    /// The summary record of closed real-time voice connections (Phase 29).
+    /// The summary record of closed real-time voice connections.
     /// </summary>
     /// <remarks>
     /// The record carries <strong>no audio</strong>; it only carries
@@ -58,19 +58,19 @@ public static class RetentionTargets
     /// </remarks>
     public const string VoiceSessions = "voice_sessions";
 
-    /// <summary>Run and message scores (Phase 31).</summary>
+    /// <summary>Run and message scores.</summary>
     public const string RunScores = "run_scores";
 
-    /// <summary>Stored idempotency responses (Phase 43).</summary>
+    /// <summary>Stored idempotency responses.</summary>
     public const string IdempotencyKeys = "idempotency_keys";
 
     /// <summary>
-    /// Runs' recorded input messages (Phase 47). The source of replay;
+    /// Runs' recorded input messages. The source of replay;
     /// deleting an input makes that run unable to be replayed.
     /// </summary>
     /// <remarks>
-    /// The content is in the same information class as <c>conversation_items</c>
-    /// (K-107), but the target is <strong>not off by default</strong>:
+    /// The content is in the same information class as <c>conversation_items</c>,
+    /// but the target is <strong>not off by default</strong>:
     /// <c>run_inputs</c> is not the user's own conversation history but a
     /// derived record of the run, and its lifetime should be limitable
     /// through the retention policy.
@@ -78,7 +78,7 @@ public static class RetentionTargets
     public const string RunInputs = "run_inputs";
 
     /// <summary>
-    /// Knowledge-base chunks and their embeddings (Phase 51). 🚨 The table
+    /// Knowledge-base chunks and their embeddings. The table
     /// exists only in the PostgreSQL migration set; binding this target to a
     /// policy on SQL Server or SQLite fails at run time (no such table).
     /// </summary>

@@ -34,7 +34,7 @@ internal static class GovernanceEndpoints
     /// Maps the OAuth callback endpoint. It must be mapped to a group SEPARATE
     /// from the other governance endpoints: the browser request redirected by the
     /// provider cannot carry our bearer token — the <c>state</c> parameter is the
-    /// only valid proof of identity (section 22.3).
+    /// only valid proof of identity.
     /// </summary>
     /// <param name="builder">The endpoint group EXEMPT from bearer token checks, but subject to loopback+policy.</param>
     public static void MapMcpOAuthCallback(IEndpointRouteBuilder builder)
@@ -408,7 +408,7 @@ internal static class GovernanceEndpoints
             .Accepts<McpPromptArgumentsRequest>(true, "application/json")
             .WithDescription(
                 "The returned content is a SNAPSHOT: it must be copied into the agent's instructions; " +
-                "it is not re-fetched at runtime (section 22.1). The 'hash' field is for tracking changes on the server.");
+                "it is not re-fetched at runtime. The 'hash' field is for tracking changes on the server.");
     }
 
     private static void MapMcpResources(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -474,7 +474,7 @@ internal static class GovernanceEndpoints
             .WithSummary("Reads an MCP resource.")
             .WithDescription(
                 "Only URIs advertised by the server's ListResourcesAsync are accepted; " +
-                "an arbitrary URI is rejected because it carries an SSRF risk (section 22.2).");
+                "an arbitrary URI is rejected because it carries an SSRF risk.");
     }
 
     private static void MapMcpOAuthStart(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)

@@ -21,7 +21,7 @@ namespace AgentPrism;
 /// The summary is enough to <em>display</em> the request, not to
 /// <em>reconstruct</em> it. When answering, the real <see cref="ExternalRequest"/>
 /// object is republished by the execution resumed from the checkpoint and
-/// matched by id - measured (phase 16): resuming reissues the same request
+/// matched by id - measured: resuming reissues the same request
 /// with the same <c>RequestId</c>.
 /// </para>
 /// </remarks>
@@ -59,7 +59,7 @@ internal static class WorkflowRequestDescriptor
     /// <returns>The pending request; <see langword="null"/> if the payload cannot be read.</returns>
     /// <remarks>
     /// If the payload cannot be read, the event is <strong>dropped</strong>.
-    /// Reason: the payload may have been truncated by the recording settings
+    /// The payload may have been truncated by the recording settings
     /// (<c>MaxPayloadLength</c>), and fabricating a request from a partial JSON
     /// would show the user a card that cannot be answered.
     /// </remarks>

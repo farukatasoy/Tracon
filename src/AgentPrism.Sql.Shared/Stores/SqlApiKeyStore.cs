@@ -4,9 +4,8 @@ namespace AgentPrism;
 
 /// <summary>Store for tenant-scoped API keys.</summary>
 /// <remarks>
-/// 🚨 This store never writes or reads the raw key value; it only holds an
-/// irreversible SHA-256 digest
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
+/// This store never writes or reads the raw key value; it only holds an
+/// irreversible SHA-256 digest.
 /// </remarks>
 internal sealed class SqlApiKeyStore : IApiKeyStore
 {

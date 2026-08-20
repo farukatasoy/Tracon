@@ -18,27 +18,27 @@ public enum JobKind
     Workflow = 1,
 
     /// <summary>
-    /// An evaluation (eval) run. Phase 18 adds its own <c>IJobHandler</c>
+    /// An evaluation (eval) run. Evaluation registers its own <c>IJobHandler</c>
     /// implementation for this value.
     /// </summary>
     Eval = 2,
 
     /// <summary>
-    /// A single webhook delivery attempt (Phase 21). The payload carries the
+    /// A single webhook delivery attempt. The payload carries the
     /// delivery record's identifier; the body is read from the
     /// <c>webhook_deliveries</c> table.
     /// </summary>
     WebhookDelivery = 3,
 
     /// <summary>
-    /// A retention sweep (Phase 25). <c>TargetName</c> is either a specific
+    /// A retention sweep. <c>TargetName</c> is either a specific
     /// <see cref="RetentionTargets"/> value or <c>"*"</c>, which processes all
     /// enabled policies.
     /// </summary>
     Retention = 4,
 
     /// <summary>
-    /// A single queued (durable) agent run (Phase 46).
+    /// A single queued (durable) agent run.
     /// </summary>
     /// <remarks>
     /// Runs started with <c>Prefer: respond-async</c> run under this kind.
@@ -49,7 +49,7 @@ public enum JobKind
     AgentRun = 5,
 
     /// <summary>
-    /// Scores a sampled production run (Phase 49).
+    /// Scores a sampled production run.
     /// </summary>
     /// <remarks>
     /// The payload is empty or for diagnostics; the identifier of the run to
@@ -59,11 +59,11 @@ public enum JobKind
     OnlineEval = 6,
 
     /// <summary>
-    /// A NEW run that resumes a queued run after an approval decision (Phase 55).
+    /// A NEW run that resumes a queued run after an approval decision.
     /// </summary>
     /// <remarks>
     /// SEPARATE from <see cref="AgentRun"/>: the old run row closed with
-    /// <c>AwaitingApproval</c> NEVER CHANGES AGAIN (K-014, the same principle
+    /// <c>AwaitingApproval</c> NEVER CHANGES AGAIN (the same principle
     /// as <see cref="RunStatus.AwaitingInput"/>); this job opens a NEW
     /// <c>runs</c> row with a NEW <c>RunId</c>. The payload carries the
     /// identifier of the <see cref="PendingApproval"/> record whose decision was made.

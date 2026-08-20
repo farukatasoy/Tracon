@@ -8,9 +8,9 @@ namespace AgentPrism;
 /// Converts Microsoft Agent Framework workflow events into AgentPrism event drafts.
 /// </summary>
 /// <remarks>
-/// 🚨 <strong>Branch order matters.</strong> <c>AgentResponseEvent</c> and
+/// <strong>Branch order matters.</strong> <c>AgentResponseEvent</c> and
 /// <c>AgentResponseUpdateEvent</c> <em>derive from</em> <c>WorkflowOutputEvent</c>
-/// (measured in phase 15). If the general branch is matched first, agent
+/// (). If the general branch is matched first, agent
 /// responses are classified as "the workflow produced output" and the real
 /// output is lost.
 /// </remarks>
@@ -101,7 +101,7 @@ internal static class WorkflowEventMapper
     /// <returns>Readable text; the type name if none can be extracted.</returns>
     /// <remarks>
     /// Every ready-made pattern produces a <c>List&lt;ChatMessage&gt;</c>
-    /// (measured in phase 15). A free-form graph defined in code may return a
+    /// (). A free-form graph defined in code may return a
     /// different type; in that case only the type name is written - dumping an
     /// unknown payload into the event table with <c>ToString()</c> would bloat
     /// the table.

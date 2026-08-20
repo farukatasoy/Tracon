@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <param name="Scope">The required scope.</param>
 /// <remarks>
 /// This does NOT replace the role policies; it narrows API-key-authenticated requests IN
-/// ADDITION to them (section 53.3). Requests that arrive with a static bearer token or with
+/// ADDITION to them. Requests that arrive with a static bearer token or with
 /// a user identity are unaffected by this check — it applies only when a record exists in
 /// <see cref="ApiKeyRequestContext"/>.
 /// </remarks>

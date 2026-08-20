@@ -34,4 +34,4 @@ dotnet new agentprism-api -n My.Agent --persistence postgres --provider anthropi
 
 The generated `appsettings.json` carries only empty placeholders — it never contains a `secret`. The connection string and API key are set with `dotnet user-secrets`; the generated `README.md` describes this as the first step.
 
-Details: [AgentPrism repository](https://github.com/farukatasoy/AgentPrism), [`docs/37-PROJE-SABLONU.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/37-PROJE-SABLONU.md).
+Details: <https://farukatasoy.github.io/AgentPrism/getting-started/first-agent/>

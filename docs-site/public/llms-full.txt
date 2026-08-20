@@ -112,6 +112,9 @@ claim to provide an operating-system sandbox.
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 
+A run is the unit of evidence. Everything that happened is recorded against a run id,
+and a store failure never gets permission to stop the run itself.
+
 ## Workflows and background work
 
 | Capability | Enable it | Storage and execution model |
@@ -185,6 +188,9 @@ caller's role and key scopes. See the complete scope table in
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
 | Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
 
+Observability never changes behavior. Every signal here is a side effect of a run, and
+a failure to record one is logged and stepped over rather than raised to the caller.
+
 ## Integration surfaces
 
 | Surface | Registration | Intended caller |
@@ -246,6 +252,9 @@ template's `.gitignore` already covers it.
 | Provider-free tests | `AgentPrism.Testing.FakeModelProvider` scripts deterministic model turns |
 | Integrated tests | `AgentPrismTestHost` builds a real catalog and in-memory stores |
 | Assertions | `RunAssertions` checks recorded runs without binding to a unit-test framework |
+
+In-memory stores make every contract usable before any database exists, and the
+consumer's own registration always wins over the built-in one.
 
 Use [Compatibility](/AgentPrism/reference/compatibility/) before you choose packages
 for a target framework or native AOT application. Use
@@ -491,6 +500,10 @@ it samples rather than scoring everything.
 
 `POST /api/runs/{runId}/judge` scores one run immediately, skipping the sampling
 decision — for calibration and debugging.
+
+The built-in judge is configured with `ModelRunJudgeOptions`: `Criteria` states the
+standard to score against, and `Instructions` replaces the judge prompt when the
+default wording does not fit your domain.
 
 ## Human feedback
 
@@ -1175,6 +1188,25 @@ curl "http://localhost:5081/agentprism/api/stats" | jq '.byUser, .byLabel'
 
 `byLabel` rows do **not** sum to `totalRuns`: a run carrying three labels appears
 in three of them. A label set is not a partition of the runs.
+
+### Starting a run from .NET with explicit identity
+
+`AgentPrismRunOptions` is the .NET-side counterpart of the run request. It is not a
+configuration section: it is passed per call, and every property answers "which run is
+this, and where does it sit in a larger story".
+
+| Property | What it sets |
+|---|---|
+| `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise AgentPrism generates it |
+| `ParentRunId` · `RootRunId` · `Depth` | The run's place in a call tree. The child-agent invoker fills these in; set them yourself only when you drive a tree by hand |
+| `AgentVersion` | The definition version this run used, when you resolved a specific one |
+| `ExperimentId` | The experiment this run is a sample of, so results group correctly |
+| `ReplayOfRunId` | The original run this one replays, which is what makes a comparison possible |
+| `SessionId` | The session at the root of the tree. It feeds the run scope, not the run row's own `session_id` |
+| `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
+
+Leave every property unset for an ordinary run: AgentPrism then records a root run with
+a generated id, and the values above are filled in by the components that own them.
 
 ## Three ways to start a run
 
@@ -2818,6 +2850,174 @@ credential meant for exactly this.
 
 ---
 
+# Coding agents
+
+A coding agent cannot use a capability it does not know exists. It will write a retry
+loop around a chat client, hand-roll an approval queue, or invent a cost table —
+carefully, and for no reason, because AgentPrism ships all three.
+
+AgentPrism closes that gap from inside the build, without a service to run or an
+index to keep in sync. Three files land in your repository or beside your project, and
+six compiler diagnostics speak up when an agent writes something the package already
+covers.
+
+## Turn it on
+
+One MSBuild property, **off by default**. Set it where your project file can see it —
+the project itself, or a `Directory.Build.props` at the repository root:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+</PropertyGroup>
+```
+
+That turns on both files. `AgentPrismWriteLocalReference` follows it unless you set it
+yourself, so you can keep the capability map and skip the machine-specific reference:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
+  <AgentPrismWriteLocalReference>false</AgentPrismWriteLocalReference>
+</PropertyGroup>
+```
+
+The project template sets the first property, so a project created with
+`dotnet new agentprism-api` already has both files.
+
+## What each file is for
+
+```mermaid
+flowchart LR
+    accTitle: The three files a coding agent reads
+    accDescr: The agent map answers what exists, the local reference answers how a member is called, and the site copies serve an agent that has no checkout.
+    BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root"]
+    BUILD --> LOCAL["AgentPrism.LocalReference.md<br/>beside each project"]
+    MAP --> Q1["What capability exists,<br/>and what call turns it on"]
+    LOCAL --> Q2["Exact paths to the XML docs<br/>and the HTTP API document"]
+    SITE["llms.txt · llms-full.txt"] --> Q3["The same map for an agent<br/>with no checkout"]
+```
+
+### `AGENTS.md` — the capability map
+
+Written once to your **repository root**, under 10 KB, and read by most coding agents
+at the start of a session. It names every registration entry point, the package it
+lives in, and the rule each capability group obeys.
+
+It is written **only when the file does not already exist**. Your own `AGENTS.md` is
+never overwritten, never merged, and never reformatted. If you keep your own, copy the
+capability section out of a generated one and maintain it yourself.
+
+### `AgentPrism.LocalReference.md` — the exact paths
+
+Written **beside each project** that references AgentPrism, on every build, and
+regenerated rather than merged — so add it to `.gitignore`. It answers the second
+question an agent asks, "how exactly is this called", by pointing at documentation
+already on the machine:
+
+- one XML documentation file per referenced AgentPrism package, at the version this
+  project restored;
+- the packaged HTTP API document, when the project references
+  `AgentPrism.AspNetCore`.
+
+The paths are machine-specific and version-specific, which is the point: an agent
+that greps them reads the signatures of the version you actually installed, not a
+newer or older one from the web.
+
+```bash
+grep -A 12 "AddToolApprovalPolicy" \
+  "$(grep -m1 -o '/.*AgentPrism\.Core\.xml' AgentPrism.LocalReference.md)"
+```
+
+### `llms.txt` and `llms-full.txt` — for an agent with no checkout
+
+The same capability map, plus the full text of every hand-written page, published on
+the documentation site:
+
+- [`llms.txt`](/AgentPrism/llms.txt) — the map, about 8 KB
+- [`llms-full.txt`](/AgentPrism/llms-full.txt) — every guide, concept, and reference
+  page concatenated, about 360 KB
+
+The generated .NET and HTTP API references are deliberately **not** in either file.
+That surface belongs to the compiler and the XML documentation; putting it in a text
+file would burn a context window and answer nothing the local reference cannot.
+
+## Keeping the map current
+
+Upgrade the package and the map goes stale — it describes the capabilities of the
+version that wrote it. The refresh is two steps and needs no new tool:
+
+```bash
+rm AGENTS.md
+dotnet build
+```
+
+`APG0401` tells you when this is due, so you do not have to remember.
+
+## The diagnostics
+
+Six diagnostics in the `AgentPrism.Usage` category. They are **warnings**, not
+suggestions, for one measured reason: an `Info` diagnostic never appears in
+`dotnet build` output at any verbosity, and build output is the only channel a coding
+agent reliably reads.
+
+| Id | Fires when | What it teaches |
+|---|---|---|
+| `APG0101` | `MapAgentPrism()` is called but `AddAgentPrism()` is not | The mapped endpoints have no catalog to serve; the app fails at startup |
+| `APG0102` | A model binding names a built-in provider the compilation never registers | Call the matching `Use…()`, or register a custom `IModelProvider` |
+| `APG0201` | A literal secret is written into a definition | Store the **name of the configuration key**; definitions reach backups, the audit trail, and the console |
+| `APG0301` | A retry loop is written by hand around a chat client | Hand retries hide failures from the circuit breaker and never reach the binding's fallbacks |
+| `APG0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
+| `APG0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
+
+A separate family, `APG0001`–`APG0007`, validates tool registration itself and comes
+from the source generator. Both families carry a help link into the
+[capability map](/AgentPrism/capabilities/).
+
+### Turning them off
+
+One property switches off the whole `AgentPrism.Usage` family by adding it to
+`$(NoWarn)`:
+
+```xml
+<PropertyGroup>
+  <AgentPrismUsageDiagnostics>false</AgentPrismUsageDiagnostics>
+</PropertyGroup>
+```
+
+To silence a single diagnostic instead, use `.editorconfig` as you would for any
+analyzer:
+
+```ini
+[*.cs]
+dotnet_diagnostic.APG0301.severity = none
+```
+
+:::caution
+With `TreatWarningsAsErrors` enabled, these warnings break the build — which is the
+intended outcome for `APG0101` and `APG0201`, both of which describe a defect that
+fails at run time or leaks a secret. Narrow the severity of the one you disagree with
+rather than switching off the family.
+:::
+
+## What this is not
+
+It is not a service, an index, or a plugin. Nothing runs outside `dotnet build`, no
+process listens, and no content is uploaded anywhere. Delete the files and unset the
+property and the only thing you lose is the map.
+
+It also does not make an agent's output correct. The map says what exists; whether a
+capability suits your case is still a judgement call, and the guides on this site are
+written for the human making it.
+
+## Read next
+
+- [Capability map](/AgentPrism/capabilities/) — the source the generated map is built from
+- [Troubleshooting](/AgentPrism/troubleshooting/#build-diagnostics-and-the-agent-map) — when a diagnostic fires and you disagree
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — the template that turns this on
+
+---
+
 # Context and memory
 
 “Memory” is not one store. AgentPrism separates conversation continuity, context
@@ -3232,6 +3432,13 @@ no expose-all switch.
 AgentPrism declares streaming, push notifications, and background A2A runs as
 unsupported. The same `ExternalInvoke`, approval, tenant, and budget boundaries as
 the MCP server apply.
+
+Both surfaces are configured in code, never from the console:
+`AgentPrismMcpServerOptions` for the MCP server and `AgentPrismA2AOptions` for A2A.
+Each starts empty — `ExposedAgents` names the agents you publish, and
+`ExposeAllAgents` opts out of naming them one by one. `ToolNamePrefix` keeps the
+published tool names from colliding with another server's, and `Budget` bounds what
+an external caller may spend.
 
 ## Production checklist
 
@@ -3994,6 +4201,14 @@ Schema output fails compilation. See
 
 ## Check a prompt against the context window before running it
 
+The pre-flight check is `AgentPrismPreflightOptions`, bound from
+`AgentPrism:Preflight`. It is off until `Enabled` is set, and `ReserveRatio` decides
+how much of the window is held back for the answer.
+
+Outgoing concurrency is `AgentPrismModelConcurrencyOptions`, bound from
+`AgentPrism:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
+AgentPrism has in flight against one provider at a time.
+
 `ContextWindowTokens` on a catalog `ModelDescriptor` powers two features (F-59):
 derivation for `ContextWindow` compaction, and an optional pre-flight check on
 `POST /api/agents/{name}/run` that rejects an oversized prompt **before** any
@@ -4347,6 +4562,43 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.quota.limit` | Current quota limit gauge when enabled |
 | `agentprism.judge.cost` | Cost reported for evaluation judges |
 | `agentprism.judge.score` | Judge score distribution |
+
+### The attribute names
+
+These are the tag keys the instruments and the run span carry. They are the names you
+group and filter by in a dashboard or an alert rule, so they are as stable as the
+metric names above.
+
+| Attribute | Carried by | Value |
+|---|---|---|
+| `agentprism.agent.name` | Every run signal | The agent's registered name |
+| `agentprism.agent.version` | Run signals for a versioned definition | The definition version that ran |
+| `agentprism.run.status` | `agentprism.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
+| `agentprism.run.streaming` | Run signals | Whether the caller asked for a stream |
+| `agentprism.model.id` | Run and cost signals | The model the run was bound to |
+| `agentprism.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
+| `agentprism.tool.name` | `agentprism.tool.invocations`, `agentprism.tool.duration` | The invoked tool |
+| `agentprism.token.direction` | `agentprism.tokens` | `input` or `output`, and nothing else |
+| `agentprism.cost.currency` | `agentprism.run.cost` | The currency the configured price is expressed in |
+| `agentprism.quota.scope` · `agentprism.quota.period` · `agentprism.quota.metric` | Quota gauges | Which quota the gauge reports |
+| `agentprism.judge.name` | `agentprism.judge.cost`, `agentprism.judge.score` | The judge that produced the score |
+| `agentprism.skill.name` | Skill signals | The loaded skill |
+| `agentprism.script.name` · `agentprism.script.exit_code` · `agentprism.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
+| `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
+
+Three spans and one tool name are not metrics at all, and are named here because a
+trace search needs them: `execute_skill_script` (a skill script's own span, carrying
+the three `agentprism.script.*` attributes), `compact_history` (the summarization
+call, carrying the two `agentprism.compaction.*` attributes), and the tool name
+`skill_script`, which is what a script-backed skill appears as in
+`agentprism.tool.invocations`.
+
+:::caution
+Four of these are **span attributes only** and are deliberately not metric tags:
+`agentprism.run.id`, `agentprism.session.id`, `agentprism.run.parent_id`, and
+`agentprism.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
+new time series per run. Use them to find a trace, not to group a chart.
+:::
 
 Token and cost data depend on the provider response. Missing usage remains unknown;
 it is not converted to zero. AgentPrism also does not invent a price. A run can have
@@ -5759,6 +6011,11 @@ stores and services.
 
 ## Host defaults and limits
 
+`AgentPrismTestHostOptions` is the host's configuration: `Prefix` sets the mapped
+path, `ModelProvider` swaps in your own fake, and `ConfigureServices`,
+`ConfigureAgentPrism`, and `ConfigureEndpoints` are the three hooks that let a test
+reach the real registration chain.
+
 | Host behavior | Default or limit |
 |---|---|
 | ASP.NET Core host | `WebApplication.CreateSlimBuilder()` with `UseTestServer()` |
@@ -6007,7 +6264,7 @@ answer.
 
 # HTTP API
 
-143 operations across 112 paths. This page is the shape they all share; the groups in
+160 operations across 123 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -6553,6 +6810,7 @@ script.
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
+| `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 
 Non-positive graph token or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/AgentPrism/api/agentprism.agentprismagentgraphoptions/)
@@ -6976,10 +7234,20 @@ The following features use explicit code options because they contain delegates,
 freeze an exposure allowlist at registration, or define request-resolution policy:
 
 - `UseTenancy(AgentPrismTenancyOptions)` selects the claim or explicitly allowed
-  header resolver.
+  header resolver. Four properties decide how a request's tenant is resolved, and
+  the default of each is the safe one:
+
+  | Property | Default | What it does |
+  |---|---|---|
+  | `Enabled` | `false` | Multi-tenancy is off until you turn it on; every request then resolves a tenant |
+  | `ClaimType` | *(none)* | The claim the resolver reads from the authenticated principal. **Left unset, no claim is read at all** — set it explicitly, for example to `tenant_id` |
+  | `AllowHeaderResolution` | `false` | Whether `X-AgentPrism-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
+  | `HeaderName` | `X-AgentPrism-Tenant` | The header consulted when header resolution is on |
+  | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
 - `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default.
 - `UseA2A(AgentPrismA2AOptions)` exposes no agent by default.
-- `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and criteria.
+- `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its
+  `Criteria`: the plain-language standard the judge scores a run against.
 - `AddAgent()`, `AddSkill()`, `AddWorkflow()`, and `AddEvalCheck()` define executable
   or compiled behavior.
 - `IDataSubjectResolver` (`services.AddSingleton<IDataSubjectResolver, ...>()`) maps a
@@ -8001,6 +8269,39 @@ tokens and duration are attributed separately.
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.
 
+## Sessions
+
+<a class="ui-shot" href="/AgentPrism/screenshots/sessions.png"><img src="/AgentPrism/screenshots/sessions.png" alt="The session list with message counts and last activity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+A session is a durable conversation. The list shows every session the active store
+knows about, with its agent, message count, and last activity; opening one reads the
+conversation back turn by turn, exactly as the model saw it.
+
+Two things are only visible here. A session can be **branched** from any addressable
+item, which forks the conversation without touching the original — the fork opens as
+a new session with its own id. And attachments referenced by a message are listed with
+their type and size, so you can see what actually reached the provider.
+
+In-memory storage keeps sessions only for the life of the process. Reading a
+conversation back, and branching it, need a SQL store.
+
+## Jobs
+
+<a class="ui-shot" href="/AgentPrism/screenshots/jobs.png"><img src="/AgentPrism/screenshots/jobs.png" alt="The job queue with kind, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Everything AgentPrism runs in the background, in one queue: queued agent runs,
+scheduled runs, workflow executions, evaluation runs, online-evaluation scoring, and
+webhook deliveries. Each row carries its kind, status, attempt count, and — for a
+failure — the classified error.
+
+Schedules live on the same screen. A schedule is a cron expression plus the payload to
+run; leaving the expression empty makes it manual-only, which is the honest way to
+park one. Triggering a schedule by hand queues exactly the job the timer would have.
+
+The queue only drains in a process that opted in with `UseScheduling()`. A queue that
+never moves is almost always an API process with no worker behind it — see
+[Jobs, schedules, and queues](/AgentPrism/guides/background-work/).
+
 ## Workflows
 
 <a class="ui-shot" href="/AgentPrism/screenshots/workflows.png"><img src="/AgentPrism/screenshots/workflows.png" alt="The workflow list and a compiled workflow graph" width="2880" height="1800" loading="lazy" decoding="async" /></a>
@@ -8041,6 +8342,8 @@ comparisons, not a free-text expression box.
 
 ## Catalog
 
+### Tools
+
 <a class="ui-shot" href="/AgentPrism/screenshots/tools.png"><img src="/AgentPrism/screenshots/tools.png" alt="The tool list with each tool's JSON schema" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tools with their generated JSON schemas — read-only, and permanently so. This screen
@@ -8053,13 +8356,38 @@ A destructive tool carries a red badge, one that sends data outside the process 
 orange one, and a tool with a declared permission or a non-default timeout shows both
 next to it — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout).
 
+### Skills
+
+<a class="ui-shot" href="/AgentPrism/screenshots/skills.png"><img src="/AgentPrism/screenshots/skills.png" alt="The skill list with frontmatter, resources, and allowed tools" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Skills sit beside the tools. A skill is markdown instructions plus read-only resources
+that an agent loads at run time, with approval. The editor shows the frontmatter, the
+compatibility and license fields, the allowed-tool list, and the resources; the
+markdown is stored as source text and the console does not render it.
+
+This is the second place the code-only boundary is visible: a skill may carry a
+**script**, but the console can only reference a script the application already
+registered and granted. It cannot write one.
+
+### Models
+
 <a class="ui-shot" href="/AgentPrism/screenshots/models.png"><img src="/AgentPrism/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Providers and their configured models, with a health status served from cache.
 A provider that implements no health check reports `Unknown`, which is not an error.
-The MCP screen lists remote servers and the tools discovered from them.
+### MCP
+
+<a class="ui-shot" href="/AgentPrism/screenshots/mcp.png"><img src="/AgentPrism/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Remote MCP servers and the tools discovered from each. A server is a definition — an
+endpoint, a transport, and the name of the configuration key its authorization value is
+read from — so the console never holds a credential. Discovered tools carry the same
+approval badges as code-defined ones, and refreshing a server re-reads its catalog
+without a restart.
 
 ## Governance
+
+### Audit
 
 <a class="ui-shot" href="/AgentPrism/screenshots/audit.png"><img src="/AgentPrism/screenshots/audit.png" alt="The audit trail, filterable by actor, action, and entity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
@@ -8067,9 +8395,18 @@ Who changed what, when, and from what to what — filterable by actor, action, e
 and date range. Secret-looking fields are masked before anything is stored.
 
 Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
-policy (BYOK), skill script grants, and inbound triggers have their own screens in
-the same area. A trigger's editor shows the exact signed-request URL to configure
-in the external system — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+policy (BYOK), and skill script grants have their own screens in the same area.
+
+### Triggers
+
+<a class="ui-shot" href="/AgentPrism/screenshots/triggers.png"><img src="/AgentPrism/screenshots/triggers.png" alt="Inbound triggers with their target, payload mode, and signed-request URL" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Inbound triggers let an external system start a queued run with one signed request and
+no API key. A trigger's editor shows the exact URL to configure in that system, the
+target agent or workflow, and the name of the configuration key holding its signing
+secret — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+
+### Diagnostics
 
 <a class="ui-shot" href="/AgentPrism/screenshots/diagnostics.png"><img src="/AgentPrism/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

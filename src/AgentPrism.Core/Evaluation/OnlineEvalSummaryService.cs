@@ -6,18 +6,18 @@ namespace AgentPrism;
 
 /// <summary>
 /// Maintains a sliding-window summary of online evaluation scores and publishes
-/// <see cref="WebhookEvents.RunScoreLow"/> when its threshold is crossed — phase 49.
+/// <see cref="WebhookEvents.RunScoreLow"/> when its threshold is crossed.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The score window is <strong>in memory</strong>, with one queue per tenant.
+/// The score window is <strong>in memory</strong>, with one queue per tenant.
 /// The <c>run_scores</c> table is always the source of truth; an operator can
 /// query its exact result at any time. This service is only an inexpensive live
 /// indicator and alarm, and resets when the process restarts. The same design is
-/// used for <see cref="RunSampler"/>'s hourly budget (K1: no durable counter store).
+/// used for <see cref="RunSampler"/>'s hourly budget (the no-surprises rule: no durable counter store).
 /// </para>
 /// <para>
-/// 🚨 One low score does not produce an alarm. Threshold evaluation does not run
+/// One low score does not produce an alarm. Threshold evaluation does not run
 /// before <see cref="OnlineEvaluationOptions.MinSampleSize"/> is met. Models are
 /// noisy, and otherwise notifications quickly become ignored.
 /// </para>

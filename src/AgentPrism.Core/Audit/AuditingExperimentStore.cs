@@ -193,7 +193,7 @@ public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
 
     /// <inheritdoc />
     /// <remarks>
-    /// This method is not audited. Following K-089, <c>CanaryEvaluationService</c>
+    /// This method is not audited., <c>CanaryEvaluationService</c>
     /// writes its audit record directly through <see cref="IAuditLog.WriteAsync"/>
     /// before it calls this method. An additional best-effort write here could leave
     /// a rollback applied after its write failed.

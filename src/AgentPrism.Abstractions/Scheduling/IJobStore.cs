@@ -95,9 +95,9 @@ public interface IJobStore
     /// <c>scheduled_for &lt;= now</c>, backoff needs no additional mechanism.
     /// </para>
     /// <para>
-    /// Webhook delivery (Phase 21) builds its 1 min / 5 min / 30 min / 2 hr /
+    /// Webhook delivery builds its 1 min / 5 min / 30 min / 2 hr /
     /// 6 hr ladder with this parameter. No second queue or second lease
-    /// mechanism is written (K-160).
+    /// mechanism is written.
     /// </para>
     /// </remarks>
     ValueTask ReleaseForRetryAsync(

@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>The OpenAI provider options of AgentPrism.</summary>
 /// <remarks>
 /// Validation is written by hand inside <see cref="OpenAIProviderOptionsValidator"/>;
-/// <c>DataAnnotations</c> is not used. Reason: <c>docs/KARARLAR.md</c>, decision K-006.
+/// <c>DataAnnotations</c> is not used.
 /// </remarks>
 public sealed class OpenAIProviderOptions
 {
@@ -33,7 +33,10 @@ public sealed class OpenAIProviderOptions
     /// <summary>Gets or sets the organization id. It is used by multi organization accounts.</summary>
     public string? Organization { get; set; }
 
-    /// <summary>Gets or sets the upper time limit of a single request. When <see langword="null"/>, the library default is used.</summary>
+    /// <summary>
+    /// Gets or sets the upper time limit of a single request. When <see
+    /// langword="null"/>, the library default is used.
+    /// </summary>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
@@ -43,7 +46,6 @@ public sealed class OpenAIProviderOptions
     /// <para>
     /// AgentPrism carries no built-in model list; the catalog comes entirely from here.
     /// Model names and prices change much faster than the package is released.
-    /// Reason: <c>docs/KARARLAR.md</c>, decision K-032.
     /// </para>
     /// <para>
     /// This list is <em>not a validation list</em>. A model name that is absent here can

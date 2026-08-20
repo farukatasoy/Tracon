@@ -55,8 +55,7 @@ public class AgentPrismException : Exception
 /// <para>
 /// Detection lives in a shared <c>IChatClient</c> decorator inside
 /// <c>AgentPrism.Core</c>, not inside the provider packages, so every provider
-/// gets the same behaviour. Rationale: <c>docs/26-ANTHROPIC-VE-GEMINI.md</c>,
-/// section 26.4.
+/// gets the same behaviour.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismContentFilteredException : AgentPrismException
@@ -111,7 +110,7 @@ public sealed class AgentPrismContentFilteredException : AgentPrismException
 /// between "the model refused" and "we refused".
 /// </para>
 /// <para>
-/// 🚨 Neither the message nor the fields <strong>carry the blocked content</strong>.
+/// Neither the message nor the fields <strong>carry the blocked content</strong>.
 /// The message can reach the client in a <c>422</c> body; putting sensitive text
 /// there would spread the problem.
 /// </para>
@@ -206,8 +205,7 @@ public sealed class AgentPrismCompilationException : AgentPrismException
 /// Thrown while the circuit is <c>Open</c>; <strong>no request reaches the
 /// provider</strong>. The circuit opens once consecutive failures pass
 /// <c>FailureThreshold</c>, and moves to half-open for a single trial after
-/// <c>BreakDuration</c>. Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>,
-/// section 8.3.
+/// <c>BreakDuration</c>.
 /// </remarks>
 public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 {
@@ -251,19 +249,18 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 /// </summary>
 /// <remarks>
 /// <para>
-/// Thrown by the wrapper installed in the tool registry (F-114,
-/// <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>), never by the tool body
+/// Thrown by the wrapper installed in the tool registry, never by the tool body
 /// itself. Microsoft Agent Framework's function-invoking client catches it and
 /// turns it into a tool result carrying the error — the run is
 /// <strong>not</strong> dropped, and the model sees a tool failure and can
 /// continue the turn.
 /// </para>
 /// <para>
-/// 🚨 <see cref="CancellationToken"/> is cooperative. A tool body that never
+/// <see cref="CancellationToken"/> is cooperative. A tool body that never
 /// reads its token is not forcibly stopped by this timeout — only the
 /// <em>wait</em> for it is cut short. The underlying work keeps running in the
 /// background until it finishes on its own; this is a documented limit, not a
-/// bug (Manual Case 8, <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>).
+/// bug.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismToolTimeoutException : AgentPrismException
@@ -309,7 +306,7 @@ public sealed class AgentPrismToolTimeoutException : AgentPrismException
 /// </summary>
 /// <remarks>
 /// <para>
-/// HATA-004: while creating a new session,
+/// while creating a new session,
 /// <c>AgentSessionManager.GetOrCreateSessionAsync</c> attempts an atomic insert
 /// through <c>ISessionStore.TryCreateAsync</c>. When a concurrent second request
 /// for the same id loses that attempt, it cannot know whether the winner's chat
@@ -357,12 +354,12 @@ public sealed class AgentPrismSessionConflictException : AgentPrismException
 
 /// <summary>
 /// Thrown when an external caller (over MCP or A2A) asked to invoke an agent from
-/// the catalog and the call was refused because it crosses a boundary (phase 50).
+/// the catalog and the call was refused because it crosses a boundary.
 /// </summary>
 /// <remarks>
 /// The most common cause is an external caller trying to open an agent that carries
 /// a tool requiring approval. An external caller is not an agent and cannot answer
-/// an approval request — the same rule as K-103, applied a second time.
+/// an approval request — the same rule, applied a second time.
 /// </remarks>
 public sealed class AgentPrismExternalCallException : AgentPrismException
 {

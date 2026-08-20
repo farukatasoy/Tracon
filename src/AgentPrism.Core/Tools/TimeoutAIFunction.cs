@@ -6,21 +6,21 @@ namespace AgentPrism;
 /// <summary>
 /// Wraps an <see cref="AIFunction"/> so a call that does not settle within a
 /// fixed duration ends in <see cref="AgentPrismToolTimeoutException"/> instead
-/// of running unbounded (F-114).
+/// of running unbounded.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Installed by the tool registry, one layer <strong>inside</strong> the
 /// authorization wrapper and <strong>outside</strong> the approval wrapper —
-/// see <c>docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md</c>, section 69.1. This
+///  This
 /// ordering matters: <c>ApprovalRequiredAIFunction</c> never blocks on the
 /// human decision inside a single call (Microsoft Agent Framework returns a
 /// pending request immediately and the decision resumes as a NEW run,
-/// K-368), so wrapping it with a timeout only ever bounds the tool's own
+/// ), so wrapping it with a timeout only ever bounds the tool's own
 /// execution, never an approval wait.
 /// </para>
 /// <para>
-/// 🚨 <see cref="CancellationToken"/> is <strong>cooperative</strong>. A tool
+/// <see cref="CancellationToken"/> is <strong>cooperative</strong>. A tool
 /// body that never reads its token is not forcibly stopped: this class races
 /// the call against a delay and, on timeout, returns control to the caller
 /// while the call keeps running in the background until it finishes or

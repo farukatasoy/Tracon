@@ -7,7 +7,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Resolves the internal chat-history conversation id <c>SqlChatHistoryProvider</c>
-/// attaches to a session, for data subject export/erasure (phase 64).
+/// attaches to a session, for data subject export/erasure.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -25,15 +25,19 @@ public static class AgentPrismMcpBuilderExtensions
     /// <para>
     /// <strong>Security boundary.</strong> Adding an MCP server means accepting
     /// tool definitions from an external source, and is a deliberate exception
-    /// to design rule K2 ("tools are defined only in code"). It comes with the
+    /// to the code-only tools rule ("tools are defined only in code"). It comes with the
     /// following safeguards:
     /// </para>
     /// <list type="bullet">
     ///   <item><description>Only <em>remote</em> HTTP servers; there is no local process (stdio) transport.</description></item>
     ///   <item><description>MCP tools <strong>require approval</strong> by default.</description></item>
     ///   <item><description>A tool name already registered in code can never be hijacked by MCP.</description></item>
-    ///   <item><description>The server definition carries no secret; the authentication value is resolved from configuration.</description></item>
-    ///   <item><description>Every call is written to the <c>tool_invocations</c> table with the source server name.</description></item>
+    /// <item>
+    /// <description>The server definition carries no secret; the authentication value is resolved from configuration.</description>
+    /// </item>
+    /// <item>
+    /// <description>Every call is written to the <c>tool_invocations</c> table with the source server name.</description>
+    /// </item>
     /// </list>
     /// <example>
     /// <code>
@@ -90,7 +94,7 @@ public static class AgentPrismMcpBuilderExtensions
     /// <remarks>
     /// <para>
     /// Configuration is provided <strong>explicitly</strong>; AgentPrism never
-    /// reads <c>IConfiguration</c> on its own. This follows from rationale K1
+    /// reads <c>IConfiguration</c> on its own. This follows from rationale the no-surprises rule
     /// (zero surprises) and stays consistent with the other <c>Use*</c>
     /// extensions in the repository.
     /// </para>
@@ -171,9 +175,8 @@ public static class AgentPrismMcpBuilderExtensions
     /// <remarks>
     /// Manual binding is an AOT requirement: <c>Bind()</c> relies on
     /// reflection and produces <c>IL2026</c> + <c>IL3050</c>; in trimmed
-    /// applications the options would silently stay empty. Rationale:
-    /// <c>docs/KARARLAR.md</c>, decision K-021.
-    /// 🚨 When a new option is added to <see cref="AgentPrismMcpOptions"/>, it
+    /// applications the options would silently stay empty.
+    /// When a new option is added to <see cref="AgentPrismMcpOptions"/>, it
     /// must also be added to this method; otherwise the option silently fails
     /// to bind.
     /// </remarks>

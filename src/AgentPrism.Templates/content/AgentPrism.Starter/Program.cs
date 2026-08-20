@@ -81,7 +81,8 @@ agentPrism.UseUI();
 #endif
 
 // A single declarative sample agent in code. The model name is deliberately
-// NOT PINNED (K-032) — take today's model name from the provider's docs and
+// NOT PINNED — AgentPrism ships no model list, so take today's model name from
+// the provider's own docs and
 // replace the placeholder below, or read it from the
 // `AgentPrism:Providers:*:DefaultModel` setting in appsettings.json.
 agentPrism.AddAgent(new AgentDefinition

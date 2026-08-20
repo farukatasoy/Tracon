@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Single-executor election (phase 42) uses it to coordinate background jobs such as MCP
+/// Single-executor election uses it to coordinate background jobs such as MCP
 /// discovery and model health probing, which must not repeat on several replicas. The
 /// lease is a table, not a session lock: it behaves the same way on all three SQL
 /// providers (PostgreSQL, SQL Server, SQLite), and SQLite has no session lock
