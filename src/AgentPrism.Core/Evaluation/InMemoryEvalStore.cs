@@ -269,7 +269,8 @@ public sealed class InMemoryEvalStore : IEvalStore
 
         foreach (var run in _runs.Values)
         {
-            if (query.TenantId is { } tenantId && !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
+            // EvalRunQuery.TenantId is required, so this filter always runs.
+            if (!string.Equals(run.TenantId, query.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }

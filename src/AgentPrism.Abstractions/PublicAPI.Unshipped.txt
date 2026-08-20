@@ -813,7 +813,7 @@ AgentPrism.EvalRunQuery.SuiteId.get -> System.Guid?
 AgentPrism.EvalRunQuery.SuiteId.init -> void
 AgentPrism.EvalRunQuery.Take.get -> int
 AgentPrism.EvalRunQuery.Take.init -> void
-AgentPrism.EvalRunQuery.TenantId.get -> string?
+AgentPrism.EvalRunQuery.TenantId.get -> string!
 AgentPrism.EvalRunQuery.TenantId.init -> void
 AgentPrism.EvalRunStatus
 AgentPrism.EvalRunStatus.Cancelled = 4 -> AgentPrism.EvalRunStatus

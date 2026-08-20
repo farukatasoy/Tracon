@@ -2254,6 +2254,29 @@ The check lives inside the socket connect callback, so the address that is valid
 is the address the socket connects to. Validating a URL and then calling it would
 leave a time-of-check/time-of-use gap.
 
+## What is stored in the clear
+
+AgentPrism does **not** encrypt content at rest. Your database holds these in plain
+form, and you should plan for that before storing regulated data:
+
+| Column | What it holds |
+|---|---|
+| `conversation_items.item` | The full conversation history |
+| `run_inputs.messages` | The prompt a run was started with |
+| `run_events.text`, `run_events.payload` | Streamed output and event detail |
+| `tool_invocations.arguments`, `.result` | What a tool was called with, and what it returned |
+| `sessions.state`, `responses.payload` | Session state and provider responses |
+| `attachments.content`, `agent_files.content` | Uploaded bytes and agent file contents |
+
+Secrets are the exception and are handled separately: a credential value is never
+written to the database. Only the **name** of the configuration key is stored, and the
+value is resolved at call time from your configuration. API keys are stored as a
+SHA-256 hash, never as a recoverable value.
+
+Protect the rest at the layer below: full-disk or tablespace encryption, a managed
+database with encryption at rest, and retention policies that delete what you no longer
+need. Column-level encryption inside AgentPrism is a known gap, not a shipped feature.
+
 ## A short checklist
 
 - [ ] `AllowRemoteAccess` is on only together with a token, a key, or a policy
@@ -2261,6 +2284,7 @@ leave a time-of-check/time-of-use gap.
 - [ ] Roles are bound to your claims, and `RequireRolePolicies` is on
 - [ ] Quotas are set, so one caller cannot spend the whole model budget
 - [ ] Retention policies exist for run events and traces
+- [ ] Encryption at rest is provided by the database or the disk — AgentPrism stores content in the clear
 - [ ] Skill script execution is left off unless you have read what it does
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)

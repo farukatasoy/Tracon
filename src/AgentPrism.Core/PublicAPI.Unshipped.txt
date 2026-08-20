@@ -1142,8 +1142,8 @@ AgentPrism.RunToCasePromoter
 AgentPrism.RunToCasePromoter.PromoteAsync(string! tenantId, AgentPrism.EvalSuite! suite, System.Guid runId, AgentPrism.EvalCaseSource? sourceKindOverride, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunPromotionOutcome!>
 AgentPrism.RunToCasePromoter.RunToCasePromoter(AgentPrism.IRunStore! runs, AgentPrism.IRunScoreStore! scores, AgentPrism.IEvalStore! evalStore) -> void
 AgentPrism.RunTraceCollector
-AgentPrism.RunTraceCollector.BeginRun(string! traceId) -> bool
-AgentPrism.RunTraceCollector.CompleteRunAsync(string! traceId, System.Guid runId, string! tenantId, AgentPrism.RunStatus status, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.RunTraceCollector.BeginRun(string! traceId, string! rootSpanId) -> bool
+AgentPrism.RunTraceCollector.CompleteRunAsync(string! traceId, string! rootSpanId, System.Guid runId, string! tenantId, AgentPrism.RunStatus status, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.RunTraceCollector.Dispose() -> void
 AgentPrism.RunTraceCollector.IsCollecting.get -> bool
 AgentPrism.RunTraceCollector.RunTraceCollector(AgentPrism.ITraceStore! store, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options, Microsoft.Extensions.Logging.ILogger<AgentPrism.RunTraceCollector!>! logger) -> void
