@@ -209,7 +209,7 @@ public sealed class OpenAICompatTests
     [Fact]
     public async Task Responses_converts_an_embedded_data_uri_to_an_attachment_and_delivers_it_resolved_to_the_model()
     {
-        // docs/14-COK-MODLULUK.md, section 14.4: '/v1/responses' accepts
+        // docs/arsiv/fazlar/14-COK-MODLULUK.md, section 14.4: '/v1/responses' accepts
         // OpenAI-shaped image input. MAF's own body parser converts the 'data:'
         // URI into DataContent; before sending it to the agent, AgentPrism
         // takes an attachment and converts it into a UriContent reference (to

@@ -671,7 +671,7 @@ public sealed class InMemoryRunStore : IRunStore
 
             // Eval case runs are synthetic test calls, not real traffic; they
             // are excluded to avoid polluting the summary
-            // (docs/18-DEGERLENDIRME.md, open question 4).
+            // (docs/arsiv/fazlar/18-DEGERLENDIRME.md, open question 4).
             if (record.Kind == RunKind.Eval)
             {
                 continue;
@@ -681,7 +681,7 @@ public sealed class InMemoryRunStore : IRunStore
 
             // Fetching a run's scores one by one (N+1) is acceptable in the
             // in-memory store; the production path is the single-query JOIN
-            // in the SQL providers. See docs/31-GERI-BILDIRIM-VE-PUANLAMA.md.
+            // in the SQL providers. See docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md.
             // TenantId can rarely be empty (RunRecord.TenantId is nullable);
             // if empty, no score could have been written for this run.
             var runScores = record.TenantId is { Length: > 0 } scoreTenantId

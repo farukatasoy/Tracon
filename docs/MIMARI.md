@@ -624,7 +624,7 @@ kullanıcı) kurulur. `PlatformIsolationAcknowledged` bayrağı bu sınırı gö
 
 Kapı akış şeması, koruma tablosunun tamamı (ortam temizliği, zaman aşımı, çıktı
 sınırı, eşzamanlılık, `SkillScriptGrant`, denetim olayları) ve barındırma
-kurulumu: [`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
+kurulumu: [`11-SKILL-SCRIPT-CALISTIRMA.md`](arsiv/fazlar/11-SKILL-SCRIPT-CALISTIRMA.md).
 
 ### Kota ve webhook imzası
 
@@ -639,7 +639,7 @@ sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164). Koruma
 `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez
 (`IHttpClientFactory` bilinçli kullanılmadı). Tek doğruluk noktası
 `WebhookUrlValidator.IsAllowedTarget`'tır; reddedilen aralıkların tam listesi
-ve diğer sınırlar [`21-KOTA-VE-OLAY-YAYINI.md`](21-KOTA-VE-OLAY-YAYINI.md)'dedir.
+ve diğer sınırlar [`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md)'dedir.
 
 **Webhook `secret`'i veritabanında durmaz** — kayıt yalnız yapılandırma
 anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-059).
@@ -661,7 +661,7 @@ URI bir SSRF aracı olurdu. OAuth token'ı `(kiracı, sunucu)` başına bellek i
 tutulur, **veritabanına yazılmaz**; SDK yalnız Authorization Code destekler
 (K-168). `/oauth/callback` arayüz kabuğuyla aynı gruptadır: loopback + policy
 geçerli, yalnız bearer muaf — güvenlik tek kullanımlık `state`'e dayanır.
-Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](22-MCP-DERINLESMESI.md).
+Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](arsiv/fazlar/22-MCP-DERINLESMESI.md).
 
 ### İçerik denetimi (Faz 48)
 
@@ -675,7 +675,7 @@ sonucu modele ikinci çağrıda girer ve döngü dışı bir halka onu göremez.
 Engellenen içerik ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322) ve
 **hiçbir yere yazılmaz**; iz yalnız guard/kural/yön taşır (K-325). 🚨 Maskeleme
 model sınırındadır — `run_events`/`run_inputs` ham metni saklar.
-Ayrıntı: [`48-GUARDRAILS.md`](48-GUARDRAILS.md).
+Ayrıntı: [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md).
 
 ---
 

@@ -18,14 +18,14 @@
 Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
 grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
 kiracı, onay kuralı yazmaları + tool onay kararları) ve sır suzgeci bu kayıtlardan
-hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](../09-YONETISIM-VE-DENETIM-IZI.md).
+hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
 
 Faz 12 sonunda bir agent kataloğdaki başka bir agent'ı **çağırabiliyor**. Her alt
 çağrı ayrı bir `runs` satırı üretir (`parent_run_id`, `root_run_id`, `depth`),
 span'leri kök span'in altında iç içe görünür ve ağaç boyunca **tek** bir
 `AgentRunBudget` nesnesi paylaşılır. Çağrı grafiği kaydetme anında döngüye karşı
 denetlenir; çalışma anında derinlik sayacı ikinci savunma hattıdır. Bkz.
-[`12-AGENT-CAGRI-GRAFIGI.md`](../12-AGENT-CAGRI-GRAFIGI.md).
+[`12-AGENT-CAGRI-GRAFIGI.md`](fazlar/12-AGENT-CAGRI-GRAFIGI.md).
 
 Faz 13 sonunda bir agent'ın konuşma geçmişi **sıkıştırılabiliyor**: beş
 strateji (+ sabit sıralı bir pipeline) hem düz `ChatClientAgent` hem
@@ -36,7 +36,7 @@ metin araması) da aynı yoldan açılabiliyor. Gerçek bir HTTP çalıştırmas
 doğrulandı: `SlidingWindow` stratejisi 4. turda tetiklendi ve 7 mesajı 5'e
 indirdi. Vektör tabanlı `ChatHistoryMemoryProvider` bilinçli olarak kapsam
 dışı bırakıldı — gerçek kurucusu bir `VectorStore` istiyor, depoda somut bir
-implementasyon yok. Bkz. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](../13-BAGLAM-SIKISTIRMA-VE-BELLEK.md).
+implementasyon yok. Bkz. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md).
 
 Faz 14 sonunda bir agent'a **görsel/dosya eki** gönderilebiliyor. İkili
 içerik `attachments` tablosunda (`bytea`) yaşar; sohbet geçmişindeki mesaj
@@ -49,7 +49,7 @@ güvenilmez. `attachments.session_id` **bilerek** yabancı anahtar değildir
 oturum silindiğinde eklerin gitmesi uygulama katmanında yapılır. Aynı
 migration (0006) `agent_files` tablosunu da getirdi: Faz 13'ten kalan
 `FileMemoryProvider`/`TextSearchProvider`, kod değişmeden kalıcı belleğe
-(`PostgresAgentFileStore`) döndü. Bkz. [`14-COK-MODLULUK.md`](../14-COK-MODLULUK.md).
+(`PostgresAgentFileStore`) döndü. Bkz. [`14-COK-MODLULUK.md`](fazlar/14-COK-MODLULUK.md).
 
 Faz 15 sonunda katalogdaki agent'lar **workflow olarak zincirlenebiliyor**.
 Beş hazır desen (Sequential, Concurrent, Handoff, GroupChat, Magentic) arayüzden
@@ -75,7 +75,7 @@ sabittir. `WorkflowAgentIdentity` sarmalayıcının kimliğini `(workflow, agent
 çiftinden türetir, böylece kontrol noktaları süreç ömrünü aşar. Gerçek bir
 süreç yeniden başlatmasıyla doğrulandı: kimlik aynı kaldı ve yeniden
 başlatmadan **önce** oluşan bekleyen istek sonrasında cevaplandı. Bkz.
-[`16-WORKFLOWS-ARAYUZ.md`](../16-WORKFLOWS-ARAYUZ.md).
+[`16-WORKFLOWS-ARAYUZ.md`](fazlar/16-WORKFLOWS-ARAYUZ.md).
 
 Faz 17 sonunda bir agent veya workflow **toplu** ve **zamanlanmış** olarak
 çalıştırılabiliyor. Kuyruk PostgreSQL üzerinde `FOR UPDATE SKIP LOCKED` ile
@@ -94,7 +94,7 @@ bulunur — `AmbientTenantScope` (AsyncLocal) bu boşluğu `IHttpContextAccessor
 ile aynı desenle doldurur (K-136). Gerçek bir çalıştırmada doğrulandı: bir
 zamanlama oluşturuldu, elle tetiklendi, iki ögeli iş ~5 saniyede tamamlandı ve
 her öge gerçek bir `runs` satırına (gerçek model kullanımıyla) bağlandı. Bkz.
-[`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](../17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md).
+[`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md).
 
 Faz 18 sonunda bir agent **eval takımıyla ölçülebiliyor**: bir takım hedef agent
 + bildirimsel `checks` (`nonEmpty`, `containsExpected`, `keywords`, `toolCalled`,
@@ -111,7 +111,7 @@ değişebileceği için. Gerçek bir çalıştırmada doğrulandı: aynı takım
 kaynaklı bir agent'ın iki ardışık sürümüne karşı koşturuldu ve `agentVersion: 1`
 / `agentVersion: 2` farklı model çıktılarıyla yan yana görüldü. Yeni bir NuGet
 paketi gerekmedi (K-139): eval tipleri zaten doğrudan referanslı `Microsoft.Agents.AI`
-içinde. Bkz. [`18-DEGERLENDIRME.md`](../18-DEGERLENDIRME.md).
+içinde. Bkz. [`18-DEGERLENDIRME.md`](fazlar/18-DEGERLENDIRME.md).
 
 Faz 19 sonunda iki sürüm **yan yana görülebiliyor** ve **aynı anda çalıştırılabiliyor**.
 Diff hesabı sunucuda yapılmaz — `GET .../versions/{a}/diff/{b}` iki ham
@@ -135,7 +135,7 @@ sürümü arasında %50/%50 ağırlıklı bir deney, 20 farklı oturumla çalı�
 control/v2 kollarına 6/14 dağıldı (küçük örneklem varyansı, 10.000 örnekte
 ±2 puan içinde kaldığı ayrıca test edildi). Sonuç tablosunda istatistiksel bir
 "kazanan" iddiası **yoktur** — ham sayılar gösterilir. Bkz.
-[`19-SURUM-KARSILASTIRMA-VE-AB.md`](../19-SURUM-KARSILASTIRMA-VE-AB.md).
+[`19-SURUM-KARSILASTIRMA-VE-AB.md`](fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -154,14 +154,14 @@ bağlanır, her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir ve
 hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur. Doğrulandı:
 gerçek OpenAI + gerçek OpenRouter anahtarlarıyla üç sağlayıcı (`openai`,
 `openai-responses`, `openrouter`) da gerçek yanıt üretti; ayrıntı
-[`08-SAGLAYICI-GENISLEMESI.md`](../08-SAGLAYICI-GENISLEMESI.md).
+[`08-SAGLAYICI-GENISLEMESI.md`](fazlar/08-SAGLAYICI-GENISLEMESI.md).
 
 Faz 10 sonunda agent'lar markdown tabanlı, script'siz skill'ler yükleyebilir.
 Skill kaynakları tenant-yalıtımlı saklanır, kod kaydı aynı ad için veritabanı
 kaydını geçersiz kılar ve MAF'ın varsayılan onay zinciri kapatılmaz. Gerçek
 OpenRouter çalıştırmasında `load_skill` onayı Playground'da kabul edildi; skill
 talimatı yüklenip modelin yanıtını belirledi. Ayrıntı
-[`10-AGENT-SKILLERI.md`](../10-AGENT-SKILLERI.md).
+[`10-AGENT-SKILLERI.md`](fazlar/10-AGENT-SKILLERI.md).
 
 Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
@@ -182,7 +182,7 @@ bağlandığı adresin ta kendisi. Canlı sınamada metadata ucu (`169.254.169.2
 doğrulandı. İki gerçek hata yalnızca örnek uygulama çalıştırılınca çıktı: atanmamış
 `JobRecord.Payload` `/api/jobs`'ın tamamını 500'e düşürüyordu (K-166) ve
 `AllowInsecureHttp` loopback *adresini* açmadığı için yerel teslim imkânsızdı
-(K-167). Ayrıntı [`21-KOTA-VE-OLAY-YAYINI.md`](../21-KOTA-VE-OLAY-YAYINI.md).
+(K-167). Ayrıntı [`21-KOTA-VE-OLAY-YAYINI.md`](fazlar/21-KOTA-VE-OLAY-YAYINI.md).
 
 
 ### Faz 26 — Anthropic ve Gemini (2026-08-05)
@@ -215,7 +215,7 @@ bir model adıyla gönderilen istek gerçekten o adla gitti ve `404` döndü —
 varsayımla ilerlenseydi hata yalnız üretimde görünürdü. Gemini tarafında K-032'nin
 bedeli somut olarak yaşandı: `gemini-2.5-flash` çağrısı *"no longer available to
 new users"* döndü. Ayrıntı
-[`26-ANTHROPIC-VE-GEMINI.md`](../26-ANTHROPIC-VE-GEMINI.md).
+[`26-ANTHROPIC-VE-GEMINI.md`](fazlar/26-ANTHROPIC-VE-GEMINI.md).
 
 ### Faz 27 — Azure OpenAI (2026-08-05)
 
@@ -247,7 +247,7 @@ kimlik fabrikasıdır" diyordu ve alternatif kazandı — ölçümle: `AzureOpen
 Gerçek bir Azure aboneliği yoktu; bunun yerine Azure'un veri düzlemi sözleşmesini
 taklit eden yerel bir uç kuruldu ve gelen istegin yolu, başlıkları ve gövdesi
 kaydedildi. Tool döngüsü, akışlı token sayımı ve Entra `Bearer` başlığı bu şekilde
-uçtan uca doğrulandı. Ayrıntı [`27-AZURE-FOUNDRY.md`](../27-AZURE-FOUNDRY.md).
+uçtan uca doğrulandı. Ayrıntı [`27-AZURE-FOUNDRY.md`](fazlar/27-AZURE-FOUNDRY.md).
 
 ---
 
@@ -420,7 +420,7 @@ kalıyor olabilir). Bu tuzağı test etmeye çalışan `WorkflowCancellationTest
 seviyesinde (kaskad) ve `RunRecordingAgent` ile GERÇEK bir bloke eden
 `IChatClient` üzerinden (agent değil, chat client seviyesinde) doğrulandı.
 Workflow'a özgü bir uçtan uca iptal testi hâlâ AÇIK — bkz.
-`docs/32-CALISTIRMA-IPTALI.md` Sonraki Faza Devir Notu.
+`docs/arsiv/fazlar/32-CALISTIRMA-IPTALI.md` Sonraki Faza Devir Notu.
 
 ## Faz 16 — `Workflows.Declarative` ölçümü (hafızadan taşındı, 2026-08-07)
 

@@ -84,7 +84,7 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
             // On failures such as a refused connection, exception.Message embeds the
             // target address (host:port) in its text — that is not a secret, but it
             // breaks the rule that the endpoint address must not leak (see
-            // docs/08-SAGLAYICI-GENISLEMESI.md, DoD). HttpRequestError is a category
+            // docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md, DoD). HttpRequestError is a category
             // name that carries no address (.NET 8+).
             return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }

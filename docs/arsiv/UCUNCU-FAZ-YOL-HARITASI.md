@@ -20,13 +20,13 @@
 | 2 | Hangi kalemler plana dönüşsün? | **Dalga 1**, sonra **Dalga 2**, sonra **Dalga 3** (hepsi 2026-08-06) | Faz 31–37, 38–45 ve 46–52. Turun tamamı planlandı |
 | 3 | Defter tutma yapılsın mı? | **Evet, tam Adım 6** | Kalemler aday listesinden silindi, README ve bu dosya güncellendi |
 | 4 | Dalga 2 kaç faza bölünsün? | **Sekiz ayrı faz (38–45)** | Hiçbir iki kalem aynı altyapıyı paylaşmıyor; birleştirme DoD'yi bulanık yapardı |
-| 5 | F-76 hangi kapıyla zorlansın? | **Seçenek A — sözleşme testi** | [Faz 41](../41-KIRACI-YALITIMININ-ZORLANMASI.md). RLS ertelendi; SQLite'ta karşılığı yok |
-| 6 | F-63'ün kapsamı? | **Yalnız belge** | [Faz 40](../40-OPENAPI-YAYINI.md). npm yayın hattı ayrı bir dağıtım kanalıdır |
-| 7 | `AgentPrism.Testing` hangi test çerçevesine bağlansın? | **Hiçbirine** | [Faz 39](../39-TEST-PAKETI.md). `Mvc.Testing` deseni |
+| 5 | F-76 hangi kapıyla zorlansın? | **Seçenek A — sözleşme testi** | [Faz 41](fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md). RLS ertelendi; SQLite'ta karşılığı yok |
+| 6 | F-63'ün kapsamı? | **Yalnız belge** | [Faz 40](fazlar/40-OPENAPI-YAYINI.md). npm yayın hattı ayrı bir dağıtım kanalıdır |
+| 7 | `AgentPrism.Testing` hangi test çerçevesine bağlansın? | **Hiçbirine** | [Faz 39](fazlar/39-TEST-PAKETI.md). `Mvc.Testing` deseni |
 | 8 | Dalga 3 kaç faza bölünsün ve hangi sırayla? | **Bağımlılık sırası** | Faz 46–52. Önkoşul zinciri sırayı belirledi; F-72 düştüğü için sekiz değil **yedi** faz |
-| 9 | F-68 hangi okumayla planlansın? | **Okuma A** — kuyruk + baştan çalıştırma | [Faz 46](../46-DAYANIKLI-CALISTIRMA.md). Okuma B'nin MAF kancası **ölçüldü ve yok**; Okuma D (`runs`/`workflows` ikileşmesi) reddedildi |
+| 9 | F-68 hangi okumayla planlansın? | **Okuma A** — kuyruk + baştan çalıştırma | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md). Okuma B'nin MAF kancası **ölçüldü ve yok**; Okuma D (`runs`/`workflows` ikileşmesi) reddedildi |
 | 10 | F-72 için ACS'nin beta native paketi alınsın mı? | **Ertelensin** | Dalga 3 sekiz değil yedi faz oldu. Ölçüm aday listesinde korunur |
-| 11 | F-30 hangi kapsamda? | **Yalnız PostgreSQL, SK bağlayıcısı yok** | [Faz 51](../51-VEKTOR-BELLEK-VE-RAG.md). `Npgsql` sürüm kayması (K-211 deseni) belirleyici oldu |
+| 11 | F-30 hangi kapsamda? | **Yalnız PostgreSQL, SK bağlayıcısı yok** | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md). `Npgsql` sürüm kayması (K-211 deseni) belirleyici oldu |
 
 ---
 
@@ -34,13 +34,13 @@
 
 | Faz | Doküman | Kalem | Neden burada | Yeni paket | Migration |
 |-----|---------|-------|--------------|-----------|-----------|
-| 31 | [31-GERI-BILDIRIM-VE-PUANLAMA.md](../31-GERI-BILDIRIM-VE-PUANLAMA.md) | F-52 | ✅ Tamamlandı (2026-08-06). Ölçme döngüsünün ilk halkası; aday listesindeki F-53, F-55, F-71 ve F-74'ün dördü de buna bağlıdır | — | üç set — uygulandı (Postgres `0017`, SQL Server/SQLite `0005`) |
-| 32 | [32-CALISTIRMA-IPTALI.md](../32-CALISTIRMA-IPTALI.md) | F-35 | ✅ Tamamlandı (2026-08-06). Kaçak bir agent'ı durdurmanın tek yolu artık süreci öldürmek değil. **Kapsam tek örnekle sınırlı** — çok örnek F-57'yi bekler | — | — |
-| 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](../33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | ✅ Tamamlandı (2026-08-06). İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı (`AgentPrismDiagnosticsCollector`), iki sunum | — | — |
-| 34 | [34-TANIM-DOGRULAMA-UCU.md](../34-TANIM-DOGRULAMA-UCU.md) | F-60 | ✅ Tamamlandı (2026-08-06). Döngü denetimi zaten vardı (`AgentCallGraph`, kaydetmede kullanılıyordu); yeni yazılan yalnız tipli kod (K-252). Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
-| 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](../35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | ✅ Tamamlandı (2026-08-06). Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
-| 36 | [36-SAKLAMA-HACIM-SINIRI.md](../36-SAKLAMA-HACIM-SINIRI.md) | F-73 | ✅ Tamamlandı (2026-08-06). `MaxRows` artık uygulanıyor (K-258) | — | — |
-| 37 | [37-PROJE-SABLONU.md](../37-PROJE-SABLONU.md) | F-49 | ✅ Tamamlandı (2026-08-06). `dotnet new agentprism-api`; şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
+| 31 | [31-GERI-BILDIRIM-VE-PUANLAMA.md](fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md) | F-52 | ✅ Tamamlandı (2026-08-06). Ölçme döngüsünün ilk halkası; aday listesindeki F-53, F-55, F-71 ve F-74'ün dördü de buna bağlıdır | — | üç set — uygulandı (Postgres `0017`, SQL Server/SQLite `0005`) |
+| 32 | [32-CALISTIRMA-IPTALI.md](fazlar/32-CALISTIRMA-IPTALI.md) | F-35 | ✅ Tamamlandı (2026-08-06). Kaçak bir agent'ı durdurmanın tek yolu artık süreci öldürmek değil. **Kapsam tek örnekle sınırlı** — çok örnek F-57'yi bekler | — | — |
+| 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | ✅ Tamamlandı (2026-08-06). İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı (`AgentPrismDiagnosticsCollector`), iki sunum | — | — |
+| 34 | [34-TANIM-DOGRULAMA-UCU.md](fazlar/34-TANIM-DOGRULAMA-UCU.md) | F-60 | ✅ Tamamlandı (2026-08-06). Döngü denetimi zaten vardı (`AgentCallGraph`, kaydetmede kullanılıyordu); yeni yazılan yalnız tipli kod (K-252). Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
+| 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | ✅ Tamamlandı (2026-08-06). Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
+| 36 | [36-SAKLAMA-HACIM-SINIRI.md](fazlar/36-SAKLAMA-HACIM-SINIRI.md) | F-73 | ✅ Tamamlandı (2026-08-06). `MaxRows` artık uygulanıyor (K-258) | — | — |
+| 37 | [37-PROJE-SABLONU.md](fazlar/37-PROJE-SABLONU.md) | F-49 | ✅ Tamamlandı (2026-08-06). `dotnet new agentprism-api`; şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
 
 Sıra **zorunlu değildir**; Dalga 1 kalemlerinin hiçbiri diğerine bağlı değildir.
 Numaralar sırayı değil kimliği belirler. Faz 33 önce biterse Faz 37'nin şablonu
@@ -56,14 +56,14 @@ sonradan yapılırsa yeniden yazım veya güvenlik düzeltmesi olarak geri döne
 
 | Faz | Doküman | Kalem | Hangi işten önce | Yeni paket | Migration |
 |-----|---------|-------|------------------|-----------|-----------|
-| 38 | [38-YAPILANDIRILMIS-CIKTI.md](../38-YAPILANDIRILMIS-CIKTI.md) | F-42 | ✅ **Tamamlandı (2026-08-06).** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
-| 39 | [39-TEST-PAKETI.md](../39-TEST-PAKETI.md) | F-46 | ✅ **Tamamlandı (2026-08-06).** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
-| 40 | [40-OPENAPI-YAYINI.md](../40-OPENAPI-YAYINI.md) | F-63 | ✅ **Tamamlandı (2026-08-06).** Belge, istemci üretiminin kaynağıdır; anlık görüntü testi koddan sapmayı kapıya çevirir | — | — |
-| 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](../41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | ✅ **Tamamlandı (2026-08-07).** Üç kusur bulundu ve düzeltildi (K-277 · K-278 · K-279); `IRetentionStore` kırıcı biçimde değişti | — | 🚨 **gerekti** — `sessions` anahtarı, üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`) |
-| 42 | [42-TEK-YURUTUCU-SECIMI.md](../42-TEK-YURUTUCU-SECIMI.md) | F-57 | ✅ **Tamamlandı (2026-08-07).** Kira tablosuyla tek yürütücü seçimi; `SingletonGuard` public oldu (K-285), gerçek devralma ~17,6 sn ölçüldü (K-286) | — | 🚨 **gerekti** — `singleton_leases`, üç set (PostgreSQL `0019`, SQL Server `0007`, SQLite `0007`) |
-| 43 | [43-IDEMPOTENCY-KEY.md](../43-IDEMPOTENCY-KEY.md) | F-37 | ✅ **Tamamlandı (2026-08-07).** `/api/agents/{name}/run` plandan sapıp akışsız bir dal kazandı (K-288) — aksi hâlde fazın kendi motivasyon örneği (kota tekrar tüketimi) hiç doğrulanamazdı | — | 🚨 **gerekti** — `idempotency_keys`, üç set (PostgreSQL `0020`, SQL Server/SQLite `0008`) |
-| 44 | [44-HATA-SINIFLANDIRMA.md](../44-HATA-SINIFLANDIRMA.md) | F-55 | ✅ **Tamamlandı (2026-08-07).** `IRunErrorClassifier` + `RunErrorClass`; gerçek bir OpenAI 404 yanıtı `ClientResultException`'ın taksonomide eksik olduğunu ortaya çıkardı (K-290) | — | iki sütun + indeks, üç set (PostgreSQL `0021`, SQL Server/SQLite `0009`) |
-| 45 | [45-URETIMDEN-EVAL-KUMESI.md](../45-URETIMDEN-EVAL-KUMESI.md) | F-53 | ✅ **Tamamlandı (2026-08-07).** `IEvalStore.AddCaseAsync`; sorgu `run_events`'teki `RunStarted.Text`'ten okunur (K-300, plandan sapma — oturum tabanlı ilk tasarım başarısız çalıştırmalarda yapısal olarak çalışmıyordu) | — | üç sütun + indeks, üç set — uygulandı (PostgreSQL `0022`, SQL Server/SQLite `0010`) |
+| 38 | [38-YAPILANDIRILMIS-CIKTI.md](fazlar/38-YAPILANDIRILMIS-CIKTI.md) | F-42 | ✅ **Tamamlandı (2026-08-06).** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
+| 39 | [39-TEST-PAKETI.md](fazlar/39-TEST-PAKETI.md) | F-46 | ✅ **Tamamlandı (2026-08-06).** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
+| 40 | [40-OPENAPI-YAYINI.md](fazlar/40-OPENAPI-YAYINI.md) | F-63 | ✅ **Tamamlandı (2026-08-06).** Belge, istemci üretiminin kaynağıdır; anlık görüntü testi koddan sapmayı kapıya çevirir | — | — |
+| 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | ✅ **Tamamlandı (2026-08-07).** Üç kusur bulundu ve düzeltildi (K-277 · K-278 · K-279); `IRetentionStore` kırıcı biçimde değişti | — | 🚨 **gerekti** — `sessions` anahtarı, üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`) |
+| 42 | [42-TEK-YURUTUCU-SECIMI.md](fazlar/42-TEK-YURUTUCU-SECIMI.md) | F-57 | ✅ **Tamamlandı (2026-08-07).** Kira tablosuyla tek yürütücü seçimi; `SingletonGuard` public oldu (K-285), gerçek devralma ~17,6 sn ölçüldü (K-286) | — | 🚨 **gerekti** — `singleton_leases`, üç set (PostgreSQL `0019`, SQL Server `0007`, SQLite `0007`) |
+| 43 | [43-IDEMPOTENCY-KEY.md](fazlar/43-IDEMPOTENCY-KEY.md) | F-37 | ✅ **Tamamlandı (2026-08-07).** `/api/agents/{name}/run` plandan sapıp akışsız bir dal kazandı (K-288) — aksi hâlde fazın kendi motivasyon örneği (kota tekrar tüketimi) hiç doğrulanamazdı | — | 🚨 **gerekti** — `idempotency_keys`, üç set (PostgreSQL `0020`, SQL Server/SQLite `0008`) |
+| 44 | [44-HATA-SINIFLANDIRMA.md](fazlar/44-HATA-SINIFLANDIRMA.md) | F-55 | ✅ **Tamamlandı (2026-08-07).** `IRunErrorClassifier` + `RunErrorClass`; gerçek bir OpenAI 404 yanıtı `ClientResultException`'ın taksonomide eksik olduğunu ortaya çıkardı (K-290) | — | iki sütun + indeks, üç set (PostgreSQL `0021`, SQL Server/SQLite `0009`) |
+| 45 | [45-URETIMDEN-EVAL-KUMESI.md](fazlar/45-URETIMDEN-EVAL-KUMESI.md) | F-53 | ✅ **Tamamlandı (2026-08-07).** `IEvalStore.AddCaseAsync`; sorgu `run_events`'teki `RunStarted.Text`'ten okunur (K-300, plandan sapma — oturum tabanlı ilk tasarım başarısız çalıştırmalarda yapısal olarak çalışmıyordu) | — | üç sütun + indeks, üç set — uygulandı (PostgreSQL `0022`, SQL Server/SQLite `0010`) |
 
 Dalga 2 içinde de sıra **zorunlu değildir**; tek gerçek bağ Faz 45'in Faz 31'e
 olan bağıdır ve o da yalnız **puan bazlı** terfi içindir. Durum bazlı terfi Faz
@@ -83,13 +83,13 @@ Dalga 1 ve 2'nin aksine **sıra burada anlamlıdır**: dört fazın gerçek bir
 
 | Faz | Doküman | Kalem | Önkoşul / neden burada | Yeni paket | Migration |
 |-----|---------|-------|------------------------|-----------|-----------|
-| 46 | [46-DAYANIKLI-CALISTIRMA.md](../46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | ✅ **Tamamlandı (2026-08-07).** `IRunStore.StartRunAsync` UPSERT'e çevrildi (K-304) — plan öngörmemişti; `Job.Id == RunId` (K-305) | — | — |
-| 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](../47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | ✅ **Tamamlandı (2026-08-07).** `run_inputs` açıldı ve **Faz 49'un girdi kaynağıdır**; dallandırma kopyalamayla yapıldı (K-311), `parent_conversation_id` FK **taşımaz** (K-312, SQL Server 1785). 🚨 Oynatma oturumsuzdur (K-315) ve kuyruğa alma kapsam dışıdır (K-316) | — | 🚨 **gerekti** — `run_inputs` + `runs`'a bir sütun + `conversations`'a iki sütun (PostgreSQL `0023`, SQL Server/SQLite `0011`) |
-| 48 | [48-GUARDRAILS.md](../48-GUARDRAILS.md) | F-32 | ✅ **Tamamlandı (2026-08-07).** 🚨 Ölçüm planın katman kararını çürüttü: `UseFunctionInvocation()` dört sağlayıcı paketinin içindeydi, bu yüzden **model boru hattının tamamı defterin içine taşındı** (K-320) ve `IModelProvider` artık ham istemci döndürür. Guard tool döngüsünün **içindedir** (K-321); kayıt K1'in kapısıdır (K-323); `422` yalnız akışsız dalda döner (K-324). Ertelenen F-72'nin üstüne oturacağı katman | — | — |
-| 49 | [49-CEVRIMICI-DEGERLENDIRME.md](../49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | ✅ **Tamamlandı (2026-08-07).** `AIJudgeLoopEvaluator` KULLANILMADI, ölçülerek doğrulandı (K-327); yargıç kendi çalıştırmasını ephemeral bir `ChatClientAgent` + `RunRecordingAgent` ile kaydeder, katalogdan geçmez. Pencere özeti bellek içi (K-332), yeni SQL yüzeyi açılmadı. `RunScore.Author = "judge:{ad}"` ile UPSERT tekilliği kasıtlı devreye sokuldu (K-331) | — | — (Faz 31'in tablosu) |
-| 50 | [50-DISA-ACILAN-AGENT-YUZEYI.md](../50-DISA-ACILAN-AGENT-YUZEYI.md) | F-31 · F-33 | ✅ **Tamamlandı (2026-08-08).** 🚨 **F-56'yı acil hâle getirdi** — dış yüzey tek statik token'la korunuyor. Ölçüm düzeltmeleri: A2A maliyeti "+2" değil "+4" paket (K-335), `WithHttpTransport()` üçüncü zorunlu çağrı (K-334), A2A agent başına ayrı kart (K-336) | `ModelContextProtocol.AspNetCore` + A2A trio (4 paket, yalnız `AgentPrism.AspNetCore`) | — |
-| 51 | [51-VEKTOR-BELLEK-VE-RAG.md](../51-VEKTOR-BELLEK-VE-RAG.md) | F-30 | ✅ **Tamamlandı (2026-08-08).** 🚨 Ölçüm planın varsayımını düzeltti: metin/ikili gömü farkı yalnız yazma TELİNDEDİR (~2,3×), disk saklama özdeştir — PostgreSQL ikisini de aynı kanonik ikili biçimde saklar (K-341). Test fixture imajı `pgvector/pgvector:pg18`'e değişti (K-346). `IVectorSearchStore` Sql.Shared'in cross-provider katmanından GEÇMEZ (K-344, tek sağlayıcı) | — (yeni NuGet **yok**) | bir tablo + uzantı, **yalnız PostgreSQL** (0024) |
-| 52 | [52-KAYNAK-URETECI.md](../52-KAYNAK-URETECI.md) | F-47 | ✅ **Tamamlandı (2026-08-08).** 🚨 Plandan sapıldı: `IAgentPrismBuilder`'a metot EKLENMEDİ — `AddGeneratedTools()` derlemeye özel üretilen bir uzantı metodu (K-350); Core, tüketicinin henüz üretilmemiş koduna ileri referans veremezdi. Sonuç: Faz 7'den önce kırıcı-değişiklik riski bu fazdan kalktı. K-218'in açık bıraktığı onarım kapandı (K-347): `ToolMethodScanner` örnek metotları tarama anında reddeder | — (üreteç `.Core` nupkg'sinde) | — |
+| 46 | [46-DAYANIKLI-CALISTIRMA.md](fazlar/46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | ✅ **Tamamlandı (2026-08-07).** `IRunStore.StartRunAsync` UPSERT'e çevrildi (K-304) — plan öngörmemişti; `Job.Id == RunId` (K-305) | — | — |
+| 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | ✅ **Tamamlandı (2026-08-07).** `run_inputs` açıldı ve **Faz 49'un girdi kaynağıdır**; dallandırma kopyalamayla yapıldı (K-311), `parent_conversation_id` FK **taşımaz** (K-312, SQL Server 1785). 🚨 Oynatma oturumsuzdur (K-315) ve kuyruğa alma kapsam dışıdır (K-316) | — | 🚨 **gerekti** — `run_inputs` + `runs`'a bir sütun + `conversations`'a iki sütun (PostgreSQL `0023`, SQL Server/SQLite `0011`) |
+| 48 | [48-GUARDRAILS.md](fazlar/48-GUARDRAILS.md) | F-32 | ✅ **Tamamlandı (2026-08-07).** 🚨 Ölçüm planın katman kararını çürüttü: `UseFunctionInvocation()` dört sağlayıcı paketinin içindeydi, bu yüzden **model boru hattının tamamı defterin içine taşındı** (K-320) ve `IModelProvider` artık ham istemci döndürür. Guard tool döngüsünün **içindedir** (K-321); kayıt K1'in kapısıdır (K-323); `422` yalnız akışsız dalda döner (K-324). Ertelenen F-72'nin üstüne oturacağı katman | — | — |
+| 49 | [49-CEVRIMICI-DEGERLENDIRME.md](fazlar/49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | ✅ **Tamamlandı (2026-08-07).** `AIJudgeLoopEvaluator` KULLANILMADI, ölçülerek doğrulandı (K-327); yargıç kendi çalıştırmasını ephemeral bir `ChatClientAgent` + `RunRecordingAgent` ile kaydeder, katalogdan geçmez. Pencere özeti bellek içi (K-332), yeni SQL yüzeyi açılmadı. `RunScore.Author = "judge:{ad}"` ile UPSERT tekilliği kasıtlı devreye sokuldu (K-331) | — | — (Faz 31'in tablosu) |
+| 50 | [50-DISA-ACILAN-AGENT-YUZEYI.md](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) | F-31 · F-33 | ✅ **Tamamlandı (2026-08-08).** 🚨 **F-56'yı acil hâle getirdi** — dış yüzey tek statik token'la korunuyor. Ölçüm düzeltmeleri: A2A maliyeti "+2" değil "+4" paket (K-335), `WithHttpTransport()` üçüncü zorunlu çağrı (K-334), A2A agent başına ayrı kart (K-336) | `ModelContextProtocol.AspNetCore` + A2A trio (4 paket, yalnız `AgentPrism.AspNetCore`) | — |
+| 51 | [51-VEKTOR-BELLEK-VE-RAG.md](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | F-30 | ✅ **Tamamlandı (2026-08-08).** 🚨 Ölçüm planın varsayımını düzeltti: metin/ikili gömü farkı yalnız yazma TELİNDEDİR (~2,3×), disk saklama özdeştir — PostgreSQL ikisini de aynı kanonik ikili biçimde saklar (K-341). Test fixture imajı `pgvector/pgvector:pg18`'e değişti (K-346). `IVectorSearchStore` Sql.Shared'in cross-provider katmanından GEÇMEZ (K-344, tek sağlayıcı) | — (yeni NuGet **yok**) | bir tablo + uzantı, **yalnız PostgreSQL** (0024) |
+| 52 | [52-KAYNAK-URETECI.md](fazlar/52-KAYNAK-URETECI.md) | F-47 | ✅ **Tamamlandı (2026-08-08).** 🚨 Plandan sapıldı: `IAgentPrismBuilder`'a metot EKLENMEDİ — `AddGeneratedTools()` derlemeye özel üretilen bir uzantı metodu (K-350); Core, tüketicinin henüz üretilmemiş koduna ileri referans veremezdi. Sonuç: Faz 7'den önce kırıcı-değişiklik riski bu fazdan kalktı. K-218'in açık bıraktığı onarım kapandı (K-347): `ToolMethodScanner` örnek metotları tarama anında reddeder | — (üreteç `.Core` nupkg'sinde) | — |
 
 ### Neden bu sıra
 
@@ -183,7 +183,7 @@ Plan anında ölçüldü; uygulama anında yeniden ölçülür.
 | Sütun ekleyen migration | **3** | `runs`'a iki sütun (44), `eval_cases`'e üç sütun (45), `conversations`'a iki sütun (47) |
 | Yeni AgentPrism paketi | **2** | `AgentPrism.Templates` (37), `AgentPrism.Testing` (39) — ikisi de bağımlılık grafiğine girmez. 🚨 `AgentPrism.Generators` (52) **yayımlanmaz**; DLL `AgentPrism.Core` nupkg'sinde taşınır |
 | Yeni NuGet bağımlılığı | **2** | `ModelContextProtocol.AspNetCore` (50, **GA**, 13 geçişli, hepsi bizim sürümlerimizde) ve `Microsoft.CodeAnalysis.CSharp` (52, `PrivateAssets=all` — tüketiciye **sızmaz**). Açık Soru 1'e bağlı olarak A2A (+2 paket) |
-| 🚨 **Alınmayan** NuGet bağımlılığı | **3** | `SK.Connectors.PgVector`, `Pgvector`, `AgentControlSpecification` — üçü de ölçüldü ve reddedildi ([Faz 51](../51-VEKTOR-BELLEK-VE-RAG.md), F-72) |
+| 🚨 **Alınmayan** NuGet bağımlılığı | **3** | `SK.Connectors.PgVector`, `Pgvector`, `AgentControlSpecification` — üçü de ölçüldü ve reddedildi ([Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md), F-72) |
 | MAF/MEAI imza ölçümü | **6** | `ChatResponseFormat` (38) · `*Checkpoint*` yokluğu (46) · `AIJudgeLoopEvaluator` ailesi (49) · MCP sunucu handler'ları (50) · A2A kayıt API'si (50) · `VectorStoreCollection` ifade ağacı (51) |
 | Dalga 3'ün arayüz payı | Faz 46 (~0,5) + Faz 47 (3–5) + Faz 48 (~1) + **Faz 49 ölçüldü: 7,6 KB** (tahmin 1–2 KB idi). Faz 50, 51, 52 arayüze **dokunmaz** | Kalanlar hâlâ **tahmindir**; Faz 49 gerçek koşumla ölçüldü (152,5 → 160,1 KB / 250 KB bütçe) |
 
@@ -342,7 +342,7 @@ unutulmadı; her biri ilgili fazın devir notunda ve aday listesinde yaşar.
 | PostgreSQL RLS ile derinlemesine savunma | Faz 41 | SQLite'ta karşılığı yok; üç sağlayıcıda davranış ayrışır |
 | MCP OAuth token'ının örnekler arasında paylaşılması | Faz 42 | 🚨 K-059 ile çatışır — `secret` veritabanına yazılmaz. Kendi kararını ister |
 | Paylaşılan (dağıtık) hız sınırı | Faz 42 | K-158 bunu bilerek bellekte tuttu |
-| Akışlı yanıtta idempotency | Faz 43 | ✅ **Kapandı** — [Faz 46](../46-DAYANIKLI-CALISTIRMA.md)'nın `Prefer: respond-async` sözleşmesi sorunu ortadan kaldırıyor |
+| Akışlı yanıtta idempotency | Faz 43 | ✅ **Kapandı** — [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md)'nın `Prefer: respond-async` sözleşmesi sorunu ortadan kaldırıyor |
 | TypeScript istemcisi ve npm yayını | Faz 40 | İkinci bir dağıtım kanalı; ayrı yayın hattı ister |
 | Çok turlu eval vakası terfisi | Faz 45 | `EvalCase` sözleşmesini değiştirir; Faz 7'den önce karara bağlanması ucuzdur |
 
@@ -356,16 +356,16 @@ Hiçbiri unutulmadı; her biri ilgili fazın devir notunda yaşar. ID'ler
 
 | Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
 |---|---|---|
-| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](../46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** (ölçüldü). Kancayı AgentPrism yazmak K3'ü zorlar; yeni tablo + üç migration seti ister |
-| OpenAI uyumlu uçların asenkron sözleşmesi | [Faz 46](../46-DAYANIKLI-CALISTIRMA.md) | OpenAI'ın kendi modeli farklıdır (`background: true` + `response.id`); iki sözleşmeyi karıştırmamak gerekir |
-| Workflow dallandırma ucu | [Faz 47](../47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | `workflow_checkpoints.parent_id` **zaten var** ama bir uç yok |
-| Azure AI Content Safety adaptörü | [Faz 48](../48-GUARDRAILS.md) | Ağırlık sorun değil (**4 paket**, ölçüldü). Erteleme gerekçesi **doğrulanamazlıktır** — K-212 emsali. `AgentPrism.ContentSafety` olacaktır |
-| Tool argümanı denetimi | [Faz 48](../48-GUARDRAILS.md) | Guard model sınırındadır; argüman denetimi **F-61**'in işidir ve o kalem listede duruyor |
-| Agent başına eval ölçütü | [Faz 49](../49-CEVRIMICI-DEGERLENDIRME.md) | `AgentDefinition`'a alan eklemek bir sözleşme değişikliğidir; ihtiyaç **ölçülmeden** yapılmaz |
-| A2A istemci tarafı (uzak agent çağırma) | [Faz 50](../50-DISA-ACILAN-AGENT-YUZEYI.md) | 6 paket, ön sürüm. 🚨 K-008 gereği `.Core`'a giremez; yerleşimi ayrı bir karardır |
-| MCP kaynak ve istem yayını | [Faz 50](../50-DISA-ACILAN-AGENT-YUZEYI.md) | Agent'ı **tool** olarak açmakla `resources`/`prompts` yayınlamak ayrı sözleşmelerdir |
-| `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](../51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** |
-| Bilgi tabanı arayüz ekranı | [Faz 51](../51-VEKTOR-BELLEK-VE-RAG.md) | Faz 51 arayüze hiç dokunmadı; belge yönetimi ekranı ayrı bir iş ve ayrı bir bundle payıdır |
+| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** (ölçüldü). Kancayı AgentPrism yazmak K3'ü zorlar; yeni tablo + üç migration seti ister |
+| OpenAI uyumlu uçların asenkron sözleşmesi | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) | OpenAI'ın kendi modeli farklıdır (`background: true` + `response.id`); iki sözleşmeyi karıştırmamak gerekir |
+| Workflow dallandırma ucu | [Faz 47](fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | `workflow_checkpoints.parent_id` **zaten var** ama bir uç yok |
+| Azure AI Content Safety adaptörü | [Faz 48](fazlar/48-GUARDRAILS.md) | Ağırlık sorun değil (**4 paket**, ölçüldü). Erteleme gerekçesi **doğrulanamazlıktır** — K-212 emsali. `AgentPrism.ContentSafety` olacaktır |
+| Tool argümanı denetimi | [Faz 48](fazlar/48-GUARDRAILS.md) | Guard model sınırındadır; argüman denetimi **F-61**'in işidir ve o kalem listede duruyor |
+| Agent başına eval ölçütü | [Faz 49](fazlar/49-CEVRIMICI-DEGERLENDIRME.md) | `AgentDefinition`'a alan eklemek bir sözleşme değişikliğidir; ihtiyaç **ölçülmeden** yapılmaz |
+| A2A istemci tarafı (uzak agent çağırma) | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) | 6 paket, ön sürüm. 🚨 K-008 gereği `.Core`'a giremez; yerleşimi ayrı bir karardır |
+| MCP kaynak ve istem yayını | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) | Agent'ı **tool** olarak açmakla `resources`/`prompts` yayınlamak ayrı sözleşmelerdir |
+| `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** |
+| Bilgi tabanı arayüz ekranı | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | Faz 51 arayüze hiç dokunmadı; belge yönetimi ekranı ayrı bir iş ve ayrı bir bundle payıdır |
 
 ### Dalga 3'ün acil hâle getirdiği mevcut kalemler
 
@@ -374,10 +374,10 @@ onların aciliyetini **değiştirdi** ve bu bilgi kaybolmamalıdır.
 
 | Kalem | Neden aciliyeti arttı |
 |---|---|
-| **F-36** öksüz çalıştırma uzlaştırması | 🚨 [Faz 46](../46-DAYANIKLI-CALISTIRMA.md) öksüz `Running` satırı **üretir**. Aday listesi sırayı zaten yazıyordu: F-68 → F-36 |
-| **F-56** kiracı bazlı API anahtarları | 🚨 [Faz 50](../50-DISA-ACILAN-AGENT-YUZEYI.md) bir **dış yüzey** açtı ve onu tek statik bir token koruyor. `AllowRemoteAccess` kilidi geçici bir savunmadır |
-| **F-69** asenkron onay kutusu | Kuyrukta koşan bir çalıştırma ([Faz 46](../46-DAYANIKLI-CALISTIRMA.md)) onay isterse **kimse cevap veremez** — kuyrukta istemci yoktur |
-| **F-74** kanarya ve otomatik geri alma | Üç önkoşulunun üçü de tamamlanır: Faz 31, Faz 44 ve [Faz 49](../49-CEVRIMICI-DEGERLENDIRME.md). Eşik mantığı Faz 49'unkiyle **aynı** olmalıdır |
+| **F-36** öksüz çalıştırma uzlaştırması | 🚨 [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) öksüz `Running` satırı **üretir**. Aday listesi sırayı zaten yazıyordu: F-68 → F-36 |
+| **F-56** kiracı bazlı API anahtarları | 🚨 [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) bir **dış yüzey** açtı ve onu tek statik bir token koruyor. `AllowRemoteAccess` kilidi geçici bir savunmadır |
+| **F-69** asenkron onay kutusu | Kuyrukta koşan bir çalıştırma ([Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md)) onay isterse **kimse cevap veremez** — kuyrukta istemci yoktur |
+| **F-74** kanarya ve otomatik geri alma | Üç önkoşulunun üçü de tamamlanır: Faz 31, Faz 44 ve [Faz 49](fazlar/49-CEVRIMICI-DEGERLENDIRME.md). Eşik mantığı Faz 49'unkiyle **aynı** olmalıdır |
 
 ---
 
@@ -389,10 +389,10 @@ Faz 53–56 tamamlandı — dördüncü dalga bitti.
 
 | Kalem | Faz | Neden bu sırada | Yeni paket | Migration |
 |---|---|---|---|---|
-| **F-56** kiracı bazlı API anahtarları | [Faz 53](../53-KIRACI-API-ANAHTARLARI.md) ✅ | 🚨 En acil: Faz 50'nin dış yüzeyi bugün **tek statik token**'la korunuyor ve `AllowRemoteAccess` kilidi geçici bir savunma. Kimlik zayıflığı teorik değil, **kullanılabilir durumda** | Yok | `api_keys` — üç set |
-| **F-36** öksüz çalıştırma uzlaştırması | [Faz 54](../54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) ✅ | Faz 46 bu kusuru **üretiyor**. 🚨 Kanıt Faz 46'da **daraldı**: yalnız yeniden denemesiz çöküş orphan üretir | Yok | `runs.heartbeat_at` — üç set |
-| **F-69** asenkron onay kutusu | [Faz 55](../55-ASENKRON-ONAY-KUTUSU.md) ✅ | Kuyrukta koşan bir çalıştırma onay isterse kimse cevap veremez; Faz 46 bunu kolaylıktan **eksiğe** çevirdi | Yok | `pending_approvals` — üç set |
-| **F-74** kanarya ve otomatik geri alma | [Faz 56](../56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) ✅ | Üç önkoşulu da tamam (Faz 31, 44, 49). 🚨 Eşik mantığı Faz 49'un `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır | Yok | `experiments` kanarya alanları — üç set |
+| **F-56** kiracı bazlı API anahtarları | [Faz 53](fazlar/53-KIRACI-API-ANAHTARLARI.md) ✅ | 🚨 En acil: Faz 50'nin dış yüzeyi bugün **tek statik token**'la korunuyor ve `AllowRemoteAccess` kilidi geçici bir savunma. Kimlik zayıflığı teorik değil, **kullanılabilir durumda** | Yok | `api_keys` — üç set |
+| **F-36** öksüz çalıştırma uzlaştırması | [Faz 54](fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) ✅ | Faz 46 bu kusuru **üretiyor**. 🚨 Kanıt Faz 46'da **daraldı**: yalnız yeniden denemesiz çöküş orphan üretir | Yok | `runs.heartbeat_at` — üç set |
+| **F-69** asenkron onay kutusu | [Faz 55](fazlar/55-ASENKRON-ONAY-KUTUSU.md) ✅ | Kuyrukta koşan bir çalıştırma onay isterse kimse cevap veremez; Faz 46 bunu kolaylıktan **eksiğe** çevirdi | Yok | `pending_approvals` — üç set |
+| **F-74** kanarya ve otomatik geri alma | [Faz 56](fazlar/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) ✅ | Üç önkoşulu da tamam (Faz 31, 44, 49). 🚨 Eşik mantığı Faz 49'un `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır | Yok | `experiments` kanarya alanları — üç set |
 
 ### Bu dalgada plana dönüşmeyen kalem
 

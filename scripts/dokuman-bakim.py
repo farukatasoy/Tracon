@@ -323,8 +323,19 @@ def yol_haritasi_uret() -> str:
         "Planlandı": "📋 Planlandı",
     }
 
+    # Faz 77: kapanmis fazlar (00-59) `docs/arsiv/fazlar/` altina tasindi --
+    # sicak yol sayacindan cikmalari icin (HARIC listesi arsivi dusuyor). Yol
+    # haritasi IKI konumu da tarar; baglanti dosyanin GERCEK yerini gosterir,
+    # yoksa 60 faz sessizce listeden duserdi.
+    kaynaklar = sorted(
+        (ROOT / "docs").glob("[0-9][0-9]-*.md"),
+        key=lambda q: q.name,
+    ) + sorted(
+        (ROOT / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md"),
+        key=lambda q: q.name,
+    )
     satirlar = []
-    for p in sorted((ROOT / "docs").glob("[0-9][0-9]-*.md")):
+    for p in sorted(kaynaklar, key=lambda q: q.name):
         metin = p.read_text(encoding="utf-8")
         mb = re.search(r"^#\s+(.*)$", metin, re.M)
         md = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
@@ -337,7 +348,8 @@ def yol_haritasi_uret() -> str:
         durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham[:40] or "?")
 
         no = p.name[:2].lstrip("0") or "0"
-        satirlar.append(f"| [{no}]({p.name}) | {baslik} | {durum} |")
+        yol = p.relative_to(ROOT / "docs").as_posix()
+        satirlar.append(f"| [{no}]({yol}) | {baslik} | {durum} |")
 
     return "\n".join(
         [

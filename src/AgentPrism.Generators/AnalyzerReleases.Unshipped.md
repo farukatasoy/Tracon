@@ -5,13 +5,13 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-APG0001 | AgentPrism.Tools | Error | Tool name conflict. See docs/52-KAYNAK-URETECI.md
-APG0002 | AgentPrism.Tools | Error | Invalid tool name. See docs/52-KAYNAK-URETECI.md
-APG0003 | AgentPrism.Tools | Error | Unsupported parameter type. See docs/52-KAYNAK-URETECI.md
-APG0004 | AgentPrism.Tools | Error | A generic method cannot be a tool. See docs/52-KAYNAK-URETECI.md
-APG0005 | AgentPrism.Tools | Error | No marked tool method. See docs/52-KAYNAK-URETECI.md
-APG0006 | AgentPrism.Tools | Warning | Tool description missing. See docs/52-KAYNAK-URETECI.md
-APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See docs/52-KAYNAK-URETECI.md
+APG0001 | AgentPrism.Tools | Error | Tool name conflict. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0002 | AgentPrism.Tools | Error | Invalid tool name. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0003 | AgentPrism.Tools | Error | Unsupported parameter type. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0004 | AgentPrism.Tools | Error | A generic method cannot be a tool. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0005 | AgentPrism.Tools | Error | No marked tool method. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0006 | AgentPrism.Tools | Warning | Tool description missing. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
+APG0007 | AgentPrism.Tools | Error | An instance method cannot be a tool. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md
 APG0101 | AgentPrism.Usage | Warning | AgentPrism is mapped but not registered. See docs/73-TUKETICI-AGENT-DESTEGI.md
 APG0102 | AgentPrism.Usage | Warning | The bound model provider is not registered. See docs/73-TUKETICI-AGENT-DESTEGI.md
 APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. See docs/73-TUKETICI-AGENT-DESTEGI.md

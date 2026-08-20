@@ -103,7 +103,7 @@ internal sealed class EvalJobHandler(
             .ConfigureAwait(false);
 
         // Eval is independent of the concept of an experiment: it runs against
-        // a fixed version, not a variant. Rationale: docs/19-SURUM-KARSILASTIRMA-VE-AB.md,
+        // a fixed version, not a variant. Rationale: docs/arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md,
         // open question 2.
         var agent = agentVersion is { } version
             ? await catalog.ResolveAsync(suite.AgentName, version, culture: null, cancellationToken).ConfigureAwait(false)

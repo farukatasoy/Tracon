@@ -753,7 +753,7 @@ KALICI OLARAK `30s`, hiçbir konfigürasyon kaynağından (env/`user-secrets`/
 
 **Kapsam:** Faz 35'in kota gösterge (`agentprism.quota.usage`/`.limit`)
 özelliği TAMAMEN işlevsiz — bayrağı açmanın HİÇBİR yolu yok, dokümante
-edilen ayar (`docs/35-MALIYET-VE-KOTA-METRIKLERI.md`'nin kendisi de dahil)
+edilen ayar (`docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md`'nin kendisi de dahil)
 sessizce yok sayılıyor. `MT-OBS-035`'in "varsayılanda kapalı" gözlemi
 teknik olarak DOĞRU kalıyor ama nedeni yanlış: "henüz açılmamış" değil
 "AÇILAMAZ".

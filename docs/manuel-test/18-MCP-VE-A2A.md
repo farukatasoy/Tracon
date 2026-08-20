@@ -250,7 +250,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/karisik-yetki" 
 ### MT-MCP-006 — JSON yanıtında OAuth alanları `oauthEnabled`/`oauthClientId` biçiminde (camelCase, çift büyük harf DEĞİL)
 
 Sınır senaryosu — Faz 22'nin kendi devir notunda kayıtlı, testler
-yakalamamış bir sınıf hata (`docs/22-MCP-DERINLESMESI.md` "Plandan
+yakalamamış bir sınıf hata (`docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` "Plandan
 Sapmalar"). Bu, önceden bir kez elle `curl` ile yakalanmış bir hatanın
 tekrar tetiklenmediğini doğrular.
 

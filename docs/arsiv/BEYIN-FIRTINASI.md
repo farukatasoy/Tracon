@@ -16,21 +16,21 @@
 
 | Kalem | Faz | Kalem | Faz |
 |-------|-----|-------|-----|
-| F-01 Anthropic | [26](../26-ANTHROPIC-VE-GEMINI.md) | F-16 Sağlayıcı sağlığı | [8](../08-SAGLAYICI-GENISLEMESI.md) |
-| F-02 Gemini | [26](../26-ANTHROPIC-VE-GEMINI.md) | F-17 Maliyet | [20](../20-MALIYET-VE-GOSTERGE-PANELI.md) |
-| F-03 OpenAI uyumlu | [8](../08-SAGLAYICI-GENISLEMESI.md) | F-18 Kota | [21](../21-KOTA-VE-OLAY-YAYINI.md) |
-| F-04 Azure | [27](../27-AZURE-FOUNDRY.md) | F-19 Webhook | [21](../21-KOTA-VE-OLAY-YAYINI.md) |
-| F-05 Yerel modeller | [8](../08-SAGLAYICI-GENISLEMESI.md) | F-20 Denetim izi | [9](../09-YONETISIM-VE-DENETIM-IZI.md) |
-| F-06 SQL Server | [23](../23-SQL-SERVER.md) | F-21 Roller | [9](../09-YONETISIM-VE-DENETIM-IZI.md) |
-| F-07 SQLite | [24](../24-SQLITE.md) | F-22 Toplu/zamanlanmış | [17](../17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) |
-| F-08 Veri saklama | [25](../25-VERI-SAKLAMA-VE-ARSIVLEME.md) | F-23 Grafikler | [20](../20-MALIYET-VE-GOSTERGE-PANELI.md) |
-| F-09 Skill'ler | [10](../10-AGENT-SKILLERI.md) · [11](../11-SKILL-SCRIPT-CALISTIRMA.md) | F-24 Diff | [19](../19-SURUM-KARSILASTIRMA-VE-AB.md) |
-| F-10 Agent→agent | [12](../12-AGENT-CAGRI-GRAFIGI.md) | F-25 i18n | [30](../30-ARAYUZ-CILASI.md) |
-| F-11 Sıkıştırma/bellek | [13](../13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-26 Komut paleti | [30](../30-ARAYUZ-CILASI.md) |
-| F-12 Çok modluluk | [14](../14-COK-MODLULUK.md) | F-27 Workflows | [15](../15-WORKFLOWS-YURUTME.md) · [16](../16-WORKFLOWS-ARAYUZ.md) |
-| F-13 Ses | [28](../28-SES-TOOLLARI.md) · [29](../29-KONUSMA-KATMANI.md) | F-28 MCP prompts/resources | [22](../22-MCP-DERINLESMESI.md) |
-| F-14 Eval | [18](../18-DEGERLENDIRME.md) | F-29 MCP OAuth | [22](../22-MCP-DERINLESMESI.md) |
-| F-15 A/B | [19](../19-SURUM-KARSILASTIRMA-VE-AB.md) | | |
+| F-01 Anthropic | [26](fazlar/26-ANTHROPIC-VE-GEMINI.md) | F-16 Sağlayıcı sağlığı | [8](fazlar/08-SAGLAYICI-GENISLEMESI.md) |
+| F-02 Gemini | [26](fazlar/26-ANTHROPIC-VE-GEMINI.md) | F-17 Maliyet | [20](fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md) |
+| F-03 OpenAI uyumlu | [8](fazlar/08-SAGLAYICI-GENISLEMESI.md) | F-18 Kota | [21](fazlar/21-KOTA-VE-OLAY-YAYINI.md) |
+| F-04 Azure | [27](fazlar/27-AZURE-FOUNDRY.md) | F-19 Webhook | [21](fazlar/21-KOTA-VE-OLAY-YAYINI.md) |
+| F-05 Yerel modeller | [8](fazlar/08-SAGLAYICI-GENISLEMESI.md) | F-20 Denetim izi | [9](fazlar/09-YONETISIM-VE-DENETIM-IZI.md) |
+| F-06 SQL Server | [23](fazlar/23-SQL-SERVER.md) | F-21 Roller | [9](fazlar/09-YONETISIM-VE-DENETIM-IZI.md) |
+| F-07 SQLite | [24](fazlar/24-SQLITE.md) | F-22 Toplu/zamanlanmış | [17](fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) |
+| F-08 Veri saklama | [25](fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) | F-23 Grafikler | [20](fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md) |
+| F-09 Skill'ler | [10](fazlar/10-AGENT-SKILLERI.md) · [11](fazlar/11-SKILL-SCRIPT-CALISTIRMA.md) | F-24 Diff | [19](fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) |
+| F-10 Agent→agent | [12](fazlar/12-AGENT-CAGRI-GRAFIGI.md) | F-25 i18n | [30](fazlar/30-ARAYUZ-CILASI.md) |
+| F-11 Sıkıştırma/bellek | [13](fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-26 Komut paleti | [30](fazlar/30-ARAYUZ-CILASI.md) |
+| F-12 Çok modluluk | [14](fazlar/14-COK-MODLULUK.md) | F-27 Workflows | [15](fazlar/15-WORKFLOWS-YURUTME.md) · [16](fazlar/16-WORKFLOWS-ARAYUZ.md) |
+| F-13 Ses | [28](fazlar/28-SES-TOOLLARI.md) · [29](fazlar/29-KONUSMA-KATMANI.md) | F-28 MCP prompts/resources | [22](fazlar/22-MCP-DERINLESMESI.md) |
+| F-14 Eval | [18](fazlar/18-DEGERLENDIRME.md) | F-29 MCP OAuth | [22](fazlar/22-MCP-DERINLESMESI.md) |
+| F-15 A/B | [19](fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) | | |
 
 ---
 
@@ -159,7 +159,7 @@ desteklenir; script çalıştırma ayrı bir karar ve ayrı bir policy ister.
 
 ### ~~F-10 · Agent'ın agent'ı çağırması~~ ✅ Faz 12'de yapıldı (2026-08-02)
 
-Tasarım soruları [`12-AGENT-CAGRI-GRAFIGI.md`](../12-AGENT-CAGRI-GRAFIGI.md) içinde
+Tasarım soruları [`12-AGENT-CAGRI-GRAFIGI.md`](fazlar/12-AGENT-CAGRI-GRAFIGI.md) içinde
 cevaplandı; kararlar K-093 … K-103. Öngörülerden **sapan** iki nokta:
 
 - Derleyici alt agent'ları harness'a değil, öncelikle **`AIContextProviders`**'a
@@ -170,7 +170,7 @@ cevaplandı; kararlar K-093 … K-103. Öngörülerden **sapan** iki nokta:
 
 ### ~~F-11 · Bağlam sıkıştırma ve bellek sağlayıcıları~~ ✅ Faz 13'te yapıldı (2026-08-02)
 
-Tasarım soruları [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](../13-BAGLAM-SIKISTIRMA-VE-BELLEK.md)
+Tasarım soruları [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md)
 içinde cevaplandı; kararlar K-104 … K-110. Öngörülerden **sapan** en önemli
 nokta: `ChatHistoryMemoryProvider` bu kalemin varsaydığı gibi basit bir
 "oturum içi bellek" değil — gerçek kurucusu bir `VectorStore` ve embedding
@@ -281,13 +281,13 @@ gibi elle SVG çizmek 5 KB'de biter. Karar ölçümle verilmeli.
 
 ### ~~F-25 · Arayüz yerelleştirmesi (i18n)~~ — yapıldı
 
-[Faz 30](../30-ARAYUZ-CILASI.md), 2026-08-05. 794 anahtar, iki dil; eksik çeviri
+[Faz 30](fazlar/30-ARAYUZ-CILASI.md), 2026-08-05. 794 anahtar, iki dil; eksik çeviri
 derleme hatasıdır (K-228). Ölçülen bundle artışı **+26,4 KB gzip** — planın
 "+6 KB" tahmini iki küçük sözlük varsayıyordu.
 
 ### ~~F-26 · Klavye kısayolları ve komut paleti~~ — yapıldı
 
-[Faz 30](../30-ARAYUZ-CILASI.md), 2026-08-05. `Ctrl/Cmd+K` paleti rol bazlı
+[Faz 30](fazlar/30-ARAYUZ-CILASI.md), 2026-08-05. `Ctrl/Cmd+K` paleti rol bazlı
 süzülür (K-238); kısayollar metin alanında tetiklenmez (K-237).
 
 ---
@@ -299,7 +299,7 @@ süzülür (K-238); kısayollar metin alanında tetiklenmez (K-237).
 > **Faz 15'te tamamlandı (2026-08-03):** workflow kataloğu, beş hazır desen,
 > PostgreSQL checkpoint kalıcılığı ve sürdürme. Graf görselleştirme,
 > human-in-the-loop ve bildirimsel tanım **Faz 16'dadır**.
-> Bkz. [`15-WORKFLOWS-YURUTME.md`](../15-WORKFLOWS-YURUTME.md).
+> Bkz. [`15-WORKFLOWS-YURUTME.md`](fazlar/15-WORKFLOWS-YURUTME.md).
 
 Faz 6'dan ertelendi (K-054, sapma S1). Paket **GA** ve
 `Directory.Packages.props`'ta sürümü zaten sabit. Kapsam: workflow kataloğu,
@@ -368,9 +368,9 @@ K-068** olarak yazıldı ve sıralama bunlara göre kuruldu.
 | # | Soru | Cevap | Sonuç |
 |---|------|-------|-------|
 | 1 | Öncelik neye göre? | **Yetenek derinliği** | F-09, F-10, F-27 öne alındı (Faz 10–16). F-03 yine de başta: ucuz ve sonraki her fazı ucuzlatıyor |
-| 2 | Ses (F-13) hangi biçimde? | **Konuşma katmanı** | İki faz: tool'lar [28](../28-SES-TOOLLARI.md), gerçek zamanlı katman [29](../29-KONUSMA-KATMANI.md). Nihai hedef konuşma katmanıdır |
-| 3 | Skill'de script çalıştırma? | **Kabul edilebilir** | [Faz 11](../11-SKILL-SCRIPT-CALISTIRMA.md); K2'nin ikinci bilinçli istisnası. Önkoşulu [Faz 9](../09-YONETISIM-VE-DENETIM-IZI.md)'dur — rol ayrımı ve denetim izi olmadan yapılmaz |
-| 4 | Alt çalıştırma ayrı `runs` satırı mı? | **Olabilir** | [Faz 12](../12-AGENT-CAGRI-GRAFIGI.md) ayrı satırı benimsedi: `runs.parent_run_id` + `root_run_id`. Gerekçe maliyet ve süre görünürlüğü |
+| 2 | Ses (F-13) hangi biçimde? | **Konuşma katmanı** | İki faz: tool'lar [28](fazlar/28-SES-TOOLLARI.md), gerçek zamanlı katman [29](fazlar/29-KONUSMA-KATMANI.md). Nihai hedef konuşma katmanıdır |
+| 3 | Skill'de script çalıştırma? | **Kabul edilebilir** | [Faz 11](fazlar/11-SKILL-SCRIPT-CALISTIRMA.md); K2'nin ikinci bilinçli istisnası. Önkoşulu [Faz 9](fazlar/09-YONETISIM-VE-DENETIM-IZI.md)'dur — rol ayrımı ve denetim izi olmadan yapılmaz |
+| 4 | Alt çalıştırma ayrı `runs` satırı mı? | **Olabilir** | [Faz 12](fazlar/12-AGENT-CAGRI-GRAFIGI.md) ayrı satırı benimsedi: `runs.parent_run_id` + `root_run_id`. Gerekçe maliyet ve süre görünürlüğü |
 | 5 | Faz 7 (yayın) ne zaman? | **Henüz belirsiz** | Faz 7 sıradan çıkarıldı; her an araya girebilir. `EnablePublicApiTracking` `false` kalıyor |
 
 Ayrıntı: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).

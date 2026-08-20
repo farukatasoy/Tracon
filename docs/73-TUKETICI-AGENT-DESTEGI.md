@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-120**
-> **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) — generator paketleme borusu ve `APG` tanı deseni oradan devralınır · [Faz 59](59-URUN-DOKUMANTASYONU.md) — `capabilities.md` ve `docs-site/scripts/` üreteç deseni
+> **Önkoşul:** [Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) — generator paketleme borusu ve `APG` tanı deseni oradan devralınır · [Faz 59](arsiv/fazlar/59-URUN-DOKUMANTASYONU.md) — `capabilities.md` ve `docs-site/scripts/` üreteç deseni
 > **Paketler:** `AgentPrism.Generators`, `AgentPrism.Core` (yalnız paketleme), `AgentPrism.Templates` · `docs-site/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** Analyzer, MSBuild target ve üretilen dosyalar public API yüzeyi değildir; `PublicAPI.*.txt` bu fazda değişmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` her paket için 1 satır (hepsi boş)
@@ -27,9 +27,9 @@
    analyzer aynı projeye girer), **K-007** (yeni paket gerekçe ister — bu faz
    **yeni paket açmaz**), **K-059** (`secret` veritabanına yazılmaz — `APG0201`
    tanısının kaynağı), **K-228** (arayüz sözlüğü; bu faz arayüze **dokunmaz**).
-3. [`52-KAYNAK-URETECI.md`](52-KAYNAK-URETECI.md) — yalnız devir notu:
+3. [`52-KAYNAK-URETECI.md`](arsiv/fazlar/52-KAYNAK-URETECI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/52-KAYNAK-URETECI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/52-KAYNAK-URETECI.md
    ```
    Generator DLL'inin `analyzers/dotnet/cs/` altına nasıl taşındığı ve `APG`
    tanı numaralandırması oradan devralınır. Bu faz aynı boruyu kullanır.

@@ -71,7 +71,7 @@ internal sealed class IdempotencyCapturingResult(
         var statusCode = httpContext.Response.StatusCode;
 
         // 🚨 A failed run is NOT stored; the reservation is released so a retry with
-        // the same key works (docs/43-IDEMPOTENCY-KEY.md, section 43.2).
+        // the same key works (docs/arsiv/fazlar/43-IDEMPOTENCY-KEY.md, section 43.2).
         if (statusCode is >= 200 and < 300)
         {
             await store.CompleteAsync(

@@ -57,10 +57,10 @@
 //     is NOT a dependency of AgentPrism, the credential factory comes from the
 //     consumer
 //
-// See docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
-//     docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
-//     docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md,
-//     docs/27-AZURE-FOUNDRY.md
+// See docs/arsiv/fazlar/04-HTTP-API.md, docs/arsiv/fazlar/05-AGENTPRISM-UI.md, docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md,
+//     docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md, docs/arsiv/fazlar/12-AGENT-CAGRI-GRAFIGI.md,
+//     docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md, docs/arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md,
+//     docs/arsiv/fazlar/27-AZURE-FOUNDRY.md
 //
 // Set secrets before running:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -328,7 +328,7 @@ if (voiceEnabled)
 //
 // A known difference: Ollama's tool_choice support varies by model; on
 // servers that do not send usage in the stream, RunRecord.TotalTokens stays
-// null — this is not a bug (see docs/08-SAGLAYICI-GENISLEMESI.md, section
+// null — this is not a bug (see docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md, section
 // 8.2).
 
 var model = openAiEnabled
@@ -343,7 +343,7 @@ var model = openAiEnabled
 // judge — by itself it SCORES nothing. The real gate is
 // `AgentPrism:OnlineEvaluation:Enabled` AND `:SampleRate` (K1); both are OFF
 // in the committed appsettings and are only turned on at runtime through an
-// environment variable (see docs/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
+// environment variable (see docs/arsiv/fazlar/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
 if (openAiEnabled)
 {
     agentPrism.AddModelRunJudge(options =>
@@ -452,7 +452,7 @@ agentPrism.AddWorkflow(
             // DIRECTLY from the catalog. An agent taken directly opens its own
             // root `runs` row and the workflow tree appears empty. Measured:
             // in the sample app the tree returned one row instead of three
-            // (see docs/15-WORKFLOWS-YURUTME.md).
+            // (see docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md).
             services.GetWorkflowAgent("summarize-and-translate", "summarizer", "Summarizes incoming text in three bullet points."),
             services.GetWorkflowAgent("summarize-and-translate", "translator", "Translates incoming text into English."),
         ]),
@@ -570,11 +570,11 @@ if (openRouterEnabled)
         {
             Provider = "openrouter",
             // OpenRouter model identifiers carry a provider prefix; not
-            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: docs/08-SAGLAYICI-GENISLEMESI.md.
+            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md.
             Model = openRouter["DefaultModel"] ?? "openai/gpt-5.4-mini",
             // OpenRouter's credit check treats max_tokens as a "worst case";
             // the default (65536) produces HTTP 402 on low-balance keys.
-            // Measured: docs/08-SAGLAYICI-GENISLEMESI.md.
+            // Measured: docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md.
             MaxOutputTokens = 512,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
@@ -723,7 +723,7 @@ if (voiceEnabled && openAiEnabled)
 // IEmbeddingGenerator are both registered; if either is missing, the build
 // stops with an explicit error. Document upload is an ADMIN operation
 // (POST /agentprism/api/knowledge/{collection}/documents), not something the
-// agent does itself — see docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
+// agent does itself — see docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
 if (openAiEnabled)
 {
     agentPrism.AddAgent(new AgentDefinition

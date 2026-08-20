@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-121** — kapsamı ölçümle değişti; gerekçe [§74.0](#740--f-121-neden-küçüldü)
-> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — `buildTransitive` borusu, harita üreteci ve `CapabilityCoverageTests` cırcırı oradan devralınır · [Faz 40](40-OPENAPI-YAYINI.md) — `OpenApiSnapshotTests` belgeyi çalışan host'a bağlar, bu yüzden belgeyi paketlemek kayma üretmez
+> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — `buildTransitive` borusu, harita üreteci ve `CapabilityCoverageTests` cırcırı oradan devralınır · [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) — `OpenApiSnapshotTests` belgeyi çalışan host'a bağlar, bu yüzden belgeyi paketlemek kayma üretmez
 > **Paketler:** `AgentPrism.Core` (target), `AgentPrism.AspNetCore` (yeni `buildTransitive`), on bir paket (`<example>` yazımı) · `docs-site/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** `<example>` eklemek imza değiştirmez; MSBuild özelliği ve paket içeriği public API yüzeyi değildir. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` = 16 satır (16 paket × 1 boş satır)

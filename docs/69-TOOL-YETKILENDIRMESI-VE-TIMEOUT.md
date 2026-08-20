@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-113**, **F-114**
-> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — tool onayı ve `ApprovalRequiredAIFunction` sarmalaması · [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları ve denetim izi
+> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — tool onayı ve `ApprovalRequiredAIFunction` sarmalaması · [Faz 9](arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları ve denetim izi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Generators`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`tool_invocations` tablosuna yetki kararı ve timeout alanı). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `ToolDescriptor` ve tool attribute'u alan alır, iki yeni arayüz gelir. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
@@ -24,9 +24,9 @@
    **K-218** (🚨 tool'un gördüğü servis sağlayıcı **boştur**), **K-368**
    (onay kararından sonra **yeni** bir `run` açılır), **K-367** (onay yüzeyi
    denetimi istek bazlı filtreye taşındı), **K-178** (migration numaraları).
-3. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — yalnız devir notu:
+3. [`06-GOZLEMLENEBILIRLIK.md`](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/06-GOZLEMLENEBILIRLIK.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md
    ```
    Onay sarmalamasının hangi katmanda durduğunu devralıyorsun.
 4. Alan hafızası (bu faz iki alana dokunuyor):

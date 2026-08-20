@@ -536,7 +536,7 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 | **İlgili karar** | K-200, K-258 |
 
 Faz kapanışında gerçek koşumla (SQLite, port 5080) doğrulanmış senaryonun
-**birebir tekrarı** — `docs/36-SAKLAMA-HACIM-SINIRI.md`, 2026-08-06.
+**birebir tekrarı** — `docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`, 2026-08-06.
 
 **Ön koşul**
 - SQLite ile çalışıyor, reset yapıldı.
@@ -675,7 +675,7 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 | **İlgili faz** | Faz 36, 41 |
 | **İlgili karar** | K-260 (eski), K-279 (güncel — düzeltti) |
 
-Sınır senaryosu — **düzeltici bulgu**. `docs/36-SAKLAMA-HACIM-SINIRI.md`
+Sınır senaryosu — **düzeltici bulgu**. `docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`
 (Plandan Sapmalar #2) *"`MaxRows` kiracı başına değil, tablo genelinde
 çalışır"* diyor (K-260). Ölçüldü: `src/AgentPrism.Abstractions/Retention/
 IRetentionStore.cs`'in **güncel** `FindRowLimitCutoffAsync` imzası bir
@@ -1106,7 +1106,7 @@ sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
 | **İlgili faz** | Faz 21, 25 |
 | **İlgili karar** | — |
 
-Negatif senaryo — **şüpheli bulgu**. `docs/21-KOTA-VE-OLAY-YAYINI.md`'nin
+Negatif senaryo — **şüpheli bulgu**. `docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md`'nin
 kendi devir notu ("Faz 25 (saklama) için") şunu yazıyordu: *"`quota_usage`
 geçmiş dönemleri sonsuza dek tutar — yalnız geçerli dönem sorgulanır,
 eskiler ölü veridir."* Bu, Faz 25'in ele alması beklenen bir iş kalemiydi.

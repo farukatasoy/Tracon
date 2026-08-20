@@ -1914,7 +1914,7 @@ grep -E "warning IL[0-9]+|NETSDK1210" aot-cikti.log
 | **İlgili karar** | — |
 
 Bu dosyanın **özet case'i** — Faz 39'un tüm amacının tek bir depo-dışı
-projede kanıtlanması. Faz 39'un kendi DoD komutlarının (`docs/39-TEST-PAKETI.md`
+projede kanıtlanması. Faz 39'un kendi DoD komutlarının (`docs/arsiv/fazlar/39-TEST-PAKETI.md`
 "Doğrulama komutları — gerçek çıktı") birebir tekrarıdır.
 
 **Ön koşul**
@@ -1943,7 +1943,7 @@ dotnet run -c Release
 - Komut çalışırken **hiçbir dış ağ trafiği** üretilmez (OpenAI/Anthropic/vb.
   anahtarı bu ortamda **tanımlı olmasa bile** program başarıyla biter) —
   `FakeModelProvider` ağa hiç çıkmaz.
-- Bu, Faz 39'un kapanışta ölçtüğü gerçek çıktıyla (`docs/39-TEST-PAKETI.md`,
+- Bu, Faz 39'un kapanışta ölçtüğü gerçek çıktıyla (`docs/arsiv/fazlar/39-TEST-PAKETI.md`,
   "Depo dışı tüketici senaryosu") **aynı sonucu** üretir.
 
 ---

@@ -6,7 +6,7 @@ namespace AgentPrism.StoreContracts;
 /// <remarks>
 /// The in-memory store and the PostgreSQL store must pass the same
 /// scenarios; in particular, tenant isolation and attachments being removed
-/// when a session is deleted (docs/14-COK-MODLULUK.md, open question 2) must
+/// when a session is deleted (docs/arsiv/fazlar/14-COK-MODLULUK.md, open question 2) must
 /// behave identically in both implementations.
 /// </remarks>
 public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachmentStore>

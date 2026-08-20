@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-75**, **F-58**
-> **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi oradan gelir · [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yaşa göre temizlik makinesi ve `IRetentionStore` devralınır
+> **Önkoşul:** [Faz 9](arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi oradan gelir · [Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yaşa göre temizlik makinesi ve `IRetentionStore` devralınır
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`audit_log`'a iki sütun). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `AuditEntry`'ye iki alan, bir yeni arayüz (`IDataSubjectResolver`), iki uç. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
@@ -27,9 +27,9 @@
    **K-178** (migration numaraları sağlayıcı başına bağımsız),
    **K-370** (güvenlik kararı `AuditRecorder` ile değil doğrudan `IAuditLog` ile yazılır),
    **K-399** (saklama hedefleri ve varsayılanları)
-3. [`25-VERI-SAKLAMA-VE-ARSIVLEME.md`](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yalnız devir notu:
+3. [`25-VERI-SAKLAMA-VE-ARSIVLEME.md`](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/25-VERI-SAKLAMA-VE-ARSIVLEME.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md
    ```
    Silme makinesi oradan devralınır; bu faz ona **ikinci bir eksen** ekler.
 4. Alan hafızası (bu faz iki alana dokunuyor):

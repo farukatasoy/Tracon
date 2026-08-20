@@ -10,7 +10,7 @@ namespace AgentPrism.Templates.Tests;
 /// </summary>
 public sealed class TemplateSecretTests(TemplateFixture fixture)
 {
-    // Same pattern as the DoD verification command: docs/37-PROJE-SABLONU.md.
+    // Same pattern as the DoD verification command: docs/arsiv/fazlar/37-PROJE-SABLONU.md.
     private static readonly Regex SecretLike = new(
         "sk-[a-z0-9]{20}|api[_-]?key\"\\s*:\\s*\"[^\"]+\"",
         RegexOptions.IgnoreCase,

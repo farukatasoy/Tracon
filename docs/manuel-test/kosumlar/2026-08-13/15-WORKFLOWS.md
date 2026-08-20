@@ -390,9 +390,9 @@ doğrusal) — "dashed edge loops back" ihtimali dışlandı. Gerçek kök neden
 `WorkflowRunner.StartAsync` (`Internal/WorkflowRunner.cs`), `resume` DAHİL
 HER yürütme başlangıcında koşulsuz olarak `run.TrySendMessageAsync(new
 TurnToken(...))` çağırıyordu. Faz 15'in kendi ölçtüğü gerekçe
-(`docs/15-WORKFLOWS-YURUTME.md` §1: "Yürütme bir TurnToken ister") yalnız
+(`docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md` §1: "Yürütme bir TurnToken ister") yalnız
 TAZE bir çalıştırma için geçerlidir; Faz 16'nın kendi ölçtüğü DAVRANIŞ
-(`docs/16-WORKFLOWS-ARAYUZ.md` §3: "kontrol noktası bekleyen isteği TAŞIR
+(`docs/arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md` §3: "kontrol noktası bekleyen isteği TAŞIR
 ve istek yeniden yayınlanır") zaten bir `respond`'un checkpoint'ten devam
 etmesi için gereken sinyali kendiliğinden veriyor. Graf giriş düğümü bir
 `AIAgentBinding` (agent-host, `TurnToken` yayınına ABONE) olduğunda bu
