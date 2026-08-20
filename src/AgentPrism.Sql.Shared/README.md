@@ -10,7 +10,7 @@ Publishing a third package would produce a dependency the consumer would never u
 directly, and would add a release burden on every version. Sharing source avoids
 code duplication without adding to the package count.
 
-Rationale: `docs/KARARLAR.md`, decision K-176.
+The dialect is the single gateway for all SQL text.
 
 ## Who compiles it
 
@@ -34,3 +34,9 @@ conflict.
 
 **Rule:** no file here may reference the `Npgsql` or `Microsoft.Data.SqlClient`
 namespace. Anything provider-specific goes through `SqlDialect`.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/getting-started/persistence/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

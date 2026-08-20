@@ -58,7 +58,13 @@ public sealed class RetentionPolicyResolver(
 
 /// <summary>Represents a resolved, applicable retention rule for a target.</summary>
 /// <param name="Target">The target name.</param>
-/// <param name="MaxAgeDays">Rows older than this age are deleted. <see langword="null"/> if there is no age-based threshold.</param>
-/// <param name="MaxRows">The maximum number of rows to keep. <see langword="null"/> if there is no volume-based threshold.</param>
+/// <param name="MaxAgeDays">
+/// Rows older than this age are deleted. <see langword="null"/> if there is no
+/// age-based threshold.
+/// </param>
+/// <param name="MaxRows">
+/// The maximum number of rows to keep. <see langword="null"/> if there is no
+/// volume-based threshold.
+/// </param>
 /// <param name="Archive">Whether to archive rows before deleting them.</param>
 public sealed record ResolvedRetentionPolicy(string Target, int? MaxAgeDays, long? MaxRows, bool Archive);

@@ -9,9 +9,8 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// No package is taken on: <c>Cronos</c> or <c>NCrontab</c> are small
-/// packages, but per K-007 every new dependency passes through to the
-/// consumer. The five-field parser is ~150 lines and easy to test. Rationale:
-/// docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md, section 17.5.
+/// packages, but every new dependency passes through to the
+/// consumer. The five-field parser is ~150 lines and easy to test.
 /// </para>
 /// <para>
 /// Supported syntax: <c>*</c>, a fixed value, an <c>N-M</c> range, a

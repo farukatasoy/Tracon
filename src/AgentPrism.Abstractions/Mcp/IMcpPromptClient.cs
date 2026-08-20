@@ -68,10 +68,7 @@ public sealed record McpPromptListResult
 /// The resolved content of a prompt.
 /// </summary>
 /// <remarks>
-/// <strong>This is a snapshot.</strong> This content MUST BE COPIED into the
-/// agent's instructions; it is not re-fetched at run time. A remote server
-/// cannot change the agent's behavior through this path. See
-/// docs/22-MCP-DERINLESMESI.md, section 22.1, for the rationale.
+/// <strong>This is a snapshot.</strong> This content MUST BE COPIED into the agent's instructions; it is not re-fetched at run time. A remote server cannot change the agent's behavior through this path.
 /// </remarks>
 public sealed record McpPromptContent
 {

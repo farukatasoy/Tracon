@@ -25,7 +25,7 @@ dotnet user-secrets set "AgentPrism:Voice:ApiKey" "..."
 | `transcribe` | Converts an audio attachment to text | Resolved text |
 | `list_voices` | Lists the available voices | List of name + ID |
 
-Per K-012, tools are defined **in code**. A tool can be added to an agent from the
+Tools are defined **in code**. A tool can be added to an agent from the
 UI, but tool **code** cannot be written there.
 
 ```csharp
@@ -45,7 +45,7 @@ builder.AddAgentPrism()
        });
 ```
 
-## 🚨 The output format must be storable as an attachment
+## The output format must be storable as an attachment
 
 The attachment store validates the content type from its **magic bytes**; the type
 reported by the client is not treated as proof. Raw `pcm_*` and `ulaw_*` outputs
@@ -59,7 +59,7 @@ Voice pricing is based on **characters** (generation) or **duration** (resolutio
 not tokens. The measurement is written to the `tool_invocations` table and is
 **not summed** with token cost — two different units cannot be added together.
 
-Pricing comes from configuration; AgentPrism does not fabricate prices (K-032):
+Pricing comes from configuration; AgentPrism does not fabricate prices:
 
 ```jsonc
 "AgentPrism": {
@@ -96,3 +96,9 @@ builder.AddAgentPrism().UseVoice(...);
 The package pulls in **no NuGet packages at all**. The surface used amounts to
 three HTTP endpoints and is written with a raw `HttpClient` + `System.Text.Json`
 source generator; the package is AOT-compatible.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/guides/voice/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

@@ -15,8 +15,8 @@ namespace AgentPrism;
 /// Agent catalog and definition management endpoints.
 /// </summary>
 /// <remarks>
-/// Agents defined in code are read-only. Code wins name conflicts
-/// (decision K-003); a definition written to the database with the same name
+/// Agents defined in code are read-only. Code wins name conflicts;
+/// a definition written to the database with the same name
 /// would never resolve. This is why the write endpoints return
 /// <c>409 Conflict</c> instead of silently accepting such a request.
 /// </remarks>
@@ -28,7 +28,10 @@ internal static class AgentEndpoints
     /// <param name="prefix">
     /// The path prefix used when building attachment references (see <see cref="AttachmentUriReference"/>).
     /// </param>
-    /// <param name="idempotencyFilter">Phase 43 — added only to the <c>/api/agents/{name}/run</c> endpoint.</param>
+    /// <param name="idempotencyFilter">
+    /// The <c>Idempotency-Key</c> filter, added only to the
+    /// <c>/api/agents/{name}/run</c> endpoint.
+    /// </param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentPrismRolePolicies roles,
@@ -286,7 +289,7 @@ internal static class AgentEndpoints
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Estimates a prompt's token count against the agent's model, without calling the provider.")
             .WithDescription(
-                "The diagnostic surface of the pre-flight context-window check (phase 62, F-59): it " +
+                "The diagnostic surface of the pre-flight context-window check: it " +
                 "returns the same numbers the check on 'POST /api/agents/{name}/run' would use, " +
                 "regardless of whether that check is enabled. No model provider is ever contacted. " +
                 "The estimate is approximate — it uses a fixed reference tokenizer, not the bound " +
@@ -337,7 +340,7 @@ internal static class AgentEndpoints
     /// </summary>
     /// <remarks>
     /// For a request that does NOT carry the header, this check is a single
-    /// dictionary lookup; no extra query is made (K1: no silent cost).
+    /// dictionary lookup; no extra query is made (the no-surprises rule: no silent cost).
     /// </remarks>
     private static bool WantsAsync(HttpContext httpContext)
         => httpContext.Request.Headers.TryGetValue("Prefer", out var values) &&
@@ -442,12 +445,12 @@ internal static class AgentEndpoints
     /// Compiles a definition without saving it and without calling any model.
     /// </summary>
     /// <remarks>
-    /// A validation failure is not an HTTP error: if the request is well-formed,
-    /// the response is always <c>200</c>, and the result is carried in the
-    /// <see cref="AgentValidationReport.Valid"/> field. Only when the body
-    /// cannot be parsed (this endpoint's own name/model field check) is
-    /// <c>400</c> returned — this is the only genuine request error a CI that
-    /// wants to distinguish a network error from a validation error would see.
+    /// A validation failure is not an HTTP error: if the request is well-formed, the
+    /// response is always <c>200</c>, and the result is carried in the <see
+    /// cref="AgentValidationReport.Valid"/> field. Only when the body cannot be parsed
+    /// (this endpoint's own name/model field check) is <c>400</c> returned — this is
+    /// the only genuine request error a CI that wants to distinguish a network error
+    /// from a validation error would
     /// </remarks>
     private static async Task<Results<Ok<AgentValidationReport>, ProblemHttpResult>> ValidateAgentAsync(
         HttpContext httpContext,
@@ -760,7 +763,7 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Queues the run and returns <c>202 Accepted</c> (Phase 46).
+    /// Queues the run and returns <c>202 Accepted</c>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -938,7 +941,7 @@ internal static class AgentEndpoints
     /// <c>/api/runs/{id}</c> record.
     /// </para>
     /// <para>
-    /// 🚨 When <paramref name="streaming"/> is off (Phase 43, <c>Idempotency-Key</c>),
+    /// When <paramref name="streaming"/> is off (<c>Idempotency-Key</c>),
     /// the response is a single JSON body: since headers/status code have not
     /// been sent yet, an error can be returned with a real HTTP status code
     /// (502) — unlike the SSE branch, an <c>event: error</c> frame is not needed here.
@@ -1302,11 +1305,11 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Fully validates the definition before saving (K-404) — including model,
+    /// Fully validates the definition before saving — including model,
     /// tool, skill, and callable-agent EXISTENCE checks. Before this check
     /// existed, only the separate <c>POST /api/agents/validate</c> endpoint was
     /// called; the SAVE path itself would save an unknown skill/tool name
-    /// without any error (HATA-K-001).
+    /// without any error.
     /// </summary>
     private static async ValueTask<ProblemHttpResult?> ValidateEntitiesAsync(
         AgentDefinitionValidator validator,
@@ -1382,7 +1385,7 @@ internal static class AgentEndpoints
     /// binding): a parsing error (for example, an unrecognized enum value)
     /// thus falls under this endpoint's own <c>400</c> contract, rather than
     /// falling through to a generic <c>500</c> from a <see cref="JsonException"/>
-    /// thrown and left uncaught during minimal API's binding stage (HATA-S1-007).
+    /// thrown and left uncaught during minimal API's binding stage.
     /// </summary>
     private static async Task<(AgentDefinitionRequest? Request, ProblemHttpResult? Error)> BindAgentDefinitionRequestAsync(
         HttpContext httpContext,

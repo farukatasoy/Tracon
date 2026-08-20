@@ -9,14 +9,14 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Not the agent's own job — see <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6.
+/// Not the agent's own job —
 /// The agent side is the <c>search_knowledge</c> tool produced by
 /// <see cref="VectorSearchToolFactory"/>.
 /// </para>
 /// <para>
 /// While <see cref="IsSupported"/> is <see langword="false"/>, every method
 /// throws <see cref="AgentPrismException"/>; it does not silently return an
-/// empty result (K1).
+/// empty result.
 /// </para>
 /// </remarks>
 public sealed partial class KnowledgeIngestionService
@@ -31,7 +31,7 @@ public sealed partial class KnowledgeIngestionService
     /// <param name="options">Knowledge base settings.</param>
     /// <param name="store">
     /// The vector store. If <see langword="null"/>, <see cref="IsSupported"/> is
-    /// <see langword="false"/> (K4: no default implementation).
+    /// <see langword="false"/> (the replaceable-extension rule: no default implementation).
     /// </param>
     /// <param name="embeddings">
     /// The embedding generator. If <see langword="null"/>, <see cref="IsSupported"/>

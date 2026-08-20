@@ -4,8 +4,7 @@ namespace AgentPrism;
 /// <remarks>
 /// When <see cref="IAttachmentStorage"/> is registered the content lives there and this
 /// store keeps the metadata only; when it is not registered the content is stored
-/// directly in the database (<c>bytea</c>). Rationale:
-/// <c>docs/14-COK-MODLULUK.md</c>, section 14.3.
+/// directly in the database (<c>bytea</c>).
 /// </remarks>
 public interface IAttachmentStore
 {
@@ -26,7 +25,10 @@ public interface IAttachmentStore
     /// <param name="tenantId">The tenant id.</param>
     /// <param name="id">The attachment id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A readable stream, or <see langword="null"/> when the record does not exist or belongs to another tenant.</returns>
+    /// <returns>
+    /// A readable stream, or <see langword="null"/> when the record does not exist or
+    /// belongs to another tenant.
+    /// </returns>
     ValueTask<Stream?> OpenReadAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>Lists the attachments through a filter.</summary>
@@ -51,7 +53,7 @@ public interface IAttachmentStore
     /// <returns>The number of records deleted.</returns>
     /// <remarks>
     /// It is called when a session is deleted; it keeps orphaned attachments from piling
-    /// up. Rationale: <c>docs/14-COK-MODLULUK.md</c>, open question 2.
+    /// up.
     /// </remarks>
     ValueTask<int> DeleteBySessionAsync(string tenantId, string sessionId, CancellationToken cancellationToken = default);
 }
@@ -60,9 +62,9 @@ public interface IAttachmentStore
 /// The extension point that stores attachment content in an external store (S3, Blob).
 /// </summary>
 /// <remarks>
-/// When it is not registered the content lives in the database (K1 — no surprises).
+/// When it is not registered the content lives in the database, so nothing has to be set up first.
 /// AgentPrism takes no dependency on any cloud SDK; the consumer writes the
-/// implementation. Rationale: <c>docs/KARARLAR.md</c>, K-007.
+/// implementation.
 /// </remarks>
 public interface IAttachmentStorage
 {

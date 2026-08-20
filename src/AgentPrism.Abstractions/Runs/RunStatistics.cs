@@ -58,9 +58,9 @@ public sealed record RunStatisticsQuery
 /// nothing to the token total.
 /// </para>
 /// <para>
-/// Cost (Phase 20) is populated only when pricing is configured — see
-/// <see cref="TotalCost"/>. Pricing is not embedded in AgentPrism (decision
-/// K-032): it comes from the model catalog or the <c>AgentPrism:Pricing</c> configuration.
+/// Cost is populated only when pricing is configured — see
+/// <c>TotalCost</c>. Pricing is not embedded in AgentPrism: it comes from
+/// the model catalog or the <c>AgentPrism:Pricing</c> configuration.
 /// </para>
 /// </remarks>
 public sealed record RunStatistics
@@ -84,7 +84,7 @@ public sealed record RunStatistics
     /// <remarks>
     /// Occurs only in workflow runs. Counted separately because such a run is
     /// neither running nor settled; forcing it into one bucket would make the
-    /// subtotals not add up to <see cref="TotalRuns"/>.
+    /// subtotals not add up to <c>TotalRuns</c>.
     /// </remarks>
     public long AwaitingInputRuns { get; init; }
 
@@ -99,7 +99,7 @@ public sealed record RunStatistics
 
     /// <summary>
     /// The input tokens that were served from the prompt cache. Counted INSIDE
-    /// <see cref="InputTokens"/>, so the two must not be added together.
+    /// <c>InputTokens</c>, so the two must not be added together.
     /// </summary>
     /// <remarks>
     /// Runs whose provider does not report cache usage contribute nothing here,
@@ -109,14 +109,14 @@ public sealed record RunStatistics
     public long CachedInputTokens { get; init; }
 
     /// <summary>
-    /// The tokens spent on reasoning. Counted INSIDE <see cref="OutputTokens"/>.
+    /// The tokens spent on reasoning. Counted INSIDE <c>OutputTokens</c>.
     /// </summary>
     public long ReasoningTokens { get; init; }
 
-    /// <summary>The audio input tokens. Counted INSIDE <see cref="InputTokens"/>.</summary>
+    /// <summary>The audio input tokens. Counted INSIDE <c>InputTokens</c>.</summary>
     public long AudioInputTokens { get; init; }
 
-    /// <summary>The audio output tokens. Counted INSIDE <see cref="OutputTokens"/>.</summary>
+    /// <summary>The audio output tokens. Counted INSIDE <c>OutputTokens</c>.</summary>
     public long AudioOutputTokens { get; init; }
 
     /// <summary>The breakdown by agent.</summary>
@@ -138,7 +138,7 @@ public sealed record RunStatistics
     /// <remarks>
     /// Bounded by <see cref="RunStatisticsQuery.MaxAgents"/>, users with the
     /// highest run count first. Rows written before the column existed carry no
-    /// user and therefore never appear here (K-014 — no backfill).
+    /// user and therefore never appear here (no backfill).
     /// </remarks>
     public IReadOnlyList<RunUserStatistics> ByUser { get; init; } = [];
 
@@ -147,7 +147,7 @@ public sealed record RunStatistics
     /// carrying three labels contributes to three entries.
     /// </summary>
     /// <remarks>
-    /// 🚨 The entries therefore do NOT sum to <see cref="TotalRuns"/>, unlike
+    /// The entries therefore do NOT sum to <c>TotalRuns</c>, unlike
     /// <see cref="ByAgent"/>: a label set is not a partition of the runs.
     /// Bounded by <see cref="RunStatisticsQuery.MaxAgents"/>.
     /// </remarks>
@@ -156,7 +156,7 @@ public sealed record RunStatistics
     /// <summary>
     /// The breakdown by error class. Only runs that ended in an error are
     /// counted. Rows written before the error class was added appear in the
-    /// <c>Unknown</c> bucket (K-014 — past rows are not backfilled).
+    /// <c>Unknown</c> bucket (past rows are not backfilled).
     /// </summary>
     public IReadOnlyList<RunErrorStatistics> ByErrorClass { get; init; } = [];
 
@@ -164,12 +164,12 @@ public sealed record RunStatistics
     /// The total cost. If a model has undefined pricing, that model's run
     /// costs are <strong>not included</strong> in this total (only runs with
     /// known pricing are summed); the number of runs excluded appears in
-    /// <see cref="RunsWithUnknownPricing"/>. <see langword="null"/> if no run
+    /// <c>RunsWithUnknownPricing</c>. <see langword="null"/> if no run
     /// was ever priced.
     /// </summary>
     public decimal? TotalCost { get; init; }
 
-    /// <summary>The currency. Populated when <see cref="TotalCost"/> is populated.</summary>
+    /// <summary>The currency. Populated when <c>TotalCost</c> is populated.</summary>
     public string? Currency { get; init; }
 
     /// <summary>The number of runs whose model is known but whose pricing is undefined.</summary>
@@ -180,7 +180,7 @@ public sealed record RunStatistics
     /// run has settled.
     /// </summary>
     /// <remarks>
-    /// The denominator is <em>settled</em> runs, not <see cref="TotalRuns"/>.
+    /// The denominator is <em>settled</em> runs, not <c>TotalRuns</c>.
     /// Whether a run in progress will succeed or fail is not yet known;
     /// including it in the denominator would artificially lower the rate.
     /// </remarks>
@@ -196,7 +196,7 @@ public sealed record RunStatistics
     /// <summary>
     /// The number of runs that received at least one <see cref="RunScore"/>
     /// (at the run or message level). Eval runs (<see cref="RunKind.Eval"/>)
-    /// are excluded for the same reason as <see cref="TotalRuns"/> (K-141).
+    /// are excluded for the same reason as <c>TotalRuns</c>.
     /// </summary>
     public long ScoredRuns { get; init; }
 

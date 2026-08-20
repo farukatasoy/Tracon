@@ -24,7 +24,6 @@ namespace AgentPrism;
 /// be scoped to a tenant, and could not be revoked from the UI. The rule is written
 /// into <see cref="IToolApprovalRuleStore"/> and enforced by
 /// <see cref="ToolApprovalRuleEvaluator"/> on subsequent runs.
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-061.
 /// </para>
 /// </remarks>
 internal static class ToolApprovalResolver

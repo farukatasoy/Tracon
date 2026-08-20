@@ -5,9 +5,9 @@ namespace AgentPrism;
 
 /// <summary>Stores webhook subscriptions and delivery history in the SQL database.</summary>
 /// <remarks>
-/// 🚨 This store never writes or reads a <strong>secret</strong>; it only holds
-/// the <em>name</em> of the configuration key the secret will be read from
-/// (K-059). The database backup, audit trail, and UI response therefore carry
+/// This store never writes or reads a <strong>secret</strong>; it only holds
+/// the <em>name</em> of the configuration key the secret will be read from.
+/// The database backup, audit trail, and UI response therefore carry
 /// no secret.
 /// </remarks>
 internal sealed class SqlWebhookStore : IWebhookStore

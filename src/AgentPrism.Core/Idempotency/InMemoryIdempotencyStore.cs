@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>A store that keeps idempotency records in process memory (K-018: first class).</summary>
+/// <summary>A store that keeps idempotency records in process memory (first class).</summary>
 /// <remarks>
 /// Its behavior contract matches <c>SqlIdempotencyStore</c> exactly and shared
 /// contract tests protect it. It is sufficient for a single-instance deployment.

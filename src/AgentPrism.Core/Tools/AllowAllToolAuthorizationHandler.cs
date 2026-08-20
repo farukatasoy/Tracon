@@ -4,7 +4,7 @@ namespace AgentPrism;
 /// The default <see cref="IToolAuthorizationHandler"/>: allows every call.
 /// </summary>
 /// <remarks>
-/// Registered with <c>TryAdd</c> by <c>AddAgentPrism()</c> (K1 — an
+/// Registered with <c>TryAdd</c> by <c>AddAgentPrism()</c> (the no-surprises rule — an
 /// installation that registers nothing keeps today's behavior exactly). A
 /// consumer replaces the registration to enforce its own rule.
 /// </remarks>

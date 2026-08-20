@@ -7,7 +7,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Executes <see cref="JobKind.AgentRun"/> jobs: runs a single, queued
-/// (<c>Prefer: respond-async</c>, Phase 46) agent run from the queue.
+/// (<c>Prefer: respond-async</c>) agent run from the queue.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// run is written to <see cref="IRunStore"/> as a normal <c>runs</c> row.
 /// </para>
 /// <para>
-/// 🚨 The identity handed out here is the SAME identity the HTTP layer
+/// The identity handed out here is the SAME identity the HTTP layer
 /// promised the client through <c>Location</c> (<see cref="AgentPrismRunOptions.RunId"/>):
 /// this keeps the promise of the <c>202</c> response VALID even after the job
 /// actually runs from the queue. If the lease expires and the job is re-leased
@@ -28,10 +28,10 @@ namespace AgentPrism;
 /// <para>
 /// If the response carries a tool call awaiting approval, <see cref="RunRecordingAgent"/>
 /// closes the run with <see cref="RunStatus.AwaitingApproval"/> (valid behavior
-/// for ALL root runs since HATA-S2-004, not specific to the queue path alone —
+/// for ALL root runs, not specific to the queue path alone —
 /// see <c>RunRecordingAgent</c>). This handler additionally, and ONLY this
 /// handler, writes a <see cref="PendingApproval"/> row for each request in that
-/// case (K-372: writing to this store REMAINS specific to the queue path, to
+/// case (writing to this store REMAINS specific to the queue path, to
 /// avoid the risk of a double-decision race); the decision is made through
 /// <c>POST /api/approvals/{id}/decide</c> and queues a NEW run (see
 /// <c>ApprovalResumeJobHandler</c>).

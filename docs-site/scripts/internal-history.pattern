@@ -1,0 +1,1 @@
+\b(?:phase|faz)\s+\d+\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|\bopen question\s+\d+\b|\bdecision reopening\b|(?:<code>|`)?docs/[^\s`<),"]+

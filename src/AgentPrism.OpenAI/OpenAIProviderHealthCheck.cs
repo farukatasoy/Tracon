@@ -11,11 +11,11 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// This endpoint returns model names and <strong>costs nothing</strong> — it makes no
-/// model call. Reason: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3.
+/// model call.
 /// </para>
 /// <para>
 /// It uses a shared static <see cref="HttpClient"/>. No new package
-/// (<c>Microsoft.Extensions.Http</c>) was added — the same reason as K-007: a library
+/// (<c>Microsoft.Extensions.Http</c>) was added — the same reason: a library
 /// must not pollute the dependency graph of its consumer. A single long lived client is
 /// a known and acceptable pattern for low volume health checks.
 /// </para>

@@ -18,10 +18,9 @@ namespace AgentPrism;
 /// registration order.
 /// </para>
 /// <para>
-/// 🚨 <strong>If a guard throws, the run fails.</strong> The "observability does
+/// <strong>If a guard throws, the run fails.</strong> The "observability does
 /// not break functionality" rule does not apply here: a guard is a control, not
-/// an observation tool, and content that cannot be inspected is not let through
-/// (same rationale as K-089).
+/// an observation tool, and content that cannot be inspected is not let through.
 /// </para>
 /// <para>
 /// The <em>recording</em> of the decision, however, is subject to that rule: if
@@ -73,7 +72,7 @@ public sealed class ContentGuardPipeline
     /// Whether at least one guard is registered.
     /// </summary>
     /// <remarks>
-    /// 🚨 If <see langword="false"/>, <c>ModelProviderRegistry</c>
+    /// If <see langword="false"/>, <c>ModelProviderRegistry</c>
     /// <strong>never adds</strong> the inspection wrapper to the pipeline: not
     /// even a single <c>if</c> runs on the model-call path.
     /// </remarks>
@@ -160,10 +159,10 @@ public sealed class ContentGuardPipeline
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 This exists for <see cref="RunRecordingAgent"/>'s <c>BeginRunAsync</c>:
+    /// This exists for <see cref="RunRecordingAgent"/>'s <c>BeginRunAsync</c>:
     /// the text written to the <c>RunStarted</c> event and to
-    /// <see cref="IRunInputStore"/> must be THE SAME as the guard's decision
-    /// (HATA-S3-006), but at this stage the run row (<c>runs</c>) does NOT exist
+    /// <see cref="IRunInputStore"/> must be THE SAME as the guard's decision,
+    /// but at this stage the run row (<c>runs</c>) does NOT exist
     /// yet. When <see cref="InspectAsync"/> finds a decision it calls
     /// <c>scope.Writer.AppendAsync</c>; without a <c>runs</c> row the store
     /// rejects it and the writer is PERMANENTLY disabled for the whole run
@@ -236,10 +235,10 @@ public sealed class ContentGuardPipeline
     /// Writes the decision to the run event, and a block additionally to the audit log.
     /// </summary>
     /// <remarks>
-    /// 🚨 What is written is <strong>not the content</strong>: the guard name, the
+    /// What is written is <strong>not the content</strong>: the guard name, the
     /// rule name, and the direction. Blocked content is by definition sensitive;
     /// writing it to a log would make the problem permanent (in the spirit of
-    /// K-059, the same direction as <c>AuditSecretFilter</c>).
+    /// the same direction as <c>AuditSecretFilter</c>).
     /// </remarks>
     private async ValueTask RecordAsync(
         IContentGuard guard,
@@ -283,7 +282,7 @@ public sealed class ContentGuardPipeline
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Describes the decision as JSON. 🚨 Carries no content.</summary>
+    /// <summary>Describes the decision as JSON. Carries no content.</summary>
     /// <remarks>
     /// Formatted by hand: <c>AgentPrism.Core</c> is AOT-compatible, and opening a
     /// <c>JsonSerializerContext</c> entry for an object this small is unnecessary

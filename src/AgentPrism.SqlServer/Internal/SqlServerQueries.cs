@@ -11,42 +11,42 @@ namespace AgentPrism;
 /// </para>
 /// <para>Translation rules applied:</para>
 /// <list type="bullet">
-///   <item><description>
-///     <strong><c>MERGE</c> IS NOT USED.</strong> The statement has known
-///     concurrency and correctness problems. Upserts are written as
-///     <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> followed by
-///     <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>. The <c>SERIALIZABLE</c> hint
-///     takes a range lock, so two sessions cannot insert the same key at the
-///     same time. Rationale: <c>docs/KARARLAR.md</c>, decision K-177.
-///   </description></item>
-///   <item><description>
-///     <c>RETURNING</c> -> <c>OUTPUT inserted.*</c> / <c>OUTPUT deleted.*</c>.
-///     Both branches of the upsert return <em>the same columns</em>, so a
-///     single reader suffices on the C# side.
-///   </description></item>
-///   <item><description>
-///     <c>COUNT(*) FILTER (WHERE p)</c> -> <c>COALESCE(SUM(CASE WHEN p THEN 1 ELSE 0 END), 0)</c>.
-///     🚨 <c>COALESCE</c> is required: <c>SUM</c> returns <c>NULL</c> over an
-///     empty set, whereas PostgreSQL's <c>COUNT</c> returned zero.
-///   </description></item>
-///   <item><description>
-///     <c>LEAST</c> / <c>GREATEST</c> <strong>do not exist</strong> in SQL
-///     Server 2019 (added in 2022) and are written with <c>CASE</c> instead.
-///   </description></item>
-///   <item><description>
-///     <c>FOR UPDATE SKIP LOCKED</c> -> <c>WITH (UPDLOCK, READPAST, ROWLOCK)</c>.
-///   </description></item>
-///   <item><description>
-///     <c>UNNEST</c> and <c>= ANY(array)</c> -> <c>OPENJSON</c>; arrays travel
-///     as JSON text (K-182).
-///   </description></item>
-///   <item><description>
-///     🚨 <c>OFFSET ... FETCH NEXT @take ROWS ONLY</c> <strong>raises an
-///     error</strong> when <c>@take = 0</c>, whereas PostgreSQL's <c>LIMIT 0</c>
-///     returned an empty list. To keep behavior equal, paged queries add an
-///     <c>@take &gt; 0</c> condition to the WHERE clause and clamp the
-///     <c>FETCH</c> value to at least one.
-///   </description></item>
+/// <item><description>
+/// <strong><c>MERGE</c> IS NOT USED.</strong> The statement has known
+/// concurrency and correctness problems. Upserts are written as
+/// <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> followed by
+/// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>. The <c>SERIALIZABLE</c> hint
+/// takes a range lock, so two sessions cannot insert the same key at the
+/// same time.
+/// </description></item>
+/// <item><description>
+/// <c>RETURNING</c> -> <c>OUTPUT inserted.*</c> / <c>OUTPUT deleted.*</c>.
+/// Both branches of the upsert return <em>the same columns</em>, so a
+/// single reader suffices on the C# side.
+/// </description></item>
+/// <item><description>
+/// <c>COUNT(*) FILTER (WHERE p)</c> -> <c>COALESCE(SUM(CASE WHEN p THEN 1 ELSE 0 END), 0)</c>.
+/// <c>COALESCE</c> is required: <c>SUM</c> returns <c>NULL</c> over an
+/// empty set, whereas PostgreSQL's <c>COUNT</c> returned zero.
+/// </description></item>
+/// <item><description>
+/// <c>LEAST</c> / <c>GREATEST</c> <strong>do not exist</strong> in SQL
+/// Server 2019 (added in 2022) and are written with <c>CASE</c> instead.
+/// </description></item>
+/// <item><description>
+/// <c>FOR UPDATE SKIP LOCKED</c> -> <c>WITH (UPDLOCK, READPAST, ROWLOCK)</c>.
+/// </description></item>
+/// <item><description>
+/// <c>UNNEST</c> and <c>= ANY(array)</c> -> <c>OPENJSON</c>; arrays travel
+/// as JSON text.
+/// </description></item>
+/// <item><description>
+/// <c>OFFSET ... FETCH NEXT @take ROWS ONLY</c> <strong>raises an
+/// error</strong> when <c>@take = 0</c>, whereas PostgreSQL's <c>LIMIT 0</c>
+/// returned an empty list. To keep behavior equal, paged queries add an
+/// <c>@take &gt; 0</c> condition to the WHERE clause and clamp the
+/// <c>FETCH</c> value to at least one.
+/// </description></item>
 /// </list>
 /// </remarks>
 internal sealed class SqlServerQueries : SqlQueriesBase

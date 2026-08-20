@@ -2,10 +2,10 @@ namespace AgentPrism;
 
 /// <summary>
 /// The set of model providers a tenant's agents are allowed to call
-/// (egress policy, F-119).
+/// (egress policy).
 /// </summary>
 /// <remarks>
-/// A tenant with no saved policy is <strong>unrestricted</strong> (K1): the
+/// A tenant with no saved policy is <strong>unrestricted</strong>: the
 /// absence of a row, not an empty list, means "no limit". Once a policy is
 /// saved, <see cref="AllowedProviders"/> is the closed set of providers the
 /// tenant's agent definitions may name in <see cref="ModelBinding.Provider"/>.

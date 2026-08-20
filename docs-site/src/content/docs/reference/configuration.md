@@ -87,6 +87,7 @@ script.
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
+| `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 
 Non-positive graph token or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/AgentPrism/api/agentprism.agentprismagentgraphoptions/)
@@ -510,10 +511,20 @@ The following features use explicit code options because they contain delegates,
 freeze an exposure allowlist at registration, or define request-resolution policy:
 
 - `UseTenancy(AgentPrismTenancyOptions)` selects the claim or explicitly allowed
-  header resolver.
+  header resolver. Four properties decide how a request's tenant is resolved, and
+  the default of each is the safe one:
+
+  | Property | Default | What it does |
+  |---|---|---|
+  | `Enabled` | `false` | Multi-tenancy is off until you turn it on; every request then resolves a tenant |
+  | `ClaimType` | *(none)* | The claim the resolver reads from the authenticated principal. **Left unset, no claim is read at all** — set it explicitly, for example to `tenant_id` |
+  | `AllowHeaderResolution` | `false` | Whether `X-AgentPrism-Tenant` may name the tenant. **Leave this off in production** unless a trusted gateway sets the header and strips any client copy |
+  | `HeaderName` | `X-AgentPrism-Tenant` | The header consulted when header resolution is on |
+  | `AllowedTenants` | empty | When populated, an allowlist: a resolved tenant outside it is rejected rather than served |
 - `UseMcpServer(AgentPrismMcpServerOptions)` exposes no agent by default.
 - `UseA2A(AgentPrismA2AOptions)` exposes no agent by default.
-- `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and criteria.
+- `AddModelRunJudge(ModelRunJudgeOptions)` defines the judge model and its
+  `Criteria`: the plain-language standard the judge scores a run against.
 - `AddAgent()`, `AddSkill()`, `AddWorkflow()`, and `AddEvalCheck()` define executable
   or compiled behavior.
 - `IDataSubjectResolver` (`services.AddSingleton<IDataSubjectResolver, ...>()`) maps a

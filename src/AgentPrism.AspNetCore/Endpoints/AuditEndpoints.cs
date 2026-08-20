@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <summary>Audit trail read endpoints.</summary>
 /// <remarks>
 /// Read-only: there is no delete or amend endpoint, and there will not be. Retention
-/// policy is Phase 25's concern.
+/// policy is the concern.
 /// </remarks>
 internal static class AuditEndpoints
 {

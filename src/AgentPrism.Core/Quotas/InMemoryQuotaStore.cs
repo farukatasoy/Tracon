@@ -12,7 +12,8 @@ namespace AgentPrism;
 /// each instance keeps its own counter and the quota is split between instances.
 /// </para>
 /// <para>
-/// Sayac artirma <see cref="ConcurrentDictionary{TKey, TValue}.AddOrUpdate(TKey, Func{TKey, TValue}, Func{TKey, TValue, TValue})"/>
+/// Sayac artirma <see cref="ConcurrentDictionary{TKey, TValue}.AddOrUpdate(TKey,
+/// Func{TKey, TValue}, Func{TKey, TValue, TValue})"/>
 /// is atomic. It provides the same contract as <c>ON CONFLICT DO UPDATE</c> in the
 /// PostgreSQL implementation, so no increment is lost.
 /// </para>

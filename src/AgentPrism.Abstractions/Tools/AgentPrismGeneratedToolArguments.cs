@@ -5,7 +5,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// The helper methods called by tool wrappers produced by the source
-/// generator (Phase 52) while converting JSON arguments to CLR types.
+/// generator while converting JSON arguments to CLR types.
 /// </summary>
 /// <remarks>
 /// <para>

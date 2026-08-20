@@ -47,7 +47,6 @@ internal sealed class ToolInvocationTracker
     /// <param name="tenantId">
     /// The EXPECTED tenant of the run. Stamped onto every produced record;
     /// if <see langword="null"/>, the store performs no tenant check.
-    /// Rationale: K-355.
     /// </param>
     /// <param name="authorization">
     /// The authorization decisions reported by tools within a run. If

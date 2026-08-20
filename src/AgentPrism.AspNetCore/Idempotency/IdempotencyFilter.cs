@@ -9,20 +9,20 @@ namespace AgentPrism;
 
 /// <summary>
 /// Endpoint filter that recognizes the <c>Idempotency-Key</c> header and answers
-/// repeated requests without re-running them (Phase 43).
+/// repeated requests without re-running them.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Attached only to the Idempotency-Key-supporting endpoint routes of
 /// <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/> — not to the
 /// whole group. For a request that does NOT carry the header, the filter passes
-/// straight through to <c>next</c>; no query is issued (K1: no silent cost).
+/// straight through to <c>next</c>; no query is issued (the no-surprises rule: no silent cost).
 /// </para>
 /// <para>
-/// 🚨 Runs BEFORE <c>QuotaGate</c>: in the endpoint group's filter chain, it runs
+/// Runs BEFORE <c>QuotaGate</c>: in the endpoint group's filter chain, it runs
 /// AFTER <see cref="AgentPrismRateLimitFilter"/>, but BEFORE the handler body (and
 /// therefore before <c>QuotaGate</c>). This means a repeated request does NOT
-/// consume the quota a second time (docs/43-IDEMPOTENCY-KEY.md, section 43.1).
+/// consume the quota a second time.
 /// </para>
 /// <para>
 /// The raw body is buffered UP FRONT (<c>HttpRequest.EnableBuffering</c>) by

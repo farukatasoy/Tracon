@@ -32,7 +32,10 @@ public sealed record McpOAuthStartResult
     /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
 
-    /// <summary>The authorization address the administrator is redirected to. Populated only for <see cref="McpOAuthOperationStatus.Ok"/>.</summary>
+    /// <summary>
+    /// The authorization address the administrator is redirected to. Populated only for
+    /// <see cref="McpOAuthOperationStatus.Ok"/>.
+    /// </summary>
     public Uri? AuthorizationUri { get; init; }
 
     /// <summary>The single-use state value generated for CSRF protection.</summary>
@@ -45,7 +48,10 @@ public sealed record McpOAuthCompleteResult
     /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
 
-    /// <summary>The name of the authorized server. <see langword="null"/> for <see cref="McpOAuthOperationStatus.InvalidState"/>.</summary>
+    /// <summary>
+    /// The name of the authorized server. <see langword="null"/> for <see
+    /// cref="McpOAuthOperationStatus.InvalidState"/>.
+    /// </summary>
     public string? ServerName { get; init; }
 
     /// <summary>The failure reason (safe to show to the user, carries no secret).</summary>
@@ -64,7 +70,7 @@ public sealed record McpOAuthCompleteResult
 /// <para>
 /// <strong>Tokens are never written to the database.</strong> At the end of a
 /// successful flow, the access and refresh tokens are kept only in memory,
-/// bounded by the process lifetime (docs/22-MCP-DERINLESMESI.md, section 22.3).
+/// bounded by the process lifetime.
 /// </para>
 /// </remarks>
 public interface IMcpOAuthCoordinator

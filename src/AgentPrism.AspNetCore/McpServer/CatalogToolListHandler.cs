@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// <remarks>
 /// An <see cref="McpRequestHandler{TParams,TResult}"/>; the catalog is read on
 /// **every request**, the tool list is not cached. This lets an agent added at
-/// runtime appear without setting up a new server (section 50.3).
+/// runtime appear without setting up a new server.
 /// </remarks>
 internal static class CatalogToolListHandler
 {

@@ -7,9 +7,9 @@ namespace AgentPrism;
 /// Wraps <see cref="IMcpServerStore"/> in a decorator that writes an audit trail.
 /// </summary>
 /// <remarks>
-/// Adding an MCP server accepts an external tool definition (decision K-058), so every
+/// Adding an MCP server accepts an external tool definition, so every
 /// write to this store must enter the audit trail. <see cref="McpServerDefinition"/>
-/// never carries a secret (decision K-059), but the secret filter still applies.
+/// never carries a secret, but the secret filter still applies.
 /// </remarks>
 public sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
 {

@@ -213,7 +213,7 @@ public interface IAgentPrismBuilder
     IAgentPrismBuilder AddModelProvider(Func<IServiceProvider, IModelProvider> factory);
 
     /// <summary>
-    /// Registers a custom eval check (Phase 18). Eval suites can reference it by
+    /// Registers a custom eval check. Eval suites can reference it by
     /// this <paramref name="kind"/> name in their <c>checks</c> field.
     /// </summary>
     /// <param name="kind">The check type name. Must not collide with a built-in type (for example <c>nonEmpty</c>).</param>

@@ -1,12 +1,12 @@
 namespace AgentPrism;
 
-/// <summary>Settings for the built-in pattern-based guard — Phase 48.</summary>
+/// <summary>Settings for the built-in pattern-based guard.</summary>
 /// <remarks>
 /// <para>
 /// Read from the <c>AgentPrism:ContentGuard:Pattern</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 This class deliberately <strong>has no</strong> <c>Enabled</c> flag. K1's
+/// This class deliberately <strong>has no</strong> <c>Enabled</c> flag. The no-surprises rule's
 /// gate is the registration itself: <c>AddAgentPrism()</c> does not register the
 /// built-in guard, so in a default setup the inspection wrapper is never added
 /// to the pipeline and the cost is <em>exactly</em> zero. Adding an

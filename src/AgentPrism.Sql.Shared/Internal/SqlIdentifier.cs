@@ -5,21 +5,18 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The schema name comes from configuration and is placed <em>directly</em> into
-/// the SQL text — identifiers cannot be sent as parameters. The name is therefore
-/// validated strictly here before it enters the SQL text: only lowercase letters,
-/// digits and underscores are accepted. That makes SQL injection through the
-/// schema name impossible.
+/// The schema name comes from configuration and is placed <em>directly</em> into the
+/// SQL text — identifiers cannot be sent as parameters. The name is therefore validated
+/// strictly here before it enters the SQL text: only lowercase letters, digits and
+/// underscores are accepted. That makes SQL injection through the schema name
+/// impossible.
 /// </para>
 /// <para>
 /// The rule is <strong>the same</strong> on every provider, even though SQL Server
-/// allows a wider identifier set. The reason is portability: the same schema name
-/// must be usable between PostgreSQL and SQL Server without change. The lowercase
-/// requirement comes from PostgreSQL folding unquoted identifiers to lowercase; a
-/// name that contains uppercase letters cannot be read back as it was written.
-/// </para>
-/// <para>
-/// Rationale: <c>docs/KARARLAR.md</c>, decisions K-029 and K-179.
+/// allows a wider identifier set. The reason is portability: the same schema name must
+/// be usable between PostgreSQL and SQL Server without change. The lowercase
+/// requirement comes from PostgreSQL folding unquoted identifiers to lowercase; a name
+/// that contains uppercase letters cannot be read back as it was written.
 /// </para>
 /// </remarks>
 internal static class SqlIdentifier

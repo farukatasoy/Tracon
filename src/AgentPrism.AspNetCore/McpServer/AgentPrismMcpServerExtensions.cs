@@ -36,17 +36,16 @@ public static class AgentPrismMcpServerExtensions
     /// inherited from there, a second settings set is not built.
     /// </para>
     /// <para>
-    /// 🚨 If <c>AllowRemoteAccess</c> is enabled this fails at startup. A
-    /// single static token is not enough for an exposed agent surface
-    /// (section 50.4).
+    /// If <c>AllowRemoteAccess</c> is enabled this fails at startup. A
+    /// single static token is not enough for an exposed agent surface.
     /// </para>
     /// <para>
-    /// 🚨 If an exposed agent carries a tool that requires approval the
+    /// If an exposed agent carries a tool that requires approval the
     /// application STILL fails — but not synchronously from this method,
     /// rather through <see cref="McpApprovalGuardFilter"/>: the check waits in
     /// the background until the SQL schema is ready (so this method itself
     /// does not crash with "no such table" against an empty database, the same
-    /// pattern as K-354), completes by the first request, and no request can
+    /// pattern), completes by the first request, and no request can
     /// get ahead of it.
     /// </para>
     /// <example>

@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// more than once returns the same instance.
 /// </para>
 /// <para>
-/// When <see cref="OpenAIProviderOptions.ApiKey"/> is empty (local servers, F-05) the
+/// When <see cref="OpenAIProviderOptions.ApiKey"/> is empty (local servers) the
 /// OpenAI client still expects a credential; it is built with a fixed placeholder. This
 /// behaviour applies <strong>only</strong> through this cache — that is, only to the
 /// providers registered with <c>UseOpenAICompatible()</c>. <c>UseOpenAI()</c> still does

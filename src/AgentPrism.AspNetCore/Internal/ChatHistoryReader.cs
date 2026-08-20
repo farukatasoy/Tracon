@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// <c>InvokingAsync</c> and the <c>InvokingContext</c> constructor are part of the
 /// Microsoft Agent Framework's public surface; the provider only reads in this call,
 /// it writes nothing. The same path works for both the in-memory and the PostgreSQL
-/// setup (<c>AddAgentPrism()</c> registers the provider explicitly, decision K-037).
+/// setup (<c>AddAgentPrism</c> registers the provider explicitly).
 /// </para>
 /// <para>
 /// Both the management API (<c>/api/sessions/{id}</c>) and the OpenAI-compatible

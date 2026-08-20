@@ -10,11 +10,11 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The factory returns a <strong>RAW</strong> client. The shared pipeline
+/// The factory returns a <strong>RAW</strong> client. The shared pipeline
 /// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content guard,
 /// the circuit breaker, usage resolution) is built inside
-/// <c>ModelProviderRegistry.CreateChatClient</c> — moved there in Phase 48.
-/// Rationale: when the loop was built here, none of the layers the registry
+/// <c>ModelProviderRegistry.CreateChatClient</c>.
+/// When the loop was built here, none of the layers the registry
 /// wrapped around it could see the tool-call turns.
 /// </para>
 /// <para>
@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// connection pool. Building a new client per call would fragment the pool.
 /// </para>
 /// <para>
-/// 🚨 The Anthropic Messages API treats <c>max_tokens</c> as
+/// The Anthropic Messages API treats <c>max_tokens</c> as
 /// <strong>required</strong>. When <see cref="ModelBinding.MaxOutputTokens"/> is
 /// left empty, <see cref="AnthropicProviderOptions.DefaultMaxOutputTokens"/> is
 /// used instead.

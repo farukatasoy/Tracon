@@ -2,7 +2,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Maps a data subject (an end user, in the consumer's own identity system) to
-/// the sessions, runs, and conversations that belong to them (phase 64).
+/// the sessions, runs, and conversations that belong to them.
 /// </summary>
 /// <remarks>
 /// <para>

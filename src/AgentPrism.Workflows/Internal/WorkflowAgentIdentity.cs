@@ -13,10 +13,10 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Why this is needed.</strong> Microsoft Agent Framework derives
+/// <strong>Why this is needed.</strong> Microsoft Agent Framework derives
 /// executor ids from the agent <em>instance</em>: the id has the form
 /// <c>{Name}_{AIAgent.Id}</c>, and <c>AIAgent.Id</c> is generated randomly for
-/// each instance. Phase 15 pinned this with an in-process cache
+/// each instance. An in-process cache pins it
 /// (<see cref="WorkflowAgentCache"/>), but the cache lives in process memory:
 /// when the application restarts, the ids change and MAF rejects the old
 /// checkpoint with <c>InvalidDataException</c>. A run awaiting human input was
@@ -24,7 +24,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// <strong>The agent executor is the only thing in the graph whose identity
-/// varies.</strong> Measured in phase 16: every other executor id produced by
+/// varies.</strong>: every other executor id produced by
 /// the ready-made patterns (<c>OutputMessages</c>, <c>Start</c>,
 /// <c>Batcher/*</c>, <c>ConcurrentEnd</c>, <c>HandoffStart</c>,
 /// <c>HandoffEnd</c>, <c>GroupChatHost</c>, <c>MagenticOrchestrator</c>) is
@@ -33,13 +33,13 @@ namespace AgentPrism;
 /// build the graph by hand.
 /// </para>
 /// <para>
-/// 🚨 <strong>The identity is written to a private field.</strong>
+/// <strong>The identity is written to a private field.</strong>
 /// <c>AIAgent.Id</c> is not virtual and not writable; a derived class cannot
 /// override it (verified via reflection). The only way is to write the base
 /// class's auto-property backing field (<c>&lt;Id&gt;k__BackingField</c>). The
 /// write happens <strong>only on AgentPrism's own wrapper instance</strong>;
 /// MAF's own objects are never touched. If MAF removes this field, the
-/// identity stays random and behavior reverts to phase 15: the warning message
+/// identity stays random and behavior reverts to the in-process form: the warning message
 /// already says what to do. Silent breakage is caught by
 /// <c>WorkflowAgentIdentityTests</c> - the test fails if the identity does not
 /// carry the expected value.
@@ -99,7 +99,7 @@ internal static class WorkflowAgentIdentity
     /// <returns><see langword="true"/> if the identity was written.</returns>
     /// <remarks>
     /// Failure <strong>does not throw</strong>. A permanent identity is an
-    /// enhancement; without it, workflows run just as in phase 15 and only
+    /// enhancement; without it, workflows still run and only
     /// resuming after a restart is lost. Stopping all workflow execution over
     /// an internal MAF change would be a disproportionate penalty.
     /// </remarks>

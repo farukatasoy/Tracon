@@ -34,7 +34,7 @@ internal sealed class SqlStoreContext
 
     /// <summary>
     /// Gets the names of the optional migration sets to apply, in addition to
-    /// the core set that always applies. Empty by default (K1).
+    /// the core set that always applies. Empty by default.
     /// </summary>
     /// <remarks>
     /// Every name must be a key of <see cref="SqlDialect.OptionalMigrationResourcePrefixes"/>;
@@ -49,7 +49,7 @@ internal sealed class SqlStoreContext
     /// <summary>
     /// Gets the additional key/value pairs that replace the <c>{non-schema}</c>
     /// placeholders in the migration text (for example <c>{dimension}</c> — the
-    /// vector dimension of phase 51).
+    /// vector dimension).
     /// </summary>
     /// <remarks>
     /// The schema placeholder (<see cref="SqlQueriesBase.SchemaPlaceholder"/>) is

@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Defines data retention and archival options — phase 25.</summary>
+/// <summary>Defines data retention and archival options.</summary>
 /// <remarks>
 /// <para>
 /// Read from the <c>AgentPrism:Retention</c> configuration section. This class
@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// database record exists for a target.
 /// </para>
 /// <para>
-/// 🚨 <see cref="Enabled"/> defaults to <see langword="false"/>. A package
+/// <see cref="Enabled"/> defaults to <see langword="false"/>. A package
 /// upgrade must not delete data before a consumer adds configuration. This flag
 /// must explicitly be <see langword="true"/> before configuration defaults apply.
 /// </para>
@@ -75,14 +75,14 @@ public sealed class AgentPrismRetentionOptions
     public RetentionTargetOptions Conversations { get; } = new();
 
     /// <summary>
-    /// Gets the default for <see cref="RetentionTargets.IdempotencyKeys"/> (phase 43).
+    /// Gets the default for <see cref="RetentionTargets.IdempotencyKeys"/>.
     /// The stored response was already sent to the client, so it does not expose
     /// new data, but its lifetime is still bounded (43.5).
     /// </summary>
     public RetentionTargetOptions IdempotencyKeys { get; } = new() { MaxAgeDays = 1 };
 
     /// <summary>
-    /// Gets the default for <see cref="RetentionTargets.RunInputs"/> (phase 47).
+    /// Gets the default for <see cref="RetentionTargets.RunInputs"/>.
     /// It is not user data; see the note on <see cref="RetentionTargets.RunInputs"/>.
     /// It is absent from <see cref="RetentionTargets.UserDataTargets"/>, so the
     /// configuration-based default applies.
@@ -90,19 +90,19 @@ public sealed class AgentPrismRetentionOptions
     public RetentionTargetOptions RunInputs { get; } = new() { MaxAgeDays = 30 };
 
     /// <summary>
-    /// Gets the default for <see cref="RetentionTargets.VoiceSessions"/> (phase 29).
+    /// Gets the default for <see cref="RetentionTargets.VoiceSessions"/>.
     /// The record contains summary metrics only, not audio bytes; see the target note.
     /// </summary>
     public RetentionTargetOptions VoiceSessions { get; } = new() { MaxAgeDays = 30 };
 
     /// <summary>
-    /// Gets the default for <see cref="RetentionTargets.RunScores"/> (phase 31).
+    /// Gets the default for <see cref="RetentionTargets.RunScores"/>.
     /// It has the same lifetime class as <see cref="EvalCaseResults"/>: evaluation history.
     /// </summary>
     public RetentionTargetOptions RunScores { get; } = new() { MaxAgeDays = 180 };
 
     /// <summary>
-    /// Gets the default for <see cref="RetentionTargets.DocumentEmbeddings"/> (phase 51).
+    /// Gets the default for <see cref="RetentionTargets.DocumentEmbeddings"/>.
     /// <see cref="RetentionTargetOptions.MaxAgeDays"/> defaults to <see langword="null"/>:
     /// knowledge-base content is reference data uploaded by the user, not a log
     /// or event. Automatic deletion must be explicitly enabled.
@@ -138,7 +138,10 @@ public sealed class AgentPrismRetentionOptions
 /// <summary>Defines a configuration-based retention default for one target.</summary>
 public sealed class RetentionTargetOptions
 {
-    /// <summary>Gets or sets the age after which rows are eligible for deletion. <see langword="null"/> disables the default for this target.</summary>
+    /// <summary>
+    /// Gets or sets the age after which rows are eligible for deletion. <see
+    /// langword="null"/> disables the default for this target.
+    /// </summary>
     public int? MaxAgeDays { get; set; }
 
     /// <summary>Gets or sets whether to archive before deletion.</summary>

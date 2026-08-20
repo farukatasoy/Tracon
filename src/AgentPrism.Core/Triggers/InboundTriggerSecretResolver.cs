@@ -8,8 +8,8 @@ namespace AgentPrism;
 /// configured configuration key.
 /// </summary>
 /// <remarks>
-/// The same shape as <see cref="TenantProviderCredentialResolver"/> (phase
-/// 65): <see cref="AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix"/>
+/// The same shape as <see cref="TenantProviderCredentialResolver"/>:
+/// <see cref="AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix"/>
 /// is checked here too, not only where a trigger is saved — a trigger written
 /// before the prefix was configured must not silently read an out-of-prefix
 /// configuration key.

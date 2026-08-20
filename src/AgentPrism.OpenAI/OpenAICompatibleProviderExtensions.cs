@@ -37,7 +37,12 @@ public static class OpenAICompatibleProviderExtensions
     /// </param>
     /// <param name="configure">The options callback. It must set at least <see cref="OpenAIProviderOptions.Endpoint"/>.</param>
     /// <returns>The same chain, for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/>
+    /// or
+    /// <paramref name="configure"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty, reserved, or does not match the pattern.</exception>
     /// <example>
     /// <code>
@@ -108,7 +113,10 @@ public static class OpenAICompatibleProviderExtensions
     /// <c>AgentPrism:Providers:OpenAICompatible:{name}</c> section.
     /// </summary>
     /// <param name="builder">The AgentPrism chain.</param>
-    /// <param name="name">The provider name. See <see cref="UseOpenAICompatible(IAgentPrismBuilder, string, Action{OpenAIProviderOptions})"/>.</param>
+    /// <param name="name">
+    /// The provider name. See <see cref="UseOpenAICompatible(IAgentPrismBuilder,
+    /// string, Action{OpenAIProviderOptions})"/>.
+    /// </param>
     /// <param name="configurationSection">
     /// The section the options are read from. Usually
     /// <c>configuration.GetSection($"{OpenAICompatibleProviderOptions.SectionName}:{name}")</c>.

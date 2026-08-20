@@ -67,7 +67,7 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
     /// through <see cref="GetAsync"/> and <see cref="SaveAsync"/>. It would disable the
     /// real atomic implementation in <c>SqlSessionStore</c>/<c>InMemorySessionStore</c>.
     /// Since <c>AuditingSessionStore</c> is always the single registered <see cref="ISessionStore"/>
-    /// in DI (K-018), this would silently undo the HATA-004 fix.
+    /// in DI, this would silently undo that atomicity.
     /// </remarks>
     public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
         => _inner.TryCreateAsync(record, cancellationToken);

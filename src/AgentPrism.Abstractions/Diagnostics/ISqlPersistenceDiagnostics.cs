@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <para>
 /// Each <c>Use*()</c> extension (<c>UsePostgreSql</c>, <c>UseSqlServer</c>, and
 /// <c>UseSqlite</c>) registers this interface with <c>Replace</c>. Diagnostics
-/// reflect the winner (K-025). Persistence is in memory when no provider registers it.
+/// reflect the winner. Persistence is in memory when no provider registers it.
 /// </para>
 /// <para>
 /// The check is a <strong>lightweight connection probe</strong>, similar to
@@ -43,6 +43,6 @@ public sealed record SqlPersistenceDiagnosticsSnapshot
 /// Each <c>Use*</c> extension adds a marker. Markers <em>accumulate</em> through
 /// <c>AddSingleton</c>, not <c>TryAdd</c>. If more than one exists, startup logs
 /// a warning and <see cref="AgentPrismDiagnosticsReport.RegisteredPersistenceProviders"/>
-/// returns more than one (K-183).
+/// returns more than one.
 /// </remarks>
 public sealed record SqlPersistenceRegistrationMarker(string ProviderName);

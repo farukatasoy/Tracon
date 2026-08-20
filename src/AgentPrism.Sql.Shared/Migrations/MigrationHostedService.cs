@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// setup.
 /// </para>
 /// <para>
-/// This class is shared across every SQL provider (Phase 23); everything
+/// This class is shared across every SQL provider; everything
 /// provider-specific comes through <see cref="SqlStoreContext"/>.
 /// </para>
 /// </remarks>
@@ -134,7 +134,6 @@ internal sealed class MigrationHostedService : IHostedService
     /// data goes to depends on call order. This is a configuration mistake.
     /// The registration is not blocked — it could be a deliberate migration
     /// scenario — but it is not silent either.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-183.
     /// </remarks>
     private void WarnOnMultipleProviders()
     {

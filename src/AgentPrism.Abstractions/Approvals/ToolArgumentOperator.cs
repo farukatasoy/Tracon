@@ -2,12 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>A comparison operator for a <see cref="ToolArgumentCondition"/>.</summary>
+/// <summary>
+/// A comparison operator for a <see cref="ToolArgumentCondition"/>.
+/// </summary>
 /// <remarks>
-/// 🚨 <see cref="JsonStringEnumConverter{TEnum}"/> is required: ASP.NET Core's
-/// default JSON serialization writes an unmarked enum as a number, not the
-/// string a client (and this type's own HTTP contract, <see cref="ToolArgumentCondition"/>)
-/// expects. Decision K-040.
+/// <see cref="JsonStringEnumConverter{TEnum}"/> is required: ASP.NET Core's default JSON serialization writes an unmarked enum as a number, not the string a client (and this type's own HTTP contract, <see cref="ToolArgumentCondition"/>) expects.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ToolArgumentOperator>))]
 public enum ToolArgumentOperator

@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <para>
 /// AgentPrism's taxonomy is its own opinion; a consumer may want their own
 /// class or clustering rule. Registered with <c>TryAddSingleton</c>, so the
-/// consumer's registration wins (K4).
+/// consumer's registration wins.
 /// </para>
 /// </remarks>
 public interface IRunErrorClassifier

@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// The tenant id is taken <em>as a parameter</em>, not read from <c>ITenantContext</c>.
-/// Reason: the checkpoint store and the workflow store are also called from
+/// The checkpoint store and the workflow store are also called from
 /// MAF's execution pipeline; there is no HTTP context there, and the ambient
 /// tenant would fall back to the wrong value. The same choice was made for
 /// <see cref="SqlAgentSkillStore"/>.

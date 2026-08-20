@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Options for the built-in model-based judge (<see cref="ModelRunJudge"/>) — Phase 49.</summary>
+/// <summary>Options for the built-in model-based judge (<see cref="ModelRunJudge"/>).</summary>
 /// <remarks>
 /// Values do not come from a configuration section. Since <see cref="ModelBinding"/>
 /// is a nested type, this project configures it in code through

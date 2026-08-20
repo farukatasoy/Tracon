@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// </remarks>
 internal static class McpTransportFactory
 {
-    /// <summary>Only remote http/https addresses are accepted; there is no stdio (K-058).</summary>
+    /// <summary>Only remote http/https addresses are accepted; there is no stdio.</summary>
     [SuppressMessage(
         "Design",
         "MA0089:Optimize string method usage",
@@ -153,7 +153,7 @@ internal static class McpTransportFactory
         };
     }
 
-    /// <summary>Resolves the OAuth client secret from configuration (K-059).</summary>
+    /// <summary>Resolves the OAuth client secret from configuration.</summary>
     public static string? ResolveClientSecret(McpServerDefinition server, IConfiguration configuration, ILogger logger)
     {
         if (server.OAuthClientSecretConfigurationKey is not { Length: > 0 } key)

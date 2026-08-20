@@ -392,7 +392,7 @@ internal static class RunEndpoints
     /// Reads the text a run produced from its event stream.
     /// </summary>
     /// <remarks>
-    /// 🚨 The non-streaming path (<c>RunCoreAsync</c>) writes both a
+    /// The non-streaming path (<c>RunCoreAsync</c>) writes both a
     /// <c>MessageDelta</c> for every <c>TextContent</c> and a final
     /// <c>MessageCompleted</c>; the streaming path produces only
     /// <c>MessageDelta</c> events and NEVER writes an equivalent "completed"
@@ -440,7 +440,7 @@ internal static class RunEndpoints
     /// readable via <c>GET /api/runs/{id}/events</c>.
     /// </para>
     /// <para>
-    /// 🚨 <see cref="ReplayToolMode.LiveTools"/> requires the <c>Admin</c> role.
+    /// <see cref="ReplayToolMode.LiveTools"/> requires the <c>Admin</c> role.
     /// The endpoint is bound to <c>Operator</c>; the difference is enforced
     /// HERE, at runtime, because the role depends on the mode itself. If role
     /// policies are not registered at all (authorization disabled), no
@@ -673,9 +673,12 @@ internal static class RunEndpoints
     /// Requests cancellation of a running run.
     /// </summary>
     /// <remarks>
-    /// Endpoint behavior (see docs/32-CALISTIRMA-IPTALI.md, section 32.2):
+    /// Endpoint behavior:
     /// <list type="bullet">
-    /// <item>If the run does not exist or belongs to another tenant, <c>404</c> (both are the same, to avoid leaking existence).</item>
+    /// <item>
+    /// If the run does not exist or belongs to another tenant, <c>404</c> (both are the
+    /// same, to avoid leaking existence).
+    /// </item>
     /// <item>If the run is registered, its source is canceled and <c>202</c> is returned.</item>
     /// <item>
     /// If the run is <see cref="RunStatus.Running"/> in <c>runs</c> but not registered,
@@ -683,10 +686,10 @@ internal static class RunEndpoints
     /// </item>
     /// <item>If the run has already ended, <c>409</c> is returned along with the current status.</item>
     /// <item>
-    /// 🚨 Phase 46: a run in the <see cref="RunStatus.Queued"/> status is NOT
+    /// A run in the <see cref="RunStatus.Queued"/> status is NOT
     /// executing YET; it cannot be registered in <see cref="IRunCancellationRegistry"/>.
     /// In this case cancellation happens FROM THE QUEUE, via
-    /// <c>IJobStore.CancelAsync</c> (Job.Id == RunId, Phase 46), and the
+    /// <c>IJobStore.CancelAsync</c> (Job.Id == RunId), and the
     /// <c>runs</c> row is closed directly to <see cref="RunStatus.Canceled"/>
     /// right here — since the worker never picked up the job,
     /// <c>RunRecordingAgent</c> will never close this row.
@@ -869,7 +872,7 @@ internal static class RunEndpoints
     /// the loop ends.
     /// </para>
     /// <para>
-    /// Because events are append-only (decision K-014), replay and live
+    /// Because events are append-only, replay and live
     /// streaming go through the same code path; the client sees no difference.
     /// </para>
     /// </remarks>
@@ -959,7 +962,7 @@ public sealed record RunFeedbackRequest
     /// <summary>The format of the score.</summary>
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary>0/1 for <see cref="RunScoreKind.Binary"/>, 1..5 for <see cref="RunScoreKind.Stars"/>.</summary>
+    /// <summary>0/1 for <see cref="RunScoreKind.Binary"/>, 1.5 for <see cref="RunScoreKind.Stars"/>.</summary>
     public required int Value { get; init; }
 
     /// <summary>The id of the scored message. If left blank, the score applies to the whole run.</summary>

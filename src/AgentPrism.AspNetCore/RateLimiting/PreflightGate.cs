@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// (the OpenAI-compatible endpoints carry the agent name in the body, not the route).
 /// </para>
 /// <para>
-/// 🚨 <strong>Disabled by default</strong> (K1,
+/// <strong>Disabled by default</strong> (the no-surprises rule,
 /// <see cref="AgentPrismPreflightOptions.Enabled"/>): when it is off, this
 /// method returns immediately and neither resolves the agent's model binding
 /// nor counts a single token — not even an <see langword="if"/> beyond the

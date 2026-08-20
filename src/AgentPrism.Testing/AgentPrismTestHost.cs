@@ -14,11 +14,11 @@ namespace AgentPrism.Testing;
 /// Built on <c>WebApplication.CreateSlimBuilder()</c> + <c>UseTestServer()</c>;
 /// <c>Microsoft.AspNetCore.Mvc.Testing</c>'s <c>WebApplicationFactory&lt;T&gt;</c>
 /// is NOT used, because it requires an entry-point assembly and locks the
-/// consumer into a hosting model (K-007). In-memory stores are a first-class
-/// implementation thanks to K-018; the host needs no database.
+/// consumer into a hosting model. In-memory stores are a first-class
+/// implementation, so the host needs no database.
 /// </para>
 /// <para>
-/// 🚨 <c>AIFunctionArguments.Services</c> is empty in the MAF pipeline (K-218): a
+/// <c>AIFunctionArguments.Services</c> is empty in the MAF pipeline: a
 /// dependency your own tool needs is <strong>not resolved from DI</strong>. Take
 /// the dependency in the tool's CONSTRUCTOR and register it through a factory
 /// with <c>services.AddSingleton(provider =&gt; new

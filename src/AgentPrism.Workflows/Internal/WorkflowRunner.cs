@@ -16,20 +16,20 @@ namespace AgentPrism;
 /// <strong>A workflow execution is a run.</strong> It opens its own <c>runs</c>
 /// row (<see cref="RunKind.Workflow"/>), and every agent called inside it
 /// attaches below that row through the <c>parent_run_id</c> mechanism from
-/// phase 12. The waterfall view is therefore drawn correctly with no extra code.
+/// mechanism. The waterfall view is therefore drawn correctly with no extra code.
 /// </para>
 /// <para>
-/// 🚨 <strong>The run scope is written again before every
+/// <strong>The run scope is written again before every
 /// <c>MoveNextAsync</c>.</strong> The scope lives in an <c>AsyncLocal</c>, and an
 /// assignment inside an async iterator body does not cross the
 /// <c>yield return</c> boundary: the <c>ExecutionContext</c> is restored when the
-/// call returns to the driver. Measured in phase 12; it also holds for workflow
+/// call returns to the driver.; it also holds for workflow
 /// execution, because executors run exactly inside that pump. When the scope is
 /// lost, nested agent calls are rejected with "run recording is closed" and
 /// checkpoints are written with no tenant.
 /// </para>
 /// <para>
-/// 🚨 <strong>Execution needs a <c>TurnToken</c>.</strong> Measured (phase 15):
+/// <strong>Execution needs a <c>TurnToken</c>.</strong> Measured:
 /// when the token is not sent, the graph only <em>swallows</em> the incoming
 /// messages, turns <c>Idle</c> after the first super-step, and no agent speaks.
 /// This behaviour is not written in the MAF documentation.
@@ -74,11 +74,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// counters (the SAME behaviour as the agent run path, see <c>RunRecordingAgent</c>).
     /// </param>
     /// <param name="attributionContext">
-    /// The attribution context (phase 68). When <see langword="null"/>, the workflow's run row records
+    /// The attribution context. When <see langword="null"/>, the workflow's run row records
     /// no user and no labels.
     /// </param>
     /// <param name="sinks">
-    /// The run event observers (phase 70). Empty when none is registered — the identical
+    /// The run event observers. Empty when none is registered — the identical
     /// hot path as before this extension point existed.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
@@ -194,7 +194,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// This MUST be an <c>async IAsyncEnumerable</c> iterator (K-403) —
+    /// This MUST be an <c>async IAsyncEnumerable</c> iterator —
     /// <see cref="WorkflowSessionId.Require"/> throws
     /// <see cref="AgentPrismException"/> for an invalid <c>sessionId</c>. When
     /// that call stays outside the iterator BODY (in a synchronous helper
@@ -203,9 +203,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <c>AgentPrism.AspNetCore</c>) and falls straight into the global
     /// <c>ExceptionHandlerMiddleware</c> of ASP.NET — instead of an SSE
     /// <c>event: error</c> the client gets a bare <c>HTTP 500</c> that carries no
-    /// diagnostic information (BUG-K-005). For the fourth repetition of the same
-    /// class, in the async helper method of the calling layer, see the
-    /// core-execution note under <c>docs/hafiza/</c>.
+    /// diagnostic information.
     /// </remarks>
     public async IAsyncEnumerable<RunEvent> RunStreamingAsync(
         WorkflowRunRequest request,
@@ -900,8 +898,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <summary>Starts the graph and triggers the first turn.</summary>
     /// <remarks>
-    /// 🚨 If <c>TurnToken</c> is not sent, the graph only swallows the
-    /// incoming message and no agent speaks. Measured (phase 15).
+    /// If <c>TurnToken</c> is not sent, the graph only swallows the
+    /// incoming message and no agent speaks. Measured.
     /// </remarks>
     private async ValueTask<StreamingRun> StartAsync(
         Workflow workflow,
@@ -1065,12 +1063,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <summary>Writes the ENTIRE workflow (root level, a single "run") to the quota counters.</summary>
     /// <remarks>
     /// <para>
-    /// 🚨 HATA-S1-006: workflow runs used to skip quota accounting
+    /// workflow runs used to skip quota accounting
     /// ENTIRELY — only <c>RunRecordingAgent</c> (the agent run path) reached
     /// <c>QuotaEnforcer</c>; <see cref="IWorkflowRunner"/> never touched it.
     /// </para>
     /// <para>
-    /// A workflow row has no <c>usage</c>/<c>cost</c> of its own (phase 20,
+    /// A workflow row has no <c>usage</c>/<c>cost</c> of its own (
     /// see the note on <see cref="CompleteAsync"/>); consumption is read from
     /// the total of the run tree that just completed
     /// (<see cref="RunRecord.TreeUsage"/>/<see cref="RunRecord.TreeCost"/>).
@@ -1168,7 +1166,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <summary>
     /// Converts an exception into a run error; strips reflection/handler-invocation
-    /// wrappers (K-400).
+    /// wrappers.
     /// </summary>
     /// <remarks>
     /// MAF's internal execution pipeline (for example a Magentic turn-token /
@@ -1177,7 +1175,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <see cref="AggregateException"/>. The wrapped message carries only a
     /// meaningless text like "Error invoking handler for ..."; the real cause
     /// stays in <c>InnerException</c>, and if written unwrapped the operator
-    /// never sees the actual fault at all (HATA-K-003, `MT-WF-071`/`073`).
+    /// never sees the actual fault at all.
     /// Only SINGLE-layer, single-inner-exception wrappers are stripped — a
     /// direct code error (for example a genuine `AggregateException` with
     /// multiple inner exceptions) is left as is.

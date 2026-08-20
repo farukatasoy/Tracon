@@ -18,8 +18,7 @@ namespace AgentPrism;
 /// <para>
 /// This class lives in <c>AgentPrism.AspNetCore</c> because
 /// <see cref="AgentSessionStore"/> is in the prerelease <c>Microsoft.Agents.AI.Hosting</c>
-/// package, and per K-008 <c>AgentPrism.Core</c> cannot depend on that package.
-/// Rationale: <c>docs/KARARLAR.md</c>, decisions K-008 and K-026.
+/// package, and <c>AgentPrism.Core</c> cannot depend on that package.
 /// </para>
 /// <para>
 /// In multi-tenant setups, this instance can be wrapped with MAF's

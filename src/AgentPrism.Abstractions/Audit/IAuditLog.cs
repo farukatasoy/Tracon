@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <para>
 /// <strong>A write failure does not stop the operation.</strong> When
 /// <see cref="WriteAsync"/> fails the caller logs it and the operation continues — the
-/// same rule as "observability does not break behaviour" from phase 6.
+/// same rule: observability does not break behaviour.
 /// </para>
 /// <para>There is a read endpoint only; there is no delete or edit endpoint, and there will not be one.</para>
 /// </remarks>
@@ -27,7 +27,7 @@ public interface IAuditLog
     /// <returns>The records, newest first.</returns>
     ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default);
 
-    /// <summary>Walks a tenant's hash chain and reports whether it is intact (phase 64).</summary>
+    /// <summary>Walks a tenant's hash chain and reports whether it is intact.</summary>
     /// <param name="query">The scope: tenant and, optionally, a date range.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The verification result.</returns>

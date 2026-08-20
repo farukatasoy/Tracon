@@ -1,11 +1,11 @@
 namespace AgentPrism;
 
-/// <summary>Options that constrain inbound triggers (phase 66).</summary>
+/// <summary>Options that constrain inbound triggers.</summary>
 /// <remarks>
-/// 🚨 <see cref="AllowedConfigurationPrefix"/> is a security boundary, not a
+/// <see cref="AllowedConfigurationPrefix"/> is a security boundary, not a
 /// convenience default — the same rationale as
 /// <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>
-/// (section 65.2). Without it, a trigger definition could reference an
+/// Without it, a trigger definition could reference an
 /// unrelated configuration key as its "signing secret".
 /// </remarks>
 public sealed class AgentPrismInboundTriggerOptions

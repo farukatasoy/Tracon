@@ -56,13 +56,15 @@ public sealed class SourceLanguageTests
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
 
     /// <summary>
-    /// Files excluded in full. These two test files carry the Turkish dictionary
+    /// Files excluded in full. These three test files carry the Turkish dictionary
     /// itself; the locale file is a legitimate translation dictionary (K-228).
     /// </summary>
     private static readonly string[] SkippedFiles =
     [
         "tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs",
         "tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs",
+        // Carries the defect-id prefix, which is also a Turkish word.
+        "tests/AgentPrism.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
         "src/AgentPrism.UI/frontend/src/locales/tr.ts",
         // The embeddable widget's own small dictionary (Phase 61) is deliberately
         // separate from the console's locales/ — same K-228 status, split into

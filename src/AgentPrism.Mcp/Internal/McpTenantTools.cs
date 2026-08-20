@@ -33,8 +33,8 @@ internal sealed class McpTenantTools
     /// <summary>Builds an immutable set from registrations.</summary>
     /// <param name="registrations">The discovered tool registrations.</param>
     /// <param name="logger">The logger name collisions are reported to.</param>
-    /// <param name="authorizationHandler">The authorization policy applied before every call (F-113).</param>
-    /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none (F-114).</param>
+    /// <param name="authorizationHandler">The authorization policy applied before every call.</param>
+    /// <param name="defaultTimeout">The timeout applied when a tool's own registration sets none.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>

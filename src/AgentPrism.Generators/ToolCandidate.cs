@@ -41,7 +41,11 @@ internal sealed record ToolEmitModel(
     int TimeoutSeconds);
 
 /// <summary>The analysis result for a single method marked with <c>[AgentPrismTool]</c>.</summary>
-/// <remarks>Either <see cref="Emit"/> is populated (emittable) or <see cref="Diagnostics"/> contains a blocking error (both can hold at once - APG0006 is a warning and does not block).</remarks>
+/// <remarks>
+/// Either <see cref="Emit"/> is populated (emittable) or <see cref="Diagnostics"/>
+/// contains a blocking error (both can hold at once - APG0006 is a warning and does not
+/// block).
+/// </remarks>
 internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<DiagnosticInfo> Diagnostics, ToolEmitModel? Emit)
 {
     private const string TaskMetadataName = "System.Threading.Tasks.Task";
@@ -124,7 +128,10 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         return new ToolCandidate(SourceLocation.From(location), diagnostics.ToImmutable(), emit);
     }
 
-    /// <summary>Generates a deterministic name for the emitted wrapper class - dependent only on this candidate's own signature, INDEPENDENT of order.</summary>
+    /// <summary>
+    /// Generates a deterministic name for the emitted wrapper class - dependent only on
+    /// this candidate's own signature, INDEPENDENT of order.
+    /// </summary>
     /// <remarks>Overloads can share the same method name; the FNV-1a hash of the signature prevents collisions.</remarks>
     private static string GeneratedClassName(IMethodSymbol method)
     {

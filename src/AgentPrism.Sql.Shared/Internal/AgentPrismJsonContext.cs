@@ -10,14 +10,10 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Reflection-based overloads such as <c>JsonSerializer.Serialize(object)</c>
-/// produce <c>IL2026</c> and <c>IL3050</c>. <c>AgentPrism.PostgreSql</c> is marked
-/// AOT compatible and those diagnostics break the build; every serialized type is
-/// therefore declared here and the calls use the overloads that take a
-/// <c>JsonTypeInfo</c>.
-/// </para>
-/// <para>
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// Reflection-based overloads such as <c>JsonSerializer.Serialize(object)</c> produce
+/// <c>IL2026</c> and <c>IL3050</c>. <c>AgentPrism.PostgreSql</c> is marked AOT
+/// compatible and those diagnostics break the build; every serialized type is therefore
+/// declared here and the calls use the overloads that take a <c>JsonTypeInfo</c>.
 /// </para>
 /// </remarks>
 [JsonSourceGenerationOptions(

@@ -31,7 +31,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
     /// <remarks>
     /// This value is <strong>stable</strong>; changing it breaks the history of existing
     /// sessions. The key is shared with <see cref="AgentPrismSessionStateKeys.ChatHistory"/>:
-    /// conversation branching reads the same state and writes it into the new session (Phase 47).
+    /// conversation branching reads the same state and writes it into the new session.
     /// </remarks>
     public const string SessionStateKey = AgentPrismSessionStateKeys.ChatHistory;
 

@@ -4,20 +4,19 @@ using System.Globalization;
 namespace AgentPrism;
 
 /// <summary>
-/// The data-plane implementation of <see cref="IRetentionStore"/>: counting,
-/// batch deletion, and reading for archival.
+/// The data-plane implementation of <see cref="IRetentionStore"/>: counting, batch
+/// deletion, and reading for archival.
 /// </summary>
 /// <remarks>
 /// <para>
 /// SQL text per target is NOT hand-copied: <see cref="RetentionTargetRegistry"/>
-/// defines the table/predicate, <see cref="SqlDialect"/> applies the
-/// provider-specific 3-part template (count/read/delete). Rationale: decision K-198.
+/// defines the table/predicate, <see cref="SqlDialect"/> applies the provider-specific
+/// 3-part template (count/read/delete).
 /// </para>
 /// <para>
 /// Archive rows are converted to JSON by <see cref="SqlJsonRowWriter"/>, without
-/// knowing the column schema up front and without reflection — this store
-/// compiles into <c>AgentPrism.PostgreSql</c> and that package must stay
-/// AOT-compatible.
+/// knowing the column schema up front and without reflection — this store compiles into
+/// <c>AgentPrism.PostgreSql</c> and that package must stay AOT-compatible.
 /// </para>
 /// </remarks>
 internal sealed class SqlRetentionStore : IRetentionStore

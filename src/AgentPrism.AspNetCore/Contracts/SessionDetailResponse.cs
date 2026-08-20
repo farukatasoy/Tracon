@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <see cref="Messages"/> is Microsoft Agent Framework's <c>ChatMessage</c>
 /// array, produced with <c>Microsoft.Extensions.AI</c> serialization
 /// settings. AgentPrism does not layer its own parallel type hierarchy on top
-/// of this (rule K3); the JSON shape is therefore MAF's documented shape.
+/// of this (the MAF pass-through rule); the JSON shape is therefore MAF's documented shape.
 /// </para>
 /// <para>
 /// <see cref="State"/> is the serialized form of the session and is

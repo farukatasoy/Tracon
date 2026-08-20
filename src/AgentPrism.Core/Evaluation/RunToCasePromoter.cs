@@ -1,23 +1,20 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Promotes a production run to an evaluation case (F-53,
-/// <c>docs/45-URETIMDEN-EVAL-KUMESI.md</c>).
+/// Promotes a production run to an evaluation case.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The query text is read from the <see cref="RunEventType.RunStarted"/> event
-/// in <c>run_events</c>; see <c>RunRecordingAgent.ExtractQuery</c>. It is the
-/// only durable input location because a session is saved only after successful
-/// completion. Therefore, the query of a failed run can never be read from a
-/// session. The original session-based design always returned 422 for failed-run
-/// promotion, as observed in phase 45.
+/// The query text is read from the <see cref="RunEventType.RunStarted"/> event in
+/// <c>run_events</c>; see <c>RunRecordingAgent.ExtractQuery</c>. It is the only durable
+/// input location because a session is saved only after successful completion.
+/// Therefore, the query of a failed run can never be read from a session. The original
+/// session-based design always returned 422 for failed-run promotion.
 /// </para>
 /// <para>
 /// Multi-turn behavior is detected by checking for an earlier run in this run's
-/// session. When present, this run's <c>query</c> alone cannot reproduce the
-/// original behavior because prior-turn context is missing. See 45.4 and K-034,
-/// which forbids silent context loss.
+/// session. When present, this run's <c>query</c> alone cannot reproduce the original
+/// behavior because prior-turn context is missing. which forbids silent context loss.
 /// </para>
 /// </remarks>
 public sealed class RunToCasePromoter

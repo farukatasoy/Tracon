@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>This cache exists for CORRECTNESS, not performance.</strong>
+/// <strong>This cache exists for CORRECTNESS, not performance.</strong>
 /// Microsoft Agent Framework derives executor ids from the agent
 /// <em>instance</em>: the id has the form <c>{Name}_{AIAgent.Id}</c>, and
 /// <c>AIAgent.Id</c> is generated randomly for each instance - it is not
@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// Consequence: if agents were rebuilt every time the graph is rebuilt, their
 /// executor ids would change every time, and resuming from a checkpoint would
 /// fail with <c>InvalidDataException: The specified checkpoint is
-/// not compatible with the workflow</c>. Measured (phase 15): a graph rebuilt
+/// not compatible with the workflow</c>. Measured: a graph rebuilt
 /// with the same agent instances was compatible; a graph built with new
 /// instances was not.
 /// </para>
@@ -29,7 +29,7 @@ namespace AgentPrism;
 /// stale. Only the name, description, and id stay fixed in the cache.
 /// </para>
 /// <para>
-/// <strong>Since phase 16, the identity also survives across process
+/// <strong>The identity also survives across process
 /// lifetimes.</strong> Every wrapper gets a permanent id derived from the
 /// <c>(workflow, agent)</c> pair via <see cref="WorkflowAgentIdentity"/>; this
 /// way old checkpoints stay compatible even after the application restarts,

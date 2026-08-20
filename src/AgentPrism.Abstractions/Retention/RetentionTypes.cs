@@ -20,14 +20,14 @@ public sealed record RetentionPolicy
     /// <summary>
     /// Rows older than this age are candidates for deletion. If
     /// <see langword="null"/>, age-based deletion does not apply (only
-    /// <see cref="MaxRows"/>, if set, applies).
+    /// <c>MaxRows</c>, if set, applies).
     /// </summary>
     public int? MaxAgeDays { get; init; }
 
     /// <summary>
     /// The maximum number of rows to keep in the target table. The OLDEST
     /// rows over the limit are deleted. If <see langword="null"/>,
-    /// volume-based deletion does not apply (only <see cref="MaxAgeDays"/>,
+    /// volume-based deletion does not apply (only <c>MaxAgeDays</c>,
     /// if set, applies).
     /// </summary>
     public long? MaxRows { get; init; }

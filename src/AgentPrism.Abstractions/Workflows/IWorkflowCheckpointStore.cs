@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// <c>AgentPrism.Workflows</c>.
 /// </para>
 /// <para>
-/// 🚨 <strong>Every read is scoped by the tenant filter.</strong> A
+/// <strong>Every read is scoped by the tenant filter.</strong> A
 /// checkpoint carries the entire execution state; another tenant's
 /// checkpoint returns <em>not found</em> — not even "unauthorized" is said, its existence is not leaked.
 /// </para>

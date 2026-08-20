@@ -96,6 +96,39 @@ tokens and duration are attributed separately.
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.
 
+## Sessions
+
+<a class="ui-shot" href="/AgentPrism/screenshots/sessions.png"><img src="/AgentPrism/screenshots/sessions.png" alt="The session list with message counts and last activity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+A session is a durable conversation. The list shows every session the active store
+knows about, with its agent, message count, and last activity; opening one reads the
+conversation back turn by turn, exactly as the model saw it.
+
+Two things are only visible here. A session can be **branched** from any addressable
+item, which forks the conversation without touching the original — the fork opens as
+a new session with its own id. And attachments referenced by a message are listed with
+their type and size, so you can see what actually reached the provider.
+
+In-memory storage keeps sessions only for the life of the process. Reading a
+conversation back, and branching it, need a SQL store.
+
+## Jobs
+
+<a class="ui-shot" href="/AgentPrism/screenshots/jobs.png"><img src="/AgentPrism/screenshots/jobs.png" alt="The job queue with kind, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Everything AgentPrism runs in the background, in one queue: queued agent runs,
+scheduled runs, workflow executions, evaluation runs, online-evaluation scoring, and
+webhook deliveries. Each row carries its kind, status, attempt count, and — for a
+failure — the classified error.
+
+Schedules live on the same screen. A schedule is a cron expression plus the payload to
+run; leaving the expression empty makes it manual-only, which is the honest way to
+park one. Triggering a schedule by hand queues exactly the job the timer would have.
+
+The queue only drains in a process that opted in with `UseScheduling()`. A queue that
+never moves is almost always an API process with no worker behind it — see
+[Jobs, schedules, and queues](/AgentPrism/guides/background-work/).
+
 ## Workflows
 
 <a class="ui-shot" href="/AgentPrism/screenshots/workflows.png"><img src="/AgentPrism/screenshots/workflows.png" alt="The workflow list and a compiled workflow graph" width="2880" height="1800" loading="lazy" decoding="async" /></a>
@@ -136,6 +169,8 @@ comparisons, not a free-text expression box.
 
 ## Catalog
 
+### Tools
+
 <a class="ui-shot" href="/AgentPrism/screenshots/tools.png"><img src="/AgentPrism/screenshots/tools.png" alt="The tool list with each tool's JSON schema" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tools with their generated JSON schemas — read-only, and permanently so. This screen
@@ -148,13 +183,38 @@ A destructive tool carries a red badge, one that sends data outside the process 
 orange one, and a tool with a declared permission or a non-default timeout shows both
 next to it — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout).
 
+### Skills
+
+<a class="ui-shot" href="/AgentPrism/screenshots/skills.png"><img src="/AgentPrism/screenshots/skills.png" alt="The skill list with frontmatter, resources, and allowed tools" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Skills sit beside the tools. A skill is markdown instructions plus read-only resources
+that an agent loads at run time, with approval. The editor shows the frontmatter, the
+compatibility and license fields, the allowed-tool list, and the resources; the
+markdown is stored as source text and the console does not render it.
+
+This is the second place the code-only boundary is visible: a skill may carry a
+**script**, but the console can only reference a script the application already
+registered and granted. It cannot write one.
+
+### Models
+
 <a class="ui-shot" href="/AgentPrism/screenshots/models.png"><img src="/AgentPrism/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Providers and their configured models, with a health status served from cache.
 A provider that implements no health check reports `Unknown`, which is not an error.
-The MCP screen lists remote servers and the tools discovered from them.
+### MCP
+
+<a class="ui-shot" href="/AgentPrism/screenshots/mcp.png"><img src="/AgentPrism/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Remote MCP servers and the tools discovered from each. A server is a definition — an
+endpoint, a transport, and the name of the configuration key its authorization value is
+read from — so the console never holds a credential. Discovered tools carry the same
+approval badges as code-defined ones, and refreshing a server re-reads its catalog
+without a restart.
 
 ## Governance
+
+### Audit
 
 <a class="ui-shot" href="/AgentPrism/screenshots/audit.png"><img src="/AgentPrism/screenshots/audit.png" alt="The audit trail, filterable by actor, action, and entity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
@@ -162,9 +222,18 @@ Who changed what, when, and from what to what — filterable by actor, action, e
 and date range. Secret-looking fields are masked before anything is stored.
 
 Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
-policy (BYOK), skill script grants, and inbound triggers have their own screens in
-the same area. A trigger's editor shows the exact signed-request URL to configure
-in the external system — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+policy (BYOK), and skill script grants have their own screens in the same area.
+
+### Triggers
+
+<a class="ui-shot" href="/AgentPrism/screenshots/triggers.png"><img src="/AgentPrism/screenshots/triggers.png" alt="Inbound triggers with their target, payload mode, and signed-request URL" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+Inbound triggers let an external system start a queued run with one signed request and
+no API key. A trigger's editor shows the exact URL to configure in that system, the
+target agent or workflow, and the name of the configuration key holding its signing
+secret — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+
+### Diagnostics
 
 <a class="ui-shot" href="/AgentPrism/screenshots/diagnostics.png"><img src="/AgentPrism/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

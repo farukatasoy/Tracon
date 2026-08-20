@@ -5,14 +5,17 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Builds an <see cref="AzureOpenAIClient"/> from options and produces <see cref="IChatClient"/> instances from model bindings.</summary>
+/// <summary>
+/// Builds an <see cref="AzureOpenAIClient"/> from options and produces <see
+/// cref="IChatClient"/> instances from model bindings.
+/// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The factory returns a <strong>RAW</strong> client. The common pipeline
+/// The factory returns a <strong>RAW</strong> client. The common pipeline
 /// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, content guard,
 /// circuit breaker, extra resolution) is set up inside
-/// <c>ModelProviderRegistry.CreateChatClient</c> — moved there in Phase 48.
-/// Rationale: when the loop was set up here, none of the wrapping layers could
+/// <c>ModelProviderRegistry.CreateChatClient</c>.
+/// When the loop was set up here, none of the wrapping layers could
 /// see the tool-call turns.
 /// </para>
 /// <para>
@@ -20,7 +23,7 @@ namespace AgentPrism;
 /// HTTP connection pool. Building a new client on every call fragments the pool.
 /// </para>
 /// <para>
-/// 🚨 <strong>What Azure calls is a deployment name, not a model name.</strong>
+/// <strong>What Azure calls is a deployment name, not a model name.</strong>
 /// The <see cref="ModelBinding.Model"/> field carries the deployment name for
 /// this provider and goes into the request path:
 /// <c>POST {endpoint}/openai/deployments/{deployment}/chat/completions</c>.
@@ -32,8 +35,8 @@ namespace AgentPrism;
 /// The provider supports <strong>no keys at all</strong> inside
 /// <see cref="ModelBinding.ProviderSettings"/>. Custom fields Azure lets you add
 /// to a chat request are written through <c>AzureChatExtensions</c>, and those
-/// extensions break at run time against whichever OpenAI SDK version we use
-/// (decision K-211). When a defined key arrives, the build stops with an
+/// extensions break at run time against whichever OpenAI SDK version we use.
+/// When a defined key arrives, the build stops with an
 /// explicit error.
 /// </para>
 /// </remarks>

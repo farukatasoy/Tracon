@@ -3,7 +3,10 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>Request to create/update an eval suite.</summary>
-/// <remarks>The name comes from the <em>path</em>, not the body — same rationale as <see cref="JobScheduleSaveRequest"/>.</remarks>
+/// <remarks>
+/// The name comes from the <em>path</em>, not the body — same rationale as <see
+/// cref="JobScheduleSaveRequest"/>.
+/// </remarks>
 public sealed record EvalSuiteSaveRequest
 {
     /// <summary>Short description.</summary>
@@ -12,7 +15,7 @@ public sealed record EvalSuiteSaveRequest
     /// <summary>Name of the agent this suite measures.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Check definitions. See <see cref="EvalSuite.Checks"/>.</summary>
+    /// <summary>Check definitions. See <c>EvalSuite.Checks</c>.</summary>
     public JsonElement Checks { get; init; }
 }
 
@@ -55,7 +58,7 @@ public sealed record EvalRunTriggerRequest
     public int? AgentVersion { get; init; }
 }
 
-/// <summary>Request to promote a run to a case (Phase 45, F-53).</summary>
+/// <summary>Request to promote a run to a case.</summary>
 public sealed record EvalCasePromotionRequest
 {
     /// <summary>

@@ -14,7 +14,10 @@ public static class ToolArgumentConditionLimits
     /// <summary>The most conditions a single rule can carry.</summary>
     public const int MaxConditions = 10;
 
-    /// <summary>The most values an <see cref="ToolArgumentOperator.In"/>/<see cref="ToolArgumentOperator.NotIn"/> list can carry.</summary>
+    /// <summary>
+    /// The most values an <see cref="ToolArgumentOperator.In"/>/<see
+    /// cref="ToolArgumentOperator.NotIn"/> list can carry.
+    /// </summary>
     public const int MaxListLength = 50;
 
     /// <summary>The longest an argument path can be, in characters.</summary>

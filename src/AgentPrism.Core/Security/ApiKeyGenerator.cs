@@ -7,12 +7,12 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// Format: <c>ap_{tenant-prefix}_{32-byte-base64url}</c>
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2). The prefix exists only
+/// The prefix exists only
 /// for READABILITY; it is not used for authentication — lookup always goes
 /// through the hash produced by <see cref="ComputeHash"/>.
 /// </para>
 /// <para>
-/// 🚨 The hash algorithm is SHA-256, NOT Argon2 (Open Question 2). The key is
+/// The hash algorithm is SHA-256, not Argon2. The key is
 /// a RANDOM 32-byte value, not a user password; a dictionary attack does not
 /// apply, and a slow hash would only add latency to every request.
 /// </para>

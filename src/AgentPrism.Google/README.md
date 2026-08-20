@@ -30,7 +30,7 @@ and content filter detection live at the `ModelProviderRegistry` level.
 The official [`Google.GenAI`](https://www.nuget.org/packages/Google.GenAI) package
 (owner: Google LLC, Apache-2.0). The package carries its own `AsIChatClient` adapter.
 
-🚨 **This package is heavier than the others.** `Newtonsoft.Json`, `System.Management`,
+**This package is heavier than the others.** `Newtonsoft.Json`, `System.Management`,
 and `System.CodeDom` come in transitively via `Google.Apis.Auth`. The weight is a
 deliberate trade-off and is kept isolated inside this package: a consumer not using
 Gemini pulls in none of it. Other AgentPrism packages are unaffected by these
@@ -68,7 +68,7 @@ ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgn
 
 ## Safety filter produces an empty response
 
-🚨 When Gemini's safety filter kicks in, the response comes back **empty** and the
+When Gemini's safety filter kicks in, the response comes back **empty** and the
 finish reason is `content_filter`. AgentPrism does not treat this as "succeeded but
 empty": the run is recorded with `Failed` status and `RunError.Type =
 "content_filtered"`. A silent empty response is the hardest kind of failure to
@@ -80,9 +80,9 @@ usable answer in hand.
 
 ## Known behavioral differences
 
-- **Model names go stale quickly.** Measured (2026-08-05): calling
+- **Model names go stale quickly.** Measured: calling
   `gemini-2.5-flash` returned *"This model is no longer available to new users"*.
-  The catalog comes from configuration (decision K-032) and is not a validation
+  The catalog comes from configuration and is not a validation
   list.
 - **The model list carries a resource path.** The health endpoint returns
   `models/gemini-3.6-flash` rather than `gemini-3.6-flash`; the prefix is stripped.
@@ -122,3 +122,9 @@ GET /agentprism/api/models/health/google
 ```
 
 `ApiKey` is **never** written to this file — use `dotnet user-secrets`.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

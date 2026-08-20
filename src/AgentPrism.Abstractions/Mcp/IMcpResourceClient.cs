@@ -45,8 +45,7 @@ public sealed record McpResourceContent
     public int ByteSize { get; init; }
 
     /// <summary>
-    /// Whether the content was truncated because it exceeded the size limit
-    /// (docs/22-MCP-DERINLESMESI.md, section 22.2).
+    /// Whether the content was truncated because it exceeded the size limit.
     /// </summary>
     public bool Truncated { get; init; }
 }
@@ -62,7 +61,7 @@ public sealed record McpResourceContent
 /// first compares against the set the server reported via
 /// <c>ListResourcesAsync</c>; a URI not in that set is rejected with
 /// <see cref="McpOperationStatus.UriNotDeclared"/>. Otherwise this would be an
-/// SSRF tool (docs/22-MCP-DERINLESMESI.md, section 22.2).
+/// SSRF tool.
 /// </para>
 /// </remarks>
 public interface IMcpResourceClient

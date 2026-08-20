@@ -157,7 +157,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>seq</c> is computed atomically in the store with a
+    /// <c>seq</c> is computed atomically in the store with a
     /// <c>MAX(seq) + 1</c> subquery; two concurrent promotions can compute the
     /// same value. In that case the <c>eval_cases_suite_seq_uq</c> violation is
     /// caught by <see cref="SqlDialect.IsUniqueViolation"/> and RETRIED. A
@@ -165,7 +165,6 @@ internal sealed class SqlEvalStore : IEvalStore
     /// uniqueness violation (<c>eval_cases_source_run_uq</c>) but is
     /// interpreted differently: the existing case is read back via
     /// <c>SelectEvalCaseBySourceRun</c> and returned with <c>Created: false</c>
-    /// (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2).
     /// </remarks>
     [TenantAgnostic(
         "Same rationale as ReplaceCasesAsync: the suite id comes from a query already filtered by tenant.")]

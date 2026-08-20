@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <see cref="ToolInvocationTracker"/> cannot tell a denial apart from an
 /// ordinary successful result by inspecting <c>FunctionResultContent</c>
 /// alone. This is the same ambient-write/scoped-read pattern
-/// <see cref="ToolUsageAccumulator"/> uses for non-token usage (phase 28),
+/// <see cref="ToolUsageAccumulator"/> uses for non-token usage,
 /// applied to an authorization decision instead of a metric.
 /// </remarks>
 internal sealed class ToolAuthorizationAccumulator

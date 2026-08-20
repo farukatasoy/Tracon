@@ -6,8 +6,7 @@ namespace AgentPrism;
 /// A cache that keeps an MCP server's OAuth tokens in process memory.
 /// </summary>
 /// <remarks>
-/// Tokens are never written to the database (docs/22-MCP-DERINLESMESI.md,
-/// section 22.3, decision #3). This instance is shared by both the
+/// Tokens are never written to the database. This instance is shared by both the
 /// interactive authorization flow (<see cref="McpOAuthAuthorizationCoordinator"/>)
 /// and the background reconnection (<see cref="McpToolCatalog"/>) for the
 /// same <c>(tenant, server)</c> pair; a token obtained once is thus reused

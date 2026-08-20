@@ -15,7 +15,7 @@ internal sealed partial class WebhookJobPayloadJsonContext : JsonSerializerConte
 
 /// <summary>
 /// Publishes an event to its matching subscriptions. It creates the delivery record
-/// and writes the delivery to the Phase 17 job queue.
+/// and writes the delivery to the job queue.
 /// </summary>
 /// <remarks>
 /// <para>

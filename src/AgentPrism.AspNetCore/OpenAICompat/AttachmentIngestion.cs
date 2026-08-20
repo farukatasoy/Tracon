@@ -10,8 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// MAF's own body parser (<c>OpenAIResponses.ToAgentRunRequest</c>) converts a
 /// <c>data:</c> URI directly into a <see cref="DataContent"/>. If stored as
-/// is, the message grows and gets embedded as base64 in the chat history (see
-/// <c>docs/14-COK-MODLULUK.md</c>, section 14.1). Each <see cref="DataContent"/>
+/// is, the message grows and gets embedded as base64 in the chat history. Each <see cref="DataContent"/>
 /// is therefore converted into an attachment before being sent to the agent.
 /// </remarks>
 internal static class AttachmentIngestion

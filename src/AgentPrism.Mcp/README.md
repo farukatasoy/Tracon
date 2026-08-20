@@ -18,7 +18,7 @@ tools registered in code.
 
 Adding an MCP server means **accepting tool definitions from an external
 source**, and is a deliberate exception to AgentPrism's "tools are defined
-only in code" rule (K2). It comes with the following safeguards:
+only in code" rule. It comes with the following safeguards:
 
 | Safeguard | How |
 |--------|-----|
@@ -87,4 +87,4 @@ time, and `ModelContextProtocol.Core` uses reflection for JSON
 serialization. `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, and
 `.OpenAI` remain AOT-compatible.
 
-Details: [`docs/06-GOZLEMLENEBILIRLIK.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/06-GOZLEMLENEBILIRLIK.md)
+Details: <https://farukatasoy.github.io/AgentPrism/concepts/tools/>

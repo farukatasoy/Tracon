@@ -7,11 +7,11 @@ namespace AgentPrism;
 /// <para>
 /// Pending requests are <strong>not stored in a separate table</strong>; they
 /// are read from the run's <see cref="RunEventType.WorkflowRequest"/> events.
-/// The event stream is already append-only and tenant-filtered (K-014), so a
+/// The event stream is already append-only and tenant-filtered, so a
 /// second record path would duplicate data and risk divergence.
 /// </para>
 /// <para>
-/// 🚨 <strong>A response starts a new run.</strong> Responding to a pending
+/// <strong>A response starts a new run.</strong> Responding to a pending
 /// request resumes the run from its checkpoint and creates a new <c>runs</c>
 /// row. Reopening the same row would violate the event stream's append-only rule.
 /// </para>
@@ -59,7 +59,7 @@ public sealed record WorkflowPendingRequest
 /// this deliberately so clients do not need to resolve .NET type names in the
 /// wire contract.
 /// </para>
-/// <para>Serialized as a JSON string name (K-040).</para>
+/// <para>Serialized as a JSON string name.</para>
 /// </remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowRequestForm>))]
 public enum WorkflowRequestForm

@@ -30,10 +30,10 @@ public sealed record RunScore
     /// <summary>The identifier of the message being scored. If empty, the score belongs to the whole run.</summary>
     public string? MessageId { get; init; }
 
-    /// <summary>The shape of <see cref="Value"/>.</summary>
+    /// <summary>The shape of <c>Value</c>.</summary>
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary>The score value. 0/1 for <see cref="RunScoreKind.Binary"/>, 1..5 for <see cref="RunScoreKind.Stars"/>.</summary>
+    /// <summary>The score value. 0/1 for <see cref="RunScoreKind.Binary"/>, 1.5 for <see cref="RunScoreKind.Stars"/>.</summary>
     public required int Value { get; init; }
 
     /// <summary>A free-text comment.</summary>
@@ -42,7 +42,7 @@ public sealed record RunScore
     /// <summary>
     /// The score's source: <c>human</c>, <c>api</c>, or <c>judge</c>. Today
     /// only <c>human</c> is used; the column is set up from the start so
-    /// online evaluation (F-71) can write a judge score into the same table as-is.
+    /// online evaluation can write a judge score into the same table as-is.
     /// </summary>
     public required string Source { get; init; }
 

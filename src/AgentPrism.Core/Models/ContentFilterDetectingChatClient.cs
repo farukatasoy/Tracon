@@ -11,9 +11,9 @@ namespace AgentPrism;
 /// <para>
 /// Not embedded inside a provider implementation;
 /// <see cref="ModelProviderRegistry.CreateChatClient"/> wraps every client with
-/// this type — the same pattern as the circuit breaker (Phase 8). This way
+/// this type — the same pattern as the circuit breaker. This way
 /// OpenAI, Anthropic, and Gemini get the same behavior from a single place, and
-/// Phase 27 (Azure) inherits it without writing a rule.
+/// The Azure provider inherits it without writing a rule.
 /// </para>
 /// <para>
 /// <strong>Wrapping order matters:</strong> this decorator sits <em>outside</em>

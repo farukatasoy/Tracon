@@ -43,10 +43,10 @@ public sealed record JobRecord
 
     /// <summary>
     /// The maximum number of attempts specific to this job. If
-    /// <see langword="null"/>, <see cref="AgentPrismSchedulingOptions.MaxAttempts"/> applies.
+    /// <see langword="null"/>, <c>AgentPrismSchedulingOptions.MaxAttempts</c> applies.
     /// </summary>
     /// <remarks>
-    /// Webhook delivery (Phase 21) uses a ladder different from the global
+    /// Webhook delivery uses a ladder different from the global
     /// setting; this field prevents a single global number from being forced
     /// onto every job kind.
     /// </remarks>

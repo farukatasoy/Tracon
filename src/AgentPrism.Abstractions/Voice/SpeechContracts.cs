@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// The contract lives HERE, not in <c>AgentPrism.Voice</c>: the HTTP layer
 /// (<c>AgentPrism.AspNetCore</c>) sees these types while serving the voice
 /// endpoints, but it CANNOT reference <c>AgentPrism.Voice</c> (the package
-/// direction rule). The same pattern was applied to the MCP abstractions — K-174.
+/// direction rule). The same pattern was applied to the MCP abstractions —.
 /// </para>
 /// </remarks>
 public interface ISpeechSynthesizer
@@ -42,12 +42,12 @@ public interface ISpeechSynthesizer
     /// <returns>The audio chunks.</returns>
     /// <remarks>
     /// <para>
-    /// The streaming path is for low latency, and Phase 29's voice layer uses
+    /// The streaming path is for low latency, and the voice layer uses
     /// it. The signature is defined <strong>now</strong>: adding a member to
     /// an interface later is a breaking change for consumers implementing that interface.
     /// </para>
     /// <para>
-    /// 🚨 Streamed audio is <strong>not stored as an attachment</strong>. The
+    /// Streamed audio is <strong>not stored as an attachment</strong>. The
     /// billed quantity is unknown until the stream ends, and the chunks are
     /// not a valid file on their own; the <c>speak</c> tool uses the
     /// non-streaming path for this reason.
@@ -65,7 +65,7 @@ public interface ISpeechSynthesizer
 
 /// <summary>A provider that transcribes speech to text.</summary>
 /// <remarks>
-/// The contract is single-shot. The <em>incremental</em> resolution Phase 29
+/// The contract is single-shot. The <em>incremental</em> resolution the live conversation layer
 /// will need should be a separate interface; adding a member here breaks consumer implementations.
 /// </remarks>
 public interface ISpeechTranscriber
@@ -93,7 +93,7 @@ public interface ISpeechTranscriber
 /// The HTTP layer uses this abstraction to show voice pricing; pricing
 /// resolution is inside <c>AgentPrism.Voice</c>, and the HTTP layer cannot
 /// reference that package (the package direction rule). AgentPrism does not
-/// fabricate a price (K-032): if there is no match, <see langword="null"/> is
+/// fabricate a price: if there is no match, <see langword="null"/> is
 /// returned — <strong>not</strong> zero.
 /// </remarks>
 public interface IVoicePricingReader
@@ -114,7 +114,7 @@ public sealed record SpeakRequest
     public required string Text { get; init; }
 
     /// <summary>
-    /// The session the attachment is bound to. 🚨 If left empty, the
+    /// The session the attachment is bound to. If left empty, the
     /// attachment is considered orphaned and deleted by the retention policy.
     /// </summary>
     public string? SessionId { get; init; }
@@ -146,7 +146,7 @@ public sealed record SpeakResponse
 
     /// <summary>
     /// Character-level timing. <see langword="null"/> when not requested via
-    /// <see cref="SpeakRequest.IncludeTimestamps"/>, or when the provider does not support it.
+    /// <c>SpeakRequest.IncludeTimestamps</c>, or when the provider does not support it.
     /// </summary>
     public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
 }

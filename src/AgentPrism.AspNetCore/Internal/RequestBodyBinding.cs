@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// <see cref="JsonBindingProblemMiddleware"/> CANNOT see this path at all (no
 /// exception is thrown). This method ALWAYS reads the body by hand and catches
 /// <c>JsonException</c> directly — it produces the same <c>ProblemDetails</c>
-/// contract INDEPENDENTLY of the environment (HATA-S2-006, HATA-S2-007).
+/// contract INDEPENDENTLY of the environment.
 /// </para>
 /// </remarks>
 internal static class RequestBodyBinding
@@ -78,7 +78,7 @@ internal static class RequestBodyBinding
     /// <returns>See <see cref="ReadAsync{T}"/>; the only difference is that a missing body does NOT count as an error.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 We did NOT try to pre-filter an empty body by checking the
+    /// We did NOT try to pre-filter an empty body by checking the
     /// <c>Content-Length</c> header: under <c>TestServer</c>, the <c>Content-Length</c>
     /// actually sent by the client is NOT reliable (empirically confirmed by a
     /// regression — a populated body was treated as empty). Instead, <c>Content-Type</c>

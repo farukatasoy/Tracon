@@ -101,10 +101,10 @@ public sealed class AgentPrismMetrics : IDisposable
     /// <summary>Cost counter. Tags: agent, model, tenant, currency.</summary>
     public Counter<double> RunCost { get; }
 
-    /// <summary>Judge cost counter (Phase 49). Tags: judge, model, tenant, currency.</summary>
+    /// <summary>Judge cost counter. Tags: judge, model, tenant, currency.</summary>
     public Counter<double> JudgeCost { get; }
 
-    /// <summary>Judge score histogram (Phase 49). Tags: judge, agent, tenant.</summary>
+    /// <summary>Judge score histogram. Tags: judge, agent, tenant.</summary>
     public Histogram<double> JudgeScore { get; }
 
     /// <summary>Records the result of a run.</summary>
@@ -178,7 +178,7 @@ public sealed class AgentPrismMetrics : IDisposable
     /// <param name="agentName">Agent name.</param>
     /// <param name="modelId">Model used. When <see langword="null"/>, <c>"unknown"</c> is written.</param>
     /// <param name="tenantId">Tenant identifier.</param>
-    /// <param name="cost">The run's OWN cost (input + output). NOT the tree total (K-151).</param>
+    /// <param name="cost">The run's OWN cost (input + output). NOT the tree total.</param>
     /// <param name="currency">Currency.</param>
     public void RecordCost(string agentName, string? modelId, string tenantId, decimal cost, string currency)
         => RunCost.Add(
@@ -191,7 +191,7 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.Currency, currency },
             });
 
-    /// <summary>Records a judge call's OWN cost (Phase 49).</summary>
+    /// <summary>Records a judge call's OWN cost.</summary>
     /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
     /// <param name="modelId">The judge's model. When <see langword="null"/>, <c>"unknown"</c> is written.</param>
     /// <param name="tenantId">Tenant identifier.</param>
@@ -208,7 +208,7 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.Currency, currency },
             });
 
-    /// <summary>Records the score given by a judge (Phase 49).</summary>
+    /// <summary>Records the score given by a judge.</summary>
     /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
     /// <param name="agentName">Name of the scored agent.</param>
     /// <param name="tenantId">Tenant identifier.</param>

@@ -1,11 +1,10 @@
 namespace AgentPrism;
 
-/// <summary>Reports the self-diagnostics of the installation (Phase 33).</summary>
+/// <summary>Reports the self-diagnostics of the installation.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 This type does not carry a <c>secret</c>. It has no connection string, API
+/// This type does not carry a <c>secret</c>. It has no connection string, API
 /// key, or credential fields. It only carries whether configuration resolved.
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-059.
 /// </para>
 /// <para>
 /// <c>AgentPrismDiagnosticsCollector</c> in AgentPrism.Core creates this report.
@@ -19,17 +18,23 @@ public sealed record AgentPrismDiagnosticsReport
 
     /// <summary>
     /// Gets the number of registered SQL persistence providers. More than <c>1</c>
-    /// indicates K-183: the last call wins and silently disables the others.
+    /// indicates a setup defect: the last call wins and silently disables the others.
     /// </summary>
     public required int RegisteredPersistenceProviders { get; init; }
 
-    /// <summary>Gets whether the active SQL provider can connect. Returns <see langword="true"/> without an SQL provider.</summary>
+    /// <summary>
+    /// Gets whether the active SQL provider can connect. Returns <see langword="true"/>
+    /// without an SQL provider.
+    /// </summary>
     public required bool CanConnect { get; init; }
 
     /// <summary>Gets whether no migrations are pending. Returns <see langword="true"/> without an SQL provider.</summary>
     public required bool MigrationsUpToDate { get; init; }
 
-    /// <summary>Gets the pending migration names. The list is empty when there is no SQL provider or all migrations are applied.</summary>
+    /// <summary>
+    /// Gets the pending migration names. The list is empty when there is no SQL
+    /// provider or all migrations are applied.
+    /// </summary>
     public required IReadOnlyList<string> PendingMigrations { get; init; }
 
     /// <summary>Gets the last known status of each registered model provider.</summary>
@@ -48,7 +53,7 @@ public sealed record AgentPrismDiagnosticsReport
     /// Gets the number of registered agents. Returns <see langword="null"/> when the catalog cannot be read.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see langword="null"/> and <c>0</c> are different. This report must
+    /// <see langword="null"/> and <c>0</c> are different. This report must
     /// describe a broken installation. A catalog query fails when
     /// <c>AutoApplyMigrations=false</c> and the schema is not applied yet.
     /// Returning <c>0</c> would incorrectly state that no agents exist;

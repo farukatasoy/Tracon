@@ -16,7 +16,12 @@ public static class AzureOpenAIProviderExtensions
     /// <param name="apiKey">The resource's API key.</param>
     /// <param name="configure">An extra option modifier.</param>
     /// <returns>The continuation of the chain.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="endpoint"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/>
+    /// or
+    /// <paramref name="endpoint"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
     /// <remarks>
     /// To use a managed credential, use
@@ -59,7 +64,12 @@ public static class AzureOpenAIProviderExtensions
     /// <c>configuration.GetSection(AzureOpenAIProviderOptions.SectionName)</c>.
     /// </param>
     /// <returns>The continuation of the chain.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configurationSection"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/>
+    /// or
+    /// <paramref name="configurationSection"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     /// <remarks>
     /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> cannot be read from
     /// configuration; call the <see cref="UseAzureOpenAI(IAgentPrismBuilder, Action{AzureOpenAIProviderOptions})"/>
@@ -86,7 +96,7 @@ public static class AzureOpenAIProviderExtensions
     /// </para>
     /// <para>
     /// Registration happens through <c>AddModelProvider(...)</c>; no existing
-    /// service is <em>replaced</em> (decision K-025). When called more than
+    /// service is <em>replaced</em>. When called more than
     /// once, the options are merged; the provider is registered only once.
     /// </para>
     /// </remarks>
@@ -142,8 +152,7 @@ public static class AzureOpenAIProviderExtensions
     /// <para>
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// When a new option is added, it must also be added to this method and to
-    /// <see cref="AzureOpenAIProviderOptionsValidator"/>. Rationale: <c>docs/KARARLAR.md</c>,
-    /// decision K-021.
+    /// <see cref="AzureOpenAIProviderOptionsValidator"/>.
     /// </para>
     /// <para>
     /// <see cref="AzureOpenAIProviderOptions.CredentialFactory"/> is deliberately

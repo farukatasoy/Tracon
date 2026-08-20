@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (75 kalem)
+## Fazlar (77 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -86,5 +86,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | Çok Dilli Talimat ve Zaman Damgalı Sentez | ✅ Tamamlandı |
 | [73](73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | ✅ Tamamlandı |
 | [74](74-YEREL-REFERANS-YUZEYI.md) | Yerel Referans Yüzeyi | ✅ Tamamlandı |
+| [75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) | Tüketici Dokümanının Doğruluğu | ✅ Tamamlandı |
+| [76](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) | Doküman Kalitesi ve Görsel Kimlik | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

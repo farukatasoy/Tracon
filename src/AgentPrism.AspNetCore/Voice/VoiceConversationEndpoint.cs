@@ -10,19 +10,19 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ This endpoint changes the hosting model: the connection stays open for
+/// This endpoint changes the hosting model: the connection stays open for
 /// minutes and is tied to <em>one</em> server instance. The capability is opt-in —
 /// unless <c>UseVoiceConversation()</c> is called, <see cref="VoiceConversationDriver"/>
 /// is not registered and the endpoint returns <c>501</c>.
 /// </para>
 /// <para>
-/// 🚨 The endpoint is mounted on a <strong>third endpoint group</strong>
+/// The endpoint is mounted on a <strong>third endpoint group</strong>
 /// (<c>requireBearerToken: false</c>): a browser <strong>cannot add</strong> an
 /// <c>Authorization</c> header to a WebSocket handshake. Instead, the token is
 /// carried in the <c>Sec-WebSocket-Protocol</c> subprotocol and validated
 /// <em>by hand</em> here. The loopback restriction and the authorization policy
 /// still apply; no layer is skipped. The same pattern is used in the UI shell
-/// (K-046) and the MCP OAuth callback.
+///  and the MCP OAuth callback.
 /// </para>
 /// <para>
 /// Not putting the token in the query string is deliberate: the address is

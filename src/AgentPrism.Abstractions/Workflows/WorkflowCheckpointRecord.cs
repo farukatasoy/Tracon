@@ -7,17 +7,12 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <see cref="State"/> is an <strong>opaque</strong> payload. Its content
-/// belongs to Microsoft Agent Framework and is polymorphic: it carries a
-/// <c>$type</c> discriminator, and that discriminator must be the
-/// <em>first</em> property of the object it appears in. Measured (Phase 15):
-/// a 7.5 KB checkpoint really does have the <c>{"$type":0,...}</c>
-/// discriminator first.
+/// <see cref="State"/> is an <strong>opaque</strong> payload. Its content belongs to Microsoft Agent Framework and is polymorphic: it carries a <c>$type</c> discriminator, and that discriminator must be the <em>first</em> property of the object it appears in. Measured: a 7.5 KB checkpoint really does have the <c>{"$type":0,...}</c> discriminator first.
 /// </para>
 /// <para>
-/// For this reason the value is stored in a PostgreSQL <c>json</c> column,
-/// not a <c>jsonb</c> column: <c>jsonb</c> reorders keys and would move the
-/// discriminator out of first place. Decision K-027.
+/// For this reason the value is stored in a PostgreSQL <c>json</c> column, not a
+/// <c>jsonb</c> column: <c>jsonb</c> reorders keys and would move the discriminator out
+/// of first place.
 /// </para>
 /// </remarks>
 public sealed record WorkflowCheckpointRecord

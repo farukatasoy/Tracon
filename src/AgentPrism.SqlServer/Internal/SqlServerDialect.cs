@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// </para>
 /// <list type="number">
 ///   <item><description>
-///     🚨 <strong>Decimal truncation.</strong> SQL Server treats an untyped
+///     <strong>Decimal truncation.</strong> SQL Server treats an untyped
 ///     <see cref="decimal"/> parameter as <c>decimal(18,0)</c> and
 ///     <em>silently drops</em> the fractional part — money amounts would be
 ///     rounded to whole numbers. Every decimal column is <c>decimal(20,10)</c>,
@@ -49,7 +49,7 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <summary>The resource name prefix for the migration lock.</summary>
     /// <remarks>
     /// The value is specific to AgentPrism and <strong>must not change</strong>.
-    /// The lock is SCOPED TO THE SCHEMA (K-389): <c>SchemaName</c> exists so
+    /// The lock is SCOPED TO THE SCHEMA: <c>SchemaName</c> exists so
     /// two independent AgentPrism deployments can share one database, and the
     /// resource the lock protects is exactly the schema — locking both under
     /// the same name would create an unnecessary startup dependency between
@@ -164,7 +164,7 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     /// <remarks>
     /// SQL Server has no <c>json</c>/<c>jsonb</c> distinction; both are
-    /// <c>nvarchar(max)</c>. K-027's key-ordering problem <em>does not exist
+    /// <c>nvarchar(max)</c>. The key-ordering problem <em>does not exist
     /// here by construction</em>: the text is stored as-is.
     /// </remarks>
     public override void AddJson(DbCommand command, string name, string? value)
@@ -237,7 +237,7 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Precision and scale are given explicitly; if not, SQL Server
+    /// Precision and scale are given explicitly; if not, SQL Server
     /// assumes <c>decimal(18,0)</c> and silently truncates the fractional part.
     /// </remarks>
     public override void AddDecimal(DbCommand command, string name, decimal? value)
@@ -286,8 +286,8 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>OFFSET</c>/<c>FETCH</c> errors WITHOUT an <c>ORDER BY</c>
-    /// (the K-026 trap); this query always carries an <c>ORDER BY</c>.
+    /// <c>OFFSET</c>/<c>FETCH</c> errors WITHOUT an <c>ORDER BY</c>
+    /// (a known trap); this query always carries an <c>ORDER BY</c>.
     /// </remarks>
     public override string BuildRetentionFindNthRowCutoffSql(
         string table,

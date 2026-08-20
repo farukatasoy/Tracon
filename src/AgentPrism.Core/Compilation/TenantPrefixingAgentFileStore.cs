@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// breach of tenant isolation.
 /// </para>
 /// <para>
-/// 🚨 The tenant segment alone is NOT enough (defect F-105). Two agents of the
+/// The tenant segment alone is NOT enough. Two agents of the
 /// same tenant shared one subtree, so a private note written by one agent was
 /// found by another agent's text search. The prefix therefore carries the agent
 /// name as well: <c>/{tenantId}/{agentName}/...</c>. The agent name is known at

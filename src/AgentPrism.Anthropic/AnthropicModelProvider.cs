@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// The provider does <strong>not reject</strong> a model name that is absent from
 /// the catalog. AgentPrism does not need a new release when Anthropic ships a new
 /// model; when the catalog is non-empty, only an informational log entry is
-/// written (decision K-032).
+/// written.
 /// </para>
 /// <para>
 /// Circuit-breaker and content-filter detection live <em>outside</em> this type,
@@ -91,7 +91,7 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
         return factory.CreateChatClient(binding);
     }
 
-    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>
     private AnthropicChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
     {

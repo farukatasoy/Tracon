@@ -7,8 +7,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// Pure and stateless; requires neither the network nor <c>McpClient</c>, so
-/// it is verified directly with a unit test (docs/22-MCP-DERINLESMESI.md,
-/// Tests table).
+/// it is verified directly with a unit test.
 /// </remarks>
 internal static class McpResourceTrimming
 {

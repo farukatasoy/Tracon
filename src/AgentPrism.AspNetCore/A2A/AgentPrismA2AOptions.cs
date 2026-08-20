@@ -3,15 +3,15 @@ namespace AgentPrism;
 /// <summary>Settings for publishing AgentPrism agents over A2A.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 There is <strong>NO</strong> counterpart to
+/// There is <strong>NO</strong> counterpart to
 /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/>. Measured
 /// (<c>Microsoft.Agents.AI.Hosting.A2A</c> 1.16.0-preview.260730.1):
 /// <c>AddA2AServer</c> is a REGISTRATION-TIME API and can only publish agents
 /// explicitly named in <see cref="ExposedAgents"/>; it cannot see an agent
-/// added at runtime (section 50.5).
+/// added at runtime.
 /// </para>
 /// <para>
-/// This type is deliberately <strong>not</strong> a <c>record</c> (K-035 pattern).
+/// This type is deliberately <strong>not</strong> a <c>record</c>.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismA2AOptions

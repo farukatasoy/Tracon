@@ -14,6 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasInternalHistory } from './internal-history.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
@@ -489,33 +490,30 @@ function renderPath(path) {
   return path.startsWith('/agentprism') ? `{prefix}${path.slice('/agentprism'.length)}` : `{prefix}${path}`;
 }
 
+// The source documentation is kept self-contained by
+// ShippedDocumentationSelfContainmentTests, so nothing here repairs journal prose
+// any more: a reference that reaches this point is a defect in the source, and
+// silently patching it is what produced sentences like "promote a run to a case,.".
+// What remains is presentation, not repair.
 function sanitizeInternalHistory(text) {
-  return String(text)
-    .replace(/\b(?:[A-Za-z_][A-Za-z0-9_.<>]*|[A-Za-z_][A-Za-z0-9_]*\[\])\?\s+(?=[A-Z][A-Za-z0-9_.]+\b)/g, '')
-    .replace(/This follows the\s+same rationale as RunStatistics\.ErrorRate\./gi, 'It uses the same calculation as run statistics.')
-    .replace(/\b(?:design\s+)?rule\s+K1\b|\bK1\b/gi, 'the safe-default rule')
-    .replace(/\b(?:design\s+)?rule\s+K2\b|\bK2\b/gi, 'the code-only tool rule')
-    .replace(/\b(?:design\s+)?rule\s+K3\b|\bK3\b/gi, 'the MAF pass-through rule')
-    .replace(/\b(?:design\s+)?rule\s+K4\b|\bK4\b/gi, 'the replaceable-extension rule')
-    .replace(/\s*[—–-]?\s*\(?\b(?:phase|faz)\s+\d+\b\)?/gi, '')
-    .replace(/\s*\(?\b(?:K|F)-\d{2,3}\b\)?/gi, '')
-    .replace(/\s*\(?\b(?:HATA|MT)-[A-Z0-9-]+\b\)?/g, '')
-    .replace(/(?:Reason:\s*)?`?docs\/(?:KARARLAR\.md|[^`\s),]+)`?,?/gi, '')
-    .replace(/\s*\(?\b(?:see\s+)?section\s+\d+(?:\.\d+)?(?:\/[A-Z0-9-]+)?\b\)?[,]?/gi, '')
-    .replace(/\bRationale:\s*(?:and\s+)?(?:of\s*)?\./gi, '')
-    .replace(/\bSee\s*,?\s*for the rationale\.?/gi, '')
-    .replace(/\bThe the\b/g, 'The')
-    .replace(/\bthe the\b/g, 'the')
-    .replace(/\ba deliberate the\b/g, 'a deliberate')
-    .replace(/\ba the\b/g, 'the')
-    .replace(/\b(?:decision|rationale) the (safe-default|code-only tool|MAF pass-through|replaceable-extension) rule\b/gi, 'the $1 rule')
-    .replace(/\bRationale:\s*the code-only tool rule\s*[-—]\s*/gi, 'The code-only tool rule states: ')
+  const value = String(text);
+
+  if (hasInternalHistory(value)) {
+    throw new Error(
+      `Internal development history reached the HTTP reference: "${value.slice(0, 120)}". ` +
+        'Fix the XML documentation in src/ rather than filtering it here.',
+    );
+  }
+
+  return value
     .replace(/\brationale\b/gi, 'reason')
-    .replace(/\b(?:OLDEST|AS IS)\b/g, (value) => value.toLowerCase())
-    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/\b(?:OLDEST|AS IS)\b/g, (match) => match.toLowerCase())
+    // Not before an ellipsis: "POST .../trigger" is a path, not a sentence end.
+    .replace(/(\S)\s+([,.;:])(?!\.)/g, '$1$2')
     .replace(/\(\s*\)/g, '')
     .trim();
 }
+
 
 function formatValue(value) {
   return typeof value === 'string' ? value : JSON.stringify(value);

@@ -869,7 +869,7 @@ public static class AgentPrismServiceCollectionExtensions
     /// <param name="services">Service collection.</param>
     /// <returns>The same collection, for chaining.</returns>
     /// <remarks>
-    /// Phase 18 (eval) adds its own handler with this method.
+    /// Evaluation registers its own handler with this method.
     /// <c>TryAddEnumerable</c> is used: if the same type is added twice, only
     /// the first counts.
     /// <example>
@@ -892,7 +892,7 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Sets batch and scheduled run (Phase 17) settings from code.
+    /// Sets batch and scheduled run settings from code.
     /// </summary>
     /// <param name="services">Service collection.</param>
     /// <param name="configure">Settings modifier. When not given, only the defaults/configuration apply.</param>
@@ -959,7 +959,7 @@ public static class AgentPrismServiceCollectionExtensions
         BindTools(section.GetSection(nameof(AgentPrismOptions.Tools)), options.Tools);
     }
 
-    /// <summary>Binds the <c>AgentPrism:Tools</c> section (phase 69, F-114).</summary>
+    /// <summary>Binds the <c>AgentPrism:Tools</c> section.</summary>
     private static void BindTools(IConfigurationSection section, AgentPrismToolOptions options)
     {
         if (!section.Exists())
@@ -976,7 +976,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:Preflight</c> section (phase 62, F-59).</summary>
+    /// <summary>Binds the <c>AgentPrism:Preflight</c> section.</summary>
     private static void BindPreflight(IConfigurationSection section, AgentPrismPreflightOptions options)
     {
         if (!section.Exists())
@@ -999,7 +999,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:ModelConcurrency</c> section (phase 62, F-44).</summary>
+    /// <summary>Binds the <c>AgentPrism:ModelConcurrency</c> section.</summary>
     private static void BindModelConcurrency(IConfigurationSection section, AgentPrismModelConcurrencyOptions options)
     {
         if (!section.Exists())
@@ -1017,7 +1017,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:Validation</c> section (K-253).</summary>
+    /// <summary>Binds the <c>AgentPrism:Validation</c> section.</summary>
     private static void BindValidation(IConfigurationSection section, AgentPrismValidationOptions options)
     {
         if (!section.Exists())
@@ -1443,7 +1443,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds scheduling settings from configuration (Phase 17).</summary>
+    /// <summary>Binds scheduling settings from configuration.</summary>
     private static void BindScheduling(IConfigurationSection section, AgentPrismSchedulingOptions options)
     {
         if (!section.Exists())
@@ -1505,7 +1505,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds single-executor selection settings from configuration (Phase 42).</summary>
+    /// <summary>Binds single-executor selection settings from configuration.</summary>
     private static void BindSingletonExecution(IConfigurationSection section, SingletonExecutionOptions options)
     {
         if (!section.Exists())
@@ -1672,7 +1672,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:RunReconciliation</c> section (Phase 54).</summary>
+    /// <summary>Binds the <c>AgentPrism:RunReconciliation</c> section.</summary>
     private static void BindRunReconciliation(IConfigurationSection section, RunReconciliationOptions options)
     {
         if (!section.Exists())
@@ -1719,7 +1719,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:Approvals</c> section (Phase 55).</summary>
+    /// <summary>Binds the <c>AgentPrism:Approvals</c> section.</summary>
     private static void BindApproval(IConfigurationSection section, AgentPrismApprovalOptions options)
     {
         if (!section.Exists())
@@ -1758,7 +1758,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Binds the <c>AgentPrism:Canary</c> section (Phase 56).</summary>
+    /// <summary>Binds the <c>AgentPrism:Canary</c> section.</summary>
     private static void BindCanary(IConfigurationSection section, CanaryOptions options)
     {
         if (!section.Exists())
@@ -1862,8 +1862,7 @@ public static class AgentPrismServiceCollectionExtensions
     /// <remarks>
     /// <see cref="PiiPatterns"/> is a <c>[Flags]</c> enum, written in
     /// configuration as a comma-separated name list (example:
-    /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> is AOT-clean (measured,
-    /// <c>docs/hafiza/build-ve-analyzer.md</c>).
+    /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> is AOT-clean.
     /// </remarks>
     private static void BindPatternContentGuard(IConfigurationSection section, PatternContentGuardOptions options)
     {

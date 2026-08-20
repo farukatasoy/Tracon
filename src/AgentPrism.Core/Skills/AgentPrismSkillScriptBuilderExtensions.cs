@@ -11,7 +11,7 @@ public static class AgentPrismSkillScriptBuilderExtensions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// ⚠️ <strong>This call changes a security boundary.</strong> Once
+    /// <strong>This call changes a security boundary.</strong> Once
     /// enabled, AgentPrism can run scripts from permitted skills <em>on its
     /// own machine</em>.
     /// </para>

@@ -2,13 +2,13 @@ namespace AgentPrism;
 
 /// <summary>
 /// The data plane that counts, exports, and erases one data subject's content
-/// across the schema (phase 64).
+/// across the schema.
 /// </summary>
 /// <remarks>
 /// The default (in-memory) setup registers <c>NullDataSubjectStore</c>, which
 /// always returns an empty result: export and erasure are meaningful only when a
 /// SQL provider is enabled — the same precedent as <see cref="IRetentionStore"/>
-/// and its <c>NullRetentionStore</c> (phase 25).
+/// and its <c>NullRetentionStore</c>.
 /// </remarks>
 public interface IDataSubjectStore
 {
@@ -38,7 +38,7 @@ public interface IDataSubjectStore
     /// <param name="beforeCommitAsync">
     /// Runs after every delete has executed but BEFORE the change is committed. When
     /// it throws, every delete is rolled back and the exception propagates —
-    /// K-370's rule applied here: an erasure that cannot be written to the audit
+    /// That rule applied here: an erasure that cannot be written to the audit
     /// trail is not applied. The caller uses this to write the audit entry (which
     /// needs the row counts this method computes) while the erasure itself can
     /// still be undone if that write fails.

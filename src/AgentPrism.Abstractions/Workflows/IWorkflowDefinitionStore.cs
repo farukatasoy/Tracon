@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// Unlike agent definitions, no version <strong>history</strong> is kept.
-/// Rationale: a workflow definition carries only a name list and a pattern;
+/// A workflow definition carries only a name list and a pattern;
 /// the information needed to roll back already exists in the audit trail
 /// (<see cref="IAuditLog"/>). An agent definition, on the other hand, carries
 /// instruction text, and the old form of that text cannot be reconstructed anywhere else.
@@ -31,7 +31,7 @@ public interface IWorkflowDefinitionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves the definition. The incoming <see cref="WorkflowDefinition.Version"/>
+    /// Saves the definition. The incoming <c>WorkflowDefinition.Version</c>
     /// value is ignored; the store determines the version number.
     /// </summary>
     /// <param name="tenantId">The tenant identifier.</param>

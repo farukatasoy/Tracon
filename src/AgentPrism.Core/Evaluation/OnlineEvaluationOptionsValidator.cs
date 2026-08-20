@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
-/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// and produces <c>IL2026</c>.
 /// </remarks>
 public sealed class OnlineEvaluationOptionsValidator : IValidateOptions<OnlineEvaluationOptions>
 {

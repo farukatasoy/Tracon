@@ -5,11 +5,10 @@ namespace AgentPrism;
 /// of a specific tenant.
 /// </summary>
 /// <remarks>
-/// 🚨 This type carries the actual secret <em>value</em>. It is produced only
+/// This type carries the actual secret <em>value</em>. It is produced only
 /// at call time, by resolving a <see cref="TenantProviderBinding"/>'s
 /// configuration key through the application's configuration system; it is
-/// never constructed from a database row and never persisted anywhere
-/// (decision K-059).
+/// never constructed from a database row and never persisted anywhere.
 /// </remarks>
 public sealed record ModelProviderCredential
 {

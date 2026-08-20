@@ -42,7 +42,7 @@ internal static class BearerTokenValidator
     /// <param name="expectedToken">The expected token.</param>
     /// <returns><see langword="true"/> when the values are equal.</returns>
     /// <remarks>
-    /// 🚨 This exists for the WebSocket handshake: a browser <strong>cannot</strong> add an
+    /// This exists for the WebSocket handshake: a browser <strong>cannot</strong> add an
     /// <c>Authorization</c> header to a <c>&lt;script&gt;</c> request or to a socket upgrade,
     /// so the token travels in the <c>Sec-WebSocket-Protocol</c> sub-protocol and arrives
     /// here bare. The comparison is still constant time.
@@ -68,7 +68,7 @@ internal static class BearerTokenValidator
     /// <returns>The token; <see langword="null"/> when the header carries no <c>Bearer</c> scheme or is empty.</returns>
     /// <remarks>
     /// This does NOT validate the value — it only extracts it. The caller uses it to try the
-    /// API key path after the static token comparison (phase 53).
+    /// API key path after the static token comparison.
     /// </remarks>
     public static string? TryExtractToken(string? authorizationHeader)
     {

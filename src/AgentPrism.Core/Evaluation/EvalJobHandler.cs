@@ -16,8 +16,7 @@ namespace AgentPrism;
 /// here: each case is run in a <strong>new session</strong> (session: null) on
 /// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/>.
 /// Since the agent is already wrapped by the run-recording decorator, each
-/// case naturally produces its own <c>runs</c> row
-/// (docs/18-DEGERLENDIRME.md, section 18.3).
+/// case naturally produces its own <c>runs</c> row.
 /// </para>
 /// <para>
 /// The general job queue (<see cref="IJobStore"/>) carries only progress

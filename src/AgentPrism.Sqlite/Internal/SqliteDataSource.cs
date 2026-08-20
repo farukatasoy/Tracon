@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// written (same pattern as SQL Server).
 /// </para>
 /// <para>
-/// 🚨 <strong>WAL, <c>busy_timeout</c>, and foreign-key enforcement are set on EVERY NEW
+/// <strong>WAL, <c>busy_timeout</c>, and foreign-key enforcement are set on EVERY NEW
 /// connection</strong> via the connection's state-change event. These settings are done with
 /// explicit <c>PRAGMA</c> commands, not connection-string keywords (no such keyword exists for
 /// WAL or <c>busy_timeout</c>); they do not depend on the consumer's connection string.

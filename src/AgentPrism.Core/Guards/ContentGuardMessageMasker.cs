@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// <see cref="ContentGuardPipeline.PreviewAsync"/>) share the SAME
 /// message-scanning logic: both must keep the recorded input equal to what the
 /// model actually saw. If the guard result diverges between the two, masked or
-/// blocked content is left raw in permanent storage (HATA-S3-006).
+/// blocked content is left raw in permanent storage.
 /// </remarks>
 internal static class ContentGuardMessageMasker
 {
@@ -153,7 +153,7 @@ internal static class ContentGuardMessageMasker
     /// Reads inspectable text; <see langword="null"/> for content that cannot be inspected.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="FunctionResultContent"/> is deliberately covered: a tool
+    /// <see cref="FunctionResultContent"/> is deliberately covered: a tool
     /// result is part of the content the model sees, and malicious text returned
     /// by a remote MCP tool enters exactly through here.
     /// </remarks>

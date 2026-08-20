@@ -10,14 +10,14 @@ namespace AgentPrism;
 /// the catalog. Deployment names are chosen by whoever sets up the Azure
 /// resource, and AgentPrism's configuration is not expected to be updated when
 /// a new deployment is opened; when the catalog is non-empty, only an
-/// informational log entry is left (decision K-032).
+/// informational log entry is left.
 /// </para>
 /// <para>
 /// Circuit-breaker and content-filter detection live <em>outside</em> this type,
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// When Azure's own content filter cuts a response short,
 /// <c>ContentFilterDetectingChatClient</c> records it as <c>content_filtered</c>
-/// — there is no extra code in this package for it (decision K-206).
+/// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
 public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
@@ -94,7 +94,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         return factory.CreateChatClient(binding);
     }
 
-    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>
     /// See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint
     /// fallback rationale. Unlike the other three providers, a missing endpoint

@@ -34,6 +34,6 @@ public sealed record ExperimentCanaryResponse
     /// <summary>The defined canary rule. <see langword="null"/> if none has been defined.</summary>
     public CanaryPolicy? Policy { get; init; }
 
-    /// <summary>Current evaluation of the rule. <see langword="null"/> if <see cref="Policy"/> is <see langword="null"/>.</summary>
+    /// <summary>Current evaluation of the rule. <see langword="null"/> if <c>Policy</c> is <see langword="null"/>.</summary>
     public CanaryEvaluation? Evaluation { get; init; }
 }

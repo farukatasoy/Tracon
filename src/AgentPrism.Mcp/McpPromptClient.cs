@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Every call establishes a short-lived, separate connection and closes it
 /// when done; it is not shared with the tool discovery connection
-/// <see cref="McpToolCatalog"/> keeps in the background (section 22.1's
+/// <see cref="McpToolCatalog"/> keeps in the background (the same
 /// "Verified API" note). On a server with OAuth enabled, a token already
 /// obtained is shared through <see cref="McpOAuthTokenCacheRegistry"/> if
 /// one exists; otherwise the connection fails and the administrator must

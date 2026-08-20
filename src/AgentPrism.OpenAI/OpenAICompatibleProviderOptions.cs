@@ -7,8 +7,8 @@ namespace AgentPrism;
 /// <remarks>
 /// The options shape is the same as <see cref="OpenAIProviderOptions"/>; this type only
 /// carries the sub section path. Every named provider lives in its own sub section:
-/// <c>AgentPrism:Providers:OpenAICompatible:{name}:*</c>. Reason:
-/// <c>docs/KARARLAR.md</c>, decision K-028 (provider options live in their own sub section).
+/// <c>AgentPrism:Providers:OpenAICompatible:{name}:*</c>.
+/// Provider options live in their own sub section.
 /// </remarks>
 public static class OpenAICompatibleProviderOptions
 {

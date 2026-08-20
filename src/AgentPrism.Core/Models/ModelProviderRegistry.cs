@@ -9,12 +9,12 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// In Phase 1 no provider is registered; the <c>AgentPrism.OpenAI</c> package
-/// (Phase 3) adds the first provider with <c>UseOpenAI()</c>. Trying to compile
+/// By default no provider is registered; the <c>AgentPrism.OpenAI</c> package
+///  adds the first provider with <c>UseOpenAI()</c>. Trying to compile
 /// while no provider is registered produces a clear error.
 /// </para>
 /// <para>
-/// 🚨 <strong>The entire pipeline is assembled here</strong> (moved in Phase 48).
+/// <strong>The entire pipeline is assembled here</strong>.
 /// Previously the four provider packages each assembled the
 /// <c>UseFunctionInvocation()</c> + <c>UseOpenTelemetry()</c> chain
 /// <em>inside themselves</em>; every ring the registry wrapped stayed OUTSIDE
@@ -58,17 +58,17 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// <c>UseOpenTelemetry()</c>. If <see langword="null"/>, MAF uses its own default.
     /// </param>
     /// <param name="concurrencyLimiter">
-    /// The per-provider outgoing concurrency limiter (phase 62, F-44). If
+    /// The per-provider outgoing concurrency limiter. If
     /// <see langword="null"/>, no limiting wrapper is added.
     /// </param>
     /// <param name="tenantProviderBindings">
-    /// The per-tenant provider binding store (phase 65, BYOK). If
+    /// The per-tenant provider binding store (BYOK). If
     /// <see langword="null"/>, or if <paramref name="tenantContext"/> is
     /// <see langword="null"/>, <see cref="CreateChatClientAsync"/> behaves
-    /// exactly like <see cref="CreateChatClient"/> (K1).
+    /// exactly like <see cref="CreateChatClient"/>.
     /// </param>
     /// <param name="tenantEgressPolicies">
-    /// The per-tenant egress policy store (phase 65, F-119). If
+    /// The per-tenant egress policy store. If
     /// <see langword="null"/>, no tenant is restricted.
     /// </param>
     /// <param name="credentialResolver">
@@ -203,11 +203,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     }
 
     /// <summary>
-    /// Resolution order (section 65.4): (0) the tenant's egress policy must
+    /// Resolution order: (0) the tenant's egress policy must
     /// allow the provider, checked BEFORE any credential lookup — looking up
     /// a key for a forbidden provider is a path that should not run at all;
     /// (1) the tenant's own provider binding; (2) <see langword="null"/>
-    /// (the setup-time global credential is used, K1).
+    /// (the setup-time global credential is used).
     /// </summary>
     private async ValueTask<ModelProviderCredential?> ResolveTenantCredentialAsync(
         ModelBinding binding,

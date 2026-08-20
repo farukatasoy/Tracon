@@ -26,9 +26,9 @@ public interface IModelProvider
     /// </summary>
     /// <param name="binding">The model binding.</param>
     /// <param name="credential">
-    /// A resolved per-tenant credential (phase 65, BYOK). When
+    /// A resolved per-tenant credential (BYOK). When
     /// <see langword="null"/>, the provider's own setup-time credential is
-    /// used and behavior is <strong>identical</strong> to before phase 65.
+    /// used and behavior is <strong>identical</strong> to a setup without per-tenant credentials.
     /// When given, the provider builds (or reuses a cached) client using
     /// <see cref="ModelProviderCredential.ApiKey"/> and, if present,
     /// <see cref="ModelProviderCredential.Endpoint"/>, instead of its
@@ -40,10 +40,10 @@ public interface IModelProvider
     /// </returns>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>Do not build the common pipeline here.</strong>
+    /// <strong>Do not build the common pipeline here.</strong>
     /// <c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content
     /// guard, the circuit breaker, and extra resolution are added by
-    /// <c>ModelProviderRegistry.CreateChatClient</c>. Until Phase 48, every
+    /// <c>ModelProviderRegistry.CreateChatClient</c>. Before that shared pipeline, every
     /// provider package built the tool-call loop inside itself; the result
     /// was that no ring the registry wraps around could see the loop's turns
     /// — a tool result entered the model uninspected.

@@ -15,7 +15,7 @@ public sealed record TenantDescriptor
 
     /// <summary>
     /// The tenant key. The same text as the <c>tenant_id</c> column in other
-    /// tables, and <see cref="ITenantContext.TenantId"/> returns this value.
+    /// tables, and <c>ITenantContext.TenantId</c> returns this value.
     /// </summary>
     public required string Slug { get; init; }
 

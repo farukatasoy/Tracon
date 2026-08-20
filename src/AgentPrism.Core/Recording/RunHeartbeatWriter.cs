@@ -5,21 +5,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// A background service that periodically writes a "still here" marker in bulk
-/// for runs that are active in this process (Phase 54).
+/// A background service that periodically writes a "still here" marker in bulk for runs
+/// that are active in this process.
 /// </summary>
 /// <remarks>
 /// <para>
-/// It sends one query per cycle, not per run. It takes the current snapshot of
-/// <see cref="IRunCancellationRegistry.ActiveRunIds"/> and calls
-/// <see cref="IRunStore.TouchHeartbeatAsync"/> once. For N active runs, this is a
-/// single bulk marker that adds nothing to the hot path instead of N writes. See
-/// <c>docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md</c>, Open Question 1.
+/// It sends one query per cycle, not per run. It takes the current snapshot of <see
+/// cref="IRunCancellationRegistry.ActiveRunIds"/> and calls <see
+/// cref="IRunStore.TouchHeartbeatAsync"/> once. For N active runs, this is a single
+/// bulk marker that adds nothing to the hot path instead of N writes.
 /// </para>
 /// <para>
-/// When <see cref="RunReconciliationOptions.Enabled"/> is <see langword="false"/>
-/// by default, no marker is written. There is no value
-/// in maintaining a marker when the reconciler is not running (K1).
+/// When <see cref="RunReconciliationOptions.Enabled"/> is <see langword="false"/> by
+/// default, no marker is written. There is no value in maintaining a marker when the
+/// reconciler is not running.
 /// </para>
 /// </remarks>
 internal sealed class RunHeartbeatWriter(

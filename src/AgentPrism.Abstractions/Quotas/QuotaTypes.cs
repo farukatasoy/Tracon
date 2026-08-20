@@ -25,7 +25,7 @@ public enum QuotaMetric
 /// <para>
 /// A quota is at <strong>day/month</strong> scale and is counted in the
 /// database. The <strong>rate limit</strong> that smooths bursty load is a
-/// separate mechanism and lives in memory; the two must not be confused (K-158).
+/// separate mechanism and lives in memory; the two must not be confused.
 /// </para>
 /// <para>
 /// All three limits may be <see langword="null"/>: only the ones that are set
@@ -61,7 +61,7 @@ public sealed record QuotaDefinition
     /// <remarks>
     /// This limit <strong>cannot be enforced</strong> on a model with undefined
     /// pricing: since the cost is unknown, the quota falls back to tokens. See
-    /// Phase 20, <see cref="PricingSource.Unknown"/>.
+    /// <see cref="PricingSource.Unknown"/>.
     /// </remarks>
     public decimal? MaxCost { get; init; }
 
@@ -112,7 +112,7 @@ public sealed record QuotaUsageRecord
 /// <remarks>
 /// The check happens <strong>before the run starts</strong>; consumption is
 /// written after the run ends. This means concurrent runs can push a quota
-/// slightly over — the quota is <strong>approximate</strong> (K-159).
+/// slightly over — the quota is <strong>approximate</strong>.
 /// </remarks>
 public sealed record QuotaDecision
 {
@@ -167,7 +167,7 @@ public sealed record QuotaConsumption
 
     /// <summary>
     /// The amount to add. <see langword="null"/> if pricing is undefined —
-    /// <strong>not</strong> zero (the Phase 20 rule).
+    /// <strong>not</strong> zero: AgentPrism does not invent a price.
     /// </summary>
     public decimal? Cost { get; init; }
 

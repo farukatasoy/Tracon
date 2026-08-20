@@ -54,7 +54,7 @@ public static class VoiceBuilderExtensions
     /// </para>
     /// <para>
     /// Three tools are registered: <c>speak</c>, <c>transcribe</c>, <c>list_voices</c>.
-    /// Per K-012, tools are defined IN CODE; the UI only selects them.
+    /// tools are defined IN CODE; the UI only selects them.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseVoice(this IAgentPrismBuilder builder, Action<VoiceOptions> configure)
@@ -115,7 +115,7 @@ public static class VoiceBuilderExtensions
     /// Reads the approval setting BEFORE tool registration.
     /// </summary>
     /// <remarks>
-    /// 🚨 The approval flag is read while <c>ToolRegistry</c> is built, and the
+    /// The approval flag is read while <c>ToolRegistry</c> is built, and the
     /// registry is built once from <c>AgentPrismToolRegistration</c> entries;
     /// so the value cannot be resolved at run time through
     /// <see cref="IOptions{TOptions}"/>. The setting is taken here, with its
@@ -134,8 +134,7 @@ public static class VoiceBuilderExtensions
     /// </summary>
     /// <remarks>
     /// Hand binding is an AOT requirement: <c>Bind()</c> uses reflection and
-    /// leaves settings silently empty in trimmed applications
-    /// (see <c>docs/hafiza/build-ve-analyzer.md</c>).
+    /// leaves settings silently empty in trimmed applications.
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceOptions options)
     {

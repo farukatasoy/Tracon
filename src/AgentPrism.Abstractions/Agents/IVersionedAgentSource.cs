@@ -5,8 +5,7 @@ namespace AgentPrism;
 /// <summary>
 /// An <see cref="IAgentSource"/> that can resolve a specific definition version. Only
 /// sources that keep a version history implement it (the database source); the code
-/// source has no notion of a version and need not implement this interface (decision
-/// K-003).
+/// source has no notion of a version and need not implement this interface.
 /// </summary>
 public interface IVersionedAgentSource : IAgentSource
 {

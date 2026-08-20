@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>Settings for AgentPrism's SQLite persistence layer.</summary>
 /// <remarks>
 /// Validation is done manually in <see cref="AgentPrismSqliteOptionsValidator"/>;
-/// <c>DataAnnotations</c> is not used. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// <c>DataAnnotations</c> is not used.
 /// </remarks>
 public sealed class AgentPrismSqliteOptions
 {
@@ -14,7 +14,7 @@ public sealed class AgentPrismSqliteOptions
     /// The SQLite connection string (example: <c>Data Source=agentprism.db</c>).
     /// </summary>
     /// <remarks>
-    /// 🚨 A bare <c>Data Source=:memory:</c> is NOT SUPPORTED: this library opens
+    /// A bare <c>Data Source=:memory:</c> is NOT SUPPORTED: this library opens
     /// a NEW connection for every operation via
     /// <see cref="System.Data.Common.DbDataSource.CreateDbConnection"/>, and in
     /// SQLite a bare <c>:memory:</c> gives each connection its own isolated,
@@ -33,7 +33,7 @@ public sealed class AgentPrismSqliteOptions
     /// tables are never touched, under any condition.
     /// </summary>
     /// <remarks>
-    /// SQLite has no schema concept; this is the SQLite equivalent of K-013
+    /// SQLite has no schema concept; this is the SQLite equivalent
     /// ("do not touch the consumer's schema"). The prefix goes through the
     /// SAME strict validation as PostgreSQL/SQL Server's schema name: starts
     /// with a lowercase letter or underscore, contains lowercase letters,

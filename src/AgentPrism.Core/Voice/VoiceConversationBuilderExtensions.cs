@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <summary>Extensions that enable the real-time voice conversation layer.</summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>This call changes the hosting model.</strong> A voice
+/// <strong>This call changes the hosting model.</strong> A voice
 /// connection stays open for minutes and binds to <em>one</em> server
 /// instance; a multi-instance deployment requires sticky sessions, and the
 /// reverse proxy must allow WebSocket passthrough. For this reason the
@@ -64,12 +64,12 @@ public static class VoiceConversationBuilderExtensions
     /// call, theirs is preserved.
     /// </para>
     /// <para>
-    /// 🚨 The transcription and synthesis providers are resolved <em>optionally</em>
+    /// The transcription and synthesis providers are resolved <em>optionally</em>
     /// with <see cref="ServiceProviderServiceExtensions.GetService{T}(IServiceProvider)"/>.
     /// Requesting a nullable dependency through constructor injection is not
     /// enough: the built-in DI container can treat an unregistered type as
-    /// required even when a C# default value exists
-    /// (<c>docs/hafiza/aspnetcore-di.md</c>). This is why a factory is used.
+    /// required even when a C# default value exists.
+    /// This is why a factory is used.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseVoiceConversation(this IAgentPrismBuilder builder)
@@ -128,8 +128,7 @@ public static class VoiceConversationBuilderExtensions
     /// </summary>
     /// <remarks>
     /// Manual binding is an AOT requirement: <c>Bind()</c> uses reflection,
-    /// and in trimmed applications the settings would silently stay empty
-    /// (<c>docs/hafiza/build-ve-analyzer.md</c>).
+    /// and in trimmed applications the settings would silently stay empty.
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceConversationOptions options)
     {

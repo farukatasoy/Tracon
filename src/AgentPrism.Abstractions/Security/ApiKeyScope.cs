@@ -6,8 +6,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// A scope <strong>does not replace role policies</strong>, it narrows them.
-/// A key's effective authority is the <c>role ∩ scope</c> set
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.3).
+/// A key's effective authority is the <c>role ∩ scope</c> set.
 /// </para>
 /// <para>
 /// The scope list is <strong>closed</strong>: free-text scopes are not
@@ -47,13 +46,19 @@ public enum ApiKeyScope
     /// <summary>Workflow definition reads: catalog listing, graph, checkpoint/request listing.</summary>
     WorkflowsRead = 7,
 
-    /// <summary>Workflow definition writes: saving, deleting. Running is NOT included in this scope — see <see cref="RunsWrite"/>.</summary>
+    /// <summary>
+    /// Workflow definition writes: saving, deleting. Running is NOT included in this
+    /// scope — see <see cref="RunsWrite"/>.
+    /// </summary>
     WorkflowsAdmin = 8,
 
     /// <summary>Eval suite/case/run reads: listing, single fetch, online evaluation summary.</summary>
     EvalsRead = 9,
 
-    /// <summary>Eval suite/case writes: saving, deleting, promoting a case from a run. Triggering a run is NOT included in this scope — see <see cref="RunsWrite"/>.</summary>
+    /// <summary>
+    /// Eval suite/case writes: saving, deleting, promoting a case from a run.
+    /// Triggering a run is NOT included in this scope — see <see cref="RunsWrite"/>.
+    /// </summary>
     EvalsAdmin = 10,
 
     /// <summary>Experiment reads: listing, single fetch, results, canary status.</summary>

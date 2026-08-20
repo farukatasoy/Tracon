@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Registered with <c>AddJobHandler&lt;T&gt;()</c>. AgentPrism.Core provides
 /// two implementations (<see cref="JobKind.AgentBatch"/>,
-/// <see cref="JobKind.Workflow"/>); Phase 18 (eval) adds its own handler
+/// <see cref="JobKind.Workflow"/>); evaluation adds its own handler
 /// (<see cref="JobKind.Eval"/>) the same way. The background worker picks
 /// among the registered handlers by the <see cref="Kind"/> field.
 /// </remarks>

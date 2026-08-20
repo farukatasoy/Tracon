@@ -10,14 +10,14 @@ namespace AgentPrism;
 [JsonConverter(typeof(JsonStringEnumConverter<RunScoreKind>))]
 public enum RunScoreKind
 {
-    /// <summary>A binary score: <see cref="RunScore.Value"/> is 0 (negative) or 1 (positive).</summary>
+    /// <summary>A binary score: <c>RunScore.Value</c> is 0 (negative) or 1 (positive).</summary>
     Binary = 1,
 
-    /// <summary>A star rating: <see cref="RunScore.Value"/> is between 1 and 5.</summary>
+    /// <summary>A star rating: <c>RunScore.Value</c> is between 1 and 5.</summary>
     Stars = 2,
 
     /// <summary>
-    /// A 0-100 integer percentage score. Produced by the model-based judge (Phase 49).
+    /// A 0-100 integer percentage score. Produced by the model-based judge.
     /// </summary>
     Numeric = 3,
 }

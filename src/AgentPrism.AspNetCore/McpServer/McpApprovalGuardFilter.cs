@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This check used to run synchronously inside <c>MapAgentPrismMcpServer</c>,
+/// This check used to run synchronously inside <c>MapAgentPrismMcpServer</c>,
 /// at endpoint-mapping time (BEFORE migrations start), and the catalog query
 /// crashed with "no such table" against an empty database. The check was
 /// MOVED HERE.
@@ -26,13 +26,13 @@ namespace AgentPrism;
 /// no request can get ahead of the check.
 /// </para>
 /// <para>
-/// 🚨 DELIBERATELY NOT an <c>IHostedService</c>: if an
+/// DELIBERATELY NOT an <c>IHostedService</c>: if an
 /// <c>IHostedService.StartAsync</c> synchronously awaited
 /// <see cref="SchemaReadyGate"/> and the consumer called <c>UseMcpServer()</c>
 /// BEFORE <c>UseSqlite()</c>/<c>UsePostgreSql()</c>/<c>UseSqlServer()</c>, the
 /// general Host's sequential <c>IHostedService</c> startup loop would
 /// SILENTLY DEADLOCK FOREVER (migration never runs, the guard can never wait
-/// for it). K-251's principle that "<c>IServiceCollection</c> registration is
+/// for it). that principle that "<c>IServiceCollection</c> registration is
 /// order-independent" applies here too; a background Task carries none of
 /// this restriction.
 /// </para>

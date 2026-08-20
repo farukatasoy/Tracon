@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <see cref="CaseId"/> deliberately carries no foreign key: even if a case is
 /// later changed or deleted, the past result record stays intelligible
-/// (append-only spirit, same rationale as K-014).
+/// (append-only spirit, same rationale).
 /// </remarks>
 public sealed record EvalCaseResult
 {
@@ -34,6 +34,6 @@ public sealed record EvalCaseResult
     /// <summary>Per-check score list (free-form JSON).</summary>
     public JsonElement Scores { get; init; }
 
-    /// <summary>The failure reason. Populated only when <see cref="Passed"/> is <see langword="false"/>.</summary>
+    /// <summary>The failure reason. Populated only when <c>Passed</c> is <see langword="false"/>.</summary>
     public string? FailureReason { get; init; }
 }

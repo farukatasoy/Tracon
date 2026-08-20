@@ -36,19 +36,19 @@ public static class WebhookEvents
     /// <summary>A run ended in an error.</summary>
     public const string RunFailed = "run.failed";
 
-    /// <summary>A tool call is awaiting approval (Phase 6).</summary>
+    /// <summary>A tool call is awaiting approval.</summary>
     public const string ApprovalPending = "approval.pending";
 
-    /// <summary>A workflow is awaiting human input (Phase 16).</summary>
+    /// <summary>A workflow is awaiting human input.</summary>
     public const string WorkflowRequestPending = "workflow.request.pending";
 
-    /// <summary>A queued job completed successfully (Phase 17).</summary>
+    /// <summary>A queued job completed successfully.</summary>
     public const string JobCompleted = "job.completed";
 
-    /// <summary>A queued job ended in an error (Phase 17).</summary>
+    /// <summary>A queued job ended in an error.</summary>
     public const string JobFailed = "job.failed";
 
-    /// <summary>An evaluation run completed (Phase 18).</summary>
+    /// <summary>An evaluation run completed.</summary>
     public const string EvalCompleted = "eval.completed";
 
     /// <summary>A quota threshold was exceeded (80% or 100%).</summary>
@@ -56,7 +56,7 @@ public static class WebhookEvents
 
     /// <summary>
     /// The online evaluation window's average score dropped below the
-    /// threshold (Phase 49). A single low score does NOT TRIGGER this event —
+    /// threshold. A single low score does NOT TRIGGER this event —
     /// the minimum sample count must be exceeded.
     /// </summary>
     public const string RunScoreLow = "run.score.low";
@@ -88,10 +88,10 @@ public static class WebhookEvents
 
 /// <summary>An external system's event subscription.</summary>
 /// <remarks>
-/// 🚨 This record <strong>has no secret field</strong>. The signing secret
+/// This record <strong>has no secret field</strong>. The signing secret
 /// does not sit in the database; only the name of the configuration key the
 /// value is read from (<see cref="SecretConfigurationKey"/>) sits here, and
-/// the value is resolved at run time through <c>IConfiguration</c> (K-059).
+/// the value is resolved at run time through <c>IConfiguration</c>.
 /// </remarks>
 public sealed record WebhookSubscription
 {
@@ -154,7 +154,7 @@ public sealed record WebhookSubscription
 /// <summary>A single delivery record.</summary>
 /// <remarks>
 /// This record is <strong>not a queue row</strong>: scheduling, leasing, and
-/// retry live in Phase 17's <c>jobs</c> table (K-160). The <see cref="Attempt"/>
+/// retry live in the <c>jobs</c> table. The <see cref="Attempt"/>
 /// field here only reports history.
 /// </remarks>
 public sealed record WebhookDelivery
@@ -174,7 +174,7 @@ public sealed record WebhookDelivery
     /// <summary>The JSON body sent.</summary>
     /// <remarks>
     /// Carries only a <strong>summary</strong>: identifier, status, agent,
-    /// tokens, cost. Message content never sits here (K-161).
+    /// tokens, cost. Message content never sits here.
     /// </remarks>
     public required string Payload { get; init; }
 
@@ -184,7 +184,10 @@ public sealed record WebhookDelivery
     /// <summary>The number of attempts made.</summary>
     public int Attempt { get; init; }
 
-    /// <summary>The HTTP status code the recipient returned. <see langword="null"/> if a connection could not be established.</summary>
+    /// <summary>
+    /// The HTTP status code the recipient returned. <see langword="null"/> if a
+    /// connection could not be established.
+    /// </summary>
     public int? ResponseCode { get; init; }
 
     /// <summary>The most recent error message.</summary>

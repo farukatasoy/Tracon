@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// <para>
 /// <c>AddA2AServer(services, AIAgent agent, ...)</c> requires an OBJECT
 /// INSTANCE, and this call must be made BEFORE the <see cref="IServiceProvider"/>
-/// is built (<c>Build()</c>, inside <c>UseA2A()</c>) (section 50.5) — but the
+/// is built (<c>Build</c>, inside <c>UseA2A</c>) — but the
 /// real catalog agent can only be resolved through a built container. This
 /// class reconciles the two timings with the same "lazy resolution" pattern
 /// used by <see cref="CallableAgentResolver"/>: <see cref="AttachServices"/> is

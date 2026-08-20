@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace AgentPrism;
 
-/// <summary>Extensions that connect AgentPrism to the standard .NET health check system (Phase 33, F-38).</summary>
+/// <summary>Extensions that connect AgentPrism to the standard.NET health check system.</summary>
 public static class AgentPrismHealthCheckExtensions
 {
     /// <summary>
@@ -18,7 +18,7 @@ public static class AgentPrismHealthCheckExtensions
     /// <remarks>
     /// <para>
     /// AgentPrism does not call <c>MapHealthChecks</c> — seizing the consumer's path
-    /// choice would force K1. Setup:
+    /// choice would force the no-surprises rule. Setup:
     /// </para>
     /// <example>
     /// <code>

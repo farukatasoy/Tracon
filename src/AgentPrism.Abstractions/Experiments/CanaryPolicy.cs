@@ -5,11 +5,10 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This policy can only be defined for <strong>two-variant</strong> experiments.
+/// This policy can only be defined for <strong>two-variant</strong> experiments.
 /// <see cref="CanaryVariant"/> is the canary and the one remaining variant is the
 /// control. With more than two variants, proportional control-weight redistribution
-/// could not guarantee session stability (see
-/// <c>docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md</c>, section 56.4). This
+/// could not guarantee session stability. This
 /// constraint keeps the canary range fixed at <c>[0, canaryWeight)</c> and makes
 /// the control range contiguous.
 /// </para>
@@ -44,8 +43,8 @@ public sealed record CanaryPolicy
     /// variants must reach before a decision is made.
     /// </summary>
     /// <remarks>
-    /// 🚨 This is the same rule as
-    /// <c>OnlineEvaluationOptions.MinSampleSize</c> in Phase 49. It has the same
+    /// This is the same rule as
+    /// <c>OnlineEvaluationOptions.MinSampleSize</c>. It has the same
     /// default of <c>20</c> and the same rationale: a threshold reacts to noise
     /// with a small sample. Gradual increases use the same value to advance to
     /// the next step; a second threshold property is not added.
