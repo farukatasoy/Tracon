@@ -116,7 +116,8 @@ public static class AnthropicProviderExtensions
                 provider.GetRequiredService<AnthropicChatClientFactory>(),
                 AnthropicModelCatalog.Build(options),
                 provider.GetService<ILogger<AnthropicModelProvider>>(),
-                healthCheckOptions: options);
+                healthCheckOptions: options,
+                egressGuard: provider.GetService<EgressSocketGuard>());
         });
 
         return builder;

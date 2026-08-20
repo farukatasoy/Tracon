@@ -39,7 +39,7 @@ public sealed record McpServerRequest
 
     /// <summary>
     /// Configuration key the <c>Authorization</c> header's value is read from.
-    /// Example: <c>AgentPrism:Mcp:GithubToken</c>.
+    /// Example: <c>AgentPrism:McpSecrets:GithubToken</c>.
     /// </summary>
     public string? AuthorizationConfigurationKey { get; init; }
 

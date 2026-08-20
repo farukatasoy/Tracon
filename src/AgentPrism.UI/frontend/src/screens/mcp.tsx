@@ -275,7 +275,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
             >
               <TextInput
                 value={form.authorizationConfigurationKey ?? ''}
-                placeholder="AgentPrism:Mcp:GithubToken"
+                placeholder="AgentPrism:McpSecrets:GithubToken"
                 onChange={(event) =>
                   setForm({ ...form, authorizationConfigurationKey: event.target.value })
                 }
@@ -349,7 +349,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 >
                   <TextInput
                     value={form.oauthClientSecretConfigurationKey ?? ''}
-                    placeholder="AgentPrism:Mcp:GithubClientSecret"
+                    placeholder="AgentPrism:McpSecrets:GithubClientSecret"
                     onChange={(event) =>
                       setForm({ ...form, oauthClientSecretConfigurationKey: event.target.value })
                     }

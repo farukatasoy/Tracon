@@ -189,7 +189,7 @@ tüketici sağlayıcısı her adı karşılayabilir.
 
 **Adımlar:**
 1. `dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild`
-2. Değer `"AgentPrism:Mcp:GithubToken"` ile değiştirilir, tekrar derlenir.
+2. Değer `"AgentPrism:McpSecrets:GithubToken"` ile değiştirilir, tekrar derlenir.
 
 **Beklenen sonuç:** Adım 1 `warning APG0201` verir ve hedefi
 `McpServerDefinition.AuthorizationConfigurationKey` olarak adıyla söyler.

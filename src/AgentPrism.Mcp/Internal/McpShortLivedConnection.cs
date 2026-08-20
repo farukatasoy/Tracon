@@ -23,6 +23,8 @@ internal static class McpShortLivedConnection
         McpOAuthTokenCacheRegistry tokenCaches,
         ILoggerFactory loggerFactory,
         ILogger logger,
+        EgressSocketGuard? egressGuard,
+        string allowedConfigurationPrefix,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -43,8 +45,14 @@ internal static class McpShortLivedConnection
         }
 
         var tokenCache = tokenCaches.GetOrCreate(tenantId, server.Name);
-        var transportOptions = McpTransportFactory.BuildTransportOptions(server, configuration, options, tokenCache, logger);
-        var transport = new HttpClientTransport(transportOptions, loggerFactory);
+        var transportOptions = McpTransportFactory.BuildTransportOptions(
+            server,
+            configuration,
+            options,
+            allowedConfigurationPrefix,
+            tokenCache,
+            logger);
+        var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);
 
         using var timeout = new CancellationTokenSource(options.ConnectionTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);

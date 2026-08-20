@@ -171,6 +171,18 @@ public static class AgentPrismServiceCollectionExtensions
         // default prefix is restrictive on its own (section 66.2).
         services.AddOptions<AgentPrismInboundTriggerOptions>().ValidateOnStart();
 
+        // Outbound network guard (Phase 77). Governs all three outbound
+        // surfaces: webhook delivery, MCP connections and model provider
+        // calls. AllowPrivateNetworkTargets defaults to false, so the guard
+        // arrives open and the private network arrives closed.
+        services.AddOptions<AgentPrismEgressOptions>().ValidateOnStart();
+
+        // The prefix that bounds which configuration key an MCP server
+        // definition may name (Phase 77). Lives in the abstractions package
+        // because the saving endpoint and the connecting transport are in two
+        // packages that do not see each other.
+        services.AddOptions<AgentPrismMcpSecurityOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -197,6 +209,10 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindTenantProviders(configurationSection.GetSection("TenantProviders"), options));
             services.Configure<AgentPrismInboundTriggerOptions>(
                 options => BindInboundTriggers(configurationSection.GetSection("InboundTriggers"), options));
+            services.Configure<AgentPrismEgressOptions>(
+                options => BindEgress(configurationSection.GetSection("Egress"), options));
+            services.Configure<AgentPrismMcpSecurityOptions>(
+                options => BindMcpSecurity(configurationSection.GetSection("Mcp"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -623,11 +639,18 @@ public static class AgentPrismServiceCollectionExtensions
         // change unless a key is created (K1 - zero surprise).
         services.TryAddSingleton<IApiKeyStore, InMemoryApiKeyStore>();
 
+        // 🚨 The one guard every outbound surface builds its client from
+        // (K-164). Registered unconditionally: a surface that could not
+        // resolve it would fall back to its own unguarded handler.
+        services.TryAddSingleton(static provider => new EgressSocketGuard(
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismEgressOptions>>()));
+
         // 🚨 SSRF protection is embedded inside this client; the consumer
         // cannot change it (K-164). Explicit factory: TimeProvider may not be
         // registered.
         services.TryAddSingleton(static provider => new WebhookHttpClient(
-            provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>()));
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismEgressOptions>>()));
 
         services.TryAddSingleton<IWebhookPublisher>(static provider => new WebhookPublisher(
             provider.GetRequiredService<IWebhookStore>(),
@@ -1778,6 +1801,33 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
+    /// <summary>Binds the <c>AgentPrism:Egress</c> section.</summary>
+    private static void BindEgress(IConfigurationSection section, AgentPrismEgressOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismEgressOptions.AllowPrivateNetworkTargets), out var allowPrivate))
+        {
+            options.AllowPrivateNetworkTargets = allowPrivate;
+        }
+    }
+
+    private static void BindMcpSecurity(IConfigurationSection section, AgentPrismMcpSecurityOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (section[nameof(AgentPrismMcpSecurityOptions.AllowedConfigurationPrefix)] is { Length: > 0 } prefix)
+        {
+            options.AllowedConfigurationPrefix = prefix;
+        }
+    }
+
     /// <summary>Binds the <c>AgentPrism:TenantProviders</c> section.</summary>
     private static void BindTenantProviders(IConfigurationSection section, AgentPrismTenantProviderOptions options)
     {
@@ -1919,6 +1969,20 @@ public static class AgentPrismServiceCollectionExtensions
                 out var tolerance))
         {
             options.SignatureTolerance = tolerance;
+        }
+
+        if (section[nameof(AgentPrismWebhookOptions.AllowedConfigurationPrefix)] is { Length: > 0 } prefix)
+        {
+            options.AllowedConfigurationPrefix = prefix;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismWebhookOptions.MaxExtraHeaders)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxExtraHeaders))
+        {
+            options.MaxExtraHeaders = maxExtraHeaders;
         }
 
         if (int.TryParse(

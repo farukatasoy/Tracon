@@ -69,7 +69,7 @@ public sealed record McpServerDefinition
 
     /// <summary>
     /// The configuration key the <c>Authorization</c> header's value is read
-    /// from. Example: <c>AgentPrism:Mcp:GithubToken</c>. If left empty, the
+    /// from. Example: <c>AgentPrism:McpSecrets:GithubToken</c>. If left empty, the
     /// header is not sent.
     /// </summary>
     public string? AuthorizationConfigurationKey { get; init; }

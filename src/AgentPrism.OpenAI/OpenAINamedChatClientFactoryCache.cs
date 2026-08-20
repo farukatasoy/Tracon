@@ -20,7 +20,7 @@ namespace AgentPrism;
 /// behaviour applies <strong>only</strong> through this cache — that is, only to the
 /// providers registered with <c>UseOpenAICompatible()</c>. <c>UseOpenAI()</c> still does
 /// not run without a key
-/// (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions)"/> is unchanged).
+/// (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions, EgressSocketGuard)"/> is unchanged).
 /// </para>
 /// </remarks>
 internal sealed class OpenAINamedChatClientFactoryCache

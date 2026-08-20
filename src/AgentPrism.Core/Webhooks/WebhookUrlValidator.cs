@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 
 namespace AgentPrism;
 
@@ -91,6 +90,7 @@ public static class WebhookUrlValidator
     /// <summary>Validates an address by resolving DNS and checking the IP range.</summary>
     /// <param name="url">The address to validate.</param>
     /// <param name="settings">The webhook settings.</param>
+    /// <param name="egress">The shared egress settings.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The result. Carries the resolved address if allowed.</returns>
     /// <remarks>
@@ -101,9 +101,11 @@ public static class WebhookUrlValidator
     public static async ValueTask<WebhookUrlVerdict> ValidateResolvedAsync(
         string? url,
         AgentPrismWebhookOptions settings,
+        AgentPrismEgressOptions egress,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(egress);
 
         var formatVerdict = ValidateFormat(url, settings);
 
@@ -114,44 +116,13 @@ public static class WebhookUrlValidator
 
         var uri = new Uri(url!, UriKind.Absolute);
 
-        IPAddress[] addresses;
+        var verdict = await EgressAddressValidator
+            .ResolveAndValidateAsync(uri.Host, ToPolicy(settings, egress), cancellationToken)
+            .ConfigureAwait(false);
 
-        if (IPAddress.TryParse(uri.Host, out var literal))
-        {
-            addresses = [literal];
-        }
-        else
-        {
-            try
-            {
-                addresses = await Dns.GetHostAddressesAsync(uri.Host, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SocketException exception)
-            {
-                return new WebhookUrlVerdict(false, $"Address could not be resolved: {exception.Message}", null);
-            }
-        }
-
-        if (addresses.Length == 0)
-        {
-            return new WebhookUrlVerdict(false, "Address did not resolve to any IP.", null);
-        }
-
-        // 🚨 If ANY of the resolved addresses is rejected, the target is rejected.
-        // "Pick the first suitable address" would let an attacker publish a
-        // name that resolves to one public and one private address.
-        foreach (var address in addresses)
-        {
-            if (!IsAllowedTarget(address, settings))
-            {
-                return new WebhookUrlVerdict(
-                    false,
-                    $"The target resolves to a private network address ({address}); AllowPrivateNetworkTargets is disabled.",
-                    null);
-            }
-        }
-
-        return new WebhookUrlVerdict(true, null, addresses[0]);
+        return verdict.IsAllowed
+            ? new WebhookUrlVerdict(true, null, verdict.ResolvedAddresses![0])
+            : new WebhookUrlVerdict(false, verdict.Reason, null);
     }
 
     /// <summary>Reports whether delivery to an address is allowed.</summary>
@@ -170,93 +141,49 @@ public static class WebhookUrlValidator
     /// security for development convenience.
     /// </para>
     /// <para>
-    /// No private range other than loopback is opened by this setting.
+    /// No private range other than loopback is opened by that setting.
     /// </para>
     /// </remarks>
     public static bool IsAllowedTarget(IPAddress address, AgentPrismWebhookOptions settings)
     {
-        ArgumentNullException.ThrowIfNull(address);
         ArgumentNullException.ThrowIfNull(settings);
 
-        if (settings.AllowPrivateNetworkTargets)
-        {
-            return true;
-        }
-
-        if (IPAddress.IsLoopback(address))
-        {
-            return settings.AllowInsecureHttp;
-        }
-
-        return !IsPrivate(address);
+        return EgressAddressValidator.IsAllowedTarget(address, ToPolicy(settings, egress: null));
     }
 
     /// <summary>Reports whether an IP address falls within a private/local range.</summary>
     /// <param name="address">The address.</param>
     /// <returns><see langword="true"/> if the address falls within a private range.</returns>
     /// <remarks>
-    /// Ranges covered: <c>127.0.0.0/8</c>, <c>10.0.0.0/8</c>,
-    /// <c>172.16.0.0/12</c>, <c>192.168.0.0/16</c>, <c>169.254.0.0/16</c>
-    /// (cloud metadata!), <c>100.64.0.0/10</c> (CGNAT), <c>0.0.0.0/8</c>,
-    /// <c>::1</c>, <c>fc00::/7</c>, <c>fe80::/10</c>, and IPv4-mapped IPv6 addresses.
+    /// The rules live in <see cref="EgressAddressValidator.IsPrivate"/>, which
+    /// all three outbound surfaces share. This member forwards to it and holds
+    /// no copy of its own.
     /// </remarks>
-    public static bool IsPrivate(IPAddress address)
+    public static bool IsPrivate(IPAddress address) => EgressAddressValidator.IsPrivate(address);
+
+    /// <summary>Converts webhook settings into the shared egress address policy.</summary>
+    /// <param name="settings">The webhook settings.</param>
+    /// <param name="egress">
+    /// The shared egress settings, or <see langword="null"/> to consider only
+    /// the webhook settings.
+    /// </param>
+    /// <returns>The policy applied to webhook targets.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="settings"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Both flags matter. <see cref="AgentPrismWebhookOptions.AllowPrivateNetworkTargets"/>
+    /// predates the shared <see cref="AgentPrismEgressOptions"/> and stays
+    /// honoured, so a setup that already opened the private network for
+    /// webhooks keeps working. The shared option is read where the policy is
+    /// built, in <c>WebhookHttpClient</c> and <c>WebhookDeliveryJobHandler</c>;
+    /// either one being enabled is enough.
+    /// </remarks>
+    public static EgressAddressPolicy ToPolicy(AgentPrismWebhookOptions settings, AgentPrismEgressOptions? egress)
     {
-        ArgumentNullException.ThrowIfNull(address);
+        ArgumentNullException.ThrowIfNull(settings);
 
-        if (IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        // 🚨 IPv4-mapped IPv6 (::ffff:169.254.169.254) is a classic way to
-        // bypass the check; it is reduced to plain IPv4 first.
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var octets = address.GetAddressBytes();
-
-            return octets[0] switch
-            {
-                0 => true,                                        // 0.0.0.0/8
-                10 => true,                                       // 10/8
-                127 => true,                                      // 127/8
-                169 when octets[1] == 254 => true,                // 169.254/16 -- metadata
-                172 when octets[1] >= 16 && octets[1] <= 31 => true, // 172.16/12
-                192 when octets[1] == 168 => true,                // 192.168/16
-                100 when octets[1] >= 64 && octets[1] <= 127 => true, // 100.64/10 CGNAT
-                >= 224 => true,                                   // multicast + rezerve
-                _ => false,
-            };
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast)
-            {
-                return true;
-            }
-
-            var bytes = address.GetAddressBytes();
-
-            // fc00::/7 -- unique local addresses.
-            if ((bytes[0] & 0xFE) == 0xFC)
-            {
-                return true;
-            }
-
-            // :: (unspecified)
-            if (address.Equals(IPAddress.IPv6Any))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return new EgressAddressPolicy(
+            settings.AllowPrivateNetworkTargets || (egress?.AllowPrivateNetworkTargets ?? false),
+            AllowLoopback: settings.AllowInsecureHttp);
     }
 
     private static bool IsLoopbackHost(Uri uri)

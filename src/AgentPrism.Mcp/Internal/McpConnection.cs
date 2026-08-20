@@ -102,6 +102,8 @@ internal sealed class McpConnection : IAsyncDisposable
         ITokenCache tokenCache,
         ILoggerFactory loggerFactory,
         ILogger logger,
+        EgressSocketGuard? egressGuard,
+        string allowedConfigurationPrefix,
         CancellationToken cancellationToken)
     {
         if (ShouldSkipConnection(server, options, logger))
@@ -114,8 +116,14 @@ internal sealed class McpConnection : IAsyncDisposable
 
         try
         {
-            var transportOptions = McpTransportFactory.BuildTransportOptions(server, configuration, options, tokenCache, logger);
-            var transport = new HttpClientTransport(transportOptions, loggerFactory);
+            var transportOptions = McpTransportFactory.BuildTransportOptions(
+                server,
+                configuration,
+                options,
+                allowedConfigurationPrefix,
+                tokenCache,
+                logger);
+            var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);
             var client = await McpClient
                 .CreateAsync(transport, clientOptions: null, loggerFactory, timeout.Token)
                 .ConfigureAwait(false);

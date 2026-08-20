@@ -30,6 +30,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     private readonly AzureOpenAIProviderOptions? _baseOptions;
 
     // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
+    private readonly EgressSocketGuard? _egressGuard;
     private readonly ProviderCredentialClientCache<AzureOpenAIChatClientFactory> _credentialFactories = new();
 
     /// <summary>Creates a new provider.</summary>
@@ -43,6 +44,11 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
     /// and credential. When <see langword="null"/>, health status always returns
     /// <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
+    /// <param name="egressGuard">
+    /// The outbound network guard. Attached only to a client built from a
+    /// tenant-supplied endpoint override; when <see langword="null"/>, such an
+    /// override is not guarded.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public AzureOpenAIModelProvider(
@@ -50,7 +56,8 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         AzureOpenAIChatClientFactory chatClientFactory,
         IReadOnlyList<ModelDescriptor> models,
         ILogger<AzureOpenAIModelProvider>? logger = null,
-        AzureOpenAIProviderOptions? healthCheckOptions = null)
+        AzureOpenAIProviderOptions? healthCheckOptions = null,
+        EgressSocketGuard? egressGuard = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -65,6 +72,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
         _baseOptions = healthCheckOptions;
+        _egressGuard = egressGuard;
     }
 
     /// <inheritdoc />
@@ -113,11 +121,14 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
             Timeout = _baseOptions?.Timeout,
         };
 
-        options.Endpoint = credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-            ? endpointUri
-            : _baseOptions?.Endpoint;
+        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
+            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                ? endpointUri
+                : null;
 
-        var client = AzureOpenAIChatClientFactory.CreateClient(options);
+        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+
+        var client = AzureOpenAIChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint));
 
         return AzureOpenAIChatClientFactory.FromClient(client, options.DefaultDeployment);
     }
@@ -167,4 +178,18 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
                 Name);
         }
     }
+
+    /// <summary>
+    /// Returns the guard to attach to a per-tenant client, or
+    /// <see langword="null"/> when none is needed.
+    /// </summary>
+    /// <remarks>
+    /// The guard is attached <strong>only</strong> when the endpoint came
+    /// from the tenant's binding. A setup-time endpoint is the operator's own
+    /// decision and is written in code — guarding it would break sovereign
+    /// cloud and internal-proxy setups that are deliberately private. A
+    /// tenant-supplied override is outside input and is guarded.
+    /// </remarks>
+    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
+        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

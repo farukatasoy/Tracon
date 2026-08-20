@@ -154,10 +154,16 @@ public sealed class AnthropicChatClientFactory
 
     /// <summary>Builds an Anthropic client from settings.</summary>
     /// <param name="options">Provider settings.</param>
+    /// <param name="egressGuard">
+    /// When given, every connection this client opens passes through the
+    /// outbound network guard. Supplied only for a tenant-supplied endpoint
+    /// override; a setup-time endpoint is the operator's own decision and is
+    /// written in code.
+    /// </param>
     /// <returns>The constructed client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException"><see cref="AnthropicProviderOptions.ApiKey"/> is empty.</exception>
-    public static AnthropicClient CreateClient(AnthropicProviderOptions options)
+    public static AnthropicClient CreateClient(AnthropicProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -181,6 +187,14 @@ public sealed class AnthropicChatClientFactory
         if (options.Endpoint is { } endpoint)
         {
             clientOptions.BaseUrl = endpoint.ToString();
+        }
+
+        if (egressGuard is not null)
+        {
+            // Infinite on purpose: these SDKs apply their own per-request
+            // network timeout (NetworkTimeout / ClientOptions.Timeout), and a
+            // second bound here would race with it.
+            clientOptions.HttpClient = egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan);
         }
 
         return new AnthropicClient(clientOptions);

@@ -16,6 +16,52 @@ namespace AgentPrism;
 /// </remarks>
 internal static class McpTransportFactory
 {
+    /// <summary>
+    /// The guard used when a caller supplies none. It rejects every private
+    /// network address.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately fail-closed. A construction site that forgets to pass
+    /// the configured guard then <em>over</em>-rejects, which an operator
+    /// sees immediately, instead of silently connecting unguarded.
+    /// </remarks>
+    private static readonly EgressSocketGuard StrictGuard = new(static () => EgressAddressPolicy.Deny);
+
+    /// <summary>
+    /// The response timeout the MCP transport applies to its own
+    /// <see cref="HttpClient"/>. Measured against ModelContextProtocol.Core 2.0.0.
+    /// </summary>
+    private static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(100);
+
+    /// <summary>Builds a transport whose every connection passes through the egress guard.</summary>
+    /// <param name="transportOptions">The transport options.</param>
+    /// <param name="guard">The configured guard, or <see langword="null"/> to use the strict one.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <returns>The transport. It owns the <see cref="HttpClient"/> and disposes it.</returns>
+    /// <remarks>
+    /// <para>
+    /// Every MCP connection is built here. Constructing an
+    /// <c>HttpClientTransport</c> without this method leaves that path
+    /// unguarded, which is why all three call sites go through it.
+    /// </para>
+    /// <para>
+    /// Supplying the client also replaces the one the transport would have
+    /// built, so its response timeout has to be restated here.
+    /// <see cref="ResponseTimeout"/> keeps the transport's own value; without
+    /// it, a server that accepts a connection and never answers would hang the
+    /// prompt and resource paths forever — those bound only the connect step.
+    /// </para>
+    /// </remarks>
+    public static HttpClientTransport CreateTransport(
+        HttpClientTransportOptions transportOptions,
+        EgressSocketGuard? guard,
+        ILoggerFactory loggerFactory)
+        => new(
+            transportOptions,
+            (guard ?? StrictGuard).CreateHttpClient(ResponseTimeout),
+            loggerFactory,
+            ownsHttpClient: true);
+
     /// <summary>Only remote http/https addresses are accepted; there is no stdio.</summary>
     [SuppressMessage(
         "Design",
@@ -52,6 +98,7 @@ internal static class McpTransportFactory
         McpServerDefinition server,
         IConfiguration configuration,
         AgentPrismMcpOptions mcpOptions,
+        string allowedConfigurationPrefix,
         ITokenCache tokenCache,
         ILogger logger)
         => new()
@@ -61,8 +108,14 @@ internal static class McpTransportFactory
             TransportMode = server.Transport == McpTransportMode.Sse
                 ? HttpTransportMode.Sse
                 : HttpTransportMode.StreamableHttp,
-            AdditionalHeaders = BuildHeaders(server, configuration, logger),
-            OAuth = BuildNonInteractiveOAuthOptions(server, configuration, mcpOptions, tokenCache, logger),
+            AdditionalHeaders = BuildHeaders(server, configuration, allowedConfigurationPrefix, logger),
+            OAuth = BuildNonInteractiveOAuthOptions(
+                server,
+                configuration,
+                mcpOptions,
+                allowedConfigurationPrefix,
+                tokenCache,
+                logger),
         };
 
     /// <summary>
@@ -86,6 +139,7 @@ internal static class McpTransportFactory
     private static Dictionary<string, string> BuildHeaders(
         McpServerDefinition server,
         IConfiguration configuration,
+        string allowedConfigurationPrefix,
         ILogger logger)
     {
         var headers = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase);
@@ -104,6 +158,14 @@ internal static class McpTransportFactory
         {
             return headers;
         }
+
+        // 🚨 Checked here as well as where the server is saved. A definition
+        // written before the prefix was configured must not silently read an
+        // out-of-prefix configuration key.
+        ConfigurationKeyGuard.RequirePrefix(
+            key,
+            allowedConfigurationPrefix,
+            "authorizationConfigurationKey");
 
         if (configuration[key] is { Length: > 0 } value)
         {
@@ -125,6 +187,7 @@ internal static class McpTransportFactory
         McpServerDefinition server,
         IConfiguration configuration,
         AgentPrismMcpOptions mcpOptions,
+        string allowedConfigurationPrefix,
         ITokenCache tokenCache,
         ILogger logger)
     {
@@ -136,7 +199,7 @@ internal static class McpTransportFactory
         return new ClientOAuthOptions
         {
             ClientId = server.OAuthClientId,
-            ClientSecret = ResolveClientSecret(server, configuration, logger),
+            ClientSecret = ResolveClientSecret(server, configuration, allowedConfigurationPrefix, logger),
             Scopes = ParseScopes(server.OAuthScopes),
             RedirectUri = BuildCallbackUri(baseUri, server.Name),
             TokenCache = tokenCache,
@@ -154,12 +217,22 @@ internal static class McpTransportFactory
     }
 
     /// <summary>Resolves the OAuth client secret from configuration.</summary>
-    public static string? ResolveClientSecret(McpServerDefinition server, IConfiguration configuration, ILogger logger)
+    public static string? ResolveClientSecret(
+        McpServerDefinition server,
+        IConfiguration configuration,
+        string allowedConfigurationPrefix,
+        ILogger logger)
     {
         if (server.OAuthClientSecretConfigurationKey is not { Length: > 0 } key)
         {
             return null;
         }
+
+        // 🚨 Same second layer as BuildHeaders.
+        ConfigurationKeyGuard.RequirePrefix(
+            key,
+            allowedConfigurationPrefix,
+            "oauthClientSecretConfigurationKey");
 
         if (configuration[key] is { Length: > 0 } value)
         {

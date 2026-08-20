@@ -4600,3 +4600,13 @@ AgentPrism.WorkflowFunctionDescriptor.<Clone>$() -> AgentPrism.WorkflowFunctionD
 AgentPrism.WorkflowNodeReference.<Clone>$() -> AgentPrism.WorkflowNodeReference!
 AgentPrism.WorkflowDescriptor.Nodes.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowNodeReference!>!
 AgentPrism.WorkflowDescriptor.Nodes.init -> void
+AgentPrism.AgentPrismEgressOptions
+AgentPrism.AgentPrismEgressOptions.AgentPrismEgressOptions() -> void
+AgentPrism.AgentPrismEgressOptions.AllowPrivateNetworkTargets.get -> bool
+AgentPrism.AgentPrismEgressOptions.AllowPrivateNetworkTargets.set -> void
+const AgentPrism.AgentPrismEgressOptions.SectionName = "AgentPrism:Egress" -> string!
+AgentPrism.AgentPrismMcpSecurityOptions
+AgentPrism.AgentPrismMcpSecurityOptions.AgentPrismMcpSecurityOptions() -> void
+AgentPrism.AgentPrismMcpSecurityOptions.AllowedConfigurationPrefix.get -> string!
+AgentPrism.AgentPrismMcpSecurityOptions.AllowedConfigurationPrefix.set -> void
+const AgentPrism.AgentPrismMcpSecurityOptions.SectionName = "AgentPrism:Mcp" -> string!

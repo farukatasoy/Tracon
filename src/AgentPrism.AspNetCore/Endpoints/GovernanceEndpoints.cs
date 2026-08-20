@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -222,6 +223,8 @@ internal static class GovernanceEndpoints
                 HttpContext httpContext,
                 IMcpServerStore servers,
                 ITenantContext tenants,
+                IOptionsMonitor<AgentPrismEgressOptions> egressOptions,
+                IOptionsMonitor<AgentPrismMcpSecurityOptions> mcpSecurityOptions,
                 CancellationToken cancellationToken) =>
             {
                 var (bound, bindError) = await RequestBodyBinding
@@ -235,7 +238,7 @@ internal static class GovernanceEndpoints
 
                 var request = bound!;
 
-                if (Validate(name, request) is { } invalid)
+                if (Validate(name, request, egressOptions.CurrentValue, mcpSecurityOptions.CurrentValue) is { } invalid)
                 {
                     return invalid;
                 }
@@ -777,7 +780,11 @@ internal static class GovernanceEndpoints
             detail: $"Operator '{op}' expects {expected}.",
             statusCode: StatusCodes.Status400BadRequest);
 
-    private static ProblemHttpResult? Validate(string name, McpServerRequest request)
+    private static ProblemHttpResult? Validate(
+        string name,
+        McpServerRequest request,
+        AgentPrismEgressOptions egress,
+        AgentPrismMcpSecurityOptions mcpSecurity)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -808,6 +815,39 @@ internal static class GovernanceEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // 🚨 SSRF: an IP literal is judged here, at save time. A host NAME is
+        // not resolved (it would slow the save down and a name that does not
+        // resolve yet is not an error); that check happens on every
+        // connection, inside EgressSocketGuard.
+        if (EgressAddressValidator.ValidateLiteral(
+                endpoint,
+                new EgressAddressPolicy(egress.AllowPrivateNetworkTargets, AllowLoopback: false)) is { } addressReason)
+        {
+            return TypedResults.Problem(
+                title: "Address not allowed",
+                detail: addressReason,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // 🚨 The definition carries no secret, only the NAME of the key its
+        // value is read from (K-059). Without a prefix restriction that name
+        // could point at any configuration key in the application.
+        if (RequirePrefix(
+                request.AuthorizationConfigurationKey,
+                mcpSecurity.AllowedConfigurationPrefix,
+                "authorizationConfigurationKey") is { } authKeyProblem)
+        {
+            return authKeyProblem;
+        }
+
+        if (RequirePrefix(
+                request.OAuthClientSecretConfigurationKey,
+                mcpSecurity.AllowedConfigurationPrefix,
+                "oauthClientSecretConfigurationKey") is { } secretKeyProblem)
+        {
+            return secretKeyProblem;
+        }
+
         if (request.OAuthEnabled)
         {
             if (string.IsNullOrWhiteSpace(request.OAuthClientId))
@@ -829,5 +869,31 @@ internal static class GovernanceEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Rejects a configuration key name that sits outside the allowed prefix.
+    /// An empty name is allowed: the field itself is optional.
+    /// </summary>
+    private static ProblemHttpResult? RequirePrefix(string? configurationKeyName, string allowedPrefix, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(configurationKeyName))
+        {
+            return null;
+        }
+
+        try
+        {
+            ConfigurationKeyGuard.RequirePrefix(configurationKeyName, allowedPrefix, fieldName);
+
+            return null;
+        }
+        catch (AgentPrismException exception)
+        {
+            return TypedResults.Problem(
+                title: "Configuration key not allowed",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
     }
 }

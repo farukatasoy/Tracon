@@ -57,6 +57,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
 | `AgentPrism:TenantProviders` | `AgentPrismTenantProviderOptions` | `AddAgentPrism()` |
 | `AgentPrism:Webhooks` | `AgentPrismWebhookOptions` | `AddAgentPrism()` |
+| `AgentPrism:Egress` | `AgentPrismEgressOptions` | `AddAgentPrism()` |
 | `AgentPrism:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
 | `AgentPrism:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
 | `AgentPrism:Providers:Anthropic` | `AnthropicProviderOptions` | The configuration overload of `UseAnthropic()` |
@@ -65,7 +66,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:PostgreSql` | `AgentPrismPostgreSqlOptions` | The configuration overload of `UsePostgreSql()` |
 | `AgentPrism:SqlServer` | `AgentPrismSqlServerOptions` | The configuration overload of `UseSqlServer()` |
 | `AgentPrism:Sqlite` | `AgentPrismSqliteOptions` | The configuration overload of `UseSqlite()` |
-| `AgentPrism:Mcp` | `AgentPrismMcpOptions` | The explicit configuration overload of `UseMcp()` |
+| `AgentPrism:Mcp` | `AgentPrismMcpOptions` (connection) and `AgentPrismMcpSecurityOptions` (key prefix) | `UseMcp()`; the prefix binds through `AddAgentPrism()` |
 | `AgentPrism:Workflows` | `AgentPrismWorkflowOptions` | `UseWorkflows()` |
 | `AgentPrism:Voice` | `VoiceOptions` | `UseVoice()` |
 | `AgentPrism:Voice:Conversation` | `VoiceConversationOptions` | The configuration overload of `UseVoiceConversation()` |
@@ -318,6 +319,18 @@ until the built-in guard is registered; a present Pattern section is itself a
 registration signal. Knowledge stays unavailable until both the vector store and an
 embedding generator exist.
 
+### Outbound network targets
+
+| Key relative to `AgentPrism:Egress` | Default |
+|---|---:|
+| `AllowPrivateNetworkTargets` | `false` |
+
+Covers all three surfaces that reach the network: webhook delivery, MCP server
+connections, and per-tenant model provider endpoints. While it is off, a target that
+resolves to a private network address is refused — at save time for an address written
+as an IP literal, and on every connection for one written as a host name. See
+[Security](/AgentPrism/getting-started/security/#outbound-requests-are-guarded-too).
+
 ### Webhooks
 
 | Key relative to `AgentPrism:Webhooks` | Default |
@@ -325,6 +338,8 @@ embedding generator exist.
 | `Enabled` | `true` |
 | `AllowPrivateNetworkTargets` | `false` |
 | `AllowInsecureHttp` | `false` |
+| `AllowedConfigurationPrefix` | `AgentPrism:WebhookSecrets:` |
+| `MaxExtraHeaders` | `20` |
 | `Timeout` | 10 seconds |
 | `MaxResponseBytes` | `8192` |
 | `DisableAfterConsecutiveFailures` | `20` |
@@ -333,6 +348,14 @@ embedding generator exist.
 
 No request is sent while no subscription exists. Private targets, insecure HTTP, and
 redirects remain blocked by default.
+
+`AllowedConfigurationPrefix` bounds which configuration key a subscription may name as
+its signing secret; a name outside it is refused both when the subscription is saved
+and when the secret is resolved. `MaxExtraHeaders` bounds a subscription's own extra
+headers — headers whose name AgentPrism sets itself are always dropped, whatever the
+limit is. `AllowPrivateNetworkTargets` here applies to webhook delivery only; the
+shared `AgentPrism:Egress` setting covers this surface too, and either one being on is
+enough.
 
 ## Retention defaults
 
@@ -428,9 +451,17 @@ binding is saved and again when it is resolved. See
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
+| `AllowedConfigurationPrefix` | `AgentPrism:McpSecrets:` |
 
-`UseMcp()` without arguments uses these defaults but does not read `IConfiguration`
-implicitly. Use the explicit overload when you want the section:
+`AllowedConfigurationPrefix` belongs to `AgentPrismMcpSecurityOptions` rather than
+`AgentPrismMcpOptions`, and binds through `AddAgentPrism()` — the rule is enforced
+both where a server definition is saved and where its key is resolved, and those two
+live in packages that do not reference each other. The section name is the same, so
+it stays one section to configure. It bounds both `authorizationConfigurationKey` and
+`oauthClientSecretConfigurationKey`.
+
+The remaining keys belong to `AgentPrismMcpOptions`. `UseMcp()` without arguments uses
+those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
 
 ```csharp
 agentPrism.UseMcp(

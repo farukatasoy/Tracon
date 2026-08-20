@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using System.Net.Sockets;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -26,24 +25,30 @@ public sealed class WebhookHttpClient : IDisposable
 
     /// <summary>Initializes the production client.</summary>
     /// <param name="optionsMonitor">The webhook options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
-    public WebhookHttpClient(IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor)
+    /// <param name="egressOptions">The shared egress options.</param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="optionsMonitor"/> or <paramref name="egressOptions"/> is <see langword="null"/>.
+    /// </exception>
+    public WebhookHttpClient(
+        IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor,
+        IOptionsMonitor<AgentPrismEgressOptions> egressOptions)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
+        ArgumentNullException.ThrowIfNull(egressOptions);
 
-        var handler = new SocketsHttpHandler
-        {
-            // 🚨 Redirects are not followed. A redirect escapes a validated
-            // address to a private network: 302 -> http://169.254.169.254.
-            AllowAutoRedirect = false,
+        // The connection callback resolves and validates the address for each
+        // connection. The validated address is the socket destination, so no TOCTOU gap exists.
+        var guard = new EgressSocketGuard(
+            () => WebhookUrlValidator.ToPolicy(optionsMonitor.CurrentValue, egressOptions.CurrentValue));
 
-            // The connection callback resolves and validates the address for each
-            // connection. The validated address is the socket destination, so no TOCTOU gap exists.
-            ConnectCallback = WebhookSocketGuard.Create(() => optionsMonitor.CurrentValue),
+        var handler = guard.CreateHandler();
 
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-            AutomaticDecompression = System.Net.DecompressionMethods.None,
-        };
+        // 🚨 Redirects are not followed. A redirect escapes a validated
+        // address to a private network: 302 -> http://169.254.169.254.
+        // The guard would catch the redirect target too, but refusing the hop
+        // outright keeps the recipient from steering delivery at all.
+        handler.AllowAutoRedirect = false;
+        handler.AutomaticDecompression = System.Net.DecompressionMethods.None;
 
         _client = new HttpClient(handler, disposeHandler: true)
         {

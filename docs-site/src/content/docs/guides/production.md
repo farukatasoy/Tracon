@@ -252,6 +252,50 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Orphan reconciliation | Off | Enable after choosing heartbeat and orphan thresholds |
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
+| Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+
+## Upgrading: outbound targets and configuration keys
+
+Two boundaries tightened, and both can refuse something a running setup accepted
+before. Reading is unaffected in each case; only writing and connecting change.
+
+**Private network targets are refused on all three outbound surfaces.** Webhook
+delivery already behaved this way; MCP server connections and per-tenant provider
+endpoints now do too. If your MCP servers run inside the internal network, this is a
+one-line change:
+
+```json
+{
+  "AgentPrism": {
+    "Egress": {
+      "AllowPrivateNetworkTargets": true
+    }
+  }
+}
+```
+
+The rejection message names that setting, so an operator who hits it can act without
+reading this page. `AgentPrism:Webhooks:AllowPrivateNetworkTargets` still works and
+still applies to webhook delivery only; either setting being on is enough for a
+webhook target.
+
+**Configuration key names must sit under an allowed prefix.** MCP server definitions
+and webhook subscriptions join inbound triggers and provider bindings in this rule. A
+record whose key name sits outside its prefix can still be **read** and listed, but
+saving it again is refused with a message naming both the field and the prefix.
+
+| Record | Field | Required prefix |
+|---|---|---|
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+
+Fix each record by moving the key name under the prefix and re-writing the value under
+the new name in your secret store. There is no migration helper and this is
+deliberate: it is one field per record, and what moves is a **name**, not a secret
+value. Alternatively, widen the prefix through
+`AgentPrism:Mcp:AllowedConfigurationPrefix` or
+`AgentPrism:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
+an arbitrary key removes the boundary it exists to provide.
 
 ## Release and capacity caveats
 
@@ -283,6 +327,8 @@ scaled without a matching quota.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
+- [ ] Decide private network egress deliberately, and move every stored configuration
+      key name under its allowed prefix before upgrading.
 
 :::caution[Production caveat]
 A SQL database makes records durable; it does not make external tool side effects
