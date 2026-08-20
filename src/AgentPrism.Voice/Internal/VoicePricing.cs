@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// section.
 /// </summary>
 /// <remarks>
-/// AgentPrism <strong>never invents</strong> a price (K-032). When the
+/// AgentPrism <strong>never invents</strong> a price. When the
 /// configuration has no match, the cost stays <see langword="null"/> —
 /// <strong>not</strong> zero. Writing zero would say "this call was free."
 /// </remarks>

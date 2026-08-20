@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Options for the canary evaluation background service — Phase 56.</summary>
+/// <summary>Options for the canary evaluation background service.</summary>
 /// <remarks>
 /// Reads values from the <c>AgentPrism:Canary</c> configuration section.
 /// </remarks>
@@ -11,7 +11,7 @@ public sealed class CanaryOptions
 
     /// <summary>
     /// Gets or sets a value that enables automatic rollback. The default is
-    /// <see langword="false"/> (K1). No experiment stops itself or changes weight
+    /// <see langword="false"/>. No experiment stops itself or changes weight
     /// until this is enabled, even when a <see cref="CanaryPolicy"/> exists.
     /// </summary>
     public bool AutoRollbackEnabled { get; set; }

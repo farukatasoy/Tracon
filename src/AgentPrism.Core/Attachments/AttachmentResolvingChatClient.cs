@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// In chat history, an attachment exists only as a small <see cref="UriContent"/>
-/// reference. See <c>docs/14-COK-MODLULUK.md</c>, section 14.1. Most providers cannot
+/// reference. Most providers cannot
 /// read a URL they cannot access. The reference therefore resolves to the actual bytes
 /// in memory immediately before it is sent to the provider, and only for that call.
 /// The result is not persisted.

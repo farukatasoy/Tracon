@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// invalidation logic; the old version's entry is cleared with <see cref="Evict"/>.
 /// </para>
 /// <para>
-/// 🚨 The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
+/// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
 /// only within a tenant (see <c>SqlAgentDefinitionStore</c>) - it is common for
 /// two different tenants to have a definition with the same name (e.g.
 /// <c>"support"</c>), the same version (the first record is always <c>1</c>),
@@ -113,7 +113,7 @@ public sealed class CompiledAgentCache
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
     /// <remarks>
-    /// Phase 65 (BYOK): compiling now needs an async credential lookup on a
+    /// Compiling now needs an async credential lookup on a
     /// cache miss. <see cref="ConcurrentDictionary{TKey,TValue}"/> has no
     /// native async <c>GetOrAdd</c>; the same "the factory may run more than
     /// once, production is side-effect free, an extra instance is discarded"

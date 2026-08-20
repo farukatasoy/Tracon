@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <para>
 /// The signature is computed from the string: <c>{timestamp}.{body}</c>. The
 /// timestamp is <strong>included</strong> in the signature; otherwise a
-/// captured request could be replayed forever (K-163).
+/// captured request could be replayed forever.
 /// </para>
 /// <para>
 /// When verifying the signature, the recipient must also check that the

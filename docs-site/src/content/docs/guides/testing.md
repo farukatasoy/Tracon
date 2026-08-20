@@ -179,6 +179,11 @@ stores and services.
 
 ## Host defaults and limits
 
+`AgentPrismTestHostOptions` is the host's configuration: `Prefix` sets the mapped
+path, `ModelProvider` swaps in your own fake, and `ConfigureServices`,
+`ConfigureAgentPrism`, and `ConfigureEndpoints` are the three hooks that let a test
+reach the real registration chain.
+
 | Host behavior | Default or limit |
 |---|---|
 | ASP.NET Core host | `WebApplication.CreateSlimBuilder()` with `UseTestServer()` |

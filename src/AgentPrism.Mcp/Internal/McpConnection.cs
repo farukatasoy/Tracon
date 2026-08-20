@@ -197,8 +197,7 @@ internal sealed class McpConnection : IAsyncDisposable
     /// </summary>
     /// <returns>
     /// <see langword="true"/> if the read succeeded; otherwise also reports
-    /// whether this stemmed from a REAL network error (<c>Unreachable</c>,
-    /// HATA-006, MT-CORE-006).
+    /// whether this stemmed from a real network error (<c>Unreachable</c>).
     /// </returns>
     public async ValueTask<(bool Refreshed, bool Unreachable)> RefreshCatalogAsync(
         AgentPrismMcpOptions options,
@@ -252,11 +251,11 @@ internal sealed class McpConnection : IAsyncDisposable
         }
     }
 
-    /// <summary>Retrieves the server's prompt list (Phase 22.1).</summary>
+    /// <summary>Retrieves the server's prompt list.</summary>
     public async ValueTask<IList<McpClientPrompt>> ListPromptsAsync(CancellationToken cancellationToken)
         => await _client.ListPromptsAsync(options: null, cancellationToken).ConfigureAwait(false);
 
-    /// <summary>Resolves a prompt's content with arguments (Phase 22.1).</summary>
+    /// <summary>Resolves a prompt's content with arguments.</summary>
     public async ValueTask<GetPromptResult> GetPromptAsync(
         string name,
         IReadOnlyDictionary<string, object?>? arguments,

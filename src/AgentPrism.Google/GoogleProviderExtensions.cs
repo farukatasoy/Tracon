@@ -72,7 +72,7 @@ public static class GoogleProviderExtensions
     /// </para>
     /// <para>
     /// Registration uses <c>AddModelProvider(...)</c>; no existing service is
-    /// <em>replaced</em> (decision K-025). When called more than once, settings are
+    /// <em>replaced</em>. When called more than once, settings are
     /// merged; the provider is registered only once.
     /// </para>
     /// </remarks>
@@ -128,7 +128,6 @@ public static class GoogleProviderExtensions
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// When a new setting is added, it must also be added to this method and to
     /// <see cref="GoogleProviderOptionsValidator"/>.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     internal static void Bind(IConfiguration section, GoogleProviderOptions options)
     {

@@ -61,7 +61,6 @@ public static class AgentPrismSqliteBuilderExtensions
     /// <remarks>
     /// Stores are registered with <see cref="ServiceCollectionDescriptorExtensions.Replace"/>,
     /// not <c>TryAdd</c>; the rationale is the same as for <c>UseSqlServer()</c>/<c>UsePostgreSql()</c>
-    /// (<c>docs/KARARLAR.md</c>, decision K-025).
     /// </remarks>
     public static IAgentPrismBuilder UseSqlite(
         this IAgentPrismBuilder builder,
@@ -260,7 +259,6 @@ public static class AgentPrismSqliteBuilderExtensions
     /// <remarks>
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// This method must also be updated when a new setting is added.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismSqliteOptions options)
     {

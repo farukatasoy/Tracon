@@ -36,6 +36,9 @@ public static class AgentPrismPolicies
     /// <summary>Reader plus starting a run, granting an approval, deleting a session.</summary>
     public const string Operator = "AgentPrism.Operator";
 
-    /// <summary>Everything: writing an agent definition, adding an MCP server, deleting an approval rule, tenant management.</summary>
+    /// <summary>
+    /// Everything: writing an agent definition, adding an MCP server, deleting an
+    /// approval rule, tenant management.
+    /// </summary>
     public const string Admin = "AgentPrism.Admin";
 }

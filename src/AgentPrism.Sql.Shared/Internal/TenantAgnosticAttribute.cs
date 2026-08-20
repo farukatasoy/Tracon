@@ -6,13 +6,13 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Added in phase 41. <c>TenantCoverageTests</c> verifies that every public
+/// <c>TenantCoverageTests</c> verifies that every public
 /// method in the shared store layer is either exercised by the tenant isolation
 /// contract or exempted by this attribute <strong>with a written reason</strong>.
 /// A method added tomorrow therefore cannot stay untested silently.
 /// </para>
 /// <para>
-/// 🚨 The attribute is <c>internal</c> and does not grow the public contract.
+/// The attribute is <c>internal</c> and does not grow the public contract.
 /// Only the test project uses reflection over it; product code never reads this
 /// type and the AOT posture is unaffected.
 /// </para>

@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// deliberately absent here, and must not be confused with
 /// <see cref="EnableVectorSearch"/> — that one opens a semantic search tool over a
 /// persistent knowledge base and does not bind that particular MAF contract. Rationale
-/// and boundary: <c>docs/KARARLAR.md</c>.
+/// and boundary:
 /// </remarks>
 public sealed record MemorySettings
 {
@@ -29,7 +29,7 @@ public sealed record MemorySettings
     public bool EnableTextSearch { get; init; }
 
     /// <summary>
-    /// Gets a value that turns on the <c>search_knowledge</c> tool (phase 51). 🚨
+    /// Gets a value that turns on the <c>search_knowledge</c> tool.
     /// PostgreSQL only: the single concrete implementation of
     /// <see cref="IVectorSearchStore"/> lives in <c>AgentPrism.PostgreSql</c>. When this
     /// flag is turned on while another provider is registered, the build stops with

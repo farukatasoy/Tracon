@@ -6,10 +6,10 @@ namespace AgentPrism;
 /// Validates execution session ids.
 /// </summary>
 /// <remarks>
-/// 🚨 <strong>The session id comes from the client and is untrusted input.</strong>
+/// <strong>The session id comes from the client and is untrusted input.</strong>
 /// Checkpoints are grouped under this value; using it without validation would
 /// let one user read or overwrite another execution's state. The same
-/// validation was applied to <c>conversation_id</c> in phase 4.
+/// validation is applied to <c>conversation_id</c>.
 /// </remarks>
 internal static class WorkflowSessionId
 {

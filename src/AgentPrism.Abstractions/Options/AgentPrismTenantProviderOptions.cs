@@ -1,12 +1,12 @@
 namespace AgentPrism;
 
-/// <summary>Options that constrain per-tenant model provider bindings (BYOK, phase 65).</summary>
+/// <summary>Options that constrain per-tenant model provider bindings (BYOK).</summary>
 /// <remarks>
-/// 🚨 <see cref="AllowedConfigurationPrefix"/> is a security boundary, not a
+/// <see cref="AllowedConfigurationPrefix"/> is a security boundary, not a
 /// convenience default. Without it, a tenant manager could bind
 /// <c>ApiKeyConfigurationName</c> to an unrelated key such as
 /// <c>ConnectionStrings:Default</c> — unable to read its value, but able to
-/// make calls billed to it. See section 65.2.
+/// make calls billed to it.
 /// </remarks>
 public sealed class AgentPrismTenantProviderOptions
 {

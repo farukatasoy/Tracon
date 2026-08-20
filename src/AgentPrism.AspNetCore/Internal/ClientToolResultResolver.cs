@@ -8,8 +8,7 @@ namespace AgentPrism;
 /// <summary>
 /// Matches client-side tool results from the UI against pending
 /// <c>FunctionCallContent</c> calls in the session history, and converts
-/// them into the response content Microsoft Agent Framework expects
-/// (Phase 61).
+/// them into the response content Microsoft Agent Framework expects.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,10 +20,10 @@ namespace AgentPrism;
 /// reported, not swallowed.
 /// </para>
 /// <para>
-/// 🚨 By the time the default streaming run reaches <c>BuildMessagesAsync</c>,
+/// By the time the default streaming run reaches <c>BuildMessagesAsync</c>,
 /// the SSE response headers have already been sent (<c>SseWriter.StartAsync</c>
 /// runs first) and a <c>ProblemDetails</c> response is no longer possible —
-/// the same constraint decision K-324 documents for content guard blocks.
+/// the same constraint documents for content guard blocks.
 /// This is why <see cref="MatchAsync"/> is called <strong>twice</strong>:
 /// once from <c>AgentEndpoints.RunAsync</c>, before the stream starts, purely
 /// to validate and return <c>400</c>/<c>409</c> if needed, and again from
@@ -104,7 +103,7 @@ internal static class ClientToolResultResolver
     /// <returns>The message to send; <see langword="null"/> if <paramref name="matched"/> is empty.</returns>
     /// <remarks>
     /// A failed audit write does <strong>not</strong> block the result from
-    /// being applied — unlike an approval decision (K-089), this is data,
+    /// being applied — unlike an approval decision, this is data,
     /// not a security decision. <see cref="AuditRecorder"/> already logs and
     /// swallows the write error.
     /// </remarks>
@@ -216,7 +215,10 @@ internal sealed class ClientToolResultMatch
     /// <summary>The outcome kind.</summary>
     public ClientToolResultMatchKind Kind { get; }
 
-    /// <summary>Every result paired with the call it answers. Populated only when <see cref="Kind"/> is <see cref="ClientToolResultMatchKind.Success"/>.</summary>
+    /// <summary>
+    /// Every result paired with the call it answers. Populated only when <see
+    /// cref="Kind"/> is <see cref="ClientToolResultMatchKind.Success"/>.
+    /// </summary>
     public IReadOnlyList<(ClientToolResult Result, FunctionCallContent Call)> Matched { get; }
 
     /// <summary>The offending <c>callId</c>. Populated only for a failure kind.</summary>

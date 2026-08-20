@@ -40,7 +40,7 @@ public sealed class InMemoryRunStore : IRunStore
     /// </param>
     /// <param name="tenantContext">
     /// The current tenant's context. If not given, the store behaves as
-    /// single-tenant (Phase 41).
+    /// single-tenant.
     /// </param>
     public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null)
     {
@@ -987,7 +987,7 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// The average of a run's numeric (Phase 49, <c>RunScoreKind.Numeric</c>)
+    /// The average of a run's numeric (<c>RunScoreKind.Numeric</c>)
     /// scores. <see langword="null"/> if there is no run-level score.
     /// </summary>
     private async ValueTask<double?> GetRunAverageScoreAsync(RunRecord record, string tenantId, CancellationToken cancellationToken)

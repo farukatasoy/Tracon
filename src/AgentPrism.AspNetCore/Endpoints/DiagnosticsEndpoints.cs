@@ -7,10 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism;
 
-/// <summary>Self-diagnosing setup diagnostics endpoint (Phase 33, F-62).</summary>
+/// <summary>Self-diagnosing setup diagnostics endpoint.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 The response never carries any <c>secret</c> value (K-059): it returns only the
+/// The response never carries any <c>secret</c> value: it returns only the
 /// configuration key name and whether it resolved, never the value under any
 /// condition.
 /// </para>
@@ -49,7 +49,7 @@ internal static class DiagnosticsEndpoints
             .WithTags("AgentPrism", "Diagnostics")
             .WithSummary("Returns the setup's self-diagnosing summary report.")
             .WithDescription(
-                "Never carries any secret value (K-059). Model provider status is read " +
+                "Never carries any secret value. Model provider status is read " +
                 "from the cache; it makes no model call and applies no migration.");
     }
 }

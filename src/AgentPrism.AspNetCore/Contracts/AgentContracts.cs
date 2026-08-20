@@ -167,7 +167,7 @@ public sealed record SkillScriptGrantRequest
 /// <remarks>
 /// The catalog shows agents defined both in code and in the database. Those
 /// defined in code <strong>cannot be edited</strong>: on a name collision,
-/// code wins (decision K-003), so a definition written to the database would
+/// code wins, so a definition written to the database would
 /// never resolve. <see cref="IsEditable"/> lets the UI know this in advance.
 /// </remarks>
 public sealed record AgentDetailResponse
@@ -190,7 +190,7 @@ public sealed record AgentRollbackRequest
 }
 
 /// <summary>
-/// Raw JSON response for comparing two definition versions (Phase 19.1). The
+/// Raw JSON response for comparing two definition versions. The
 /// diff is not computed on the server; the client compares the two raw
 /// definitions field by field.
 /// </summary>
@@ -223,10 +223,10 @@ public sealed record AgentRunRequest
     /// agent's default instructions.
     /// </summary>
     /// <remarks>
-    /// 🚨 Read only from this field. The <c>Accept-Language</c> HTTP header is
+    /// Read only from this field. The <c>Accept-Language</c> HTTP header is
     /// deliberately <strong>not</strong> consulted: a browser header silently
-    /// changing the content sent to the model would be a surprise (K1), and it
-    /// conflicts with decision K-232's line that server-facing content is not
+    /// changing the content sent to the model would be a surprise, and it
+    /// conflicts with's line that server-facing content is not
     /// translated from ambient request state.
     /// </remarks>
     public string? Culture { get; init; }
@@ -251,7 +251,7 @@ public sealed record AgentRunRequest
     public IReadOnlyList<ToolApprovalDecision> Approvals { get; init; } = [];
 
     /// <summary>
-    /// Results of client-side tool calls (Phase 61).
+    /// Results of client-side tool calls.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -278,14 +278,13 @@ public sealed record AgentRunRequest
     /// request is rejected with <c>400</c>. Binary content is not carried in
     /// the message, only a small reference
     /// (<see cref="Microsoft.Extensions.AI.UriContent"/>) is added.
-    /// Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.4.
     /// </remarks>
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
 }
 
 /// <summary>
 /// The result of a single client-side tool call, sent back so the run can
-/// continue (Phase 61).
+/// continue.
 /// </summary>
 /// <remarks>
 /// <see cref="AgentPrismClientToolExtensions.AddClientTool"/>'s sibling on
@@ -303,13 +302,13 @@ public sealed record ClientToolResult
 
     /// <summary>
     /// The tool's result, given to the model as plain text. Required unless
-    /// <see cref="ErrorMessage"/> is given.
+    /// <c>ErrorMessage</c> is given.
     /// </summary>
     public string? Result { get; init; }
 
     /// <summary>
     /// A message describing why the client-side call failed, given to the
-    /// model instead of <see cref="Result"/>.
+    /// model instead of <c>Result</c>.
     /// </summary>
     /// <remarks>
     /// A client-side tool can fail for reasons the server never sees — the
@@ -322,7 +321,7 @@ public sealed record ClientToolResult
 }
 
 /// <summary>
-/// <c>202 Accepted</c> response for a queued run (Phase 46).
+/// <c>202 Accepted</c> response for a queued run.
 /// </summary>
 /// <remarks>
 /// Returned for a run started with the <c>Prefer: respond-async</c> header.

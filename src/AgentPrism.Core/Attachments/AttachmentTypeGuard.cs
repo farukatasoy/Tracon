@@ -137,24 +137,23 @@ public sealed class AttachmentTypeGuard
         return LooksLikePlainText(data) ? "text/plain" : null;
     }
 
-    /// <summary>Recognizes an MPEG audio frame header for an MP3 without an ID3 tag.</summary>
+    /// <summary>
+    /// Recognizes an MPEG audio frame header for an MP3 without an ID3 tag.
+    /// </summary>
     /// <remarks>
     /// <para>
-    /// Frame synchronization is <strong>eleven one bits</strong>: the first byte
-    /// is <c>0xFF</c>, and the top three bits of the second byte are <c>111</c>.
-    /// The remaining bits encode version and layer, with many valid values such
-    /// as <c>0xFB</c>, <c>0xF3</c>, <c>0xF2</c>, <c>0xFA</c>, and <c>0xE3</c>.
-    /// Listing them individually would silently reject valid output, so the rule
-    /// uses a bit mask.
+    /// Frame synchronization is <strong>eleven one bits</strong>: the first byte is
+    /// <c>0xFF</c>, and the top three bits of the second byte are <c>111</c>. The
+    /// remaining bits encode version and layer, with many valid values such as
+    /// <c>0xFB</c>, <c>0xF3</c>, <c>0xF2</c>, <c>0xFA</c>, and <c>0xE3</c>. Listing
+    /// them individually would silently reject valid output, so the rule uses a bit
+    /// mask.
     /// </para>
     /// <para>
-    /// The version and layer fields are also checked to prevent false matches.
-    /// Their respective <c>reserved</c> values, <c>01</c> and <c>00</c>, do not
-    /// represent a valid frame. Without this check, every binary value beginning
-    /// with <c>FF E0</c> would be treated as audio.
-    /// </para>
-    /// <para>
-    /// Rationale: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G3.
+    /// The version and layer fields are also checked to prevent false matches. Their
+    /// respective <c>reserved</c> values, <c>01</c> and <c>00</c>, do not represent a
+    /// valid frame. Without this check, every binary value beginning with <c>FF E0</c>
+    /// would be treated as audio.
     /// </para>
     /// </remarks>
     private static bool IsMpegFrameSync(ReadOnlySpan<byte> data)

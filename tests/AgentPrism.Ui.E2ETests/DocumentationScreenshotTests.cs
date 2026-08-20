@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AgentPrism.Ui.E2ETests.Infrastructure;
 using Microsoft.Playwright;
 
@@ -36,6 +37,22 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 {
     private const string RefreshEnvVar = "AGENTPRISM_UI_SCREENSHOTS";
 
+    /// <summary>Names the seed writes, used as landmarks that only their own screen shows.</summary>
+    /// <remarks>
+    /// A landmark that repeats the sidebar label ("Jobs") is present on every route
+    /// and proves nothing. Each of these appears only once the screen has rendered
+    /// the row the seed created.
+    /// </remarks>
+    private const string SeededSessionId = "support-ord-7";
+
+    private const string SeededScheduleName = "nightly-summary";
+
+    private const string SeededSkillName = "refund-policy";
+
+    private const string SeededMcpServerName = "knowledge-base";
+
+    private const string SeededTriggerName = "helpdesk-webhook";
+
     /// <summary>The screens the UI guide shows, in the order the guide presents them.</summary>
     /// <remarks>
     /// Each entry is a route and the landmark that proves the screen actually rendered.
@@ -49,12 +66,17 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("agent-detail", "/agents/support", "Support assistant"),
         ("playground", "/playground", "Playground"),
         ("runs", "/runs", "Runs"),
+        ("sessions", "/sessions", SeededSessionId),
+        ("jobs", "/jobs", SeededScheduleName),
         ("workflows", "/workflows", "summarize-and-translate"),
         ("evals", "/evals", "Evals"),
         ("experiments", "/experiments", "Experiments"),
         ("approvals", "/approvals", "Approvals"),
         ("tools", "/tools", "get_order_status"),
+        ("skills", "/skills", SeededSkillName),
         ("models", "/models", "scripted"),
+        ("mcp", "/mcp", SeededMcpServerName),
+        ("triggers", "/triggers", SeededTriggerName),
         ("audit", "/audit", "Audit"),
         ("diagnostics", "/diagnostics", "Diagnostics"),
         ("settings", "/settings", "Settings"),
@@ -69,6 +91,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         // one that calls a tool — give the dashboard, the run list, and the agent
         // detail screen something to show.
         await SeedRunsAsync(host);
+        await SeedCatalogAsync(host);
 
         var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
         {
@@ -123,6 +146,123 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         }
     }
 
+    /// <summary>
+    /// Gives the catalog screens something to show. An empty list is a truthful
+    /// picture of a fresh install and a useless one for the guide, so each screen the
+    /// guide presents gets one representative row.
+    /// </summary>
+    private static async Task SeedCatalogAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/skills/{SeededSkillName}",
+            new
+            {
+                name = SeededSkillName,
+                description = "How to decide and word a refund.",
+                instructions = "Check the order age, then state the decision in one sentence.",
+                compatibility = "support",
+                allowedTools = "get_order_status",
+            }));
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/schedules/{SeededScheduleName}",
+            new
+            {
+                // A batch over a list of inputs: the shape the screen describes, and
+                // the one a schedule can fire on its own. AgentRun expects a caller
+                // to supply the run id, so a timer cannot produce it.
+                kind = "AgentBatch",
+                targetName = "support",
+                cron = "0 3 * * *",
+                timeZone = "UTC",
+                payload = new[] { "Summarise yesterday's unresolved tickets." },
+                enabled = true,
+            }));
+
+        // Triggering it once turns the empty "Recent jobs" panel into a real row.
+        await EnsureSuccessAsync(client.PostAsync(
+            $"{host.Prefix}/api/schedules/{SeededScheduleName}/trigger",
+            content: null));
+
+        await WaitForJobToSettleAsync(client, host);
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/triggers/{SeededTriggerName}",
+            new
+            {
+                targetKind = "Agent",
+                targetName = "support",
+                signingSecretConfigurationName = "AgentPrism:TriggerSecrets:Helpdesk",
+                enabled = true,
+            }));
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/mcp-servers/{SeededMcpServerName}",
+            new
+            {
+                description = "Read-only company handbook.",
+                endpoint = "https://mcp.example.invalid/sse",
+                transport = "Sse",
+                enabled = true,
+                requiresApproval = true,
+            }));
+    }
+
+    /// <summary>
+    /// Waits until the queued job leaves its pending state, so the screenshot shows
+    /// the same row on every run.
+    /// </summary>
+    /// <remarks>
+    /// The worker polls on an interval. Capturing the screen without waiting produced
+    /// a different picture per run — pending, running, or completed — and no assertion
+    /// noticed. Failing here is better than publishing whichever the race produced.
+    /// </remarks>
+    private static async Task WaitForJobToSettleAsync(HttpClient client, UiHost host)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddMinutes(2);
+        string? status = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using var document = JsonDocument.Parse(
+                await client.GetStringAsync($"{host.Prefix}/api/jobs?limit=1"));
+
+            var rows = document.RootElement.ValueKind == JsonValueKind.Array
+                ? document.RootElement
+                : document.RootElement.GetProperty("items");
+
+            if (rows.GetArrayLength() > 0)
+            {
+                status = rows[0].GetProperty("status").GetString();
+
+                if (status is "Completed" or "Failed" or "Cancelled" or "Canceled")
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+
+        throw new InvalidOperationException(
+            $"The seeded job did not settle within two minutes; last status was '{status ?? "none"}'. " +
+            "The screenshot would capture whichever state the race produced.");
+    }
+
+    private static async Task EnsureSuccessAsync(Task<HttpResponseMessage> call)
+    {
+        using var response = await call;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Seeding '{response.RequestMessage?.RequestUri}' failed with " +
+                $"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+        }
+    }
+
     /// <summary>Drives a couple of runs so the recorded-history screens have content.</summary>
     /// <remarks>
     /// The runs stream over SSE, so the response body is read to the end; returning
@@ -133,11 +273,15 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
     {
         using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
 
+        // Both turns share one session id, so the session list and the conversation
+        // history have something to show rather than a fresh-install empty state.
+        const string SessionId = SeededSessionId;
+
         foreach (var message in new[] { "Where is order ORD-7?", "Thanks, that is all." })
         {
             using var response = await client.PostAsJsonAsync(
                 $"{host.Prefix}/api/agents/support/run",
-                new { message });
+                new { message, sessionId = SessionId });
 
             response.EnsureSuccessStatusCode();
 

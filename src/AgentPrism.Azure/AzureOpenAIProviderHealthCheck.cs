@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// <c>OpenAIProviderHealthCheck</c> and <c>AnthropicProviderHealthCheck</c>.
 /// </para>
 /// <para>
-/// 🚨 <strong>The returned list is a model list, not a deployment list.</strong>
+/// <strong>The returned list is a model list, not a deployment list.</strong>
 /// The name used in agent definitions is the deployment name, and it does not
 /// appear on this endpoint. What the check proves is: the address is correct,
 /// the credential is valid, and the resource is up. Whether the deployment name

@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// <c>toolCallsPresent</c>, <c>hasImageContent</c>. Any other kind name is
 /// looked up among the custom checks registered with
 /// <c>IAgentPrismBuilder.AddEvalCheck(...)</c>; if not found there either, an
-/// <see cref="AgentPrismException"/> is thrown (K2 - checks are declarative,
+/// <see cref="AgentPrismException"/> is thrown (the code-only tools rule - checks are declarative,
 /// never silently ignored).
 /// </para>
 /// <para>

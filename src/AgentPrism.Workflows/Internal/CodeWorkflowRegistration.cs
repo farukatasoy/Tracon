@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <remarks>
 /// A code-defined workflow has a <strong>free graph</strong>. It can use custom
 /// <c>Executor</c> types, conditional edges, and child workflows. This does not break
-/// design rule K2 because code is written at build time. A UI-defined workflow only
+/// the code-only tools rule because code is written at build time. A UI-defined workflow only
 /// arranges catalog agents with prepared patterns.
 /// </remarks>
 internal sealed record CodeWorkflowRegistration(

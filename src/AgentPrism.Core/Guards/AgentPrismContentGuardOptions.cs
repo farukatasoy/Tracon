@@ -1,14 +1,14 @@
 namespace AgentPrism;
 
-/// <summary>Settings for the content inspection pipeline — Phase 48.</summary>
+/// <summary>Settings for the content inspection pipeline.</summary>
 /// <remarks>
 /// <para>
 /// Read from the <c>AgentPrism:ContentGuard</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 None of the settings in this class <strong>have any effect while no guard
+/// None of the settings in this class <strong>have any effect while no guard
 /// is registered</strong>: the inspection wrapper is not added to the pipeline and
-/// this object is never read. The K1 (no surprises) gate is not a flag, it
+/// this object is never read. The the no-surprises rule (no surprises) gate is not a flag, it
 /// <em>is</em> the registration itself — the built-in guard is added by an
 /// explicit choice, either via <c>AddPatternContentGuard()</c> or by populating
 /// the <c>AgentPrism:ContentGuard:Pattern</c> section.
@@ -35,7 +35,7 @@ public sealed class AgentPrismContentGuardOptions
     public bool InspectOutput { get; set; } = true;
 
     /// <summary>
-    /// 🚨 While output inspection is on, the streaming response is
+    /// While output inspection is on, the streaming response is
     /// <strong>buffered</strong>. Default <see langword="true"/>.
     /// </summary>
     /// <remarks>

@@ -50,7 +50,7 @@ public enum TraceSpanStatus
 /// <remarks>
 /// <para>
 /// <see cref="Id"/> and <see cref="ParentId"/> are <strong>derived</strong>
-/// from the W3C identifiers, not randomly generated. Reason: when a span
+/// from the W3C identifiers, not randomly generated. When a span
 /// completes, its parent may not have completed yet, and the parent's
 /// database identifier is unknown. Deriving it (<c>trace_id</c> + <c>span_id</c>
 /// → SHA-256 → first 16 bytes) makes matching work without a map and without

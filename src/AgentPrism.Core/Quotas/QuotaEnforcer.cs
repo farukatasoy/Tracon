@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>The quota is approximate</strong> (K-159). The check happens
+/// <strong>The quota is approximate</strong>. The check happens
 /// <em>before</em> a run starts; consumption is written <em>after</em> it
 /// finishes. Runs that start at the same time can exceed the quota by a small
 /// margin. A strict guarantee would require taking a lock before every run and
@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// An in-progress run is <strong>not cut off</strong> when the quota is
-/// exceeded (K-162): a half-finished response with tokens already spent is
+/// exceeded: a half-finished response with tokens already spent is
 /// worse than a consistent result. Only a new run gets <c>429</c>.
 /// </para>
 /// </remarks>

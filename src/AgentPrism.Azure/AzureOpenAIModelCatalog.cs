@@ -7,8 +7,7 @@ namespace AgentPrism;
 /// is even more binding: the name written in the catalog is not a <em>model</em>
 /// name — it is a <em>deployment</em> name defined on that resource, and the
 /// person who sets up the resource chooses deployment names. Two AgentPrism
-/// consumers' catalogs need not resemble each other. Rationale: <c>docs/KARARLAR.md</c>,
-/// decision K-032.
+/// consumers' catalogs need not resemble each other.
 /// </para>
 /// <para>
 /// The catalog is <em>not a validation list</em>: a deployment name absent from

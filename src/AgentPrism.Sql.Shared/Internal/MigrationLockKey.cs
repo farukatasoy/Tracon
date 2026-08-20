@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// The PostgreSQL <c>pg_advisory_lock</c> function takes an arbitrary
 /// <see cref="long"/> key; the key is derived from the schema name so that the
-/// migration lock is scoped to the schema (K-389). 🚨 <see cref="string.GetHashCode()"/>
+/// migration lock is scoped to the schema. <see cref="string.GetHashCode()"/>
 /// is <strong>not used</strong>: .NET randomizes that value per process, two
 /// replicas compute a different key for the same schema, and the lock silently
 /// protects nothing. The same deterministic digest principle that

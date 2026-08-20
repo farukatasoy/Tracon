@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// window would fill up with base64.
 /// </para>
 /// <para>
-/// 🚨 The produced audio passes through <c>AttachmentTypeGuard</c> before being
+/// The produced audio passes through <c>AttachmentTypeGuard</c> before being
 /// written to the attachment store. The store performs no validation
 /// (validation lives in the HTTP layer); if the provider returns an unexpected
 /// format, the error must surface at WRITE time, not at playback time.

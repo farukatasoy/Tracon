@@ -42,7 +42,7 @@ internal static class OpenAIChatCompletionsEndpoints
     /// <summary>Connects the Chat Completions endpoint.</summary>
     /// <param name="builder">Endpoint group.</param>
     /// <param name="roles">Resolved role policies.</param>
-    /// <param name="idempotencyFilter">Phase 43 — <c>Idempotency-Key</c> support.</param>
+    /// <param name="idempotencyFilter">The filter that adds <c>Idempotency-Key</c> support.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles, IdempotencyFilter idempotencyFilter)
     {
         builder.MapPost("/v1/chat/completions", HandleAsync)

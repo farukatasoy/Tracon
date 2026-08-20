@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <see cref="AsyncLocal{T}"/> is DELIBERATELY not used: this is a fully request-scoped
 /// value and <c>HttpContext.Items</c> is already cleared per request. A write to an
 /// <c>AsyncLocal</c> does not flow back to the caller
-/// (docs/hafiza/cekirdek-calistirma.md) — there is no such problem here, because the value
+///  — there is no such problem here, because the value
 /// is read by the later layers that run on the same <c>HttpContext</c>.
 /// </remarks>
 internal static class ApiKeyRequestContext

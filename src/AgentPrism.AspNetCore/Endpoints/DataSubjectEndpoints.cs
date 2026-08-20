@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace AgentPrism;
 
-/// <summary>Data subject export and erasure endpoints (phase 64, GDPR-style "right to erasure").</summary>
+/// <summary>Data subject export and erasure endpoints (GDPR-style "right to erasure").</summary>
 /// <remarks>
 /// <para>
 /// Both endpoints need <see cref="IDataSubjectResolver"/> to be registered; there
@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// silent empty result that could be read as "already erased".
 /// </para>
 /// <para>
-/// 🚨 <c>dryRun</c> defaults to <see langword="true"/> for the delete endpoint: an
+/// <c>dryRun</c> defaults to <see langword="true"/> for the delete endpoint: an
 /// irreversible operation is not the default behavior of a bare call.
 /// </para>
 /// </remarks>
@@ -54,11 +54,11 @@ internal static class DataSubjectEndpoints
                 "never a silent no-op that could be read as 'already erased'. '?dryRun=' " +
                 "DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; " +
                 "'?dryRun=false' deletes for real. The audit trail (audit_log) is never touched " +
-                "— it is deliberately outside a data subject's erasable content (phase 64's " +
-                "design decision: an audit record is 'who did what', not the subject's own " +
+                "— it is deliberately outside a data subject's erasable content (by design: " +
+                "an audit record is 'who did what', not the subject's own " +
                 "data) — but the erasure ITSELF is written there, with the row count per " +
                 "target; if that write fails, every delete is rolled back and this call fails, " +
-                "the same rule Approval decisions follow (K-370).");
+                "the same rule Approval decisions follow.");
     }
 
     private static async Task<Results<ContentHttpResult, ProblemHttpResult>> ExportAsync(
@@ -141,10 +141,10 @@ internal static class DataSubjectEndpoints
     /// conversation of every resolved session.
     /// </summary>
     /// <remarks>
-    /// 🚨 A resolver only ever names sessions/runs/conversations in ITS OWN
+    /// A resolver only ever names sessions/runs/conversations in ITS OWN
     /// identity system; the conversation id an ordinary agent session's chat
     /// history is stored under is AgentPrism's own internal bookkeeping (a
-    /// session's state bag, K1: not something a resolver author is expected to
+    /// session's state bag, which is not something a resolver author is expected to
     /// know how to read). Without this step, <see cref="DataSubjectScope.SessionIds"/>
     /// alone could erase a session's ROW but never its conversation history —
     /// see <see cref="SessionConversationResolver"/>.

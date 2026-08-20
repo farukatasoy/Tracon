@@ -62,25 +62,24 @@ public sealed record ToolInvocationRecord
     /// <remarks>
     /// The value is reported by the tool's own body with
     /// <c>AgentPrismToolUsage.Report(...)</c> and linked to this record by the
-    /// call identifier. See <c>docs/28-SES-TOOLLARI.md</c>, section 28.5, for the rationale.
+    /// call identifier.
     /// </remarks>
     public ToolCallUsage? Usage { get; init; }
 
     /// <summary>
-    /// The EXPECTED tenant of the run that made the call. Defense in depth;
-    /// if <see langword="null"/>, no tenant check is performed.
+    /// The EXPECTED tenant of the run that made the call. Defense in depth; if <see
+    /// langword="null"/>, no tenant check is performed.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// See <see cref="RunEvent.TenantId"/> for the rationale and why the
-    /// ambient tenant is not used. Decision K-355.
+    /// See <c>TenantId</c> for the rationale and why the ambient tenant is not used.
     /// </para>
     /// <para>
-    /// 🚨 This field is WRITE-SIDE ONLY: it is not written to a column, it is
-    /// only used as the write's <c>WHERE</c> guard. It would always be
-    /// <see langword="null"/> when read back, so it is excluded from the HTTP
-    /// contract with <see cref="JsonIgnoreAttribute"/>. Otherwise the OpenAPI
-    /// document would declare a field that never gets populated.
+    /// This field is WRITE-SIDE ONLY: it is not written to a column, it is only used as
+    /// the write's <c>WHERE</c> guard. It would always be <see langword="null"/> when
+    /// read back, so it is excluded from the HTTP contract with <see
+    /// cref="JsonIgnoreAttribute"/>. Otherwise the OpenAPI document would declare a
+    /// field that never gets populated.
     /// </para>
     /// </remarks>
     [JsonIgnore]
@@ -91,7 +90,7 @@ public sealed record ToolInvocationRecord
     /// </summary>
     /// <remarks>
     /// A denied call is <strong>not</strong> an error: <see cref="Error"/>
-    /// stays empty and <see cref="Result"/> carries the denial text the model
+    /// stays empty and <c>Result</c> carries the denial text the model
     /// saw. This field is the only way to tell "the model chose not to call
     /// it" apart from "the caller was not allowed to call it" when reading
     /// the record back.

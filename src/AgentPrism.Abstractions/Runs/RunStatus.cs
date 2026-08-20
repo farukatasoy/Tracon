@@ -42,7 +42,7 @@ public enum RunStatus
     /// The value was appended at the end: statuses are stored as <c>smallint</c> in
     /// the database and shifting the existing values would misread old rows. An
     /// answered run <em>stays</em> <c>AwaitingInput</c>; rewriting history would
-    /// break the append-only rule of the event stream (K-014). The continued work
+    /// break the append-only rule of the event stream. The continued work
     /// shows up in the new run row.
     /// </para>
     /// </remarks>
@@ -52,7 +52,7 @@ public enum RunStatus
     /// The run is queued and a worker has not started it yet.
     /// </summary>
     /// <remarks>
-    /// Seen only for runs started with <c>Prefer: respond-async</c> (phase 46). The
+    /// Seen only for runs started with <c>Prefer: respond-async</c>. The
     /// row is written as <c>Queued</c> at enqueue time; when the worker actually
     /// runs the job the same id is written again and moves to <see cref="Running"/>.
     /// The value was appended at the end for the same reason as
@@ -68,8 +68,7 @@ public enum RunStatus
     /// <para>
     /// Seen on any <em>root</em> (<c>Depth == 0</c>) agent run, whatever started it
     /// — the management API, an OpenAI-compatible endpoint, MCP, A2A, or the queue
-    /// (<c>Prefer: respond-async</c>, phase 46). HATA-S2-004 / MT-MCP-023 widened
-    /// phase 55's first version, which covered only the queue path: the synchronous
+    /// (<c>Prefer: respond-async</c>). The first version covered only the queue path: the synchronous
     /// paths did not reflect this status at all, and a tool call waiting for
     /// approval silently looked <see cref="Completed"/>. However the decision
     /// arrives — <c>POST /api/approvals/{id}/decide</c> for the queue, the caller's
@@ -79,7 +78,7 @@ public enum RunStatus
     /// <para>
     /// It follows the SAME principle as <see cref="AwaitingInput"/>: an answered run
     /// <em>stays</em> in this status, because rewriting history would break the
-    /// append-only rule of the event stream (K-014). On the queue path the decision
+    /// append-only rule of the event stream. On the queue path the decision
     /// is made through <c>POST /api/approvals/{id}/decide</c>, which enqueues a
     /// <strong>new</strong> run (same <c>sessionId</c>, new <c>RunId</c>).
     /// </para>

@@ -23,7 +23,7 @@ namespace AgentPrism.Generators;
 /// is both banned (RS1035) and non-deterministic.
 /// </para>
 /// <para>
-/// 🚨 The analyzer sees exactly one compilation. APG0101 and APG0102 report an
+/// The analyzer sees exactly one compilation. APG0101 and APG0102 report an
 /// absent registration, so a consumer that registers AgentPrism in another
 /// assembly gets a false positive. They are still warnings, because an
 /// <c>Info</c> diagnostic never reaches <c>dotnet build</c> output and would be

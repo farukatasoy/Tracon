@@ -22,7 +22,6 @@ public enum OpenAIApiSurface
     /// <remarks>
     /// The OpenAI library still marks this surface as "evaluation purposes only"
     /// (<c>OPENAI001</c>). Its usage is confined to a single file.
-    /// Reason: <c>docs/KARARLAR.md</c>, decision K-031.
     /// </remarks>
     Responses = 1,
 }

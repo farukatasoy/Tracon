@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// The provider <strong>does not reject</strong> a model name absent from the
-/// catalog (decision K-032); when the catalog is non-empty, only an informational
+/// catalog; when the catalog is non-empty, only an informational
 /// log entry is left.
 /// </para>
 /// <para>
@@ -92,7 +92,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         return factory.CreateChatClient(binding);
     }
 
-    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>See <c>OpenAIModelProvider.BuildCredentialFactory</c> for the endpoint fallback rationale.</remarks>
     private GoogleChatClientFactory BuildCredentialFactory(ModelProviderCredential credential)
     {

@@ -14,7 +14,7 @@ namespace AgentPrism.Generators;
 /// report real compile errors.
 /// </para>
 /// <para>
-/// 🚨 Every diagnostic here is a <see cref="DiagnosticSeverity.Warning"/>, and
+/// Every diagnostic here is a <see cref="DiagnosticSeverity.Warning"/>, and
 /// the reason is measured rather than chosen: an <c>Info</c> diagnostic never
 /// reaches <c>dotnet build</c> output, at any verbosity, so a coding agent -
 /// the reader these exist for - would never see one. A consumer who does not

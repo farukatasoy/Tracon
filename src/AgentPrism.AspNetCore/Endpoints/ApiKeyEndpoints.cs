@@ -7,11 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Tenant-scoped API key endpoints (Phase 53).</summary>
+/// <summary>Tenant-scoped API key endpoints.</summary>
 /// <remarks>
-/// 🚨 <see cref="ApiKeyCreationResult.PlaintextKey"/> is returned only in the
+/// <see cref="ApiKeyCreationResult.PlaintextKey"/> is returned only in the
 /// response of <see cref="CreateAsync"/>. The listing endpoint never returns
-/// the raw value or a hash (section 53.2).
+/// the raw value or a hash.
 /// </remarks>
 internal static class ApiKeyEndpoints
 {
@@ -40,7 +40,7 @@ internal static class ApiKeyEndpoints
                 "cannot be produced again. The scope list is closed; an unknown scope " +
                 "is rejected. If the request was authenticated with an API key, a scope " +
                 "that key does NOT ITSELF CARRY cannot be requested (privilege " +
-                "extension/attenuation, section 53.3).");
+                "extension/attenuation).");
 
         builder.MapDelete("/api/api-keys/{id:guid}", RevokeAsync)
             .RequireRole(roles.Admin)
@@ -164,7 +164,7 @@ internal static class ApiKeyEndpoints
     }
 
     /// <summary>Summarizes a key record for the audit trail.</summary>
-    /// <remarks>The summary has NO raw value or hash (the same direction as K-059).</remarks>
+    /// <remarks>The summary has NO raw value or hash (the same direction).</remarks>
     private static string Describe(ApiKeyRecord record)
     {
         using var buffer = new MemoryStream();

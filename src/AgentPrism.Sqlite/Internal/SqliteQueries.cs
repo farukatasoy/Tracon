@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// prepended directly to the table name — there is NO dot
 /// (not <c>{Schema}.table</c>, but <c>{Schema}table</c>).
 /// </para>
-/// <para>Translation rules applied (measured, Phase 24 opening):</para>
+/// <para>Translation rules applied (measured):</para>
 /// <list type="bullet">
 ///   <item><description>
 ///     <strong>Upserts follow the SAME pattern as PostgreSQL:</strong>
@@ -23,10 +23,10 @@ namespace AgentPrism;
 ///     supports this in a single statement, with IDENTICAL semantics to
 ///     PostgreSQL's <c>ON CONFLICT ... RETURNING</c> — SQL Server's two-branch
 ///     <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>
-///     pattern (K-177) is NOT NEEDED here. Expressions like <c>COALESCE(col, '')</c>
+///     pattern is NOT NEEDED here. Expressions like <c>COALESCE(col, '')</c>
 ///     in the <c>ON CONFLICT</c> target also behave like PostgreSQL: SQLite's
 ///     unique constraint treats NULLs as DISTINCT from each other, same as
-///     PostgreSQL (the opposite of SQL Server, meaning K-184 does not apply to
+///     PostgreSQL (the opposite of SQL Server, so that rule does not apply to
 ///     SQLite).
 ///   </description></item>
 ///   <item><description>
@@ -34,13 +34,13 @@ namespace AgentPrism;
 ///     SQL Server's <c>COALESCE(SUM(CASE...))</c> conversion is NOT NEEDED.
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>LEFT JOIN LATERAL ... ON TRUE</c> DOES NOT EXIST in SQLite (tried:
+///     <c>LEFT JOIN LATERAL ... ON TRUE</c> DOES NOT EXIST in SQLite (tried:
 ///     "near SELECT: syntax error"). Tree aggregates (<c>SelectRun</c>,
 ///     <c>SelectRuns</c>) are written as separate CORRELATED SCALAR SUBQUERIES
 ///     in the SELECT list; each carries its own <c>WHERE</c> condition.
 ///   </description></item>
 ///   <item><description>
-///     🚨 There is no <c>generate_series</c>; a recursive CTE is used instead
+///     There is no <c>generate_series</c>; a recursive CTE is used instead
 ///     (same pattern as SQL Server). <c>strftime(format, x)</c> is used instead
 ///     of <c>date_trunc(@unit, x)</c>; since timestamps are already
 ///     <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c> text, <c>strftime</c> works directly.
@@ -61,14 +61,14 @@ namespace AgentPrism;
 ///     <c>WHERE id = (SELECT ... LIMIT 1)</c> subquery gives the same result.
 ///   </description></item>
 ///   <item><description>
-///     🚨 <c>LEAST</c>/<c>GREATEST</c> could be met by SQLite's multi-argument
+///     <c>LEAST</c>/<c>GREATEST</c> could be met by SQLite's multi-argument
 ///     <c>min()</c>/<c>max()</c>, BUT the NULL behavior is REVERSED: SQLite's
 ///     <c>max(a,b)</c> returns NULL if any argument is NULL (tried), while
 ///     PostgreSQL's <c>GREATEST</c> SKIPS NULLs. This is why a <c>CASE</c>
 ///     chain is used, same as on SQL Server.
 ///   </description></item>
 ///   <item><description>
-///     🚨 A data-modifying CTE (<c>WITH updated AS (UPDATE ... RETURNING) UPDATE ...</c>)
+///     A data-modifying CTE (<c>WITH updated AS (UPDATE ... RETURNING) UPDATE ...</c>)
 ///     DOES NOT EXIST in SQLite (tried: "near UPDATE: syntax error", same limit
 ///     as SQL Server). <c>ReportJobItem</c> is split into two separate
 ///     statements; the second uses SQLite's <c>changes()</c> function — this

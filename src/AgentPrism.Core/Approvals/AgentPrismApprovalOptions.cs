@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Options for asynchronous approvals (Phase 55).</summary>
+/// <summary>Options for asynchronous approvals.</summary>
 /// <remarks>
 /// Reads values from the <c>AgentPrism:Approvals</c> configuration section. See
 /// <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.

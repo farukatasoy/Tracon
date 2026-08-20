@@ -1,12 +1,12 @@
 namespace AgentPrism;
 
-/// <summary>Rate-limit settings applied to AgentPrism endpoints — Phase 21.</summary>
+/// <summary>Rate-limit settings applied to AgentPrism endpoints.</summary>
 /// <remarks>
 /// <para>
 /// Read from the <c>AgentPrism:RateLimit</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 <strong>Off by default</strong> (K-165). It has no way of knowing a
+/// <strong>Off by default</strong>. It has no way of knowing a
 /// library consumer's traffic; a default that comes on would silently answer an
 /// upgrading setup's live traffic with <c>429</c>. Recommended values are documented in the README.
 /// </para>
@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// Rate limiting <strong>is not a quota</strong>: it smooths out sudden load at
 /// the second/minute scale and lives in memory. Total-consumption limiting at
 /// the day/month scale is done with <see cref="AgentPrismQuotaOptions"/> and
-/// counted in the database (K-158).
+/// counted in the database.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismRateLimitOptions

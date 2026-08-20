@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// ends without depending on real time.
 /// </para>
 /// <para>
-/// 🚨 The period boundary is calculated in the <strong>local</strong> time
+/// The period boundary is calculated in the <strong>local</strong> time
 /// zone, not UTC. An admin who says "daily quota" means their own business day;
 /// resetting by UTC would reset a <c>UTC+03</c> tenant's counter three hours
 /// early, before noon.
@@ -69,7 +69,7 @@ public static class QuotaPeriodCalculator
     /// <returns>The UTC equivalent of local midnight.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// 🚨 During a daylight-saving transition, local midnight may <em>not
+    /// During a daylight-saving transition, local midnight may <em>not
     /// exist</em> (spring forward) or may be <em>valid twice</em> (fall back).
     /// A time that does not exist is moved to right after the transition; for
     /// an ambiguous time, the <strong>earlier</strong> offset is chosen. Both

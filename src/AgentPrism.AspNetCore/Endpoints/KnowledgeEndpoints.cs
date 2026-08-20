@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Knowledge base management: document upload, listing, deletion, and semantic search (Phase 51).
+/// Knowledge base management: document upload, listing, deletion, and semantic search.
 /// </summary>
 /// <remarks>
-/// Document management is an <strong>administrative</strong> operation, not the agent's own job
-/// (see <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6). While <see cref="KnowledgeIngestionService.IsSupported"/>
+/// Document management is an <strong>administrative</strong> operation, not the agent's own job.
+/// While <see cref="KnowledgeIngestionService.IsSupported"/>
 /// is <see langword="false"/>, every endpoint returns <c>501</c>; it does NOT silently return an empty result.
 /// </remarks>
 internal static class KnowledgeEndpoints

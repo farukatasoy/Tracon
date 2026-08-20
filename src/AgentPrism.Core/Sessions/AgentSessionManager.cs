@@ -22,8 +22,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// Microsoft Agent Framework's pre-release <c>AgentSessionStore</c> abstraction
-/// (<c>Microsoft.Agents.AI.Hosting</c>) is wired to this class by delegation in
-/// Phase 4. Rationale: <c>docs/KARARLAR.md</c>, decisions K-008 and K-026.
+/// (<c>Microsoft.Agents.AI.Hosting</c>) is wired to this class by delegation.
 /// </para>
 /// </remarks>
 public sealed class AgentSessionManager
@@ -38,7 +37,7 @@ public sealed class AgentSessionManager
     /// </summary>
     /// <remarks>
     /// <para>
-    /// HATA-004: this marker lets <see cref="SaveSessionAsync"/> answer "is
+    /// this marker lets <see cref="SaveSessionAsync"/> answer "is
     /// this the FIRST save of this session" without ever going to the store.
     /// The session object ITSELF is the key; <see cref="ConditionalWeakTable{TKey, TValue}"/>
     /// carries it safely for the duration of a single request without
@@ -144,7 +143,7 @@ public sealed class AgentSessionManager
     /// </exception>
     /// <remarks>
     /// <para>
-    /// HATA-004 (MT-CORE-054): if two concurrent first requests arrive for the
+    /// If two concurrent first requests arrive for the
     /// same NEW session identity, both start with an EMPTY session in
     /// <see cref="GetOrCreateSessionAsync"/> and run THEIR OWN turn — each
     /// produces its own conversation identity, which is unavoidable (the

@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Resolution order: the requested culture -&gt; its parent subtag (<c>"tr-TR"</c> -&gt;
 /// <c>"tr"</c>) -&gt; <see cref="AgentDefinition.Instructions"/>. An unmatched culture
-/// never fails compilation; it silently falls back to the default text (K1).
+/// never fails compilation; it silently falls back to the default text.
 /// Matching is case-insensitive: BCP-47 tags are conventionally lowercase, but a
 /// definition authored by hand may not be.
 /// </remarks>

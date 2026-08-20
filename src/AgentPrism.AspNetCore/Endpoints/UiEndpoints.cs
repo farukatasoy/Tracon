@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// <c>/api/*</c> and <c>/v1/*</c> endpoints always win.
 /// </para>
 /// <para>
-/// Even so, these two prefixes are also explicitly rejected here. Reason: a misspelled
+/// Even so, these two prefixes are also explicitly rejected here. A misspelled
 /// API path (<c>/api/agentz</c>) would fall through to the catch-all and the UI's
 /// <c>index.html</c> file would be returned. For an API client this is a silent
 /// failure that is hard to debug — it gets <c>200 text/html</c> instead of the expected

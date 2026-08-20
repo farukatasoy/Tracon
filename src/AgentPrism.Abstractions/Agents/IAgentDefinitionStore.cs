@@ -27,7 +27,7 @@ public interface IAgentDefinitionStore
 
     /// <summary>
     /// Saves the definition and produces a new version. The
-    /// <see cref="AgentDefinition.Version"/> value of the incoming definition is ignored;
+    /// <c>AgentDefinition.Version</c> value of the incoming definition is ignored;
     /// the store decides the version number.
     /// </summary>
     /// <param name="definition">The definition to save.</param>

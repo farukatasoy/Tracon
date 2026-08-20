@@ -3,18 +3,19 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Stores workflow checkpoints in the SQL database.</summary>
+/// <summary>
+/// Stores workflow checkpoints in the SQL database.
+/// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 State is stored in the <c>json</c> column, <strong>not</strong> the
-/// <c>jsonb</c> column. Microsoft Agent Framework's checkpoint payload is
-/// polymorphic and the <c>$type</c> discriminator must be the first property
-/// of the object it is in; <c>jsonb</c> breaks this rule by reordering keys.
-/// Decision K-027, measured in <c>docs/15-WORKFLOWS-YURUTME.md</c>.
+/// State is stored in the <c>json</c> column, <strong>not</strong> the <c>jsonb</c>
+/// column. Microsoft Agent Framework's checkpoint payload is polymorphic and the
+/// <c>$type</c> discriminator must be the first property of the object it is in;
+/// <c>jsonb</c> breaks this rule by reordering keys.
 /// </para>
 /// <para>
-/// The parameter is also marked as <c>json</c>: the default text send format
-/// can fail to write directly to the server's column type.
+/// The parameter is also marked as <c>json</c>: the default text send format can fail
+/// to write directly to the server's column type.
 /// </para>
 /// </remarks>
 internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore

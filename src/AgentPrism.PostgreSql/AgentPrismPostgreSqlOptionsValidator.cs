@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Validation is hand-written; <c>ValidateDataAnnotations()</c> relies on
 /// reflection and produces <c>IL2026</c>. <c>AgentPrism.PostgreSql</c> must stay
-/// AOT-compatible. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// AOT-compatible.
 /// </remarks>
 public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<AgentPrismPostgreSqlOptions>
 {

@@ -36,7 +36,7 @@ public sealed class RunEventWriter
     /// <param name="sinks">
     /// The observers to fan every event out to, in addition to <paramref name="store"/>.
     /// <see langword="null"/> or empty runs the identical hot path as before this
-    /// extension point existed (K1) — no allocation, no branching difference.
+    /// extension point existed — no allocation, no branching difference.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public RunEventWriter(
@@ -62,16 +62,16 @@ public sealed class RunEventWriter
     public Guid RunId { get; }
 
     /// <summary>
-    /// Gets the tenant of the run this writer writes to. Stamped onto every
-    /// sub-write as defense in depth.
+    /// Gets the tenant of the run this writer writes to. Stamped onto every sub-write
+    /// as defense in depth.
     /// </summary>
     /// <remarks>
-    /// 🚨 The value is taken from the <see cref="RunStartInfo.TenantId"/> field
-    /// in <see cref="StartAsync"/> — NOT from the <em>ambient</em> tenant. This
-    /// is the run's own tenant; it can deliberately override the ambient
-    /// tenant (this is how workflows and job queues work). A writer used
-    /// without calling <see cref="StartAsync"/> stays <see langword="null"/>
-    /// and no tenant check is performed. Rationale: K-355.
+    /// The value is taken from the <see cref="RunStartInfo.TenantId"/> field in <see
+    /// cref="StartAsync"/> — NOT from the <em>ambient</em> tenant. This is the run's
+    /// own tenant; it can deliberately override the ambient tenant (this is how
+    /// workflows and job queues work). A writer used without calling <see
+    /// cref="StartAsync"/> stays <see langword="null"/> and no tenant check is
+    /// performed.
     /// </remarks>
     public string? TenantId { get; private set; }
 
@@ -88,7 +88,7 @@ public sealed class RunEventWriter
     /// <param name="info">The start information.</param>
     /// <param name="query">
     /// The text of the first user message that triggered this run. It is the
-    /// only source for production-to-eval case promotion (Phase 45, F-53):
+    /// only source for production-to-eval case promotion:
     /// outside <c>run_events</c> the input text is not persisted anywhere,
     /// and the session is recorded only at the end of a SUCCESSFUL run (see
     /// <c>AgentEndpoints.AgentRunStream</c>) — so the query of a failed run
@@ -256,7 +256,7 @@ public sealed class RunEventWriter
     /// <param name="modelId">
     /// The model that actually answered, overriding <c>runs.model_id</c> when
     /// a <see cref="ModelBinding.Fallbacks"/> link stood in for the primary
-    /// binding (phase 62). <see langword="null"/> leaves the value
+    /// binding. <see langword="null"/> leaves the value
     /// <see cref="StartAsync"/> already wrote unchanged — the overwhelmingly
     /// common case.
     /// </param>

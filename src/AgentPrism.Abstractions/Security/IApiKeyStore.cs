@@ -2,9 +2,9 @@ namespace AgentPrism;
 
 /// <summary>The store for per-tenant API keys.</summary>
 /// <remarks>
-/// Phase 53. A second identity source alongside the static bearer token,
+/// A second identity source alongside the static bearer token,
 /// bound to a tenant and carrying a scope; it does NOT replace the static
-/// token. See docs/53-KIRACI-API-ANAHTARLARI.md for the detailed rationale.
+/// token.
 /// </remarks>
 public interface IApiKeyStore
 {
@@ -13,7 +13,7 @@ public interface IApiKeyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The saved record and the raw key value. The raw value cannot be
-    /// produced again after this call (section 53.2).
+    /// produced again after this call.
     /// </returns>
     ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken cancellationToken = default);
 
@@ -28,9 +28,9 @@ public interface IApiKeyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The record; <see langword="null"/> if it does not exist.</returns>
     /// <remarks>
-    /// 🚨 No tenant filter <strong>is applied</strong>: the tenant is the
+    /// No tenant filter <strong>is applied</strong>: the tenant is the
     /// OUTPUT of this call, not its INPUT — while authenticating a request,
-    /// which tenant it belongs to is not yet known (section 53.5). The lookup
+    /// which tenant it belongs to is not yet known. The lookup
     /// always goes through the digest; the raw value never enters any query directly.
     /// </remarks>
     ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default);
@@ -48,7 +48,7 @@ public interface IApiKeyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
     /// <remarks>
-    /// 🚨 There is no tenant filter: the caller (<c>ApiKeyAuthenticator</c>)
+    /// There is no tenant filter: the caller (<c>ApiKeyAuthenticator</c>)
     /// has already found the key through its digest and RESOLVED the tenant;
     /// a second check here is unnecessary — the same rationale as
     /// <see cref="FindByHashAsync"/>.
@@ -63,8 +63,8 @@ public interface IApiKeyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> if found.</returns>
     /// <remarks>
-    /// 🚨 There is DELIBERATELY no tenant filter: this is an installation
-    /// health check (<c>ExternalSurfaceGuard</c>, section 53.4), not specific
+    /// There is DELIBERATELY no tenant filter: this is an installation
+    /// health check, not specific
     /// to any tenant — it asks whether the system has at least one valid
     /// <c>external:invoke</c> key, so the external surface can be opened
     /// TOGETHER with <c>AllowRemoteAccess</c>.

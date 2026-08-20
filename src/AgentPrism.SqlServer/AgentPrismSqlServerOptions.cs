@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>Settings for AgentPrism's SQL Server persistence layer.</summary>
 /// <remarks>
 /// Validation is done by hand in <see cref="AgentPrismSqlServerOptionsValidator"/>;
-/// <c>DataAnnotations</c> is not used. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// <c>DataAnnotations</c> is not used.
 /// </remarks>
 public sealed class AgentPrismSqlServerOptions
 {

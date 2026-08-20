@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>The settings of single-executor election (phase 42).</summary>
+/// <summary>The settings of single-executor election.</summary>
 /// <remarks>
 /// They are read from the <c>AgentPrism:SingletonExecution</c> configuration section. See
 /// <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.

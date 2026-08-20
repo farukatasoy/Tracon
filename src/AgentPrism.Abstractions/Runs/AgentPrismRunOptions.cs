@@ -71,14 +71,13 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     public Guid? ParentRunId { get; init; }
 
     /// <summary>
-    /// The identifier of the run at the root of the tree.
-    /// <see langword="null"/> if the run itself is the root.
+    /// The identifier of the run at the root of the tree. <see langword="null"/> if the
+    /// run itself is the root.
     /// </summary>
     /// <remarks>
-    /// The value is denormalized: fetching a whole tree through
-    /// <see cref="ParentRunId"/> would require a recursive query; a single
-    /// indexed query on the root identifier is enough. See
-    /// docs/KARARLAR.md, decision K-094, for the rationale.
+    /// The value is denormalized: fetching a whole tree through <see
+    /// cref="ParentRunId"/> would require a recursive query; a single indexed query on
+    /// the root identifier is enough.
     /// </remarks>
     public Guid? RootRunId { get; init; }
 
@@ -102,7 +101,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// <see cref="RunKind.Agent"/>.
     /// </summary>
     /// <remarks>
-    /// The eval job processor (Phase 18) gives <see cref="RunKind.Eval"/> for
+    /// The eval job processor gives <see cref="RunKind.Eval"/> for
     /// every case run; this lets <see cref="IRunStore.GetStatisticsAsync"/>
     /// exclude these synthetic calls from the summary.
     /// </remarks>
@@ -120,33 +119,34 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// <summary>The identifier of the experiment this run belongs to. <see langword="null"/> for a non-experiment run.</summary>
     public Guid? ExperimentId { get; init; }
 
-    /// <summary>The name of the experiment variant this run is assigned to. <see langword="null"/> for a non-experiment run.</summary>
+    /// <summary>
+    /// The name of the experiment variant this run is assigned to. <see
+    /// langword="null"/> for a non-experiment run.
+    /// </summary>
     public string? Variant { get; init; }
 
     /// <summary>
-    /// The identifier of the session at the root of the tree. Filled in for
-    /// child runs; the root run reads its identifier from its own
-    /// <c>AgentSession</c>.
+    /// The identifier of the session at the root of the tree. Filled in for child runs;
+    /// the root run reads its identifier from its own <c>AgentSession</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This field only feeds <c>AgentRunScope.SessionId</c>; it
-    /// <strong>does not change</strong> a run record's <c>session_id</c>
-    /// column. The two concepts are separate: the column says "the run was
-    /// started with this session," while the scope says "content produced
-    /// here belongs to this session." On a child agent call, MAF passes no
-    /// session, but the produced attachment still belongs to the root session.
+    /// This field only feeds <c>AgentRunScope.SessionId</c>; it <strong>does not
+    /// change</strong> a run record's <c>session_id</c> column. The two concepts are
+    /// separate: the column says "the run was started with this session," while the
+    /// scope says "content produced here belongs to this session." On a child agent
+    /// call, MAF passes no session, but the produced attachment still belongs to the
+    /// root session.
     /// </para>
     /// <para>
-    /// See <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G1, for the
-    /// rationale — an attachment written without a session is considered
-    /// orphaned by the retention policy and deleted.
+    /// This matters for retention: an attachment written without a session counts as
+    /// orphaned, and the retention policy deletes it.
     /// </para>
     /// </remarks>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// If this run is a replay, the source run's identifier (Phase 47). The
+    /// If this run is a replay, the source run's identifier. The
     /// value is written to the <c>runs.replay_of_run_id</c> column.
     /// </summary>
     /// <remarks>

@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// This is the only <c>Microsoft.Data.Sqlite</c> contact point the shared store code sees.
 /// </para>
 /// <para>
-/// Three points were measured and the behavior here was built on them (Phase 24 opening):
+/// Three points were measured and the behavior here was built on them:
 /// </para>
 /// <list type="number">
 ///   <item><description>
@@ -53,7 +53,7 @@ namespace AgentPrism;
 ///     nested transactions (<c>Microsoft.Data.Sqlite</c> does not support nested transactions).
 ///     A sidecar file lock (<c>&lt;database&gt;.&lt;prefix&gt;.agentprism-migration-lock</c>)
 ///     gives the same protection without touching the connection's transaction state at all.
-///     The lock file is scoped to the TABLE PREFIX (K-389): SQLite has no schema concept, the
+///     The lock file is scoped to the TABLE PREFIX: SQLite has no schema concept, the
 ///     table prefix is the equivalent that separates AgentPrism installations, and the lock
 ///     must be scoped the same way. Skipped for <c>:memory:</c> databases.
 ///   </description></item>
@@ -165,7 +165,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// primary key in a single static SQL string, so this is done in code
     /// instead of through <see cref="SqlQueriesBase.UpgradeMigrationsTable"/>
     /// (left empty). The rebuild technique is the same as
-    /// 0006_sessions_tenant_key.sql (K-278): SQLite cannot alter a primary
+    /// 0006_sessions_tenant_key.sql: SQLite cannot alter a primary
     /// key in place.
     /// </remarks>
     public override async ValueTask UpgradeMigrationsTableAsync(
@@ -258,11 +258,11 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Serialized through <see cref="AgentPrismJsonContext.StringArray"/> as
+    /// Serialized through <see cref="AgentPrismJsonContext.StringArray"/> as
     /// UPPERCASE text, NOT through the <c>GuidArray</c> converter's default
     /// (lowercase) formatting. Measured: every scalar Guid parameter in this
     /// dialect writes UPPERCASE text (see <see cref="SqlDialect.AddUuid"/>'s
-    /// remarks on this type, K-191), but <c>System.Text.Json</c>'s built-in
+    /// remarks on this type), but <c>System.Text.Json</c>'s built-in
     /// <see cref="Guid"/> converter always writes LOWERCASE — comparing a
     /// lowercase array element against an uppercase stored id inside
     /// <see cref="ArrayContains"/> then fails for every id containing an a-f
@@ -311,7 +311,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <c>Microsoft.Data.Sqlite</c>'s default <see cref="DateTimeOffset"/> format
+    /// <c>Microsoft.Data.Sqlite</c>'s default <see cref="DateTimeOffset"/> format
     /// (<c>2026-08-05 06:41:38.390129+00:00</c>) is NOT lexicographically time-ordered
     /// (space separator, six fractional digits). The format is fixed manually:
     /// <c>yyyy-MM-ddTHH:mm:ss.fffffffZ</c>, always converted to UTC.
@@ -326,8 +326,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// <inheritdoc />
     /// <remarks>
     /// SQLite shares a single object namespace across the whole database; there is no schema,
-    /// the prefix is prepended directly to the table name (no dot). Rationale:
-    /// <c>docs/hafiza/sql-saglayicilari.md</c>, K-193.
+    /// the prefix is prepended directly to the table name (no dot).
     /// </remarks>
     public override string QualifyTable(string tableName) => $"{Queries.Schema}{tableName}";
 

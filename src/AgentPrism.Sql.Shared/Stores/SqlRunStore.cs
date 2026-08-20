@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Events are <em>append-only</em> (decision K-014). <see cref="RunEventWriter"/>
+/// Events are <em>append-only</em>. <see cref="RunEventWriter"/>
 /// produces the sequence number; the store only writes it.
 /// </para>
 /// <para>
@@ -46,7 +46,7 @@ internal sealed class SqlRunStore : IRunStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Phase 46: <c>_sql.InsertRun</c> is an UPSERT (UPDATES on a conflict over
+    /// <c>_sql.InsertRun</c> is an UPSERT (UPDATES on a conflict over
     /// <c>id</c>). For a queued run, this method is called TWICE with the SAME
     /// <see cref="RunStartInfo.RunId"/> — first with <see cref="RunStatus.Queued"/>
     /// (the HTTP layer), then when the worker actually runs the job (this time
@@ -301,7 +301,7 @@ internal sealed class SqlRunStore : IRunStore
     /// The clustering fingerprint for orphaned run errors. A fixed string --
     /// NOT a SHA-256 hash; the rationale matches the constant of the same
     /// name in <see cref="InMemoryRunStore"/> (AgentPrism.Core's ErrorFingerprint
-    /// is not reachable from this assembly, K-176).
+    /// is not reachable from this assembly).
     /// </summary>
     private const string OrphanedFingerprint = "orphaned";
 
@@ -909,7 +909,7 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <remarks>
-    /// 🚨 Ordinals 42-45 are the phase 68 breakdown. They participate in the
+    /// Ordinals 42-45 are the token breakdown. They participate in the
     /// "did the provider report anything at all" test below: a provider that
     /// reports ONLY a cache count still measured something, and returning
     /// <see langword="null"/> would throw that measurement away.
@@ -1038,7 +1038,7 @@ internal sealed class SqlRunStore : IRunStore
     /// object is constructed — returning an empty <see cref="ToolCallUsage"/>
     /// would mean "measured, but zero". The boolean value is read with
     /// <c>DbHelpers.ToBoolean</c>: SQLite has no boolean type and returns
-    /// <c>long</c> (0/1) instead (K-195).
+    /// <c>long</c> (0/1) instead.
     /// </remarks>
     private static ToolCallUsage? ReadToolCallUsage(DbDataReader reader)
     {
@@ -1101,7 +1101,7 @@ internal sealed class SqlRunStore : IRunStore
     /// Binds the label filter parameters.
     /// </summary>
     /// <remarks>
-    /// 🚨 A value with no key is DROPPED rather than applied: a value alone
+    /// A value with no key is DROPPED rather than applied: a value alone
     /// names no dimension, and every dialect's predicate is gated on the key
     /// being non-null, so leaving the value bound would look like an active
     /// filter that quietly does nothing. Same rationale as the parent/root
@@ -1120,11 +1120,11 @@ internal sealed class SqlRunStore : IRunStore
     /// </summary>
     /// <returns><see langword="null"/> when there is nothing to write, so the column stays NULL.</returns>
     /// <remarks>
-    /// 🚨 Written with <see cref="Utf8JsonWriter"/> rather than
+    /// Written with <see cref="Utf8JsonWriter"/> rather than
     /// <see cref="JsonSerializer"/>: reflection-based serialization is not
     /// AOT-safe, and a flat string map does not justify a source-generated
     /// context. This is the same DOM-level approach <c>PgVectorSearchStore</c>
-    /// uses for <c>document_embeddings.metadata</c> (K-345).
+    /// uses for <c>document_embeddings.metadata</c>.
     /// </remarks>
     private static string? SerializeLabels(IReadOnlyDictionary<string, string>? labels)
     {
@@ -1158,7 +1158,7 @@ internal sealed class SqlRunStore : IRunStore
     /// parse.
     /// </returns>
     /// <remarks>
-    /// 🚨 Malformed JSON returns <see langword="null"/> instead of throwing.
+    /// Malformed JSON returns <see langword="null"/> instead of throwing.
     /// Labels are observability data, and observability must not break
     /// functionality: a single unreadable map must not fail the whole run list
     /// (this is the same class of fault as an unassigned <c>JsonElement</c>

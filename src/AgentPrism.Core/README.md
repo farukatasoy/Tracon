@@ -61,7 +61,7 @@ An agent created from the UI or the HTTP API can *select* from these tools, but 
 **code** can never be written through them. That is a security boundary, and it is
 not configurable.
 
-> 🚨 A tool receives an **empty** service provider from MAF, so it cannot resolve a
+> A tool receives an **empty** service provider from MAF, so it cannot resolve a
 > dependency at call time. Take dependencies at registration instead — register a
 > factory, or close over the instance you need. Instance-method tools registered by
 > scanning a type have the same problem.

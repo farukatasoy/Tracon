@@ -9,8 +9,7 @@ namespace AgentPrism;
 /// call is a <strong>full</strong> recalculation — there is no "only unknown
 /// ones" filter, because the endpoint's purpose is to apply the current
 /// pricing to history as-is. Since the provider is not stored on historical
-/// rows, resolution is done by model name alone (see
-/// <see cref="IRunPricingResolver.Resolve"/> and <c>docs/KARARLAR.md</c> K-154).
+/// rows, resolution is done by model name alone.
 /// </remarks>
 public sealed class RunCostRecalculationService
 {

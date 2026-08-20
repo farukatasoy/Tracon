@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// <para>
 /// Records are isolated <strong>per tenant</strong>. The tenant comes from
 /// <see cref="ITenantContext"/>, and the same isolation contract as SQL
-/// implementations applies (Phase 41).
+/// implementations applies.
 /// </para>
 /// <para>
 /// <strong>Limits:</strong> data is limited to the process lifetime and is not shared

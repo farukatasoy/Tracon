@@ -22,6 +22,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { internalHistoryMarker } from './internal-history.mjs';
+
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
@@ -551,84 +553,43 @@ function inlineMarkdown(value) {
     .trim();
 }
 
+// The source documentation is kept self-contained by
+// ShippedDocumentationSelfContainmentTests, so nothing here strips journal prose any
+// more. A reference that reaches this point is a defect in src/, and repairing it
+// here is what used to leave half-sentences behind. What remains turns docfx output
+// into readable Markdown.
 function sanitizeInternalHistory(body) {
   return body.split(/(```[\s\S]*?```)/g).map((part, index) => {
     if (index % 2 === 1) {
       return part;
     }
 
-    const publicProse = part
-      .split(/(\n{2,})/)
-      .map((block) => hasInternalHistoryMarker(block) ? '' : block)
-      .join('');
+    const marker = internalHistoryMarker(part);
 
-    return publicProse
-    .replace(/(?:^|\n)Measured \(20\d{2}-[^\n]*[\s\S]*?(?=\n\n|$)/g, '')
-    .replace(/\s*Rationale:[\s\S]*?(?=\n\n|$)/g, '')
-    .replace(/\s*Decision:\s*[;,.]?[\s\S]*?(?=\n\n|$)/g, '')
-    .replace(/\s*For the rationale[\s\S]*?(?=\n\n|$)/gi, '')
-    .replace(/\s*See\s+[^.\n]*\brationale[^.\n]*\.?/gi, '')
-    .replace(/\s*\([^()\n]*\brationale[^()\n]*\)/gi, '')
-    .replace(/\s*[—–-]\s*(?:the\s+)?same rationale[\s\S]*?(?=\n\n|$)/gi, '')
-    .replace(/[^.\n]*\brationale (?:applies|is)[^.\n]*\.?/gi, '')
-    .replace(/[^.\n]*\bopen question \d+[^.\n]*\.?/gi, '')
-    .replace(/[^.\n]*\bdocumented in the README[^.\n]*\.?/gi, '')
-    .replace(/\b(?:design\s+)?rule\s+K1\b|\bK1\b/gi, 'the safe-default rule')
-    .replace(/\b(?:design\s+)?rule\s+K2\b|\bK2\b/gi, 'the code-only tool rule')
-    .replace(/\b(?:design\s+)?rule\s+K3\b|\bK3\b/gi, 'the MAF pass-through rule')
-    .replace(/\b(?:design\s+)?rule\s+K4\b|\bK4\b/gi, 'the replaceable-extension rule')
-    .replace(/\s*[—–-]?\s*\(?\b(?:phase|faz)\s+\d+\b\)?/gi, '')
-    .replace(/\s*\(?\bF-\d+\b\)?/g, '')
-    .replace(/\s*\(?\b(?:decision\s+)?K-\d{3}\b\)?/gi, '')
-    .replace(/\s*\(?\b(?:HATA|MT)-[A-Z0-9-]+\b\)?/g, '')
-    .replace(/(?:Reason:\s*)?`?docs\/(?:KARARLAR\.md|[^`\s),]+)`?,?/gi, '')
-    .replace(/\s*\(?\b(?:see\s+)?section\s+\d+(?:\.\d+)?(?:\/[A-Z0-9-]+)?\b\)?[,]?/gi, '')
-    .replace(/\bRationale:\s*(?:and\s+)?(?:of\s*)?\./gi, '')
-    .replace(/\bSee\s*,?\s*for the rationale\.?/gi, '')
-    .replace(/\bThe the\b/g, 'The')
-    .replace(/\bthe the\b/g, 'the')
-    .replace(/\ba deliberate the\b/g, 'a deliberate')
-    .replace(/\ba the\b/g, 'the')
-    .replace(/\b(?:decision|rationale) the (safe-default|code-only tool|MAF pass-through|replaceable-extension) rule\b/gi, 'the $1 rule')
-    .replace(/\bRationale:\s*the code-only tool rule\s*[-—]\s*/gi, 'The code-only tool rule states: ')
-    .replace(/\bthe safe-default rule\b/gi, 'a safe default')
-    .replace(/\bthe replaceable-extension rule\b/gi, 'consumer-registration precedence')
-    .replace(/\bthe code-only tool rule\b/gi, 'the code-only execution boundary')
-    .replace(/\bthe MAF pass-through rule\b/gi, 'the MAF pass-through boundary')
-    .replace(/\bby delegation in\./gi, 'by delegation.')
-    .replace(/\s*[—–-]\s*moved there in\./gi, '.')
-    .replace(/\bin\s*\./gi, '.')
-    .replace(/,\s*\./g, '.')
-    .replace(/\.\s*\./g, '.')
-    .replace(/:\s*;/g, '.')
-    .replace(/\bdecisions and\./gi, '')
-    .replace(/🚨|⚠️/gu, '**Important:**')
-    .replace(/^## Remarks's cost model/gm, "## Remarks\n\nAgentPrism's cost model")
-    .replace(/^(#{2,4} Remarks)[.:]\s*(.+)$/gm, '$1\n\n$2')
-    .replace(/\s*See\s+for[^.\n]*\.?/gi, '')
-    .replace(/\*\*RAW\*\*/g, '**unwrapped**')
-    .replace(/\*\*(?:NO|THE SAME)\*\*/g, (value) => `**${value.slice(2, -2).toLowerCase()}**`)
-    .replace(/\b(?:NOT SILENTLY OVERWRITE|NOT SUPPORTED|NEVER CHANGES AGAIN)\b/g, (value) => value.toLowerCase())
-    .replace(/\b(?:NEW|EMPTY|FIRST|EVERY|OWN|ALREADY|GENUINELY|DELIBERATELY|WHICH|THEIR|ITS|SEPARATE|SUMMED|SCORE|REGISTRATION-TIME|NOT|NO)\b/g, (value) => value.toLowerCase())
-    .replace(/\(\.\.\)/g, '(...)')
-    .replace(/\.\.\)/g, ', …)')
-    .replace(/\b(POST|GET|PUT|PATCH|DELETE)\.\.\//g, '$1 …/')
-    .replace(/\.\s*:\s*/g, '. ')
-    .replace(/\s+([,.;:])/g, '$1')
-    .replace(/\(\s*\)/g, '')
-    .replace(/:\s*\./g, '.')
-    .replace(/\brationale\b/gi, 'reason')
-    .replace(/^(#{2,4} Remarks)\n\n([a-z])/gm, (_match, heading, first) => `${heading}\n\n${first.toUpperCase()}`)
-    .replace(/^#{2,4} Remarks\n+(?=#{2,4} )/gm, '')
-    .replace(/\n{3,}/g, '\n\n');
+    if (marker) {
+      throw new Error(
+        `Internal development history reached the API reference: "${marker.text}" in ` +
+          `"...${part.slice(Math.max(0, marker.index - 60), marker.index + 60).replace(/\n/g, ' ')}...". ` +
+          'Fix the XML documentation in src/ rather than filtering it here.',
+      );
+    }
+
+    return part
+      .replace(/\bRationale:\s*/gi, '')
+      .replace(/\brationale\b/gi, 'reason')
+      .replace(/🚨|⚠️/gu, '**Important:**')
+      .replace(/^## Remarks's cost model/gm, "## Remarks\n\nAgentPrism's cost model")
+      .replace(/^(#{2,4} Remarks)[.:]\s*(.+)$/gm, '$1\n\n$2')
+      .replace(/\*\*(?:NO|THE SAME)\*\*/g, (value) => `**${value.slice(2, -2).toLowerCase()}**`)
+      .replace(/\b(?:NOT SILENTLY OVERWRITE|NOT SUPPORTED|NEVER CHANGES AGAIN)\b/g, (value) => value.toLowerCase())
+      .replace(/\b(?:NEW|EMPTY|FIRST|EVERY|OWN|ALREADY|GENUINELY|DELIBERATELY|WHICH|THEIR|ITS|SEPARATE|SUMMED|SCORE|REGISTRATION-TIME|NOT|NO|OLDEST|AS IS|RAW)\b/g, (value) => value.toLowerCase())
+      // Not before an ellipsis: "POST .../trigger" is a path, not a sentence end.
+      .replace(/(\S)\s+([,.;:])(?!\.)/g, '$1$2')
+      .replace(/\(\s*\)/g, '');
   }).join('');
 }
 
-function hasInternalHistoryMarker(value) {
-  return /\b(?:phase|faz)\s+\d+\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|(?:<code>|`)?docs\/[^\s`<),]+|\bopen question \d+\b|\bdecision reopening\b|\badd the decision number\b/i.test(
-    value,
-  );
-}
+
 
 function normalizeSharedProviderDocumentation(uid, body) {
   if (uid !== 'AgentPrism.MigrationRunner') {

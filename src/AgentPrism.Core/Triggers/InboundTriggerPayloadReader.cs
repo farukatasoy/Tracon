@@ -5,9 +5,9 @@ namespace AgentPrism;
 /// <summary>Turns an inbound trigger's parsed request body into a run message.</summary>
 /// <remarks>
 /// <see cref="InboundTriggerPayloadMode.Path"/> walks a dotted path exactly
-/// like <see cref="ToolArgumentConditionMatcher"/>'s condition path (phase
-/// 63) — one segment at a time, object properties only, no array index — so
-/// AgentPrism does not carry two different path languages. K2 (no template
+/// like <see cref="ToolArgumentConditionMatcher"/>'s condition path — one
+/// segment at a time, object properties only, no array index — so
+/// AgentPrism does not carry two different path languages. The code-only tools rule (no template
 /// language) still holds: there is no expression evaluation here, only
 /// property selection.
 /// </remarks>
@@ -16,7 +16,11 @@ internal static class InboundTriggerPayloadReader
     /// <summary>Extracts the run message from a trigger's parsed request body.</summary>
     /// <param name="body">The parsed JSON body.</param>
     /// <param name="mode">The extraction mode.</param>
-    /// <param name="path">The dotted path; only read when <paramref name="mode"/> is <see cref="InboundTriggerPayloadMode.Path"/>.</param>
+    /// <param name="path">
+    /// The dotted path; only read when
+    /// <paramref name="mode"/>
+    /// is <see cref="InboundTriggerPayloadMode.Path"/>.
+    /// </param>
     /// <param name="message">The extracted message; empty when extraction fails.</param>
     /// <returns><see langword="true"/> if a message was extracted.</returns>
     public static bool TryExtractMessage(

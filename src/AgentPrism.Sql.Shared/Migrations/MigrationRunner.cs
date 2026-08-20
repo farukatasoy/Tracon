@@ -9,7 +9,9 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>The flow goes through these steps:</para>
 /// <list type="number">
-///   <item><description>The provider-specific migration lock is acquired — it is SCOPED to the schema (K-389): if multiple replicas start against the same schema at the same time, only one applies.</description></item>
+/// <item>
+/// <description>The provider-specific migration lock is acquired — it is SCOPED to the schema: if multiple replicas start against the same schema at the same time, only one applies.</description>
+/// </item>
 ///   <item><description>The schema and the <c>__migrations</c> ledger are created if missing.</description></item>
 ///   <item><description>Every applied migration's checksum is verified; a mismatch <strong>fails</strong>.</description></item>
 ///   <item><description>Unapplied migrations run in order, each inside its own transaction.</description></item>
@@ -24,11 +26,11 @@ namespace AgentPrism;
 /// prefix come through <see cref="SqlDialect"/>.
 /// </para>
 /// <para>
-/// 🚨 Even though the lock is scoped to the schema, some migrations may create
+/// Even though the lock is scoped to the schema, some migrations may create
 /// a catalog object shared across the WHOLE database (for example PostgreSQL's
 /// <c>CREATE EXTENSION IF NOT EXISTS</c>). If two different schemas migrate for
 /// the first time concurrently, such "IF NOT EXISTS"-guarded DDL can still hit
-/// a uniqueness violation; <see cref="ApplyOneAsync"/> retries this safely (K-389).
+/// a uniqueness violation; <see cref="ApplyOneAsync"/> retries this safely.
 /// </para>
 /// </remarks>
 public sealed class MigrationRunner : ISqlPersistenceDiagnostics
@@ -56,10 +58,12 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     private const string CoreSetName = "core";
 
     /// <summary>
-    /// Reads the connection and migration status WITHOUT applying any migration (Phase 33).
+    /// Reads the connection and migration status WITHOUT applying any migration.
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns><c>CanConnect: false</c> if the connection could not be established; otherwise the list of pending migrations.</returns>
+    /// <returns>
+    /// <c>CanConnect: false</c> if the connection could not be established; otherwise the list of pending migrations.
+    /// </returns>
     public async ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
         var sets = DiscoverActiveSets();
@@ -138,7 +142,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     }
 
     /// <summary>
-    /// Discovers the core set plus every enabled optional set (phase 67).
+    /// Discovers the core set plus every enabled optional set.
     /// </summary>
     /// <exception cref="AgentPrismException">
     /// <see cref="SqlStoreContext.EnabledMigrationSets"/> names a set this
@@ -252,7 +256,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// <summary>
     /// Logs (once, at information level) a core-numbered ledger row whose
     /// migration was later relocated to an optional set that is not enabled
-    /// (phase 67, decision 67.3). The row and whatever it created are
+    /// (decision 67.3). The row and whatever it created are
     /// harmless — this is a diagnostic, not a migration.
     /// </summary>
     private void LogOrphanedRelocatedMigrations(IReadOnlyDictionary<MigrationKey, AppliedMigration> applied)
@@ -369,7 +373,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
 
     /// <summary>
     /// Substitutes every key in <see cref="SqlStoreContext.MigrationTemplateValues"/>
-    /// for its <c>{key}</c> placeholder (Phase 51: <c>{dimension}</c>).
+    /// for its <c>{key}</c> placeholder (for example <c>{dimension}</c>).
     /// </summary>
     private string ApplyTemplate(string sql)
     {

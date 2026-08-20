@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <see cref="WorkflowFunctionRegistration"/> entries.
 /// </summary>
 /// <remarks>
-/// Mirrors <c>ToolRegistry</c>'s shape deliberately: both are K2 security
+/// Mirrors <c>ToolRegistry</c>'s shape deliberately: both are the code-only tools rule security
 /// boundaries built once, at singleton construction time, from DI
 /// registrations, and both reject a duplicate name immediately rather than
 /// letting it surface later as a confusing "wrong function ran" bug.

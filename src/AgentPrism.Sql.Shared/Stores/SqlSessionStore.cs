@@ -85,7 +85,7 @@ internal sealed class SqlSessionStore : ISessionStore
     /// <see langword="false"/> — just like <c>SqlIdempotencyStore.ReserveAsync</c>
     /// does. Unlike <see cref="SaveAsync"/>'s unconditional overwrite, this
     /// ensures only one of two concurrent first requests to the same NEW
-    /// session "wins" the session (HATA-004).
+    /// session "wins" the session.
     /// </remarks>
     public async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {

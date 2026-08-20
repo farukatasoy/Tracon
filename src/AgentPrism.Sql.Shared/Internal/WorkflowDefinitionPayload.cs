@@ -10,11 +10,11 @@ namespace AgentPrism;
 /// well would create two records of the same fact.
 /// </para>
 /// <para>
-/// 🚨 <strong>This DTO is written by hand and is NOT synchronized automatically
+/// <strong>This DTO is written by hand and is NOT synchronized automatically
 /// with <see cref="WorkflowDefinition"/>.</strong> When a new field is added to the
 /// definition it must be added here as well; otherwise the field is
 /// <em>silently</em> not written to PostgreSQL. Neither the build nor a test
-/// breaks - only a round-trip test catches it. The same trap was hit in phase 13
+/// breaks - only a round-trip test catches it. The same trap was hit once before
 /// with <c>AgentDefinitionPayload</c>.
 /// </para>
 /// </remarks>
@@ -32,7 +32,7 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets the names of the agents that enter the graph.</summary>
     public IReadOnlyList<string> AgentNames { get; init; } = [];
 
-    /// <summary>Gets the mixed agent/function node list (phase 71, Sequential only).</summary>
+    /// <summary>Gets the mixed agent/function node list (Sequential only).</summary>
     public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
 
     /// <summary>Gets the name of the manager agent.</summary>

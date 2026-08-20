@@ -5,12 +5,12 @@ namespace AgentPrism;
 
 /// <summary>
 /// The data-plane implementation of <see cref="IDataSubjectStore"/>: counting,
-/// exporting, and erasing one data subject's content (phase 64).
+/// exporting, and erasing one data subject's content.
 /// </summary>
 /// <remarks>
 /// SQL text per target is NOT hand-copied: <see cref="DataSubjectTargetRegistry"/>
 /// defines the table/predicate/columns, <see cref="SqlDialect"/> applies the
-/// provider-specific templates — the same K-198 pattern <c>SqlRetentionStore</c> uses.
+/// provider-specific templates — the same pattern <c>SqlRetentionStore</c> uses.
 /// </remarks>
 internal sealed class SqlDataSubjectStore : IDataSubjectStore
 {

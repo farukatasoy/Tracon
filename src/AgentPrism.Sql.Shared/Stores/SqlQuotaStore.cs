@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// 🚨 In a multi-instance deployment <strong>this store is required</strong>:
+/// In a multi-instance deployment <strong>this store is required</strong>:
 /// the in-memory store keeps a separate counter per process, and the quota
 /// ends up divided by the instance count.
 /// </para>

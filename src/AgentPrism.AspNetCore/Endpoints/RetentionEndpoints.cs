@@ -8,17 +8,16 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Data retention policy and archiving endpoints (Phase 25).</summary>
+/// <summary>Data retention policy and archiving endpoints.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 The <c>preview</c> endpoint is mandatory: no one should start a deletion
+/// The <c>preview</c> endpoint is mandatory: no one should start a deletion
 /// without knowing how much data it will delete. No endpoint deletes directly
 /// — even the <c>run</c> endpoint enqueues a job (<see cref="JobKind.Retention"/>);
 /// it does not run synchronously.
 /// </para>
 /// <para>
-/// All dependencies are explicitly marked with <c>[FromServices]</c> (a lesson
-/// from Phase 9).
+/// All dependencies are explicitly marked with <c>[FromServices]</c>.
 /// </para>
 /// </remarks>
 internal static class RetentionEndpoints

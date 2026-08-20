@@ -30,6 +30,7 @@ arıyorsan dosyayı açmak yerine grep et: `grep -rn "AsyncLocal" docs/hafiza/`.
 | Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
 | `RunRecording` zinciri, `secret` filtresi, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
 | Dışa açılan MCP/A2A sunucusu (`McpServer/`, `A2A/`) | [`docs/hafiza/mcp-a2a-sunucu.md`](docs/hafiza/mcp-a2a-sunucu.md) |
+| Sevk edilen doküman metni, `docs-site/` üreteçleri, ekran görüntüsü | [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md) |
 
 ---
 

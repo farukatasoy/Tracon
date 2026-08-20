@@ -14,13 +14,13 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <c>app.UseCors(...)</c> cannot be used here. It resolves
+/// <c>app.UseCors(...)</c> cannot be used here. It resolves
 /// <c>ICorsService</c> from DI (measured: without <c>AddCors()</c>,
 /// <c>Build()</c> throws <c>InvalidOperationException</c> at host startup),
 /// but <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>
 /// runs AFTER <c>app.Build()</c>, when the container is sealed and
 /// <see cref="AgentPrismEndpointOptions.AllowedOrigins"/> is not yet known
-/// (K1 — no separate registration step). This mirrors K-251: an
+/// (the no-surprises rule — no separate registration step). It follows the same principle: an
 /// after-<c>Build()</c> extension cannot register new DI services.
 /// </para>
 /// <para>

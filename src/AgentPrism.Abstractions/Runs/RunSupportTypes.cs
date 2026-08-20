@@ -5,15 +5,15 @@ namespace AgentPrism;
 /// <summary>Token usage of a run.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 The breakdown fields are counted <strong>inside</strong> the three
+/// The breakdown fields are counted <strong>inside</strong> the three
 /// totals, never beside them — the contract is inherited verbatim from
 /// <c>Microsoft.Extensions.AI.UsageDetails</c>, whose documentation states that
 /// cached input tokens are part of the input token count. Adding
-/// <see cref="CachedInputTokens"/> to <see cref="InputTokens"/> therefore
+/// <see cref="CachedInputTokens"/> to <c>InputTokens</c> therefore
 /// counts the same tokens twice.
 /// </para>
 /// <para>
-/// 🚨 A field a provider does not report stays <see langword="null"/>; it is
+/// A field a provider does not report stays <see langword="null"/>; it is
 /// never written as zero. Zero is the claim "this was measured and it was
 /// none", which is a different statement from "this was not measured".
 /// </para>
@@ -31,7 +31,7 @@ public sealed record RunUsage
 
     /// <summary>
     /// Gets the input tokens that were served from the provider's prompt
-    /// cache. Counted INSIDE <see cref="InputTokens"/>.
+    /// cache. Counted INSIDE <c>InputTokens</c>.
     /// </summary>
     /// <remarks>
     /// <see langword="null"/> when the provider does not report it. While it is
@@ -42,20 +42,20 @@ public sealed record RunUsage
 
     /// <summary>
     /// Gets the tokens the model spent on reasoning. Counted INSIDE
-    /// <see cref="OutputTokens"/>.
+    /// <c>OutputTokens</c>.
     /// </summary>
     /// <remarks>
     /// Recorded for reporting. It is priced at the output rate, because
     /// providers do not currently bill it separately; a separate rate would be
-    /// an unmeasured distinction baked into the price schema (the K-032 line).
+    /// an unmeasured distinction baked into the price schema.
     /// </remarks>
     public long? ReasoningTokens { get; init; }
 
-    /// <summary>Gets the audio input tokens. Counted INSIDE <see cref="InputTokens"/>.</summary>
+    /// <summary>Gets the audio input tokens. Counted INSIDE <c>InputTokens</c>.</summary>
     /// <remarks>Recorded for reporting; it carries no separate rate yet.</remarks>
     public long? AudioInputTokens { get; init; }
 
-    /// <summary>Gets the audio output tokens. Counted INSIDE <see cref="OutputTokens"/>.</summary>
+    /// <summary>Gets the audio output tokens. Counted INSIDE <c>OutputTokens</c>.</summary>
     /// <remarks>Recorded for reporting; it carries no separate rate yet.</remarks>
     public long? AudioOutputTokens { get; init; }
 }
@@ -79,15 +79,14 @@ public sealed record RunError
     /// <summary>
     /// Gets the digest of the normalized message, used to cluster repetitions of
     /// the same fault. <see langword="null"/> when no classifier ran, as for
-    /// <see cref="Class"/>.
+    /// <c>Class</c>.
     /// </summary>
     public string? Fingerprint { get; init; }
 }
 
 /// <summary>
 /// Cost of a run. It is computed and written once when the run ends (a price
-/// snapshot) — a later change to the price list does not change past values
-/// (see <c>docs/20-MALIYET-VE-GOSTERGE-PANELI.md</c>, section 20.2).
+/// snapshot) — a later change to the price list does not change past values.
 /// </summary>
 public sealed record RunCost
 {
@@ -108,7 +107,7 @@ public sealed record RunCost
     /// still add up to the run's input spend and must not be double counted.
     /// </para>
     /// <para>
-    /// 🚨 An undefined cache rate does NOT push the run to
+    /// An undefined cache rate does NOT push the run to
     /// <see cref="PricingSource.Unknown"/>: the cached tokens are then priced
     /// at the normal input rate and the total stays exactly what it was before
     /// this field existed. <see cref="PricingSource.Unknown"/> means the MODEL
@@ -131,7 +130,7 @@ public sealed record RunCost
     /// say "it cost nothing", which is a different claim.
     /// </returns>
     /// <remarks>
-    /// 🚨 Every caller that needs "what did this run cost" must use THIS, never
+    /// Every caller that needs "what did this run cost" must use THIS, never
     /// <c>InputCost + OutputCost</c>. <see cref="CachedInputCost"/> is a third
     /// addend, not a subset of <see cref="InputCost"/>: the resolver subtracts
     /// the cached tokens out of the input charge and bills them here. A hand
@@ -163,7 +162,7 @@ public sealed record RunTreeCost
 
     /// <summary>Gets the total cached-input cost across the tree.</summary>
     /// <remarks>
-    /// 🚨 This is a THIRD addend of the tree's total, not a subset of
+    /// This is a THIRD addend of the tree's total, not a subset of
     /// <see cref="InputCost"/>: every run's own <see cref="RunCost.InputCost"/>
     /// already has its cached tokens subtracted out. A total that adds only
     /// input and output under-reports every tree that hit the prompt cache.
@@ -210,7 +209,7 @@ public sealed record RunStartInfo
     /// Gets the initial status of the opened row. Defaults to <see cref="RunStatus.Running"/>.
     /// </summary>
     /// <remarks>
-    /// Phase 46: a queued run opens as <see cref="RunStatus.Queued"/>. When
+    /// A queued run opens as <see cref="RunStatus.Queued"/>. When
     /// <c>StartRunAsync</c> is called a SECOND time with the same
     /// <see cref="RunId"/> — once the worker actually runs the job — the store
     /// treats it as an upsert: no new row is opened, the existing row is updated
@@ -227,7 +226,7 @@ public sealed record RunStartInfo
     /// is unknown.
     /// </summary>
     /// <remarks>
-    /// 🚨 The value never comes from the request body. See
+    /// The value never comes from the request body. See
     /// <see cref="IRunAttributionContext.UserId"/>.
     /// </remarks>
     public string? UserId { get; init; }
@@ -270,7 +269,7 @@ public sealed record RunStartInfo
     public string? Variant { get; init; }
 
     /// <summary>
-    /// Gets the source run id when this run is a replay (phase 47), or
+    /// Gets the source run id when this run is a replay, or
     /// <see langword="null"/> for a normal run.
     /// </summary>
     public Guid? ReplayOfRunId { get; init; }
@@ -315,24 +314,23 @@ public sealed record RunCompletion
     /// <see cref="ModelBinding.Fallbacks"/> link will answer instead. This
     /// field lets completion correct the record so
     /// <c>IRunStore.GetStatisticsAsync</c>'s <c>ByModel</c> breakdown groups by
-    /// the model that really ran (phase 62). <see langword="null"/> is the
+    /// the model that really ran. <see langword="null"/> is the
     /// overwhelmingly common case (no fallback happened) and is a deliberate
     /// no-op, not an omission.
     /// </remarks>
     public string? ModelId { get; init; }
 
     /// <summary>
-    /// Gets the EXPECTED tenant of the run being closed. Defence in depth; when
-    /// <see langword="null"/> no tenant check is made.
+    /// Gets the EXPECTED tenant of the run being closed. Defence in depth; when <see
+    /// langword="null"/> no tenant check is made.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// For the rationale, and why the ambient tenant is not used, see
-    /// <see cref="RunEvent.TenantId"/>. Decision K-355.
+    /// For the rationale, and why the ambient tenant is not used, see <c>RunEvent.TenantId</c>.
     /// </para>
     /// <para>
-    /// 🚨 The field is WRITE-side only and is removed from the transport contract
-    /// with <see cref="JsonIgnoreAttribute"/>.
+    /// The field is WRITE-side only and is removed from the transport contract with
+    /// <see cref="JsonIgnoreAttribute"/>.
     /// </para>
     /// </remarks>
     [JsonIgnore]
@@ -427,7 +425,7 @@ public sealed record RunQuery
     /// every kind.
     /// </summary>
     /// <remarks>
-    /// Phase 49: judge runs are <see cref="RunKind.Eval"/> and do not appear in
+    /// Judge runs are <see cref="RunKind.Eval"/> and do not appear in
     /// the default list (see <see cref="IRunStore.GetStatisticsAsync"/>); to see
     /// their cost, call <c>GET /api/runs?kind=Eval</c>.
     /// </remarks>
@@ -455,8 +453,7 @@ public sealed record RunTimeSeriesQuery
     /// <summary>
     /// Gets the kind whose runs are counted. <see langword="null"/> includes every
     /// kind — unlike <see cref="IRunStore.GetStatisticsAsync"/>, this query does
-    /// not exclude eval and workflow runs by default (see <c>docs/KARARLAR.md</c>,
-    /// K-152).
+    /// not exclude eval and workflow runs by default.
     /// </summary>
     public RunKind? Kind { get; init; }
 

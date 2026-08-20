@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// <strong>Code always wins.</strong> An MCP tool with the same name can
 /// never replace a tool registered in code. Otherwise, a remote server
 /// could take over a local tool's name and silently hijack the agent's
-/// behavior. This is a natural extension of design rule K2.
+/// behavior. This is a natural extension of the code-only tools rule.
 /// </para>
 /// <para>
 /// MCP tools are resolved <strong>per tenant</strong>: servers are

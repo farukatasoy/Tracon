@@ -1,13 +1,13 @@
 namespace AgentPrism;
 
-/// <summary>Online evaluation settings - Phase 49.</summary>
+/// <summary>Online evaluation settings.</summary>
 /// <remarks>
 /// <para>
 /// Read from the <c>AgentPrism:OnlineEvaluation</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 <strong>Two-gate default.</strong> <see cref="Enabled"/> defaults to
-/// <see langword="false"/> (the same plain K1 reading as Phase 48) AND
+/// <strong>Two-gate default.</strong> <see cref="Enabled"/> defaults to
+/// <see langword="false"/> (the plain no-surprises reading) AND
 /// <see cref="SampleRate"/> defaults to <c>0.0</c>. Even when <see cref="Enabled"/>
 /// is turned on, no run is sampled, the judge model is never called, and not
 /// a single cent is spent unless the rate is also given. The third defense is
@@ -20,14 +20,14 @@ public sealed class OnlineEvaluationOptions
     /// <summary>Configuration section name.</summary>
     public const string SectionName = "AgentPrism:OnlineEvaluation";
 
-    /// <summary>🚨 Whether online evaluation is enabled. Default <see langword="false"/>.</summary>
+    /// <summary>Whether online evaluation is enabled. Default <see langword="false"/>.</summary>
     public bool Enabled { get; set; }
 
     /// <summary>
     /// Fraction of completed runs to sample, 0.0-1.0.
     /// </summary>
     /// <remarks>
-    /// 🚨 Default <c>0.0</c>: even when <see cref="Enabled"/> is turned on,
+    /// Default <c>0.0</c>: even when <see cref="Enabled"/> is turned on,
     /// nothing is scored unless the rate is also given. Sampling itself is
     /// <strong>deterministic</strong> - it is derived from the hash of the run
     /// id; the same run is never evaluated twice, and a retry does not roll a

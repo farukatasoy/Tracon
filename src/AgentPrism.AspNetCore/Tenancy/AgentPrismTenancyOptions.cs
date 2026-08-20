@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <see cref="AgentPrismOptions.DefaultTenantId"/> tenant.
 /// </para>
 /// <para>
-/// 🚨 <strong>A header can be spoofed.</strong> An HTTP header is not proof of
+/// <strong>A header can be spoofed.</strong> An HTTP header is not proof of
 /// identity; the client can write any value it wants. Therefore:
 /// </para>
 /// <list type="bullet">
@@ -30,7 +30,7 @@ namespace AgentPrism;
 /// </list>
 /// <para>
 /// This type is deliberately not a <c>record</c>; settings classes' generated
-/// <c>ToString</c> method could leak values (decision K-035).
+/// <c>ToString</c> method could leak values.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismTenancyOptions

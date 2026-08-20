@@ -24,7 +24,7 @@ internal readonly record struct VoiceUtterance(byte[] Data, string MediaType, Ti
 /// alone fails to catch the other's failure mode.
 /// </para>
 /// <para>
-/// 🚨 The class is concurrent and carries no lock; it is fed from a single receive loop.
+/// The class is concurrent and carries no lock; it is fed from a single receive loop.
 /// </para>
 /// </remarks>
 internal sealed class VoiceUtteranceBuffer
@@ -144,7 +144,7 @@ internal sealed class VoiceUtteranceBuffer
     /// <returns>A valid WAV file.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Raw PCM alone is <strong>not</strong> a file: the resolution
+    /// Raw PCM alone is <strong>not</strong> a file: the resolution
     /// endpoint receives it as a file inside <c>multipart/form-data</c> and
     /// recognizes its type from the header. If the header is not written,
     /// the provider either rejects the audio or decodes it at the wrong speed.

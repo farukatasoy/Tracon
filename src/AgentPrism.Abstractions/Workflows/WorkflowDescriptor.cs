@@ -36,7 +36,7 @@ public sealed record WorkflowDescriptor
 
     /// <summary>
     /// Gets the mixed agent/function node list for a Sequential workflow that
-    /// uses function nodes (phase 71). Empty for every other definition.
+    /// uses function nodes. Empty for every other definition.
     /// </summary>
     public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
 

@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Converts an unmatched tool call to a real error after the run completes (Phase 47).
+/// Converts an unmatched tool call to a real error after the run completes.
 /// </summary>
 /// <remarks>
 /// <para>

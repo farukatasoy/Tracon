@@ -12,7 +12,6 @@ namespace AgentPrism;
 /// A decorator is <em>not</em> Microsoft Agent Framework middleware. The MAF middleware
 /// chain is specific to an agent, and <c>HarnessAgent</c> adds its own inner decorators.
 /// An outer decorator works the same way on every agent kind, the harness included.
-/// Rationale: <c>docs/KARARLAR.md</c>, the related decision.
 /// </para>
 /// </remarks>
 public interface IAgentDecorator

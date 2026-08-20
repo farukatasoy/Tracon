@@ -9,11 +9,11 @@ namespace AgentPrism;
 /// key's value.
 /// </summary>
 /// <remarks>
-/// 🚨 <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>
+/// <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>
 /// is checked here too, not only where a binding is written. A binding
 /// written before the prefix was configured (or through a store the endpoint
 /// layer did not validate) must not silently read an out-of-prefix
-/// configuration key (section 65.2: defense in two layers).
+/// configuration key (defense in two layers).
 /// </remarks>
 public sealed class TenantProviderCredentialResolver
 {
@@ -68,7 +68,7 @@ public sealed class TenantProviderCredentialResolver
     /// <returns>
     /// The resolved credential; <see langword="null"/> if the configuration
     /// key has no value (the binding exists, but the secret was never set —
-    /// section 65.4, this must not fall back to the global key silently).
+    ///  this must not fall back to the global key silently).
     /// </returns>
     /// <exception cref="AgentPrismException">
     /// <see cref="TenantProviderBinding.ApiKeyConfigurationName"/> is outside the allowed prefix.

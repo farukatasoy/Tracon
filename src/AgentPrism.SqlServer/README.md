@@ -67,3 +67,9 @@ for trimming. For setups that need AOT, use `AgentPrism.PostgreSql`.
 If `UsePostgreSql()` and `UseSqlServer()` are called in the same chain, **the last
 registration wins** and a warning is logged at startup. This is a configuration
 error; call only one of them.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/getting-started/persistence/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

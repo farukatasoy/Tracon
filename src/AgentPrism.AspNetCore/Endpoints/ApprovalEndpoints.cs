@@ -8,19 +8,19 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Asynchronous approval mailbox endpoints (Phase 55).</summary>
+/// <summary>Asynchronous approval mailbox endpoints.</summary>
 /// <remarks>
 /// <para>
 /// A pending approval request arises when a run driven from the queue
-/// (<c>Prefer: respond-async</c>, Phase 46) closes with
+/// (<c>Prefer: respond-async</c>) closes with
 /// <see cref="RunStatus.AwaitingApproval"/> (see <c>AgentRunJobHandler</c>). The
 /// decision is made through <see cref="DecideAsync"/>; the old run row is NEVER
-/// changed again (K-014, the same principle as <see cref="RunStatus.AwaitingInput"/>) —
+/// changed again (the same principle as <see cref="RunStatus.AwaitingInput"/>) —
 /// the decision enqueues a NEW run (same <c>sessionId</c>, new <c>RunId</c>).
 /// </para>
 /// <para>
-/// 🚨 It is written to the audit trail BEFORE calling
-/// <see cref="IPendingApprovalStore.DecideAsync"/>: the same exception as K-089
+/// It is written to the audit trail BEFORE calling
+/// <see cref="IPendingApprovalStore.DecideAsync"/>: the same exception
 /// ("an approval decision that cannot be written to the audit trail is not
 /// applied"). If the write fails, the decision is never applied at all.
 /// </para>
@@ -207,7 +207,7 @@ internal static class ApprovalEndpoints
     /// <summary>Throws if the decision cannot be written to the audit trail; returns on a successful write.</summary>
     /// <remarks>
     /// UNLIKE <c>AuditRecorder.WriteAsync</c>, it does NOT swallow the error — the same
-    /// exception as K-089 (the SAME pattern as <c>SandboxedSkillScriptRunner.WriteAuditOrThrowAsync</c>).
+    /// exception (the SAME pattern as <c>SandboxedSkillScriptRunner.WriteAuditOrThrowAsync</c>).
     /// </remarks>
     private static async ValueTask WriteAuditOrThrowAsync(
         IAuditLog auditLog,

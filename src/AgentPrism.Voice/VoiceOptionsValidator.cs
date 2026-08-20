@@ -7,9 +7,9 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// Validation is hand-written: <c>ValidateDataAnnotations()</c> uses reflection and
-/// breaks AOT compatibility (see <c>docs/hafiza/build-ve-analyzer.md</c>).
+/// breaks AOT compatibility.
 /// <para>
-/// 🚨 The error message <strong>never carries</strong> the API key. Writing the value
+/// The error message <strong>never carries</strong> the API key. Writing the value
 /// while saying the key is wrong would hand the secret to whoever sees the error.
 /// </para>
 /// </remarks>

@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// This endpoint is reachable <strong>without authentication</strong>; the UI
 /// has no other way to learn which authentication method to use. Its content
 /// is therefore deliberately narrow: it carries no secret, tenant data, agent
-/// name, or count information. Rationale: <c>docs/KARARLAR.md</c>, decision K-010.
+/// name, or count information.
 /// </remarks>
 public sealed record AgentPrismMetaResponse
 {
@@ -77,7 +77,7 @@ public sealed record AgentPrismAuthenticationMeta
 /// Reports which storage implementations are active.
 /// </summary>
 /// <remarks>
-/// In-memory stores are a supported mode, not a test helper (decision K-018).
+/// In-memory stores are a supported mode, not a test helper.
 /// They do have limits, however — process lifetime and single node — and the
 /// UI should be able to show this to the user.
 /// </remarks>
@@ -98,7 +98,7 @@ public sealed record AgentPrismStorageMeta
     /// <summary>Type name of the session store.</summary>
     public required string SessionStore { get; init; }
 
-    /// <summary>Type name of the job queue store (Phase 17).</summary>
+    /// <summary>Type name of the job queue store.</summary>
     public required string JobStore { get; init; }
 
     /// <summary>

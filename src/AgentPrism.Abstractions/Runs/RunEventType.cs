@@ -113,8 +113,7 @@ public enum RunEventType
     /// <remarks>
     /// The payload carries <em>enough to rebuild</em> the pending request: port id,
     /// request id, request and response type names, and the data to display.
-    /// Pending requests are read from these events; no separate table was added
-    /// (phase 16).
+    /// Pending requests are read from these events; no separate table was added.
     /// </remarks>
     WorkflowRequest = 18,
 
@@ -125,7 +124,7 @@ public enum RunEventType
     /// <remarks>
     /// Separate from <see cref="RunCompleted"/> and <see cref="RunFailed"/>: the
     /// work neither finished nor failed. On this event the user interface shows the
-    /// pending request card. Added in phase 16.
+    /// pending request card.
     /// </remarks>
     RunAwaitingInput = 19,
 
@@ -134,10 +133,10 @@ public enum RunEventType
     /// name, the rule name and the direction; <c>Payload</c> carries the match count.
     /// </summary>
     /// <remarks>
-    /// 🚨 Neither <c>Text</c> nor <c>Payload</c> carries the <strong>masked
+    /// Neither <c>Text</c> nor <c>Payload</c> carries the <strong>masked
     /// content</strong> — they only report THAT masking happened. When the text the
     /// model sees differs from what the user wrote, that is an event and it cannot
-    /// stay silent (the K-089 rule: a decision that cannot be recorded is a decision
+    /// stay silent (that rule: a decision that cannot be recorded is a decision
     /// that was not taken).
     /// </remarks>
     ContentMasked = 20,
@@ -147,7 +146,7 @@ public enum RunEventType
     /// name, the rule name and the direction.
     /// </summary>
     /// <remarks>
-    /// 🚨 The payload <strong>does not carry the blocked content</strong>. After the
+    /// The payload <strong>does not carry the blocked content</strong>. After the
     /// event the run becomes <c>Failed</c> and <c>runs.error_type</c> is written as
     /// <c>content_blocked</c>.
     /// </remarks>
@@ -161,7 +160,7 @@ public enum RunEventType
     /// the primary was skipped.
     /// </summary>
     /// <remarks>
-    /// 🚨 A model switch is never silent (phase 62). This event is written in
+    /// A model switch is never silent. This event is written in
     /// addition to a span tag, not instead of it — an operator reading only
     /// the run record must still see which model actually answered.
     /// </remarks>

@@ -4,8 +4,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace AgentPrism.Generators;
 
-/// <summary>Scans methods marked with <c>[AgentPrismTool]</c> at compile time and emits reflection-free <c>AIFunction</c> wrappers and compile-time diagnostics (APG0001-APG0007).</summary>
-/// <remarks>Details: <c>docs/52-KAYNAK-URETECI.md</c>.</remarks>
+/// <summary>
+/// Scans methods marked with <c>[AgentPrismTool]</c> at compile time and emits
+/// reflection-free <c>AIFunction</c> wrappers and compile-time diagnostics
+/// (APG0001-APG0007).
+/// </summary>
+/// <remarks>The generated registrations are validated at build time.</remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class ToolRegistrationGenerator : IIncrementalGenerator
 {
@@ -125,7 +129,10 @@ public sealed class ToolRegistrationGenerator : IIncrementalGenerator
     }
 
     /// <summary>Constant names for <see cref="IncrementalValueProvider{TValue}.WithTrackingName"/>.</summary>
-    /// <remarks>Tests query step cache reasons (<c>Cached</c>/<c>Modified</c>) by these names - incrementality (52.5) is only measurable through these markers.</remarks>
+    /// <remarks>
+    /// Tests query step cache reasons (<c>Cached</c>/<c>Modified</c>) by these names -
+    /// incrementality (52.5) is only measurable through these markers.
+    /// </remarks>
     internal static class TrackingNames
     {
         public const string ToolCandidates = "ToolCandidates";

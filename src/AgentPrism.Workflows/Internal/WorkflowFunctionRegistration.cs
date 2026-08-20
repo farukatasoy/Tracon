@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <param name="Descriptor">The function's name, description, and CLR types.</param>
 /// <param name="CreateExecutorFactory">
 /// Resolves the function's own dependencies from the service provider
-/// <strong>once</strong> (K-218), returning a cheap factory that builds a
+/// <strong>once</strong>, returning a cheap factory that builds a
 /// fresh <c>FunctionExecutor&lt;TInput,TOutput&gt;</c> for every workflow
 /// compile - each compile needs its own executor instance because Microsoft
 /// Agent Framework does not allow the same instance to serve two concurrent

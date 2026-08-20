@@ -1,7 +1,7 @@
 namespace AgentPrism;
 
 /// <summary>The response describing an inbound trigger definition.</summary>
-/// <remarks>🚨 Carries no signing secret value, only the configuration key's NAME (K-059).</remarks>
+/// <remarks>Carries no signing secret value, only the configuration key's NAME.</remarks>
 public sealed record InboundTriggerResponse
 {
     /// <summary>Gets the trigger name.</summary>
@@ -16,13 +16,16 @@ public sealed record InboundTriggerResponse
     /// <summary>Gets the configuration key name the signing secret is read from.</summary>
     public required string SigningSecretConfigurationName { get; init; }
 
-    /// <summary>Gets whether <see cref="SigningSecretConfigurationName"/> currently resolves to a value.</summary>
+    /// <summary>Gets whether <c>SigningSecretConfigurationName</c> currently resolves to a value.</summary>
     public required bool Resolved { get; init; }
 
     /// <summary>Gets how the request body becomes the run's message.</summary>
     public required InboundTriggerPayloadMode PayloadMode { get; init; }
 
-    /// <summary>Gets the dotted path used when <see cref="PayloadMode"/> is <see cref="InboundTriggerPayloadMode.Path"/>.</summary>
+    /// <summary>
+    /// Gets the dotted path used when <see cref="PayloadMode"/> is <see
+    /// cref="InboundTriggerPayloadMode.Path"/>.
+    /// </summary>
     public string? PayloadPath { get; init; }
 
     /// <summary>Gets whether the trigger accepts requests.</summary>
@@ -47,10 +50,16 @@ public sealed record InboundTriggerSaveRequest
     /// <summary>Gets the configuration key name the signing secret is read from. Never a value.</summary>
     public string? SigningSecretConfigurationName { get; init; }
 
-    /// <summary>Gets how the request body becomes the run's message. Default <see cref="InboundTriggerPayloadMode.WholeBody"/>.</summary>
+    /// <summary>
+    /// Gets how the request body becomes the run's message. Default <see
+    /// cref="InboundTriggerPayloadMode.WholeBody"/>.
+    /// </summary>
     public InboundTriggerPayloadMode PayloadMode { get; init; } = InboundTriggerPayloadMode.WholeBody;
 
-    /// <summary>Gets the dotted path used when <see cref="PayloadMode"/> is <see cref="InboundTriggerPayloadMode.Path"/>.</summary>
+    /// <summary>
+    /// Gets the dotted path used when <see cref="PayloadMode"/> is <see
+    /// cref="InboundTriggerPayloadMode.Path"/>.
+    /// </summary>
     public string? PayloadPath { get; init; }
 
     /// <summary>Gets whether the trigger accepts requests. Default <see langword="true"/>.</summary>

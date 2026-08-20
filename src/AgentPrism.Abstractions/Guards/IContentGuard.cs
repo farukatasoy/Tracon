@@ -20,13 +20,13 @@ namespace AgentPrism;
 /// must not change based on order.
 /// </para>
 /// <para>
-/// 🚨 A guard runs at the <strong>OUTERMOST</strong> edge of the model
+/// A guard runs at the <strong>OUTERMOST</strong> edge of the model
 /// pipeline: a blocked request never reaches the network (no money is spent),
 /// and blocking does not trip the circuit breaker (repeatedly blocked
 /// requests do not shut down the provider).
 /// </para>
 /// <para>
-/// 🚨 A guard is <em>a control, not an observability tool.</em> The
+/// A guard is <em>a control, not an observability tool.</em> The
 /// "observability must not break functionality" rule does NOT apply here:
 /// if this method throws, the run fails. Content that cannot be inspected is
 /// never let through.

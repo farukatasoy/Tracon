@@ -62,7 +62,7 @@ public static class AgentPrismSqlServerBuilderExtensions
     /// <remarks>
     /// <para>
     /// Stores are registered with <see cref="ServiceCollectionDescriptorExtensions.Replace"/>,
-    /// not <c>TryAdd</c>. Reason: <c>AddAgentPrism()</c> has already registered the
+    /// not <c>TryAdd</c>. <c>AddAgentPrism()</c> has already registered the
     /// in-memory stores with <c>TryAddSingleton</c> and runs <em>before</em> this
     /// call in the chain; using <c>TryAdd</c> here would silently do nothing.
     /// </para>
@@ -70,7 +70,6 @@ public static class AgentPrismSqlServerBuilderExtensions
     /// Overwriting is correct here because <c>UseSqlServer()</c> is the
     /// consumer's <strong>explicit</strong> choice. The "register with TryAdd"
     /// rule is for AgentPrism's defaults, not for explicit calls.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-025.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseSqlServer(
@@ -316,7 +315,6 @@ public static class AgentPrismSqlServerBuilderExtensions
     /// <remarks>
     /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
     /// This method must also be updated when a new setting is added.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismSqlServerOptions options)
     {

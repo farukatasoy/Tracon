@@ -44,8 +44,8 @@ public sealed record RunReplayResponse
 
 /// <summary>Side-by-side summary of two runs.</summary>
 /// <remarks>
-/// 🚨 The diff is <strong>not computed on the server</strong>; the endpoint
-/// only returns the two summaries and the UI shows the comparison. Phase 19's
+/// The diff is <strong>not computed on the server</strong>; the endpoint
+/// only returns the two summaries and the UI shows the comparison. The definition
 /// definition version diff follows the same pattern and the UI already has a
 /// diff component; a second computation would mean maintenance in two places.
 /// </remarks>
@@ -101,9 +101,8 @@ public sealed record RunComparisonSide
     /// Text produced by the model.
     /// </summary>
     /// <remarks>
-    /// 🚨 The non-streaming path writes <c>MessageCompleted</c>, the streaming
-    /// path produces only <c>MessageDelta</c> (see
-    /// <c>docs/hafiza/cekirdek-calistirma.md</c>). The two are NOT SUMMED:
+    /// The non-streaming path writes <c>MessageCompleted</c>, the streaming
+    /// path produces only <c>MessageDelta</c>. The two are NOT SUMMED:
     /// if <c>MessageCompleted</c> is present it is used, otherwise the chunks
     /// are concatenated — otherwise the text would be counted twice on the
     /// non-streaming path.

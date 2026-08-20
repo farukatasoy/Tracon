@@ -2,13 +2,13 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Stores single-executor election leases in the SQL database (Phase 42).</summary>
+/// <summary>Stores single-executor election leases in the SQL database.</summary>
 /// <remarks>
 /// <para>
 /// A lease table is used instead of a session lock (<c>pg_try_advisory_lock</c>/
 /// <c>sp_getapplock</c>): it behaves the same way across all three providers
 /// (SQLite has no session-lock equivalent) and does not depend on connection
-/// pooling. Rationale: <c>docs/42-TEK-YURUTUCU-SECIMI.md</c> section 42.3.
+/// pooling.
 /// </para>
 /// <para>There is no tenant column: single-executor election is a deployment-wide concept.</para>
 /// </remarks>

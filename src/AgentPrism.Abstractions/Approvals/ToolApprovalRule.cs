@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// is not relaxed.
 /// </para>
 /// <para>
-/// When <see cref="ArgumentsHash"/> is populated the rule covers only a call made with
+/// When <c>ArgumentsHash</c> is populated the rule covers only a call made with
 /// <em>the same arguments</em>. When it is empty the rule covers every call of the tool.
 /// The distinction exists because Microsoft Agent Framework offers two separate "always
 /// approve" forms: <c>CreateAlwaysApproveToolResponse</c> and
@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// <para>
 /// <see cref="ArgumentConditions"/> is a third, admin-authored form: instead of an exact
 /// argument fingerprint it carries a set of comparisons (for example "amount &lt;= 100")
-/// evaluated on every call. It is mutually exclusive with <see cref="ArgumentsHash"/>.
+/// evaluated on every call. It is mutually exclusive with <c>ArgumentsHash</c>.
 /// </para>
 /// </remarks>
 public sealed record ToolApprovalRule
@@ -48,7 +48,7 @@ public sealed record ToolApprovalRule
     /// <summary>
     /// Gets the argument conditions. All conditions must match for the rule to apply
     /// (<c>AND</c>); an empty list matches every call of the tool. Mutually exclusive
-    /// with <see cref="ArgumentsHash"/> — a rule carries one or the other, never both.
+    /// with <c>ArgumentsHash</c> — a rule carries one or the other, never both.
     /// </summary>
     public IReadOnlyList<ToolArgumentCondition> ArgumentConditions { get; init; } = [];
 

@@ -116,7 +116,7 @@ public sealed record WorkflowRespondHttpRequest
     /// <summary>
     /// Yes/no response. In a plan approval, <see langword="true"/> approves
     /// the plan; <see langword="false"/> sends it back with the correction in
-    /// the <see cref="Text"/> field.
+    /// the <c>Text</c> field.
     /// </summary>
     public bool? Approved { get; init; }
 

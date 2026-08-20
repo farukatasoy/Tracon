@@ -7,10 +7,10 @@ namespace AgentPrism;
 /// <para>
 /// A write is matched by a read that goes through the <c>tenant_id, created_at</c>
 /// index (<c>audit_log_tenant_created_idx</c>, set up in 0001). No migration was
-/// needed for the base columns; the schema has been sufficient since Phase 0.
+/// needed for the base columns; the original schema is sufficient.
 /// </para>
 /// <para>
-/// <strong>Hash chain (phase 64).</strong> <see cref="WriteAsync"/> reads the
+/// <strong>Hash chain.</strong> <see cref="WriteAsync"/> reads the
 /// tenant's current last hash, computes the new entry's hash
 /// (<see cref="AuditChainHasher"/>), and inserts. A concurrent writer racing on
 /// the SAME tenant can read the SAME last hash; the migration's
@@ -32,7 +32,7 @@ internal sealed class SqlAuditLog : IAuditLog
     private const int MaxChainWriteAttempts = 50;
 
     /// <summary>
-    /// 🚨 Upper bound of the random retry delay. Measured against real
+    /// Upper bound of the random retry delay. Measured against real
     /// PostgreSQL: WITHOUT this jitter, 20 fully concurrent writers on one
     /// tenant regularly exhausted 100 retries — every loser retries
     /// immediately, all losers hit the SAME "current last hash" at nearly the
@@ -183,9 +183,9 @@ internal sealed class SqlAuditLog : IAuditLog
 
     /// <summary>
     /// Binds <c>before</c>/<c>after</c> with <see cref="SqlDialect.AddJson"/>, NOT
-    /// <see cref="SqlDialect.AddJsonb"/> — 🚨 measured against real PostgreSQL:
+    /// <see cref="SqlDialect.AddJsonb"/> — measured against real PostgreSQL:
     /// <c>jsonb</c> does not round-trip the ORIGINAL TEXT (it reorders keys and
-    /// changes whitespace, the same K-027 reason <c>sessions.state</c> is
+    /// changes whitespace, the same reason <c>sessions.state</c> is
     /// plain <c>json</c>), so a hash computed from the text as written no longer
     /// matched the text read back and every entry misreported as
     /// <see cref="AuditChainStatus.Broken"/>. Migration 0031 changes the column

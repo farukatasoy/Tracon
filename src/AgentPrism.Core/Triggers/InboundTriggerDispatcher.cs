@@ -16,10 +16,10 @@ public enum InboundTriggerOutcome
     /// the tolerance window. Maps to <c>401</c>.
     /// </summary>
     /// <remarks>
-    /// 🚨 Deliberately ONE outcome for all five cases (section 66.2: "the
+    /// Deliberately ONE outcome for all five cases ("the
     /// response does not distinguish 'trigger missing' from 'wrong
-    /// signature' — the same body and code in both"). An unknown tenant
-    /// (K-382), an unknown or disabled trigger name, and every signature
+    /// signature' — the same body and code in both"). An unknown tenant,
+    /// an unknown or disabled trigger name, and every signature
     /// failure produce the IDENTICAL generic response; a caller without a
     /// valid secret must not be able to enumerate which trigger names exist
     /// by comparing responses.
@@ -42,7 +42,10 @@ public sealed record InboundTriggerValidationResult
     /// <summary>The validation outcome.</summary>
     public required InboundTriggerOutcome Outcome { get; init; }
 
-    /// <summary>A human-readable detail for <see cref="InboundTriggerOutcome.InvalidPayload"/>; otherwise <see langword="null"/>.</summary>
+    /// <summary>
+    /// A human-readable detail for <see cref="InboundTriggerOutcome.InvalidPayload"/>;
+    /// otherwise <see langword="null"/>.
+    /// </summary>
     public string? ErrorDetail { get; init; }
 
     /// <summary>Populated only when <see cref="Outcome"/> is <see cref="InboundTriggerOutcome.Valid"/>.</summary>
@@ -68,7 +71,7 @@ public sealed record InboundTriggerDispatchResult
     /// <summary>
     /// The identifier of the <c>runs</c> row, when the target is an agent —
     /// known synchronously because the row is written before the job runs
-    /// (the same pattern as phase 46's queued agent runs). <see langword="null"/>
+    /// (the same pattern as the queued agent runs). <see langword="null"/>
     /// for a workflow target: a workflow job is not tied to a single run id
     /// until an engine actually picks it up.
     /// </summary>
@@ -80,20 +83,19 @@ public sealed record InboundTriggerDispatchResult
 
 /// <summary>
 /// Validates and dispatches inbound trigger requests: HMAC signature and
-/// timestamp window, replay protection, payload extraction, and queuing
-/// (phase 66).
+/// timestamp window, replay protection, payload extraction, and queuing.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Host-agnostic by design (K1): this type has no dependency on ASP.NET Core.
+/// Host-agnostic by design: this type has no dependency on ASP.NET Core.
 /// The HTTP layer (<c>TriggerEndpoints</c>) owns request body size bounding
-/// and the quota check (<c>QuotaGate</c>, K-394's precedent) — both are
+/// and the quota check (<c>QuotaGate</c>) — both are
 /// naturally HTTP-shaped concerns (a <c>413</c>/<c>429</c> response with
 /// specific headers) and sit BETWEEN <see cref="ValidateAsync"/> and
 /// <see cref="EnqueueAsync"/>.
 /// </para>
 /// <para>
-/// 🚨 Replay protection reuses <see cref="IIdempotencyStore"/> (phase 43)
+/// Replay protection reuses <see cref="IIdempotencyStore"/>
 /// keyed by the request's own signature, not a client-supplied
 /// <c>Idempotency-Key</c>. The reservation is deliberately never completed
 /// on success: leaving it <see cref="IdempotencyState.Reserved"/> forever

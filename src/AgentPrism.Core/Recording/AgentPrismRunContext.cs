@@ -12,17 +12,16 @@ namespace AgentPrism;
 /// identity as a parameter: the call chain belongs to MAF.
 /// </para>
 /// <para>
-/// 🚨 The value is held in an <see cref="AsyncLocal{T}"/>. This means the
+/// The value is held in an <see cref="AsyncLocal{T}"/>. This means the
 /// assignment <strong>does not flow back to the caller</strong>: the
 /// <c>Set</c> call must happen in the <em>own body</em> of the method that
 /// starts the run. The same trap happened with
-/// <see cref="System.Diagnostics.Activity.Current"/> in Phase 6.
+/// <see cref="System.Diagnostics.Activity.Current"/>.
 /// </para>
 /// <para>
 /// The value <strong>flows downward</strong>: because Microsoft Agent
 /// Framework's background agent task captures <c>ExecutionContext</c>, a
 /// sub-agent running on a different thread also sees the same scope.
-/// Measured in Phase 12.
 /// </para>
 /// </remarks>
 public static class AgentPrismRunContext
@@ -71,13 +70,13 @@ public sealed record AgentRunScope
     /// Gets the session the run belongs to. <see langword="null"/> for a sessionless run.
     /// </summary>
     /// <remarks>
-    /// 🚨 Content that a tool produces and writes to the <c>attachments</c>
-    /// table MUST CARRY this field. The retention policy (Phase 25) treats an
+    /// Content that a tool produces and writes to the <c>attachments</c>
+    /// table MUST CARRY this field. The retention policy treats an
     /// attachment with an empty <c>session_id</c> field as <strong>orphaned</strong>
     /// and deletes it after the cutoff date; the content in the transcript is
     /// then lost while the session is still alive. A tool cannot access
     /// <c>AgentSession</c>, so this is the only place it can read the session
-    /// identity from. Rationale: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G1.
+    /// identity from.
     /// </remarks>
     public string? SessionId { get; init; }
 
@@ -87,18 +86,24 @@ public sealed record AgentRunScope
     /// <summary>Gets the definition version this run measures. <see langword="null"/> if unknown.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Gets the identity of the experiment this run belongs to. <see langword="null"/> for a run outside an experiment.</summary>
+    /// <summary>
+    /// Gets the identity of the experiment this run belongs to. <see langword="null"/>
+    /// for a run outside an experiment.
+    /// </summary>
     public Guid? ExperimentId { get; init; }
 
-    /// <summary>Gets the name of the experiment arm this run is assigned to. <see langword="null"/> for a run outside an experiment.</summary>
+    /// <summary>
+    /// Gets the name of the experiment arm this run is assigned to. <see
+    /// langword="null"/> for a run outside an experiment.
+    /// </summary>
     public string? Variant { get; init; }
 
     /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>
-    /// The sequence number is produced by <strong>a single writer</strong>
-    /// (decision K-014). If a sub-call set up its own writer, the same run
+    /// The sequence number is produced by <strong>a single writer</strong>.
+    /// If a sub-call set up its own writer, the same run
     /// would end up with two independent counters and the sequence numbers
     /// would collide.
     /// </remarks>
@@ -126,7 +131,7 @@ public sealed record AgentRunScope
     /// <remarks>
     /// The write surface is <see cref="AuthorizingAIFunction"/>; the read side
     /// is <c>ToolInvocationTracker</c>. Same ambient-write/scoped-read pattern
-    /// as <see cref="ToolUsage"/> (phase 28), applied in phase 69.
+    /// as <see cref="ToolUsage"/>.
     /// </remarks>
     internal ToolAuthorizationAccumulator? ToolAuthorization { get; init; }
 
@@ -140,7 +145,7 @@ public sealed record AgentRunScope
     /// <c>RunRecordingAgent.CompleteAsync</c>, which uses it in place of the
     /// primary model for cost resolution, metrics, and the <c>runs.model_id</c>
     /// override — the same ambient-write/scoped-read pattern as
-    /// <see cref="ToolUsage"/> (phase 28) applied to phase 62.
+    /// <see cref="ToolUsage"/>.
     /// </remarks>
     internal FallbackModelAttribution? FallbackAttribution { get; init; }
 }
@@ -161,7 +166,13 @@ internal sealed class FallbackModelAttribution
     private string? _provider;
     private string? _model;
 
-    /// <summary>Records that <paramref name="provider"/>/<paramref name="model"/> answered instead of the primary binding.</summary>
+    /// <summary>
+    /// Records that
+    /// <paramref name="provider"/>
+    /// /
+    /// <paramref name="model"/>
+    /// answered instead of the primary binding.
+    /// </summary>
     public void Record(string provider, string model)
     {
         Volatile.Write(ref _provider, provider);

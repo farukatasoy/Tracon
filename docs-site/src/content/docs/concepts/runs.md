@@ -176,6 +176,25 @@ curl "http://localhost:5081/agentprism/api/stats" | jq '.byUser, .byLabel'
 `byLabel` rows do **not** sum to `totalRuns`: a run carrying three labels appears
 in three of them. A label set is not a partition of the runs.
 
+### Starting a run from .NET with explicit identity
+
+`AgentPrismRunOptions` is the .NET-side counterpart of the run request. It is not a
+configuration section: it is passed per call, and every property answers "which run is
+this, and where does it sit in a larger story".
+
+| Property | What it sets |
+|---|---|
+| `RunId` | The identifier to record this run under. Supply your own when the caller already has one; otherwise AgentPrism generates it |
+| `ParentRunId` · `RootRunId` · `Depth` | The run's place in a call tree. The child-agent invoker fills these in; set them yourself only when you drive a tree by hand |
+| `AgentVersion` | The definition version this run used, when you resolved a specific one |
+| `ExperimentId` | The experiment this run is a sample of, so results group correctly |
+| `ReplayOfRunId` | The original run this one replays, which is what makes a comparison possible |
+| `SessionId` | The session at the root of the tree. It feeds the run scope, not the run row's own `session_id` |
+| `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
+
+Leave every property unset for an ordinary run: AgentPrism then records a root run with
+a generated id, and the values above are filled in by the components that own them.
+
 ## Three ways to start a run
 
 | | How | Response |

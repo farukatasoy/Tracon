@@ -5,15 +5,14 @@ namespace AgentPrism;
 /// <summary>
 /// A source the catalog collects agents from. AgentPrism joins several sources into
 /// one catalog: the ones declared in code, the ones stored in the database and (from
-/// phase 4 onwards) Microsoft Agent Framework hosting registrations.
+/// onwards) Microsoft Agent Framework hosting registrations.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This abstraction keeps <c>AgentPrism.Core</c> from depending on the prerelease
 /// <c>Microsoft.Agents.AI.Hosting</c> package. The bridge that shows MAF hosting
 /// registrations in the catalog implements this interface inside
-/// <c>AgentPrism.AspNetCore</c>. Rationale: <c>docs/KARARLAR.md</c>, decisions K-008
-/// and K-019.
+/// <c>AgentPrism.AspNetCore</c>.
 /// </para>
 /// </remarks>
 public interface IAgentSource

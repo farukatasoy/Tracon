@@ -6,21 +6,20 @@ namespace AgentPrism;
 
 /// <summary>
 /// A background service that periodically closes expired pending approval requests with
-/// <see cref="ApprovalStatus.Expired"/> status and changes their runs to <see cref="RunStatus.Failed"/>
-/// (Phase 55).
+/// <see cref="ApprovalStatus.Expired"/> status and changes their runs to <see cref="RunStatus.Failed"/>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Uses the same pattern as <see cref="RunReconciliationService"/>. When
 /// <see cref="AgentPrismApprovalOptions.ExpirationEnabled"/> is enabled, only one instance
-/// scans across the cluster. It uses <see cref="SingletonGuard"/>, the Phase 42 pattern.
+/// scans across the cluster. It uses <see cref="SingletonGuard"/> for that.
 /// </para>
 /// <para>
 /// For every closed request, this service also changes its <c>runs</c> row to
 /// <see cref="RunStatus.Failed"/>. Otherwise, a client could see
 /// <see cref="RunStatus.AwaitingApproval"/> forever through <c>GET /api/runs/{id}</c>.
 /// The non-UPsert behavior of <c>IRunStore.CompleteRunAsync</c>, which does not check the
-/// previous status, permits this. K-355 only validates the expected tenant, not the previous status.
+/// previous status, permits this: the store validates the expected tenant, not the previous status.
 /// </para>
 /// </remarks>
 internal sealed class ApprovalExpirationService(

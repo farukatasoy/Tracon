@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// <c>DefaultRunAttributionContext</c> reads it.
 /// </para>
 /// <para>
-/// 🚨 An <see cref="AsyncLocal{T}"/> write made inside an <c>async</c> method
+/// An <see cref="AsyncLocal{T}"/> write made inside an <c>async</c> method
 /// does NOT flow back to its caller. Open the scope in the body of the method
 /// that actually starts the run, and keep it alive across the whole run — on a
 /// streaming path that means the scope must still be open before every

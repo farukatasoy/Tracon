@@ -5,7 +5,7 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// Computes the hash chain link for an audit trail entry (phase 64). The single
+/// Computes the hash chain link for an audit trail entry. The single
 /// place the canonical form is defined; both the write path and the verify path
 /// call it, so the two can never drift apart.
 /// </summary>
@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// afterward and makes an already-written chain unverifiable.
 /// </para>
 /// <para>
-/// 🚨 <c>createdAt</c> is rounded down to microsecond precision before it is
+/// <c>createdAt</c> is rounded down to microsecond precision before it is
 /// hashed. PostgreSQL's <c>timestamptz</c> stores only microsecond precision (it
 /// drops the last digit of a .NET 100ns tick); without this rounding, a value
 /// hashed with full tick precision at write time would never match the value
@@ -33,7 +33,10 @@ public static class AuditChainHasher
     private const long TicksPerMicrosecond = 10;
 
     /// <summary>Computes the hash of an audit entry.</summary>
-    /// <param name="previousHash">The hash of the previous entry of the same tenant; <see langword="null"/> for the first entry.</param>
+    /// <param name="previousHash">
+    /// The hash of the previous entry of the same tenant; <see langword="null"/> for
+    /// the first entry.
+    /// </param>
     /// <param name="tenantId">The tenant id.</param>
     /// <param name="actor">The actor.</param>
     /// <param name="action">The action name.</param>
@@ -70,7 +73,7 @@ public static class AuditChainHasher
     /// <param name="value">The timestamp.</param>
     /// <returns>The rounded timestamp, in UTC.</returns>
     /// <remarks>
-    /// 🚨 The SQL write path (<c>SqlAuditLog.WriteAsync</c>) truncates
+    /// The SQL write path (<c>SqlAuditLog.WriteAsync</c>) truncates
     /// <see cref="AuditEntry.CreatedAt"/> to THIS value BEFORE it is hashed AND
     /// before it is written to the <c>created_at</c> column. Truncating only for
     /// the hash (and leaving the column at full precision) is not enough: whether
@@ -123,7 +126,10 @@ public static class AuditChainHasher
         return builder.ToString();
     }
 
-    /// <summary>Appends a JSON string value (or <c>null</c>), escaping the four characters that could change the field boundary.</summary>
+    /// <summary>
+    /// Appends a JSON string value (or <c>null</c>), escaping the four characters that
+    /// could change the field boundary.
+    /// </summary>
     private static void AppendJsonString(StringBuilder builder, string? value)
     {
         if (value is null)

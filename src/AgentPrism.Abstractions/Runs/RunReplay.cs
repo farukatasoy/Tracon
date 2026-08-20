@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>How tools are handled during replay.</summary>
 /// <remarks>
-/// 🚨 Written and read <strong>as a name</strong> in JSON. Without the
+/// Written and read <strong>as a name</strong> in JSON. Without the
 /// converter, the minimal API cannot resolve the body, and the request fails
 /// with an <em>empty-bodied</em> <c>400</c> — the error message does not say
 /// why. The same note applies to <see cref="RunScoreKind"/>.
@@ -26,7 +26,7 @@ public enum ReplayToolMode
     ReplayTools = 1,
 
     /// <summary>
-    /// 🚨 Tools actually run and produce side effects. If any tool requires
+    /// Tools actually run and produce side effects. If any tool requires
     /// approval, the request is rejected; the endpoint also requires the
     /// <c>Admin</c> role.
     /// </summary>
@@ -67,7 +67,7 @@ public sealed record RunReplayRequest
 /// Replay could not find a recorded tool result.
 /// </summary>
 /// <remarks>
-/// 🚨 Silently skipping or running live is <strong>rejected</strong>: the
+/// Silently skipping or running live is <strong>rejected</strong>: the
 /// first produces a gap the model cannot see and silently corrupts the
 /// result; the second produces a side effect the user did not ask for. The
 /// endpoint turns this exception into a <c>422</c> and writes which tool

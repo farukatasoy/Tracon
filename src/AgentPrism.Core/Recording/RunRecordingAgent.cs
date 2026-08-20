@@ -66,7 +66,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="modelId">The model that the agent is bound to. <see langword="null"/> when unknown.</param>
     /// <param name="modelProvider">
     /// The model provider that the agent is bound to. It is used only for cost
-    /// resolution and is not persisted (see <c>docs/KARARLAR.md</c> K-154).
+    /// resolution and is not persisted.
     /// </param>
     /// <param name="timeProvider">The time source. When <see langword="null"/>, the system clock is used.</param>
     /// <param name="graphOptions">
@@ -102,29 +102,29 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// stay empty).
     /// </param>
     /// <param name="runInputStore">
-    /// The input store (phase 47). When <see langword="null"/>, or when
+    /// The input store. When <see langword="null"/>, or when
     /// <see cref="AgentPrismRunRecordingOptions.RecordRunInput"/> is off, the input is
     /// not written and the run cannot be replayed.
     /// </param>
     /// <param name="runSampler">
-    /// The online evaluation sampler (phase 49). When <see langword="null"/>,
+    /// The online evaluation sampler. When <see langword="null"/>,
     /// no run is sampled.
     /// </param>
     /// <param name="contentGuardPipeline">
-    /// The content guard pipeline (phase 48). When <see langword="null"/>, or when
+    /// The content guard pipeline. When <see langword="null"/>, or when
     /// <see cref="ContentGuardPipeline.HasGuards"/> is <see langword="false"/>, the input is
     /// recorded raw. When it is supplied, the input written to the <c>RunStarted</c> event and
     /// to <see cref="IRunInputStore"/> passes through the SAME inspection as the text that
     /// <see cref="ContentGuardingChatClient"/> sends to the model — if the two diverge, masked
-    /// or blocked content stays raw in the durable store (HATA-S3-006).
+    /// or blocked content stays raw in the durable store.
     /// </param>
     /// <param name="attributionContext">
-    /// The attribution context (phase 68). When <see langword="null"/>, the run records no
+    /// The attribution context. When <see langword="null"/>, the run records no
     /// user and no labels — the same outcome as the built-in
     /// <see cref="DefaultRunAttributionContext"/> with no ambient scope open.
     /// </param>
     /// <param name="sinks">
-    /// The run event observers (phase 70). When <see langword="null"/> or empty, every
+    /// The run event observers. When <see langword="null"/> or empty, every
     /// event goes to <paramref name="runStore"/> only — the identical hot path as before
     /// this extension point existed.
     /// </param>
@@ -567,11 +567,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// therefore it neither throws an exception nor gets canceled.
     /// </summary>
     /// <remarks>
-    /// 🚨 HATA-S4-012: creating the scope was DELIBERATELY separated from
+    /// creating the scope was DELIBERATELY separated from
     /// <see cref="WriteRunStartAsync"/> (the step that performs I/O and can be canceled).
     /// In the old single-piece <c>BeginRunAsync</c>, the scope was created only after
     /// <see cref="SaveInputAsync"/> returned SUCCESSFULLY; and <c>SaveInputAsync</c>
-    /// DELIBERATELY does not swallow <see cref="OperationCanceledException"/> (K-034 — so
+    /// DELIBERATELY does not swallow <see cref="OperationCanceledException"/> (so
     /// that a real cancellation is not silenced). The result: while the RunStarted event
     /// was ALREADY written to the store (a separate, EARLIER write), if the client dropped
     /// the connection in this narrow window, the exception escaped the method WITHOUT ever
@@ -682,7 +682,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// this to the root would lose as many rows as the depth of the tree.
     /// </para>
     /// <para>
-    /// 🚨 The error is <strong>swallowed</strong>: observability does not break
+    /// The error is <strong>swallowed</strong>: observability does not break
     /// functionality (the same contract as <see cref="IRunStore"/>). A run whose input
     /// could not be written still works; it only cannot be replayed.
     /// </para>
@@ -722,7 +722,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <summary>Writes the consumption of a completed root run into the quota counters.</summary>
     /// <remarks>
     /// When the price is undefined, <see cref="QuotaConsumption.Cost"/> stays
-    /// <see langword="null"/> — <strong>not</strong> zero (the phase 20 rule). Such a run
+    /// <see langword="null"/> — <strong>not</strong> zero. Such a run
     /// does not count toward the monetary quota, but it does count toward the token quota:
     /// when the quota cannot be applied in money, it falls back to tokens.
     /// </remarks>
@@ -753,10 +753,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     }
 
     /// <summary>
-    /// Makes the sampling decision for online evaluation when a root run ends (phase 49).
+    /// Makes the sampling decision for online evaluation when a root run ends.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="RunSampler.SampleAsync"/> already swallows its own error (see the class
+    /// <see cref="RunSampler.SampleAsync"/> already swallows its own error (see the class
     /// documentation); the <c>try/catch</c> here is a second layer of defense — sampling
     /// must NEVER AFFECT the run (the rule that observability does not break functionality).
     /// </remarks>
@@ -791,7 +791,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
     /// <summary>Emits <c>run.completed</c>/<c>run.failed</c> when a root run ends.</summary>
     /// <remarks>
-    /// The payload carries only a <strong>summary</strong> (K-161): the message content and
+    /// The payload carries only a <strong>summary</strong>: the message content and
     /// the model response do not go in here. A receiver that wants the content calls
     /// <c>/api/runs/{id}</c>.
     /// </remarks>
@@ -1112,7 +1112,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// Reads the run's attribution.
     /// </summary>
     /// <remarks>
-    /// 🚨 Must be called from a SYNCHRONOUS body. See the note at the call site.
+    /// Must be called from a SYNCHRONOUS body. See the note at the call site.
     /// The guarantees (a faulty implementation cannot kill the run, an oversized
     /// attribution is dropped whole rather than trimmed, the label map is frozen)
     /// live in <see cref="RunAttributionReader"/> so that every recording path —

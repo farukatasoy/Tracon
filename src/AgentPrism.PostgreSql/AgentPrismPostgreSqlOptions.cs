@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>Settings for AgentPrism's PostgreSQL persistence layer.</summary>
 /// <remarks>
 /// Validation is done by hand in <see cref="AgentPrismPostgreSqlOptionsValidator"/>;
-/// <c>DataAnnotations</c> is not used. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// <c>DataAnnotations</c> is not used.
 /// </remarks>
 public sealed class AgentPrismPostgreSqlOptions
 {
@@ -44,16 +44,16 @@ public sealed class AgentPrismPostgreSqlOptions
     public int CommandTimeoutSeconds { get; set; } = 30;
 
     /// <summary>
-    /// Whether the "knowledge" migration set is applied. Default <see langword="false"/> (K1).
+    /// Whether the "knowledge" migration set is applied. Default <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// The knowledge set needs the <c>pgvector</c> extension (phase 51); a
+    /// The knowledge set needs the <c>pgvector</c> extension; a
     /// consumer on a managed PostgreSQL without permission to install
     /// extensions never sees it unless this is turned on. While it is
     /// <see langword="false"/>, no <see cref="IVectorSearchStore"/> is
     /// registered — an agent definition that requests vector search fails
     /// compilation with a clear error instead of a database error at run
-    /// time. Rationale: <c>docs/67-ISTEGE-BAGLI-MIGRATION-SETI.md</c>.
+    /// time.
     /// </remarks>
     public bool EnableKnowledge { get; set; }
 }

@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// Settings are sent through <c>Microsoft.Extensions.AI</c>'s official escape
 /// hatch, <see cref="ChatOptions.RawRepresentationFactory"/>: the factory produces
 /// a <see cref="MessageCreateParams"/> and the Anthropic adapter builds the
-/// request on top of that object. Measured (2026-08-05): the adapter
+/// request on top of that object. Measured: the adapter
 /// <strong>keeps</strong> the fields we write and only adds the fields it
 /// produces itself, such as <c>messages</c>/<c>system</c>/<c>tools</c> — so writing
 /// <c>model</c> and <c>max_tokens</c> here is required, otherwise the request goes
@@ -136,7 +136,7 @@ internal sealed record AnthropicThinkingPayload(
 /// <remarks>
 /// These small records are serialized instead of the SDK's own model types:
 /// reflection-based <c>JsonSerializer</c> overloads produce <c>IL2026</c>/<c>IL3050</c>,
-/// and <c>AgentPrism.Anthropic</c> is marked AOT compatible (decision K-006).
+/// and <c>AgentPrism.Anthropic</c> is marked AOT compatible.
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.General)]
 [JsonSerializable(typeof(string))]

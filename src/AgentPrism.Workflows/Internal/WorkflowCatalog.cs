@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// On a name clash, <strong>code wins</strong>. The same rule applies to the
-/// agent catalog (K-019): a definition in code is validated at build time, and
+/// agent catalog: a definition in code is validated at build time, and
 /// someone with write access to the database cannot take over a behavior
 /// registered in code.
 /// </remarks>
@@ -110,7 +110,7 @@ internal sealed class WorkflowCatalog
     /// <exception cref="AgentPrismException">The definition is invalid, or an agent cannot be found.</exception>
     /// <remarks>
     /// The graph is <strong>rebuilt on every run</strong>, never cached.
-    /// Reason: Microsoft Agent Framework executors carry state, and using the
+    /// Microsoft Agent Framework executors carry state, and using the
     /// same <see cref="Workflow"/> instance for two concurrent runs would
     /// share that state between them. The build cost is negligible next to a
     /// single model call.

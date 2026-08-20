@@ -24,7 +24,7 @@ namespace AgentPrism;
 /// the call is not automatically approved and the system asks the user. This is the safe default.
 /// </para>
 /// <para>
-/// <strong>A code-defined policy (Phase 63) runs before the data rules and can
+/// <strong>A code-defined policy runs before the data rules and can
 /// override them.</strong> Code is a security boundary; data — writable from the
 /// UI — is not allowed to loosen it. See <see cref="ToolApprovalContext"/> and
 /// <c>IAgentPrismBuilder.AddToolApprovalPolicy(...)</c>.
@@ -69,7 +69,7 @@ public sealed class ToolApprovalRuleEvaluator
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> if the call is automatically approved.</returns>
     /// <remarks>
-    /// 🚨 Code runs first and can override data in both directions: a
+    /// Code runs first and can override data in both directions: a
     /// <see cref="ToolApprovalPolicyDecision.Required"/> policy forces approval even if a
     /// data rule would otherwise auto-approve the call, and
     /// <see cref="ToolApprovalPolicyDecision.NotRequired"/> auto-approves even with no

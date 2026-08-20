@@ -8,14 +8,14 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Schedule definitions, manual triggering, and job queue viewing endpoints (Phase 17).
+/// Schedule definitions, manual triggering, and job queue viewing endpoints.
 /// </summary>
 /// <remarks>
-/// 🚨 All dependencies other than <see cref="IJobScheduleStore"/>/<see cref="IJobStore"/>
+/// All dependencies other than <see cref="IJobScheduleStore"/>/<see cref="IJobStore"/>
 /// are marked <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale
 /// is the same as <see cref="WorkflowEndpoints"/>. Unlike Workflow, there is no
-/// optional engine here: the queue and schedule stores are always registered
-/// (K-018), so the <c>501</c> pattern is not needed.
+/// optional engine here: the queue and schedule stores are always registered,
+/// so the <c>501</c> pattern is not needed.
 /// </remarks>
 internal static class SchedulingEndpoints
 {

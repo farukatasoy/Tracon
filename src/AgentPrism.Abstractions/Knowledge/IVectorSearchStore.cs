@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>There is NO default implementation</strong> (K4). The only
+/// <strong>There is NO default implementation</strong>. The only
 /// concrete implementation is in <c>AgentPrism.PostgreSql</c> and requires the
 /// <c>pgvector</c> extension. A SQL Server or SQLite consumer may register
 /// their own implementation; when none is registered, <c>EnableVectorSearch = true</c>
@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// Measured (10.8.0): that type requires an
 /// <c>Expression&lt;Func&lt;TRecord,bool&gt;&gt;</c> filter; translating an
 /// expression tree breaks the AOT stance, and <c>AgentPrism.PostgreSql</c> is
-/// AOT-compatible. See <c>docs/KARARLAR.md</c> for the rationale.
+/// AOT-compatible.
 /// </para>
 /// </remarks>
 public interface IVectorSearchStore

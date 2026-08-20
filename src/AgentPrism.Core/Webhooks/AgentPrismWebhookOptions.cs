@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Event publishing (webhook) settings — Phase 21.</summary>
+/// <summary>Event publishing (webhook) settings.</summary>
 /// <remarks>
 /// Read from the <c>AgentPrism:Webhooks</c> configuration section.
 /// </remarks>
@@ -16,7 +16,7 @@ public sealed class AgentPrismWebhookOptions
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// 🚨 Whether delivery to private network addresses is allowed.
+    /// Whether delivery to private network addresses is allowed.
     /// <strong>Disabled by default.</strong>
     /// </summary>
     /// <remarks>
@@ -58,9 +58,9 @@ public sealed class AgentPrismWebhookOptions
     /// The retry ladder. The list's length is also the maximum number of attempts.
     /// </summary>
     /// <remarks>
-    /// This ladder is handed to Phase 17's queue through
+    /// This ladder is handed to the queue through
     /// <c>ReleaseForRetryAsync(retryAfter)</c>; a second queue or scheduler
-    /// is not written (K-160).
+    /// is not written.
     /// </remarks>
     public IList<TimeSpan> RetryDelays { get; } =
     [

@@ -18,11 +18,11 @@ namespace AgentPrism;
 /// cannot be reversed. This is why <c>MapAgentPrism</c> cannot call the UI
 /// package directly; it resolves the registration from the service provider. If
 /// no registration exists, the UI routes are never wired up and the HTTP surface
-/// stays as it was in Phase 4.
+/// is unchanged.
 /// </para>
 /// <para>
 /// Implementations are registered with <c>TryAdd</c>; the consumer's own
-/// registration wins (rule K4).
+/// registration wins (the replaceable-extension rule).
 /// </para>
 /// </remarks>
 public interface IAgentPrismUiProvider

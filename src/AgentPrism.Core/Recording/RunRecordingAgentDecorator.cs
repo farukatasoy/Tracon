@@ -42,19 +42,28 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="pricingResolver">The cost resolver. If <see langword="null"/>, cost is not computed.</param>
     /// <param name="quotaEnforcer">The quota accountant. If <see langword="null"/>, consumption is not counted.</param>
     /// <param name="webhookPublisher">The event publisher. If <see langword="null"/>, no events are published.</param>
-    /// <param name="cancellationRegistry">The cancellation registry. If <see langword="null"/>, the run cannot be canceled from outside.</param>
-    /// <param name="errorClassifier">The error classifier. If <see langword="null"/>, no error class/fingerprint is computed.</param>
-    /// <param name="runInputStore">The input store. If <see langword="null"/>, input is not recorded and replay does not work.</param>
-    /// <param name="runSampler">The online evaluation sampler (Phase 49). If <see langword="null"/>, no run is sampled.</param>
+    /// <param name="cancellationRegistry">
+    /// The cancellation registry. If <see langword="null"/>, the run cannot be canceled
+    /// from outside.
+    /// </param>
+    /// <param name="errorClassifier">
+    /// The error classifier. If <see langword="null"/>, no error class/fingerprint is
+    /// computed.
+    /// </param>
+    /// <param name="runInputStore">
+    /// The input store. If <see langword="null"/>, input is not recorded and replay
+    /// does not work.
+    /// </param>
+    /// <param name="runSampler">The online evaluation sampler. If <see langword="null"/>, no run is sampled.</param>
     /// <param name="contentGuardPipeline">
-    /// The content guard pipeline (Phase 48). If <see langword="null"/>, recorded
-    /// input is written without inspection. See the note in the <see cref="RunRecordingAgent"/> constructor (HATA-S3-006).
+    /// The content guard pipeline. If <see langword="null"/>, recorded
+    /// input is written without inspection. See the note in the <see cref="RunRecordingAgent"/> constructor.
     /// </param>
     /// <param name="attributionContext">
-    /// The attribution context (Phase 68). If <see langword="null"/>, the run records no user and no labels.
+    /// The attribution context. If <see langword="null"/>, the run records no user and no labels.
     /// </param>
     /// <param name="sinks">
-    /// The run event observers (Phase 70). If <see langword="null"/> or empty, every event
+    /// The run event observers. If <see langword="null"/> or empty, every event
     /// goes to <paramref name="runStore"/> only.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>

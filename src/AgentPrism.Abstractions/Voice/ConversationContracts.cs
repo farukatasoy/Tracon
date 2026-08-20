@@ -21,7 +21,7 @@ public sealed record VoiceSessionRecord
     public required Guid Id { get; init; }
 
     /// <summary>
-    /// The tenant. 🚨 Resolved when the connection is established and
+    /// The tenant. Resolved when the connection is established and
     /// <strong>fixed</strong> for the connection's lifetime.
     /// </summary>
     public required string TenantId { get; init; }
@@ -44,7 +44,7 @@ public sealed record VoiceSessionRecord
     /// <summary>
     /// The total resolved audio duration (seconds). Stays
     /// <see langword="null"/> if the provider does not report duration —
-    /// AgentPrism does not fabricate a duration (K-032).
+    /// AgentPrism does not fabricate a duration.
     /// </summary>
     public decimal? InputSeconds { get; init; }
 
@@ -106,7 +106,7 @@ public sealed record VoiceSessionQuery
 /// </para>
 /// <para>
 /// The contract lives in <c>AgentPrism.Abstractions</c> because the HTTP
-/// layer sees these types while serving the voice endpoints (the K-174 pattern).
+/// layer sees these types while serving the voice endpoints.
 /// </para>
 /// </remarks>
 public interface IVoiceSessionStore

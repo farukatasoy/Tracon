@@ -15,8 +15,8 @@ public sealed class ToolRegistry : IToolRegistry
 
     /// <summary>Initializes a new registry from registrations.</summary>
     /// <param name="registrations">The tool registrations.</param>
-    /// <param name="authorizationHandler">The authorization policy applied before every server-side call (F-113).</param>
-    /// <param name="optionsMonitor">Supplies the installation's default tool timeout (F-114).</param>
+    /// <param name="authorizationHandler">The authorization policy applied before every server-side call.</param>
+    /// <param name="optionsMonitor">Supplies the installation's default tool timeout.</param>
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>

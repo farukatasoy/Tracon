@@ -5,13 +5,13 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This record is a <strong>projection</strong>, not the owner: the single source of
+/// This record is a <strong>projection</strong>, not the owner: the single source of
 /// truth is the session state of MAF (<c>ToolApprovalRequestContent</c>, which lives in
 /// the session history). While the decision is applied the session is read, not this table.
 /// </para>
 /// <para>
 /// The run that owns the pending request closes with
-/// <see cref="RunStatus.AwaitingApproval"/> and never changes again (K-014). Once the
+/// <see cref="RunStatus.AwaitingApproval"/> and never changes again. Once the
 /// decision is made the SAME run does not continue; a <strong>new</strong> run is put on
 /// the queue (the same <see cref="SessionId"/>, a new <c>RunId</c>).
 /// </para>

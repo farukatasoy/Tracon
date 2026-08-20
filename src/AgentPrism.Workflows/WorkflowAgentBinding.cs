@@ -9,13 +9,13 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Do NOT put an agent taken from the catalog DIRECTLY into the
+/// <strong>Do NOT put an agent taken from the catalog DIRECTLY into the
 /// graph.</strong> <c>IAgentCatalog.ResolveAsync</c> returns an agent carrying
 /// the run-recording wrapper, but Microsoft Agent Framework calls it with
 /// <c>options = null</c>; the wrapper cannot read tree info from the incoming
 /// settings and opens ITS OWN root row instead. Result: the workflow run
 /// looks empty, the agents are independent roots in the list, and the
-/// waterfall is drawn wrong. Measured (phase 15): in the sample app, the tree
+/// waterfall is drawn wrong. Measured: in the sample app, the tree
 /// came back as one row instead of three.
 /// </para>
 /// <para>

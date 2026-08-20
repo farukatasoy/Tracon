@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Orphaned-run reconciliation (Phase 54) settings.</summary>
+/// <summary>Orphaned-run reconciliation settings.</summary>
 /// <remarks>
 /// Read from the <c>AgentPrism:RunReconciliation</c> configuration section.
 /// See <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.

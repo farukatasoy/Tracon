@@ -155,7 +155,7 @@ internal sealed class SqlTraceStore : ITraceStore
     /// produce <c>IL2026</c>, and this package is marked AOT-compatible. Using
     /// <c>jsonb</c> is safe here: a plain string dictionary has no polymorphic
     /// <c>$type</c> discriminator, so key ordering does not matter (contrast:
-    /// decision K-027).
+    /// ).
     /// </remarks>
     private static string WriteAttributes(IReadOnlyDictionary<string, string> attributes)
     {

@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The limits on <see cref="RunLabels"/> are enforced by REJECTING the
+/// The limits on <see cref="RunLabels"/> are enforced by REJECTING the
 /// request, never by trimming it. A trimmed label set still reads as a complete
 /// measurement to whoever queries the cost report later, so silently dropping
 /// the ninth label would corrupt the data it is meant to describe.

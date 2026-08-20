@@ -7,7 +7,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Cached data source for the <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c>
-/// observable gauges (Phase 35).
+/// observable gauges.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,12 +25,12 @@ namespace AgentPrism;
 /// configuration), but no measurement is published and the database is never queried.
 /// </para>
 /// <para>
-/// 🚨 <strong>Known limitation:</strong> tenant registration (<see cref="ITenantStore"/>)
+/// <strong>Known limitation:</strong> tenant registration (<see cref="ITenantStore"/>)
 /// is not mandatory; this gauge only scans REGISTERED tenants. A quota rule for
 /// an unregistered tenant is still enforced correctly by
 /// <see cref="QuotaEnforcer"/>, it simply does NOT APPEAR on this dashboard.
 /// This is an accepted limitation given the phase's "no new table/endpoint"
-/// goal (see <c>docs/35-MALIYET-VE-KOTA-METRIKLERI.md</c>).
+/// goal.
 /// </para>
 /// </remarks>
 public sealed class QuotaUsageObserver : IHostedService, IDisposable
@@ -59,7 +59,7 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
     /// carries the gauge on/off and cache interval settings, hangs off.
     /// <see cref="AgentPrismObservabilityOptions"/> is NOT registered standalone
     /// anywhere with <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c>
-    /// — it is only reached through <see cref="AgentPrismOptions.Observability"/> (HATA-S4-020).
+    /// — it is only reached through <see cref="AgentPrismOptions.Observability"/>.
     /// </param>
     /// <param name="quotaOptions">The time-zone setting for the quota period calculation.</param>
     /// <param name="meterFactory">

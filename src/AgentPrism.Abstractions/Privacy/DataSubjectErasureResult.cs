@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>The outcome of a data subject erasure request (phase 64).</summary>
+/// <summary>The outcome of a data subject erasure request.</summary>
 public sealed record DataSubjectErasureResult
 {
     /// <summary>

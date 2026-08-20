@@ -82,7 +82,7 @@ public enum RunErrorClass
     /// provider (example: an <c>agent.RunAsync</c> crash with no retry).
     /// </summary>
     /// <remarks>
-    /// Only orphaned-run reconciliation (Phase 54) falls into this class.
+    /// Only orphaned-run reconciliation falls into this class.
     /// Every other class relies on a response from the provider/tool/quota;
     /// this one requires a separate class because NO response was ever received.
     /// </remarks>

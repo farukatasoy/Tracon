@@ -40,7 +40,7 @@ The package is AOT compatible (`IsAotCompatible=true`, zero warnings).
 
 ## `max_tokens` is required
 
-🚨 In the Anthropic Messages API, `max_tokens` is a **required** field; it cannot
+In the Anthropic Messages API, `max_tokens` is a **required** field; it cannot
 be omitted the way it can in OpenAI. When `ModelBinding.MaxOutputTokens` is left
 empty, `AnthropicProviderOptions.DefaultMaxOutputTokens` (default **4096**) is used.
 
@@ -95,7 +95,8 @@ GET /agentprism/api/models/health/anthropic
 
 ## Model catalog
 
-AgentPrism carries no built-in model list (decision K-032). The catalog comes
+AgentPrism carries no built-in model list: model names change faster than a
+NuGet release. The catalog comes
 entirely from configuration and is **not a validation list** — a model name
 absent from it can still be used.
 
@@ -119,3 +120,9 @@ absent from it can still be used.
 ```
 
 `ApiKey` is **never** written to this file — use `dotnet user-secrets`.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

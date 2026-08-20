@@ -25,11 +25,11 @@ public interface ISessionStore
     /// read the winner's record with <see cref="GetAsync"/>.
     /// </para>
     /// <para>
-    /// 🚨 The default implementation is NOT ATOMIC (check-then-create) — it
+    /// The default implementation is NOT ATOMIC (check-then-create) — it
     /// exists only so old stores that have not yet overridden this method
     /// keep compiling. The real stores (<c>SqlSessionStore</c>,
     /// <c>InMemorySessionStore</c>) override this method with a GENUINELY
-    /// atomic implementation. HATA-004: without atomicity, two concurrent
+    /// atomic implementation. Without atomicity, two concurrent
     /// first requests to the same NEW session, unaware of each other,
     /// generate two different conversation identifiers; the second
     /// <see cref="SaveAsync"/> unconditionally overwrites the first, and the
@@ -38,7 +38,9 @@ public interface ISessionStore
     /// </remarks>
     /// <param name="record">The session to create.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns><see langword="true"/> if created; <see langword="false"/> if a record with the same identifier already exists.</returns>
+    /// <returns>
+    /// <see langword="true"/> if created; <see langword="false"/> if a record with the same identifier already exists.
+    /// </returns>
     async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -64,17 +66,17 @@ public interface ISessionStore
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 <see cref="GetAsync"/> is filtered by the ambient tenant; because of
+    /// <see cref="GetAsync"/> is filtered by the ambient tenant; because of
     /// this, it can never answer "does this identifier belong to ANOTHER
     /// tenant" — the caller is already inside their own tenant's context, and
     /// another tenant's record is NEVER VISIBLE from that context, so the
-    /// result is always <see langword="null"/>. HATA-S2-005: this is exactly
+    /// result is always <see langword="null"/>. This is exactly
     /// why the OpenAI-compatible endpoints' cross-tenant ownership check was
     /// dead code — the rejection branch never fired, the identifier was
     /// silently treated as "never used" and a new session was opened.
     /// </para>
     /// <para>
-    /// 🚨 The default implementation calls <see cref="GetAsync"/> — so it
+    /// The default implementation calls <see cref="GetAsync"/> — so it
     /// CARRIES THE BUG ABOVE and can never correctly answer the cross-tenant
     /// question. This exists only so old/custom stores that have not yet
     /// overridden this method keep compiling. The real stores

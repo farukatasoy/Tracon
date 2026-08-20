@@ -8,22 +8,22 @@ namespace AgentPrism;
 /// <summary>
 /// Background service that, for experiments with a canary policy defined,
 /// periodically evaluates the running experiment and applies an automatic
-/// rollback or a gradual traffic ramp-up (Phase 56).
+/// rollback or a gradual traffic ramp-up.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The SAME pattern as <see cref="ApprovalExpirationService"/>: only ONE
-/// instance cluster-wide performs the scan (<see cref="SingletonGuard"/>,
-/// Phase 42), waiting for <see cref="SchemaReadyGate"/> before the first SQL
-/// attempt (K-354).
+/// instance cluster-wide performs the scan (<see cref="SingletonGuard"/>),
+/// waiting for <see cref="SchemaReadyGate"/> before the first SQL
+/// attempt.
 /// </para>
 /// <para>
-/// 🚨 <see cref="CanaryOptions.AutoRollbackEnabled"/> defaults to DISABLED
-/// (K1). While disabled, <see cref="ExecuteAsync"/> returns immediately; no
+/// <see cref="CanaryOptions.AutoRollbackEnabled"/> defaults to DISABLED.
+/// While disabled, <see cref="ExecuteAsync"/> returns immediately; no
 /// experiment is scanned.
 /// </para>
 /// <para>
-/// 🚨 Precedent K-089: the automatic rollback decision is written directly
+/// The automatic rollback decision is written directly
 /// with <see cref="IAuditLog.WriteAsync"/> (NOT the best-effort-writing
 /// <see cref="AuditRecorder"/> decorator) BEFORE the mutation; if the write
 /// fails, the rollback is never applied - the same pattern as

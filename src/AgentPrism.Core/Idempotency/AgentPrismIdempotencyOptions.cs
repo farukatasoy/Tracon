@@ -1,17 +1,17 @@
 namespace AgentPrism;
 
-/// <summary>Options for <c>Idempotency-Key</c> support — Phase 43.</summary>
+/// <summary>Options for <c>Idempotency-Key</c> support.</summary>
 /// <remarks>
 /// <para>
 /// Reads values from the <c>AgentPrism:Idempotency</c> configuration section.
 /// </para>
 /// <para>
-/// The <strong>default is enabled</strong>. This is a deliberate K1 interpretation.
+/// The <strong>default is enabled</strong>, and that is a deliberate reading of the
+/// no-surprises rule.
 /// Unlike rate limiting and quotas, this feature activates only when a client sends
 /// the <c>Idempotency-Key</c> header. A request without the header has no extra cost
 /// or behavior change. If disabled by default, a client that sends the header could
-/// assume protection when it has none. That would be the silent surprise. Decision:
-/// <c>docs/KARARLAR.md</c>; add the decision number at phase close.
+/// assume protection when it has none. That would be the silent surprise.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismIdempotencyOptions

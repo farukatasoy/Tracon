@@ -4,16 +4,16 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>Stores run inputs in the SQL database (Phase 47).</summary>
+/// <summary>Stores run inputs in the SQL database.</summary>
 /// <remarks>
 /// <para>
 /// The behavior contract is identical to <see cref="InMemoryRunInputStore"/>
 /// and is guarded by the shared contract tests.
 /// </para>
 /// <para>
-/// 🚨 Messages are stored in the <c>json</c> column, <strong>not</strong>
+/// Messages are stored in the <c>json</c> column, <strong>not</strong>
 /// <c>jsonb</c>: <c>ChatMessage</c> content is polymorphic and the <c>$type</c>
-/// discriminator must be the object's first property (K-027). The column type
+/// discriminator must be the object's first property. The column type
 /// is fixed by the schema, not by <see cref="SqlDialect.AddJson"/>; the only
 /// job here is serializing the text correctly.
 /// </para>

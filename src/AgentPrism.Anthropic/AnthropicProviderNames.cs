@@ -30,7 +30,7 @@ public static class AnthropicProviderNames
     /// threshold. It is opted in explicitly so there is no silent default.
     /// </para>
     /// <para>
-    /// Measured (2026-08-05, <c>claude-haiku-4-5-20251001</c>): with it on, the
+    /// Measured against <c>claude-haiku-4-5-20251001</c>: with it on, the
     /// response reported <c>cache_creation_input_tokens=4209</c>; with it off, this
     /// counter never appeared.
     /// </para>
@@ -48,9 +48,9 @@ public static class AnthropicProviderNames
     /// request.
     /// </para>
     /// <para>
-    /// 🚨 While thinking is on, Anthropic allows <see cref="ModelBinding.Temperature"/>
+    /// While thinking is on, Anthropic allows <see cref="ModelBinding.Temperature"/>
     /// to be only 1. Any other temperature gets the request rejected with
-    /// <c>invalid_request_error</c> — measured (2026-08-05).
+    /// <c>invalid_request_error</c> — measured against the live API.
     /// </para>
     /// </remarks>
     public const string ThinkingBudgetTokensSetting = "anthropic.thinking.budgetTokens";

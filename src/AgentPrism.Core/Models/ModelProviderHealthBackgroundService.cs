@@ -12,7 +12,6 @@ namespace AgentPrism;
 /// <see cref="AgentPrismHealthOptions.BackgroundInterval"/> <see langword="null"/>
 /// is <see langword="null"/> by default. The service immediately returns without
 /// setting a timer, so an idle deployment does not send regular requests to a provider.
-/// Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, open question 3.
 /// </para>
 /// <para>
 /// A check error does <strong>not</strong> stop this service. This follows the rule

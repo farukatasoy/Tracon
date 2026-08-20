@@ -126,6 +126,10 @@ export default defineConfig({
           items: [{ label: 'UI guide', slug: 'ui' }],
         },
         {
+          label: 'Coding agents',
+          items: [{ label: 'Agent map and diagnostics', slug: 'guides/coding-agents' }],
+        },
+        {
           label: 'Reference',
           items: [
             { label: 'Configuration', slug: 'reference/configuration' },

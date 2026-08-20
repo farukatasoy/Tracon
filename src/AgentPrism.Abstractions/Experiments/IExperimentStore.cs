@@ -115,7 +115,7 @@ public interface IExperimentStore
     /// to the control variant, and writes <see cref="Experiment.RollbackReason"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 Following K-089, the caller, the canary evaluation service, must write
+    /// The caller, the canary evaluation service, must write
     /// the audit trail before calling this method. If that write fails, it must
     /// not call this method: a rollback that cannot be audited is not applied.
     /// </remarks>

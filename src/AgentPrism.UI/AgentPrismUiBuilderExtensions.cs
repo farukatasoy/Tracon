@@ -23,7 +23,7 @@ public static class AgentPrismUiBuilderExtensions
     /// </para>
     /// <para>
     /// Registration uses <c>TryAdd</c>. A consumer that registers its own
-    /// <see cref="IAgentPrismUiProvider"/> implementation earlier wins (rule K4).
+    /// <see cref="IAgentPrismUiProvider"/> implementation earlier wins (the replaceable-extension rule).
     /// </para>
     /// <example>
     /// <code>

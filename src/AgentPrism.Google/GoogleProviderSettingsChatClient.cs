@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// Settings are sent through <c>Microsoft.Extensions.AI</c>'s official escape
 /// hatch, <see cref="ChatOptions.RawRepresentationFactory"/>: the factory builds a
 /// <see cref="GenerateContentConfig"/> and the Google adapter builds the request on
-/// top of this object. Measured (2026-08-05): the adapter <strong>preserves</strong>
+/// top of this object. Measured: the adapter <strong>preserves</strong>
 /// the <c>SafetySettings</c> and <c>ThinkingConfig</c> fields we write and adds tool
 /// definitions on top — tool calling and safety thresholds work together in the
 /// same request.

@@ -91,3 +91,9 @@ Other AgentPrism packages are not affected.
 ## License
 
 MIT
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/concepts/workflows/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

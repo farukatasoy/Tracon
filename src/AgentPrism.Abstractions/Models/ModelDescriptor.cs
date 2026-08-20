@@ -3,7 +3,7 @@ namespace AgentPrism;
 /// <summary>A model's capabilities and limits.</summary>
 public sealed record ModelDescriptor
 {
-    /// <summary>The model name. <see cref="ModelBinding.Model"/> matches this value.</summary>
+    /// <summary>The model name. <c>ModelBinding.Model</c> matches this value.</summary>
     public required string Name { get; init; }
 
     /// <summary>The name shown in the UI.</summary>
@@ -38,7 +38,7 @@ public sealed record ModelDescriptor
     /// prompt cache. For reporting only.
     /// </summary>
     /// <remarks>
-    /// 🚨 When this is <see langword="null"/> the cached tokens are priced at
+    /// When this is <see langword="null"/> the cached tokens are priced at
     /// <see cref="InputCostPerMillionTokens"/>, exactly as they were before the
     /// rate existed — an undefined cache rate does NOT make the run's price
     /// unknown. Set it to <c>0</c> only to state that cache reads are free.

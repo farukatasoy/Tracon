@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// The provider does <strong>not reject</strong> a model name that is absent from the
 /// catalog. When OpenAI publishes a new model, no new AgentPrism release is needed; if
 /// the catalog is not empty, only an informational log entry is written. Because
-/// AgentPrism carries no built-in model list (decision K-032), an empty catalog is
+/// AgentPrism carries no built-in model list, an empty catalog is
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
@@ -38,7 +38,10 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     private readonly ProviderCredentialClientCache<OpenAIChatClientFactory> _credentialFactories = new();
 
     /// <summary>Initializes a new provider.</summary>
-    /// <param name="name">The provider name. The <see cref="ModelBinding.Provider"/> of agent definitions matches this value.</param>
+    /// <param name="name">
+    /// The provider name. The <see cref="ModelBinding.Provider"/> of agent definitions
+    /// matches this value.
+    /// </param>
     /// <param name="apiSurface">The OpenAI API surface to use.</param>
     /// <param name="chatClientFactory">The chat client factory.</param>
     /// <param name="models">The models this provider offers.</param>
@@ -113,7 +116,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         return factory.CreateChatClient(binding, ApiSurface);
     }
 
-    /// <summary>Builds a per-tenant client factory from a resolved credential (phase 65, BYOK).</summary>
+    /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
     /// <remarks>
     /// The endpoint falls back to the setup-time endpoint when the credential
     /// carries none: a globally configured OpenAI-compatible base address

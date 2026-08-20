@@ -11,8 +11,8 @@ namespace AgentPrism;
 /// process lifetime and a single node. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// <para>
-/// 🚨 Sessions are separated <strong>per tenant</strong>; the tenant is read
-/// from <see cref="ITenantContext"/> (Phase 41).
+/// Sessions are separated <strong>per tenant</strong>; the tenant is read
+/// from <see cref="ITenantContext"/>.
 /// </para>
 /// </remarks>
 public sealed class InMemorySessionStore : ISessionStore
@@ -55,7 +55,7 @@ public sealed class InMemorySessionStore : ISessionStore
     /// <remarks>
     /// <see cref="ConcurrentDictionary{TKey, TValue}.TryAdd(TKey, TValue)"/> is atomic:
     /// of two concurrent calls with the same identity, only one returns
-    /// <see langword="true"/> (HATA-004).
+    /// <see langword="true"/>.
     /// </remarks>
     public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {

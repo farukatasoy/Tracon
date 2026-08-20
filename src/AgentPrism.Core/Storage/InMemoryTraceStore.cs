@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// Reads are limited to the current tenant. Writes take the tenant from the batch,
-/// while reads take it from <see cref="ITenantContext"/> (Phase 41). This is the
+/// while reads take it from <see cref="ITenantContext"/>. This is the
 /// same rule as the SQL implementation.
 /// </para>
 /// </remarks>

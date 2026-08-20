@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>The store for per-tenant model provider egress policies (F-119, phase 65).</summary>
+/// <summary>The store for per-tenant model provider egress policies.</summary>
 public interface ITenantEgressPolicyStore
 {
     /// <summary>Reads a tenant's policy.</summary>
@@ -8,7 +8,7 @@ public interface ITenantEgressPolicyStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The policy; <see langword="null"/> if the tenant has none saved, which
-    /// means the tenant is unrestricted (K1).
+    /// means the tenant is unrestricted.
     /// </returns>
     ValueTask<TenantEgressPolicy?> GetAsync(string tenantId, CancellationToken cancellationToken = default);
 

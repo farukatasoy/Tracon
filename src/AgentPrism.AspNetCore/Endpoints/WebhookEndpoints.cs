@@ -8,17 +8,17 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Webhook subscription and delivery endpoints (Phase 21).</summary>
+/// <summary>Webhook subscription and delivery endpoints.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 None of these endpoints accept or return a <strong>secret</strong>.
+/// None of these endpoints accept or return a <strong>secret</strong>.
 /// The contract has <em>no secret field at all</em>: the request body carries
 /// only <see cref="WebhookSaveRequest.SecretConfigurationKey"/> (the NAME of
-/// the key) (K-059). An extra <c>secret</c> field sent by the client is not
+/// the key). An extra <c>secret</c> field sent by the client is not
 /// bound and is silently ignored.
 /// </para>
 /// <para>
-/// All dependencies are explicitly marked with <c>[FromServices]</c> (lesson from Phase 9).
+/// All dependencies are explicitly marked with <c>[FromServices]</c>.
 /// </para>
 /// </remarks>
 internal static class WebhookEndpoints
@@ -358,7 +358,7 @@ internal static class WebhookEndpoints
     /// <summary>Summarizes a subscription for the audit trail.</summary>
     /// <remarks>
     /// The summary contains only the NAME of the key. The secret itself is
-    /// never written to a record in this process (K-059).
+    /// never written to a record in this process.
     /// </remarks>
     private static string Describe(WebhookSubscription subscription)
     {
@@ -408,9 +408,9 @@ internal static class WebhookEndpoints
 
 /// <summary>The request body for saving a webhook subscription.</summary>
 /// <remarks>
-/// 🚨 This contract has <strong>no secret field</strong>. An extra
+/// This contract has <strong>no secret field</strong>. An extra
 /// <c>secret</c> field sent by the client is not bound and is not written
-/// anywhere (K-059).
+/// anywhere.
 /// </remarks>
 public sealed record WebhookSaveRequest
 {

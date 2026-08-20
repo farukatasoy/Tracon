@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <para>
 /// Marking is an <strong>explicit choice</strong>. Adding a new public method
 /// to a class does not automatically expose it to agents. This is the
-/// natural continuation of design rule K2 (tools are defined only in code).
+/// natural continuation of the code-only tools rule (tools are defined only in code).
 /// </para>
 /// <para>
 /// The description field tells the model <em>when</em> to call the tool; if

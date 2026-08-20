@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Applies the secret filter and swallows write errors. An audit trail error does
 /// <strong>not</strong> interrupt the operation; it is only logged. This is the
-/// Phase 6 rule that observability does not break functionality.
+/// rule that observability does not break functionality.
 /// </remarks>
 public static class AuditRecorder
 {

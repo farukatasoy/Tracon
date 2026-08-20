@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// it does not need a separate date-validation pattern of its own.
 /// </para>
 /// <para>
-/// Quoted text is DELIBERATELY not stripped (Open Question 3 → C): a tool name
+/// Quoted text is DELIBERATELY not stripped: a tool name
 /// is distinguishing, and stripping it would merge two different tool errors
 /// into a single cluster. Identity/number/date cleanup already removes most of
 /// the noise from messages.

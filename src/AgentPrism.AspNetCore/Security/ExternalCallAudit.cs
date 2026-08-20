@@ -4,14 +4,14 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// The shared audit trail write path for MCP and A2A external calls (phase 50).
+/// The shared audit trail write path for MCP and A2A external calls.
 /// </summary>
 /// <remarks>
 /// Ordinary runs are not written to the audit trail (see the XML documentation of
 /// <see cref="AuditEntry"/>) — this is a DELIBERATE exception: a call from an external
 /// surface crosses a separate trust boundary, and the <c>external.call</c> action is the
-/// first thing an auditor asks about (Open Question 5). The same rationale as the
-/// three-layer write exception of K-079.
+/// first thing an auditor asks about. The same reasoning as the
+/// three-layer write exception of.
 /// </remarks>
 internal static class ExternalCallAudit
 {

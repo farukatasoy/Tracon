@@ -3,13 +3,13 @@ namespace AgentPrism;
 /// <summary>Options of the real-time voice conversation layer.</summary>
 /// <remarks>
 /// <para>
-/// ⚠️ This capability <strong>changes the hosting model</strong>. A conversation
+/// This capability <strong>changes the hosting model</strong>. A conversation
 /// connection stays open for minutes and binds to one server instance (a sticky
 /// session). The capability is therefore optional: no WebSocket endpoint opens and
 /// no behaviour changes until <c>UseVoiceConversation()</c> is called.
 /// </para>
 /// <para>
-/// 🚨 The type is <strong>not</strong> a <c>record</c> (K-035): option classes must
+/// The type is <strong>not</strong> a <c>record</c>: option classes must
 /// not produce a <c>ToString</c> that can be written to a log.
 /// </para>
 /// </remarks>
@@ -50,7 +50,7 @@ public sealed class VoiceConversationOptions
     /// 60 seconds.
     /// </summary>
     /// <remarks>
-    /// 🚨 End-of-speech detection (VAD) is <strong>on the client</strong>; the server
+    /// End-of-speech detection (VAD) is <strong>on the client</strong>; the server
     /// does no signal processing. This limit is a <em>safety net</em>: when the VAD of
     /// the client never fires the utterance closes on its own and goes to
     /// transcription.
@@ -71,8 +71,8 @@ public sealed class VoiceConversationOptions
     /// to the <c>attachments</c> table. The default is <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 <strong>Voice is personal data.</strong> That it is not stored by default is
-    /// deliberate. When it is enabled the retention policy of phase 25 applies and the
+    /// <strong>Voice is personal data.</strong> That it is not stored by default is
+    /// deliberate. When it is enabled the retention policy applies and the
     /// user interface <strong>shows</strong> the user that the audio is recorded — no
     /// recording happens silently.
     /// </remarks>
@@ -90,7 +90,7 @@ public sealed class VoiceConversationOptions
     /// <c>audio/mpeg</c>.
     /// </summary>
     /// <remarks>
-    /// 🚨 The value must be the same as the <em>configured output format</em> of the
+    /// The value must be the same as the <em>configured output format</em> of the
     /// speech provider (<c>AgentPrism:Voice:OutputFormat</c>). Streaming synthesis
     /// returns raw bytes only and does not report the type; the client has to know the
     /// type to decode the audio. A wrong value produces a silent decode failure in the

@@ -22,7 +22,7 @@ public enum JobStatus
     /// <summary>The job completed successfully.</summary>
     Completed = 3,
 
-    /// <summary>The job failed after exceeding <see cref="AgentPrismSchedulingOptions.MaxAttempts"/>.</summary>
+    /// <summary>The job failed after exceeding <c>AgentPrismSchedulingOptions.MaxAttempts</c>.</summary>
     Failed = 4,
 
     /// <summary>The job was cancelled.</summary>

@@ -12,8 +12,8 @@ namespace AgentPrism;
 /// implementation. This separate interface is an optional extension point: if
 /// a provider does not implement it, its status is
 /// <see cref="ModelProviderHealthStatus.Unknown"/>, and that is not an error.
-/// See <c>docs/KARARLAR.md</c>, decision K4 (adding a member to an existing
-/// interface breaks the consumer's implementation), for the rationale.
+/// It is a separate interface because adding a member to an existing one
+/// breaks every consumer implementation.
 /// </para>
 /// <para>
 /// The check <strong>must not make a billed model call</strong>. OpenAI and
@@ -57,7 +57,7 @@ public sealed record ModelProviderHealth
 
 /// <summary>A provider's checked reachability status.</summary>
 /// <remarks>
-/// Written as a name in JSON (decision K-040): a numeric value would be
+/// Written as a name in JSON: a numeric value would be
 /// unreadable as a wire contract, and would silently break if the enum order changed.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ModelProviderHealthStatus>))]

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>A store that keeps inbound trigger definitions in process memory (K-018: first class).</summary>
+/// <summary>A store that keeps inbound trigger definitions in process memory (first class).</summary>
 /// <remarks>
 /// <strong>Limits:</strong> process lifetime and a single node. Use a SQL
 /// provider in production. Its behavior contract matches

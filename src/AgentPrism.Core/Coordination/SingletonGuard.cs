@@ -21,10 +21,10 @@ namespace AgentPrism;
 /// (the default), <see cref="RunAsync"/> returns immediately without issuing
 /// ANY query to the store, and <see cref="IsHeld"/> always stays
 /// <see langword="true"/> - today's single-instance behavior is preserved
-/// exactly (K1).
+/// exactly.
 /// </para>
 /// <para>
-/// 🚨 This type is NOT <c>internal</c>, it is <c>public</c>: it needs to be
+/// This type is NOT <c>internal</c>, it is <c>public</c>: it needs to be
 /// usable from a separate assembly such as <c>AgentPrism.Mcp</c>, and
 /// <c>InternalsVisibleTo</c> covers only its own test projects, not sibling
 /// packages. This is why the plan's suggestion of an "internal helper" could
@@ -46,7 +46,12 @@ public sealed class SingletonGuard
     /// <param name="optionsMonitor">Single-executor selection settings.</param>
     /// <param name="leaseName">Cluster-wide unique name of the protected work.</param>
     /// <param name="logger">Logger to which lease-loss and error logs are written.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="store"/> or <paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="store"/>
+    /// or
+    /// <paramref name="optionsMonitor"/>
+    /// is <see langword="null"/>.
+    /// </exception>
     /// <exception cref="ArgumentException"><paramref name="leaseName"/> is empty.</exception>
     public SingletonGuard(
         ISingletonLeaseStore store,

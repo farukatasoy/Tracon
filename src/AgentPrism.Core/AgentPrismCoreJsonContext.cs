@@ -10,7 +10,6 @@ namespace AgentPrism;
 /// Reflection-based <c>JsonSerializer</c> overloads produce <c>IL2026</c> and
 /// <c>IL3050</c>. <c>AgentPrism.Core</c> is marked as AOT-compatible, and these
 /// diagnostics fail the build. Declare every serialized type here.
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(string))]

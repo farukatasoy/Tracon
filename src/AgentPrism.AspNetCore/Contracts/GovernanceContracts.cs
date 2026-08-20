@@ -22,10 +22,9 @@ public sealed record TenantRequest
 /// <remarks>
 /// <strong>There is no secret field.</strong> The authentication header's
 /// value is not sent; only the name of the configuration key
-/// (<see cref="AuthorizationConfigurationKey"/>) the value is to be read from
+/// (<c>AuthorizationConfigurationKey</c>) the value is to be read from
 /// is sent. The value is resolved through <c>IConfiguration</c> at runtime and
-/// is never written to the database. Rationale: <c>docs/KARARLAR.md</c>,
-/// decision K-059.
+/// is never written to the database.
 /// </remarks>
 public sealed record McpServerRequest
 {
@@ -58,10 +57,10 @@ public sealed record McpServerRequest
 
     /// <summary>
     /// Whether OAuth authentication is enabled. While on,
-    /// <see cref="AuthorizationConfigurationKey"/> must be empty.
+    /// <c>AuthorizationConfigurationKey</c> must be empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>[JsonPropertyName]</c> is given DELIBERATELY — same rationale as
+    /// <c>[JsonPropertyName]</c> is given DELIBERATELY — same rationale as
     /// <see cref="McpServerDefinition.OAuthEnabled"/>: the camelCase policy
     /// produces an unexpected result for a name like "OAuth" that starts with
     /// two capital letters.
@@ -138,7 +137,7 @@ public sealed record ToolApprovalDecision
 
     /// <summary>
     /// Whether the decision should be saved as a permanent rule ("don't ask
-    /// again"). Meaningful only while <see cref="Approved"/> is <see langword="true"/>.
+    /// again"). Meaningful only while <c>Approved</c> is <see langword="true"/>.
     /// </summary>
     public bool Remember { get; init; }
 
@@ -150,14 +149,14 @@ public sealed record ToolApprovalDecision
 }
 
 /// <summary>
-/// Request to create a persistent, argument-conditioned approval rule (Phase 63).
+/// Request to create a persistent, argument-conditioned approval rule.
 /// </summary>
 /// <remarks>
 /// This is a separate creation path from the "remember this decision" rule
 /// <see cref="ToolApprovalResolver"/> writes from the approve/reject flow — that
 /// path fingerprints an exact call (<c>ArgumentsHash</c>); this one writes a
 /// standing, admin-authored comparison instead. There is no free-text expression
-/// field here — the K2 limit applies to the HTTP surface too.
+/// field here — the code-only tools rule applies to the HTTP surface too.
 /// </remarks>
 public sealed record ToolApprovalRuleRequest
 {

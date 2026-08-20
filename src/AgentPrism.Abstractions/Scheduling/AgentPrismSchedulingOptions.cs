@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Batch and scheduled run (Phase 17) settings.</summary>
+/// <summary>Batch and scheduled run settings.</summary>
 /// <remarks>
 /// Read from the <c>AgentPrism:Scheduling</c> configuration section. See
 /// <c>AgentPrismServiceCollectionExtensions.UseScheduling</c>.

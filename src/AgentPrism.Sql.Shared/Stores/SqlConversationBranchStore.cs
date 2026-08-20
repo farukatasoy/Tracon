@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>SQL store that branches conversations by copying them (Phase 47).</summary>
+/// <summary>SQL store that branches conversations by copying them.</summary>
 /// <remarks>
 /// <para>
 /// The copy happens in a single transaction: the branch conversation and its
@@ -10,9 +10,9 @@ namespace AgentPrism;
 /// a session with incomplete history, and would silently produce wrong answers.
 /// </para>
 /// <para>
-/// 🚨 Items are not copied with a <strong>single</strong> <c>INSERT … SELECT</c>
+/// Items are not copied with a <strong>single</strong> <c>INSERT … SELECT</c>
 /// statement; they are read and written row by row. The rationale was measured:
-/// each row's new item id must be a fresh uuid v7 (K-015), and none of the
+/// each row's new item id must be a fresh uuid v7, and none of the
 /// three dialects has a common uuid v7 generator (PostgreSQL's
 /// <c>gen_random_uuid()</c> produces v4, SQL Server's <c>NEWID()</c> cannot be
 /// sorted, SQLite has no built-in at all). Instead of writing three separate

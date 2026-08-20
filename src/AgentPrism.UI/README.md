@@ -51,14 +51,13 @@ the UI under the same prefix; the prefix is written in one place.
 - Tools are defined only in code. An agent can be created from the UI, but tool
   **code** cannot be written — this is a security boundary
 - The UI shell is exempt from the bearer token layer; the loopback restriction and
-  authorization policy apply instead. Rationale: a browser cannot add an
+  authorization policy apply instead: a browser cannot add an
   `Authorization` header to a script request
 - JavaScript budget: 250 KB gzip (build gate). Current size 165.8 KB
 
 ## Links
 
 - Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
-- UI phase: [docs/05-AGENTPRISM-UI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/05-AGENTPRISM-UI.md)
+- Console guide: <https://farukatasoy.github.io/AgentPrism/ui/>
 
 License: MIT

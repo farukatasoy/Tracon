@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// coordination that costs more than the protection provides.
 /// </para>
 /// <para>
-/// The same rationale applies to rate limiting (K-158).
+/// The same rationale applies to rate limiting.
 /// </para>
 /// </remarks>
 public sealed class VoiceConnectionLimiter

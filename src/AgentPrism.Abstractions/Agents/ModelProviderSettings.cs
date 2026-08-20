@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// <para>
 /// <strong>An unknown key is not ignored silently.</strong> A setting that is ignored
 /// makes the user miss the behaviour they expect without seeing why — the same decision
-/// as the one taken for <see cref="ModelBinding.ReasoningEffort"/> (K-034).
+/// as the one taken for <see cref="ModelBinding.ReasoningEffort"/>.
 /// </para>
 /// <para>
 /// Keys are compared case insensitively. When the dictionary is read back from a

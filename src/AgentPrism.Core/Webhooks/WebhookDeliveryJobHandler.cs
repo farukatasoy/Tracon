@@ -12,13 +12,13 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Retrying is left to Phase 17's queue: a failed attempt throws
+/// Retrying is left to the queue: a failed attempt throws
 /// <see cref="JobRetryException"/>, and the background worker puts the job
 /// back with the ladder's delay. A second queue, a second lease, or a second
-/// scheduler is not written (K-160).
+/// scheduler is not written.
 /// </para>
 /// <para>
-/// 🚨 The target address is validated <strong>again on every attempt</strong>.
+/// The target address is validated <strong>again on every attempt</strong>.
 /// A name that was valid at save time may resolve to a private address by
 /// delivery time (DNS rebinding).
 /// </para>

@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// This list is deliberately <strong>closed</strong>. A workflow defined
 /// through the UI only wires together agents from the catalog; it produces
 /// no new behavior. A free-form graph (custom <c>Executor</c> types) can
-/// only be defined in code. Rationale: design rule K2 - "tools are only
+/// only be defined in code. The code-only tools rule states that tools are only
 /// defined in code".
 /// </para>
 /// <para>

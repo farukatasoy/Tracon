@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The class exists to hold the <c>MEAI001</c> suppression in ONE place —
+/// The class exists to hold the <c>MEAI001</c> suppression in ONE place —
 /// the same pattern <c>AgentPrismA2ABuilderExtensions</c> uses for
 /// <c>AgentRunMode</c> and <c>ChatHistoryReader</c> uses for <c>MAAI001</c>.
 /// <c>InputAudioTokenCount</c> and <c>OutputAudioTokenCount</c> are marked
@@ -24,7 +24,7 @@ namespace AgentPrism;
 /// hide that signal everywhere else too.
 /// </para>
 /// <para>
-/// 🚨 Every counter stays <see langword="null"/> when the provider did not
+/// Every counter stays <see langword="null"/> when the provider did not
 /// report it. Zero is a measurement, not an absence — see <see cref="RunUsage"/>.
 /// </para>
 /// </remarks>

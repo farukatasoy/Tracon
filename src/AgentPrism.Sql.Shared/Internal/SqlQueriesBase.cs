@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// stays enclosed inside the SQL text.
 /// </para>
 /// <para>
-/// 🚨 <strong>When a new query is added here, its counterpart must be written in
+/// <strong>When a new query is added here, its counterpart must be written in
 /// every subclass.</strong> If it is not, the field stays <c>string.Empty</c> and
 /// the error appears at run time only. The phase that adds a new query must verify
 /// that the contract test runs on every provider.
@@ -88,7 +88,10 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that lists the approval rules of a tenant.</summary>
     public string SelectToolApprovalRules { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that inserts an approval rule; it returns the existing record when the same scope is present.</summary>
+    /// <summary>
+    /// Gets the query that inserts an approval rule; it returns the existing record
+    /// when the same scope is present.
+    /// </summary>
     public string InsertToolApprovalRule { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that deletes an approval rule.</summary>
@@ -145,7 +148,7 @@ internal abstract class SqlQueriesBase
     /// <summary>
     /// Gets the query that reads the files of an agent, narrowed down in SQL by a
     /// path prefix, an optional depth limit, an optional glob filter and (on
-    /// PostgreSQL only) an optional regex prefilter (phase 51, item A). It replaces
+    /// PostgreSQL only) an optional regex prefilter (item A). It replaces
     /// the earlier <c>SelectAgentFiles</c> (which loaded every file into memory);
     /// the prefix is always supplied (<c>"/"</c> for the root directory), so no
     /// separate "fetch everything" query was needed.
@@ -185,10 +188,10 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the audit log records with a filter.</summary>
     public string SelectAuditLog { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that reads the hash of a tenant's newest audit log record (phase 64).</summary>
+    /// <summary>Gets the query that reads the hash of a tenant's newest audit log record.</summary>
     public string SelectLastAuditHash { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that reads a tenant's audit log records, oldest first, for hash chain verification (phase 64).</summary>
+    /// <summary>Gets the query that reads a tenant's audit log records, oldest first, for hash chain verification.</summary>
     public string SelectAuditChain { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that inserts or updates a schedule.</summary>
@@ -354,7 +357,7 @@ internal abstract class SqlQueriesBase
     /// hits a unique violation and is caught with
     /// <see cref="SqlDialect.IsUniqueViolation"/> — the same pattern as
     /// <see cref="InsertIdempotencyKey"/>.
-    /// HATA-004: the unconditional overwrite of <see cref="UpsertSession"/> made two
+    /// the unconditional overwrite of <see cref="UpsertSession"/> made two
     /// concurrent first requests to the same NEW session produce a different
     /// conversation identifier each, and the messages of the loser stayed silently
     /// unreachable.
@@ -367,7 +370,7 @@ internal abstract class SqlQueriesBase
     /// <summary>
     /// Gets the query that reads the tenant owning a session identifier, WITHOUT
     /// applying the tenant filter.
-    /// HATA-S2-005: the cross-tenant ownership check cannot use
+    /// the cross-tenant ownership check cannot use
     /// <see cref="SelectSession"/> — that one is already filtered by tenant and never
     /// sees the record of another tenant.
     /// </summary>
@@ -389,21 +392,20 @@ internal abstract class SqlQueriesBase
     public string UpdateRunCost { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Gets the query that writes the heartbeat mark of a running run (phase 54). It
+    /// Gets the query that writes the heartbeat mark of a running run. It
     /// affects <c>Running</c> rows only.
     /// </summary>
     public string TouchRunHeartbeat { get; protected set; } = string.Empty;
 
     /// <summary>
     /// Gets the query that closes the top N <c>Running</c> rows past the heartbeat
-    /// threshold as <c>Failed</c> and returns the closed rows (phase 54).
+    /// threshold as <c>Failed</c> and returns the closed rows.
     /// </summary>
     public string ClaimOrphanedRuns { get; protected set; } = string.Empty;
 
     /// <summary>
     /// Gets the query that inserts the <c>RunFailed</c> event reporting the closure
-    /// of an orphaned run; the sequence number is one more than the current maximum
-    /// (phase 54).
+    /// of an orphaned run; the sequence number is one more than the current maximum.
     /// </summary>
     public string InsertOrphanRunEvent { get; protected set; } = string.Empty;
 
@@ -416,7 +418,10 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that returns the run summary and the per-agent breakdown as two result sets.</summary>
     public string SelectRunStatistics { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query for the per-bucket run, error, token and cost time series. Empty buckets are returned as well.</summary>
+    /// <summary>
+    /// Gets the query for the per-bucket run, error, token and cost time series. Empty
+    /// buckets are returned as well.
+    /// </summary>
     public string SelectRunTimeSeries { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that inserts a run event.</summary>
@@ -439,30 +444,30 @@ internal abstract class SqlQueriesBase
 
     /// <summary>
     /// Gets the query that measures the branch point: the last sequence number to
-    /// copy and the item count (phase 47). When there is no item at all the sequence
+    /// copy and the item count. When there is no item at all the sequence
     /// number is <c>-1</c>.
     /// </summary>
     public string SelectConversationBranchPoint { get; protected set; } = string.Empty;
 
     /// <summary>
     /// Gets the query that opens a new branch conversation by copying the metadata of
-    /// the source conversation (phase 47). When the source is absent or belongs to
+    /// the source conversation. When the source is absent or belongs to
     /// another tenant, no row is written.
     /// </summary>
     public string InsertBranchConversation { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Gets the query that reads the items to copy while branching, in order (phase 47).
+    /// Gets the query that reads the items to copy while branching, in order.
     /// </summary>
     public string SelectConversationItemsForBranch { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Gets the query that writes the input messages of a run (phase 47). A second
+    /// Gets the query that writes the input messages of a run. A second
     /// write for the same run is <strong>ignored</strong>.
     /// </summary>
     public string InsertRunInput { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that reads the stored input of a run (phase 47).</summary>
+    /// <summary>Gets the query that reads the stored input of a run.</summary>
     public string SelectRunInput { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that lists the eval suites of a tenant.</summary>
@@ -488,7 +493,7 @@ internal abstract class SqlQueriesBase
 
     /// <summary>
     /// Gets the query that inserts a SINGLE eval case into a suite, computing
-    /// <c>seq</c> atomically (promotion from production, phase 45).
+    /// <c>seq</c> atomically (promotion from production).
     /// </summary>
     public string InsertEvalCaseWithComputedSeq { get; protected set; } = string.Empty;
 
@@ -573,7 +578,7 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that lists the API keys of a tenant.</summary>
     public string SelectApiKeys { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that looks an API key up by its hash. There is NO tenant filter (section 53.5).</summary>
+    /// <summary>Gets the query that looks an API key up by its hash. There is NO tenant filter.</summary>
     public string SelectApiKeyByHash { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that revokes an API key within the tenant boundary.</summary>
@@ -615,7 +620,10 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that lists the voice records from newest to oldest.</summary>
     public string SelectVoiceSessions { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that inserts a run/message score or updates it (when the author and target are the same).</summary>
+    /// <summary>
+    /// Gets the query that inserts a run/message score or updates it (when the author
+    /// and target are the same).
+    /// </summary>
     public string UpsertRunScore { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that lists every score of a run.</summary>
@@ -624,7 +632,10 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes a score.</summary>
     public string DeleteRunScore { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that acquires the singleton lease (it inserts when the row is absent, and updates when the owner or the expiry allows it).</summary>
+    /// <summary>
+    /// Gets the query that acquires the singleton lease (it inserts when the row is
+    /// absent, and updates when the owner or the expiry allows it).
+    /// </summary>
     public string AcquireSingletonLease { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that extends a held singleton lease.</summary>
@@ -650,7 +661,7 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes an idempotency key (releasing it after a failed request).</summary>
     public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that inserts a new pending approval request (phase 55).</summary>
+    /// <summary>Gets the query that inserts a new pending approval request.</summary>
     public string InsertPendingApproval { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that lists the pending requests of the caller tenant from oldest to newest.</summary>
@@ -674,7 +685,7 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string ExpirePendingApprovals { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that creates or replaces a tenant's provider binding (phase 65, BYOK).</summary>
+    /// <summary>Gets the query that creates or replaces a tenant's provider binding (BYOK).</summary>
     public string UpsertTenantProviderBinding { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that reads a single tenant provider binding.</summary>
@@ -686,7 +697,7 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes a tenant provider binding.</summary>
     public string DeleteTenantProviderBinding { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that creates or replaces a tenant's egress policy (phase 65, F-119).</summary>
+    /// <summary>Gets the query that creates or replaces a tenant's egress policy.</summary>
     public string UpsertTenantEgressPolicy { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that reads a tenant's egress policy.</summary>

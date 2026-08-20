@@ -9,11 +9,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Provides the built-in, model-backed <see cref="IRunJudge"/> implementation — phase 49.
+/// Provides the built-in, model-backed <see cref="IRunJudge"/> implementation.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The judge's own call goes through a <see cref="RunRecordingAgent"/> wrapper
+/// The judge's own call goes through a <see cref="RunRecordingAgent"/> wrapper
 /// and is recorded as <see cref="RunKind.Eval"/>, like every case run from
 /// <c>EvalJobHandler</c>. This computes cost automatically and excludes the row
 /// from <c>RunStatistics</c>, so the evaluated agent's cost does not grow and no
@@ -23,7 +23,7 @@ namespace AgentPrism;
 /// the user's quota, and does not publish its own <c>run.completed</c> noise.
 /// </para>
 /// <para>
-/// Structured output (phase 38) uses the
+/// Structured output uses the
 /// <c>ChatResponseFormat.ForJsonSchema(JsonElement, ...)</c> overload. Its
 /// manually written schema does not use reflection and preserves the AOT stance
 /// of <c>AgentPrism.Core</c>.

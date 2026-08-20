@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// store; the <c>conversation</c> field in a <c>/v1/responses</c> call uses
 /// the same identifier. This is a deliberate modeling decision: opening a
 /// second identifier space would cause the same chat to look different from
-/// two different places. Rationale: <c>docs/KARARLAR.md</c>, decision K-043.
+/// two different places.
 /// </para>
 /// <para>
 /// <c>POST /v1/conversations</c> is an <strong>identifier reservation</strong>:

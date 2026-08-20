@@ -6,21 +6,21 @@ namespace AgentPrism;
 
 /// <summary>
 /// Background service that periodically closes <c>Running</c> runs that have
-/// not sent a heartbeat for a long time, marking them <c>Failed</c> (Phase 54, F-36).
+/// not sent a heartbeat for a long time, marking them <c>Failed</c>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// If a process crashes in the middle of <c>agent.RunAsync</c> (on the default
 /// <c>MaxAttempts = 1</c> path), the row stays <c>Running</c> forever and
-/// silently dilutes the denominator of <c>RunStatistics.ErrorRate</c> (K-014,
+/// silently dilutes the denominator of <c>RunStatistics.ErrorRate</c> (
 /// <c>settled = CompletedRuns + FailedRuns + CanceledRuns</c>). This service
 /// finds that row, closes it, and records the reason.
 /// </para>
 /// <para>
 /// While <see cref="RunReconciliationOptions.Enabled"/> is <see langword="false"/>
-/// (the default), no SQL query is issued at all (K1). Even when enabled, it
+/// (the default), no SQL query is issued at all. Even when enabled, it
 /// runs only ONE scan across the cluster -- <see cref="SingletonGuard"/> is
-/// the SAME pattern <c>McpDiscoveryService</c> uses (Phase 42).
+/// the SAME pattern <c>McpDiscoveryService</c> uses.
 /// </para>
 /// </remarks>
 internal sealed class RunReconciliationService(

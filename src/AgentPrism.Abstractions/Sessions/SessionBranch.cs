@@ -53,7 +53,7 @@ public sealed record SessionBranchResult
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Copying was chosen, not a pointer chain.</strong> If the new
+/// <strong>Copying was chosen, not a pointer chain.</strong> If the new
 /// conversation only kept <c>parent_conversation_id</c>, every history read
 /// would be recursive; <c>SqlChatHistoryProvider</c> is the hottest read path,
 /// running on every agent turn, and this would charge a cost even to a
@@ -61,7 +61,7 @@ public sealed record SessionBranchResult
 /// <strong>never changes</strong>. The pointer is only lineage information.
 /// </para>
 /// <para>
-/// 🚨 This interface is registered only when a SQL provider is enabled
+/// This interface is registered only when a SQL provider is enabled
 /// (<c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, <c>UseSqlite()</c>). In an
 /// in-memory setup, chat history lives inside Microsoft Agent Framework's
 /// <c>InMemoryChatHistoryProvider</c> object, in the session state's

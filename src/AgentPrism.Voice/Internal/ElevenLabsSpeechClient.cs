@@ -29,7 +29,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     /// <summary>The provider's public base address.</summary>
     internal static readonly Uri DefaultEndpoint = new("https://api.elevenlabs.io/");
 
-    /// <summary>Authentication header. 🚨 It is NOT <c>Authorization: Bearer</c>.</summary>
+    /// <summary>Authentication header. It is NOT <c>Authorization: Bearer</c>.</summary>
     internal const string ApiKeyHeader = "xi-api-key";
 
     /// <summary>The provider's default synthesis model.</summary>
@@ -123,7 +123,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     }
 
     /// <remarks>
-    /// 🚨 The <c>.../with-timestamps</c> endpoint returns a JSON body
+    /// The <c>.../with-timestamps</c> endpoint returns a JSON body
     /// (<c>audio_base64</c> + <c>alignment</c>), not raw audio bytes - a
     /// different response shape from the plain synthesis endpoint. Verified
     /// against the provider's published OpenAPI document, 2026-08-19
@@ -412,7 +412,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
     /// <summary>Combines the base address with a relative path.</summary>
     /// <remarks>
-    /// 🚨 When the base address does not end with a slash, <see cref="Uri"/>
+    /// When the base address does not end with a slash, <see cref="Uri"/>
     /// REPLACES the last segment (treats it like a file); it is normalized
     /// before combining. <c>internal</c>: unit tests verify this without a
     /// network call.
@@ -491,7 +491,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     /// <c>alignment</c> object (the provider does not always report it) is not
     /// an error - the caller gets <see langword="null"/> for
     /// <see cref="SpeechAudio.Alignment"/>, exactly like a provider that never
-    /// supported timestamps at all (K1: same input, same behavior everywhere).
+    /// supported timestamps at all (the no-surprises rule: same input, same behavior everywhere).
     /// </remarks>
     internal static async ValueTask<(byte[] Data, IReadOnlyList<SpeechAlignment>? Alignment)> ReadTimestampedAudioAsync(
         HttpResponseMessage response,
@@ -629,7 +629,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     /// Turns a failed response into an understandable error.
     /// </summary>
     /// <remarks>
-    /// 🚨 The error text carries only the status code. The provider's response
+    /// The error text carries only the status code. The provider's response
     /// body echoes the request (i.e. the spoken text) and sometimes a key
     /// fragment; putting the body in the error would carry them into logs and
     /// the UI.

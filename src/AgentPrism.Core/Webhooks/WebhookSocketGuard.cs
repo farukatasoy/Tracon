@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Having the check happen <strong>here</strong> is deliberate. Validating
+/// Having the check happen <strong>here</strong> is deliberate. Validating
 /// first and then calling <c>HttpClient.SendAsync(url)</c> leaves a TOCTOU
 /// gap: <c>HttpClient</c> resolves the name again, and an attacker could
 /// change the answer between the two resolutions (DNS rebinding). The

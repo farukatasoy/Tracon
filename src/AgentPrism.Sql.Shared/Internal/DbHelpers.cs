@@ -41,9 +41,9 @@ internal static class DbHelpers
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The single value; <see langword="null"/> when there is no result.</returns>
     /// <remarks>
-    /// 🚨 <see cref="DbCommand.ExecuteScalarAsync(CancellationToken)"/> looks at the
+    /// <see cref="DbCommand.ExecuteScalarAsync(CancellationToken)"/> looks at the
     /// FIRST result set only. In the SQL Server <c>UPDATE ... OUTPUT</c> +
-    /// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> upsert pattern (K-177), when the
+    /// <c>IF @@ROWCOUNT = 0 INSERT... OUTPUT</c> upsert pattern, when the
     /// UPDATE affects 0 rows the first set is EMPTY and the real value is in the
     /// second set; the same result-set walk as in <see cref="ReadSingleAsync{T}"/>
     /// is therefore done by hand here.
@@ -79,8 +79,8 @@ internal static class DbHelpers
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The first row; <see langword="null"/> when the result is empty.</returns>
     /// <remarks>
-    /// 🚨 The SQL Server <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT
-    /// ... OUTPUT</c> upsert pattern (K-177) writes the row to a DIFFERENT result
+    /// The SQL Server <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT
+    /// ... OUTPUT</c> upsert pattern writes the row to a DIFFERENT result
     /// set depending on WHICH branch ran: when the UPDATE affects 0 rows the first
     /// result set is EMPTY and the real row is in the second set. When the first
     /// set is empty the following sets are therefore tried with
@@ -157,7 +157,7 @@ internal static class DbHelpers
     /// <see cref="bool"/>.
     /// </para>
     /// <para>
-    /// 🚨 It is <strong>not used</strong> for timestamps, decimals and values that
+    /// It is <strong>not used</strong> for timestamps, decimals and values that
     /// can be <c>NULL</c>; those are typed explicitly through
     /// <see cref="SqlDialect"/>. The reason is two traps: when no type is given,
     /// SQL Server treats a <see cref="decimal"/> parameter as <c>decimal(18,0)</c>
@@ -238,7 +238,7 @@ internal static class DbHelpers
     /// <param name="value">The raw scalar value.</param>
     /// <returns>The value.</returns>
     /// <remarks>
-    /// 🚨 PostgreSQL (<c>uuid</c>) and SQL Server (<c>uniqueidentifier</c>) already
+    /// PostgreSQL (<c>uuid</c>) and SQL Server (<c>uniqueidentifier</c>) already
     /// return the scalar result as a boxed <see cref="Guid"/>; SQLite (<c>TEXT</c>)
     /// returns a <see cref="string"/>. A direct <c>(Guid)result</c> cast at the call
     /// site would throw <see cref="InvalidCastException"/> on SQLite. This helper
@@ -254,7 +254,7 @@ internal static class DbHelpers
     /// <param name="value">The raw scalar value.</param>
     /// <returns>The value.</returns>
     /// <remarks>
-    /// 🚨 PostgreSQL (<c>boolean</c>) and SQL Server (<c>CAST(... AS bit)</c>)
+    /// PostgreSQL (<c>boolean</c>) and SQL Server (<c>CAST(... AS bit)</c>)
     /// return the scalar result as a boxed <see cref="bool"/>; SQLite has no boolean
     /// type and a comparison in a <c>RETURNING</c> clause returns a boxed
     /// <see cref="long"/> (0/1). The <c>result is bool b &amp;&amp; b</c> pattern

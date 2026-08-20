@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>The fixed table/predicate map behind data subject export and erasure (phase 64).</summary>
+/// <summary>The fixed table/predicate map behind data subject export and erasure.</summary>
 /// <remarks>
 /// <para>
 /// The mirror of <see cref="RetentionTargetRegistry"/> for identity-based (rather
@@ -24,7 +24,10 @@ internal static class DataSubjectTargetRegistry
     /// <summary>Session state.</summary>
     public const string Sessions = "sessions";
 
-    /// <summary>Run summaries. Deletion cascades to <c>run_events</c>, <c>tool_invocations</c>, <see cref="RunInputs"/>, and <c>traces</c>/<c>spans</c>.</summary>
+    /// <summary>
+    /// Run summaries. Deletion cascades to <c>run_events</c>, <c>tool_invocations</c>,
+    /// <see cref="RunInputs"/>, and <c>traces</c>/<c>spans</c>.
+    /// </summary>
     public const string Runs = "runs";
 
     /// <summary>A run's recorded input messages. Export only; see the type remarks.</summary>
@@ -39,7 +42,10 @@ internal static class DataSubjectTargetRegistry
     /// <summary>Run and message scores.</summary>
     public const string RunScores = "run_scores";
 
-    /// <summary>Conversation headers. Deletion cascades to <see cref="ConversationItems"/> and the conversation-linked rows of <see cref="Responses"/>.</summary>
+    /// <summary>
+    /// Conversation headers. Deletion cascades to <see cref="ConversationItems"/> and
+    /// the conversation-linked rows of <see cref="Responses"/>.
+    /// </summary>
     public const string Conversations = "conversations";
 
     /// <summary>Conversation message history. Export only; see the type remarks.</summary>
@@ -66,14 +72,20 @@ internal static class DataSubjectTargetRegistry
         Conversations, Responses, Runs, Attachments, VoiceSessions, RunScores, Sessions,
     ];
 
-    /// <summary>The export column list for <see cref="Attachments"/> — every column EXCEPT the file bytes; see <see cref="DataSubjectExport"/>.</summary>
+    /// <summary>
+    /// The export column list for <see cref="Attachments"/> — every column EXCEPT the
+    /// file bytes; see <see cref="DataSubjectExport"/>.
+    /// </summary>
     private const string AttachmentExportColumns =
         "id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, external_uri, created_by, created_at";
 
     /// <summary>Resolves the schema-qualified table, <c>WHERE</c> predicate, and export column list of a target.</summary>
     /// <param name="dialect">The provider dialect.</param>
     /// <param name="target">One of the constants on this type.</param>
-    /// <returns>The table name, predicate, and the column list an export <c>SELECT</c> should use (<c>"*"</c> unless noted otherwise).</returns>
+    /// <returns>
+    /// The table name, predicate, and the column list an export <c>SELECT</c> should
+    /// use (<c>"*"</c> unless noted otherwise).
+    /// </returns>
     /// <exception cref="ArgumentException">The target is not recognized.</exception>
     public static (string Table, string Predicate, string Columns) Resolve(SqlDialect dialect, string target)
     {

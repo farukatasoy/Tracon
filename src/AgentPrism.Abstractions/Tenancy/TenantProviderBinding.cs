@@ -5,8 +5,8 @@ namespace AgentPrism;
 /// only.
 /// </summary>
 /// <remarks>
-/// 🚨 This record carries no secret value, only the name of the
-/// configuration key the value is read from at call time. Decision K-059
+/// This record carries no secret value, only the name of the
+/// configuration key the value is read from at call time.
 /// applies to this store the same way it applies to MCP server credentials:
 /// the database backup, the audit trail, and every HTTP response built from
 /// this type never carry a secret.
@@ -25,7 +25,7 @@ public sealed record TenantProviderBinding
     /// </summary>
     /// <remarks>
     /// Must start with <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>;
-    /// resolution is rejected otherwise (section 65.2).
+    /// resolution is rejected otherwise.
     /// </remarks>
     public required string ApiKeyConfigurationName { get; init; }
 

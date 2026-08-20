@@ -11,15 +11,15 @@ namespace AgentPrism;
 /// <para>
 /// The service does <strong>not start</strong> the run; it only prepares it.
 /// This lets the caller use the same plan on a streaming, non-streaming, or
-/// queued (Phase 46) path, and every failure condition is known before the
+/// queued path, and every failure condition is known before the
 /// response starts.
 /// </para>
 /// <para>
-/// 🚨 <strong>Replay is sessionless.</strong> If the source run belongs to a
+/// <strong>Replay is sessionless.</strong> If the source run belongs to a
 /// session, its input is only the messages from <em>that turn</em>; history
 /// is injected by <c>ChatHistoryProvider</c> and is not part of the recorded
 /// input. Running the replay in the same session would write into the
-/// source's conversation (append-only, K-014); that is why a replay is
+/// source's conversation (append-only); that is why a replay is
 /// always a new, sessionless run. To restart a multi-turn conversation from
 /// the beginning, use branching (<see cref="IConversationBranchStore"/>).
 /// </para>
@@ -175,10 +175,10 @@ public sealed class RunReplayService
     /// the definition store.
     /// </summary>
     /// <remarks>
-    /// 🚨 A code-defined agent has no <see cref="AgentDefinition"/>
+    /// A code-defined agent has no <see cref="AgentDefinition"/>
     /// counterpart; there is also no definition to recompile for model
     /// override or tool substitution. Silently falling back to
-    /// <see cref="ReplayToolMode.LiveTools"/> would violate K1 — the user
+    /// <see cref="ReplayToolMode.LiveTools"/> would violate the no-surprises rule — the user
     /// would believe no side effect was produced. So the request is
     /// explicitly rejected instead.
     /// </remarks>
@@ -255,7 +255,7 @@ public sealed class RunReplayService
     /// Applies the request's overrides to a definition.
     /// </summary>
     /// <remarks>
-    /// 🚨 In <see cref="ReplayToolMode.NoTools"/> and
+    /// In <see cref="ReplayToolMode.NoTools"/> and
     /// <see cref="ReplayToolMode.ReplayTools"/> modes, the skill and
     /// callable-sub-agent surfaces are also <strong>disabled</strong>. Both
     /// expose their tools through an <c>AIContextProvider</c> and do not go

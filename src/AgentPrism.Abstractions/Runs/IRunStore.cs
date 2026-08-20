@@ -132,18 +132,26 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the cost of a run. Used only by the maintenance endpoint
-    /// (<c>POST /api/stats/recalculate-costs</c>); on the normal path the cost is
-    /// written once by <see cref="CompleteRunAsync"/>.
+    /// Updates the cost of a run. Used only by the maintenance endpoint (<c>POST
+    /// /api/stats/recalculate-costs</c>); on the normal path the cost is written once
+    /// by <see cref="CompleteRunAsync"/>.
     /// </summary>
-    /// <param name="runId">The run id.</param>
-    /// <param name="cost">The new cost. May be <see langword="null"/>.</param>
-    /// <param name="tenantId">
-    /// The EXPECTED tenant of the run. Defence in depth; when <see langword="null"/>
-    /// no tenant check is made. Rationale: <see cref="RunEvent.TenantId"/>, K-355.
+    /// <param name="runId">
+    /// The run id.
     /// </param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task that completes when the record is updated.</returns>
+    /// <param name="cost">
+    /// The new cost. May be <see langword="null"/>.
+    /// </param>
+    /// <param name="tenantId">
+    /// The EXPECTED tenant of the run. Defence in depth; when <see langword="null"/> no
+    /// tenant check is made. <c>TenantId</c>.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// The cancellation token.
+    /// </param>
+    /// <returns>
+    /// A task that completes when the record is updated.
+    /// </returns>
     ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
@@ -151,7 +159,7 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the "still here" mark of in-flight runs in one batch (phase 54).
+    /// Updates the "still here" mark of in-flight runs in one batch.
     /// </summary>
     /// <param name="runIds">The ids of the runs to mark.</param>
     /// <param name="at">The mark time (UTC).</param>
@@ -164,7 +172,7 @@ public interface IRunStore
     /// not interrupt a run.
     /// </para>
     /// <para>
-    /// 🚨 <c>[TenantAgnostic]</c>: the ids come from the calling process's OWN
+    /// <c>[TenantAgnostic]</c>: the ids come from the calling process's OWN
     /// <c>IRunCancellationRegistry</c> and are therefore already limited to the runs
     /// that process actually executes. A tenant filter would also need one query per
     /// tenant, which defeats the point of a heartbeat: a cheap signal that stays off
@@ -178,7 +186,7 @@ public interface IRunStore
 
     /// <summary>
     /// Closes <c>Running</c> rows that have not sent a heartbeat for a long time as
-    /// <c>Failed</c> and records the reason (phase 54).
+    /// <c>Failed</c> and records the reason.
     /// </summary>
     /// <param name="staleBefore">
     /// <c>Running</c> rows whose last heartbeat is older than this — or that never
@@ -198,7 +206,7 @@ public interface IRunStore
     /// job queue and this method DOES NOT TOUCH them.
     /// </para>
     /// <para>
-    /// 🚨 <c>[TenantAgnostic]</c>: this is maintenance work and scans the orphaned
+    /// <c>[TenantAgnostic]</c>: this is maintenance work and scans the orphaned
     /// rows of every tenant. Filtering by the ambient tenant would leave the rows of
     /// other tenants <c>Running</c> forever.
     /// </para>

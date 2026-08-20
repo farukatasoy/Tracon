@@ -4,7 +4,8 @@
     Delivers the capability map that a coding agent reads, and feeds the two
     files APG0401 compares.
 
-    Opt-in by design (K1, zero surprise): with AgentPrismWriteAgentsFile unset,
+    Opt-in by design, so that installing the package surprises nobody: with
+    AgentPrismWriteAgentsFile unset,
     this file writes nothing. `dotnet new agentprism-api` sets the property, so a
     generated project gets the map without asking; an existing project turns it
     on deliberately.
@@ -30,7 +31,7 @@
 
     <_AgentPrismAgentsFile>$([MSBuild]::NormalizePath('$(_AgentPrismAgentsFileRoot)', 'AGENTS.md'))</_AgentPrismAgentsFile>
     <!--
-      🚨 Beside the PROJECT, not at the repository root - unlike AGENTS.md.
+      Beside the PROJECT, not at the repository root - unlike AGENTS.md.
       Measured: a repository that splits a web host from a worker gives each
       project a DIFFERENT set of AgentPrism packages, and one shared file can
       only hold one of those answers. Whichever project built last won, the web
@@ -47,7 +48,7 @@
       documentation into the NuGet cache. What is missing is the pointer, and
       the pointer has to be generated because the paths are machine-specific.
 
-      One switch turns on both files, so opting in does not get harder (K1).
+      One switch turns on both files, so opting in does not get harder.
       The second property exists only for a consumer who wants one and not the
       other.
     -->
@@ -142,7 +143,7 @@
       from, and a single header line could not state one honestly when a project
       resolves two AgentPrism packages at different versions.
 
-      🚨 MSBuild trims leading whitespace from an Include value, so an indented
+      MSBuild trims leading whitespace from an Include value, so an indented
       code block cannot be written here - the recipe below is fenced instead.
     -->
     <ItemGroup Condition="'@(_AgentPrismPackageReference)' != ''">

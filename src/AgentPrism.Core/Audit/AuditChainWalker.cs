@@ -1,7 +1,7 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Walks an ordered list of audit entries and reports the chain status (phase 64).
+/// Walks an ordered list of audit entries and reports the chain status.
 /// Shared by <see cref="InMemoryAuditLog"/> and the SQL providers so the two
 /// verify algorithms can never drift apart.
 /// </summary>

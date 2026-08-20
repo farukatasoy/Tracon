@@ -8,8 +8,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Validation is written manually; <c>ValidateDataAnnotations()</c> is not used.
 /// DataAnnotations validation uses reflection and produces <c>IL2026</c>.
-/// <c>AgentPrism.Core</c> must remain AOT-compatible. Rationale:
-/// <c>docs/KARARLAR.md</c>, K-006.
+/// <c>AgentPrism.Core</c> must remain AOT-compatible.
 /// </remarks>
 public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOptions>
 {

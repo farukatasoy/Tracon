@@ -48,7 +48,7 @@ public sealed record ModelBinding
     /// <para>
     /// <strong>An unknown key is not ignored silently.</strong> When a provider sees a key
     /// it does not recognize, the build fails and lists the keys it supports. The rationale
-    /// is the same as for <see cref="ReasoningEffort"/> (decision K-034): a setting that is
+    /// is the same as for <see cref="ReasoningEffort"/>: a setting that is
     /// ignored silently makes the user miss the behaviour they expect without seeing why.
     /// </para>
     /// <para>
@@ -87,7 +87,7 @@ public sealed record ModelBinding
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Empty by default (K1): with no fallback configured, today's behavior is
+    /// Empty by default: with no fallback configured, today's behavior is
     /// preserved exactly — a provider failure (for example an open circuit)
     /// still throws, and no fallback code path runs.
     /// </para>

@@ -1,8 +1,7 @@
 namespace AgentPrism;
 
 /// <summary>
-/// The sessions, runs, and conversations that belong to one data subject
-/// (phase 64).
+/// The sessions, runs, and conversations that belong to one data subject.
 /// </summary>
 /// <remarks>
 /// Everything else erasable (attachments, voice sessions, scores, and the

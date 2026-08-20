@@ -11,10 +11,9 @@ namespace AgentPrism;
 /// released. A list embedded in code becomes misleading in a short time.
 /// </para>
 /// <para>
-/// Measured (2026-08-02): the built-in list written during phase 3 contained none of the
+/// Measured: an earlier built-in list contained none of the
 /// models a real account could reach; a call to <c>gpt-4.1-mini</c> from that list
-/// returned <c>HTTP 403 model_not_found</c>. Reason:
-/// <c>docs/KARARLAR.md</c>, decision K-032.
+/// returned <c>HTTP 403 model_not_found</c>.
 /// </para>
 /// <para>
 /// The catalog comes from the <see cref="OpenAIProviderOptions.Models"/> option. The

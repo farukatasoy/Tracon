@@ -49,7 +49,7 @@ internal enum VoiceTransitionOutcome
 /// unit test, without setting up a WebSocket.
 /// </para>
 /// <para>
-/// 🚨 The class is <strong>concurrent</strong> and carries no lock of its
+/// The class is <strong>concurrent</strong> and carries no lock of its
 /// own. Events come from two sources (the receive loop and the turn task),
 /// so serializing access is <see cref="VoiceConversationDriver"/>'s responsibility.
 /// </para>
@@ -118,7 +118,7 @@ internal sealed class VoiceConversationStateMachine
     /// A <c>cancel</c> that arrives while busy interrupts the turn.
     /// </para>
     /// <para>
-    /// 🚨 An interruption <strong>does not change</strong> the state. Only
+    /// An interruption <strong>does not change</strong> the state. Only
     /// <see cref="FinishTurn"/> returns it to listening; otherwise the client
     /// could immediately send a new <c>commit</c>, and two turns would run at once.
     /// </para>

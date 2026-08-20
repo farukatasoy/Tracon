@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>There are two speech paths and their metering behavior DIFFERS.</strong>
+/// <strong>There are two speech paths and their metering behavior DIFFERS.</strong>
 /// The agent's <c>speak</c> tool runs inside a run; its metering is written to
 /// the <c>tool_invocations</c> row. The <c>POST /api/voice/speak</c> endpoint
 /// here, however, is an <em>operator action</em> and is OUTSIDE a run:
@@ -203,7 +203,7 @@ internal static class VoiceEndpoints
     /// <remarks>
     /// The <see cref="IVoiceSessionStore"/> store is resolved optionally: if the
     /// speech layer was not enabled, it is not registered, and the endpoint
-    /// returns an <strong>empty list</strong> instead of <c>501</c>. Rationale:
+    /// returns an <strong>empty list</strong> instead of <c>501</c>.
     /// the list endpoint reports the absence of data, not the presence of a
     /// capability; the frontend panel renders without error.
     /// </remarks>

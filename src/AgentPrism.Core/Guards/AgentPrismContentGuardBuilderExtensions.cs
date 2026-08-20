@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
-/// <summary>Chain extensions that turn on content inspection — Phase 48.</summary>
+/// <summary>Chain extensions that turn on content inspection.</summary>
 /// <remarks>
 /// This is an extension method, not a member of <see cref="IAgentPrismBuilder"/>:
 /// adding a member to the interface is a breaking change after release; adding
@@ -21,7 +21,7 @@ public static class AgentPrismContentGuardBuilderExtensions
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>This call is K1's gate.</strong> <c>AddAgentPrism()</c> alone
+    /// <strong>This call is the no-surprises rule's gate.</strong> <c>AddAgentPrism()</c> alone
     /// registers no guard, and the inspection wrapper is <em>never added</em> to
     /// the model pipeline. Without this call no prompt is inspected, no response
     /// is inspected, and no cost is paid.

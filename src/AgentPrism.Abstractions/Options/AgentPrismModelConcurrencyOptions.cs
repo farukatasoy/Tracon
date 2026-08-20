@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// turn a short traffic spike into the very failures this option exists to prevent.
 /// </para>
 /// <para>
-/// <strong>Unlimited by default</strong> (K1): today's behavior is preserved
+/// <strong>Unlimited by default</strong>: today's behavior is preserved
 /// exactly when this is not configured, and the hot path allocates nothing extra.
 /// </para>
 /// </remarks>

@@ -210,8 +210,7 @@ internal static class SessionEndpoints
     /// is no side effect. This call is the ONLY way to clean up attachments in both
     /// the persistent (PostgreSQL) and in-memory stores — <c>attachments.session_id</c>
     /// is DELIBERATELY not a foreign key (see the migration 0006 comment: an
-    /// attachment can be uploaded before a session is ever opened). Rationale:
-    /// <c>docs/14-COK-MODLULUK.md</c>, open question 2.
+    /// attachment can be uploaded before a session is ever opened).
     /// </remarks>
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
         string sessionId,

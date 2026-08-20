@@ -14,7 +14,7 @@ fails; every framework counts that as a failure.
 dotnet add package AgentPrism.Testing
 ```
 
-🚨 **The meta package (`AgentPrism`) does not reference this package.**
+**The meta package (`AgentPrism`) does not reference this package.**
 `AgentPrism.Testing` is referenced only from your test project, not from your
 production application.
 
@@ -82,7 +82,7 @@ Built on `WebApplication.CreateSlimBuilder()` + `UseTestServer()` —
 `Microsoft.AspNetCore.Mvc.Testing`'s `WebApplicationFactory<T>` is **not
 used**, because it requires an entry-point assembly and locks the consumer
 into a hosting model. In-memory stores are a first-class implementation
-(K-018), so the host needs no database.
+, so the host needs no database.
 
 ```csharp
 await using var host = await AgentPrismTestHost.StartAsync(options =>
@@ -95,7 +95,7 @@ await using var host = await AgentPrismTestHost.StartAsync(options =>
 using var response = await host.Client.GetAsync("/agentprism/api/agents");
 ```
 
-## 🚨 Your tool must NOT EXPECT a dependency from DI
+## Your tool must not expect a dependency from DI
 
 `AIFunctionArguments.Services` is **empty** in MAF's run pipeline
 (`Microsoft.Extensions.AI.EmptyServiceProvider`). If a tool needs a
@@ -109,7 +109,7 @@ public static class OrderTools
     [AgentPrismTool]
     public static string GetOrderStatus(string orderId, AIFunctionArguments arguments)
     {
-        var repo = arguments.Services!.GetRequiredService<IOrderRepository>(); // 🚨 null
+        var repo = arguments.Services!.GetRequiredService<IOrderRepository>(); // null
         ...
     }
 }
@@ -126,7 +126,7 @@ services.AddSingleton(provider =>
     new AgentPrismToolRegistration(new OrderTools(provider.GetRequiredService<IOrderRepository>()), ...));
 ```
 
-This trap was measured in Phase 27 (K-218): an isolated probe program did not
+This trap was measured: an isolated probe program did not
 prove the real pipeline. `AgentPrismTestHost` builds the real pipeline, not a
 separate probe — so this failure shows up in tests the exact same way.
 
@@ -149,8 +149,14 @@ well, no separate type is needed.
 The package depends on `AgentPrism.Core` and `AgentPrism.AspNetCore`; the
 in-memory host fixture needs the package that builds the endpoints.
 `AgentPrism.AspNetCore` is the only package that carries prerelease MAF
-packages (K-008); since `AgentPrism.Testing` depends on it, it inherits those
+packages; since `AgentPrism.Testing` depends on it, it inherits those
 prerelease dependencies **transitively**. This is acceptable — the test
 package is **not** in the production dependency graph.
 
 The package takes **no test framework** dependency.
+
+## Links
+
+- Guide: <https://farukatasoy.github.io/AgentPrism/guides/testing/>
+- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
+- API reference: <https://farukatasoy.github.io/AgentPrism/api/>

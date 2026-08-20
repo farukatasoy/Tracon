@@ -5,12 +5,11 @@ namespace AgentPrism;
 /// <para>
 /// This type is deliberately a <c>class</c>, not a <c>record</c>: a <c>record</c>'s
 /// generated <c>ToString</c> would print every property, exposing the API key in a
-/// single log line. Rationale: <c>docs/KARARLAR.md</c>, decision K-035.
+/// single log line.
 /// </para>
 /// <para>
 /// Validation is done by hand in <see cref="GoogleProviderOptionsValidator"/>;
-/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility
-/// (decision K-006).
+/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility.
 /// </para>
 /// </remarks>
 public sealed class GoogleProviderOptions
@@ -53,7 +52,7 @@ public sealed class GoogleProviderOptions
     /// <remarks>
     /// AgentPrism carries no built-in model list; the catalog comes entirely from
     /// here. This list <em>is not a validation list</em>: a model name absent from
-    /// it can still be used. Rationale: <c>docs/KARARLAR.md</c>, decision K-032.
+    /// it can still be used.
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 }

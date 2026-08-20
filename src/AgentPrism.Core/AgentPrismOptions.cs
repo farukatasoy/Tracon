@@ -39,7 +39,7 @@ public sealed class AgentPrismOptions
     /// <summary>Gets or sets attachment upload limits for images, audio, and documents.</summary>
     public AgentPrismAttachmentOptions Attachments { get; set; } = new();
 
-    /// <summary>Gets or sets the run-cost price source, introduced in phase 20.</summary>
+    /// <summary>Gets or sets the run-cost price source.</summary>
     public AgentPrismPricingOptions Pricing { get; set; } = new();
 
     /// <summary>
@@ -53,16 +53,16 @@ public sealed class AgentPrismOptions
     /// </remarks>
     public ModelBinding? UtilityModel { get; set; }
 
-    /// <summary>Gets or sets definition-validation endpoint options for phase 34, F-60.</summary>
+    /// <summary>Gets or sets definition-validation endpoint options.</summary>
     public AgentPrismValidationOptions Validation { get; set; } = new();
 
-    /// <summary>Gets or sets the pre-flight context-window check options, introduced in phase 62, F-59.</summary>
+    /// <summary>Gets or sets the pre-flight context-window check options.</summary>
     public AgentPrismPreflightOptions Preflight { get; set; } = new();
 
-    /// <summary>Gets or sets the per-provider outgoing concurrency limit, introduced in phase 62, F-44.</summary>
+    /// <summary>Gets or sets the per-provider outgoing concurrency limit.</summary>
     public AgentPrismModelConcurrencyOptions ModelConcurrency { get; set; } = new();
 
-    /// <summary>Gets or sets tool execution options, introduced in phase 69, F-114.</summary>
+    /// <summary>Gets or sets tool execution options.</summary>
     public AgentPrismToolOptions Tools { get; set; } = new();
 }
 
@@ -77,7 +77,7 @@ public sealed class AgentPrismToolOptions
     /// 30 seconds matches the skill-script default
     /// (<see cref="AgentPrismSkillScriptOptions.Timeout"/>); this value was
     /// not measured against production traffic and should be revisited after
-    /// the first real run (open question 5, phase 69).
+    /// the first real run.
     /// </remarks>
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }
@@ -263,7 +263,6 @@ public sealed class AgentPrismSkillScriptOptions
 /// Binary content lives in <c>attachments</c> and messages carry only a reference.
 /// These options apply only during upload. Type validation uses magic bytes, not
 /// the client-supplied <c>Content-Type</c>; see <see cref="AttachmentTypeGuard"/>.
-/// Rationale: <c>docs/14-COK-MODLULUK.md</c>.
 /// </remarks>
 public sealed class AgentPrismAttachmentOptions
 {
@@ -305,8 +304,7 @@ public sealed class AgentPrismAuditOptions
 /// The circuit breaker decorates the <see cref="IChatClient"/> pipeline instead
 /// of being embedded in a provider implementation. Every provider, including
 /// OpenAI, compatible servers, and future Anthropic or Gemini providers, gets
-/// the same protection. Rationale: K-007 and section 8.3 of
-/// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>.
+/// the same protection.
 /// </remarks>
 public sealed class AgentPrismCircuitBreakerOptions
 {
@@ -345,8 +343,7 @@ public sealed class AgentPrismHealthOptions
     /// </summary>
     /// <remarks>
     /// This is intentionally empty because regular requests from an idle
-    /// installation are an undesirable default. Rationale: open question 3 in
-    /// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>.
+    /// installation are an undesirable default.
     /// </remarks>
     public TimeSpan? BackgroundInterval { get; set; }
 }
@@ -423,7 +420,7 @@ public sealed class AgentPrismObservabilityOptions
     /// <c>agentprism.quota.limit</c> observable gauges are enabled.
     /// </summary>
     /// <remarks>
-    /// <strong>Disabled by default</strong> under K1 because the gauge reads the
+    /// <strong>Disabled by default</strong> under the no-surprises rule because the gauge reads the
     /// database. Unlike the cost counter, this consumes additional resources and
     /// must be explicitly requested.
     /// </remarks>
@@ -463,12 +460,12 @@ public sealed class AgentPrismRunRecordingOptions
     public int MaxPayloadLength { get; set; } = 8 * 1024;
 
     /// <summary>
-    /// Gets or sets whether run input is written to <c>run_inputs</c> (phase 47).
+    /// Gets or sets whether run input is written to <c>run_inputs</c>.
     /// Replay does not work when disabled.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 This defaults to <strong>enabled</strong> and is not a K1 "zero
+    /// This defaults to <strong>enabled</strong> and is not a "zero
     /// surprise" exception. Input does not introduce a new data class: the same
     /// messages already exist in <c>conversation_items</c> for a session run,
     /// and <see cref="RecordToolPayloads"/> currently defaults to
@@ -493,7 +490,7 @@ public sealed class AgentPrismRunRecordingOptions
     /// volume was not measured; intermediate reasoning can repeat user data in forms the
     /// final answer never shows; and some providers restrict storing raw reasoning text,
     /// a restriction that has not been verified. Turning it on is a one-line change and
-    /// does not conflict with the retention policy (phase 25) — reasoning shares
+    /// does not conflict with the retention policy — reasoning shares
     /// <see cref="RecordMessageDeltas"/>'s retention bucket, it is not tracked separately.
     /// </remarks>
     public bool RecordReasoningDeltas { get; set; }
@@ -504,7 +501,7 @@ public sealed class AgentPrismRunRecordingOptions
 /// has no price in the <see cref="ModelDescriptor"/> catalog.
 /// </summary>
 /// <remarks>
-/// AgentPrism does <strong>not invent prices</strong> (K-032). This stores only
+/// AgentPrism does <strong>not invent prices</strong>. This stores only
 /// values supplied by the consumer in configuration. Configuration paths:
 /// <list type="bullet">
 ///   <item><c>AgentPrism:Pricing:Currency</c></item>
@@ -513,7 +510,7 @@ public sealed class AgentPrismRunRecordingOptions
 /// </list>
 /// Wildcards are not supported.
 /// <para>
-/// 🚨 The section is bound manually for AOT. Every child of <c>Pricing</c> is
+/// The section is bound manually for AOT. Every child of <c>Pricing</c> is
 /// treated as a provider name, so the <c>Currency</c> and <c>Voice</c> keys are
 /// reserved and cannot be provider names. When adding a reserved key, also update
 /// the skip list in <c>BindPricing</c>.
@@ -536,7 +533,7 @@ public sealed class AgentPrismPricingOptions
     /// <remarks>
     /// Voice pricing uses characters or duration rather than tokens, so it cannot
     /// share a dictionary with <see cref="Providers"/>. The two sections are not
-    /// combined because their units differ; see <c>docs/28-SES-TOOLLARI.md</c>.
+    /// combined because their units differ;
     /// </remarks>
     public IDictionary<string, IDictionary<string, VoicePriceOverride>> Voice { get; }
         = new Dictionary<string, IDictionary<string, VoicePriceOverride>>(StringComparer.OrdinalIgnoreCase);

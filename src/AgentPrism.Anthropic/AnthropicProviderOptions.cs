@@ -5,12 +5,11 @@ namespace AgentPrism;
 /// <para>
 /// This type is deliberately a <c>class</c>, not a <c>record</c>: a <c>record</c>'s
 /// generated <c>ToString</c> would print every property and a single log line
-/// would expose the API key. Rationale: <c>docs/KARARLAR.md</c>, decision K-035.
+/// would expose the API key.
 /// </para>
 /// <para>
 /// Validation is done by hand in <see cref="AnthropicProviderOptionsValidator"/>;
-/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility
-/// (decision K-006).
+/// <c>DataAnnotations</c> relies on reflection and breaks AOT compatibility.
 /// </para>
 /// </remarks>
 public sealed class AnthropicProviderOptions
@@ -43,14 +42,14 @@ public sealed class AnthropicProviderOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 The Anthropic Messages API requires <c>max_tokens</c>; it is not an
+    /// The Anthropic Messages API requires <c>max_tokens</c>; it is not an
     /// optional field like in OpenAI. Because of this, AgentPrism carries a
     /// default and the default cannot be <see langword="null"/>.
     /// </para>
     /// <para>
     /// The value bounds output generation, not tokens actually spent. Even so, a
     /// very high limit is treated by some providers as a "worst case" cost (see
-    /// the <c>HTTP 402</c> encountered with OpenRouter in Phase 8).
+    /// the <c>HTTP 402</c> encountered with OpenRouter).
     /// </para>
     /// </remarks>
     public int DefaultMaxOutputTokens { get; set; } = 4096;
@@ -75,7 +74,7 @@ public sealed class AnthropicProviderOptions
     /// <remarks>
     /// AgentPrism carries no built-in model list; the catalog comes entirely from
     /// here. This list is <em>not a validation list</em>: a model name absent from
-    /// it can still be used. Rationale: <c>docs/KARARLAR.md</c>, decision K-032.
+    /// it can still be used.
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 }

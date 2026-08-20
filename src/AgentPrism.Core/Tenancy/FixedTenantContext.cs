@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Added in Phase 41. In-memory stores read the tenant through <see cref="ITenantContext"/>.
+/// In-memory stores read the tenant through <see cref="ITenantContext"/>.
 /// When a store is created outside DI directly with <c>new</c>, this type supplies the
 /// context if one is not provided, and the store behaves as single tenant.
 /// </para>

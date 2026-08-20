@@ -13,23 +13,23 @@ namespace AgentPrism;
 
 /// <summary>
 /// Inbound trigger definitions (admin CRUD) and the unauthenticated accept
-/// endpoint that queues a run from an external, signed event (phase 66).
+/// endpoint that queues a run from an external, signed event.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The accept endpoint (<see cref="MapAccept"/>) is mapped into its OWN,
 /// UNAUTHENTICATED group by <c>AgentPrismEndpointRouteBuilderExtensions</c> —
-/// the same pattern as <c>MapMcpOAuthCallback</c> (K-395): a caller that owns
+/// the same pattern as <c>MapMcpOAuthCallback</c>: a caller that owns
 /// no AgentPrism bearer token still needs to reach this route. Identity here
 /// is an HMAC signature over the body, verified by
 /// <see cref="InboundTriggerDispatcher"/> itself, not by an ASP.NET Core filter.
 /// </para>
 /// <para>
-/// 🚨 It is written to the audit trail BEFORE calling
+/// It is written to the audit trail BEFORE calling
 /// <see cref="IInboundTriggerStore.UpsertAsync"/>/<see cref="IInboundTriggerStore.DeleteAsync"/>:
-/// the same exception as K-089 ("a trigger definition that cannot be written
+/// the same exception ("a trigger definition that cannot be written
 /// to the audit trail is not applied") — the same pattern
-/// <c>ApprovalEndpoints.DecideAsync</c> (K-370) uses, not the routine,
+/// <c>ApprovalEndpoints.DecideAsync</c> uses, not the routine,
 /// failure-swallowing <c>AuditRecorder.WriteAsync</c> most admin endpoints use.
 /// </para>
 /// </remarks>
@@ -106,7 +106,7 @@ internal static class TriggerEndpoints
             .WithDescription(
                 "No bearer token: the caller authenticates with an HMAC signature over the raw " +
                 "body ('X-AgentPrism-Timestamp' + 'X-AgentPrism-Signature', the same headers " +
-                "Phase 21's outbound webhooks send, in the reverse direction). The event is " +
+                "outbound webhooks send, in the reverse direction). The event is " +
                 "ALWAYS queued and this ALWAYS returns 202 — there is no synchronous mode; a " +
                 "long model call would otherwise fail the caller's own webhook timeout. A missing " +
                 "or wrong signature, an unknown trigger, and a disabled trigger all return the " +
@@ -345,8 +345,7 @@ internal static class TriggerEndpoints
 
     /// <summary>
     /// Reads the request body up to <paramref name="maxBodyBytes"/>. Does NOT
-    /// trust <c>Content-Length</c> (unreliable under chunked transfer,
-    /// docs/hafiza/aspnetcore-di.md) — the stream itself is bounded instead.
+    /// trust <c>Content-Length</c> — the stream itself is bounded instead.
     /// </summary>
     private static async Task<(string? Body, IResult? Error)> ReadBoundedBodyAsync(
         HttpContext httpContext,
@@ -385,9 +384,9 @@ internal static class TriggerEndpoints
     /// <summary>
     /// Maps a failed <see cref="InboundTriggerValidationResult"/> to its HTTP
     /// response. <see cref="InboundTriggerOutcome.Unauthorized"/> covers an
-    /// unknown tenant (K-382: no silent fallback), an unknown or disabled
+    /// unknown tenant (no silent fallback), an unknown or disabled
     /// trigger name, AND every signature/timestamp failure — one generic
-    /// <c>401</c> body for all of them (section 66.2), so a caller without a
+    /// <c>401</c> body for all of them, so a caller without a
     /// valid secret cannot enumerate trigger names by comparing responses.
     /// </summary>
     private static ProblemHttpResult DescribeOutcome(InboundTriggerValidationResult validation)
@@ -450,7 +449,7 @@ internal static class TriggerEndpoints
 
     /// <summary>Summarizes a trigger for the audit trail.</summary>
     /// <remarks>
-    /// NO secret value — only the configuration key's name (K-059). 🚨 The
+    /// NO secret value — only the configuration key's name. The
     /// JSON property is deliberately named <c>secretConfigKeyName</c>, not
     /// <c>signingSecretConfigurationName</c>: <see cref="AuditSecretFilter"/>
     /// blanket-redacts any property whose name contains "secret" regardless
@@ -466,8 +465,8 @@ internal static class TriggerEndpoints
             """;
 
     /// <remarks>
-    /// The SAME pattern as <c>ApprovalEndpoints.WriteAuditOrThrowAsync</c>
-    /// (K-370, K-089): writes directly through <see cref="IAuditLog"/> and
+    /// The SAME pattern as <c>ApprovalEndpoints.WriteAuditOrThrowAsync</c>:
+    /// writes directly through <see cref="IAuditLog"/> and
     /// does NOT swallow a failure — the caller gets 500 and the mutation
     /// below is NEVER reached.
     /// </remarks>

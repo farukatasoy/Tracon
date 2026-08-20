@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>Use <c>AgentPrism.PostgreSql</c> in production.</para>
 /// <para>
-/// The hash chain (phase 64) is computed here too: entries are kept per tenant
+/// The hash chain is computed here too: entries are kept per tenant
 /// (<c>ConcurrentDictionary&lt;string, List&lt;AuditEntry&gt;&gt;</c>) and each
 /// tenant's list is locked for its own read-last-hash/compute/append sequence —
 /// a single process has no cross-connection writer race the way a SQL provider
@@ -116,7 +116,11 @@ public sealed class InMemoryAuditLog : IAuditLog
         return new ValueTask<IReadOnlyList<AuditEntry>>(result);
     }
 
-    /// <summary>Takes a consistent snapshot of one tenant's chain, or of every tenant's when <paramref name="tenantId"/> is empty.</summary>
+    /// <summary>
+    /// Takes a consistent snapshot of one tenant's chain, or of every tenant's when
+    /// <paramref name="tenantId"/>
+    /// is empty.
+    /// </summary>
     private List<AuditEntry> SnapshotAll(string? tenantId)
     {
         if (tenantId is { Length: > 0 })

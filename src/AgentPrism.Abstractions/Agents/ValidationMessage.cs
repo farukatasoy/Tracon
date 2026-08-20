@@ -2,7 +2,7 @@ namespace AgentPrism;
 
 /// <summary>A single finding produced by the validation of an agent definition.</summary>
 /// <remarks>
-/// <see cref="Message"/> comes from the server and is not translated (K-232); the user
+/// <see cref="Message"/> comes from the server and is not translated; the user
 /// interface shows its own heading based on <see cref="Code"/> alone.
 /// </remarks>
 public sealed record ValidationMessage

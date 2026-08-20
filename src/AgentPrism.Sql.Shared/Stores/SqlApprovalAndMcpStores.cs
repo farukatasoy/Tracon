@@ -175,7 +175,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 /// <remarks>
 /// <strong>Carries no secret.</strong> Only the name of the configuration key
 /// whose value resolves the authorization credential is stored; the value
-/// itself is never written to this table (decision K-059).
+/// itself is never written to this table.
 /// </remarks>
 internal sealed class SqlMcpServerStore : IMcpServerStore
 {

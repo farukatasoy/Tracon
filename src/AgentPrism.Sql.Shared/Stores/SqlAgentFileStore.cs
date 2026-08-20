@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// <c>FileMemoryProvider</c> and <c>TextSearchProvider</c> resolve to this type
-/// when it is registered, without code changes (see <c>docs/KARARLAR.md</c>, K-110).
+/// when it is registered, without code changes.
 /// </para>
 /// <para>
 /// The tenant is injected directly from <see cref="ITenantContext"/>. The
@@ -113,7 +113,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     /// <remarks>
     /// Files UNDER the directory are narrowed by a prefix filter in SQL; cost is
     /// driven by the row count under this directory, not by the store's total
-    /// file count. See <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>.
+    /// file count.
     /// </remarks>
     public override async Task<IReadOnlyList<FileStoreEntry>> ListChildrenAsync(
         string directory,
@@ -151,15 +151,18 @@ internal sealed class SqlAgentFileStore : AgentFileStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// The prefix, depth limit (<paramref name="recursive"/>), and
-    /// <paramref name="globPattern"/> are pushed down to SQL; <c>LoadAllAsync</c>
-    /// is no longer called. PostgreSQL additionally pushes
-    /// <paramref name="regexPattern"/> down as a pre-filter via the <c>~</c>
-    /// operator — the final match is still ALWAYS done here with .NET
-    /// <see cref="Regex"/>, so behavior does not change. If the pattern sent to
-    /// the server is invalid in PostgreSQL's ARE syntax (e.g. .NET-specific
-    /// named groups), <see cref="SqlDialect.IsInvalidRegexError"/> catches this
-    /// and the query is re-run WITHOUT the pre-filter.
+    /// The prefix, depth limit (
+    /// <paramref name="recursive"/>
+    /// ), and
+    /// <paramref name="globPattern"/>
+    /// are pushed down to SQL; <c>LoadAllAsync</c> is no longer called. PostgreSQL
+    /// additionally pushes
+    /// <paramref name="regexPattern"/>
+    /// down as a pre-filter via the <c>~</c> operator — the final match is still ALWAYS
+    /// done here with .NET <see cref="Regex"/>, so behavior does not change. If the
+    /// pattern sent to the server is invalid in PostgreSQL's ARE syntax
+    /// (e.g.NET-specific named groups), <see cref="SqlDialect.IsInvalidRegexError"/>
+    /// catches this and the query is re-run WITHOUT the pre-filter.
     /// </remarks>
     public override async Task<IReadOnlyList<FileSearchResult>> SearchAsync(
         string directory,

@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Stores pending approval requests in the SQL database (Phase 55).</summary>
+/// <summary>Stores pending approval requests in the SQL database.</summary>
 /// <remarks>
 /// The behavior contract is identical to <see cref="InMemoryPendingApprovalStore"/>
 /// and is guarded by the shared contract tests. <see cref="ListPendingAsync"/>,

@@ -7,13 +7,13 @@ namespace AgentPrism;
 /// <para>
 /// The check estimates prompt token count before a run starts and rejects the
 /// call, with no model provider ever contacted, once the estimate exceeds the
-/// model's context window. The estimate is approximate (phase 62): counting a
+/// model's context window. The estimate is approximate: counting a
 /// prompt's tokens without the provider's own tokenizer can only approximate
 /// the real count, and a wrong count either rejects a call that would have
 /// succeeded or lets through one that would have failed.
 /// </para>
 /// <para>
-/// <strong>Disabled by default</strong> (K1): a false rejection stops a
+/// <strong>Disabled by default</strong>: a false rejection stops a
 /// working agent, and that risk must be opted into, not discovered in production.
 /// </para>
 /// </remarks>

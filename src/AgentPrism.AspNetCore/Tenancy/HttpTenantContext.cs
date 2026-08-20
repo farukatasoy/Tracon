@@ -24,7 +24,7 @@ namespace AgentPrism;
 ///   <item><description>If none apply → the default tenant.</description></item>
 /// </list>
 /// <para>
-/// 🚨 While the claim is set, the <strong>header is never read</strong>. Otherwise
+/// While the claim is set, the <strong>header is never read</strong>. Otherwise
 /// an authenticated user could access another tenant's data simply by adding a
 /// header.
 /// </para>
@@ -62,9 +62,9 @@ public sealed partial class HttpTenantContext : ITenantContext
     /// resolution.
     /// </para>
     /// <para>
-    /// 🚨 On a request authenticated with an API key, the tenant is resolved from
-    /// the KEY's <c>tenant_id</c> — this comes BEFORE the claim or the header
-    /// (section 53.5). The key PROVES a secret; the header is only the client's
+    /// On a request authenticated with an API key, the tenant is resolved from
+    /// the KEY's <c>tenant_id</c> — this comes BEFORE the claim or the header.
+    /// The key PROVES a secret; the header is only the client's
     /// DECLARATION. <see cref="AgentPrismEndpointFilter"/> already rejects the
     /// request with 403 if the header conflicts with the key's tenant, so by the
     /// time a request reaches this point, the two either match or the header is

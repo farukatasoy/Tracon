@@ -13,13 +13,12 @@
     -->
     <AgentPrismWriteAgentsFile>true</AgentPrismWriteAgentsFile>
     <!--
-      🚨 InvariantGlobalization is NEVER enabled. `Microsoft.Data.SqlClient` does
+      InvariantGlobalization is NEVER enabled. `Microsoft.Data.SqlClient` does
       NOT SUPPORT Globalization Invariant Mode; this template offers the
       UseSqlServer option, and a project generated with that option would NEVER
       start (`SqlConnection.Open` throws a `NotSupportedException`). The template
       goes straight to the consumer; the defect would go straight there too.
-      Measured (manual test MT-SQL-024).
-      Rationale: docs/KARARLAR.md, decision K-392.
+      Measured against a real SQL Server.
     -->
   </PropertyGroup>
 

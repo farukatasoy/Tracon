@@ -8,33 +8,26 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The store implementations under <c>AgentPrism.Sql.Shared</c> know only the
-/// ADO.NET base types (<see cref="DbCommand"/>, <see cref="DbDataReader"/>,
-/// <see cref="DbDataSource"/>). <strong>No</strong> shared file may reference the
-/// <c>Npgsql</c> or <c>Microsoft.Data.SqlClient</c> namespace; all the differences
-/// are collected in the derived types of this class.
+/// The store implementations under <c>AgentPrism.Sql.Shared</c> know only the ADO.NET
+/// base types (<see cref="DbCommand"/>, <see cref="DbDataReader"/>, <see
+/// cref="DbDataSource"/>). <strong>No</strong> shared file may reference the
+/// <c>Npgsql</c> or <c>Microsoft.Data.SqlClient</c> namespace; all the differences are
+/// collected in the derived types of this class.
 /// </para>
 /// <para>
 /// The differences fall into three groups:
 /// </para>
 /// <list type="number">
-///   <item><description>
-///     <strong>Parameter typing.</strong> Types such as <c>jsonb</c>, arrays and
-///     intervals have no common counterpart in ADO.NET.
-///   </description></item>
-///   <item><description>
-///     <strong>Array transport format.</strong> PostgreSQL sends a native array
-///     (<c>unnest</c>); SQL Server sends JSON text (<c>OPENJSON</c>). The text
-///     difference stays inside the SQL and the C# flow is the same.
-///   </description></item>
-///   <item><description>
-///     <strong>Migration lock.</strong> <c>pg_advisory_lock</c> and
-///     <c>sp_getapplock</c>.
-///   </description></item>
+/// <item>
+/// <description> <strong>Parameter typing.</strong> Types such as <c>jsonb</c>, arrays and intervals have no common counterpart in ADO.NET. </description>
+/// </item>
+/// <item>
+/// <description> <strong>Array transport format.</strong> PostgreSQL sends a native array (<c>unnest</c>); SQL Server sends JSON text (<c>OPENJSON</c>). The text difference stays inside the SQL and the C# flow is the same. </description>
+/// </item>
+/// <item>
+/// <description> <strong>Migration lock.</strong> <c>pg_advisory_lock</c> and <c>sp_getapplock</c>. </description>
+/// </item>
 /// </list>
-/// <para>
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-176.
-/// </para>
 /// </remarks>
 internal abstract class SqlDialect
 {
@@ -47,7 +40,6 @@ internal abstract class SqlDialect
     /// <remarks>
     /// Every provider has its own migration set and the numbering starts at
     /// <c>0001</c>. The numbers of two sets do <strong>not</strong> have to match.
-    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-178.
     /// </remarks>
     public abstract string MigrationResourcePrefix { get; }
 
@@ -56,8 +48,8 @@ internal abstract class SqlDialect
     /// name, each value the embedded resource prefix for that set.
     /// </summary>
     /// <remarks>
-    /// Empty by default (K1): a provider opts in by overriding this. Today
-    /// only PostgreSQL offers one ("knowledge", phase 67) — it needs the
+    /// Empty by default: a provider opts in by overriding this. Today
+    /// only PostgreSQL offers one ("knowledge") — it needs the
     /// <c>pgvector</c> extension and is therefore not part of the core set
     /// that every consumer pays for. <see cref="SqlStoreContext.EnabledMigrationSets"/>
     /// selects which of these actually apply.
@@ -76,7 +68,7 @@ internal abstract class SqlDialect
     /// core file list no longer discovers; <see cref="MigrationRunner"/> uses
     /// this map to log (once, at information level) that the row is orphaned
     /// but harmless when the corresponding optional set stays disabled
-    /// (phase 67, decision 67.3 — no migration code, a diagnostic only).
+    /// (decision 67.3 — no migration code, a diagnostic only).
     /// </remarks>
     public virtual IReadOnlyDictionary<int, string> RelocatedCoreMigrationSets { get; }
         = System.Collections.Immutable.ImmutableDictionary<int, string>.Empty;
@@ -108,7 +100,7 @@ internal abstract class SqlDialect
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Upgrades an existing ledger table created before phase 67 (no
+    /// Upgrades an existing ledger table created before optional sets existed (no
     /// <c>set_name</c> column, a single-column primary key) to the shape a
     /// fresh database now gets directly from <see cref="SqlQueriesBase.CreateMigrationsTable"/>.
     /// </summary>
@@ -123,14 +115,14 @@ internal abstract class SqlDialect
     /// startup, including a fresh database that already has the target shape.
     /// </para>
     /// <para>
-    /// 🚨 This intentionally runs as ITS OWN command, never combined with a
+    /// This intentionally runs as ITS OWN command, never combined with a
     /// migration's <c>InsertMigration</c> text. SQL Server compiles a whole
     /// batch up front; a statement that references a column ADDED earlier IN
     /// THE SAME BATCH via plain <c>ALTER TABLE</c> fails with "Invalid column
     /// name" (the same trap documented on PostgreSQL 0031/SqlServer
     /// 0018_audit_chain.sql) — and <c>InsertMigration</c>'s fixed text
     /// references <c>set_name</c> on <em>every</em> migration insert from
-    /// phase 67 onward. Running the upgrade as a separate, already-completed
+    /// onward. Running the upgrade as a separate, already-completed
     /// command before the per-migration loop starts means the column exists
     /// in the catalog by the time any <c>InsertMigration</c> text is compiled.
     /// </para>
@@ -140,7 +132,7 @@ internal abstract class SqlDialect
     /// idempotent statement suffices). SQLite cannot express "add this column
     /// only if missing" or change a primary key in a static SQL string at
     /// all — <c>SqliteDialect</c> overrides this method with the check +
-    /// rebuild done in code (the same technique as K-278/0006_sessions_tenant_key.sql).
+    /// rebuild done in code (the same technique/0006_sessions_tenant_key.sql).
     /// </para>
     /// </remarks>
     public virtual async ValueTask UpgradeMigrationsTableAsync(
@@ -197,7 +189,7 @@ internal abstract class SqlDialect
     /// <param name="exception">The caught exception.</param>
     /// <returns><see langword="true"/> when it does.</returns>
     /// <remarks>
-    /// Only PostgreSQL uses the <c>~</c> operator as a prefilter (phase 51, item A);
+    /// Only PostgreSQL uses the <c>~</c> operator as a prefilter (item A);
     /// the <see cref="System.Text.RegularExpressions.Regex"/> syntax of .NET is
     /// richer than the ARE syntax of PostgreSQL (named groups, for example). When
     /// such a pattern is sent to the server, <see cref="SqlAgentFileStore"/> detects
@@ -217,7 +209,7 @@ internal abstract class SqlDialect
     /// <remarks>
     /// On PostgreSQL the distinction between <c>json</c> and <c>jsonb</c> matters:
     /// <c>jsonb</c> reorders the object keys and breaks the polymorphic <c>$type</c>
-    /// discriminator (decision K-027). On SQL Server both are <c>nvarchar(max)</c>
+    /// discriminator. On SQL Server both are <c>nvarchar(max)</c>
     /// and the order is preserved anyway; the distinction is inert there but
     /// <em>harmless</em> — the shared code uses a single contract.
     /// </remarks>
@@ -259,7 +251,7 @@ internal abstract class SqlDialect
     /// <remarks>
     /// PostgreSQL and SQL Server use <c>{schema}.{table}</c> (with a dot); on SQLite
     /// the object names share a single namespace across the database, so the prefix
-    /// is concatenated directly and there is NO dot (K-193). The default
+    /// is concatenated directly and there is NO dot. The default
     /// implementation qualifies with a dot; provider-independent SQL generation such
     /// as <see cref="RetentionTargetRegistry"/> uses it.
     /// </remarks>
@@ -278,7 +270,7 @@ internal abstract class SqlDialect
     /// This one is identical across the providers (just <c>COUNT(*)</c>); it still
     /// goes through the dialect, because the text produced by
     /// <see cref="RetentionTargetRegistry"/> is provider-INDEPENDENT and under
-    /// K1/K-176 the dialect is the single gateway for all SQL text.
+    /// the no-surprises rule, the dialect is the single gateway for all SQL text.
     /// </remarks>
     public abstract string BuildRetentionCountSql(string table, string wherePredicate);
 
@@ -310,7 +302,7 @@ internal abstract class SqlDialect
 
     /// <summary>
     /// Builds the SQL text that returns the value of the ordering expression for the
-    /// Nth row counted from the newest (phase 36, <c>MaxRows</c>).
+    /// Nth row counted from the newest (<c>MaxRows</c>).
     /// </summary>
     /// <param name="table">The schema-prefixed table name.</param>
     /// <param name="orderExpression">
@@ -320,13 +312,13 @@ internal abstract class SqlDialect
     /// </param>
     /// <param name="extraPredicate">
     /// An additional condition such as the tenant filter; when it is
-    /// <see langword="null"/> the query runs over all rows (phase 41).
+    /// <see langword="null"/> the query runs over all rows.
     /// </param>
     /// <returns>Runnable SQL. Parameters: <c>@n</c> (bigint) and, when present, <c>@tenant_id</c>.</returns>
     /// <remarks>
     /// The caller feeds the single returned value straight into the other three
     /// templates (count/read/delete) as <c>@cutoff</c> — volume-based trimming uses
-    /// THE SAME batch mechanism as age-based deletion (decision K-200, 36.1).
+    /// THE SAME batch mechanism as age-based deletion (36.1).
     /// </remarks>
     public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression, string? extraPredicate);
 
@@ -359,24 +351,28 @@ internal abstract class SqlDialect
     /// <returns>A boolean SQL fragment, safe to combine with <c>AND</c>/<c>OR</c>.</returns>
     /// <remarks>
     /// PostgreSQL has a native array type and uses <c>= ANY(@array)</c>; SQL Server
-    /// and SQLite receive the array as JSON text (K-182) and test membership with
+    /// and SQLite receive the array as JSON text and test membership with
     /// <c>OPENJSON</c>/<c>json_each</c> — the mirror image of the <c>= ANY(events)</c>
     /// pattern already used elsewhere (matching a stored JSON array against one
     /// scalar parameter), with which value is the array and which is scalar swapped.
     /// </remarks>
     public abstract string ArrayContains(string column, string paramName);
 
-    /// <summary>Builds the SQL text that reads the given columns of the rows matching <paramref name="wherePredicate"/>.</summary>
+    /// <summary>
+    /// Builds the SQL text that reads the given columns of the rows matching
+    /// <paramref name="wherePredicate"/>
+    /// .
+    /// </summary>
     /// <param name="table">The schema-prefixed table name.</param>
     /// <param name="columns">The column list (<c>"*"</c> for every column; see <see cref="DataSubjectTargetRegistry"/>).</param>
     /// <param name="wherePredicate">The <c>WHERE</c> condition.</param>
     /// <returns>Runnable SQL.</returns>
     /// <remarks>
     /// Identical across all three providers — there is no provider-specific
-    /// batching or cursor concern here, unlike the retention read (phase 25),
+    /// batching or cursor concern here, unlike the retention read,
     /// because an export runs once for one data subject, not batch by batch over
     /// an entire table. It still passes through the dialect so every runnable SQL
-    /// string has the same single gateway (K-176).
+    /// string has the same single gateway.
     /// </remarks>
     public virtual string BuildDataSubjectSelectSql(string table, string columns, string wherePredicate)
         => $"SELECT {columns} FROM {table} WHERE {wherePredicate};";
@@ -385,7 +381,10 @@ internal abstract class SqlDialect
     /// <param name="table">The schema-prefixed table name.</param>
     /// <param name="wherePredicate">The <c>WHERE</c> condition.</param>
     /// <returns>Runnable SQL.</returns>
-    /// <remarks>A single unbounded <c>DELETE</c>: a data subject's own rows are never large enough to need retention's batch loop.</remarks>
+    /// <remarks>
+    /// A single unbounded <c>DELETE</c>: a data subject's own rows are never large
+    /// enough to need retention's batch loop.
+    /// </remarks>
     public virtual string BuildDataSubjectDeleteSql(string table, string wherePredicate)
         => $"DELETE FROM {table} WHERE {wherePredicate};";
 
@@ -471,17 +470,29 @@ internal abstract class SqlDialect
     public virtual void AddNullableBoolean(DbCommand command, string name, bool? value)
         => AddTyped(command, name, DbType.Boolean, value);
 
-    /// <summary>Adds a parameter with the given type.</summary>
-    /// <param name="command">The command.</param>
-    /// <param name="name">The parameter name.</param>
-    /// <param name="type">The parameter type.</param>
-    /// <param name="value">The value; when it is <see langword="null"/>, <see cref="DBNull"/> is written.</param>
-    /// <returns>The added parameter.</returns>
+    /// <summary>
+    /// Adds a parameter with the given type.
+    /// </summary>
+    /// <param name="command">
+    /// The command.
+    /// </param>
+    /// <param name="name">
+    /// The parameter name.
+    /// </param>
+    /// <param name="type">
+    /// The parameter type.
+    /// </param>
+    /// <param name="value">
+    /// The value; when it is <see langword="null"/>, <see cref="DBNull"/> is written.
+    /// </param>
+    /// <returns>
+    /// The added parameter.
+    /// </returns>
     /// <remarks>
-    /// 🚨 Optional filter parameters (the <c>@p IS NULL OR col = @p</c> pattern) must
+    /// Optional filter parameters (the <c>@p IS NULL OR col = @p</c> pattern) must
     /// <strong>always</strong> be typed explicitly. When an untyped <c>NULL</c> is
-    /// sent, PostgreSQL cannot infer the type and gives <c>42P08</c>; the error
-    /// appears at run time only. Details: <c>docs/hafiza/postgresql.md</c>.
+    /// sent, PostgreSQL cannot infer the type and gives <c>42P08</c>; the error appears
+    /// at run time only.
     /// </remarks>
     protected static DbParameter AddTyped(DbCommand command, string name, DbType type, object? value)
     {

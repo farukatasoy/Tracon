@@ -2,7 +2,7 @@ namespace AgentPrism;
 
 /// <summary>Request to upload a document.</summary>
 /// <remarks>
-/// Either <see cref="Text"/> or <see cref="Chunks"/> is given; both or neither
+/// Either <c>Text</c> or <see cref="Chunks"/> is given; both or neither
 /// cannot be given (see <see cref="KnowledgeIngestionService.IngestAsync"/>).
 /// </remarks>
 public sealed record UploadDocumentRequest
@@ -16,7 +16,7 @@ public sealed record UploadDocumentRequest
     public string? Text { get; init; }
 
     /// <summary>
-    /// Ready-made chunks. If <see cref="UploadDocumentChunk.Embedding"/> is
+    /// Ready-made chunks. If <c>UploadDocumentChunk.Embedding</c> is
     /// left empty, the server embeds it; if it is filled in, it is written AS IS.
     /// </summary>
     public IReadOnlyList<UploadDocumentChunk>? Chunks { get; init; }

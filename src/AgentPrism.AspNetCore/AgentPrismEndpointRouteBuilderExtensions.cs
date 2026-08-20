@@ -241,7 +241,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// is not silently enabled.
     /// </para>
     /// <para>
-    /// 🚨 <c>UseWebSockets()</c> is called HERE. Kestrel does not provide
+    /// <c>UseWebSockets()</c> is called HERE. Kestrel does not provide
     /// <c>IHttpWebSocketFeature</c>; <c>WebSocketMiddleware</c> sets it up.
     /// Requiring a separate call from the consumer would break
     /// <c>MapAgentPrism</c>'s rule of being the single entry point, and the
@@ -297,7 +297,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// layers differ: the shell passes through the authorization policy, but
     /// is exempt from the bearer token check AND the loopback restriction — if
     /// either blocked the shell from downloading its JS bundle,
-    /// <c>AccessGate</c> itself could never run (HATA-S4-003). The shell
+    /// <c>AccessGate</c> itself could never run. The shell
     /// carries no data; the real protection comes from the filter instances on
     /// the data endpoints (where the loopback restriction is on by default).
     /// Details: <see cref="AgentPrismEndpointFilter"/>.
@@ -339,7 +339,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// is set up with <c>requireBearerToken: false</c>, just like the UI shell
     /// (<see cref="MapUi"/>). The loopback restriction and authorization policy
     /// still apply; the real source of security is the single-use <c>state</c>
-    /// value (section 22.3).
+    /// value.
     /// </remarks>
     private static void MapMcpOAuthCallback(IEndpointRouteBuilder endpoints, AgentPrismEndpointOptions options, string prefix)
     {
@@ -355,7 +355,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     }
 
     /// <summary>
-    /// Connects the inbound trigger accept endpoint (phase 66).
+    /// Connects the inbound trigger accept endpoint.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -367,14 +367,14 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// third-party server reaching in from the open internet by design.
     /// </para>
     /// <para>
-    /// 🚨 Deliberately does NOT apply <see cref="AgentPrismEndpointOptions.AuthorizationPolicy"/>,
+    /// Deliberately does NOT apply <see cref="AgentPrismEndpointOptions.AuthorizationPolicy"/>,
     /// unlike every other <c>requireBearerToken: false</c> group: a consumer's
     /// ASP.NET Core authorization policy is normally satisfied by an
     /// interactive human (SSO, a cookie) — a webhook sender can never
     /// complete that challenge. Applying it here would let turning on SSO for
     /// the admin console silently break every inbound trigger at the same
     /// time. The HMAC signature IS this endpoint's complete authentication
-    /// story (section 66.2); it does not layer under a second one.
+    /// story; it does not layer under a second one.
     /// </para>
     /// </remarks>
     private static void MapInboundTriggerAccept(IEndpointRouteBuilder endpoints, AgentPrismEndpointOptions options, string prefix)
@@ -393,7 +393,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// <remarks>
     /// <para>
     /// If the consumer registered their own <see cref="AgentSessionStore"/>
-    /// implementation, it wins (rule K4). For example a multi-tenant setup
+    /// implementation, it wins (the replaceable-extension rule). For example a multi-tenant setup
     /// might register a store wrapped with MAF's
     /// <c>IsolationKeyScopedAgentSessionStore</c> class.
     /// </para>
@@ -401,7 +401,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// If nothing is registered, the default bridge built on
     /// <see cref="AgentSessionManager"/> is used. This keeps
     /// <c>MapAgentPrism()</c> as the single entry point and requires no extra
-    /// registration step (rule K1).
+    /// registration step (the no-surprises rule).
     /// </para>
     /// </remarks>
     private static AgentSessionStore ResolveSessionStore(IServiceProvider services)

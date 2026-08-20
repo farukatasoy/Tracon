@@ -100,10 +100,10 @@ internal static class OpenAICompatSupport
     /// client and are treated as <strong>untrusted</strong>. The check happens
     /// here, in the HTTP layer.
     /// <para>
-    /// 🚨 <see cref="ISessionStore.GetAsync"/> is NOT USED: it is filtered by
+    /// <see cref="ISessionStore.GetAsync"/> is NOT USED: it is filtered by
     /// the ambient tenant, so it can never correctly answer the cross-tenant
     /// question — another tenant's record is NEVER VISIBLE from this context
-    /// and the result would always be "no record, allow it" (HATA-S2-005).
+    /// and the result would always be "no record, allow it".
     /// <see cref="ISessionStore.GetOwnerTenantIdAsync"/> is used instead; it
     /// does NOT APPLY a tenant filter.
     /// </para>
@@ -143,7 +143,10 @@ internal static class OpenAICompatSupport
             CultureInfo.InvariantCulture,
             $"{prefix}{Guid.NewGuid():N}");
 
-    /// <summary>Outer envelope of an OpenAI-compatible error body. Internal so it can be attached to response schema metadata.</summary>
+    /// <summary>
+    /// Outer envelope of an OpenAI-compatible error body. Internal so it can be
+    /// attached to response schema metadata.
+    /// </summary>
     internal sealed record OpenAIErrorEnvelope(OpenAIErrorBody Error);
 
     /// <summary>OpenAI-compatible error body.</summary>

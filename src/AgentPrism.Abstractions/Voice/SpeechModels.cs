@@ -20,11 +20,10 @@ public sealed record SpeechRequest
     /// The provider's output format name (for example, <c>mp3_44100_128</c>).
     /// </summary>
     /// <remarks>
-    /// 🚨 This is <strong>not</strong> a MIME type. Also, not every format can
+    /// This is <strong>not</strong> a MIME type. Also, not every format can
     /// be stored as an attachment: <c>pcm_*</c> and <c>ulaw_*</c> outputs are
     /// headerless, match no magic byte, and are rejected by
-    /// <c>AttachmentTypeGuard</c>. See <c>docs/28-SES-TOOLLARI.md</c>, section
-    /// 28.0/G3, for the rationale.
+    /// <c>AttachmentTypeGuard</c>.
     /// </remarks>
     public string? OutputFormat { get; init; }
 
@@ -35,10 +34,10 @@ public sealed record SpeechRequest
     /// Requests character-level timing alongside the audio. Default <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 Not supported together with <see cref="ISpeechSynthesizer.SynthesizeStreamingAsync"/>:
+    /// Not supported together with <see cref="ISpeechSynthesizer.SynthesizeStreamingAsync"/>:
     /// that method returns raw audio chunks only and has no channel for alignment
     /// data. A synthesizer implementation MUST reject the combination explicitly
-    /// rather than silently drop the alignment (K1).
+    /// rather than silently drop the alignment.
     /// </remarks>
     public bool IncludeTimestamps { get; init; }
 }
@@ -70,12 +69,12 @@ public sealed class SpeechAudio
     /// <remarks>
     /// If the provider does not report the count, the text's length is used
     /// and the value becomes <see cref="SpeechUsageSource.Estimated"/>.
-    /// Showing an estimate as a measurement fabricates a price (K-032).
+    /// Showing an estimate as a measurement fabricates a price.
     /// </remarks>
     public SpeechUsageSource UsageSource { get; init; }
 
     /// <summary>
-    /// Character-level timing, requested via <see cref="SpeechRequest.IncludeTimestamps"/>.
+    /// Character-level timing, requested via <c>SpeechRequest.IncludeTimestamps</c>.
     /// <see langword="null"/> when not requested, or when the provider does not support it.
     /// </summary>
     public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
@@ -86,7 +85,7 @@ public sealed class SpeechAudio
 /// Character-level, not word-level: this is the granularity ElevenLabs' <c>.../with-timestamps</c>
 /// endpoint reports (verified against its published OpenAPI document, 2026-08-19).
 /// Grouping characters into words or producing a subtitle format (SRT/VTT) is left
-/// to the consumer - the raw form is enough (docs/72, section 72.2).
+/// to the consumer: the raw form is enough.
 /// </remarks>
 public sealed record SpeechAlignment
 {
@@ -181,7 +180,7 @@ public sealed record VoiceHealth
     public required DateTimeOffset CheckedAt { get; init; }
 
     /// <summary>
-    /// The reason, if failed. 🚨 The text carries neither an API key nor an address.
+    /// The reason, if failed. The text carries neither an API key nor an address.
     /// </summary>
     public string? Detail { get; init; }
 

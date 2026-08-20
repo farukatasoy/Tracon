@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism;
 
-/// <summary>Chain extension that registers a code-defined approval policy for a tool — Phase 63.</summary>
+/// <summary>Chain extension that registers a code-defined approval policy for a tool.</summary>
 /// <remarks>
 /// This is an extension method, not a member of <see cref="IAgentPrismBuilder"/>:
 /// adding a member to the interface is a breaking change after release; adding
@@ -30,9 +30,9 @@ public static class AgentPrismToolApprovalPolicyExtensions
     /// <exception cref="ArgumentException"><paramref name="toolName"/> is empty or whitespace.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 The policy's dependencies must be captured at REGISTRATION time (the
+    /// The policy's dependencies must be captured at REGISTRATION time (the
     /// delegate's closure), not resolved from a service provider inside the
-    /// delegate — the service provider a tool call sees is empty (decision K-218).
+    /// delegate — the service provider a tool call sees is empty.
     /// </para>
     /// <example>
     /// <code>

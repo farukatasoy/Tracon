@@ -92,6 +92,10 @@ it samples rather than scoring everything.
 `POST /api/runs/{runId}/judge` scores one run immediately, skipping the sampling
 decision — for calibration and debugging.
 
+The built-in judge is configured with `ModelRunJudgeOptions`: `Criteria` states the
+standard to score against, and `Instructions` replaces the judge prompt when the
+default wording does not fit your domain.
+
 ## Human feedback
 
 Scores can be attached to a run, or to a single message in it. Human scores and judge

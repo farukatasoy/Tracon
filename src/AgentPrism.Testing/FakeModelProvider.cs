@@ -11,7 +11,7 @@ namespace AgentPrism.Testing;
 /// Five fluent methods (<see cref="RespondsWith(string[])"/>, <see cref="EchoesUserMessage"/>,
 /// <see cref="CallsTool"/>, <see cref="ForModel"/>, <see cref="WithModel"/>) cover
 /// all the fake provider behavior that is today duplicated across five separate
-/// files in AgentPrism's test suites. Rationale: docs/39-TEST-PAKETI.md.
+/// files in AgentPrism's test suites.
 /// </para>
 /// <para>
 /// Each model has its own <strong>ordered response queue</strong> (selected with
@@ -24,9 +24,9 @@ namespace AgentPrism.Testing;
 /// </remarks>
 /// <example>
 /// <code>
-/// var provider = new FakeModelProvider()
-///     .CallsTool("get_order_status", new { orderId = "ORD-7" })
-///     .EchoesUserMessage();
+/// var provider = new FakeModelProvider().
+/// CallsTool("get_order_status", new { orderId = "ORD-7" }).
+/// EchoesUserMessage();
 /// </code>
 /// </example>
 public sealed class FakeModelProvider : IModelProvider, IDisposable

@@ -5,8 +5,8 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// This interface is <strong>not added</strong> to <see cref="IModelProvider"/>.
-/// Adding it would break consumer implementations of <see cref="IModelProvider"/>
-/// (decision K4). If a provider does not implement this interface or returns
+/// Adding it would break consumer implementations of <see cref="IModelProvider"/>.
+/// If a provider does not implement this interface or returns
 /// <see langword="null"/>, its diagnostics report has no
 /// <see cref="ConfigurationDiagnostic"/>.
 /// </remarks>

@@ -21,7 +21,7 @@ namespace AgentPrism;
 /// </para>
 /// <para>
 /// Events from every tenant pass through the same sink instance; use
-/// <see cref="RunEvent.TenantId"/> to tell them apart.
+/// <c>RunEvent.TenantId</c> to tell them apart.
 /// </para>
 /// </remarks>
 public interface IRunEventSink

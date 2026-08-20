@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// (<c>CompiledAgentCache</c>). Predictability is preserved this way: as
 /// long as the server does not change, the same content is added on every
 /// call; when it changes, the subscription invalidates the cache and the
-/// next read fetches it fresh (section 22.2).
+/// next read fetches it fresh.
 /// </para>
 /// <para>
 /// Only URIs the server declares via <c>ListResourcesAsync</c> are read; an

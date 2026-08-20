@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// <summary>The JSON body of a webhook request.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 This payload carries only a <strong>summary</strong> (K-161):
+/// This payload carries only a <strong>summary</strong>:
 /// identifier, status, agent, tokens, cost. Message content and model
 /// responses <strong>never</strong> sit here. A recipient that needs content
 /// calls <c>GET {prefix}/api/runs/{id}</c>.
@@ -159,7 +159,7 @@ public sealed record WebhookQuotaSummary
     public DateTimeOffset? ResetsAt { get; init; }
 }
 
-/// <summary>A score window threshold's webhook summary (Phase 49).</summary>
+/// <summary>A score window threshold's webhook summary.</summary>
 public sealed record WebhookScoreSummary
 {
     /// <summary>The window's average score (0-100).</summary>

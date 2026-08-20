@@ -7,11 +7,11 @@ namespace AgentPrism;
 
 /// <summary>
 /// Decides whether to sample a completed run for online evaluation and, when
-/// sampled, queues a <see cref="JobKind.OnlineEval"/> job — phase 49.
+/// sampled, queues a <see cref="JobKind.OnlineEval"/> job.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This class only <strong>writes to the queue</strong>. The actual judge call,
+/// This class only <strong>writes to the queue</strong>. The actual judge call,
 /// which spends money, runs in the background through <see cref="OnlineEvalJobHandler"/>.
 /// Like <see cref="WebhookPublisher"/>, it slows the main run path only by a fast
 /// queue write, so a slow or unreachable judge has no impact.
@@ -153,7 +153,7 @@ public sealed class RunSampler(
     /// <remarks>
     /// This is an in-memory, fixed rather than sliding hourly window. It is a
     /// second defense against sampling-rate calculation errors, not a precise rate
-    /// limiter. The budget resets after a process restart, which is accepted by K1:
+    /// limiter. The budget resets after a process restart, which is accepted by the no-surprises rule:
     /// simplicity does not require a durable counter store.
     /// </remarks>
     private bool TryConsumeHourlyBudget(string tenantId, int maxPerHour)

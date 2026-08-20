@@ -10,12 +10,12 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Quota definition and usage endpoints (Phase 21).</summary>
+/// <summary>Quota definition and usage endpoints.</summary>
 /// <remarks>
-/// 🚨 All dependencies are marked <strong>explicitly</strong> with
+/// All dependencies are marked <strong>explicitly</strong> with
 /// <c>[FromServices]</c>: in a minimal API, if a type that may not be
 /// registered is left unmarked in an endpoint signature, a "Body was inferred"
-/// error breaks ALL endpoints (Phase 9 lesson, <c>docs/hafiza/aspnetcore-di.md</c>).
+/// error breaks ALL endpoints.
 /// </remarks>
 internal static class QuotaEndpoints
 {

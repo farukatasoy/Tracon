@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// measured, with which checks.
 /// </summary>
 /// <remarks>
-/// <see cref="Checks"/> is declarative (K2): it runs no free-form code, it is
+/// <c>Checks</c> is declarative: it runs no free-form code, it is
 /// only a JSON array that <c>EvalCheckFactory</c> maps to recognized kind
 /// names. A custom check is registered on the code side with <c>AddEvalCheck</c>.
 /// </remarks>
@@ -30,7 +30,6 @@ public sealed record EvalSuite
 
     /// <summary>
     /// The check definitions. Example: <c>[{"kind":"nonEmpty","minLength":10}]</c>.
-    /// See <c>docs/18-DEGERLENDIRME.md</c>, section 18.2, for the format.
     /// </summary>
     public JsonElement Checks { get; init; }
 

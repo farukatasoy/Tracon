@@ -20,14 +20,14 @@ public static class AgentPrismA2ABuilderExtensions
     /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 <c>ExposedAgents</c> is read and FROZEN HERE, at registration time.
+    /// <c>ExposedAgents</c> is read and FROZEN HERE, at registration time.
     /// <c>AddA2AServer</c> requires an agent INSTANCE; because AgentPrism's
-    /// catalog can change at runtime (K-019, MAF's own registry is NOT used), a
+    /// catalog can change at runtime (MAF's own registry is NOT used), a
     /// lazily-resolved <see cref="ExternalAgentProxy"/> is registered for each
     /// name — the real agent is resolved from the catalog on EVERY call, but
-    /// WHICH names exist in A2A is frozen at registration time (section 50.5).
+    /// WHICH names exist in A2A is frozen at registration time.
     /// </para>
-    /// <para>By default no agent is exposed (K1).</para>
+    /// <para>By default no agent is exposed.</para>
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()

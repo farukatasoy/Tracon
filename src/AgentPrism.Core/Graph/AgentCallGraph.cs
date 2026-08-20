@@ -52,7 +52,7 @@ public static class AgentCallGraph
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
     /// Performs <strong>the same validation</strong> as <see cref="Validate"/>;
-    /// F-60's validation endpoint takes its code (<c>unknown_agent</c>/<c>cycle</c>)
+    /// The validation endpoint takes its code (<c>unknown_agent</c>/<c>cycle</c>)
     /// from here, while the save-time <c>400</c> response only uses
     /// <see cref="AgentCallGraphProblem.Message"/>.
     /// </remarks>

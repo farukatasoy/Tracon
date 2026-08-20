@@ -19,17 +19,16 @@ namespace AgentPrism;
 /// expected token.
 /// </para>
 /// <para>
-/// 🚨 Phase 53: the bearer token layer can now recognize TWO identity sources. First it
+/// The bearer token layer can now recognize TWO identity sources. First it
 /// tries the fixed comparison against <see cref="AgentPrismEndpointOptions.AuthToken"/>
 /// (unchanged). If that does not match and an <c>IApiKeyStore</c> is registered, the
 /// presented value is looked up in that store; when a valid, non-revoked and non-expired
-/// key is found, the request continues with the tenant and the scopes of that key
-/// (section 53.5).
+/// key is found, the request continues with the tenant and the scopes of that key.
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 {
-    /// <summary>The last-used stamp is rewritten only after at least this interval (Open Question 4).</summary>
+    /// <summary>The last-used stamp is rewritten only after at least this interval.</summary>
     private static readonly TimeSpan LastUsedTouchInterval = TimeSpan.FromMinutes(1);
 
     private readonly bool _allowRemoteAccess;
@@ -52,7 +51,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// Whether the loopback restriction applies. <see langword="false"/> is passed for the
     /// static assets of the user interface: if the restriction applied to the shell, a
     /// non-loopback client could never download the JS bundle, <c>AccessGate</c> itself
-    /// (HATA-S4-003) could never run, and the user would be left with raw server JSON
+    ///  could never run, and the user would be left with raw server JSON
     /// instead of the "Access denied" card. The shell carries no data; the real protection
     /// comes from the filter instances on the data endpoints, where this flag defaults to
     /// <see langword="true"/> — the shell only lets the user see the correct message when
@@ -186,7 +185,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 Without this check the <c>??</c> chain of <see cref="HttpTenantContext.TenantId"/>
+    /// Without this check the <c>??</c> chain of <see cref="HttpTenantContext.TenantId"/>
     /// (<c>Resolve() ?? DefaultTenantId</c>) would SILENTLY drop a candidate that the allow
     /// list rejects down to the default tenant — exactly the case that the XML documentation
     /// of <see cref="AgentPrismTenancyOptions.AllowedTenants"/> forbids ("a value that is not
@@ -198,7 +197,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// <para>
     /// When NO candidate is supplied at all (neither claim nor header), or when it is
     /// formally invalid, this check does not engage — falling back to the default tenant is
-    /// the intended behavior in that case (K1: nothing changes until multi-tenancy is turned
+    /// the intended behavior in that case (the no-surprises rule: nothing changes until multi-tenancy is turned
     /// on).
     /// </para>
     /// </remarks>
@@ -256,7 +255,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// differs from the tenant of the API key.
     /// </summary>
     /// <remarks>
-    /// 🚨 The header CANNOT override the key (section 53.5). If it could, the tenant binding
+    /// The header CANNOT override the key. If it could, the tenant binding
     /// of the key would mean nothing.
     /// </remarks>
     private static ProblemHttpResult? CheckTenantHeaderConflict(HttpContext httpContext, ApiKeyRecord record)
@@ -302,7 +301,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     }
 
     /// <summary>
-    /// Updates the last-used stamp only when it is old enough (Open Question 4).
+    /// Updates the last-used stamp only when it is old enough.
     /// </summary>
     /// <remarks>
     /// Writing on every request would add an unnecessary <c>UPDATE</c> to the hot read path.

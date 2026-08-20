@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// Upserts use <c>ON CONFLICT ... DO UPDATE ... RETURNING</c>; a single round
 /// trip both writes and returns the result. The same contract is met on the
 /// SQL Server side with <c>UPDATE ... OUTPUT</c> + <c>IF ROWCOUNT = 0 INSERT
-/// ... OUTPUT</c> (decision K-177).
+/// ... OUTPUT</c>.
 /// </remarks>
 internal sealed class PostgresQueries : SqlQueriesBase
 {

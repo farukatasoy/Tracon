@@ -10,7 +10,7 @@ public sealed record VectorChunk
     public required string Content { get; init; }
 
     /// <summary>
-    /// The chunk's embedding. 🚨 Its length MUST match
+    /// The chunk's embedding. Its length MUST match
     /// <see cref="IVectorSearchStore.Dimensions"/>; otherwise the write fails.
     /// </summary>
     public required ReadOnlyMemory<float> Embedding { get; init; }

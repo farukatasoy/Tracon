@@ -2,15 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>The MCP OAuth authorization flow.</summary>
+/// <summary>
+/// The MCP OAuth authorization flow.
+/// </summary>
 /// <remarks>
-/// <strong>A single value:</strong> <c>ModelContextProtocol.Core</c> 2.0.0
-/// supports only the Authorization Code (+PKCE) flow;
-/// <c>ClientOAuthOptions.RedirectUri</c> is a required field, and the library
-/// offers no non-interactive client-credentials flow. The value is still kept
-/// as an enum — if the SDK adds another flow later (for example,
-/// client_credentials), the extension point is ready. See
-/// docs/22-MCP-DERINLESMESI.md, section 22.3, for the rationale.
+/// <strong>A single value:</strong> <c>ModelContextProtocol.Core</c> 2.0.0 supports only the Authorization Code (+PKCE) flow; <c>ClientOAuthOptions.RedirectUri</c> is a required field, and the library offers no non-interactive client-credentials flow. The value is still kept as an enum — if the SDK adds another flow later (for example, client_credentials), the extension point is ready.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<McpOAuthAuthorizationMode>))]
 public enum McpOAuthAuthorizationMode
@@ -23,13 +19,11 @@ public enum McpOAuthAuthorizationMode
     AuthorizationCode = 0,
 }
 
-/// <summary>The way a connection to an MCP server is made.</summary>
+/// <summary>
+/// The way a connection to an MCP server is made.
+/// </summary>
 /// <remarks>
-/// <strong>Stdio is deliberately absent.</strong> The stdio transport starts a
-/// process on the server; this means anyone with access to the admin UI runs a
-/// program on the server, which fundamentally breaks design rule K2.
-/// AgentPrism connects only to <em>remote</em> MCP servers. See
-/// <c>docs/KARARLAR.md</c>, decision K-058, for the rationale.
+/// <strong>Stdio is deliberately absent.</strong> The stdio transport starts a process on the server; this means anyone with access to the admin UI runs a program on the server, which fundamentally breaks the code-only tools rule. AgentPrism connects only to <em>remote</em> MCP servers.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<McpTransportMode>))]
 public enum McpTransportMode
@@ -42,18 +36,12 @@ public enum McpTransportMode
 }
 
 /// <summary>
-/// A registered remote MCP server. Its tools are discovered at connection
-/// time and listed alongside the tools registered in code.
+/// A registered remote MCP server. Its tools are discovered at connection time and
+/// listed alongside the tools registered in code.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Carries no secret.</strong> The <em>value</em> of the
-/// authentication header is not stored in this record; only the name of the
-/// configuration key the value is read from (<see cref="AuthorizationConfigurationKey"/>)
-/// is stored. The value is resolved at run time through <c>IConfiguration</c>,
-/// so it stays in <c>dotnet user-secrets</c> or an environment variable. It
-/// never enters a database backup, an audit trail, or a UI response. See
-/// <c>docs/KARARLAR.md</c>, decision K-059, for the rationale.
+/// <strong>Carries no secret.</strong> The <em>value</em> of the authentication header is not stored in this record; only the name of the configuration key the value is read from (<c>AuthorizationConfigurationKey</c>) is stored. The value is resolved at run time through <c>IConfiguration</c>, so it stays in <c>dotnet user-secrets</c> or an environment variable. It never enters a database backup, an audit trail, or a UI response.
 /// </para>
 /// </remarks>
 public sealed record McpServerDefinition
@@ -98,11 +86,11 @@ public sealed record McpServerDefinition
 
     /// <summary>
     /// Whether OAuth authentication is on. When on, it cannot be used at the
-    /// same time as <see cref="AuthorizationConfigurationKey"/> — both would
+    /// same time as <c>AuthorizationConfigurationKey</c> — both would
     /// try to manage the <c>Authorization</c> header.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>[JsonPropertyName]</c> is given DELIBERATELY: System.Text.Json's
+    /// <c>[JsonPropertyName]</c> is given DELIBERATELY: System.Text.Json's
     /// camelCase policy lowercases only the FIRST letter, and since "OAuth"
     /// starts with two uppercase letters, the default output would be
     /// <c>oAuthEnabled</c> (not the expected <c>oauthEnabled</c>). The same
@@ -118,7 +106,7 @@ public sealed record McpServerDefinition
     /// <summary>
     /// The configuration key the OAuth client secret's value is read from.
     /// The value is never written to the database, under the same rule
-    /// (K-059) as <see cref="AuthorizationConfigurationKey"/>.
+    ///  as <c>AuthorizationConfigurationKey</c>.
     /// </summary>
     [JsonPropertyName("oauthClientSecretConfigurationKey")]
     public string? OAuthClientSecretConfigurationKey { get; init; }

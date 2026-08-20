@@ -188,6 +188,37 @@ noktasının tamamında çalışan bir örnek — hepsi yeni dağıtım kanalı 
 
 ---
 
+### Dalga 11 → Faz 75–76
+
+| Kalem | Faz |
+|---|---|
+| **F-126** Tüketici dokümanının doğruluğu ve kapıları | [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
+| **F-124** Harita üretecinin kesme ve kural kusurları | [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
+| **F-127** Doküman kalitesi ve görsel kimlik | [Faz 76](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) |
+
+Bu tur bir **denetim turudur**, bir keşif turu değil: kaynağı yeni bir ihtiyaç
+değil, Faz 73 ve 74'ün kendi çıktısının ölçülmesidir. Soru şuydu — tüketicinin
+kod agent'ına verdiğimiz korpus gerçekten okunabilir mi.
+
+Ölçüm ikisini birden buldu. Sevk edilen dokümantasyon **kendi kendine
+yetmiyor**: 15 paketin XML dosyalarında **1 033 satır**, paketlenen
+`agentprism.json`'da **39 yer** ve 18 paket README'sinin **9'unda** tüketicide
+var olmayan adreslere gönderme var (`phase 64`, `K-032`, `docs/NN-*.md`). K-408
+bu sınıfın bir katman yüzeyini kapatmıştı ("imza İngilizce, açıklama Türkçe");
+bu, aynı kusurun bir katman derinidir — dil doğru, **hedef kitle** yanlış.
+
+İkinci bulgu kapılarla ilgilidir: sızıntıyı arayan kod (`hasInternalHistory`)
+**zaten yazılmış** ve doğru çalışıyor, ama yalnız sitenin sanitize edilmiş
+kopyalarında koşuyor. Sevk edilen `.nupkg` içeriği hiçbir kapının arkasında
+değil. Aynı desen beş yerde daha tekrarlandı: konsol ekranları, telemetri
+öznitelikleri, `Options` üyeleri, HTTP sayıları ve harita kuralları — hiçbiri
+bugün bir testi kızartmıyor.
+
+F-127 ayrı tutuldu çünkü **farklı bir yargı türü** ister: F-126 testle
+kanıtlanır, F-127 gözle. İkisini tek faza koymak DoD'yi bulanıklaştırırdı.
+
+---
+
 ## Bu Turda Neyin Değiştiği
 
 > 🚨 **2026-08-18 turu bu tabloyu değiştirdi.** Yedi kalem daha plana dönüştü
@@ -858,8 +889,9 @@ devam eder ve sabittir.
 | ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) | 🚨 **Kaydın istediği ölçüm yapıldı (2026-08-19) ve `dotnet tool` MCP sunucusu okumasını düşürdü.** Paket **2.96 MB** XML dokümanı (~5 600 üye) sevk ediyor ve o korpus tüketicinin `~/.nuget/packages` dizininde **zaten duruyor**; on gerçek detay sorgusunun **onu da** `grep` ile cevaplandı. Sunucunun `grep` üzerine koyacağı tek yeni yetenek anlamsal aramadır — o da RAG'dir ve Dalga 9'da elendi. Maliyet yapısal: `grep -rn PackAsTool` **boş** — yeni dağıtım kanalı, F-93 ile aynı sınıf; benimseme Faz 73'ün opt-in özelliğinden **kötü**. Ölçüm üç gerçek boşluk buldu ve Faz 74 onları alır: yerel korpusa hiçbir işaret yok, `agentprism.json` (123 path) hiçbir pakete girmiyor, 39 giriş noktasının **27'sinde** çalışan örnek yok. Sunucu reddedilmedi, gerekçesi düştü; Faz 74'ün ölçümüyle yeniden açılabilir |
 | **F-122** | `Runs_button_on_session_page_navigates_to_filtered_list` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 65 kapanış koşumu (2026-08-19) | 🚨 **Ölçüldü:** izolasyonda 3/3 geçti; tam `AgentPrism.Ui.E2ETests` seti (55 test) koşarken 3 denemeden 2'sinde `tbody tr` satır sayısı, düğme etiketindeki beklenen sayıyla eşleşmeden okundu (`UiTests.cs:720`) — koşu tarayıcı/`Docker` kaynak çekişmesi altında bir zamanlama yarışı. Faz 65'in dokunduğu hiçbir dosyayla (BYOK/egress) ilgisi yok. F-102 emsali: bir kusur değil, kırılgan bir test — ama sessiz bırakılmadı. Ya `runsButton`'ın metnini bekledikten SONRA tablo satır sayısının da stabilize olmasını bekleyen bir `WaitForAsync` eklenir, ya da `expectedCount` okuması tablo render'ından SONRAya taşınır |
 | **F-123** | Kültürün eval/replay/alt-agent zincirine yayılması | [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) denetimi (2026-08-19) | K-503'ün sınırı: `EvalJobHandler`, `RunReplayService` ve `CallableAgentResolver` her zaman `culture: null` çözümler — yalnız KÖK agent'ın çalıştırılması `AgentRunRequest.Culture`'ı görür. Eval seti kültüre özgü talimat metnini otomatik test edemez; replay orijinal `run`'ın kültürünü saklamadığı için (kayıt şeması taşımıyor) yeniden oynatma orijinal koşulu üretemez; çok dilli bir alt-agent zinciri ebeveynin dilini miras almaz. Üçü de ölçülmemiş ihtiyaç — talep gelirse `run` kaydına kültür alanı eklemek ilk adımdır |
-| **F-124** | Harita üretecinin `Rule:` seçimi ve kelime ortasından kesme | [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | `build-agent-map.mjs` bir bölümün "kuralını" bölümün TÜM düz metnini birleştirip ilk cümlesini alarak seçer; tablodan SONRAKİ paragrafı almaz. Sonuç çoğu bölümde doğru ama ikisinde değil — "Storage and testability" için `Rule: Use Compatibility before you choose packages…` çıkıyor ve bu bir kural değil. Ayrıca `shorten()` kelime ortasından kesiyor (`a non-networked model provide…`). İkisi de kozmetik: harita okunabilir ve eksiksiz. Düzeltme tek fonksiyonda (`parseCapabilities`: tablo başladıktan SONRAKİ düz metni topla; `shorten`: son boşluktan kes) |
+| ~~**F-124**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) §75.4 | [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | 🚨 **Kaydın teşhisi ölçümle düzeltildi (2026-08-20).** Kesme iddiası doğruydu — sevk edilen haritada üç kelime ortası kesme var. Kural iddiası **yanlıştı**: "Storage and testability" bölümünün tablodan ÖNCE düz metni yok, yani üreteç tablodan sonrakini zaten alıyor; gerçek kusur alınan cümlenin bir kural değil bir yön tarifi olmasıdır. Ölçüm **üçüncü bir kusur** buldu: 11 bölümün **ikisi hiç kural üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok). Üçü de Faz 75'e girdi |
 | **F-125** | `<example>` bloklarını derleyen kalıcı kapı | [Faz 74](74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | 🚨 **Ölçüldü:** metin denetimi bir örneğin doğruluğunu yapısal olarak kanıtlayamaz. Faz 74'ün denetimi iki hatalı örnek buldu ve ikisi de `CapabilityExampleTests`'in ad denetiminden geçmişti — `options.DefaultTimeout` (`CS1061`, üye başka tipte) ve `o.ExposedAgents = [...]` (`CS0200`, salt-okunur property). İkisi de **gerçek** API adlarıdır; yakalayan tek şey derlemedir. Faz 74 örnekleri **elle** derledi (40 blok, `Build succeeded`) ama kalıcı kapı yazmadı. Şekli belli: XML'den blokları çıkar, yer tutucu prelüdüyle birleştir, Roslyn ile derle — `AnalyzerTestHelper` gerçek AgentPrism sembolleriyle zaten kurulu (Faz 73 devir notu 5). **Ölçülmedi:** prelüdün kaç yer tutucu taşıyacağı ve bunun örnek yazımını ne kadar kısıtlayacağı |
+| **F-128** | `<see cref>` → `<c>` dönüşümünün API referansındaki gezinme maliyeti ölçülmedi | [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) denetimi (2026-08-20) | Faz 75, paketlenen OpenAPI belgesinde tam CLR imzası olarak render edilen 83 `<see cref>`'i `<c>` ile değiştirdi (K-517). Kazanç ölçüldü: sızıntı 43+24 → **0**. Maliyet ölçülmedi: `build-api-reference.mjs` her koşumda "109 cross-reference(s) rendered as code because no target exists" diyor ve bu sayının dönüşümden **önceki** değeri kaydedilmedi. Sözleşme tiplerinde `<c>` doğru tercihtir (tüketici JSON alanını görür), ama API referansında bir üyeden diğerine tıklanamıyor olabilir. **Ölçülmedi:** üretecin bu sayıyı bir taban çizgisine bağlaması ve dönüşümün payının ayrıştırılması. Ucuz iş; ölçüm gezinme kaybını önemsiz gösterirse kalem kapanır |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;

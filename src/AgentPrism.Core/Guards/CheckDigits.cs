@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 This class is what makes <see cref="PatternContentGuard"/> usable. A bare
+/// This class is what makes <see cref="PatternContentGuard"/> usable. A bare
 /// <c>\d{16}</c> match would mask every order number, and a bare <c>\d{11}</c>
 /// match would mask every tracking number; a guard like that gets turned off on
 /// day one.

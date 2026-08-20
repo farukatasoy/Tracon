@@ -11,7 +11,10 @@ namespace AgentPrism;
 public interface IPendingApprovalStore
 {
     /// <summary>Creates a new pending approval request.</summary>
-    /// <param name="approval">The request to save. <see cref="PendingApproval.Status"/> must be <see cref="ApprovalStatus.Pending"/>.</param>
+    /// <param name="approval">
+    /// The request to save. <see cref="PendingApproval.Status"/> must be <see
+    /// cref="ApprovalStatus.Pending"/>.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask CreateAsync(PendingApproval approval, CancellationToken cancellationToken = default);
 
@@ -53,7 +56,7 @@ public interface IPendingApprovalStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The records of the closed requests.</returns>
     /// <remarks>
-    /// 🚨 <c>[TenantAgnostic]</c>: this is maintenance work and scans the expired requests
+    /// <c>[TenantAgnostic]</c>: this is maintenance work and scans the expired requests
     /// of every tenant; filtering by the ambient tenant would leave the requests of the
     /// other tenants <see cref="ApprovalStatus.Pending"/> forever.
     /// </remarks>

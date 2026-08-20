@@ -11,10 +11,10 @@ namespace AgentPrism;
 /// It is not embedded in a provider implementation such as <c>AgentPrism.OpenAI</c>.
 /// <see cref="ModelProviderRegistry.CreateChatClient"/> wraps every client in this type.
 /// Every provider, including current OpenAI and future Anthropic or Gemini, gets the
-/// same protection. Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3.
+/// same protection.
 /// </para>
 /// <para>
-/// <strong>Content blocking is not a failure</strong> (Phase 48). An
+/// <strong>Content blocking is not a failure</strong>. An
 /// <see cref="AgentPrismContentBlockedException"/> shows that the provider is healthy:
 /// the request was blocked locally and never reached the network. Counting it would
 /// open the provider circuit after several blocked requests and turn a policy decision

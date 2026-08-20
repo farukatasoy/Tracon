@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <remarks>
 /// The check incurs no cost: it hits the <c>GET {endpoint}/models</c> endpoint, it
 /// makes no model call. The result is cached (60 s by default); <c>?refresh=true</c>
-/// bypasses the cache. See <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3.
+/// bypasses the cache.
 /// </remarks>
 internal static class ModelHealthEndpoints
 {

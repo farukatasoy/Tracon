@@ -30,7 +30,6 @@ namespace AgentPrism;
 /// instead: body parsing and OpenAI-shaped response generation belong to MAF,
 /// agent resolution and persistence belong to AgentPrism. Because the wire
 /// format comes from MAF, compatibility with stock OpenAI SDKs is preserved.
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-036.
 /// </para>
 /// </remarks>
 internal static class OpenAIResponsesEndpoints
@@ -40,7 +39,7 @@ internal static class OpenAIResponsesEndpoints
     /// <param name="sessionStore">Store to use for session persistence.</param>
     /// <param name="roles">Resolved role policies.</param>
     /// <param name="prefix">Path prefix to use for attachment references.</param>
-    /// <param name="idempotencyFilter">Phase 43 — <c>Idempotency-Key</c> support.</param>
+    /// <param name="idempotencyFilter">The filter that adds <c>Idempotency-Key</c> support.</param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentSessionStore sessionStore,
@@ -255,7 +254,7 @@ internal static class OpenAIResponsesEndpoints
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 HATA-S2-004/MT-COMPAT-029: <c>OpenAIResponses.WriteResponse</c> (MAF,
+    /// <c>OpenAIResponses.WriteResponse</c> (MAF,
     /// alpha package) does NOT recognize a <c>ToolApprovalRequestContent</c> —
     /// its conversion table only handles <c>FunctionCallContent</c>/
     /// <c>FunctionResultContent</c>/known text-like content (verified by
@@ -273,7 +272,7 @@ internal static class OpenAIResponsesEndpoints
     /// which is the correct behavior: the caller learns that the call exists.
     /// </para>
     /// <para>
-    /// 🚨 <strong>The caller cannot answer that call over this endpoint.</strong>
+    /// <strong>The caller cannot answer that call over this endpoint.</strong>
     /// Measured on 2026-08-18 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
     /// 1.16.0-alpha.260730.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
     /// deserializes <em>every</em> item of the <c>input</c> array into its
@@ -285,7 +284,7 @@ internal static class OpenAIResponsesEndpoints
     /// 'content'</c>, which this endpoint answers with <c>400</c>. The tool-call
     /// round trip therefore exists on the <em>output</em> side only. To answer a
     /// pending call, use the management approval API
-    /// (<c>POST /api/approvals/{id}/decide</c>, Phase 55).
+    /// (<c>POST /api/approvals/{id}/decide</c>).
     /// </para>
     /// <para>
     /// The <c>status</c> field is <em>not changed</em> (still

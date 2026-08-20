@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>
 /// Builds and caches a provider-specific client factory keyed by a resolved
-/// <see cref="ModelProviderCredential"/> (phase 65, BYOK).
+/// <see cref="ModelProviderCredential"/> (BYOK).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +26,7 @@ namespace AgentPrism;
 /// the identity boundary here.
 /// </para>
 /// <para>
-/// 🚨 Entries are never evicted. The number of distinct credentials is
+/// Entries are never evicted. The number of distinct credentials is
 /// bounded by the number of tenant provider bindings an operator manages
 /// (a small, admin-controlled set), not by request volume, so unbounded
 /// growth is not a practical concern — the same trade-off

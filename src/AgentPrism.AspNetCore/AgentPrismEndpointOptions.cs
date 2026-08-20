@@ -33,7 +33,6 @@ namespace AgentPrism;
 /// This type is deliberately <strong>not</strong> a <c>record</c>. A <c>record</c>'s
 /// compiler-generated <c>ToString</c> writes every property and a single log
 /// line would leak the <see cref="AuthToken"/> value.
-/// Rationale: <c>docs/KARARLAR.md</c>, decision K-035.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismEndpointOptions
@@ -138,7 +137,7 @@ public sealed class AgentPrismEndpointOptions
     /// <para>
     /// A diagnostics endpoint reveals information about the setup (persistence
     /// provider, migration status, which configuration keys are resolved) even
-    /// though it carries no <c>secret</c> value. Per K1 it must be explicitly
+    /// though it carries no <c>secret</c> value. Per the no-surprises rule it must be explicitly
     /// enabled; default off.
     /// </para>
     /// <para>
@@ -159,16 +158,16 @@ public sealed class AgentPrismEndpointOptions
     /// <para>
     /// There is no <c>AllowAnyOrigin</c> option: an endpoint that carries a
     /// bearer token or an API key must not make a wildcard origin easy to
-    /// reach for (K1). Add exact origins, for example
+    /// reach for. Add exact origins, for example
     /// <c>options.AllowedOrigins.Add("https://shop.example.com")</c>.
     /// </para>
     /// <para>
-    /// This exists for the embeddable chat component (Phase 61): a
+    /// This exists for the embeddable chat component: a
     /// consumer's own page, served from its own origin, calls
     /// <c>{prefix}/api/agents/{name}/run</c> directly from the browser.
     /// </para>
     /// <para>
-    /// 🚨 An allowed origin can read a response from <strong>any</strong>
+    /// An allowed origin can read a response from <strong>any</strong>
     /// endpoint under <c>{prefix}</c>, not only the run endpoint — CORS is
     /// applied to the whole group, not path by path. This is deliberately
     /// broad rather than a source of extra privilege: reading a response

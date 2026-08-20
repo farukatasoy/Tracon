@@ -4,17 +4,17 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Startup checks that the MCP and A2A external surfaces share (phase 50).
+/// Startup checks that the MCP and A2A external surfaces share.
 /// </summary>
 /// <remarks>
-/// The goal is the same application of K1: an explicit failure instead of an external
+/// The goal is the same application of the no-surprises rule: an explicit failure instead of an external
 /// surface that silently half works. <see cref="EnsureRemoteAccessNotCombined"/> runs at
 /// the moment of the <c>MapAgentPrismMcpServer</c>/<c>MapAgentPrismA2A</c> call (endpoint
 /// mapping, BEFORE <c>app.Run()</c>) and does not touch the database. The approval guard
 /// (<see cref="EnsureNoApprovalRequiredTools"/>) does touch the database, so it runs from
 /// <c>McpApprovalGuardFilter</c>/<c>A2AApprovalGuardFilter</c> inside a Task that STARTS at
 /// endpoint mapping time but waits in the background until the schema is ready — this
-/// prevents a crash with "no such table" on an empty database (the same pattern as K-354).
+/// prevents a crash with "no such table" on an empty database.
 /// This Task is awaited BEFORE every request; no request can get ahead of the check.
 /// </remarks>
 internal static class ExternalSurfaceGuard
@@ -27,15 +27,15 @@ internal static class ExternalSurfaceGuard
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 HATA-S1-002: with <c>AutoApplyMigrations=false</c>,
+    /// with <c>AutoApplyMigrations=false</c>,
     /// <see cref="SchemaReadyGate.MarkReady"/> is called without proving that the schema is
     /// REALLY queryable (preparing the schema is the responsibility of the consumer — see
     /// the note on <see cref="SchemaReadyGate.MarkReady"/> itself). An external migration
     /// step that creates the schema may not have finished when the application starts, and
     /// it may never run during the lifetime of the application (the operator can choose to
     /// apply the migration by hand, later). Such a store failure must NOT stop the run
-    /// IMMEDIATELY (K1, "a store failure does not interrupt the run") — the contract of
-    /// <c>MT-SQL-004</c> asks for the same: the application stays UP and <c>/health</c>
+    /// IMMEDIATELY ("a store failure does not interrupt the run") — the contract of
+    /// the persistence layer asks for the same: the application stays up and <c>/health</c>
     /// reports <c>Unhealthy</c>. The bound is therefore not a retry COUNT, only the
     /// <see cref="IHostApplicationLifetime.ApplicationStopping"/> token of
     /// <paramref name="lifetime"/> — if the schema is never prepared, only requests that
@@ -109,12 +109,12 @@ internal static class ExternalSurfaceGuard
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Phase 53 (section 53.4) makes the lock of phase 50 CONDITIONAL, it does not REMOVE it:
+    /// An API key makes the lock CONDITIONAL, it does not REMOVE it:
     /// a single static bearer token is not enough to protect an agent surface exposed beyond
     /// loopback, but a per-tenant API key with the <c>external:invoke</c> scope is.
     /// </para>
     /// <para>
-    /// 🚨 The synchronous call is DELIBERATE: this check runs once at startup, outside
+    /// The synchronous call is DELIBERATE: this check runs once at startup, outside
     /// request processing (the same rationale as
     /// <see cref="AgentPrismMcpServerExtensions.MapAgentPrismMcpServer"/>).
     /// </para>
@@ -159,7 +159,7 @@ internal static class ExternalSurfaceGuard
     /// When an exposed agent carries a tool that requires approval.
     /// </exception>
     /// <remarks>
-    /// Enforces the same boundary as K-103 at startup: an external caller is not a human and
+    /// Enforces the same boundary at startup: an external caller is not a human and
     /// cannot answer an approval request. Running silently without approval is unacceptable.
     /// </remarks>
     public static void EnsureNoApprovalRequiredTools(

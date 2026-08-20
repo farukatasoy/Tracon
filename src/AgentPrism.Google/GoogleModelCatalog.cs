@@ -5,8 +5,8 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism carries no built-in model list</strong> (decision K-032).
-/// This had a concrete cost with Gemini: measured (2026-08-05), a call to
+/// <strong>AgentPrism carries no built-in model list</strong>.
+/// This had a concrete cost with Gemini: measured, a call to
 /// <c>gemini-2.5-flash</c> returned <em>"This model is no longer available to new
 /// users"</em>. A list embedded in code can be wrong the very day it ships.
 /// </para>

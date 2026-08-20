@@ -42,7 +42,7 @@ public sealed record RunRecord
     /// The value is opaque and comes from
     /// <see cref="IRunAttributionContext"/>, never from the request body. Rows
     /// written before the column existed hold <see langword="null"/>; they are
-    /// not backfilled (K-014).
+    /// not backfilled.
     /// </remarks>
     public string? UserId { get; init; }
 

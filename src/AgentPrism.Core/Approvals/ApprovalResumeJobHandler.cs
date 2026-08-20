@@ -7,19 +7,19 @@ namespace AgentPrism;
 /// <summary>
 /// Handles <see cref="JobKind.ApprovalResume"/> jobs. It answers the pending tool
 /// approval request in the session history for a decided <see cref="PendingApproval"/>
-/// and resumes the run (Phase 55).
+/// and resumes the run.
 /// </summary>
 /// <remarks>
 /// <para>
 /// The HTTP layer has already persisted the decision, who made it, and when through
 /// <see cref="IPendingApprovalStore.DecideAsync"/> at the <c>decide</c> endpoint, and has
-/// written it to the audit trail (K-089). This handler only feeds that decision into the
+/// written it to the audit trail. This handler only feeds that decision into the
 /// session as <c>ToolApprovalResponseContent</c>. It does not make a decision or write an audit entry.
 /// </para>
 /// <para>
 /// Unlike <c>AgentRunJobHandler</c>, this job uses a <strong>new</strong> <c>RunId</c>.
-/// The previous run ended with <see cref="RunStatus.AwaitingApproval"/> and never changes again
-/// (K-014). If the model asks approval for another tool after it uses the approved tool, the new
+/// The previous run ended with <see cref="RunStatus.AwaitingApproval"/> and never changes again.
+/// If the model asks approval for another tool after it uses the approved tool, the new
 /// root run also ends with <c>AwaitingApproval</c>. The chain continues in the same way.
 /// </para>
 /// </remarks>

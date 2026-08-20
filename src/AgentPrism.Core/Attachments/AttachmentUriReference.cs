@@ -8,7 +8,6 @@ namespace AgentPrism;
 /// Recognition only checks the <c>/api/attachments/{id}</c> route. It does not need
 /// to know the path prefix, <c>{prefix}</c>, and recognizes relative and absolute URIs.
 /// This keeps <c>AgentPrism.Core</c> fully independent from endpoint configuration.
-/// Rationale: <c>docs/14-COK-MODLULUK.md</c>, section 14.1.
 /// </remarks>
 public static class AttachmentUriReference
 {

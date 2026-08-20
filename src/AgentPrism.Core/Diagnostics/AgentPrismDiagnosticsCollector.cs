@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Collects the installation's self-diagnostic summary report (phase 33).
+/// Collects the installation's self-diagnostic summary report.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,8 +14,7 @@ namespace AgentPrism;
 /// it does not apply migrations.
 /// </para>
 /// <para>
-/// 🚨 The generated <see cref="AgentPrismDiagnosticsReport"/> contains no <c>secret</c>.
-/// Rationale: <c>docs/KARARLAR.md</c>, K-059.
+/// The generated <see cref="AgentPrismDiagnosticsReport"/> contains no <c>secret</c>.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismDiagnosticsCollector
@@ -33,7 +32,7 @@ public sealed class AgentPrismDiagnosticsCollector
     /// <param name="providers">The registered model providers.</param>
     /// <param name="healthCache">The model provider health cache.</param>
     /// <param name="sqlDiagnostics">The active SQL provider diagnostics contract, with zero or one instance.</param>
-    /// <param name="sqlMarkers">The registered SQL provider markers for the K-183 counter.</param>
+    /// <param name="sqlMarkers">The registered SQL provider markers, counted to detect more than one active provider.</param>
     /// <param name="agentCatalog">The agent catalog.</param>
     /// <param name="toolRegistry">The tool registry.</param>
     /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>

@@ -11,7 +11,6 @@ namespace AgentPrism;
 /// <para>
 /// This endpoint returns model names and <strong>incurs no cost</strong> — no
 /// model call is made. The pattern matches <c>OpenAIProviderHealthCheck</c>
-/// (<c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3).
 /// </para>
 /// <para>
 /// Authentication uses the <c>x-goog-api-key</c> header. Putting the key in the

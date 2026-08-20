@@ -16,9 +16,15 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>The conversion goes through these steps:</para>
 /// <list type="number">
-///   <item><description><see cref="ModelBinding"/> → <see cref="IModelProviderRegistry"/> → <see cref="IChatClient"/></description></item>
-///   <item><description><see cref="AgentDefinition.ToolNames"/> → <see cref="IToolRegistry"/> → list of <see cref="AIFunction"/></description></item>
-///   <item><description><c>AsHarnessAgent</c> when <see cref="AgentDefinition.Harness"/> is set, otherwise <c>AsAIAgent</c></description></item>
+/// <item>
+/// <description><see cref="ModelBinding"/> → <see cref="IModelProviderRegistry"/> → <see cref="IChatClient"/></description>
+/// </item>
+/// <item>
+/// <description><see cref="AgentDefinition.ToolNames"/> → <see cref="IToolRegistry"/> → list of <see cref="AIFunction"/></description>
+/// </item>
+/// <item>
+/// <description><c>AsHarnessAgent</c> when <see cref="AgentDefinition.Harness"/> is set, otherwise <c>AsAIAgent</c></description>
+/// </item>
 /// </list>
 /// <para>
 /// An unknown tool name results in an <see cref="AgentPrismCompilationException"/>.
@@ -88,17 +94,17 @@ public sealed class AgentDefinitionCompiler
     /// a definition requesting an MCP resource gets a compilation error.
     /// </param>
     /// <param name="vectorSearchStore">
-    /// Semantic search store (Phase 51). When <see langword="null"/>, a
+    /// Semantic search store. When <see langword="null"/>, a
     /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
     /// compilation error.
     /// </param>
     /// <param name="embeddingGenerator">
-    /// Embedding generator (Phase 51). When <see langword="null"/>, a
+    /// Embedding generator. When <see langword="null"/>, a
     /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
     /// compilation error.
     /// </param>
     /// <param name="knowledgeMaxResults">
-    /// Maximum number of results the <c>search_knowledge</c> tool returns (Phase 51).
+    /// Maximum number of results the <c>search_knowledge</c> tool returns.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
@@ -185,14 +191,14 @@ public sealed class AgentDefinitionCompiler
     /// </exception>
     /// <remarks>
     /// <para>
-    /// The transform exists for replay (Phase 47,
-    /// <see cref="ReplayToolMode.ReplayTools"/>): a <c>DelegatingAIFunction</c>
+    /// The transform exists for replay
+    /// (<see cref="ReplayToolMode.ReplayTools"/>): a <c>DelegatingAIFunction</c>
     /// that replays recorded tool results preserves the wrapped tool's name,
     /// description, and JSON schema - the model sees the tools
     /// <em>exactly as before</em> but no body actually runs.
     /// </para>
     /// <para>
-    /// 🚨 The transform applies only to tools resolved from the
+    /// The transform applies only to tools resolved from the
     /// <see cref="IToolRegistry"/> registry. Tools opened by skills and
     /// callable sub-agents come through an <c>AIContextProvider</c> and do not
     /// pass through here; the caller must disable them <em>at the definition
@@ -215,7 +221,7 @@ public sealed class AgentDefinitionCompiler
         return BuildAgent(definition, callableAgents, toolTransform, culture, CreateChatClient(definition));
     }
 
-    /// <summary>Converts a definition into an executable agent (phase 65, BYOK).</summary>
+    /// <summary>Converts a definition into an executable agent (BYOK).</summary>
     /// <param name="definition">The definition to compile.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
@@ -230,24 +236,29 @@ public sealed class AgentDefinitionCompiler
     /// requesting tenant's own provider credential and egress policy
     /// (<see cref="IModelProviderRegistry.CreateChatClientAsync"/>) before building the client.
     /// When no tenant context or provider binding is registered, behavior is identical
-    /// to the sync overload (K1).
+    /// to the sync overload.
     /// </remarks>
     public ValueTask<AIAgent> CompileAsync(AgentDefinition definition, CancellationToken cancellationToken)
         => CompileAsync(definition, ResolvedCallableAgents.Empty, culture: null, cancellationToken);
 
     /// <summary>
     /// Converts a definition, together with its resolved sub-agents, into an executable agent
-    /// (phase 65, BYOK).
+    /// (BYOK).
     /// </summary>
     /// <param name="definition">The definition to compile.</param>
     /// <param name="callableAgents">
     /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
     /// </param>
-    /// <param name="culture">See <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction, AIFunction}, string)"/>.</param>
+    /// <param name="culture">
+    /// See <see cref="Compile(AgentDefinition, ResolvedCallableAgents, Func{AIFunction,
+    /// AIFunction}, string)"/>.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
-    /// <exception cref="AgentPrismCompilationException">See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.
+    /// </exception>
     public ValueTask<AIAgent> CompileAsync(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
@@ -257,7 +268,7 @@ public sealed class AgentDefinitionCompiler
 
     /// <summary>
     /// Compiles a definition together with its resolved sub-agents, transforming its tools
-    /// (phase 65, BYOK).
+    /// (BYOK).
     /// </summary>
     /// <param name="definition">The definition to compile.</param>
     /// <param name="callableAgents">
@@ -273,7 +284,9 @@ public sealed class AgentDefinitionCompiler
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
-    /// <exception cref="AgentPrismCompilationException">See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.
+    /// </exception>
     public async ValueTask<AIAgent> CompileAsync(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,
@@ -291,7 +304,7 @@ public sealed class AgentDefinitionCompiler
     /// <summary>
     /// Reports whether compiling <paramref name="binding"/> for the current
     /// tenant would bake a tenant-specific provider credential into the
-    /// resulting chat client (phase 65, BYOK).
+    /// resulting chat client (BYOK).
     /// </summary>
     /// <param name="binding">The model binding to check — usually an <see cref="AgentDefinition.Model"/>.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -527,13 +540,13 @@ public sealed class AgentDefinitionCompiler
     /// Converts <see cref="ModelBinding.ResponseFormat"/> into a <see cref="ChatResponseFormat"/>.
     /// </summary>
     /// <remarks>
-    /// An invalid combination is not silently ignored (the K-034 pattern):
+    /// An invalid combination is not silently ignored:
     /// compilation stops when the mode is <see cref="AgentResponseFormatKind.JsonSchema"/>
     /// and the schema is missing, when the schema is set for other modes, or
     /// when the schema is not a JSON object. Only the
     /// <c>ForJsonSchema(JsonElement, ...)</c> overload is used - the overloads
     /// taking <c>Type</c> or <c>JsonSerializerOptions</c> rely on reflection
-    /// and break the AOT stance (see docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4).
+    /// and break the AOT stance.
     /// </remarks>
     private ChatResponseFormat? BuildResponseFormat(AgentDefinition definition)
     {
@@ -595,8 +608,8 @@ public sealed class AgentDefinitionCompiler
     /// Checks whether the selected model supports structured output.
     /// </summary>
     /// <remarks>
-    /// The check is SKIPPED for a model not found in the model catalog
-    /// (K-032): model names may come from configuration and the catalog is
+    /// The check is SKIPPED for a model not found in the model catalog:
+    /// model names may come from configuration and the catalog is
     /// not a validation list. Compilation stops only for a model that IS
     /// FOUND in the catalog and whose <see cref="ModelDescriptor.SupportsStructuredOutput"/>
     /// value is explicitly <see langword="false"/>.
@@ -793,7 +806,7 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <remarks>
-    /// 🚨 Phase 62, F-59: when <see cref="CompactionSettings.MaxContextWindowTokens"/>
+    /// When <see cref="CompactionSettings.MaxContextWindowTokens"/>
     /// is not given, it is DERIVED from <see cref="ModelDescriptor.ContextWindowTokens"/>
     /// in the catalog instead of failing compilation outright — the value the
     /// user would otherwise have to copy in by hand already sits on the model
@@ -893,7 +906,7 @@ public sealed class AgentDefinitionCompiler
 
     /// <summary>
     /// Adds the <c>search_knowledge</c> tool to <paramref name="tools"/> when
-    /// <see cref="MemorySettings.EnableVectorSearch"/> is set (Phase 51).
+    /// <see cref="MemorySettings.EnableVectorSearch"/> is set.
     /// </summary>
     /// <exception cref="AgentPrismCompilationException">
     /// Semantic search is requested but <see cref="IVectorSearchStore"/>, the
@@ -940,7 +953,7 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <remarks>
-    /// 🚨 Wraps with <see cref="TenantPrefixingAgentFileStore"/>: <see cref="_fileStore"/>
+    /// Wraps with <see cref="TenantPrefixingAgentFileStore"/>: <see cref="_fileStore"/>
     /// is, by default, a SINGLE store shared process-wide. Without the wrapper,
     /// different tenants' file memory/text search would mix at the root "/"
     /// directory - a breach of tenant isolation.
@@ -1003,7 +1016,7 @@ public sealed class AgentDefinitionCompiler
     /// <see cref="AgentFileStore.SearchAsync"/>.
     /// </summary>
     /// <remarks>
-    /// HATA-S1-009: <c>SearchAsync</c> expects a REGEX (via <c>~</c> in
+    /// <c>SearchAsync</c> expects a REGEX (via <c>~</c> in
     /// PostgreSQL, via <see cref="Regex"/> elsewhere), but
     /// <see cref="TextSearchProvider"/> has the model write a natural-language
     /// query (e.g. "is there a record about FILE-7841?"). Running this raw
@@ -1120,12 +1133,12 @@ public sealed class AgentDefinitionCompiler
     /// Microsoft Agent Framework's <see cref="BackgroundAgentsProvider"/> type
     /// is an <see cref="AIContextProvider"/>; it does not require a harness.
     /// The plain agent path therefore has first-class support for this - the
-    /// harness defect documented in K-053 would have hit this feature too.
+    /// harness defect recorded earlier would have hit this feature too.
     /// </para>
     /// <para>
     /// Every sub-agent is wrapped with <see cref="ChildAgentInvoker"/>. The
-    /// provider calls the sub-agent with <c>options = null</c> (measured in
-    /// Phase 12); tree information can only be added by the wrapper.
+    /// provider calls the sub-agent with <c>options = null</c> (measured);
+    /// tree information can only be added by the wrapper.
     /// </para>
     /// </remarks>
     // MAAI001: BackgroundAgentsProvider is marked "evaluation purposes only".

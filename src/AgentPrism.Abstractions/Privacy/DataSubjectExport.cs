@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>A data subject's exported content (phase 64).</summary>
+/// <summary>A data subject's exported content.</summary>
 public sealed record DataSubjectExport
 {
     /// <summary>
@@ -12,7 +12,7 @@ public sealed record DataSubjectExport
     /// Attachment file bytes are NOT included — only their metadata (name, media
     /// type, size, hash) is. A byte payload can be large and belongs in a
     /// different export shape (a zip of files) than a JSON document; that is a
-    /// separate, unscheduled work item (open question 4 of phase 64's plan).
+    /// separate, unscheduled work item.
     /// </remarks>
     public required string Json { get; init; }
 }

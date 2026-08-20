@@ -5,8 +5,7 @@ namespace AgentPrism.Testing;
 /// </summary>
 /// <remarks>
 /// Every test framework (xunit, NUnit, MSTest) counts a thrown exception as a
-/// test failure; the package binds to no other framework. Rationale:
-/// docs/39-TEST-PAKETI.md, section 39.2.
+/// test failure; the package binds to no other framework.
 /// </remarks>
 public sealed class AgentPrismAssertionException : AgentPrismException
 {

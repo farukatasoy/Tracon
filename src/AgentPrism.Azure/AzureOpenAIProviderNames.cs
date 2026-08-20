@@ -12,8 +12,7 @@ namespace AgentPrism;
 /// <para>
 /// The name is <c>azure-openai</c>, not <c>azure</c>: the package may later
 /// register another Azure model service, at which point the name <c>azure</c>
-/// would no longer say what it refers to. Rationale: <c>docs/KARARLAR.md</c>,
-/// decision K-210.
+/// would no longer say what it refers to.
 /// </para>
 /// </remarks>
 public static class AzureOpenAIProviderNames
@@ -32,10 +31,10 @@ public static class AzureOpenAIProviderNames
     /// The list is deliberately empty. The custom fields Azure lets you add to
     /// a chat request (data sources, the <c>max_completion_tokens</c> key) are
     /// written through <c>Azure.AI.OpenAI.Chat.AzureChatExtensions</c>; it was
-    /// measured (2026-08-05) that <strong>all</strong> of these extensions throw
+    /// measured that <strong>all</strong> of these extensions throw
     /// <c>MissingMethodException</c> at run time against the OpenAI SDK version
     /// we use. Offering a setting that doesn't work is worse than not offering
-    /// it at all. Detail: decision K-211.
+    /// it at all.
     /// </para>
     /// <para>
     /// Because the list is empty, <see cref="ModelProviderSettings.Validate"/>

@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// Binary content lives in the <c>attachments</c> table; only a small
-/// reference travels with messages. Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.4.
+/// reference travels with messages.
 /// </remarks>
 internal static class AttachmentEndpoints
 {
@@ -206,7 +206,7 @@ internal static class AttachmentEndpoints
     /// <remarks>
     /// <c>X-Content-Type-Options: nosniff</c> and <c>Content-Disposition: attachment</c>
     /// are applied together: the browser never interprets and executes the
-    /// content inline (for example as HTML). Rationale: <c>docs/14-COK-MODLULUK.md</c>, section 14.4.
+    /// content inline (for example as HTML).
     /// </remarks>
     private sealed class AttachmentDownloadResult(AttachmentDescriptor descriptor, Stream content) : IResult
     {

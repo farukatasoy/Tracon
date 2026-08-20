@@ -26,7 +26,7 @@ public static class VoiceConversationProtocol
     /// The sub-protocol prefix that carries the bearer token.
     /// </summary>
     /// <remarks>
-    /// 🚨 The token <strong>is not put in the query string</strong>: the address is
+    /// The token <strong>is not put in the query string</strong>: the address is
     /// written to server logs, to reverse proxy logs and to the browser history. A
     /// browser cannot add a custom header to a WebSocket handshake; the standard way
     /// out is the <c>Sec-WebSocket-Protocol</c> header.
@@ -89,7 +89,7 @@ public static class VoiceAudioFormats
     /// The <c>AudioWorklet</c> output: raw 16-bit little-endian PCM, mono.
     /// </summary>
     /// <remarks>
-    /// 🚨 Raw PCM <strong>has no header</strong> and is not a valid file on its own.
+    /// Raw PCM <strong>has no header</strong> and is not a valid file on its own.
     /// Before the audio goes to the transcription provider the server writes a WAV
     /// header.
     /// </remarks>
@@ -142,7 +142,7 @@ internal sealed record VoiceServerMessage
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Gets a value that indicates whether the audio is stored (<c>ready</c>). 🚨 The
+    /// Gets a value that indicates whether the audio is stored (<c>ready</c>). The
     /// user interface <strong>shows</strong> this to the user; no recording happens
     /// silently.
     /// </summary>
@@ -180,7 +180,7 @@ internal sealed record VoiceServerMessage
 /// <remarks>
 /// <c>AgentPrism.Core</c> is marked AOT compatible; the reflection-based
 /// <c>JsonSerializer</c> overloads produce <c>IL2026</c>/<c>IL3050</c> and break the
-/// build. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
+/// build.
 /// </remarks>
 [JsonSourceGenerationOptions(
     JsonSerializerDefaults.Web,

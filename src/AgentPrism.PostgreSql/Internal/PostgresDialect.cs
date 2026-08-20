@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// This is the only Npgsql touch point the shared store code sees. Behavior
-/// is <strong>unchanged</strong> from what was set up in Phase 2: the same
+/// is <strong>unchanged</strong> from the original schema: the same
 /// <see cref="NpgsqlDbType"/> values, the same UTC conversion.
 /// </para>
 /// <para>
@@ -49,8 +49,8 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// The "knowledge" set needs the <c>pgvector</c> extension (phase 51) and
-    /// is therefore opt-in (phase 67); a consumer without permission to
+    /// The "knowledge" set needs the <c>pgvector</c> extension and
+    /// is therefore opt-in; a consumer without permission to
     /// install extensions on a managed PostgreSQL never sees it.
     /// </remarks>
     public override IReadOnlyDictionary<string, string> OptionalMigrationResourcePrefixes { get; } =
@@ -60,7 +60,7 @@ internal sealed class PostgresDialect : SqlDialect
         };
 
     /// <inheritdoc />
-    /// <remarks>Core id 24 (<c>0024_vector</c>) relocated to the "knowledge" set as <c>0001_vector</c> (phase 67).</remarks>
+    /// <remarks>Core id 24 (<c>0024_vector</c>) relocated to the "knowledge" set as <c>0001_vector</c>.</remarks>
     public override IReadOnlyDictionary<int, string> RelocatedCoreMigrationSets { get; } =
         new Dictionary<int, string>
         {
@@ -69,7 +69,7 @@ internal sealed class PostgresDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
-    /// The lock key is scoped to the schema (K-389): <see cref="MigrationLockKey"/>
+    /// The lock key is scoped to the schema: <see cref="MigrationLockKey"/>
     /// derives a deterministic key from the schema name so that independent
     /// AgentPrism deployments sharing the same database with different
     /// schemas don't block each other's startup.

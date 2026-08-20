@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Defines options for the quota subsystem (phase 21).</summary>
+/// <summary>Defines options for the quota subsystem.</summary>
 /// <remarks>
 /// Read from the <c>AgentPrism:Quotas</c> configuration section.
 /// </remarks>

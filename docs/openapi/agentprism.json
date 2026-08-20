@@ -495,7 +495,7 @@
           "Agents"
         ],
         "summary": "Estimates a prompt\u0027s token count against the agent\u0027s model, without calling the provider.",
-        "description": "The diagnostic surface of the pre-flight context-window check (phase 62, F-59): it returns the same numbers the check on \u0027POST /api/agents/{name}/run\u0027 would use, regardless of whether that check is enabled. No model provider is ever contacted. The estimate is approximate \u2014 it uses a fixed reference tokenizer, not the bound provider\u0027s own count. \u0027contextWindowTokens\u0027 and \u0027allowedPromptTokens\u0027 are null when the agent\u0027s model is not found in the catalog; in that case \u0027wouldBeRejected\u0027 is always false, since an unknown window can never be exceeded.",
+        "description": "The diagnostic surface of the pre-flight context-window check: it returns the same numbers the check on \u0027POST /api/agents/{name}/run\u0027 would use, regardless of whether that check is enabled. No model provider is ever contacted. The estimate is approximate \u2014 it uses a fixed reference tokenizer, not the bound provider\u0027s own count. \u0027contextWindowTokens\u0027 and \u0027allowedPromptTokens\u0027 are null when the agent\u0027s model is not found in the catalog; in that case \u0027wouldBeRejected\u0027 is always false, since an unknown window can never be exceeded.",
         "operationId": "AgentPrismEstimateContextWindow",
         "parameters": [
           {
@@ -1743,7 +1743,7 @@
           "Workflows"
         ],
         "summary": "Lists function nodes registered in code.",
-        "description": "Function nodes are defined only in code, with AddWorkflowFunction() (phase 71) - the same K2 boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow\u0027s node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.",
+        "description": "Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow\u0027s node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.",
         "operationId": "AgentPrismListWorkflowFunctions",
         "responses": {
           "200": {
@@ -2890,7 +2890,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Returns a summary of the online evaluation window (Phase 49).",
+        "summary": "Returns a summary of the online evaluation window.",
         "description": "Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result, the \u0027run_scores\u0027 table can be queried directly.",
         "operationId": "AgentPrismGetOnlineEvaluationSummary",
         "responses": {
@@ -2913,7 +2913,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Manually has judge(s) score a run (Phase 49).",
+        "summary": "Manually has judge(s) score a run.",
         "description": "This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run\u0027s input/output cannot be read, an empty list is returned.",
         "operationId": "AgentPrismJudgeRun",
         "parameters": [
@@ -3878,7 +3878,7 @@
           "ApiKeys"
         ],
         "summary": "Generates a new API key.",
-        "description": "The raw value is returned in the response ONLY ON THIS CALL and cannot be produced again. The scope list is closed; an unknown scope is rejected. If the request was authenticated with an API key, a scope that key does NOT ITSELF CARRY cannot be requested (privilege extension/attenuation, section 53.3).",
+        "description": "The raw value is returned in the response ONLY ON THIS CALL and cannot be produced again. The scope list is closed; an unknown scope is rejected. If the request was authenticated with an API key, a scope that key does NOT ITSELF CARRY cannot be requested (privilege extension/attenuation).",
         "operationId": "AgentPrismCreateApiKey",
         "requestBody": {
           "content": {
@@ -4023,7 +4023,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s binding for a provider.",
-        "description": "After deletion, calls for that provider use the setup-time global credential again (K1).",
+        "description": "After deletion, calls for that provider use the setup-time global credential again.",
         "operationId": "AgentPrismDeleteTenantProviderBinding",
         "parameters": [
           {
@@ -4057,7 +4057,7 @@
           "TenantProviders"
         ],
         "summary": "Returns a tenant\u0027s model provider egress policy.",
-        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved, K1); an empty or populated array means the tenant may call only those providers.",
+        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers.",
         "operationId": "AgentPrismGetTenantEgressPolicy",
         "parameters": [
           {
@@ -4088,7 +4088,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s egress policy.",
-        "description": "Saving a policy is an ADDITIVE restriction (K1): a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted.",
+        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted.",
         "operationId": "AgentPrismSaveTenantEgressPolicy",
         "parameters": [
           {
@@ -4129,7 +4129,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s egress policy.",
-        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved (K1).",
+        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved.",
         "operationId": "AgentPrismDeleteTenantEgressPolicy",
         "parameters": [
           {
@@ -5466,7 +5466,7 @@
           "Governance"
         ],
         "summary": "Resolves an MCP prompt\u0027s content with arguments.",
-        "description": "The returned content is a SNAPSHOT: it must be copied into the agent\u0027s instructions; it is not re-fetched at runtime (section 22.1). The \u0027hash\u0027 field is for tracking changes on the server.",
+        "description": "The returned content is a SNAPSHOT: it must be copied into the agent\u0027s instructions; it is not re-fetched at runtime. The \u0027hash\u0027 field is for tracking changes on the server.",
         "operationId": "AgentPrismGetMcpPrompt",
         "parameters": [
           {
@@ -5552,7 +5552,7 @@
           "Governance"
         ],
         "summary": "Reads an MCP resource.",
-        "description": "Only URIs advertised by the server\u0027s ListResourcesAsync are accepted; an arbitrary URI is rejected because it carries an SSRF risk (section 22.2).",
+        "description": "Only URIs advertised by the server\u0027s ListResourcesAsync are accepted; an arbitrary URI is rejected because it carries an SSRF risk.",
         "operationId": "AgentPrismReadMcpResource",
         "parameters": [
           {
@@ -5902,7 +5902,7 @@
           "Governance"
         ],
         "summary": "Deletes a data subject\u0027s content.",
-        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as \u0027already erased\u0027. \u0027?dryRun=\u0027 DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; \u0027?dryRun=false\u0027 deletes for real. The audit trail (audit_log) is never touched \u2014 it is deliberately outside a data subject\u0027s erasable content (phase 64\u0027s design decision: an audit record is \u0027who did what\u0027, not the subject\u0027s own data) \u2014 but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow (K-370).",
+        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as \u0027already erased\u0027. \u0027?dryRun=\u0027 DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; \u0027?dryRun=false\u0027 deletes for real. The audit trail (audit_log) is never touched \u2014 it is deliberately outside a data subject\u0027s erasable content (by design: an audit record is \u0027who did what\u0027, not the subject\u0027s own data) \u2014 but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow.",
         "operationId": "AgentPrismEraseDataSubject",
         "parameters": [
           {
@@ -6284,7 +6284,7 @@
           "Triggers"
         ],
         "summary": "Accepts a signed external event and queues a run.",
-        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-AgentPrism-Timestamp\u0027 \u002B \u0027X-AgentPrism-Signature\u0027, the same headers Phase 21\u0027s outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names.",
+        "description": "No bearer token: the caller authenticates with an HMAC signature over the raw body (\u0027X-AgentPrism-Timestamp\u0027 \u002B \u0027X-AgentPrism-Signature\u0027, the same headers outbound webhooks send, in the reverse direction). The event is ALWAYS queued and this ALWAYS returns 202 \u2014 there is no synchronous mode; a long model call would otherwise fail the caller\u0027s own webhook timeout. A missing or wrong signature, an unknown trigger, and a disabled trigger all return the SAME generic response so a caller cannot enumerate trigger names.",
         "operationId": "AgentPrismAcceptInboundTrigger",
         "parameters": [
           {
@@ -6399,7 +6399,7 @@
             "description": "Address of the event stream."
           }
         },
-        "description": "\u0060202 Accepted\u0060 response for a queued run (Phase 46)."
+        "description": "\u0060202 Accepted\u0060 response for a queued run."
       },
       "AgentDefinition": {
         "required": [
@@ -6417,7 +6417,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the name shown in the user interface. string AgentDefinition.Name is used when it is empty."
+            "description": "Gets the name shown in the user interface. \u0060Name\u0060 is used when it is empty."
           },
           "description": {
             "type": [
@@ -6441,7 +6441,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Gets culture-keyed instructions. The key is a BCP-47 tag (\u0060\u0022en\u0022\u0060, \u0060\u0022tr\u0022\u0060);\na region subtag (\u0060\u0022tr-TR\u0022\u0060) falls back to its parent (\u0060\u0022tr\u0022\u0060). A run\u0027s\nrequested culture that matches neither falls back to string? AgentDefinition.Instructions -\nresolution never fails."
+            "description": "Gets culture-keyed instructions. The key is a BCP-47 tag (\u0060\u0022en\u0022\u0060, \u0060\u0022tr\u0022\u0060);\na region subtag (\u0060\u0022tr-TR\u0022\u0060) falls back to its parent (\u0060\u0022tr\u0022\u0060). A run\u0027s\nrequested culture that matches neither falls back to \u0060Instructions\u0060 -\nresolution never fails."
           },
           "model": {
             "description": "Gets the provider and model binding to use.",
@@ -6880,7 +6880,7 @@
           },
           "jobStore": {
             "type": "string",
-            "description": "Type name of the job queue store (Phase 17)."
+            "description": "Type name of the job queue store."
           },
           "jobWorkerEnabled": {
             "type": "boolean",
@@ -6989,7 +6989,7 @@
             "items": {
               "$ref": "#/components/schemas/ClientToolResult"
             },
-            "description": "Results of client-side tool calls (Phase 61)."
+            "description": "Results of client-side tool calls."
           },
           "attachmentIds": {
             "type": "array",
@@ -7243,7 +7243,7 @@
           },
           "inconclusive": {
             "type": "boolean",
-            "description": "Gets a value that tells whether a check could not finish because a resource was\nunreachable, an MCP server for example. It does not affect bool AgentValidationReport.Valid."
+            "description": "Gets a value that tells whether a check could not finish because a resource was\nunreachable, an MCP server for example. It does not affect \u0060Valid\u0060."
           },
           "messages": {
             "type": "array",
@@ -7271,7 +7271,7 @@
             "$ref": "#/components/schemas/AgentDefinition"
           }
         },
-        "description": "Raw JSON response for comparing two definition versions (Phase 19.1). The\ndiff is not computed on the server; the client compares the two raw\ndefinitions field by field."
+        "description": "Raw JSON response for comparing two definition versions. The\ndiff is not computed on the server; the client compares the two raw\ndefinitions field by field."
       },
       "AIAnnotation": {
         "type": "object",
@@ -8541,7 +8541,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the session the attachment was uploaded to. \u0060null\u0060 for an upload without a session."
+            "description": "Gets the session the attachment was uploaded to. \u0060null\u0060 for an\nupload without a session."
           },
           "runId": {
             "type": [
@@ -8620,7 +8620,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the id of the first entry where the chain fails; \u0060null\u0060\nwhen AuditChainStatus AuditChainVerification.Status is AuditChainStatus.Valid.",
+            "description": "Gets the id of the first entry where the chain fails; \u0060null\u0060\nwhen AuditChainStatus AuditChainVerification.Status is \u0060AuditChainStatus.Valid\u0060.",
             "format": "uuid"
           }
         },
@@ -8684,14 +8684,14 @@
               "null",
               "string"
             ],
-            "description": "Gets the hash of the previous entry of the same tenant (phase 64).\n\u0060null\u0060 for the first entry of a tenant."
+            "description": "Gets the hash of the previous entry of the same tenant.\n\u0060null\u0060 for the first entry of a tenant."
           },
           "hash": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Gets the hash of this entry (phase 64), derived from its canonical form\n(see \u0060AuditChainHasher\u0060 in \u0060AgentPrism.Core\u0060). The write path\ncomputes this value; a caller-supplied value is ignored."
+            "description": "Gets the hash of this entry, derived from its canonical form\n(see \u0060AuditChainHasher\u0060 in \u0060AgentPrism.Core\u0060). The write path\ncomputes this value; a caller-supplied value is ignored."
           }
         },
         "description": "A row in the audit trail that records who changed which entity and when."
@@ -8992,17 +8992,17 @@
               "null",
               "string"
             ],
-            "description": "The tool\u0027s result, given to the model as plain text. Required unless\nstring? ClientToolResult.ErrorMessage is given."
+            "description": "The tool\u0027s result, given to the model as plain text. Required unless\n\u0060ErrorMessage\u0060 is given."
           },
           "errorMessage": {
             "type": [
               "null",
               "string"
             ],
-            "description": "A message describing why the client-side call failed, given to the\nmodel instead of string? ClientToolResult.Result."
+            "description": "A message describing why the client-side call failed, given to the\nmodel instead of \u0060Result\u0060."
           }
         },
-        "description": "The result of a single client-side tool call, sent back so the run can\ncontinue (Phase 61)."
+        "description": "The result of a single client-side tool call, sent back so the run can\ncontinue."
       },
       "CompactionSettings": {
         "type": "object",
@@ -9078,7 +9078,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the upper output token limit for CompactionStrategyKind.ContextWindow.\nWhen it is not given, int? ModelBinding.MaxOutputTokens from the agent\u0027s own\nmodel binding is used, and 4096 when that is missing too.",
+            "description": "Gets the upper output token limit for CompactionStrategyKind.ContextWindow.\nWhen it is not given, \u0060ModelBinding.MaxOutputTokens\u0060 from the agent\u0027s own\nmodel binding is used, and 4096 when that is missing too.",
             "format": "int32"
           },
           "summarizationPrompt": {
@@ -9139,7 +9139,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the model\u0027s context window size, taken from\nint? ModelDescriptor.ContextWindowTokens.\n\u0060null\u0060 when the model is not found in the catalog.",
+            "description": "Gets the model\u0027s context window size, taken from the model catalog\u0027s\n\u0060ModelDescriptor.ContextWindowTokens\u0060.\n\u0060null\u0060 when the model is not found in the catalog.",
             "format": "int32"
           },
           "allowedPromptTokens": {
@@ -9149,12 +9149,12 @@
               "integer",
               "string"
             ],
-            "description": "Gets the token budget kept for the prompt after\ndouble AgentPrismPreflightOptions.ReserveRatio is set aside for\nthe answer. \u0060null\u0060 when int? ContextWindowEstimate.ContextWindowTokens is unknown.",
+            "description": "Gets the token budget kept for the prompt after\n\u0060AgentPrismPreflightOptions.ReserveRatio\u0060 is set aside for\nthe answer. \u0060null\u0060 when \u0060ContextWindowTokens\u0060 is unknown.",
             "format": "int32"
           },
           "wouldBeRejected": {
             "type": "boolean",
-            "description": "Gets whether a real run with this prompt would be rejected by the\npre-flight check. Always \u0060false\u0060 when\nint? ContextWindowEstimate.ContextWindowTokens is unknown \u2014 an unknown window can never\nbe exceeded."
+            "description": "Gets whether a real run with this prompt would be rejected by the\npre-flight check. Always \u0060false\u0060 when\n\u0060ContextWindowTokens\u0060 is unknown \u2014 an unknown window can never\nbe exceeded."
           }
         },
         "description": "The result of a pre-flight context-window check, computed without calling\nthe model provider."
@@ -9230,7 +9230,7 @@
             "description": "Gets the number of rows removed (or, for a preview, that would be removed), by target table."
           }
         },
-        "description": "The outcome of a data subject erasure request (phase 64)."
+        "description": "The outcome of a data subject erasure request."
       },
       "DeletedResource": {
         "required": [
@@ -9382,7 +9382,7 @@
             ]
           }
         },
-        "description": "Request to promote a run to a case (Phase 45, F-53)."
+        "description": "Request to promote a run to a case."
       },
       "EvalCaseResult": {
         "required": [
@@ -9435,7 +9435,7 @@
               "null",
               "string"
             ],
-            "description": "The failure reason. Populated only when bool EvalCaseResult.Passed is \u0060false\u0060."
+            "description": "The failure reason. Populated only when \u0060Passed\u0060 is \u0060false\u0060."
           }
         },
         "description": "The result of a single EvalCase within an EvalRun."
@@ -9661,7 +9661,7 @@
             "description": "The name of the agent this suite measures."
           },
           "checks": {
-            "description": "The check definitions. Example: \u0060[{\u0022kind\u0022:\u0022nonEmpty\u0022,\u0022minLength\u0022:10}]\u0060.\nSee \u0060docs/18-DEGERLENDIRME.md\u0060, section 18.2, for the format.",
+            "description": "The check definitions. Example: \u0060[{\u0022kind\u0022:\u0022nonEmpty\u0022,\u0022minLength\u0022:10}]\u0060.",
             "$ref": "#/components/schemas/JsonElement"
           },
           "createdAt": {
@@ -9695,7 +9695,7 @@
             "description": "Name of the agent this suite measures."
           },
           "checks": {
-            "description": "Check definitions. See JsonElement EvalSuite.Checks.",
+            "description": "Check definitions. See \u0060EvalSuite.Checks\u0060.",
             "$ref": "#/components/schemas/JsonElement"
           }
         },
@@ -9751,7 +9751,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the time when the experiment entered ExperimentStatus.Running. Returns \u0060null\u0060 while it is a draft.",
+            "description": "Gets the time when the experiment entered ExperimentStatus.Running. Returns \u0060null\u0060 while it is a\ndraft.",
             "format": "date-time"
           },
           "endedAt": {
@@ -9759,7 +9759,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the time when the experiment stopped. Returns \u0060null\u0060 when it runs or never started.",
+            "description": "Gets the time when the experiment stopped. Returns \u0060null\u0060 when\nit runs or never started.",
             "format": "date-time"
           },
           "updatedAt": {
@@ -9776,7 +9776,7 @@
                 "type": "null"
               },
               {
-                "description": "Gets the canary policy. \u0060null\u0060 disables automatic decisions\n(K1), so no background service evaluates this experiment.",
+                "description": "Gets the canary policy. \u0060null\u0060 disables automatic decisions,\nso no background service evaluates this experiment.",
                 "$ref": "#/components/schemas/CanaryPolicy"
               }
             ]
@@ -9811,7 +9811,7 @@
                 "type": "null"
               },
               {
-                "description": "Current evaluation of the rule. \u0060null\u0060 if CanaryPolicy? ExperimentCanaryResponse.Policy is \u0060null\u0060.",
+                "description": "Current evaluation of the rule. \u0060null\u0060 if \u0060Policy\u0060 is \u0060null\u0060.",
                 "$ref": "#/components/schemas/CanaryEvaluation"
               }
             ]
@@ -9879,7 +9879,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Gets the variant name, for example \u0060\u0022control\u0022\u0060 or \u0060\u0022v3\u0022\u0060. It must be unique within the experiment."
+            "description": "Gets the variant name, for example \u0060\u0022control\u0022\u0060 or \u0060\u0022v3\u0022\u0060. It must be\nunique within the experiment."
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9887,7 +9887,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the int AgentDefinition.Version number to serve.",
+            "description": "Gets the \u0060AgentDefinition.Version\u0060 number to serve.",
             "format": "int32"
           },
           "weight": {
@@ -10004,7 +10004,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the currency. It is populated when decimal? ExperimentVariantResult.TotalCost is populated."
+            "description": "Gets the currency. It is populated when \u0060TotalCost\u0060 is populated."
           },
           "averageDurationMs": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
@@ -10023,7 +10023,7 @@
               "number",
               "string"
             ],
-            "description": "Gets the error rate among settled runs, from 0 through 1. This follows the\nsame rationale as double? RunStatistics.ErrorRate.",
+            "description": "Gets the error rate among settled runs, from 0 through 1. It uses the same\ncalculation as \u0060RunStatistics.ErrorRate\u0060.",
             "format": "double"
           },
           "averageScore": {
@@ -10033,11 +10033,11 @@
               "number",
               "string"
             ],
-            "description": "Gets the average numeric score from 0 through 100 for runs assigned to this\nvariant. It uses the \u0060RunScoreKind.Numeric\u0060 scores from Phase 49.\nReturns \u0060null\u0060 when no run is scored. This is not\n\u00600\u0060; it means unknown, consistent with the existing \u0060RunCost\u0060\ncontract.",
+            "description": "Gets the average numeric score from 0 through 100 for runs assigned to this\nvariant. It uses the \u0060RunScoreKind.Numeric\u0060 scores written by online evaluation.\nReturns \u0060null\u0060 when no run is scored. This is not\n\u00600\u0060; it means unknown, consistent with the existing \u0060RunCost\u0060\ncontract.",
             "format": "double"
           }
         },
-        "description": "Summarizes run results for an experiment variant (K-041: calculated in the store)."
+        "description": "Summarizes run results for an experiment variant (calculated in the store)."
       },
       "HarnessSettings": {
         "type": "object",
@@ -10191,7 +10191,7 @@
           },
           "resolved": {
             "type": "boolean",
-            "description": "Gets whether string InboundTriggerResponse.SigningSecretConfigurationName currently resolves to a value."
+            "description": "Gets whether \u0060SigningSecretConfigurationName\u0060 currently resolves to a value."
           },
           "payloadMode": {
             "description": "Gets how the request body becomes the run\u0027s message.",
@@ -10570,7 +10570,7 @@
               "integer",
               "string"
             ],
-            "description": "The maximum number of attempts specific to this job. If\n\u0060null\u0060, int AgentPrismSchedulingOptions.MaxAttempts applies.",
+            "description": "The maximum number of attempts specific to this job. If\n\u0060null\u0060, \u0060AgentPrismSchedulingOptions.MaxAttempts\u0060 applies.",
             "format": "int32"
           },
           "leaseOwner": {
@@ -10665,7 +10665,7 @@
           },
           "timeZone": {
             "type": "string",
-            "description": "The time zone the string? JobSchedule.Cron expression is interpreted in."
+            "description": "The time zone the \u0060Cron\u0060 expression is interpreted in."
           },
           "payload": {
             "description": "The input set or parameters. Interpreted according to the job kind.",
@@ -10735,7 +10735,7 @@
           },
           "timeZone": {
             "type": "string",
-            "description": "Time zone the string? JobScheduleSaveRequest.Cron expression is interpreted in."
+            "description": "Time zone the \u0060Cron\u0060 expression is interpreted in."
           },
           "payload": {
             "description": "Input set or parameters.",
@@ -10950,7 +10950,7 @@
           },
           "truncated": {
             "type": "boolean",
-            "description": "Whether the content was truncated because it exceeded the size limit\n(docs/22-MCP-DERINLESMESI.md, section 22.2)."
+            "description": "Whether the content was truncated because it exceeded the size limit."
           }
         },
         "description": "The content of a resource that was read."
@@ -11045,7 +11045,7 @@
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is on. When on, it cannot be used at the\nsame time as string? McpServerDefinition.AuthorizationConfigurationKey \u2014 both would\ntry to manage the \u0060Authorization\u0060 header."
+            "description": "Whether OAuth authentication is on. When on, it cannot be used at the\nsame time as \u0060AuthorizationConfigurationKey\u0060 \u2014 both would\ntry to manage the \u0060Authorization\u0060 header."
           },
           "oauthClientId": {
             "type": [
@@ -11059,7 +11059,7 @@
               "null",
               "string"
             ],
-            "description": "The configuration key the OAuth client secret\u0027s value is read from.\nThe value is never written to the database, under the same rule\n(K-059) as string? McpServerDefinition.AuthorizationConfigurationKey."
+            "description": "The configuration key the OAuth client secret\u0027s value is read from.\nThe value is never written to the database, under the same rule\n as \u0060AuthorizationConfigurationKey\u0060."
           },
           "oauthScopes": {
             "type": [
@@ -11087,7 +11087,7 @@
             "format": "date-time"
           }
         },
-        "description": "A registered remote MCP server. Its tools are discovered at connection\ntime and listed alongside the tools registered in code."
+        "description": "A registered remote MCP server. Its tools are discovered at connection time and\nlisted alongside the tools registered in code."
       },
       "McpServerRequest": {
         "required": [
@@ -11137,7 +11137,7 @@
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is enabled. While on,\nstring? McpServerRequest.AuthorizationConfigurationKey must be empty."
+            "description": "Whether OAuth authentication is enabled. While on,\n\u0060AuthorizationConfigurationKey\u0060 must be empty."
           },
           "oauthClientId": {
             "type": [
@@ -11191,7 +11191,7 @@
           },
           "enableVectorSearch": {
             "type": "boolean",
-            "description": "Gets a value that turns on the \u0060search_knowledge\u0060 tool (phase 51). \uD83D\uDEA8\nPostgreSQL only: the single concrete implementation of\nIVectorSearchStore lives in \u0060AgentPrism.PostgreSql\u0060. When this\nflag is turned on while another provider is registered, the build stops with\nAgentPrismCompilationException; it does not silently return an\nempty result."
+            "description": "Gets a value that turns on the \u0060search_knowledge\u0060 tool.\nPostgreSQL only: the single concrete implementation of\nIVectorSearchStore lives in \u0060AgentPrism.PostgreSql\u0060. When this\nflag is turned on while another provider is registered, the build stops with\nAgentPrismCompilationException; it does not silently return an\nempty result."
           },
           "vectorCollection": {
             "type": [
@@ -11288,7 +11288,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "The model name. string ModelBinding.Model matches this value."
+            "description": "The model name. \u0060ModelBinding.Model\u0060 matches this value."
           },
           "displayName": {
             "type": [
@@ -11983,7 +11983,7 @@
               "integer",
               "string"
             ],
-            "description": "Rows older than this age are candidates for deletion. If\n\u0060null\u0060, age-based deletion does not apply (only\nlong? RetentionPolicy.MaxRows, if set, applies).",
+            "description": "Rows older than this age are candidates for deletion. If\n\u0060null\u0060, age-based deletion does not apply (only\n\u0060MaxRows\u0060, if set, applies).",
             "format": "int32"
           },
           "maxRows": {
@@ -11993,7 +11993,7 @@
               "integer",
               "string"
             ],
-            "description": "The maximum number of rows to keep in the target table. The OLDEST\nrows over the limit are deleted. If \u0060null\u0060,\nvolume-based deletion does not apply (only int? RetentionPolicy.MaxAgeDays,\nif set, applies).",
+            "description": "The maximum number of rows to keep in the target table. The OLDEST\nrows over the limit are deleted. If \u0060null\u0060,\nvolume-based deletion does not apply (only \u0060MaxAgeDays\u0060,\nif set, applies).",
             "format": "int64"
           },
           "archive": {
@@ -12408,7 +12408,7 @@
             "$ref": "#/components/schemas/PricingSource"
           }
         },
-        "description": "Cost of a run. It is computed and written once when the run ends (a price\nsnapshot) \u2014 a later change to the price list does not change past values\n(see \u0060docs/20-MALIYET-VE-GOSTERGE-PANELI.md\u0060, section 20.2)."
+        "description": "Cost of a run. It is computed and written once when the run ends (a price\nsnapshot) \u2014 a later change to the price list does not change past values."
       },
       "RunCostRecalculationResult": {
         "required": [
@@ -12479,7 +12479,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the digest of the normalized message, used to cluster repetitions of\nthe same fault. \u0060null\u0060 when no classifier ran, as for\nRunErrorClass? RunError.Class."
+            "description": "Gets the digest of the normalized message, used to cluster repetitions of\nthe same fault. \u0060null\u0060 when no classifier ran, as for\n\u0060Class\u0060."
           }
         },
         "description": "Error information for a failed run."
@@ -12590,7 +12590,7 @@
               "integer",
               "string"
             ],
-            "description": "0/1 for RunScoreKind.Binary, 1..5 for RunScoreKind.Stars.",
+            "description": "0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.",
             "format": "int32"
           },
           "messageId": {
@@ -13098,7 +13098,7 @@
             "description": "The identifier of the message being scored. If empty, the score belongs to the whole run."
           },
           "kind": {
-            "description": "The shape of int RunScore.Value.",
+            "description": "The shape of \u0060Value\u0060.",
             "$ref": "#/components/schemas/RunScoreKind"
           },
           "value": {
@@ -13107,7 +13107,7 @@
               "integer",
               "string"
             ],
-            "description": "The score value. 0/1 for RunScoreKind.Binary, 1..5 for RunScoreKind.Stars.",
+            "description": "The score value. 0/1 for RunScoreKind.Binary, 1.5 for RunScoreKind.Stars.",
             "format": "int32"
           },
           "comment": {
@@ -13119,7 +13119,7 @@
           },
           "source": {
             "type": "string",
-            "description": "The score\u0027s source: \u0060human\u0060, \u0060api\u0060, or \u0060judge\u0060. Today\nonly \u0060human\u0060 is used; the column is set up from the start so\nonline evaluation (F-71) can write a judge score into the same table as-is."
+            "description": "The score\u0027s source: \u0060human\u0060, \u0060api\u0060, or \u0060judge\u0060. Today\nonly \u0060human\u0060 is used; the column is set up from the start so\nonline evaluation can write a judge score into the same table as-is."
           },
           "author": {
             "type": [
@@ -13241,7 +13241,7 @@
               "integer",
               "string"
             ],
-            "description": "The input tokens that were served from the prompt cache. Counted INSIDE\nlong RunStatistics.InputTokens, so the two must not be added together.",
+            "description": "The input tokens that were served from the prompt cache. Counted INSIDE\n\u0060InputTokens\u0060, so the two must not be added together.",
             "format": "int64"
           },
           "reasoningTokens": {
@@ -13250,7 +13250,7 @@
               "integer",
               "string"
             ],
-            "description": "The tokens spent on reasoning. Counted INSIDE long RunStatistics.OutputTokens.",
+            "description": "The tokens spent on reasoning. Counted INSIDE \u0060OutputTokens\u0060.",
             "format": "int64"
           },
           "audioInputTokens": {
@@ -13259,7 +13259,7 @@
               "integer",
               "string"
             ],
-            "description": "The audio input tokens. Counted INSIDE long RunStatistics.InputTokens.",
+            "description": "The audio input tokens. Counted INSIDE \u0060InputTokens\u0060.",
             "format": "int64"
           },
           "audioOutputTokens": {
@@ -13268,7 +13268,7 @@
               "integer",
               "string"
             ],
-            "description": "The audio output tokens. Counted INSIDE long RunStatistics.OutputTokens.",
+            "description": "The audio output tokens. Counted INSIDE \u0060OutputTokens\u0060.",
             "format": "int64"
           },
           "byAgent": {
@@ -13311,7 +13311,7 @@
             "items": {
               "$ref": "#/components/schemas/RunErrorStatistics"
             },
-            "description": "The breakdown by error class. Only runs that ended in an error are\ncounted. Rows written before the error class was added appear in the\n\u0060Unknown\u0060 bucket (K-014 \u2014 past rows are not backfilled)."
+            "description": "The breakdown by error class. Only runs that ended in an error are\ncounted. Rows written before the error class was added appear in the\n\u0060Unknown\u0060 bucket (past rows are not backfilled)."
           },
           "totalCost": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
@@ -13320,7 +13320,7 @@
               "number",
               "string"
             ],
-            "description": "The total cost. If a model has undefined pricing, that model\u0027s run\ncosts are \u003Cstrong\u003Enot included\u003C/strong\u003E in this total (only runs with\nknown pricing are summed); the number of runs excluded appears in\nlong RunStatistics.RunsWithUnknownPricing. \u0060null\u0060 if no run\nwas ever priced.",
+            "description": "The total cost. If a model has undefined pricing, that model\u0027s run\ncosts are \u003Cstrong\u003Enot included\u003C/strong\u003E in this total (only runs with\nknown pricing are summed); the number of runs excluded appears in\n\u0060RunsWithUnknownPricing\u0060. \u0060null\u0060 if no run\nwas ever priced.",
             "format": "double"
           },
           "currency": {
@@ -13328,7 +13328,7 @@
               "null",
               "string"
             ],
-            "description": "The currency. Populated when decimal? RunStatistics.TotalCost is populated."
+            "description": "The currency. Populated when \u0060TotalCost\u0060 is populated."
           },
           "runsWithUnknownPricing": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -13355,7 +13355,7 @@
               "integer",
               "string"
             ],
-            "description": "The number of runs that received at least one RunScore\n(at the run or message level). Eval runs (RunKind.Eval)\nare excluded for the same reason as long RunStatistics.TotalRuns (K-141).",
+            "description": "The number of runs that received at least one RunScore\n(at the run or message level). Eval runs (RunKind.Eval)\nare excluded for the same reason as \u0060TotalRuns\u0060.",
             "format": "int64"
           },
           "positiveRate": {
@@ -13528,7 +13528,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the input tokens that were served from the provider\u0027s prompt\ncache. Counted INSIDE long? RunUsage.InputTokens.",
+            "description": "Gets the input tokens that were served from the provider\u0027s prompt\ncache. Counted INSIDE \u0060InputTokens\u0060.",
             "format": "int64"
           },
           "reasoningTokens": {
@@ -13538,7 +13538,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the tokens the model spent on reasoning. Counted INSIDE\nlong? RunUsage.OutputTokens.",
+            "description": "Gets the tokens the model spent on reasoning. Counted INSIDE\n\u0060OutputTokens\u0060.",
             "format": "int64"
           },
           "audioInputTokens": {
@@ -13548,7 +13548,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the audio input tokens. Counted INSIDE long? RunUsage.InputTokens.",
+            "description": "Gets the audio input tokens. Counted INSIDE \u0060InputTokens\u0060.",
             "format": "int64"
           },
           "audioOutputTokens": {
@@ -13558,7 +13558,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the audio output tokens. Counted INSIDE long? RunUsage.OutputTokens.",
+            "description": "Gets the audio output tokens. Counted INSIDE \u0060OutputTokens\u0060.",
             "format": "int64"
           }
         },
@@ -14008,7 +14008,7 @@
               "null",
               "string"
             ],
-            "description": "The session the attachment is bound to. \uD83D\uDEA8 If left empty, the\nattachment is considered orphaned and deleted by the retention policy."
+            "description": "The session the attachment is bound to. If left empty, the\nattachment is considered orphaned and deleted by the retention policy."
           },
           "voiceId": {
             "type": [
@@ -14074,7 +14074,7 @@
             "items": {
               "$ref": "#/components/schemas/SpeechAlignment"
             },
-            "description": "Character-level timing. \u0060null\u0060 when not requested via\nbool SpeakRequest.IncludeTimestamps, or when the provider does not support it."
+            "description": "Character-level timing. \u0060null\u0060 when not requested via\n\u0060SpeakRequest.IncludeTimestamps\u0060, or when the provider does not support it."
           }
         },
         "description": "The result of speech synthesis."
@@ -14123,7 +14123,7 @@
           },
           "slug": {
             "type": "string",
-            "description": "The tenant key. The same text as the \u0060tenant_id\u0060 column in other\ntables, and string ITenantContext.TenantId returns this value."
+            "description": "The tenant key. The same text as the \u0060tenant_id\u0060 column in other\ntables, and \u0060ITenantContext.TenantId\u0060 returns this value."
           },
           "displayName": {
             "type": "string",
@@ -14171,7 +14171,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Gets the closed set of allowed provider names, or \u0060null\u0060\nwhen the tenant is unrestricted (no policy saved, K1)."
+            "description": "Gets the closed set of allowed provider names, or \u0060null\u0060\nwhen the tenant is unrestricted (no policy saved)."
           },
           "updatedAt": {
             "type": [
@@ -14230,7 +14230,7 @@
           },
           "resolved": {
             "type": "boolean",
-            "description": "Gets whether string TenantProviderBindingResponse.ApiKeyConfigurationName currently resolves to a value."
+            "description": "Gets whether \u0060ApiKeyConfigurationName\u0060 currently resolves to a value."
           },
           "updatedAt": {
             "type": "string",
@@ -14354,7 +14354,7 @@
           },
           "remember": {
             "type": "boolean",
-            "description": "Whether the decision should be saved as a permanent rule (\u0022don\u0027t ask\nagain\u0022). Meaningful only while bool ToolApprovalDecision.Approved is \u0060true\u0060."
+            "description": "Whether the decision should be saved as a permanent rule (\u0022don\u0027t ask\nagain\u0022). Meaningful only while \u0060Approved\u0060 is \u0060true\u0060."
           },
           "rememberArgumentsOnly": {
             "type": "boolean",
@@ -14404,7 +14404,7 @@
             "items": {
               "$ref": "#/components/schemas/ToolArgumentCondition"
             },
-            "description": "Gets the argument conditions. All conditions must match for the rule to apply\n(\u0060AND\u0060); an empty list matches every call of the tool. Mutually exclusive\nwith string? ToolApprovalRule.ArgumentsHash \u2014 a rule carries one or the other, never both."
+            "description": "Gets the argument conditions. All conditions must match for the rule to apply\n(\u0060AND\u0060); an empty list matches every call of the tool. Mutually exclusive\nwith \u0060ArgumentsHash\u0060 \u2014 a rule carries one or the other, never both."
           },
           "createdBy": {
             "type": [
@@ -14446,7 +14446,7 @@
             "description": "All conditions must match for the rule to apply (\u0060AND\u0060). An empty list\n(the default) matches every call of the tool."
           }
         },
-        "description": "Request to create a persistent, argument-conditioned approval rule (Phase 63)."
+        "description": "Request to create a persistent, argument-conditioned approval rule."
       },
       "ToolArgumentCondition": {
         "required": [
@@ -14736,7 +14736,7 @@
               "number",
               "string"
             ],
-            "description": "The computed amount. Stays \u0060null\u0060 if the\nconfiguration has no price for this tool \u2014 \u003Cstrong\u003Enot\u003C/strong\u003E zero (K-032).",
+            "description": "The computed amount. Stays \u0060null\u0060 if the\nconfiguration has no price for this tool \u2014 \u003Cstrong\u003Enot\u003C/strong\u003E zero.",
             "format": "double"
           },
           "currency": {
@@ -15133,7 +15133,7 @@
             "items": {
               "$ref": "#/components/schemas/UploadDocumentChunk"
             },
-            "description": "Ready-made chunks. If float[]? UploadDocumentChunk.Embedding is\nleft empty, the server embeds it; if it is filled in, it is written AS IS."
+            "description": "Ready-made chunks. If \u0060UploadDocumentChunk.Embedding\u0060 is\nleft empty, the server embeds it; if it is filled in, it is written AS IS."
           }
         },
         "description": "Request to upload a document."
@@ -15355,7 +15355,7 @@
               "null",
               "string"
             ],
-            "description": "The reason, if failed. \uD83D\uDEA8 The text carries neither an API key nor an address."
+            "description": "The reason, if failed. The text carries neither an API key nor an address."
           },
           "voiceCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -15397,7 +15397,7 @@
           },
           "tenantId": {
             "type": "string",
-            "description": "The tenant. \uD83D\uDEA8 Resolved when the connection is established and\n\u003Cstrong\u003Efixed\u003C/strong\u003E for the connection\u0027s lifetime."
+            "description": "The tenant. Resolved when the connection is established and\n\u003Cstrong\u003Efixed\u003C/strong\u003E for the connection\u0027s lifetime."
           },
           "sessionId": {
             "type": "string",
@@ -15436,7 +15436,7 @@
               "number",
               "string"
             ],
-            "description": "The total resolved audio duration (seconds). Stays\n\u0060null\u0060 if the provider does not report duration \u2014\nAgentPrism does not fabricate a duration (K-032).",
+            "description": "The total resolved audio duration (seconds). Stays\n\u0060null\u0060 if the provider does not report duration \u2014\nAgentPrism does not fabricate a duration.",
             "format": "double"
           },
           "outputChars": {
@@ -15524,7 +15524,7 @@
               "integer",
               "string"
             ],
-            "description": "The HTTP status code the recipient returned. \u0060null\u0060 if a connection could not be established.",
+            "description": "The HTTP status code the recipient returned. \u0060null\u0060 if a\nconnection could not be established.",
             "format": "int32"
           },
           "error": {
@@ -15773,7 +15773,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the display name shown in the UI. string WorkflowDefinition.Name is used if left empty."
+            "description": "Gets the display name shown in the UI. \u0060Name\u0060 is used if left empty."
           },
           "description": {
             "type": [
@@ -15907,7 +15907,7 @@
             "items": {
               "$ref": "#/components/schemas/WorkflowNodeReference"
             },
-            "description": "Gets the mixed agent/function node list for a Sequential workflow that\nuses function nodes (phase 71). Empty for every other definition."
+            "description": "Gets the mixed agent/function node list for a Sequential workflow that\nuses function nodes. Empty for every other definition."
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -16097,7 +16097,7 @@
             "description": "Gets the referenced name: an agent name from the catalog when\nWorkflowNodeKind WorkflowNodeReference.Kind is WorkflowNodeKind.Agent, or a\nfunction name from the code registry when it is\nWorkflowNodeKind.Function."
           },
           "kind": {
-            "description": "Gets which registry string WorkflowNodeReference.Name is looked up in.",
+            "description": "Gets which registry \u0060Name\u0060 is looked up in.",
             "$ref": "#/components/schemas/WorkflowNodeKind"
           }
         },
@@ -16182,7 +16182,7 @@
               "null",
               "boolean"
             ],
-            "description": "Yes/no response. In a plan approval, \u0060true\u0060 approves\nthe plan; \u0060false\u0060 sends it back with the correction in\nthe string? WorkflowRespondHttpRequest.Text field."
+            "description": "Yes/no response. In a plan approval, \u0060true\u0060 approves\nthe plan; \u0060false\u0060 sends it back with the correction in\nthe \u0060Text\u0060 field."
           },
           "text": {
             "type": [

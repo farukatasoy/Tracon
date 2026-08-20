@@ -10,8 +10,8 @@ namespace AgentPrism;
 /// knowing the column schema up front.
 /// </summary>
 /// <remarks>
-/// Shared by <c>SqlRetentionStore</c> (archive rows, phase 25) and
-/// <c>SqlDataSubjectStore</c> (export documents, phase 64) — both need to turn an
+/// Shared by <c>SqlRetentionStore</c> (archive rows) and
+/// <c>SqlDataSubjectStore</c> (export documents) — both need to turn an
 /// arbitrary row into JSON without reflection, because this code compiles into
 /// <c>AgentPrism.PostgreSql</c> and that package must stay AOT-compatible.
 /// </remarks>

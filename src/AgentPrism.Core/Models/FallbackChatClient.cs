@@ -11,8 +11,8 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Sits outside the circuit breaker, inside the content-filter
-/// detector</strong> (measured, K-320's placement rule applied to phase 62):
+/// <strong>Sits outside the circuit breaker, inside the content-filter
+/// detector</strong> (measured — placement decides what the rule can see):
 /// <c>ModelProviderRegistry.CreateChatClient</c> wraps this client with
 /// <c>ContentFilterDetectingChatClient</c>, and this client wraps the
 /// already-fully-assembled primary pipeline (content guard, tool loop,
@@ -26,14 +26,14 @@ namespace AgentPrism;
 /// content filtering because it never sees it as a failure.
 /// </para>
 /// <para>
-/// 🚨 <strong>Because the loop is behind this client, not in front of it, a
+/// <strong>Because the loop is behind this client, not in front of it, a
 /// fallback restarts the agent's tool-call turn from scratch</strong> on the
 /// fallback provider. This is deliberate: switching providers mid-tool-loop
 /// would leave a half-finished conversation state that no provider can resume.
 /// </para>
 /// <para>
 /// A fallback link carries only <see cref="ModelFallback.Provider"/> and
-/// <see cref="ModelFallback.Model"/> (decision, phase 62): the fallback
+/// <see cref="ModelFallback.Model"/> (decision): the fallback
 /// binding built for it uses every other <see cref="ModelBinding"/> field at
 /// its default, not the primary's values.
 /// </para>
@@ -56,7 +56,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// </param>
     /// <remarks>
     /// <para>
-    /// 🚨 <c>DelegatingChatClient</c> keeps its wrapped client in a PRIVATE
+    /// <c>DelegatingChatClient</c> keeps its wrapped client in a PRIVATE
     /// field and exposes no protected accessor for it (measured via
     /// <c>maf-api-kesfi</c>) — <paramref name="primaryClient"/> is therefore
     /// also kept in <see cref="_primaryClient"/> and called directly; the base
@@ -64,7 +64,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// passthrough, never for <c>base.GetResponseAsync</c>.
     /// </para>
     /// <para>
-    /// 🚨 <paramref name="buildClient"/> is ASYNC (phase 65, independent audit
+    /// <paramref name="buildClient"/> is ASYNC (independent audit
     /// finding). It MUST be <c>ModelProviderRegistry.CreateChatClientAsync</c>,
     /// never the sync <c>CreateChatClient</c>: a fallback link is itself a
     /// <see cref="ModelBinding"/> with its own <see cref="ModelBinding.Provider"/>,
@@ -320,7 +320,7 @@ internal sealed record ModelFallbackUsedEventPayload
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <c>AgentPrism.Core</c> has no compile-time reference to a provider
+/// <c>AgentPrism.Core</c> has no compile-time reference to a provider
 /// SDK's exception types (<c>System.ClientModel.ClientResultException</c>,
 /// <c>Azure.RequestFailedException</c>, ...) — only the individual provider
 /// packages do. This mirrors <see cref="DefaultRunErrorClassifier"/>'s
@@ -328,8 +328,8 @@ internal sealed record ModelFallbackUsedEventPayload
 /// text, not on a typed catch.
 /// </para>
 /// <para>
-/// 🚨 <strong>A bare connection failure never reaches the outer catch as
-/// itself</strong> — measured against the real OpenAI 2.12.0 client (phase 62
+/// <strong>A bare connection failure never reaches the outer catch as
+/// itself</strong> — measured against the real OpenAI 2.12.0 client (audit
 /// audit): pointing it at a port nothing listens on throws
 /// <see cref="AggregateException"/> ("Retry failed after 4 tries...") whose
 /// <see cref="Exception.InnerException"/> is
@@ -339,11 +339,11 @@ internal sealed record ModelFallbackUsedEventPayload
 /// inspects the WHOLE exception graph (<see cref="Flatten"/>: self,
 /// <see cref="Exception.InnerException"/> recursively, and every branch of an
 /// <see cref="AggregateException"/>), not just the outermost exception — the
-/// same K-296 lesson (real SDKs don't throw the type you'd guess) applied one
+/// same lesson (real SDKs don't throw the type you'd guess) applied one
 /// layer deeper.
 /// </para>
 /// <para>
-/// The list is a closed, positive set (K1): an unrecognized failure does
+/// The list is a closed, positive set: an unrecognized failure does
 /// <strong>not</strong> retry by default. A silent provider switch on an
 /// error nobody anticipated is a worse outcome than surfacing the error.
 /// </para>

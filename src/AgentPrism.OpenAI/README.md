@@ -132,6 +132,6 @@ the user interface.
 ## Links
 
 - Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Model providers: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
 
 License: MIT

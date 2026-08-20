@@ -287,6 +287,14 @@ Schema output fails compilation. See
 
 ## Check a prompt against the context window before running it
 
+The pre-flight check is `AgentPrismPreflightOptions`, bound from
+`AgentPrism:Preflight`. It is off until `Enabled` is set, and `ReserveRatio` decides
+how much of the window is held back for the answer.
+
+Outgoing concurrency is `AgentPrismModelConcurrencyOptions`, bound from
+`AgentPrism:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
+AgentPrism has in flight against one provider at a time.
+
 `ContextWindowTokens` on a catalog `ModelDescriptor` powers two features (F-59):
 derivation for `ContextWindow` compaction, and an optional pre-flight check on
 `POST /api/agents/{name}/run` that rejects an oversized prompt **before** any

@@ -8,10 +8,10 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Tenant provider binding (BYOK) and egress policy endpoints (phase 65).
+/// Tenant provider binding (BYOK) and egress policy endpoints.
 /// </summary>
 /// <remarks>
-/// 🚨 No response here ever carries a credential value — only the
+/// No response here ever carries a credential value — only the
 /// configuration key's <strong>name</strong> and whether it currently
 /// resolves. Unlike <see cref="ApiKeyEndpoints"/>, the tenant is taken from
 /// the ROUTE, not the ambient <see cref="ITenantContext"/>: these are
@@ -55,7 +55,7 @@ internal static class TenantProviderEndpoints
             .WithName("AgentPrismDeleteTenantProviderBinding")
             .WithTags("AgentPrism", "TenantProviders")
             .WithSummary("Deletes a tenant's binding for a provider.")
-            .WithDescription("After deletion, calls for that provider use the setup-time global credential again (K1).");
+            .WithDescription("After deletion, calls for that provider use the setup-time global credential again.");
 
         builder.MapGet("/api/tenants/{tenantId}/egress", GetEgressPolicyAsync)
             .RequireRole(roles.Admin)
@@ -64,7 +64,7 @@ internal static class TenantProviderEndpoints
             .WithTags("AgentPrism", "TenantProviders")
             .WithSummary("Returns a tenant's model provider egress policy.")
             .WithDescription(
-                "'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved, K1); " +
+                "'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); " +
                 "an empty or populated array means the tenant may call only those providers.");
 
         builder.MapPut("/api/tenants/{tenantId}/egress", SaveEgressPolicyAsync)
@@ -75,7 +75,7 @@ internal static class TenantProviderEndpoints
             .WithSummary("Creates or replaces a tenant's egress policy.")
             .Accepts<TenantEgressPolicyRequest>("application/json")
             .WithDescription(
-                "Saving a policy is an ADDITIVE restriction (K1): a tenant with no policy is " +
+                "Saving a policy is an ADDITIVE restriction: a tenant with no policy is " +
                 "unrestricted, and this call is the only way that changes. An agent definition " +
                 "naming a provider outside the saved list is rejected at compile time, not only " +
                 "at call time. An empty 'allowedProviders' array allows NO provider — it is not " +
@@ -87,7 +87,7 @@ internal static class TenantProviderEndpoints
             .WithName("AgentPrismDeleteTenantEgressPolicy")
             .WithTags("AgentPrism", "TenantProviders")
             .WithSummary("Deletes a tenant's egress policy.")
-            .WithDescription("After deletion the tenant is unrestricted again — the same state as before any policy was ever saved (K1).");
+            .WithDescription("After deletion the tenant is unrestricted again — the same state as before any policy was ever saved.");
     }
 
     private static async Task<Ok<IReadOnlyList<TenantProviderBindingResponse>>> ListAsync(
@@ -329,8 +329,8 @@ internal static class TenantProviderEndpoints
 
     /// <summary>Summarizes a binding for the audit trail.</summary>
     /// <remarks>
-    /// NO credential value or resolved status — only the name (K-059
-    /// direction). 🚨 The JSON property is deliberately named
+    /// NO credential value or resolved status — only the name of the
+    /// configuration key. The JSON property is deliberately named
     /// <c>configKeyName</c>, not <c>apiKeyConfigurationName</c>:
     /// <see cref="AuditSecretFilter"/> blanket-redacts any property whose name
     /// contains "apikey" regardless of its value, and the configuration key's
@@ -353,7 +353,7 @@ internal static class TenantProviderEndpoints
 }
 
 /// <summary>The response describing a tenant provider binding.</summary>
-/// <remarks>🚨 Carries no credential value, only the configuration key's NAME (K-059).</remarks>
+/// <remarks>Carries no credential value, only the configuration key's NAME.</remarks>
 public sealed record TenantProviderBindingResponse
 {
     /// <summary>Gets the provider name.</summary>
@@ -366,7 +366,7 @@ public sealed record TenantProviderBindingResponse
     public string? Endpoint { get; init; }
 
     /// <summary>
-    /// Gets whether <see cref="ApiKeyConfigurationName"/> currently resolves to a value.
+    /// Gets whether <c>ApiKeyConfigurationName</c> currently resolves to a value.
     /// </summary>
     public required bool Resolved { get; init; }
 
@@ -392,7 +392,7 @@ public sealed record TenantEgressPolicyResponse
 
     /// <summary>
     /// Gets the closed set of allowed provider names, or <see langword="null"/>
-    /// when the tenant is unrestricted (no policy saved, K1).
+    /// when the tenant is unrestricted (no policy saved).
     /// </summary>
     public IReadOnlyList<string>? AllowedProviders { get; init; }
 

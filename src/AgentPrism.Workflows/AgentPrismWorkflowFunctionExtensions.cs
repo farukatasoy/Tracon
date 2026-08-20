@@ -28,7 +28,7 @@ public static class AgentPrismWorkflowFunctionExtensions
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     /// <remarks>
     /// <para>
-    /// <strong>Security boundary (K2).</strong> A workflow definition can only
+    /// <strong>Security boundary.</strong> A workflow definition can only
     /// point to a function registered here, by name. The function's
     /// <em>code</em> is never written from the UI or the database - the same
     /// boundary <c>AddTool</c> draws for tools, and the same boundary
@@ -41,10 +41,10 @@ public static class AgentPrismWorkflowFunctionExtensions
     /// every dependency the handler needs inside <paramref name="factory"/>;
     /// the handler itself receives no service provider at call time
     /// (<c>IWorkflowContext</c> does not carry one, the same constraint
-    /// tools hit under K-218).
+    /// tools hit).
     /// </para>
     /// <para>
-    /// 🚨 <strong>The handler must be thread-safe.</strong> Because
+    /// <strong>The handler must be thread-safe.</strong> Because
     /// <paramref name="factory"/> runs once, every workflow compile - and
     /// therefore every concurrent run of this workflow, and every other
     /// workflow that references the same function name - shares the exact
@@ -58,8 +58,8 @@ public static class AgentPrismWorkflowFunctionExtensions
     /// hand-writing their orchestration logic, which is out of scope.
     /// </para>
     /// <para>
-    /// 🚨 <strong>The handler must be idempotent when the workflow enables
-    /// checkpointing</strong> (the default). Measured (phase 71): resuming
+    /// <strong>The handler must be idempotent when the workflow enables
+    /// checkpointing</strong> (the default). Measured: resuming
     /// from the run's LATEST checkpoint after it has already completed does
     /// <em>not</em> call the handler again - the checkpoint already reflects
     /// the finished graph, so there is nothing left to run. But resuming from

@@ -89,7 +89,7 @@ internal sealed class ElevenLabsVoice
 /// Source-generated serialization context for ElevenLabs bodies.
 /// </summary>
 /// <remarks>
-/// 🚨 Reflection-based <c>JsonSerializer</c> overloads break AOT compatibility
+/// Reflection-based <c>JsonSerializer</c> overloads break AOT compatibility
 /// (<c>IL2026</c>/<c>IL3050</c>). The package is marked AOT compatible; every
 /// serialization goes through this context.
 /// </remarks>

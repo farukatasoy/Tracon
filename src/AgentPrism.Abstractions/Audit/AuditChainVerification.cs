@@ -11,7 +11,7 @@ public sealed record AuditChainVerification
 
     /// <summary>
     /// Gets the id of the first entry where the chain fails; <see langword="null"/>
-    /// when <see cref="Status"/> is <see cref="AuditChainStatus.Valid"/>.
+    /// when <see cref="Status"/> is <c>AuditChainStatus.Valid</c>.
     /// </summary>
     public Guid? FirstFailingEntryId { get; init; }
 }

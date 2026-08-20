@@ -23,12 +23,12 @@ public enum RunKind
 
     /// <summary>
     /// The run of a workflow. Every agent called inside it is linked under
-    /// this row through Phase 12's <c>parent_run_id</c> mechanism.
+    /// this row through the <c>parent_run_id</c> mechanism.
     /// </summary>
     Workflow = 1,
 
     /// <summary>
-    /// The run of an eval case (Phase 18). A normal <c>runs</c> row for
+    /// The run of an eval case. A normal <c>runs</c> row for
     /// transcript and span-tree access, but
     /// <see cref="IRunStore.GetStatisticsAsync"/> excludes this kind from the
     /// summary — it is a synthetic test call, not real traffic.

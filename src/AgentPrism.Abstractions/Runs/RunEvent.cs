@@ -17,13 +17,19 @@ namespace AgentPrism;
 /// Which fields are populated for each event type:
 /// <list type="table">
 ///   <item><term><see cref="RunEventType.RunStarted"/></term><description>
-///     <see cref="Text"/>, the first user message that triggered the run (phase 45,
-///     F-53). It is the ONLY place the input text is persisted.</description></item>
-///   <item><term><see cref="RunEventType.MessageDelta"/></term><description><see cref="Text"/></description></item>
-///   <item><term><see cref="RunEventType.ToolInvoking"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (arguments)</description></item>
-///   <item><term><see cref="RunEventType.ToolInvoked"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (result)</description></item>
-///   <item><term><see cref="RunEventType.ToolFailed"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Text"/> (error message)</description></item>
-///   <item><term><see cref="RunEventType.RunFailed"/></term><description><see cref="Text"/> (error message)</description></item>
+///     <c>Text</c>, the first user message that triggered the run.
+///     It is the ONLY place the input text is persisted.</description></item>
+///   <item><term><see cref="RunEventType.MessageDelta"/></term><description><c>Text</c></description></item>
+/// <item>
+/// <term><see cref="RunEventType.ToolInvoking"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (arguments)</description>
+/// </item>
+/// <item>
+/// <term><see cref="RunEventType.ToolInvoked"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (result)</description>
+/// </item>
+/// <item>
+/// <term><see cref="RunEventType.ToolFailed"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <c>Text</c> (error message)</description>
+/// </item>
+///   <item><term><see cref="RunEventType.RunFailed"/></term><description><c>Text</c> (error message)</description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -59,21 +65,20 @@ public sealed record RunEvent
     /// <remarks>
     /// <para>
     /// When populated, the store applies the write only if the target run belongs to
-    /// that tenant; otherwise the write is dropped and an error is raised. When
-    /// <see langword="null"/> no tenant check is made.
+    /// that tenant; otherwise the write is dropped and an error is raised. When <see
+    /// langword="null"/> no tenant check is made.
     /// </para>
     /// <para>
-    /// 🚨 This field is NOT filled from the ambient tenant.
-    /// <see cref="RunStartInfo.TenantId"/> may deliberately override the ambient
-    /// tenant — that is how workflows and the job queue work — and filtering by the
-    /// ambient value would silently drop legitimate writes. The value is the tenant
-    /// known to whoever opened the run. Rationale: K-355.
+    /// This field is NOT filled from the ambient tenant. <c>TenantId</c> may
+    /// deliberately override the ambient tenant — that is how workflows and the job
+    /// queue work — and filtering by the ambient value would silently drop legitimate
+    /// writes. The value is the tenant known to whoever opened the run.
     /// </para>
     /// <para>
-    /// 🚨 The field is WRITE-side only: it is not stored in a column, it is only the
-    /// <c>WHERE</c> guard of the write. Reading it back would always give
-    /// <see langword="null"/>, so it is removed from the transport contract with
-    /// <see cref="JsonIgnoreAttribute"/>.
+    /// The field is WRITE-side only: it is not stored in a column, it is only the
+    /// <c>WHERE</c> guard of the write. Reading it back would always give <see
+    /// langword="null"/>, so it is removed from the transport contract with <see
+    /// cref="JsonIgnoreAttribute"/>.
     /// </para>
     /// </remarks>
     [JsonIgnore]

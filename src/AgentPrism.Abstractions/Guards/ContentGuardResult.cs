@@ -19,11 +19,11 @@ public enum ContentGuardAction
 
 /// <summary>The result of an <see cref="IContentGuard"/> check.</summary>
 /// <remarks>
-/// 🚨 The result <strong>does not carry the blocked content</strong>. It only
+/// The result <strong>does not carry the blocked content</strong>. It only
 /// carries the matched rule's name and the block reason; both are written to
 /// the audit trail and the run event. Blocked content is sensitive by
 /// definition, and writing it into an audit trail makes the problem
-/// <em>permanent</em> (the spirit of K-059).
+/// <em>permanent</em>.
 /// </remarks>
 public sealed record ContentGuardResult
 {
@@ -43,10 +43,10 @@ public sealed record ContentGuardResult
     /// </summary>
     public string? MaskedText { get; init; }
 
-    /// <summary>The matched rule's name. 🚨 Does not carry the matched CONTENT.</summary>
+    /// <summary>The matched rule's name. Does not carry the matched CONTENT.</summary>
     public string? RuleName { get; init; }
 
-    /// <summary>The block reason. 🚨 Does not carry the blocked TEXT.</summary>
+    /// <summary>The block reason. Does not carry the blocked TEXT.</summary>
     public string? Reason { get; init; }
 
     /// <summary>The content passes after being modified.</summary>
