@@ -438,8 +438,91 @@ def site_denetle(taban: str | None, gerekce_yazildi: bool) -> int:
     return 1
 
 
+def _dar_mi(n: int, sinir: int) -> bool:
+    return n <= sinir and (sinir - n) / sinir < BOSLUK_ORANI
+
+
+# --- Buyume projeksiyonu (Faz 77) ----------------------------------------
+# Bir sinir ancak ASILDIGINDA fark ediliyordu: DAR bandi "az kaldi" der ama
+# "ne kadar kaldi" demez. Faz 76 kapanisinda docs/**.md %1 bostu ve bir
+# sonraki faz onu kesin asacakti -- bunu kimse onceden soylemedi. Bu islev
+# gecmis faz commit'lerinden bayt/faz turetir ve KALAN FAZ sayisini basar.
+
+def _faz_commitleri(n: int) -> list[str]:
+    """Konusu `phase <sayi>` olan son n commit, eskiden yeniye."""
+    ham = _git("log", "--format=%H\t%s", "-400")
+    bulunan = [s.split("\t", 1)[0] for s in ham if re.match(r"^\S+\tphase \d+", s)]
+    return list(reversed(bulunan[:n]))
+
+
+def _commit_boyutu(commit: str, hedef: str, dizin: bool, ozyinelemeli: bool) -> int:
+    """Bir kalemin o commit'teki bayti. Dizinse HARIC dusulur."""
+    if not dizin:
+        satir = _git("ls-tree", "-l", commit, hedef)
+        return int(satir[0].split()[3]) if satir and satir[0].split()[3] != "-" else 0
+    toplam = 0
+    for s in _git("ls-tree", "-r", "-l", commit, hedef + "/"):
+        parca = s.split(None, 4)
+        if len(parca) < 5 or parca[3] == "-":
+            continue
+        yol = parca[4].strip()
+        if not yol.endswith(".md"):
+            continue
+        if any(yol == h or yol.startswith(h + "/") for h in HARIC):
+            continue
+        if not ozyinelemeli and "/" in yol[len(hedef) + 1:]:
+            continue
+        toplam += int(parca[3])
+    return toplam
+
+
+def projeksiyon(faz_sayisi: int = 6) -> int:
+    commitler = _faz_commitleri(faz_sayisi)
+    if len(commitler) < 2:
+        print("Projeksiyon: yeterli `phase N` commit'i bulunamadı.")
+        return 0
+
+    kalemler: list[tuple[str, str, bool, bool, int]] = [
+        (y, y, False, False, s) for y, s in BUTCE.items()
+    ] + [
+        (f"{y}/{'**' if oz else '*'}.md", y, True, oz, s)
+        for (y, oz), s in DIZIN_BUTCESI.items()
+    ]
+
+    print(f"Büyüme projeksiyonu — son {len(commitler)} faz commit'i")
+    print(f"{'kalem':<30} {'bayt/faz':>9} {'boşluk':>9}  kalan faz")
+    uyari = []
+    for ad, hedef, dizin, oz, sinir in kalemler:
+        ilk = _commit_boyutu(commitler[0], hedef, dizin, oz)
+        son = _commit_boyutu(commitler[-1], hedef, dizin, oz)
+        if not ilk or not son:
+            continue
+        hiz = (son - ilk) / (len(commitler) - 1)
+        p2 = ROOT / hedef
+        simdi = _dizin_boyutu(hedef, oz) if dizin else (len(p2.read_bytes()) if p2.exists() else 0)
+        bosluk = sinir - simdi
+        if hiz <= 0:
+            print(f"{ad:<30} {int(hiz):>9} {bosluk:>9}  büyümüyor")
+            continue
+        kalan = int(bosluk / hiz)
+        isaret = "  🚨" if kalan <= 2 else ("  ⚠️" if kalan <= 6 else "")
+        print(f"{ad:<30} {int(hiz):>9} {bosluk:>9}  ~{kalan} faz{isaret}")
+        if kalan <= 6:
+            uyari.append((ad, kalan))
+
+    if uyari:
+        print("\n⚠️  Yakında aşacak:")
+        for ad, k in sorted(uyari, key=lambda x: x[1]):
+            print(f"   {ad} — ~{k} faz")
+        print("   İçeriği SİLME; alan dosyasına veya docs/arsiv/'e taşı.")
+    else:
+        print("\n✅ Hiçbir kalem altı fazdan yakın değil.")
+    return 0
+
+
 def denetle() -> int:
     hata = 0
+    dar = 0
     print("Sıcak yol doküman bütçesi")
     print(f"{'dosya':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
     for yol, sinir in BUTCE.items():
@@ -449,23 +532,30 @@ def denetle() -> int:
             continue
         s, asti = _satir(yol, len(p.read_bytes()), sinir)
         hata |= asti
+        dar += int(not asti and _dar_mi(len(p.read_bytes()), sinir))
         print(s)
 
+    # Faz 77: bu dongu DAR bandini uygulamiyordu -- yalniz `n > butce`
+    # bakiyordu, bu yuzden 16000/16000 bile "ok" yaziyordu. BES dosya ayni
+    # anda duvara dayanmisti ve rapor bunu hic soylemedi. Artik digerleriyle
+    # ayni `_satir()` yardimcisini kullanir.
     print("\nAlan hafıza dosyaları")
     for p in sorted((ROOT / "docs" / "hafiza").glob("*.md")):
-        n = len(p.read_bytes())
-        if n > HAFIZA_DOSYA_BUTCESI:
+        s, asti = _satir(f"  {p.name}", len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI, genislik=30)
+        if asti:
             hata = 1
-            print(f"  {p.name:<28} {n:>9} {HAFIZA_DOSYA_BUTCESI:>9}  AŞTI — ikiye böl")
-        else:
-            print(f"  {p.name:<28} {n:>9} {HAFIZA_DOSYA_BUTCESI:>9}  ok")
+            s += " — ikiye böl"
+        print(s)
+        dar += int(not asti and _dar_mi(len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI))
 
     print(f"\nDizin bütçeleri (hariç: {', '.join(HARIC)})")
     print(f"{'dizin':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
     for (yol, ozyinelemeli), sinir in DIZIN_BUTCESI.items():
         ad = f"{yol}/{'**' if ozyinelemeli else '*'}.md"
-        s, asti = _satir(ad, _dizin_boyutu(yol, ozyinelemeli), sinir)
+        n = _dizin_boyutu(yol, ozyinelemeli)
+        s, asti = _satir(ad, n, sinir)
         hata |= asti
+        dar += int(not asti and _dar_mi(n, sinir))
         print(s)
 
     haric_toplam = sum(_dizin_boyutu(h, True, haric_uygula=False) for h in HARIC)
@@ -473,8 +563,14 @@ def denetle() -> int:
 
     toplam = sum(len((ROOT / y).read_bytes()) for y in BUTCE if (ROOT / y).exists())
     print(f"\nOturum başı sıcak yol toplamı: {toplam} B (~{toplam * 10 // 24} token)")
+    # Faz 77: ozet eskiden DAR'i hic saymiyordu ve YEDI kalem darken
+    # "✅ Bütçeler içinde" yaziyordu. Sikisma bu yuzden sessizce birikti.
     if hata:
         print("\n❌ Bütçe aşıldı. İçeriği SİLME — alan dosyasına veya docs/arsiv/'e taşı.")
+    elif dar:
+        print(f"\n⚠️  Bütçeler içinde ama {dar} kalem DAR (%{BOSLUK_ORANI * 100:.0f}'ten az boşluk).")
+        print("   Bunlar bir sonraki fazda aşabilir — şimdi taşı, aşınca değil.")
+        print("   Kalan faz tahmini için: python3 scripts/dokuman-bakim.py --projeksiyon")
     else:
         print("\n✅ Bütçeler içinde.")
     return int(hata)
@@ -483,6 +579,8 @@ def denetle() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--denetle", action="store_true", help="yalnız denetle, üretme")
+    ap.add_argument("--projeksiyon", action="store_true",
+                    help="geçmiş faz commit'lerinden bayt/faz türetip kalan fazı bas")
     ap.add_argument("--site-denetle", action="store_true",
                     help="docs-site senkronunu denetle (faz kapanışı)")
     ap.add_argument("--taban", help="fazın başladığı commit; site denetimi bu aralığa bakar")
@@ -492,6 +590,9 @@ def main() -> int:
 
     if a.site_denetle:
         return site_denetle(a.taban, a.site_gerekce_yazildi)
+
+    if a.projeksiyon:
+        return projeksiyon()
 
     if not a.denetle:
         for hedef, uret in (
