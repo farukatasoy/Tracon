@@ -19,6 +19,7 @@ Bütçe aşılırsa çıkış kodu 1'dir.
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import re
 import subprocess
@@ -445,6 +446,47 @@ def site_denetle(taban: str | None, gerekce_yazildi: bool) -> int:
     return 1
 
 
+# --- Kirik baglanti denetimi (Faz 77) ------------------------------------
+# Faz 77 arsivlemesi ayni tuzagi IKI kez uretti: bir blok `docs/X.md`'den
+# `docs/arsiv/Y.md`'ye tasindiginda blogun ICINDEKI goreli linkler hâlâ
+# `docs/`'a goredir ve arsiv dizininden cozulmez. Ilk seferinde 17, ikinci
+# seferinde 3 baglanti kirildi. Elle fark edilmesi guvenilmez -- denetim
+# artik her kosumda bunu sayar.
+LINK = re.compile(r"\]\(([^)\s]+?)(#[^)\s]*)?\)")
+
+# Uretilen ya da yer tutucu tasiyan yollar: denetim disi.
+BAGLANTI_HARIC = (
+    "docs-site/src/content/docs/api/",       # npm run generate uretir
+    "docs-site/src/content/docs/http-api/",  # npm run generate uretir
+    "docfx/",                                # uretilen ara ciktilar
+)
+
+
+def kirik_baglantilar() -> list[str]:
+    bulunan: list[str] = []
+    for dp, dns, fns in os.walk(ROOT):
+        dns[:] = [d for d in dns if d not in
+                  {".git", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}]
+        for fn_ in fns:
+            if not fn_.endswith(".md"):
+                continue
+            p2 = pathlib.Path(dp) / fn_
+            rel = p2.relative_to(ROOT).as_posix()
+            if rel.startswith(BAGLANTI_HARIC) or "sablonu.md" in rel:
+                continue          # sablonlar `<N>-<AD>.md` gibi yer tutucu tasir
+            try:
+                metin = p2.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for m in LINK.finditer(metin):
+                h = m.group(1).rstrip("\\")
+                if re.match(r"^([a-z]+:|/|#)", h) or "<" in h or "[" in h:
+                    continue
+                if not (p2.parent / h).exists():
+                    bulunan.append(f"{rel} -> {h}")
+    return bulunan
+
+
 def _dar_mi(n: int, sinir: int) -> bool:
     return n <= sinir and (sinir - n) / sinir < BOSLUK_ORANI
 
@@ -567,6 +609,13 @@ def denetle() -> int:
 
     haric_toplam = sum(_dizin_boyutu(h, True, haric_uygula=False) for h in HARIC)
     print(f"  (denetim dışı arşiv + koşum kaydı: {haric_toplam} B — sınırı etkilemez)")
+
+    kirik = kirik_baglantilar()
+    print(f"\nKırık bağlantı: {len(kirik)}")
+    for s in kirik[:10]:
+        print(f"  {s}")
+    if len(kirik) > 10:
+        print(f"  … +{len(kirik) - 10}")
 
     toplam = sum(len((ROOT / y).read_bytes()) for y in BUTCE if (ROOT / y).exists())
     print(f"\nOturum başı sıcak yol toplamı: {toplam} B (~{toplam * 10 // 24} token)")
