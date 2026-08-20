@@ -66,6 +66,10 @@
   kaynak cekismesi, urun kusuru degil. **Ayirt etme**: ayni desen — tek basina
   kostur, gecerse yuk altinda kirilganlik, ikinci tam kosumda da duserse
   gercek kusur. Aday: **F-122**.
+  **Ikinci vaka (2026-08-20, Faz 77): `Eval_suite_is_created_case_added_and_run_passes`** —
+  ayni desen, bu kez `fill` sirasinda *"element was detached from the DOM"* (`UiTests.cs:1113`).
+  Uc adim da kosuldu: tam kosumda dustu, izolasyonda 1/1, ikinci tam kosumda 56/56 gecti.
+  Aday: **F-130**. Iki vaka ayni sinif -- `Ui.E2ETests` tam kosumda kaynak cekismesine acik.
 
 - **🚨 `dotnet test ... | grep ... | head -N` KOSUMU ERKEN KESER.** `head` N
   satiri alinca boruyu kapatir, `dotnet test` SIGPIPE alir ve kalan test
