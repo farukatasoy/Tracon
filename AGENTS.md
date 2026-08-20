@@ -7,21 +7,21 @@
 
 ## Okuma Protokolü — Önce Bunu Uygula
 
-Bu repo büyüktür. **Hiçbir dokümanı ihtiyacın olmadan baştan sona okuma.**
-Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
+Bu repo büyüktür ve dokümanların çoğu birikimli defterdir. **Hiçbir dokümanı
+ihtiyacın olmadan baştan sona okuma.**
 
 **Oturum başında yalnız:** bu dosya · [`MEMORY.md`](MEMORY.md) · çalıştığın fazın
-dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi.
-
-**Sonra, yalnız dokunduğun alan için.** `docs/` altında **her dosyanın tek bir
-işi vardır**; aradığın iş bu tablodadır, başka yere bakma:
+dokümanı (`docs/NN-*.md`; kapanmış fazlar `docs/arsiv/fazlar/`) ve onun "Bu Faza
+Başlarken" listesi. **Sonra, yalnız dokunduğun alan için** — her dosyanın tek bir
+işi vardır, aradığın iş bu tablodadır:
 
 | İhtiyaç | Yol |
 |---|---|
 | Bir tuzak/desen var mı? | `MEMORY.md`'deki tabloyla [`docs/hafiza/<alan>.md`](docs/hafiza/) |
 | Bir şey nerede yaşıyor? | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
 | Bir karar alınmış mı? | [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
-| Mimari resim (katman, veri modeli, çalıştırma yolu, güvenlik) | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |
+| Mimari resim (katman, veri modeli, çalıştırma yolu) | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |
+| Güvenlik modeli (kiracı, rol, denetim izi, script sandbox) | [`docs/MIMARI-GUVENLIK.md`](docs/MIMARI-GUVENLIK.md) |
 | MAF genişleme noktası | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) |
 | Faz durumu (**üretilen**) · seçilmemiş adaylar · keşif turları | [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md) · [`docs/ADAYLAR.md`](docs/ADAYLAR.md) · [`docs/kesif/`](docs/kesif/) |
 | Elle koşulan kabul testi | [`docs/manuel-test/00-INDEKS.md`](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` skill'i yürütür |
@@ -29,9 +29,8 @@ işi vardır**; aradığın iş bu tablodadır, başka yere bakma:
 | Paketler ve kurulum | [`README.md`](README.md) |
 | Kullanıcıya dönük ürün metni | [`docs-site/`](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
 
-**`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** İndeksten satır numarasını
-al, `sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur:
-`grep -rn "AsyncLocal" docs/hafiza/`.
+**`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** İndeksten satır numarasını al,
+`sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/`.
 
 ---
 
@@ -41,18 +40,16 @@ al, `sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur:
 İngilizce. Kod ve commit mesajı hep İngilizce.
 
 **Tüm yanıtlar ASD-STE100 Simplified Technical English kurallarına uyar** — kısa
-cümle, tek fikir, aktif çatı, onaylı kelime. Türkçe yanıtta da geçerli; Türkçe'de
-ç/ğ/ı/ö/ş/ü kullan.
+cümle, tek fikir, aktif çatı. Türkçe yanıtta da geçerli; ç/ğ/ı/ö/ş/ü kullan.
 
-**Teknik terimi çevirme.** Terim İngilizce kalır, Türkçe ek alır: `secret`,
-`store`, `endpoint`, `scope`, `span`, `run`, `tool`. Çeviri kavramı
-bulanıklaştırır: doğru "`secret` yazılmaz", yanlış "sır yazılmaz".
+**Teknik terimi çevirme.** Terim İngilizce kalır, Türkçe ek alır (`secret`,
+`store`, `endpoint`, `scope`, `span`, `run`, `tool`): doğru "`secret` yazılmaz",
+yanlış "sır yazılmaz".
 
-**Her belirsizliği sor.** Açık olmayan bir durum, edge-case veya tasarım kararı
-çıktığında varsayım yapma; durumu tarif ederek kullanıcıya sor. Plan modundaysan
-aklına takılan en küçük şeyi bile sor.
+**Her belirsizliği sor.** Edge-case veya tasarım kararı çıktığında varsayım yapma;
+durumu tarif ederek kullanıcıya sor. Plan modundaysan en küçüğünü bile sor.
 
-**Uzun vadeli mimari kararlar al.** Sonra değiştirilmek üzere tasarlanmış geçici
+**Uzun vadeli mimari kararlar al** — sonra değiştirilmek üzere tasarlanmış geçici
 çözüm önerme.
 
 **Karar defteri:** Daha önce reddedilmiş işleri yeniden önerme — önce
@@ -79,14 +76,14 @@ Kalite eşiğini bu belirler:
 oturum repo'yu sıfırdan okur ve yalnız dokümanlara güvenir; bu yüzden her
 geliştirme sonrası dokümanlar gözden geçirilir.
 
-| Kural | Neden |
-|-------|-------|
-| Doküman ile kod çelişirse **doküman yanlıştır** — koda göre düzeltilir | Sonraki oturum dokümana göre kod yazar |
-| Plandan sapma **gizlenmez**, gerekçesiyle yazılır | Sapmanın gerekçesi en değerli bilgidir |
-| Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır | Ayrı sohbet onunla tek başına çalışabilmeli |
-| Her mimari karar `docs/KARARLAR.md`'ye numarayla ve gerekçeyle yazılır | Kapatılmış tartışma yeniden açılmaz |
-| Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır | `MEMORY.md` şişmez |
-| Birikimli anlatı `docs/arsiv/`'e gider | Sıcak yol büyümezse her oturum ucuz başlar |
+- Doküman ile kod çelişirse **doküman yanlıştır** — koda göre düzeltilir
+- Plandan sapma **gizlenmez**, gerekçesiyle yazılır — en değerli bilgi odur
+- Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır; ayrı bir sohbet
+  onunla tek başına çalışabilmeli
+- Her mimari karar `docs/KARARLAR.md`'ye numara ve gerekçeyle yazılır —
+  kapatılmış tartışma yeniden açılmaz
+- Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır, `MEMORY.md`'ye değil
+- Birikimli anlatı `docs/arsiv/`'e gider — sıcak yol büyümezse her oturum ucuz başlar
 
 ### Doküman bütçesi (zorunlu)
 
@@ -117,14 +114,13 @@ dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 ```
 
-Ölçüldü: sıcak build ~5 sn. Kapılar ucuzdur — **erken ve sık çalıştır**.
-
-> ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını
-> yakalayabilir. Dört kapının da çalıştırılması bu yüzden zorunludur.
+Ölçüldü: sıcak build ~5 sn — **erken ve sık çalıştır**. `dotnet format`,
+`dotnet build`'in yakalamadığı analyzer tanılarını yakalar; dördü de bu yüzden
+zorunludur.
 
 **Hızlı iç döngü.** Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false`
-npm/Vite/Vitest adımlarını atlar. Dört kapının tamamı **faz kapanışında** ve
-arayüz/paket değişiminde çalışır. Komutlar ve E2E tuzağı: `faz-uygulama` Adım 5.
+npm/Vite/Vitest adımlarını atlar. Dördünün tamamı **faz kapanışında** ve
+arayüz/paket değişiminde çalışır. E2E tuzağı: `faz-uygulama` Adım 5.
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer
 kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa
@@ -169,36 +165,32 @@ Genel .NET kuralları `.editorconfig`'dedir. Aşağıdakiler analyzer'ın
 yakalayamadığı, projeye özgü kurallardır.
 
 **🚨 `docs/` ile `docs-site/` iki ayrı şeydir.** `docs/` Türkçe geliştirme
-günlüğü, `docs-site/` İngilizce **ürün dokümantasyonudur**
-(`farukatasoy.github.io/AgentPrism`). Aynı içeriği iki yere yazma: kullanıcıya
-dönük anlatı siteye, geliştirme kaydı `docs/`'a. Site ayrı bir yayın hattıdır —
-`dotnet build`'e bağlanmaz, pakete girmez, Node **22.12+** ister. API ve HTTP API
-sayfaları **üretilir** (`npm run generate`), commit edilmez; ekran görüntüleri
-E2E koşumundan üretilir (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit edilir.
-**Site fazın kapanışına dahildir** — denetimi `faz-tamamlama` Adım 7'dedir.
+günlüğü, `docs-site/` İngilizce **ürün dokümantasyonudur**. Aynı içeriği iki yere
+yazma: kullanıcıya dönük anlatı siteye, geliştirme kaydı `docs/`'a. **Site fazın
+kapanışına dahildir** (`faz-tamamlama` Adım 7). Yayın hattı, üretilen sayfalar ve
+ekran görüntüleri: [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
 
 **🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
-Kod, yorum, XML dokümanı, `exception`/log/`ProblemDetails` metni, migration
-`.sql` yorumu, `template.json` açıklaması. Geliştirme aparatı (`docs/`,
-`.agents/skills/`, `scripts/`) Türkçe kalır; `locales/tr.ts` meşru sözlüktür
-(K-228). Kapı: `SourceLanguageTests` — taban çizgisi **yalnız küçülür**.
+Geliştirme aparatı (`docs/`, `.agents/skills/`, `scripts/`) Türkçe kalır;
+`locales/tr.ts` meşru sözlüktür (K-228). Kapı: `SourceLanguageTests` — taban
+çizgisi **yalnız küçülür**. Kapsam listesi:
+[`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`,
 `AIFunction` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir
 soyutlama katmanı değil.
 
 **`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz.** Yazım
-çağırana geri akmaz; `span`/`scope` çağıran metodun **kendi gövdesinde**
-başlatılır ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Dört kez
-yaşandı — `docs/hafiza/cekirdek-calistirma.md`.
+çağırana geri akmaz; `span`/`scope` çağıran metodun **kendi gövdesinde** başlatılır
+ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Beş kez yaşandı —
+`docs/hafiza/cekirdek-calistirma.md`.
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool
 **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
 **AOT uyumluluğu.** Listeyi `grep -l "AotCompatible>false" src/*/*.csproj` ile
-doğrula. `reflection` kullanma; sırayla dene: (1) elle yaz; (2) `source generator`;
-(3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` işaretle —
-uyarıyı **bastırma**, çağırana ilet.
+doğrula. `reflection` kullanma; kaçış merdiveni:
+[`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md).
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde** (K-008).
 
@@ -213,8 +205,7 @@ okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anın
 
 **Arayüz metni sözlükten gelir — iki dilde.** `locales/en.ts` anahtar kümesinin
 kaynağıdır, `tr.ts` onu `Messages` tipiyle karşılar: eksik anahtar **derleme
-hatasıdır** (K-228). Sunucu yanıtları çevrilmez (K-232).
-Tuzaklar: `docs/hafiza/frontend.md`.
+hatasıdır** (K-228). Sunucu yanıtları çevrilmez (K-232). `docs/hafiza/frontend.md`.
 
 **İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Yeni bir
 alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle izle.
@@ -228,12 +219,6 @@ kiracı · akış · depo · paket. Seviye tablosu: `faz-uygulama` Adım 2.
 ## Diyagram Kuralı
 
 **Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz —
-elle hizalanır, bayatlar ve `git diff`'i bozar. Tip: katman/akış/karar ağacı →
-`flowchart TD|LR` · çağrı sırası → `sequenceDiagram` · veri modeli → `erDiagram` ·
-durum makinesi → `stateDiagram-v2` · zaman planı → `gantt`.
-
-- Türkçe etiket serbest; teknik terim orijinal dilinde kalır (`AIAgent`)
-- Düğüm metninde `(`, `)`, `,`, `:` ayrıştırıcıyı bozar — tırnak kullan
-- Tek fikir anlatır; on beş düğümü aşıyorsa ikiye böl
-- Koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
-- **İstisna:** dizin ağaçları düz metin kod bloğu kalır (`├──`, `└──`)
+elle hizalanır, bayatlar ve `git diff`'i bozar. **İstisna:** dizin ağaçları düz
+metin kod bloğu kalır. Koddan sapmışsa **diyagram yanlıştır**. Tip seçimi ve
+yazım tuzakları: [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).

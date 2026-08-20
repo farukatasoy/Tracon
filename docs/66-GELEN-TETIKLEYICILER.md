@@ -40,7 +40,7 @@
    (benzersizlik indeksi), [`hafiza/frontend.md`](hafiza/frontend.md)
    (tetikleyici ekranı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — güvenlik ve çalıştırma yolu bölümleri
+   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) · [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü
 
 ---
 

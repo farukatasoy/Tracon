@@ -221,54 +221,8 @@ kanıtlanır, F-127 gözle. İkisini tek faza koymak DoD'yi bulanıklaştırırd
 
 ## Bu Turda Neyin Değiştiği
 
-> 🚨 **2026-08-18 turu bu tabloyu değiştirdi.** Yedi kalem daha plana dönüştü
-> (Dalga 6 ve 7 → Faz 61–66) ve **üç kalem ölçümle kapandı**: F-100 (kota eşiği
-> webhook'u kodda **var**), F-102 (yeniden deneme sınırı K-385 ile 10'a çıktı),
-> F-103 (kapsam taksonomisi K-397/K-405/K-407 ile tamamlandı; `ApiKeyScope`
-> bugün **17 üye** taşıyor ve yalnız `MetaEndpoints`/`UiEndpoints` muaf).
-> Kalan açık kalem sayısı **22** — aynı turda **F-104, F-105 ve F-107 kusur olarak
-> kodlandı ve kapandı** (K-431, K-434, K-432). F-106 azaltıldı ama doğrulanmadı ve
-> açık kalır (K-433).
-
-> 🚨 **Aynı gün ikinci bir tur koştu — tüketici raporu turu.** Kaynağı bu depo
-> değildi: gerçek bir tüketici projesi `docs-site/`'ın 91 sayfasını tarayıp bir
-> uygulanabilirlik raporu üretti; rapor ölçüldü ve **on yeni kalem** doğdu
-> (F-110…F-119). Turun tamamı:
-> [`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
->
-> 🚨 **Onu da aynı gün plana dönüştü** — altı yeni faz (67–72) ve F-119'un
-> [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı
-> **22'de kaldı**; gövdeler
-> [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'dedir.
->
-> Turun kendisi bir ders verdi: on kalemin **hiçbiri** faz listesine bakarak
-> görünmüyordu. Üçü stratejik boşluktu (F-110 kurulum engeli, F-113 tool izni,
-> F-111 maliyet dağıtımı) ve üçü de ancak paketi **gömmeye çalışınca** ortaya
-> çıktı.
-
-| Ne | Sonuç |
-|---|---|
-| Bu listede kalan kalem | **23** (2026-08-18, üç tur sonrası) — kırk dört ID plana dönüştü, altı kalem kapandı |
-| Tüketici raporundan doğan | **10** — F-110…F-119, **onu da aynı gün plana dönüştü** (Faz 65, 67–72); ayrıca iki kalem kalıcı olarak reddedildi (fatura üretimi, harici hosted agent yönetimi) |
-| Plana dönüşen | **37** (2026-08-18 sonu) — Dalga 9: F-120 → Faz 73 · Dalga 8: F-110…F-119 → Faz 65, 67–72 · önceki 26 kalem:  Dalga 1: F-35, F-38, F-49, F-52, F-60, F-62, F-70, F-73 → Faz 31–37 · Dalga 2: F-37, F-42, F-46, F-53, F-55, F-57, F-63, F-76 → Faz 38–45 · Dalga 3: F-30, F-31, F-32, F-33, F-47, F-54, F-66, F-68, F-71 → Faz 46–52 (F-39 F-68'in içinde) |
-| İptal edilen | **1** — F-43, çünkü tamamlandı |
-| Seçildi ama **ertelendi** | **1** — F-72; ölçüm erteleme getirdi ve kanıt bölümüne yazıldı |
-| Kanıtı düzeltilen | **19** — Dalga 1–2'de 11, Dalga 3'te 8. Kalemler ayakta, gerekçeler değişti |
-| Yükseltilen | **7** — F-30, F-32, F-33, F-44, F-52, F-53, F-54 |
-| Tek faza birleşen | **3 çift** — F-31+F-33, F-54+F-66, F-68 F-39'u yutar |
-| Kapsamı daraltılan | **2** — F-63 (TypeScript/npm çıkarıldı) · F-30 (yalnız PostgreSQL) |
-| Aciliyeti **artan** | **4** — F-36, F-56, F-69, F-74; hepsi Dalga 3'ün çıktısına bağlı |
-
-**ID'ler sabittir.** F-35 her zaman "çalıştırma iptali"dir — kalem plana
-dönüşse bile ID yeniden kullanılmaz; ID olmadan sonraki oturumun referansları
-kaybolur. Bugün en büyük numara **F-119**'dur (2026-08-18, tüketici raporu
-turu); yeni kalemler oradan devam eder.
-
-**Kod kanıtları 2026-08-06'da bu depo üzerinde `grep` ile yeniden
-doğrulandı.** Depo ilerledikçe satır numaraları kayar. Bir kanıtı
-kullanmadan önce yeniden ölç.
-
----
+Üçüncü turun kendi anlatısı kapanmış kayıttır — tam metin:
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## Değerlendirme Ölçütleri
 
@@ -374,16 +328,9 @@ ayrı bir kavramdır ve Faz 26'da zaten var.
 
 ## C. Güvenlik, yönetişim ve uyum
 
-### F-72 · Agent Control Specification (ACS) uyumu — ERTELENDİ (2026-08-06)
+### F-72 · Agent Control Specification (ACS) uyumu — ERTELENDİ (2026-08-06). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
-> **Aday değildir.** Kullanıcı kararıyla ertelendi. Ölçülmüş kanıt (ACS
-> şeması, kesişim noktaları, eşleme tablosu) arşivdedir:
-> [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md).
-
-### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması — KAPATILDI (2026-08-08)
-
-> **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi;
-> tam gerekçe ve koruma testi **K-352**'dedir.
+### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması — KAPATILDI (2026-08-08, K-276). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ### F-41 · İçerik şifreleme (at-rest)
 
@@ -401,21 +348,9 @@ etkilenir. Anahtar döndürme bir tasarım kararıdır.
 **Bağımlılık:** F-58 ile aynı veriye dokunur.
 **Ekosistem:** Genel veritabanı deseni; agent'a özgü değil.
 
-### F-104 · Örnek uygulama rol politikaları — ✅ KAPATILDI (2026-08-18)
+### F-104 · Örnek uygulama rol politikaları — ✅ KAPATILDI (2026-08-18, K-431). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
-> **Aday değildir.** Faza dönüşmeden bir kusur olarak düzeltildi. `samples/AgentPrism.Api`
-> artık `AgentPrism:Demo:Roles:Enabled` bayrağıyla üç politikayı kaydeder ve o anda
-> `RequireRolePolicies`'i açar — kayıt silinirse uygulama **başlamaz**. Gerçek koşumla
-> kanıtlandı: başlıksız `401`, `reader` liste `200`, `reader` yazma `403`, `admin` `201`;
-> bayrak kapalıyken davranış birebir eskisi (`200`/`201`). Tam gerekçe: **K-431**.
-
-### F-105 · Dosya belleği kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18)
-
-> **Aday değildir.** Kusur olarak düzeltildi: `TenantPrefixingAgentFileStore` öneki artık
-> `{tenantId}/{agentName}`'dir. 🚨 Adayın önerdiği `AsyncLocal` yolu **alınmadı** —
-> gerek yoktu: agent adı derleme anında bilinir (`CompiledAgentCache` anahtarı zaten
-> taşır). Oturum boyutu **bilerek** kapsam dışıdır; dosya belleği agent düzeyinde bir
-> bellektir ve oturum başına yalıtmak yeteneği yok ederdi. Tam gerekçe: **K-434**.
+### F-105 · Dosya belleği kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18, K-434). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ### F-106 · Magentic orkestrasyonu round-limit'e ulaştıktan sonra zarif durmuyor — `WorkflowRunner` bunu önceden kestiremiyor
 
@@ -470,16 +405,7 @@ bilgisine dayanmalı, metin eşleştirme kırılgandır.
 
 ---
 
-### F-107 · Workflow iptali — ✅ KAPATILDI (2026-08-18)
-
-> **Aday değildir.** Kusur olarak düzeltildi ve süreç içinde **yeniden üretildi**
-> (düşen test önce kırmızıydı: `Completed`, beklenen `Canceled`). Kök neden ölçüldü:
-> MAF grafiği token'ı honor etmiyor **ve istisna da atmıyor** — akışı sessizce
-> bitiriyor. Zorlama süper-adım sınırında ve pompa çıkışında yapılır.
-> Tam gerekçe: **K-432**.
-
-- **F-113** Tool düzeyinde yetkilendirme ve etki sınıfı → [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
-- **F-119** Kiracı bazlı sağlayıcı allowlist'i → [Faz 65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) ✅ · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+### F-107 · Workflow iptali — ✅ KAPATILDI (2026-08-18). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## D. Yetenek derinliği
 

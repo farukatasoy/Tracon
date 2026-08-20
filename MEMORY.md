@@ -38,21 +38,10 @@ arıyorsan dosyayı açmak yerine grep et: `grep -rn "AsyncLocal" docs/hafiza/`.
 
 Alana bağlı değildir; her fazda tekrar bedel ödettiler.
 
-- **🚨 `AsyncLocal` yazımı çağırana geri akmaz — dört kez yaşandı** (Faz 6, 11,
-  12, 15). Kural: `scope`/`span` **çağıran metodun kendi gövdesinde** yazılır;
-  akışlı yolda **her `MoveNextAsync` öncesi** tekrarlanır. Dört vaka:
-  `docs/hafiza/cekirdek-calistirma.md`.
 - **🚨 Bir davranışı düzeltmek, o davranışa dayanan çağıranı sessizce değiştirir.**
   Oturum deposu kiracıyla sınırlanınca ses ucunun "başkasının oturumu" reddi
   etkisiz kaldı (K-283); birim değil **fonksiyonel** testler yakaladı. Depo/servis
   davranışını değiştirdiğinde `grep -rn "<metot>" src/` ile çağıranları tara.
-- **🚨 İmza değiştirmek ile gövdeyi kullanmak İKİ AYRI ADIMDIR.** Yeni bir
-  alan/parametre eklerken çağrı zincirindeki **her katmanın gövdesini** elle izle.
-  Yaşandı (Faz 20): `RunEventWriter.CompleteAsync`'e `cost` parametresi eklendi,
-  nesne başlatıcıya `Cost = cost` yazılmadı — 1068 test yakalamadı.
-- **🚨 Dört kapının dördünü de çalıştır.** `dotnet build` yeşilken `dotnet format`
-  276 `IDE0055` hatası verdi (Faz 11 bu yüzden eksik kapandı). Kaynak üreteci
-  build'in analyzer geçişinde tanıyı gizleyebilir.
 - **Birim testi yetmez — örnek uygulamayı gerçekten çalıştır.** Sekiz fazda gerçek
   hatalar **yalnız** orada çıktı; hepsi testlerden geçmişti (K-166, K-167).
 - **🚨 Struct alanını atamamak `default` bırakır ve seri hâle getirme çöker.**
@@ -70,7 +59,12 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   `WaitForExitAsync` ~15 dk bloke kalır; çözüm `MSBUILDDISABLENODEREUSE=1`
   (8 dk+ → 18,5 sn). İkinci sebep: `-p:AgentPrismFrontendEnabled=false` ile
   derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
-- **🚨 Bir toplama/hesaplama ifadesi kodun BEŞ farklı yerinde elle tekrarlanıyorsa, ona bir terim eklemek sessiz bir kusur SINIFI üretir.** Faz 68'de `InputCost + OutputCost` yedi yerde elle yazılıydı; üçüncü bir maliyet terimi (cache ücreti) eklenince SQL tarafı düzeltildi, çalışma anı (kota · metrik · webhook · workflow kotası · judge · online eval · arayüz) düzeltilmedi — **maliyet tavanı olan bir kiracı tavanı aşabilirdi** ve 4241 test yakalamadı. Bağımsız denetim buldu. Kural: bir `record`'a toplama girecek bir alan eklerken ona bir `Total()` metodu ver ve `grep` ile sınıfı tara.
+- **🚨 Elle tekrarlanan bir toplama ifadesine terim eklemek sessiz bir kusur
+  SINIFI üretir.** Faz 68'de `InputCost + OutputCost` yedi yerde elle yazılıydı;
+  üçüncü terim (cache ücreti) eklenince yalnız SQL düzeltildi ve **maliyet tavanı
+  olan bir kiracı tavanı aşabilirdi** — 4241 test yakalamadı, bağımsız denetim buldu.
+  Toplama alan bir `record`'a alan eklerken ona `Total()` ver ve `grep` ile sınıfı
+  tara (K-483, `docs/hafiza/cekirdek-calistirma.md`).
 - **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` yoktur (`MSB1001`).
   Tek test: `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"`.
@@ -87,9 +81,9 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   konumun tool çağrı turlarını göremediğini gösterdi ve fazın yarısı taşımaya
   dönüştü (K-320). Yanlış konum derlenir, testten geçer, yalnız gerçek
   senaryoda çöker.
-- **MAF ve OpenAI tip adlarını tahmin etme.** `AgentResponse` (`AgentRunResponse`
-  değil), `ResponsesClient` (`OpenAIResponseClient` değil). Yeni tip kullanmadan
-  önce `maf-api-kesfi` skill'ini çalıştır.
+- **MAF ve OpenAI tip adlarını tahmin etme.** Yeni tip kullanmadan önce
+  `maf-api-kesfi` skill'ini çalıştır (`AgentResponse` ≠ `AgentRunResponse`,
+  `ResponsesClient` ≠ `OpenAIResponseClient`).
 
 ---
 
