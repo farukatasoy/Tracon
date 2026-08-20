@@ -152,4 +152,15 @@ dizisi orada degistirilebilir. Faz 76 sifir bilesen gecersiz kildi.
 🚨 Bir de sasirtan yer: Starlight basliklari `.sl-heading-wrapper.level-h2` icine
 **sarar** (cengel baglantilari aciksa). `.sl-markdown-content > h2` seciciisi
 hicbir seyi eslemez.
-
+- **`docs-site/` yayin hatti** (AGENTS.md'den, Faz 77): site `dotnet build`'e BAGLANMAZ,
+  pakete GIRMEZ, Node **22.12+** ister (`farukatasoy.github.io/AgentPrism`). `api/` ve
+  `http-api/` sayfalari URETILIR (`npm run generate`) ve commit EDILMEZ; ekran goruntuleri
+  E2E kosumundan uretilir (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit EDILIR.
+- **Dil sinirinin kapsadigi yuzeyler** (AGENTS.md'den, Faz 77): kod, yorum, XML dokumani,
+  `exception`/log/`ProblemDetails` metni, migration `.sql` yorumu, `template.json`
+  aciklamasi — hepsi Ingilizce'dir.
+- **Mermaid diyagram tipi ve yazim tuzaklari** (AGENTS.md'den, Faz 77): katman/akis/karar
+  agaci → `flowchart TD|LR` · cagri sirasi → `sequenceDiagram` · veri modeli → `erDiagram` ·
+  durum makinesi → `stateDiagram-v2` · zaman plani → `gantt`. Turkce etiket serbest, teknik
+  terim orijinal dilinde kalir (`AIAgent`). Dugum metninde `(`, `)`, `,`, `:` ayristiriciyi
+  bozar — tirnak kullan. Tek fikir anlatir; on bes dugumu asiyorsa ikiye bol.

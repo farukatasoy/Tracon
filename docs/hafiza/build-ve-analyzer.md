@@ -90,3 +90,7 @@
 - MSBuild item'i olcerken hedefe `DependsOnTargets` ver; `-t:` bagimliyi
   kosmaz, cikti bos gelir.
 - **🚨 Tek `$` işaretli raw interpolated string'de `{{` KAÇIŞ DEĞİLDİR** (2026-08-19, Faz 68): `$"""..."""` içinde tek `{` bir interpolasyon deliği açar; SQL'e literal süslü parantez yazmak (`ISNULL(labels, N'{}')`, `COALESCE(labels, '{}')`) `CS9006`/`CS1733` verir. `$$"""` + `{{` ile çözmek yerine deseni değiştir: `labels IS NOT NULL AND EXISTS (...)` guard'ı hem brace istemez hem NULL davranışını AÇIK yazar. `OPENJSON`/`json_each`'in NULL girdideki davranışına güvenmemek de ayrıca doğrudur.
+- **🚨 `dotnet build` yesilken `dotnet format` 276 `IDE0055` verebilir** (Faz 11 bu yuzden eksik kapandi): kaynak ureteci build'in analyzer gecisinde taniyi gizleyebilir. Kural `AGENTS.md`'dedir (dort kapinin dordu de kosulur); buradaki kanit MEMORY.md'den Faz 77'de tasindi.
+- **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
+  (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
+  `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.

@@ -67,7 +67,14 @@ BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
     "docs/KARARLAR-INDEKS.md": 25_000,
-    "docs/MIMARI.md": 44_000,  # K-361 (Faz 53): API anahtarı katmanı bugunku mimarinin gercek buyumesi
+    "docs/MIMARI.md": 44_000,  # K-361 (Faz 53) · Faz 77: §7 ayrildi, 41_043 -> 24_278
+    # Faz 77 (K-524): §7 "Guvenlik Modeli" 17 KB'a ulasmisti -- dosyanin %42'si ve
+    # sonraki en buyuk bolumun iki kati; her guvenlik fazi ona ekliyordu. Ayri dosyaya
+    # alindi. Yeni dosyanin siniri ILK KEZ konuyor (K-214'un "buyutulmez" sozu var
+    # olan bir siniri korur), bu yuzden OLCULEN boyuta %15 bosluk eklendi -- 58.4'un
+    # kalibrasyon kurali. MIMARI.md'nin siniri DUSURULMEDI: bolunme zaten %45 bosluk
+    # birakti ve bugunku mimarinin buyumesine yer birakmak istiyoruz.
+    "docs/MIMARI-GUVENLIK.md": 21_000,  # olculen 17_421
     "README.md": 20_000,
     # --- Faz 58.4'te eklendi ---------------------------------------------
     # Bunlar her oturumda BASTAN SONA okunmaz ama her planlama/kapanis

@@ -37,7 +37,7 @@
    [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç sağlayıcıda
    aynı sütun ve aynı sıralama garantisi)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — güvenlik ve veri modeli bölümleri
+   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) · [`MIMARI.md`](MIMARI.md) — veri modeli bölümü
 
 ---
 

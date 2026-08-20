@@ -38,7 +38,7 @@
    tablo üç sağlayıcıda), [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md)
    (`IConfiguration` çözümlemesi ve DI ömrü)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — güvenlik ve çok kiracılılık bölümleri
+   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — güvenlik ve çok kiracılılık
 
 ---
 
