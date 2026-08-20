@@ -139,7 +139,7 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         // the single match in the target directory is found correctly while
         // many UNRELATED files exist (the row-count measurement is done
         // separately with a Postgres-specific EXPLAIN, see
-        // docs/51-VEKTOR-BELLEK-VE-RAG.md).
+        // docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md).
         Enter(TenantA);
 
         const int UnrelatedFileCount = 500;

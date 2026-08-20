@@ -125,7 +125,7 @@ public sealed class RunRecordingAgentTests
     public async Task Error_classifier_is_never_called_on_a_successful_run()
     {
         // Classification is on the hot path and runs only on the error path;
-        // it must not allocate on a successful run (docs/44-HATA-SINIFLANDIRMA.md).
+        // it must not allocate on a successful run (docs/arsiv/fazlar/44-HATA-SINIFLANDIRMA.md).
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var spy = new SpyRunErrorClassifier();
         var agent = CreateAgent(store, new FakeChatClient(), spy);

@@ -957,7 +957,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     public async Task Summary_excludes_eval_runs()
     {
         // Eval case runs are synthetic test calls; they must not pollute
-        // normal statistics (docs/18-DEGERLENDIRME.md, open question 4).
+        // normal statistics (docs/arsiv/fazlar/18-DEGERLENDIRME.md, open question 4).
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
 
         var evalRunId = AgentPrismId.NewId();

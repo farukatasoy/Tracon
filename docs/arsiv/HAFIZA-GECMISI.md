@@ -225,7 +225,7 @@ cagirir ve es deger bir "tamamlandi" olayi HIC yazmaz.
 Bir tuketici kaydi (`AgentPrism.Testing.RunAssertions.ShouldHaveOutputContaining`)
 yalniz `MessageCompleted`'e bakarsa HTTP uzerinden calisan her run icin
 yanlislikla BOS cikti gorur. Testlerin kendisi degil, gercek bir dis tuketici
-senaryosu (`docs/39-TEST-PAKETI.md` DoD'sindeki "depo disi tuketici" adimi)
+senaryosu (`docs/arsiv/fazlar/39-TEST-PAKETI.md` DoD'sindeki "depo disi tuketici" adimi)
 yakaladi.
 
 ### `ObservableGauge` neden senkron kapili onbellekle yazildi (2026-08-06, Faz 35, K-256)

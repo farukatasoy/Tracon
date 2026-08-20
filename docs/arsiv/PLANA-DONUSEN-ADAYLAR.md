@@ -82,7 +82,7 @@ Sonuç: çok kiracılı bir üründe "hangi kullanıcı ne harcadı" ve "hangi �
 harcadı" **sorulamaz**. Kiracı-içi faturalama ve iç maliyet dağıtımı imkânsızdır.
 **Kapsam:** Çalıştırmaya kullanıcı kimliği ve serbest etiket kümesi; bu
 boyutların kayda, filtreye, istatistik kırılımına ve arayüze taşınması.
-**Değer:** Kiracı bazlı kotayı [Faz 21](../21-KOTA-VE-OLAY-YAYINI.md) çözdü; kiracı
+**Değer:** Kiracı bazlı kotayı [Faz 21](fazlar/21-KOTA-VE-OLAY-YAYINI.md) çözdü; kiracı
 **içindeki** dağıtımın hiçbir boyutu yok.
 **Mercek:** 2, 3, 7, 8.
 **Hazırlık:** Sıfırdan.
@@ -126,7 +126,7 @@ hesapladığı için prompt caching açık bir agent'ın maliyeti **fazla** rapo
 **Kapsam:** `RunUsage`'a kırılım alanları; fiyat yapılandırmasına cache-read,
 cache-write ve reasoning birim fiyatı; arayüzde kırılım gösterimi.
 **Değer:** Prompt caching'in getirisi ölçülemiyor.
-[Faz 26](../26-ANTHROPIC-VE-GEMINI.md) caching ayarını getirdi, kazancı görünmüyor.
+[Faz 26](fazlar/26-ANTHROPIC-VE-GEMINI.md) caching ayarını getirdi, kazancı görünmüyor.
 **Mercek:** 2, 7, 8.
 **Hazırlık:** 🚨 **Yüksek** — veri tipli olarak zaten geliyor. Yazılacak olan
 eşleme ve fiyatlandırmadır.
@@ -279,13 +279,13 @@ ortadan kaldırmaktı.
 geçmişleri, eval kümeleri ve deneyleri **ayrışır**.
 **Kapsam:** Kültür anahtarlı talimat; çözümleme çalışma anında, varsayılana
 geri düşüşle.
-**Değer:** Arayüz [Faz 30](../30-ARAYUZ-CILASI.md)'da yerelleşti; agent tanımı
+**Değer:** Arayüz [Faz 30](fazlar/30-ARAYUZ-CILASI.md)'da yerelleşti; agent tanımı
 yerelleşmedi.
 **Mercek:** 1, 5.
 **Hazırlık:** Sıfırdan.
 **Maliyet:** `AgentDefinition` alanı, bir migration, arayüzde bir sekme.
-**Risk:** [Faz 19](../19-SURUM-KARSILASTIRMA-VE-AB.md) sürüm karşılaştırması ve
-[Faz 18](../18-DEGERLENDIRME.md) eval'i **tek** bir talimat metnine bakar. Kültür
+**Risk:** [Faz 19](fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) sürüm karşılaştırması ve
+[Faz 18](fazlar/18-DEGERLENDIRME.md) eval'i **tek** bir talimat metnine bakar. Kültür
 eklenince "hangi metnin versiyonu" sorusu doğar. Kültür versiyonun **içinde mi
 dışında mı** — plan bunu karara bağlamalıdır.
 **Bağımlılık:** Yok.

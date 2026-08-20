@@ -5,7 +5,7 @@ namespace AgentPrism.Core.UnitTests.Compilation;
 /// <c>ForJsonSchema(JsonSerializerOptions, ...)</c> overloads rely on reflection
 /// (<c>AIJsonUtilities.CreateJsonSchema</c>) and break the AOT stance of
 /// <c>AgentPrism.Abstractions</c> and <c>.Core</c>. This test scans the source
-/// tree to verify these overloads are never called. See docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4.
+/// tree to verify these overloads are never called. See docs/arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md, 38.4.
 /// </summary>
 public sealed class ResponseFormatAotTests
 {

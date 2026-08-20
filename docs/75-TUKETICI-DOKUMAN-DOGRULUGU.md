@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-126**, **F-124**
-> **Önkoşul:** [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — tüketici agent'ını paketlenmiş XML korpusuna yönlendiren faz budur; bu faz o korpusu okunabilir yapar · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — harita üreteci ve cırcır kapısı deseni · [Faz 57](57-KOD-DILI-BIRLESTIRME.md) — `SourceLanguageTests` cırcır altyapısı ve K-408 dil sınırı
+> **Önkoşul:** [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — tüketici agent'ını paketlenmiş XML korpusuna yönlendiren faz budur; bu faz o korpusu okunabilir yapar · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — harita üreteci ve cırcır kapısı deseni · [Faz 57](arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md) — `SourceLanguageTests` cırcır altyapısı ve K-408 dil sınırı
 > **Paketler:** On yedi paketin tamamı (yalnız XML dokümanı ve `README.md`) · `docs-site/` · `tests/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** XML doküman metnini değiştirmek imza değiştirmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` = 16 satır (16 paket × 1 boş satır)
@@ -58,7 +58,7 @@ altında. Bu faz o korpusu ilk kez **okurunun gözünden** ölçer ve üç şey 
 
 Birincisi ve en ağırı: sevk edilen doküman **kendi kendine yetmiyor**. XML
 dokümanı İngilizce'dir (K-408 bunu sağladı) ama kendi kendine gönderme yapar —
-"the same rule as K-103", "(phase 64)", "docs/53-KIRACI-API-ANAHTARLARI.md,
+"the same rule as K-103", "(phase 64)", "docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md,
 section 53.3". Bu adresler tüketicide **yoktur**. Tüketicinin agent'ı o satırı
 okur, referansı çözemez ve elinde yalnız bir boşluk kalır. K-408'in kanıt cümlesi
 neredeyse birebir aynıydı: "imza İngilizce, açıklama Türkçe idi — paketin en
@@ -88,8 +88,8 @@ eksiksiz** olmayı ölçer; o faz **iyi** olmayı.
 |---|---|
 | `artifacts/package/release/AgentPrism.*.0.272.nupkg` → `lib/net10.0/*.xml` | **1 033 satır**, 14 XML dosyasının 14'ünde: `phase 64`, `K-032`, `F-53`, `K1`, `docs/NN-*.md`. En yoğunu `AgentPrism.Core.xml` (295), sonra `Abstractions` (191) ve `AspNetCore` (123) |
 | `grep -rniE "(phase\|faz) [0-9]+\|K-[0-9]{3}\|F-[0-9]{2,3}\|K[1-4]\|docs/" src --include="*.cs" \| grep "///"` | Kaynak tarafı: **896 satır**, 17 paketin 17'sinde. `AgentPrism.Core` 287, `Abstractions` 227, `AspNetCore` 132, `Sql.Shared` 91 |
-| [`ApiKeyScope.cs:10`](../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs#L10) | Sevk edilen bir `public enum`'un `<remarks>`'ı: "(docs/53-KIRACI-API-ANAHTARLARI.md, section 53.3)". Tüketicide o dosya yoktur |
-| [`docs/openapi/agentprism.json`](openapi/agentprism.json) | Faz 74 bu belgeyi `AgentPrism.AspNetCore.nupkg` içine koydu. Belge **39 iç referans** taşıyor (26 ayrık), ikisi Türkçe dosya yolu: `docs/18-DEGERLENDIRME.md`, `docs/22-MCP-DERINLESMESI.md` |
+| [`ApiKeyScope.cs:10`](../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs#L10) | Sevk edilen bir `public enum`'un `<remarks>`'ı: "(docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3)". Tüketicide o dosya yoktur |
+| [`docs/openapi/agentprism.json`](openapi/agentprism.json) | Faz 74 bu belgeyi `AgentPrism.AspNetCore.nupkg` içine koydu. Belge **39 iç referans** taşıyor (26 ayrık), ikisi Türkçe dosya yolu: `docs/arsiv/fazlar/18-DEGERLENDIRME.md`, `docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` |
 | `grep -rniE "K-[0-9]{3}\|docs/" src/*/README.md` | **14 satır, 18 README'nin 9'unda.** `README.md` `PackageReadmeFile`'dır — nuget.org'un render ettiği sayfadır. Örnek: [`AgentPrism.Azure/README.md:96`](../src/AgentPrism.Azure/README.md#L96) "Details: `docs/KARARLAR.md`, decision K-211" |
 | `grep -rl "farukatasoy.github.io" src/*/README.md` | **18 README'nin yalnız 5'i** doküman sitesine bağlantı taşıyor. On üç paketin nuget.org sayfası okuru hiçbir yere göndermiyor |
 | [`check-content.mjs:271`](../docs-site/scripts/check-content.mjs#L271), [`:301`](../docs-site/scripts/check-content.mjs#L301) | `hasInternalHistory` kapısı **var** ve çalışıyor — ama yalnız `api/`, `http-api/` ve `public/openapi/agentprism.json` üzerinde. Sevk edilen `.nupkg` içeriği ve `docs/openapi/agentprism.json` **kapsam dışı** |
@@ -148,10 +148,10 @@ Satır **silinmez**; taşıdığı bilgi kendi kendine yeten bir cümleye çevri
 |---|---|
 | `AgentPrism carries no built-in model list (decision K-032).` | `AgentPrism carries no built-in model list: model names change faster than a NuGet release.` |
 | `the same rule as K-103, applied a second time` | `the same rule that governs the first approval, applied a second time` |
-| `A scope does not replace role policies, it narrows them (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
+| `A scope does not replace role policies, it narrows them (docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
 | `The outcome of a data subject erasure request (phase 64).` | `The outcome of a data subject erasure request.` |
 | `Batch and scheduled run (Phase 17) settings.` | `Batch and scheduled run settings.` |
-| `Details: docs/27-AZURE-FOUNDRY.md` (README) | `Details: https://farukatasoy.github.io/AgentPrism/guides/model-providers/` |
+| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` (README) | `Details: https://farukatasoy.github.io/AgentPrism/guides/model-providers/` |
 
 Üç desen çıkar ve iş bu üçe indirgenir:
 

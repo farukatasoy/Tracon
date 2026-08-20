@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-110**
-> **Önkoşul:** [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `AgentPrismKnowledgeOptions` oradan gelir
+> **Önkoşul:** [Faz 51](arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `AgentPrismKnowledgeOptions` oradan gelir
 > **Paketler:** `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`
 > **Yeni paket:** Yok · **Migration:** **yeni migration yok** — var olan bir dosya ayrı bir sete taşınır. 🚨 Tuzak bu fazın tamamıdır, aşağıya bak
 > **Public API:** büyüyor (küçük) — `MigrationRunner` ve `SqlStoreContext` set kavramı öğrenir. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 16 pakette toplam 16 satır, her biri yalnız `#nullable enable`) — şimdi bedava
@@ -71,7 +71,7 @@ SHA-256 sağlamasını ham metnin tamamı üzerinden hesaplar ve uyuşmazlık
 başlangıçta sert hata verir. Sıra da öyledir — `__migrations` defterine yazılmış
 bir kimlik geri alınamaz.
 
-Bugün **hiçbir tüketici yoktur**: [Faz 7](07-SAGLAMLASTIRMA-VE-YAYIN.md)
+Bugün **hiçbir tüketici yoktur**: [Faz 7](arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
 beklemededir, `PublicAPI.Shipped.txt` dosyalarının hepsi boştur. Yani hiçbir
 üretim veritabanında `0024` uygulanmamıştır ve seti bugün ayırmak **bedavadır**.
 
@@ -125,7 +125,7 @@ söyler; söylemeyen `vector` uzantısını hiç görmez.
 yürütmeyi atlamak daha ucuzdur. **Önerilmez:** atlanan migration
 `GetSnapshotAsync`'in "pending" listesinde sonsuza kadar kalır
 ([`MigrationRunner.cs:85-89`](../src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs)),
-[Faz 33](33-SAGLIK-DENETIMI-VE-TESHIS.md) teşhisi kalıcı olarak `Degraded`
+[Faz 33](arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) teşhisi kalıcı olarak `Degraded`
 görünür ve operatör her başlangıçta yanlış bir uyarı okur. Set kavramı bunu
 yapısal olarak çözer.
 

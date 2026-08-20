@@ -430,9 +430,9 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > 11. **AOT bayrağı `AGENTS.md` ile çelişiyordu** — dört değil sekiz paket
 >     (Anthropic, Google, Azure, Voice eklendi) olacak şekilde düzeltildi.
 > 12. **`/api/meta`'nın "gerçek çıktı" örneği Faz 4'ten kalma, güncel değildi**
->     (`docs/04-HTTP-API.md`) — `jobStore`/`jobWorkerEnabled`/`roles` alanlarını
+>     (`docs/arsiv/fazlar/04-HTTP-API.md`) — `jobStore`/`jobWorkerEnabled`/`roles` alanlarını
 >     içerecek şekilde güncellendi, tarihli bir uyarı notuyla.
-> 13. **`docs/36-SAKLAMA-HACIM-SINIRI.md`'nin K-260 notu artık yanlıştı**
+> 13. **`docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`'nin K-260 notu artık yanlıştı**
 >     (`MaxRows`'un kiracı filtresi taşımadığı iddiası) — kod ondan ileri
 >     gitmiş; sayfaya "ARTIK ESKİMİŞ" uyarısı ve güncel davranış eklendi.
 > 14. 🐛 **Yan bulgu (notlarda hiç yoktu): `TemplateFixture.ResolveMetaPackageVersion()`
@@ -658,7 +658,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Sonraki üretim oturumu (21, 17 veya 16) bu ayrımı tekrar keşfetmek zorunda
   kalmasın diye burada da not edilir.
 - **`/api/meta`'nın gerçekleşen şekli Faz 4 dokümanındaki örnekten FARKLI
-  (2026-08-09, ölçüldü, `07-HTTP-YONETIM-API.md` üretilirken).** `docs/04-HTTP-API.md`'nin
+  (2026-08-09, ölçüldü, `07-HTTP-YONETIM-API.md` üretilirken).** `docs/arsiv/fazlar/04-HTTP-API.md`'nin
   "Gerçek çıktı" bölümündeki örnek (`{"version":...,"authentication":{...},"storage":{...}}`)
   Faz 4 kapanışındaki bir anlık görüntüdür; güncel `MetaEndpoints.cs` ayrıca
   `storage.jobStore`, `storage.jobWorkerEnabled` ve üst düzey `roles`
@@ -732,7 +732,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   > 🚨 Faz 31 (Geri Bildirim ve Puanlama) §7 tablosunda HİÇBİR dosyaya
   > atanmamış. `run-detail.tsx`'in `FeedbackControl` bileşeni (thumbs
   > up/down, yorum, judge puanlama — `RunEndpoints.cs`'in `/feedback`
-  > uçları, kod yorumunda açıkça `docs/31-GERI-BILDIRIM-VE-PUANLAMA.md`'ye
+  > uçları, kod yorumunda açıkça `docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md`'ye
   > referans verir) §7 tablosundaki hiçbir satırın `Faz` sütununda
   > YOKTUR: 12 (OBS) `6, 20, 35` taşır, 17 (EVAL) `18, 19, 45, 49, 56`
   > taşır — ikisi de 31'i içermez. `11-ARAYUZ-RUN-SESSION-SSE.md` bu
@@ -766,7 +766,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Faz 35 bu motoru GÖZLEMLEYEN iki OpenTelemetry enstrümanıdır
   (`AgentPrismMetrics.RunCost` sayacı, `QuotaUsageObserver`'ın
   `agentprism.quota.usage`/`.limit` ölçerleri) ve **arayüzü yoktur**
-  (`docs/35-MALIYET-VE-KOTA-METRIKLERI.md`: "arayüz işi yok") — yalnız
+  (`docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md`: "arayüz işi yok") — yalnız
   `dotnet-counters` gibi bir OTel tüketicisiyle gözlemlenebilir; örnek
   uygulama hiçbir metrik exporter'ı (`AddOpenTelemetry()`) kaydetmez.
   `12-GOZLEMLENEBILIRLIK-MALIYET.md` §12 bu ölçerleri `dotnet-counters
@@ -978,7 +978,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   koruyan tek şey (örnek uygulamada, rol politikaları da kayıtlı
   olmadığından) TEK bir statik paylaşılan bearer token'dır — salt-okunur
   run incelemesi için verilen AYNI token, keyfi bir dış MCP sunucusu
-  kaydedebilir. `docs/53-KIRACI-API-ANAHTARLARI.md:442-451`'in kendi
+  kaydedebilir. `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:442-451`'in kendi
   kapsam-denetim tablosu da `GovernanceEndpoints`'i "uygulanan uçlar"
   listesine almıyor — bu, kasıtlı bir "kapsamsız uç" kararı değil,
   gözden kaçmış bir boşluk gibi görünüyor. Kod değiştirilmedi;
@@ -1140,7 +1140,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   silmez — tablo süresiz büyüyebilir. Kod değiştirilmedi; bu bir hacim
   boşluğu olarak `23-SAKLAMA-ARSIV-KOTA.md`'yi üretecek oturuma not düşüldü.
 - 🚨 **`GET /api/runs?errorType=...` diye bir sorgu parametresi YOKTUR —
-  `docs/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu (§"Doğrulama
+  `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu (§"Doğrulama
   komutları", madde 5) gerçekleşmeyen bir filtreye dayanıyor (2026-08-10,
   ölçüldü, `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` üretilirken).**
   `src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs:42-53`'teki
@@ -1215,7 +1215,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   zararsızdır) ama eski dönem sayaçları sonsuza dek birikir. Kod
   değiştirilmedi; `MT-RET-042` bunu koşumda doğrulayan bir case olarak
   ekledi; kalıcı çözüm `ADAYLAR.md`'ye aday olarak yazılabilir.
-- **`docs/36-SAKLAMA-HACIM-SINIRI.md`'nin kendi "K-260: `MaxRows` kiracı
+- **`docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`'nin kendi "K-260: `MaxRows` kiracı
   başına değil, tablo genelinde çalışır" notu ARTIK YANLIŞ — kod ondan
   ileri gitmiş (2026-08-10, ölçüldü, `23-SAKLAMA-ARSIV-KOTA.md`
   üretilirken).** Güncel `IRetentionStore.FindRowLimitCutoffAsync` imzası

@@ -67,7 +67,7 @@ flowchart TD
 | `/api/diagnostics` ucunun genel sözleşmesi, tüm sağlayıcıların OpenAPI görünürlüğü | `25-SAGLIK-TESHIS-OPENAPI.md` |
 | Kiracı/rol/API anahtarı HTTP güvenlik sınırları | `13-KIRACI-VE-GUVENLIK.md` |
 | AOT publish smoke testi (8 paket, doküman-kod uyuşmazlığı zaten not edildi), paket bağımlılık grafiği | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) |
-| Azure AI Foundry Agents (ayrı yetenek, `IAgentSource`) | `docs/27-AZURE-FOUNDRY.md` — kapsam dışı, F-tipi aday |
+| Azure AI Foundry Agents (ayrı yetenek, `IAgentSource`) | `docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` — kapsam dışı, F-tipi aday |
 
 ## Koşmadan önce
 

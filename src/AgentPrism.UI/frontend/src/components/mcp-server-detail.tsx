@@ -11,7 +11,7 @@ import type { RoleMeta } from '../lib/types';
  * Prompt content is a SNAPSHOT: the button copies it to the clipboard for
  * pasting into an agent's instructions, it never wires the agent to fetch it
  * live. A remote server changing its prompt must never change agent behavior
- * without a human re-copying it (decision, docs/22-MCP-DERINLESMESI.md §22.1).
+ * without a human re-copying it (decision, docs/arsiv/fazlar/22-MCP-DERINLESMESI.md §22.1).
  */
 export function McpServerDetail({
   serverName,

@@ -16,7 +16,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// mechanism is verified over a real socket with <see cref="FakeOpenAiCompatibleServer"/>.
 /// No test calls a real OpenAI/OpenRouter <strong>at all</strong> — verification
 /// that requires the network is done manually (consistent with the same
-/// decision in Phase 3: <c>docs/03-SAGLAYICI-VE-DERLEYICI.md</c>).
+/// decision in Phase 3: <c>docs/arsiv/fazlar/03-SAGLAYICI-VE-DERLEYICI.md</c>).
 /// </remarks>
 public sealed class ModelHealthEndpointsTests
 {

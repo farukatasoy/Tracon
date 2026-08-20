@@ -103,7 +103,7 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
   });
 
   // A hidden nav item is a UX courtesy, not a security boundary: the server
-  // is still the only real enforcement (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+  // is still the only real enforcement (docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
   const nav = NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || meta.roles.canAdminister);
 
   return (

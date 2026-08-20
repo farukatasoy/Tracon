@@ -13,7 +13,7 @@ namespace AgentPrism.PostgreSql.IntegrationTests;
 /// In the in-memory store this guarantee is provided by a <c>lock</c> and is
 /// uncontested in a single process; the real proof can only come from a real
 /// PostgreSQL instance under real concurrency. Rationale:
-/// docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md, section "Testler".
+/// docs/arsiv/fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md, section "Testler".
 /// </remarks>
 public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
 {

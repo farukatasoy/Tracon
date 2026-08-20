@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-40**, **F-119**
-> **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
+> **Önkoşul:** [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `tenant_provider_bindings` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor ve bir arayüz imzası genişliyor** — `IModelProvider.CreateChatClient`. 🚨 Arayüze metot/parametre eklemek yayından **sonra** en pahalı değişikliktir; `PublicAPI.Shipped.txt` bugün **boş** olduğu için **şimdi bedava**
@@ -27,9 +27,9 @@
    **K-280** (çalıştırmanın alt yazmalarında açık kiracı sorunu),
    **K-380** (`CompiledAgentCache` anahtarı kiracıyı **zaten** içeriyor),
    **K-382** (`AllowedTenants` dışındaki kiracı sessizce varsayılana düşmez)
-3. [`53-KIRACI-API-ANAHTARLARI.md`](53-KIRACI-API-ANAHTARLARI.md) — yalnız devir notu:
+3. [`53-KIRACI-API-ANAHTARLARI.md`](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/53-KIRACI-API-ANAHTARLARI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md
    ```
    Kiracı yönetim yüzeyi ve kapsam modeli oradan devralınır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
@@ -199,7 +199,7 @@ agent tanımlayabilir.
 | `PUT` | `/api/tenants/{tenantId}/egress` | Admin · `SecurityAdmin` |
 
 **Kapsam dışı:** PII maskeleme ve veri ikametgâhı sertifikasyonu. Guard'lar
-maskelemeyi zaten yapabiliyor ([Faz 48](48-GUARDRAILS.md)); bu faz yalnız
+maskelemeyi zaten yapabiliyor ([Faz 48](arsiv/fazlar/48-GUARDRAILS.md)); bu faz yalnız
 **nereye gidilebileceğini** sınırlar.
 
 ---

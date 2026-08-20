@@ -12,7 +12,7 @@
 > | §2.3 `BackgroundService` yarışı | **Düzeltildi** — `SchemaReadyGate`, sıra bağımsız. Karar **K-354** |
 > | §2.4 Alt yazmalarda kiracı | **Düzeltildi** — beklenen kiracı alanları + `[JsonIgnore]`. Karar **K-355** |
 > | §3 Faz 7 | **Beklemede** (kullanıcı kararı). Eşik kararı **yazılmadı**; yalnız durum kaydedildi |
-> | §5 F-56 / F-36 / F-69 / F-74 | **Plana dönüştü:** [Faz 53](../53-KIRACI-API-ANAHTARLARI.md) · [Faz 54](../54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) · [Faz 55](../55-ASENKRON-ONAY-KUTUSU.md) · [Faz 56](../56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). **Kod yazılmadı** |
+> | §5 F-56 / F-36 / F-69 / F-74 | **Plana dönüştü:** [Faz 53](fazlar/53-KIRACI-API-ANAHTARLARI.md) · [Faz 54](fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) · [Faz 55](fazlar/55-ASENKRON-ONAY-KUTUSU.md) · [Faz 56](fazlar/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). **Kod yazılmadı** |
 > | §1 README test sayısı | **Düzeltildi** — "310 test" → ölçülen **3355 test, 16 proje** |
 > | §4 + §6 kapsam-dışı işler | **Numaralandırıldı:** F-90…F-102 ([aday listesi](../ADAYLAR.md)) |
 >
@@ -124,7 +124,7 @@ olarak ayrı bırakıldı.
 
 ## 3. Faz 7 — Yayın Hazırlığı Hâlâ Bekliyor 🔴
 
-`docs/07-SAGLAMLASTIRMA-VE-YAYIN.md`'de tanımlanan sekiz alt başlığın **hiçbiri**
+`docs/arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md`'de tanımlanan sekiz alt başlığın **hiçbiri**
 uygulanmadı (K-068, kullanıcı kararı — zamanlama kasıtlı ertelendi, unutulmuş
 değil):
 
@@ -310,5 +310,5 @@ en spekülatife:
   bağımlılık, ekosistem karşılaştırması)
 - [`docs/KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md) · [`docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) —
   alınmış ve reddedilmiş kararlar
-- [`docs/07-SAGLAMLASTIRMA-VE-YAYIN.md`](../07-SAGLAMLASTIRMA-VE-YAYIN.md) — Faz 7
+- [`docs/arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md`](fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) — Faz 7
   kapsamı

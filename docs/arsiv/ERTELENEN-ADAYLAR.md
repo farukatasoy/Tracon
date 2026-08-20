@@ -56,7 +56,7 @@ deseni — ağırlık değil, **olgunluk ve doğrulanabilirlik**.
 bir uygulamaya kavuştuğunda. Alınırsa **ayrı bir paket** olmalıdır
 (`AgentPrism.AgentControl`), K-185/K-209/K-212 deseniyle — native ağırlık
 yalnız isteyen tüketiciye bulaşmalıdır.
-**Bağımlılık:** [Faz 48](../48-GUARDRAILS.md)'in `IContentGuard`'ı ACS'nin
+**Bağımlılık:** [Faz 48](fazlar/48-GUARDRAILS.md)'in `IContentGuard`'ı ACS'nin
 `input`/`output` kesişim noktalarına eşlenir. `pre_tool_call`/`post_tool_call`
 Faz 48'de **kapsanmadı** ve F-61 ile birlikte düşünülmelidir.
 **Ekosistem:** Microsoft'un kendi standardı; Apache 2.0, topluluk yönetimli.

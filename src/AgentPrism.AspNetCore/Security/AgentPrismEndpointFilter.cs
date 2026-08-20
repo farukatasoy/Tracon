@@ -173,7 +173,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         // Carries the audit trail actor into the ambient context. AmbientAuditActorResolver
         // in AgentPrism.Core reads it through an AsyncLocal, so Core can answer the
         // "who did it" question without taking a dependency on ASP.NET Core.
-        // Rationale: docs/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
+        // Rationale: docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
         AuditActorContext.Current = httpContext.User;
 
         return next(context);

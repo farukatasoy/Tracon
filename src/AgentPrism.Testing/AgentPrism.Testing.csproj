@@ -31,7 +31,7 @@
       package that can carry prerelease MAF packages; since Testing
       depends on it, it inherits those dependencies TRANSITIVELY.
       Acceptable — the test package is not in the production graph
-      anyway. Rationale: docs/39-TEST-PAKETI.md, section 39.1.
+      anyway. Rationale: docs/arsiv/fazlar/39-TEST-PAKETI.md, section 39.1.
     -->
     <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
   </ItemGroup>

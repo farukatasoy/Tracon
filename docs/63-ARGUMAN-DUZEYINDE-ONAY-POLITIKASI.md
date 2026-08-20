@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-61**
-> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — onay kuralı tablosu ve değerlendirici oradan gelir · [Faz 48](48-GUARDRAILS.md) — tool **argümanı** denetimini bilerek kapsam dışı bıraktı; bu faz o boşluğun sahibidir · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — asenkron onay kutusu bu kuralların tüketicisidir
+> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — onay kuralı tablosu ve değerlendirici oradan gelir · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — tool **argümanı** denetimini bilerek kapsam dışı bıraktı; bu faz o boşluğun sahibidir · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — asenkron onay kutusu bu kuralların tüketicisidir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (PostgreSQL + SQL Server + SQLite). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `ToolApprovalRule`'a bir alan, iki yeni tip, bir kayıt uzantısı. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
@@ -27,9 +27,9 @@
    **K-218** (tool bağımlılığı kurulum anında alınır),
    **K-368** (onay kararından sonra **yeni** çalıştırma açılır),
    **K-370** (onay kararı `AuditRecorder` ile değil doğrudan `IAuditLog` ile yazılır)
-3. [`55-ASENKRON-ONAY-KUTUSU.md`](55-ASENKRON-ONAY-KUTUSU.md) — yalnız devir notu:
+3. [`55-ASENKRON-ONAY-KUTUSU.md`](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/55-ASENKRON-ONAY-KUTUSU.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md
    ```
    Bu faz onay **kararının** verilme yolunu değil, onayın **gerekip
    gerekmediğinin** hesaplanmasını değiştirir.
@@ -72,7 +72,7 @@ gelir ve tam güce sahiptir.
 | [`GovernanceEndpoints.cs:558`](../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | `GET /api/approvals/rules` ve kardeşleri vardır; kural yönetimi yüzeyi hazırdır |
 | [`0002_observability.sql:76-90`](../src/AgentPrism.PostgreSql/Migrations/0002_observability.sql) | Tablo `tool_approval_rules`. 🚨 Benzersizlik indeksi `COALESCE(arguments_hash, '')` kullanıyor — koşul eklenince **anahtar da genişlemelidir**, yoksa aynı kapsam için sınırsız kural üretilir |
 | [`0004_skill_scripts.sql:28-33`](../src/AgentPrism.PostgreSql/Migrations/0004_skill_scripts.sql) | Aynı ders orada yazılı: PostgreSQL'de `NULL` `NULL`'a eşit değildir; `COALESCE` ifade indeksi şarttır |
-| [`48-GUARDRAILS.md`](48-GUARDRAILS.md) devir notu | İçerik denetimi **model sınırındadır**; tool argümanı denetimi bilerek kapsam dışı bırakıldı |
+| [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md) devir notu | İçerik denetimi **model sınırındadır**; tool argümanı denetimi bilerek kapsam dışı bırakıldı |
 | `ToolApprovalRule` biçimi | 🚨 Aday listesi "`record` olduğu için **ek kurucu ister**" diyordu. **Ölçüldü: yanlış.** Tip konumsal (`positional`) değildir, `required init` özellikleri kullanır; yeni bir `init` özelliği eklemek ek kurucu **istemez** |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.

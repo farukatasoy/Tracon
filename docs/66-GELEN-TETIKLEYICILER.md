@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-65**
-> **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
+> **Önkoşul:** [Faz 17](arsiv/fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](arsiv/fazlar/43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `inbound_triggers` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — bir kayıt tipi, bir depo arayüzü, uç ailesi. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
@@ -28,9 +28,9 @@
    **K-394** (workflow çalıştırmaları kota kapısından geçer — tetikleyici de
    geçmelidir), **K-395** (kimlik doğrulaması olmayan gruplarda başlık nötr
    davranışı)
-3. [`21-KOTA-VE-OLAY-YAYINI.md`](21-KOTA-VE-OLAY-YAYINI.md) — yalnız devir notu:
+3. [`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/21-KOTA-VE-OLAY-YAYINI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md
    ```
    Giden webhook'un imza sözleşmesi devralınır; bu faz onu **ters yönde**
    kullanır.

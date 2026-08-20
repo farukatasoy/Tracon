@@ -789,7 +789,7 @@ düzeltme sonrası `Content-Security-Policy: ... img-src 'self' data: blob:;
 media-src 'self' blob:; ...` döndürdü.
 
 **Değişen dosya:** `src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs`
-(`ContentSecurityPolicy` sabiti). **Doküman:** `docs/05-AGENTPRISM-UI.md`'deki
+(`ContentSecurityPolicy` sabiti). **Doküman:** `docs/arsiv/fazlar/05-AGENTPRISM-UI.md`'deki
 örnek `curl` çıktısı yeni başlığa göre güncellendi. **Yeni dosya yok.**
 
 **Case:** `MT-UIAG-044` ✅, `MT-UIAG-050` ✅.
@@ -1296,7 +1296,7 @@ ve düzeltmeyi bu senaryoda da doğruladı.
 sayılıyordu**; `RunEndpoints.cs:42-53`'teki `MapGet("/api/runs", ...)`
 imzasında böyle bir parametre hiç yoktu — ASP.NET Core bağlanmamış sorgu
 parametresini sessizce yok sayar, filtre HİÇBİR ŞEYİ elemiyordu (K-034
-ihlali: `docs/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu bu
+ihlali: `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu bu
 parametreyi varsaymıştı ama kod tarafında hiç gerçekleşmemişti).
 
 **Uygulanan tasarım:** `RunQuery.ErrorType` (yeni alan, `RunError.Type`'a
@@ -1898,7 +1898,7 @@ Arayüz hâlâ yalnız ilk 5 kapsamı listeler:
 `components/api-key-panel.tsx:21` · `locales/en.ts` + `tr.ts` `apiKeys.scope.*`.
 🚨 Yeni yerel anahtarlar `lib/i18n.test.ts:132-137` `identicalOnPurpose`
 kümesine de eklenmezse **test kırılır**.
-`docs/53-KIRACI-API-ANAHTARLARI.md:435` ("— (kapsamsız uç)" tablosu) ve `:445`
+`docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:435` ("— (kapsamsız uç)" tablosu) ve `:445`
 ("`RequireApiKeyScope` uygulanan uçlar") yanlışa döner, yeniden üretilmelidir.
 
 ---

@@ -21,6 +21,8 @@ Sırayla, tamamı:
 1. `AGENTS.md` — zaten yüklü
 2. [`MEMORY.md`](../../../MEMORY.md) — 4 KB
 3. Fazın kendi dokümanı: `docs/NN-*.md`
+   — kapanmış fazlar (00–59) `docs/arsiv/fazlar/NN-*.md` altındadır (Faz 77);
+     yeri [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
 
 Bu üçü ~10k token'dır. Başka hiçbir dosya bu adımda okunmaz.
 
@@ -40,7 +42,7 @@ Liste bir önceki fazın dokümanına yolluyorsa yalnız **"Sonraki Faza Devir N
 bölümünü oku, dokümanın tamamını değil:
 
 ```bash
-awk '/## Sonraki Faza Devir Notu/,0' docs/20-MALIYET-VE-GOSTERGE-PANELI.md
+awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md
 ```
 
 ---

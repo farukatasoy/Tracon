@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-108**, **F-64**
-> **Önkoşul:** [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — tarayıcıya yönetim token'ı konulamaz, kapsamlı anahtar şart · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — sonuç kanalının emsali · [Faz 48](48-GUARDRAILS.md) — istemciden gelen sonuç guard'dan geçer
+> **Önkoşul:** [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — tarayıcıya yönetim token'ı konulamaz, kapsamlı anahtar şart · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — sonuç kanalının emsali · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — istemciden gelen sonuç guard'dan geçer
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — senkron kanal seçildi, bekleyen çağrı tablosu **yoktur** (Açık Soru 1'in kullanıcı kararı)
 > **Public API:** büyüyor **ve bir imza genişliyor** — `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. Kırıcı sayılan değişiklik bugün **bedava**, ilk yayından sonra değil
@@ -28,9 +28,9 @@
    **K-232** (sunucu yanıtı çevrilmez),
    **K-296** (SSE başlıkları çoktan gönderilmiştir),
    **K-404** (bilinmeyen tool adı kayıt anında `400` ile reddedilir)
-3. [`55-ASENKRON-ONAY-KUTUSU.md`](55-ASENKRON-ONAY-KUTUSU.md) — yalnız 55.2 ve 55.4:
+3. [`55-ASENKRON-ONAY-KUTUSU.md`](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — yalnız 55.2 ve 55.4:
    ```bash
-   awk '/## 55.2/,/## 55.5/' docs/55-ASENKRON-ONAY-KUTUSU.md
+   awk '/## 55.2/,/## 55.5/' docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md
    ```
    Bu faz onun **kanal desenini** devralır, tablosunu devralmaz.
 4. Alan hafızası (bu faz üç alana dokunuyor):

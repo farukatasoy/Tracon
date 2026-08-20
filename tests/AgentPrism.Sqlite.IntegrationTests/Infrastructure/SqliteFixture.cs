@@ -7,7 +7,7 @@ namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 /// <para>
 /// <strong>A container is NOT REQUIRED.</strong> Since SQLite is a single
 /// file, a temporary file path is enough; this shortens CI time compared to
-/// the PostgreSQL/SQL Server contract runs (docs/24-SQLITE.md, section 24.5).
+/// the PostgreSQL/SQL Server contract runs (docs/arsiv/fazlar/24-SQLITE.md, section 24.5).
 /// </para>
 /// <para>
 /// The file is created once for the whole assembly; the table prefix is

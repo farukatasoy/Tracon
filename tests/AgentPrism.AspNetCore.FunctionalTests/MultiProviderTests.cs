@@ -19,8 +19,8 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// <para>
 /// <strong>No test calls a real model</strong> (a decision in force since
 /// Phase 3). Verification that requires the network is done manually; the
-/// evidence is in <c>docs/26-ANTHROPIC-VE-GEMINI.md</c> and
-/// <c>docs/27-AZURE-FOUNDRY.md</c>.
+/// evidence is in <c>docs/arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md</c> and
+/// <c>docs/arsiv/fazlar/27-AZURE-FOUNDRY.md</c>.
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests

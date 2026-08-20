@@ -114,7 +114,7 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     public async Task Empty_author_makes_EVERY_call_open_a_new_row()
     {
         // With an anonymous setup (author null), the uniqueness rule does not
-        // apply -- open question 4 (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md).
+        // apply -- open question 4 (docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md).
         var runId = AgentPrismId.NewId();
 
         await Store.UpsertAsync(Score(runId) with { Author = null });

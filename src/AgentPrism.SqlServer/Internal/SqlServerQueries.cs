@@ -1799,7 +1799,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
-        // (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2); MERGE is not used (K-177).
+        // (docs/arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md, section 45.2); MERGE is not used (K-177).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,

@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-115**
-> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — `RunRecordingAgent` ve olay yazımı · [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — gömülebilir bileşen, taşıyıcı tarafının istemci yarısı
+> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — `RunRecordingAgent` ve olay yazımı · [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — gömülebilir bileşen, taşıyıcı tarafının istemci yarısı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **büyüyor (küçük)** — bir arayüz ve `RunEventType`'a **bir ekleme**. Enum sonuna ekleme K-040 ile serbesttir. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
@@ -135,7 +135,7 @@ gelir. `RecordMessageDeltas`'tan farklı davranmasının üç gerekçesi vardır
 | **Sağlayıcı politikası** | Bazı sağlayıcılar ham düşünme metnini saklamaya kısıt koyar; kısıtlar **doğrulanmadı** |
 
 Açmak isteyen bir satır yazar. K1 ile uyumludur ve
-[Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama politikasıyla çelişmez.
+[Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama politikasıyla çelişmez.
 
 **Not:** Faz 68 planlanmışsa `ReasoningTokens` alanı orada gelir. İkisi
 bağımsızdır: token **sayısı** kullanımdan, `ReasoningDelta` **metinden** gelir.
@@ -253,7 +253,7 @@ sözleşme testi · alt sistem hatası — hedef ve depo bağımsız düşer.
 |---|---|---|---|
 | 1 | Hedef sıcak yolda mı, kuyrukta mı? | A: sıcak yol, "hızlı ol" sözleşmesi · B: paket içinde kuyruk | **A** — B bir kuyruk, bir tüketici görevi ve bir taşma politikası demektir; K1'i (sıfır sürpriz) zorlar. Kuyruğa alma tüketicinin bilinçli kararıdır |
 | 2 | Hedef hatası kaç kez tolere edilir? | A: ilk hatada o `run` için susar (`IsDisabled` deseni) · B: her olayda yeniden dener | **A** — `RunEventWriter`'ın var olan deseniyle birebir aynı; ikinci bir davranış modeli öğretmez |
-| 3 | `ReasoningDelta` saklama politikasına nasıl girer? | A: `MessageDelta` ile aynı kova · B: ayrı saklama süresi | **A** bu fazda; B ölçülmemiş bir ihtiyaçtır. [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) sahibidir |
+| 3 | `ReasoningDelta` saklama politikasına nasıl girer? | A: `MessageDelta` ile aynı kova · B: ayrı saklama süresi | **A** bu fazda; B ölçülmemiş bir ihtiyaçtır. [Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) sahibidir |
 | 4 | Hedef `RunEvent`'i mi yoksa daraltılmış bir görünümü mü alır? | A: `RunEvent` · B: ayrı bir DTO | **A** — ikinci bir tip iki sözleşme demektir; `RunEvent` zaten public |
 
 ---

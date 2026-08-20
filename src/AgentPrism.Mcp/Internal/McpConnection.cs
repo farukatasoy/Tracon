@@ -29,7 +29,7 @@ internal sealed class McpConnection : IAsyncDisposable
     // Resource cache: URI -> the last content read. A subscription only
     // invalidates this entry (Invalidated = true); the content is not
     // re-read immediately, it is fetched fresh on the next request
-    // (docs/22-MCP-DERINLESMESI.md, section 22.2).
+    // (docs/arsiv/fazlar/22-MCP-DERINLESMESI.md, section 22.2).
     private readonly Dictionary<string, CachedResource> _resourceCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _subscribedUris = new(StringComparer.Ordinal);
     private readonly List<IAsyncDisposable> _subscriptions = [];
@@ -214,7 +214,7 @@ internal sealed class McpConnection : IAsyncDisposable
         {
             // The capability check is mandatory: if the server does not
             // declare tools, the request is never sent at all
-            // (docs/22-MCP-DERINLESMESI.md, "Verified API").
+            // (docs/arsiv/fazlar/22-MCP-DERINLESMESI.md, "Verified API").
             var discoveredTools = ServerCapabilities.Tools is null
                 ? []
                 : await _client.ListToolsAsync(options: null, timeout.Token).ConfigureAwait(false);

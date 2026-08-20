@@ -62,9 +62,9 @@ Satır **silinmez**; taşıdığı bilgi kendi kendine yeten bir cümleye çevri
 |---|---|
 | `AgentPrism carries no built-in model list (decision K-032).` | `AgentPrism carries no built-in model list: model names change faster than a NuGet release.` |
 | `the same rule as K-103, applied a second time` | `the same rule that governs the first approval, applied a second time` |
-| `A scope does not replace role policies, it narrows them (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
+| `A scope does not replace role policies, it narrows them (docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
 | `The outcome of a data subject erasure request (phase 64).` | `The outcome of a data subject erasure request.` |
-| `Details: docs/27-AZURE-FOUNDRY.md` | `Details: https://farukatasoy.github.io/AgentPrism/guides/model-providers/` |
+| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` | `Details: https://farukatasoy.github.io/AgentPrism/guides/model-providers/` |
 
 Üç desen vardır ve iş bu üçe indirgenir:
 

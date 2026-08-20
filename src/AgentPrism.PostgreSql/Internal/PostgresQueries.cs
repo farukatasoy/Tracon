@@ -535,7 +535,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // explicit.
         // kind <> @kind_eval: eval case runs are synthetic test calls, not
         // real traffic; they are excluded so they do not pollute the summary
-        // (docs/18-DEGERLENDIRME.md, open question 4).
+        // (docs/arsiv/fazlar/18-DEGERLENDIRME.md, open question 4).
         // scored_runs/positive_rate (Phase 31): matched_run_scores repeats the
         // SAME filter as runs (tenant/eval/agent/date) -- it is added as a
         // scalar subquery instead of moving it into a separate CTE so the
@@ -1222,7 +1222,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
-        // content is read only when requested (docs/14-COK-MODLULUK.md, section 14.2).
+        // content is read only when requested (docs/arsiv/fazlar/14-COK-MODLULUK.md, section 14.2).
         SelectAttachmentContent = $"""
             SELECT content, external_uri, media_type
             FROM {Schema}.attachments
@@ -1662,7 +1662,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // 🚨 `seq` is generated atomically here BY THE STORE (a MAX+1
         // subquery); the caller does not compute it
-        // (docs/45-URETIMDEN-EVAL-KUMESI.md, section 45.2). Two concurrent
+        // (docs/arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md, section 45.2). Two concurrent
         // promotions can compute the same seq; in that case the
         // eval_cases_suite_seq_uq violation is caught by
         // SqlDialect.IsUniqueViolation and SqlEvalStore retries. A

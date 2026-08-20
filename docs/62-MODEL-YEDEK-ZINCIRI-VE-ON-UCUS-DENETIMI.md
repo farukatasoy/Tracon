@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-44**, **F-59**
-> **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
+> **Önkoşul:** [Faz 8](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](arsiv/fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — yedek zinciri agent tanımının içindedir, tanım zaten `jsonb` olarak saklanır
 > **Public API:** **büyüyor** — `ModelBinding`'e bir alan. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. `sealed record`'a alan eklemek **bugün bedava**, ilk yayından sonra bir sürüm kararıdır
@@ -27,9 +27,9 @@
    deseni — `ModelBinding`'e alan eklemenin emsali), **K-320** (boru hattındaki
    **konum** kabul edilmez, grep'le ölçülür), **K-158** (hız sınırı bilerek
    bellekte tutuldu — eşzamanlılık sınırı da öyle olacaktır)
-3. [`08-SAGLAYICI-GENISLEMESI.md`](08-SAGLAYICI-GENISLEMESI.md) — yalnız devir notu:
+3. [`08-SAGLAYICI-GENISLEMESI.md`](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/08-SAGLAYICI-GENISLEMESI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md
    ```
    Devre kesicinin sözleşmesi devralınır: yedek zinciri onun **açık** durumunu
    okur, kendi sağlık modelini kurmaz.

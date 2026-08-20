@@ -111,7 +111,7 @@ mekanizma olsa da HTTP yüzeyinin **kendi kendini tanımlama** yeteneğinin
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | 33.3 |
 
-Faz 33'ün kendi kapanış ölçümünün (`docs/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
+Faz 33'ün kendi kapanış ölçümünün (`docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
 "Doğrulama komutları") birebir tekrarı.
 
 **Ön koşul**
@@ -657,7 +657,7 @@ curl -s -i "$APU/api/diagnostics" -H "$APB" -H "X-Test-Role: admin"  | head -1
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | K-059 |
 
-Faz 33'ün kendi kapanış ölçümünün (`docs/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
+Faz 33'ün kendi kapanış ölçümünün (`docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
 sızıntı denetimi) birebir tekrarı — bu depodaki `secret` sızıntı testlerinin
 en doğrudan olanlarından biridir.
 

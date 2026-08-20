@@ -7,7 +7,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Verifies edge cases of <c>AddAgentPrismHealthChecks()</c> + the <c>/health</c> endpoint
-/// (Phase 33, F-38). See <c>docs/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, section 33.3.
+/// (Phase 33, F-38). See <c>docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, section 33.3.
 /// </summary>
 public sealed class HealthCheckTests
 {

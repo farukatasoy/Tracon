@@ -317,7 +317,7 @@ curl -s -i -X POST "$APU/api/runs/$RUNNING_ID/cancel" -H "$APB"
 
 ### MT-RES-005 — 🚨 Workflow çalıştırması gerçekten iptal edilebiliyor mu (Faz 32 kapanışında KANITLANAMAMIŞ boşluğun denemesi)
 
-`docs/32-CALISTIRMA-IPTALI.md`'nin "Plandan Sapmalar" bölümü açıkça şunu
+`docs/arsiv/fazlar/32-CALISTIRMA-IPTALI.md`'nin "Plandan Sapmalar" bölümü açıkça şunu
 kaydeder: `WorkflowRunner`'ın kayıt/bırakma teli `RunRecordingAgent` ile
 birebir aynı desendedir ve derleniyor, ama **gerçek bir workflow
 çalıştırmasıyla hiç kanıtlanmadı** — o fazın kendi denemesi MAF'ın

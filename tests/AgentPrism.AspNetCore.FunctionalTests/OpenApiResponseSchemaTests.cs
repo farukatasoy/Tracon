@@ -8,7 +8,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// State measured before Phase 40: these eleven endpoints carried no entry
-/// under <c>responses</c> at all (see <c>docs/40-OPENAPI-YAYINI.md</c>, "What
+/// under <c>responses</c> at all (see <c>docs/arsiv/fazlar/40-OPENAPI-YAYINI.md</c>, "What
 /// doesn't work today").
 /// </remarks>
 public sealed class OpenApiResponseSchemaTests

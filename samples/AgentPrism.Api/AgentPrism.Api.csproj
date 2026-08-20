@@ -21,7 +21,7 @@
       - measured, AddGeneratedTools() gives CS1061 without this line.
       NuGet's analyzers/dotnet/cs propagation applies only to PACKAGE consumption
       (PackageReference); a real external consumer only takes `AgentPrism.Core` via
-      PackageReference and does not need this line. See docs/52-KAYNAK-URETECI.md.
+      PackageReference and does not need this line. See docs/arsiv/fazlar/52-KAYNAK-URETECI.md.
     -->
     <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj"
                        PrivateAssets="all"
@@ -84,7 +84,7 @@
     Fix: keep the documentation of the conflicting shared source in ONE assembly
     only. None of the SQL provider types appear in the HTTP contract, so nothing
     is lost from the document. PostgreSql remains the canonical one.
-    Rationale and measurement: docs/KARARLAR.md K-352, docs/40-OPENAPI-YAYINI.md.
+    Rationale and measurement: docs/KARARLAR.md K-352, docs/arsiv/fazlar/40-OPENAPI-YAYINI.md.
   -->
   <Target Name="AgentPrismRemoveDuplicateSqlXmlDocs"
           AfterTargets="GenerateAdditionalXmlFilesForOpenApi">

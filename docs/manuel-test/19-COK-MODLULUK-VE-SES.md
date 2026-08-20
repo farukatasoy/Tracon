@@ -615,7 +615,7 @@ curl -s "$APU/v1/chat/completions" -H "$APB" -H "content-type: application/json"
 **Beklenen sonuç**
 - İstek reddedilmez ama görsel parça sessizce YOK sayılır (yalnız `text`
   parçası modele ulaşır) — `OpenAIChatCompletionsEndpoints.ReadContent`
-  `image_url`/`input_file` okumaz. Bu, `docs/14-COK-MODLULUK.md`'nin
+  `image_url`/`input_file` okumaz. Bu, `docs/arsiv/fazlar/14-COK-MODLULUK.md`'nin
   bilinçli kapsam kararıdır; koşum bu davranışı doğrular/çürütür.
 
 ---

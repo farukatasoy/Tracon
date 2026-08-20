@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-116**
-> **Önkoşul:** [Faz 15](15-WORKFLOWS-YURUTME.md) — workflow yürütme ve kalıcılık · [Faz 16](16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
+> **Önkoşul:** [Faz 15](arsiv/fazlar/15-WORKFLOWS-YURUTME.md) — workflow yürütme ve kalıcılık · [Faz 16](arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Workflows`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok (düğüm tanımı var olan workflow tanımında yaşar) · **Doğrulanacak:** tanım sütununun şeması değişiyorsa üç set gerekir
 > **Public API:** **büyüyor** — `WorkflowNodeKind` enum'una **ekleme**, `WorkflowDefinition`'a alan, bir kayıt yüzeyi. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
@@ -26,9 +26,9 @@
    açmıyor, aşağıya bak), **K-040** (enum sırası değişmez), **K-394** (workflow'un
    tamamı tek `run` olarak kotaya yazılır), **K-401** (`ToRunError` sarmalayıcıları
    soyar), **K-403** (`RunStreamingAsync` gerçek yineleyici), **K-218** (boş servis sağlayıcı).
-3. [`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md) — yalnız devir notu:
+3. [`16-WORKFLOWS-ARAYUZ.md`](arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/16-WORKFLOWS-ARAYUZ.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md
    ```
 4. Alan hafızası (bu faz iki alana dokunuyor):
    [`hafiza/workflows.md`](hafiza/workflows.md) (yürütme, executor kimliği, HITL) ·

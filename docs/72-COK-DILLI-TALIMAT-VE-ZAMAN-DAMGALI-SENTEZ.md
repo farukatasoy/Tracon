@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-117**, **F-118**
-> **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
+> **Önkoşul:** [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](arsiv/fazlar/28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Voice`, `AgentPrism.Sql.Shared`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **YOK** — plan yanlıştı, bkz. Plandan Sapmalar ve K-499
 > **Public API:** **büyüdü** — `AgentDefinition.InstructionsByCulture`, `AgentDefinitionRequest.InstructionsByCulture`, `AgentRunRequest.Culture`, `IAgentSource`/`IAgentCatalog`/`IVersionedAgentSource` imzalarına `culture`, `CompiledAgentCache`'e culture'lı aşırı yükler, `InstructionCultureResolver` (yeni tip), `SpeechRequest.IncludeTimestamps`, `SpeechAudio.Alignment`, `SpeechAlignment` (yeni tip), `SpeakRequest.IncludeTimestamps`, `SpeakResponse.Alignment`. `PublicAPI.Shipped.txt` hâlâ boş — bedavaydı.
@@ -98,8 +98,8 @@ bir tarayıcı başlığının modele giden içeriği sessizce değiştirmesi s�
 
 ### 🚨 Sürümleme ve eval sorusu — bu fazın asıl kararı
 
-[Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) sürümü ve diff'i **tek** bir talimat
-metni üzerinden kurdu. [Faz 18](18-DEGERLENDIRME.md) eval'i de öyle. Kültür
+[Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) sürümü ve diff'i **tek** bir talimat
+metni üzerinden kurdu. [Faz 18](arsiv/fazlar/18-DEGERLENDIRME.md) eval'i de öyle. Kültür
 eklenince şu soru doğar: **kültür sürümün içinde mi dışında mı?**
 
 | Seçenek | Sonuç |
@@ -107,8 +107,8 @@ eklenince şu soru doğar: **kültür sürümün içinde mi dışında mı?**
 | **A — kültür sürümün İÇİNDE** | Bir sürüm tüm dilleri taşır. Bir dili düzeltmek yeni sürüm açar ve **tüm dilleri** etkiler. Diff çok dilli olur. Eval seti dil seçer |
 | **B — dil başına ayrı sürüm hattı** | Diller bağımsız ilerler. Ama "agent'ın aktif sürümü" tek bir şey olmaktan çıkar; deney (`experiment`) ve kanarya ağırlıkları dil başına ayrışır |
 
-**A önerilir.** B, [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) ve
-[Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)'nın kurduğu "agent'ın tek
+**A önerilir.** B, [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) ve
+[Faz 56](arsiv/fazlar/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)'nın kurduğu "agent'ın tek
 aktif sürümü vardır" sözleşmesini kırar ve o kırılma bu fazın kapsamından
 büyüktür. A'nın bedeli kabul edilebilir: bir dili düzeltmek bir sürüm açar,
 zaten olması gereken budur.

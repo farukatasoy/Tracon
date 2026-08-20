@@ -114,7 +114,7 @@ ham istemciye `ChatOptions.ResponseFormat` alanı iletilir.
 | **İlgili karar** | K-208 (desen), K-034 (derleme anı doğrulama) |
 
 Faz kapanışında gerçek `gpt-5.4-mini` ile doğrulanmış senaryonun tekrarı
-(`docs/38-YAPILANDIRILMIS-CIKTI.md`, 2026-08-06 koşumu).
+(`docs/arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md`, 2026-08-06 koşumu).
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -1226,7 +1226,7 @@ curl -s -i -X POST "$APU/api/agents/support/run" \
 | **İlgili faz** | Faz 48 |
 | **İlgili karar** | — |
 
-Negatif senaryo — **şüpheli bulgu**. `docs/48-GUARDRAILS.md`'nin plan
+Negatif senaryo — **şüpheli bulgu**. `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan
 aşamasındaki doğrulama komutu `GET /api/runs?errorType=content_blocked`
 kullanıyordu, ama `RunEndpoints.cs:42-53`'teki `MapGet("/api/runs", ...)`
 imzası yalnız `agentName`, `status`, `kind`, `sessionId`, `startedAfter`,
