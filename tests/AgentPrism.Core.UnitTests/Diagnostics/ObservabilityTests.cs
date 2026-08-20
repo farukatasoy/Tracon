@@ -206,6 +206,95 @@ public sealed class ObservabilityTests
         child.ParentId.ShouldBe(root.Id);
     }
 
+    /// <summary>
+    /// 🚨 The <c>error.message</c> attribute used to be written OUTSIDE the
+    /// sensitive-data filter, so it skipped the very filter that covers its own
+    /// key: <c>IsSensitive("error.message")</c> is true, and the value would have
+    /// been dropped had it gone through the loop. The description is set
+    /// unconditionally from <c>RunError.Message</c>, which carries the message of
+    /// ANY tool or provider exception - a message that can hold personal data.
+    /// The trace store applies no further redaction and the span is readable
+    /// through <c>GET /api/runs/{runId}/trace</c>.
+    /// </summary>
+    [Fact]
+    public async Task Error_message_is_withheld_while_sensitive_data_is_off()
+    {
+        var store = new InMemoryTraceStore();
+
+        using var collector = CreateCollector(store, options =>
+        {
+            options.SuccessSampleRatio = 1;
+            options.RecordSensitiveData = false;
+        });
+
+        var runId = AgentPrismId.NewId();
+
+        using var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
+        using var activity = source.StartActivity("test.root");
+        var traceId = activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+
+        collector.BeginRun(traceId);
+
+        activity?.SetStatus(ActivityStatusCode.Error, "User taylor@example.com not found in CRM");
+        activity?.Stop();
+
+        await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Failed);
+
+        var trace = await store.GetTraceByRunAsync(runId);
+
+        if (trace is null || trace.Spans.Count == 0)
+        {
+            // No listener attached in this environment; the scenario cannot run.
+            return;
+        }
+
+        foreach (var span in trace.Spans)
+        {
+            span.Attributes.ShouldNotContainKey(
+                "error.message",
+                "the exception message can carry personal data and RecordSensitiveData is off.");
+        }
+    }
+
+    /// <summary>
+    /// The other half: an operator who deliberately turns sensitive data ON still
+    /// gets the diagnostic. Withholding it in both modes would have removed a
+    /// real debugging aid instead of fixing a leak.
+    /// </summary>
+    [Fact]
+    public async Task Error_message_is_kept_when_sensitive_data_is_on()
+    {
+        var store = new InMemoryTraceStore();
+
+        using var collector = CreateCollector(store, options =>
+        {
+            options.SuccessSampleRatio = 1;
+            options.RecordSensitiveData = true;
+        });
+
+        var runId = AgentPrismId.NewId();
+
+        using var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
+        using var activity = source.StartActivity("test.root");
+        var traceId = activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+
+        collector.BeginRun(traceId);
+
+        activity?.SetStatus(ActivityStatusCode.Error, "boom");
+        activity?.Stop();
+
+        await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Failed);
+
+        var trace = await store.GetTraceByRunAsync(runId);
+
+        if (trace is null || trace.Spans.Count == 0)
+        {
+            return;
+        }
+
+        trace.Spans.ShouldContain(span => span.Attributes.ContainsKey("error.message"));
+    }
+
     private static RunTraceCollector CreateCollector(
         ITraceStore store,
         Action<AgentPrismObservabilityOptions> configure)

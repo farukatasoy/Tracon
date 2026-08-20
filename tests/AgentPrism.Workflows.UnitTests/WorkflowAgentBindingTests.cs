@@ -70,6 +70,54 @@ public sealed class WorkflowAgentBindingTests
         agent.Description.ShouldBe("Summarizes text.");
     }
 
+    /// <summary>
+    /// 🚨 Two tenants may hold a workflow and an agent with the SAME name: both
+    /// names are unique only WITHIN a tenant (<c>UNIQUE (tenant_id, name)</c>).
+    /// The cache key must therefore carry the tenant. When it did not, the second
+    /// tenant received the first tenant's wrapper, and with it the first tenant's
+    /// description - a description that reaches the participant list sent to the
+    /// model in the <c>GroupChat</c> and <c>Magentic</c> patterns.
+    /// </summary>
+    [Fact]
+    public void Description_does_not_leak_between_tenants()
+    {
+        var host = new WorkflowTestHost("support");
+        var services = BuildServices(host);
+
+        host.TenantContext.TenantId = "tenant-a";
+        var first = services.GetWorkflowAgent("triage", "support", "Tenant A's private note.");
+
+        host.TenantContext.TenantId = "tenant-b";
+        var second = services.GetWorkflowAgent("triage", "support", "Tenant B's own note.");
+
+        second.Description.ShouldBe(
+            "Tenant B's own note.",
+            "the second tenant must not receive the first tenant's description.");
+
+        ReferenceEquals(first, second).ShouldBeFalse(
+            "each tenant must get its own wrapper; a shared instance crosses the tenant boundary.");
+    }
+
+    /// <summary>
+    /// The executor id stays derived from the <c>(workflow, agent)</c> pair ONLY.
+    /// Adding the tenant to the cache key must not reach the identity: checkpoints
+    /// written before the fix have to stay readable (Phase 16).
+    /// </summary>
+    [Fact]
+    public void Tenant_does_not_change_the_executor_id()
+    {
+        var host = new WorkflowTestHost("support");
+        var services = BuildServices(host);
+
+        host.TenantContext.TenantId = "tenant-a";
+        var first = services.GetWorkflowAgent("triage", "support");
+
+        host.TenantContext.TenantId = "tenant-b";
+        var second = services.GetWorkflowAgent("triage", "support");
+
+        second.Id.ShouldBe(first.Id, "the executor id anchors existing checkpoints.");
+    }
+
     [Fact]
     public void Empty_agent_name_is_rejected()
     {

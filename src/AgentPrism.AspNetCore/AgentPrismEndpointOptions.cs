@@ -170,11 +170,16 @@ public sealed class AgentPrismEndpointOptions
     /// An allowed origin can read a response from <strong>any</strong>
     /// endpoint under <c>{prefix}</c>, not only the run endpoint — CORS is
     /// applied to the whole group, not path by path. This is deliberately
-    /// broad rather than a source of extra privilege: reading a response
-    /// still requires a valid credential (bearer token or a correctly scoped
-    /// API key), and CORS only controls whether the browser lets the page's
-    /// own script read what that credential already permits. Add an origin
-    /// only where you also control which credential reaches that origin.
+    /// broad rather than a source of extra privilege WHEN a credential layer
+    /// is configured: reading a response then requires a valid bearer token or
+    /// a correctly scoped API key, and CORS only controls whether the browser
+    /// lets the page's own script read what that credential already permits.
+    /// <strong>With no credential layer configured</strong> - no
+    /// <see cref="AuthToken"/> and no <see cref="AuthorizationPolicy"/>, which
+    /// is the default - an allowed origin needs no credential at all, and every
+    /// script on that origin can read every endpoint under the prefix. Add an
+    /// origin only where you also control which credential reaches it, and do
+    /// not add one before the credential layer is on.
     /// </para>
     /// </remarks>
     public IList<string> AllowedOrigins { get; } = [];

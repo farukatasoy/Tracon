@@ -209,9 +209,12 @@ internal static class CatalogEndpoints
                     action: "stats.recalculate-costs",
                     entity: "runs:*",
                     before: null,
-                    after: $$"""
-                        {"considered":{{result.RunsConsidered}},"updated":{{result.RunsUpdated}},"stillUnknown":{{result.RunsStillUnknown}}}
-                        """,
+                    after: AuditPayload.Write(writer =>
+                    {
+                        writer.WriteNumber("considered", result.RunsConsidered);
+                        writer.WriteNumber("updated", result.RunsUpdated);
+                        writer.WriteNumber("stillUnknown", result.RunsStillUnknown);
+                    }),
                     cancellationToken).ConfigureAwait(false);
 
                 return TypedResults.Ok(result);

@@ -162,10 +162,23 @@ kayıtlı değilse karşılık gelen alan her zaman `true` döner (rol kısıtı
 
 **Denetim izi.** `audit_log` tablosuna agent, MCP sunucusu, kiracı ve onay kuralı
 yazmaları ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` tablosu
-zaten tam kaydı tutar). Yazma **`store` decorator'larında** yapılır
-(`Auditing*Store` — `AgentPrism.Core`), `endpoint` katmanında değil; tek istisna
-`mcp.refresh` (elle tazeleme bir `store` yazması değildir, `GovernanceEndpoints`
-içinde yazılır).
+zaten tam kaydı tutar). Yazma **iki yerde** olur: `store` decorator'ları (`Auditing*Store` —
+`AgentPrism.Core`) ve **`endpoint` katmanı**. Endpoint yazması istisna değildir,
+kuraldır: bir `store` yazmasına karşılık gelmeyen her eylem (`mcp.refresh`,
+`tenant_egress.save`, `stats.recalculate-costs`, onay kararı, eval koşumu,
+veri konusu silme…) uçta yazılır. On iki uç dosyası `AuditRecorder.WriteAsync`
+çağırır; `DataSubjectEndpoints` ve `TriggerEndpoints` ayrıca doğrudan
+`IAuditLog`'a yazar.
+
+**Geri alınamaz eylem `AuditRecorder` kullanamaz.** `AuditRecorder` `store`
+hatasını yutar ve yalnız uyarı loglar; kod çalıştırma yetkisi veren
+`script.grant`/`script.revoke` ve script çalıştırmanın kendisi bu yüzden
+`IAuditLog`'u **doğrudan** çağırır ve yazamazsa **eylemi keser**.
+
+**Denetim yükü elle kurulmaz.** `AuditPayload.Write`/`WriteArray` kullanılır:
+elle kurulan JSON, içinde tırnak taşıyan bir değerde bozulur, `AuditSecretFilter`
+`JsonException`'ı yakalayıp metni **redakte etmeden** döndürür ve PostgreSQL'de
+`jsonb` cast'i düşer — mutasyon uygulanmış, kayıt yazılmamış olur.
 
 Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur:
 `AgentPrismEndpointFilter`, her korumalı istekte `HttpContext.User`'ı oraya yazar;
@@ -214,12 +227,20 @@ süreç **AgentPrism'in makinesinde** çalışır.
 
 Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
 (`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
-listesi + kodda verilen skill kökleri).
+listesi + kodda verilen skill kökleri). **Yürütülebilir yüzeyi genişleten üç
+alan yapılandırmadan okunmaz**: `Interpreters`, `SkillRoots` ve
+`AllowStoredScripts`. Bağlama bu alanları kodda verilenin üzerine **eklediği**
+için bir ortam değişkeni yeni yorumlayıcı tanıtabiliyordu. `Enabled` ve
+`PlatformIsolationAcknowledged` bağlanmaya devam eder — ikisi de yüzeyi
+genişletemez, yalnız kapatır veya sınırı kabul eder.
 
-Her çalıştırma **altı kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
+Her çalıştırma **beş kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
 ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
 (3) uzantı yorumlayıcı beyaz listesinde (boş varsayılan, K-088) · (4) argüman
-boyutu ve şeması · (5) denetim izine yazılabildi · (6) eşzamanlılık kotası.
+boyutu, şeması ve **script adının düz bir dosya adı olduğu** · (5) denetim izine
+yazılabildi. Ardından **eşzamanlılık kotası** gelir; o bir kapı **değil, bir
+kuyruktur**: iki katmanlı `SemaphoreSlim` (kiracı + toplam) isteği reddetmez,
+yer açılana kadar **bekletir** — yalnız `CancellationToken` ile kopar.
 Ancak sonra ayrı süreç temiz ortamla, stdin'den argümanla (K-091), zaman aşımı
 ve çıktı sınırıyla başlar.
 

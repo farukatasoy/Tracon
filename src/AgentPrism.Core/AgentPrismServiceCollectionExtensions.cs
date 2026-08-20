@@ -1325,10 +1325,17 @@ public static class AgentPrismServiceCollectionExtensions
             options.PlatformIsolationAcknowledged = acknowledged;
         }
 
-        if (TryReadBool(section, nameof(AgentPrismSkillScriptOptions.AllowStoredScripts), out var allowStored))
-        {
-            options.AllowStoredScripts = allowStored;
-        }
+        // 🚨 AllowStoredScripts, SkillRoots and Interpreters are deliberately NOT
+        // bound from configuration. All three widen what may be executed on the
+        // server, and the shipped documentation states that script execution "can
+        // only be turned on in code". Binding merged INTO the code-supplied values
+        // instead of replacing them, so an environment variable such as
+        // AgentPrism__Skills__Scripts__Interpreters__sh=/bin/sh added an
+        // interpreter the application never approved, and K-087 had already
+        // rejected configuration-supplied skill roots as arbitrary file system
+        // reads. Enabled and PlatformIsolationAcknowledged stay bound on purpose
+        // (see the comment above): they can only NARROW or acknowledge, never
+        // widen the executable surface.
 
         if (TimeSpan.TryParse(section[nameof(AgentPrismSkillScriptOptions.Timeout)], CultureInfo.InvariantCulture, out var timeout))
         {
@@ -1370,16 +1377,7 @@ public static class AgentPrismServiceCollectionExtensions
             options.SearchDepth = depth;
         }
 
-        BindList(section.GetSection(nameof(AgentPrismSkillScriptOptions.SkillRoots)), options.SkillRoots);
         BindList(section.GetSection(nameof(AgentPrismSkillScriptOptions.EnvironmentAllowList)), options.EnvironmentAllowList);
-
-        foreach (var child in section.GetSection(nameof(AgentPrismSkillScriptOptions.Interpreters)).GetChildren())
-        {
-            if (child.Value is { Length: > 0 } interpreter)
-            {
-                options.Interpreters[child.Key] = interpreter;
-            }
-        }
     }
 
     /// <summary>Writes a configuration array into an existing list.</summary>

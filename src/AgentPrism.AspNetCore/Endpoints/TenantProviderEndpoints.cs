@@ -260,7 +260,7 @@ internal static class TenantProviderEndpoints
             action: "tenant_egress.save",
             entity: $"tenant_egress:{tenantId}",
             before: null,
-            after: $$"""{"allowedProviders":[{{string.Join(",", allowedProviders.Select(static p => $"\"{p}\""))}}]}""",
+            after: AuditPayload.WriteArray("allowedProviders", allowedProviders),
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(new TenantEgressPolicyResponse
@@ -337,7 +337,11 @@ internal static class TenantProviderEndpoints
     /// name is exactly the diagnostic detail the audit trail exists to keep.
     /// </remarks>
     private static string DescribeForAudit(TenantProviderBinding binding)
-        => $$"""{"providerName":"{{binding.ProviderName}}","configKeyName":"{{binding.ApiKeyConfigurationName}}"}""";
+        => AuditPayload.Write(writer =>
+        {
+            writer.WriteString("providerName", binding.ProviderName);
+            writer.WriteString("configKeyName", binding.ApiKeyConfigurationName);
+        });
 
     private static ProblemHttpResult NotFound(string tenantId, string provider)
         => TypedResults.Problem(

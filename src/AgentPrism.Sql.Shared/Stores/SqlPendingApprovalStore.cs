@@ -99,6 +99,8 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Maintenance work: expiry sweeps the overdue requests of EVERY tenant in one pass, so the query carries no tenant_id by design. The interface documents the same thing; the attribute was missing here and the method was silenced through the coverage list instead, which let the mandatory written justification skip code review.")]
     public async ValueTask<IReadOnlyList<PendingApproval>> ExpireAsync(
         DateTimeOffset olderThan,
         int max,

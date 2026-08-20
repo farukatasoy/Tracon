@@ -63,9 +63,12 @@
     <PackageVersion Include="Microsoft.ML.Tokenizers.Data.O200kBase" Version="2.0.0" />
     <!--
       CVE zorlamasi (K-007 deseni, satir 220 ile ayni gerekce).
-      Microsoft.ML.Tokenizers 2.0.0'in net8.0 hedefi Microsoft.Bcl.Memory 9.0.4
-      cekiyor; o surumde yuksek onem dereceli bir acik var (NU1903,
-      GHSA-73j8-2gch-69rq). Gecisli sabitleme kapali (K-007) oldugu icin surum
+      Microsoft.ML.Tokenizers.Data.O200kBase 2.0.0'in TEK bagimlilik grubu
+      .NETStandard2.0'dir ve orada Microsoft.Bcl.Memory 9.0.4 vardir; AgentPrism.Core
+      net8/9/10 hedefledigi icin NuGet en yakin uyumlu grup olarak oraya duser.
+      (Tokenizers'in KENDI net8.0 grubu yalniz Google.Protobuf tasir; eski yorum
+      yanlis paketi sucluyordu.) O surumde yuksek onem dereceli bir acik var
+      (NU1903, GHSA-73j8-2gch-69rq). Gecisli sabitleme kapali (K-007) oldugu icin surum
       AgentPrism.Core'da dogrudan bir PackageReference ile zorlanir.
     -->
     <PackageVersion Include="Microsoft.Bcl.Memory" Version="$(MicrosoftExtensionsVersion)" />

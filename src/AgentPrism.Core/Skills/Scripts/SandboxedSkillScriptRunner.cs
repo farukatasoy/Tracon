@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -315,7 +316,17 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
 
             if (scratch is not null)
             {
-                scriptPath = Path.Combine(scratch.FullName, $"{request.ScriptName}.{request.Extension}");
+                // 🚨 The file name is validated HERE, at the boundary that writes
+                // it. Path.Combine returns the second part unchanged when it is
+                // rooted, and it does not resolve "..", so a stored script named
+                // "/etc/cron.d/agentprism" or "../../x" was written OUTSIDE the
+                // scratch directory, executed from there, and left behind - the
+                // scratch cleanup only removes the scratch directory. The save
+                // endpoint checks the name too, but a runner that trusts its
+                // caller is one refactor away from the same hole.
+                var fileName = $"{SkillScriptNaming.RequireSafeFileName(request.ScriptName)}.{request.Extension}";
+
+                scriptPath = Path.Combine(scratch.FullName, fileName);
                 await File.WriteAllTextAsync(scriptPath, request.Content ?? string.Empty, cancellationToken)
                     .ConfigureAwait(false);
                 workingDirectory = scratch.FullName;
@@ -427,6 +438,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
 
     /// <summary>Writes the denial to the audit trail and stops the run.</summary>
     /// <remarks>This method always throws; the return type only shortens the call site.</remarks>
+    [DoesNotReturn]
     private async ValueTask DenyAsync(
         string skillName,
         string scriptName,

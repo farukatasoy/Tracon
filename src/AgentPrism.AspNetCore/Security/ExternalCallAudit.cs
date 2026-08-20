@@ -36,7 +36,11 @@ internal static class ExternalCallAudit
             action: "external.call",
             entity: $"agent:{agentName}",
             before: null,
-            after: $$"""{"protocol":"{{protocol}}","runId":"{{runId}}"}""",
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteString("protocol", protocol);
+                writer.WriteString("runId", runId);
+            }),
             cancellationToken).ConfigureAwait(false);
     }
 }
