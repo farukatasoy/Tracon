@@ -182,12 +182,15 @@ header, turn the response into a `Blob`, and use an object URL.
 **An old conversation can no longer replay.** A referenced attachment was hard
 deleted. Keep it for at least as long as any session or replay path that needs it.
 
-## Related
+## In the reference
 
 - [Attachment HTTP API](/AgentPrism/http-api/attachments/)
 - [Agent run HTTP API](/AgentPrism/http-api/agents/)
 - [Voice HTTP API](/AgentPrism/http-api/voice/)
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
 - [`AgentPrismAttachmentOptions` API](/AgentPrism/api/agentprism.agentprismattachmentoptions/)
 - [`AgentRunRequest` API](/AgentPrism/api/agentprism.agentrunrequest/)
 - [`UseVoice` API](/AgentPrism/api/agentprism.voicebuilderextensions/)
+
+## Read next
+
+- [Sessions and conversations](/AgentPrism/concepts/sessions/)

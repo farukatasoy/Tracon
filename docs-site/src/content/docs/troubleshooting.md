@@ -7,6 +7,27 @@ slug: troubleshooting
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
 
+<nav class="symptom-index" aria-label="Symptom index">
+  <p>Find the symptom, not the subsystem. Each entry opens the section that fixes it;
+  browser search still reaches every heading on this page.</p>
+  <ul>
+    <li><a href="#a-fast-diagnostic-order">I do not know where to start</a></li>
+    <li><a href="#installation-and-startup">The package will not install, or startup throws</a></li>
+    <li><a href="#agents-and-models">The agent will not resolve, or the model answers wrongly</a></li>
+    <li><a href="#tools-approvals-and-guards">A tool is missing, blocked, or waiting forever</a></li>
+    <li><a href="#http-access-and-api-keys">A request returns <code>401</code> or <code>403</code></a></li>
+    <li><a href="#runs-streaming-and-replay">No run row, no deltas, or a cancel that does nothing</a></li>
+    <li><a href="#persistence-and-migrations">Data vanishes, or a migration will not apply</a></li>
+    <li><a href="#knowledge-and-memory">Knowledge returns <code>501</code>, or search stops matching</a></li>
+    <li><a href="#mcp-and-skill-scripts">Remote MCP tools never appear, or a skill will not run</a></li>
+    <li><a href="#voice">The voice socket returns <code>404</code>, <code>400</code>, or <code>401</code></a></li>
+    <li><a href="#webhooks-retention-and-operations">A webhook is rejected, or retention previews nothing</a></li>
+    <li><a href="#console">A console screen or action is not there</a></li>
+    <li><a href="#native-aot">Publishing reports trimming or dynamic-code warnings</a></li>
+    <li><a href="#build-diagnostics-and-the-agent-map">The build reports an <code>APG</code> diagnostic</a></li>
+  </ul>
+</nav>
+
 ## A fast diagnostic order
 
 1. Confirm package version and target framework.
@@ -594,3 +615,9 @@ to your machine and to the versions that project restored, so the file is
 regenerated on every build and belongs in `.gitignore`; a project created with
 `dotnet new agentprism-api` already ignores it. To write the map but not the
 pointer file, set `AgentPrismWriteLocalReference` to `false`.
+
+## Read next
+
+- [Observability and cost](/AgentPrism/guides/observability/) — the traces and metrics that answer a question before it becomes a symptom
+- [Reliable runs](/AgentPrism/guides/reliability/) — the failure boundaries that stop several of these symptoms recurring
+- [Configuration](/AgentPrism/reference/configuration/) — the option behind most of the fixes above

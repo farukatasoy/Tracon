@@ -10,6 +10,24 @@ AgentPrism has two voice layers:
 | Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `AgentPrism.Voice` |
 | Live conversation | Keep a bidirectional audio/text session over WebSocket | `UseVoiceConversation()` from Core |
 
+```mermaid
+flowchart LR
+    accTitle: The two voice layers and their hosting cost
+    accDescr: UseVoice adds request and response speech tools over the ordinary HTTP surface. UseVoiceConversation additionally maps a WebSocket route and binds a socket to one instance for the length of the conversation, which is why it is opt-in.
+    subgraph Tools["UseVoice — request/response"]
+        SYN["Synthesize speech"]
+        TRN["Transcribe an attachment"]
+        LST["List voices"]
+    end
+    subgraph Live["UseVoiceConversation — opt-in"]
+        WS["WebSocket /api/voice/sessions/id/stream<br/>subprotocol agentprism.voice.v1"]
+        BOUND["Socket bound to one instance<br/>for minutes"]
+    end
+    Tools --> HTTP["Ordinary HTTP surface"]
+    WS --> BOUND
+    BOUND --> LIMITS["Per-tenant connection, duration,<br/>idle, and utterance limits"]
+```
+
 The tool layer is request/response. The conversation layer changes the hosting model:
 a socket stays bound to one application instance for minutes. Enable only the layer
 you need.
@@ -172,9 +190,12 @@ answer.
 - [ ] Barge-in, reconnect, maximum duration, provider outage, and slow clients are
   tested through the real proxy.
 
+## In the reference
+
+- [Voice HTTP endpoints](/AgentPrism/http-api/voice/)
+
 ## Read next
 
 - [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
 - [Observability and cost](/AgentPrism/guides/observability/)
 - [Production deployment](/AgentPrism/guides/production/)
-- [Voice HTTP endpoints](/AgentPrism/http-api/voice/)

@@ -77,6 +77,8 @@ script.
 
 ## Core defaults under `AgentPrism`
 
+<p class="reads-this">Read by <code>AgentPrism.Core</code> through <code>AddAgentPrism()</code>. No extra package reference.</p>
+
 ### Identity, validation, and agent graphs
 
 | Key relative to `AgentPrism` | Default | Meaning |
@@ -236,6 +238,8 @@ worth widening the price schema.
 
 ## Operational sections
 
+<p class="reads-this">Read by <code>AgentPrism.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>
+
 ### Scheduling, async runs, leases, and recovery
 
 | Section and key | Default |
@@ -332,6 +336,8 @@ redirects remain blocked by default.
 
 ## Retention defaults
 
+<p class="reads-this">Read by <code>AgentPrism.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
+
 `AgentPrism:Retention:Enabled` defaults to `false`. `BatchSize` defaults to `5000`
 and `BatchDelay` to 100 ms. The following ages become configuration-based defaults
 only after retention is enabled. A database policy for a target takes precedence.
@@ -361,6 +367,8 @@ applies when configuration defaults are enabled. Change that target through
 
 ## Persistence sections
 
+<p class="reads-this">Read by <code>AgentPrism.PostgreSql</code>, <code>AgentPrism.SqlServer</code>, and <code>AgentPrism.Sqlite</code>. A section without its package does nothing.</p>
+
 | Section | Key | Default |
 |---|---|---|
 | `AgentPrism:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
@@ -380,6 +388,8 @@ SQLite rejects bare `Data Source=:memory:`. Use a shared in-memory URI when a fi
 not suitable. PostgreSQL and SQL Server use a schema; SQLite uses a table prefix.
 
 ## Provider sections
+
+<p class="reads-this">Read by <code>AgentPrism.OpenAI</code>, <code>AgentPrism.Anthropic</code>, <code>AgentPrism.Google</code>, and <code>AgentPrism.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
 
 All provider model lists start empty. All nullable request timeouts use the provider
 library default.
@@ -404,6 +414,8 @@ binding is saved and again when it is resolved. See
 [Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok).
 
 ## MCP, workflows, and voice
+
+<p class="reads-this">Read by <code>AgentPrism.Mcp</code>, <code>AgentPrism.Workflows</code>, and <code>AgentPrism.Voice</code>. Live conversation is the exception: it is in <code>AgentPrism.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
 
 ### MCP client
 
@@ -476,6 +488,8 @@ conversation also needs both `ISpeechTranscriber` and `ISpeechSynthesizer`.
 
 ## Endpoint options are code-only
 
+<p class="reads-this">Read by <code>AgentPrism.AspNetCore</code> at the <code>MapAgentPrism()</code> call, not from configuration.</p>
+
 `AgentPrismEndpointOptions` belongs to the `MapAgentPrism()` call. It has no named
 configuration section.
 
@@ -507,6 +521,8 @@ startup by design.
 
 ## Options without a named section
 
+<p class="reads-this">Read at registration time by the package that owns each call. None of them can be set from a settings file.</p>
+
 The following features use explicit code options because they contain delegates,
 freeze an exposure allowlist at registration, or define request-resolution policy:
 
@@ -534,3 +550,9 @@ freeze an exposure allowlist at registration, or define request-resolution polic
 
 Use the [API reference](/AgentPrism/api/) for every property on these code-only
 types. Their absence from this section table is deliberate.
+
+## Read next
+
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the options above that decide who can call what
+- [Production deployment](/AgentPrism/guides/production/) — which of these you set differently per environment
+- [Troubleshooting](/AgentPrism/troubleshooting/) — what a wrong value looks like at run time

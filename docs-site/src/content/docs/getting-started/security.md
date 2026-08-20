@@ -149,7 +149,7 @@ leave a time-of-check/time-of-use gap.
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
 
-## Next
+## Read next
 
 - [Governance](/AgentPrism/concepts/governance/) — audit trail, quotas, tenancy
 - [Architecture](/AgentPrism/concepts/) — how the pieces fit

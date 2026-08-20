@@ -151,7 +151,7 @@ cannot take down product functionality.
 An agent defined in code, a console, and a recorded history — with no database. Every
 store is in memory, so all of it ends when the process does.
 
-## Next
+## Read next
 
 - [Adding a tool](/AgentPrism/getting-started/tools/) — let the agent do something
 - [Persistence](/AgentPrism/getting-started/persistence/) — make it survive a restart

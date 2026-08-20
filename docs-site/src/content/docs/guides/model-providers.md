@@ -295,7 +295,7 @@ Outgoing concurrency is `AgentPrismModelConcurrencyOptions`, bound from
 `AgentPrism:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
 AgentPrism has in flight against one provider at a time.
 
-`ContextWindowTokens` on a catalog `ModelDescriptor` powers two features (F-59):
+`ContextWindowTokens` on a catalog `ModelDescriptor` powers two features:
 derivation for `ContextWindow` compaction, and an optional pre-flight check on
 `POST /api/agents/{name}/run` that rejects an oversized prompt **before** any
 provider is called.
@@ -311,7 +311,7 @@ provider is called.
 }
 ```
 
-`Preflight.Enabled` is off by default (K1): a wrong estimate stops a run that
+`Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
 `ReserveRatio` (default `0.2`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
@@ -388,11 +388,8 @@ limit. Remove temperature or set it to `1`.
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the
 counted value against the model's real `ContextWindowTokens` before deciding.
 
-## Related
+## In the reference
 
-- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
-- [Choosing packages](/AgentPrism/packages/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
 - [Model health HTTP API](/AgentPrism/http-api/models/)
 - [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
 - [`UseOpenAI` API](/AgentPrism/api/agentprism.openaiproviderextensions/)
@@ -400,3 +397,9 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 - [`UseAnthropic` API](/AgentPrism/api/agentprism.anthropicproviderextensions/)
 - [`UseGoogle` API](/AgentPrism/api/agentprism.googleproviderextensions/)
 - [`UseAzureOpenAI` API](/AgentPrism/api/agentprism.azureopenaiproviderextensions/)
+
+## Read next
+
+- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
+- [Choosing packages](/AgentPrism/packages/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)

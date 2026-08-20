@@ -10,6 +10,20 @@ understand:
 - `POST {prefix}/v1/chat/completions`
 - `/v1/conversations/*` for Responses conversation state
 
+```mermaid
+flowchart TD
+    accTitle: The two compatible surfaces and who owns the conversation
+    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an AgentPrism agent, which then chooses its own provider model.
+    RESP["POST /v1/responses"] --> SRV["AgentPrism owns the session"]
+    CONV["POST /v1/conversations"] --> SRV
+    PREV["previous_response_id"] --> SRV
+    CHAT["POST /v1/chat/completions"] --> CLI["The client owns the message list"]
+    SRV --> PICK["model selects an AgentPrism agent"]
+    CLI --> PICK
+    PICK --> AGENT["Agent: instructions · tools · skills<br/>memory · guards · budgets"]
+    AGENT --> MODEL["The provider model the agent binds to"]
+```
+
 This is an **agent surface**, not a transparent model proxy. The request's `model`
 selects an AgentPrism agent. That agent then selects its provider model, instructions,
 tools, skills, memory, guards, and budgets on the server.
@@ -176,7 +190,6 @@ The behavior and compatibility limits above are AgentPrism's own contract.
 
 ## Read next
 
-- [HTTP API conventions](/AgentPrism/http-api/)
-- [Model providers](/AgentPrism/guides/model-providers/)
-- [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
+- [HTTP API conventions](/AgentPrism/http-api/) — the management API, which is a different surface with different rules
+- [Model providers](/AgentPrism/guides/model-providers/) — what actually answers the request behind the compatible endpoint
+- [Attachments and multimodal input](/AgentPrism/guides/multimodal/) — how non-text content arrives through the same endpoints

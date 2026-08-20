@@ -254,13 +254,16 @@ budgets.
 `IEmbeddingGenerator<string, Embedding<float>>`. The built-in store comes from
 PostgreSQL.
 
-## Related
+## In the reference
 
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
 - [Agent management HTTP API](/AgentPrism/http-api/agents/)
 - [`HarnessSettings` API](/AgentPrism/api/agentprism.harnesssettings/)
 - [`CompactionSettings` API](/AgentPrism/api/agentprism.compactionsettings/)
 - [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
 - [`AgentPrismMcpOptions` API](/AgentPrism/api/agentprism.agentprismmcpoptions/)
+
+## Read next
+
+- [Sessions and conversations](/AgentPrism/concepts/sessions/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)
+- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
