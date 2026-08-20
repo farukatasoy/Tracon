@@ -155,6 +155,26 @@ internal static class WebhookEndpoints
             return Invalid(verdict.Reason ?? "Address invalid.");
         }
 
+        // 🚨 The subscription carries no secret, only the NAME of the key its
+        // value is read from (K-059). Without a prefix restriction that name
+        // could point at any configuration key in the application, and
+        // AgentPrism would sign deliveries with a value that was never meant
+        // to leave the process. The field itself stays optional.
+        if (!string.IsNullOrWhiteSpace(request.SecretConfigurationKey))
+        {
+            try
+            {
+                ConfigurationKeyGuard.RequirePrefix(
+                    request.SecretConfigurationKey,
+                    options.AllowedConfigurationPrefix,
+                    "secretConfigurationKey");
+            }
+            catch (AgentPrismException exception)
+            {
+                return Invalid(exception.Message);
+            }
+        }
+
         if (request.Events is not { Count: > 0 })
         {
             return Invalid("At least one event ('events') must be selected.");

@@ -1289,11 +1289,9 @@ AgentPrism.VoicePriceOverride.VoicePriceOverride() -> void
 AgentPrism.WebhookDeliveryJobHandler
 AgentPrism.WebhookDeliveryJobHandler.ExecuteAsync(AgentPrism.JobContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.WebhookDeliveryJobHandler.Kind.get -> AgentPrism.JobKind
-AgentPrism.WebhookDeliveryJobHandler.WebhookDeliveryJobHandler(AgentPrism.IWebhookStore! store, AgentPrism.WebhookHttpClient! httpClient, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismWebhookOptions!>! optionsMonitor, Microsoft.Extensions.Configuration.IConfiguration? configuration = null, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.WebhookDeliveryJobHandler!>? logger = null) -> void
 AgentPrism.WebhookHttpClient
 AgentPrism.WebhookHttpClient.Dispose() -> void
 AgentPrism.WebhookHttpClient.SendAsync(System.Net.Http.HttpRequestMessage! request, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
-AgentPrism.WebhookHttpClient.WebhookHttpClient(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismWebhookOptions!>! optionsMonitor) -> void
 AgentPrism.WebhookPublisher
 AgentPrism.WebhookPublisher.PublishAsync(string! tenantId, string! eventType, AgentPrism.WebhookEventPayload! payload, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 AgentPrism.WebhookPublisher.WebhookPublisher(AgentPrism.IWebhookStore! store, AgentPrism.IJobStore! jobStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismWebhookOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.WebhookPublisher!>? logger = null) -> void
@@ -1541,7 +1539,6 @@ static AgentPrism.WebhookSigner.Verify(string! body, System.DateTimeOffset times
 static AgentPrism.WebhookUrlValidator.IsAllowedTarget(System.Net.IPAddress! address, AgentPrism.AgentPrismWebhookOptions! settings) -> bool
 static AgentPrism.WebhookUrlValidator.IsPrivate(System.Net.IPAddress! address) -> bool
 static AgentPrism.WebhookUrlValidator.ValidateFormat(string? url, AgentPrism.AgentPrismWebhookOptions! settings) -> AgentPrism.WebhookUrlVerdict
-static AgentPrism.WebhookUrlValidator.ValidateResolvedAsync(string? url, AgentPrism.AgentPrismWebhookOptions! settings, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.WebhookUrlVerdict>
 static AgentPrism.WebhookUrlVerdict.operator !=(AgentPrism.WebhookUrlVerdict left, AgentPrism.WebhookUrlVerdict right) -> bool
 static AgentPrism.WebhookUrlVerdict.operator ==(AgentPrism.WebhookUrlVerdict left, AgentPrism.WebhookUrlVerdict right) -> bool
 static AgentPrism.WorkflowDefinitionValidator.Require(AgentPrism.WorkflowDefinition! definition) -> void
@@ -1556,3 +1553,59 @@ static AgentPrism.WorkflowDefinitionValidator.Validate(AgentPrism.WorkflowDefini
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
+AgentPrism.AgentPrismWebhookOptions.AllowedConfigurationPrefix.get -> string!
+AgentPrism.AgentPrismWebhookOptions.AllowedConfigurationPrefix.set -> void
+AgentPrism.AgentPrismWebhookOptions.MaxExtraHeaders.get -> int
+AgentPrism.AgentPrismWebhookOptions.MaxExtraHeaders.set -> void
+AgentPrism.ConfigurationKeyGuard
+AgentPrism.EgressAddressPolicy
+AgentPrism.EgressAddressPolicy.AllowLoopback.get -> bool
+AgentPrism.EgressAddressPolicy.AllowLoopback.init -> void
+AgentPrism.EgressAddressPolicy.AllowPrivateNetworkTargets.get -> bool
+AgentPrism.EgressAddressPolicy.AllowPrivateNetworkTargets.init -> void
+AgentPrism.EgressAddressPolicy.Deconstruct(out bool AllowPrivateNetworkTargets, out bool AllowLoopback) -> void
+AgentPrism.EgressAddressPolicy.EgressAddressPolicy() -> void
+AgentPrism.EgressAddressPolicy.EgressAddressPolicy(bool AllowPrivateNetworkTargets, bool AllowLoopback) -> void
+AgentPrism.EgressAddressPolicy.Equals(AgentPrism.EgressAddressPolicy other) -> bool
+AgentPrism.EgressAddressValidator
+AgentPrism.EgressAddressVerdict
+AgentPrism.EgressAddressVerdict.Deconstruct(out bool IsAllowed, out string? Reason, out System.Net.IPAddress![]? ResolvedAddresses) -> void
+AgentPrism.EgressAddressVerdict.EgressAddressVerdict() -> void
+AgentPrism.EgressAddressVerdict.EgressAddressVerdict(bool IsAllowed, string? Reason, System.Net.IPAddress![]? ResolvedAddresses) -> void
+AgentPrism.EgressAddressVerdict.Equals(AgentPrism.EgressAddressVerdict other) -> bool
+AgentPrism.EgressAddressVerdict.IsAllowed.get -> bool
+AgentPrism.EgressAddressVerdict.IsAllowed.init -> void
+AgentPrism.EgressAddressVerdict.Reason.get -> string?
+AgentPrism.EgressAddressVerdict.Reason.init -> void
+AgentPrism.EgressAddressVerdict.ResolvedAddresses.get -> System.Net.IPAddress![]?
+AgentPrism.EgressAddressVerdict.ResolvedAddresses.init -> void
+AgentPrism.EgressSocketGuard
+AgentPrism.EgressSocketGuard.ConnectAsync(System.Net.Http.SocketsHttpConnectionContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.IO.Stream!>
+AgentPrism.EgressSocketGuard.CreateHandler() -> System.Net.Http.SocketsHttpHandler!
+AgentPrism.EgressSocketGuard.EgressSocketGuard(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismEgressOptions!>! options) -> void
+AgentPrism.EgressSocketGuard.EgressSocketGuard(System.Func<AgentPrism.EgressAddressPolicy>! policyAccessor) -> void
+AgentPrism.EgressSocketGuard.ValidateAsync(System.Uri! target, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.WebhookDeliveryJobHandler.WebhookDeliveryJobHandler(AgentPrism.IWebhookStore! store, AgentPrism.WebhookHttpClient! httpClient, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismWebhookOptions!>! optionsMonitor, Microsoft.Extensions.Configuration.IConfiguration? configuration = null, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.WebhookDeliveryJobHandler!>? logger = null, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismEgressOptions!>? egressOptions = null) -> void
+AgentPrism.WebhookHttpClient.WebhookHttpClient(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismWebhookOptions!>! optionsMonitor, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismEgressOptions!>! egressOptions) -> void
+override AgentPrism.EgressAddressPolicy.GetHashCode() -> int
+override AgentPrism.EgressAddressVerdict.GetHashCode() -> int
+static AgentPrism.ConfigurationKeyGuard.RequirePrefix(string? configurationKeyName, string! allowedPrefix, string! fieldName) -> void
+static AgentPrism.EgressAddressPolicy.Deny.get -> AgentPrism.EgressAddressPolicy
+static AgentPrism.EgressAddressPolicy.operator !=(AgentPrism.EgressAddressPolicy left, AgentPrism.EgressAddressPolicy right) -> bool
+static AgentPrism.EgressAddressPolicy.operator ==(AgentPrism.EgressAddressPolicy left, AgentPrism.EgressAddressPolicy right) -> bool
+static AgentPrism.EgressAddressValidator.IsAllowedTarget(System.Net.IPAddress! address, AgentPrism.EgressAddressPolicy policy) -> bool
+static AgentPrism.EgressAddressValidator.IsPrivate(System.Net.IPAddress! address) -> bool
+static AgentPrism.EgressAddressValidator.ResolveAndValidateAsync(string! host, AgentPrism.EgressAddressPolicy policy, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.EgressAddressVerdict>
+static AgentPrism.EgressAddressValidator.TryGetEmbeddedIPv4(System.Net.IPAddress! address, out System.Net.IPAddress! embedded) -> bool
+static AgentPrism.EgressAddressValidator.ValidateLiteral(System.Uri! target, AgentPrism.EgressAddressPolicy policy) -> string?
+static AgentPrism.EgressAddressVerdict.operator !=(AgentPrism.EgressAddressVerdict left, AgentPrism.EgressAddressVerdict right) -> bool
+static AgentPrism.EgressAddressVerdict.operator ==(AgentPrism.EgressAddressVerdict left, AgentPrism.EgressAddressVerdict right) -> bool
+static AgentPrism.WebhookSigner.IsReservedHeader(string? name) -> bool
+static AgentPrism.WebhookUrlValidator.ToPolicy(AgentPrism.AgentPrismWebhookOptions! settings, AgentPrism.AgentPrismEgressOptions? egress) -> AgentPrism.EgressAddressPolicy
+static AgentPrism.WebhookUrlValidator.ValidateResolvedAsync(string? url, AgentPrism.AgentPrismWebhookOptions! settings, AgentPrism.AgentPrismEgressOptions! egress, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.WebhookUrlVerdict>
+~override AgentPrism.EgressAddressPolicy.Equals(object obj) -> bool
+~override AgentPrism.EgressAddressPolicy.ToString() -> string
+~override AgentPrism.EgressAddressVerdict.Equals(object obj) -> bool
+~override AgentPrism.EgressAddressVerdict.ToString() -> string
+AgentPrism.EgressSocketGuard.CreateHttpClient(System.TimeSpan timeout) -> System.Net.Http.HttpClient!
+static AgentPrism.EgressAddressValidator.ValidateAddresses(System.Net.IPAddress![]! addresses, AgentPrism.EgressAddressPolicy policy) -> AgentPrism.EgressAddressVerdict

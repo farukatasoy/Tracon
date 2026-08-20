@@ -57,14 +57,14 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     {
         await Store.SaveSubscriptionAsync(Subscription(
             events: ["run.completed", "run.failed"],
-            secretKey: "AgentPrism:Webhooks:Secrets:orders"));
+            secretKey: "AgentPrism:WebhookSecrets:orders"));
 
         var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
 
         loaded.ShouldNotBeNull();
         loaded.Url.ShouldBe("https://example.com/hook");
         loaded.Events.ShouldBe(["run.completed", "run.failed"]);
-        loaded.SecretConfigurationKey.ShouldBe("AgentPrism:Webhooks:Secrets:orders");
+        loaded.SecretConfigurationKey.ShouldBe("AgentPrism:WebhookSecrets:orders");
         loaded.Enabled.ShouldBeTrue();
     }
 

@@ -46,6 +46,8 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     private readonly ILogger<McpOAuthAuthorizationCoordinator> _logger;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly McpToolCatalog _catalog;
+    private readonly EgressSocketGuard? _egressGuard;
+    private readonly string _allowedConfigurationPrefix;
 
     private readonly ConcurrentDictionary<string, PendingAuthorization> _pending = new(StringComparer.Ordinal);
 
@@ -55,7 +57,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         IOptions<AgentPrismMcpOptions> options,
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
-        McpToolCatalog catalog)
+        McpToolCatalog catalog,
+        EgressSocketGuard? egressGuard = null,
+        IOptions<AgentPrismMcpSecurityOptions>? securityOptions = null)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -71,6 +75,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         _logger = loggerFactory.CreateLogger<McpOAuthAuthorizationCoordinator>();
         _tokenCaches = tokenCaches;
         _catalog = catalog;
+        _egressGuard = egressGuard;
+        _allowedConfigurationPrefix = (securityOptions?.Value ?? new AgentPrismMcpSecurityOptions())
+            .AllowedConfigurationPrefix;
     }
 
     /// <inheritdoc />
@@ -205,7 +212,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                 OAuth = new ClientOAuthOptions
                 {
                     ClientId = server.OAuthClientId,
-                    ClientSecret = McpTransportFactory.ResolveClientSecret(server, _configuration, _logger),
+                    ClientSecret = McpTransportFactory.ResolveClientSecret(server, _configuration, _allowedConfigurationPrefix, _logger),
                     Scopes = McpTransportFactory.ParseScopes(server.OAuthScopes),
                     RedirectUri = McpTransportFactory.BuildCallbackUri(baseUri, server.Name),
                     TokenCache = tokenCache,
@@ -218,7 +225,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                 },
             };
 
-            var transport = new HttpClientTransport(transportOptions, _loggerFactory);
+            var transport = McpTransportFactory.CreateTransport(transportOptions, _egressGuard, _loggerFactory);
 
             // A reasonable upper bound for the administrator to grant consent on the provider.
             using var timeout = new CancellationTokenSource(AuthorizationWindow);

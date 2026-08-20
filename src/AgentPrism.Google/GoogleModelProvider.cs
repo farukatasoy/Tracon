@@ -31,6 +31,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
     // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); cached
     // entries here are never disposed, the same bounded, admin-controlled
     // trade-off ProviderCredentialClientCache documents.
+    private readonly EgressSocketGuard? _egressGuard;
     private readonly ProviderCredentialClientCache<GoogleChatClientFactory> _credentialFactories = new();
 
     /// <summary>Creates a new provider.</summary>
@@ -43,6 +44,11 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
     /// the address and key from these settings. When <see langword="null"/>, health
     /// status is always <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
+    /// <param name="egressGuard">
+    /// The outbound network guard. Attached only to a client built from a
+    /// tenant-supplied endpoint override; when <see langword="null"/>, such an
+    /// override is not guarded.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public GoogleModelProvider(
@@ -50,7 +56,8 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         GoogleChatClientFactory chatClientFactory,
         IReadOnlyList<ModelDescriptor> models,
         ILogger<GoogleModelProvider>? logger = null,
-        GoogleProviderOptions? healthCheckOptions = null)
+        GoogleProviderOptions? healthCheckOptions = null,
+        EgressSocketGuard? egressGuard = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -65,6 +72,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
         _baseOptions = healthCheckOptions;
+        _egressGuard = egressGuard;
     }
 
     /// <inheritdoc />
@@ -104,11 +112,16 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
             Timeout = _baseOptions?.Timeout,
         };
 
-        options.Endpoint = credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-            ? endpointUri
-            : _baseOptions?.Endpoint;
+        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
+            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                ? endpointUri
+                : null;
 
-        return new GoogleChatClientFactory(options);
+        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+
+        return GoogleChatClientFactory.FromClient(
+            GoogleChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint)),
+            options.DefaultModel);
     }
 
     /// <inheritdoc />
@@ -153,4 +166,18 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
                 Name);
         }
     }
+
+    /// <summary>
+    /// Returns the guard to attach to a per-tenant client, or
+    /// <see langword="null"/> when none is needed.
+    /// </summary>
+    /// <remarks>
+    /// The guard is attached <strong>only</strong> when the endpoint came
+    /// from the tenant's binding. A setup-time endpoint is the operator's own
+    /// decision and is written in code — guarding it would break sovereign
+    /// cloud and internal-proxy setups that are deliberately private. A
+    /// tenant-supplied override is outside input and is guarded.
+    /// </remarks>
+    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
+        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

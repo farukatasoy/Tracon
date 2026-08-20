@@ -124,6 +124,12 @@ public sealed class GoogleChatClientFactory : IDisposable
 
     /// <summary>Builds a Google GenAI client from settings.</summary>
     /// <param name="options">Provider settings.</param>
+    /// <param name="egressGuard">
+    /// When given, every connection this client opens passes through the
+    /// outbound network guard. Supplied only for a tenant-supplied endpoint
+    /// override; a setup-time endpoint is the operator's own decision and is
+    /// written in code.
+    /// </param>
     /// <returns>The built client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException"><see cref="GoogleProviderOptions.ApiKey"/> is empty.</exception>
@@ -133,7 +139,7 @@ public sealed class GoogleChatClientFactory : IDisposable
     /// process-wide state, which would make it impossible to use two different
     /// Gemini endpoints in the same application.
     /// </remarks>
-    public static Client CreateClient(GoogleProviderOptions options)
+    public static Client CreateClient(GoogleProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -157,7 +163,18 @@ public sealed class GoogleChatClientFactory : IDisposable
             };
         }
 
-        return new Client(apiKey: options.ApiKey, httpOptions: httpOptions);
+        // 🚨 Measured, not guessed: the Google SDK's hook is a factory
+        // (Google.GenAI.Types.ClientOptions.HttpClientFactory), not a client
+        // instance. The SDK calls it when it needs a client.
+        var clientOptions = egressGuard is null
+            ? null
+            : new Google.GenAI.Types.ClientOptions
+            {
+                // Infinite on purpose: the request bound is HttpOptions.Timeout.
+                HttpClientFactory = () => egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan),
+            };
+
+        return new Client(apiKey: options.ApiKey, httpOptions: httpOptions, clientOptions: clientOptions);
     }
 
     /// <inheritdoc />

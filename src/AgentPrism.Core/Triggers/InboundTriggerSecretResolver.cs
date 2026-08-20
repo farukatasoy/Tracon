@@ -41,21 +41,10 @@ public sealed class InboundTriggerSecretResolver
     /// <see cref="AgentPrismInboundTriggerOptions.AllowedConfigurationPrefix"/>.
     /// </exception>
     public void ValidatePrefix(string configurationKeyName)
-    {
-        if (string.IsNullOrWhiteSpace(configurationKeyName))
-        {
-            throw new AgentPrismException("'signingSecretConfigurationName' cannot be empty.");
-        }
-
-        var prefix = _options.CurrentValue.AllowedConfigurationPrefix;
-
-        if (!configurationKeyName.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            throw new AgentPrismException(
-                $"'{configurationKeyName}' is outside the allowed prefix. A trigger's signing " +
-                $"secret may only reference a configuration key under '{prefix}'.");
-        }
-    }
+        => ConfigurationKeyGuard.RequirePrefix(
+            configurationKeyName,
+            _options.CurrentValue.AllowedConfigurationPrefix,
+            "signingSecretConfigurationName");
 
     /// <summary>Resolves a trigger's signing secret by reading its configuration key.</summary>
     /// <param name="trigger">The trigger to resolve.</param>

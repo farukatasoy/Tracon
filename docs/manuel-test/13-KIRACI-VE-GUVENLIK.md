@@ -2432,3 +2432,88 @@ ayarlanmış bir kopyası — bkz. faz dokümanı) çağıran bir `run`.
   reported to the model.` uyarısı görünür — gövde arka planda gerçekten
   bitmiştir, yalnız BEKLEME kesilmiştir. **Belgelenmiş sınır**: `run`'ın
   kendisi bu ikinci tamamlanmayı bir olay olarak yazmaz.
+
+---
+
+### MT-SEC-128 — Kiracı sağlayıcı `Endpoint`'i özel ağa işaret ediyor: reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-530 |
+
+**Ön koşul** Varsayılan ayarlar (`AgentPrism:Egress:AllowPrivateNetworkTargets`
+tanımlı DEĞİL). Örnek uygulama ayakta.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/tenants/acme/providers/anthropic" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"apiKeyConfigurationName":"AgentPrism:ProviderKeys:acme","endpoint":"http://10.0.0.5/"}' \
+  | jq -r '.detail'
+```
+
+**Beklenen sonuç**
+- `400`. `detail` şu metni içerir:
+  `The target resolves to a private network address (10.0.0.5); set
+  'AgentPrism:Egress:AllowPrivateNetworkTargets' to true to allow it.`
+- Mesaj ayarın **adını** yazar — iç ağda gerçekten sağlayıcı proxy'si olan bir
+  operatörün yolu kapanmaz.
+- `endpoint` alanı hiç verilmezse istek `200` döner: kısıt yalnız override'a uygulanır.
+
+---
+
+### MT-SEC-129 — Webhook `secretConfigurationKey` önek dışında: reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-533 |
+
+**Ön koşul** Örnek uygulama ayakta.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/webhooks/orders" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://hooks.example.com/o","events":["run.completed"],
+       "secretConfigurationKey":"ConnectionStrings:Default"}' | jq -r '.detail'
+```
+
+**Beklenen sonuç**
+- `400`. `detail`: `'ConnectionStrings:Default' is outside the allowed prefix.
+  'secretConfigurationKey' may only reference a configuration key under
+  'AgentPrism:WebhookSecrets:'.`
+- Aynı istek `"secretConfigurationKey":"AgentPrism:WebhookSecrets:orders"` ile
+  `200` döner.
+- `secretConfigurationKey` hiç verilmezse `200` — alan opsiyoneldir.
+
+---
+
+### MT-SEC-130 — Webhook ek başlığı imza başlığının adını taşıyor: gönderilmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-535 |
+
+**Ön koşul** Alıcı tarafta başlıkları yazdıran bir dinleyici (örn. `nc -l 9099`
+veya bir webhook echo servisi) ve ona işaret eden etkin bir abonelik.
+
+**Adımlar**
+1. Aboneliğe `headers` içinde `{"X-AgentPrism-Signature":"sahte"}` ekle.
+2. Bir `run` tamamlanmasını tetikle ve alıcının aldığı ham isteği incele.
+3. Sunucu loglarını oku.
+
+**Beklenen sonuç**
+- Alıcıya **tek bir** `X-AgentPrism-Signature` başlığı ulaşır ve değeri
+  AgentPrism'in hesapladığı imzadır — `sahte` değildir.
+- Sunucu logunda uyarı: `Webhook subscription 'orders' carries the reserved
+  header 'X-AgentPrism-Signature'; it was not sent.`
+- Sıradan adlı bir ek başlık (örn. `X-Tenant`) normal şekilde iletilir.

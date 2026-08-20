@@ -192,7 +192,7 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         loaded.ShouldNotBeNull();
         loaded.Endpoint.ToString().ShouldBe("https://example.test/mcp");
         loaded.Enabled.ShouldBeTrue();
-        loaded.AuthorizationConfigurationKey.ShouldBe("AgentPrism:Mcp:GithubToken");
+        loaded.AuthorizationConfigurationKey.ShouldBe("AgentPrism:McpSecrets:GithubToken");
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
             Name = name,
             Description = "Sample server.",
             Endpoint = new Uri("https://example.test/mcp"),
-            AuthorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+            AuthorizationConfigurationKey = "AgentPrism:McpSecrets:GithubToken",
             Enabled = true,
         };
 }

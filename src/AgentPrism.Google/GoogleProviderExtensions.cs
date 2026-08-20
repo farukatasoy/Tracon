@@ -117,7 +117,8 @@ public static class GoogleProviderExtensions
                 provider.GetRequiredService<GoogleChatClientFactory>(),
                 GoogleModelCatalog.Build(options),
                 provider.GetService<ILogger<GoogleModelProvider>>(),
-                healthCheckOptions: options);
+                healthCheckOptions: options,
+                egressGuard: provider.GetService<EgressSocketGuard>());
         });
 
         return builder;

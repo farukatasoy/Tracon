@@ -141,7 +141,8 @@ public static class AzureOpenAIProviderExtensions
                 provider.GetRequiredService<AzureOpenAIChatClientFactory>(),
                 AzureOpenAIModelCatalog.Build(options),
                 provider.GetService<ILogger<AzureOpenAIModelProvider>>(),
-                healthCheckOptions: options);
+                healthCheckOptions: options,
+                egressGuard: provider.GetService<EgressSocketGuard>());
         });
 
         return builder;

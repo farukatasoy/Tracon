@@ -1185,7 +1185,7 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 
 **Beklenen sonuç**
 - Sütun ya OAuth istemci kimliğini ya da yapılandırma ANAHTARI ADINI
-  gösterir (`AgentPrism:Mcp:GithubToken` gibi) — asla gerçek bir token/
+  gösterir (`AgentPrism:McpSecrets:GithubToken` gibi) — asla gerçek bir token/
   şifre DEĞERİ göstermez. Bu, MT-MCP-007'nin API seviyesindeki kanıtının
   arayüz tarafındaki karşılığıdır.
 
@@ -1337,3 +1337,142 @@ başlangıç koruması hâlâ vardır.
   olamayacağını zorlar. Bu, MT-MCP-052'nin gösterdiği boşluğun bilinçli
   olarak dar tutulduğunun (yalnız loopback'te izin verilir) kanıtıdır.
 - Case sonrası `Program.cs` değişikliği GERİ ALINIR.
+
+---
+
+### MT-MCP-054 — MCP `endpoint`'i metadata adresine işaret ediyor: reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-529 · K-530 |
+
+**Ön koşul** Varsayılan ayarlar (`AgentPrism:Egress:AllowPrivateNetworkTargets`
+tanımlı DEĞİL). Örnek uygulama ayakta.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"endpoint":"http://169.254.169.254/","transport":"StreamableHttp"}' \
+  | jq -r '.detail'
+```
+
+**Beklenen sonuç**
+- `400`. `detail`: `The target resolves to a private network address
+  (169.254.169.254); set 'AgentPrism:Egress:AllowPrivateNetworkTargets' to true
+  to allow it.`
+- Aynısı `http://10.0.0.5:8080/mcp`, `https://192.168.1.10/mcp`,
+  `http://127.0.0.1:9000/mcp` ve NAT64 biçimi
+  `http://[64:ff9b::a9fe:a9fe]/mcp` için de geçerlidir.
+- **Ad** taşıyan bir adres (`https://mcp.example.com/`) `200` döner: kaydetme
+  anında DNS çözülmez. O adresin özel bir IP'ye çözülmesi hâlinde bağlantı,
+  kurulduğu anda `EgressSocketGuard` tarafından reddedilir.
+
+---
+
+### MT-MCP-055 — Ayar açıkken aynı kayıt kabul edilir (yükseltme yolu)
+
+| | |
+|---|---|
+| **İzlek** | A (izole — uygulama yeniden başlatılır) |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-530 |
+
+**Ön koşul** Uygulamayı `AgentPrism__Egress__AllowPrivateNetworkTargets=true`
+ortam değişkeniyle başlat.
+
+**Adımlar** MT-MCP-054'ün ilk komutunu tekrarla.
+
+**Beklenen sonuç**
+- `200`; kayıt oluşur. İç ağında MCP sunucusu çalıştıran bir kurulumun
+  yükseltme yolu budur ve **tek satırdır**.
+- 🚨 Ayar `AgentPrism` bölümünün altındadır (`AgentPrism:Egress:...`). Bu case
+  aynı zamanda ayarın gerçekten **bağlandığını** ölçer — tanımlı ama okunmayan
+  bir ayar sınıfı bu repoda daha önce yaşandı (K-406).
+
+---
+
+### MT-MCP-056 — MCP yapılandırma anahtarı önek dışında: reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-533 · K-534 |
+
+**Ön koşul** Örnek uygulama ayakta.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"endpoint":"https://mcp.example.com/","transport":"StreamableHttp",
+       "authorizationConfigurationKey":"ConnectionStrings:Default"}' | jq -r '.detail'
+```
+
+**Beklenen sonuç**
+- `400`. `detail`: `'ConnectionStrings:Default' is outside the allowed prefix.
+  'authorizationConfigurationKey' may only reference a configuration key under
+  'AgentPrism:McpSecrets:'.`
+- `authorizationConfigurationKey` yerine `oauthClientSecretConfigurationKey`
+  kullanıldığında (OAuth açıkken) aynı red, alan adı değişerek gelir.
+- `AgentPrism:McpSecrets:Token` ile aynı istek `200` döner.
+
+---
+
+### MT-MCP-057 — Faz öncesi öneksiz kayıt: okunur ama yeniden kaydedilemez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-533 |
+
+**Ön koşul** Veritabanında `authorization_configuration_key` sütunu
+`AgentPrism:Mcp:LegacyToken` (önek DIŞI) olan bir MCP kaydı. Faz 77 öncesi
+kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
+
+**Adımlar**
+1. `curl -s "$APU/api/mcp-servers" -H "$APB" | jq` — listeyi oku.
+2. Arayüzden kaydı aç, **hiçbir şey değiştirmeden** kaydet.
+
+**Beklenen sonuç**
+- Adım 1 `200` döner ve kayıt listede görünür: **okuma etkilenmez.** Operatör
+  neyi düzelteceğini görebilmelidir.
+- Adım 2 `400` döner ve mesaj hem alan adını (`authorizationConfigurationKey`)
+  hem izinli öneki (`AgentPrism:McpSecrets:`) yazar.
+- Düzeltme elle yapılır: anahtar adı öneke taşınır ve `dotnet user-secrets`
+  içindeki değer yeni adla yazılır. Taşıma yardımcısı **yoktur** ve bilinçlidir
+  (kayıt başına tek alan; değer değil **ad** taşınır).
+
+---
+
+### MT-MCP-058 — 👤 İç ağdaki gerçek MCP sunucusu: önce red, ayar sonrası bağlantı
+
+| | |
+|---|---|
+| **İzlek** | A (izole — insan gerekir, gerçek iç ağ) |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 77 |
+| **İlgili karar** | K-529 · K-530 |
+
+**Ön koşul** İç ağda gerçekten erişilebilir, çalışan bir MCP sunucusu (örn.
+`http://10.0.0.12:3000/mcp`) ve varsayılan ayarlar.
+
+**Adımlar**
+1. Sunucuyu kaydetmeyi dene.
+2. `AgentPrism__Egress__AllowPrivateNetworkTargets=true` ile yeniden başlat, tekrar kaydet.
+3. Tool listesinin tazelenmesini bekle ve `GET $APU/api/tools` ile tool'ları gör.
+
+**Beklenen sonuç**
+- Adım 1'de `400`.
+- Adım 2'de `200`.
+- Adım 3'te sunucunun tool'ları listelenir — yani muhafız yalnız kaydetmeyi
+  değil, **gerçek bağlantıyı** da geçirir. Bu, `ConnectCallback` içindeki
+  denetimin çalışan bir bağlantıyı yanlışlıkla kesmediğini kanıtlayan tek case'tir.

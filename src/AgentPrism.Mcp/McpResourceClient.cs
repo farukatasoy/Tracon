@@ -20,6 +20,8 @@ internal sealed class McpResourceClient : IMcpResourceClient
     private readonly IOptions<AgentPrismMcpOptions> _options;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly EgressSocketGuard? _egressGuard;
+    private readonly string _allowedConfigurationPrefix;
     private readonly ILogger<McpResourceClient> _logger;
 
     public McpResourceClient(
@@ -27,7 +29,9 @@ internal sealed class McpResourceClient : IMcpResourceClient
         IConfiguration configuration,
         IOptions<AgentPrismMcpOptions> options,
         McpOAuthTokenCacheRegistry tokenCaches,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        EgressSocketGuard? egressGuard = null,
+        IOptions<AgentPrismMcpSecurityOptions>? securityOptions = null)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -41,6 +45,9 @@ internal sealed class McpResourceClient : IMcpResourceClient
         _tokenCaches = tokenCaches;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<McpResourceClient>();
+        _egressGuard = egressGuard;
+        _allowedConfigurationPrefix = (securityOptions?.Value ?? new AgentPrismMcpSecurityOptions())
+            .AllowedConfigurationPrefix;
     }
 
     /// <inheritdoc />
@@ -144,6 +151,8 @@ internal sealed class McpResourceClient : IMcpResourceClient
             _tokenCaches,
             _loggerFactory,
             _logger,
+            _egressGuard,
+            _allowedConfigurationPrefix,
             cancellationToken);
 
     private static McpResourceSummary Project(McpClientResource resource)

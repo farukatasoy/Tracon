@@ -11030,7 +11030,7 @@
               "null",
               "string"
             ],
-            "description": "The configuration key the \u0060Authorization\u0060 header\u0027s value is read\nfrom. Example: \u0060AgentPrism:Mcp:GithubToken\u0060. If left empty, the\nheader is not sent."
+            "description": "The configuration key the \u0060Authorization\u0060 header\u0027s value is read\nfrom. Example: \u0060AgentPrism:McpSecrets:GithubToken\u0060. If left empty, the\nheader is not sent."
           },
           "headers": {
             "type": "object",
@@ -11115,7 +11115,7 @@
               "null",
               "string"
             ],
-            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060AgentPrism:Mcp:GithubToken\u0060."
+            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060AgentPrism:McpSecrets:GithubToken\u0060."
           },
           "headers": {
             "type": [

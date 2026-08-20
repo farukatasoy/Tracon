@@ -31,6 +31,20 @@ public static class WebhookSigner
     /// <summary>The header that carries the signature.</summary>
     public const string SignatureHeader = "X-AgentPrism-Signature";
 
+    /// <summary>Reports whether a header name is one AgentPrism sets itself.</summary>
+    /// <param name="name">The header name to check.</param>
+    /// <returns><see langword="true"/> if the name is reserved.</returns>
+    /// <remarks>
+    /// A subscription's extra headers are administrator input. Letting one of
+    /// them carry a reserved name would append a second value to a header the
+    /// recipient verifies, which the recipient cannot resolve.
+    /// </remarks>
+    public static bool IsReservedHeader(string? name)
+        => string.Equals(name, EventHeader, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, DeliveryHeader, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, TimestampHeader, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, SignatureHeader, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Produces a signature for a body and timestamp.</summary>
     /// <param name="body">The JSON body to send.</param>
     /// <param name="timestamp">The request's timestamp.</param>

@@ -38,6 +38,31 @@ public sealed class AgentPrismWebhookOptions
     /// </remarks>
     public bool AllowInsecureHttp { get; set; }
 
+    /// <summary>
+    /// Gets or sets the only prefix under which a configuration key may be
+    /// referenced as a subscription's signing secret. Default is
+    /// <c>"AgentPrism:WebhookSecrets:"</c>.
+    /// </summary>
+    /// <remarks>
+    /// A security boundary, not a convenience default — the same rationale as
+    /// <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>.
+    /// Without it, a subscription could name an unrelated configuration key as
+    /// its "signing secret" and AgentPrism would sign deliveries with a value
+    /// that was never meant to leave the process.
+    /// </remarks>
+    public string AllowedConfigurationPrefix { get; set; } = "AgentPrism:WebhookSecrets:";
+
+    /// <summary>
+    /// Gets or sets how many extra headers a subscription may add to a
+    /// delivery. Default 20.
+    /// </summary>
+    /// <remarks>
+    /// Extra headers are administrator input and travel on every delivery.
+    /// Headers whose name AgentPrism sets itself are always dropped, whatever
+    /// this limit is.
+    /// </remarks>
+    public int MaxExtraHeaders { get; set; } = 20;
+
     /// <summary>The timeout for a single delivery attempt.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 

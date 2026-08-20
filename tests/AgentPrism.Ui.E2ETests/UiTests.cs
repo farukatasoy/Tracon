@@ -758,7 +758,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" }).ClickAsync();
 
-        // The placeholder "github" also matches "AgentPrism:Mcp:GithubToken";
+        // The placeholder "github" also matches "AgentPrism:McpSecrets:GithubToken";
         // an exact match must be requested.
         await session.Page.GetByPlaceholder("github", new() { Exact = true }).FillAsync("sample");
         await session.Page.GetByPlaceholder("https://mcp.example.com/mcp")
@@ -1251,14 +1251,14 @@ public sealed class UiTests(BrowserFixture browsers)
         // 🚨 What goes here is NOT a secret, it is the NAME of the key the
         // secret will be read from.
         await session.Page.GetByTestId("webhook-secret-key")
-            .FillAsync("AgentPrism:Webhooks:Secrets:order-service");
+            .FillAsync("AgentPrism:WebhookSecrets:order-service");
 
         await session.Page.GetByTestId("webhook-save").ClickAsync();
 
         await session.Page.GetByTestId("webhook-row").First.WaitForAsync(new() { Timeout = 15_000 });
 
         // The key's name appears on screen; its value never does.
-        await session.Page.GetByText("AgentPrism:Webhooks:Secrets:order-service", new() { Exact = false })
+        await session.Page.GetByText("AgentPrism:WebhookSecrets:order-service", new() { Exact = false })
             .First.WaitForAsync();
 
         await session.Page.GetByTestId("webhook-test").First.ClickAsync();

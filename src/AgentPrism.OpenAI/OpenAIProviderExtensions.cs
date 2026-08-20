@@ -143,7 +143,8 @@ public static class OpenAIProviderExtensions
             provider.GetRequiredService<OpenAIChatClientFactory>(),
             OpenAIModelCatalog.Build(options),
             provider.GetService<ILogger<OpenAIModelProvider>>(),
-            healthCheckOptions: options);
+            healthCheckOptions: options,
+            egressGuard: provider.GetService<EgressSocketGuard>());
     }
 
     /// <summary>

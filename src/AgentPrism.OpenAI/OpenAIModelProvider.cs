@@ -35,6 +35,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     // tenant credential cannot reuse it — a second client is built and cached
     // per distinct credential, the same pattern OpenAINamedChatClientFactoryCache
     // already uses for named OpenAI-compatible providers.
+    private readonly EgressSocketGuard? _egressGuard;
     private readonly ProviderCredentialClientCache<OpenAIChatClientFactory> _credentialFactories = new();
 
     /// <summary>Initializes a new provider.</summary>
@@ -58,6 +59,11 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     /// <see langword="null"/> because it takes the key freely in code (there is no fixed
     /// section path); in that case no <see cref="ConfigurationDiagnostic"/> is reported.
     /// </param>
+    /// <param name="egressGuard">
+    /// The outbound network guard. Attached only to a client built from a
+    /// tenant-supplied endpoint override; when <see langword="null"/>, such an
+    /// override is not guarded.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public OpenAIModelProvider(
@@ -67,7 +73,8 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         IReadOnlyList<ModelDescriptor> models,
         ILogger<OpenAIModelProvider>? logger = null,
         OpenAIProviderOptions? healthCheckOptions = null,
-        string? configurationSectionKey = OpenAIProviderOptions.SectionName)
+        string? configurationSectionKey = OpenAIProviderOptions.SectionName,
+        EgressSocketGuard? egressGuard = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -83,6 +90,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions);
         _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions, configurationSectionKey);
         _baseOptions = healthCheckOptions;
+        _egressGuard = egressGuard;
     }
 
     /// <inheritdoc />
@@ -133,16 +141,14 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
             Timeout = _baseOptions?.Timeout,
         };
 
-        if (credential.Endpoint is { Length: > 0 } endpoint && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
-        {
-            options.Endpoint = endpointUri;
-        }
-        else
-        {
-            options.Endpoint = _baseOptions?.Endpoint;
-        }
+        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
+            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+                ? endpointUri
+                : null;
 
-        var client = OpenAIChatClientFactory.CreateClient(options);
+        options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
+
+        var client = OpenAIChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint));
 
         return OpenAIChatClientFactory.FromClient(client, options.DefaultModel);
     }
@@ -193,4 +199,18 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
                 Name);
         }
     }
+
+    /// <summary>
+    /// Returns the guard to attach to a per-tenant client, or
+    /// <see langword="null"/> when none is needed.
+    /// </summary>
+    /// <remarks>
+    /// The guard is attached <strong>only</strong> when the endpoint came
+    /// from the tenant's binding. A setup-time endpoint is the operator's own
+    /// decision and is written in code — guarding it would break sovereign
+    /// cloud and internal-proxy setups that are deliberately private. A
+    /// tenant-supplied override is outside input and is guarded.
+    /// </remarks>
+    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
+        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

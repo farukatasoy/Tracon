@@ -214,7 +214,7 @@ ayrışır. Tipli anahtar bunu belgelemek yerine **ortadan kaldırır**.
 
 ---
 
-### B05-2 · MCP `AuthorizationConfigurationKey`'de prefix kısıtı yok; `secret` ağdan çıkar · CONFIRMED · AÇIK
+### B05-2 · MCP `AuthorizationConfigurationKey`'de prefix kısıtı yok; `secret` ağdan çıkar · CONFIRMED · **KAPANDI (Faz 77)**
 
 **Yer:** doğrulama `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs:774-826`
 · kullanım `src/AgentPrism.Mcp/Internal/McpTransportFactory.cs:110`, `:60`, `:64`
@@ -540,7 +540,7 @@ uygular; grant store uygulamaz.
 
 ---
 
-### B05-3 · MCP sunucu adresi hiçbir SSRF denetiminden geçmez · CONFIRMED · AÇIK
+### B05-3 · MCP sunucu adresi hiçbir SSRF denetiminden geçmez · CONFIRMED · **KAPANDI (Faz 77)**
 
 **Yer:** `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs:784-803` ·
 `src/AgentPrism.Mcp/Internal/McpTransportFactory.cs:19-23`
@@ -556,7 +556,7 @@ gömdü. MCP transport'u ayrı bir `HttpClientTransport` kullanır.
 
 ---
 
-### B05-4 · Kiracı model sağlayıcı `Endpoint` override'ı doğrulanmadan saklanır · CONFIRMED · AÇIK
+### B05-4 · Kiracı model sağlayıcı `Endpoint` override'ı doğrulanmadan saklanır · CONFIRMED · **KAPANDI (Faz 77)**
 
 **Yer:** `src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs:163` ·
 kullanım `src/AgentPrism.Anthropic/AnthropicModelProvider.cs:107` ·
@@ -662,7 +662,7 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 |---|---|---|
 | B02-5 | `SqlPendingApprovalStore.ExpireAsync` tüm kiracıları tarar ama `[TenantAgnostic]` **taşımaz**; bunun yerine `Covered` listesine yazılarak K-281 kapısı susturulmuştur. Arayüz belgesi (`IPendingApprovalStore.cs:58-61`) attribute'ü açıkça vaat eder | `SqlPendingApprovalStore.cs:102-113` · `tests/Shared/Contracts/TenantCoverageTests.cs:92` |
 | B02-6 | `TenantCoverageTests` yalnız adı `Sql` ile başlayan tipleri tarar; `PgVectorSearchStore` kapının tamamen dışındadır. Kodu bugün temizdir — bulgu **kapının kendisindedir** | `tests/Shared/Contracts/TenantCoverageTests.cs:200` · `PgVectorSearchStore.cs:53,123,173,193` |
-| B05-6 | K-164'ün gerçek zorlama noktası `WebhookSocketGuard`'ın testi yoktur (`grep -rl "WebhookSocketGuard" tests` boş). Guard, çözüm+denetim döngüsünü `ValidateResolvedAsync`'ten **kopyalar** | `src/AgentPrism.Core/Webhooks/WebhookSocketGuard.cs` |
+| B05-6 · **KAPANDI (Faz 77)** | K-164'ün gerçek zorlama noktası `WebhookSocketGuard`'ın testi yoktur (`grep -rl "WebhookSocketGuard" tests` boş). Guard, çözüm+denetim döngüsünü `ValidateResolvedAsync`'ten **kopyalar** | `src/AgentPrism.Core/Webhooks/WebhookSocketGuard.cs` → `EgressSocketGuard`; kopya döngü silindi, `EgressAddressValidatorTests` + `EgressGuardTests` |
 | B06-6 | Kötücül tanımlayıcı testi yalnız PostgreSQL'dedir. SQL Server `SchemaName` ve SQLite `TablePrefix` karşılığı yoktur | `tests/AgentPrism.PostgreSql.IntegrationTests/MigrationTests.cs:196-215` |
 | B09-1 | `EmbeddedUiProvider` path traversal koruması **kod yapısından** gelir (dictionary-only lookup), testle kilitlenmemiştir | `src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs:91` |
 
@@ -675,7 +675,7 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 | B03-6 | Tek bir doğrudan `IAuditLog` yazımı `AuditSecretFilter`'ı hiç çağırmaz. Bugünkü yük secret taşımaz; sapma tutarlılık boşluğudur | `DataSubjectEndpoints.cs:123-131` |
 | B04-6 | `script.run` kaydı hiç başlamayan çalıştırmalar için de yazılır. Yön güvenlidir (fazla kayıt), ama "kim ne çalıştırdı" cevabını kirletir | `SandboxedSkillScriptRunner.cs:299-307` |
 | B04-7 | Kapı zinciri `DenyAsync`'in her zaman fırlatmasına bağlıdır; `[DoesNotReturn]` yoktur, tip sistemi zorlamaz | `SandboxedSkillScriptRunner.cs:267-276`, `:196-214` |
-| B05-5 | Webhook aboneliğinin ek başlıkları hiç doğrulanmaz ve sayı/boyut sınırı yoktur. `X-AgentPrism-Signature` adlı bir giriş alıcının doğrulamasını bozar | `WebhookEndpoints.cs:190` · `WebhookDeliveryJobHandler.cs:242` |
+| B05-5 · **KAPANDI (Faz 77)** | Webhook aboneliğinin ek başlıkları hiç doğrulanmaz ve sayı/boyut sınırı yoktur. `X-AgentPrism-Signature` adlı bir giriş alıcının doğrulamasını bozar | `WebhookSigner.IsReservedHeader` + `AgentPrismWebhookOptions.MaxExtraHeaders`; `WebhookDeliveryHeaderTests` |
 | B07-2 | Üç pin'in üst paketleri CVE'yi kendi floor'una gömmüştür (`Microsoft.AspNetCore.OpenApi` 10.0.11, `Testcontainers` 4.14.0). Pin şu an gereklidir; üst sürüme geçilirse düşer | `Directory.Packages.props:207`, `:238-239` |
 
 ### 🟢 PLAUSIBLE
@@ -684,7 +684,7 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 |---|---|---|
 | B02-8 | `TenantPrefixingAgentFileStore.Rewrite` `..` normalize etmez. Kalıcı uygulama güvenlidir; MAF `InMemoryAgentFileStore.NormalizeRelativePath` davranışı doğrulanamadı. Ayrıca `".."` biçimsel olarak geçerli bir `tenant_id`'dir | `TenantPrefixingAgentFileStore.cs:115-128` |
 | B02-9 | `CompiledAgentCache.Evict(name)` kiracı ayırt etmez; gürültülü komşu maliyeti. Sızıntı yönü terstir | `CompiledAgentCache.cs:186-196` |
-| B05-7 | `WebhookUrlValidator.IsPrivate` NAT64 (`64:ff9b::/96`) ve IPv4-uyumlu IPv6 (`::a.b.c.d`) biçimlerini kapsamaz | `WebhookUrlValidator.cs:207-262` |
+| B05-7 · **KAPANDI (Faz 77)** | `WebhookUrlValidator.IsPrivate` NAT64 (`64:ff9b::/96`) ve IPv4-uyumlu IPv6 (`::a.b.c.d`) biçimlerini kapsamaz | `EgressAddressValidator.TryGetEmbeddedIPv4` — NAT64, IPv4-uyumlu, IPv4-çevrilmiş ve 6to4 birlikte; `EgressAddressValidatorTests` |
 | B05-8 | Alıcının yanıt gövdesi (8 KB'a kadar) `Error` alanına yazılır ve yönetici API'sinden döner | `WebhookDeliveryJobHandler.cs:258` |
 | B06-4 | Saklama arşivi ek dosyaların ham baytlarını `SELECT *` ile dışarı yazar; veri konusu ihracı aynı sütunu bilerek dışlar. Dışlama gerekçesi **boyut**tur, gizlilik değil | `SqlDialect.cs:286` · `SqlJsonRowWriter.cs:112-113` |
 | B06-5 | Sunucu tarafı regex ön-süzgecinde zaman sınırı yoktur; istemci tarafında 2 saniyedir. `CommandTimeoutSeconds = 0` kabul edilir ve **sınırsız** belgelenir → o durumda ciddiyet 🟡'ye çıkar | `PostgresQueries.cs:1285` · `SqlAgentFileStore.cs:191` |
@@ -933,9 +933,12 @@ kapatıldı.
 **Doğrulama (2026-08-20 kapanışı):** dört kapı da temiz —
 `build` 0 uyarı · `test` **4455/4455** · `pack` · `format`.
 
-**Açık kalan tek iş:** [Faz 77](../77-GIDEN-AG-MUHAFIZI.md)'ye devredilen egress
-kalemleri (B05-2, B05-3, B05-4, B05-5, B05-6, B05-7). Üçü de **var olmayan bir
-koruma** gerektirdiği için faza gitti, kusur turuna değil.
+**Devredilen egress kalemleri KAPANDI (2026-08-20, Faz 77).** B05-2, B05-3,
+B05-4, B05-5, B05-6 ve B05-7'nin altısı da kapatıldı: koruma
+`EgressSocketGuard` + `EgressAddressValidator` + `ConfigurationKeyGuard`
+üçlüsünde ortaklaştı, üç giden yüzeyin (webhook · MCP · model sağlayıcı) hepsine
+takıldı ve K-164'ün zorlama noktası ilk testlerini aldı. Ayrıntı:
+[Faz 77](../77-GIDEN-AG-MUHAFIZI.md).
 
 Üç PLAUSIBLE kalem doğrulandı ve kapandı: B01-3 (filtre sırası), B02-7
 (`EvalRunQuery` sözleşmesi), B03-7 (`record` `ToString`). Sınıf taramasının

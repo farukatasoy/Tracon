@@ -297,7 +297,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
       >
         <TextInput
           value={secretKey}
-          placeholder="AgentPrism:Webhooks:Secrets:order-service"
+          placeholder="AgentPrism:WebhookSecrets:order-service"
           data-testid="webhook-secret-key"
           onChange={(event) => setSecretKey(event.target.value)}
         />

@@ -930,7 +930,7 @@ export const tr: Messages = {
   'webhooks.url': 'URL',
   'webhooks.urlHint': 'Hedef loopback değilse yalnız https.',
   'webhooks.signingKey': 'İmza anahtarının adı',
-  'webhooks.signingKeyHint': 'Bir yapılandırma anahtarının ADI, sırrın kendisi değil. Örnek: AgentPrism:Webhooks:Secrets:order-service',
+  'webhooks.signingKeyHint': 'Bir yapılandırma anahtarının ADI, sırrın kendisi değil. Örnek: AgentPrism:WebhookSecrets:order-service',
   'webhooks.events': 'Olaylar',
   'webhooks.event': 'Olay',
   'webhooks.code': 'Kod',

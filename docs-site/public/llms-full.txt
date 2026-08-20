@@ -165,7 +165,9 @@ experiment, and automatic rollback is off until you configure it.
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |
-| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, retry jobs, and failure disablement |
+| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, retry jobs, and failure disablement |
+| Outbound network guard | `AgentPrism:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
+| Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
 | Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
@@ -2246,13 +2248,66 @@ server and proxy logs.
 
 ## Outbound requests are guarded too
 
-A webhook address is supplied by a user and called by your server, which makes it an
-SSRF risk — cloud metadata endpoints included. Private network targets are refused by
-default, only `https` is accepted, and redirects are not followed.
+AgentPrism reaches the network from three places, and each one accepts an address that
+ultimately came from a user. That makes all three an SSRF risk — cloud metadata
+endpoints (`169.254.169.254`) included, which often hand out unauthenticated temporary
+credentials.
+
+| Surface | Address comes from |
+|---|---|
+| Webhook delivery | A subscription's `url` |
+| MCP server connections | A server definition's `endpoint` |
+| Model provider calls | A tenant's provider binding `endpoint` (BYOK) |
+
+One guard covers all three. Private network targets are refused by default:
+
+```json
+{
+  "AgentPrism": {
+    "Egress": {
+      "AllowPrivateNetworkTargets": false
+    }
+  }
+}
+```
+
+Refused ranges include `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, loopback,
+CGNAT, and the IPv6 equivalents. An IPv6 address that *embeds* an IPv4 address is
+reduced to that IPv4 address first and judged by the same rules, so
+`::ffff:169.254.169.254`, `::169.254.169.254`, `64:ff9b::a9fe:a9fe` (NAT64) and
+`2002:a9fe:a9fe::` (6to4) are all refused as well.
+
+Turn the setting on if your MCP servers really do run inside the private network. The
+rejection message names the setting, so an operator who hits it knows what to change.
 
 The check lives inside the socket connect callback, so the address that is validated
 is the address the socket connects to. Validating a URL and then calling it would
-leave a time-of-check/time-of-use gap.
+leave a time-of-check/time-of-use gap: `HttpClient` would resolve the name a second
+time, and an attacker can change the answer between the two lookups (DNS rebinding).
+Because the guard runs per connection, a name that passed when it was saved is checked
+again every time it is used.
+
+Webhook delivery keeps two extra rules of its own: only `https` is accepted (unless
+`AllowInsecureHttp` is on, which permits loopback only), and redirects are not
+followed — a redirect is an escape route into a private network.
+
+### Configuration keys are fenced too
+
+A stored record never holds a secret value; it holds the **name** of the configuration
+key the value is read from. That alone is not enough, so each name must sit under an
+allowed prefix. Without it, a record could name `ConnectionStrings:Default` as its
+"API key" and AgentPrism would send that value to a remote server.
+
+| Record | Field | Default prefix |
+|---|---|---|
+| Inbound trigger | `signingSecretConfigurationName` | `AgentPrism:TriggerSecrets:` |
+| Tenant provider binding | `apiKeyConfigurationName` | `AgentPrism:ProviderKeys:` |
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+
+Each prefix is configurable through the matching options section, and the rule is
+enforced twice: where the record is saved, and again where the value is resolved — so
+a record written before a prefix was configured cannot quietly read outside it.
 
 ## What is stored in the clear
 
@@ -2286,6 +2341,8 @@ need. Column-level encryption inside AgentPrism is a known gap, not a shipped fe
 - [ ] Retention policies exist for run events and traces
 - [ ] Encryption at rest is provided by the database or the disk — AgentPrism stores content in the clear
 - [ ] Skill script execution is left off unless you have read what it does
+- [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
+      provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
 
@@ -5379,6 +5436,50 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Orphan reconciliation | Off | Enable after choosing heartbeat and orphan thresholds |
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
+| Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+
+## Upgrading: outbound targets and configuration keys
+
+Two boundaries tightened, and both can refuse something a running setup accepted
+before. Reading is unaffected in each case; only writing and connecting change.
+
+**Private network targets are refused on all three outbound surfaces.** Webhook
+delivery already behaved this way; MCP server connections and per-tenant provider
+endpoints now do too. If your MCP servers run inside the internal network, this is a
+one-line change:
+
+```json
+{
+  "AgentPrism": {
+    "Egress": {
+      "AllowPrivateNetworkTargets": true
+    }
+  }
+}
+```
+
+The rejection message names that setting, so an operator who hits it can act without
+reading this page. `AgentPrism:Webhooks:AllowPrivateNetworkTargets` still works and
+still applies to webhook delivery only; either setting being on is enough for a
+webhook target.
+
+**Configuration key names must sit under an allowed prefix.** MCP server definitions
+and webhook subscriptions join inbound triggers and provider bindings in this rule. A
+record whose key name sits outside its prefix can still be **read** and listed, but
+saving it again is refused with a message naming both the field and the prefix.
+
+| Record | Field | Required prefix |
+|---|---|---|
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+
+Fix each record by moving the key name under the prefix and re-writing the value under
+the new name in your secret store. There is no migration helper and this is
+deliberate: it is one field per record, and what moves is a **name**, not a secret
+value. Alternatively, widen the prefix through
+`AgentPrism:Mcp:AllowedConfigurationPrefix` or
+`AgentPrism:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
+an arbitrary key removes the boundary it exists to provide.
 
 ## Release and capacity caveats
 
@@ -5410,6 +5511,8 @@ scaled without a matching quota.
 - [ ] Define retention, privacy, backup, and restore procedures for every stored data class.
 - [ ] Register `IDataSubjectResolver` if data subject export/erasure requests are part of your compliance posture.
 - [ ] Keep skill scripts and diagnostics disabled unless their operational need is explicit.
+- [ ] Decide private network egress deliberately, and move every stored configuration
+      key name under its allowed prefix before upgrading.
 
 :::caution[Production caveat]
 A SQL database makes records durable; it does not make external tool side effects
@@ -6973,6 +7076,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
 | `AgentPrism:TenantProviders` | `AgentPrismTenantProviderOptions` | `AddAgentPrism()` |
 | `AgentPrism:Webhooks` | `AgentPrismWebhookOptions` | `AddAgentPrism()` |
+| `AgentPrism:Egress` | `AgentPrismEgressOptions` | `AddAgentPrism()` |
 | `AgentPrism:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
 | `AgentPrism:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
 | `AgentPrism:Providers:Anthropic` | `AnthropicProviderOptions` | The configuration overload of `UseAnthropic()` |
@@ -6981,7 +7085,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:PostgreSql` | `AgentPrismPostgreSqlOptions` | The configuration overload of `UsePostgreSql()` |
 | `AgentPrism:SqlServer` | `AgentPrismSqlServerOptions` | The configuration overload of `UseSqlServer()` |
 | `AgentPrism:Sqlite` | `AgentPrismSqliteOptions` | The configuration overload of `UseSqlite()` |
-| `AgentPrism:Mcp` | `AgentPrismMcpOptions` | The explicit configuration overload of `UseMcp()` |
+| `AgentPrism:Mcp` | `AgentPrismMcpOptions` (connection) and `AgentPrismMcpSecurityOptions` (key prefix) | `UseMcp()`; the prefix binds through `AddAgentPrism()` |
 | `AgentPrism:Workflows` | `AgentPrismWorkflowOptions` | `UseWorkflows()` |
 | `AgentPrism:Voice` | `VoiceOptions` | `UseVoice()` |
 | `AgentPrism:Voice:Conversation` | `VoiceConversationOptions` | The configuration overload of `UseVoiceConversation()` |
@@ -7234,6 +7338,18 @@ until the built-in guard is registered; a present Pattern section is itself a
 registration signal. Knowledge stays unavailable until both the vector store and an
 embedding generator exist.
 
+### Outbound network targets
+
+| Key relative to `AgentPrism:Egress` | Default |
+|---|---:|
+| `AllowPrivateNetworkTargets` | `false` |
+
+Covers all three surfaces that reach the network: webhook delivery, MCP server
+connections, and per-tenant model provider endpoints. While it is off, a target that
+resolves to a private network address is refused — at save time for an address written
+as an IP literal, and on every connection for one written as a host name. See
+[Security](/AgentPrism/getting-started/security/#outbound-requests-are-guarded-too).
+
 ### Webhooks
 
 | Key relative to `AgentPrism:Webhooks` | Default |
@@ -7241,6 +7357,8 @@ embedding generator exist.
 | `Enabled` | `true` |
 | `AllowPrivateNetworkTargets` | `false` |
 | `AllowInsecureHttp` | `false` |
+| `AllowedConfigurationPrefix` | `AgentPrism:WebhookSecrets:` |
+| `MaxExtraHeaders` | `20` |
 | `Timeout` | 10 seconds |
 | `MaxResponseBytes` | `8192` |
 | `DisableAfterConsecutiveFailures` | `20` |
@@ -7249,6 +7367,14 @@ embedding generator exist.
 
 No request is sent while no subscription exists. Private targets, insecure HTTP, and
 redirects remain blocked by default.
+
+`AllowedConfigurationPrefix` bounds which configuration key a subscription may name as
+its signing secret; a name outside it is refused both when the subscription is saved
+and when the secret is resolved. `MaxExtraHeaders` bounds a subscription's own extra
+headers — headers whose name AgentPrism sets itself are always dropped, whatever the
+limit is. `AllowPrivateNetworkTargets` here applies to webhook delivery only; the
+shared `AgentPrism:Egress` setting covers this surface too, and either one being on is
+enough.
 
 ## Retention defaults
 
@@ -7344,9 +7470,17 @@ binding is saved and again when it is resolved. See
 | `MaxResourceBytesPerResource` | `65536` |
 | `MaxResourceBytesTotal` | `262144` |
 | `OAuthCallbackBaseUri` | `null` |
+| `AllowedConfigurationPrefix` | `AgentPrism:McpSecrets:` |
 
-`UseMcp()` without arguments uses these defaults but does not read `IConfiguration`
-implicitly. Use the explicit overload when you want the section:
+`AllowedConfigurationPrefix` belongs to `AgentPrismMcpSecurityOptions` rather than
+`AgentPrismMcpOptions`, and binds through `AddAgentPrism()` — the rule is enforced
+both where a server definition is saved and where its key is resolved, and those two
+live in packages that do not reference each other. The section name is the same, so
+it stays one section to configure. It bounds both `authorizationConfigurationKey` and
+`oauthClientSecretConfigurationKey`.
+
+The remaining keys belong to `AgentPrismMcpOptions`. `UseMcp()` without arguments uses
+those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
 
 ```csharp
 agentPrism.UseMcp(

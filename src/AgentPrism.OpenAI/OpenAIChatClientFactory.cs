@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI;
@@ -92,10 +93,16 @@ public sealed class OpenAIChatClientFactory
 
     /// <summary>Builds an OpenAI client from options.</summary>
     /// <param name="options">Provider options.</param>
+    /// <param name="egressGuard">
+    /// When given, every connection this client opens passes through the
+    /// outbound network guard. Supplied only for a tenant-supplied endpoint
+    /// override; a setup-time endpoint is the operator's own decision and is
+    /// written in code.
+    /// </param>
     /// <returns>The client that was built.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
-    public static OpenAIClient CreateClient(OpenAIProviderOptions options)
+    public static OpenAIClient CreateClient(OpenAIProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -122,6 +129,18 @@ public sealed class OpenAIChatClientFactory
         if (options.Timeout is { } timeout)
         {
             clientOptions.NetworkTimeout = timeout;
+        }
+
+        // 🚨 Measured, not guessed: OpenAIClientOptions derives from
+        // System.ClientModel's ClientPipelineOptions, which exposes a
+        // PipelineTransport rather than an HttpClient. HttpClientPipelineTransport
+        // is the adapter that lets a guarded HttpClient carry the pipeline.
+        if (egressGuard is not null)
+        {
+            // Infinite on purpose: these SDKs apply their own per-request
+            // network timeout (NetworkTimeout / ClientOptions.Timeout), and a
+            // second bound here would race with it.
+            clientOptions.Transport = new HttpClientPipelineTransport(egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan));
         }
 
         return new OpenAIClient(new ApiKeyCredential(options.ApiKey), clientOptions);

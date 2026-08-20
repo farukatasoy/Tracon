@@ -29,7 +29,8 @@ public sealed class WebhookDeliveryJobHandler(
     IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor,
     IConfiguration? configuration = null,
     TimeProvider? timeProvider = null,
-    ILogger<WebhookDeliveryJobHandler>? logger = null) : IJobHandler
+    ILogger<WebhookDeliveryJobHandler>? logger = null,
+    IOptionsMonitor<AgentPrismEgressOptions>? egressOptions = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -65,7 +66,11 @@ public sealed class WebhookDeliveryJobHandler(
 
         // 🚨 SSRF: resolved and validated again on every attempt.
         var verdict = await WebhookUrlValidator
-            .ValidateResolvedAsync(subscription.Url, options, cancellationToken)
+            .ValidateResolvedAsync(
+                subscription.Url,
+                options,
+                egressOptions?.CurrentValue ?? new AgentPrismEgressOptions(),
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (!verdict.IsAllowed)
@@ -76,6 +81,29 @@ public sealed class WebhookDeliveryJobHandler(
                 .ConfigureAwait(false);
 
             return;
+        }
+
+        // Checked here as well as where the subscription is saved: a
+        // subscription written before the prefix was configured must not
+        // silently read an out-of-prefix configuration key. Dropped rather
+        // than retried, for the same reason as a rejected address — the
+        // verdict cannot change until the record does.
+        if (subscription.SecretConfigurationKey is { Length: > 0 } secretKey)
+        {
+            try
+            {
+                ConfigurationKeyGuard.RequirePrefix(
+                    secretKey,
+                    options.AllowedConfigurationPrefix,
+                    "secretConfigurationKey");
+            }
+            catch (AgentPrismException exception)
+            {
+                await DropAsync(delivery, attempt, exception.Message, context, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return;
+            }
         }
 
         var outcome = await SendAsync(subscription, delivery, options, cancellationToken).ConfigureAwait(false);
@@ -161,6 +189,50 @@ public sealed class WebhookDeliveryJobHandler(
         };
     }
 
+    /// <summary>Adds the subscription's extra headers, within the configured limits.</summary>
+    /// <remarks>
+    /// An extra header may not carry the name of one of AgentPrism's own
+    /// headers. <c>TryAddWithoutValidation</c> <em>appends</em> rather than
+    /// replaces, so an entry named <c>X-AgentPrism-Signature</c> produced a
+    /// second signature value and broke the recipient's verification — the
+    /// recipient sees two values and cannot tell which one to check. Reserved
+    /// names are dropped, and the drop is logged so an operator can see why
+    /// the header never arrived.
+    /// </remarks>
+    private void AddExtraHeaders(
+        HttpRequestMessage request,
+        WebhookSubscription subscription,
+        AgentPrismWebhookOptions options)
+    {
+        var added = 0;
+
+        foreach (var (name, value) in subscription.Headers)
+        {
+            if (WebhookSigner.IsReservedHeader(name))
+            {
+                logger?.LogWarning(
+                    "Webhook subscription '{Subscription}' carries the reserved header '{Header}'; it was not sent.",
+                    subscription.Name,
+                    name);
+
+                continue;
+            }
+
+            if (added == options.MaxExtraHeaders)
+            {
+                logger?.LogWarning(
+                    "Webhook subscription '{Subscription}' carries more than {Limit} extra headers; the rest were not sent.",
+                    subscription.Name,
+                    options.MaxExtraHeaders);
+
+                break;
+            }
+
+            request.Headers.TryAddWithoutValidation(name, value);
+            added++;
+        }
+    }
+
     private async ValueTask<WebhookSubscription?> FindSubscriptionAsync(
         WebhookDelivery delivery,
         CancellationToken cancellationToken)
@@ -230,17 +302,14 @@ public sealed class WebhookDeliveryJobHandler(
                 timestamp.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
 
             // 🚨 The secret is read from configuration, NOT from the database (K-059).
-            if (ResolveSecret(subscription) is { Length: > 0 } secret)
+            if (ResolveSecret(subscription, options) is { Length: > 0 } secret)
             {
                 request.Headers.TryAddWithoutValidation(
                     WebhookSigner.SignatureHeader,
                     WebhookSigner.Sign(delivery.Payload, timestamp, secret));
             }
 
-            foreach (var (name, value) in subscription.Headers)
-            {
-                request.Headers.TryAddWithoutValidation(name, value);
-            }
+            AddExtraHeaders(request, subscription, options);
 
             using var response = await httpClient
                 .SendAsync(request, options.Timeout, cancellationToken)
@@ -265,14 +334,27 @@ public sealed class WebhookDeliveryJobHandler(
         {
             return new DeliveryOutcome(false, null, exception.Message);
         }
+        catch (AgentPrismException exception)
+        {
+            // The secret's configuration key sits outside the allowed prefix,
+            // or the target was rejected inside the connection callback.
+            // Neither changes on a retry, and letting the exception escape
+            // would skip the delivery result AND the consecutive-failure
+            // counter entirely, so the subscription would never disable itself.
+            return new DeliveryOutcome(false, null, exception.Message);
+        }
     }
 
-    private string? ResolveSecret(WebhookSubscription subscription)
+    private string? ResolveSecret(WebhookSubscription subscription, AgentPrismWebhookOptions options)
     {
         if (configuration is null || subscription.SecretConfigurationKey is not { Length: > 0 } key)
         {
             return null;
         }
+
+        // Already dropped in ExecuteAsync if the key sits outside the prefix;
+        // repeated here so that no future caller of this method can bypass it.
+        ConfigurationKeyGuard.RequirePrefix(key, options.AllowedConfigurationPrefix, "secretConfigurationKey");
 
         var secret = configuration[key];
 

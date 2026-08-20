@@ -120,7 +120,7 @@ public sealed record WebhookSubscription
     /// is read from. Not the secret itself.
     /// </summary>
     /// <remarks>
-    /// Example: <c>"AgentPrism:Webhooks:Secrets:order-service"</c>. The value
+    /// Example: <c>"AgentPrism:WebhookSecrets:order-service"</c>. The value
     /// lives in <c>dotnet user-secrets</c> or an environment variable. If
     /// empty, requests are not signed.
     /// </remarks>
