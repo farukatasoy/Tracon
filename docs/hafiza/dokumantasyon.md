@@ -164,3 +164,18 @@ hicbir seyi eslemez.
   durum makinesi → `stateDiagram-v2` · zaman plani → `gantt`. Turkce etiket serbest, teknik
   terim orijinal dilinde kalir (`AIAgent`). Dugum metninde `(`, `)`, `,`, `:` ayristiriciyi
   bozar — tirnak kullan. Tek fikir anlatir; on bes dugumu asiyorsa ikiye bol.
+- **🚨 Arsivleme iki yonlu baglanti kirar; SADECE tasinan dosyanin kendi linklerini
+  duzeltmek YETMEZ** (Faz 77): bir blogu `docs/X.md`'den `docs/arsiv/Y.md`'ye
+  KOPYALADIGINDA o blogun ICINDEKI goreli linkler hâlâ `docs/`'a goredir ve arsiv
+  dizininden cozulmez. Faz 77'de 17 baglanti boyle kirildi (`KARARLAR-GECMISI.md`,
+  `PLANA-DONUSEN-ADAYLAR.md`). Kural: tasima sonrasi `docs/arsiv/**` icinde
+  "buradan cozulmuyor ama `docs/`'tan cozuluyor" olan her linki yeniden tabanla.
+- **🚨 Faz dokumani yeniden adlandirilirken/tasinirken duz `sed` KULLANMA** (Faz 77):
+  `docs/manuel-test/` faz dokumanlariyla AYNI `NN-AD.md` desenini kullanir; metin
+  eslemesi onlari da bozar. Yeniden yazma COZUMLEMEYE dayanmalidir — link once
+  dosyanin ESKI dizinine gore cozulur, tasima haritasindan gecirilir, sonra YENI
+  dizine gore gorelilestirilir. 60 faz dosyasinin 874 atifi boyle tasindi.
+- **Butce raporu "✅" derken bile DAR bandina bak** (Faz 77): `dokuman-bakim.py`
+  yalniz ASIM'da kirmizi verir. Faz 77 oncesi hafiza dongusunde DAR bandi HIC yoktu
+  ve 16000/16000 bir dosya "ok" yaziyordu. `--projeksiyon` kalan faz sayisini basar;
+  yeni bir sinir koyarken OLCULEN boyuta %15 bosluk ekle (Faz 58.4 kalibrasyon kurali).
