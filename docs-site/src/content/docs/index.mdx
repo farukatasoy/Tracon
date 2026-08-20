@@ -22,6 +22,13 @@ hero:
 
 import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
+<p class="problem-statement">
+  You wrote an agent with the Microsoft Agent Framework and it works. Now someone has
+  to operate it: find out what it did last Tuesday, stop it spending without a limit,
+  test it without calling a model, and let a second team drive it over HTTP. That
+  layer is what AgentPrism is.
+</p>
+
 <div class="trust-strip" role="list" aria-label="Product characteristics">
   <span role="listitem"><strong>17</strong> NuGet packages</span>
   <span role="listitem"><strong>160</strong> generated HTTP operations</span>
@@ -79,6 +86,17 @@ app.Run();`}
 Run it and open `/agentprism`. Create an agent, talk to it in the playground, then
 open the run and read it back event by event.
 
+```mermaid
+flowchart LR
+    accTitle: From an agent definition to a run you can read back
+    accDescr: An agent definition is data in the catalog. Any caller — your code, the HTTP API, an OpenAI-compatible client, the console, a schedule, or a workflow — resolves it and starts a run. Recording is on by default, so the run leaves an ordered event stream with tokens, cost, tool calls, and traces that the console and your tests both read.
+    DEF["Agent definition<br/>model · instructions · tools · skills"] --> CAT[("Catalog<br/>versioned, with rollback")]
+    CALL["Your code · HTTP API<br/>OpenAI clients · console<br/>schedules · workflows"] --> CAT
+    CAT --> RUN["Run"]
+    RUN --> REC[("Run record<br/>events · tokens · cost<br/>tool calls · traces")]
+    REC --> READ["Console · replay · assertions<br/>OpenTelemetry export"]
+```
+
 <figure class="product-shot">
   <a href="/AgentPrism/screenshots/dashboard.png">
     <img
@@ -113,6 +131,16 @@ open the run and read it back event by event.
     boundary. [Open the capability map](/AgentPrism/capabilities/).
   </Card>
 </CardGrid>
+
+<p class="boundary-note">
+  <strong>It is a library, not a hosted service.</strong> It runs inside your ASP.NET
+  Core process, on your configuration, your authentication, and your database. There
+  is no account and no telemetry leaves your process. Four rules hold everywhere:
+  <code>AddAgentPrism()</code> works with no infrastructure, tools are defined in code
+  and never in the console, MAF objects are passed through rather than wrapped, and
+  every extension point registers with <code>TryAdd</code> so your own implementation
+  wins. <a href="/AgentPrism/getting-started/">What AgentPrism is</a> explains each.
+</p>
 
 :::caution[Pre-release]
 AgentPrism has not shipped `1.0`. The ASP.NET Core package depends on preview Microsoft

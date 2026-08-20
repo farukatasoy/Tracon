@@ -154,7 +154,7 @@ written. And because sessions, runs, and conversations are real rows now, a data
 subject's content can be found and erased by identity, not just aged out — see
 [Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
 
-## Next
+## Read next
 
-[Securing the endpoints](/AgentPrism/getting-started/security/) — required reading
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — required reading
 before this leaves your machine.

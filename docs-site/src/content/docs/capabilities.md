@@ -256,3 +256,9 @@ Use [Compatibility](/AgentPrism/reference/compatibility/) before you choose pack
 for a target framework or native AOT application. Use
 [Configuration](/AgentPrism/reference/configuration/) for verified section names and
 defaults.
+
+## Read next
+
+- [Choosing packages](/AgentPrism/packages/) — which of these capabilities each package carries
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — the smallest application that uses any of them
+- [Configuration](/AgentPrism/reference/configuration/) — the section names and defaults behind every row above

@@ -92,9 +92,8 @@ Include these facts when you report a defect:
 Never attach credentials, connection strings, raw API keys, or unreviewed prompt and tool
 content.
 
-## Related
+## Read next
 
-- [Compatibility matrices](/AgentPrism/reference/compatibility/)
-- [Choosing packages](/AgentPrism/packages/)
-- [Configuration reference](/AgentPrism/reference/configuration/)
-- [Production deployment](/AgentPrism/guides/production/)
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
+- [Choosing packages](/AgentPrism/packages/) — which packages you actually take a version of
+- [Configuration](/AgentPrism/reference/configuration/) — the options an upgrade can move

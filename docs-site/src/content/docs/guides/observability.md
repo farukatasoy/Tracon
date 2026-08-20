@@ -11,6 +11,23 @@ AgentPrism exposes four complementary views of a running system:
 4. **Health and diagnostics** explain whether storage, migrations, and providers are
    ready.
 
+```mermaid
+flowchart LR
+    accTitle: Where each observability signal comes from and where it goes
+    accDescr: One run emits events, spans, and measurements. Events go to the run store that the console and replay read. Spans go both to your OpenTelemetry exporter and, when sampling selects them, to the internal trace store. Measurements go to the meter. Health checks read storage and providers separately.
+    RUN["One run"] --> EV["Run events<br/>RunRecording"]
+    RUN --> SPAN["Spans<br/>agentprism.run"]
+    RUN --> MET["Measurements<br/>meter AgentPrism"]
+    EV --> STORE[("Run store")]
+    STORE --> UI["Console · replay · tool history"]
+    SPAN --> OTLP["Your OpenTelemetry exporter"]
+    SPAN --> SAMP{"Observability<br/>sampling"}
+    SAMP -->|kept| TRACE[("Trace store<br/>per-run inspection")]
+    MET --> OTLP
+    HEALTH["Health checks"] --> STORE
+    HEALTH --> PROV["Provider health"]
+```
+
 These views have separate switches and retention concerns. Turning down event
 recording does not configure your OpenTelemetry exporter, and disabling trace
 persistence does not stop an exporter from receiving spans.

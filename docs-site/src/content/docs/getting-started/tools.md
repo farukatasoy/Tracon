@@ -132,7 +132,7 @@ The stream carries `ToolInvoking` and `ToolInvoked` events around the model's re
 and each call is written to the run with its arguments, its result, its duration, and
 its error if it had one.
 
-## Next
+## Read next
 
 - [Persistence](/AgentPrism/getting-started/persistence/) — keep the history
 - [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the whole picture, including

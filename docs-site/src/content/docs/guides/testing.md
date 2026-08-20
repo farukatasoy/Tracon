@@ -8,6 +8,18 @@ recording, and streaming pipeline without a database or network model call. You
 control the provider response, then assert against the durable run model rather than
 mocking internal services.
 
+```mermaid
+flowchart TD
+    accTitle: What each test level proves
+    accDescr: FakeModelProvider scripts the model turn, AgentPrismTestHost runs the real HTTP, catalog, tool, recording, and streaming pipeline over in-memory stores, and RunAssertions reads the recorded run. Live providers and SQL behaviour are outside this host and need their own tests.
+    FAKE["FakeModelProvider<br/>scripted model turns"] --> HOST["AgentPrismTestHost<br/>real pipeline, in-memory stores"]
+    HOST --> ASSERT["RunAssertions<br/>read the recorded run"]
+    HOST -.->|not proved| LIVE["A live provider:<br/>instructions · features · token counts · tool schema"]
+    HOST -.->|not proved| SQL["SQL behaviour:<br/>migrations · transactions · leases · collation"]
+    LIVE --> SMOKE["Per-provider smoke tests"]
+    SQL --> INTEG["Integration tests against a real store"]
+```
+
 Add it to the test project only:
 
 ```bash
@@ -243,7 +255,6 @@ mistake instead of hiding it.
 
 ## Read next
 
-- [Define your first agent](/AgentPrism/getting-started/first-agent/)
-- [Register tools](/AgentPrism/getting-started/tools/)
-- [Runs and event recording](/AgentPrism/concepts/runs/)
-- [Model providers](/AgentPrism/guides/model-providers/)
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — the application these tests are written against
+- [Add a tool](/AgentPrism/getting-started/tools/) — tools are the part most worth asserting on
+- [Runs and recording](/AgentPrism/concepts/runs/) — the record a test reads to prove what happened
