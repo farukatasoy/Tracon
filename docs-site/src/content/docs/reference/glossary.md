@@ -219,3 +219,9 @@ each term means inside AgentPrism.
 
 **Console.** The embedded AgentPrism UI. It is an operator client of the same management API
   that external automation can call.
+
+## Read next
+
+- [Architecture](/AgentPrism/concepts/) — the same terms as a system, not a list
+- [Complete capability map](/AgentPrism/capabilities/) — the feature each term belongs to
+- [Configuration](/AgentPrism/reference/configuration/) — the option names these terms appear in

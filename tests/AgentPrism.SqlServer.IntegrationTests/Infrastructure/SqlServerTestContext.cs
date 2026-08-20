@@ -18,6 +18,16 @@ namespace AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 /// </remarks>
 internal sealed class SqlServerTestContext : IAsyncDisposable
 {
+    // Every contract test CLASS creates its own schema and then applies the whole
+    // migration set, and xunit runs classes in parallel — so those transactions used to
+    // reach the server together. Measured on SQL Server: '0017_approval_conditions'
+    // deadlocked, the server picked one class fixture as the victim, and every test in
+    // that class failed with an error naming a migration rather than the race. Schema
+    // creation is setup, not the thing under test, so it is serialized per test
+    // assembly. The deliberate concurrency tests call ApplyAsync directly and still run
+    // in parallel.
+    private static readonly SemaphoreSlim SchemaCreationLock = new(1, 1);
+
     private SqlServerTestContext(
         SqlServerDataSource dataSource,
         AgentPrismSqlServerOptions options,
@@ -231,7 +241,16 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
         if (applyMigrations)
         {
-            await context.Migrations.ApplyAsync();
+            await SchemaCreationLock.WaitAsync();
+
+            try
+            {
+                await context.Migrations.ApplyAsync();
+            }
+            finally
+            {
+                SchemaCreationLock.Release();
+            }
         }
 
         return context;

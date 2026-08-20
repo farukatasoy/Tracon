@@ -161,3 +161,9 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 [Every public type](/AgentPrism/api/), generated from the shipped assemblies and their
 XML documentation. For pinning versions and upgrading, see [Versions and
 upgrades](/AgentPrism/reference/versioning/).
+
+## Read next
+
+- [Complete capability map](/AgentPrism/capabilities/) — what each package adds, feature by feature
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — target frameworks, stores, and AOT support per package
+- [Versions and upgrades](/AgentPrism/reference/versioning/) — how to pin what you just chose

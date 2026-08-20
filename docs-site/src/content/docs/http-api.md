@@ -124,3 +124,9 @@ consumer.
 The consequence: the title, version, and server list in the published snapshot come
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
+
+## Read next
+
+- [HTTP API reference](/AgentPrism/http-api/) — every operation, grouped by tag
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication these conventions assume
+- [OpenAI-compatible API](/AgentPrism/guides/openai-api/) — the other HTTP surface, with different rules

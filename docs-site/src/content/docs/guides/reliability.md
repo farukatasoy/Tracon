@@ -8,6 +8,24 @@ background leases, live cancellation, and multi-agent trees fail at different
 boundaries. AgentPrism gives each boundary a separate control so recovery stays
 explicit.
 
+```mermaid
+flowchart TD
+    accTitle: Which control answers which failure
+    accDescr: A submission passes idempotency, the run passes the agent-graph budget, the model call passes the per-provider concurrency limit and the circuit breaker, and an open circuit hands the call to the fallback chain. A process that dies is answered afterwards by run reconciliation for a direct run and by lease expiry for a queued one.
+    IN["HTTP submission"] --> IDEM["Idempotency<br/>replay the 2xx, or reject the conflict"]
+    IDEM --> RUN["Run starts"]
+    RUN --> GRAPH["AgentGraph budget<br/>depth · tokens · child runs"]
+    GRAPH --> CONC["ModelConcurrency<br/>queue per provider"]
+    CONC --> BREAK{"Circuit breaker"}
+    BREAK -->|closed| CALL["Provider call"]
+    BREAK -->|open| FALL["ModelBinding.Fallbacks<br/>next link answers"]
+    FALL --> CALL
+    CALL --> REC["Run recorded"]
+    RUN -.->|process dies| CRASH["No owner left"]
+    CRASH --> RECON["RunReconciliation<br/>stale Running record"]
+    CRASH --> LEASE["Lease expires<br/>another worker takes the item"]
+```
+
 A useful production baseline is:
 
 ```json
@@ -296,7 +314,6 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 
 ## Read next
 
-- [Background work](/AgentPrism/guides/background-work/)
-- [Observability](/AgentPrism/guides/observability/)
-- [Production deployment](/AgentPrism/guides/production/)
-- [Runs and replay](/AgentPrism/concepts/runs/)
+- [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) — the queue these failure boundaries protect
+- [Observability and cost](/AgentPrism/guides/observability/) — the signals that tell you a boundary fired
+- [Production deployment](/AgentPrism/guides/production/) — the process topology that makes reconciliation possible

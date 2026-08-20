@@ -1,28 +1,219 @@
-/* AgentPrism documentation site — quiet product surfaces with a precise spectrum. */
+/* AgentPrism documentation site.
+ *
+ * One closed token set feeds everything the reader sees. Starlight's own semantic
+ * properties are bound to these tokens rather than overridden piecemeal, so the
+ * colour a page actually paints is always declared in this file — which is what
+ * lets `check-content.mjs` compute the contrast of every pair without a browser.
+ *
+ * Rules that hold for the whole file:
+ *   - Every --ap-* colour is declared in BOTH theme blocks. A colour that exists
+ *     in only one theme is a surface that goes unreadable in the other.
+ *   - Every --ap-* colour belongs to a pair in the contrast table in
+ *     scripts/check-content.mjs. A token with no pair cannot be checked, so the
+ *     gate refuses it.
+ *   - The spectrum is a gradient, never a text background. It marks edges:
+ *     the site title, section rules, the active sidebar entry. Used everywhere
+ *     it would stop meaning anything.
+ */
 
 :root {
-  --sl-color-accent-low: #14233c;
-  --sl-color-accent: #6ea8fe;
-  --sl-color-accent-high: #d8e8ff;
-  --ap-spectrum: linear-gradient(90deg, #e5484d, #f5a524 25%, #46a758 50%, #3b7dd8 75%, #8e4ec6);
-  --sl-content-width: 60rem;
+  /* Surfaces (dark). */
+  --ap-surface: #12151b;
+  --ap-surface-raised: #1a1f28;
+  --ap-surface-sunken: #0d1015;
+
+  /* Text (dark). */
+  --ap-text: #c5cad6;
+  --ap-text-strong: #f2f5fa;
+  --ap-text-muted: #949cab;
+  --ap-code: #d7dde8;
+
+  /* Lines and accents (dark). */
+  --ap-border: #2a313d;
+  --ap-border-strong: #697386;
+  --ap-accent: #7fb0ff;
+  --ap-accent-quiet: #16233a;
+
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #e8f0ff;
-  --sl-color-accent: #245fba;
-  --sl-color-accent-high: #102a50;
+  --ap-surface: #ffffff;
+  --ap-surface-raised: #f5f7fa;
+  --ap-surface-sunken: #eef1f6;
+
+  --ap-text: #333a45;
+  --ap-text-strong: #10151f;
+  --ap-text-muted: #5b6472;
+  --ap-code: #263041;
+
+  --ap-border: #dbe1ea;
+  --ap-border-strong: #767f8d;
+  --ap-accent: #1f5bc4;
+  --ap-accent-quiet: #e8f0ff;
+}
+
+/* Figures are theme-independent, and that is a decision, not an omission.
+ *
+ * Two things sit inside the prose as figures: console screenshots and diagrams.
+ * The screenshots are light (measured: the dashboard averages rgb(250, 249, 251)),
+ * so a diagram that inverted with the theme would clash with the screenshot beside
+ * it on a dark page. Both now read as printed figures on a light plate in either
+ * theme, and the plate is the reason the ink can be fixed: mermaid computes its
+ * palette in JavaScript at render time and cannot read a custom property, so a
+ * theme-reactive diagram would need a re-render — and a flash — on every toggle.
+ *
+ * The palette is deliberately ink-on-paper rather than filled boxes. Mermaid's
+ * flowchart stylesheet paints EVERY `.label` with `nodeTextColor`, edge labels
+ * included, and an edge label sits on the plate rather than on a node — so a
+ * light text colour would be legible inside the boxes and invisible between them.
+ * One ink colour on light fills is legible in both places.
+ *
+ * The spectrum stays out of diagrams on purpose. It marks section edges; a
+ * diagram that also used it would spend the one brand gesture the page has. */
+:root,
+:root[data-theme='light'] {
+  --ap-diagram-plate: #eef1f6;
+  --ap-diagram-node: #ffffff;
+  --ap-diagram-cluster: #dfe5ee;
+  --ap-diagram-ink: #263041;
+  --ap-diagram-line: #5b6472;
+
+  --ap-spectrum: linear-gradient(90deg, #e5484d, #f5a524 25%, #46a758 50%, #3b7dd8 75%, #8e4ec6);
+}
+
+/* Bind Starlight to the tokens. Everything below this line reads a token; no
+   component-level colour is written twice. */
+:root,
+:root[data-theme='light'] {
+  --sl-color-bg: var(--ap-surface);
+  --sl-color-bg-nav: var(--ap-surface-raised);
+  --sl-color-bg-sidebar: var(--ap-surface-raised);
+  --sl-color-bg-inline-code: var(--ap-surface-sunken);
+  --sl-color-text: var(--ap-text);
+  --sl-color-white: var(--ap-text-strong);
+  /* Starlight paints the sidebar, the outline and the footer from its own grey ramp.
+     Left unbound they would be the only reader-visible text the contrast gate cannot
+     see — and the gate would stay green while a surface change pushed them under AA. */
+  --sl-color-gray-2: var(--ap-text);
+  --sl-color-gray-3: var(--ap-text-muted);
+  --sl-color-text-accent: var(--ap-accent);
+  --sl-color-accent: var(--ap-accent);
+  --sl-color-accent-low: var(--ap-accent-quiet);
+  --sl-color-hairline: var(--ap-border);
+  --sl-color-hairline-light: var(--ap-border);
+
+  --sl-content-width: 54rem;
+}
+
+/* Typography scale.
+ *
+ * No web font: the system stack renders instantly, has no FOUT, and looks native
+ * on the machine of a .NET reader. The identity is carried by the scale, the
+ * weights and the measure instead of by a typeface. */
+:root {
+  --ap-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  --ap-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  --sl-font: var(--ap-font);
+  --sl-font-mono: var(--ap-font-mono);
+
+  /* A 1.2 ratio: dense enough for reference pages, still separating four levels. */
+  --ap-step-4: 2.25rem;
+  --ap-step-3: 1.625rem;
+  --ap-step-2: 1.3125rem;
+  --ap-step-1: 1.0625rem;
+  --ap-measure: 74ch;
+}
+
+.sl-markdown-content {
+  line-height: 1.68;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  color: var(--ap-text-strong);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.sl-markdown-content h1 {
+  font-size: var(--ap-step-4);
+  line-height: 1.15;
+}
+
+.sl-markdown-content h2 {
+  font-size: var(--ap-step-3);
+  line-height: 1.25;
+}
+
+.sl-markdown-content h3 {
+  font-size: var(--ap-step-2);
+  line-height: 1.3;
+}
+
+.sl-markdown-content h4 {
+  font-size: var(--ap-step-1);
+}
+
+/* Long lines are the single biggest readability cost on a wide screen. Prose is
+   held to a measure; tables, code and diagrams keep the full column. */
+.sl-markdown-content > :is(p, ul, ol, blockquote) {
+  max-inline-size: var(--ap-measure);
+}
+
+.sl-markdown-content code:not(pre code) {
+  color: var(--ap-code);
+  font-size: 0.9em;
+}
+
+/* A section rule carries the spectrum. It is the one place a reader meets the
+   brand while reading, and it appears once per section — not per element.
+   Starlight wraps a heading in `.sl-heading-wrapper` when anchor links are on, so
+   the rule has to match the wrapper as well as a bare heading. */
+.sl-markdown-content > :is(h2, .sl-heading-wrapper.level-h2) {
+  position: relative;
+  margin-block-start: 2.75rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--ap-border);
+}
+
+.sl-markdown-content > :is(h2, .sl-heading-wrapper.level-h2)::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 3.5rem;
+  block-size: 2px;
+  border-radius: 999px;
+  background: var(--ap-spectrum);
+}
+
+.sl-markdown-content > :is(h2, .sl-heading-wrapper.level-h2):first-child {
+  margin-block-start: 0;
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+.sl-markdown-content > :is(h2, .sl-heading-wrapper.level-h2):first-child::before {
+  content: none;
 }
 
 .site-title {
   letter-spacing: -0.025em;
 }
 
-.site-title::after {
+/* The active page is the only sidebar entry that gets the spectrum. */
+.sidebar-content a[aria-current='page'] {
+  position: relative;
+}
+
+.sidebar-content a[aria-current='page']::before {
   content: '';
-  display: block;
-  block-size: 2px;
-  margin-block-start: 0.2rem;
+  position: absolute;
+  inset-block: 0.15rem;
+  inset-inline-start: -1px;
+  inline-size: 2px;
   border-radius: 999px;
   background: var(--ap-spectrum);
 }
@@ -38,38 +229,59 @@
   text-wrap: pretty;
 }
 
+/* The landing page states the reader's problem before it states the product's
+   answer. It is prose, not a hero, so it keeps a reading measure. */
+.problem-statement {
+  max-inline-size: 60ch;
+  margin-block: 0 1.75rem;
+  color: var(--ap-text);
+  font-size: var(--ap-step-1);
+  line-height: 1.6;
+}
+
+.boundary-note {
+  margin-block: 2.5rem 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--ap-border);
+  border-inline-start: 3px solid var(--ap-border-strong);
+  border-radius: 0.5rem;
+  background: var(--ap-surface-raised);
+  color: var(--ap-text);
+  font-size: var(--sl-text-sm);
+}
+
 .trust-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin-block: 1rem 2.5rem;
   overflow: hidden;
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--ap-border);
   border-radius: 0.85rem;
-  background: color-mix(in srgb, var(--sl-color-bg-nav) 88%, var(--sl-color-accent-low));
+  background: var(--ap-surface-raised);
 }
 
 .trust-strip span {
   padding: 1rem;
-  color: var(--sl-color-gray-2);
+  color: var(--ap-text-muted);
   font-size: var(--sl-text-sm);
   text-align: center;
 }
 
 .trust-strip span + span {
-  border-inline-start: 1px solid var(--sl-color-gray-5);
+  border-inline-start: 1px solid var(--ap-border);
 }
 
 .trust-strip strong {
   display: block;
-  color: var(--sl-color-white);
+  color: var(--ap-text-strong);
   font-size: var(--sl-text-xl);
   line-height: 1.1;
 }
 
 .card {
-  border-color: color-mix(in srgb, var(--sl-color-gray-5) 82%, var(--sl-color-accent));
-  box-shadow: 0 1rem 2.5rem rgb(4 10 22 / 8%);
+  border-color: var(--ap-border);
+  background: var(--ap-surface-raised);
 }
 
 .product-shot {
@@ -79,14 +291,14 @@
 .product-shot img {
   inline-size: 100%;
   block-size: auto;
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--ap-border);
   border-radius: 0.9rem;
   box-shadow: 0 1.5rem 4rem rgb(4 10 22 / 22%);
 }
 
 .product-shot figcaption {
   margin-block-start: 0.65rem;
-  color: var(--sl-color-gray-3);
+  color: var(--ap-text-muted);
   font-size: var(--sl-text-sm);
   text-align: center;
 }
@@ -99,28 +311,52 @@
 .ui-shot img {
   inline-size: 100%;
   block-size: auto;
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--ap-border);
   border-radius: 0.75rem;
   box-shadow: 0 1rem 2.5rem rgb(4 10 22 / 14%);
   transition: border-color 140ms ease, transform 140ms ease;
 }
 
 .ui-shot:hover img {
-  border-color: var(--sl-color-accent);
+  border-color: var(--ap-accent);
   transform: translateY(-1px);
+}
+
+/* Diagram plate.
+ *
+ * astro-mermaid appends its own rules to document.head at RUNTIME, including
+ * `[data-theme="dark"] pre.mermaid[data-processed] { background-color: … }`.
+ * That selector scores the same as `.sl-markdown-content pre.mermaid[…]` and is
+ * injected later, so it wins a tie. The attribute is repeated to score above it —
+ * the alternative was !important, which would also beat any future fix. */
+.sl-markdown-content pre.mermaid {
+  margin-block: 2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ap-border);
+  border-radius: 0.75rem;
+  background-color: var(--ap-diagram-plate);
+}
+
+.sl-markdown-content pre.mermaid[data-processed][data-processed] {
+  background-color: var(--ap-diagram-plate);
 }
 
 /* The generated API pages open with "Namespace … · Assembly …". It is provenance,
    not prose, so it should not compete with the summary underneath it. */
 .api-provenance {
-  color: var(--sl-color-gray-3);
+  color: var(--ap-text-muted);
   font-size: var(--sl-text-sm);
 }
 
 /* A reference page is a long list of members. Give each one a visible boundary. */
-.sl-markdown-content:has(> .api-provenance) h3 {
-  border-top: 1px solid var(--sl-color-gray-5);
+.sl-markdown-content:has(> .api-provenance) :is(h3, .sl-heading-wrapper.level-h3) {
+  border-top: 1px solid var(--ap-border);
   padding-top: 1.25rem;
+}
+
+/* The generated reference has no hand-written section rules to carry. */
+.sl-markdown-content:has(> .api-provenance) > :is(h2, .sl-heading-wrapper.level-h2)::before {
+  content: none;
 }
 
 /* Wide tables and long signatures scroll inside themselves rather than pushing the
@@ -138,6 +374,49 @@
   content-visibility: auto;
 }
 
+/* A long page needs a way in that is not the right-hand outline. The symptom index
+   is a dense two-column list of links to the sections underneath it. */
+.symptom-index {
+  margin-block: 1.5rem 2.5rem;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--ap-border);
+  border-radius: 0.75rem;
+  background: var(--ap-surface-raised);
+}
+
+.symptom-index > p {
+  margin-block: 0 0.85rem;
+  color: var(--ap-text-muted);
+  font-size: var(--sl-text-sm);
+}
+
+.symptom-index ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 0.35rem 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.symptom-index li {
+  margin: 0;
+  font-size: var(--sl-text-sm);
+  line-height: 1.5;
+}
+
+/* Which package reads this section. A reference reader arrives from a package,
+   not from the top of the page. */
+.reads-this {
+  margin-block: -0.35rem 1.25rem;
+  color: var(--ap-text-muted);
+  font-size: var(--sl-text-sm);
+}
+
+.reads-this code {
+  color: var(--ap-code);
+}
+
 @media (max-width: 50rem) {
   .trust-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -145,11 +424,23 @@
 
   .trust-strip span:nth-child(3) {
     border-inline-start: 0;
-    border-block-start: 1px solid var(--sl-color-gray-5);
+    border-block-start: 1px solid var(--ap-border);
   }
 
   .trust-strip span:nth-child(4) {
-    border-block-start: 1px solid var(--sl-color-gray-5);
+    border-block-start: 1px solid var(--ap-border);
+  }
+
+  .sl-markdown-content h1 {
+    font-size: 1.875rem;
+  }
+
+  .sl-markdown-content h2 {
+    font-size: 1.4375rem;
+  }
+
+  .sl-markdown-content > :is(h2, .sl-heading-wrapper.level-h2) {
+    margin-block-start: 2.25rem;
   }
 }
 
@@ -158,6 +449,6 @@
   block-size: calc(100vh - 12rem);
   min-block-size: 32rem;
   inline-size: 100%;
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--ap-border);
   border-radius: 0.5rem;
 }

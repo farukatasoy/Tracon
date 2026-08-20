@@ -318,3 +318,29 @@ okunarak yapildi.
 - **🚨 Tipi verilmemis `decimal` parametresi `decimal(18,0)` sayilir ve ONDALIK KISIM SESSIZCE KESILIR** (2026-08-04, Faz 23): butun para sutunlari `decimal(20,10)`'dur; `SqlServerDialect.AddDecimal` `Precision = 20`, `Scale = 10` yazar. Yazilmazsa maliyetler tam sayiya yuvarlanir ve hicbir test bunu yakalamaz — yalnizca gidis-donus testi yakalar (`SqlServerDialectTests.Maliyet_ondaligi_kesilmeden_gidip_gelir`).
 
 - **🚨 `SqlQueriesBase`'e yeni sorgu eklerken HER alt sinifta karsiligini yaz.** Ozellikler `{ get; protected set; } = string.Empty;`'dir; yazilmayan sorgu bos metin kalir ve hata yalnizca CALISMA ANINDA gorunur — derleme de test de kirilmaz. Sorgu sayisi saglayici sayisiyla carpiliyorsa desen degistirilir: Faz 25'te veri duzlemi icin 11 hedef × 3 saglayici = 99 elle sorgu yerine `Sql.Shared/Internal/RetentionTargetRegistry.cs` + `SqlDialect`'te 3 sablon yontemi secildi (K-198).
+
+## `docs/hafiza/test-altyapisi.md`'den — 2026-08-01…03 (Faz 11–19 donemi)
+
+> Alan dosyasi butcesini asti (Faz 76). Bu on bes madde kurallarini hala
+> tasiyor ama hepsi kapanmis bir gecise ait: xunit.v3/VSTest ayrimi,
+> Testcontainers 4.13 ctor degisikligi, Shouldly ve Meziantou cakismalari,
+> erken Playwright locator tuzaklari. Bir tuzak arayan grep buraya da bakmali.
+
+- **xunit.v3 VSTest ile çalışmaz** (2026-08-01): MTP kullanır. `Microsoft.NET.Test.Sdk` ve `xunit.runner.visualstudio` referans **edilmez**. TRX eklentisi de sürüm uyumlu olmalı: xunit.v3 3.2.2 → Platform **v1** → `Microsoft.Testing.Extensions.TrxReport` **1.9.1** (2.x `TypeLoadException` verir).
+- **Testcontainers `PostgreSqlBuilder()` parametresiz ctor'u kullanımdan kalktı** (2026-08-02): 4.13.0'da `CS0618` veriyor. `new PostgreSqlBuilder("postgres:18-alpine")` kullan.
+- **`WebApplicationFactory<T>` kütüphane testinde kullanılamaz** (2026-08-02): giriş noktası derlemesi ister. `Microsoft.AspNetCore.TestHost` + `WebApplication.CreateSlimBuilder()` + `UseTestServer()` + `GetTestClient()` kullanılır.
+- **TestServer'da `RemoteIpAddress` `null`'dur** (2026-08-02): loopback testleri için test barındırıcısına başlıktan IP yazan bir ara yazılım konur. `LoopbackGuard` `null`'u yerel sayar — istek bir ag soketinden gelmemiştir.
+- **Başarısız policy kimlik doğrulaması olmadan `IAuthenticationService` ister** (2026-08-02): challenge üretmeye çalışır ve `InvalidOperationException` atar. Policy testlerinde bir test authentication scheme kaydedilir; o zaman `403` döner.
+- **Playwright tarayıcı ikilisi kodla indirilir** (2026-08-02): `Microsoft.Playwright.Program.Main(["install", "chromium"])`. Fixture bunu çağırdığı için `dotnet test` ek kurulum adımı istemez.
+- **Shouldly + Meziantou çakışmaları** (2026-08-02): `list.ShouldContain("x")` `MA0002` verir (comparer yok) → predicate kullan. Bir `record` olmayan tipte `x.ToString()` çağırmak `MA0150` verir. Nullable dönen `ToString()` sonucunu `ShouldContain`'e vermek `CS8604` verir → `?? string.Empty`. `string?.ShouldBe(string?)` ve `ShouldBeOneOf(...)` de `MA0002` verir → `string.Equals(a, b, StringComparison.Ordinal).ShouldBeTrue(...)` yaz. Satır içi `new Regex("...")` `MA0009` verir → zaman aşımı veren bir `static readonly` alan kullan.
+- **Migration sayısını teste sabit yazma** (2026-08-02): `MigrationTests` "1 migration" bekliyordu, 0002 eklenince kırıldı ve kırılma testin doğruladığı davranışla ilgisizdi. Sayı gömülü kaynaklardan okunuyor artık.
+- **Shouldly `ShouldContain(predicate)` void döner** (2026-08-02): bulunan öğeyi kullanmak için LINQ `Single(...)` gerekir.
+- **Yeni migration eklemek `MigrationTests`'in tablo sayısını kırar** (2026-08-02, Faz 11): 0004 iki tablo ekleyince beklenen 18 → 20 oldu. Sayı bilerek sabittir (yeni tablo fark edilsin diye); güncellemeyi unutma.
+- **`IAsyncLifetime.InitializeAsync()`'te kurulan `AsyncLocal` test govdesine akmayabilir** (2026-08-02, Faz 14): xunit v3 (MTP) yasam dongusu kancasini ve `[Fact]` govdesini ayri zamanlanmis isler olarak calistirabiliyor. `AgentPrismRunContext.SetCurrent(...)` `InitializeAsync`'te degil, dogrudan test govdesinin İÇİNDE cagrilmali — Faz 6/11/12'nin `AsyncLocal` tuzaklarinin testlerdeki hali.
+- **Playwright `GetByText` gizli `<option>` metnini de bulur** (2026-08-03, Faz 16): Runs listesindeki `awaiting input` rozetini bekleyen test, durum suzgecindeki gizli `<option>Awaiting input</option>` ogesini bulup zaman asimina ugradi. `new() { Exact = true }` ikisini ayirir (rozet kucuk harf, secenek buyuk). Faz 8'in `GetByPlaceholder` tuzaginin ayni hali.
+- **Playwright locator'ları varsayılan olarak alt dize/çoğul eşler, strict mode ihlali verir** (2026-08-02→2026-08-03): `GetByPlaceholder("github")` `"AgentPrism:Mcp:GithubToken"` ile de eşleşti (Faz 16); `GetByText("Awaiting input")` gizli bir `<option>` içeriğini de buldu (Faz 16); `GetByRole(Heading, Name: "Experiments")` sayfa `h1` başlığı ile Panel `h2` başlığını **ikisini birden** buldu (Faz 19, aynı metin iki farklı heading seviyesinde). Üçünde de çözüm `new() { Exact = true }` veya `.First`; bir metin panel başlığıyla sayfa başlığında aynıysa önceden `.First` eklemek varsayılan olmalı.
+- **🚨 Shouldly `HashSet<T>.ShouldBe(otherSet)` KUME esitligi degil, SIRALI esitlik denetler** (2026-08-03, Faz 17): iki `HashSet<Guid>` ayni elemanlari tasisa bile enumerasyon sirasi farkliysa test yanlislikla duser — eszamanlilik testinde iki gercek isci arasinda pay edilen 50 is bu yuzden "kayip" gibi gorundu, hicbiri kaybolmamisti. Dogrusu `left.SetEquals(right).ShouldBeTrue()`.
+
+<!-- MEMORY.md'de ozeti var; tam metin burada korunur -->
+- **`dotnet test` MTP'de `--filter-query` MSBuild anahtarı DEGIL** (2026-08-03, Faz 19): xunit v3 (Microsoft.Testing.Platform) filtre sozdizimi VSTest'ten farklidir; `dotnet test <proj> --filter-query ...` `MSB1001: Unknown switch` verir. Tek bir testi kosmak icin butun projeyi calistirip cikan metin grep'lemek daha guvenilir (proje kucukse maliyeti onemsiz).
+

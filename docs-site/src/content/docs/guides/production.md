@@ -163,6 +163,23 @@ Every process runs the scheduling worker by default. There are two valid shapes:
   nodes. Worker nodes must register the same SQL store, providers, agents, and job
   handlers as API nodes.
 
+```mermaid
+flowchart LR
+    accTitle: Combined nodes and split nodes
+    accDescr: In the combined shape one process serves HTTP and executes jobs. In the split shape API nodes set RunWorker to false and worker nodes run the queue; both register the same SQL store, providers, agents, and handlers, and the SQL job leases coordinate them.
+    subgraph Combined["Combined nodes"]
+        C1["Process<br/>HTTP + worker"]
+    end
+    subgraph Split["Split nodes"]
+        A1["API node<br/>Scheduling.RunWorker = false"]
+        W1["Worker node<br/>RunWorker = true"]
+    end
+    C1 --> DB[("SQL store<br/>runs · jobs · leases")]
+    A1 --> DB
+    W1 --> DB
+    DB --- NOTE["Leases coordinate workers.<br/>MaxConcurrentJobs is per process."]
+```
+
 SQL job leases coordinate worker nodes. `MaxConcurrentJobs` is per process, so size
 the total concurrency against provider rate limits and database capacity. The
 singleton-execution guard coordinates periodic services such as health refresh and
@@ -290,8 +307,6 @@ irreversible action. Test the crash boundary, not only the successful path.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
-- [Persistence](/AgentPrism/getting-started/persistence/)
-- [Observability](/AgentPrism/guides/observability/)
-- [Background work](/AgentPrism/guides/background-work/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication and authorization decisions this topology assumes
+- [Persistence](/AgentPrism/getting-started/persistence/) — choosing and migrating the store the topology writes to
+- [Observability and cost](/AgentPrism/guides/observability/) — what to watch once it is running

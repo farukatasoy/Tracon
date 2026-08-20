@@ -269,10 +269,8 @@ hyphens. Spaces, slashes, and other punctuation are rejected.
 **Deleting and re-uploading is expensive.** Both replacement and restoration require
 fresh embeddings. Avoid unstable source ids that cause unnecessary full replacement.
 
-## Related
+## In the reference
 
-- [Context and memory](/AgentPrism/guides/context-and-memory/)
-- [Persistence](/AgentPrism/getting-started/persistence/)
 - [Knowledge HTTP API](/AgentPrism/http-api/knowledge/)
 - [`AgentPrismKnowledgeOptions` API](/AgentPrism/api/agentprism.agentprismknowledgeoptions/)
 - [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
@@ -280,3 +278,8 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 - [`UploadDocumentRequest` API](/AgentPrism/api/agentprism.uploaddocumentrequest/)
 - [`SearchKnowledgeRequest` API](/AgentPrism/api/agentprism.searchknowledgerequest/)
 - [`UsePostgreSql` API](/AgentPrism/api/agentprism.agentprismpostgresqlbuilderextensions/)
+
+## Read next
+
+- [Context and memory](/AgentPrism/guides/context-and-memory/)
+- [Persistence](/AgentPrism/getting-started/persistence/)

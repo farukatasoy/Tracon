@@ -70,6 +70,14 @@ jobs:
       - name: Agent haritasi kaynagiyla ayni mi
         run: node docs-site/scripts/build-agent-map.mjs --check
 
+      # Icerik ve sunum kapilari. `pages` isi PULL REQUEST'te kosmaz, bu yuzden bu
+      # adim ORADA degil BURADA durur - yoksa kapinin kirmizi olmasi hicbir PR'i
+      # durdurmaz. Betik yalnizca node: yerlesikleri ve yerel dosyalar okur; olculdu:
+      # node_modules silinmisken de kosuyor, bu yuzden `npm ci` istemez.
+      - name: Icerik ve sunum kapilari
+        working-directory: docs-site
+        run: node scripts/check-content.mjs
+
       - name: Derle
         run: dotnet build AgentPrism.slnx -c Release --no-restore
 
@@ -247,6 +255,12 @@ jobs:
       - name: Ic baglantilari denetle
         working-directory: docs-site
         run: node scripts/check-links.mjs
+
+      # Sayfa agirligi taban cizgisi. Uretilen dist/ uzerinden olculur, bu yuzden
+      # derlemeden SONRA kosar.
+      - name: Sayfa agirligini denetle
+        working-directory: docs-site
+        run: npm run check:weight
 
       - name: Pages yapilandirmasi
         uses: actions/configure-pages@v5

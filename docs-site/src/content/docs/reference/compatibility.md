@@ -170,10 +170,8 @@ authority is `role ∩ scopes`.
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
 hashed and the plaintext value is returned only at creation.
 
-## Related reference
+## Read next
 
-- [Choosing packages](/AgentPrism/packages/)
-- [Configuration](/AgentPrism/reference/configuration/)
-- [Capability map](/AgentPrism/capabilities/)
-- [Versions and upgrades](/AgentPrism/reference/versioning/)
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
+- [Versions and upgrades](/AgentPrism/reference/versioning/) — what a version bump is allowed to change
+- [Choosing packages](/AgentPrism/packages/) — which of these matrices apply to you
+- [Configuration](/AgentPrism/reference/configuration/) — every option the supported combinations expose

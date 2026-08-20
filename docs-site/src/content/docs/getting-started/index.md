@@ -70,7 +70,7 @@ packages target `net8.0`, `net9.0`, and `net10.0`; the testing and template pack
 require .NET 10, and the source generator that ships inside Core targets
 `netstandard2.0`.
 
-## Next
+## Read next
 
-[Your first agent](/AgentPrism/getting-started/first-agent/) — a working application
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — a working application
 in about five minutes.

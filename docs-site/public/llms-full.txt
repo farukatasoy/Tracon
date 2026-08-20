@@ -261,6 +261,12 @@ for a target framework or native AOT application. Use
 [Configuration](/AgentPrism/reference/configuration/) for verified section names and
 defaults.
 
+## Read next
+
+- [Choosing packages](/AgentPrism/packages/) — which of these capabilities each package carries
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — the smallest application that uses any of them
+- [Configuration](/AgentPrism/reference/configuration/) — the section names and defaults behind every row above
+
 ---
 
 # Agents and definitions
@@ -1874,7 +1880,7 @@ cannot take down product functionality.
 An agent defined in code, a console, and a recorded history — with no database. Every
 store is in memory, so all of it ends when the process does.
 
-## Next
+## Read next
 
 - [Adding a tool](/AgentPrism/getting-started/tools/) — let the agent do something
 - [Persistence](/AgentPrism/getting-started/persistence/) — make it survive a restart
@@ -1948,9 +1954,9 @@ packages target `net8.0`, `net9.0`, and `net10.0`; the testing and template pack
 require .NET 10, and the source generator that ships inside Core targets
 `netstandard2.0`.
 
-## Next
+## Read next
 
-[Your first agent](/AgentPrism/getting-started/first-agent/) — a working application
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — a working application
 in about five minutes.
 
 ---
@@ -2106,9 +2112,9 @@ written. And because sessions, runs, and conversations are real rows now, a data
 subject's content can be found and erased by identity, not just aged out — see
 [Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
 
-## Next
+## Read next
 
-[Securing the endpoints](/AgentPrism/getting-started/security/) — required reading
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — required reading
 before this leaves your machine.
 
 ---
@@ -2259,7 +2265,7 @@ leave a time-of-check/time-of-use gap.
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
 
-## Next
+## Read next
 
 - [Governance](/AgentPrism/concepts/governance/) — audit trail, quotas, tenancy
 - [Architecture](/AgentPrism/concepts/) — how the pieces fit
@@ -2395,7 +2401,7 @@ The stream carries `ToolInvoking` and `ToolInvoked` events around the model's re
 and each call is written to the run with its arguments, its result, its duration, and
 its error if it had one.
 
-## Next
+## Read next
 
 - [Persistence](/AgentPrism/getting-started/persistence/) — keep the history
 - [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the whole picture, including
@@ -2413,6 +2419,21 @@ recovery.
 Use background work when the caller cannot keep an SSE connection open, when a batch
 contains many independent inputs, or when work must start on a calendar. Keep the
 normal streaming run endpoint for interactive conversations and approval flows.
+
+```mermaid
+stateDiagram-v2
+    accTitle: Life of a queued job
+    accDescr: A queued job is polled by a worker, leased exclusively, and run. Success completes it, a retryable failure returns it to the queue until the attempt limit, and a worker that dies lets the lease expire so another worker can take the item again.
+    [*] --> Queued: enqueued by API or schedule
+    Queued --> Leased: worker polls and takes an exclusive lease
+    Leased --> Running: handler resolved
+    Running --> Completed: every item finished
+    Running --> Failed: attempt limit reached, or no handler
+    Running --> Queued: retryable failure, JobRetryException.RetryAfter
+    Leased --> Queued: lease expires after the worker dies
+    Completed --> [*]
+    Failed --> [*]
+```
 
 ## Configure the worker
 
@@ -2693,9 +2714,8 @@ idempotent.
 ## Read next
 
 - [Inbound triggers](/AgentPrism/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
-- [Reliable runs](/AgentPrism/guides/reliability/)
-- [Production deployment](/AgentPrism/guides/production/)
-- [HTTP API conventions](/AgentPrism/http-api/)
+- [Reliable runs](/AgentPrism/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Production deployment](/AgentPrism/guides/production/) — where the worker process lives and how many of them you run
 
 ---
 
@@ -3271,16 +3291,19 @@ budgets.
 `IEmbeddingGenerator<string, Embedding<float>>`. The built-in store comes from
 PostgreSQL.
 
-## Related
+## In the reference
 
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
 - [Agent management HTTP API](/AgentPrism/http-api/agents/)
 - [`HarnessSettings` API](/AgentPrism/api/agentprism.harnesssettings/)
 - [`CompactionSettings` API](/AgentPrism/api/agentprism.compactionsettings/)
 - [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
 - [`AgentPrismMcpOptions` API](/AgentPrism/api/agentprism.agentprismmcpoptions/)
+
+## Read next
+
+- [Sessions and conversations](/AgentPrism/concepts/sessions/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)
+- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
 
 ---
 
@@ -3293,6 +3316,20 @@ AgentPrism supports three different external-agent directions. Keep them separat
 | MCP client | Bring remote tools, prompts, and resources into AgentPrism | `UseMcp()` | Managed through `/api/mcp-servers/*` |
 | MCP server | Publish an AgentPrism agent as an MCP tool | `UseMcpServer()` | `/agentprism/mcp` by default |
 | A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/agentprism/a2a/{agent}` by default |
+
+```mermaid
+flowchart LR
+    accTitle: The three external-agent directions
+    accDescr: As an MCP client AgentPrism calls remote servers to gain tools. As an MCP server and as an A2A server AgentPrism is called by outside callers, and each of those directions has its own allowlist, budget, and credential requirement.
+    subgraph Inbound["Who can call your agents"]
+        MCPC["MCP caller"] --> MCPS["UseMcpServer<br/>allowlist · run budget · ExternalInvoke key"]
+        A2AC["A2A caller"] --> A2AS["UseA2A<br/>one agent card per exposed agent"]
+    end
+    MCPS --> AGENT["Your agent"]
+    A2AS --> AGENT
+    AGENT --> CLIENT["UseMcp<br/>discovery, refreshed on an interval"]
+    CLIENT --> REMOTE["Remote MCP server<br/>tools · prompts · resources"]
+```
 
 The first direction expands what your agents can call. The other two expand who can
 call your agents. They have different trust boundaries and must be enabled separately.
@@ -3456,10 +3493,9 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 
 ## Read next
 
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
-- [Compatibility matrix](/AgentPrism/reference/compatibility/)
+- [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — which protocol revisions and transports are supported
 
 ---
 
@@ -3476,6 +3512,23 @@ is no synchronous mode. A caller that needs the model's answer inline should
 use the normal run endpoint instead; see
 [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) for how
 queued runs execute.
+
+```mermaid
+flowchart TD
+    accTitle: What a signed inbound event passes before a run starts
+    accDescr: The accept endpoint carries no bearer token. The tenant comes from the URL, the trigger must exist and be enabled, the timestamp must be inside the tolerance window, and the HMAC signature must verify. The signature is then reserved as the replay key, so an identical retry gets 409 rather than a second run. Every rejection returns the same generic 401.
+    REQ["POST /api/triggers/tenant/name<br/>no Authorization header"] --> TEN["Tenant from the URL only"]
+    TEN --> TRG["Trigger exists and is enabled"]
+    TRG --> TS["Timestamp inside TimestampTolerance"]
+    TS --> SIG["HMAC signature verifies"]
+    SIG --> IDEM{"Signature already reserved?"}
+    IDEM -->|yes| CONF["409 Conflict<br/>never a second run"]
+    IDEM -->|no| Q["202 Accepted<br/>queued run"]
+    TEN -.->|any failure| GEN["One generic 401<br/>names cannot be enumerated"]
+    TRG -.->|any failure| GEN
+    TS -.->|any failure| GEN
+    SIG -.->|any failure| GEN
+```
 
 ## Define a trigger
 
@@ -3513,7 +3566,7 @@ body becomes the run's message:
 | `wholeBody` (default) | The whole request body becomes the message, as JSON text |
 | `path` | A single field, selected by a dotted `payloadPath` (for example `event.text`), becomes the message |
 
-There is no template language here — the same K2 rule that keeps tool
+There is no template language here — the same rule that keeps tool
 approval conditions free of expression evaluation. A consumer that needs to
 reshape the payload does so before it reaches AgentPrism.
 
@@ -3560,7 +3613,7 @@ the queue.
 
 - The tenant comes from the URL, not from an ambient header or claim; a
   segment that does not match a saved trigger never falls back to a default
-  tenant (K-382).
+  tenant.
 - An unknown tenant, an unknown or disabled trigger name, and every
   signature/timestamp failure all return the **same** generic `401` body.
   A caller without a valid secret cannot enumerate trigger names, or even
@@ -3901,10 +3954,8 @@ hyphens. Spaces, slashes, and other punctuation are rejected.
 **Deleting and re-uploading is expensive.** Both replacement and restoration require
 fresh embeddings. Avoid unstable source ids that cause unnecessary full replacement.
 
-## Related
+## In the reference
 
-- [Context and memory](/AgentPrism/guides/context-and-memory/)
-- [Persistence](/AgentPrism/getting-started/persistence/)
 - [Knowledge HTTP API](/AgentPrism/http-api/knowledge/)
 - [`AgentPrismKnowledgeOptions` API](/AgentPrism/api/agentprism.agentprismknowledgeoptions/)
 - [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
@@ -3912,6 +3963,11 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 - [`UploadDocumentRequest` API](/AgentPrism/api/agentprism.uploaddocumentrequest/)
 - [`SearchKnowledgeRequest` API](/AgentPrism/api/agentprism.searchknowledgerequest/)
 - [`UsePostgreSql` API](/AgentPrism/api/agentprism.agentprismpostgresqlbuilderextensions/)
+
+## Read next
+
+- [Context and memory](/AgentPrism/guides/context-and-memory/)
+- [Persistence](/AgentPrism/getting-started/persistence/)
 
 ---
 
@@ -4209,7 +4265,7 @@ Outgoing concurrency is `AgentPrismModelConcurrencyOptions`, bound from
 `AgentPrism:ModelConcurrency`: `MaxConcurrentCallsPerProvider` caps how many calls
 AgentPrism has in flight against one provider at a time.
 
-`ContextWindowTokens` on a catalog `ModelDescriptor` powers two features (F-59):
+`ContextWindowTokens` on a catalog `ModelDescriptor` powers two features:
 derivation for `ContextWindow` compaction, and an optional pre-flight check on
 `POST /api/agents/{name}/run` that rejects an oversized prompt **before** any
 provider is called.
@@ -4225,7 +4281,7 @@ provider is called.
 }
 ```
 
-`Preflight.Enabled` is off by default (K1): a wrong estimate stops a run that
+`Preflight.Enabled` is off by default: a wrong estimate stops a run that
 would have succeeded, and that risk needs an explicit opt-in.
 `ReserveRatio` (default `0.2`) sets aside a share of the window for the answer;
 a prompt estimated above the remaining budget returns `400` with the counted
@@ -4302,11 +4358,8 @@ limit. Remove temperature or set it to `1`.
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the
 counted value against the model's real `ContextWindowTokens` before deciding.
 
-## Related
+## In the reference
 
-- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
-- [Choosing packages](/AgentPrism/packages/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
 - [Model health HTTP API](/AgentPrism/http-api/models/)
 - [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
 - [`UseOpenAI` API](/AgentPrism/api/agentprism.openaiproviderextensions/)
@@ -4314,6 +4367,12 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 - [`UseAnthropic` API](/AgentPrism/api/agentprism.anthropicproviderextensions/)
 - [`UseGoogle` API](/AgentPrism/api/agentprism.googleproviderextensions/)
 - [`UseAzureOpenAI` API](/AgentPrism/api/agentprism.azureopenaiproviderextensions/)
+
+## Read next
+
+- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
+- [Choosing packages](/AgentPrism/packages/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)
 
 ---
 
@@ -4498,15 +4557,18 @@ header, turn the response into a `Blob`, and use an object URL.
 **An old conversation can no longer replay.** A referenced attachment was hard
 deleted. Keep it for at least as long as any session or replay path that needs it.
 
-## Related
+## In the reference
 
 - [Attachment HTTP API](/AgentPrism/http-api/attachments/)
 - [Agent run HTTP API](/AgentPrism/http-api/agents/)
 - [Voice HTTP API](/AgentPrism/http-api/voice/)
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
 - [`AgentPrismAttachmentOptions` API](/AgentPrism/api/agentprism.agentprismattachmentoptions/)
 - [`AgentRunRequest` API](/AgentPrism/api/agentprism.agentrunrequest/)
 - [`UseVoice` API](/AgentPrism/api/agentprism.voicebuilderextensions/)
+
+## Read next
+
+- [Sessions and conversations](/AgentPrism/concepts/sessions/)
 
 ---
 
@@ -4519,6 +4581,23 @@ AgentPrism exposes four complementary views of a running system:
 3. **Persisted run traces** make one run inspectable through the console and API.
 4. **Health and diagnostics** explain whether storage, migrations, and providers are
    ready.
+
+```mermaid
+flowchart LR
+    accTitle: Where each observability signal comes from and where it goes
+    accDescr: One run emits events, spans, and measurements. Events go to the run store that the console and replay read. Spans go both to your OpenTelemetry exporter and, when sampling selects them, to the internal trace store. Measurements go to the meter. Health checks read storage and providers separately.
+    RUN["One run"] --> EV["Run events<br/>RunRecording"]
+    RUN --> SPAN["Spans<br/>agentprism.run"]
+    RUN --> MET["Measurements<br/>meter AgentPrism"]
+    EV --> STORE[("Run store")]
+    STORE --> UI["Console · replay · tool history"]
+    SPAN --> OTLP["Your OpenTelemetry exporter"]
+    SPAN --> SAMP{"Observability<br/>sampling"}
+    SAMP -->|kept| TRACE[("Trace store<br/>per-run inspection")]
+    MET --> OTLP
+    HEALTH["Health checks"] --> STORE
+    HEALTH --> PROV["Provider health"]
+```
 
 These views have separate switches and retention concerns. Turning down event
 recording does not configure your OpenTelemetry exporter, and disabling trace
@@ -4839,6 +4918,20 @@ understand:
 - `POST {prefix}/v1/chat/completions`
 - `/v1/conversations/*` for Responses conversation state
 
+```mermaid
+flowchart TD
+    accTitle: The two compatible surfaces and who owns the conversation
+    accDescr: Responses keeps conversation state on the server, reached either by previous_response_id or by an explicitly reserved conversation. Chat Completions carries its history in the request. Both resolve the model field to an AgentPrism agent, which then chooses its own provider model.
+    RESP["POST /v1/responses"] --> SRV["AgentPrism owns the session"]
+    CONV["POST /v1/conversations"] --> SRV
+    PREV["previous_response_id"] --> SRV
+    CHAT["POST /v1/chat/completions"] --> CLI["The client owns the message list"]
+    SRV --> PICK["model selects an AgentPrism agent"]
+    CLI --> PICK
+    PICK --> AGENT["Agent: instructions · tools · skills<br/>memory · guards · budgets"]
+    AGENT --> MODEL["The provider model the agent binds to"]
+```
+
 This is an **agent surface**, not a transparent model proxy. The request's `model`
 selects an AgentPrism agent. That agent then selects its provider model, instructions,
 tools, skills, memory, guards, and budgets on the server.
@@ -5005,10 +5098,9 @@ The behavior and compatibility limits above are AgentPrism's own contract.
 
 ## Read next
 
-- [HTTP API conventions](/AgentPrism/http-api/)
-- [Model providers](/AgentPrism/guides/model-providers/)
-- [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
+- [HTTP API conventions](/AgentPrism/http-api/) — the management API, which is a different surface with different rules
+- [Model providers](/AgentPrism/guides/model-providers/) — what actually answers the request behind the compatible endpoint
+- [Attachments and multimodal input](/AgentPrism/guides/multimodal/) — how non-text content arrives through the same endpoints
 
 ---
 
@@ -5174,6 +5266,23 @@ Every process runs the scheduling worker by default. There are two valid shapes:
   nodes. Worker nodes must register the same SQL store, providers, agents, and job
   handlers as API nodes.
 
+```mermaid
+flowchart LR
+    accTitle: Combined nodes and split nodes
+    accDescr: In the combined shape one process serves HTTP and executes jobs. In the split shape API nodes set RunWorker to false and worker nodes run the queue; both register the same SQL store, providers, agents, and handlers, and the SQL job leases coordinate them.
+    subgraph Combined["Combined nodes"]
+        C1["Process<br/>HTTP + worker"]
+    end
+    subgraph Split["Split nodes"]
+        A1["API node<br/>Scheduling.RunWorker = false"]
+        W1["Worker node<br/>RunWorker = true"]
+    end
+    C1 --> DB[("SQL store<br/>runs · jobs · leases")]
+    A1 --> DB
+    W1 --> DB
+    DB --- NOTE["Leases coordinate workers.<br/>MaxConcurrentJobs is per process."]
+```
+
 SQL job leases coordinate worker nodes. `MaxConcurrentJobs` is per process, so size
 the total concurrency against provider rate limits and database capacity. The
 singleton-execution guard coordinates periodic services such as health refresh and
@@ -5301,11 +5410,9 @@ irreversible action. Test the crash boundary, not only the successful path.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
-- [Persistence](/AgentPrism/getting-started/persistence/)
-- [Observability](/AgentPrism/guides/observability/)
-- [Background work](/AgentPrism/guides/background-work/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication and authorization decisions this topology assumes
+- [Persistence](/AgentPrism/getting-started/persistence/) — choosing and migrating the store the topology writes to
+- [Observability and cost](/AgentPrism/guides/observability/) — what to watch once it is running
 
 ---
 
@@ -5315,6 +5422,24 @@ Reliable agent execution is not one retry switch. Provider calls, HTTP submissio
 background leases, live cancellation, and multi-agent trees fail at different
 boundaries. AgentPrism gives each boundary a separate control so recovery stays
 explicit.
+
+```mermaid
+flowchart TD
+    accTitle: Which control answers which failure
+    accDescr: A submission passes idempotency, the run passes the agent-graph budget, the model call passes the per-provider concurrency limit and the circuit breaker, and an open circuit hands the call to the fallback chain. A process that dies is answered afterwards by run reconciliation for a direct run and by lease expiry for a queued one.
+    IN["HTTP submission"] --> IDEM["Idempotency<br/>replay the 2xx, or reject the conflict"]
+    IDEM --> RUN["Run starts"]
+    RUN --> GRAPH["AgentGraph budget<br/>depth · tokens · child runs"]
+    GRAPH --> CONC["ModelConcurrency<br/>queue per provider"]
+    CONC --> BREAK{"Circuit breaker"}
+    BREAK -->|closed| CALL["Provider call"]
+    BREAK -->|open| FALL["ModelBinding.Fallbacks<br/>next link answers"]
+    FALL --> CALL
+    CALL --> REC["Run recorded"]
+    RUN -.->|process dies| CRASH["No owner left"]
+    CRASH --> RECON["RunReconciliation<br/>stale Running record"]
+    CRASH --> LEASE["Lease expires<br/>another worker takes the item"]
+```
 
 A useful production baseline is:
 
@@ -5604,10 +5729,9 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 
 ## Read next
 
-- [Background work](/AgentPrism/guides/background-work/)
-- [Observability](/AgentPrism/guides/observability/)
-- [Production deployment](/AgentPrism/guides/production/)
-- [Runs and replay](/AgentPrism/concepts/runs/)
+- [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) — the queue these failure boundaries protect
+- [Observability and cost](/AgentPrism/guides/observability/) — the signals that tell you a boundary fired
+- [Production deployment](/AgentPrism/guides/production/) — the process topology that makes reconciliation possible
 
 ---
 
@@ -5822,14 +5946,17 @@ complete. Do not parse each SSE frame as a document.
 supports the requested format. Use `Json` or `JsonSchema`, not prompt wording alone,
 and still reject a fenced payload at the application boundary.
 
-## Related
+## In the reference
 
-- [Model providers](/AgentPrism/guides/model-providers/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
 - [Agent management HTTP API](/AgentPrism/http-api/agents/)
 - [`AgentResponseFormat` API](/AgentPrism/api/agentprism.agentresponseformat/)
 - [`AgentResponseFormatKind` API](/AgentPrism/api/agentprism.agentresponseformatkind/)
 - [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
+
+## Read next
+
+- [Model providers](/AgentPrism/guides/model-providers/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)
 
 ---
 
@@ -5839,6 +5966,18 @@ and still reject a fenced payload at the application boundary.
 recording, and streaming pipeline without a database or network model call. You
 control the provider response, then assert against the durable run model rather than
 mocking internal services.
+
+```mermaid
+flowchart TD
+    accTitle: What each test level proves
+    accDescr: FakeModelProvider scripts the model turn, AgentPrismTestHost runs the real HTTP, catalog, tool, recording, and streaming pipeline over in-memory stores, and RunAssertions reads the recorded run. Live providers and SQL behaviour are outside this host and need their own tests.
+    FAKE["FakeModelProvider<br/>scripted model turns"] --> HOST["AgentPrismTestHost<br/>real pipeline, in-memory stores"]
+    HOST --> ASSERT["RunAssertions<br/>read the recorded run"]
+    HOST -.->|not proved| LIVE["A live provider:<br/>instructions · features · token counts · tool schema"]
+    HOST -.->|not proved| SQL["SQL behaviour:<br/>migrations · transactions · leases · collation"]
+    LIVE --> SMOKE["Per-provider smoke tests"]
+    SQL --> INTEG["Integration tests against a real store"]
+```
 
 Add it to the test project only:
 
@@ -6075,10 +6214,9 @@ mistake instead of hiding it.
 
 ## Read next
 
-- [Define your first agent](/AgentPrism/getting-started/first-agent/)
-- [Register tools](/AgentPrism/getting-started/tools/)
-- [Runs and event recording](/AgentPrism/concepts/runs/)
-- [Model providers](/AgentPrism/guides/model-providers/)
+- [Your first agent](/AgentPrism/getting-started/first-agent/) — the application these tests are written against
+- [Add a tool](/AgentPrism/getting-started/tools/) — tools are the part most worth asserting on
+- [Runs and recording](/AgentPrism/concepts/runs/) — the record a test reads to prove what happened
 
 ---
 
@@ -6090,6 +6228,24 @@ AgentPrism has two voice layers:
 |---|---|---|
 | Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `AgentPrism.Voice` |
 | Live conversation | Keep a bidirectional audio/text session over WebSocket | `UseVoiceConversation()` from Core |
+
+```mermaid
+flowchart LR
+    accTitle: The two voice layers and their hosting cost
+    accDescr: UseVoice adds request and response speech tools over the ordinary HTTP surface. UseVoiceConversation additionally maps a WebSocket route and binds a socket to one instance for the length of the conversation, which is why it is opt-in.
+    subgraph Tools["UseVoice — request/response"]
+        SYN["Synthesize speech"]
+        TRN["Transcribe an attachment"]
+        LST["List voices"]
+    end
+    subgraph Live["UseVoiceConversation — opt-in"]
+        WS["WebSocket /api/voice/sessions/id/stream<br/>subprotocol agentprism.voice.v1"]
+        BOUND["Socket bound to one instance<br/>for minutes"]
+    end
+    Tools --> HTTP["Ordinary HTTP surface"]
+    WS --> BOUND
+    BOUND --> LIMITS["Per-tenant connection, duration,<br/>idle, and utterance limits"]
+```
 
 The tool layer is request/response. The conversation layer changes the hosting model:
 a socket stays bound to one application instance for minutes. Enable only the layer
@@ -6253,12 +6409,15 @@ answer.
 - [ ] Barge-in, reconnect, maximum duration, provider outage, and slow clients are
   tested through the real proxy.
 
+## In the reference
+
+- [Voice HTTP endpoints](/AgentPrism/http-api/voice/)
+
 ## Read next
 
 - [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
 - [Observability and cost](/AgentPrism/guides/observability/)
 - [Production deployment](/AgentPrism/guides/production/)
-- [Voice HTTP endpoints](/AgentPrism/http-api/voice/)
 
 ---
 
@@ -6382,6 +6541,12 @@ consumer.
 The consequence: the title, version, and server list in the published snapshot come
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
+
+## Read next
+
+- [HTTP API reference](/AgentPrism/http-api/) — every operation, grouped by tag
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication these conventions assume
+- [OpenAI-compatible API](/AgentPrism/guides/openai-api/) — the other HTTP surface, with different rules
 
 ---
 
@@ -6544,6 +6709,12 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 [Every public type](/AgentPrism/api/), generated from the shipped assemblies and their
 XML documentation. For pinning versions and upgrading, see [Versions and
 upgrades](/AgentPrism/reference/versioning/).
+
+## Read next
+
+- [Complete capability map](/AgentPrism/capabilities/) — what each package adds, feature by feature
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — target frameworks, stores, and AOT support per package
+- [Versions and upgrades](/AgentPrism/reference/versioning/) — how to pin what you just chose
 
 ---
 
@@ -6715,13 +6886,11 @@ authority is `role ∩ scopes`.
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
 hashed and the plaintext value is returned only at creation.
 
-## Related reference
+## Read next
 
-- [Choosing packages](/AgentPrism/packages/)
-- [Configuration](/AgentPrism/reference/configuration/)
-- [Capability map](/AgentPrism/capabilities/)
-- [Versions and upgrades](/AgentPrism/reference/versioning/)
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
+- [Versions and upgrades](/AgentPrism/reference/versioning/) — what a version bump is allowed to change
+- [Choosing packages](/AgentPrism/packages/) — which of these matrices apply to you
+- [Configuration](/AgentPrism/reference/configuration/) — every option the supported combinations expose
 
 ---
 
@@ -6799,6 +6968,8 @@ and registers the runner. A settings section or grant record alone cannot execut
 script.
 
 ## Core defaults under `AgentPrism`
+
+<p class="reads-this">Read by <code>AgentPrism.Core</code> through <code>AddAgentPrism()</code>. No extra package reference.</p>
 
 ### Identity, validation, and agent graphs
 
@@ -6959,6 +7130,8 @@ worth widening the price schema.
 
 ## Operational sections
 
+<p class="reads-this">Read by <code>AgentPrism.Core</code>. The lease-backed entries coordinate more than one process only with a SQL persistence package.</p>
+
 ### Scheduling, async runs, leases, and recovery
 
 | Section and key | Default |
@@ -7055,6 +7228,8 @@ redirects remain blocked by default.
 
 ## Retention defaults
 
+<p class="reads-this">Read by <code>AgentPrism.Core</code>. Deletion needs a persistence package; the in-memory stores have nothing to retain across a restart.</p>
+
 `AgentPrism:Retention:Enabled` defaults to `false`. `BatchSize` defaults to `5000`
 and `BatchDelay` to 100 ms. The following ages become configuration-based defaults
 only after retention is enabled. A database policy for a target takes precedence.
@@ -7084,6 +7259,8 @@ applies when configuration defaults are enabled. Change that target through
 
 ## Persistence sections
 
+<p class="reads-this">Read by <code>AgentPrism.PostgreSql</code>, <code>AgentPrism.SqlServer</code>, and <code>AgentPrism.Sqlite</code>. A section without its package does nothing.</p>
+
 | Section | Key | Default |
 |---|---|---|
 | `AgentPrism:PostgreSql` | `ConnectionString` | `null`; required by the configuration registration |
@@ -7103,6 +7280,8 @@ SQLite rejects bare `Data Source=:memory:`. Use a shared in-memory URI when a fi
 not suitable. PostgreSQL and SQL Server use a schema; SQLite uses a table prefix.
 
 ## Provider sections
+
+<p class="reads-this">Read by <code>AgentPrism.OpenAI</code>, <code>AgentPrism.Anthropic</code>, <code>AgentPrism.Google</code>, and <code>AgentPrism.AzureOpenAI</code>, each through its own <code>Use*()</code> call.</p>
 
 All provider model lists start empty. All nullable request timeouts use the provider
 library default.
@@ -7127,6 +7306,8 @@ binding is saved and again when it is resolved. See
 [Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok).
 
 ## MCP, workflows, and voice
+
+<p class="reads-this">Read by <code>AgentPrism.Mcp</code>, <code>AgentPrism.Workflows</code>, and <code>AgentPrism.Voice</code>. Live conversation is the exception: it is in <code>AgentPrism.Core</code>, behind <code>UseVoiceConversation()</code>.</p>
 
 ### MCP client
 
@@ -7199,6 +7380,8 @@ conversation also needs both `ISpeechTranscriber` and `ISpeechSynthesizer`.
 
 ## Endpoint options are code-only
 
+<p class="reads-this">Read by <code>AgentPrism.AspNetCore</code> at the <code>MapAgentPrism()</code> call, not from configuration.</p>
+
 `AgentPrismEndpointOptions` belongs to the `MapAgentPrism()` call. It has no named
 configuration section.
 
@@ -7230,6 +7413,8 @@ startup by design.
 
 ## Options without a named section
 
+<p class="reads-this">Read at registration time by the package that owns each call. None of them can be set from a settings file.</p>
+
 The following features use explicit code options because they contain delegates,
 freeze an exposure allowlist at registration, or define request-resolution policy:
 
@@ -7257,6 +7442,12 @@ freeze an exposure allowlist at registration, or define request-resolution polic
 
 Use the [API reference](/AgentPrism/api/) for every property on these code-only
 types. Their absence from this section table is deliberate.
+
+## Read next
+
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — the options above that decide who can call what
+- [Production deployment](/AgentPrism/guides/production/) — which of these you set differently per environment
+- [Troubleshooting](/AgentPrism/troubleshooting/) — what a wrong value looks like at run time
 
 ---
 
@@ -7478,6 +7669,12 @@ each term means inside AgentPrism.
 **Console.** The embedded AgentPrism UI. It is an operator client of the same management API
   that external automation can call.
 
+## Read next
+
+- [Architecture](/AgentPrism/concepts/) — the same terms as a system, not a list
+- [Complete capability map](/AgentPrism/capabilities/) — the feature each term belongs to
+- [Configuration](/AgentPrism/reference/configuration/) — the option names these terms appear in
+
 ---
 
 # Versions and upgrades
@@ -7571,12 +7768,11 @@ Include these facts when you report a defect:
 Never attach credentials, connection strings, raw API keys, or unreviewed prompt and tool
 content.
 
-## Related
+## Read next
 
-- [Compatibility matrices](/AgentPrism/reference/compatibility/)
-- [Choosing packages](/AgentPrism/packages/)
-- [Configuration reference](/AgentPrism/reference/configuration/)
-- [Production deployment](/AgentPrism/guides/production/)
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
+- [Choosing packages](/AgentPrism/packages/) — which packages you actually take a version of
+- [Configuration](/AgentPrism/reference/configuration/) — the options an upgrade can move
 
 ---
 
@@ -7584,6 +7780,27 @@ content.
 
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
+
+<nav class="symptom-index" aria-label="Symptom index">
+  <p>Find the symptom, not the subsystem. Each entry opens the section that fixes it;
+  browser search still reaches every heading on this page.</p>
+  <ul>
+    <li><a href="#a-fast-diagnostic-order">I do not know where to start</a></li>
+    <li><a href="#installation-and-startup">The package will not install, or startup throws</a></li>
+    <li><a href="#agents-and-models">The agent will not resolve, or the model answers wrongly</a></li>
+    <li><a href="#tools-approvals-and-guards">A tool is missing, blocked, or waiting forever</a></li>
+    <li><a href="#http-access-and-api-keys">A request returns <code>401</code> or <code>403</code></a></li>
+    <li><a href="#runs-streaming-and-replay">No run row, no deltas, or a cancel that does nothing</a></li>
+    <li><a href="#persistence-and-migrations">Data vanishes, or a migration will not apply</a></li>
+    <li><a href="#knowledge-and-memory">Knowledge returns <code>501</code>, or search stops matching</a></li>
+    <li><a href="#mcp-and-skill-scripts">Remote MCP tools never appear, or a skill will not run</a></li>
+    <li><a href="#voice">The voice socket returns <code>404</code>, <code>400</code>, or <code>401</code></a></li>
+    <li><a href="#webhooks-retention-and-operations">A webhook is rejected, or retention previews nothing</a></li>
+    <li><a href="#console">A console screen or action is not there</a></li>
+    <li><a href="#native-aot">Publishing reports trimming or dynamic-code warnings</a></li>
+    <li><a href="#build-diagnostics-and-the-agent-map">The build reports an <code>APG</code> diagnostic</a></li>
+  </ul>
+</nav>
 
 ## A fast diagnostic order
 
@@ -8172,6 +8389,12 @@ to your machine and to the versions that project restored, so the file is
 regenerated on every build and belongs in `.gitignore`; a project created with
 `dotnet new agentprism-api` already ignores it. To write the map but not the
 pointer file, set `AgentPrismWriteLocalReference` to `false`.
+
+## Read next
+
+- [Observability and cost](/AgentPrism/guides/observability/) — the traces and metrics that answer a question before it becomes a symptom
+- [Reliable runs](/AgentPrism/guides/reliability/) — the failure boundaries that stop several of these symptoms recurring
+- [Configuration](/AgentPrism/reference/configuration/) — the option behind most of the fixes above
 
 ---
 

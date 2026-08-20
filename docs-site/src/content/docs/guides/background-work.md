@@ -12,6 +12,21 @@ Use background work when the caller cannot keep an SSE connection open, when a b
 contains many independent inputs, or when work must start on a calendar. Keep the
 normal streaming run endpoint for interactive conversations and approval flows.
 
+```mermaid
+stateDiagram-v2
+    accTitle: Life of a queued job
+    accDescr: A queued job is polled by a worker, leased exclusively, and run. Success completes it, a retryable failure returns it to the queue until the attempt limit, and a worker that dies lets the lease expire so another worker can take the item again.
+    [*] --> Queued: enqueued by API or schedule
+    Queued --> Leased: worker polls and takes an exclusive lease
+    Leased --> Running: handler resolved
+    Running --> Completed: every item finished
+    Running --> Failed: attempt limit reached, or no handler
+    Running --> Queued: retryable failure, JobRetryException.RetryAfter
+    Leased --> Queued: lease expires after the worker dies
+    Completed --> [*]
+    Failed --> [*]
+```
+
 ## Configure the worker
 
 `AddAgentPrism()` registers the scheduling stores and worker. `UseScheduling()` only
@@ -291,6 +306,5 @@ idempotent.
 ## Read next
 
 - [Inbound triggers](/AgentPrism/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
-- [Reliable runs](/AgentPrism/guides/reliability/)
-- [Production deployment](/AgentPrism/guides/production/)
-- [HTTP API conventions](/AgentPrism/http-api/)
+- [Reliable runs](/AgentPrism/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Production deployment](/AgentPrism/guides/production/) — where the worker process lives and how many of them you run

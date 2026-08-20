@@ -7,10 +7,20 @@
 // guides.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, extname, join, relative, resolve } from 'node:path';
+import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
 import { hasInternalHistory } from './internal-history.mjs';
+import { sidebar, sectionImages } from '../src/sidebar.mjs';
+
+/** Every slug the sidebar reaches, at any depth. */
+const sidebarSlugs = new Set(
+  (function collectSlugs(entries) {
+    return entries.flatMap((entry) =>
+      entry.items ? collectSlugs(entry.items) : entry.slug ? [entry.slug] : [],
+    );
+  })(sidebar),
+);
 
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const docsRoot = resolve(here, '../src/content/docs');
@@ -108,14 +118,17 @@ for (const [value, label] of [
 
 for (const page of requiredManualPages) {
   const slug = page.replace(/\.(?:md|mdx)$/, '').replace(/\/index$/, '');
-  if (!astroConfig.includes(`slug: '${slug}'`)) {
+  if (!sidebarSlugs.has(slug)) {
     errors.push(`Capability page is not reachable from the sidebar: ${page}`);
   }
 }
 
 const allContent = collect(docsRoot).filter((file) => ['.md', '.mdx'].includes(extname(file)));
+// The separator matters: without it `http-api.md`, which is hand-written, is read
+// as living under the generated `http-api/` directory and skips every check below.
+const generatedRoots = [join(docsRoot, 'api', sep), join(docsRoot, 'http-api', sep)];
 const manualContent = allContent.filter(
-  (file) => !file.startsWith(join(docsRoot, 'api')) && !file.startsWith(join(docsRoot, 'http-api')),
+  (file) => !generatedRoots.some((directory) => file.startsWith(directory)),
 );
 
 const capabilityText = readFileSync(join(docsRoot, 'capabilities.md'), 'utf8');
@@ -155,7 +168,7 @@ for (const file of manualContent) {
   const derivedSlug = label.replace(/\.(?:md|mdx)$/, '').replace(/\/index$/, '');
   const slug = explicitSlug ?? derivedSlug;
 
-  if (label !== 'index.mdx' && !astroConfig.includes(`slug: '${slug}'`)) {
+  if (label !== 'index.mdx' && !sidebarSlugs.has(slug)) {
     errors.push(`${label}: manual page is not reachable from the sidebar`);
   }
 
@@ -456,6 +469,264 @@ if (existsSync(publishedOpenApi)) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Presentation contract. Content correctness is checked above; these four claims
+// are about the shape a reader meets on every page, and each one shipped broken:
+// three different names for the closing section, twenty-one pages with nothing to
+// look at, a palette nobody had measured, and one link preview for the whole site.
+// ---------------------------------------------------------------------------
+
+// 6. Every hand-written page ends with the same closing section, and that section
+//    is a decision aid rather than a link dump.
+const CLOSING_EXEMPT = new Map([
+  [
+    'index.mdx',
+    'the splash page\'s last section is a four-way "Choose your path" card grid, which ' +
+      'IS the closing; three bullets under it would repeat it',
+  ],
+]);
+
+for (const file of manualContent) {
+  const label = relative(docsRoot, file);
+  const text = readFileSync(file, 'utf8');
+  const headings = [...text.matchAll(/^## (.+)$/gm)].map(([, name]) => name.trim());
+
+  for (const stale of ['Related', 'Next', 'Related reference', 'See also']) {
+    if (headings.includes(stale)) {
+      errors.push(`${label}: closing section is named '${stale}'; every page uses '## Read next'`);
+    }
+  }
+
+  const reason = CLOSING_EXEMPT.get(label);
+
+  if (reason) {
+    if (headings.includes('Read next')) {
+      errors.push(`${label}: exempt from the closing contract but has one; drop the exemption`);
+    }
+    continue;
+  }
+
+  if (headings.at(-1) !== 'Read next') {
+    errors.push(
+      `${label}: does not end with '## Read next' (last section: ${headings.at(-1) ?? 'none'})`,
+    );
+    continue;
+  }
+
+  const closing = text.slice(text.lastIndexOf('\n## Read next'));
+  const links = (closing.match(/^- /gm) ?? []).length;
+
+  if (links === 0) {
+    errors.push(`${label}: '## Read next' has no links`);
+  } else if (links > 3) {
+    errors.push(`${label}: '## Read next' offers ${links} links; a reader can decide between at most 3`);
+  }
+}
+
+// 7. A page that explains a flow, a decision, or a layer shows one. A page that
+//    lists things does not have to, but it has to say so here.
+const DIAGRAM_THRESHOLD = 6500;
+const DIAGRAM_EXEMPT = new Map([
+  ['troubleshooting.md', 'a symptom catalogue read by search; its navigation is the symptom index'],
+  ['reference/configuration.md', 'a table of keys, defaults, and the package that reads each section'],
+  ['reference/compatibility.md', 'support matrices, which are already tables'],
+  ['reference/glossary.md', 'alphabetical definitions with no flow between them'],
+  ['packages.md', 'a decision table: one row per package'],
+]);
+
+for (const file of manualContent) {
+  const label = relative(docsRoot, file);
+  const text = readFileSync(file, 'utf8');
+  const size = Buffer.byteLength(text);
+  const shows = /```mermaid|<img\s|!\[/.test(text);
+  const reason = DIAGRAM_EXEMPT.get(label);
+
+  if (reason && shows) {
+    errors.push(`${label}: listed as a table page but now shows a figure; drop the exemption`);
+  }
+
+  if (reason || shows || size <= DIAGRAM_THRESHOLD) continue;
+
+  errors.push(
+    `${label}: ${size} bytes of narrative with no diagram or image. Add one, or add it to ` +
+      'DIAGRAM_EXEMPT in this file with the reason it is a table page.',
+  );
+}
+
+for (const label of [...CLOSING_EXEMPT.keys(), ...DIAGRAM_EXEMPT.keys()]) {
+  if (!existsSync(join(docsRoot, label))) {
+    errors.push(`Exemption list names a page that no longer exists: ${label}`);
+  }
+}
+
+// 8. Every colour pair the reader actually sees clears WCAG AA, in BOTH themes.
+//    site.css is the only place a colour is declared, which is what makes this
+//    measurable without a browser.
+const styleSheet = readFileSync(join(siteRoot, 'src/styles/site.css'), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
+
+const themes = { dark: new Map(), light: new Map() };
+
+for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  const list = selectors.split(',').map((entry) => entry.trim());
+  const targets = [];
+  if (list.includes(':root')) targets.push('dark');
+  if (list.includes(":root[data-theme='light']")) targets.push('light');
+  // A block that names both selectors declares one value for both themes.
+  if (list.includes(':root') && list.includes(":root[data-theme='light']")) {
+    targets.length = 0;
+    targets.push('dark', 'light');
+  }
+  if (targets.length === 0) continue;
+
+  for (const [, name, value] of body.matchAll(/(--ap-[\w-]+):\s*([^;]+);/g)) {
+    const colour = /^#[0-9a-fA-F]{3,8}$/.test(value.trim()) ? value.trim() : null;
+    if (!colour) continue;
+    for (const target of targets) themes[target].set(name, colour);
+  }
+}
+
+// A colour declared anywhere else — inside a component rule, a media query — would
+// never reach the maps above and so would never be measured. Measured: adding
+// `.card { --ap-sneaky: #ff0000; }` left the gate green. The token set is closed, so
+// the declaration site is part of the contract.
+for (const [, selectors, body] of styleSheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  const list = selectors.split(',').map((entry) => entry.trim());
+  if (list.includes(':root') || list.includes(":root[data-theme='light']")) continue;
+
+  for (const [, name, value] of body.matchAll(/(--ap-[\w-]+):\s*([^;]+);/g)) {
+    if (/^#[0-9a-fA-F]{3,8}$/.test(value.trim())) {
+      errors.push(
+        `site.css: ${name} is declared on '${selectors.trim()}'. Colour tokens belong in ` +
+          'the :root blocks, where both themes and the contrast gate can see them.',
+      );
+    }
+  }
+}
+
+// A hairline separates; it does not carry information, and the boundary it draws is
+// carried by spacing and by the raised surface behind it as well. It is the only
+// colour allowed to sit below the UI threshold, and it says so here.
+const DECORATIVE = new Map([['--ap-border', 'a hairline: spacing and surface carry the same boundary']]);
+
+const CONTRAST_PAIRS = [
+  ['--ap-text', '--ap-surface', 4.5],
+  ['--ap-text', '--ap-surface-raised', 4.5],
+  ['--ap-text-strong', '--ap-surface', 4.5],
+  ['--ap-text-strong', '--ap-surface-raised', 4.5],
+  ['--ap-text-muted', '--ap-surface', 4.5],
+  ['--ap-text-muted', '--ap-surface-raised', 4.5],
+  ['--ap-accent', '--ap-surface', 4.5],
+  ['--ap-accent', '--ap-surface-raised', 4.5],
+  ['--ap-accent', '--ap-accent-quiet', 4.5],
+  ['--ap-code', '--ap-surface-sunken', 4.5],
+  ['--ap-code', '--ap-surface-raised', 4.5],
+  ['--ap-diagram-ink', '--ap-diagram-plate', 4.5],
+  ['--ap-diagram-ink', '--ap-diagram-node', 4.5],
+  ['--ap-diagram-ink', '--ap-diagram-cluster', 4.5],
+  // Non-text boundaries: WCAG 1.4.11 asks for 3:1, not 4.5:1.
+  ['--ap-border-strong', '--ap-surface', 3],
+  ['--ap-border-strong', '--ap-surface-raised', 3],
+  ['--ap-diagram-line', '--ap-diagram-plate', 3],
+  ['--ap-diagram-line', '--ap-diagram-node', 3],
+];
+
+const paired = new Set(CONTRAST_PAIRS.flatMap(([a, b]) => [a, b]));
+// Reported on success, not only on failure: the phase records the measured floor,
+// and a number nobody prints is a number nobody notices drifting.
+const floors = {
+  4.5: { ratio: Number.POSITIVE_INFINITY, pair: '' },
+  3: { ratio: Number.POSITIVE_INFINITY, pair: '' },
+};
+
+for (const [theme, tokens] of Object.entries(themes)) {
+  for (const name of tokens.keys()) {
+    if (!paired.has(name) && !DECORATIVE.has(name)) {
+      errors.push(
+        `site.css: ${name} is a colour with no contrast pair. Add it to CONTRAST_PAIRS ` +
+          'or to DECORATIVE with the reason it carries no information.',
+      );
+    }
+  }
+
+  for (const [foreground, background, minimum] of CONTRAST_PAIRS) {
+    const front = tokens.get(foreground);
+    const back = tokens.get(background);
+
+    // Never skip: an unresolved token is a token that has no value in this theme,
+    // which is exactly the surface that goes unreadable.
+    if (!front || !back) {
+      errors.push(`site.css: ${!front ? foreground : background} has no value in the ${theme} theme`);
+      continue;
+    }
+
+    const ratio = contrast(front, back);
+    const floor = floors[minimum];
+
+    if (ratio < floor.ratio) {
+      floor.ratio = ratio;
+      floor.pair = `${foreground} on ${background}, ${theme}`;
+    }
+
+    if (ratio < minimum) {
+      errors.push(
+        `site.css: ${foreground} on ${background} is ${ratio.toFixed(2)}:1 in the ${theme} ` +
+          `theme; ${minimum}:1 required`,
+      );
+    }
+  }
+}
+
+// A token nobody reads is a token nobody maintains. astro.config.mjs reads the
+// diagram tokens by name, so both files count as usage.
+const astroConfigText = readFileSync(join(siteRoot, 'astro.config.mjs'), 'utf8');
+
+for (const name of themes.dark.keys()) {
+  const usedInCss = new RegExp(`var\\(${name}[,)]`).test(styleSheet);
+  const usedInConfig = astroConfigText.includes(`token('${name.slice(2)}')`);
+
+  if (!usedInCss && !usedInConfig) {
+    errors.push(`site.css: ${name} is declared but nothing reads it`);
+  }
+}
+
+// 9. Every sidebar section advertises its own link preview, and the file exists.
+for (const section of sidebar) {
+  const image = sectionImages[section.label];
+
+  if (!image) {
+    errors.push(`Sidebar section '${section.label}' has no link-preview image in src/sidebar.mjs`);
+    continue;
+  }
+
+  const asset = join(siteRoot, 'public/social', `${image}.png`);
+
+  if (!existsSync(asset)) {
+    errors.push(
+      `Sidebar section '${section.label}' points at social/${image}.png, which is not on disk; ` +
+        'regenerate with: node scripts/build-social-images.mjs',
+    );
+  }
+}
+
+for (const label of Object.keys(sectionImages)) {
+  if (!sidebar.some((section) => section.label === label)) {
+    errors.push(`src/sidebar.mjs maps '${label}', which is no longer a sidebar section`);
+  }
+}
+
+// 10. The rule the packaged documentation already follows applies to the site's own
+//     hand-written pages too: a reader cannot resolve a decision number.
+for (const file of manualContent) {
+  const text = readFileSync(file, 'utf8');
+
+  if (hasInternalHistory(text)) {
+    errors.push(`${relative(docsRoot, file)}: internal development history leaked into a public page`);
+  }
+}
+
 if (errors.length > 0) {
   console.error(`Content check failed with ${errors.length} issue(s):`);
   for (const error of errors.slice(0, 80)) {
@@ -467,7 +738,13 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`Content: ${manualContent.length} manual pages and ${allContent.length} total pages passed.`);
+console.log(
+  `Content: ${manualContent.length} manual pages and ${allContent.length} total pages passed.`,
+);
+console.log(
+  `Contrast floor: text ${floors[4.5].ratio.toFixed(2)}:1 (${floors[4.5].pair}); ` +
+    `non-text ${floors[3].ratio.toFixed(2)}:1 (${floors[3].pair}).`,
+);
 
 function collect(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -479,4 +756,21 @@ function collect(directory) {
 
 function isSynchronizationCopy(file) {
   return / \d+\.(?:md|mdx|json)$/.test(basename(file));
+}
+
+
+/** WCAG 2.x relative luminance, from a #rgb or #rrggbb value. */
+function luminance(colour) {
+  const text = colour.replace('#', '');
+  const full = text.length === 3 ? [...text].map((digit) => digit + digit).join('') : text;
+  const [red, green, blue] = [0, 2, 4]
+    .map((offset) => parseInt(full.slice(offset, offset + 2), 16) / 255)
+    .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrast(foreground, background) {
+  const [lighter, darker] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
 }

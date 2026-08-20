@@ -11,6 +11,20 @@ AgentPrism supports three different external-agent directions. Keep them separat
 | MCP server | Publish an AgentPrism agent as an MCP tool | `UseMcpServer()` | `/agentprism/mcp` by default |
 | A2A server | Publish an agent through the agent-to-agent protocol | `UseA2A()` | `/agentprism/a2a/{agent}` by default |
 
+```mermaid
+flowchart LR
+    accTitle: The three external-agent directions
+    accDescr: As an MCP client AgentPrism calls remote servers to gain tools. As an MCP server and as an A2A server AgentPrism is called by outside callers, and each of those directions has its own allowlist, budget, and credential requirement.
+    subgraph Inbound["Who can call your agents"]
+        MCPC["MCP caller"] --> MCPS["UseMcpServer<br/>allowlist · run budget · ExternalInvoke key"]
+        A2AC["A2A caller"] --> A2AS["UseA2A<br/>one agent card per exposed agent"]
+    end
+    MCPS --> AGENT["Your agent"]
+    A2AS --> AGENT
+    AGENT --> CLIENT["UseMcp<br/>discovery, refreshed on an interval"]
+    CLIENT --> REMOTE["Remote MCP server<br/>tools · prompts · resources"]
+```
+
 The first direction expands what your agents can call. The other two expand who can
 call your agents. They have different trust boundaries and must be enabled separately.
 
@@ -173,7 +187,6 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 
 ## Read next
 
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
-- [Compatibility matrix](/AgentPrism/reference/compatibility/)
+- [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
+- [Securing the endpoints](/AgentPrism/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
+- [Compatibility matrices](/AgentPrism/reference/compatibility/) — which protocol revisions and transports are supported

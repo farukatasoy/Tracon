@@ -15,6 +15,23 @@ use the normal run endpoint instead; see
 [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) for how
 queued runs execute.
 
+```mermaid
+flowchart TD
+    accTitle: What a signed inbound event passes before a run starts
+    accDescr: The accept endpoint carries no bearer token. The tenant comes from the URL, the trigger must exist and be enabled, the timestamp must be inside the tolerance window, and the HMAC signature must verify. The signature is then reserved as the replay key, so an identical retry gets 409 rather than a second run. Every rejection returns the same generic 401.
+    REQ["POST /api/triggers/tenant/name<br/>no Authorization header"] --> TEN["Tenant from the URL only"]
+    TEN --> TRG["Trigger exists and is enabled"]
+    TRG --> TS["Timestamp inside TimestampTolerance"]
+    TS --> SIG["HMAC signature verifies"]
+    SIG --> IDEM{"Signature already reserved?"}
+    IDEM -->|yes| CONF["409 Conflict<br/>never a second run"]
+    IDEM -->|no| Q["202 Accepted<br/>queued run"]
+    TEN -.->|any failure| GEN["One generic 401<br/>names cannot be enumerated"]
+    TRG -.->|any failure| GEN
+    TS -.->|any failure| GEN
+    SIG -.->|any failure| GEN
+```
+
 ## Define a trigger
 
 ```bash
@@ -51,7 +68,7 @@ body becomes the run's message:
 | `wholeBody` (default) | The whole request body becomes the message, as JSON text |
 | `path` | A single field, selected by a dotted `payloadPath` (for example `event.text`), becomes the message |
 
-There is no template language here — the same K2 rule that keeps tool
+There is no template language here — the same rule that keeps tool
 approval conditions free of expression evaluation. A consumer that needs to
 reshape the payload does so before it reaches AgentPrism.
 
@@ -98,7 +115,7 @@ the queue.
 
 - The tenant comes from the URL, not from an ambient header or claim; a
   segment that does not match a saved trigger never falls back to a default
-  tenant (K-382).
+  tenant.
 - An unknown tenant, an unknown or disabled trigger name, and every
   signature/timestamp failure all return the **same** generic `401` body.
   A caller without a valid secret cannot enumerate trigger names, or even

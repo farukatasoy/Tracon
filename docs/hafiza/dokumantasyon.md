@@ -90,3 +90,66 @@ yazimda gevsekti ve hicbir sey yakalamadi:
 
 Kapiyi yazdiktan sonra **kirmizi oldugunu gor**: bir ekrani yeniden adlandir,
 bir adi degistir, bir sayiyi bozar. Gormeden yesil kabul etme.
+
+## Sunum kapilari (Faz 76)
+
+`check-content.mjs` artik icerigin yaninda **sunumu** da olcer: kapanis bolumu
+(`## Read next`, en fazla uc baglanti), diyagram borcu (esik 6 500 B + gerekceli
+muafiyet listesi), `site.css` token ciftlerinin WCAG kontrasti, bolum basina
+`og:image`, ve elle yazilan sayfalarda ic gelistirme referansi. Sayfa agirligi
+ayri bir betiktedir (`check-weight.mjs`) cunku `dist/` uzerinden olculur.
+
+## 🚨 `check-content.mjs` TEMIZ bir checkout'ta kosar — statik import onu kirar
+
+Kapi derlemeden **once** kosar, yani `src/generated/*-sidebar.json` ve
+`content/docs/{api,http-api}/` henuz YOKTUR (ucu de `.gitignore`'da). `sidebar.mjs`
+o JSON'lari **statik** import edince kapi temiz klonda `ERR_MODULE_NOT_FOUND` ile
+dustu — ve yerelde yesil gorundugu icin ancak bagimsiz denetim buldu. Uretilen bir
+dosyayi okuyan her modul `existsSync` ile kosullu okumali. Dogrulama:
+`mv src/generated /tmp && node scripts/check-content.mjs`.
+
+## 🚨 Kapiyi CI'da hangi is kosuyor?
+
+`pages` isi `github.event_name != 'pull_request'` kosulludur. Oraya konan bir kapi
+**hicbir PR'i durdurmaz**. `check-content.mjs` yalniz `node:` yerlesikleri ve
+yerel dosya okur (olculdu: `node_modules` silinmisken kosuyor), bu yuzden `npm ci`
+olmadan PR'da kosan `build` isine konabilir. Agirlik kapisi `dist/` ister ve
+`pages`'te kalir.
+
+## 🚨 Onek karsilastirmasinda ayirici
+
+`file.startsWith(join(docsRoot, 'http-api'))` elle yazilan **`http-api.md`**'yi de
+yakalar; o sayfa boylece frontmatter, aciklama uzunlugu, kurulum komutu ve diyagram
+erisilebilirligi denetimlerinin hepsinden sessizce muaf kaldi. `sep` eklendi;
+denetlenen sayfa 38 → 39.
+
+## 🚨 Mermaid: kenar etiketi dugumun degil PLAKANIN uzerindedir
+
+Flowchart stil sayfasi HER `.label`'i `nodeTextColor` ile boyar — kenar etiketleri
+dahil — ve kenar etiketi %50 saydam bir dikdortgene cizilir, yani zemini plakayla
+**karisimdir**. Koyu dolgu + beyaz metin kutularin icinde okunur, aralarinda
+okunmaz. Tek murekkep rengi + acik dolgu ikisini birden cozer (K-520).
+
+Ikinci tuzak: **`astro-mermaid` kendi CSS'ini calisma aninda `document.head`'e
+ekler.** `[data-theme="dark"] pre.mermaid[data-processed]` bizim
+`.sl-markdown-content pre.mermaid[data-processed]`'imizle esit puanlidir ve sonra
+geldigi icin beraberligi kazanir. Plaka rengi ozniteligi tekrarlayarak yazildi
+(`[data-processed][data-processed]`); `!important` secilmedi cunku o gelecekteki
+her duzeltmeyi de yener.
+
+Ucuncusu: **diyagram sozdizimi derleme aninda dogrulanmaz** — mermaid tarayicida
+render eder ve bozuk bir diyagram sessizce bir hata kutusu cizer. Yeni diyagram
+eklerken `astro preview` + tarayici ile bak; `mermaid.parse` Node'da DOM olmadan
+calismaz.
+
+## Starlight: logo ve bolum basina og:image bilesen ISTEMEZ
+
+Prizma isareti `logo: { src: './public/favicon.svg' }` ile gelir — dosya tek
+kopyadir, Astro derlemede hash'li bir kopya uretir. Bolum basina `og:image`
+`routeMiddleware` ile yazilir (`src/starlightRouteData.mjs`); `starlightRoute.head`
+dizisi orada degistirilebilir. Faz 76 sifir bilesen gecersiz kildi.
+
+🚨 Bir de sasirtan yer: Starlight basliklari `.sl-heading-wrapper.level-h2` icine
+**sarar** (cengel baglantilari aciksa). `.sl-markdown-content > h2` seciciisi
+hicbir seyi eslemez.
+

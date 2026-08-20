@@ -212,11 +212,14 @@ complete. Do not parse each SSE frame as a document.
 supports the requested format. Use `Json` or `JsonSchema`, not prompt wording alone,
 and still reject a fenced payload at the application boundary.
 
-## Related
+## In the reference
 
-- [Model providers](/AgentPrism/guides/model-providers/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
 - [Agent management HTTP API](/AgentPrism/http-api/agents/)
 - [`AgentResponseFormat` API](/AgentPrism/api/agentprism.agentresponseformat/)
 - [`AgentResponseFormatKind` API](/AgentPrism/api/agentprism.agentresponseformatkind/)
 - [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
+
+## Read next
+
+- [Model providers](/AgentPrism/guides/model-providers/)
+- [Agents and definitions](/AgentPrism/concepts/agents/)
