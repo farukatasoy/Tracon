@@ -12,7 +12,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// The rule these tests verify is the phase's central design decision (see
-/// <c>docs/14-COK-MODLULUK.md</c>, section 14.1): in chat history, an attachment
+/// <c>docs/arsiv/fazlar/14-COK-MODLULUK.md</c>, section 14.1): in chat history, an attachment
 /// lives as a small reference, but it resolves to real bytes right before the
 /// model call. <see cref="FakeModelProvider.Requests"/> shows what ACTUALLY
 /// reached the model; seeing a <see cref="DataContent"/> proves the resolution worked.

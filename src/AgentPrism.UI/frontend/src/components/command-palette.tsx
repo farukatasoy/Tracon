@@ -21,7 +21,7 @@ import type { Meta } from '../lib/types';
  * must not be offered "New agent" — the server would refuse it, and offering an
  * action that always fails is worse than not offering it. As everywhere else in
  * this console, hiding is a courtesy; the server is the enforcement
- * (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+ * (docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
  */
 
 export interface PaletteCommand {

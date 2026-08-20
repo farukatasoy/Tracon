@@ -904,7 +904,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         var modelId = fallbackUsed?.Model ?? _modelId;
 
         // The cost is calculated HERE, from the final (merged) usage — the price is a
-        // snapshot (see docs/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
+        // snapshot (see docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
         // list changes later, the cost of this run does not change.
         var cost = _pricingResolver?.Resolve(modelProvider, modelId, usage);
 

@@ -12,7 +12,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 /// <remarks>
 /// Ollama is not installed on this machine; this stand-in server verifies
 /// F-05's "local, keyless server" mechanism (connect + unauthenticated request)
-/// over a real socket. See <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.2
+/// over a real socket. See <c>docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.2
 /// and its DoD note.
 /// </remarks>
 internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable

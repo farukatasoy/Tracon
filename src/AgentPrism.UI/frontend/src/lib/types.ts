@@ -1072,7 +1072,7 @@ export interface ApprovalDecisionRequest {
 /**
  * An uploaded file's metadata. The binary content never travels through this
  * type — it lives at `GET api/attachments/{id}` and is fetched separately
- * (decision: docs/14-COK-MODLULUK.md, section 14.1 — messages stay small).
+ * (decision: docs/arsiv/fazlar/14-COK-MODLULUK.md, section 14.1 — messages stay small).
  */
 export interface AttachmentDescriptor {
   id: string;

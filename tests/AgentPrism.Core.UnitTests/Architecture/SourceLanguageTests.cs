@@ -87,7 +87,7 @@ public sealed class SourceLanguageTests
     /// Turkish-named identifiers that are not prose and must survive translation:
     /// defect ids (<c>HATA-S3-008</c>), manual test case ids (<c>MT-MCP-023</c>),
     /// and paths into the development tooling, which stays Turkish by design
-    /// (<c>docs/21-KOTA-VE-OLAY-YAYINI.md</c>, <c>scripts/dokuman-bakim.py</c>).
+    /// (<c>docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md</c>, <c>scripts/dokuman-bakim.py</c>).
     /// They are removed from a line before it is inspected — otherwise
     /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
     /// could never reach zero.

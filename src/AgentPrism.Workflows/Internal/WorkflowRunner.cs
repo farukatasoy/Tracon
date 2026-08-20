@@ -488,7 +488,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             // Workflow runs start with a structured input, not a single user
             // message; phase 45's eval case promotion covers only agent
-            // runs (docs/45-URETIMDEN-EVAL-KUMESI.md).
+            // runs (docs/arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md).
             query: null,
             linked.Token).ConfigureAwait(false);
 
@@ -971,7 +971,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         // 🚨 MT-WF-062: an EXTRA TurnToken must NOT be sent on a /respond call
         // (Answers non-empty): the checkpoint already republishes the pending
-        // request BY ITSELF (docs/16-WORKFLOWS-ARAYUZ.md #3) - the extra token
+        // request BY ITSELF (docs/arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md #3) - the extra token
         // has a VISIBLE side effect whenever the graph's ENTRY node is an
         // AIAgentBinding (an agent-host SUBSCRIBED to the turn token): the
         // agent thinks it is "a new turn", reruns FROM SCRATCH, produces a

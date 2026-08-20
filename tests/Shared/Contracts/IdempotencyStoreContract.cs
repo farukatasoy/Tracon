@@ -154,7 +154,7 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
         await Store.ReleaseAsync(Tenant, key);
 
         // 🚨 Retrying with the same key after a failed run MUST work — the
-        // record must have been deleted (docs/43-IDEMPOTENCY-KEY.md, 43.2).
+        // record must have been deleted (docs/arsiv/fazlar/43-IDEMPOTENCY-KEY.md, 43.2).
         var retried = await Store.ReserveAsync(Request(Tenant, key));
 
         retried.State.ShouldBe(IdempotencyState.Reserved);

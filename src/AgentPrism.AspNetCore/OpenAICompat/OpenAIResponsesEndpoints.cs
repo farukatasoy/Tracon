@@ -182,7 +182,7 @@ internal static class OpenAIResponsesEndpoints
         // 'data:' URIs embedded in the body (image_url, input_file) have
         // already been converted to DataContent by MAF; before being sent to
         // the agent they are each converted into an attachment so the chat
-        // history stays small (docs/14-COK-MODLULUK.md, 14.1).
+        // history stays small (docs/arsiv/fazlar/14-COK-MODLULUK.md, 14.1).
         if (await AttachmentIngestion.ReplaceEmbeddedDataAsync(
                 runRequest.Messages,
                 prefix,

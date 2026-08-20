@@ -5,7 +5,7 @@ namespace AgentPrism.Core.UnitTests.Security;
 /// </summary>
 /// <remarks>
 /// Verifies that the key cannot be reversed, and that the hash cannot be
-/// predicted (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
+/// predicted (docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
 /// </remarks>
 public sealed class ApiKeyGeneratorTests
 {

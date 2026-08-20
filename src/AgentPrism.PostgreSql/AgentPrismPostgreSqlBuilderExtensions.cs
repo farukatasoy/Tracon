@@ -153,7 +153,7 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // audit-trail decorators, so the audit trail behaves the same way
         // whether the store is in-memory or PostgreSQL. Rationale: same pattern
         // as the AddAgentPrism() registration in AgentPrism.Core
-        // (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+        // (docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
         services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),

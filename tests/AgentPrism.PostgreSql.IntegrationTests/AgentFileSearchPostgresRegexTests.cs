@@ -67,7 +67,7 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
         // Phase 51 DoD: "A single-file search in a 10,000-file store reads a
         // constant number of rows; the row count was measured and recorded
         // here." This test produces that measurement (see
-        // docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD).
+        // docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md, DoD).
         SetScope("agent-a");
 
         const int UnrelatedFileCount = 10_000;
@@ -95,7 +95,7 @@ public sealed class AgentFileSearchPostgresRegexTests(PostgresFixture fixture) :
             """);
 
         // Measured value (in a 10,001-row store, in the test container): 1 row
-        // (see docs/51-VEKTOR-BELLEK-VE-RAG.md, DoD). The test container's
+        // (see docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md, DoD). The test container's
         // locale can turn a prefix LIKE into an index range scan; we assert a
         // wide upper bound — the real proof is staying ORDERS OF MAGNITUDE
         // below UnrelatedFileCount, the exact number can vary across

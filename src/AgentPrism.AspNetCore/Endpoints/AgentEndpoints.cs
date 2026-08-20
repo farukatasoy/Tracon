@@ -753,7 +753,7 @@ internal static class AgentEndpoints
         // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
         // The stored response must be deduplicatable; storing an SSE body
         // (loss of timing information, unpredictable size) is out of scope for
-        // this phase (docs/43-IDEMPOTENCY-KEY.md, section 43.4). This is why
+        // this phase (docs/arsiv/fazlar/43-IDEMPOTENCY-KEY.md, section 43.4). This is why
         // the decision is made here, at the moment the stream mode is CHOSEN,
         // rather than in IdempotencyFilter: the filter never SEES a streaming
         // request, because a request carrying the header is already non-streaming.

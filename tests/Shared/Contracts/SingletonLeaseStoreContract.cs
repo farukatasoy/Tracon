@@ -108,7 +108,7 @@ public abstract class SingletonLeaseStoreContract : IAsyncLifetime
 
         // 🚨 If the former owner tries to renew its lease, this must return
         // false -- the caller MUST step down (Tests table,
-        // docs/42-TEK-YURUTUCU-SECIMI.md).
+        // docs/arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md).
         (await Store.RenewAsync(lease, firstOwner, TimeSpan.FromMinutes(5))).ShouldBeFalse();
     }
 
