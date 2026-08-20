@@ -40,6 +40,10 @@ public sealed class TenantCoverageTests
             ["GetAsync", "GetVersionAsync", "ListAsync", "ListVersionsAsync", "SaveAsync", "DeleteAsync", "RollbackAsync"],
         ["SqlAgentFileStore"] =
             ["ReadAsync", "WriteAsync", "DeleteAsync", "FileExistsAsync", "ListChildrenAsync", "SearchAsync", "CreateDirectoryAsync"],
+        // Not an Sql* type, which is exactly why it used to sit outside this
+        // gate. All four methods are asserted cross-tenant by
+        // PgVectorSearchStoreTests.Tenant_does_not_see_the_others_collection.
+        ["PgVectorSearchStore"] = ["UpsertAsync", "SearchAsync", "DeleteSourceAsync", "ListSourcesAsync"],
         ["SqlAgentSkillStore"] = ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync"],
         ["SqlToolApprovalRuleStore"] = ["ListAsync", "AddAsync", "DeleteAsync"],
         ["SqlMcpServerStore"] = ["ListAsync", "GetAsync", "SaveAsync", "DeleteAsync"],
@@ -89,7 +93,10 @@ public sealed class TenantCoverageTests
         ["SqlIdempotencyStore"] = ["ReserveAsync", "CompleteAsync", "ReleaseAsync"],
         ["SqlRunInputStore"] = ["SaveAsync", "GetAsync"],
         ["SqlConversationBranchStore"] = ["BranchAsync"],
-        ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync", "ExpireAsync"],
+        // ExpireAsync is NOT listed: it is [TenantAgnostic] maintenance work. It
+        // used to be listed here instead, which meant the gate passed on an
+        // assertion no contract actually made.
+        ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync"],
     };
 
     [Fact]
@@ -153,6 +160,15 @@ public sealed class TenantCoverageTests
         }
     }
 
+    /// <summary>
+    /// Stores that only one provider ships. They are absent from the other
+    /// providers' assemblies by design, not because the entry went stale.
+    /// </summary>
+    private static readonly HashSet<string> ProviderSpecificStores = new(StringComparer.Ordinal)
+    {
+        "PgVectorSearchStore",
+    };
+
     [Fact]
     public void Coverage_list_carries_no_stale_entries()
     {
@@ -163,7 +179,17 @@ public sealed class TenantCoverageTests
         {
             if (!stores.TryGetValue(storeName, out var store))
             {
-                stale.Add($"{storeName} (no such store)");
+                // 🚨 This list is shared by all three provider test projects, and
+                // each provider COMPILES the shared sources in (see the
+                // Compile Include of AgentPrism.Sql.Shared), so the scanned
+                // assembly differs per provider. A provider-specific store is
+                // therefore absent from the other two, which is not staleness.
+                // Everything else must still exist, so the ratchet holds for the
+                // shared stores.
+                if (!ProviderSpecificStores.Contains(storeName))
+                {
+                    stale.Add($"{storeName} (no such store)");
+                }
 
                 continue;
             }
@@ -197,7 +223,12 @@ public sealed class TenantCoverageTests
             .GetTypes()
             .Where(static type => type is { IsClass: true, IsAbstract: false })
             .Where(static type => string.Equals(type.Namespace, "AgentPrism", StringComparison.Ordinal))
-            .Where(static type => type.Name.StartsWith("Sql", StringComparison.Ordinal))
+            // 🚨 There used to be a name filter here (Name.StartsWith("Sql")).
+            // PgVectorSearchStore cleared every other filter and failed only on
+            // its name, so four public data methods sat outside this gate
+            // entirely - neither in Covered nor marked [TenantAgnostic] - while
+            // the test stayed green. The gate now selects on SHAPE alone, so the
+            // next store added under a different name cannot slip past it.
             .Where(IsStoreLike)
             .OrderBy(static type => type.Name, StringComparer.Ordinal)];
 

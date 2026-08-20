@@ -84,4 +84,43 @@ public sealed class AuditSecretFilterTests
 
         AuditSecretFilter.Redact(NotJson).ShouldBe(NotJson);
     }
+
+    /// <summary>
+    /// 🚨 Separator spellings used to escape redaction. The fragment list is
+    /// written without separators ("apikey"), and matching was a plain substring
+    /// test, so "apiKey" was caught while "x-api-key", "xi-api-key" and "api_key"
+    /// were not. All three are real spellings in this code base and in the
+    /// free-form surfaces a caller controls: MCP server headers, agent metadata
+    /// and skill script arguments.
+    /// </summary>
+    [Theory]
+    [InlineData("x-api-key")]
+    [InlineData("X-Api-Key")]
+    [InlineData("xi-api-key")]
+    [InlineData("api_key")]
+    [InlineData("API.KEY")]
+    [InlineData("client_secret")]
+    [InlineData("refresh-token")]
+    public void Separated_secret_names_are_redacted(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":"sk-live-secret"}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldNotContain("sk-live-secret");
+    }
+
+    /// <summary>
+    /// The other half of the contract: stripping separators must not start
+    /// redacting counters. K-081 recorded that a plural "tokens" is a count, and
+    /// blanket-redacting it emptied real agent records.
+    /// </summary>
+    [Theory]
+    [InlineData("max_output_tokens")]
+    [InlineData("max-context-window-tokens")]
+    [InlineData("totalTokens")]
+    public void Separated_token_counts_are_kept(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":4096}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldContain("4096");
+    }
 }

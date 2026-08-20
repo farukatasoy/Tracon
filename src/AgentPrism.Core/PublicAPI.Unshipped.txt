@@ -14,12 +14,10 @@ AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProv
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture = null) -> Microsoft.Agents.AI.AIAgent!
-AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.CompileAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
-AgentPrism.InstructionCultureResolver
-static AgentPrism.InstructionCultureResolver.Resolve(AgentPrism.AgentDefinition! definition, string? culture) -> string?
 AgentPrism.AgentDefinitionValidator
 AgentPrism.AgentDefinitionValidator.AgentDefinitionValidator(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, AgentPrism.AgentSkillCatalog! skills, AgentPrism.IAgentCatalog! catalog, AgentPrism.AgentDefinitionCompiler! compiler, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options, AgentPrism.IMcpToolRefresher? mcpRefresher = null) -> void
 AgentPrism.AgentDefinitionValidator.ValidateAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentValidationReport!>
@@ -131,10 +129,10 @@ AgentPrism.AgentPrismObservabilityOptions
 AgentPrism.AgentPrismObservabilityOptions.AgentPrismObservabilityOptions() -> void
 AgentPrism.AgentPrismObservabilityOptions.AlwaysPersistFailures.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.AlwaysPersistFailures.set -> void
-AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.get -> bool
-AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.set -> void
 AgentPrism.AgentPrismObservabilityOptions.Enabled.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.Enabled.set -> void
+AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.get -> bool
+AgentPrism.AgentPrismObservabilityOptions.EnableQuotaUsageGauge.set -> void
 AgentPrism.AgentPrismObservabilityOptions.IncludeAgentVersionTag.get -> bool
 AgentPrism.AgentPrismObservabilityOptions.IncludeAgentVersionTag.set -> void
 AgentPrism.AgentPrismObservabilityOptions.MaxSpansPerRun.get -> int
@@ -174,6 +172,8 @@ AgentPrism.AgentPrismOptions.RunRecording.get -> AgentPrism.AgentPrismRunRecordi
 AgentPrism.AgentPrismOptions.RunRecording.set -> void
 AgentPrism.AgentPrismOptions.Skills.get -> AgentPrism.AgentPrismSkillOptions!
 AgentPrism.AgentPrismOptions.Skills.set -> void
+AgentPrism.AgentPrismOptions.Tools.get -> AgentPrism.AgentPrismToolOptions!
+AgentPrism.AgentPrismOptions.Tools.set -> void
 AgentPrism.AgentPrismOptions.UtilityModel.get -> AgentPrism.ModelBinding?
 AgentPrism.AgentPrismOptions.UtilityModel.set -> void
 AgentPrism.AgentPrismOptions.Validation.get -> AgentPrism.AgentPrismValidationOptions!
@@ -299,6 +299,10 @@ AgentPrism.AgentPrismSkillScriptOptions.SkillRoots.get -> System.Collections.Gen
 AgentPrism.AgentPrismSkillScriptOptions.Timeout.get -> System.TimeSpan
 AgentPrism.AgentPrismSkillScriptOptions.Timeout.set -> void
 AgentPrism.AgentPrismToolApprovalPolicyExtensions
+AgentPrism.AgentPrismToolOptions
+AgentPrism.AgentPrismToolOptions.AgentPrismToolOptions() -> void
+AgentPrism.AgentPrismToolOptions.DefaultTimeout.get -> System.TimeSpan
+AgentPrism.AgentPrismToolOptions.DefaultTimeout.set -> void
 AgentPrism.AgentPrismToolUsage
 AgentPrism.AgentPrismValidationOptions
 AgentPrism.AgentPrismValidationOptions.AgentPrismValidationOptions() -> void
@@ -358,6 +362,9 @@ AgentPrism.AgentSessionManager.GetOrCreateSessionAsync(Microsoft.Agents.AI.AIAge
 AgentPrism.AgentSessionManager.QuerySessionsAsync(AgentPrism.SessionQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.SessionRecord!>!>
 AgentPrism.AgentSessionManager.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 AgentPrism.AgentSkillCatalog
+AgentPrism.AllowAllToolAuthorizationHandler
+AgentPrism.AllowAllToolAuthorizationHandler.AllowAllToolAuthorizationHandler() -> void
+AgentPrism.AllowAllToolAuthorizationHandler.AuthorizeAsync(AgentPrism.ToolAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolAuthorizationResult!>
 AgentPrism.AmbientAuditActorResolver
 AgentPrism.AmbientAuditActorResolver.AmbientAuditActorResolver(Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options) -> void
 AgentPrism.AmbientAuditActorResolver.Resolve() -> string?
@@ -375,8 +382,6 @@ AgentPrism.AttachmentValidationResult.MediaType.get -> string?
 AgentPrism.AuditActorContext
 AgentPrism.AuditChainHasher
 AgentPrism.AuditChainWalker
-AgentPrism.AuditRecorder
-AgentPrism.AuditSecretFilter
 AgentPrism.AuditingAgentDefinitionStore
 AgentPrism.AuditingAgentDefinitionStore.AuditedInner.get -> object!
 AgentPrism.AuditingAgentDefinitionStore.AuditingAgentDefinitionStore(AgentPrism.IAgentDefinitionStore! inner, AgentPrism.IAuditLog! auditLog, AgentPrism.ITenantContext! tenantContext, AgentPrism.IAuditActorResolver! actorResolver, Microsoft.Extensions.Logging.ILogger<AgentPrism.AuditingAgentDefinitionStore!>! logger) -> void
@@ -443,6 +448,11 @@ AgentPrism.AuditingWorkflowDefinitionStore.DeleteAsync(string! tenantId, string!
 AgentPrism.AuditingWorkflowDefinitionStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.WorkflowDefinition?>
 AgentPrism.AuditingWorkflowDefinitionStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowDefinition!>!>
 AgentPrism.AuditingWorkflowDefinitionStore.SaveAsync(string! tenantId, AgentPrism.WorkflowDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.WorkflowDefinition!>
+AgentPrism.AuditPayload
+AgentPrism.AuditRecorder
+AgentPrism.AuditSecretFilter
+AgentPrism.AuthorizingAIFunction
+AgentPrism.AuthorizingAIFunction.AuthorizingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, AgentPrism.IToolAuthorizationHandler! handler, AgentPrism.ToolEffect effect, string? requiredPermission, AgentPrism.IRunAttributionContext? attribution, Microsoft.Extensions.Logging.ILogger<AgentPrism.AuthorizingAIFunction!>! logger) -> void
 AgentPrism.CallableAgentInfo
 AgentPrism.CallableAgentInfo.CallableAgentInfo() -> void
 AgentPrism.CallableAgentInfo.CallableAgentInfo(string! Name, string? Description, int Version) -> void
@@ -486,16 +496,16 @@ AgentPrism.CompiledAgentCache.Clear() -> void
 AgentPrism.CompiledAgentCache.CompiledAgentCache() -> void
 AgentPrism.CompiledAgentCache.Count.get -> int
 AgentPrism.CompiledAgentCache.Evict(string! name) -> void
-AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
-AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
-AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
+AgentPrism.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 AgentPrism.CompositeAgentCatalog
 AgentPrism.CompositeAgentCatalog.CompositeAgentCatalog(System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! sources, System.Collections.Generic.IEnumerable<AgentPrism.IAgentDecorator!>! decorators, Microsoft.Extensions.Logging.ILogger<AgentPrism.CompositeAgentCatalog!>! logger) -> void
 AgentPrism.CompositeAgentCatalog.ListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.AgentDescriptor!>!>
-AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, int? version, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
+AgentPrism.CompositeAgentCatalog.ResolveAsync(string! agentName, string? culture, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent?>
 AgentPrism.ContentGuardPipeline
 AgentPrism.ContentGuardPipeline.ContentGuardPipeline(System.Collections.Generic.IEnumerable<AgentPrism.IContentGuard!>! guards, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismContentGuardOptions!>! options, AgentPrism.IAuditLog! auditLog, AgentPrism.IAuditActorResolver! actorResolver, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory) -> void
 AgentPrism.ContentGuardPipeline.HasGuards.get -> bool
@@ -557,6 +567,52 @@ AgentPrism.IAgentPrismBuilder.AddToolsFrom(System.Type! type) -> AgentPrism.IAge
 AgentPrism.IAgentPrismBuilder.AddToolsFrom<T>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.Configure(System.Action<AgentPrism.AgentPrismOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+AgentPrism.InboundTriggerDispatcher
+AgentPrism.InboundTriggerDispatcher.EnqueueAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerDispatchResult!>
+AgentPrism.InboundTriggerDispatcher.InboundTriggerDispatcher(AgentPrism.IInboundTriggerStore! triggerStore, AgentPrism.InboundTriggerSecretResolver! secretResolver, AgentPrism.InboundTriggerRateLimiter! rateLimiter, AgentPrism.IIdempotencyStore! idempotencyStore, AgentPrism.IJobStore! jobStore, AgentPrism.IRunStore! runStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options, System.TimeProvider? timeProvider = null) -> void
+AgentPrism.InboundTriggerDispatcher.ReleaseAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AgentPrism.InboundTriggerDispatcher.ValidateAsync(string! tenantId, string! name, string! rawBody, string? timestampHeader, string? signatureHeader, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerValidationResult!>
+AgentPrism.InboundTriggerDispatchResult
+AgentPrism.InboundTriggerDispatchResult.<Clone>$() -> AgentPrism.InboundTriggerDispatchResult!
+AgentPrism.InboundTriggerDispatchResult.Equals(AgentPrism.InboundTriggerDispatchResult? other) -> bool
+AgentPrism.InboundTriggerDispatchResult.InboundTriggerDispatchResult() -> void
+AgentPrism.InboundTriggerDispatchResult.JobId.get -> System.Guid
+AgentPrism.InboundTriggerDispatchResult.JobId.init -> void
+AgentPrism.InboundTriggerDispatchResult.RunId.get -> System.Guid?
+AgentPrism.InboundTriggerDispatchResult.RunId.init -> void
+AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.InvalidPayload = 4 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.RateLimited = 2 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Replayed = 3 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Unauthorized = 1 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerOutcome.Valid = 0 -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerRateLimiter
+AgentPrism.InboundTriggerRateLimiter.InboundTriggerRateLimiter(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null) -> void
+AgentPrism.InboundTriggerRateLimiter.TryAcquire(System.Guid triggerId) -> bool
+AgentPrism.InboundTriggerSecretResolver
+AgentPrism.InboundTriggerSecretResolver.InboundTriggerSecretResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options) -> void
+AgentPrism.InboundTriggerSecretResolver.Resolve(AgentPrism.InboundTrigger! trigger) -> string?
+AgentPrism.InboundTriggerSecretResolver.ValidatePrefix(string! configurationKeyName) -> void
+AgentPrism.InboundTriggerValidatedRequest
+AgentPrism.InboundTriggerValidatedRequest.<Clone>$() -> AgentPrism.InboundTriggerValidatedRequest!
+AgentPrism.InboundTriggerValidatedRequest.Equals(AgentPrism.InboundTriggerValidatedRequest? other) -> bool
+AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.get -> string!
+AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.init -> void
+AgentPrism.InboundTriggerValidatedRequest.InboundTriggerValidatedRequest() -> void
+AgentPrism.InboundTriggerValidatedRequest.Message.get -> string!
+AgentPrism.InboundTriggerValidatedRequest.Message.init -> void
+AgentPrism.InboundTriggerValidatedRequest.Trigger.get -> AgentPrism.InboundTrigger!
+AgentPrism.InboundTriggerValidatedRequest.Trigger.init -> void
+AgentPrism.InboundTriggerValidationResult
+AgentPrism.InboundTriggerValidationResult.<Clone>$() -> AgentPrism.InboundTriggerValidationResult!
+AgentPrism.InboundTriggerValidationResult.Equals(AgentPrism.InboundTriggerValidationResult? other) -> bool
+AgentPrism.InboundTriggerValidationResult.ErrorDetail.get -> string?
+AgentPrism.InboundTriggerValidationResult.ErrorDetail.init -> void
+AgentPrism.InboundTriggerValidationResult.InboundTriggerValidationResult() -> void
+AgentPrism.InboundTriggerValidationResult.Outcome.get -> AgentPrism.InboundTriggerOutcome
+AgentPrism.InboundTriggerValidationResult.Outcome.init -> void
+AgentPrism.InboundTriggerValidationResult.Validated.get -> AgentPrism.InboundTriggerValidatedRequest?
+AgentPrism.InboundTriggerValidationResult.Validated.init -> void
 AgentPrism.InMemoryAgentDefinitionStore
 AgentPrism.InMemoryAgentDefinitionStore.DeleteAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.InMemoryAgentDefinitionStore.GetAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentDefinition?>
@@ -791,52 +847,7 @@ AgentPrism.InMemoryWorkflowDefinitionStore.GetAsync(string! tenantId, string! na
 AgentPrism.InMemoryWorkflowDefinitionStore.InMemoryWorkflowDefinitionStore() -> void
 AgentPrism.InMemoryWorkflowDefinitionStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.WorkflowDefinition!>!>
 AgentPrism.InMemoryWorkflowDefinitionStore.SaveAsync(string! tenantId, AgentPrism.WorkflowDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.WorkflowDefinition!>
-AgentPrism.InboundTriggerDispatchResult
-AgentPrism.InboundTriggerDispatchResult.<Clone>$() -> AgentPrism.InboundTriggerDispatchResult!
-AgentPrism.InboundTriggerDispatchResult.Equals(AgentPrism.InboundTriggerDispatchResult? other) -> bool
-AgentPrism.InboundTriggerDispatchResult.InboundTriggerDispatchResult() -> void
-AgentPrism.InboundTriggerDispatchResult.JobId.get -> System.Guid
-AgentPrism.InboundTriggerDispatchResult.JobId.init -> void
-AgentPrism.InboundTriggerDispatchResult.RunId.get -> System.Guid?
-AgentPrism.InboundTriggerDispatchResult.RunId.init -> void
-AgentPrism.InboundTriggerDispatcher
-AgentPrism.InboundTriggerDispatcher.EnqueueAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerDispatchResult!>
-AgentPrism.InboundTriggerDispatcher.InboundTriggerDispatcher(AgentPrism.IInboundTriggerStore! triggerStore, AgentPrism.InboundTriggerSecretResolver! secretResolver, AgentPrism.InboundTriggerRateLimiter! rateLimiter, AgentPrism.IIdempotencyStore! idempotencyStore, AgentPrism.IJobStore! jobStore, AgentPrism.IRunStore! runStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options, System.TimeProvider? timeProvider = null) -> void
-AgentPrism.InboundTriggerDispatcher.ReleaseAsync(AgentPrism.InboundTriggerValidatedRequest! validated, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-AgentPrism.InboundTriggerDispatcher.ValidateAsync(string! tenantId, string! name, string! rawBody, string? timestampHeader, string? signatureHeader, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.InboundTriggerValidationResult!>
-AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerOutcome.InvalidPayload = 4 -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerOutcome.RateLimited = 2 -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerOutcome.Replayed = 3 -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerOutcome.Unauthorized = 1 -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerOutcome.Valid = 0 -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerRateLimiter
-AgentPrism.InboundTriggerRateLimiter.InboundTriggerRateLimiter(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null) -> void
-AgentPrism.InboundTriggerRateLimiter.TryAcquire(System.Guid triggerId) -> bool
-AgentPrism.InboundTriggerSecretResolver
-AgentPrism.InboundTriggerSecretResolver.InboundTriggerSecretResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismInboundTriggerOptions!>! options) -> void
-AgentPrism.InboundTriggerSecretResolver.Resolve(AgentPrism.InboundTrigger! trigger) -> string?
-AgentPrism.InboundTriggerSecretResolver.ValidatePrefix(string! configurationKeyName) -> void
-AgentPrism.InboundTriggerValidatedRequest
-AgentPrism.InboundTriggerValidatedRequest.<Clone>$() -> AgentPrism.InboundTriggerValidatedRequest!
-AgentPrism.InboundTriggerValidatedRequest.Equals(AgentPrism.InboundTriggerValidatedRequest? other) -> bool
-AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.get -> string!
-AgentPrism.InboundTriggerValidatedRequest.IdempotencyKey.init -> void
-AgentPrism.InboundTriggerValidatedRequest.InboundTriggerValidatedRequest() -> void
-AgentPrism.InboundTriggerValidatedRequest.Message.get -> string!
-AgentPrism.InboundTriggerValidatedRequest.Message.init -> void
-AgentPrism.InboundTriggerValidatedRequest.Trigger.get -> AgentPrism.InboundTrigger!
-AgentPrism.InboundTriggerValidatedRequest.Trigger.init -> void
-AgentPrism.InboundTriggerValidationResult
-AgentPrism.InboundTriggerValidationResult.<Clone>$() -> AgentPrism.InboundTriggerValidationResult!
-AgentPrism.InboundTriggerValidationResult.Equals(AgentPrism.InboundTriggerValidationResult? other) -> bool
-AgentPrism.InboundTriggerValidationResult.ErrorDetail.get -> string?
-AgentPrism.InboundTriggerValidationResult.ErrorDetail.init -> void
-AgentPrism.InboundTriggerValidationResult.InboundTriggerValidationResult() -> void
-AgentPrism.InboundTriggerValidationResult.Outcome.get -> AgentPrism.InboundTriggerOutcome
-AgentPrism.InboundTriggerValidationResult.Outcome.init -> void
-AgentPrism.InboundTriggerValidationResult.Validated.get -> AgentPrism.InboundTriggerValidatedRequest?
-AgentPrism.InboundTriggerValidationResult.Validated.init -> void
+AgentPrism.InstructionCultureResolver
 AgentPrism.KnowledgeIngestionService
 AgentPrism.KnowledgeIngestionService.DeleteSourceAsync(string! collection, string! sourceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 AgentPrism.KnowledgeIngestionService.IngestAsync(string! collection, string! sourceId, string? text, System.Collections.Generic.IReadOnlyList<AgentPrism.VectorChunk!>? chunks, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
@@ -853,13 +864,13 @@ AgentPrism.ModelPriceOverride.ModelPriceOverride() -> void
 AgentPrism.ModelPriceOverride.OutputCostPerMillionTokens.get -> decimal?
 AgentPrism.ModelPriceOverride.OutputCostPerMillionTokens.set -> void
 AgentPrism.ModelProviderCircuitBreaker
-AgentPrism.ModelProviderCircuitBreaker.EnsureRequestAllowed(string! providerName) -> void
+AgentPrism.ModelProviderCircuitBreaker.EnsureRequestAllowed(string! providerName, string? credentialScope = null) -> void
 AgentPrism.ModelProviderCircuitBreaker.IsEnabled.get -> bool
-AgentPrism.ModelProviderCircuitBreaker.IsOpen(string! providerName, out System.TimeSpan? retryAfter) -> bool
+AgentPrism.ModelProviderCircuitBreaker.IsOpen(string! providerName, out System.TimeSpan? retryAfter, string? credentialScope = null) -> bool
 AgentPrism.ModelProviderCircuitBreaker.ModelProviderCircuitBreaker(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null) -> void
-AgentPrism.ModelProviderCircuitBreaker.RecordFailure(string! providerName) -> void
-AgentPrism.ModelProviderCircuitBreaker.RecordSuccess(string! providerName) -> void
-AgentPrism.ModelProviderCircuitBreaker.Wrap(string! providerName, Microsoft.Extensions.AI.IChatClient! inner) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.ModelProviderCircuitBreaker.RecordFailure(string! providerName, string? credentialScope = null) -> void
+AgentPrism.ModelProviderCircuitBreaker.RecordSuccess(string! providerName, string? credentialScope = null) -> void
+AgentPrism.ModelProviderCircuitBreaker.Wrap(string! providerName, Microsoft.Extensions.AI.IChatClient! inner, string? credentialScope = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.ModelProviderHealthCache
 AgentPrism.ModelProviderHealthCache.GetAllAsync(bool refresh, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.ModelProviderHealth!>!>
 AgentPrism.ModelProviderHealthCache.GetAsync(string! providerName, bool refresh, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth?>
@@ -952,10 +963,10 @@ AgentPrism.PatternContentGuard.Name.get -> string!
 AgentPrism.PatternContentGuard.PatternContentGuard(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.PatternContentGuardOptions!>! options) -> void
 AgentPrism.PatternContentGuardOptions
 AgentPrism.PatternContentGuardOptions.DeniedTerms.get -> System.Collections.Generic.IList<string!>!
-AgentPrism.PatternContentGuardOptions.MaskReplacement.get -> string!
-AgentPrism.PatternContentGuardOptions.MaskReplacement.set -> void
 AgentPrism.PatternContentGuardOptions.MaskedPii.get -> AgentPrism.PiiPatterns
 AgentPrism.PatternContentGuardOptions.MaskedPii.set -> void
+AgentPrism.PatternContentGuardOptions.MaskReplacement.get -> string!
+AgentPrism.PatternContentGuardOptions.MaskReplacement.set -> void
 AgentPrism.PatternContentGuardOptions.PatternContentGuardOptions() -> void
 AgentPrism.PiiPatterns
 AgentPrism.PiiPatterns.CreditCard = 4 -> AgentPrism.PiiPatterns
@@ -1110,6 +1121,9 @@ AgentPrism.RunReplayPreparation.SourceRun.init -> void
 AgentPrism.RunReplayService
 AgentPrism.RunReplayService.PrepareAsync(System.Guid runId, AgentPrism.RunReplayRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunReplayPreparation!>
 AgentPrism.RunReplayService.RunReplayService(AgentPrism.IRunStore! runs, AgentPrism.IRunInputStore! inputs, AgentPrism.IAgentDefinitionStore! definitions, AgentPrism.IAgentCatalog! catalog, AgentPrism.AgentDefinitionCompiler! compiler, AgentPrism.IToolRegistry! tools, System.Collections.Generic.IEnumerable<AgentPrism.IAgentDecorator!>! decorators, AgentPrism.ITenantContext! tenantContext) -> void
+AgentPrism.RunSampler
+AgentPrism.RunSampler.RunSampler(AgentPrism.IJobStore! jobStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.OnlineEvaluationOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.RunSampler!>? logger = null) -> void
+AgentPrism.RunSampler.SampleAsync(AgentPrism.RunSampleRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.RunSampleRequest
 AgentPrism.RunSampleRequest.<Clone>$() -> AgentPrism.RunSampleRequest!
 AgentPrism.RunSampleRequest.AgentName.get -> string!
@@ -1124,9 +1138,6 @@ AgentPrism.RunSampleRequest.Status.get -> AgentPrism.RunStatus
 AgentPrism.RunSampleRequest.Status.init -> void
 AgentPrism.RunSampleRequest.TenantId.get -> string!
 AgentPrism.RunSampleRequest.TenantId.init -> void
-AgentPrism.RunSampler
-AgentPrism.RunSampler.RunSampler(AgentPrism.IJobStore! jobStore, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.OnlineEvaluationOptions!>! optionsMonitor, System.TimeProvider? timeProvider = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.RunSampler!>? logger = null) -> void
-AgentPrism.RunSampler.SampleAsync(AgentPrism.RunSampleRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.RunToCasePromoter
 AgentPrism.RunToCasePromoter.PromoteAsync(string! tenantId, AgentPrism.EvalSuite! suite, System.Guid runId, AgentPrism.EvalCaseSource? sourceKindOverride, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunPromotionOutcome!>
 AgentPrism.RunToCasePromoter.RunToCasePromoter(AgentPrism.IRunStore! runs, AgentPrism.IRunScoreStore! scores, AgentPrism.IEvalStore! evalStore) -> void
@@ -1188,6 +1199,7 @@ AgentPrism.SkillScriptExecutionResult.TimedOut.get -> bool
 AgentPrism.SkillScriptExecutionResult.TimedOut.init -> void
 AgentPrism.SkillScriptExecutionResult.Truncated.get -> bool
 AgentPrism.SkillScriptExecutionResult.Truncated.init -> void
+AgentPrism.SkillScriptNaming
 AgentPrism.SkillScriptSupport
 AgentPrism.SkillScriptSupport.SkillScriptSupport(AgentPrism.SandboxedSkillScriptRunner! runner, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
 AgentPrism.TenantProviderCredentialResolver
@@ -1195,6 +1207,8 @@ AgentPrism.TenantProviderCredentialResolver.Resolve(AgentPrism.TenantProviderBin
 AgentPrism.TenantProviderCredentialResolver.TenantProviderCredentialResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismTenantProviderOptions!>! options) -> void
 AgentPrism.TenantProviderCredentialResolver.ValidatePrefix(string! configurationKeyName) -> void
 AgentPrism.TextChunker
+AgentPrism.TimeoutAIFunction
+AgentPrism.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<AgentPrism.TimeoutAIFunction!>! logger) -> void
 AgentPrism.ToolApprovalAgentDecorator
 AgentPrism.ToolApprovalAgentDecorator.Decorate(Microsoft.Agents.AI.AIAgent! agent, AgentPrism.AgentDescriptor! descriptor) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.ToolApprovalAgentDecorator.Order.get -> int
@@ -1459,6 +1473,8 @@ static AgentPrism.AuditActorContext.Current.set -> void
 static AgentPrism.AuditChainHasher.ComputeHash(string? previousHash, string! tenantId, string? actor, string! action, string! entity, string? before, string? after, System.DateTimeOffset createdAt) -> string!
 static AgentPrism.AuditChainHasher.TruncateToMicroseconds(System.DateTimeOffset value) -> System.DateTimeOffset
 static AgentPrism.AuditChainWalker.Verify(System.Collections.Generic.IReadOnlyList<AgentPrism.AuditEntry!>! entries, bool hasLowerBound = false) -> AgentPrism.AuditChainVerification!
+static AgentPrism.AuditPayload.Write(System.Action<System.Text.Json.Utf8JsonWriter!>! writeBody) -> string!
+static AgentPrism.AuditPayload.WriteArray(string! propertyName, System.Collections.Generic.IEnumerable<string!>! values) -> string!
 static AgentPrism.AuditRecorder.WriteAsync(AgentPrism.IAuditLog! auditLog, AgentPrism.IAuditActorResolver! actorResolver, Microsoft.Extensions.Logging.ILogger! logger, string! tenantId, string! action, string! entity, string? before, string? after, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 static AgentPrism.AuditSecretFilter.Redact(string? json) -> string?
 static AgentPrism.CallableAgentInfo.operator !=(AgentPrism.CallableAgentInfo left, AgentPrism.CallableAgentInfo right) -> bool
@@ -1480,6 +1496,7 @@ static AgentPrism.InboundTriggerValidatedRequest.operator !=(AgentPrism.InboundT
 static AgentPrism.InboundTriggerValidatedRequest.operator ==(AgentPrism.InboundTriggerValidatedRequest? left, AgentPrism.InboundTriggerValidatedRequest? right) -> bool
 static AgentPrism.InboundTriggerValidationResult.operator !=(AgentPrism.InboundTriggerValidationResult? left, AgentPrism.InboundTriggerValidationResult? right) -> bool
 static AgentPrism.InboundTriggerValidationResult.operator ==(AgentPrism.InboundTriggerValidationResult? left, AgentPrism.InboundTriggerValidationResult? right) -> bool
+static AgentPrism.InstructionCultureResolver.Resolve(AgentPrism.AgentDefinition! definition, string? culture) -> string?
 static AgentPrism.OnlineEvaluationSummary.operator !=(AgentPrism.OnlineEvaluationSummary? left, AgentPrism.OnlineEvaluationSummary? right) -> bool
 static AgentPrism.OnlineEvaluationSummary.operator ==(AgentPrism.OnlineEvaluationSummary? left, AgentPrism.OnlineEvaluationSummary? right) -> bool
 static AgentPrism.QuotaPeriodCalculator.GetAllPeriodStarts(System.DateTimeOffset instant, System.TimeZoneInfo! timeZone) -> System.Collections.Generic.IReadOnlyDictionary<AgentPrism.QuotaPeriod, System.DateOnly>!
@@ -1496,17 +1513,19 @@ static AgentPrism.RunEventDraft.operator ==(AgentPrism.RunEventDraft left, Agent
 static AgentPrism.RunPromotionOutcome.operator !=(AgentPrism.RunPromotionOutcome? left, AgentPrism.RunPromotionOutcome? right) -> bool
 static AgentPrism.RunPromotionOutcome.operator ==(AgentPrism.RunPromotionOutcome? left, AgentPrism.RunPromotionOutcome? right) -> bool
 static AgentPrism.RunReplayPreparation.Failed(AgentPrism.RunReplayOutcome outcome, string! detail) -> AgentPrism.RunReplayPreparation!
-static AgentPrism.RunReplayPreparation.Ready(Microsoft.Agents.AI.AIAgent! agent, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>! messages, AgentPrism.RunRecord! sourceRun, int? agentVersion, string? modelId) -> AgentPrism.RunReplayPreparation!
 static AgentPrism.RunReplayPreparation.operator !=(AgentPrism.RunReplayPreparation? left, AgentPrism.RunReplayPreparation? right) -> bool
 static AgentPrism.RunReplayPreparation.operator ==(AgentPrism.RunReplayPreparation? left, AgentPrism.RunReplayPreparation? right) -> bool
+static AgentPrism.RunReplayPreparation.Ready(Microsoft.Agents.AI.AIAgent! agent, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>! messages, AgentPrism.RunRecord! sourceRun, int? agentVersion, string? modelId) -> AgentPrism.RunReplayPreparation!
 static AgentPrism.RunSampleRequest.operator !=(AgentPrism.RunSampleRequest? left, AgentPrism.RunSampleRequest? right) -> bool
 static AgentPrism.RunSampleRequest.operator ==(AgentPrism.RunSampleRequest? left, AgentPrism.RunSampleRequest? right) -> bool
 static AgentPrism.SessionBranchOutcome.Failed(AgentPrism.SessionBranchStatus status, string! detail) -> AgentPrism.SessionBranchOutcome!
-static AgentPrism.SessionBranchOutcome.Succeeded(AgentPrism.SessionBranchResult! result) -> AgentPrism.SessionBranchOutcome!
 static AgentPrism.SessionBranchOutcome.operator !=(AgentPrism.SessionBranchOutcome? left, AgentPrism.SessionBranchOutcome? right) -> bool
 static AgentPrism.SessionBranchOutcome.operator ==(AgentPrism.SessionBranchOutcome? left, AgentPrism.SessionBranchOutcome? right) -> bool
+static AgentPrism.SessionBranchOutcome.Succeeded(AgentPrism.SessionBranchResult! result) -> AgentPrism.SessionBranchOutcome!
 static AgentPrism.SkillScriptExecutionResult.operator !=(AgentPrism.SkillScriptExecutionResult? left, AgentPrism.SkillScriptExecutionResult? right) -> bool
 static AgentPrism.SkillScriptExecutionResult.operator ==(AgentPrism.SkillScriptExecutionResult? left, AgentPrism.SkillScriptExecutionResult? right) -> bool
+static AgentPrism.SkillScriptNaming.IsSafeFileName(string? scriptName) -> bool
+static AgentPrism.SkillScriptNaming.RequireSafeFileName(string! scriptName) -> string!
 static AgentPrism.TextChunker.Split(string! text, int chunkSize, int chunkOverlap) -> System.Collections.Generic.IReadOnlyList<string!>!
 static AgentPrism.ToolApprovalPolicyRegistration.operator !=(AgentPrism.ToolApprovalPolicyRegistration? left, AgentPrism.ToolApprovalPolicyRegistration? right) -> bool
 static AgentPrism.ToolApprovalPolicyRegistration.operator ==(AgentPrism.ToolApprovalPolicyRegistration? left, AgentPrism.ToolApprovalPolicyRegistration? right) -> bool
@@ -1537,16 +1556,3 @@ static AgentPrism.WorkflowDefinitionValidator.Validate(AgentPrism.WorkflowDefini
 ~override AgentPrism.RunEventDraft.ToString() -> string
 ~override AgentPrism.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override AgentPrism.WebhookUrlVerdict.ToString() -> string
-AgentPrism.AgentPrismOptions.Tools.get -> AgentPrism.AgentPrismToolOptions!
-AgentPrism.AgentPrismOptions.Tools.set -> void
-AgentPrism.AgentPrismToolOptions
-AgentPrism.AgentPrismToolOptions.AgentPrismToolOptions() -> void
-AgentPrism.AgentPrismToolOptions.DefaultTimeout.get -> System.TimeSpan
-AgentPrism.AgentPrismToolOptions.DefaultTimeout.set -> void
-AgentPrism.AllowAllToolAuthorizationHandler
-AgentPrism.AllowAllToolAuthorizationHandler.AllowAllToolAuthorizationHandler() -> void
-AgentPrism.AllowAllToolAuthorizationHandler.AuthorizeAsync(AgentPrism.ToolAuthorizationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ToolAuthorizationResult!>
-AgentPrism.AuthorizingAIFunction
-AgentPrism.AuthorizingAIFunction.AuthorizingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, AgentPrism.IToolAuthorizationHandler! handler, AgentPrism.ToolEffect effect, string? requiredPermission, AgentPrism.IRunAttributionContext? attribution, Microsoft.Extensions.Logging.ILogger<AgentPrism.AuthorizingAIFunction!>! logger) -> void
-AgentPrism.TimeoutAIFunction
-AgentPrism.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<AgentPrism.TimeoutAIFunction!>! logger) -> void

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.DependencyInjection;
@@ -99,7 +100,13 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
                 return Unauthorized(httpContext);
             }
 
-            // Neither a static token nor a header: today's behavior does not change (K1).
+            // Neither a static token nor a header: today's behavior does not change (K1)
+            // -- EXCEPT on a surface that declares an API key mandatory.
+            if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedMissingKey)
+            {
+                return rejectedMissingKey;
+            }
+
             return CheckTenancyWhitelist(httpContext) is { } rejectedNoAuth
                 ? rejectedNoAuth
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -107,6 +114,14 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 
         if (_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(header, expected))
         {
+            // A static bearer token is deliberately NOT enough for a mandatory
+            // surface: it identifies the installation, not a caller, and it
+            // carries no scope.
+            if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedStaticForMandatory)
+            {
+                return rejectedStaticForMandatory;
+            }
+
             return CheckTenancyWhitelist(httpContext) is { } rejectedStaticToken
                 ? rejectedStaticToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -124,6 +139,11 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
             // treated neutrally, as if it were ABSENT — it neither rejects nor grants
             // extra rights; the endpoint's own logic is reached (for example a 404/400,
             // where one applies).
+            if (RejectWhenApiKeyIsMandatory(httpContext) is { } rejectedGroupForMandatory)
+            {
+                return rejectedGroupForMandatory;
+            }
+
             return CheckTenancyWhitelist(httpContext) is { } rejectedGroupToken
                 ? rejectedGroupToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -174,10 +194,34 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         // in AgentPrism.Core reads it through an AsyncLocal, so Core can answer the
         // "who did it" question without taking a dependency on ASP.NET Core.
         // Rationale: docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
-        AuditActorContext.Current = httpContext.User;
+        //
+        // 🚨 An API-key request used to leave the actor EMPTY. Nothing assigns
+        // HttpContext.User for those requests, so the resolver saw an anonymous
+        // principal and every audit row written on behalf of a key recorded
+        // "who did this" as null - while the key's id and name were sitting in
+        // ApiKeyRequestContext the whole time.
+        AuditActorContext.Current = httpContext.User?.Identity?.IsAuthenticated == true
+            ? httpContext.User
+            : ApiKeyRequestContext.Get(httpContext) is { } apiKey
+                ? ApiKeyActor(apiKey)
+                : httpContext.User;
 
         return next(context);
     }
+
+    /// <summary>Builds the audit actor that stands for an API key.</summary>
+    /// <remarks>
+    /// The key's identifier is used, never its value or its hash. The name is
+    /// carried as well so an operator reading the trail sees the label they gave
+    /// the key rather than an opaque id.
+    /// </remarks>
+    private static ClaimsPrincipal ApiKeyActor(ApiKeyRecord record)
+        => new(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, $"apikey:{record.Id}"),
+                new Claim(ClaimTypes.Name, record.Name),
+            ],
+            authenticationType: "AgentPrismApiKey"));
 
     /// <summary>
     /// Rejects a formally valid candidate tenant that is NOT on the allow list, while
@@ -285,6 +329,39 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// Rejects the request when the called endpoint requires a scope that the key does not
     /// carry.
     /// </summary>
+    /// <summary>
+    /// Rejects a request that presented no API key on an endpoint that declares
+    /// one mandatory, once the surface is reachable beyond loopback.
+    /// </summary>
+    /// <remarks>
+    /// Scoped to <c>AllowRemoteAccess</c> on purpose, and to exactly the same
+    /// condition <c>ExternalSurfaceGuard.EnsureRemoteAccessNotCombined</c> uses.
+    /// On loopback the installation is already limited to the local machine and
+    /// the zero-configuration default stays intact; the moment the surface is
+    /// published, the key the startup guard demanded has to actually be presented.
+    /// </remarks>
+    private ProblemHttpResult? RejectWhenApiKeyIsMandatory(HttpContext httpContext)
+    {
+        if (!_allowRemoteAccess)
+        {
+            return null;
+        }
+
+        var requirement = httpContext.GetEndpoint()?.Metadata.GetMetadata<ApiKeyScopeRequirement>();
+
+        if (requirement is not { Mandatory: true })
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "API key required",
+            detail: $"This surface is published beyond loopback and can only be called with an API key " +
+                    $"carrying the '{requirement.Scope}' scope. Create one through 'POST /api/api-keys' " +
+                    "and send it as 'Authorization: Bearer <key>'.",
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
     private static ProblemHttpResult? CheckScope(HttpContext httpContext, ApiKeyRecord record)
     {
         var requirement = httpContext.GetEndpoint()?.Metadata.GetMetadata<ApiKeyScopeRequirement>();

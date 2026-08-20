@@ -22,7 +22,11 @@ namespace AgentPrism;
 /// outside the circuit breaker. The guard is inside the loop, so it is handled here.
 /// </para>
 /// </remarks>
-internal sealed class CircuitBreakingChatClient(string providerName, IChatClient inner, ModelProviderCircuitBreaker breaker)
+internal sealed class CircuitBreakingChatClient(
+    string providerName,
+    IChatClient inner,
+    ModelProviderCircuitBreaker breaker,
+    string? credentialScope)
     : DelegatingChatClient(inner)
 {
     /// <inheritdoc />
@@ -31,12 +35,12 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        breaker.EnsureRequestAllowed(providerName);
+        breaker.EnsureRequestAllowed(providerName, credentialScope);
 
         try
         {
             var response = await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
-            breaker.RecordSuccess(providerName);
+            breaker.RecordSuccess(providerName, credentialScope);
             return response;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -51,7 +55,7 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
         }
         catch (Exception)
         {
-            breaker.RecordFailure(providerName);
+            breaker.RecordFailure(providerName, credentialScope);
             throw;
         }
     }
@@ -62,7 +66,7 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        breaker.EnsureRequestAllowed(providerName);
+        breaker.EnsureRequestAllowed(providerName, credentialScope);
 
         var enumerator = base.GetStreamingResponseAsync(messages, options, cancellationToken)
             .GetAsyncEnumerator(cancellationToken);
@@ -87,7 +91,7 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
                 }
                 catch (Exception)
                 {
-                    breaker.RecordFailure(providerName);
+                    breaker.RecordFailure(providerName, credentialScope);
                     throw;
                 }
 
@@ -99,7 +103,7 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
                 yield return enumerator.Current;
             }
 
-            breaker.RecordSuccess(providerName);
+            breaker.RecordSuccess(providerName, credentialScope);
         }
     }
 }

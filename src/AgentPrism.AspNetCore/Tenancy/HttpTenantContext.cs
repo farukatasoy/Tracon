@@ -131,9 +131,14 @@ public sealed partial class HttpTenantContext : ITenantContext
             return candidate;
         }
 
-        // If the allowlist is non-empty, a value outside it does NOT fall back to
-        // the default tenant; falling back would let an unauthorized request see
-        // the default tenant's data.
+        // 🚨 Read this together with AgentPrismEndpointFilter.CheckTenancyWhitelist.
+        // A value outside the allowlist returns null HERE, and TenantId's `??`
+        // chain then falls back to DefaultTenantId - so this method ALONE does not
+        // keep an unauthorized request away from the default tenant's data. The
+        // rejection lives in the endpoint filter (K-382), which reads the same
+        // candidate from the same source and answers 403 before the request ever
+        // reaches an endpoint. Do not weaken that filter on the assumption that
+        // this line already refuses the request.
         return options.AllowedTenants.Contains(candidate, StringComparer.Ordinal) ? candidate : null;
     }
 
