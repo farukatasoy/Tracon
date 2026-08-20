@@ -12,8 +12,10 @@ Ortak çerçeve: [`00-INDEKS.md`](00-INDEKS.md). Bu oturum onu uygular.
 Ham ADO.NET (Npgsql, Microsoft.Data.SqlClient, Microsoft.Data.Sqlite)
 kullanılıyor, EF Core yok. Parametrize sorgu disiplini elle uygulanıyor.
 `conversation_items` ve `attachments.content` açık metin saklanıyor
-(F-41, `docs/ADAYLAR.md` — bilinçli AÇIK aday, `IContentProtector` genişleme
-noktası var ama varsayılan uygulama yok).
+(F-41, `docs/ADAYLAR.md` — bilinçli AÇIK aday). ⚠️ **Düzeltme (2026-08-20):**
+bu dosyanın ilk hâli "`IContentProtector` genişleme noktası var" diyordu; öyle
+bir tip **yoktur** (`rg -n 'IContentProtector' src/` → sıfır sonuç). F-41 onu
+yapılacak işin kapsamı olarak sayar, var olan yüzey olarak değil.
 
 ## Ara
 

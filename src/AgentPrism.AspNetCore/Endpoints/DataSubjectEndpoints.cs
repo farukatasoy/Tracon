@@ -127,7 +127,11 @@ internal static class DataSubjectEndpoints
                     Actor = actor,
                     Action = "data_subject.erase",
                     Entity = $"data-subject:{id}",
-                    After = DescribeErasure(id, counts),
+                    // Redaction applies here too. Today's payload carries no secret,
+                    // but this was the ONLY direct IAuditLog write that skipped the
+                    // filter; the next change to the payload's shape would have had
+                    // no protection at all.
+                    After = AuditSecretFilter.Redact(DescribeErasure(id, counts)),
                     CreatedAt = now,
                 },
                 ct),

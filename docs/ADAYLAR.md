@@ -337,8 +337,23 @@ ayrı bir kavramdır ve Faz 26'da zaten var.
 **Sorun:** `conversation_items` tam sohbet geçmişini açık saklıyor. Ekler
 `attachments.content` sütununda `bytea` olarak açık duruyor
 ([`0006_attachments.sql:22`](../src/AgentPrism.PostgreSql/Migrations/0006_attachments.sql)).
-**Kapsam:** `IContentProtector` genişleme noktası; varsayılan uygulama yok
-(K4).
+
+🚨 **Yüzey ölçüldü (2026-08-20 güvenlik taraması, B06-2): iki sütun değil, dokuz.**
+`sessions.state` · `conversation_items.item` · `responses.payload` ·
+`run_events.text` · `run_events.payload` · `tool_invocations.arguments/result` ·
+`run_inputs.messages` · `attachments.content` · `agent_files.content`.
+**Kullanıcı istemi ve model çıktısı `run_inputs.messages` ile `run_events.text`
+içinde zaten tam metin durur** — yalnız ilk iki sütunu şifrelemek korumayı eksik
+bitirir. Plan bu dokuz sütunu birlikte ele almalıdır.
+
+**Kapsam:** `IContentProtector` genişleme noktası **yazılacak** — bugün böyle bir
+tip yoktur (`rg -n 'IContentProtector' src/` → sıfır sonuç); varsayılan uygulama
+yok (K4).
+
+**Not:** Bu sınır bugün **hiçbir tüketiciye dönük belgede yazmıyor** (B06-1):
+`docs-site/.../security.md`, `MIMARI-GUVENLIK.md` ve `README.md` içinde
+`at rest`/`encrypt` geçmiyor. F-41 planlanana kadar bile bu bir dokümantasyon
+boşluğudur.
 **Değer:** Regüle sektörlerde zorunlu.
 **Mercek:** 3.
 **Hazırlık:** .NET Data Protection API kullanılabilir.
@@ -820,6 +835,7 @@ devam eder ve sabittir.
 | **F-125** | `<example>` bloklarını derleyen kalıcı kapı | [Faz 74](74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | 🚨 **Ölçüldü:** metin denetimi bir örneğin doğruluğunu yapısal olarak kanıtlayamaz. Faz 74'ün denetimi iki hatalı örnek buldu ve ikisi de `CapabilityExampleTests`'in ad denetiminden geçmişti — `options.DefaultTimeout` (`CS1061`, üye başka tipte) ve `o.ExposedAgents = [...]` (`CS0200`, salt-okunur property). İkisi de **gerçek** API adlarıdır; yakalayan tek şey derlemedir. Faz 74 örnekleri **elle** derledi (40 blok, `Build succeeded`) ama kalıcı kapı yazmadı. Şekli belli: XML'den blokları çıkar, yer tutucu prelüdüyle birleştir, Roslyn ile derle — `AnalyzerTestHelper` gerçek AgentPrism sembolleriyle zaten kurulu (Faz 73 devir notu 5). **Ölçülmedi:** prelüdün kaç yer tutucu taşıyacağı ve bunun örnek yazımını ne kadar kısıtlayacağı |
 | **F-128** | `<see cref>` → `<c>` dönüşümünün API referansındaki gezinme maliyeti ölçülmedi | [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) denetimi (2026-08-20) | Faz 75, paketlenen OpenAPI belgesinde tam CLR imzası olarak render edilen 83 `<see cref>`'i `<c>` ile değiştirdi (K-517). Kazanç ölçüldü: sızıntı 43+24 → **0**. Maliyet ölçülmedi: `build-api-reference.mjs` her koşumda "109 cross-reference(s) rendered as code because no target exists" diyor ve bu sayının dönüşümden **önceki** değeri kaydedilmedi. Sözleşme tiplerinde `<c>` doğru tercihtir (tüketici JSON alanını görür), ama API referansında bir üyeden diğerine tıklanamıyor olabilir. **Ölçülmedi:** üretecin bu sayıyı bir taban çizgisine bağlaması ve dönüşümün payının ayrıştırılması. Ucuz iş; ölçüm gezinme kaybını önemsiz gösterirse kalem kapanır |
 | **F-129** | `--site-denetle` ikilidir ve tüketici yüzeyinin yarısını hiç görmez | [`tuketici-dokuman-senkronu`](../.agents/skills/tuketici-dokuman-senkronu/SKILL.md) kurulumu (2026-08-20) · K-522 | 🚨 **Ölçüldü:** `scripts/dokuman-bakim.py` içindeki `SITE_KURALLARI` **on** desenden oluşur ve hepsi tek bir şey der — "`src/…` değiştiyse şu `docs-site/` sayfası da değişmiş olmalı". İki boşluk var. (1) **Yerel referans yüzeyi hiç eşlenmemiş:** `src/AgentPrism.Core/buildTransitive/` ve yeni public giriş noktaları `capabilities.md`'ye eşlenmiyor. `capabilities.md` sevk edilen `AgentPrism.AgentMap.md` ile `llms.txt`'in **tek kaynağıdır**; yeni bir yetenek, harita sessizce bayatken kapanabilir. Bugünkü tek drift kapısı (`build-agent-map.mjs --check`) haritayı `capabilities.md` ile karşılaştırır, `capabilities.md`'yi **kodla** karşılaştıran hiçbir kapı yoktur — `check-content.mjs`'in 26 zorunlu kanıt dizesi yalnız bugünkü yetenekleri sabitler, yenisini zorlamaz. (2) **"Değişti" ile "doğru" aynı sayılıyor:** elle yazılan bir sayfada tek karakter değiştirmek kapıyı yeşil geçirir. **Ölçülmedi:** kuralı "yeni public giriş noktası → `capabilities.md` satırı" eksenine genişletmenin yanlış pozitif oranı. Ucuz iş; desen `SITE_KURALLARI` tablosuna iki satır ekler |
+| ~~**F-131**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 77](77-GIDEN-AG-MUHAFIZI.md) | Güvenlik taraması (2026-08-20) | Gövde faza taşındı. Planlama sırasında adayın **ölçülmemiş** tek kalemi ölçüldü: dört sağlayıcı SDK'sı da `HttpClient` enjeksiyonuna izin veriyor (`Anthropic.Core.ClientOptions.HttpClient`, OpenAI/Azure `ClientOptions`, Google kendi istemcisine sahip) — yani K-164'ün `IHttpClientFactory` yasağı korunarak muhafız üç yüzeye taşınabilir, yeni paket gerekmez |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-102. |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;

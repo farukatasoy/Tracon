@@ -52,7 +52,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     // _refreshGate, but the Mode A context provider (McpResourceContextProvider)
     // reads lock-free on every agent run. A plain Dictionary would corrupt if
     // this read raced a refresh.
-    private readonly ConcurrentDictionary<string, McpConnection> _connections = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<McpTenantServerKey, McpConnection> _connections = new();
 
     public McpToolCatalog(
         IMcpServerStore servers,
@@ -99,7 +99,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// <see langword="true"/> if the connection is currently up; <see langword="false"/> if the server is unreachable or disabled.
     /// </returns>
     public bool TryGetConnection(string tenantId, string serverName, [NotNullWhen(true)] out McpConnection? connection)
-        => _connections.TryGetValue($"{tenantId}{serverName}", out connection);
+        => _connections.TryGetValue(new McpTenantServerKey(tenantId, serverName), out connection);
 
     /// <summary>
     /// Scans every tenant's servers and refreshes the tool list.
@@ -121,7 +121,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         {
             var tenantIds = await ResolveTenantIdsAsync(cancellationToken).ConfigureAwait(false);
             var byTenant = new Dictionary<string, McpTenantTools>(StringComparer.Ordinal);
-            var live = new HashSet<string>(StringComparer.Ordinal);
+            var live = new HashSet<McpTenantServerKey>();
             var total = 0;
             var hadUnreachableServers = false;
 
@@ -136,7 +136,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         continue;
                     }
 
-                    var key = $"{tenantId}{server.Name}";
+                    var key = new McpTenantServerKey(tenantId, server.Name);
                     live.Add(key);
 
                     var (connection, unreachable) = await EnsureConnectionAsync(tenantId, key, server, cancellationToken).ConfigureAwait(false);
@@ -216,7 +216,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
     private async ValueTask<(McpConnection? Connection, bool Unreachable)> EnsureConnectionAsync(
         string tenantId,
-        string key,
+        McpTenantServerKey key,
         McpServerDefinition server,
         CancellationToken cancellationToken)
     {
@@ -255,7 +255,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         return (connection, false);
     }
 
-    private async ValueTask CloseRemovedConnectionsAsync(HashSet<string> live)
+    private async ValueTask CloseRemovedConnectionsAsync(HashSet<McpTenantServerKey> live)
     {
         var removed = _connections.Keys.Where(key => !live.Contains(key)).ToList();
 

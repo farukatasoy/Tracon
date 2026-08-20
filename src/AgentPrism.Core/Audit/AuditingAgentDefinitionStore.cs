@@ -128,8 +128,12 @@ public sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAudit
             _tenantContext.TenantId,
             action: "agent.rollback",
             entity: $"agent:{name}",
-            before: before is null ? null : $$"""{"version":{{before.Version}}}""",
-            after: $$"""{"rolledBackToVersion":{{version}},"newVersion":{{rolledBack.Version}}}""",
+            before: before is null ? null : AuditPayload.Write(writer => writer.WriteNumber("version", before.Version)),
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteNumber("rolledBackToVersion", version);
+                writer.WriteNumber("newVersion", rolledBack.Version);
+            }),
             cancellationToken).ConfigureAwait(false);
 
         return rolledBack;

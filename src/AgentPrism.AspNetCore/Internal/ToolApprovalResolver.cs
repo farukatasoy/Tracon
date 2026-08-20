@@ -148,6 +148,26 @@ internal static class ToolApprovalResolver
         return requests;
     }
 
+    /// <summary>
+    /// Microsoft Agent Framework's own script dispatcher. Every skill script call
+    /// arrives under this single tool name.
+    /// </summary>
+    private const string ScriptDispatcherToolName = "run_skill_script";
+
+    // 🚨 A remembered rule for this tool is ALWAYS bound to the arguments. Every
+    // script call shares this one tool name, so an argument-independent rule
+    // auto-approved the agent's every future script - a different skill and a
+    // different script included. Worse, that rule was reachable through the run
+    // endpoint with Operator plus runs:write, while writing the same rule
+    // directly requires Admin plus security:admin. "Do not ask again" now means
+    // "do not ask again for THIS script with THESE arguments".
+
+    /// <summary>Reports whether the tool call is a skill script execution.</summary>
+    /// <param name="toolName">The invoked tool's name.</param>
+    /// <returns><see langword="true"/> when the call runs a skill script.</returns>
+    private static bool IsScriptDispatcher(string toolName)
+        => string.Equals(toolName, ScriptDispatcherToolName, StringComparison.Ordinal);
+
     private static async ValueTask RememberAsync(
         ToolApprovalDecision decision,
         ToolApprovalRequestContent request,
@@ -175,7 +195,7 @@ internal static class ToolApprovalResolver
                     TenantId = tenantContext.TenantId,
                     AgentName = agentName,
                     ToolName = call.Name,
-                    ArgumentsHash = decision.RememberArgumentsOnly
+                    ArgumentsHash = decision.RememberArgumentsOnly || IsScriptDispatcher(call.Name)
                         ? ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments)
                         : null,
                     CreatedAt = DateTimeOffset.UtcNow,

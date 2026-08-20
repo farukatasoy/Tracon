@@ -160,7 +160,12 @@ internal static class SessionEndpoints
             action: "session.branch",
             entity: $"session:{result.SessionId}",
             before: null,
-            after: $$"""{"parentSessionId":"{{result.ParentSessionId}}","branchFromSequence":{{result.BranchFromSequence}},"copiedItemCount":{{result.CopiedItemCount}}}""",
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteString("parentSessionId", result.ParentSessionId);
+                writer.WriteNumber("branchFromSequence", result.BranchFromSequence);
+                writer.WriteNumber("copiedItemCount", result.CopiedItemCount);
+            }),
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created($"/api/sessions/{Uri.EscapeDataString(result.SessionId)}", result);

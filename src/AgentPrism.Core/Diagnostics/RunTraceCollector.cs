@@ -263,7 +263,16 @@ public sealed class RunTraceCollector : IDisposable
             attributes[tag.Key] = Convert.ToString(tag.Value, CultureInfo.InvariantCulture) ?? string.Empty;
         }
 
-        if (activity.StatusDescription is { Length: > 0 } description)
+        // 🚨 This ran OUTSIDE the loop above, so it skipped the very filter that
+        // covers its own key: IsSensitive("error.message") is true, so the value
+        // would have been dropped had it gone through the loop. StatusDescription
+        // is set unconditionally from RunError.Message, which carries the message
+        // of ANY tool or provider exception - a message that can hold personal
+        // data. The trace store applies no further redaction and the span is
+        // readable through GET /api/runs/{runId}/trace, so RecordSensitiveData
+        // =false did not protect this field at all.
+        if (activity.StatusDescription is { Length: > 0 } description
+            && (includeSensitiveData || !IsSensitive("error.message")))
         {
             attributes["error.message"] = description;
         }

@@ -14,11 +14,9 @@ namespace AgentPrism;
 /// </remarks>
 internal sealed class McpOAuthTokenCacheRegistry
 {
-    private readonly ConcurrentDictionary<string, InMemoryMcpTokenCache> _caches = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<McpTenantServerKey, InMemoryMcpTokenCache> _caches = new();
 
     /// <summary>Gets the cache for the given tenant+server pair; creates it if missing.</summary>
     public InMemoryMcpTokenCache GetOrCreate(string tenantId, string serverName)
-        => _caches.GetOrAdd(Key(tenantId, serverName), static _ => new InMemoryMcpTokenCache());
-
-    private static string Key(string tenantId, string serverName) => $"{tenantId}{serverName}";
+        => _caches.GetOrAdd(new McpTenantServerKey(tenantId, serverName), static _ => new InMemoryMcpTokenCache());
 }

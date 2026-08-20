@@ -13,6 +13,66 @@ public sealed class ModelProviderCircuitBreakerTests
 {
     private const string Provider = "test-provider";
 
+    /// <summary>
+    /// 🚨 A tenant that brings its own credential (BYOK) must not be able to open
+    /// the circuit for anyone else. Keyed by provider name alone, five failed
+    /// runs with one tenant's invalid key made every other tenant's run throw
+    /// <see cref="AgentPrismProviderUnavailableException"/> for the whole break
+    /// duration - a denial of service one tenant could trigger on all the rest.
+    /// </summary>
+    [Fact]
+    public void One_tenants_byok_failures_do_not_open_the_circuit_for_another()
+    {
+        var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 3));
+
+        breaker.RecordFailure(Provider, "tenant-a");
+        breaker.RecordFailure(Provider, "tenant-a");
+        breaker.RecordFailure(Provider, "tenant-a");
+
+        Should.Throw<AgentPrismProviderUnavailableException>(
+            () => breaker.EnsureRequestAllowed(Provider, "tenant-a"));
+
+        Should.NotThrow(
+            () => breaker.EnsureRequestAllowed(Provider, "tenant-b"),
+            "another tenant's credential is not the one that failed.");
+
+        // The shared credential's circuit is a third, independent one.
+        Should.NotThrow(() => breaker.EnsureRequestAllowed(Provider));
+    }
+
+    /// <summary>
+    /// The other half of the contract: the setup-time global credential is really
+    /// shared, so its failures must still back every caller off. Splitting the
+    /// circuit per tenant everywhere would have removed the protection.
+    /// </summary>
+    [Fact]
+    public void Shared_credential_failures_still_stop_every_caller()
+    {
+        var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 3));
+
+        breaker.RecordFailure(Provider);
+        breaker.RecordFailure(Provider);
+        breaker.RecordFailure(Provider);
+
+        Should.Throw<AgentPrismProviderUnavailableException>(
+            () => breaker.EnsureRequestAllowed(Provider));
+
+        breaker.IsOpen(Provider, out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Provider_name_still_matches_case_insensitively()
+    {
+        var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
+
+        breaker.RecordFailure("Test-Provider", "tenant-a");
+
+        // The dictionary used to be built with OrdinalIgnoreCase; the typed key
+        // must not quietly reintroduce case sensitivity.
+        Should.Throw<AgentPrismProviderUnavailableException>(
+            () => breaker.EnsureRequestAllowed("test-provider", "tenant-a"));
+    }
+
     [Fact]
     public void Request_is_allowed_while_closed()
     {

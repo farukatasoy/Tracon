@@ -413,7 +413,12 @@ internal static class EvalEndpoints
                     action: "eval.case.promoted",
                     entity: $"eval_case:{outcome.Case!.Id}",
                     before: null,
-                    after: $$"""{"suiteId":"{{suite.Id}}","runId":"{{runId}}","sourceKind":"{{outcome.Case.SourceKind}}"}""",
+                    after: AuditPayload.Write(writer =>
+                    {
+                        writer.WriteString("suiteId", suite.Id);
+                        writer.WriteString("runId", runId);
+                        writer.WriteString("sourceKind", outcome.Case.SourceKind.ToString());
+                    }),
                     cancellationToken).ConfigureAwait(false);
 
                 return TypedResults.Created($"/api/evals/{name}/cases", outcome.Case);
@@ -616,7 +621,11 @@ internal static class EvalEndpoints
             action: "run.judge.manual",
             entity: $"run:{runId}",
             before: null,
-            after: $$"""{"scoredBy":{{scores.Count}},"failed":{{failures.Count}}}""",
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteNumber("scoredBy", scores.Count);
+                writer.WriteNumber("failed", failures.Count);
+            }),
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok<IReadOnlyList<RunScore>>(scores);

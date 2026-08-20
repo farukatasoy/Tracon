@@ -33,7 +33,7 @@ namespace AgentPrism;
 /// </remarks>
 public sealed class ModelProviderCircuitBreaker
 {
-    private readonly ConcurrentDictionary<string, CircuitBreakerState> _states = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<CircuitKey, CircuitBreakerState> _states = new();
     private readonly IOptionsMonitor<AgentPrismOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
 
@@ -55,15 +55,22 @@ public sealed class ModelProviderCircuitBreaker
     /// <summary>Wraps the given chat client with the circuit breaker for this provider.</summary>
     /// <param name="providerName">The provider name. Circuit state is held keyed by this name.</param>
     /// <param name="inner">The client to wrap.</param>
+    /// <param name="credentialScope">
+    /// The blast radius of the circuit. Pass <see langword="null"/> when the call
+    /// uses the setup-time global credential: every tenant shares that
+    /// credential's fate, so one broken provider backs all of them off. Pass the
+    /// tenant identifier when the call uses a tenant-supplied credential, so that
+    /// a credential only one tenant owns can only ever trip that tenant.
+    /// </param>
     /// <returns>The client wrapped with the circuit breaker.</returns>
     /// <exception cref="ArgumentException"><paramref name="providerName"/> is empty.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="inner"/> is <see langword="null"/>.</exception>
-    public IChatClient Wrap(string providerName, IChatClient inner)
+    public IChatClient Wrap(string providerName, IChatClient inner, string? credentialScope = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
         ArgumentNullException.ThrowIfNull(inner);
 
-        return new CircuitBreakingChatClient(providerName, inner, this);
+        return new CircuitBreakingChatClient(providerName, inner, this, credentialScope);
     }
 
     /// <summary>
@@ -73,8 +80,9 @@ public sealed class ModelProviderCircuitBreaker
     /// caller have the single trial.
     /// </summary>
     /// <param name="providerName">The provider name.</param>
+    /// <param name="credentialScope">The blast radius; see <see cref="Wrap"/>.</param>
     /// <exception cref="AgentPrismProviderUnavailableException">The circuit is open.</exception>
-    public void EnsureRequestAllowed(string providerName)
+    public void EnsureRequestAllowed(string providerName, string? credentialScope = null)
     {
         if (!IsEnabled)
         {
@@ -85,7 +93,7 @@ public sealed class ModelProviderCircuitBreaker
 
         while (true)
         {
-            var current = _states.GetOrAdd(providerName, static _ => CircuitBreakerState.Initial);
+            var current = _states.GetOrAdd(new CircuitKey(providerName, credentialScope), static _ => CircuitBreakerState.Initial);
 
             if (current.Phase != CircuitPhase.Open)
             {
@@ -112,7 +120,7 @@ public sealed class ModelProviderCircuitBreaker
             // through with Closed-like behavior (deliberately — the single-trial
             // guarantee is not exact, but it is better than the circuit staying
             // open forever).
-            if (_states.TryUpdate(providerName, current with { Phase = CircuitPhase.HalfOpen }, current))
+            if (_states.TryUpdate(new CircuitKey(providerName, credentialScope), current with { Phase = CircuitPhase.HalfOpen }, current))
             {
                 return;
             }
@@ -121,14 +129,15 @@ public sealed class ModelProviderCircuitBreaker
 
     /// <summary>Resets the consecutive-failure counter after a successful call.</summary>
     /// <param name="providerName">The provider name.</param>
-    public void RecordSuccess(string providerName)
+    /// <param name="credentialScope">The blast radius; see <see cref="Wrap"/>.</param>
+    public void RecordSuccess(string providerName, string? credentialScope = null)
     {
         if (!IsEnabled)
         {
             return;
         }
 
-        _states[providerName] = CircuitBreakerState.Initial;
+        _states[new CircuitKey(providerName, credentialScope)] = CircuitBreakerState.Initial;
     }
 
     /// <summary>
@@ -136,7 +145,8 @@ public sealed class ModelProviderCircuitBreaker
     /// circuit if the threshold is exceeded (or if the half-open trial fails).
     /// </summary>
     /// <param name="providerName">The provider name.</param>
-    public void RecordFailure(string providerName)
+    /// <param name="credentialScope">The blast radius; see <see cref="Wrap"/>.</param>
+    public void RecordFailure(string providerName, string? credentialScope = null)
     {
         if (!IsEnabled)
         {
@@ -147,7 +157,7 @@ public sealed class ModelProviderCircuitBreaker
 
         while (true)
         {
-            var current = _states.GetOrAdd(providerName, static _ => CircuitBreakerState.Initial);
+            var current = _states.GetOrAdd(new CircuitKey(providerName, credentialScope), static _ => CircuitBreakerState.Initial);
 
             // The single trial in the half-open state failed: reopen immediately.
             if (current.Phase == CircuitPhase.HalfOpen)
@@ -157,7 +167,7 @@ public sealed class ModelProviderCircuitBreaker
                     current.ConsecutiveFailures + 1,
                     _timeProvider.GetUtcNow());
 
-                if (_states.TryUpdate(providerName, reopened, current))
+                if (_states.TryUpdate(new CircuitKey(providerName, credentialScope), reopened, current))
                 {
                     return;
                 }
@@ -171,7 +181,7 @@ public sealed class ModelProviderCircuitBreaker
                 ? new CircuitBreakerState(CircuitPhase.Open, failures, _timeProvider.GetUtcNow())
                 : new CircuitBreakerState(CircuitPhase.Closed, failures, default);
 
-            if (_states.TryUpdate(providerName, next, current))
+            if (_states.TryUpdate(new CircuitKey(providerName, credentialScope), next, current))
             {
                 return;
             }
@@ -186,12 +196,13 @@ public sealed class ModelProviderCircuitBreaker
     /// </summary>
     /// <param name="providerName">The provider name.</param>
     /// <param name="retryAfter">The remaining break duration, if open.</param>
+    /// <param name="credentialScope">The blast radius; see <see cref="Wrap"/>.</param>
     /// <returns><see langword="true"/> if the circuit is open and the break duration is still in effect.</returns>
-    public bool IsOpen(string providerName, out TimeSpan? retryAfter)
+    public bool IsOpen(string providerName, out TimeSpan? retryAfter, string? credentialScope = null)
     {
         retryAfter = null;
 
-        if (!IsEnabled || !_states.TryGetValue(providerName, out var state) || state.Phase != CircuitPhase.Open)
+        if (!IsEnabled || !_states.TryGetValue(new CircuitKey(providerName, credentialScope), out var state) || state.Phase != CircuitPhase.Open)
         {
             return false;
         }
@@ -206,6 +217,22 @@ public sealed class ModelProviderCircuitBreaker
 
         retryAfter = breakDuration - elapsed;
         return true;
+    }
+
+    // 🚨 CredentialScope must stay part of the key. Keyed by provider name
+    // alone, a single tenant's invalid BYOK credential drove the shared circuit
+    // to Open and every other tenant's run failed with
+    // AgentPrismProviderUnavailableException for the whole break duration. Same
+    // defect class as K-380: shared state that carries tenant consequences must
+    // carry the tenant in its key.
+    //
+    // CredentialScope is null for the setup-time global credential (shared fate)
+    // and the tenant identifier for a tenant-supplied credential.
+    private readonly record struct CircuitKey(string ProviderName, string? CredentialScope)
+    {
+        // The provider name used to be compared with OrdinalIgnoreCase; a record
+        // struct compares ordinally, so the name is folded here instead.
+        public string ProviderName { get; } = ProviderName.ToLowerInvariant();
     }
 
     private enum CircuitPhase

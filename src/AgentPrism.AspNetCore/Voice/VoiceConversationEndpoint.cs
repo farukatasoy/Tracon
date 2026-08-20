@@ -88,7 +88,7 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
-        if (!IsTokenValid(context, options))
+        if (!await IsAuthorizedAsync(context, services, options).ConfigureAwait(false))
         {
             // 🚨 No information about the expected token is given.
             await WriteProblemAsync(
@@ -151,36 +151,79 @@ internal static class VoiceConversationEndpoint
     }
 
     /// <summary>
-    /// Enforces the token layer from the subprotocol header.
+    /// Enforces the credential layer carried in the WebSocket subprotocol header.
     /// </summary>
     /// <remarks>
-    /// If no token is configured, the layer is off and the request passes through
-    /// — the endpoint group has still passed the loopback restriction and the
-    /// authorization policy.
+    /// A browser cannot set an <c>Authorization</c> header on a handshake, so the
+    /// credential travels in a subprotocol value instead. Two rules apply, and the
+    /// second one is the reason this method exists:
+    /// <list type="number">
+    /// <item>
+    /// When nothing is presented and no static token is configured, the request
+    /// passes. The group has still cleared the loopback restriction and the
+    /// authorization policy, and this keeps the local default working.
+    /// </item>
+    /// <item>
+    /// When something IS presented, it must be verified. It used to be compared
+    /// only against the static token: an installation authenticating with tenant
+    /// API keys configures no static token, so the comparison was skipped and ANY
+    /// subprotocol value was accepted. The reverse also failed - with a static
+    /// token configured, a valid API key was compared against it, did not match,
+    /// and a legitimate caller got 401.
+    /// </item>
+    /// </list>
     /// </remarks>
-    private static bool IsTokenValid(HttpContext context, AgentPrismEndpointOptions options)
+    private static async ValueTask<bool> IsAuthorizedAsync(
+        HttpContext context,
+        IServiceProvider services,
+        AgentPrismEndpointOptions options)
     {
-        if (options.AuthToken is not { Length: > 0 } expected)
+        var presented = ExtractPresentedToken(context);
+
+        if (presented is null)
+        {
+            // Nothing presented: allowed only when no static token is demanded.
+            return options.AuthToken is not { Length: > 0 };
+        }
+
+        if (options.AuthToken is { Length: > 0 } expected
+            && BearerTokenValidator.IsValidToken(presented, expected))
         {
             return true;
         }
 
-        foreach (var requested in context.WebSockets.WebSocketRequestedProtocols)
+        if (services.GetService<IApiKeyStore>() is { } apiKeyStore)
         {
-            if (!requested.StartsWith(VoiceConversationProtocol.TokenSubProtocolPrefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
+            var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
 
-            var presented = requested.AsSpan(VoiceConversationProtocol.TokenSubProtocolPrefix.Length);
+            var record = await ApiKeyAuthenticator
+                .AuthenticateAsync(apiKeyStore, presented, timeProvider, context.RequestAborted)
+                .ConfigureAwait(false);
 
-            if (BearerTokenValidator.IsValidToken(presented, expected))
+            if (record is not null)
             {
+                ApiKeyRequestContext.Set(context, record);
+
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>Reads the token carried in the subprotocol header.</summary>
+    /// <returns>The presented value; <see langword="null"/> if none was sent.</returns>
+    private static string? ExtractPresentedToken(HttpContext context)
+    {
+        foreach (var requested in context.WebSockets.WebSocketRequestedProtocols)
+        {
+            if (requested.StartsWith(VoiceConversationProtocol.TokenSubProtocolPrefix, StringComparison.Ordinal))
+            {
+                return requested[VoiceConversationProtocol.TokenSubProtocolPrefix.Length..];
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Checks whether the session belongs to this tenant.</summary>
@@ -202,6 +245,17 @@ internal static class VoiceConversationEndpoint
             return false;
         }
 
+        // 🚨 K-283 (phase 41) removed the "someone else's session" rejection HERE
+        // ON PURPOSE, and the branch below is deliberately unreachable as a
+        // result. GetAsync is scoped to the ambient tenant, so another tenant's
+        // record returns null, the connection opens a FRESH session in the
+        // caller's own tenant, and the other tenant's record is never touched.
+        // That removes an existence oracle: a caller can no longer learn from the
+        // status code which session ids exist for another tenant.
+        //
+        // Do NOT "fix" this into GetOwnerTenantIdAsync without reopening K-283 --
+        // the OpenAI-compatible endpoints answer 404 instead, and the difference
+        // between the two surfaces is a decision, not an oversight.
         var store = services.GetRequiredService<ISessionStore>();
         var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 

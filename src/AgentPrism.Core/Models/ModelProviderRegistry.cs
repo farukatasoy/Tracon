@@ -330,7 +330,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         if (_circuitBreaker is not null)
         {
-            chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient);
+            // 🚨 The circuit's blast radius follows the CREDENTIAL, not the
+            // provider. A non-null credential is tenant-supplied (BYOK), so its
+            // failures may only ever trip that tenant; the setup-time global
+            // credential keeps a shared circuit, because every tenant really
+            // does share its fate. Keyed by provider alone, one tenant's invalid
+            // key stopped the whole installation.
+            var credentialScope = credential is null ? null : _tenantContext?.TenantId;
+
+            chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient, credentialScope);
         }
 
         // 🚨 The fallback chain sits OUTSIDE the circuit breaker (phase 62,

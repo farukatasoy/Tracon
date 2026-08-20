@@ -539,7 +539,11 @@ internal static class RunEndpoints
                 action: "run.replay",
                 entity: $"run:{newRunId}",
                 before: null,
-                after: $$"""{"sourceRunId":"{{runId}}","toolMode":"{{request.ToolMode}}"}""",
+                after: AuditPayload.Write(writer =>
+                {
+                    writer.WriteString("sourceRunId", runId.ToString());
+                    writer.WriteString("toolMode", request.ToolMode.ToString());
+                }),
                 cancellationToken).ConfigureAwait(false);
 
             return TypedResults.Ok(new RunReplayResponse
@@ -663,7 +667,12 @@ internal static class RunEndpoints
             action: "run.feedback.save",
             entity: $"run_score:{saved.Id}",
             before: null,
-            after: $$"""{"runId":"{{runId}}","kind":"{{saved.Kind}}","value":{{saved.Value}}}""",
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteString("runId", runId.ToString());
+                writer.WriteString("kind", saved.Kind.ToString());
+                writer.WriteNumber("value", saved.Value);
+            }),
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(saved);

@@ -115,8 +115,14 @@ internal static class GovernanceEndpoints
                 ITenantStore tenants,
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await tenants.ListAsync(cancellationToken).ConfigureAwait(false)))
-            .RequireRole(roles.Reader)
-            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
+            // 🚨 Admin, not Reader. This endpoint is [TenantAgnostic]: it returns
+            // EVERY tenant in the installation, and its own exemption text says it
+            // "exists for the management surface (Admin policy)". It asked for
+            // Reader, so the lowest role could read the customer list of a
+            // multi-tenant installation. The sibling PUT and DELETE were already
+            // Admin; only the listing had slipped.
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismListTenants")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Lists registered tenants.")
@@ -319,7 +325,7 @@ internal static class GovernanceEndpoints
                     action: "mcp.refresh",
                     entity: "mcp:*",
                     before: null,
-                    after: $$"""{"toolCount":{{outcome.ToolCount}}}""",
+                    after: AuditPayload.Write(writer => writer.WriteNumber("toolCount", outcome.ToolCount)),
                     cancellationToken).ConfigureAwait(false);
 
                 return TypedResults.Ok(new McpRefreshResponse { ToolCount = outcome.ToolCount });

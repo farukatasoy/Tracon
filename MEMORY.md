@@ -65,6 +65,13 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   olan bir kiracı tavanı aşabilirdi** — 4241 test yakalamadı, bağımsız denetim buldu.
   Toplama alan bir `record`'a alan eklerken ona `Total()` ver ve `grep` ile sınıfı
   tara (K-483, `docs/hafiza/cekirdek-calistirma.md`).
+- **🚨 Kaynak okuması GÖRÜNMEZ karakteri doğrulayamaz.** MCP cache anahtarındaki
+  ayırıcı `U+001F` idi; `cat` onu göstermez. Hem güvenlik denetçisi hem kapanış
+  oturumu kodu okuyup "ayırıcı yok" dedi ve **yanlış bir 🔴 bulgu** üretildi;
+  gerçeği çalışma anı probu (anahtarın hex dökümü) verdi. Bir string'in TAM
+  içeriğine dayanan iddiayı `cat -v` veya `grep -P '[\x00-\x1F]'` ile doğrula.
+  Aynı kusur elle tekrarlanan anahtar ifadesinden doğdu: okuma yolu ayırıcıyı
+  taşımıyordu, yazma yolu taşıyordu (K-525).
 - **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` yoktur (`MSB1001`).
   Tek test: `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"`.

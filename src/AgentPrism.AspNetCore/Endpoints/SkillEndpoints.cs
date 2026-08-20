@@ -220,6 +220,16 @@ internal static class SkillEndpoints
                     "Every script name must be non-empty and unique within the skill.");
             }
 
+            // The name becomes a file name under the run's scratch directory, so
+            // it may not carry a path. Rejected here so the caller sees 400 at
+            // save time rather than a failed run later.
+            if (!SkillScriptNaming.IsSafeFileName(script.Name))
+            {
+                return Invalid(
+                    "Script name invalid",
+                    "A script name must be a plain file name: no directory separator, no path root, no '..'.");
+            }
+
             var extension = script.Extension.TrimStart('.');
             if (extension.Length == 0 || !options.Interpreters.ContainsKey(extension))
             {

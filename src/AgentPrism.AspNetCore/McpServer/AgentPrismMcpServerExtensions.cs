@@ -84,7 +84,7 @@ public static class AgentPrismMcpServerExtensions
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "MCP");
         group.AddEndpointFilter(approvalGuardFilter);
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
-        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
+        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke, mandatory: true);
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)
         {

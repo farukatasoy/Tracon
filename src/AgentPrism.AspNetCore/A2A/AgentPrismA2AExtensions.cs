@@ -110,7 +110,7 @@ public static class AgentPrismA2AExtensions
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "A2A");
         group.AddEndpointFilter(approvalGuardFilter);
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
-        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
+        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke, mandatory: true);
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)
         {

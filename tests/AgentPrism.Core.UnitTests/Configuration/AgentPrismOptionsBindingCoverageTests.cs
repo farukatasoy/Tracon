@@ -36,6 +36,21 @@ public sealed class AgentPrismOptionsBindingCoverageTests
         "UtilityModel",
         "Skills.Scripts.SkillRoots",
         "Skills.Scripts.Interpreters",
+
+        // 🚨 NOT bound on purpose, and this is a security boundary rather than a
+        // gap in the scanner. AllowStoredScripts widens what may be executed on
+        // the server, and the shipped documentation promises that script
+        // execution "can only be turned on in code". Binding merged INTO the
+        // code-supplied values instead of replacing them, so configuration could
+        // only ever ADD to the executable surface - an environment variable was
+        // enough to open the stored-script path the application had deliberately
+        // left closed. SkillRoots and Interpreters above are closed for the same
+        // reason, not merely because they are collections.
+        //
+        // Enabled and PlatformIsolationAcknowledged stay bound: they cannot widen
+        // anything, they only switch the feature off or acknowledge the platform
+        // limits.
+        "Skills.Scripts.AllowStoredScripts",
         "Skills.Scripts.EnvironmentAllowList",
         "Attachments.AllowedMediaTypes",
     };

@@ -276,8 +276,14 @@ public sealed class ApiKeyAuthenticationTests
         });
     }
 
+    /// <summary>
+    /// 🚨 The startup guard only proves a key EXISTS. Before this test the request
+    /// itself was never asked for one: with AllowRemoteAccess on, no AuthToken and
+    /// no AuthorizationPolicy, an unauthenticated POST to the MCP surface answered
+    /// 200. An agent surface published to the internet was open.
+    /// </summary>
     [Fact]
-    public async Task MCP_starts_when_AllowRemoteAccess_is_on_and_an_external_invoke_key_exists()
+    public async Task MCP_rejects_a_request_that_presents_no_api_key_when_published()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: static builder => builder
@@ -300,6 +306,103 @@ public sealed class ApiKeyAuthenticationTests
 
         var (response, _) = await McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list");
 
+        response.StatusCode.ShouldBe(
+            HttpStatusCode.Unauthorized,
+            "the external:invoke key has to be PRESENTED, not merely exist somewhere.");
+    }
+
+    /// <summary>
+    /// The loopback default stays zero-configuration: a local installation that
+    /// never published its surface still answers without a key.
+    /// </summary>
+    [Fact]
+    public async Task MCP_still_answers_on_loopback_without_an_api_key()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: static builder => builder
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(static options => options.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: static app => app.MapAgentPrismMcpServer());
+
+        var (response, _) = await McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list");
+
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task MCP_answers_when_the_external_invoke_key_is_presented()
+    {
+        string? plaintextKey = null;
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: static builder => builder
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(static options => options.ExposedAgents.Add("kod-agent")),
+            configureEndpoints: static options => options.AllowRemoteAccess = true,
+            configureAfterMap: app =>
+            {
+                var store = app.Services.GetRequiredService<IApiKeyStore>();
+
+                plaintextKey = store.CreateAsync(new ApiKeyDraft
+                {
+                    TenantId = "default",
+                    Name = "mcp",
+                    Scopes = [ApiKeyScope.ExternalInvoke],
+                }).AsTask().GetAwaiter().GetResult().PlaintextKey;
+
+                app.MapAgentPrismMcpServer();
+            });
+
+        var (response, _) = await McpTestClient.SendAsync(
+            host.Client,
+            "/agentprism/mcp",
+            "tools/list",
+            token: plaintextKey);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    /// <summary>
+    /// A key without <c>external:invoke</c> must not reach the surface either:
+    /// the scope check has to run, not just the presence check.
+    /// </summary>
+    [Fact]
+    public async Task MCP_rejects_a_key_that_lacks_the_external_invoke_scope()
+    {
+        string? plaintextKey = null;
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: static builder => builder
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(static options => options.ExposedAgents.Add("kod-agent")),
+            configureEndpoints: static options => options.AllowRemoteAccess = true,
+            configureAfterMap: app =>
+            {
+                var store = app.Services.GetRequiredService<IApiKeyStore>();
+
+                store.CreateAsync(new ApiKeyDraft
+                {
+                    TenantId = "default",
+                    Name = "mcp",
+                    Scopes = [ApiKeyScope.ExternalInvoke],
+                }).AsTask().GetAwaiter().GetResult();
+
+                plaintextKey = store.CreateAsync(new ApiKeyDraft
+                {
+                    TenantId = "default",
+                    Name = "reader",
+                    Scopes = [ApiKeyScope.RunsRead],
+                }).AsTask().GetAwaiter().GetResult().PlaintextKey;
+
+                app.MapAgentPrismMcpServer();
+            });
+
+        var (response, _) = await McpTestClient.SendAsync(
+            host.Client,
+            "/agentprism/mcp",
+            "tools/list",
+            token: plaintextKey);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

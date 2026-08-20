@@ -109,9 +109,18 @@ public static class AuditSecretFilter
 
     private static bool IsSecretKey(string propertyName)
     {
+        // 🚨 Separators are stripped before matching. The fragments are written
+        // without them, so "apiKey" matched but "x-api-key", "xi-api-key" and
+        // "api_key" did not - the separator broke the "apikey" run apart and a
+        // live provider key reached audit_log.after in clear text. Those exact
+        // spellings are real in this code base (Anthropic and ElevenLabs both
+        // use them), and free-form surfaces such as MCP server headers, agent
+        // metadata and skill script arguments carry caller-chosen key names.
+        var normalized = Normalize(propertyName);
+
         foreach (var fragment in SecretKeyFragments)
         {
-            if (!propertyName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
+            if (!normalized.Contains(fragment, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -122,7 +131,7 @@ public static class AuditSecretFilter
             // the latter would make every agent audit record needlessly empty.
             // This was observed in a real agent.create record from the /agentprism sample.
             if (string.Equals(fragment, "token", StringComparison.Ordinal) &&
-                propertyName.Contains("tokens", StringComparison.OrdinalIgnoreCase))
+                normalized.Contains("tokens", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -131,5 +140,45 @@ public static class AuditSecretFilter
         }
 
         return false;
+    }
+
+    /// <summary>Removes the characters that only separate words in a key name.</summary>
+    /// <remarks>
+    /// Keeps letters and digits, drops everything else, so <c>x-api-key</c>,
+    /// <c>api_key</c> and <c>API.KEY</c> all reduce to the same run of letters
+    /// the fragments are written in.
+    /// </remarks>
+    private static string Normalize(string propertyName)
+    {
+        var needsWork = false;
+
+        foreach (var character in propertyName)
+        {
+            if (!char.IsLetterOrDigit(character))
+            {
+                needsWork = true;
+                break;
+            }
+        }
+
+        if (!needsWork)
+        {
+            return propertyName;
+        }
+
+        return string.Create(propertyName.Length, propertyName, static (span, source) =>
+        {
+            var length = 0;
+
+            foreach (var character in source)
+            {
+                if (char.IsLetterOrDigit(character))
+                {
+                    span[length++] = character;
+                }
+            }
+
+            span[length..].Fill(' ');
+        }).TrimEnd();
     }
 }

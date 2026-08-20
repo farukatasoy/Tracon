@@ -80,7 +80,7 @@ internal sealed class WorkflowAgentCache
     /// <returns>An agent with a stable identity, ready to be placed in the graph.</returns>
     public ChildAgentInvoker Get(string workflowName, string agentName, string? description)
         => _agents.GetOrAdd(
-            new AgentKey(workflowName, agentName),
+            new AgentKey(_tenantContext.TenantId, workflowName, agentName),
             static (key, state) => Create(key, state),
             (Resolver: _resolver, TenantContext: _tenantContext, LoggerFactory: _loggerFactory, Description: description));
 
@@ -107,5 +107,15 @@ internal sealed class WorkflowAgentCache
         return invoker;
     }
 
-    private readonly record struct AgentKey(string WorkflowName, string AgentName);
+    // 🚨 TenantId is part of the key and must stay part of it. A workflow name
+    // and an agent name are unique only WITHIN a tenant (UNIQUE (tenant_id,
+    // name)); without the tenant the second tenant received the first tenant's
+    // wrapper and its captured Description, and that description reaches the
+    // participant list sent to the model in the GroupChat and Magentic patterns.
+    // Same defect class as K-380 (CompiledAgentCache) and K-381 (file memory).
+    //
+    // The tenant deliberately does NOT reach WorkflowAgentIdentity: the executor
+    // id stays derived from the (workflow, agent) pair, so checkpoints written
+    // by phase 16 onward stay readable.
+    private readonly record struct AgentKey(string TenantId, string WorkflowName, string AgentName);
 }

@@ -13,6 +13,16 @@ Bu taramanın amacı sıfırdan zafiyet aramak değil, var olan korumalarda
 **regresyon** ve **boşluk** bulmaktır. Kapanmış bir K-kararını yeniden
 tartışmak bulgu değildir.
 
+## Koşum kaydı
+
+| Tarih | Taban | Sonuç |
+|---|---|---|
+| 2026-08-20 | `1cda224` | 10 konu koşuldu → [`BULGULAR.md`](BULGULAR.md) — 4 🔴, 14 🟡, 18 🟢 CONFIRMED |
+
+**Bulgu defteri [`BULGULAR.md`](BULGULAR.md)'dir.** Bir konuyu yeniden koşmadan
+önce oraya bak: doğrulanmış korumalar listelenmiştir ve tekrar taranmaları
+gerekmez.
+
 ## Kullanım
 
 1. Her konu dosyasını ayrı bir agent oturumuna verin.

@@ -459,10 +459,13 @@ internal static class TriggerEndpoints
     /// "apikey").
     /// </remarks>
     private static string DescribeForAudit(InboundTrigger trigger)
-        => $$"""
-            {"targetKind":"{{trigger.TargetKind}}","targetName":"{{trigger.TargetName}}",
-            "configKeyName":"{{trigger.SigningSecretConfigurationName}}","enabled":{{(trigger.Enabled ? "true" : "false")}}}
-            """;
+        => AuditPayload.Write(writer =>
+        {
+            writer.WriteString("targetKind", trigger.TargetKind.ToString());
+            writer.WriteString("targetName", trigger.TargetName);
+            writer.WriteString("configKeyName", trigger.SigningSecretConfigurationName);
+            writer.WriteBoolean("enabled", trigger.Enabled);
+        });
 
     /// <remarks>
     /// The SAME pattern as <c>ApprovalEndpoints.WriteAuditOrThrowAsync</c>:
