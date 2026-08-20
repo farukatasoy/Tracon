@@ -17,4 +17,15 @@ public sealed record ModelProviderCredential
 
     /// <summary>Gets the optional provider endpoint override.</summary>
     public string? Endpoint { get; init; }
+
+    /// <summary>Returns a description that carries no secret value.</summary>
+    /// <returns>The type name and the endpoint; never the key.</returns>
+    /// <remarks>
+    /// A record's compiler-generated <c>ToString</c> prints every property, so a
+    /// single <c>LogDebug("{Credential}", credential)</c> would put a live
+    /// provider key in the log. The override removes that possibility instead of
+    /// relying on nobody ever writing that line.
+    /// </remarks>
+    public override string ToString()
+        => $"{nameof(ModelProviderCredential)} {{ ApiKey = [redacted], Endpoint = {Endpoint} }}";
 }

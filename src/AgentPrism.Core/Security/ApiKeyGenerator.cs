@@ -92,4 +92,14 @@ public sealed record GeneratedApiKey
 
     /// <summary>The first characters of the raw value; used to distinguish it in a list.</summary>
     public required string KeyPrefix { get; init; }
+
+    /// <summary>Returns a description that carries no raw key.</summary>
+    /// <returns>The type name and the prefix; never the raw value.</returns>
+    /// <remarks>
+    /// A record's compiler-generated <c>ToString</c> prints every property. The
+    /// prefix is safe to show - it is what the list view displays - but the raw
+    /// value is not.
+    /// </remarks>
+    public override string ToString()
+        => $"{nameof(GeneratedApiKey)} {{ KeyPrefix = {KeyPrefix}, PlaintextKey = [redacted] }}";
 }

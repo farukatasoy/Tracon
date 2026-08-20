@@ -158,8 +158,20 @@ public sealed record EvalCaseAddResult
 /// <summary>A query for filtering the run list.</summary>
 public sealed record EvalRunQuery
 {
+    // 🚨 Required, and deliberately not nullable. It used to be optional, and a
+    // null here meant "every tenant" - while the sibling RunQuery.TenantId falls
+    // back to the AMBIENT tenant for the same null. Two contracts with opposite
+    // meanings for the same value is a trap for a consumer of this package, who
+    // would write `new EvalRunQuery { SuiteId = x }` and silently receive other
+    // tenants' runs. K-277 settled the principle: the tenant filter is not
+    // optional.
+
     /// <summary>Fetches only this tenant's runs.</summary>
-    public string? TenantId { get; init; }
+    /// <remarks>
+    /// Required. The tenant filter is never optional: a query always states which
+    /// tenant's runs it wants.
+    /// </remarks>
+    public required string TenantId { get; init; }
 
     /// <summary>Fetches only this suite's runs.</summary>
     public Guid? SuiteId { get; init; }

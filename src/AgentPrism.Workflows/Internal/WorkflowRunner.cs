@@ -446,7 +446,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             activity.SetTag(AgentPrismDiagnostics.Tags.TenantId, scope.TenantId);
             activity.SetTag(AgentPrismDiagnostics.Tags.SessionId, execution.SessionId);
             activity.SetTag(AgentPrismDiagnostics.Tags.Streaming, true);
-            _traceCollector?.BeginRun(activity.TraceId.ToString());
+            _traceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
         }
 
         AgentPrismRunContext.SetCurrent(scope);
@@ -1051,6 +1051,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             await _traceCollector.CompleteRunAsync(
                 activity.TraceId.ToString(),
+                activity.SpanId.ToString(),
                 execution.RunId,
                 scope.TenantId ?? _tenantContext.TenantId,
                 status,

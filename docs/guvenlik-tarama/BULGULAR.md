@@ -891,7 +891,7 @@ Bu tarama aşağıdakilere bakmadı veya kanıtlayamadı. Sonraki tur bunlarla b
 
 ## Durum (2026-08-20 kapanışı)
 
-Onsekiz aksiyon bekleyen bulgunun **on üçü kodlandı** (artı dört 🟢 sağlamlaştırma), **ikisi yanlış pozitif
+Onsekiz aksiyon bekleyen bulgunun **on üçü kodlandı** (artı dört 🟢 sağlamlaştırma, üç PLAUSIBLE ve taramanın bulduğu B02-11), **ikisi yanlış pozitif
 çıktı**, **üçü yetenek adayına döndü**. Doküman-kod çelişkilerinin tamamı
 kapatıldı.
 
@@ -914,6 +914,11 @@ kapatıldı.
 | B02-6 | `TenantCoverageTests` ad filtresi (`StartsWith("Sql")`) kaldırıldı — kapı artık **şekle** bakıyor. `PgVectorSearchStore` kapıya girdi; dört metodu da mevcut iki-kiracılı testle kapsanıyor. Kapı sağlayıcı-farkındalığı kazandı (paylaşılan kaynak her sağlayıcıya **linklenerek** derleniyor, o yüzden taranan derleme sağlayıcıya göre değişiyor) |
 | B03-6 | `DataSubjectEndpoints` tek redakte etmeyen doğrudan yazımdı; `AuditSecretFilter.Redact` eklendi |
 | B04-7 | `DenyAsync` `[DoesNotReturn]` aldı — kapı zinciri artık tip sistemiyle korunuyor |
+| B01-3 | Kimlik filtresi artık onay muhafızından **önce** koşuyor (MCP ve A2A). Kimliği doğrulanmamış istek, zaman aşımı olmayan açılış denetiminde park etmek yerine 401 alıyor |
+| B02-7 | `EvalRunQuery.TenantId` **zorunlu** oldu — `null`'ın "tüm kiracılar" anlamına geldiği yüzey kapandı; kardeş `RunQuery` ile ters varsayılan sorunu ortadan kalktı |
+| B02-11 | Trace tamponu artık `(traceId, yerel kök span)` ile anahtarlı. Paylaşılan bir `traceparent` iki `run`'ı aynı tampona sokuyordu; ilk tamamlanan hepsini kendi kiracısıyla yazıyordu. Regresyon testi: `Two_runs_sharing_a_trace_id_do_not_share_a_buffer` |
+| B03-7 | Üç `record` tipi redakte eden `ToString` aldı; elle tutulan liste **yapısal tarayıcıyla** değiştirildi (`SecretBearingTypeTests`) ve tarayıcının boş olmadığı ayrıca kanıtlandı |
+| B06-1 | `docs-site/.../security.md` "What is stored in the clear" bölümünü kazandı: dokuz sütun tablo hâlinde, `secret` istisnası ve "şifreleme alt katmanda" yönlendirmesiyle. Kontrol listesine de bir satır eklendi |
 
 | Yanlış pozitif | Sebep |
 |---|---|
@@ -928,9 +933,13 @@ kapatıldı.
 **Doğrulama (2026-08-20 kapanışı):** dört kapı da temiz —
 `build` 0 uyarı · `test` **4455/4455** · `pack` · `format`.
 
-**Açık kalanlar:** 3 PLAUSIBLE 🟡 (B01-3, B02-7, B03-7) + yeni B02-11, ve F-131'e
-devredilen egress kalemleri (B05-2/3/4, B05-5, B05-6, B05-7). PLAUSIBLE bulgular
-CONFIRMED'e çevrilmeden aksiyon almaz.
+**Açık kalan tek iş:** [Faz 77](../77-GIDEN-AG-MUHAFIZI.md)'ye devredilen egress
+kalemleri (B05-2, B05-3, B05-4, B05-5, B05-6, B05-7). Üçü de **var olmayan bir
+koruma** gerektirdiği için faza gitti, kusur turuna değil.
+
+Üç PLAUSIBLE kalem doğrulandı ve kapandı: B01-3 (filtre sırası), B02-7
+(`EvalRunQuery` sözleşmesi), B03-7 (`record` `ToString`). Sınıf taramasının
+bulduğu B02-11 de doğrulanıp kapatıldı.
 
 ### Sınıf taramalarının getirisi
 

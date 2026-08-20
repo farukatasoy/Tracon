@@ -336,7 +336,10 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectEvalRuns);
-        AddNullableText(command, "tenant_id", query.TenantId);
+        // Not nullable any more: EvalRunQuery.TenantId is required, so the
+        // "null means every tenant" branch of SelectEvalRuns is unreachable
+        // from this store. The SQL keeps the guard for older callers.
+        DbHelpers.Add(command, "tenant_id", query.TenantId);
         AddNullableUuid(command, "suite_id", query.SuiteId);
         DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
         DbHelpers.Add(command, "take", Math.Max(query.Take, 0));

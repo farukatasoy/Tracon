@@ -503,7 +503,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             // root span naturally.
             if (depth == 0)
             {
-                _traceCollector?.BeginRun(activity.TraceId.ToString());
+                _traceCollector?.BeginRun(activity.TraceId.ToString(), activity.SpanId.ToString());
             }
         }
 
@@ -996,6 +996,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             await _traceCollector.CompleteRunAsync(
                 scope.Activity.TraceId.ToString(),
+                scope.Activity.SpanId.ToString(),
                 scope.Writer.RunId,
                 scope.TenantId,
                 status,
