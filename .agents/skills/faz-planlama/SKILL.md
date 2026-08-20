@@ -110,7 +110,7 @@ plan yanlıştır.
 | **Arayüz işi** | Bundle payını **gzip KB olarak** yaz. Bütçe 250 KB; bugünkü kullanımı ölç: `ls -l src/AgentPrism.UI/wwwroot/assets/` |
 | **Yeni ekran metni** | `locales/en.ts` + `tr.ts`. Eksik anahtar **derleme hatasıdır** (K-228) |
 | **Sunucu yanıtı** | Çevrilmez; API sözleşmesi tek dillidir (K-232) |
-| **Kullanıcıya dönük yüzey** | Plan başlığındaki **Site etkisi** satırı hangi `docs-site/` sayfasının değişeceğini yazar. `api/` ve `http-api/` üretilir — orada iş XML dokümanı ve `.WithTags`/`.Produces` üstverisidir |
+| **Kullanıcıya dönük yüzey** | Plan başlığındaki **Tüketici yüzeyi** satırı iki eksende yazılır: hangi `docs-site/` sayfası değişecek **ve** hangi sevk edilen yapıt (XML `<example>`, paket `README.md`'si, `capabilities.md` satırı). `api/` ve `http-api/` üretilir — orada iş XML dokümanı ve `.WithTags`/`.Produces` üstverisidir. Sözleşme: [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) |
 | **`secret`** | Dosyaya **ve veritabanına** yazılmaz. Kayıtta yalnız yapılandırma anahtarının **adı** durur (K-059) |
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan tasarım bu paketlere giremez |
 | **Public API** | `EnablePublicApiTracking` **`true`**'dur (K-421) ama `PublicAPI.Shipped.txt` dosyaları **boştur** — yüzeyi büyüten kalem Faz 7'den **önce** hâlâ ucuzdur, sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler ve iddiayı `wc -l src/*/PublicAPI.Shipped.txt` ile **ölçer** |

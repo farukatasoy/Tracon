@@ -151,13 +151,14 @@ dokümanı getirir — MAF tipi için `maf-api-kesfi` kullan.
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
 burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `aday-kesfi`
-(aday ararken; yalnız istek üzerine) → `faz-planlama` (aday F-NN faza
+(yalnız istek üzerine) → `faz-planlama` (aday F-NN faza
 dönüşürken) → `faz-baslangic` (okuma protokolü) →
-`faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (taze bağlamlı
-bağımsız denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış).
+`faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (bağımsız
+denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış;
+tüketici yüzeyine dokunulduysa `tuketici-dokuman-senkronu`'nu çağırır).
 Zincir dışı: `maf-api-kesfi` (MAF tipini ilk kez kullanmadan önce) ·
 `kusur-giderme` (kusur bulunduğunda) · `manuel-test-kosumu` (kabul setinin
-tamamı koşulurken).
+tamamında).
 Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---

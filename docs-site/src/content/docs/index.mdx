@@ -22,12 +22,12 @@ hero:
 
 import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
-<p class="problem-statement">
+<div class="problem-statement">
   You wrote an agent with the Microsoft Agent Framework and it works. Now someone has
   to operate it: find out what it did last Tuesday, stop it spending without a limit,
   test it without calling a model, and let a second team drive it over HTTP. That
   layer is what AgentPrism is.
-</p>
+</div>
 
 <div class="trust-strip" role="list" aria-label="Product characteristics">
   <span role="listitem"><strong>17</strong> NuGet packages</span>
@@ -132,7 +132,7 @@ flowchart LR
   </Card>
 </CardGrid>
 
-<p class="boundary-note">
+<div class="boundary-note">
   <strong>It is a library, not a hosted service.</strong> It runs inside your ASP.NET
   Core process, on your configuration, your authentication, and your database. There
   is no account and no telemetry leaves your process. Four rules hold everywhere:
@@ -140,7 +140,7 @@ flowchart LR
   and never in the console, MAF objects are passed through rather than wrapped, and
   every extension point registers with <code>TryAdd</code> so your own implementation
   wins. <a href="/AgentPrism/getting-started/">What AgentPrism is</a> explains each.
-</p>
+</div>
 
 :::caution[Pre-release]
 AgentPrism has not shipped `1.0`. The ASP.NET Core package depends on preview Microsoft
