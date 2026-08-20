@@ -82,8 +82,15 @@ public static class AgentPrismMcpServerExtensions
             services.GetRequiredService<ILogger<McpApprovalGuardFilter>>());
 
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "MCP");
-        group.AddEndpointFilter(approvalGuardFilter);
+        // 🚨 Order matters and this one is deliberate: authentication runs FIRST.
+        // The approval guard awaits a startup check that has no timeout and no
+        // retry limit (only ApplicationStopping cancels it), so with
+        // AutoApplyMigrations off and the migration step not yet run, an
+        // UNAUTHENTICATED request used to park on that task instead of getting
+        // 401 - holding a connection and a thread-pool continuation each. A
+        // caller must clear the door before it is allowed to wait in the hall.
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
+        group.AddEndpointFilter(approvalGuardFilter);
         group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke, mandatory: true);
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)

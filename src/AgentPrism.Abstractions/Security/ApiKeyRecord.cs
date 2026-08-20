@@ -61,4 +61,13 @@ public sealed record ApiKeyCreationResult
     /// consumer must show it immediately and not store it.
     /// </summary>
     public required string PlaintextKey { get; init; }
+
+    /// <summary>Returns a description that carries no raw key.</summary>
+    /// <returns>The type name and the saved record; never the raw value.</returns>
+    /// <remarks>
+    /// A record's compiler-generated <c>ToString</c> prints every property, and
+    /// this one holds the only copy of the raw key that will ever exist.
+    /// </remarks>
+    public override string ToString()
+        => $"{nameof(ApiKeyCreationResult)} {{ Record = {Record.Id}, PlaintextKey = [redacted] }}";
 }

@@ -97,9 +97,9 @@ public sealed class ObservabilityTests
         using var collector = CreateCollector(store, options => options.PersistSpans = false);
 
         collector.IsCollecting.ShouldBeFalse();
-        collector.BeginRun("trace").ShouldBeFalse();
+        collector.BeginRun("trace", "span").ShouldBeFalse();
 
-        (await collector.CompleteRunAsync("trace", AgentPrismId.NewId(), "default", RunStatus.Completed))
+        (await collector.CompleteRunAsync("trace", "span", AgentPrismId.NewId(), "default", RunStatus.Completed))
             .ShouldBeFalse();
     }
 
@@ -116,15 +116,18 @@ public sealed class ObservabilityTests
         });
 
         var runId = AgentPrismId.NewId();
-        var traceId = StartAndStopActivity();
+        using var root = StartRoot();
+        var traceId = root?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+        var rootSpanId = root?.SpanId.ToString() ?? "0000000000000001";
 
-        collector.BeginRun(traceId).ShouldBeTrue();
+        collector.BeginRun(traceId, rootSpanId).ShouldBeTrue();
 
         // The activity's root span must have been buffered; the collector must write it.
-        var activity = StartActivityInTrace(traceId);
+        var activity = StartChildOf(root);
         activity?.Stop();
+        root?.Stop();
 
-        (await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Failed)).ShouldBeTrue();
+        (await collector.CompleteRunAsync(traceId, rootSpanId, runId, "default", RunStatus.Failed)).ShouldBeTrue();
 
         var trace = await store.GetTraceByRunAsync(runId);
 
@@ -140,14 +143,17 @@ public sealed class ObservabilityTests
         using var collector = CreateCollector(store, options => options.SuccessSampleRatio = 0);
 
         var runId = AgentPrismId.NewId();
-        var traceId = StartAndStopActivity();
+        using var root = StartRoot();
+        var traceId = root?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+        var rootSpanId = root?.SpanId.ToString() ?? "0000000000000001";
 
-        collector.BeginRun(traceId);
+        collector.BeginRun(traceId, rootSpanId);
 
-        var activity = StartActivityInTrace(traceId);
+        var activity = StartChildOf(root);
         activity?.Stop();
+        root?.Stop();
 
-        (await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Completed))
+        (await collector.CompleteRunAsync(traceId, rootSpanId, runId, "default", RunStatus.Completed))
             .ShouldBeFalse();
 
         (await store.GetTraceByRunAsync(runId)).ShouldBeNull();
@@ -162,7 +168,7 @@ public sealed class ObservabilityTests
 
         using var collector = CreateCollector(store, static _ => { });
 
-        (await collector.CompleteRunAsync("unknown", AgentPrismId.NewId(), "default", RunStatus.Completed))
+        (await collector.CompleteRunAsync("unknown", "span", AgentPrismId.NewId(), "default", RunStatus.Completed))
             .ShouldBeFalse();
     }
 
@@ -233,12 +239,12 @@ public sealed class ObservabilityTests
         using var activity = source.StartActivity("test.root");
         var traceId = activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
 
-        collector.BeginRun(traceId);
+        collector.BeginRun(traceId, activity?.SpanId.ToString() ?? "0000000000000001");
 
         activity?.SetStatus(ActivityStatusCode.Error, "User taylor@example.com not found in CRM");
         activity?.Stop();
 
-        await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Failed);
+        await collector.CompleteRunAsync(traceId, activity?.SpanId.ToString() ?? "0000000000000001", runId, "default", RunStatus.Failed);
 
         var trace = await store.GetTraceByRunAsync(runId);
 
@@ -278,12 +284,12 @@ public sealed class ObservabilityTests
         using var activity = source.StartActivity("test.root");
         var traceId = activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
 
-        collector.BeginRun(traceId);
+        collector.BeginRun(traceId, activity?.SpanId.ToString() ?? "0000000000000001");
 
         activity?.SetStatus(ActivityStatusCode.Error, "boom");
         activity?.Stop();
 
-        await collector.CompleteRunAsync(traceId, runId, "default", RunStatus.Failed);
+        await collector.CompleteRunAsync(traceId, activity?.SpanId.ToString() ?? "0000000000000001", runId, "default", RunStatus.Failed);
 
         var trace = await store.GetTraceByRunAsync(runId);
 
@@ -313,26 +319,119 @@ public sealed class ObservabilityTests
     /// Opens and closes an activity from the source the collector listens to;
     /// returns the trace id.
     /// </summary>
-    private static string StartAndStopActivity()
+    /// <summary>
+    /// 🚨 A W3C trace id is INHERITED from the incoming <c>traceparent</c> header,
+    /// so two runs can share one. Keyed by trace id alone they shared a single
+    /// span buffer, and whichever run completed first wrote BOTH runs' spans
+    /// under its own run id and tenant id. A gateway that propagates distributed
+    /// tracing produces this shape without any attacker.
+    /// </summary>
+    [Fact]
+    public async Task Two_runs_sharing_a_trace_id_do_not_share_a_buffer()
     {
-        using var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
-        using var activity = source.StartActivity("test.root");
+        var store = new InMemoryTraceStore();
 
-        // Activity is null if there is no listener; an id is generated so the
-        // test remains meaningful and the scenario still runs.
-        return activity?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+        using var collector = CreateCollector(store, options => options.SuccessSampleRatio = 1);
+
+        using var firstRoot = StartRoot();
+
+        if (firstRoot is null)
+        {
+            // No listener attached in this environment; the scenario cannot run.
+            return;
+        }
+
+        var traceId = firstRoot.TraceId.ToString();
+
+        // The second run continues the SAME trace but opens its own root span,
+        // exactly as a second request carrying the same traceparent would.
+        var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
+        Activity.Current = null;
+        using var secondRoot = source.StartActivity(
+            "test.root.other",
+            ActivityKind.Internal,
+            new ActivityContext(firstRoot.TraceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded));
+
+        if (secondRoot is null || !string.Equals(secondRoot.TraceId.ToString(), traceId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        collector.BeginRun(traceId, firstRoot.SpanId.ToString()).ShouldBeTrue();
+        collector.BeginRun(traceId, secondRoot.SpanId.ToString()).ShouldBeTrue(
+            "the second run must get its own buffer, not be refused as a duplicate trace.");
+
+        var firstRunId = AgentPrismId.NewId();
+        var secondRunId = AgentPrismId.NewId();
+
+        // Each run stops its own root; the spans must not cross.
+        Activity.Current = firstRoot;
+        using (var firstChild = source.StartActivity("first.child"))
+        {
+            firstChild?.SetTag("owner", "first");
+            firstChild?.Stop();
+        }
+
+        Activity.Current = secondRoot;
+        using (var secondChild = source.StartActivity("second.child"))
+        {
+            secondChild?.SetTag("owner", "second");
+            secondChild?.Stop();
+        }
+
+        firstRoot.Stop();
+        secondRoot.Stop();
+
+        await collector.CompleteRunAsync(traceId, firstRoot.SpanId.ToString(), firstRunId, "tenant-a", RunStatus.Completed);
+        await collector.CompleteRunAsync(traceId, secondRoot.SpanId.ToString(), secondRunId, "tenant-b", RunStatus.Completed);
+
+        var firstTrace = await store.GetTraceByRunAsync(firstRunId);
+        var secondTrace = await store.GetTraceByRunAsync(secondRunId);
+
+        if (firstTrace is null || secondTrace is null)
+        {
+            return;
+        }
+
+        firstTrace.Spans.ShouldNotContain(
+            span => span.Name.Contains("second", StringComparison.Ordinal),
+            "tenant-a's trace must not carry tenant-b's spans.");
+
+        secondTrace.Spans.ShouldNotContain(
+            span => span.Name.Contains("first", StringComparison.Ordinal),
+            "tenant-b's trace must not carry tenant-a's spans.");
     }
 
-    private static Activity? StartActivityInTrace(string traceId)
+    /// <summary>
+    /// Opens a root activity and leaves it RUNNING, so children started while it
+    /// is current become real in-process children.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The helper used to stop the root immediately and then fabricate
+    /// "children" from a remote parent context. Those are not children: a span
+    /// whose parent is remote IS a local root, which is exactly how a second
+    /// run sharing an inherited trace id looks. The collector keys its buffer by
+    /// (trace, local root span), so the test has to build the real shape.
+    /// </remarks>
+    private static Activity? StartRoot()
     {
         var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
 
-        return ActivityTraceId.CreateFromString(traceId.AsSpan()) is var parsed
-            ? source.StartActivity(
-                "test.child",
-                ActivityKind.Internal,
-                new ActivityContext(parsed, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded))
-            : null;
+        return source.StartActivity("test.root");
+    }
+
+    private static Activity? StartChildOf(Activity? root)
+    {
+        if (root is null)
+        {
+            return null;
+        }
+
+        Activity.Current = root;
+
+        var source = new ActivitySource(AgentPrismDiagnostics.ActivitySourceName);
+
+        return source.StartActivity("test.child");
     }
 
     private sealed class FixedTenantContext : ITenantContext

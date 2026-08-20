@@ -38,7 +38,7 @@ public sealed class RunTraceCollector : IDisposable
     private readonly ITraceStore _store;
     private readonly IOptions<AgentPrismOptions> _options;
     private readonly ILogger<RunTraceCollector> _logger;
-    private readonly ConcurrentDictionary<string, RunSpanBuffer> _buffers = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<TraceBufferKey, RunSpanBuffer> _buffers = new();
     private readonly ActivityListener? _listener;
 
     /// <summary>Creates a new collector and starts listening.</summary>
@@ -87,18 +87,22 @@ public sealed class RunTraceCollector : IDisposable
     /// Starts collecting spans for a run.
     /// </summary>
     /// <param name="traceId">The W3C trace id of the run's root span.</param>
+    /// <param name="rootSpanId">
+    /// The span id of the activity this run opened. A trace id is inherited from
+    /// the incoming request, so it alone does not identify one run.
+    /// </param>
     /// <returns>
-    /// <see langword="false"/> when collection is disabled or this trace is
+    /// <see langword="false"/> when collection is disabled or this run is
     /// already being tracked.
     /// </returns>
-    public bool BeginRun(string traceId)
+    public bool BeginRun(string traceId, string rootSpanId)
     {
-        if (_listener is null || string.IsNullOrEmpty(traceId))
+        if (_listener is null || string.IsNullOrEmpty(traceId) || string.IsNullOrEmpty(rootSpanId))
         {
             return false;
         }
 
-        return _buffers.TryAdd(traceId, new RunSpanBuffer());
+        return _buffers.TryAdd(new TraceBufferKey(traceId, rootSpanId), new RunSpanBuffer());
     }
 
     /// <summary>
@@ -106,6 +110,7 @@ public sealed class RunTraceCollector : IDisposable
     /// positive. The buffer is released in every case.
     /// </summary>
     /// <param name="traceId">The W3C trace id of the root span.</param>
+    /// <param name="rootSpanId">The span id of the activity this run opened.</param>
     /// <param name="runId">Run identifier.</param>
     /// <param name="tenantId">Tenant identifier.</param>
     /// <param name="status">The run's final status.</param>
@@ -113,12 +118,15 @@ public sealed class RunTraceCollector : IDisposable
     /// <returns><see langword="true"/> when spans were written.</returns>
     public async ValueTask<bool> CompleteRunAsync(
         string traceId,
+        string rootSpanId,
         Guid runId,
         string tenantId,
         RunStatus status,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(traceId) || !_buffers.TryRemove(traceId, out var buffer))
+        if (string.IsNullOrEmpty(traceId)
+            || string.IsNullOrEmpty(rootSpanId)
+            || !_buffers.TryRemove(new TraceBufferKey(traceId, rootSpanId), out var buffer))
         {
             return false;
         }
@@ -190,7 +198,7 @@ public sealed class RunTraceCollector : IDisposable
     {
         var traceId = activity.TraceId.ToString();
 
-        if (!_buffers.TryGetValue(traceId, out var buffer))
+        if (!_buffers.TryGetValue(new TraceBufferKey(traceId, LocalRootSpanId(activity)), out var buffer))
         {
             // This trace is not being tracked: either it is a span produced
             // outside a run, or the run has already closed. Either way it is
@@ -284,6 +292,33 @@ public sealed class RunTraceCollector : IDisposable
         => key.Contains("message", StringComparison.OrdinalIgnoreCase)
             || key.Contains("prompt", StringComparison.OrdinalIgnoreCase)
             || key.Contains("completion", StringComparison.OrdinalIgnoreCase);
+
+    // 🚨 The buffer is keyed by the trace AND the local root span, not by the
+    // trace alone. A W3C trace id is INHERITED from the incoming traceparent
+    // header, so two runs - possibly two different tenants' runs - can share one
+    // trace id whenever a gateway propagates distributed tracing. Keyed by trace
+    // id alone they shared one buffer, and whichever run completed first wrote
+    // BOTH runs' spans under its own run id and tenant id.
+    private readonly record struct TraceBufferKey(string TraceId, string RootSpanId);
+
+    /// <summary>Finds the span that starts this run inside this process.</summary>
+    /// <remarks>
+    /// <c>Activity.Parent</c> is only set for an IN-PROCESS parent, so walking it
+    /// stops exactly at the activity a run opened - even when that activity
+    /// itself continues a remote trace. <c>Activity.RootId</c> cannot be used: it
+    /// is the trace id, which is the value being disambiguated.
+    /// </remarks>
+    private static string LocalRootSpanId(Activity activity)
+    {
+        var current = activity;
+
+        while (current.Parent is { } parent)
+        {
+            current = parent;
+        }
+
+        return current.SpanId.ToString();
+    }
 
     private static TraceSpanKind ToKind(ActivityKind kind) => kind switch
     {
