@@ -129,6 +129,28 @@ Yoksa gerekçe faz dokümanına yazılmış mı? (`EnablePublicApiTracking` bug�
 - Kullanıcıya dönük davranış değiştiyse `docs-site/` güncellenmiş mi?
 - Fazın manuel kabul case'leri `docs/manuel-test/` içine eklenmiş mi?
 
+**Tüketici doküman sözleşmesi.** Standart
+[`tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md`](../tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md)
+içindedir; denetçi onu okur ve şunları arar:
+
+- 🔴 **Bir muafiyet listesi veya taban çizgisi büyüdü mü?** `DIAGRAM_EXEMPT`,
+  `CLOSING_EXEMPT`, `SourceLanguageTests` taban çizgisi ve kontrast tabanları
+  **yalnız iyileşir**. Büyüten bir değişiklik gerekçeli olsa bile 🔴'dır —
+  gerekçe kararı `docs/KARARLAR.md`'ye taşır, denetimi kapatmaz.
+- 🔴 **Ağırlık tavanı veya kontrast tabanı ölçümsüz mü değiştirildi?** Sayı
+  uydurulmaz; tavanı yükseltmek ölçüm ister.
+- Yeni elle yazılan sayfa sözleşmeyi taşıyor mu: `## Read next` (1–3 bağlantı),
+  `description` 70–180 karakter, kenar çubuğundan erişilebilir?
+- Sevk edilen metinde iç referans kaldı mı: `K-NNN`, `F-NN`, faz numarası,
+  `MT-*`, `docs/NN-*.md`? Sınır `///` ile `//` arasındadır — uygulama yorumunda
+  referans **meşrudur**.
+- Yeni giriş noktası (`Add*`, `Use*`, `Map*`) `<example>` taşıyor mu? Yerel
+  referans dosyasının reçetesi bu sözü verir.
+- Yeni yetenek veya yeni paket `capabilities.md`'ye girdi mi? Sevk edilen agent
+  haritasının **tek kaynağı** odur ve bugün hiçbir kapı bu boşluğu yakalamıyor.
+- Kapı seti tam koştu mu? `npm run build` **yetmez** — `npm run check` dördünü
+  (`check:content` · `build` · `check:links` · `check:weight`) koşar.
+
 ---
 
 ## Adım 4 — Bulguları üç seviyede raporla

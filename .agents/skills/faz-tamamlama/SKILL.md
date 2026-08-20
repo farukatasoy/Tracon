@@ -37,16 +37,19 @@ Bulut senkronizasyon istemcisi `<ad> 2.<uzantı>` kopyaları üretir; `.cs`
 kopyası CS0101 yağmuru, `.ts` kopyası TS2741 verir. Beş kez yaşandı.
 
 ```bash
-find src tests samples -name "* 2.*" \
+find src tests samples docs .agents \( -name "* 2.*" -o -name "* 2" \) \
   -not -path "*/node_modules/*" -not -path "*/obj/*" -not -path "*/bin/*"
 ```
 
-Çıktı **boş olmalıdır**. İki tuzak:
+Çıktı **boş olmalıdır**. Üç tuzak:
 
 - **`git status` bu kopyaları göstermeyebilir** — bir kez `git add` edildiyse
   izlenen dosyadır ve "temiz" görünür. Taramayı `git status`'a güvenerek atlama.
 - **`src` yetmez.** Faz 57'de kopyalar `tests/` altındaydı; yalnız `src`'ye
-  bakan eski komut onları görmedi.
+  bakan eski komut onları görmedi. `docs` ve `.agents` de taranır.
+- **Kopya bir `.cs` dosyası olmak zorunda değil.** `-name "* 2.*"` tek başına
+  **dizin** kopyasını kaçırır: noktası yoktur. Üç boş `resources 2/` ve
+  `2026-08-13 2/` dizini tam bu yüzden aylarca durdu. Komut ikisini de arar.
 
 Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
 `agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
@@ -202,40 +205,30 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | MAF genişleme noktası kullanıldıysa | `docs/MAF-GENISLEME-NOKTALARI.md` |
 | Yol haritası durumu | `README.md` tablosu (tek kaynak) |
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
-| **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — aşağıdaki eşleme tablosu |
+| **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) skill'i |
+| **Public tip, HTTP ucu veya yeni paket eklendiyse** | Sevk edilen metin ve yerel referans yüzeyi — aynı skill |
 | `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
 
 `AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
 vardır. Tam tabloyu yalnız `README.md`'de güncelle.
 
-### 🚨 `docs-site/` senkronu
+### 🚨 Tüketici yüzeyi senkronu
 
 `docs/` Türkçe geliştirme günlüğüdür; `docs-site/` İngilizce **ürün
 dokümantasyonudur** ve yayınlanır. İkisi karıştırılmaz. Site bayatlarsa kusur
 kullanıcıya görünür — kod doğru olsa bile.
 
-Site iki tür sayfa taşır. Ayrımı bil, yoksa üretilen bir sayfayı elle yazarsın:
+Ama site tek tüketici yüzeyi değildir. Pakete giren `///` XML dokümanı, paket
+`README.md`'leri, paketlenen `agentprism.json`, sevk edilen
+`AgentPrism.AgentMap.md` ve tüketicinin diskinde üretilen
+`AgentPrism.LocalReference.md` de tüketiciye gider ve ayrı ayrı bayatlar.
 
-| Fazın dokunduğu şey | Sayfa | Kim yazar |
-|---|---|---|
-| Public tip, XML doküman, `<example>` | `api/` | **Üretilir** (`npm run generate`) — iş koddadır: XML doküman eksiksiz mi |
-| HTTP ucu | `http-api/` | **Üretilir** — iş koddadır: `.WithTags`/`.Produces` üstverisi var mı |
-| Yeni kavram veya davranış değişimi | `concepts/<alan>.md` | **Elle** |
-| Kurulum akışı, ilk agent, kalıcılık, güvenlik | `getting-started/*.md` | **Elle** |
-| Yeni paket veya paket rolü değişimi | `packages.md` | **Elle** |
-| Yeni ekran veya rota | `ui.md` + ekran görüntüsü | **Elle** + `AGENTPRISM_UI_SCREENSHOTS=1` ile E2E koşumu |
+**Bu iş [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md)
+skill'ine aittir. Onu uygula** — yüzey eşleme tablosu, kalite sözleşmesi ve dört
+kapının tam sırası oradadır ve burada tekrarlanmaz.
 
-Üretilen sayfalar **commit edilmez**; ekran görüntüleri **commit edilir**.
-
-Site ayrı bir yayın hattıdır — `dotnet build`'e bağlanmaz ve Node **22.12+**
-ister. Dokunduysan kendi kapısını koş:
-
-```bash
-cd docs-site && npm run build && node scripts/check-links.mjs
-```
-
-Kırık iç bağlantı bir yeniden adlandırmanın sessiz sonucudur; bu denetim onu
-yakalar.
+Faz hiçbir tüketici yüzeyine dokunmadıysa skill koşmaz; gerekçesi faz dokümanına
+yazılır ve aşağıdaki `--site-gerekce-yazildi` bayrağıyla geçilir.
 
 ### Bakım komutunu çalıştır (zorunlu)
 
@@ -308,8 +301,9 @@ Dört soruya dürüst cevap ver:
 >    başlatabilir mi?
 > 2. Sıcak yol dokümanları bu fazda **büyüdü mü**? (`scripts/dokuman-bakim.py`)
 > 3. Denetimin (Adım 4) **🔴 bulgusu kaldı mı**? Kaldıysa faz bitmemiştir.
-> 4. Bu fazın vaat ettiği davranışı **bir kullanıcı** `docs-site/` üzerinden
->    öğrenebilir mi?
+> 4. Bu fazın vaat ettiği davranışı **bir kullanıcı** yayınlanan siteden **ve**
+>    yerel referans dosyasından öğrenebilir mi? (Üç yüzey ayrıdır: site sayfası ·
+>    `<example>` taşıyan XML dokümanı · `capabilities.md` satırı.)
 
 1'e cevap "hayır" ise eksik bilgiyi **fazın kendi dokümanına** yaz — sıcak
 dokümana değil.

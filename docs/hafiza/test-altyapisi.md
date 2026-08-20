@@ -19,6 +19,23 @@
 
 - **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test AgentPrism.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `AgentPrism.Templates.Tests` fikstürüdür: `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
 
+## 🚨 `dotnet test --filter` SESSIZCE YUTULUR (Faz 77)
+
+- **`--filter` MTP'de YOKTUR ve hata da vermez — tum paketi kosar.** 2026-08-20'de
+  olculdu: `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+  --filter CapabilityExampleTests` **1004 testin tamamini** kosar ve yesil doner.
+  Daralttigini sanirsin; kosum suresi seni yanilmaz cunku paket zaten hizlidir.
+  Tehlike yesil bir yanlistir: bir kapiyi "kostum" diye isaretlersin ama aslinda
+  hangi testin gectigini bilmezsin.
+  **Dogru bicim derlenmis ikiliyi DOGRUDAN cagirmaktir:**
+  `./artifacts/bin/<Proje>/release/<Proje> --filter-class "*Ad*" "*Ad2*"`
+  (birden cok desen bosluk ile ayrilir). Secenekler: `--filter-class`,
+  `--filter-method`, `--filter-namespace`, `--filter-uid` ve `--filter-not-*`.
+  Olcum: 1004 test → **15 test / ~2 sn**.
+  🚨 **Bayat komut dokumanlarda duruyor:** `docs/73`, `docs/74` ve `docs/75`
+  `dotnet test --filter <Ad>` yazar. Oradan kopyalama; uc dosya da kapanmis
+  kayittir ve geriye donuk duzeltilmez.
+
 ## Kusur mu, kirilgan test mi — ayirmadan rapor etme
 
 - **🚨 Bir test tam pakette duser, tek basina gecerse "bayat" demeden ONCE

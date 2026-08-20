@@ -1,6 +1,6 @@
 ---
 name: manuel-test-kosumu
-description: Manuel kabul testi setinin (docs/manuel-test/) tam koşumunu ve koşum sonrası kusur kapanışını yönetir — şerit izolasyonu, oturum protokolü, sonuç kaydı, aile aile kapanış ve bitti tanımı. Yayın öncesi ya da kullanıcı "manuel testleri koşalım" dediğinde çalışır. Tek bir fazın kendi case'lerini yazmak için DEĞİL (o `faz-tamamlama` Adım 6'dır); 1000+ case'lik setin tamamını koşmak ve bulunan kusurları kapatmak içindir.
+description: Manuel kabul testi setinin (docs/manuel-test/) tam koşumunu ve koşum sonrası kusur kapanışını yönetir — şerit izolasyonu, oturum protokolü, sonuç kaydı, aile aile kapanış ve bitti tanımı. Yayın öncesi ya da kullanıcı "manuel testleri koşalım" dediğinde çalışır. Tek bir fazın kendi case'lerini yazmak için DEĞİL (o `faz-tamamlama` Adım 3'tür); 1000+ case'lik setin tamamını koşmak ve bulunan kusurları kapatmak içindir.
 ---
 
 # Manuel Kabul Testi Koşumu
