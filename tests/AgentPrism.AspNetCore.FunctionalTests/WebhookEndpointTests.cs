@@ -61,7 +61,7 @@ public sealed class WebhookEndpointTests
                    {
                        url = "https://example.com/hook",
                        events = new[] { "run.completed" },
-                       secretConfigurationKey = "AgentPrism:Webhooks:Secrets:orders",
+                       secretConfigurationKey = "AgentPrism:WebhookSecrets:orders",
                        secret = "super-secret-value",
                        signingSecret = "another-secret-value",
                        enabled = true,
@@ -75,7 +75,7 @@ public sealed class WebhookEndpointTests
             raw.ShouldNotContain("another-secret-value");
 
             // The key's NAME must be returned — not the value.
-            raw.ShouldContain("AgentPrism:Webhooks:Secrets:orders");
+            raw.ShouldContain("AgentPrism:WebhookSecrets:orders");
         }
 
         using var listed = await host.Client.GetAsync(Webhooks);

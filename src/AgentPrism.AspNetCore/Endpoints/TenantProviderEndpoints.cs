@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -112,6 +113,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] IOptionsMonitor<AgentPrismEgressOptions> egressOptions,
         CancellationToken cancellationToken)
     {
         if (!HttpTenantContext.IsValidTenantId(tenantId))
@@ -144,6 +146,26 @@ internal static class TenantProviderEndpoints
         catch (AgentPrismException ex)
         {
             return Invalid(ex.Message);
+        }
+
+        // 🚨 SSRF: the endpoint override is tenant input, and the resolved API
+        // key is sent to whatever it names. An IP literal is judged here; a
+        // host NAME is judged on every connection, inside EgressSocketGuard.
+        if (request.Endpoint is { Length: > 0 } endpoint)
+        {
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+            {
+                return Invalid("'endpoint' must be an absolute address.");
+            }
+
+            var addressPolicy = new EgressAddressPolicy(
+                egressOptions.CurrentValue.AllowPrivateNetworkTargets,
+                AllowLoopback: false);
+
+            if (EgressAddressValidator.ValidateLiteral(endpointUri, addressPolicy) is { } addressReason)
+            {
+                return Invalid(addressReason);
+            }
         }
 
         var policy = await egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);

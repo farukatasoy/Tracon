@@ -130,13 +130,66 @@ server and proxy logs.
 
 ## Outbound requests are guarded too
 
-A webhook address is supplied by a user and called by your server, which makes it an
-SSRF risk — cloud metadata endpoints included. Private network targets are refused by
-default, only `https` is accepted, and redirects are not followed.
+AgentPrism reaches the network from three places, and each one accepts an address that
+ultimately came from a user. That makes all three an SSRF risk — cloud metadata
+endpoints (`169.254.169.254`) included, which often hand out unauthenticated temporary
+credentials.
+
+| Surface | Address comes from |
+|---|---|
+| Webhook delivery | A subscription's `url` |
+| MCP server connections | A server definition's `endpoint` |
+| Model provider calls | A tenant's provider binding `endpoint` (BYOK) |
+
+One guard covers all three. Private network targets are refused by default:
+
+```json
+{
+  "AgentPrism": {
+    "Egress": {
+      "AllowPrivateNetworkTargets": false
+    }
+  }
+}
+```
+
+Refused ranges include `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, loopback,
+CGNAT, and the IPv6 equivalents. An IPv6 address that *embeds* an IPv4 address is
+reduced to that IPv4 address first and judged by the same rules, so
+`::ffff:169.254.169.254`, `::169.254.169.254`, `64:ff9b::a9fe:a9fe` (NAT64) and
+`2002:a9fe:a9fe::` (6to4) are all refused as well.
+
+Turn the setting on if your MCP servers really do run inside the private network. The
+rejection message names the setting, so an operator who hits it knows what to change.
 
 The check lives inside the socket connect callback, so the address that is validated
 is the address the socket connects to. Validating a URL and then calling it would
-leave a time-of-check/time-of-use gap.
+leave a time-of-check/time-of-use gap: `HttpClient` would resolve the name a second
+time, and an attacker can change the answer between the two lookups (DNS rebinding).
+Because the guard runs per connection, a name that passed when it was saved is checked
+again every time it is used.
+
+Webhook delivery keeps two extra rules of its own: only `https` is accepted (unless
+`AllowInsecureHttp` is on, which permits loopback only), and redirects are not
+followed — a redirect is an escape route into a private network.
+
+### Configuration keys are fenced too
+
+A stored record never holds a secret value; it holds the **name** of the configuration
+key the value is read from. That alone is not enough, so each name must sit under an
+allowed prefix. Without it, a record could name `ConnectionStrings:Default` as its
+"API key" and AgentPrism would send that value to a remote server.
+
+| Record | Field | Default prefix |
+|---|---|---|
+| Inbound trigger | `signingSecretConfigurationName` | `AgentPrism:TriggerSecrets:` |
+| Tenant provider binding | `apiKeyConfigurationName` | `AgentPrism:ProviderKeys:` |
+| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `AgentPrism:McpSecrets:` |
+| Webhook subscription | `secretConfigurationKey` | `AgentPrism:WebhookSecrets:` |
+
+Each prefix is configurable through the matching options section, and the rule is
+enforced twice: where the record is saved, and again where the value is resolved — so
+a record written before a prefix was configured cannot quietly read outside it.
 
 ## What is stored in the clear
 
@@ -170,6 +223,8 @@ need. Column-level encryption inside AgentPrism is a known gap, not a shipped fe
 - [ ] Retention policies exist for run events and traces
 - [ ] Encryption at rest is provided by the database or the disk — AgentPrism stores content in the clear
 - [ ] Skill script execution is left off unless you have read what it does
+- [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
+      provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
 

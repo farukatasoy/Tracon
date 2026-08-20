@@ -13,6 +13,9 @@ public sealed class WebhookUrlValidatorTests
 {
     private static readonly AgentPrismWebhookOptions Strict = new();
 
+    /// <summary>The shared egress settings at their default: private network closed.</summary>
+    private static readonly AgentPrismEgressOptions ClosedEgress = new();
+
     [Theory]
     [InlineData("127.0.0.1")]
     [InlineData("127.10.20.30")]
@@ -112,7 +115,8 @@ public sealed class WebhookUrlValidatorTests
         // IP literal address: no DNS lookup happens.
         var verdict = await WebhookUrlValidator.ValidateResolvedAsync(
             "https://169.254.169.254/latest/meta-data/",
-            Strict);
+            Strict,
+            ClosedEgress);
 
         verdict.IsAllowed.ShouldBeFalse();
         verdict.Reason.ShouldNotBeNull().ShouldContain("169.254.169.254");
@@ -125,7 +129,8 @@ public sealed class WebhookUrlValidatorTests
 
         var verdict = await WebhookUrlValidator.ValidateResolvedAsync(
             "https://10.0.0.5/hook",
-            permissive);
+            permissive,
+            ClosedEgress);
 
         verdict.IsAllowed.ShouldBeTrue();
         verdict.ResolvedAddress.ShouldBe(IPAddress.Parse("10.0.0.5"));
@@ -143,7 +148,8 @@ public sealed class WebhookUrlValidatorTests
 
         var verdict = await WebhookUrlValidator.ValidateResolvedAsync(
             "http://127.0.0.1:5099/hook",
-            localDev);
+            localDev,
+            ClosedEgress);
 
         verdict.IsAllowed.ShouldBeTrue();
     }
@@ -154,11 +160,11 @@ public sealed class WebhookUrlValidatorTests
         var localDev = new AgentPrismWebhookOptions { AllowInsecureHttp = true };
 
         // Loopback is enabled; but 10/8 and the metadata endpoint must STILL be rejected.
-        (await WebhookUrlValidator.ValidateResolvedAsync("https://10.0.0.5/hook", localDev))
+        (await WebhookUrlValidator.ValidateResolvedAsync("https://10.0.0.5/hook", localDev, ClosedEgress))
             .IsAllowed.ShouldBeFalse();
-        (await WebhookUrlValidator.ValidateResolvedAsync("https://169.254.169.254/", localDev))
+        (await WebhookUrlValidator.ValidateResolvedAsync("https://169.254.169.254/", localDev, ClosedEgress))
             .IsAllowed.ShouldBeFalse();
-        (await WebhookUrlValidator.ValidateResolvedAsync("https://192.168.1.1/hook", localDev))
+        (await WebhookUrlValidator.ValidateResolvedAsync("https://192.168.1.1/hook", localDev, ClosedEgress))
             .IsAllowed.ShouldBeFalse();
     }
 
@@ -172,7 +178,7 @@ public sealed class WebhookUrlValidatorTests
     [Fact]
     public async Task Resolved_ip_is_carried_when_a_public_address_resolves()
     {
-        var verdict = await WebhookUrlValidator.ValidateResolvedAsync("https://8.8.8.8/hook", Strict);
+        var verdict = await WebhookUrlValidator.ValidateResolvedAsync("https://8.8.8.8/hook", Strict, ClosedEgress);
 
         verdict.IsAllowed.ShouldBeTrue();
 

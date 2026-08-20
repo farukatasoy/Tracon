@@ -131,7 +131,7 @@ public sealed class GovernanceEndpointTests
             {
                 endpoint = "https://mcp.example.com/mcp",
                 transport = "StreamableHttp",
-                authorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+                authorizationConfigurationKey = "AgentPrism:McpSecrets:GithubToken",
                 enabled = true,
                 requiresApproval = true,
             });
@@ -168,7 +168,7 @@ public sealed class GovernanceEndpointTests
             new
             {
                 endpoint = "https://mcp.example.com/mcp",
-                authorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+                authorizationConfigurationKey = "AgentPrism:McpSecrets:GithubToken",
                 authorization = ValueThatMustNotLeak,
                 headers = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -245,7 +245,7 @@ public sealed class GovernanceEndpointTests
                 requiresApproval = true,
                 oauthEnabled = true,
                 oauthClientId = "agentprism-client",
-                oauthClientSecretConfigurationKey = "AgentPrism:Mcp:GithubClientSecret",
+                oauthClientSecretConfigurationKey = "AgentPrism:McpSecrets:GithubClientSecret",
                 oauthScopes = "repo read:user",
             });
 
@@ -258,7 +258,7 @@ public sealed class GovernanceEndpointTests
 
         server.OAuthEnabled.ShouldBeTrue();
         server.OAuthClientId.ShouldBe("agentprism-client");
-        server.OAuthClientSecretConfigurationKey.ShouldBe("AgentPrism:Mcp:GithubClientSecret");
+        server.OAuthClientSecretConfigurationKey.ShouldBe("AgentPrism:McpSecrets:GithubClientSecret");
         server.OAuthScopes.ShouldBe("repo read:user");
         server.OAuthAuthorizationMode.ShouldBe(McpOAuthAuthorizationMode.AuthorizationCode);
     }
@@ -288,7 +288,7 @@ public sealed class GovernanceEndpointTests
                 enabled = true,
                 oauthEnabled = true,
                 oauthClientId = "agentprism-client",
-                authorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+                authorizationConfigurationKey = "AgentPrism:McpSecrets:GithubToken",
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

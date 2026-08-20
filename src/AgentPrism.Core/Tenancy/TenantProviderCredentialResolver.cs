@@ -45,21 +45,10 @@ public sealed class TenantProviderCredentialResolver
     /// <see cref="AgentPrismTenantProviderOptions.AllowedConfigurationPrefix"/>.
     /// </exception>
     public void ValidatePrefix(string configurationKeyName)
-    {
-        if (string.IsNullOrWhiteSpace(configurationKeyName))
-        {
-            throw new AgentPrismException("'apiKeyConfigurationName' cannot be empty.");
-        }
-
-        var prefix = _options.CurrentValue.AllowedConfigurationPrefix;
-
-        if (!configurationKeyName.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            throw new AgentPrismException(
-                $"'{configurationKeyName}' is outside the allowed prefix. A tenant provider " +
-                $"binding may only reference a configuration key under '{prefix}'.");
-        }
-    }
+        => ConfigurationKeyGuard.RequirePrefix(
+            configurationKeyName,
+            _options.CurrentValue.AllowedConfigurationPrefix,
+            "apiKeyConfigurationName");
 
     /// <summary>
     /// Resolves a binding into a credential by reading its configuration key.

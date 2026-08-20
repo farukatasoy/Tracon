@@ -4,7 +4,6 @@ AgentPrism.AzureOpenAIChatClientFactory.AzureOpenAIChatClientFactory(AgentPrism.
 AgentPrism.AzureOpenAIChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AzureOpenAIModelCatalog
 AgentPrism.AzureOpenAIModelProvider
-AgentPrism.AzureOpenAIModelProvider.AzureOpenAIModelProvider(string! name, AgentPrism.AzureOpenAIChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.AzureOpenAIModelProvider!>? logger = null, AgentPrism.AzureOpenAIProviderOptions? healthCheckOptions = null) -> void
 AgentPrism.AzureOpenAIModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
 AgentPrism.AzureOpenAIModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AzureOpenAIModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
@@ -33,10 +32,11 @@ AgentPrism.AzureOpenAIProviderOptionsValidator.Validate(string? name, AgentPrism
 const AgentPrism.AzureOpenAIProviderNames.AzureOpenAI = "azure-openai" -> string!
 const AgentPrism.AzureOpenAIProviderNames.SettingsPrefix = "azure-openai" -> string!
 const AgentPrism.AzureOpenAIProviderOptions.SectionName = "AgentPrism:Providers:AzureOpenAI" -> string!
-static AgentPrism.AzureOpenAIChatClientFactory.CreateClient(AgentPrism.AzureOpenAIProviderOptions! options) -> Azure.AI.OpenAI.AzureOpenAIClient!
 static AgentPrism.AzureOpenAIModelCatalog.Build(AgentPrism.AzureOpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 static AgentPrism.AzureOpenAIChatClientFactory.FromClient(Azure.AI.OpenAI.AzureOpenAIClient! client, string? defaultDeployment = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> AgentPrism.AzureOpenAIChatClientFactory!
 static AgentPrism.AzureOpenAIProviderExtensions.UseAzureOpenAI(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AzureOpenAIProviderExtensions.UseAzureOpenAI(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AzureOpenAIProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AzureOpenAIProviderExtensions.UseAzureOpenAI(this AgentPrism.IAgentPrismBuilder! builder, System.Uri! endpoint, string! apiKey, System.Action<AgentPrism.AzureOpenAIProviderOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AzureOpenAIProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AgentPrism.AzureOpenAIModelProvider.AzureOpenAIModelProvider(string! name, AgentPrism.AzureOpenAIChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.AzureOpenAIModelProvider!>? logger = null, AgentPrism.AzureOpenAIProviderOptions? healthCheckOptions = null, AgentPrism.EgressSocketGuard? egressGuard = null) -> void
+static AgentPrism.AzureOpenAIChatClientFactory.CreateClient(AgentPrism.AzureOpenAIProviderOptions! options, AgentPrism.EgressSocketGuard? egressGuard = null) -> Azure.AI.OpenAI.AzureOpenAIClient!

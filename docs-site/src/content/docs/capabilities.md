@@ -161,7 +161,9 @@ experiment, and automatic rollback is off until you configure it.
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |
-| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, retry jobs, and failure disablement |
+| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, retry jobs, and failure disablement |
+| Outbound network guard | `AgentPrism:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
+| Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
 | Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |

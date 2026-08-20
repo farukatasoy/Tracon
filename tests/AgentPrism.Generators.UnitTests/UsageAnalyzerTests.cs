@@ -204,7 +204,7 @@ public sealed class UsageAnalyzerTests
                     TenantId = "default",
                     Name = "sk-test",
                     Endpoint = new Uri("https://example.test/mcp"),
-                    AuthorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+                    AuthorizationConfigurationKey = "AgentPrism:McpSecrets:GithubToken",
                 };
             }
             """;

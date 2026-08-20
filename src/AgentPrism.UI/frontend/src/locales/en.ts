@@ -930,7 +930,7 @@ export const en = {
   'webhooks.url': 'URL',
   'webhooks.urlHint': 'https only, unless the target is loopback.',
   'webhooks.signingKey': 'Signing key name',
-  'webhooks.signingKeyHint': 'The NAME of a configuration key, not the secret itself. Example: AgentPrism:Webhooks:Secrets:order-service',
+  'webhooks.signingKeyHint': 'The NAME of a configuration key, not the secret itself. Example: AgentPrism:WebhookSecrets:order-service',
   'webhooks.events': 'Events',
   'webhooks.event': 'Event',
   'webhooks.code': 'Code',

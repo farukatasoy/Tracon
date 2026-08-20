@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -133,13 +134,19 @@ public sealed class AzureOpenAIChatClientFactory
 
     /// <summary>Builds an Azure OpenAI client from options.</summary>
     /// <param name="options">The provider options.</param>
+    /// <param name="egressGuard">
+    /// When given, every connection this client opens passes through the
+    /// outbound network guard. Supplied only for a tenant-supplied endpoint
+    /// override; a setup-time endpoint is the operator's own decision and is
+    /// written in code.
+    /// </param>
     /// <returns>The built client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
     /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, or neither an API key
     /// nor a credential factory is given.
     /// </exception>
-    public static AzureOpenAIClient CreateClient(AzureOpenAIProviderOptions options)
+    public static AzureOpenAIClient CreateClient(AzureOpenAIProviderOptions options, EgressSocketGuard? egressGuard = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -154,6 +161,16 @@ public sealed class AzureOpenAIChatClientFactory
         }
 
         var clientOptions = new AzureOpenAIClientOptions();
+
+        // 🚨 Same family as OpenAIClientOptions: the hook is
+        // ClientPipelineOptions.Transport, not an HttpClient property.
+        if (egressGuard is not null)
+        {
+            // Infinite on purpose: these SDKs apply their own per-request
+            // network timeout (NetworkTimeout / ClientOptions.Timeout), and a
+            // second bound here would race with it.
+            clientOptions.Transport = new HttpClientPipelineTransport(egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan));
+        }
 
         if (options.Timeout is { } timeout)
         {

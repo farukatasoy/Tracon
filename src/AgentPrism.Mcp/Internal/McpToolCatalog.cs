@@ -41,6 +41,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly IToolAuthorizationHandler _authorizationHandler;
     private readonly IRunAttributionContext? _attribution;
+    private readonly EgressSocketGuard? _egressGuard;
+    private readonly string _allowedConfigurationPrefix;
 
     // The read path is lock-free: every refresh builds a new dictionary and
     // swaps the reference atomically. Readers always see a consistent snapshot.
@@ -63,7 +65,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
         IToolAuthorizationHandler authorizationHandler,
-        IRunAttributionContext? attribution)
+        IRunAttributionContext? attribution,
+        EgressSocketGuard? egressGuard = null,
+        IOptions<AgentPrismMcpSecurityOptions>? securityOptions = null)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(tenants);
@@ -84,6 +88,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _tokenCaches = tokenCaches;
         _authorizationHandler = authorizationHandler;
         _attribution = attribution;
+        _egressGuard = egressGuard;
+        _allowedConfigurationPrefix = (securityOptions?.Value ?? new AgentPrismMcpSecurityOptions())
+            .AllowedConfigurationPrefix;
     }
 
     /// <summary>Returns a tenant's discovered tools.</summary>
@@ -242,7 +249,16 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         var tokenCache = _tokenCaches.GetOrCreate(tenantId, server.Name);
 
         var (connection, connectUnreachable) = await McpConnection
-            .ConnectAsync(server, _configuration, _options.Value, tokenCache, _loggerFactory, _logger, cancellationToken)
+            .ConnectAsync(
+                server,
+                _configuration,
+                _options.Value,
+                tokenCache,
+                _loggerFactory,
+                _logger,
+                _egressGuard,
+                _allowedConfigurationPrefix,
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (connection is null)
