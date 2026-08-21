@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
+import { build as buildAgentMap, outputs as agentMapOutputs, siteUrl, verifyBudget } from './build-agent-map.mjs';
 import { hasInternalHistory } from './internal-history.mjs';
 import { sidebar, sectionImages } from '../src/sidebar.mjs';
 
@@ -307,6 +307,45 @@ for (const [key, path] of Object.entries(agentMapOutputs)) {
       `${relative(repositoryRoot, path)} does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs`,
     );
   }
+}
+
+// Comparing generated against committed cannot catch a generator that renders
+// the wrong thing into both - both sides agree and both are wrong. These two
+// checks state the outcome instead, and each names a defect that shipped: the
+// llms-full.txt address used to be appended to the SITE copy alone, which hid
+// the full text from the only reader who cannot browse to it, and an index
+// built off its own traversal could silently omit a page.
+for (const key of ['agentMap', 'llms']) {
+  for (const artifact of ['llms.txt', 'llms-full.txt']) {
+    if (!agentMap[key].includes(`${siteUrl}${artifact}`)) {
+      errors.push(`${relative(repositoryRoot, agentMapOutputs[key])} never names ${siteUrl}${artifact}`);
+    }
+  }
+}
+
+// The page index, counted from this file's OWN list of pages. The landing page
+// is the one exclusion: a splash screen answers no question, and the full text
+// leaves it out for the same reason.
+const indexed = new Set(
+  [...agentMap.llms.matchAll(/^- \[[^\]]*]\((\S+)\)/gm)].map(([, url]) => url),
+);
+
+for (const file of manualContent) {
+  if (file === join(docsRoot, 'index.mdx')) continue;
+
+  const declared = /^slug:\s*(.+)$/m.exec(/^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '');
+
+  const slug =
+    declared?.[1].trim().replace(/^['"]|['"]$/g, '') ??
+    relative(docsRoot, file).replaceAll(sep, '/').replace(/\.mdx?$/, '').replace(/(^|\/)index$/, '');
+
+  if (!indexed.delete(`${siteUrl}${slug}${slug ? '/' : ''}`)) {
+    errors.push(`llms.txt has no index line for ${relative(docsRoot, file)}`);
+  }
+}
+
+for (const url of indexed) {
+  errors.push(`llms.txt indexes ${url}, which is not a hand-written page`);
 }
 
 // ---------------------------------------------------------------------------

@@ -533,6 +533,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
 | `APG0401` | `AgentPrism.Usage` | `AGENTS.md` was generated from an older capability map. |
+| `APG0402` | `AgentPrism.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
 
 Each message names the API that resolves it, and each diagnostic links to the
 section of the [capability map](/AgentPrism/capabilities/) that documents it.
@@ -584,8 +585,33 @@ rm AGENTS.md && dotnet build
 ```
 
 The same map is published for web-based agents at
-[`/AgentPrism/llms.txt`](/AgentPrism/llms.txt), with every hand-written page
-concatenated at [`/AgentPrism/llms-full.txt`](/AgentPrism/llms-full.txt).
+[`/AgentPrism/llms.txt`](/AgentPrism/llms.txt), followed by one line per
+documentation page, with every hand-written page concatenated at
+[`/AgentPrism/llms-full.txt`](/AgentPrism/llms-full.txt).
+
+### I keep my own AGENTS.md, so the map never arrives (APG0402)
+
+Expected: your file is never overwritten. The map still ships inside the package,
+and `AgentPrism.LocalReference.md` carries its absolute path on this machine. Ask
+for that file — it lands beside each project and leaves your repository root alone:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteLocalReference>true</AgentPrismWriteLocalReference>
+</PropertyGroup>
+```
+
+Then point your own file at it, in one line:
+
+```markdown
+AgentPrism: read AgentPrism.LocalReference.md beside each project for the capability
+map and the API documentation of the installed version.
+```
+
+`APG0402` looks for that file name anywhere in `AGENTS.md` and goes quiet once it is
+there. It stays silent in two other cases as well: while the property above is off,
+because then there is no file to name, and on a file this package generated, because
+a generated map already names it.
 
 ### The agent knows a capability exists but not how to call it
 

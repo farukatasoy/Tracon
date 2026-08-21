@@ -51,6 +51,25 @@ for (const page of pages) {
   }
 }
 
+// The page index in llms.txt is the only set of internal links that lives
+// outside an HTML page, so the sweep above cannot see it. It is generated from
+// the pages themselves, which means a broken line here is a slug that no longer
+// resolves - and an agent that fetches this file has no site navigation to fall
+// back on.
+const indexFile = join(dist, 'llms.txt');
+
+if (existsSync(indexFile)) {
+  for (const match of readFileSync(indexFile, 'utf8').matchAll(/^- \[[^\]]*]\((\S+)\)/gm)) {
+    checked += 1;
+
+    const path = new URL(match[1]).pathname;
+
+    if (!path.startsWith(base) || !resolveTarget(path, indexFile).file) {
+      broken.push(`/llms.txt \u2192 ${match[1]}`);
+    }
+  }
+}
+
 if (broken.length > 0) {
   console.error(`${broken.length} broken internal link(s):`);
   for (const entry of broken.slice(0, 50)) {
@@ -60,7 +79,7 @@ if (broken.length > 0) {
   process.exit(1);
 }
 
-console.log(`Links: ${checked} internal reference(s) across ${pages.length} pages, none broken.`);
+console.log(`Links: ${checked} internal reference(s) across ${pages.length} pages and llms.txt, none broken.`);
 
 /** A URL maps to a concrete HTML or asset file and an optional anchor. */
 function resolveTarget(url, currentPage) {
