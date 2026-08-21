@@ -53,6 +53,17 @@ internal sealed class FakeChatClient(FakeModelScript script, Action<FakeModelReq
     {
         var step = script.Dequeue();
 
+        if (step is { ToolCalls.Count: > 0 } multiCall)
+        {
+            return
+            [
+                new ChatResponseUpdate(
+                    ChatRole.Assistant,
+                    [.. multiCall.ToolCalls!.Select(static call =>
+                        (AIContent)new FunctionCallContent(Guid.NewGuid().ToString("N"), call.ToolName, ToArguments(call.Arguments)))]),
+            ];
+        }
+
         if (step is { ToolName: { Length: > 0 } toolName })
         {
             return

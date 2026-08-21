@@ -1698,6 +1698,8 @@ AgentPrism.MemorySettings.VectorCollection.get -> string?
 AgentPrism.MemorySettings.VectorCollection.init -> void
 AgentPrism.ModelBinding
 AgentPrism.ModelBinding.<Clone>$() -> AgentPrism.ModelBinding!
+AgentPrism.ModelBinding.AllowConcurrentToolCalls.get -> bool
+AgentPrism.ModelBinding.AllowConcurrentToolCalls.init -> void
 AgentPrism.ModelBinding.Equals(AgentPrism.ModelBinding? other) -> bool
 AgentPrism.ModelBinding.Fallbacks.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelFallback!>!
 AgentPrism.ModelBinding.Fallbacks.init -> void
@@ -1712,6 +1714,8 @@ AgentPrism.ModelBinding.ProviderSettings.get -> System.Collections.Generic.IRead
 AgentPrism.ModelBinding.ProviderSettings.init -> void
 AgentPrism.ModelBinding.ReasoningEffort.get -> string?
 AgentPrism.ModelBinding.ReasoningEffort.init -> void
+AgentPrism.ModelBinding.ResponseCache.get -> AgentPrism.ResponseCacheSettings?
+AgentPrism.ModelBinding.ResponseCache.init -> void
 AgentPrism.ModelBinding.ResponseFormat.get -> AgentPrism.AgentResponseFormat?
 AgentPrism.ModelBinding.ResponseFormat.init -> void
 AgentPrism.ModelBinding.Temperature.get -> float?
@@ -1949,6 +1953,14 @@ AgentPrism.ReplayToolMode
 AgentPrism.ReplayToolMode.LiveTools = 2 -> AgentPrism.ReplayToolMode
 AgentPrism.ReplayToolMode.NoTools = 0 -> AgentPrism.ReplayToolMode
 AgentPrism.ReplayToolMode.ReplayTools = 1 -> AgentPrism.ReplayToolMode
+AgentPrism.ResponseCacheSettings
+AgentPrism.ResponseCacheSettings.<Clone>$() -> AgentPrism.ResponseCacheSettings!
+AgentPrism.ResponseCacheSettings.Enabled.get -> bool
+AgentPrism.ResponseCacheSettings.Enabled.init -> void
+AgentPrism.ResponseCacheSettings.Equals(AgentPrism.ResponseCacheSettings? other) -> bool
+AgentPrism.ResponseCacheSettings.Lifetime.get -> System.TimeSpan
+AgentPrism.ResponseCacheSettings.Lifetime.init -> void
+AgentPrism.ResponseCacheSettings.ResponseCacheSettings() -> void
 AgentPrism.RetentionPolicy
 AgentPrism.RetentionPolicy.<Clone>$() -> AgentPrism.RetentionPolicy!
 AgentPrism.RetentionPolicy.Archive.get -> bool
@@ -3851,6 +3863,9 @@ override AgentPrism.QuotaUsageRecord.Equals(object? obj) -> bool
 override AgentPrism.QuotaUsageRecord.GetHashCode() -> int
 override AgentPrism.QuotaUsageRecord.ToString() -> string!
 override AgentPrism.ReplayToolMismatchException.ErrorType.get -> string!
+override AgentPrism.ResponseCacheSettings.Equals(object? obj) -> bool
+override AgentPrism.ResponseCacheSettings.GetHashCode() -> int
+override AgentPrism.ResponseCacheSettings.ToString() -> string!
 override AgentPrism.RetentionPolicy.Equals(object? obj) -> bool
 override AgentPrism.RetentionPolicy.GetHashCode() -> int
 override AgentPrism.RetentionPolicy.ToString() -> string!
@@ -4283,6 +4298,8 @@ static AgentPrism.QuotaUsageQuery.operator ==(AgentPrism.QuotaUsageQuery? left, 
 static AgentPrism.QuotaUsageRecord.operator !=(AgentPrism.QuotaUsageRecord? left, AgentPrism.QuotaUsageRecord? right) -> bool
 static AgentPrism.QuotaUsageRecord.operator ==(AgentPrism.QuotaUsageRecord? left, AgentPrism.QuotaUsageRecord? right) -> bool
 static AgentPrism.ReplayToolMismatchException.For(string! toolName, string? arguments) -> AgentPrism.ReplayToolMismatchException!
+static AgentPrism.ResponseCacheSettings.operator !=(AgentPrism.ResponseCacheSettings? left, AgentPrism.ResponseCacheSettings? right) -> bool
+static AgentPrism.ResponseCacheSettings.operator ==(AgentPrism.ResponseCacheSettings? left, AgentPrism.ResponseCacheSettings? right) -> bool
 static AgentPrism.RetentionPolicy.operator !=(AgentPrism.RetentionPolicy? left, AgentPrism.RetentionPolicy? right) -> bool
 static AgentPrism.RetentionPolicy.operator ==(AgentPrism.RetentionPolicy? left, AgentPrism.RetentionPolicy? right) -> bool
 static AgentPrism.RetentionPreview.operator !=(AgentPrism.RetentionPreview? left, AgentPrism.RetentionPreview? right) -> bool

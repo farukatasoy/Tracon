@@ -66,6 +66,9 @@ public static class AgentPrismDiagnostics
     /// <summary>Gets the histogram name for judge scores from 0 to 100.</summary>
     public const string JudgeScoreHistogramName = "agentprism.judge.score";
 
+    /// <summary>Gets the response-cache lookup counter name.</summary>
+    public const string ModelCacheLookupCounterName = "agentprism.model.cache";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -137,5 +140,11 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Gets the judge name tag name from <see cref="IRunJudge.Name"/>.</summary>
         public const string JudgeName = "agentprism.judge.name";
+
+        /// <summary>Gets the model provider name tag name.</summary>
+        public const string Provider = "agentprism.model.provider";
+
+        /// <summary>Gets the response-cache lookup result tag name: <c>hit</c> or <c>miss</c>.</summary>
+        public const string CacheResult = "agentprism.model.cache.result";
     }
 }

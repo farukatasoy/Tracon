@@ -285,6 +285,62 @@ This also means the catalog must be accurate. If a listed model leaves
 Schema output fails compilation. See
 [Structured output](/guides/structured-output/).
 
+## Response caching
+
+Enable it per agent. AgentPrism forces the cache key with three inputs beyond the
+messages and options themselves: the tenant, the sorted tool names, and the provider
+— a hit never crosses a tenant boundary and never lands on an agent with a different
+tool set, even when the prompt and instructions are otherwise identical.
+
+```csharp
+builder.Services.AddDistributedMemoryCache(); // or a real distributed cache: Redis, SQL Server, ...
+
+agentPrism.AddAgent(new AgentDefinition
+{
+    Name = "cached-support",
+    Instructions = "Resolve support requests. State uncertainty clearly.",
+    Model = new ModelBinding
+    {
+        Provider = AnthropicProviderNames.Anthropic,
+        Model = "your-current-model-name",
+        ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
+    },
+});
+```
+
+A hit skips the model call entirely: no token usage, no cost, and no new trace span
+for that turn. It does **not** skip the tool-call loop — if the cached response
+carries a tool call, the tool still runs; a hit is not a shortcut around side
+effects. A run's own `usage` field reports `null` for a hit, not `0`: AgentPrism
+distinguishes "not measured" from "measured as zero" everywhere it reports usage.
+
+Turning `ResponseCache.Enabled` on without an `IDistributedCache` registered fails
+validation and fails to compile the agent; the error names the missing registration.
+Nothing runs uncached silently. A store failure (a timeout, an oversized payload the
+store rejects) is logged and treated as a miss on read, or simply dropped on write —
+a cache problem never fails a call that would otherwise have succeeded.
+
+## Concurrent tool calls
+
+By default, independent tool calls returned in the same turn run one after another.
+Turn `AllowConcurrentToolCalls` on to run them at the same time instead — useful when
+a turn calls several independent, I/O-bound tools and their combined latency matters
+more than a small increase in peak concurrency.
+
+```csharp
+Model = new ModelBinding
+{
+    Provider = AnthropicProviderNames.Anthropic,
+    Model = "your-current-model-name",
+    AllowConcurrentToolCalls = true,
+},
+```
+
+Off by default: with no change, calls still run one at a time exactly as they do
+today. Turn it on only for tools whose bodies are safe to run concurrently with
+themselves — a tool that shares mutable state across calls without its own
+synchronization should not opt in.
+
 ## Check a prompt against the context window before running it
 
 The pre-flight check is `AgentPrismPreflightOptions`, bound from
@@ -350,6 +406,9 @@ as a rejection, since there is nothing to compare the prompt against.
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
 | Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
 | Allowed configuration prefix for a binding | `AgentPrism:ProviderKeys:`; a name outside it is rejected with `400` |
+| Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
+| Response cache lifetime | 10 minutes, when caching is enabled |
+| Concurrent tool calls | Off; independent tool calls in one turn run one after another |
 
 Force a current, cost-free reachability check with:
 
@@ -392,6 +451,7 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 
 - [Model health HTTP API](/http-api/models/)
 - [`ModelBinding` API](/api/agentprism.modelbinding/)
+- [`ResponseCacheSettings` API](/api/agentprism.responsecachesettings/)
 - [`UseOpenAI` API](/api/agentprism.openaiproviderextensions/)
 - [`UseOpenAICompatible` API](/api/agentprism.openaicompatibleproviderextensions/)
 - [`UseAnthropic` API](/api/agentprism.anthropicproviderextensions/)

@@ -114,9 +114,11 @@ AgentPrism.AgentPrismMetrics.AgentPrismMetrics(System.Diagnostics.Metrics.IMeter
 AgentPrism.AgentPrismMetrics.Dispose() -> void
 AgentPrism.AgentPrismMetrics.JudgeCost.get -> System.Diagnostics.Metrics.Counter<double>!
 AgentPrism.AgentPrismMetrics.JudgeScore.get -> System.Diagnostics.Metrics.Histogram<double>!
+AgentPrism.AgentPrismMetrics.ModelCacheLookups.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.RecordCost(string! agentName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeCost(string! judgeName, string? modelId, string! tenantId, decimal cost, string! currency) -> void
 AgentPrism.AgentPrismMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, int score) -> void
+AgentPrism.AgentPrismMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
 AgentPrism.AgentPrismMetrics.RecordRun(string! agentName, AgentPrism.RunStatus status, string! tenantId, string? modelId, System.TimeSpan duration, AgentPrism.RunUsage? usage, int? agentVersion = null) -> void
 AgentPrism.AgentPrismMetrics.RecordToolInvocation(string! toolName, bool succeeded, System.TimeSpan? duration) -> void
 AgentPrism.AgentPrismMetrics.RunCost.get -> System.Diagnostics.Metrics.Counter<double>!
@@ -881,7 +883,7 @@ AgentPrism.ModelProviderRegistry.CreateChatClient(AgentPrism.ModelBinding! bindi
 AgentPrism.ModelProviderRegistry.CreateChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
 AgentPrism.ModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.ModelProviderRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelProviderDescriptor!>!
-AgentPrism.ModelProviderRegistry.ModelProviderRegistry(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, AgentPrism.IAttachmentStore? attachmentStore = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ContentGuardPipeline? contentGuards = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, AgentPrism.ProviderConcurrencyLimiter? concurrencyLimiter = null, AgentPrism.ITenantProviderBindingStore? tenantProviderBindings = null, AgentPrism.ITenantEgressPolicyStore? tenantEgressPolicies = null, AgentPrism.TenantProviderCredentialResolver? credentialResolver = null) -> void
+AgentPrism.ModelProviderRegistry.ModelProviderRegistry(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, AgentPrism.IAttachmentStore? attachmentStore = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ContentGuardPipeline? contentGuards = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, AgentPrism.ProviderConcurrencyLimiter? concurrencyLimiter = null, AgentPrism.ITenantProviderBindingStore? tenantProviderBindings = null, AgentPrism.ITenantEgressPolicyStore? tenantEgressPolicies = null, AgentPrism.TenantProviderCredentialResolver? credentialResolver = null, Microsoft.Extensions.Caching.Distributed.IDistributedCache? distributedCache = null, AgentPrism.AgentPrismMetrics? metrics = null) -> void
 AgentPrism.ModelRunJudge
 AgentPrism.ModelRunJudge.JudgeAsync(AgentPrism.RunJudgeContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.RunJudgment!>
 AgentPrism.ModelRunJudge.ModelRunJudge(AgentPrism.IModelProviderRegistry! modelProviders, Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.ModelRunJudgeOptions!>! optionsMonitor, AgentPrism.IRunStore! runStore, AgentPrism.ITenantContext! tenantContext, Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! agentPrismOptions, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory, AgentPrism.AgentPrismMetrics? metrics = null, AgentPrism.RunTraceCollector? traceCollector = null, System.TimeProvider? timeProvider = null, AgentPrism.IRunPricingResolver? pricingResolver = null, AgentPrism.IRunErrorClassifier? errorClassifier = null, AgentPrism.IRunInputStore? runInputStore = null, System.IServiceProvider? services = null) -> void
@@ -1317,6 +1319,7 @@ const AgentPrism.AgentPrismDiagnostics.CompactHistoryActivityName = "compact_his
 const AgentPrism.AgentPrismDiagnostics.JudgeCostCounterName = "agentprism.judge.cost" -> string!
 const AgentPrism.AgentPrismDiagnostics.JudgeScoreHistogramName = "agentprism.judge.score" -> string!
 const AgentPrism.AgentPrismDiagnostics.MeterName = "AgentPrism" -> string!
+const AgentPrism.AgentPrismDiagnostics.ModelCacheLookupCounterName = "agentprism.model.cache" -> string!
 const AgentPrism.AgentPrismDiagnostics.QuotaLimitGaugeName = "agentprism.quota.limit" -> string!
 const AgentPrism.AgentPrismDiagnostics.QuotaUsageGaugeName = "agentprism.quota.usage" -> string!
 const AgentPrism.AgentPrismDiagnostics.RunActivityName = "agentprism.run" -> string!
@@ -1327,6 +1330,7 @@ const AgentPrism.AgentPrismDiagnostics.SkillScriptActivityName = "execute_skill_
 const AgentPrism.AgentPrismDiagnostics.SkillScriptToolName = "skill_script" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.AgentName = "agentprism.agent.name" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.AgentVersion = "agentprism.agent.version" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.CacheResult = "agentprism.model.cache.result" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.CompactionInputTokens = "agentprism.compaction.input_tokens" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.CompactionOutputTokens = "agentprism.compaction.output_tokens" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.Currency = "agentprism.cost.currency" -> string!
@@ -1337,6 +1341,7 @@ const AgentPrism.AgentPrismDiagnostics.Tags.ExitCode = "agentprism.script.exit_c
 const AgentPrism.AgentPrismDiagnostics.Tags.JudgeName = "agentprism.judge.name" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ModelId = "agentprism.model.id" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.ParentRunId = "agentprism.run.parent_id" -> string!
+const AgentPrism.AgentPrismDiagnostics.Tags.Provider = "agentprism.model.provider" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.QuotaMetric = "agentprism.quota.metric" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.QuotaPeriod = "agentprism.quota.period" -> string!
 const AgentPrism.AgentPrismDiagnostics.Tags.QuotaScope = "agentprism.quota.scope" -> string!

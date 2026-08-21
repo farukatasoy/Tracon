@@ -70,6 +70,7 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.quota.limit` | Current quota limit gauge when enabled |
 | `agentprism.judge.cost` | Cost reported for evaluation judges |
 | `agentprism.judge.score` | Judge score distribution |
+| `agentprism.model.cache` | Response-cache lookups, tagged hit or miss |
 
 ### The attribute names
 
@@ -90,6 +91,8 @@ metric names above.
 | `agentprism.cost.currency` | `agentprism.run.cost` | The currency the configured price is expressed in |
 | `agentprism.quota.scope` · `agentprism.quota.period` · `agentprism.quota.metric` | Quota gauges | Which quota the gauge reports |
 | `agentprism.judge.name` | `agentprism.judge.cost`, `agentprism.judge.score` | The judge that produced the score |
+| `agentprism.model.provider` | `agentprism.model.cache` | The model provider name |
+| `agentprism.model.cache.result` | `agentprism.model.cache` | `hit` or `miss` |
 | `agentprism.skill.name` | Skill signals | The loaded skill |
 | `agentprism.script.name` · `agentprism.script.exit_code` · `agentprism.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
 | `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |

@@ -45,7 +45,7 @@ internal enum FakeFallbackKind
     EchoLastToolResult,
 }
 
-/// <summary>A single step in the queue: either plain text or a tool call.</summary>
+/// <summary>A single step in the queue: plain text, one tool call, or several tool calls at once.</summary>
 internal sealed record FakeStep
 {
     public string? Text { get; init; }
@@ -53,6 +53,15 @@ internal sealed record FakeStep
     public string? ToolName { get; init; }
 
     public object? ToolArguments { get; init; }
+
+    /// <summary>
+    /// Several tool calls returned together in the SAME turn. Unlike
+    /// <see cref="ToolName"/>/<see cref="ToolArguments"/> (one call per
+    /// dequeued step), this is the only way a fake turn can produce more than
+    /// one <c>FunctionCallContent</c> at once — the shape a real concurrent
+    /// tool-call loop (<c>FunctionInvokingChatClient.AllowConcurrentInvocation</c>) needs.
+    /// </summary>
+    public IReadOnlyList<(string ToolName, object? Arguments)>? ToolCalls { get; init; }
 
     /// <summary>Token usage reported as soon as this step is returned. Empty in most steps.</summary>
     public FakeUsage? Usage { get; init; }

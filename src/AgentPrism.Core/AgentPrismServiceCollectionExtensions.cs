@@ -319,7 +319,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<ProviderConcurrencyLimiter>(),
             provider.GetService<ITenantProviderBindingStore>(),
             provider.GetService<ITenantEgressPolicyStore>(),
-            provider.GetService<TenantProviderCredentialResolver>()));
+            provider.GetService<TenantProviderCredentialResolver>(),
+            // Phase 81 (F-45): when not registered, an agent that enables
+            // ModelBinding.ResponseCache fails to compile instead of silently
+            // running uncached - see ModelProviderRegistry.BuildPipeline.
+            provider.GetService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
+            provider.GetService<AgentPrismMetrics>()));
 
         // Pre-flight context-window estimator (phase 62, F-59). Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless

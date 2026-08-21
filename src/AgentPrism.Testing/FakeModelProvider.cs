@@ -171,6 +171,32 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <summary>
+    /// Enqueues a SINGLE turn that calls every given tool at once.
+    /// </summary>
+    /// <param name="calls">The tool name and arguments for each call.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <remarks>
+    /// <see cref="CallsTool"/> enqueues one call per turn and can never
+    /// produce more than one <c>FunctionCallContent</c> in the same response;
+    /// exercising a REAL concurrent tool-call loop
+    /// (<c>FunctionInvokingChatClient.AllowConcurrentInvocation</c>) needs
+    /// several independent calls to arrive together, in one turn.
+    /// </remarks>
+    public FakeModelProvider CallsTools(params (string ToolName, object? Arguments)[] calls)
+    {
+        ArgumentNullException.ThrowIfNull(calls);
+
+        if (calls.Length == 0)
+        {
+            throw new ArgumentException("At least one call is required.", nameof(calls));
+        }
+
+        _current.Enqueue(new FakeStep { ToolCalls = calls });
+
+        return this;
+    }
+
+    /// <summary>
     /// Defines a separate response queue for a specific model name. Calls to
     /// <see cref="RespondsWith(string[])"/>/<see cref="EchoesUserMessage"/>/<see cref="CallsTool"/>
     /// inside the <paramref name="configure"/> body affect only that model's queue.

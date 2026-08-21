@@ -81,6 +81,11 @@ public sealed class AgentPrismMetrics : IDisposable
             AgentPrismDiagnostics.JudgeScoreHistogramName,
             unit: "{score}",
             description: "Score given by an IRunJudge, 0-100 (Phase 49).");
+
+        ModelCacheLookups = _meter.CreateCounter<long>(
+            AgentPrismDiagnostics.ModelCacheLookupCounterName,
+            unit: "{lookup}",
+            description: "Response-cache lookups, tagged hit or miss.");
     }
 
     /// <summary>Run counter. Tags: agent, status, tenant.</summary>
@@ -106,6 +111,9 @@ public sealed class AgentPrismMetrics : IDisposable
 
     /// <summary>Judge score histogram. Tags: judge, agent, tenant.</summary>
     public Histogram<double> JudgeScore { get; }
+
+    /// <summary>Response-cache lookup counter. Tags: provider, tenant, result (hit/miss).</summary>
+    public Counter<long> ModelCacheLookups { get; }
 
     /// <summary>Records the result of a run.</summary>
     /// <param name="agentName">Agent name.</param>
@@ -243,6 +251,20 @@ public sealed class AgentPrismMetrics : IDisposable
                 new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.ToolName, toolName));
         }
     }
+
+    /// <summary>Records a response-cache lookup.</summary>
+    /// <param name="provider">Model provider name.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="hit">Whether the lookup found a cached response.</param>
+    public void RecordModelCacheLookup(string provider, string tenantId, bool hit)
+        => ModelCacheLookups.Add(
+            1,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.Provider, provider },
+                { AgentPrismDiagnostics.Tags.TenantId, tenantId },
+                { AgentPrismDiagnostics.Tags.CacheResult, hit ? "hit" : "miss" },
+            });
 
     /// <inheritdoc />
     public void Dispose()

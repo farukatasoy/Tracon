@@ -120,3 +120,28 @@ cagirir.
   grep error` ile hatayi gorup yine de test binary'sini kosmak **onceki**
   surumu olcer ve yesil gorunur. Faz 78'de bu iki kez oldu (mutasyon denetimi ve
   `MA0002`). Kosumdan once derlemenin gercekten yesil oldugunu dogrula.
+- **🚨 Tam cozum `dotnet test`i art arda Docker tabanli paket (`SqlServer`,
+  `PostgreSql`) kosarsa `Testcontainers` teardown'i yarisa girer** (Faz 81
+  kapanisi). Belirti: her test `Passed` VE `Test Assembly Cleanup Failure` ile
+  ikiletir (`Passed: N, Failed: N, Total: 2N`) — gercek assertion asla
+  KIRMIZI degildir; `PostgresFixture.DisposeAsync()`'in konteyner silme
+  cagrisi `TaskCanceledException` alir, cunku bir onceki paketin (`SqlServer`)
+  KENDI teardown'i Docker daemon'ini hala mesgul ediyordur. Izole kosumda
+  (`dotnet test tests/<Paket>`) her zaman temiz. Ayirt etme aynidir: izole
+  kostur, gecerse kaynak cekismesi.
+
+## `Barrier` ile eszamanlilik testi: senkron govde sessizce SIRALI calisir (Faz 81)
+
+- **🚨 `AllowConcurrentInvocation = true` + senkron (`Func<string>`) bir tool
+  govdesi = SESSIZCE sirali calisma.** Olculdu: `FunctionInvocationProcessor.ProcessFunctionCallsAsync`
+  (MEAI) esiklemeyi `Task.WhenAll(...)` ile yapar, ama bu cagri ONCE LINQ
+  `select`'i MATERYALIZE eder — govde `await` ETMEDEN (senkron) bloklayan bir
+  cagriya (`Barrier.SignalAndWait`) girerse, `Task.WhenAll` ikinci govdeyi
+  BASLATAMAZ: birinci govde donene kadar ikinci cagri hic KURULMAZ. Uc govde x
+  5 sn zaman asimi = 15 sn — sessizce, hatasiz, ama HICBIR zaman gercekten
+  cakismadan. **Cozum**: govde `Task.Run(() => { barrier.SignalAndWait(...); return sonuc; })`
+  ile sarilir (senkron blokaji GERCEK bir arka plan thread'ine tasir) veya
+  gercekten `async`/`await Task.Yield()` iceren bir govde yazilir. Barrier
+  boyutu da DENIED/atlanan cagrilari SAYMAZ — bir cagri yetkilendirme
+  reddiyle govdesine hic girmiyorsa `Barrier` katilimci sayisi o cagriyi
+  DISLAR, aksi halde kalan govdeler suresiz bekler (zaman asimina kadar).
