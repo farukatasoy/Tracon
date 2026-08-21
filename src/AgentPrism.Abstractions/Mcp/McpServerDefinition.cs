@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// The MCP OAuth authorization flow.
 /// </summary>
 /// <remarks>
-/// <strong>A single value:</strong> <c>ModelContextProtocol.Core</c> 2.0.0 supports only the Authorization Code (+PKCE) flow; <c>ClientOAuthOptions.RedirectUri</c> is a required field, and the library offers no non-interactive client-credentials flow. The value is still kept as an enum — if the SDK adds another flow later (for example, client_credentials), the extension point is ready.
+/// <strong>A single value:</strong> <c>ModelContextProtocol.Core</c> 2.2.0 supports only the Authorization Code (+PKCE) flow; <c>ClientOAuthOptions.RedirectUri</c> is a required field, and the library offers no non-interactive client-credentials flow. The value is still kept as an enum — if the SDK adds another flow later (for example, client_credentials), the extension point is ready.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<McpOAuthAuthorizationMode>))]
 public enum McpOAuthAuthorizationMode

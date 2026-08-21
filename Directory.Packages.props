@@ -16,8 +16,13 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.16.0</MicrosoftAgentsAIVersion>
-    <MicrosoftExtensionsVersion>10.0.10</MicrosoftExtensionsVersion>
+    <MicrosoftAgentsAIVersion>1.18.0</MicrosoftAgentsAIVersion>
+    <!--
+      MEAI 10.9.0 Microsoft.Extensions.* >= 10.0.11 ister; 10.0.10'da kalmak
+      NU1605 (paket dusurme) verir ve TreatWarningsAsErrors altinda restore'u
+      kirar. Bu satir MEAI yukseltmesinin ZORUNLU sonucudur, ayri bir secim degil.
+    -->
+    <MicrosoftExtensionsVersion>10.0.11</MicrosoftExtensionsVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - GA">
@@ -29,11 +34,11 @@
   </ItemGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.16.0-preview.260730.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.16.0-alpha.260730.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.18.0-preview.260818.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.18.0-alpha.260818.1" />
     <!--
       Faz 50: AgentPrism'i disa acan A2A sunucusu. Ayni surum hatti
-      (1.16.0-preview.260730.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
+      (1.18.0-preview.260818.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
       `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
       `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
       `MapA2A`/`MapHttpA2A` uzantilari acar (K-057'nin yeniden acilma notuna
@@ -41,15 +46,15 @@
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
       (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
     -->
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.16.0-preview.260730.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.16.0-preview.260730.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.18.0-preview.260818.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.18.0-preview.260818.1" />
     <PackageVersion Include="A2A.AspNetCore" Version="1.0.0-preview2" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions.AI">
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.3" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.8.3" />
-    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
   </ItemGroup>
 
   <!--
@@ -148,21 +153,23 @@
     MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
     Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
     bunlar sunucu barindirma icindir ve AgentPrism yalnizca istemcidir.
-    `.Core` bagimliliklari: Microsoft.Extensions.AI.Abstractions 10.8.3 (bizim
-    surumumuzle ayni), Logging.Abstractions 10.0.10, System.IO.Pipelines,
-    System.Net.ServerSentEvents. Ayrinti: docs/KARARLAR.md, karar K-057.
+    `.Core` bagimliliklari (2.2.0 nuspec'i, olculdu 2026-08-21): Microsoft.Extensions.AI.Abstractions
+    10.8.3, Logging.Abstractions 10.0.10, System.IO.Pipelines, System.Net.ServerSentEvents.
+    Ucu de TABANDIR; bizim pinlerimiz (10.9.0 ve 10.0.11) daha yuksek oldugu icin
+    NuGet bizimkini secer ve ek paket gelmez. Ayrinti: docs/KARARLAR.md, karar K-057.
   -->
   <ItemGroup Label="Model Context Protocol">
-    <PackageVersion Include="ModelContextProtocol.Core" Version="2.0.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
     <!--
       Faz 50: AgentPrism'i disa acan MCP sunucusu. K-057'nin kosulu degisti:
       "AgentPrism yalnizca istemcidir" artik dogru degil. Yalnizca
       AgentPrism.AspNetCore icine girer; AgentPrism.Mcp (istemci) `.Core`'da
       kalir. Olculdu (2026-08-07): 13 gecisli paket, tumu Microsoft.Extensions.*
-      ailesinden ve bizim surumlerimizle (10.0.10, Microsoft.Extensions.AI.Abstractions
-      10.8.3) birebir ayni.
+      ailesinden. 2.2.0'da yeniden okundu (2026-08-21): `.AspNetCore` sabit surumle
+      `ModelContextProtocol` [2.2.0]'i, o da `.Core` [2.2.0] + Caching.Abstractions
+      10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
     -->
-    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup Label="Gozlemlenebilirlik">

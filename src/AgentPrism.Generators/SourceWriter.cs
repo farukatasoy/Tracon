@@ -28,7 +28,7 @@ internal static class SourceWriter
 
         sb.Append("    public override string Name => ").Append(ToStringLiteral(model.ToolName)).Append(";\n\n");
         // AITool.Description's NRT signature is a NON-nullable string (verified: CS8764,
-        // Microsoft.Extensions.AI.Abstractions 10.8.3). When there is no description (APG0006
+        // Microsoft.Extensions.AI.Abstractions 10.9.0). When there is no description (APG0006
         // already warns), an empty string is returned - NOT null.
         sb.Append("    public override string Description => ")
           .Append(ToStringLiteral(model.Description ?? string.Empty))

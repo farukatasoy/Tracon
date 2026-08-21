@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// This interface does NOT wrap MAF's <c>AIJudgeLoopEvaluator</c>.
-/// Measured (MAF 1.16.0): <c>LoopEvaluation</c> does not return a SCORE (only
+/// Measured (MAF 1.18.0): <c>LoopEvaluation</c> does not return a SCORE (only
 /// <c>ShouldReinvoke</c> and <c>Feedback</c>), and <c>LoopContext</c> requires
 /// a live <c>AIAgent</c> + <c>AgentSession</c>. It is not suited to scoring a
 /// finished run —
