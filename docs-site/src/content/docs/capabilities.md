@@ -218,14 +218,18 @@ exists. Two channels tell it, and both are generated from this page.
 |---|---|---|
 | Agent map file | `AgentPrismWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
 | Local reference file | `AgentPrismWriteLocalReference`, on by default with the map | Writes `AgentPrism.LocalReference.md` beside each project, naming the API documentation and the HTTP API document of the exact version that project restored; regenerated every build, never committed |
-| Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register |
-| Usage diagnostics | Automatic with `AgentPrism.Core`; `AgentPrismUsageDiagnostics` turns the family off | The `AgentPrism.Usage` category reports absent wiring, a literal secret, and hand-written substitutes for shipped behaviour |
+| Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register. `llms.txt` carries the map and one line per documentation page; `llms-full.txt` carries every page in full |
+| Usage diagnostics | Automatic with `AgentPrism.Core`; `AgentPrismUsageDiagnostics` turns the family off | The `AgentPrism.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, and instructions that leave the map unreachable |
 | Tool diagnostics | Automatic with `AgentPrism.Core` | The `AgentPrism.Tools` category reports a tool method the generator cannot use |
 
 The map is refreshed by deleting `AGENTS.md` and building again; the file is never
 rewritten in place because you may have added notes to it. The template
 `dotnet new agentprism-api` sets the property, so a generated project has the map
-from its first build.
+from its first build. A repository that already keeps its own `AGENTS.md` never
+receives the map file at all, and copying the capability list into it would only
+create a second copy to maintain: add one line naming `AgentPrism.LocalReference.md`
+instead, which is what `APG0402` asks for and what the first section of that file
+answers.
 
 The map names every entry point; it explains none of them. `AgentPrism.LocalReference.md`
 answers the next question by pointing at what is already on your disk: the XML

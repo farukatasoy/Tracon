@@ -57,6 +57,18 @@
 > `Microsoft.ML.Tokenizers` geçişli olarak var olsa da AgentPrism onu **hiç
 > doğrudan çağırmıyor**.
 >
+> 🚨 **2026-08-20: MAF/Semantic Kernel/`Microsoft.Extensions.AI` ekosistem
+> taraması F-45'i doğruladı ve F-134'ü ekledi.** `DistributedCachingChatClient`
+> reflection ile ölçüldü — pinlenmiş 10.8.3'te zaten var, sürüm yükseltmesi
+> gerekmiyor. Aynı taramanın kod yazmayan üç bulgusu kullanıcıya ayrıca
+> bildirildi (aday değildir, burada durmaz): (1) MAF/MEAI/MCP paket
+> sürümlerinin rutin güncellenmesi (kusur kanalı), (2) K-053'ün yeniden test
+> edilmesi önerisi — `Microsoft.Agents.AI.Harness` artık GA hattında ama
+> davranışsal düzelme ölçülmedi (karar kanalı), (3) `docs/hafiza/maf-api.md`
+> satır 51'deki MCP OAuth notunun netleştirilmesi — `IdentityAssertionGrantProvider`
+> pinlenmiş 2.0.0'da bile var, ama saf `client_credentials` sağlamıyor (belge
+> düzeltmesi). Tam koşum kaydı: [`kesif/2026-08-20-maf-ekosistem-taramasi.md`](kesif/2026-08-20-maf-ekosistem-taramasi.md).
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -219,6 +231,48 @@ kanıtlanır, F-127 gözle. İkisini tek faza koymak DoD'yi bulanıklaştırırd
 
 ---
 
+### Dalga 12 → Faz 78
+
+| Kalem | Faz |
+|---|---|
+| **F-135** Yetenek haritasının var olan `AGENTS.md` taşıyan repo'ya erişimi | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) |
+
+F-135 bir keşif turundan değil, **gerçek bir tüketici kurulumundan** doğdu
+(2026-08-21, kullanıcı sorusu — F-108 emsali). Paket
+`prodigy-enabler-backend`'e eklendi ve harita o repo'ya hiç ulaşmadı: kökte
+zaten bir `AGENTS.md` vardı, paket onu doğru şekilde ezmedi, ve haritayı
+gösteren başka hiçbir yol yoktu.
+
+Ölçüm teşhisi keskinleştirdi. Oradaki kod agent'ı `AgentPrism.LocalReference.md`'yi
+**kendiliğinden** bulmuş ve `AGENTS.md:105`'te doğru biçimde belgelemiş — hatta
+`AgentPrism.AgentMap.md` adını biliyor. Yani eksik olan bilgi değil, **yoldur**:
+`LocalReference.md` XML doc yollarını yazıyor ama haritanın yolunu yazmıyor
+([targets:149](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149)).
+
+Aynı ölçüm bir tanı tasarımını da düşürdü: "`AGENTS.md` AgentPrism'den söz
+ediyor mu" kontrolü o dosyada sessiz kalırdı (20'den fazla kez söz ediyor).
+`APG0402`'nin tetiği bu yüzden yönlendirme **hedefine** bağlandı, konuya değil.
+
+Kapsam ikinci bir soruyla büyüdü: *harita ulaşılır olunca yeterli mi?* Ölçüm
+hayır dedi. Tüketicinin agent'ının kendi kaydettiği tuzağın
+(`UseTenancy()` çağrılmazsa sessizce single-tenant) cevabı korpusta **tek bir
+yerde** var — [`concepts/governance.md:15`](../docs-site/src/content/docs/concepts/governance.md#L15),
+"Off by default". Harita giriş noktasını adlandırır, XML doc tipi anlatır;
+**varsayılanı** yalnız anlatı söyler. O katmanın yerel karşılığı yok (424 KB) ve
+girişi de yok: `llms.txt` bir bağ listesi değil (`^- [` deseni **0** eşleşiyor),
+`llms-full.txt` **401 KB**. Üstelik `llms-full.txt` satırı sevk edilen haritadan
+çıkarılmış ([`build-agent-map.mjs:62`](../docs-site/scripts/build-agent-map.mjs#L62))
+— dağıtım ters. İkisi de Faz 78'e katlandı (§78.4).
+
+Ters yönde bir ölçüm de kayda geçti: sevk edilen XML doc'lar **51**
+`AgentPrism:` yapılandırma anahtarı taşıyor, sitenin `configuration.md`'si
+**39**. Boşluk referansta değil, anlatıdadır.
+
+Faz 73 bu bedeli önceden yazmıştı — "opt-in kararının bedeli benimseme
+oranıdır". F-135 o cümlenin ilk ölçülen faturasıdır.
+
+---
+
 ## Bu Turda Neyin Değiştiği
 
 Üçüncü turun kendi anlatısı kapanmış kayıttır — tam metin:
@@ -312,8 +366,11 @@ Bir fikir yalnız bir mercekten iyi görünüyorsa zayıftır. Her kalemin
 **Kapsam:** `DistributedCachingChatClient` boru hattına takılır.
 **Değer:** Deterministik iş yüklerinde fatura düşer.
 **Mercek:** 8.
-**Hazırlık:** `Microsoft.Extensions.AI` içinde `DistributedCachingChatClient`
-hazır **görünüyor** — **doğrulanmadı, `maf-api-kesfi` ile ölçülmeli.**
+**Hazırlık:** **Ölçüldü (2026-08-20):** `Microsoft.Extensions.AI.DistributedCachingChatClient`
+ve `DistributedCachingChatClientBuilderExtensions.UseDistributedCache` pinlenmiş
+sürümde (10.8.3) doğrudan reflection ile doğrulandı —
+`~/.nuget/packages/microsoft.extensions.ai/10.8.3/lib/net10.0/Microsoft.Extensions.AI.dll`
+içinde tip mevcut. Sürüm yükseltmesi gerekmiyor.
 **Maliyet:** Düşük.
 **Risk:** Varsayılan **kapalı**. Agent'ın aynı soruya farklı yanıt vermesi
 beklenen davranıştır; önbellek bunu bozar. Kiracı yalıtımı önbellek
@@ -323,6 +380,38 @@ anahtarında olmalıdır.
 ayrı bir kavramdır ve Faz 26'da zaten var.
 
 ---
+
+### F-134 · Eşzamanlı tool çağrısını açığa çıkar
+
+**Sorun:** Bir turda birden çok bağımsız tool çağrıldığında bugün sırayla
+çalışıyor. `FunctionInvokingChatClient.AllowConcurrentInvocation` MEAI'de
+zaten var (**Ölçüldü**, aynı reflection: `strings` çıktısında
+`AllowConcurrentInvocation`/`allowConcurrentInvocation` alanı görünüyor) ama
+AgentPrism hiçbir yerde açmıyor (`grep -rn AllowConcurrentInvocation src`
+yalnız bir **yorum** buluyor: [`ToolUsageAccumulator.cs:18`](../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)
+— sınıf zaten eşzamanlı çağrıyı bekleyerek `ConcurrentDictionary` kullanıyor,
+ama tetikleyen ayar hiçbir yerde `true` değil).
+**Kapsam:** `ChatClientBuilder` boru hattına (`ModelProviderRegistry.CreateChatClient`,
+K-320'nin merkezi kurulum noktası) bir agent/model tanımı bayrağı ekler.
+**Değer:** Bağımsız tool'ları paralel çağıran bir turda gecikme düşer —
+örn. üç farklı API'ye bakan bir araştırma agent'ı.
+**Mercek:** 1, 4.
+**Hazırlık:** **Ölçüldü (2026-08-20).** MAF 1.18.0 (2026-08-18) bu yeteneği
+agent seviyesinde de öne çıkardı: "Allow agents to opt into concurrent tool
+invocation" ([release notes](https://github.com/microsoft/agent-framework/releases/tag/dotnet-1.18.0)).
+Pinlenmiş sürüm 1.16.0'da bu MEAI düzeyinde zaten var; agent-seviyesi
+harness entegrasyonu doğrulanmadı.
+**Maliyet:** Düşük — tek bayrak, yeni paket yok.
+**Risk:** Sıralı yan etkili tool'lar (ör. birbirine bağımlı yazma işlemleri)
+paralelleşirse sıra garantisi bozulur. Varsayılan **kapalı** olmalı; agent
+tanımında açıkça seçilmeli.
+**Bağımlılık:** Yok.
+**Ekosistem:** MAF 2026-08-18'de bunu ürün özelliği olarak öne çıkardı —
+kendi ekosistemimizin en taze sinyali.
+**Karşı görüş:** Bugüne kadar hiçbir manuel test veya kullanıcı bu gecikmeyi
+sorun olarak bildirmedi; çoğu agent turu tek tool çağırıyor. Ölçülmeden
+"performans kazancı" iddia edilemez — ilk adım gerçek bir çok-tool senaryosunda
+benchmark almaktır, doğrudan bayrağı eklemek değil.
 
 - **F-112** Cache ve reasoning token kırılımı → [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
@@ -839,6 +928,8 @@ devam eder ve sabittir.
 | **F-132** | Giden ağ için `RequireHttps` bayrağı | Faz 77 açık soru 2 (2026-08-20) 👤 | Faz 77 muhafızı adres bazlıdır; şema kısıtı yalnız webhook yolunda vardır (`AllowInsecureHttp`, ve orada bile yalnız loopback'e izin verir). MCP sunucusu ve kiracı sağlayıcı `endpoint`'i bugün `http` kabul eder. **Ertelendi çünkü varsayılanı seçmek ölçüm ister:** kaç kurulumun gerçekten `http` MCP sunucusu olduğu bilinmiyor, ve açık gelen bir varsayılan K-165'in önlediği "yükseltme canlı trafiği sessizce kırar" durumunu üretir. Bayrağı eklemek ucuzdur (`AgentPrismEgressOptions.RequireHttps`, `EgressAddressPolicy`'ye üçüncü alan); pahalı olan varsayılan kararıdır. Ölçüm yapılmadan planlanmamalıdır |
 | **F-133** | `Second_decision_on_the_same_approval_gets_409` (`AgentPrism.AspNetCore.FunctionalTests`) izolasyonda HER ZAMAN düşüyor | Faz 77 kapanış koşumu (2026-08-20) | 🚨 **Ölçüldü ve Faz 77'nin DEĞİŞİKLİĞİ DEĞİL: `git stash` ile temiz `HEAD`'de de düşüyor.** Belirti: `WaitForStatusAsync(runId, "AwaitingApproval")` dönüyor ama hemen ardından `GET /api/approvals/pending` **boş dizi** veriyor (`ShouldHaveSingleItem` → 0 öğe, `ApprovalEndpointTests.cs:159`). F-130/F-122'den **farklı sınıf**: o ikisi kaynak çekişmesi altında araya giren kırılganlıktı, bu deterministik — tek test olarak üç koşumda 3/3 düştü. Tam sette bazen geçiyor, yani sıraya/zamanlamaya bağlı. Muhtemel kök sebep: `run` durumu `AwaitingApproval`'a geçtiği an ile onay kaydının `IPendingApprovalStore`'da **görünür** olduğu an arasında bir pencere var; `WaitForStatusAsync` yanlış sinyali bekliyor. Ya bekleme onay kaydına bakmalı, ya da iki yazım tek işlemde görünür olmalı. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolüyle sınıf taraması yapılmalı: aynı "durum önce, kayıt sonra" penceresi başka bekleme yardımcılarında da olabilir |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-102. |
+| **F-136** | Yeni bir `APG` tanı kodunun dokümana girdiğini ölçen kapı yok | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) denetimi (2026-08-21) 🟢 | `check-content.mjs` telemetri adlarını, `Options.cs` özelliklerini ve konsol ekranlarını kapıya bağlıyor ama `APG` kodlarını bağlamıyor. Bir tanı eklenip `guides/coding-agents.md` ve `troubleshooting.md` tablolarına yazılmazsa hiçbir şey kızarmaz — Faz 78'de üç tablo **elle** güncellendi. Kaynak `UsageDiagnostics.cs` + `ToolDiagnostics.cs`'deki descriptor listesi; kapı `DiagnosticIntegrityTests`'in yardım-bağlantısı denetimiyle aynı sınıftandır ve `capabilities.md` boşluğuyla (kalite sözleşmesi §E) birlikte kapatılmalıdır |
+| **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
 > bu denetim yalnız numara verdi ve gerekçeleri buraya taşıdı. F-101 **kod

@@ -105,3 +105,18 @@ cagirir.
   altyapiya bak (tek proje kosumu 558/558 geciyordu).
 - **"failed: 0" ama toplam sayi dusmusse kosum eksiktir.**
   `grep -cE "Test run summary:"` ile proje sayisini da say — beklenen **16**.
+
+## Kume karsilastirmasi (Faz 78)
+
+- **🚨 `HashSet.ShouldBe(...)` SIRALI esitlik denetler.** MSBuild proje sirasini
+  garanti etmez; iki projeli bir cozumde `["First", "Second"]` bekleyen bir
+  kume karsilastirmasi `["Second", "First"]` gordu ve dustu. Cozum
+  `Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList()` +
+  liste karsilastirmasi. **Ikinci tuzak:** `ShouldContain("dize")` bir
+  `HashSet<string>` uzerinde LINQ `Contains`'e baglanir ve `MA0002` ile
+  **DERLEMEYI KIRAR** — karsilastirici ister; predicate asiri yuklemesi
+  (`ShouldContain(x => ...)`) veya siralanmis liste kullan.
+- **🚨 Bir derleme hatasi test kosumunu SESSIZCE eskitir.** `dotnet build … |
+  grep error` ile hatayi gorup yine de test binary'sini kosmak **onceki**
+  surumu olcer ve yesil gorunur. Faz 78'de bu iki kez oldu (mutasyon denetimi ve
+  `MA0002`). Kosumdan once derlemenin gercekten yesil oldugunu dogrula.

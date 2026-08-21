@@ -18,3 +18,4 @@ APG0201 | AgentPrism.Usage | Warning | A secret is written into a definition. Se
 APG0301 | AgentPrism.Usage | Warning | A retry loop is written by hand around a chat client. See docs/73-TUKETICI-AGENT-DESTEGI.md
 APG0302 | AgentPrism.Usage | Warning | An agent is wrapped by hand. See docs/73-TUKETICI-AGENT-DESTEGI.md
 APG0401 | AgentPrism.Usage | Warning | The agent map file is stale. See docs/73-TUKETICI-AGENT-DESTEGI.md
+APG0402 | AgentPrism.Usage | Warning | The agent instructions never point at the local reference file. See docs/78-YETENEK-HARITASI-ERISIMI.md

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -21,10 +22,18 @@ internal static class AnalyzerTestHelper
 {
     private static readonly ImmutableArray<MetadataReference> References = BuildReferences();
 
+    /// <summary>
+    /// The build properties the package makes compiler-visible. APG0402 only
+    /// speaks while the local reference file is written, so the tests that
+    /// expect it have to say so, exactly as the build target does.
+    /// </summary>
+    public static readonly (string Key, string Value)[] LocalReferenceOn =
+        [("build_property.AgentPrismWriteLocalReference", "true")];
+
     /// <summary>Runs the analyzer and returns the diagnostics it reported.</summary>
     /// <param name="source">Consumer source code.</param>
     /// <param name="additionalFiles">
-    /// Files the package's build target supplies; APG0401 reads
+    /// Files the package's build target supplies; APG0401 and APG0402 read
     /// <c>AGENTS.md</c> and <c>AgentPrism.AgentMap.md</c> from here.
     /// </param>
     public static Task<ImmutableArray<Diagnostic>> RunAsync(
@@ -33,13 +42,24 @@ internal static class AnalyzerTestHelper
         => RunAsync([source], additionalFiles);
 
     /// <summary>
+    /// Runs the analyzer with the build properties a real consumer build would
+    /// make visible, on top of the additional files.
+    /// </summary>
+    public static Task<ImmutableArray<Diagnostic>> RunWithPropertiesAsync(
+        string source,
+        (string Key, string Value)[] properties,
+        params (string Path, string Text)[] additionalFiles)
+        => RunAsync([source], additionalFiles, properties);
+
+    /// <summary>
     /// Runs the analyzer over several source files of ONE compilation. APG0101
     /// and APG0102 look at the whole compilation, so "the registration is in
     /// another file" must be shown to stay silent.
     /// </summary>
     public static async Task<ImmutableArray<Diagnostic>> RunAsync(
         IReadOnlyList<string> sources,
-        params (string Path, string Text)[] additionalFiles)
+        (string Path, string Text)[]? additionalFiles = null,
+        (string Key, string Value)[]? properties = null)
     {
         var compilation = CSharpCompilation.Create(
             "ConsumerApplication",
@@ -48,7 +68,8 @@ internal static class AnalyzerTestHelper
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
         var options = new AnalyzerOptions(
-            [.. additionalFiles.Select(file => (AdditionalText)new InMemoryAdditionalText(file.Path, file.Text))]);
+            [.. (additionalFiles ?? []).Select(file => (AdditionalText)new InMemoryAdditionalText(file.Path, file.Text))],
+            new InMemoryOptionsProvider(properties ?? []));
 
         var withAnalyzers = compilation.WithAnalyzers(
             ImmutableArray.Create<DiagnosticAnalyzer>(new AgentPrismUsageAnalyzer()),
@@ -85,6 +106,28 @@ internal static class AnalyzerTestHelper
         }
 
         return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// Supplies the <c>build_property.*</c> entries that the SDK writes into a
+    /// generated .editorconfig from <c>CompilerVisibleProperty</c> items.
+    /// </summary>
+    private sealed class InMemoryOptionsProvider((string Key, string Value)[] properties) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new InMemoryOptions(properties);
+
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+
+        private sealed class InMemoryOptions((string Key, string Value)[] properties) : AnalyzerConfigOptions
+        {
+            private readonly Dictionary<string, string> _values =
+                properties.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+
+            public override bool TryGetValue(string key, [NotNullWhen(true)] out string? value)
+                => _values.TryGetValue(key, out value);
+        }
     }
 
     private sealed class InMemoryAdditionalText(string path, string text) : AdditionalText

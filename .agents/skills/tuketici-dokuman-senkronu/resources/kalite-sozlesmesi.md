@@ -151,9 +151,11 @@ ve projenin yanında durur. Makineye özgüdür; tüketici onu `.gitignore`'una
 ekler. AgentPrism **tüketicinin `.gitignore`'unu değiştirmez** — başkasının
 dosyasını değiştirmek sıfır sürpriz kuralının ihlalidir.
 
-İçinde üç bölüm vardır: referanslanan her AgentPrism paketinin XML doküman yolu,
-`AgentPrism.AspNetCore` varsa paketlenmiş `agentprism.json` yolu, ve bir
-`## How to read them` `grep` reçetesi. Reçete **önce adı bulan**, sonra üyeyi
+İçinde dört bölüm vardır ve **ilki** `## Capability map - read this first`:
+paketin taşıdığı `AgentPrism.AgentMap.md`'nin mutlak yolu. Sonra referanslanan her
+AgentPrism paketinin XML doküman yolu, `AgentPrism.AspNetCore` varsa paketlenmiş
+`agentprism.json` yolu, ve bir `## How to read them` `grep` reçetesi. Sıra
+soruların sırasını kodlar: önce **ne var**, sonra **nasıl çağrılır**. Reçete **önce adı bulan**, sonra üyeyi
 okuyan sırayı öğretir; ölçüm bu sıranın gerektiğini gösterdi — iki sorgu ancak
 ikinci denemede cevaplandı ve sebep yanlış ad tahminiydi.
 

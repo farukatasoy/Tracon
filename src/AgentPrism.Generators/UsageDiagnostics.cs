@@ -4,7 +4,7 @@ namespace AgentPrism.Generators;
 
 /// <summary>
 /// Definitions for the diagnostics produced by <see cref="AgentPrismUsageAnalyzer"/>
-/// (APG0101-APG0401).
+/// (APG0101-APG0402).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -97,6 +97,17 @@ internal static class UsageDiagnostics
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "The file is refreshed by deleting it; the build writes it again. It is never overwritten in place, because it may carry hand-written notes.",
+        helpLinkUri: $"{HelpBase}coding-agent-support",
+        WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor MissingLocalReferencePointer = new(
+        "APG0402",
+        "The agent instructions never point at the local reference file",
+        "'AGENTS.md' does not name 'AgentPrism.LocalReference.md' anywhere. A coding agent reading it cannot find the capability map or the API documentation of the version installed on this machine, so it writes behaviour AgentPrism already ships. Add one line naming that file; the build writes it beside every project that references AgentPrism.",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Reported only while the build writes that file, and only for a file this package did not generate - a generated map already names it. The pointer cannot go stale, because the file it names is rewritten on every build.",
         helpLinkUri: $"{HelpBase}coding-agent-support",
         WellKnownDiagnosticTags.CompilationEnd);
 }

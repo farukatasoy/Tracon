@@ -32,6 +32,11 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
 
     private const string HttpSectionHeading = "## HTTP API document";
 
+    private const string CapabilityMapHeading = "## Capability map - read this first";
+
+    /// <summary>Mirrors the marker in <c>docs-site/scripts/build-agent-map.mjs</c>.</summary>
+    private const string MarkerOpening = "<!-- AgentPrism agent map \u00b7 revision: ";
+
     private static readonly TimeSpan BuildTimeout = TimeSpan.FromMinutes(10);
 
     [Fact]
@@ -106,6 +111,54 @@ public sealed class LocalReferenceTests(TemplateFixture fixture)
         }
 
         documentationFiles.ShouldContain(path => path.EndsWith("AgentPrism.Core.xml", StringComparison.Ordinal), written);
+    }
+
+    /// <summary>
+    /// The reason this phase exists: the map is on disk in the NuGet cache, and
+    /// before this section nothing generated ever named its path, so an agent in
+    /// a repository with its own AGENTS.md could not reach it at all.
+    /// </summary>
+    /// <remarks>
+    /// The section is asserted to be FIRST because the order encodes the order
+    /// of the questions: what exists, then how it is called.
+    /// </remarks>
+    [Fact]
+    public async Task The_first_section_is_the_capability_map_and_the_path_it_names_is_real()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(directory.Path, writeAgentsFile: true);
+
+        var build = await BuildAsync(projectDirectory);
+        build.ExitCode.ShouldBe(0, build.Combined);
+
+        var written = await File.ReadAllTextAsync(
+            Path.Combine(projectDirectory, LocalReferenceFileName),
+            TestContext.Current.CancellationToken);
+
+        var sections = written
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("## ", StringComparison.Ordinal))
+            .ToList();
+
+        sections.ShouldNotBeEmpty(written);
+        sections[0].ShouldBe(CapabilityMapHeading, written);
+
+        var map = written
+            .Split('\n')
+            .Select(line => line.Trim())
+            .First(line => line.StartsWith("- ", StringComparison.Ordinal)
+                           && line.EndsWith("AgentPrism.AgentMap.md", StringComparison.Ordinal))[2..];
+
+        // A dead path is worse than no path: the agent spends a turn on it and
+        // learns nothing.
+        File.Exists(map).ShouldBeTrue($"'{map}' is named in the local reference but does not exist.\n{written}");
+
+        var contents = await File.ReadAllTextAsync(map, TestContext.Current.CancellationToken);
+
+        contents.ShouldStartWith(MarkerOpening, Case.Sensitive, written);
+        contents.ShouldContain("## Capabilities", customMessage: written);
     }
 
     [Fact]

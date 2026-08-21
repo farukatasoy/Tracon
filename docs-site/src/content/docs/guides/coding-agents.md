@@ -10,7 +10,7 @@ carefully, and for no reason, because AgentPrism ships all three.
 
 AgentPrism closes that gap from inside the build, without a service to run or an
 index to keep in sync. Three files land in your repository or beside your project, and
-six compiler diagnostics speak up when an agent writes something the package already
+seven compiler diagnostics speak up when an agent writes something the package already
 covers.
 
 ## Turn it on
@@ -41,13 +41,15 @@ The project template sets the first property, so a project created with
 
 ```mermaid
 flowchart LR
-    accTitle: The three files a coding agent reads
-    accDescr: The agent map answers what exists, the local reference answers how a member is called, and the site copies serve an agent that has no checkout.
-    BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root"]
+    accTitle: What a coding agent reads, and which question each file answers
+    accDescr: The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root<br/>written only when absent"]
     BUILD --> LOCAL["AgentPrism.LocalReference.md<br/>beside each project"]
+    OWN["Your own AGENTS.md<br/>one line naming that file"] --> LOCAL
     MAP --> Q1["What capability exists,<br/>and what call turns it on"]
+    LOCAL --> Q1
     LOCAL --> Q2["Exact paths to the XML docs<br/>and the HTTP API document"]
-    SITE["llms.txt · llms-full.txt"] --> Q3["The same map for an agent<br/>with no checkout"]
+    SITE["llms.txt · llms-full.txt"] --> Q3["The map, a one-line page index,<br/>and the full text, for an agent<br/>with no checkout"]
 ```
 
 ### `AGENTS.md` — the capability map
@@ -57,8 +59,36 @@ at the start of a session. It names every registration entry point, the package 
 lives in, and the rule each capability group obeys.
 
 It is written **only when the file does not already exist**. Your own `AGENTS.md` is
-never overwritten, never merged, and never reformatted. If you keep your own, copy the
-capability section out of a generated one and maintain it yourself.
+never overwritten, never merged, and never reformatted.
+
+### If you already have an `AGENTS.md`
+
+Most repositories do, which means the map above is never written and the copy inside
+the package is never found. Do not copy the capability list into your file — it would
+be a second copy to maintain, and it would go stale the first time you upgrade.
+
+Two steps instead. First, ask for the pointer file on its own; this writes nothing at
+your repository root and never touches your `AGENTS.md`:
+
+```xml
+<PropertyGroup>
+  <AgentPrismWriteLocalReference>true</AgentPrismWriteLocalReference>
+</PropertyGroup>
+```
+
+Then add one line to your own file:
+
+```markdown
+AgentPrism: read AgentPrism.LocalReference.md beside each project for the capability
+map and the API documentation of the installed version.
+```
+
+The pointer cannot go stale: the file it names is rewritten on every build, and its
+first section is the absolute path to the capability map in your NuGet cache.
+
+`APG0402` fires while that line is missing — but **only once the property above is
+on**, because until then there is no file to point at. It looks for the exact file name
+anywhere in `AGENTS.md`; prose, a list, or a code fence all count.
 
 ### `AgentPrism.LocalReference.md` — the exact paths
 
@@ -83,12 +113,19 @@ grep -A 12 "AddToolApprovalPolicy" \
 
 ### `llms.txt` and `llms-full.txt` — for an agent with no checkout
 
-The same capability map, plus the full text of every hand-written page, published on
-the documentation site:
+The same capability map, plus one line per documentation page, plus the full text of
+every page — three sizes for three questions, published on the documentation site:
 
-- [`llms.txt`](/AgentPrism/llms.txt) — the map, about 8 KB
+- [`llms.txt`](/AgentPrism/llms.txt) — the capability map, then **which page answers
+  what**: one line per hand-written page, with its title, address, and subject. About
+  17 KB.
 - [`llms-full.txt`](/AgentPrism/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 360 KB
+  page concatenated, about 400 KB.
+
+The middle layer is the one to use. The map names a capability but does not explain it;
+the index names the one page that does, and reading that page costs a fraction of the
+full text. The capability map lists both addresses, so an agent that only has the
+shipped copy still knows they exist.
 
 The generated .NET and HTTP API references are deliberately **not** in either file.
 That surface belongs to the compiler and the XML documentation; putting it in a text
@@ -108,7 +145,7 @@ dotnet build
 
 ## The diagnostics
 
-Six diagnostics in the `AgentPrism.Usage` category. They are **warnings**, not
+Seven diagnostics in the `AgentPrism.Usage` category. They are **warnings**, not
 suggestions, for one measured reason: an `Info` diagnostic never appears in
 `dotnet build` output at any verbosity, and build output is the only channel a coding
 agent reliably reads.
@@ -121,6 +158,7 @@ agent reliably reads.
 | `APG0301` | A retry loop is written by hand around a chat client | Hand retries hide failures from the circuit breaker and never reach the binding's fallbacks |
 | `APG0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
 | `APG0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
+| `APG0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
 
 A separate family, `APG0001`–`APG0007`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
