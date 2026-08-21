@@ -75,8 +75,8 @@ preview, and the public API is still moving toward `1.0`.
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- Getting started: <https://farukatasoy.github.io/AgentPrism/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Full documentation: <https://agentprism.eski-site.invalid>
+- Getting started: <https://agentprism.eski-site.invalid/>
+- API reference: <https://agentprism.eski-site.invalid/api/>
 
 License: MIT

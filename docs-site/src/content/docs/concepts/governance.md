@@ -53,7 +53,7 @@ public store method to be either tested or exempted with a documented reason.
 The tenant answers "whose data is this". Two further questions — which **user**
 spent this, and which **job** it was spent on — are answered by
 `IRunAttributionContext`, the sibling interface described in
-[Runs](/AgentPrism/concepts/runs/#who-ran-it-and-for-what).
+[Runs](/concepts/runs/#who-ran-it-and-for-what).
 
 The security property is the same one the tenant header has: the value is never
 taken from the run request body. A `userId` field there would let any client
@@ -95,7 +95,7 @@ provider is rejected too, so the two surfaces cannot disagree.
 
 Both are managed under `/api/tenants/{tenantId}/providers` and
 `/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. See
-[Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok)
+[Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok)
 for the full HTTP contract.
 
 ## The audit trail
@@ -217,7 +217,7 @@ this time" and stops to wait for a person; authorization asks "can this caller c
 tool at all" and answers instantly from `IToolAuthorizationHandler` — your own policy,
 checked before approval and before the call's timeout even starts. A denied call does not
 fail the run: the model gets the reason as an ordinary tool result and continues its
-turn. See [Tools, skills, and MCP](/AgentPrism/concepts/tools/#authorization-and-timeout)
+turn. See [Tools, skills, and MCP](/concepts/tools/#authorization-and-timeout)
 for the interface and an example.
 
 ## Quotas and rate limits
@@ -352,9 +352,9 @@ adding rows.
 
 Address validation happens inside the socket connect callback, so the address
 validated is the address connected to. See
-[securing the endpoints](/AgentPrism/getting-started/security/) for why.
+[securing the endpoints](/getting-started/security/) for why.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/)
-- [The HTTP API](/AgentPrism/http-api/)
+- [Securing the endpoints](/getting-started/security/)
+- [The HTTP API](/http-api/)

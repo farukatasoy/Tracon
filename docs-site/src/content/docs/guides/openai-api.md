@@ -190,6 +190,6 @@ The behavior and compatibility limits above are AgentPrism's own contract.
 
 ## Read next
 
-- [HTTP API conventions](/AgentPrism/http-api/) — the management API, which is a different surface with different rules
-- [Model providers](/AgentPrism/guides/model-providers/) — what actually answers the request behind the compatible endpoint
-- [Attachments and multimodal input](/AgentPrism/guides/multimodal/) — how non-text content arrives through the same endpoints
+- [HTTP API conventions](/http-api/) — the management API, which is a different surface with different rules
+- [Model providers](/guides/model-providers/) — what actually answers the request behind the compatible endpoint
+- [Attachments and multimodal input](/guides/multimodal/) — how non-text content arrives through the same endpoints

@@ -168,6 +168,6 @@ supplied in code.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.eski-site.invalid/guides/model-providers/>
+- Capability map: <https://agentprism.eski-site.invalid/capabilities/>
+- API reference: <https://agentprism.eski-site.invalid/api/>

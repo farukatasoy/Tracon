@@ -145,5 +145,5 @@ results on every read, so it never reports a stale verdict.
 
 ## Read next
 
-- [Agents and definitions](/AgentPrism/concepts/agents/) — versions, which experiments need
-- [Governance](/AgentPrism/concepts/governance/)
+- [Agents and definitions](/concepts/agents/) — versions, which experiments need
+- [Governance](/concepts/governance/)

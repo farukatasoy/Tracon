@@ -179,6 +179,11 @@ kontrastı ve ağırlık tavanını hiç denetlemez. `npm run check` dördünü 
 `npm run check` zaten `prebuild` üzerinden tam üretim koşar; `generate:fast`
 yalnız site içi prose düzenlemesinde kabul edilir.
 
+🚨 **Dört kapı YAYIN DEĞİLDİR.** `npm run check` yeşil olduğunda `dist/` yalnız
+senin makinendedir. Siteyi sunucuya `scripts/site-deploy.sh` taşır ve o
+`faz-tamamlama` Adım 10'dur. Bu skill'i tek başına koşuyorsan (faz kapanışı
+dışında) yayını da sen koşmalısın — yoksa düzelttiğin sayfa canlıda eski kalır.
+
 🚨 **Yeni ekran varsa ekran görüntüsü E2E'den üretilir ve commit edilir:**
 `AGENTPRISM_UI_SCREENSHOTS=1`. Ekran görüntüsünün **dosya olarak var olduğunu**
 `check-content.mjs` denetler; **doğru ekranı gösterdiğini** `DocumentationScreenshotTests`

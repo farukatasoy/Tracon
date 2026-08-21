@@ -245,7 +245,7 @@ run inspection:
 Event-store failures are logged and then event writes stop for that run. The agent
 run continues. A run-input write failure also leaves execution intact, but that run
 cannot be replayed. This failure isolation prevents an observability outage from
-becoming an agent outage. A registered [`IRunEventSink`](/AgentPrism/concepts/runs/#observing-events-beyond-the-store)
+becoming an agent outage. A registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)
 is held to the same rule: a sink failure never stops the store write, and a store
 failure never stops a sink from seeing the rest of the run.
 
@@ -332,6 +332,6 @@ operational information.
 
 ## Read next
 
-- [Runs and event recording](/AgentPrism/concepts/runs/)
-- [Reliable runs](/AgentPrism/guides/reliability/)
-- [Production deployment](/AgentPrism/guides/production/)
+- [Runs and event recording](/concepts/runs/)
+- [Reliable runs](/guides/reliability/)
+- [Production deployment](/guides/production/)

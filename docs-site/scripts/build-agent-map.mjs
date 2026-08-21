@@ -23,13 +23,12 @@ import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { siteUrl } from '../site.config.mjs';
+
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const siteRoot = resolve(here, '..');
 const docsRoot = join(siteRoot, 'src/content/docs');
 const repositoryRoot = resolve(siteRoot, '..');
-
-/** The published site. Matches astro.config.mjs `site` + `base`. */
-export const siteUrl = 'https://farukatasoy.github.io/AgentPrism/';
 
 /**
  * The agent map is read at the start of every session in a consumer repository,

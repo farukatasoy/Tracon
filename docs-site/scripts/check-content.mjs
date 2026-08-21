@@ -9,7 +9,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build as buildAgentMap, outputs as agentMapOutputs, siteUrl, verifyBudget } from './build-agent-map.mjs';
+import { build as buildAgentMap, outputs as agentMapOutputs, verifyBudget } from './build-agent-map.mjs';
+import { formerHosts, repositoryIsPublic, repositoryUrl, site, siteUrl } from '../site.config.mjs';
 import { hasInternalHistory } from './internal-history.mjs';
 import { sidebar, sectionImages } from '../src/sidebar.mjs';
 
@@ -127,6 +128,7 @@ const allContent = collect(docsRoot).filter((file) => ['.md', '.mdx'].includes(e
 // The separator matters: without it `http-api.md`, which is hand-written, is read
 // as living under the generated `http-api/` directory and skips every check below.
 const generatedRoots = [join(docsRoot, 'api', sep), join(docsRoot, 'http-api', sep)];
+
 const manualContent = allContent.filter(
   (file) => !generatedRoots.some((directory) => file.startsWith(directory)),
 );
@@ -766,6 +768,71 @@ for (const file of manualContent) {
   }
 }
 
+// 11. The published address is declared once, and no dead address survives a move.
+//
+//     Two failure modes, and they need different rules. The first is a seventh copy of
+//     the address being born in a file that could have imported it - the site was
+//     carrying seven, spelled inconsistently, with nothing checking that they agreed.
+//     The second is a copy that CANNOT be derived: a package README is plain markdown
+//     that ships to NuGet, and an analyzer help link is a compiled constant. Those are
+//     edited by hand on every move, and a missed one looks exactly like a working link
+//     until a reader clicks it.
+const siteHost = new URL(site).host;
+
+const declaresTheAddress = [
+  join(siteRoot, 'site.config.mjs'),
+  join(sourceRoot, 'AgentPrism.Generators', 'DocumentationLinks.cs'),
+];
+
+const derivedFromConfig = [
+  join(siteRoot, 'astro.config.mjs'),
+  ...collectSources(join(siteRoot, 'scripts')),
+  ...collectSources(join(siteRoot, 'src')),
+  // The serving stack: its Traefik rule names the host, and `.env` supplies it.
+  ...collectSources(join(siteRoot, 'deploy')),
+  ...collectSources(sourceRoot).filter((file) => extname(file) === '.cs'),
+].filter((file) => !declaresTheAddress.includes(file));
+
+for (const file of derivedFromConfig) {
+  if (readFileSync(file, 'utf8').includes(siteHost)) {
+    errors.push(
+      `${relative(repositoryRoot, file)}: spells out '${siteHost}'. ` +
+        'Import it from docs-site/site.config.mjs (C#: DocumentationLinks) instead.',
+    );
+  }
+}
+
+// Hand-edited copies, checked for the opposite thing: not that they name the address,
+// but that they do not still name one this site has left behind.
+const handWritten = [
+  ...derivedFromConfig,
+  ...collectSources(sourceRoot).filter((file) => basename(file) === 'README.md'),
+  join(repositoryRoot, 'README.md'),
+];
+
+for (const file of handWritten) {
+  const text = readFileSync(file, 'utf8');
+
+  for (const host of formerHosts) {
+    if (text.includes(host)) {
+      errors.push(
+        `${relative(repositoryRoot, file)}: still points at '${host}', which no longer ` +
+          `serves this site. The site is published at ${siteUrl}.`,
+      );
+    }
+  }
+
+  // The same defect wearing different clothes: a private repository is a 404 to every
+  // reader of a published page or a NuGet listing.
+  if (!repositoryIsPublic && text.includes(repositoryUrl)) {
+    errors.push(
+      `${relative(repositoryRoot, file)}: links to ${repositoryUrl}, which is private ` +
+        'and answers 404 to a reader. Link to the documentation site instead, or set ' +
+        'repositoryIsPublic in docs-site/site.config.mjs once the repository is open.',
+    );
+  }
+}
+
 if (errors.length > 0) {
   console.error(`Content check failed with ${errors.length} issue(s):`);
   for (const error of errors.slice(0, 80)) {
@@ -789,6 +856,28 @@ function collect(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? collect(path) : [path];
+  });
+}
+
+/**
+ * Like {@link collect}, but stops at directories nobody in this repository writes by
+ * hand: dependencies, build output, and generated pages. Pruning rather than filtering
+ * afterwards matters - `collect` over docs-site/ walks tens of thousands of
+ * node_modules entries before anything gets a chance to discard them.
+ */
+function collectSources(directory) {
+  const pruned = new Set(['node_modules', 'dist', 'bin', 'obj', '.astro', 'generated']);
+
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+
+    if (!entry.isDirectory()) {
+      return [path];
+    }
+
+    return pruned.has(entry.name) || generatedRoots.includes(`${path}${sep}`)
+      ? []
+      : collectSources(path);
   });
 }
 

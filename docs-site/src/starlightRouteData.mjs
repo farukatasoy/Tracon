@@ -7,16 +7,14 @@
 
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { imageByRoute, imageForRoute } from './sidebar.mjs';
-
-const SITE = 'https://farukatasoy.github.io';
-const BASE = '/AgentPrism';
+import { siteUrl } from '../site.config.mjs';
 
 // Built once per process, not once per page: this runs for all 1001 routes.
 const routes = imageByRoute();
 
 export const onRequest = defineRouteMiddleware((context) => {
   const { starlightRoute } = context.locals;
-  const image = `${SITE}${BASE}/social/${imageForRoute(starlightRoute.id, routes)}.png`;
+  const image = `${siteUrl}social/${imageForRoute(starlightRoute.id, routes)}.png`;
 
   for (const tag of starlightRoute.head) {
     if (tag.attrs?.property === 'og:image' || tag.attrs?.name === 'twitter:image') {

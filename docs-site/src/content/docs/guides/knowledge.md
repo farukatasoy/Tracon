@@ -81,7 +81,7 @@ should never see `pgvector` unless it asked for it). Turn it on wherever
 
 With it off, `IVectorSearchStore` never resolves and an agent definition that sets
 `EnableVectorSearch` fails compilation with a clear error — see
-[Persistence](/AgentPrism/getting-started/persistence/#pick-one).
+[Persistence](/getting-started/persistence/#pick-one).
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
 model, set `Dimensions` to its actual output size **before the knowledge migration
@@ -130,7 +130,7 @@ and use code or the agent management API to enable vector search.
 
 This feature is separate from session history, file memory, and MAF's
 `ChatHistoryMemoryProvider`. See
-[Context and memory](/AgentPrism/guides/context-and-memory/).
+[Context and memory](/guides/context-and-memory/).
 
 ## Ingest raw text
 
@@ -271,15 +271,15 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 
 ## In the reference
 
-- [Knowledge HTTP API](/AgentPrism/http-api/knowledge/)
-- [`AgentPrismKnowledgeOptions` API](/AgentPrism/api/agentprism.agentprismknowledgeoptions/)
-- [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
-- [`IVectorSearchStore` API](/AgentPrism/api/agentprism.ivectorsearchstore/)
-- [`UploadDocumentRequest` API](/AgentPrism/api/agentprism.uploaddocumentrequest/)
-- [`SearchKnowledgeRequest` API](/AgentPrism/api/agentprism.searchknowledgerequest/)
-- [`UsePostgreSql` API](/AgentPrism/api/agentprism.agentprismpostgresqlbuilderextensions/)
+- [Knowledge HTTP API](/http-api/knowledge/)
+- [`AgentPrismKnowledgeOptions` API](/api/agentprism.agentprismknowledgeoptions/)
+- [`MemorySettings` API](/api/agentprism.memorysettings/)
+- [`IVectorSearchStore` API](/api/agentprism.ivectorsearchstore/)
+- [`UploadDocumentRequest` API](/api/agentprism.uploaddocumentrequest/)
+- [`SearchKnowledgeRequest` API](/api/agentprism.searchknowledgerequest/)
+- [`UsePostgreSql` API](/api/agentprism.agentprismpostgresqlbuilderextensions/)
 
 ## Read next
 
-- [Context and memory](/AgentPrism/guides/context-and-memory/)
-- [Persistence](/AgentPrism/getting-started/persistence/)
+- [Context and memory](/guides/context-and-memory/)
+- [Persistence](/getting-started/persistence/)

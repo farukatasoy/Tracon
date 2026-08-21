@@ -75,7 +75,7 @@ floating ranges in production.
    rollout.
 
 Database migrations are forward-only. Do not assume that rolling back the application
-also rolls back the schema. See [Production deployment](/AgentPrism/guides/production/)
+also rolls back the schema. See [Production deployment](/guides/production/)
 for the migration and backup contract.
 
 ## Record the version in incident reports
@@ -94,6 +94,6 @@ content.
 
 ## Read next
 
-- [Compatibility matrices](/AgentPrism/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
-- [Choosing packages](/AgentPrism/packages/) — which packages you actually take a version of
-- [Configuration](/AgentPrism/reference/configuration/) — the options an upgrade can move
+- [Compatibility matrices](/reference/compatibility/) — the framework, runtime, and protocol versions each release supports
+- [Choosing packages](/packages/) — which packages you actually take a version of
+- [Configuration](/reference/configuration/) — the options an upgrade can move

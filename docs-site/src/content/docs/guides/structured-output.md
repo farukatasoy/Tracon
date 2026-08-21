@@ -214,12 +214,12 @@ and still reject a fenced payload at the application boundary.
 
 ## In the reference
 
-- [Agent management HTTP API](/AgentPrism/http-api/agents/)
-- [`AgentResponseFormat` API](/AgentPrism/api/agentprism.agentresponseformat/)
-- [`AgentResponseFormatKind` API](/AgentPrism/api/agentprism.agentresponseformatkind/)
-- [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
+- [Agent management HTTP API](/http-api/agents/)
+- [`AgentResponseFormat` API](/api/agentprism.agentresponseformat/)
+- [`AgentResponseFormatKind` API](/api/agentprism.agentresponseformatkind/)
+- [`ModelBinding` API](/api/agentprism.modelbinding/)
 
 ## Read next
 
-- [Model providers](/AgentPrism/guides/model-providers/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
+- [Model providers](/guides/model-providers/)
+- [Agents and definitions](/concepts/agents/)

@@ -179,7 +179,12 @@ jobs:
           --skip-duplicate
 
   # ---------------------------------------------------------------------------
-  # Dokuman sitesi (docs-site/) -> GitHub Pages
+  # Dokuman sitesi (docs-site/) kapilari
+  #
+  # Bu is YAYINLAMAZ. Site kendi sunucumuzda barinir ve yayini
+  # `scripts/site-deploy.sh` yapar -- ozel repo'da GitHub Pages ucretli plan
+  # ister (K-542). Burada kalan sey, siteyi DERLEYIP kapilarini kosmaktir:
+  # derlenmeyen bir site yayin gunune kadar sessiz kalmasin.
   #
   # Site AYRI bir yayin hattidir: `dotnet build`'e baglanmaz ve pakete girmez.
   # Yine de .NET derlemesine ihtiyac duyar -- API referansi DocFX ile derlenmis
@@ -190,21 +195,20 @@ jobs:
   # Ekran goruntuleri docs-site/public/screenshots altinda COMMIT'LIDIR; E2E
   # kosumundan uretilirler (DocumentationScreenshotTests). Bu is Playwright
   # calistirmaz.
+  #
+  # 🚨 Is PR'de KOSMAZ ve bu bilincli bir bosluktur: ozel repo'nun Actions
+  # dakikasi sinirlidir ve `site-deploy.sh` dort kapiyi yayindan once zaten
+  # kosar. Bir PR'i durdurmasi gereken kapi `build` isine konur -- oradaki
+  # `check-content.mjs` adimi tam olarak bu sebeple oradadir.
   # ---------------------------------------------------------------------------
-  pages:
-    name: Dokuman sitesini yayinla
+  site:
+    name: Dokuman sitesi kapilari
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
     permissions:
       contents: read
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Kaynak kodu al
@@ -261,15 +265,3 @@ jobs:
       - name: Sayfa agirligini denetle
         working-directory: docs-site
         run: npm run check:weight
-
-      - name: Pages yapilandirmasi
-        uses: actions/configure-pages@v5
-
-      - name: Site ciktisini yukle
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs-site/dist
-
-      - name: Pages'e yayinla
-        id: deployment
-        uses: actions/deploy-pages@v4

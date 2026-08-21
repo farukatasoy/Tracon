@@ -75,14 +75,14 @@ The persistence choices are `memory`, `postgres`, `sqlite`, and `sqlserver`.
 
 Runtime packages target .NET 8, 9, and 10. `AgentPrism.Testing` targets .NET 10 only,
 and the template generates a .NET 10 application. See
-[Compatibility](/AgentPrism/reference/compatibility/).
+[Compatibility](/reference/compatibility/).
 
 ### Startup reports an option-validation failure
 
 Treat it as a configuration error. AgentPrism validates required addresses, secrets,
 positive limits, ranges, incompatible flags, and provider-specific settings during
 startup or agent compilation. Read the option type named in the message in the
-[API reference](/AgentPrism/api/); do not suppress the validation.
+[API reference](/api/); do not suppress the validation.
 
 Common causes include:
 
@@ -516,7 +516,7 @@ First identify the package or call:
 - AspNetCore, UI, MCP, Workflows, SQLite, and SQL Server do not make an AOT promise.
 - `AgentPrism.Testing` does not make an AOT promise.
 
-Use [Compatibility](/AgentPrism/reference/compatibility/) to choose an AOT-safe
+Use [Compatibility](/reference/compatibility/) to choose an AOT-safe
 package set. Do not silence a warning from a public API; select a generated or
 source-generated path, or accept and document that the application is not AOT-safe.
 
@@ -536,7 +536,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 | `APG0402` | `AgentPrism.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
 
 Each message names the API that resolves it, and each diagnostic links to the
-section of the [capability map](/AgentPrism/capabilities/) that documents it.
+section of the [capability map](/capabilities/) that documents it.
 
 ### APG0101 or APG0102 fires although the registration exists
 
@@ -585,9 +585,9 @@ rm AGENTS.md && dotnet build
 ```
 
 The same map is published for web-based agents at
-[`/AgentPrism/llms.txt`](/AgentPrism/llms.txt), followed by one line per
+[`/llms.txt`](/llms.txt), followed by one line per
 documentation page, with every hand-written page concatenated at
-[`/AgentPrism/llms-full.txt`](/AgentPrism/llms-full.txt).
+[`/llms-full.txt`](/llms-full.txt).
 
 ### I keep my own AGENTS.md, so the map never arrives (APG0402)
 
@@ -644,6 +644,6 @@ pointer file, set `AgentPrismWriteLocalReference` to `false`.
 
 ## Read next
 
-- [Observability and cost](/AgentPrism/guides/observability/) — the traces and metrics that answer a question before it becomes a symptom
-- [Reliable runs](/AgentPrism/guides/reliability/) — the failure boundaries that stop several of these symptoms recurring
-- [Configuration](/AgentPrism/reference/configuration/) — the option behind most of the fixes above
+- [Observability and cost](/guides/observability/) — the traces and metrics that answer a question before it becomes a symptom
+- [Reliable runs](/guides/reliability/) — the failure boundaries that stop several of these symptoms recurring
+- [Configuration](/reference/configuration/) — the option behind most of the fixes above

@@ -3,7 +3,7 @@ title: Inbound triggers
 description: Let an external system such as Slack start a queued agent or workflow run over a signed HTTP request, with no bearer token.
 ---
 
-An inbound trigger is the reverse of an [outbound webhook](/AgentPrism/concepts/governance/#webhooks):
+An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/#webhooks):
 instead of AgentPrism notifying another system, another system starts a run in
 AgentPrism. A Slack slash command, a support-desk ticket event, or a queue
 consumer can all become the start of an agent or workflow run without holding
@@ -12,7 +12,7 @@ an AgentPrism API key.
 The accept endpoint is always queued and always returns `202 Accepted` — there
 is no synchronous mode. A caller that needs the model's answer inline should
 use the normal run endpoint instead; see
-[Jobs, schedules, and queues](/AgentPrism/guides/background-work/) for how
+[Jobs, schedules, and queues](/guides/background-work/) for how
 queued runs execute.
 
 ```mermaid
@@ -84,7 +84,7 @@ curl -sS -i -X POST \
 ```
 
 The signature is the same HMAC-SHA256 contract
-[outbound webhooks](/AgentPrism/concepts/governance/#webhooks) use, in the reverse
+[outbound webhooks](/concepts/governance/#webhooks) use, in the reverse
 direction — sign `{unixTimestamp}.{rawBody}` with the trigger's secret:
 
 ```csharp
@@ -182,6 +182,6 @@ system's webhook configuration.
 
 ## Read next
 
-- [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) — how a queued run actually executes
-- [Runs and recording](/AgentPrism/concepts/runs/) — the four ways a run starts
-- [Security](/AgentPrism/getting-started/security/)
+- [Jobs, schedules, and queues](/guides/background-work/) — how a queued run actually executes
+- [Runs and recording](/concepts/runs/) — the four ways a run starts
+- [Security](/getting-started/security/)

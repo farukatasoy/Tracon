@@ -134,6 +134,6 @@ its error if it had one.
 
 ## Read next
 
-- [Persistence](/AgentPrism/getting-started/persistence/) — keep the history
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the whole picture, including
+- [Persistence](/getting-started/persistence/) — keep the history
+- [Tools, skills, and MCP](/concepts/tools/) — the whole picture, including
   the two exceptions to "code only"

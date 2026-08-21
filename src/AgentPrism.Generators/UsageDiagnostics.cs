@@ -34,7 +34,7 @@ internal static class UsageDiagnostics
 {
     private const string Category = "AgentPrism.Usage";
 
-    private const string HelpBase = "https://farukatasoy.github.io/AgentPrism/capabilities/#";
+    private const string HelpBase = DocumentationLinks.CapabilityMap;
 
     public static readonly DiagnosticDescriptor MissingRegistration = new(
         "APG0101",

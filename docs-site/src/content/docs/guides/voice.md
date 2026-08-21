@@ -192,10 +192,10 @@ answer.
 
 ## In the reference
 
-- [Voice HTTP endpoints](/AgentPrism/http-api/voice/)
+- [Voice HTTP endpoints](/http-api/voice/)
 
 ## Read next
 
-- [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
-- [Observability and cost](/AgentPrism/guides/observability/)
-- [Production deployment](/AgentPrism/guides/production/)
+- [Attachments and multimodal input](/guides/multimodal/)
+- [Observability and cost](/guides/observability/)
+- [Production deployment](/guides/production/)

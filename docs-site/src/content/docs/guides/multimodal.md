@@ -184,13 +184,13 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 
 ## In the reference
 
-- [Attachment HTTP API](/AgentPrism/http-api/attachments/)
-- [Agent run HTTP API](/AgentPrism/http-api/agents/)
-- [Voice HTTP API](/AgentPrism/http-api/voice/)
-- [`AgentPrismAttachmentOptions` API](/AgentPrism/api/agentprism.agentprismattachmentoptions/)
-- [`AgentRunRequest` API](/AgentPrism/api/agentprism.agentrunrequest/)
-- [`UseVoice` API](/AgentPrism/api/agentprism.voicebuilderextensions/)
+- [Attachment HTTP API](/http-api/attachments/)
+- [Agent run HTTP API](/http-api/agents/)
+- [Voice HTTP API](/http-api/voice/)
+- [`AgentPrismAttachmentOptions` API](/api/agentprism.agentprismattachmentoptions/)
+- [`AgentRunRequest` API](/api/agentprism.agentrunrequest/)
+- [`UseVoice` API](/api/agentprism.voicebuilderextensions/)
 
 ## Read next
 
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
+- [Sessions and conversations](/concepts/sessions/)

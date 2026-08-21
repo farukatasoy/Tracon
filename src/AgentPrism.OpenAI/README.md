@@ -131,7 +131,7 @@ the user interface.
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- Model providers: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
+- Full documentation: <https://agentprism.eski-site.invalid>
+- Model providers: <https://agentprism.eski-site.invalid/guides/model-providers/>
 
 License: MIT

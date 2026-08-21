@@ -10,7 +10,7 @@ sidebar:
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
-[`/openapi/agentprism.json`](/AgentPrism/openapi/agentprism.json) — load it into
+[`/openapi/agentprism.json`](/openapi/agentprism.json) — load it into
 Scalar, Swagger UI, Postman, or a client generator.
 
 ## The prefix is yours
@@ -30,14 +30,14 @@ skills, workflows, evals, experiments, jobs, and governance.
 **OpenAI-compatible endpoints** (`/v1/*`) let an OpenAI client talk to your agents
 with the familiar request and streaming formats. Configure its base URL and
 authentication, and set `model` to the **agent** name — which provider model the
-agent calls is server-side policy. See the [OpenAI API guide](/AgentPrism/guides/openai-api/)
+agent calls is server-side policy. See the [OpenAI API guide](/guides/openai-api/)
 for copyable clients and the compatibility boundary.
 
 ## Authentication
 
 A bearer token in the `Authorization` header, holding either the configured static
 token or an API key. See
-[securing the endpoints](/AgentPrism/getting-started/security/) for the layers and how
+[securing the endpoints](/getting-started/security/) for the layers and how
 scopes narrow roles.
 
 `{prefix}/api/meta` answers without authentication — the console needs to learn which
@@ -110,7 +110,7 @@ than answering `404`.
 ## The groups
 
 Pick one from the sidebar. Each operation shows every declared media type, parameters,
-responses, and response headers. [HTTP schemas](/AgentPrism/http-api/schemas/) expands
+responses, and response headers. [HTTP schemas](/http-api/schemas/) expands
 all 226 request and response contracts with required fields, defaults, and validation
 constraints from the OpenAPI snapshot.
 
@@ -127,6 +127,6 @@ The paths, schemas, and descriptions are the same.
 
 ## Read next
 
-- [HTTP API reference](/AgentPrism/http-api/) — every operation, grouped by tag
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication these conventions assume
-- [OpenAI-compatible API](/AgentPrism/guides/openai-api/) — the other HTTP surface, with different rules
+- [HTTP API reference](/http-api/) — every operation, grouped by tag
+- [Securing the endpoints](/getting-started/security/) — the authentication these conventions assume
+- [OpenAI-compatible API](/guides/openai-api/) — the other HTTP surface, with different rules

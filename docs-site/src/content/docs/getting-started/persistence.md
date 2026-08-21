@@ -83,7 +83,7 @@ With it off, an agent definition that sets `Memory.EnableVectorSearch` fails
 compilation with a clear error instead of a database error at run time. Embedding
 `Dimensions` become part of the column type: changing embedding models later needs a
 schema migration and a re-embed of existing documents. See
-[Knowledge](/AgentPrism/guides/knowledge/).
+[Knowledge](/guides/knowledge/).
 :::
 
 ## Migrations run at startup
@@ -152,9 +152,9 @@ A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
 hash chain and reports whether any entry was altered or deleted after it was
 written. And because sessions, runs, and conversations are real rows now, a data
 subject's content can be found and erased by identity, not just aged out — see
-[Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
+[Data subject rights](/concepts/governance/#data-subject-rights).
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — required reading
+- [Securing the endpoints](/getting-started/security/) — required reading
 before this leaves your machine.
