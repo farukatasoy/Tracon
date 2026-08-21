@@ -244,6 +244,82 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         coreRowCount.ShouldBe(realCoreMigrations.Count);
     }
 
+    /// <summary>
+    /// 🚨 The migration runner's bootstrap statements — the schema, the ledger,
+    /// the ledger upgrade and the ledger read — ran OUTSIDE the transient-conflict
+    /// retry that <c>ApplyOneAsync</c> already had. Measured on 2026-08-21: a
+    /// batch run killed <c>SqlServerRunScoreStoreContractTests</c> whole (15 cases,
+    /// 0 ms each) because <c>SqlDialect.UpgradeMigrationsTableAsync</c> was picked
+    /// as a deadlock victim and the raw <c>SqlException</c> escaped
+    /// <c>SqlServerSchemaFixture.InitializeAsync</c>.
+    /// </summary>
+    /// <remarks>
+    /// The lock is scoped to the SCHEMA (K-389), so two schemas bootstrapping at
+    /// the same time meet on catalog objects shared by the whole database. All
+    /// four statements are idempotent — <c>IF NOT EXISTS</c>-guarded DDL and one
+    /// SELECT — so retrying is as safe here as it is for a migration (K-540).
+    /// </remarks>
+    /// <param name="target">A fragment of the bootstrap statement to fail.</param>
+    [Theory]
+    [InlineData("SELECT 1;")]
+    [InlineData("__migrations (")]
+    [InlineData("pragma_table_info")]
+    [InlineData("SELECT set_name, id, name, checksum")]
+    public async Task Bootstrap_statement_is_retried_after_a_transient_conflict(string target)
+    {
+        var prefix = SqliteTestContext.NewTablePrefix();
+
+        await using var owner = SqliteTestContext.Create(fixture, prefix);
+        await using var faults = NewFaultDataSource(target, failures: 3);
+
+        var applied = await NewRunner(faults, prefix).ApplyAsync(TestContext.Current.CancellationToken);
+
+        applied.ShouldBe(EmbeddedMigrationCount);
+        faults.ConsumedFailures.ShouldBe(3);
+    }
+
+    /// <summary>
+    /// The retry is BOUNDED and its last attempt still produces a readable error.
+    /// Before the fix the caller got a bare provider exception with no hint about
+    /// which step failed.
+    /// </summary>
+    [Fact]
+    public async Task Bootstrap_conflict_that_never_clears_is_reported_readably()
+    {
+        var prefix = SqliteTestContext.NewTablePrefix();
+
+        await using var owner = SqliteTestContext.Create(fixture, prefix);
+        await using var faults = NewFaultDataSource("__migrations (", failures: 1000);
+
+        var runner = NewRunner(faults, prefix);
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(
+            async () => await runner.ApplyAsync(TestContext.Current.CancellationToken));
+
+        // Eight attempts in total: seven are retried, the eighth is reported.
+        faults.ConsumedFailures.ShouldBe(8);
+        exception.Message.ShouldContain("migration ledger");
+        exception.Message.ShouldContain("database is locked");
+        exception.InnerException.ShouldBeOfType<SqliteException>();
+    }
+
+    private TransientFaultDataSource NewFaultDataSource(string target, int failures)
+        => new(
+            new SqliteDataSource(fixture.ConnectionString),
+            sql => sql.Contains(target, StringComparison.Ordinal),
+            failures);
+
+    private static MigrationRunner NewRunner(TransientFaultDataSource dataSource, string tablePrefix)
+        => new(
+            new SqlStoreContext
+            {
+                DataSource = dataSource,
+                Dialect = new SqliteDialect(tablePrefix),
+                CommandTimeoutSeconds = 30,
+                ProviderName = "SQLite",
+            },
+            NullLogger<MigrationRunner>.Instance);
+
     [Fact]
     public void Migration_runner_cannot_be_constructed_with_an_invalid_prefix()
     {

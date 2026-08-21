@@ -584,3 +584,29 @@ okunarak yapildi.
 ### `ArrayContains` diyalekt eslemesi (Faz 64) — ikinci tur
 
 - **`SqlDialect.ArrayContains(column, paramName)` eklendi (2026-08-18, Faz 64)**: "sütun bir dizi parametrenin içinde mi" için — `= ANY(events)` deseninin ayna yönü. PostgreSQL `col = ANY(@dizi)`; SQL Server/SQLite dizi JSON metnidir (K-182), `EXISTS (SELECT 1 FROM OPENJSON/json_each(@dizi) WHERE value = col)` ile eşlenir. `DataSubjectTargetRegistry` (Faz 64) dokuz hedefi bununla filtreler.
+
+---
+
+## Migration çakışması — K-540'ın ilk anlatısı (sql-saglayicilari.md'den taşındı, 2026-08-21)
+
+## 🚨 Migration çakışması iki şekilde gelir; birini denemek yetmez (K-540)
+
+`MigrationRunner` unique ihlalini sekiz kez yeniden deniyordu ama **deadlock**'u
+`AgentPrismException`'a sarıyordu. İkisi de aynı çarpışmadır: migration kilidi
+şemaya kapsamlıdır (K-389), farklı şemaların ilk göçü veritabanı genelindeki
+katalog nesnelerinde buluşur. Bedeli ölçüldü — dört tam koşumdan birinde beş SQL
+Server case'i `fixture` ayağa kalkmadığı için düştü (error 1205).
+
+Geçici durumu kalıcı hata gibi sunma: sunucu kurbanı **zaten** geri almıştır.
+`SqlDialect.IsDeadlock` üçünü kapsar — SQL Server `1205`, PostgreSQL `40P01`,
+SQLite `SQLITE_BUSY`/`SQLITE_LOCKED` (SQLite döngü tespit etmez, yazarları sıraya
+sokar; **çağıran** aynı şeyi görür: reddedilen, tekrarlanınca geçen yazım).
+
+Yeni bir yeniden deneme döngüsünde sor: bu `catch` yalnız `IsUniqueViolation`'a mı
+bakıyor? Öyleyse deadlock oradan **ham** çıkar. Sınıf taraması `SqlAuditLog`'da
+ikinci vakayı buldu; bedeli kaybolan bir denetim kaydıydı.
+
+## Saklama önizlemesi neden ayrı bir `COUNT` değildir (sql-saglayicilari.md'den taşındı, 2026-08-21)
+
+- **Preview'i ayri bir `COUNT` yerine gercek `DELETE`'i calistirip `ROLLBACK`/`COMMIT` ile ayirmak DAHA GUVENLI** (Faz 64): iki ayri sorgu seti zamanla sapar; tek dogruluk kaynagi kalir.
+

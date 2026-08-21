@@ -26,7 +26,6 @@
 - **🚨 CAGIRANIN VERDIGI bir metin tek basina birincil anahtar olamaz** (Faz 41, K-278): kimlik cagirandan geliyorsa anahtar **kiraciyi da icermelidir** (`sessions` → `(tenant_id, id)`); uuid v7 (K-015) bu tuzagi tasimaz. 🚨 SQLite birincil anahtari DEGISTIREMEZ — tablo yeniden kurulur, veri tasinir, indeksler ELLE kurulur. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Kiraci basina tanimli bir politika, kiraci suzgeci OLMAYAN veri duzlemiyle calisamaz** (Faz 41, K-279): `RetentionTargetDefinition.TenantPredicate`'i unutma — yanlis yuklem sessizce BUTUN kiracilarin satirlarini siler. Kendi `tenant_id`'si olmayan hedef, sahibine bakan `EXISTS` ile suzulur (korelasyon FULL NITELENDIRILMIS — K-259). Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Kapsam kapisi: `TenantCoverageTests`** (Faz 41, K-281): `Stores/` altindaki her public metot ya `Covered` tablosunda ya `[TenantAgnostic("gerekce")]` ile isaretli olmali; yeni metotta build yesil kalir ama bu test duser. Gerekce 40 karakterden kisa olamaz. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **Preview'i ayri bir `COUNT` yerine gercek `DELETE`'i calistirip `ROLLBACK`/`COMMIT` ile ayirmak DAHA GUVENLI** (Faz 64): iki ayri sorgu seti zamanla sapar; tek dogruluk kaynagi kalir.
 
 ## SQL Server parametre tuzaklari
 
@@ -56,20 +55,18 @@
 - **`ISJSON` kisitlari yalnizca PostgreSQL'de `jsonb`/`json` olan sutunlarda vardir** — davranis esitligi icin. `run_events.payload` ve `tool_invocations.arguments/result` PostgreSQL'de `text`'tir (gecerli JSON olmayabilir) ve kisit TASIMAZ. `audit_log.before/after` de kisit tasimaz: gozlemlenebilirlik islevselligi bozmaz.
 - **Diziler JSON metnidir** (K-182): `OPENJSON` ile acilir, `[key]` 0 tabanlidir ve `UNNEST ... WITH ORDINALITY`'nin `ord - 1` degerine birebir denk gelir.
 
-## Iki dalli upsert desenindeki gizli tuzaklar (K-187, K-188, K-189)
-
-> Bu uc kural, `azure-sql-edge` ile ilk gercek koşumda 204 testin 204'unu birden
-> kirdi. Vaka anlatisi [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+## Iki dalli upsert tuzaklari (K-187, K-188, K-189 — 204 testi birden kirdi)
 
 - **🚨 `@@ROWCOUNT` onekini unutma.** `ROWCOUNT` tek basina gecersiz sozdizimidir;
   hicbir derleme veya format kapisi yakalamaz.
-- **🚨 Iki dalli upsert (`UPDATE ... OUTPUT` + `IF @@ROWCOUNT = 0 INSERT ...
-  OUTPUT`) UPDATE 0 satir etkiledigende satiri IKINCI sonuc kumesine yazar.**
-  `DbHelpers.ReadSingleAsync`/`ExecuteScalarAsync` bu yuzden `NextResultAsync`
-  ile sonraki kumelere duser; PostgreSQL'in tek kumeli `RETURNING`'inde zararsiz.
+- **🚨 `UPDATE ... OUTPUT` + `IF @@ROWCOUNT = 0 INSERT ... OUTPUT`, UPDATE 0 satir
+  etkiledigende satiri IKINCI sonuc kumesine yazar.** `DbHelpers.ReadSingleAsync`/
+  `ExecuteScalarAsync` bu yuzden `NextResultAsync` ile duser; PostgreSQL'in tek
+  kumeli `RETURNING`'inde zararsiz.
 - **🚨 Paylasilan `store` saglayiciya ozgu ADO.NET tipine basvurmaz.** Dizi/JSON
-  okumasi HER ZAMAN `Dialect.ReadTextArray`/`ReadUuidArray` uzerinden gecer.
-  Yeni bir `store` yazarken dizi/JSON donen her sutunda bunu kontrol et.
+  okumasi HER ZAMAN `Dialect.ReadTextArray`/`ReadUuidArray` uzerinden gecer; ayni
+  kural bir `DbConnection`'i somut tipe CAST etmek icin de gecerlidir (K-545).
+  Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## Test altyapisi
 
@@ -87,22 +84,30 @@ tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 [`sqlite.md`](sqlite.md) (Faz 36, bütçe asimini gidermek icin ayrildi).
 
 - **🚨 `runs` gibi ordinal okunan tabloya sutun eklerken sira UC dialektte de SONA eklenir** (Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur, uc `runColumns` metni birebir ayni sirayi tasir. Son ordinal **51**. Ayni kural `SelectRunStatistics`'in **sekiz** sonuc kumesi icin de gecerlidir. Kirilim: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **Etiket haritası (`runs.labels`) için `jsonb` seçimi ve üç dialektin süzgeç biçimi**: [`postgresql.md`](postgresql.md) (Faz 68, K-479). Kısaca: SQL Server/SQLite'ta harita JSON METNİDİR (`OPENJSON`/`json_each`, K-182 deseni) ve indeks YOKTUR — serbest bir etiket kümesi, hesaplanmış sütun indeksinin isteyeceği önceden bilinen anahtar listesini veremez.
+- **Etiket haritası (`runs.labels`) için `jsonb` seçimi ve üç dialektin süzgeç biçimi**: [`postgresql.md`](postgresql.md) (Faz 68, K-479). SQL Server/SQLite'ta harita JSON METNİDİR ve indeks YOKTUR.
 - **🚨 UPSERT'te bir alani duz uzerine yazmak ONU DOGRU BILEN yazimi silebilir** (Faz 68, K-486): kuyruklu `run` `StartRunAsync`'i IKI kez cagirir (HTTP'de kullanici bilinir, iscide `null`); `user_id = EXCLUDED.user_id` atfi SILERDI, `COALESCE(EXCLUDED.user_id, user_id)` korur. Bir alan "set → unset" yonunde MESRU degismiyorsa `COALESCE` her zaman dogrudur. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
-## 🚨 Migration çakışması iki şekilde gelir; birini denemek yetmez (K-540)
+## 🚨 Geçici çakışma: iki şekli var, yeniden deneme YOLUN TAMAMINI kapsar (K-540, K-545)
 
-`MigrationRunner` unique ihlalini sekiz kez yeniden deniyordu ama **deadlock**'u
-`AgentPrismException`'a sarıyordu. İkisi de aynı çarpışmadır: migration kilidi
-şemaya kapsamlıdır (K-389), farklı şemaların ilk göçü veritabanı genelindeki
-katalog nesnelerinde buluşur. Bedeli ölçüldü — dört tam koşumdan birinde beş SQL
-Server case'i `fixture` ayağa kalkmadığı için düştü (error 1205).
+Migration kilidi **şemaya** kapsamlıdır (K-389); farklı şemaların ilk göçü
+veritabanı genelindeki katalog nesnelerinde buluşur. Çarpışma iki yüzle gelir ve
+ikisi de geçicidir — **unique ihlali** ve **deadlock**; sunucu kurbanı **zaten**
+geri almıştır. `SqlDialect.IsDeadlock`: SQL Server `1205` · PostgreSQL `40P01` ·
+SQLite `SQLITE_BUSY`/`SQLITE_LOCKED`.
 
-Geçici durumu kalıcı hata gibi sunma: sunucu kurbanı **zaten** geri almıştır.
-`SqlDialect.IsDeadlock` üçünü kapsar — SQL Server `1205`, PostgreSQL `40P01`,
-SQLite `SQLITE_BUSY`/`SQLITE_LOCKED` (SQLite döngü tespit etmez, yazarları sıraya
-sokar; **çağıran** aynı şeyi görür: reddedilen, tekrarlanınca geçen yazım).
+Sınıf iki kez bedel ödetti: K-540 deadlock'un `catch`'e hiç girmediğini (5 case),
+K-545 `MigrationRunner`'ın **bootstrap** deyimlerinin — şema · ledger · ledger
+yükseltmesi · ledger okuması — döngünün **dışında** kaldığını buldu: 15 case
+birden, hepsi **0 ms**, `fixture` hiç kalkmadı.
 
-Yeni bir yeniden deneme döngüsünde sor: bu `catch` yalnız `IsUniqueViolation`'a mı
-bakıyor? Öyleyse deadlock oradan **ham** çıkar. Sınıf taraması `SqlAuditLog`'da
-ikinci vakayı buldu; bedeli kaybolan bir denetim kaydıydı.
+1. Yalnız `IsUniqueViolation`'a bakan bir `catch` deadlock'u **ham** bırakır;
+   `MigrationRunner.IsTransientConflict` ikisini birden sorar.
+2. **"Bu yalnızca kurulum" muafiyeti yoktur** — aynı katalog nesnesine dokunan
+   her deyim yarışır ve idempotentse yeniden denenir.
+3. Yeniden denenen şey **re-runnable** olmalıdır; çok deyimli bir rebuild bunu
+   kendiliğinden sağlamaz ([`sqlite.md`](sqlite.md)).
+
+Dört `store`'un (`Session`, `Idempotency`, `Experiment`, `Eval`)
+`IsUniqueViolation` yakalaması bu sınıf **değildir**: anlamsal daldır ve yazımları
+idempotent olmadığı için denenmez. Vakalar:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).

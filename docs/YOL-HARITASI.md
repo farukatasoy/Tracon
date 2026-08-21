@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (82 kalem)
+## Fazlar (84 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -93,5 +93,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | 📋 Planlandı |
 | [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | 📋 Planlandı |
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | 📋 Planlandı |
+| [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | 📋 Planlandı |
+| [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
