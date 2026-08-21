@@ -210,17 +210,40 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     {
         var sql = _context.Sql;
 
-        await ExecuteAsync(connection, sql.CreateSchema, cancellationToken).ConfigureAwait(false);
-        await ExecuteAsync(connection, sql.CreateMigrationsTable, cancellationToken).ConfigureAwait(false);
+        // 🚨 EVERY bootstrap step runs under the same transient-conflict retry as
+        // a migration does. They are not "setup that cannot fail": the migration
+        // lock is scoped to the SCHEMA (K-389), so two schemas bootstrapping at
+        // the same time meet on catalog objects shared by the whole database and
+        // one of them is chosen as the deadlock victim. Measured on 2026-08-21: a
+        // batch run lost 15 SqlServerRunScoreStoreContractTests cases at once
+        // because UpgradeMigrationsTableAsync was the victim and the raw
+        // SqlException escaped the class fixture's InitializeAsync. All four
+        // statements are idempotent — IF NOT EXISTS-guarded DDL plus one SELECT —
+        // so retrying is as safe here as it is inside ApplyOneAsync (K-540).
+        await RetryOnTransientConflictAsync(
+            "The AgentPrism schema could not be created",
+            token => ExecuteAsync(connection, sql.CreateSchema, token),
+            cancellationToken).ConfigureAwait(false);
+
+        await RetryOnTransientConflictAsync(
+            "The AgentPrism migration ledger could not be created",
+            token => ExecuteAsync(connection, sql.CreateMigrationsTable, token),
+            cancellationToken).ConfigureAwait(false);
 
         // Runs as its OWN command, completed before any InsertMigration text
         // is compiled — see the 🚨 on SqlDialect.UpgradeMigrationsTableAsync.
-        await _context.Dialect.UpgradeMigrationsTableAsync(
-            connection,
-            _context.CommandTimeoutSeconds,
+        await RetryOnTransientConflictAsync(
+            "The AgentPrism migration ledger could not be upgraded",
+            token => _context.Dialect.UpgradeMigrationsTableAsync(
+                connection,
+                _context.CommandTimeoutSeconds,
+                token),
             cancellationToken).ConfigureAwait(false);
 
-        var applied = await ReadAppliedAsync(connection, cancellationToken).ConfigureAwait(false);
+        var applied = await RetryOnTransientConflictAsync(
+            "The AgentPrism migration ledger could not be read",
+            token => ReadAppliedAsync(connection, token),
+            cancellationToken).ConfigureAwait(false);
         var count = 0;
 
         foreach (var set in sets)
@@ -306,6 +329,99 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// </summary>
     private const int TransientConflictRetryAttempts = 8;
 
+    /// <summary>
+    /// Decides whether the database error is a TRANSIENT conflict that the same
+    /// statement can survive by being sent again.
+    /// </summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when the statement may be retried.</returns>
+    /// <remarks>
+    /// The race wears two faces and both are transient: a uniqueness violation
+    /// when two sides insert the same catalog row, and a DEADLOCK when they take
+    /// the same locks in opposite orders. The server has ALREADY rolled the
+    /// victim back, so a retry is correct for it too.
+    /// </remarks>
+    private bool IsTransientConflict(Exception exception)
+        => _context.Dialect.IsUniqueViolation(exception) || _context.Dialect.IsDeadlock(exception);
+
+    /// <summary>Waits before the next attempt, spreading a crowd of racing runners out.</summary>
+    /// <param name="attempt">The attempt that just failed, 1-based.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The delay is RANDOM on purpose: when dozens of schemas migrate for the
+    /// first time at once, a fixed delay would make them all retry at the same
+    /// instant and would not spread the crowd out (herd avoidance).
+    /// </remarks>
+    private static Task DelayAfterTransientConflictAsync(int attempt)
+        => Task.Delay(
+            TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * attempt),
+            CancellationToken.None);
+
+    /// <summary>
+    /// Runs a single statement, retrying it while the database reports a
+    /// transient conflict, and turns the last failure into a readable error.
+    /// </summary>
+    /// <typeparam name="T">The statement's result type.</typeparam>
+    /// <param name="what">What was being done, used to build the error message.</param>
+    /// <param name="attemptAsync">The statement to run.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The statement's result.</returns>
+    /// <exception cref="AgentPrismException">
+    /// The conflict did not clear within <see cref="TransientConflictRetryAttempts"/>
+    /// attempts, or the database reported a different error.
+    /// </exception>
+    /// <remarks>
+    /// The caller must only pass an IDEMPOTENT statement: a retry re-sends it
+    /// whole. Every statement that uses this is either "IF NOT EXISTS"-guarded
+    /// DDL or a read.
+    /// </remarks>
+    private async ValueTask<T> RetryOnTransientConflictAsync<T>(
+        string what,
+        Func<CancellationToken, ValueTask<T>> attemptAsync,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await attemptAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (DbException ex) when (
+                IsTransientConflict(ex) && attempt < TransientConflictRetryAttempts)
+            {
+                await DelayAfterTransientConflictAsync(attempt).ConfigureAwait(false);
+            }
+            catch (DbException ex) when (_context.Dialect.DescribeDatabaseError(ex) is { } description)
+            {
+                throw new AgentPrismException($"{what}: {description}.", ex);
+            }
+        }
+    }
+
+    /// <summary>The result-less overload of <see cref="RetryOnTransientConflictAsync{T}"/>.</summary>
+    /// <param name="what">What was being done, used to build the error message.</param>
+    /// <param name="attemptAsync">The statement to run.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    private ValueTask RetryOnTransientConflictAsync(
+        string what,
+        Func<CancellationToken, ValueTask> attemptAsync,
+        CancellationToken cancellationToken)
+    {
+        return new ValueTask(RunAsync());
+
+        async Task RunAsync()
+            => await RetryOnTransientConflictAsync<object?>(
+                what,
+                async token =>
+                {
+                    await attemptAsync(token).ConfigureAwait(false);
+
+                    return null;
+                },
+                cancellationToken).ConfigureAwait(false);
+    }
+
     private async ValueTask ApplyOneAsync(
         DbConnection connection,
         string setName,
@@ -344,8 +460,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     return;
                 }
                 catch (DbException ex) when (
-                    (_context.Dialect.IsUniqueViolation(ex) || _context.Dialect.IsDeadlock(ex))
-                    && attempt < TransientConflictRetryAttempts)
+                    IsTransientConflict(ex) && attempt < TransientConflictRetryAttempts)
                 {
                     // The migration lock is SCOPED TO THE SCHEMA (K-389): if a
                     // catalog object shared across the whole database (for
@@ -367,8 +482,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     // applied: ... (error 1205, state 51)". The server has ALREADY
                     // rolled the victim back, so the same retry is correct for it.
                     await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-                    await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * attempt), CancellationToken.None)
-                        .ConfigureAwait(false);
+                    await DelayAfterTransientConflictAsync(attempt).ConfigureAwait(false);
                 }
                 catch (DbException ex) when (_context.Dialect.DescribeDatabaseError(ex) is { } description)
                 {
