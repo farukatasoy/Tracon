@@ -89,3 +89,20 @@ tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 - **🚨 `runs` gibi ordinal okunan tabloya sutun eklerken sira UC dialektte de SONA eklenir** (Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur, uc `runColumns` metni birebir ayni sirayi tasir. Son ordinal **51**. Ayni kural `SelectRunStatistics`'in **sekiz** sonuc kumesi icin de gecerlidir. Kirilim: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Etiket haritası (`runs.labels`) için `jsonb` seçimi ve üç dialektin süzgeç biçimi**: [`postgresql.md`](postgresql.md) (Faz 68, K-479). Kısaca: SQL Server/SQLite'ta harita JSON METNİDİR (`OPENJSON`/`json_each`, K-182 deseni) ve indeks YOKTUR — serbest bir etiket kümesi, hesaplanmış sütun indeksinin isteyeceği önceden bilinen anahtar listesini veremez.
 - **🚨 UPSERT'te bir alani duz uzerine yazmak ONU DOGRU BILEN yazimi silebilir** (Faz 68, K-486): kuyruklu `run` `StartRunAsync`'i IKI kez cagirir (HTTP'de kullanici bilinir, iscide `null`); `user_id = EXCLUDED.user_id` atfi SILERDI, `COALESCE(EXCLUDED.user_id, user_id)` korur. Bir alan "set → unset" yonunde MESRU degismiyorsa `COALESCE` her zaman dogrudur. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## 🚨 Migration çakışması iki şekilde gelir; birini denemek yetmez (K-540)
+
+`MigrationRunner` unique ihlalini sekiz kez yeniden deniyordu ama **deadlock**'u
+`AgentPrismException`'a sarıyordu. İkisi de aynı çarpışmadır: migration kilidi
+şemaya kapsamlıdır (K-389), farklı şemaların ilk göçü veritabanı genelindeki
+katalog nesnelerinde buluşur. Bedeli ölçüldü — dört tam koşumdan birinde beş SQL
+Server case'i `fixture` ayağa kalkmadığı için düştü (error 1205).
+
+Geçici durumu kalıcı hata gibi sunma: sunucu kurbanı **zaten** geri almıştır.
+`SqlDialect.IsDeadlock` üçünü kapsar — SQL Server `1205`, PostgreSQL `40P01`,
+SQLite `SQLITE_BUSY`/`SQLITE_LOCKED` (SQLite döngü tespit etmez, yazarları sıraya
+sokar; **çağıran** aynı şeyi görür: reddedilen, tekrarlanınca geçen yazım).
+
+Yeni bir yeniden deneme döngüsünde sor: bu `catch` yalnız `IsUniqueViolation`'a mı
+bakıyor? Öyleyse deadlock oradan **ham** çıkar. Sınıf taraması `SqlAuditLog`'da
+ikinci vakayı buldu; bedeli kaybolan bir denetim kaydıydı.

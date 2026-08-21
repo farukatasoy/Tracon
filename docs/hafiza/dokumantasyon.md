@@ -179,3 +179,30 @@ hicbir seyi eslemez.
   yalniz ASIM'da kirmizi verir. Faz 77 oncesi hafiza dongusunde DAR bandi HIC yoktu
   ve 16000/16000 bir dosya "ok" yaziyordu. `--projeksiyon` kalan faz sayisini basar;
   yeni bir sinir koyarken OLCULEN boyuta %15 bosluk ekle (Faz 58.4 kalibrasyon kurali).
+
+## 🚨 Karar numarasını tablonun SONUNA bakarak seçme (K-539)
+
+Faz 77 ve Faz 78 aynı tabandan yazıldı. İkisi de `KARARLAR.md` §2'nin son satırına
+baktı, `K-534` gördü ve **ikisi de** `K-535` ile `K-536`'yı aldı. Dört satır, iki
+numara, farklı içerik — ve indeks üreteci hiç ötmedi, çünkü `_kararlar_kalemleri`
+satır satır regex okur ve tablo **yapısına** bakmaz.
+
+İki şey bunu görünmez kılmıştı:
+
+- Tablo **sıralı değildi** (`K-018` satır 70'te, `K-524` en sonda), yani "son
+  satır = en büyük numara" varsayımı zaten yanlıştı.
+- Tabloyu **kesen boş satırlar** vardı (`K-351`/`K-352` ve `K-535`/`K-536` arası).
+  Markdown'da boş satır tabloyu orada bitirir; sonraki kararlar başlıksız ikinci
+  bir tabloya düşer. Faz 77 denetimi bunlardan yalnız birini gördü ve "kozmetik"
+  diye kapattı — kozmetik değildi, numara çakışmasını gizleyen şeyin yarısıydı.
+
+Doğrusu: numarayı **maksimumdan** al, son satırdan değil.
+
+```bash
+grep -oE "^\| \*\*K-[0-9]+" docs/KARARLAR.md | grep -oE "[0-9]+" | sort -n | tail -1
+```
+
+Kapı artık var: `python3 scripts/dokuman-bakim.py --denetle` yinelenen numarayı,
+tabloyu kesen boş satırı ve sıra dışı numarayı **hata** olarak bildirir. Çakışma
+çıkarsa tarih kuralı uygulanır — **önce tahsis edilen numarayı korur**; sonraki
+taşınır ve o fazın dokümanındaki referansları da taşınır.

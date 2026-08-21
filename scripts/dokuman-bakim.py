@@ -182,6 +182,64 @@ def _kararlar_kalemleri() -> tuple[list, list]:
     return reddedilen, kalici
 
 
+def _kararlar_tablosu() -> tuple[int, list[tuple[int, str]]]:
+    """§2 karar tablosunun satırları: (satır no, ham satır). Başlangıç `|---|`
+    ayıracından sonra, bölümü kapatan `---` veya `## ` başlığına kadar okur.
+    Boş satırlar DA döner — tabloyu kesen boş satır bir kusurdur."""
+    satirlar = (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8").split("\n")
+    bas = next(i for i, s in enumerate(satirlar) if s.startswith("## 2. "))
+    ayirac = next(i for i in range(bas, len(satirlar)) if satirlar[i].startswith("|---"))
+    govde = []
+    for i in range(ayirac + 1, len(satirlar)):
+        s = satirlar[i]
+        if s.startswith("## ") or s.strip() == "---":
+            break
+        govde.append((i + 1, s))
+    # Bolumu kapatan `---`'den ONCEKI bos satir mesrudur; tabloyu kesmez.
+    while govde and not govde[-1][1].strip():
+        govde.pop()
+    return ayirac + 1, govde
+
+
+def kararlar_denetle() -> tuple[int, list[str]]:
+    """§2 karar tablosunun YAPISAL bütünlüğü: yinelenen numara · tabloyu kesen
+    boş satır · sıra dışı numara.
+
+    Faz 77 ve Faz 78 aynı tabandan yazıldı ve İKİSİ de K-535 ile K-536'yı aldı;
+    hiçbir kapı görmedi (2026-08-21 keşif turu, kanal 2). Sebep: indeks üreteci
+    (`_kararlar_kalemleri`) satır satır regex okur ve tablo YAPISINA hiç bakmaz
+    -- bu yüzden hem yinelenen numarayı hem tabloyu kesen boş satırı sessizce
+    geçiriyordu. Boş satır Markdown'da tabloyu ORADA bitirir: sonraki kararlar
+    başlıksız ikinci bir tabloya düşer ve sitede/önizlemede satır olarak
+    okunmaz. İki vaka vardı (398 ve 584); Faz 77 denetimi yalnız birini gördü."""
+    bulgular = []
+    _bas, govde = _kararlar_tablosu()
+
+    bos = [no for no, s in govde if not s.strip()]
+    for no in bos:
+        bulgular.append(f"KARARLAR.md:{no} tabloyu kesen BOŞ satır — tablo orada biter")
+
+    numaralar = []
+    for no, s in govde:
+        m = re.match(r"\|\s*\*\*K-(\d+)", s)
+        if m:
+            numaralar.append((int(m.group(1)), no))
+
+    gorulen: dict[int, int] = {}
+    for n, no in numaralar:
+        if n in gorulen:
+            bulgular.append(
+                f"KARARLAR.md:{no} K-{n} YİNELENEN numara (ilki satır {gorulen[n]})")
+        else:
+            gorulen[n] = no
+
+    for (a, _), (b, no) in zip(numaralar, numaralar[1:]):
+        if b < a:
+            bulgular.append(f"KARARLAR.md:{no} K-{b} sıra dışı — önceki K-{a}")
+
+    return len(numaralar), bulgular
+
+
 def _kararlar_satiri(no: int, baslik: str, isaret: str) -> str:
     num = baslik.split("—")[0].strip()
     geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
@@ -610,6 +668,13 @@ def denetle() -> int:
     haric_toplam = sum(_dizin_boyutu(h, True, haric_uygula=False) for h in HARIC)
     print(f"  (denetim dışı arşiv + koşum kaydı: {haric_toplam} B — sınırı etkilemez)")
 
+    sayi, karar_bulgulari = kararlar_denetle()
+    print(f"\nKarar defteri (§2, {sayi} kalem): "
+          f"{'❌ ' + str(len(karar_bulgulari)) + ' bulgu' if karar_bulgulari else '✅ temiz'}")
+    for s in karar_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(karar_bulgulari))
+
     kirik = kirik_baglantilar()
     print(f"\nKırık bağlantı: {len(kirik)}")
     for s in kirik[:10]:
@@ -622,7 +687,7 @@ def denetle() -> int:
     # Faz 77: ozet eskiden DAR'i hic saymiyordu ve YEDI kalem darken
     # "✅ Bütçeler içinde" yaziyordu. Sikisma bu yuzden sessizce birikti.
     if hata:
-        print("\n❌ Bütçe aşıldı. İçeriği SİLME — alan dosyasına veya docs/arsiv/'e taşı.")
+        print("\n❌ Denetim kırmızı. Bütçe aşıldıysa içeriği SİLME — alan dosyasına\n   veya docs/arsiv/'e taşı. Karar defteri bulgusu varsa numarayı/satırı düzelt.")
     elif dar:
         print(f"\n⚠️  Bütçeler içinde ama {dar} kalem DAR (%{BOSLUK_ORANI * 100:.0f}'ten az boşluk).")
         print("   Bunlar bir sonraki fazda aşabilir — şimdi taşı, aşınca değil.")

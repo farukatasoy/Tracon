@@ -541,7 +541,7 @@ Aynı kalibrasyon kuralı gerçek ölçüme uygulandı: 16 617 × 1,15 ≈ 19 11
 **20 480 B** (20 KiB).
 
 🚨 Denetim bunu bir **tavan yükseltmesi** olarak niteledi ve haklıdır: eski
-`verifyBudget` `llms`'i de 10 240'a karşı denetliyordu. Karar **K-535** olarak
+`verifyBudget` `llms`'i de 10 240'a karşı denetliyordu. Karar **K-537** olarak
 yazıldı (K-214 gereği ölçümle).
 
 Harita bütçesi (10 240) **düşürülmedi** ve harita 8 391 B'de kaldı.
@@ -585,8 +585,8 @@ gösterirdi.
 
 | Karar | Nerede |
 |---|---|
-| **K-535** — `llms.txt` haritadan AYRI bütçelenir (20 480 B); ikisinin ekonomisi farklıdır | `docs/KARARLAR.md` |
-| **K-536** — `APG0402` yalnız yerel referans dosyası YAZILIRKEN öter; opt-in yapmamış tüketici hiçbir uyarı almaz | `docs/KARARLAR.md` |
+| **K-537** — `llms.txt` haritadan AYRI bütçelenir (20 480 B); ikisinin ekonomisi farklıdır | `docs/KARARLAR.md` |
+| **K-538** — `APG0402` yalnız yerel referans dosyası YAZILIRKEN öter; opt-in yapmamış tüketici hiçbir uyarı almaz | `docs/KARARLAR.md` |
 
 ---
 
@@ -704,9 +704,9 @@ kırmızıya döner?"*). Üç mutasyon üçünde de kırmızı üretti:
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
-| 1 | 🔴 | `APG0402` opt-in yapmamış tüketicide de ötüyor ve önerdiği satır **ölü** bir dosyayı adlandırıyor | **Düzeltildi** — `CompilerVisibleProperty` kapısı (Sapma 5, K-536). İki fonksiyonel + iki birim testi eklendi; mutasyonla kırmızı olduğu görüldü |
+| 1 | 🔴 | `APG0402` opt-in yapmamış tüketicide de ötüyor ve önerdiği satır **ölü** bir dosyayı adlandırıyor | **Düzeltildi** — `CompilerVisibleProperty` kapısı (Sapma 5, K-538). İki fonksiyonel + iki birim testi eklendi; mutasyonla kırmızı olduğu görüldü |
 | 2 | 🟡 | `Every_project_of_a_solution_reports_the_missing_pointer` satır sayıyordu; tek proje de eşiği geçiyordu | **Düzeltildi** — ayrık proje adları sayılıyor. 🚨 İlk düzeltme `HashSet.ShouldBe` ile yazıldı ve **sıralamaya takıldı** (denetim listesi 3.2'nin tam kendisi); `Distinct().Order()` ile deterministik hâle getirildi |
-| 3 | 🟡 | `llms.txt` tavanı DoD'nin yazdığı sayı değil ve bu bir tavan **yükseltmesidir** | **Düzeltildi** — DoD düzeltildi, K-535 ölçümle yazıldı |
+| 3 | 🟡 | `llms.txt` tavanı DoD'nin yazdığı sayı değil ve bu bir tavan **yükseltmesidir** | **Düzeltildi** — DoD düzeltildi, K-537 ölçümle yazıldı |
 | 4 | 🟡 | Site kapıları son içeriğe karşı koşulmamıştı (`dist/` bayattı) | **Düzeltildi** — `npm run check` tam koştu; en ağır sayfa 49 873 B, harita 8 391 B |
 | 5 | 🟡 | Kalite sözleşmesi yerel referans dosyasını "üç bölüm" diye anlatıyordu | **Düzeltildi** — dört bölüm, ilki harita |
 | 6 | 🟡 | Planın 9/10 numaralı manuel case'leri hiçbir yere yazılmamıştı | **Düzeltildi** — `MT-YRF-026` ve `027`, `👤 insan gerekir` işaretiyle |

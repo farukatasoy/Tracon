@@ -89,45 +89,11 @@
 Aşağıdaki **yirmi altı** kalemin bölümü bu dosyadan **silindi**. Ayrıntı artık
 faz dokümanındadır; bu tablo yalnız yönlendirmedir.
 
-### Dalga 1 → Faz 31–37
+### Dalga 1–3 → Faz 31–52 — arşive taşındı (2026-08-21)
 
-| Kalem | Faz |
-|---|---|
-| **F-35** Çalıştırma iptali | [Faz 32](arsiv/fazlar/32-CALISTIRMA-IPTALI.md) |
-| **F-38** ASP.NET Core `IHealthCheck` | [Faz 33](arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) |
-| **F-49** `dotnet new` şablon paketi | [Faz 37](arsiv/fazlar/37-PROJE-SABLONU.md) |
-| **F-52** Geri bildirim ve puanlama | [Faz 31](arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md) |
-| **F-60** Tanım doğrulama ucu | [Faz 34](arsiv/fazlar/34-TANIM-DOGRULAMA-UCU.md) |
-| **F-62** Yapılandırma teşhisi | [Faz 33](arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) |
-| **F-70** Maliyet ve kota OTel metrikleri | [Faz 35](arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md) |
-| **F-73** Saklama `MaxRows` uygulaması | [Faz 36](arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md) |
-
-### Dalga 2 → Faz 38–45
-
-| Kalem | Faz |
-|---|---|
-| **F-37** `Idempotency-Key` desteği | [Faz 43](arsiv/fazlar/43-IDEMPOTENCY-KEY.md) |
-| **F-42** Yapılandırılmış çıktı (JSON şeması) | [Faz 38](arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md) |
-| **F-46** `AgentPrism.Testing` paketi | [Faz 39](arsiv/fazlar/39-TEST-PAKETI.md) |
-| **F-53** Üretimden eval kümesi toplama | [Faz 45](arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md) |
-| **F-55** Hata sınıflandırma ve arıza kümeleme | [Faz 44](arsiv/fazlar/44-HATA-SINIFLANDIRMA.md) |
-| **F-57** Tek yürütücü seçimi | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) |
-| **F-63** OpenAPI yayını | [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) |
-| **F-76** Kiracı yalıtımının zorlanması | [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) |
-
-### Dalga 3 → Faz 46–52
-
-| Kalem | Faz |
-|---|---|
-| **F-30** Vektör bellek ve RAG | [Faz 51](arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md) |
-| **F-31** AgentPrism'in MCP sunucusu olması | [Faz 50](arsiv/fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
-| **F-32** Guardrails | [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) |
-| **F-33** A2A protokolü | [Faz 50](arsiv/fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
-| **F-47** Kaynak üreteci | [Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) |
-| **F-54** Yeniden oynatma | [Faz 47](arsiv/fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) |
-| **F-66** Konuşma dallandırma | [Faz 47](arsiv/fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) |
-| **F-68** Dayanıklı çalıştırma (F-39 içinde) | [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) |
-| **F-71** Çevrimiçi değerlendirme | [Faz 49](arsiv/fazlar/49-CEVRIMICI-DEGERLENDIRME.md) |
+Yirmi altı kalemin faz eşlemesi kapanmış bir yönlendirme kaydıdır; faz durumu
+[`YOL-HARITASI.md`](YOL-HARITASI.md)'de yaşar. Tablolar:
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) § *Dalga 1–3 eşleme tabloları*.
 
 ### Dalga 6 → Faz 61
 
@@ -371,13 +337,29 @@ ve `DistributedCachingChatClientBuilderExtensions.UseDistributedCache` pinlenmi�
 sürümde (10.8.3) doğrudan reflection ile doğrulandı —
 `~/.nuget/packages/microsoft.extensions.ai/10.8.3/lib/net10.0/Microsoft.Extensions.AI.dll`
 içinde tip mevcut. Sürüm yükseltmesi gerekmiyor.
-**Maliyet:** Düşük.
+🚨 **İmzalar ölçüldü (2026-08-21, reflection).** Üç şey netleşti:
+
+| Ölçüm | Sonuç |
+|---|---|
+| `DistributedCachingChatClient(IChatClient, IDistributedCache)` | 🚨 `IDistributedCache` bugün AgentPrism'de **hiç kullanılmıyor** (`grep -rn "IDistributedCache" src` → boş). Tüketici bir cache uygulaması seçmek zorunda kalır ve bellek içi olan çok örnekli kurulumda **sessizce işe yaramaz** — bu bir K1 (sıfır sürpriz) kararıdır |
+| `CacheKeyAdditionalValues { get; set; }` — `IReadOnlyList<Object>` | Kiracı anahtara **yapısal** olarak karışır; elle string birleştirme gerekmez, **K-525 sağlanır** |
+| `GetCacheKey(...)` ve `EnableCaching(...)` `protected virtual` | AgentPrism kiracı anahtarlamasını yapılandırmaya güvenmek yerine **zorlayabilir** |
+
+**Maliyet:** Düşük — yeni MEAI paketi yok; `IDistributedCache` kaydı tüketicinin kararı.
 **Risk:** Varsayılan **kapalı**. Agent'ın aynı soruya farklı yanıt vermesi
 beklenen davranıştır; önbellek bunu bozar. Kiracı yalıtımı önbellek
 anahtarında olmalıdır.
+🚨 **Ölçülmedi:** önbelleğin boru hattındaki **konumu**. Telemetrinin dışına
+konursa isabet eden bir çağrı `chat` span'i ve token kaydı **üretmez** (harcama
+yok, doğru olabilir); içine konursa sıfır token'lı bir span yazar. Karar
+Faz 68'in maliyet kırılımını etkiler ve plan anında verilmelidir
+([`ModelProviderRegistry.cs:300-360`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)).
 **Bağımlılık:** Yok.
-**Ekosistem:** LiteLLM ve Portkey'de standart. Anthropic'in prompt caching'i
-ayrı bir kavramdır ve Faz 26'da zaten var.
+**Ekosistem:** LiteLLM ve Portkey'de standart (önceki turların damgası; 2026-08-21'de
+**yeniden doğrulanmadı**). Anthropic'in prompt caching'i ayrı bir kavramdır ve Faz 26'da zaten var.
+**Karşı görüş:** `CacheKeyAdditionalValues` **örnek başına** bir özelliktir —
+kiracı başına anahtarlama kiracı başına istemci örneği demektir; bu, bugünkü
+`CompiledAgentCache` kiracı anahtarlamasıyla (K-380) hizalanmalıdır.
 
 ---
 
@@ -391,8 +373,11 @@ AgentPrism hiçbir yerde açmıyor (`grep -rn AllowConcurrentInvocation src`
 yalnız bir **yorum** buluyor: [`ToolUsageAccumulator.cs:18`](../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)
 — sınıf zaten eşzamanlı çağrıyı bekleyerek `ConcurrentDictionary` kullanıyor,
 ama tetikleyen ayar hiçbir yerde `true` değil).
-**Kapsam:** `ChatClientBuilder` boru hattına (`ModelProviderRegistry.CreateChatClient`,
-K-320'nin merkezi kurulum noktası) bir agent/model tanımı bayrağı ekler.
+**Kapsam:** `ChatClientBuilder` boru hattına bir agent/model tanımı bayrağı ekler.
+**Ölçüldü (2026-08-21):** ekleme noktası doğrulandı —
+[`ModelProviderRegistry.cs:317-321`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
+`.AsBuilder().UseFunctionInvocation(_loggerFactory).UseOpenTelemetry(...)`; K-320'nin
+merkezi kurulum noktası ayakta.
 **Değer:** Bağımsız tool'ları paralel çağıran bir turda gecikme düşer —
 örn. üç farklı API'ye bakan bir araştırma agent'ı.
 **Mercek:** 1, 4.
@@ -408,6 +393,17 @@ tanımında açıkça seçilmeli.
 **Bağımlılık:** Yok.
 **Ekosistem:** MAF 2026-08-18'de bunu ürün özelliği olarak öne çıkardı —
 kendi ekosistemimizin en taze sinyali.
+
+🚨 **Asıl risk ölçüldü (2026-08-21): eşzamanlılık AgentPrism'in AMBIENT tool
+bağlamına çarpar.** Tool katmanı iki yerde `FunctionInvokingChatClient.CurrentContext`
+okuyor — [`AuthorizingAIFunction.cs:107`](../src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs#L107)
+(çağrı kimliğiyle yetkilendirme) ve
+[`AgentPrismToolUsage.cs:56`](../src/AgentPrism.Core/Tools/AgentPrismToolUsage.cs#L56).
+Bayrak açılınca tool gövdeleri eşzamanlı koşar; bu ambient'ın çağrı başına doğru
+çözülüp çözülmediği **ölçülmemiştir**. Bu depo aynı sınıf tuzağı **beş kez**
+yaşadı (`MEMORY.md`, `docs/hafiza/cekirdek-calistirma.md`). Plan bunu ilk iş
+olarak bir davranış probuyla kanıtlamalıdır — bayrağı açmak son adımdır.
+
 **Karşı görüş:** Bugüne kadar hiçbir manuel test veya kullanıcı bu gecikmeyi
 sorun olarak bildirmedi; çoğu agent turu tek tool çağırıyor. Ölçülmeden
 "performans kazancı" iddia edilemez — ilk adım gerçek bir çok-tool senaryosunda
@@ -451,6 +447,27 @@ boşluğudur.
 etkilenir. Anahtar döndürme bir tasarım kararıdır.
 **Bağımlılık:** F-58 ile aynı veriye dokunur.
 **Ekosistem:** Genel veritabanı deseni; agent'a özgü değil.
+
+🚨 **F-87 ile TEK KÜME olarak planlanır (2026-08-21).** İkisi de aynı dokuz
+sütuna dokunur; ayrı planlanırsa ikincisi birincisini bozar — Faz 64'ün
+(F-75 + F-58) emsali birebir geçerlidir.
+
+**Çatışma haritası — üç okuma yolu ölçüldü (2026-08-21):**
+
+| Okuma yolu | Kanıt | Şifreleme / redaksiyon etkisi |
+|---|---|---|
+| Yeniden oynatma | [`RunReplayService.cs:30`](../src/AgentPrism.Core/Replay/RunReplayService.cs) `IRunInputStore _inputs` | Replay **ham** girdiyi ister; redakte edilirse yeniden oynatma sadık değildir |
+| Eval terfisi | [`RunToCasePromoter.cs:175`](../src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs) `_runs.ReadEventsAsync`, `:97` `ListToolInvocationsAsync` | Vaka `run_events` ve `tool_invocations` **ham metninden** üretilir |
+| Dosya araması | [`SqlAgentFileStore.cs:212`](../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs) `CollectMatches(Regex regex, string content)` | Regex **düz metin** üzerinde koşar; şifreleme dosya aramasını tamamen bitirir |
+
+Ayrıca F-87'nin öncülü koddan doğrulandı:
+[`AgentPrismServiceCollectionExtensions.cs:870`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L870)
+açıkça yazıyor — *"RunStarted event and IRunInputStore never passes through the guards."*
+
+**Karşı görüş:** `IContentProtector` varsayılansız gelirse (K4) bugün **hiçbir
+tüketici korunmaz**. Faz 73'ün "opt-in kararının bedeli benimseme oranıdır"
+cümlesi burada da geçerlidir ve F-135 o cümlenin ilk ölçülen faturasıydı.
+Kümenin ilk kararı koruma algoritması değil, bu **üç okuma yolunun ne olacağıdır**.
 
 ### F-104 · Örnek uygulama rol politikaları — ✅ KAPATILDI (2026-08-18, K-431). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
@@ -618,10 +635,24 @@ kapsar; TypeScript istemcisi bu kalemin veya yeni bir kalemin işidir.
 **Risk:** İki yeni paket, K-007 gerekçesi ister. İstemci sözleşmesi sunucuyla
 birlikte sürümlenmelidir.
 **Bağımlılık:** F-63'ten sonra — [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md).
-[Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) bir üreteç altyapısı kurar; `AgentPrism.Client`'ın
-kaynak üretilmiş JSON'u aynı projeyi kullanabilir ve **ikinci bir üreteç
-projesi açılmamalıdır**.
-**Ekosistem:** LiteLLM ve Langfuse CLI verir.
+
+🚨 **F-93 ile TEK KÜME olarak planlanır (2026-08-21)** — ikisi de aynı OpenAPI
+belgesinden üretilir ve aynı sürümleme sözleşmesini paylaşır.
+
+**Ölçüldü (2026-08-21) — iki iddia düzeltildi:**
+
+| Ölçüm | Sonuç |
+|---|---|
+| `docs/openapi/agentprism.json` | OpenAPI **3.1.1** · **123** yol · **160** operasyon · **250** şema · `operationId` eksik operasyon **0**. Üretim kaynağı olarak **yeterli** |
+| 🚨 "İkinci bir üreteç projesi açılmamalıdır" kısıtı | **KONUSUZ.** `AgentPrism.Client`'ın kaynak üretilmiş JSON'u `JsonSerializerContext`'tir — **derleyicinin kendi** üreteci. Depo bunu on'dan fazla yerde zaten kullanıyor (`AgentPrismCoreJsonContext.cs`, `AgentPrismJsonContext.cs`). `AgentPrism.Generators` bir Roslyn analyzer projesidir (`netstandard2.0`) ve bu işe hiç karışmaz. Kalem bu ölçümle **ucuzladı** |
+| npm kanalı | [`ci.yml:154`](../.github/workflows/ci.yml) `publish` işi yalnız **NuGet.org**'a yayınlar, `v*` etiketiyle tetiklenir, `nuget` environment'ı kullanır. npm registry veya kimlik bilgisi **yok** — F-93 gerçekten yeni bir kanaldır |
+
+**Ekosistem:** LiteLLM ve Langfuse CLI verir (önceki turların damgası;
+2026-08-21'de **yeniden doğrulanmadı**).
+**Karşı görüş:** Yayın ertelendiği için yüzey büyütmek bugün **ucuzdur** — ama
+bu, kaleme *değer* kazandırmaz. Bugün hiçbir tüketici yönetim API'sini kod
+içinden çağıramadığı için engellenmiş **değildir**; F-135'in aksine bu kalem
+ölçülmüş bir tüketici acısına bağlı değil.
 
 ### F-51 · .NET Aspire entegrasyonu
 
@@ -815,73 +846,45 @@ flowchart LR
 
 ## Önerilen Sıralama — Üç Dalga
 
-### Dalga 1 — ✅ planlandı (2026-08-06), bu listeden çıktı
+### Dalga 1–3 ve doğurdukları kalemler — arşive taşındı (2026-08-21)
 
-Sekiz kalemin tamamı [Faz 31–37](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
-dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
-[Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
+Üç dalganın anlatısı kapandı ("planlandı, bu listeden çıktı") ve **doğurdukları
+kalemler 2026-08-08 denetiminde F-90…F-99 olarak numaralandı**; gerekçeleri
+aşağıdaki [Numaralandırılan kapsam-dışı işler](#numaralandırılan-kapsam-dışı-işler-2026-08-08-denetimi)
+tablosuna taşınmıştı, yani bu bölümler ikinci kopyaydı. Tam metin:
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) § *Dalga 1–3 anlatısı ve doğurdukları*.
 
-**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
+🚨 **Dört numarasız kalem 2026-08-21'de ölçüldü ve DÖRDÜ DE KAPALI çıktı** —
+aday değildirler: `UseMcp(IConfiguration)` bağlama var
+([`AgentPrismMcpBuilderExtensions.cs:183`](../src/AgentPrism.Mcp/AgentPrismMcpBuilderExtensions.cs#L183)) ·
+migration yarışını [`SchemaReadyGate`](../src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs) çözüyor ·
+alt yazmalarda kiracı [`RunEvent.cs:85`](../src/AgentPrism.Abstractions/Runs/RunEvent.cs#L85) (K-355) ·
+akışlı idempotency Faz 43'te karara bağlandı (soru 3 → A). Ölçüm:
+[`kesif/2026-08-21-faz-adaylari-tespiti.md`](kesif/2026-08-21-faz-adaylari-tespiti.md) §1.1.
 
-### Dalga 2 — ✅ planlandı (2026-08-06), bu listeden çıktı
+### Dalga 13 önerisi — dört küme (2026-08-21) 👤
 
-Sekiz kalemin tamamı [Faz 38–45](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
-dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
-[Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
+Bu tur **yeni kalem üretmedi**; ekosistem boşluk tablosunun 15 satırından 14'ü
+kapandığı için "X'te standart, .NET'te yok" damarı tükendi. Kalan sekiz kalem
+ölçülerek **dört kümeye** toplandı. Küme mantığı Faz 64 emsalidir: aynı veriye
+dokunan iki kalem ayrı planlanırsa ikincisi birincisini bozar.
 
-**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
+Kullanıcı sırası: **A → B → C → E**. Faz 7 **ertelenmeye devam** eder (K-068).
+Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](kesif/2026-08-21-faz-adaylari-tespiti.md).
 
-Dalganın ortak gerekçesi korunur: **her kalem başka bir işten önce yapılmazsa
-iki kat pahalıya gelir** — biri kırıcı bir sürüm kararı, biri yeniden yazım,
-biri güvenlik düzeltmesi olarak geri döner.
+| Sıra | Küme | Kalemler | Ortak yanı | Bu turda ölçülen |
+|---|---|---|---|---|
+| 1 | **A** Tüketici yüzeyi kapıları | F-125 · F-129 · F-136 | Yeni yetenek/tanı/örnek sevk edilebilir, **hiçbir kapı kızarmaz** | F-136 **beş belgesiz kod** · F-125 prelüd **iki** yer tutucu · F-129 iddiası **yanlış çıktı**, kalem daraldı |
+| 2 | **B** Model boru hattı ergonomisi | F-45 · F-134 | İkisi de `ModelProviderRegistry` `.AsBuilder()` zincirine takılır, ikisi de varsayılan kapalı | F-45 `IDistributedCache` **yeni bağımlılık kararı** · F-134 **ambient `CurrentContext` riski** |
+| 3 | **C** Kayıt içeriğinin korunması | F-41 · F-87 | **Aynı dokuz sütun**; ayrı planlanırsa çatışır | Üç okuma yolu adlandırıldı: replay · eval terfisi · dosya araması |
+| 4 | **E** Dağıtım kanalı | F-50 · F-93 | Aynı OpenAPI belgesinden üretilir, aynı sürümleme sözleşmesi | Belge **yeterli** (0 eksik `operationId`) · "ikinci üreteç" kısıtı **konusuz** · npm gerçekten yeni kanal |
 
-### Dalga 2'den doğan yeni aday kalemler
+**Küme D düşürüldü** (F-88 · F-89 · F-98). F-88 tek başına faz değil; F-89
+yayından sonra pahalı bir **arayüz** değişimidir; F-98'in erteleme gerekçesi
+(doğrulanamazlık, K-212 emsali) değişmedi. Üç kalem bu listede **kalır**.
 
-Planlama dokuz işi **bilinçli olarak kapsam dışına** çıkardı. Bunlar yeni kalem
-olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
-
-| Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
-|---|---|---|
-| PostgreSQL RLS ile derinlemesine savunma | [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | SQLite'ta karşılığı **yok**; üç sağlayıcıda davranış ayrışır. Faz 41 sözleşme testi kapısını seçti, RLS'i **iptal etmedi** |
-| 🚨 Çalıştırmanın alt yazmalarında **açık kiracı** | [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | `IRunStore.AppendEventAsync` · `CompleteRunAsync` · `UpdateRunCostAsync` · `RecordToolInvocationAsync` kiracı süzgeci taşımaz (K-280). Ambient ile süzmek denendi ve geri alındı: `RunStartInfo.TenantId` ambient kiracıyı bilerek ezer ve süzgeç meşru yazmaları düşürüyordu. Gerçek denetim, çağrının **beklenen** kiracıyı taşımasını ister — yani `RunEvent`/`RunCompletion`/`ToolInvocationRecord`'a birer alan. Bugün ulaşılabilir sızıntı **yok** (uuid v7 kimlikler, okuma tarafı süzülü); public API büyüteceği için ayrı kalem |
-| MCP OAuth token'ının örnekler arasında paylaşılması | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | 🚨 **K-059 ile çatışır** — `secret` veritabanına yazılmaz. Kendi kararını ister |
-| Paylaşılan (dağıtık) hız sınırı | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | K-158 bunu bilerek bellekte tuttu; tek yürütücü seçimi bu sorunu **çözmez** |
-| Akışlı yanıtta idempotency | [Faz 43](arsiv/fazlar/43-IDEMPOTENCY-KEY.md) | Doğru evi F-68'in `202 Accepted` + `Location` sözleşmesidir |
-| TypeScript istemci paketi ve npm yayını | [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister |
-| Çok turlu eval vakası terfisi | [Faz 45](arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
-| `AgentPrismMcpOptions`'ı `IConfiguration`'a bağlamak | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `.UseMcp()` yalnız kod-taraflı `configure` delegesi kabul eder, `IConfiguration.Bind` hiç çağrılmaz — `AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni **sessizce hiçbir şey yapmaz**. Faz 42'den önce de böyleydi; ilk kez orada gerçek bir dağıtım denemesinde ortaya çıktı |
-| 🚨 `BackgroundService` başlatma sırası migration'la yarışır | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `MigrationHostedService.StartAsync` migration'ları TAM bekler ama `BackgroundService.StartAsync` (taban sınıf) `ExecuteAsync`'i beklemeden döner; kayıt sırası `.UseMcp()` `.UseSqlite()`'tan önceyse `McpDiscoveryService`'in ilk SQL denemesi migration bitmeden çalışabilir ("no such table"). Kendiliğinden iyileşir (bir sonraki turda) ama gözlemlenebilir bir uyarı üretir. Kalıcı çözüm hosted service sırasını garanti etmek veya ilk turu geciktirmek — ikisi de kendi kararını ister |
-
-### Dalga 3 — ✅ planlandı (2026-08-06), bu listeden çıktı
-
-Dokuz kalem [Faz 46–52](arsiv/UCUNCU-FAZ-YOL-HARITASI.md) olarak plana dönüştü.
-Bölümleri bu dosyadan silindi; yönlendirme için
-[Plana Dönüşenler](#plana-dönüşenler-2026-08-06) tablosuna bakın.
-
-🚨 **F-72 seçildi ama plana dönüşmedi.** Ölçüm erteleme getirdi ve kalem
-[C bölümünde](#f-72--agent-control-specification-acs-uyumu--ölçüldü-ertelendi-2026-08-06)
-ölçülmüş kanıtıyla duruyor. Dalga bu yüzden sekiz değil **yedi** fazdır.
-
-**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
-
-Dalganın ortak gerekçesi korunur: **her kalem kendi başına bir tur
-büyüklüğündedir** ve hiçbiri eksik bir yarıyı tamamlamaz; her biri .NET'te
-karşılığı **hiç bulunmayan** bir yetenek ekler.
-
-### Dalga 3'ten doğan yeni aday kalemler
-
-Planlama **on** işi bilinçli olarak kapsam dışına çıkardı. Tam liste ve
-gerekçeleri [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md)'nin
-"Dalga 3'ün Açtığı Yeni Aday Kalemler" bölümündedir; burada tekrarlanmaz.
-ID'ler **F-77'den** devam eder.
-
-Öne çıkan üçü:
-
-| Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
-|---|---|---|
-| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar |
-| Azure AI Content Safety adaptörü | [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) | Ağırlık **4 paket** (ölçüldü) — sorun değil. Erteleme gerekçesi doğrulanamazlıktır (K-212 emsali) |
-| `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** |
+🚨 **Kümeler faz numarası taşımaz.** Numarayı `faz-planlama` verir; her küme
+kendi oturumudur.
 
 ### Faz 48'in uygulanmasından doğan yeni aday kalemler (2026-08-07)
 
@@ -891,7 +894,7 @@ notundadır.
 
 | ID | Kalem | Neden ayrı |
 |---|---|---|
-| **F-87** | 🚨 Kayıtlardaki hassas verinin redaksiyonu | Guard **model sınırındadır**; `run_events.RunStarted` kullanıcının ham istemini (Faz 45) ve `run_inputs` ham mesajları (Faz 47) saklar. Maskeleme bunları geriye dönük temizlemez. Ayrı bir sözleşme: hangi kayıt, hangi anda, geri alınamaz mı? **Faz 45'in eval terfisi ve Faz 47'nin yeniden oynatması ham girdiye BAĞIMLIDIR** — redaksiyon ikisini de bozar ve o çatışma önce karara bağlanmalıdır |
+| **F-87** | 🚨 Kayıtlardaki hassas verinin redaksiyonu | Guard **model sınırındadır**; `run_events.RunStarted` kullanıcının ham istemini (Faz 45) ve `run_inputs` ham mesajları (Faz 47) saklar. Maskeleme bunları geriye dönük temizlemez. Ayrı bir sözleşme: hangi kayıt, hangi anda, geri alınamaz mı? **Faz 45'in eval terfisi ve Faz 47'nin yeniden oynatması ham girdiye BAĞIMLIDIR** — redaksiyon ikisini de bozar ve o çatışma önce karara bağlanmalıdır. 🚨 **Küme C** — F-41 ile TEK fazda planlanır: aynı dokuz sütun, çatışma haritası F-41 bölümünde |
 | **F-88** | Guard kararının transcript'te gösterilmesi | Faz 48 iki olay tipini **ham olay akışına** ekledi; katlanmış transcript görünümü (`transcript.ts`) onları göstermiyor. `compaction` için var olan "sistem konuşmayı değiştirdi" öğesinin kardeşi gerekir: yeni öğe tipi + bileşen + sözlük anahtarları |
 | **F-89** | Kiracı bazlı guard kuralları | `ContentGuardContext.TenantId` **bugün taşınıyor** ve özel bir guard onu kullanabilir; ama yerleşik `PatternContentGuard` tek bir kural kümesi taşır. Kiracı başına kural, kuralların **nerede yaşadığı** sorusunu açar (yapılandırma mı, veritabanı mı) ve K2'ye benzer bir sınır kararı ister |
 
@@ -907,7 +910,7 @@ devam eder ve sabittir.
 | **F-90** | PostgreSQL RLS ile derinlemesine savunma | [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | SQLite'ta karşılığı **yok**; üç sağlayıcıda davranış ayrışır. Faz 41 sözleşme testi kapısını seçti, RLS'i **iptal etmedi** |
 | **F-91** | MCP OAuth token'ının örnekler arasında paylaşılması | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | 🚨 **K-059 ile çatışır** — `secret` veritabanına yazılmaz. Kendi kararını ister |
 | **F-92** | Paylaşılan (dağıtık) hız sınırı | [Faz 42](arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md) | K-158 bunu bilerek bellekte tuttu; tek yürütücü seçimi bu sorunu **çözmez**. 🚨 "Bilerek Önerilmeyenler" tablosundaki Redis maddesiyle **çakışır**; alınırsa o karar yeniden açılır |
-| **F-93** | TypeScript istemci paketi ve npm yayını | [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister. F-63'ten ayrıldı |
+| **F-93** | TypeScript istemci paketi ve npm yayını | [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister. F-63'ten ayrıldı. **Küme E** — F-50 ile tek fazda; aynı OpenAPI belgesinden üretilir |
 | **F-94** | Çok turlu eval vakası terfisi | [Faz 45](arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
 | **F-95** | Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var |
 | **F-96** | Kuyruğa alınan çalıştırmalarda ek (attachment) desteği | [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) | `AttachmentUriReference` bir HTTP yol öneki ister; bu değer yalnız `MapAgentPrism` çağrısı anında bilinir, `AgentRunJobHandler`'ın DI kayıt anında değil |
@@ -921,15 +924,16 @@ devam eder ve sabittir.
 | **F-130** | `Eval_suite_is_created_case_added_and_run_passes` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 77 doküman bütçesi koşumu (2026-08-20) | 🚨 **Ölçüldü, F-122'nin aynısı.** Tam `Ui.E2ETests` setinde (56 test) `TimeoutException: Timeout 30000ms exceeded` — `GetByPlaceholder("What is your return policy?")` üzerinde `fill` sırasında *"element was detached from the DOM, retrying"* (`UiTests.cs:1113`). Üç adımlı ayırt etme protokolü (`docs/hafiza/test-altyapisi.md`) tam uygulandı: izolasyonda **1/1** geçti, **ikinci tam koşumda 56/56** geçti. Kök sebep tarayıcı/`Docker` kaynak çekişmesi altında React yeniden render'ının `textarea`'yı `fill` ortasında DOM'dan koparması — ürün kusuru değil. Faz 77 yalnız dokümana, bir Python script'ine ve `.cs` **yorumlarına** dokundu; arayüzle ilgisi yok. Çözüm F-122 ile aynı sınıftadır: `fill` öncesi elemanın stabilize olmasını bekleyen bir `WaitForAsync`, ya da locator'ı `fill` anında yeniden çözmek |
 | **F-123** | Kültürün eval/replay/alt-agent zincirine yayılması | [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) denetimi (2026-08-19) | K-503'ün sınırı: `EvalJobHandler`, `RunReplayService` ve `CallableAgentResolver` her zaman `culture: null` çözümler — yalnız KÖK agent'ın çalıştırılması `AgentRunRequest.Culture`'ı görür. Eval seti kültüre özgü talimat metnini otomatik test edemez; replay orijinal `run`'ın kültürünü saklamadığı için (kayıt şeması taşımıyor) yeniden oynatma orijinal koşulu üretemez; çok dilli bir alt-agent zinciri ebeveynin dilini miras almaz. Üçü de ölçülmemiş ihtiyaç — talep gelirse `run` kaydına kültür alanı eklemek ilk adımdır |
 | ~~**F-124**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) §75.4 | [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | 🚨 **Kaydın teşhisi ölçümle düzeltildi (2026-08-20).** Kesme iddiası doğruydu — sevk edilen haritada üç kelime ortası kesme var. Kural iddiası **yanlıştı**: "Storage and testability" bölümünün tablodan ÖNCE düz metni yok, yani üreteç tablodan sonrakini zaten alıyor; gerçek kusur alınan cümlenin bir kural değil bir yön tarifi olmasıdır. Ölçüm **üçüncü bir kusur** buldu: 11 bölümün **ikisi hiç kural üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok). Üçü de Faz 75'e girdi |
-| **F-125** | `<example>` bloklarını derleyen kalıcı kapı | [Faz 74](74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | 🚨 **Ölçüldü:** metin denetimi bir örneğin doğruluğunu yapısal olarak kanıtlayamaz. Faz 74'ün denetimi iki hatalı örnek buldu ve ikisi de `CapabilityExampleTests`'in ad denetiminden geçmişti — `options.DefaultTimeout` (`CS1061`, üye başka tipte) ve `o.ExposedAgents = [...]` (`CS0200`, salt-okunur property). İkisi de **gerçek** API adlarıdır; yakalayan tek şey derlemedir. Faz 74 örnekleri **elle** derledi (40 blok, `Build succeeded`) ama kalıcı kapı yazmadı. Şekli belli: XML'den blokları çıkar, yer tutucu prelüdüyle birleştir, Roslyn ile derle — `AnalyzerTestHelper` gerçek AgentPrism sembolleriyle zaten kurulu (Faz 73 devir notu 5). **Ölçülmedi:** prelüdün kaç yer tutucu taşıyacağı ve bunun örnek yazımını ne kadar kısıtlayacağı |
+| **F-125** | `<example>` bloklarını derleyen kalıcı kapı | [Faz 74](74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | 🚨 **Ölçüldü:** metin denetimi bir örneğin doğruluğunu yapısal olarak kanıtlayamaz. Faz 74'ün denetimi iki hatalı örnek buldu ve ikisi de ad denetiminden geçmişti — `options.DefaultTimeout` (`CS1061`) ve `o.ExposedAgents = [...]` (`CS0200`). İkisi de **gerçek** API adlarıdır; yakalayan tek şey derlemedir. Şekli belli: XML'den blokları çıkar, prelüdle birleştir, Roslyn ile derle — `AnalyzerTestHelper` gerçek sembollerle zaten kurulu. 🚨 **Maliyet ölçüldü (2026-08-21):** 49 blok; prelüd yalnız **iki** yer tutucu ister (`app` 6 blokta, `agentPrism` 1) — `options`/`o`/`context`/`services` blok içinde lambda parametresi olarak bağlanıyor. Yalnız **2** blok elipsis (`...`) taşıyor ve muafiyet ya da yeniden yazım ister. `capability-example-baseline.txt` **boş**, yani kapı 53 giriş noktasının tamamını kapsıyor. **Küme A** · **Karşı görüş:** bir kapı işidir, tüketiciye yeni yetenek vermez; iki elipsisli blok kapıyı ya muafiyete ya yeniden yazıma zorlar |
 | **F-128** | `<see cref>` → `<c>` dönüşümünün API referansındaki gezinme maliyeti ölçülmedi | [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) denetimi (2026-08-20) | Faz 75, paketlenen OpenAPI belgesinde tam CLR imzası olarak render edilen 83 `<see cref>`'i `<c>` ile değiştirdi (K-517). Kazanç ölçüldü: sızıntı 43+24 → **0**. Maliyet ölçülmedi: `build-api-reference.mjs` her koşumda "109 cross-reference(s) rendered as code because no target exists" diyor ve bu sayının dönüşümden **önceki** değeri kaydedilmedi. Sözleşme tiplerinde `<c>` doğru tercihtir (tüketici JSON alanını görür), ama API referansında bir üyeden diğerine tıklanamıyor olabilir. **Ölçülmedi:** üretecin bu sayıyı bir taban çizgisine bağlaması ve dönüşümün payının ayrıştırılması. Ucuz iş; ölçüm gezinme kaybını önemsiz gösterirse kalem kapanır |
-| **F-129** | `--site-denetle` ikilidir ve tüketici yüzeyinin yarısını hiç görmez | [`tuketici-dokuman-senkronu`](../.agents/skills/tuketici-dokuman-senkronu/SKILL.md) kurulumu (2026-08-20) · K-522 | 🚨 **Ölçüldü:** `scripts/dokuman-bakim.py` içindeki `SITE_KURALLARI` **on** desenden oluşur ve hepsi tek bir şey der — "`src/…` değiştiyse şu `docs-site/` sayfası da değişmiş olmalı". İki boşluk var. (1) **Yerel referans yüzeyi hiç eşlenmemiş:** `src/AgentPrism.Core/buildTransitive/` ve yeni public giriş noktaları `capabilities.md`'ye eşlenmiyor. `capabilities.md` sevk edilen `AgentPrism.AgentMap.md` ile `llms.txt`'in **tek kaynağıdır**; yeni bir yetenek, harita sessizce bayatken kapanabilir. Bugünkü tek drift kapısı (`build-agent-map.mjs --check`) haritayı `capabilities.md` ile karşılaştırır, `capabilities.md`'yi **kodla** karşılaştıran hiçbir kapı yoktur — `check-content.mjs`'in 26 zorunlu kanıt dizesi yalnız bugünkü yetenekleri sabitler, yenisini zorlamaz. (2) **"Değişti" ile "doğru" aynı sayılıyor:** elle yazılan bir sayfada tek karakter değiştirmek kapıyı yeşil geçirir. **Ölçülmedi:** kuralı "yeni public giriş noktası → `capabilities.md` satırı" eksenine genişletmenin yanlış pozitif oranı. Ucuz iş; desen `SITE_KURALLARI` tablosuna iki satır ekler |
+| **F-129** | Kod ile `capabilities.md` arasındaki kapının **kalan dar boşluğu** | [`tuketici-dokuman-senkronu`](../.agents/skills/tuketici-dokuman-senkronu/SKILL.md) kurulumu (2026-08-20) · K-522 | 🚨 **Kaydın ana iddiası 2026-08-21'de ölçüldü ve YANLIŞ çıktı.** "`capabilities.md`'yi kodla karşılaştıran hiçbir kapı yoktur" deniyordu; oysa `CapabilityCoverageTests` `PublicAPI` dosyalarından okunan **53** giriş noktasının haritada adlandırıldığını, `CapabilityExampleTests` de her birinin örnek gösterdiğini kanıtlıyor ve **iki taban çizgisi de boş** (sıfır muafiyet). Kalem bu ölçümle **daraldı**; ayakta kalan iki dar boşluk: (1) `scripts/dokuman-bakim.py` içinde `capabilities.md` **sıfır kez** geçiyor, yani `src/AgentPrism.Core/buildTransitive/` değişimi hiçbir sayfaya eşlenmiyor (giriş noktası olmadığı için var olan kapı da görmüyor); (2) kalan dokuz `SITE_KURALLARI` deseni "değişti"yi "doğru" sayıyor. **Küme A** — tek başına faz değildir |
 | ~~**F-131**~~ | ✅ **TAMAMLANDI (2026-08-20)** → [Faz 77](77-GIDEN-AG-MUHAFIZI.md) | Güvenlik taraması (2026-08-20) | Gövde faza taşındı. Planlama sırasında adayın **ölçülmemiş** tek kalemi ölçüldü: dört sağlayıcı SDK'sı da `HttpClient` enjeksiyonuna izin veriyor (`Anthropic.Core.ClientOptions.HttpClient`, OpenAI/Azure `ClientOptions`, Google kendi istemcisine sahip) — yani K-164'ün `IHttpClientFactory` yasağı korunarak muhafız üç yüzeye taşınabilir, yeni paket gerekmez |
 | **F-132** | Giden ağ için `RequireHttps` bayrağı | Faz 77 açık soru 2 (2026-08-20) 👤 | Faz 77 muhafızı adres bazlıdır; şema kısıtı yalnız webhook yolunda vardır (`AllowInsecureHttp`, ve orada bile yalnız loopback'e izin verir). MCP sunucusu ve kiracı sağlayıcı `endpoint`'i bugün `http` kabul eder. **Ertelendi çünkü varsayılanı seçmek ölçüm ister:** kaç kurulumun gerçekten `http` MCP sunucusu olduğu bilinmiyor, ve açık gelen bir varsayılan K-165'in önlediği "yükseltme canlı trafiği sessizce kırar" durumunu üretir. Bayrağı eklemek ucuzdur (`AgentPrismEgressOptions.RequireHttps`, `EgressAddressPolicy`'ye üçüncü alan); pahalı olan varsayılan kararıdır. Ölçüm yapılmadan planlanmamalıdır |
-| **F-133** | `Second_decision_on_the_same_approval_gets_409` (`AgentPrism.AspNetCore.FunctionalTests`) izolasyonda HER ZAMAN düşüyor | Faz 77 kapanış koşumu (2026-08-20) | 🚨 **Ölçüldü ve Faz 77'nin DEĞİŞİKLİĞİ DEĞİL: `git stash` ile temiz `HEAD`'de de düşüyor.** Belirti: `WaitForStatusAsync(runId, "AwaitingApproval")` dönüyor ama hemen ardından `GET /api/approvals/pending` **boş dizi** veriyor (`ShouldHaveSingleItem` → 0 öğe, `ApprovalEndpointTests.cs:159`). F-130/F-122'den **farklı sınıf**: o ikisi kaynak çekişmesi altında araya giren kırılganlıktı, bu deterministik — tek test olarak üç koşumda 3/3 düştü. Tam sette bazen geçiyor, yani sıraya/zamanlamaya bağlı. Muhtemel kök sebep: `run` durumu `AwaitingApproval`'a geçtiği an ile onay kaydının `IPendingApprovalStore`'da **görünür** olduğu an arasında bir pencere var; `WaitForStatusAsync` yanlış sinyali bekliyor. Ya bekleme onay kaydına bakmalı, ya da iki yazım tek işlemde görünür olmalı. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolüyle sınıf taraması yapılmalı: aynı "durum önce, kayıt sonra" penceresi başka bekleme yardımcılarında da olabilir |
+| ~~**F-133**~~ | ✅ **KAPANDI (2026-08-21)** — kök sebep ölçüldü, "kırılgan test" teşhisi YANLIŞ çıktı, düzeltildi (K-541) | Faz 77 kapanış koşumu (2026-08-20) | Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-133. |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-102. |
-| **F-136** | Yeni bir `APG` tanı kodunun dokümana girdiğini ölçen kapı yok | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) denetimi (2026-08-21) 🟢 | `check-content.mjs` telemetri adlarını, `Options.cs` özelliklerini ve konsol ekranlarını kapıya bağlıyor ama `APG` kodlarını bağlamıyor. Bir tanı eklenip `guides/coding-agents.md` ve `troubleshooting.md` tablolarına yazılmazsa hiçbir şey kızarmaz — Faz 78'de üç tablo **elle** güncellendi. Kaynak `UsageDiagnostics.cs` + `ToolDiagnostics.cs`'deki descriptor listesi; kapı `DiagnosticIntegrityTests`'in yardım-bağlantısı denetimiyle aynı sınıftandır ve `capabilities.md` boşluğuyla (kalite sözleşmesi §E) birlikte kapatılmalıdır |
+| **F-136** | Yeni bir `APG` tanı kodunun dokümana girdiğini ölçen kapı yok | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) denetimi (2026-08-21) 🟢 | `check-content.mjs` telemetri adlarını, `Options.cs` özelliklerini ve konsol ekranlarını kapıya bağlıyor ama `APG` kodlarını bağlamıyor. 🚨 **Boşluk ölçüldü (2026-08-21) ve zaten bedel ödetmiş:** kaynakta **14** descriptor var (`ToolDiagnostics.cs` yedi: `APG0001`…`APG0007`; `UsageDiagnostics.cs` yedi: `APG0101`, `APG0102`, `APG0201`, `APG0301`, `APG0302`, `APG0401`, `APG0402`), `guides/coding-agents.md` ve `troubleshooting.md` birlikte **9** taşıyor. **Beş kod belgesiz:** `APG0002` · `APG0003` · `APG0004` · `APG0005` · `APG0006`. Kapı `DiagnosticIntegrityTests`'in yardım-bağlantısı denetimiyle aynı sınıftandır. **Küme A'nın en güçlü kalemi** — karşı görüş bulunamadı |
 | **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
+| **F-138** | `Respond_does_not_rerun_the_entry_node_when_it_is_an_agent` (`AgentPrism.Workflows.UnitTests`) kırılgan | Kanal 2 kusur koşumu (2026-08-21) | 🚨 **Ölçüldü:** dört tam koşumun yalnız birinde düştü; **izolasyonda 5/5 geçti**. Belirti: `resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput)` eşleşme bulamıyor (`WorkflowAgentEntryRespondTests.cs:55`) — yani `RespondStreamingAsync` devam eden akışta çıktı olayını üretmemiş. F-122/F-130 sınıfı (kaynak çekişmesi) OLABİLİR ama kanıtlanmadı: o ikisi tarayıcı/`Docker` çekişmesiydi, bu saf bir birim testidir ve dış kaynağa dokunmaz. **Bu yüzden gerçek bir çıktı-olayı kaybı ihtimali elenemedi**; ilk adım yük altında tekrar üretmektir |
 
 > **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
 > bu denetim yalnız numara verdi ve gerekçeleri buraya taşıdı. F-101 **kod
@@ -939,32 +943,29 @@ devam eder ve sabittir.
 
 ## Bundan Sonra Ne Kaldı
 
-2026-08-18 turlarından sonra **seçilmemiş 22 kalem** kalır. Tüketici raporu
-turunun on kalemi aynı gün plana dönüştü
-([keşif notu](kesif/2026-08-18-tuketici-raporu.md)); ekosistem boşluk tablosunun
-on beş satırından **on dördü** plana girmiştir.
+2026-08-21 turundan sonra **seçilmemiş 31 kalem** kalır; sekizi
+[Dalga 13'ün dört kümesindedir](#dalga-13-önerisi--dört-küme-2026-08-21-).
+Ekosistem boşluk tablosunun on beş satırından **on dördü** plana girmiştir;
+kalan iki satır F-34 (şablon) ve F-72 ⏸ (ACS).
 
 | Küme | Kalemler | Ortak yanı |
 |---|---|---|
-| **Kusur kalemleri** | F-106 | Üç kardeşi (F-104, F-105, F-107) 2026-08-18'de kodlandı ve kapandı. F-106 azaltıldı ama sahte katılımcılarla **yeniden üretilemedi**; kapısı manuel kabul case'idir |
-| **Uyum ve veri hakları** | F-72 ⏸, F-41 | Kurumsal kapı. F-41 artık [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md)'ün kararını bekler |
-| **Guardrail devamı** | F-87, F-88, F-89, F-98 | Dördü de [Faz 48](arsiv/fazlar/48-GUARDRAILS.md)'in bilerek kapsam dışı bıraktığı işlerdir |
-| **Faz devamları (numaralı)** | F-90…F-99, F-101 | Bir fazın kapanışında bilerek dışarıda bırakılan işler |
-| **Bağımsız** | F-34 (şablon), F-45 (yanıt önbelleği), F-48 (GitOps), F-50 (istemci+CLI), F-51 (Aspire), F-67 (performans kapısı) | Önkoşulsuz; istenen sırada yapılabilir |
+| **📋 Dalga 13 — seçildi** | F-125·F-129·F-136 · F-45·F-134 · F-41·F-87 · F-50·F-93 | Dört küme, sıra A → B → C → E. `faz-planlama` bekliyor |
+| **Kusur kalemleri** | F-106, F-122, F-130, F-137, F-138 | Faza dönüşmez. F-133 **kapandı** (2026-08-21, K-541 — sabit sıra, yarış değil). Kalan dördü **izolasyonda geçiyor**; `kusur-giderme` bekliyor |
+| **Uyum** | F-72 ⏸ | .NET paketi hâlâ beta ve native (beş RID) |
+| **Guardrail devamı** | F-88, F-89, F-98 | Küme D olarak değerlendirildi ve **düşürüldü** (2026-08-21) |
+| **Faz devamları** | F-90…F-99, F-101, F-109, F-123, F-128, F-132 | F-90/F-91/F-92 kapatılmış bir kararla **çatışır**; kalanlar ölçülmemiş ihtiyaç |
+| **Bağımsız** | F-34 (şablon), F-48 (GitOps), F-51 (Aspire), F-67 (performans kapısı) | Önkoşulsuz; hiçbiri bugün bir tüketiciyi engellemiyor |
 
-**Bunu yapmazsak ne olur:** Faz 31–66 AgentPrism'i Python ve TypeScript
-ekosisteminin bugün verdiği yeteneklere ulaştırır ve **çok kiracılı bir SaaS
-ürününün** altına koyabilecek düzleme taşır. Eski turlardan kalan kalemlerin
-çoğu artık stratejik boşluk değil, **derinleşme** ve **kusur** kalemidir.
+**Bunu yapmazsak ne olur:** Faz 31–78 AgentPrism'i Python ve TypeScript
+ekosisteminin bugün verdiği yeteneklere ulaştırdı. Kalan kalemlerin çoğu artık
+stratejik boşluk değil, **derinleşme** ve **kusur** kalemidir — 2026-08-21 turu
+bunu ölçümle doğruladı.
 
-🚨 **Tüketici raporu turu bu değerlendirmeyi kısmen çürüttü.** Gerçek bir
-gömme denemesi iki **stratejik** boşluk buldu — tool başına izin
-([Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md)) ve kullanıcı/etiket bazlı
-maliyet dağıtımı ([Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md)) — ve
-bir **kurulum engeli** gösterdi
-([Faz 67](67-ISTEGE-BAGLI-MIGRATION-SETI.md)). Üçü de faz listesine bakarak
-değil, paketi kullanmaya çalışarak görünür oldu. Ders: aday damarlarına
-**"gerçek tüketici denemesi"** eklenmelidir.
+🚨 **En verimli aday damarı artık "gerçek tüketici denemesi"dir.** Faz 67, 68,
+69 ve 78 faz listesine bakarak değil, paketi gömmeye çalışarak görünür oldu.
+2026-08-21 turu bu damardan **hiç** beslenemedi çünkü yeni bir gömme denemesi
+yapılmamıştı; bir sonraki tur önce onu kurmalıdır.
 
 ---
 

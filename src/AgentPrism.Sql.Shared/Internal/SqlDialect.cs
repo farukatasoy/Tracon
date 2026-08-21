@@ -182,6 +182,19 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract bool IsForeignKeyViolation(Exception exception);
 
+    /// <summary>Determines whether the exception is a deadlock the server resolved by killing this transaction.</summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it is.</returns>
+    /// <remarks>
+    /// A deadlock victim is TRANSIENT: the server rolled the transaction back and
+    /// the same statement succeeds when it is sent again. SQL Server reports error
+    /// 1205; PostgreSQL gives SQLSTATE <c>40P01</c>; SQLite serializes writers and
+    /// reports <c>SQLITE_BUSY</c>/<c>SQLITE_LOCKED</c> instead of detecting a cycle.
+    /// Only callers whose work is safe to repeat may retry on this — see
+    /// <c>MigrationRunner.ApplyOneAsync</c>, whose DDL is "IF NOT EXISTS"-guarded.
+    /// </remarks>
+    public abstract bool IsDeadlock(Exception exception);
+
     /// <summary>
     /// Determines whether the exception comes from this provider treating a regular
     /// expression pushed down to the server as invalid.
