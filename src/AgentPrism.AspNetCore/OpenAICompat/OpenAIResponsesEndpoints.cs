@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// That endpoint does its storage through the <c>IConversationStorage</c>,
 /// <c>IResponsesService</c>, and <c>IAgentConversationIndex</c> abstractions;
 /// those interfaces are also <strong>internal</strong> inside
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.16.0-alpha.260730.1).
+/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.18.0-alpha.260818.1).
 /// A consumer assembly cannot name these types, so no matter the registration
 /// order it cannot replace MAF's in-memory implementations. Using that path
 /// would silently lose all of the persistence, tenant isolation, audit trail,
@@ -273,15 +273,18 @@ internal static class OpenAIResponsesEndpoints
     /// </para>
     /// <para>
     /// <strong>The caller cannot answer that call over this endpoint.</strong>
-    /// Measured on 2026-08-18 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
-    /// 1.16.0-alpha.260730.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
+    /// Re-measured on 2026-08-21 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
+    /// 1.18.0-alpha.260818.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
     /// deserializes <em>every</em> item of the <c>input</c> array into its
     /// internal <c>Responses.Models.InputMessage</c>, which declares <c>role</c>
     /// and <c>content</c> as required. There is no polymorphic dispatch on the
     /// item's <c>type</c>, so a <c>function_call_output</c> (and a
-    /// <c>function_call</c>) item fails with
-    /// <c>JsonException: ... was missing required properties including: 'role',
-    /// 'content'</c>, which this endpoint answers with <c>400</c>. The tool-call
+    /// <c>function_call</c>) item still fails — the 1.18.0-alpha line wraps the
+    /// parse error, so the type is now
+    /// <c>ArgumentException: The request body could not be parsed as an OpenAI
+    /// Responses request. (Parameter 'body')</c> where 1.16.0-alpha threw
+    /// <c>JsonException</c>. The endpoint answers <c>400</c> either way, because
+    /// the catch filter below lists both types. The tool-call
     /// round trip therefore exists on the <em>output</em> side only. To answer a
     /// pending call, use the management approval API
     /// (<c>POST /api/approvals/{id}/decide</c>).

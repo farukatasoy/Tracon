@@ -94,3 +94,18 @@
 - **AOT kacis merdiveni** (AGENTS.md'den, Faz 77): `reflection` yerine sirayla dene —
   (1) elle yaz; (2) `source generator`; (3) kacinilmazsa `[RequiresUnreferencedCode]` +
   `[RequiresDynamicCode]` isaretle; uyariyi **bastirma**, cagirana ilet.
+
+## Bagimlilik surumleri (K-543, K-544)
+
+- **Surum yukseltmesi tek paketle bitmez.** MEAI 10.9.0 `Microsoft.Extensions.*`
+  icin `>= 10.0.11` ister; pin 10.0.10'da birakilinca `restore` **NU1605** (paket
+  dusurme) verir ve `TreatWarningsAsErrors` altinda **restore kirilir**. Once
+  `restore` kos, `build`'i bekleme — hata restore adiminda cikar.
+- **Bes paket bilerek eskidir**, sürüklenme degil: `Microsoft.CodeAnalysis.CSharp`
+  4.8.0 · `Microsoft.Testing.Extensions.TrxReport` 1.x · `xunit.v3` 3.x ·
+  `Microsoft.OpenApi` 2.x · `SQLitePCLRaw.*` 2.1.x. Gerekcesi
+  `Directory.Packages.props` icindedir ve ayni liste `.github/dependabot.yml`'in
+  `ignore` bloguna yazilidir. **Birini yukseltmeden once oradaki yorumu oku.**
+- **Sürüklenmeyi Dependabot bildirir**: NuGet ve iki npm dizini **haftalik**,
+  GitHub Actions **aylik**. Gruplar surum hatti kisitini korur: MAF'in GA/preview/alpha katmanlari
+  tek PR'da gelir (K-008), MCP `.Core` + `.AspNetCore` tek PR'da (K-334).

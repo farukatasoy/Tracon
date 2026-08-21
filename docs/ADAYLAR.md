@@ -326,89 +326,12 @@ Bir fikir yalnız bir mercekten iyi görünüyorsa zayıftır. Her kalemin
 
 ## B. Model yüzeyi ve yönlendirme
 
-### F-45 · Yanıt önbelleği
+> **Bu bölümde seçilmemiş kalem kalmadı (2026-08-21).** F-45 ve F-134 birlikte
+> [Faz 81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md)'e dönüştü — Dalga 13 Küme B.
+> Aşağıdaki satırlar yalnız **iz**dir; gövdeler arşivdedir.
 
-**Sorun:** Aynı soru iki kez sorulursa iki kez ödenir. Önbellek yok.
-**Kapsam:** `DistributedCachingChatClient` boru hattına takılır.
-**Değer:** Deterministik iş yüklerinde fatura düşer.
-**Mercek:** 8.
-**Hazırlık:** **Ölçüldü (2026-08-20):** `Microsoft.Extensions.AI.DistributedCachingChatClient`
-ve `DistributedCachingChatClientBuilderExtensions.UseDistributedCache` pinlenmiş
-sürümde (10.8.3) doğrudan reflection ile doğrulandı —
-`~/.nuget/packages/microsoft.extensions.ai/10.8.3/lib/net10.0/Microsoft.Extensions.AI.dll`
-içinde tip mevcut. Sürüm yükseltmesi gerekmiyor.
-🚨 **İmzalar ölçüldü (2026-08-21, reflection).** Üç şey netleşti:
-
-| Ölçüm | Sonuç |
-|---|---|
-| `DistributedCachingChatClient(IChatClient, IDistributedCache)` | 🚨 `IDistributedCache` bugün AgentPrism'de **hiç kullanılmıyor** (`grep -rn "IDistributedCache" src` → boş). Tüketici bir cache uygulaması seçmek zorunda kalır ve bellek içi olan çok örnekli kurulumda **sessizce işe yaramaz** — bu bir K1 (sıfır sürpriz) kararıdır |
-| `CacheKeyAdditionalValues { get; set; }` — `IReadOnlyList<Object>` | Kiracı anahtara **yapısal** olarak karışır; elle string birleştirme gerekmez, **K-525 sağlanır** |
-| `GetCacheKey(...)` ve `EnableCaching(...)` `protected virtual` | AgentPrism kiracı anahtarlamasını yapılandırmaya güvenmek yerine **zorlayabilir** |
-
-**Maliyet:** Düşük — yeni MEAI paketi yok; `IDistributedCache` kaydı tüketicinin kararı.
-**Risk:** Varsayılan **kapalı**. Agent'ın aynı soruya farklı yanıt vermesi
-beklenen davranıştır; önbellek bunu bozar. Kiracı yalıtımı önbellek
-anahtarında olmalıdır.
-🚨 **Ölçülmedi:** önbelleğin boru hattındaki **konumu**. Telemetrinin dışına
-konursa isabet eden bir çağrı `chat` span'i ve token kaydı **üretmez** (harcama
-yok, doğru olabilir); içine konursa sıfır token'lı bir span yazar. Karar
-Faz 68'in maliyet kırılımını etkiler ve plan anında verilmelidir
-([`ModelProviderRegistry.cs:300-360`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)).
-**Bağımlılık:** Yok.
-**Ekosistem:** LiteLLM ve Portkey'de standart (önceki turların damgası; 2026-08-21'de
-**yeniden doğrulanmadı**). Anthropic'in prompt caching'i ayrı bir kavramdır ve Faz 26'da zaten var.
-**Karşı görüş:** `CacheKeyAdditionalValues` **örnek başına** bir özelliktir —
-kiracı başına anahtarlama kiracı başına istemci örneği demektir; bu, bugünkü
-`CompiledAgentCache` kiracı anahtarlamasıyla (K-380) hizalanmalıdır.
-
----
-
-### F-134 · Eşzamanlı tool çağrısını açığa çıkar
-
-**Sorun:** Bir turda birden çok bağımsız tool çağrıldığında bugün sırayla
-çalışıyor. `FunctionInvokingChatClient.AllowConcurrentInvocation` MEAI'de
-zaten var (**Ölçüldü**, aynı reflection: `strings` çıktısında
-`AllowConcurrentInvocation`/`allowConcurrentInvocation` alanı görünüyor) ama
-AgentPrism hiçbir yerde açmıyor (`grep -rn AllowConcurrentInvocation src`
-yalnız bir **yorum** buluyor: [`ToolUsageAccumulator.cs:18`](../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)
-— sınıf zaten eşzamanlı çağrıyı bekleyerek `ConcurrentDictionary` kullanıyor,
-ama tetikleyen ayar hiçbir yerde `true` değil).
-**Kapsam:** `ChatClientBuilder` boru hattına bir agent/model tanımı bayrağı ekler.
-**Ölçüldü (2026-08-21):** ekleme noktası doğrulandı —
-[`ModelProviderRegistry.cs:317-321`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
-`.AsBuilder().UseFunctionInvocation(_loggerFactory).UseOpenTelemetry(...)`; K-320'nin
-merkezi kurulum noktası ayakta.
-**Değer:** Bağımsız tool'ları paralel çağıran bir turda gecikme düşer —
-örn. üç farklı API'ye bakan bir araştırma agent'ı.
-**Mercek:** 1, 4.
-**Hazırlık:** **Ölçüldü (2026-08-20).** MAF 1.18.0 (2026-08-18) bu yeteneği
-agent seviyesinde de öne çıkardı: "Allow agents to opt into concurrent tool
-invocation" ([release notes](https://github.com/microsoft/agent-framework/releases/tag/dotnet-1.18.0)).
-Pinlenmiş sürüm 1.16.0'da bu MEAI düzeyinde zaten var; agent-seviyesi
-harness entegrasyonu doğrulanmadı.
-**Maliyet:** Düşük — tek bayrak, yeni paket yok.
-**Risk:** Sıralı yan etkili tool'lar (ör. birbirine bağımlı yazma işlemleri)
-paralelleşirse sıra garantisi bozulur. Varsayılan **kapalı** olmalı; agent
-tanımında açıkça seçilmeli.
-**Bağımlılık:** Yok.
-**Ekosistem:** MAF 2026-08-18'de bunu ürün özelliği olarak öne çıkardı —
-kendi ekosistemimizin en taze sinyali.
-
-🚨 **Asıl risk ölçüldü (2026-08-21): eşzamanlılık AgentPrism'in AMBIENT tool
-bağlamına çarpar.** Tool katmanı iki yerde `FunctionInvokingChatClient.CurrentContext`
-okuyor — [`AuthorizingAIFunction.cs:107`](../src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs#L107)
-(çağrı kimliğiyle yetkilendirme) ve
-[`AgentPrismToolUsage.cs:56`](../src/AgentPrism.Core/Tools/AgentPrismToolUsage.cs#L56).
-Bayrak açılınca tool gövdeleri eşzamanlı koşar; bu ambient'ın çağrı başına doğru
-çözülüp çözülmediği **ölçülmemiştir**. Bu depo aynı sınıf tuzağı **beş kez**
-yaşadı (`MEMORY.md`, `docs/hafiza/cekirdek-calistirma.md`). Plan bunu ilk iş
-olarak bir davranış probuyla kanıtlamalıdır — bayrağı açmak son adımdır.
-
-**Karşı görüş:** Bugüne kadar hiçbir manuel test veya kullanıcı bu gecikmeyi
-sorun olarak bildirmedi; çoğu agent turu tek tool çağırıyor. Ölçülmeden
-"performans kazancı" iddia edilemez — ilk adım gerçek bir çok-tool senaryosunda
-benchmark almaktır, doğrudan bayrağı eklemek değil.
-
+- **F-45** Yanıt önbelleği → [Faz 81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+- **F-134** Eşzamanlı tool çağrısını açığa çıkar → [Faz 81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 - **F-112** Cache ve reasoning token kırılımı → [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
 ## C. Güvenlik, yönetişim ve uyum
@@ -875,7 +798,7 @@ Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](kesif/2026-08-21
 | Sıra | Küme | Kalemler | Ortak yanı | Bu turda ölçülen |
 |---|---|---|---|---|
 | 1 | **A** Tüketici yüzeyi kapıları — ✅ **tamamı plana döndü**: F-125 + F-136 → [Faz 79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) · F-129 → [Faz 80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | F-125 · F-129 · F-136 | Yeni yetenek/tanı/örnek sevk edilebilir, **hiçbir kapı kızarmaz** | F-136 **beş belgesiz kod** · F-125 prelüd **iki** yer tutucu · F-129 iddiası **yanlış çıktı**, kalem daraldı |
-| 2 | **B** Model boru hattı ergonomisi | F-45 · F-134 | İkisi de `ModelProviderRegistry` `.AsBuilder()` zincirine takılır, ikisi de varsayılan kapalı | F-45 `IDistributedCache` **yeni bağımlılık kararı** · F-134 **ambient `CurrentContext` riski** |
+| 2 | **B** Model boru hattı ergonomisi — ✅ **plana döndü**: F-45 + F-134 → [Faz 81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | F-45 · F-134 | İkisi de `ModelProviderRegistry` `.AsBuilder()` zincirine takılır, ikisi de varsayılan kapalı | F-45 `IDistributedCache` **yeni bağımlılık kararı** · F-134 **ambient `CurrentContext` riski** |
 | 3 | **C** Kayıt içeriğinin korunması | F-41 · F-87 | **Aynı dokuz sütun**; ayrı planlanırsa çatışır | Üç okuma yolu adlandırıldı: replay · eval terfisi · dosya araması |
 | 4 | **E** Dağıtım kanalı | F-50 · F-93 | Aynı OpenAPI belgesinden üretilir, aynı sürümleme sözleşmesi | Belge **yeterli** (0 eksik `operationId`) · "ikinci üreteç" kısıtı **konusuz** · npm gerçekten yeni kanal |
 
@@ -950,7 +873,7 @@ kalan iki satır F-34 (şablon) ve F-72 ⏸ (ACS).
 
 | Küme | Kalemler | Ortak yanı |
 |---|---|---|
-| **📋 Dalga 13 — seçildi** | ~~F-125·F-129·F-136~~ · F-45·F-134 · F-41·F-87 · F-50·F-93 | **Küme A bitti** (Faz 79 + Faz 80). Kalan sıra: B → C → E |
+| **📋 Dalga 13 — seçildi** | ~~F-125·F-129·F-136~~ · ~~F-45·F-134~~ · F-41·F-87 · F-50·F-93 | **Küme A ve B bitti** (Faz 79 · Faz 80 · Faz 81). Kalan sıra: C → E |
 | **Kusur kalemleri** | F-106, F-122, F-130, F-137, F-138 | Faza dönüşmez. F-133 **kapandı** (2026-08-21, K-541 — sabit sıra, yarış değil). Kalan dördü **izolasyonda geçiyor**; `kusur-giderme` bekliyor |
 | **Uyum** | F-72 ⏸ | .NET paketi hâlâ beta ve native (beş RID) |
 | **Guardrail devamı** | F-88, F-89, F-98 | Küme D olarak değerlendirildi ve **düşürüldü** (2026-08-21) |

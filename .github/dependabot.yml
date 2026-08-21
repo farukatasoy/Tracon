@@ -1,0 +1,142 @@
+# Bagimlilik suruklenmesi kapisi.
+#
+# NEDEN VAR: 2026-08-21 kesif turu olctu ki bu repo'da surumlerin bayatladigini
+# fark eden HICBIR mekanizma yoktu; MAF 1.16 -> 1.18, MEAI 10.8.3 -> 10.9.0 ve
+# MCP 2.0.0 -> 2.2.0 sapmalari ancak elle bir olcumle gorundu.
+#
+# Surumler yalnizca Directory.Packages.props icinde yasar (Central Package
+# Management); Dependabot NuGet guncellemelerini oraya yazar.
+#
+# Asagidaki `ignore` kalemleri KEYFI DEGILDIR — her biri Directory.Packages.props
+# icinde gerekcesi yazili bir sabittir. Bir kalemi buradan cikarmadan once oradaki
+# yorumu ve ilgili karari (docs/KARARLAR.md) oku.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # 1. NuGet — tum .NET paketleri (Directory.Packages.props)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # MAF'in GA, preview ve alpha katmanlari AYNI surum hattinda ilerler
+      # (K-008). Ayri PR'lara bolunurse hat kayar ve derleme kirilir.
+      microsoft-agent-framework:
+        patterns:
+          - "Microsoft.Agents.AI*"
+      # MEAI kendi icinde uc paket; ucu de ayni surumde olmak zorunda.
+      microsoft-extensions-ai:
+        patterns:
+          - "Microsoft.Extensions.AI*"
+      # `.Core` (istemci) ve `.AspNetCore` (sunucu) birlikte hareket eder (K-334).
+      model-context-protocol:
+        patterns:
+          - "ModelContextProtocol*"
+      # Microsoft.Extensions.* / AspNetCore.* yama hatti tek PR'da gelir;
+      # MEAI bu gruba GIRMEZ (kendi grubu var, farkli surum semasi).
+      microsoft-platform:
+        patterns:
+          - "Microsoft.Extensions.*"
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.Bcl.*"
+          - "Microsoft.Data.*"
+        exclude-patterns:
+          - "Microsoft.Extensions.AI*"
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "NSubstitute"
+          - "Shouldly"
+          - "Testcontainers*"
+          - "Microsoft.Playwright"
+          - "Microsoft.Testing.*"
+          - "SSH.NET"
+      analyzers:
+        patterns:
+          - "Meziantou.Analyzer"
+          - "Microsoft.CodeAnalysis.*Analyzers"
+          - "MinVer"
+    ignore:
+      # Kaynak ureteci, kendisini yukleyen derleyicinin Roslyn'inden YENI olamaz.
+      # AgentPrism net8.0'i da hedefler (K-005) ve .NET 8 SDK GA Roslyn 4.8.0
+      # tasir; daha yenisi eski SDK'da SESSIZCE yuklenmez.
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+        versions: ["> 4.8.0"]
+      # TrxReport 2.x, Microsoft.Testing.Platform 2.x ceker; xunit.v3 3.2.2
+      # platform v1 uzerine kuruludur ve calisma aninda TypeLoadException verir.
+      - dependency-name: "Microsoft.Testing.Extensions.TrxReport"
+        versions: [">= 2.0.0"]
+      # xunit.v3 4.x ayni kisitin diger ucudur: platform surumunu birlikte
+      # tasir. 3.x yama/minor guncellemeleri serbesttir.
+      - dependency-name: "xunit.v3"
+        versions: [">= 4.0.0"]
+      # Microsoft.OpenApi surumu bir CVE zorlamasidir (NU1903,
+      # GHSA-v5pm-xwqc-g5wc). 3.x major bir yuzey degisimidir ve
+      # Microsoft.AspNetCore.OpenApi'nin bekledigi hat degildir.
+      - dependency-name: "Microsoft.OpenApi"
+        versions: [">= 3.0.0"]
+      # SQLitePCLRaw 2.1.12 de bir CVE zorlamasidir (NU1903,
+      # GHSA-2m69-gcr7-jv3q). 3.x major, Microsoft.Data.Sqlite'in cektigi
+      # hattin disindadir.
+      - dependency-name: "SQLitePCLRaw.*"
+        versions: [">= 3.0.0"]
+
+  # ---------------------------------------------------------------------------
+  # 2. npm — arayuz (bundle butcesi 250 KB gzip; kapi dotnet build icindedir)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/src/AgentPrism.UI/frontend"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # 3. npm — dokuman sitesi (docs-site/)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/docs-site"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      docs-site:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # 4. GitHub Actions — ci.yml'deki action surumleri
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

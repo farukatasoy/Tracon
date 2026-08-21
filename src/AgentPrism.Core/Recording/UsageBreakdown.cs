@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// the same pattern <c>AgentPrismA2ABuilderExtensions</c> uses for
 /// <c>AgentRunMode</c> and <c>ChatHistoryReader</c> uses for <c>MAAI001</c>.
 /// <c>InputAudioTokenCount</c> and <c>OutputAudioTokenCount</c> are marked
-/// "for evaluation purposes only" in Microsoft.Extensions.AI 10.8.3;
+/// "for evaluation purposes only" in Microsoft.Extensions.AI 10.9.0;
 /// <c>CachedInputTokenCount</c> and <c>ReasoningTokenCount</c> are NOT, and are
 /// read here only so that all four counters travel together.
 /// </para>

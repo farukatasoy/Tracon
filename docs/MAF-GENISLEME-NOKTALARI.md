@@ -16,7 +16,26 @@
 
 ---
 
-Aşağıdaki imzalar **reflection ile doğrulanmıştır** (`Microsoft.Agents.AI` 1.16.0). Bir sonraki fazda yeni bir MAF tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
+Aşağıdaki imzalar **reflection ile doğrulanmıştır**. Bir sonraki fazda yeni bir MAF
+tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
+
+> **Sürüm damgası — 2026-08-21.** Bölüm başlıklarındaki damgalar imzanın **ilk**
+> ölçüldüğü sürümü söyler (MAF 1.16.0 · MEAI 10.8.3 · MCP 2.0.0). Pinlenmiş sürüm
+> bugün **MAF 1.18.0 · MEAI 10.9.0 · MCP 2.2.0**'dir. Yükseltmede iki tam yüzey
+> dump'ı alınıp diff'lendi: **hiçbir tip ve hiçbir üye kaldırılmadı** — değişimin
+> tamamı eklemedir, yani aşağıdaki her imza bugün de geçerlidir. Yöntem:
+> [`maf-api-kesfi`](../.agents/skills/maf-api-kesfi/SKILL.md) § *Sürüm yükseltirken*.
+>
+> Eklenenlerin tamamı (altı üye, yedi tip):
+>
+> | Sürüm | Eklenen | AgentPrism'e etkisi |
+> |---|---|---|
+> | MAF 1.18.0 | `ChatClientAgentOptions.AllowConcurrentInvocation` | 🚨 Eşzamanlı tool çağrısı artık **agent seviyesinde** açılabilir. F-134'ün "agent-seviyesi entegrasyon ölçülmedi" satırı kapandı; ekleme noktası [`AgentDefinitionCompiler.cs:1050`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L1050) — Faz 81 §81.5 |
+> | MAF 1.18.0 | `ChatClientAgentOptions.EnableInvocableFunctionBypassing` · `ChatClientBuilderExtensions.UseInvocableFunctionBypassing` (MEAI) | Kullanılmıyor. Model bir tool'u çağırmadan sonucunu üretmesine izin verir; AgentPrism'in kayıt ve yetkilendirme zinciri her çağrıyı görmek üzerine kuruludur |
+> | MAF 1.18.0 | `ToolApprovalAgentOptions.MaxAutoApprovalIterations` | Kullanılmıyor — AgentPrism onay döngüsünü kendi yürütür (K-541) |
+> | MAF 1.18.0 | `BackgroundAgentsProvider.ReleaseSessionAsync(session, cancelRunning, timeout, ct)` | Kullanılmıyor; arka plan agent'ları K-062 kapsamında kapalı |
+> | MEAI 10.9.0 | `RoutingChatClient` · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` · `ScoreAggregation` | 🚨 Yedek zinciri artık **MEAI'de var**. AgentPrism'inki Faz 62'de yazıldı ve devre kesici, ön uçuş denetimi ve atıf kaydıyla birleşiktir; değiştirmek bir karar işidir, bir yükseltme işi değil |
+> | MCP 2.2.0 | `McpServerHandlers.SubscriptionsListenHandler` | Kullanılmıyor — AgentPrism'in MCP sunucusu abonelik yayınlamıyor |
 
 ### Faz 1'de kullanılanlar
 
