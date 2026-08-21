@@ -4,6 +4,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-45**, **F-134** — Dalga 13 Küme B
 > **Önkoşul:** [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) — halka sırası kuralı ve `ModelBinding` bayrak emsali oradan gelir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
+> **🚨 Plan sonrası sürüm değişimi:** Plan MAF 1.16.0 · MEAI 10.8.3'e karşı yazıldı; depo 2026-08-21'de **MAF 1.18.0 · MEAI 10.9.0 · MCP 2.2.0**'a yükseldi (K-543, K-544). İki etkisi vardır ve ikisi de §81.5 ile §81.1'dedir: eşzamanlı tool bayrağının **ikinci bir evi** doğdu, ve MEAI 10.9.0 kendi yönlendirme/yedek istemcilerini getirdi (`RoutingChatClient` ailesi) — bu faz onları kullanmaz, ama halka sırası kararı verilirken bilinmelidir
 > **Yeni paket:** Yok — `Microsoft.Extensions.Caching.Abstractions` 10.0.10 `AgentPrism.Core`'un grafiğinde **zaten var** (üç TFM'de de, `Microsoft.Extensions.AI` üzerinden; ölçüldü 2026-08-21) · **Migration:** Yok — `ModelBinding` `jsonb` sütununa bütün olarak serileşir
 > **Public API:** Büyüyor — iki `ModelBinding` alanı, bir `sealed record`, bir `public class`. `PublicAPI.Shipped.txt` dosyalarının toplamı **16 satır** (yalnız başlık satırları; ölçüldü) → Faz 7'den önce eklemek ucuzdur, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → `guides/model-providers.md` (önbellek), `guides/reliability.md` (önbelleğin devre kesici ve yedek zincirle ilişkisi), `concepts/tools.md` §"Authorization and timeout" kardeşi (eşzamanlı çağrı), `capabilities.md` §"Agent design and model control" tablosuna iki satır
@@ -238,6 +239,23 @@ yapılandırma geri çağrısına geçer:
 ```csharp
 .UseFunctionInvocation(_loggerFactory, fic => fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls)
 ```
+
+> 🚨 **2026-08-21 sürüm yükseltmesi bu tasarımı etkiliyor — plan yazıldıktan
+> SONRA ölçüldü.** Depo MAF 1.16.0'dan **1.18.0**'a yükseltildi (K-543 turu) ve
+> tam yüzey diff'i şunu buldu: **`ChatClientAgentOptions.AllowConcurrentInvocation`
+> artık var.** Yani bayrağın iki olası evi vardır ve **plan anındaki tek ev
+> varsayımı geçersizdir**:
+>
+> | Ev | Nokta | Ne anlama gelir |
+> |---|---|---|
+> | Boru hattı (planın yazdığı) | [`ModelProviderRegistry.cs:319`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L319) | Bayrak `IChatClient` örneğine bağlanır. `ModelProviderRegistry` istemciyi **kiracı + sağlayıcı** başına önbelleğe alır; agent başına bir bayrak burada agent başına bir istemci örneği demektir |
+> | Agent seçenekleri (1.18.0'ın getirdiği) | [`AgentDefinitionCompiler.cs:1050`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L1050) — `new ChatClientAgentOptions { ... }` | Bayrak **derlenmiş agent'a** bağlanır. `ModelBinding` zaten agent başınadır; `Fallbacks`/`ResponseFormat` ile aynı yolu izler ve istemci önbelleğini bölmez |
+>
+> **Uygulayan oturum bunu karara bağlamalıdır.** F-45'in önbellek anahtarı da
+> aynı soruyu (örnek başına mı, agent başına mı) sorar; ikisi tek fazdadır ve
+> cevabın tutarlı olması gerekir. Aynı yükseltme F-134'ün aday kaydındaki
+> "agent-seviyesi harness entegrasyonu **doğrulanmadı**" satırını da kapattı —
+> yüzey artık ölçüldü.
 
 ### Ölçülen: tool katmanı eşzamanlılığa zaten hazır
 

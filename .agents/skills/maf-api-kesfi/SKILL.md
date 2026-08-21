@@ -100,12 +100,50 @@ Boş `packages` dizisi paketin var olmadığı anlamına gelir.
 
 ---
 
+## Sürüm yükseltirken — iki dump al, diff'le
+
+Bir MAF/MEAI/MCP sürümünü yükseltirken "derleme geçti" **yeterli kanıt değildir**:
+derleme yalnız BUGÜN çağırdığımız üyeleri kanıtlar. Kaldırılan bir üye, henüz
+kullanmadığımız bir genişleme noktasını sessizce kapatabilir; eklenen bir üye ise
+planlanmış bir fazın tasarımını değiştirebilir.
+
+Script sürümleri `Directory.Packages.props`'tan okur; bu yüzden **eski sürüm için
+ikinci bir kök** kurulur:
+
+```bash
+SP=/tmp/apidiff && mkdir -p $SP/eski/.agents/skills/maf-api-kesfi/scripts
+cp .agents/skills/maf-api-kesfi/scripts/dump-api.sh $SP/eski/.agents/skills/maf-api-kesfi/scripts/
+sed 's|<MicrosoftAgentsAIVersion>YENI|<MicrosoftAgentsAIVersion>ESKI|' \
+  Directory.Packages.props > $SP/eski/Directory.Packages.props
+
+TMPDIR=$SP/t1 bash $SP/eski/.agents/skills/maf-api-kesfi/scripts/dump-api.sh '*' > $SP/eski.txt
+TMPDIR=$SP/t2 .agents/skills/maf-api-kesfi/scripts/dump-api.sh '*'              > $SP/yeni.txt
+```
+
+Düz `diff` **yanıltır**: aynı üye satırı başka bir tipe eklendiğinde "değişmedi"
+görünür. Karşılaştırma **tip kapsamlı** yapılır — her tipin üye kümesi ayrı ayrı
+(`>>> ` satırı tip, girintili satırlar üyedir; iki dosyayı bu yapıya göre ayrıştır
+ve tip tip küme farkı al).
+
+**Kaldırma varsa yükseltme bir kusur işidir**, bir bakım işi değil. Ekleme varsa
+sonucu [`docs/MAF-GENISLEME-NOKTALARI.md`](../../../docs/MAF-GENISLEME-NOKTALARI.md)
+§ *Sürüm damgası* tablosuna yaz — hangi eklemenin **kullanılmadığını** da yaz, yoksa
+sonraki tur onu yeniden keşfeder.
+
+🚨 **Reflection davranışı görmez.** İmza aynı kalıp davranış değişebilir: 2026-08-21
+yükseltmesinde `OpenAIResponses.ToAgentRunRequest` aynı imzayla `JsonException`
+yerine `ArgumentException` atmaya başladı. Sevk edilen bir metin bir istisna tipini,
+bir varsayılan değeri veya bir hata mesajını adıyla anıyorsa onu **küçük bir probe
+projesiyle** yeniden ölç; dump yetmez.
+
+---
+
 ## Alternatif: NuGet paketinin içini açma
 
 Hangi TFM'lerin desteklendiğini görmek için:
 
 ```bash
-curl -sL "https://api.nuget.org/v3-flatcontainer/microsoft.agents.ai/1.16.0/microsoft.agents.ai.1.16.0.nupkg" -o /tmp/p.zip
+curl -sL "https://api.nuget.org/v3-flatcontainer/microsoft.agents.ai/1.18.0/microsoft.agents.ai.1.18.0.nupkg" -o /tmp/p.zip
 unzip -l /tmp/p.zip | grep -oE 'lib/[a-z0-9.]+/' | sort -u
 ```
 
