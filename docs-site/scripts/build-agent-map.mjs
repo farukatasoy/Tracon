@@ -4,20 +4,23 @@
 // artifacts, so the map can never disagree with the documented capability set:
 //
 //   src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md  shipped in the nupkg
-//   docs-site/public/llms.txt                                   same map, site addresses
+//   docs-site/public/llms.txt                                   same map + a page index
 //   docs-site/public/llms-full.txt                              every hand-written page
 //
-// The first two are budgeted: an agent reads them at session start, so they must
-// stay small enough to be worth reading. The generated API and HTTP references are
-// deliberately absent from all three — the compiler and XML documentation already
-// cover that surface, and ~1.7M tokens would burn the budget for nothing.
+// They are three sizes for three questions: which capability exists, which page
+// explains it, and what that page says. The first two are budgeted — one is read
+// at the start of every session from disk, the other is fetched over the network
+// on purpose — and each has its own ceiling below. The generated API and HTTP
+// references are deliberately absent from all three: the compiler and XML
+// documentation already cover that surface, and ~1.7M tokens would burn the
+// budget for nothing.
 //
 // Run:    node scripts/build-agent-map.mjs
 // Verify: node scripts/build-agent-map.mjs --check   (also run by check-content.mjs)
 
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
@@ -32,11 +35,24 @@ export const siteUrl = 'https://farukatasoy.github.io/AgentPrism/';
  * The agent map is read at the start of every session in a consumer repository,
  * so it is budgeted rather than left to grow. 10 KiB is roughly 2500 tokens:
  * cheap enough to always read, and far from the ~1.7M tokens of the generated
- * references. The complete map measures ~7.7 KB today, so the budget leaves
- * room for roughly thirty more capabilities. Overflow is not truncated —
+ * references. The complete map measures ~8.4 KB today, so the budget leaves
+ * room for roughly twenty more capabilities. Overflow is not truncated —
  * generation fails, and the maintainer decides what moves to llms-full.txt.
  */
 export const agentMapBudgetBytes = 10240;
+
+/**
+ * llms.txt is the same map plus one line per hand-written page, and it is
+ * budgeted separately because it is read differently: an agent fetches it over
+ * the network, deliberately, when it wants to know which page answers its
+ * question — while the shipped map is read at the start of every session from
+ * disk. The page index measures ~8.0 KB on its own, so the two cannot share one
+ * ceiling without either starving the map or lifting its limit.
+ */
+export const llmsBudgetBytes = 20480;
+
+/** The byte ceiling of each budgeted artifact. */
+export const budgets = { agentMap: agentMapBudgetBytes, llms: llmsBudgetBytes };
 
 export const outputs = {
   agentMap: join(repositoryRoot, 'src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md'),
@@ -52,16 +68,31 @@ const fullTextRootPages = ['capabilities.md', 'packages.md', 'troubleshooting.md
 export function build() {
   const capabilities = parseCapabilities();
   const packages = readPackages();
-  const body = renderMap(capabilities, packages);
+  const pages = handWrittenPages().map(readPage);
+  const llmsFull = renderFullText(pages);
+
+  // The map warns how large the full text is, so the size is measured rather
+  // than typed: a number written by hand goes stale silently, and this one only
+  // exists to stop an agent from fetching 400 KB it does not need. It is rounded
+  // hard on purpose - the revision below is a hash of this text, and a figure
+  // that moved with every prose edit would report every consumer's map as stale.
+  const body = renderMap(capabilities, packages, roundedKilobytes(llmsFull));
   const revision = createHash('sha256').update(body).digest('hex').slice(0, 8);
 
   const agentMap = `${marker(revision)}\n${body}`;
 
-  // The site copy is the same map: one revision, one set of facts. It adds the
-  // one address that only makes sense on the web — the concatenated full text.
-  const llms = `${agentMap}- Full text of every hand-written page: ${siteUrl}llms-full.txt\n`;
+  // The site copy is the same map plus the page index: one revision, one set of
+  // facts, and the one thing only a networked reader can act on - a link per
+  // page. The map itself names both site artifacts, so a reader who only has the
+  // shipped copy learns they exist too.
+  const llms = `${agentMap}${renderIndex(pages)}`;
 
-  return { agentMap, llms, llmsFull: renderFullText() };
+  return { agentMap, llms, llmsFull };
+}
+
+/** The size of an artifact, coarse enough to stay put across ordinary edits. */
+function roundedKilobytes(text) {
+  return Math.round(Buffer.byteLength(text) / 100000) * 100;
 }
 
 /** The single line APG0401 reads. Both artifacts carry the same revision. */
@@ -225,7 +256,7 @@ function readPackages() {
     .sort((left, right) => left.name.localeCompare(right.name, 'en'));
 }
 
-function renderMap({ lead, sections }, packages) {
+function renderMap({ lead, sections }, packages, fullTextKilobytes) {
   const lines = [];
 
   lines.push('# AgentPrism');
@@ -275,6 +306,10 @@ function renderMap({ lead, sections }, packages) {
   lines.push('- Exact local paths for the version you have: AgentPrism.LocalReference.md, beside each project that references AgentPrism');
   lines.push(`- Capability map, with the boundary of each capability: ${siteUrl}capabilities/`);
   lines.push(`- Guides, concepts, and configuration reference: ${siteUrl}`);
+  lines.push(`- Which page answers what, one line per page: ${siteUrl}llms.txt`);
+  lines.push(
+    `- Full text of every hand-written page (about ${fullTextKilobytes} KB - prefer one page above): ${siteUrl}llms-full.txt`,
+  );
   lines.push(`- HTTP API reference: ${siteUrl}http-api/`);
   lines.push(`- .NET API reference: ${siteUrl}api/`);
   lines.push('');
@@ -282,7 +317,13 @@ function renderMap({ lead, sections }, packages) {
   return `${lines.join('\n')}\n`;
 }
 
-function renderFullText() {
+/**
+ * Every hand-written page, in one deterministic order. The index and the full
+ * text walk the SAME list on purpose: a page that appears in one and not the
+ * other would be a page an agent is told about and cannot read, or can read and
+ * is never told about.
+ */
+function handWrittenPages() {
   const files = [];
 
   for (const page of fullTextRootPages) {
@@ -295,6 +336,76 @@ function renderFullText() {
     if (existsSync(path)) files.push(...collect(path).filter((file) => file.endsWith('.md') || file.endsWith('.mdx')));
   }
 
+  return files.sort((left, right) => left.localeCompare(right, 'en'));
+}
+
+/**
+ * One page: what it is called, what it answers, and where it is published.
+ *
+ * A missing title or description FAILS generation rather than producing a
+ * shorter index. A silently skipped page is the same defect as an empty map: the
+ * artifact still looks complete, and the page it omits is the one nobody finds.
+ */
+function readPage(file) {
+  const text = readFileSync(file, 'utf8');
+  const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? '';
+
+  const title = field(frontmatter, 'title');
+  const description = field(frontmatter, 'description');
+
+  if (!title || !description) {
+    throw new Error(
+      `${relative(siteRoot, file)}: the page index needs both 'title' and 'description' in the frontmatter; ` +
+        `this page has ${title ? 'no description' : description ? 'no title' : 'neither'}. ` +
+        'Add the missing field - a page cannot be listed without it.',
+    );
+  }
+
+  // An explicit slug wins, exactly as Starlight resolves it; without one the
+  // route comes from the file path, with index.md standing for its directory.
+  const slug =
+    field(frontmatter, 'slug') ??
+    relative(docsRoot, file)
+      .replaceAll('\\', '/')
+      .replace(/\.mdx?$/, '')
+      .replace(/(^|\/)index$/, '');
+
+  return { title, description, slug, body: text.replace(/^---\n[\s\S]*?\n---\n/, '').trim() };
+}
+
+/** One frontmatter field, unquoted, or null when the page does not declare it. */
+function field(frontmatter, name) {
+  const value = new RegExp(`^${name}:\\s*(.+)$`, 'm').exec(frontmatter)?.[1].trim();
+
+  return value ? value.replace(/^['"]|['"]$/g, '') : null;
+}
+
+/**
+ * The layer between the map and the full text: the map names a capability, this
+ * names the page that explains it, and only then does a whole page get read. It
+ * lives in llms.txt alone - the shipped map points at it by address, because a
+ * consumer's copy of these links would go stale with the site rather than with
+ * the package.
+ */
+function renderIndex(pages) {
+  const lines = [
+    '',
+    '## Which page answers what',
+    '',
+    'One line per hand-written page. Read the page that matches your question',
+    'rather than the concatenated full text, which is far larger and answers the',
+    'same question with everything else attached.',
+    '',
+  ];
+
+  for (const page of pages) {
+    lines.push(`- [${page.title}](${siteUrl}${page.slug}${page.slug ? '/' : ''}) — ${page.description}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+function renderFullText(pages) {
   const parts = [
     '# AgentPrism — full documentation',
     '',
@@ -304,12 +415,8 @@ function renderFullText() {
     '',
   ];
 
-  for (const file of files.sort((left, right) => left.localeCompare(right, 'en'))) {
-    const text = readFileSync(file, 'utf8');
-    const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(text);
-    const title = frontmatter ? (/^title:\s*(.+)$/m.exec(frontmatter[1])?.[1] ?? '') : '';
-
-    parts.push('---', '', `# ${title.replace(/^['"]|['"]$/g, '')}`, '', text.replace(/^---\n[\s\S]*?\n---\n/, '').trim(), '');
+  for (const page of pages) {
+    parts.push('---', '', `# ${page.title}`, '', page.body, '');
   }
 
   return `${parts.join('\n')}\n`;
@@ -387,11 +494,11 @@ if (isMain) {
 export function verifyBudget(built) {
   const problems = [];
 
-  for (const key of ['agentMap', 'llms']) {
+  for (const [key, budget] of Object.entries(budgets)) {
     const size = Buffer.byteLength(built[key]);
 
-    if (size > agentMapBudgetBytes) {
-      problems.push(`${outputs[key]} is ${size} bytes; the budget is ${agentMapBudgetBytes}.`);
+    if (size > budget) {
+      problems.push(`${outputs[key]} is ${size} bytes; the budget is ${budget}.`);
     }
   }
 
