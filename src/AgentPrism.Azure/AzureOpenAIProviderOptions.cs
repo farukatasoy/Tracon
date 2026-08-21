@@ -59,7 +59,10 @@ public sealed class AzureOpenAIProviderOptions
     /// <example>
     /// <code>
     /// // In the consumer's project: &lt;PackageReference Include="Azure.Identity" /&gt;
-    /// options.CredentialFactory = static () =&gt; new DefaultAzureCredential();
+    /// var options = new AzureOpenAIProviderOptions
+    /// {
+    ///     CredentialFactory = static () =&gt; new DefaultAzureCredential(),
+    /// };
     /// </code>
     /// </example>
     /// <para>

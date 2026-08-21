@@ -71,6 +71,11 @@ Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koş
 | 22 | `MT-DDG-022` | — | Bir paket README'sine `site.config.mjs`'in `formerHosts` listesindeki bir barındırıcı yazılır, `npm run check:content` | Kızarır — eski barındırıcı artık siteyi sunmuyor |
 | 23 | `MT-DDG-023` | — | `DocumentationLinks.Site` değiştirilir (ör. `https://example.invalid/`), `dotnet test --filter DiagnosticIntegrityTests` | Her `APG` tanısı için kızarır; C# sabiti ile `site.config.mjs` ayrılamaz |
 | 24 | `MT-DDG-024` | Site derlendi | `dist/index.html`'de `rel="canonical"`, `dist/robots.txt` ve `dist/sitemap-index.xml` okunur | Üçü de `site.config.mjs`'teki adresi taşır; `robots.txt` sitemap'i işaret eder |
+| 25 | `MT-DDG-025` | Temiz çalışma kopyası (Faz 79, `ExampleCompilationTests`) | Bir `<example>` bloğuna var olmayan bir üye eklenir (`options.NoSuchThing = 1;`), `dotnet test tests/AgentPrism.Generators.UnitTests -c Release` | Test **düşer** ve mesaj dosya adını + satırı (`Origin`) ve `CS1061`'i adlandırır |
+| 26 | `MT-DDG-026` | Aynı | `ToolDiagnostics.cs`'e `APG0008` adında yeni bir descriptor eklenir (**ve** `AnalyzerReleases.Unshipped.md`'ye satırı — yoksa `RS2000` build'i önceden kırar), testler koşulur | `Every_diagnostic_is_explained_on_the_troubleshooting_page` düşer: `APG0008` sayfada yok |
+| 27 | `MT-DDG-027` | Aynı | `troubleshooting.md`'den `### A tool name is invalid (APG0002)` bölümü silinir, testler koşulur | Aynı test düşer; `The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists` etkilenmez (silinen kod hâlâ descriptor'da var) |
+| 28 | `MT-DDG-028` | Aynı | `troubleshooting.md`'ye var olmayan bir `APG0008` metni eklenir (descriptor eklenmeden), testler koşulur | `The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists` düşer — ölü referans |
+| 29 | `MT-DDG-029` | Aynı | `src/*/**.cs` altındaki tüm `<example>` blokları geçici olarak silinir, `dotnet test tests/AgentPrism.Generators.UnitTests -c Release --filter-class "*ExampleCompilationTests*"` | `Every_example_tag_is_extracted_as_a_block` düşer: "No <example> block was found" |
 
 ---
 

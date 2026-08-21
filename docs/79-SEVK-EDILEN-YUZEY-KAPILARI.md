@@ -1,6 +1,6 @@
 # Faz 79 — Sevk Edilen Yüzey Kapıları
 
-> **Durum:** 📋 Planlandı (2026-08-21)
+> **Durum:** ✅ Tamamlandı (2026-08-21)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-125**, **F-136** (Dalga 13, Küme A'nın C# kapı yarısı)
 > **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `APG0402`'yi ekledi; bu faz onu da kapsar
 > **Paketler:** `AgentPrism.Generators` (yalnız tanı metinleri) · test projesi `AgentPrism.Generators.UnitTests`
@@ -266,8 +266,8 @@ sınırını geçmiyor. İkisi de derleme anı kapısıdır.
 
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| 1 | Prelüd tek bir sabit `using` kümesi mi, blok başına çıkarım mı? | A: tek sabit küme (tüm paketlerin ana namespace'leri) · B: blokta geçen tipe göre çıkarım | **A** — 49 blok için tek küme ölçülebilir ve okunur; B bir mini derleyici yazmaktır |
-| 2 | `AgentPrism.UI` referansı derleme süresini kabul edilemez büyütürse? | A: o tek bloğu başka pakete taşı · B: UI'yi kapsam dışı bırak ve baseline'a yaz | **A** — muafiyet açmamak §79.1'in kararıdır; ölçüm yapılmadan seçilmez |
+| 1 | Prelüd tek bir sabit `using` kümesi mi, blok başına çıkarım mı? | A: tek sabit küme (tüm paketlerin ana namespace'leri) · B: blokta geçen tipe göre çıkarım | **A seçildi** — ama plan `only two placeholder`'ı ölçmeden varsaymıştı; gerçek küme çok daha büyük çıktı, bkz. Plandan Sapmalar #1 |
+| 2 | `AgentPrism.UI` referansı derleme süresini kabul edilemez büyütürse? | A: o tek bloğu başka pakete taşı · B: UI'yi kapsam dışı bırak ve baseline'a yaz | **Ölçüldü, sorun çıkmadı**: test projesi için hot incremental build ~7 sn, temiz (obj/bin silinmiş) build ~8.4 sn — CLAUDE.md'nin "~5 sn" taban çizgisiyle aynı mertebede. A/B seçimi gerekmedi |
 | 3 | Beş tanı bölümü `troubleshooting.md`'nin neresine girer? | A: var olan `APG` bölümünün altına sırayla · B: yeni bir "Generator diagnostics" alt başlığı | **A** — sayfa zaten dokuz kodu sıralı taşıyor; ikinci bir grup okuyucuyu böler |
 | 4 | Kapı `docs-site/dist/` çıktısını mı, kaynak `.md`'yi mi okur? | A: kaynak `.md` · B: üretilen `dist/` | **A** — `dist/` derleme çıktısıdır ve temiz klonda yoktur; `check-content.mjs` tuzağı aynısıdır (`hafiza/dokumantasyon.md`) |
 
@@ -275,19 +275,19 @@ sınırını geçmiyor. İkisi de derleme anı kapısıdır.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `ExampleCompilationTests` **49** bloğun tamamını derler; blok sayısı iddiası testte yazılıdır
-- [ ] İki elipsis bloğu yeniden yazılmıştır ve derlenir; **muafiyet tabanı açılmamıştır**
-- [ ] `<example>` taşıyan **15 paketin tamamı** test projesinden referanslıdır; referans kümesi ile bulunan paket kümesi testte karşılaştırılır
-- [ ] Sıfır blok bulunursa test düşer (boş küme tuzağı kapatıldı)
-- [ ] `DiagnosticIntegrityTests` **14** `APG` kodunun tamamını `troubleshooting.md`'de bulur; ters yön (ölü satır) de denetlenir
-- [ ] `APG0002`…`APG0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
-- [ ] Referans eklemenin **derleme süresine etkisi ölçüldü** ve dokümana yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/31-DOKUMAN-DOGRULUGU.md` içine eklendi; 1–4 koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- [x] `ExampleCompilationTests` **49** bloğun tamamını derler/doğrular; blok sayısı iddiası testte yazılıdır — **not:** 49'un 45'i C# (Roslyn derlemesi), 4'ü `<code language="json">` (config parçası, `JsonDocument.Parse` ile doğrulanır). Plan "49 blok Roslyn ile derlenir" diyordu; ölçüm bunu düzeltti (Plandan Sapmalar #2)
+- [x] İki elipsis bloğu yeniden yazılmıştır ve derlenir; **muafiyet tabanı açılmamıştır** — **not:** gerçekte değişen ikinci dosya plandaki gibi `AgentPrismMcpServerBuilderExtensions.cs` değil, `AzureOpenAIProviderOptions.cs`'dir (Plandan Sapmalar #3)
+- [x] `<example>` taşıyan **15 paketin tamamı** test projesinden referanslıdır; referans kümesi ile bulunan paket kümesi testte karşılaştırılır
+- [x] Sıfır blok bulunursa test düşer (boş küme tuzağı kapatıldı) — bağımsız sayım çapraz kontrolüyle (`CountRawExampleTags`), ablasyonla doğrulandı (bir `ProjectReference` kaldırılıp testin gerçekten kırmızı olduğu görüldü, sonra geri eklendi)
+- [x] `DiagnosticIntegrityTests` **14** `APG` kodunun tamamını `troubleshooting.md`'de bulur; ters yön (ölü satır) de denetlenir — her iki yön de ad hoc kırmızı/yeşil ile canlı doğrulandı
+- [x] `APG0002`…`APG0006` `troubleshooting.md`'de anlatılmıştır — İngilizce, her biri "ne oldu / neden / düzeltme"
+- [x] Referans eklemenin **derleme süresine etkisi ölçüldü** ve dokümana yazıldı — Açık Soru 2
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [~] `samples/AgentPrism.Api` ile gerçek `run` yapılmadı — **gerekçe:** bu faz hiçbir runtime/HTTP yüzeyine dokunmuyor (bkz. "Planlanan Public API": public yüzey, HTTP endpoint'i ve arayüz payı üçü de "Yok"). İki kalem de derleme-anı/doküman kapısıdır; sample'da gösterilecek yeni bir çalışma-zamanı davranışı yok. Bunun yerine dokuz paketin **gerçek** unit/functional test paketleri (Anthropic, Azure, Google, Mcp, OpenAI, Testing, Voice, Workflows, AspNetCore.FunctionalTests — toplam ~1000+ test) yeniden koşuldu ve hepsi geçti; bu, "gerçek entegrasyon" ihtiyacının regresyon açısından karşılığıdır
+- [x] `secret` taraması boş döndü (yalnız bu fazın dokunduğu dosyalarda; repodaki önceden var olan yerel test `Password=`/`sk-` literalleri bu fazdan bağımsızdır)
+- [x] Manuel kabul case'leri `docs/manuel-test/31-DOKUMAN-DOGRULUGU.md` içine eklendi (`MT-DDG-025`…`MT-DDG-029`); 25, 26, 28 canlı koşuldu ve kırmızı olduğu görüldü, sonra geri alındı. 27 ve 29 mekanizma olarak aynı kod yolunu kullanır (25/26/28 ile doğrulanmıştır), ayrıca koşulmadı
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🟡 kapandı, bkz. Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (`check:content` + `build` + `check:links` + `check:weight`) dördü de temiz
 
 ### Doğrulama komutları
 
@@ -325,29 +325,142 @@ grep -cv '^#' tests/AgentPrism.Core.UnitTests/Architecture/capability-example-ba
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. 🚨 **§79.1'in "yalnız iki yer tutucu (`app`, `agentPrism`) yeter" iddiası ölçülmeden
+   yazılmıştı ve yanlıştı.** Adım 1 (`faz-uygulama`) gereği kod yazmadan önce
+   ölçüldü: 49 bloğun serbest tanımlayıcılarını çıkaran küçük bir Python taraması,
+   `builder` (`IHostApplicationBuilder`) adının **36/45** C# blokta bağlanmamış
+   hâlde geçtiğini gösterdi — plan bunu hiç saymamıştı. Gerçek prelüd on iki
+   değişken (`builder`, `app`, `agentPrism`, `apiKey`, `connectionString`,
+   `configuration`, `refundTool`, `endpoint`, `audio`, `request`, `price`, `args`)
+   ve beş test-yalnız saplama tip (`OnPremiseModelProvider`, `IOrderGateway`/
+   `OrderGateway`, `NightlyReportJobHandler`, `CustomerNameGuard`, paylaşılan
+   `OrderTools`) taşıyor — `ExamplePrelude.cs`. Her biri ölçümle geldi: derleme
+   önce çalıştırıldı, gerçek `CSxxxx` hatası okundu, sonra placeholder eklendi
+   (Adım 3 — "sözleşmeyi önce düşen testle sabitle").
+2. **49 bloğun tamamı Roslyn ile derlenmiyor — 45'i C#, 4'ü JSON.** Plan
+   "49 blok Roslyn ile derlenir" diyordu; ölçüm dört bloğun `<code
+   language="json">` taşıdığını gösterdi (`ModelBinding.cs`,
+   `Anthropic/Azure/OpenAIModelCatalog.cs` — `appsettings.json` parçaları, tam
+   belge değil). `ExampleBlock.Language` alanı eklendi; JSON bloklar
+   `{ + içerik + }` sarılıp `JsonDocument.Parse` ile doğrulanıyor, Roslyn'e hiç
+   girmiyor. DoD'nin "49 bloğun tamamı derlenir" cümlesi bu ayrımla okunmalı.
+3. **İkinci elipsis bloğu plandaki dosya değil, farklı bir dosyaydı.** §79.1
+   `AgentPrismMcpServerBuilderExtensions.cs`'i "derlenmeyen elipsis bloğu"
+   olarak adlandırıyordu; ölçüm gösterdi ki oradaki `// ...` geçerli bir C#
+   yorumudur ve blok prelüd placeholder'ları eklenince zaten derleniyordu —
+   hiç dokunulmadı. Gerçekte ikinci düzeltme gereken blok
+   `AzureOpenAIProviderOptions.cs`'ti: `options.CredentialFactory = ...;`
+   bildirilmemiş bir `options` adına atıfta bulunuyordu (`CS0103`). Çözüm
+   örneği kendi kendine yeterli hâle getirmek oldu:
+   `var options = new AzureOpenAIProviderOptions { CredentialFactory = ... };`.
+4. **`OrderTools` örneği `static` sınıf olarak yazılamaz; `AgentPrismToolAttribute.cs`
+   düzeltildi.** `AgentPrismToolAttribute.cs`'in örneği `internal static class
+   OrderTools` gösteriyordu (elipsis düzeltmesiyle birlikte); `IAgentPrismBuilder.cs`'in
+   AYRI bir örneği aynı adı `.AddToolsFrom<OrderTools>()` ile generic tip
+   argümanı yapıyordu. C#, statik bir sınıfı generic tip argümanı olarak KABUL
+   ETMEZ (`CS0718`) — iki örnek birlikte kopyalanan bir tüketicinin derlemesi
+   gerçekten kırılırdı. `static` kaldırıldı; tool metodu (`GetOrderStatus`)
+   APG0007 gereği `static` kalmaya devam ediyor, yalnız konteyner sınıf değil.
+   Karar defterine yazıldı: K-546.
+5. **Bir NuGet paketi test-yalnız eklendi: `Azure.Identity` 1.21.0.**
+   `AzureOpenAIProviderOptions.CredentialFactory`'nin örneği `DefaultAzureCredential`
+   adlandırıyor — gerçek bir tip, `AgentPrism.Azure`'un KASITLI OLARAK bağımlı
+   olmadığı bir pakette (bkz. o sınıfın kendi XML dokümanı). Kapı bu örneğin
+   gerçekten derlendiğini kanıtlamak zorunda olduğu için paket test projesine
+   eklendi; `AgentPrism.Azure`'un kendi bağımlılık grafiği değişmedi (doğrulandı:
+   `src/AgentPrism.Azure.csproj` dokunulmadı). Karar defterine yazıldı: K-547.
+6. **`samples/AgentPrism.Api` ile gerçek `run` yapılmadı** — bu faz hiçbir
+   runtime veya HTTP yüzeyine dokunmuyor (planın kendi "Planlanan Public API"
+   bölümü zaten üçünü de "Yok" diye işaretliyordu). Bunun yerine dokuz paketin
+   gerçek unit/functional test paketleri (~1000+ test) yeniden koşuldu; hiçbiri
+   kırılmadı. DoD'de `[~]` ile işaretlendi, gerekçesiyle.
+7. **İntegrasyon testleri (Postgres/SqlServer Testcontainers) ve Playwright
+   E2E paketi bu oturumda koşulmadı** — kasıtlı: hiçbir `src/` çalışma-zamanı
+   davranışı değişmedi (yalnız test-yalnız kod, XML doküman yorumu, ve bir
+   nesne-başlatıcı söz dizimi değişikliği — davranışsız). Risk düşük görüldü;
+   denetçi bu kapsam kararını sorgulamadı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
-> 🚨 Numarayı **maksimumdan** al, tablonun son satırından değil (K-539).
+| **K-546 — `AgentPrismToolAttribute.cs`'in `OrderTools` örneği artık `static` DEĞİL; tool metodu yine `static`** | 2026-08-21 | Ölçüldü (F-125 uygulanırken): `IAgentPrismBuilder.cs`'in AYRI bir örneği `.AddToolsFrom<OrderTools>()` çağırıyor ve C# statik bir sınıfı generic tip argümanı olarak kabul etmiyor (`CS0718`) — iki örneği birlikte kopyalayan bir tüketici gerçekten derleyemezdi, bunu `ExampleCompilationTests` yakaladı. `ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (APG0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[AgentPrismTool]` işaretli metot `public static` kaldı. | `AddToolsFrom<T>()` bir gün `Type` parametresi yerine gerçek bir generic kısıtlama YAZARSA (bugün öyle değil, yalnız `typeof(T)` kullanıyor) yeniden değerlendirilir |
+| **K-547 — `Azure.Identity` yalnızca test projesine (`AgentPrism.Generators.UnitTests`) `PackageReference` olarak eklendi; `AgentPrism.Azure`'un bağımlılık grafiği DEĞİŞMEDİ** | 2026-08-21 | `AzureOpenAIProviderOptions.CredentialFactory`'nin sevk edilen `<example>`'ı `DefaultAzureCredential`'ı (o pakette) adlandırıyor — bilerek: `AgentPrism.Azure` o bağımlılığı ALMIYOR (yorum: "Azure.Identity does not appear... credential type is left to the consumer"). F-125'in derleme kapısı örneği GERÇEKTEN derlemek zorunda, bu yüzden gerçek tipe ihtiyaç duydu. `Directory.Packages.props`'ta `Label="Test"` grubuna eklendi (`Label="Saglayicilar"` değil — ilk taslak yanlış grup altına koymuştu, bağımsız denetim 🟢 olarak işaretledi, taşındı). | Bir tüketicinin dikte ettiği bir yönetilen kimlik senaryosu `AgentPrism.Azure`'un kendisine gerçek bir `Azure.Identity` bağımlılığı eklemeyi gerektirirse |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+**Yok** — plan doğruydu. `wc -l src/*/PublicAPI.Shipped.txt` hâlâ 16 satır/16
+dosya (yalnız `#nullable enable`); `PublicAPI.Unshipped.txt` dosyaları dokunulmadı.
+Tek görünürlük değişikliği `AnalyzerTestHelper.References`'in `private` →
+`internal` olmasıdır (test projesi içi, tüketiciye gitmez).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+tests/AgentPrism.Generators.UnitTests/
+├── AgentPrism.Generators.UnitTests.csproj   (11 ProjectReference + Azure.Identity PackageReference)
+├── AnalyzerTestHelper.cs                    (References: private → internal)
+├── DiagnosticIntegrityTests.cs              (F-136: 2 yeni test + ApgCodePattern + TroubleshootingPath)
+└── Examples/
+    ├── ExampleBlock.cs                      (record: yol, satır, kod, dil)
+    ├── ExampleExtractor.cs                  (src/**/*.cs'ten doğrudan okur, XElement.Parse ile decode eder)
+    ├── ExamplePrelude.cs                    (12 placeholder + 5 saplama tip + tip-bildirimi bloğu için özel dal)
+    └── ExampleCompilationTests.cs           (F-125: C# → Roslyn, JSON → JsonDocument.Parse)
+
+src/AgentPrism.Abstractions/Tools/
+└── AgentPrismToolAttribute.cs               (elipsis düzeltildi; OrderTools artık static değil)
+
+src/AgentPrism.Azure/
+└── AzureOpenAIProviderOptions.cs            (örnek kendi kendine yeterli: `var options = new ...`)
+
+docs-site/src/content/docs/
+└── troubleshooting.md                       (APG0002-APG0006, 5 yeni ### bölüm)
+
+Directory.Packages.props                     (Azure.Identity 1.21.0, Label="Test")
+docs/manuel-test/31-DOKUMAN-DOGRULUGU.md      (MT-DDG-025..029)
+```
+
+Planın öngördüğü `AgentPrismMcpServerBuilderExtensions.cs` değişikliği
+**gerçekleşmedi** (Plandan Sapmalar #3) — o dosya diff'te yok.
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+`faz-denetim` skill'i taze bağlamlı bir `general-purpose` agent ile koşuldu
+(git diff HEAD, 13 dosya). Sonuç: **🔴 yok.**
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | §79.1'in anlatısı, hangi iki dosyanın gerçekte düzeltildiğini yanlış anlatıyor (`AgentPrismMcpServerBuilderExtensions.cs` yerine `AzureOpenAIProviderOptions.cs`) | 🟡 | Düzeltildi — Plandan Sapmalar #3 |
+| 2 | §79.2'nin istediği derleme-süresi ölçümü kapanıştan önce dokümana yazılmamıştı | 🟡 | Düzeltildi — Açık Soru 2 ve DoD satırı güncellendi |
+| 3 | `Directory.Packages.props`'ta `Azure.Identity`, `Label="Test"` yerine `Label="Saglayicilar"` (üretim sağlayıcı grubu) altına eklenmişti | 🟢 | Düzeltildi (taşındı) — davranışı etkilemiyordu, yalnız organizasyon |
+| 4 | `docs-site/scripts/check-weight.mjs`'in kod-içi yorumundaki "en ağır sayfa" ölçümü bu fazın eklemesinden sonra bayatladı (yorum 49 365 B diyor, gerçek 50 885 B) | 🟢 | Devredilmedi — bu fazın dokunmadığı bir dosyadaki yorum satırı, fonksiyonel etkisi yok (kapı dinamik ölçer). `docs/ADAYLAR.md`'ye F-NN açacak kadar değerli görülmedi |
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+1. **Devralınan sözleşme: `ExampleCompilationTests` kaynağı `src/**/*.cs`'ten
+   DOĞRUDAN okur, build edilmiş XML'den DEĞİL** — `CapabilityExampleTests`'in
+   tersi bir tercih, bilerek: bu kapı `dotnet build` çalışmadan da (temiz
+   klonda) anlamlı, ve derlenmiş XML'in bayatlama riskini (bkz.
+   `hafiza/dokumantasyon.md`'deki `--skip-docfx` tuzağı) hiç taşımıyor. Yeni bir
+   `<example>` ekleyen bir sonraki faz bunu bilmeli: kaynağı değiştirmek yeter,
+   `dotnet build` koşmak GEREKMEZ.
+2. 🚨 **Yeni bir `<example>` bloğu ekleyen her faz, blokta geçen serbest
+   tanımlayıcıyı `ExamplePrelude.Placeholders`'a bakmadan VARSAYMASIN.** Bu
+   fazın kendi kör noktası tam bu oldu (Plandan Sapmalar #1). Yeni bir blok
+   `CS0103`/`CS0246` ile düşerse iki seçenek var: (a) isim 2+ blokta tekrar
+   ediyorsa `ExamplePrelude.cs`'e yeni bir kalıcı placeholder/saplama tip ekle,
+   (b) tek bir bloğa özgüyse örneği kendi kendine yeterli hâle getir (aynı
+   `AzureOpenAIProviderOptions.cs` düzeltmesinin deseni).
+3. **Devralınan sözleşme: `troubleshooting.md`'deki her `APG` kodu artık
+   canlı bir kapı taşıyor** (`DiagnosticIntegrityTests.Every_diagnostic_is_explained_on_the_troubleshooting_page`
+   ve tersi). Yeni bir `APG` tanısı ekleyen bir sonraki faz — `Directory.Build.props`'un
+   `RS2000` (`AnalyzerReleases.Unshipped.md`) kapısına EK OLARAK — bu sayfaya
+   bir `###` bölüm de eklemek zorunda, yoksa test kırmızı kalır.
+4. **`AgentPrism.Generators.UnitTests` artık 15 paketin tamamına referans
+   veriyor** (önceden 4'tü). Yeni bir paket `<example>` taşımaya başlarsa
+   `Every_package_carrying_an_example_is_referenced_by_this_project` testi
+   otomatik kırmızı olur ve hangi paketin eksik olduğunu adlandırır —
+   `AgentPrism.slnx`'e eklenen bir sonraki paket bunu unutmamalı, kapı zaten
+   hatırlatıyor.
+5. **Yarım kalan iş yok.** DoD'nin tamamı işaretlendi (bir satır `[~]` —
+   gerekçeli, uygulanamaz). Faz `F-125` ve `F-136`'nın ikisini de kapattı.
+6. **Sıradaki faz: Faz 80 (`80-DOKUMAN-KAPILARININ-DOGRULUGU.md`)** —
+   `docs/YOL-HARITASI.md`'de bir sonraki "📋 Planlandı" kalemdir.

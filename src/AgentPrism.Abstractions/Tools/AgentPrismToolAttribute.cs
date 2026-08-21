@@ -16,10 +16,10 @@ namespace AgentPrism;
 /// </para>
 /// <example>
 /// <code>
-/// internal static class OrderTools
+/// internal class OrderTools
 /// {
 ///     [AgentPrismTool("get_order_status", "Returns an order's shipping status.")]
-///     public static string GetOrderStatus(string orderId) =&gt; ...;
+///     public static string GetOrderStatus(string orderId) =&gt; "shipped";
 ///
 ///     public static void Helper() { }   // not a tool
 /// }

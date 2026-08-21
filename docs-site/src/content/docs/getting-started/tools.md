@@ -15,7 +15,7 @@ Mark the method and let the source generator find it:
 ```csharp title="Tools/OrderTools.cs"
 using AgentPrism;
 
-internal static class OrderTools
+internal class OrderTools
 {
     /// <summary>Returns the shipping status of an order.</summary>
     /// <param name="orderId">The order number.</param>

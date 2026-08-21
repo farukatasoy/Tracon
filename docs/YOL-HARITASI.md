@@ -90,7 +90,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [76](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) | Doküman Kalitesi ve Görsel Kimlik | ✅ Tamamlandı |
 | [77](77-GIDEN-AG-MUHAFIZI.md) | Giden Ağ Muhafızı | ✅ Tamamlandı |
 | [78](78-YETENEK-HARITASI-ERISIMI.md) | Yetenek Haritası Erişimi | ✅ Tamamlandı |
-| [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | 📋 Planlandı |
+| [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | ✅ Tamamlandı |
 | [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | 📋 Planlandı |
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | 📋 Planlandı |
 | [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | 📋 Planlandı |

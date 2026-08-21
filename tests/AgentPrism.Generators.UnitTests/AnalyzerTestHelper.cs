@@ -20,7 +20,12 @@ namespace AgentPrism.Generators.UnitTests;
 /// </remarks>
 internal static class AnalyzerTestHelper
 {
-    private static readonly ImmutableArray<MetadataReference> References = BuildReferences();
+    /// <summary>
+    /// Every trusted-platform assembly, as a metadata reference. Shared with
+    /// <c>Examples.ExampleCompilationTests</c>, which compiles a synthetic
+    /// consumer too and would otherwise duplicate <see cref="BuildReferences"/>.
+    /// </summary>
+    internal static readonly ImmutableArray<MetadataReference> References = BuildReferences();
 
     /// <summary>
     /// The build properties the package makes compiler-visible. APG0402 only
