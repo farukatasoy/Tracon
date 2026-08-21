@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (84 kalem)
+## Fazlar (90 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -95,5 +95,11 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | 📋 Planlandı |
 | [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | 📋 Planlandı |
 | [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | 📋 Planlandı |
+| [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | 📋 Planlandı |
+| [85](85-GOMME-EKSENI.md) | Gömme Ekseni | 📋 Planlandı |
+| [86](86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | 📋 Planlandı |
+| [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | 📋 Planlandı |
+| [88](88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | 📋 Planlandı |
+| [89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
