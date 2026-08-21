@@ -76,6 +76,21 @@ as a denial. `CancellationToken` is cooperative, so a tool body that never reads
 token is not forcibly stopped — only the *wait* is cut short; the timeout applies to
 execution only, never to a pending approval, which can wait indefinitely.
 
+### Concurrent tool calls
+
+By default, when a model turn calls several independent tools at once, AgentPrism
+runs them one after another. Set `ModelBinding.AllowConcurrentToolCalls` to run them
+at the same time instead — each call still gets its own authorization decision, its
+own recorded result, and its own entry in the tool-usage metrics; none of that mixes
+up between calls that happen to overlap.
+
+Off by default: with no change, tool calls run one at a time exactly as they do
+today. Turn it on only for tools whose bodies are safe to run concurrently with
+themselves — a tool that shares mutable state across calls without its own
+synchronization should not opt in. See
+[Model providers](/guides/model-providers/#concurrent-tool-calls) for where this
+setting lives on `ModelBinding`.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the

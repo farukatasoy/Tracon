@@ -89,6 +89,11 @@ The breaker fails fast. It does not replay a complete direct run, and it does no
 roll back tool calls that already succeeded. Decide retry policy at the HTTP client,
 job, or business-operation boundary where idempotency is known.
 
+An open circuit still blocks a call even when [response caching](/guides/model-providers/#response-caching)
+is on for that agent: the breaker sits outside the whole tool-call loop, a cached
+lookup sits inside it, so a would-be cache hit is never reached while the circuit is
+open. Once the circuit closes again, the same prompt can still resolve from cache.
+
 ## Fall back to a secondary provider
 
 `ModelBinding.Fallbacks` is an ordered list of `{ provider, model }` links tried

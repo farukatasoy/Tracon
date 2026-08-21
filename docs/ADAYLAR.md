@@ -243,6 +243,43 @@ bilgisine dayanmalı, metin eşleştirme kırılgandır.
 
 ---
 
+### F-144 · Yanıt önbelleği isabetinin `chat` span'i ÜRETMEDİĞİNİ doğrudan bir `ActivityListener` ile kanıtlayan test yok
+
+> Faz 81 bağımsız denetiminin 🟢 bulgusu (2026-08-22). Halka sırası
+> (`FunctionInvokingChatClient` → önbellek halkası → `UseOpenTelemetry`)
+> bugün doğrudur ve dolaylı olarak kanıtlanır (`FakeModelProvider.Requests`
+> ikinci çağrıda büyümüyor → gerçek ağa hiç çıkılmadı). Ama halkanın sırası
+> yanlışlıkla değişirse (ör. önbellek `UseOpenTelemetry`'nin İÇİNE alınırsa)
+> bunu doğrudan yakalayan bir test yoktur — yalnız dolaylı sonuç (isabet
+> gerçek çağrı yapmıyor) test edilir, span'in kendisi değil.
+
+**Sorun:** `ModelProviderRegistry.BuildPipeline`'ın önbellek halkasını
+`UseOpenTelemetry`'nin dışına (tool döngüsünün içine) yerleştirme kararı
+(K-552) yalnız dolaylı olarak test edilir: bir isabetin gerçek ağa
+çıkmadığını `FakeModelProvider.Requests.Count`'un artmamasından çıkarırız.
+Halka sırası bir gün yanlışlıkla değişirse (ör. `UseOpenTelemetry` önbelleğin
+İÇİNE alınırsa) bu dolaylı test hâlâ GEÇER — ama isabet artık kendi `chat`
+span'ini üretiyor olurdu ve hiçbir test bunu yakalamaz.
+**Kapsam:** Bir `ActivityListener` kaydeden bir birim/fonksiyonel test:
+`AgentPrismDiagnostics.ActivitySourceName` kaynağından gelen `chat` adlı
+span'leri sayar; ilk (ıska) çağrıda bir tane, ikinci (isabet) çağrıda SIFIR
+span üretildiğini doğrudan doğrular.
+**Değer:** Halka sırası regresyonunu (maliyet/token muhasebesi sessizce
+bozulur) doğrudan yakalayan tek test bu olurdu; bugünkü dolaylı kanıt aynı
+regresyonu KAÇIRABİLİR eğer birisi "gerçek ağa çıkmadı" iddiasını başka bir
+yoldan (ör. sahte istemciyi önbellek FARKINDA olacak şekilde değiştirerek)
+sağlarsa.
+**Mercek:** 81 (Model boru hattı / gözlemlenebilirlik).
+**Hazırlık:** Yok — `System.Diagnostics.ActivityListener` .NET'in kendi
+API'sidir, yeni bağımlılık istemez.
+**Maliyet:** Düşük. Tek bir test dosyası, mevcut `ResponseCachePipelineTests`
+kurulumunu yeniden kullanır.
+**Risk:** Yok — salt gözlemsel bir test eklemek.
+**Bağımlılık:** Yok.
+**Ekosistem:** —
+
+---
+
 ### F-107 · Workflow iptali — ✅ KAPATILDI (2026-08-18). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## D. Yetenek derinliği

@@ -1,15 +1,17 @@
 # 27 — Model Yedek Zinciri ve Ön Uçuş Denetimi (`MYU`)
 
-> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam
+> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı)
 >
 > **Kaynak:**
-> `src/AgentPrism.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`),
-> `ModelFallback.cs` · `src/AgentPrism.Abstractions/Models/ContextWindowEstimate.cs` ·
+> `src/AgentPrism.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`, `ResponseCache`,
+> `AllowConcurrentToolCalls`), `ModelFallback.cs`, `ResponseCacheSettings.cs` ·
+> `src/AgentPrism.Abstractions/Models/ContextWindowEstimate.cs` ·
 > `src/AgentPrism.Abstractions/Options/AgentPrismPreflightOptions.cs`,
 > `AgentPrismModelConcurrencyOptions.cs` ·
 > `src/AgentPrism.Core/Models/FallbackChatClient.cs`, `ProviderConcurrencyLimiter.cs`,
-> `ContextWindowEstimator.cs`, `ModelProviderRegistry.cs` (yalnız yedek/eşzamanlılık
-> sarmalayıcıları) · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
+> `ContextWindowEstimator.cs`, `AgentPrismResponseCachingChatClient.cs`,
+> `ModelProviderRegistry.cs` (yedek/eşzamanlılık/önbellek sarmalayıcıları ve
+> `AllowConcurrentInvocation` bağlaması) · `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
 > (yalnız `BuildContextWindowStrategy`) ·
 > `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (yalnız `EstimateAsync`,
 > `/run`'daki `PreflightGate.CheckAsync` çağrısı) ·
@@ -39,9 +41,14 @@ flowchart TD
     K -- "evet" --> L["400 - saglayiciya cagri YAPILMAZ"]
     K -- "hayir" --> B
 
+    M["POST /api/agents/name/run<br/>ResponseCache.Enabled=true"] --> N{"Onbellek anahtari<br/>(kiraci+saglayici+tool kumesi) isabet mi"}
+    N -- "isabet" --> O["Saglayiciya HIC gitmez<br/>usage: null (K-557) - tool cagrisi yine CALISIR"]
+    N -- "iska" --> B
+
     style F fill:#7a4a1f,stroke:#3d250f,color:#ffffff
     style G fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     style L fill:#7a4a1f,stroke:#3d250f,color:#ffffff
+    style O fill:#1f4a7a,stroke:#0f253d,color:#ffffff
 ```
 
 ## Sınır: bu dosya nerede biter
@@ -88,7 +95,9 @@ export APU="http://localhost:5080/agentprism"
 > **Gerçek para uyarısı.** `MT-MYU-002`, `003`, `004`'ün başarılı yolu gerçek
 > `openai`'ye bir çağrı yapar (kısa mesaj, ucuz). `MT-MYU-001`, `005`, `006`,
 > `007` de gerçek bir çağrı yapar (kısa mesaj). `MT-MYU-008`/`009` model
-> çağırmaz, yalnız derleme kontrolüdür.
+> çağırmaz, yalnız derleme kontrolüdür. `MT-MYU-010`/`011`/`012` de kısa
+> mesajlarla gerçek çağrı yapar — ama her birinin İKİNCİ (isabet eden) çağrısı
+> modele HİÇ gitmez, yalnız İLK çağrı ücretlidir. `MT-MYU-013` model çağırmaz.
 
 ---
 
@@ -398,6 +407,197 @@ curl -s -i -X POST "$APU/api/agents" -H "$APB" -H 'content-type: application/jso
 
 ---
 
+### MT-MYU-010 — 🚨 Aynı istem iki kez sorulunca ikinci `run` modele ÇIKMAZ; ama önbellekteki tool çağrısı yine ÇALIŞIR
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 81 |
+| **İlgili karar** | K-551, K-552, K-557 |
+
+**Ön koşul**
+- `cached-support` agent'ı (`samples/AgentPrism.Api`'de kalıcı olarak tanımlı;
+  `ResponseCache.Enabled = true`, `Lifetime = 10 dk`). `AddDistributedMemoryCache()`
+  zaten kayıtlıdır.
+
+**Adımlar**
+1. `cached-support`'a bir sipariş sorusu gönder (`orderId` her seferinde
+   AYNI olsun ki tool sonucu da AYNI kalsın — K-557'nin dersi budur).
+2. Aynı istemi TEKRAR gönder.
+3. `GET /api/runs?agentName=cached-support&limit=2` ile son iki `run`'ı karşılaştır.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
+  -H 'content-type: application/json' -d '{"message":"What is the status of order 77?"}'
+curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
+  -H 'content-type: application/json' -d '{"message":"What is the status of order 77?"}'
+curl -s "$APU/api/runs?agentName=cached-support&limit=2" -H "$APB" | python3 -m json.tool
+```
+
+**Beklenen sonuç (2026-08-22'de ölçüldü — gerçek OpenAI çağrısıyla)**
+- Adım 1'in akışında bir `functionCall` (`get_order_status`, `orderId: "77"`),
+  bir `functionResult` ve İKİ `usage` bloğu (turn başına bir tane) vardır.
+- Adım 2'nin akışında AYNI `functionCall`/`functionResult` çifti YİNE vardır
+  (isabet eden yanıt tool çağrısını taşımaya devam eder — 81.1) ama **hiçbir
+  `usage` bloğu YOKTUR**.
+- Adım 3: en yeni `run`'ın `"usage"` alanı **`None`/`null`**dur (K-557 —
+  `0` değil `null`: "ölçülmedi", "sıfır harcandı" değil); bir önceki `run`'ın
+  `usage.totalTokens`'ı gerçek bir sayıdır (ör. `244`).
+
+---
+
+### MT-MYU-011 — Farklı tool kümesine sahip iki agent aynı önbellek kaydını PAYLAŞMAZ
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 81 |
+| **İlgili karar** | K-551 |
+
+**Ön koşul**
+- `cached-support` (`ToolNames: [get_order_status, list_recent_orders]`,
+  `ResponseCache.Enabled = true`) ve aynı talimatı/modeli taşıyan ama
+  **farklı** (veya boş) bir tool kümesine sahip geçici bir ikinci agent —
+  `samples/AgentPrism.Api/Program.cs`'e geçici eklenir:
+  ```csharp
+  .AddAgent(new AgentDefinition
+  {
+      Name = "cached-support-notools",
+      Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                     "Always use a tool for order questions.",
+      Model = model with { ResponseCache = new ResponseCacheSettings { Enabled = true } },
+  })
+  ```
+
+**Adımlar**
+1. `cached-support`'a bir soru sor (tool çağrısı üretir, önbelleğe yazılır).
+2. `cached-support-notools`'a AYNI soruyu sor (aynı talimat, aynı model, **tool
+   YOK**).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
+  -H 'content-type: application/json' -d '{"message":"What is the status of order 88?"}'
+curl -s -X POST "$APU/api/agents/cached-support-notools/run" -H "$APB" \
+  -H 'content-type: application/json' -d '{"message":"What is the status of order 88?"}'
+```
+
+**Beklenen sonuç**
+- İkinci agent'ın yanıtında `get_order_status` `functionCall`'ı GÖRÜNMEZ
+  (agent'ın hiç ToolNames'i yok, model onu göremez) — ama daha önemlisi,
+  ikinci çağrı GERÇEKTEN modele gider (isabet ETMEZ): akışında en az bir
+  `usage` bloğu vardır. Eğer anahtar tool kümesini yok sayıyor olsaydı,
+  ikinci agent birincinin (tool çağrısı taşıyan) kaydına düşer ve bu bir
+  yetki sızıntısı olurdu.
+
+---
+
+### MT-MYU-012 — Başka kiracının önbelleklenmiş yanıtı GÖRÜNMEZ
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 81 |
+| **İlgili karar** | K-551 |
+
+**Ön koşul**
+- Çok kiracılılık açık (`AgentPrism:Tenancy:Enabled=true`,
+  `AllowHeaderResolution=true` — bkz. `13-KIRACI-VE-GUVENLIK.md`).
+- `cached-support` her iki kiracıda da erişilebilir (kod tanımlı agent).
+
+**Adımlar**
+1. Kiracı `acme` başlığıyla bir soru sor.
+2. Kiracı `beta` başlığıyla AYNI soruyu sor.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
+  -H 'X-AgentPrism-Tenant: acme' -H 'content-type: application/json' \
+  -d '{"message":"What is the status of order 99?"}'
+curl -s -X POST "$APU/api/agents/cached-support/run" -H "$APB" \
+  -H 'X-AgentPrism-Tenant: beta' -H 'content-type: application/json' \
+  -d '{"message":"What is the status of order 99?"}'
+```
+
+**Beklenen sonuç**
+- İkinci çağrı (kiracı `beta`) de GERÇEKTEN modele gider — akışında bir
+  `usage` bloğu vardır. Kiracı `acme`'nin kaydı `beta`'ya SIZMAZ.
+
+---
+
+### MT-MYU-013 — `ResponseCache.Enabled` açıkken `IDistributedCache` kayıtlı değilse anlaşılır bir hata döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 81 |
+| **İlgili karar** | K-556 |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs`'deki `builder.Services.AddDistributedMemoryCache();`
+  satırı GEÇİCİ olarak yorum satırına alınır, uygulama yeniden başlatılır.
+
+**Adımlar**
+1. `ResponseCache.Enabled: true` taşıyan bir tanımı doğrula.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: application/json' \
+  -d '{
+    "name": "would-be-cached",
+    "instructions": "hi",
+    "model": {"provider": "openai", "model": "gpt-5.4-mini", "responseCache": {"enabled": true}}
+  }' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `messages` dizisinde tek bir kayıt: `"code": "invalid_setting"`,
+  `"path": "model.providerSettings"`, `"message"` alanı `IDistributedCache`'i
+  ve `AddDistributedMemoryCache()` örneğini AÇIKÇA adlandırır (planın
+  öngördüğü `compilation_error` DEĞİL — K-556).
+- Koşumdan sonra `AddDistributedMemoryCache()` satırının yorumu KALDIRILIR.
+
+---
+
+### MT-MYU-014 — 👤 `AllowConcurrentToolCalls` kapalıyken (varsayılan) davranış bugünküyle birebir aynıdır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 81 |
+| **İlgili karar** | K-553 |
+
+**Ön koşul**
+- `support` agent'ı (Faz 5'ten beri var, `AllowConcurrentToolCalls` hiç
+  ayarlanmaz → varsayılan `false`).
+
+**Adımlar**
+1. `support`'a birden çok tool gerektirebilecek bir istem gönder (ör. birden
+   fazla sipariş sorgusu).
+
+**Beklenen sonuç**
+- Kayıtlar, metrikler ve nihai yanıt Faz 80 öncesiyle birebir aynıdır — bu
+  case yeni bir davranış KANITLAMAZ, yalnız regresyon yoktur der.
+
+> **Not — gerçek eşzamanlılığın otomatikleştirilmiş kanıtı ayrıdır.** Üç
+> bağımsız tool'un GERÇEKTEN çakıştığı (`Barrier` ile garanti edilen) ve
+> her birinin kaydının/yetkilendirme kararının doğru çağrıya bağlandığı
+> iddiası gerçek bir LLM ile YENİDEN ÜRETİLEMEZ (model üç tool'u aynı turda
+> çağırıp çağırmayacağına kendi karar verir, bu davranış zorlanamaz).
+> Bu iddia `tests/AgentPrism.AspNetCore.FunctionalTests/ConcurrentToolInvocationTests.cs`
+> tarafından **her koşumda garantili** kanıtlanır (sahte model üç çağrıyı TEK
+> bir turda üretir, `Barrier(3)` üç gövdenin GERÇEKTEN aynı anda çalıştığını
+> zorlar). El ile koşulacak tek şey budur: bu üç testin GERÇEKTEN geçtiğini
+> doğrulamak yeter, ayrı bir manuel case gerekmez.
+
+---
+
 ## Koşumdan sonra
 
 1. `dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"`
@@ -405,4 +605,7 @@ curl -s -i -X POST "$APU/api/agents" -H "$APB" -H 'content-type: application/jso
 3. `samples/AgentPrism.Api/Program.cs`'e eklenen `flaky`/`flaky2` kayıtları ve
    `birincil-kirik`/`ikisi-de-kirik`/`baglam-turetilen`/`baglam-eksik`
    agent'ları geri alınır.
-4. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı tekrar uygulanır.
+4. MT-MYU-011'in geçici `cached-support-notools` agent'ı geri alınır.
+   `cached-support` ve `AddDistributedMemoryCache()` KALICIDIR, geri alınmaz.
+5. MT-MYU-013'ün yorumladığı `AddDistributedMemoryCache()` satırı geri açılır.
+6. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı tekrar uygulanır.

@@ -11276,6 +11276,21 @@
               "$ref": "#/components/schemas/ModelFallback"
             },
             "description": "Gets the ordered fallback chain tried when the primary provider is\nunavailable. Empty by default."
+          },
+          "responseCache": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the response caching settings. Disabled when \u0060null\u0060.",
+                "$ref": "#/components/schemas/ResponseCacheSettings"
+              }
+            ]
+          },
+          "allowConcurrentToolCalls": {
+            "type": "boolean",
+            "description": "Gets whether independent tool calls within one turn may run at the\nsame time."
           }
         },
         "description": "Determines the provider and the model an agent runs with. It carries\n\u003Cem\u003Eno\u003C/em\u003E credentials; the API key is resolved from configuration."
@@ -11952,6 +11967,21 @@
           "LiveTools"
         ],
         "description": "How tools are handled during replay."
+      },
+      "ResponseCacheSettings": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Gets whether the cache ring is added to the pipeline."
+          },
+          "lifetime": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string",
+            "description": "Gets how long a cached response stays valid."
+          }
+        },
+        "description": "Response caching settings for a ModelBinding."
       },
       "RetentionPolicy": {
         "required": [

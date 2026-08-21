@@ -138,6 +138,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRunAttributionContext, DemoRunAttributionContext>();
 
+// Response caching (Phase 81, F-45) needs an IDistributedCache; AgentPrism
+// never registers one itself (an agent that enables ResponseCache without
+// this line fails to compile with a message naming exactly this gap).
+// AddDistributedMemoryCache() is enough for a single-instance sample; a real
+// multi-instance deployment points this at Redis/SQL Server instead.
+builder.Services.AddDistributedMemoryCache();
+
 var agentPrism = builder.AddAgentPrism()
     // Tools are defined ONLY in code. The UI lets a user pick from this list;
     // it never lets them write tool code. This is a security boundary.
@@ -437,6 +444,25 @@ agentPrism
         Description = "Translates incoming text into English.",
         Instructions = "Translate the incoming text into English. Return only the translated text.",
         Model = model,
+    })
+
+    // Response caching and concurrent tool calls (Phase 81, F-45/F-134). The
+    // SECOND identical run never reaches the model (usage is zero, no 'chat'
+    // span) but the cached FunctionCallContent still runs get_order_status
+    // again - a cache hit is not a shortcut around the tool loop.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "cached-support",
+        DisplayName = "Cached Support (demo)",
+        Description = "Same as 'support', with response caching and concurrent tool calls turned on.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
+        Model = model with
+        {
+            ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
+            AllowConcurrentToolCalls = true,
+        },
+        ToolNames = ["get_order_status", "list_recent_orders"],
     });
 
 // A workflow defined in CODE. A free-form graph can only be built here -

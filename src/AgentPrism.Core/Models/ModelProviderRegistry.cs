@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
@@ -36,6 +37,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly ITenantProviderBindingStore? _tenantProviderBindings;
     private readonly ITenantEgressPolicyStore? _tenantEgressPolicies;
     private readonly TenantProviderCredentialResolver? _credentialResolver;
+    private readonly IDistributedCache? _distributedCache;
+    private readonly AgentPrismMetrics? _metrics;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -76,6 +79,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// <see cref="ModelProviderCredential"/>. Required together with
     /// <paramref name="tenantProviderBindings"/> for BYOK to take effect.
     /// </param>
+    /// <param name="distributedCache">
+    /// The backing store for <see cref="ModelBinding.ResponseCache"/>. If
+    /// <see langword="null"/>, a binding that enables response caching fails
+    /// to compile instead of silently running uncached.
+    /// </param>
+    /// <param name="metrics">
+    /// Records a response-cache hit/miss counter. If <see langword="null"/>,
+    /// no cache metric is emitted.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">The same provider name has been registered more than once.</exception>
     public ModelProviderRegistry(
@@ -88,7 +100,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         ProviderConcurrencyLimiter? concurrencyLimiter = null,
         ITenantProviderBindingStore? tenantProviderBindings = null,
         ITenantEgressPolicyStore? tenantEgressPolicies = null,
-        TenantProviderCredentialResolver? credentialResolver = null)
+        TenantProviderCredentialResolver? credentialResolver = null,
+        IDistributedCache? distributedCache = null,
+        AgentPrismMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -102,6 +116,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _tenantProviderBindings = tenantProviderBindings;
         _tenantEgressPolicies = tenantEgressPolicies;
         _credentialResolver = credentialResolver;
+        _distributedCache = distributedCache;
+        _metrics = metrics;
 
         foreach (var provider in providers)
         {
@@ -314,9 +330,48 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // provider packages until Phase 48; they were moved out so a ring could
         // be placed INSIDE the loop. Order: the loop is outermost, telemetry is
         // inside it, so every real model call gets its own 'chat' span.
-        chatClient = chatClient
+        //
+        // binding.AllowConcurrentToolCalls configures THIS SAME
+        // FunctionInvokingChatClient instance - the one that actually drives
+        // the tool-call loop. false by default (K1): the loop runs one call
+        // at a time exactly as it does today (Phase 81, F-134).
+        var pipelineBuilder = chatClient
             .AsBuilder()
-            .UseFunctionInvocation(_loggerFactory)
+            .UseFunctionInvocation(
+                _loggerFactory,
+                fic => fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls);
+
+        // 🚨 The cache ring sits INSIDE the tool-call loop but OUTSIDE
+        // telemetry and the content guard (Phase 81, F-45): a cache hit still
+        // lets the loop run any FunctionCallContent the cached response
+        // carries, but it never reaches UseOpenTelemetry (no 'chat' span, no
+        // token/cost record - a hit spends nothing) or the content guard (a
+        // hit is not re-inspected; ResponseCacheSettings.Lifetime bounds that
+        // window). Enabling caching with no IDistributedCache registered is
+        // not silently ignored - the binding fails to compile, naming the
+        // missing registration, the same way an unknown ReasoningEffort does.
+        if (binding.ResponseCache is { Enabled: true } cacheSettings)
+        {
+            if (_distributedCache is null)
+            {
+                throw new AgentPrismException(
+                    $"Model '{binding.Provider}/{binding.Model}' enables response caching " +
+                    "(ResponseCache.Enabled = true), but no IDistributedCache is registered. Register one, " +
+                    "for example `builder.Services.AddDistributedMemoryCache()`, before compiling an agent " +
+                    "with response caching turned on.");
+            }
+
+            pipelineBuilder = pipelineBuilder.Use(inner => new AgentPrismResponseCachingChatClient(
+                inner,
+                _distributedCache,
+                binding.Provider,
+                _tenantContext?.TenantId,
+                cacheSettings,
+                _metrics,
+                _loggerFactory?.CreateLogger<AgentPrismResponseCachingChatClient>()));
+        }
+
+        chatClient = pipelineBuilder
             .UseOpenTelemetry(_loggerFactory, AgentPrismDiagnostics.ActivitySourceName)
             .Build();
 
