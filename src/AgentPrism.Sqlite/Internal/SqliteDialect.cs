@@ -120,7 +120,11 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     {
         ArgumentNullException.ThrowIfNull(connection);
 
-        var dataSource = ((SqliteConnection)connection).DataSource;
+        // DbConnection.DataSource is enough; a hard cast to SqliteConnection
+        // would break every caller that wraps the connection (a proxy, a
+        // telemetry decorator, a test fault injector) with an
+        // InvalidCastException, and the cast buys nothing.
+        var dataSource = connection.DataSource;
 
         if (string.IsNullOrEmpty(dataSource))
         {
@@ -175,6 +179,15 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// 0006_sessions_tenant_key.sql: SQLite cannot alter a primary
     /// key in place.
     /// </remarks>
+    /// <remarks>
+    /// The rebuild must be RE-RUNNABLE: <c>MigrationRunner</c> retries this
+    /// step when the database reports a transient conflict. SQLite gives each
+    /// statement of the batch its own implicit transaction, so a failure between
+    /// the CREATE and the RENAME would leave the scratch table behind and the
+    /// next attempt would die on "table already exists" — which is NOT transient
+    /// and would not clear on its own. Dropping the scratch table first makes
+    /// every attempt start from the same state.
+    /// </remarks>
     public override async ValueTask UpgradeMigrationsTableAsync(
         DbConnection connection,
         int commandTimeout,
@@ -199,6 +212,8 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
         var rebuildCommand = connection.CreateCommand();
         rebuildCommand.CommandText = $"""
+            DROP TABLE IF EXISTS {table}_new;
+
             CREATE TABLE {table}_new (
                 set_name   TEXT    NOT NULL DEFAULT 'core',
                 id         INTEGER NOT NULL,
