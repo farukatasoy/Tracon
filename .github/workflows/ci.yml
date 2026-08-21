@@ -48,6 +48,15 @@ jobs:
           cache: npm
           cache-dependency-path: src/AgentPrism.UI/frontend/package-lock.json
 
+      # `scripts/dokuman-bakim.py` icin. Windows runner'inda `python3` komutu
+      # garanti degildir (yalniz `python`); acikca kurmak iki isletim sisteminde
+      # de ayni ikiliyi verir. Script `pathlib`/`re`/`os` disinda bir sey
+      # istemez, `X | None` tip birlesimi 3.10+ ister.
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: NuGet paketlerini onbellekle
         uses: actions/cache@v4
         with:
@@ -77,6 +86,15 @@ jobs:
       - name: Icerik ve sunum kapilari
         working-directory: docs-site
         run: node scripts/check-content.mjs
+
+      # Sicak yol dokuman butcesi, karar defteri yapisi ve site-mutlak baglanti
+      # cozumu. `pages` isine KONMAZ -- o is yalniz main push'ta kosar ve
+      # oraya konan bir kapi hicbir PR'i durdurmaz (Faz 80).
+      - name: Dokuman kapilari
+        run: python3 scripts/dokuman-bakim.py --denetle
+
+      - name: Dokuman kapilari testleri
+        run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
       - name: Derle
         run: dotnet build AgentPrism.slnx -c Release --no-restore

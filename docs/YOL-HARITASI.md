@@ -91,7 +91,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [77](77-GIDEN-AG-MUHAFIZI.md) | Giden Ağ Muhafızı | ✅ Tamamlandı |
 | [78](78-YETENEK-HARITASI-ERISIMI.md) | Yetenek Haritası Erişimi | ✅ Tamamlandı |
 | [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | ✅ Tamamlandı |
-| [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | 📋 Planlandı |
+| [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | ✅ Tamamlandı |
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | 📋 Planlandı |
 | [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | 📋 Planlandı |
 | [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | 📋 Planlandı |

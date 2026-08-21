@@ -102,3 +102,9 @@ docs-site/src/generated/
 docs-site/public/openapi/
 docfx/api-md/
 docfx/_site/
+
+## ---------------------------------------------------------------------------
+## scripts/ (Python) - dokuman-bakim.py ve testleri
+## ---------------------------------------------------------------------------
+__pycache__/
+*.pyc
