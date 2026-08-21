@@ -14,7 +14,7 @@
   Yasak: faz numarasi, `K-NNN`, `F-NN`, `K1`–`K4`, `MT-*`/`HATA-*`,
   `section N.N`, `open question N`, `docs/NN-*.md`. Serbest: paketin kendi
   tipleri, yapilandirma anahtarlari, HTTP yollari, MSBuild ozellikleri ve
-  `farukatasoy.github.io/AgentPrism`.
+  `agentprism.doayen.web.tr`.
 - **Kural sesi de kapsar**: 🚨/⚠️, `Rationale:` acilisi, `Measured (2026-…)`.
   Site ureteci bunlari zaten siliyordu — yani proje bu sesi tuketiciye uygun
   bulmuyordu, yalniz paket tarafinda zorlamiyordu.
@@ -153,9 +153,29 @@ dizisi orada degistirilebilir. Faz 76 sifir bilesen gecersiz kildi.
 **sarar** (cengel baglantilari aciksa). `.sl-markdown-content > h2` seciciisi
 hicbir seyi eslemez.
 - **`docs-site/` yayin hatti** (AGENTS.md'den, Faz 77): site `dotnet build`'e BAGLANMAZ,
-  pakete GIRMEZ, Node **22.12+** ister (`farukatasoy.github.io/AgentPrism`). `api/` ve
-  `http-api/` sayfalari URETILIR (`npm run generate`) ve commit EDILMEZ; ekran goruntuleri
-  E2E kosumundan uretilir (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit EDILIR.
+  pakete GIRMEZ, Node **22.12+** ister. `api/` ve `http-api/` sayfalari URETILIR
+  (`npm run generate`) ve commit EDILMEZ; ekran goruntuleri E2E kosumundan uretilir
+  (`AGENTPRISM_UI_SCREENSHOTS=1`) ve commit EDILIR.
+- **🚨 Yayin GitHub Pages DEGILDIR (K-542).** Site `agentprism.doayen.web.tr` adresinde
+  kendi sunucumuzda barinir; yayini `scripts/site-deploy.sh` yapar (derleme → dort kapi →
+  rsync → `docker compose up -d`). CI'nin `site` isi YAYINLAMAZ, yalnizca derler ve
+  kapilari kosar.
+- **🚨 Sunucuda nginx/Caddy servisi YOKTUR — Traefik vardir.** :80 ve :443'u Docker
+  dinler; yonlendirme Docker LABEL'iyle yapilir. Site bir `nginx:1.27-alpine`
+  konteyneridir ve yapilandirmasi `docs-site/deploy/` altinda REPO'dadir. Elle
+  sunucuda duzenleme yapma — script her yayinda compose dosyasini da gonderir.
+- **macOS'ta `rsync` `--chmod` KABUL ETMEZ.** Apple `openrsync` sevk eder
+  (`rsync version 2.6.9 compatible`); bayrak `invalid argument` verir. Derleme
+  zaten 644/755 uretiyor, `-a` onu korur.
+- **🚨 Adres TEK dosyada yasar: `docs-site/site.config.mjs`.** `site`, `base` ve
+  `formerHosts` oradan gelir; sekiz tuketici onu import eder. Bir adres literali
+  ELLE yazilirsa `check-content.mjs` 11. kontrolu kizarir — hem yeni bir kopya
+  dogdugunda hem de `formerHosts`'taki eski bir barindiriciya isaret edildiginde.
+  C# tarafi ayri dildir (`DocumentationLinks`); ikisini `DiagnosticIntegrityTests`
+  bagli tutar — o test `site.config.mjs`'i OKUR.
+- **`base` `/`dir ve oyle kalir.** El yazisi sayfalar kok-goreli baglanti yazar
+  (`/guides/production/`). Alt yola donulurse 39 sayfadaki 224 baglanti da
+  guncellenmelidir; `check-links.mjs` bunu yayindan once kizartir.
 - **Dil sinirinin kapsadigi yuzeyler** (AGENTS.md'den, Faz 77): kod, yorum, XML dokumani,
   `exception`/log/`ProblemDetails` metni, migration `.sql` yorumu, `template.json`
   aciklamasi — hepsi Ingilizce'dir.

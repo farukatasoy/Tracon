@@ -36,7 +36,7 @@ wrapper behaves identically for every agent type.
 :::note[Recording never breaks a run]
 If the run store fails, the run continues and the error is logged. Observability does
 not get to break function. The same rule holds for the audit trail — with one
-deliberate exception, described in [governance](/AgentPrism/concepts/governance/).
+deliberate exception, described in [governance](/concepts/governance/).
 :::
 
 ## What a run carries
@@ -179,8 +179,8 @@ in three of them. A label set is not a partition of the runs.
 ### Starting a run from .NET with explicit identity
 
 `AgentPrismRunOptions` is the .NET-side counterpart of the run request. It is not a
-configuration section: it is passed per call, and every property answers "which run is
-this, and where does it sit in a larger story".
+configuration section: it is passed per call, and all but the last property answer
+"which run is this, and where does it sit in a larger story".
 
 | Property | What it sets |
 |---|---|
@@ -191,9 +191,18 @@ this, and where does it sit in a larger story".
 | `ReplayOfRunId` | The original run this one replays, which is what makes a comparison possible |
 | `SessionId` | The session at the root of the tree. It feeds the run scope, not the run row's own `session_id` |
 | `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
+| `BeforePendingApprovalIsPublished` | A callback that runs immediately before a run closes as `AwaitingApproval`, on the streaming and the buffered path alike. Record the approval request here |
 
 Leave every property unset for an ordinary run: AgentPrism then records a root run with
 a generated id, and the values above are filled in by the components that own them.
+
+The last one is a hook rather than an identity, and it exists because the status and the
+request become visible at different moments. A run closes inside the agent call, so
+without it the status is published first and
+[`GET /api/approvals/pending`](/http-api/approvals/) answers an empty list for a run that
+already says it is waiting. The callback receives the messages the run produced, and
+anything it throws fails the run — an `AwaitingApproval` status whose request was never
+recorded is unanswerable.
 
 ## Three ways to start a run
 
@@ -211,7 +220,7 @@ its next turn.
 
 A triggered run is a queued run under the hood — same placeholder row, same worker —
 started by a signed HTTP request instead of a management API caller. See
-[Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+[Inbound triggers](/guides/inbound-triggers/).
 
 :::caution[A closed run is never rewritten]
 A run that ended `AwaitingApproval` stays that way forever. Deciding the approval
@@ -242,10 +251,10 @@ anyone reports it.
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
-See [Reliable runs](/AgentPrism/guides/reliability/) for idempotency, cancellation,
+See [Reliable runs](/guides/reliability/) for idempotency, cancellation,
 reconciliation, replay constraints, and failure handling.
 
 ## Read next
 
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
-- [Evaluation and experiments](/AgentPrism/concepts/evaluation/)
+- [Sessions and conversations](/concepts/sessions/)
+- [Evaluation and experiments](/concepts/evaluation/)

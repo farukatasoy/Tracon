@@ -19,7 +19,7 @@ builder.AddAgentPrism()
 ```
 
 The declaration — name, description, JSON schema — lives in code, exactly like
-[every other tool](/AgentPrism/concepts/tools/): the console can show it, but nothing
+[every other tool](/concepts/tools/): the console can show it, but nothing
 short of a code change can add one. What is different is the body: there is none.
 When the model calls `read_shopping_cart`, the server never runs it. The run response
 carries a pending `FunctionCallContent` instead, and the caller is expected to answer
@@ -74,7 +74,7 @@ call; a client-side tool has no server-side call to defer. `AddClientTool` never
 exposes the flag, and a direct registration that tries to combine them fails at
 startup with a clear message.
 
-Every result passes through the same [content guard](/AgentPrism/concepts/governance/)
+Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
 
@@ -137,15 +137,15 @@ handful of strings.
 
 ### The identity it needs
 
-`data-api-key` is a [tenant API key](/AgentPrism/getting-started/security/) scoped to
+`data-api-key` is a [tenant API key](/getting-started/security/) scoped to
 `RunsWrite`, not the management bearer token. The token that unlocks the console must
 never reach a browser outside your own network; a scoped, revocable API key is the
 credential meant for exactly this.
 
 ## Read next
 
-- [Add a tool](/AgentPrism/getting-started/tools/) — the server-side default
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — where each capability's code
+- [Add a tool](/getting-started/tools/) — the server-side default
+- [Tools, skills, and MCP](/concepts/tools/) — where each capability's code
   actually runs
-- [Security](/AgentPrism/getting-started/security/) — API keys, scopes, and the
+- [Security](/getting-started/security/) — API keys, scopes, and the
   three-layer access model

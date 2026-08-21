@@ -63,7 +63,7 @@ The console can create an agent; it can never write tool *code*. If it could, an
 who reached the console could execute code on your server.
 
 There are exactly two deliberate exceptions, both described in
-[tools](/AgentPrism/concepts/tools/) with their guards: remote **MCP servers**, where
+[tools](/concepts/tools/) with their guards: remote **MCP servers**, where
 the process runs somewhere else and AgentPrism is only a client, and **skill
 scripts**, where the process runs on this machine — the strictest exception, off by
 default, behind six sequential gates. In both, a console user enables an existing
@@ -93,10 +93,10 @@ why interfaces like conversation storage can be swapped out.
 | Schema, migrations, vector search | `AgentPrism.PostgreSql` and friends |
 | The console | `AgentPrism.UI` |
 
-See [choosing packages](/AgentPrism/packages/) for which to install.
+See [choosing packages](/packages/) for which to install.
 
 ## Read next
 
-- [Agents and definitions](/AgentPrism/concepts/agents/) — what an agent is here
-- [Runs and recording](/AgentPrism/concepts/runs/) — what gets written, and when
-- [Governance](/AgentPrism/concepts/governance/) — tenancy, audit, quotas, retention
+- [Agents and definitions](/concepts/agents/) — what an agent is here
+- [Runs and recording](/concepts/runs/) — what gets written, and when
+- [Governance](/concepts/governance/) — tenancy, audit, quotas, retention

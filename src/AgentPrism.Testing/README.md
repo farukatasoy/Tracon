@@ -157,6 +157,6 @@ The package takes **no test framework** dependency.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/guides/testing/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.doayen.web.tr/guides/testing/>
+- Capability map: <https://agentprism.doayen.web.tr/capabilities/>
+- API reference: <https://agentprism.doayen.web.tr/api/>

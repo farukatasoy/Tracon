@@ -73,7 +73,7 @@ intersection of its role and its key's scopes. Scope values use the closed JSON 
 for example, a key with only `RunsWrite` cannot
 administer agents no matter what role the caller has.
 
-The [compatibility reference](/AgentPrism/reference/compatibility/#api-key-scopes)
+The [compatibility reference](/reference/compatibility/#api-key-scopes)
 lists all 17 values and the capability each one grants.
 
 A key also proves which tenant is calling — which is why it outranks any claim or
@@ -226,9 +226,9 @@ need. Column-level encryption inside AgentPrism is a known gap, not a shipped fe
 - [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
-      by every caller — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout)
+      by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout)
 
 ## Read next
 
-- [Governance](/AgentPrism/concepts/governance/) — audit trail, quotas, tenancy
-- [Architecture](/AgentPrism/concepts/) — how the pieces fit
+- [Governance](/concepts/governance/) — audit trail, quotas, tenancy
+- [Architecture](/concepts/) — how the pieces fit

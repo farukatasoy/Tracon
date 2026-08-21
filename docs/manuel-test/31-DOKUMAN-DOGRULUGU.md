@@ -5,7 +5,8 @@
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` ·
 > `docs-site/scripts/{build-api-reference,build-http-api}.mjs` ·
 > `tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs` ·
-> `docs-site/src/content/docs/guides/coding-agents.md` · `README.md` · `src/*/README.md`
+> `docs-site/src/content/docs/guides/coding-agents.md` · `README.md` · `src/*/README.md` ·
+> `docs-site/site.config.mjs` · `src/AgentPrism.Generators/DocumentationLinks.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Bu alan [`29-AGENT-DESTEGI.md`](29-AGENT-DESTEGI.md) ve
@@ -49,7 +50,7 @@ Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koş
 | 1 | `MT-DDG-001` | Temiz ağaç, `dotnet pack` koşuldu | Paketlenen her `lib/net10.0/*.xml` içinde iç referans deseni aranır | **Sıfır eşleşme** (faz öncesi taban: 1 033 satır) |
 | 2 | `MT-DDG-002` | Aynı | `unzip -p …AspNetCore….nupkg buildTransitive/agentprism.json` içinde aynı desen aranır | **Sıfır eşleşme** (taban: 39) |
 | 3 | `MT-DDG-003` | Aynı | 18 `src/*/README.md` taranır | **Sıfır eşleşme** (taban: 9 dosyada 14 satır) |
-| 4 | `MT-DDG-004` | Aynı | 18 README'de `farukatasoy.github.io` aranır | **18/18** (taban: 5) |
+| 4 | `MT-DDG-004` | Aynı | 18 README'de yayınlanan adres aranır | **18/18** (taban: 5) |
 | 5 | `MT-DDG-005` | — | Bir `///` satırına `(phase 88)` yazılır, `dotnet test --filter ShippedDocumentation` | Kızarır ve **dosya adını** söyler |
 | 6 | `MT-DDG-006` | — | Bir `///` bloğunda `(phase` ve `88)` **iki ayrı satıra** bölünür | Kızarır — kapı bloğu birleştirerek okur |
 | 7 | `MT-DDG-007` | Taban çizgisi **boş** — bu yüzden case üç adımlıdır | (a) bir `///` satırına `(phase 88)` yaz, (b) `AGENTPRISM_SHIPPED_DOCS_REFRESH=1` ile taban çizgisini yenile, (c) satırı geri al ve **yenilemeden** koş | (c) kızarır: `- <dosya>: 0 offending lines, baseline still allows 1 — refresh it`. Boş taban çizgisiyle bu yön tetiklenemez; adım (b) şarttır |
@@ -66,6 +67,10 @@ Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koş
 | 18 | `MT-DDG-018` | Yayınlanan site | Konsol gezinmesindeki 18 girişin her biri `ui.md`'de aranır | On sekizinin de kendi başlığı ve ekran görüntüsü var | 👤 |
 | 19 | `MT-DDG-019` | — | Kök `README.md` okunur | Tamamı İngilizce; faz numarası kayması yok; bütçe içinde |
 | 20 | `MT-DDG-020` | — | `npm run check:content && npm run build && npm run check:links` | Üçü de temiz |
+| 21 | `MT-DDG-021` | — | Türetebilen bir dosyaya (`docs-site/src/sidebar.mjs`) adres **harfiyen** yazılır, `npm run check:content` | Kızarır ve **dosya adını** söyler: "spells out … Import it from docs-site/site.config.mjs" |
+| 22 | `MT-DDG-022` | — | Bir paket README'sine `site.config.mjs`'in `formerHosts` listesindeki bir barındırıcı yazılır, `npm run check:content` | Kızarır — eski barındırıcı artık siteyi sunmuyor |
+| 23 | `MT-DDG-023` | — | `DocumentationLinks.Site` değiştirilir (ör. `https://example.invalid/`), `dotnet test --filter DiagnosticIntegrityTests` | Her `APG` tanısı için kızarır; C# sabiti ile `site.config.mjs` ayrılamaz |
+| 24 | `MT-DDG-024` | Site derlendi | `dist/index.html`'de `rel="canonical"`, `dist/robots.txt` ve `dist/sitemap-index.xml` okunur | Üçü de `site.config.mjs`'teki adresi taşır; `robots.txt` sitemap'i işaret eder |
 
 ---
 
@@ -84,7 +89,7 @@ unzip -p artifacts/package/release/AgentPrism.AspNetCore.*.nupkg \
 
 # 3, 4 - paket README'leri
 grep -rlniE "phase [0-9]+|K-[0-9]{3}|docs/" src/*/README.md | wc -l      # beklenen: 0
-grep -rl "farukatasoy.github.io" src/*/README.md | wc -l                 # beklenen: 18
+grep -rl "agentprism.doayen.web.tr" src/*/README.md | wc -l              # beklenen: 18
 
 # 9 - harita
 grep -c "^- Rule:" docs-site/public/llms.txt                             # beklenen: 11

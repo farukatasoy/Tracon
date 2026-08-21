@@ -88,7 +88,7 @@ directly — there is no ORM, and no Entity Framework dependency enters your gra
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Full documentation: <https://agentprism.doayen.web.tr>
+- API reference: <https://agentprism.doayen.web.tr/api/>
 
 License: MIT

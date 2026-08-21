@@ -8,15 +8,11 @@ hero:
     observable, testable, governable, and safe to operate — inside your ASP.NET Core app.
   actions:
     - text: Get started
-      link: /AgentPrism/getting-started/first-agent/
+      link: /getting-started/first-agent/
       icon: right-arrow
     - text: Explore capabilities
-      link: /AgentPrism/capabilities/
+      link: /capabilities/
       icon: open-book
-      variant: minimal
-    - text: View on GitHub
-      link: https://github.com/farukatasoy/AgentPrism
-      icon: external
       variant: minimal
 ---
 
@@ -98,9 +94,9 @@ flowchart LR
 ```
 
 <figure class="product-shot">
-  <a href="/AgentPrism/screenshots/dashboard.png">
+  <a href="/screenshots/dashboard.png">
     <img
-      src="/AgentPrism/screenshots/dashboard.png"
+      src="/screenshots/dashboard.png"
       alt="AgentPrism dashboard with run volume, error rate, token cost, and recent activity"
       width="2880"
       height="1800"
@@ -116,19 +112,19 @@ flowchart LR
 <CardGrid>
   <Card title="Build an agent" icon="open-book">
     Go from install to a real provider, a code-defined tool, persistence, and a
-    deterministic test. [Start the five-minute guide](/AgentPrism/getting-started/first-agent/).
+    deterministic test. [Start the five-minute guide](/getting-started/first-agent/).
   </Card>
   <Card title="Integrate an existing client" icon="list-format">
     Use OpenAI Responses or Chat Completions, manage agents over HTTP, or publish
-    a selected agent through MCP or A2A. [Choose a surface](/AgentPrism/guides/openai-api/).
+    a selected agent through MCP or A2A. [Choose a surface](/guides/openai-api/).
   </Card>
   <Card title="Operate the platform" icon="setting">
     Design storage, migrations, workers, health, telemetry, security, quotas,
-    retention, and recovery. [Use the production guide](/AgentPrism/guides/production/).
+    retention, and recovery. [Use the production guide](/guides/production/).
   </Card>
   <Card title="Evaluate the fit" icon="information">
     See every feature, its package and surface, its default state, and its production
-    boundary. [Open the capability map](/AgentPrism/capabilities/).
+    boundary. [Open the capability map](/capabilities/).
   </Card>
 </CardGrid>
 
@@ -139,12 +135,12 @@ flowchart LR
   <code>AddAgentPrism()</code> works with no infrastructure, tools are defined in code
   and never in the console, MAF objects are passed through rather than wrapped, and
   every extension point registers with <code>TryAdd</code> so your own implementation
-  wins. <a href="/AgentPrism/getting-started/">What AgentPrism is</a> explains each.
+  wins. <a href="/getting-started/">What AgentPrism is</a> explains each.
 </div>
 
 :::caution[Pre-release]
 AgentPrism has not shipped `1.0`. The ASP.NET Core package depends on preview Microsoft
 Agent Framework hosting packages, and public APIs can still move between previews. Pin
 package versions and validate an upgrade before production — see [Versions and
-upgrades](/AgentPrism/reference/versioning/).
+upgrades](/reference/versioning/).
 :::

@@ -116,10 +116,10 @@ grep -A 12 "AddToolApprovalPolicy" \
 The same capability map, plus one line per documentation page, plus the full text of
 every page — three sizes for three questions, published on the documentation site:
 
-- [`llms.txt`](/AgentPrism/llms.txt) — the capability map, then **which page answers
+- [`llms.txt`](/llms.txt) — the capability map, then **which page answers
   what**: one line per hand-written page, with its title, address, and subject. About
   17 KB.
-- [`llms-full.txt`](/AgentPrism/llms-full.txt) — every guide, concept, and reference
+- [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
   page concatenated, about 400 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
@@ -162,7 +162,7 @@ agent reliably reads.
 
 A separate family, `APG0001`–`APG0007`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
-[capability map](/AgentPrism/capabilities/).
+[capability map](/capabilities/).
 
 ### Turning them off
 
@@ -202,6 +202,6 @@ written for the human making it.
 
 ## Read next
 
-- [Capability map](/AgentPrism/capabilities/) — the source the generated map is built from
-- [Troubleshooting](/AgentPrism/troubleshooting/#build-diagnostics-and-the-agent-map) — when a diagnostic fires and you disagree
-- [Your first agent](/AgentPrism/getting-started/first-agent/) — the template that turns this on
+- [Capability map](/capabilities/) — the source the generated map is built from
+- [Troubleshooting](/troubleshooting/#build-diagnostics-and-the-agent-map) — when a diagnostic fires and you disagree
+- [Your first agent](/getting-started/first-agent/) — the template that turns this on

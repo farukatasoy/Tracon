@@ -87,4 +87,4 @@ time, and `ModelContextProtocol.Core` uses reflection for JSON
 serialization. `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, and
 `.OpenAI` remain AOT-compatible.
 
-Details: <https://farukatasoy.github.io/AgentPrism/concepts/tools/>
+Details: <https://agentprism.doayen.web.tr/concepts/tools/>

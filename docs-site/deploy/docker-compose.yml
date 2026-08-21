@@ -1,0 +1,42 @@
+# The documentation site, served on the droplet that already runs Traefik.
+#
+# Traefik v2.11 owns :80 and :443 and routes by Docker label, so this is not an
+# nginx or Caddy virtual host on the host itself — it is a container that Traefik
+# discovers. The labels copy the convention the other service on this host uses:
+# the shared external `reverse-proxy` network, the `websecure` entrypoint, and the
+# `le` certificate resolver, which obtains and renews the certificate over HTTP-01.
+#
+# The apex host is a different container and is not touched by anything here.
+#
+# SITE_HOST comes from .env, which scripts/site-deploy.sh writes from
+# docs-site/site.config.mjs. It is not committed: a literal here would be one more
+# copy of the address for nothing to keep in agreement.
+name: agentprism-site
+
+services:
+  site:
+    image: nginx:1.27-alpine
+    container_name: agentprism-site
+    restart: unless-stopped
+
+    volumes:
+      # Read-only on purpose: the site is delivered by rsync, never written from
+      # inside the container.
+      - /var/www/agentprism:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+    networks:
+      - reverse-proxy
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=reverse-proxy"
+      - "traefik.http.routers.agentprism.rule=Host(`${SITE_HOST}`)"
+      - "traefik.http.routers.agentprism.entrypoints=websecure"
+      - "traefik.http.routers.agentprism.tls=true"
+      - "traefik.http.routers.agentprism.tls.certresolver=le"
+      - "traefik.http.services.agentprism.loadbalancer.server.port=8080"
+
+networks:
+  reverse-proxy:
+    external: true

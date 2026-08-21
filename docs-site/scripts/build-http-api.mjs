@@ -16,6 +16,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hasInternalHistory } from './internal-history.mjs';
 
+import { base } from '../site.config.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
 const documentPath = join(repositoryRoot, 'docs/openapi/agentprism.json');
@@ -26,7 +28,7 @@ const sidebarFile = join(here, '../src/generated/http-api-sidebar.json');
 
 // See build-api-reference.mjs: markdown links carry the site base, sidebar links do
 // not — Starlight prepends it.
-const base = '/AgentPrism/http-api';
+const httpBase = `${base}http-api`;
 const sidebarBase = '/http-api';
 const methods = ['get', 'post', 'put', 'patch', 'delete'];
 
@@ -147,7 +149,7 @@ function renderGroup(tag, operations, document, authorizationByOperation) {
     lines.push(
       'The OpenAPI snapshot cannot express the polymorphic request bodies of the Responses',
       'and Chat Completions adapters. Use the [OpenAI-compatible API guide]',
-      '(/AgentPrism/guides/openai-api/) for copyable requests, streaming events, state,',
+      `(${base}guides/openai-api/) for copyable requests, streaming events, state,`,
       'and the exact compatibility boundary.',
       '',
     );
@@ -185,7 +187,7 @@ function renderGroup(tag, operations, document, authorizationByOperation) {
     } else {
       lines.push(
         '**Authorization:** bearer authentication. See the [role and scope model]' +
-          '(/AgentPrism/getting-started/security/).',
+          `(${base}getting-started/security/).`,
       );
     }
     lines.push('');
@@ -266,7 +268,7 @@ function describeSchema(schema) {
 
   if (schema.$ref) {
     const name = schema.$ref.split('/').pop();
-    return `[\`${name}\`](${base}/schemas/${slugify(name)}/)`;
+    return `[\`${name}\`](${httpBase}/schemas/${slugify(name)}/)`;
   }
 
   if (schema.type === 'array') {
@@ -311,7 +313,7 @@ function renderSchemaIndex(schemas) {
       lines.push(`## ${initial}`);
       lines.push('');
     }
-    lines.push(`- [\`${name}\`](${base}/schemas/${slugify(name)}/)`);
+    lines.push(`- [\`${name}\`](${httpBase}/schemas/${slugify(name)}/)`);
   }
 
   lines.push('');
@@ -328,7 +330,7 @@ function renderSchema(name, schema) {
     'lastUpdated: false',
     '---',
     '',
-    '[← All HTTP schemas](/AgentPrism/http-api/schemas/)',
+    `[← All HTTP schemas](${httpBase}/schemas/)`,
     '',
   ];
 

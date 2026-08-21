@@ -94,7 +94,7 @@ The same call works for vLLM and LM Studio. Nothing about the request leaves you
 network: no cloud account, no external endpoint, no data leaving the machine that
 runs it. This is the option for regulated or air-gapped environments that cannot
 send prompts to a third-party API — see [what AgentPrism deliberately is
-not](/AgentPrism/getting-started/#what-it-deliberately-is-not).
+not](/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 
@@ -131,7 +131,7 @@ surface `MapAgentPrism()` always serves — opt-in endpoints such as A2A exposur
 the diagnostics route, and the voice stream are served but not listed.
 
 AgentPrism publishes as `1.0.0-preview.N` until those two go GA. See [Versions and
-upgrades](/AgentPrism/reference/versioning/) for pinning the whole package family and
+upgrades](/reference/versioning/) for pinning the whole package family and
 upgrading safely between previews.
 
 ## API stability
@@ -158,12 +158,12 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 
 ## Reference
 
-[Every public type](/AgentPrism/api/), generated from the shipped assemblies and their
+[Every public type](/api/), generated from the shipped assemblies and their
 XML documentation. For pinning versions and upgrading, see [Versions and
-upgrades](/AgentPrism/reference/versioning/).
+upgrades](/reference/versioning/).
 
 ## Read next
 
-- [Complete capability map](/AgentPrism/capabilities/) — what each package adds, feature by feature
-- [Compatibility matrices](/AgentPrism/reference/compatibility/) — target frameworks, stores, and AOT support per package
-- [Versions and upgrades](/AgentPrism/reference/versioning/) — how to pin what you just chose
+- [Complete capability map](/capabilities/) — what each package adds, feature by feature
+- [Compatibility matrices](/reference/compatibility/) — target frameworks, stores, and AOT support per package
+- [Versions and upgrades](/reference/versioning/) — how to pin what you just chose

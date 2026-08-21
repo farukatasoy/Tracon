@@ -1,6 +1,6 @@
 # AgentPrism.SqlServer
 
-SQL Server persistence layer for [AgentPrism](https://github.com/farukatasoy/AgentPrism).
+SQL Server persistence layer for [AgentPrism](https://agentprism.doayen.web.tr).
 
 Agent definitions, sessions, conversations, runs, events, workflows, job queue,
 evaluation, quota, and webhook records are stored in a separate `agentprism`
@@ -70,6 +70,6 @@ error; call only one of them.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/getting-started/persistence/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.doayen.web.tr/getting-started/persistence/>
+- Capability map: <https://agentprism.doayen.web.tr/capabilities/>
+- API reference: <https://agentprism.doayen.web.tr/api/>

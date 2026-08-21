@@ -48,7 +48,7 @@ veya `--version` taşımalıdır. 1.0 çıkmadı; bayrak olmadan komut çalışm
 
 **Tüketicinin elinde olanlar:** paketin kendi tipleri, public üyeleri,
 yapılandırma anahtarları, HTTP uçları, MSBuild özellikleri ve
-`https://farukatasoy.github.io/AgentPrism` adresi.
+`https://agentprism.doayen.web.tr` adresi.
 
 **Elinde olmayanlar:** `docs/KARARLAR.md`, faz numaraları, `K-NNN`, `F-NN`,
 `K1`–`K4`, `MT-*`, `docs/NN-*.md`.
@@ -64,7 +64,7 @@ Satır **silinmez**; taşıdığı bilgi kendi kendine yeten bir cümleye çevri
 | `the same rule as K-103, applied a second time` | `the same rule that governs the first approval, applied a second time` |
 | `A scope does not replace role policies, it narrows them (docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3).` | `A scope does not replace role policies, it narrows them.` |
 | `The outcome of a data subject erasure request (phase 64).` | `The outcome of a data subject erasure request.` |
-| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` | `Details: https://farukatasoy.github.io/AgentPrism/guides/model-providers/` |
+| `Details: docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` | `Details: https://agentprism.doayen.web.tr/guides/model-providers/` |
 
 Üç desen vardır ve iş bu üçe indirgenir:
 

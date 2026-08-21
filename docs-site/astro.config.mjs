@@ -5,6 +5,7 @@ import starlight from '@astrojs/starlight';
 import mermaid from 'astro-mermaid';
 
 import { sidebar } from './src/sidebar.mjs';
+import { base, site, siteUrl } from './site.config.mjs';
 
 // The diagram palette lives in site.css and is read from there rather than
 // repeated here. Mermaid needs literal colours because it does colour maths in
@@ -19,11 +20,12 @@ function token(name) {
   return match[1];
 }
 
-// GitHub Pages project site. `base` is part of every generated link, and the API
-// reference generator writes the same prefix — change both together.
+// The address is declared in site.config.mjs alone. `base` is part of every
+// generated link and the API reference generator prepends the same value, so a
+// literal here would be one of eight copies that nothing keeps in agreement.
 export default defineConfig({
-  site: 'https://farukatasoy.github.io',
-  base: '/AgentPrism/',
+  site,
+  base,
   trailingSlash: 'always',
   vite: {
     build: {
@@ -100,7 +102,7 @@ export default defineConfig({
             property: 'og:image',
             // Replaced per page by src/starlightRouteData.mjs. This value is the
             // fallback for a route the sidebar does not reach.
-            content: 'https://farukatasoy.github.io/AgentPrism/social/overview.png',
+            content: `${siteUrl}social/overview.png`,
           },
         },
         {
@@ -109,17 +111,17 @@ export default defineConfig({
             name: 'twitter:image',
             // Replaced per page by src/starlightRouteData.mjs. This value is the
             // fallback for a route the sidebar does not reach.
-            content: 'https://farukatasoy.github.io/AgentPrism/social/overview.png',
+            content: `${siteUrl}social/overview.png`,
           },
         },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
       ],
-      social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/farukatasoy/AgentPrism' },
-      ],
-      editLink: {
-        baseUrl: 'https://github.com/farukatasoy/AgentPrism/edit/main/docs-site/',
-      },
+      // No `social` GitHub icon and no `editLink`. Both pointed at the repository,
+      // which is private: measured 2026-08-21, github.com/farukatasoy/AgentPrism
+      // answers 404 to an anonymous reader, and Starlight put an "Edit page" link on
+      // all 39 hand-written pages. A link that every visitor can only fail to follow
+      // is worse than no link. Restore both blocks if the repository is ever made
+      // public — that is the reopening condition recorded with K-542.
       customCss: ['./src/styles/site.css'],
       routeMiddleware: './src/starlightRouteData.mjs',
       lastUpdated: true,

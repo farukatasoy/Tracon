@@ -235,7 +235,7 @@ Retention removes data by age; it never touches `audit_log`, which is a separate
 tamper-evident trail (`GET /api/audit/verify`) and stays outside any retention
 target on purpose. If a data subject request (export or erasure by identity, not
 age) is part of your compliance posture, register an `IDataSubjectResolver` — see
-[Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights). Without
+[Data subject rights](/concepts/governance/#data-subject-rights). Without
 one, the export and erasure endpoints return `409` rather than a silent no-op.
 
 ## Production-sensitive defaults
@@ -353,6 +353,6 @@ irreversible action. Test the crash boundary, not only the successful path.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — the authentication and authorization decisions this topology assumes
-- [Persistence](/AgentPrism/getting-started/persistence/) — choosing and migrating the store the topology writes to
-- [Observability and cost](/AgentPrism/guides/observability/) — what to watch once it is running
+- [Securing the endpoints](/getting-started/security/) — the authentication and authorization decisions this topology assumes
+- [Persistence](/getting-started/persistence/) — choosing and migrating the store the topology writes to
+- [Observability and cost](/guides/observability/) — what to watch once it is running

@@ -83,7 +83,7 @@ recorded in the repository's decision log before it is made.
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Full documentation: <https://agentprism.doayen.web.tr>
+- API reference: <https://agentprism.doayen.web.tr/api/>
 
 License: MIT

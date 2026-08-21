@@ -7,7 +7,7 @@ AgentPrism is a .NET package family built on
 You write the AI harness; you operate it at `/agentprism`.
 
 > **Status:** preview. AgentPrism is **operable**, its
-> [product documentation is published](https://farukatasoy.github.io/AgentPrism), and the
+> [product documentation is published](https://agentprism.doayen.web.tr), and the
 > **public API gate** (`EnablePublicApiTracking`) is on independently of any release
 > decision — an unrecorded surface change breaks the build. Start with
 > `dotnet new agentprism-api` and test without calling a model using
@@ -337,9 +337,12 @@ cd src/AgentPrism.UI/frontend && npm run dev
 ## Documentation
 
 **The user-facing product documentation is a separate site:**
-<https://farukatasoy.github.io/AgentPrism> — installation, your first agent, concepts, a
+<https://agentprism.doayen.web.tr> — installation, your first agent, concepts, a
 console tour, the HTTP API (160 operations), and an API reference for 671 public types.
-Its source is [`docs-site/`](docs-site/), published on every push to `main`.
+Its source is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
+builds it, runs the four site gates, and publishes it. The serving stack is in
+[`docs-site/deploy/`](docs-site/deploy/) — an nginx container behind Traefik — so the
+host is never configured by hand.
 
 The table below is the **development documentation**: Turkish, and never mixed with the
 site — `docs/` is the journal, `docs-site/` is the product documentation.

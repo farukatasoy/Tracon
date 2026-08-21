@@ -27,7 +27,7 @@ screen that stops rendering fails the build instead of leaving a stale picture h
 
 ## Dashboard
 
-<a class="ui-shot" href="/AgentPrism/screenshots/dashboard.png"><img src="/AgentPrism/screenshots/dashboard.png" alt="The dashboard: run counts, error rate, tokens, cost, and a runs-over-time chart" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/dashboard.png"><img src="/screenshots/dashboard.png" alt="The dashboard: run counts, error rate, tokens, cost, and a runs-over-time chart" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Runs, errors, tokens, and cost across every agent, over a window you choose. Cost
 appears only when pricing is configured; models with no pricing are counted
@@ -44,13 +44,13 @@ in-memory — a reminder that this data ends with the process.
 
 ## Agents
 
-<a class="ui-shot" href="/AgentPrism/screenshots/agents.png"><img src="/AgentPrism/screenshots/agents.png" alt="The agent list, showing code-defined and database-defined agents" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/agents.png"><img src="/screenshots/agents.png" alt="The agent list, showing code-defined and database-defined agents" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Code-defined and database-defined agents in one list. The origin is on each entry,
 because it decides what you can do: a code agent can be run and read but not edited,
 and the console hides the edit form rather than offering one that would fail.
 
-<a class="ui-shot" href="/AgentPrism/screenshots/agent-detail.png"><img src="/AgentPrism/screenshots/agent-detail.png" alt="An agent's detail screen with its model binding, tools, and version history" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/agent-detail.png"><img src="/screenshots/agent-detail.png" alt="An agent's detail screen with its model binding, tools, and version history" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 The detail screen carries the model binding, tools, skills, callable agents, and — for
 a database agent — the version history with a diff between any two versions and a
@@ -61,12 +61,12 @@ unknown tool or skill name is refused at write time, not on the first run.
 
 The instructions panel also holds a culture-keyed section: add a culture tag
 (`tr`, `de`, ...) with its own instructions text, and a run requesting that
-culture picks it up (see [Culture-keyed instructions](/AgentPrism/concepts/agents/#culture-keyed-instructions)).
+culture picks it up (see [Culture-keyed instructions](/concepts/agents/#culture-keyed-instructions)).
 The version diff screen shows each culture's text as its own section.
 
 ## Playground
 
-<a class="ui-shot" href="/AgentPrism/screenshots/playground.png"><img src="/AgentPrism/screenshots/playground.png" alt="The playground, with a streaming reply and tool calls rendered as cards" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/playground.png"><img src="/screenshots/playground.png" alt="The playground, with a streaming reply and tool calls rendered as cards" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Talk to an agent. The reply streams token by token and tool calls appear as cards with
 their arguments and their results, so you can see *why* an answer came out the way it
@@ -77,7 +77,7 @@ live conversation mode.
 
 ## Runs
 
-<a class="ui-shot" href="/AgentPrism/screenshots/runs.png"><img src="/AgentPrism/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/runs.png"><img src="/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Every execution, filterable by agent, status, and kind — and, once your application
 binds `IRunAttributionContext`, by **user** and by **label** (`key:value`, or a bare
@@ -98,7 +98,7 @@ next to the ones automatic judges write.
 
 ## Sessions
 
-<a class="ui-shot" href="/AgentPrism/screenshots/sessions.png"><img src="/AgentPrism/screenshots/sessions.png" alt="The session list with message counts and last activity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/sessions.png"><img src="/screenshots/sessions.png" alt="The session list with message counts and last activity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 A session is a durable conversation. The list shows every session the active store
 knows about, with its agent, message count, and last activity; opening one reads the
@@ -114,7 +114,7 @@ conversation back, and branching it, need a SQL store.
 
 ## Jobs
 
-<a class="ui-shot" href="/AgentPrism/screenshots/jobs.png"><img src="/AgentPrism/screenshots/jobs.png" alt="The job queue with kind, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/jobs.png"><img src="/screenshots/jobs.png" alt="The job queue with kind, status, attempt count, and next run time" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Everything AgentPrism runs in the background, in one queue: queued agent runs,
 scheduled runs, workflow executions, evaluation runs, online-evaluation scoring, and
@@ -127,11 +127,11 @@ park one. Triggering a schedule by hand queues exactly the job the timer would h
 
 The queue only drains in a process that opted in with `UseScheduling()`. A queue that
 never moves is almost always an API process with no worker behind it — see
-[Jobs, schedules, and queues](/AgentPrism/guides/background-work/).
+[Jobs, schedules, and queues](/guides/background-work/).
 
 ## Workflows
 
-<a class="ui-shot" href="/AgentPrism/screenshots/workflows.png"><img src="/AgentPrism/screenshots/workflows.png" alt="The workflow list and a compiled workflow graph" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/workflows.png"><img src="/screenshots/workflows.png" alt="The workflow list and a compiled workflow graph" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Workflows defined in code and in the database. Opening one draws the compiled graph,
 and the node ids are the same executor ids that appear in run events — which is how
@@ -142,13 +142,13 @@ resumes execution from the checkpoint as a new run.
 
 ## Evals and experiments
 
-<a class="ui-shot" href="/AgentPrism/screenshots/evals.png"><img src="/AgentPrism/screenshots/evals.png" alt="The eval suite list" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/evals.png"><img src="/screenshots/evals.png" alt="The eval suite list" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Suites, their cases, and their past runs. A case can be promoted straight from a real
 run, which is the fastest path from "this conversation went wrong" to "this is a
 regression test".
 
-<a class="ui-shot" href="/AgentPrism/screenshots/experiments.png"><img src="/AgentPrism/screenshots/experiments.png" alt="The experiment list with per-arm results" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/experiments.png"><img src="/screenshots/experiments.png" alt="The experiment list with per-arm results" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 An experiment splits live traffic between two versions of the same agent. The results
 show per-arm counts, error rates, tokens, and durations — and make no claim about a
@@ -156,7 +156,7 @@ winner. The numbers are yours to judge.
 
 ## Approvals
 
-<a class="ui-shot" href="/AgentPrism/screenshots/approvals.png"><img src="/AgentPrism/screenshots/approvals.png" alt="Pending tool approvals awaiting a decision" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/approvals.png"><img src="/screenshots/approvals.png" alt="Pending tool approvals awaiting a decision" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tool calls waiting on a human, with the arguments as they were recorded and an expiry.
 Approving or rejecting both resume the run — the model has to see a result or a
@@ -171,21 +171,21 @@ comparisons, not a free-text expression box.
 
 ### Tools
 
-<a class="ui-shot" href="/AgentPrism/screenshots/tools.png"><img src="/AgentPrism/screenshots/tools.png" alt="The tool list with each tool's JSON schema" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/tools.png"><img src="/screenshots/tools.png" alt="The tool list with each tool's JSON schema" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Tools with their generated JSON schemas — read-only, and permanently so. This screen
 is where the code-only rule is most visible: you can see every tool an agent may use,
 and there is no way to add one from here. A tool registered with `AddClientTool(...)`
 carries a "client-side" badge: its declaration is still code-only, but its body runs
 on the caller instead of the server. See
-[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/).
+[Client-side tools and the embeddable widget](/guides/client-side-tools/).
 A destructive tool carries a red badge, one that sends data outside the process an
 orange one, and a tool with a declared permission or a non-default timeout shows both
-next to it — see [Tools: authorization and timeout](/AgentPrism/concepts/tools/#authorization-and-timeout).
+next to it — see [Tools: authorization and timeout](/concepts/tools/#authorization-and-timeout).
 
 ### Skills
 
-<a class="ui-shot" href="/AgentPrism/screenshots/skills.png"><img src="/AgentPrism/screenshots/skills.png" alt="The skill list with frontmatter, resources, and allowed tools" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/skills.png"><img src="/screenshots/skills.png" alt="The skill list with frontmatter, resources, and allowed tools" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Skills sit beside the tools. A skill is markdown instructions plus read-only resources
 that an agent loads at run time, with approval. The editor shows the frontmatter, the
@@ -198,13 +198,13 @@ registered and granted. It cannot write one.
 
 ### Models
 
-<a class="ui-shot" href="/AgentPrism/screenshots/models.png"><img src="/AgentPrism/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/models.png"><img src="/screenshots/models.png" alt="Registered model providers and their catalogues" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Providers and their configured models, with a health status served from cache.
 A provider that implements no health check reports `Unknown`, which is not an error.
 ### MCP
 
-<a class="ui-shot" href="/AgentPrism/screenshots/mcp.png"><img src="/AgentPrism/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/mcp.png"><img src="/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Remote MCP servers and the tools discovered from each. A server is a definition — an
 endpoint, a transport, and the name of the configuration key its authorization value is
@@ -216,7 +216,7 @@ without a restart.
 
 ### Audit
 
-<a class="ui-shot" href="/AgentPrism/screenshots/audit.png"><img src="/AgentPrism/screenshots/audit.png" alt="The audit trail, filterable by actor, action, and entity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/audit.png"><img src="/screenshots/audit.png" alt="The audit trail, filterable by actor, action, and entity" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Who changed what, when, and from what to what — filterable by actor, action, entity,
 and date range. Secret-looking fields are masked before anything is stored.
@@ -226,16 +226,16 @@ policy (BYOK), and skill script grants have their own screens in the same area.
 
 ### Triggers
 
-<a class="ui-shot" href="/AgentPrism/screenshots/triggers.png"><img src="/AgentPrism/screenshots/triggers.png" alt="Inbound triggers with their target, payload mode, and signed-request URL" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/triggers.png"><img src="/screenshots/triggers.png" alt="Inbound triggers with their target, payload mode, and signed-request URL" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Inbound triggers let an external system start a queued run with one signed request and
 no API key. A trigger's editor shows the exact URL to configure in that system, the
 target agent or workflow, and the name of the configuration key holding its signing
-secret — see [Inbound triggers](/AgentPrism/guides/inbound-triggers/).
+secret — see [Inbound triggers](/guides/inbound-triggers/).
 
 ### Diagnostics
 
-<a class="ui-shot" href="/AgentPrism/screenshots/diagnostics.png"><img src="/AgentPrism/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/diagnostics.png"><img src="/screenshots/diagnostics.png" alt="The diagnostics screen showing storage, migrations, and configuration" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Diagnostics answers "is this deployment actually wired up the way I think": which
 stores are active, whether migrations are up to date, and what is pending.
@@ -252,7 +252,7 @@ app.MapAgentPrism("/agentprism", options =>
 
 ## Settings
 
-<a class="ui-shot" href="/AgentPrism/screenshots/settings.png"><img src="/AgentPrism/screenshots/settings.png" alt="Settings: version, prefix, authentication method, active stores, theme, language" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+<a class="ui-shot" href="/screenshots/settings.png"><img src="/screenshots/settings.png" alt="Settings: version, prefix, authentication method, active stores, theme, language" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Version, prefix, authentication method, active stores, theme, and language.
 
@@ -272,10 +272,10 @@ registration is needed.
 ```
 
 The widget calls the run endpoint directly from the embedding page's origin, so
-[`AllowedOrigins`](/AgentPrism/reference/configuration/) must list that origin —
+[`AllowedOrigins`](/reference/configuration/) must list that origin —
 empty by default, so a page you have not explicitly allowed is blocked by the
 browser. See
-[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+[Client-side tools and the embeddable widget](/guides/client-side-tools/)
 for the full walkthrough, including how the widget runs a client-side tool.
 
 ## Things worth knowing
@@ -302,8 +302,8 @@ the management HTTP API so the fields remain explicit.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — why the shell is
+- [Securing the endpoints](/getting-started/security/) — why the shell is
   exempt from the bearer layer
-- [The HTTP API](/AgentPrism/http-api/) — everything the console does, as requests
-- [Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+- [The HTTP API](/http-api/) — everything the console does, as requests
+- [Client-side tools and the embeddable widget](/guides/client-side-tools/)
   — a tool whose body runs in the browser, and the chat widget that runs it

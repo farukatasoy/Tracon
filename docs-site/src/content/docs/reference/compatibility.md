@@ -172,6 +172,6 @@ hashed and the plaintext value is returned only at creation.
 
 ## Read next
 
-- [Versions and upgrades](/AgentPrism/reference/versioning/) — what a version bump is allowed to change
-- [Choosing packages](/AgentPrism/packages/) — which of these matrices apply to you
-- [Configuration](/AgentPrism/reference/configuration/) — every option the supported combinations expose
+- [Versions and upgrades](/reference/versioning/) — what a version bump is allowed to change
+- [Choosing packages](/packages/) — which of these matrices apply to you
+- [Configuration](/reference/configuration/) — every option the supported combinations expose

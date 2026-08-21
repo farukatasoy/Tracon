@@ -123,6 +123,6 @@ absent from it can still be used.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/guides/model-providers/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.doayen.web.tr/guides/model-providers/>
+- Capability map: <https://agentprism.doayen.web.tr/capabilities/>
+- API reference: <https://agentprism.doayen.web.tr/api/>

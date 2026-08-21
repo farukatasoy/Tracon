@@ -37,6 +37,6 @@ namespace. Anything provider-specific goes through `SqlDialect`.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/getting-started/persistence/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.doayen.web.tr/getting-started/persistence/>
+- Capability map: <https://agentprism.doayen.web.tr/capabilities/>
+- API reference: <https://agentprism.doayen.web.tr/api/>

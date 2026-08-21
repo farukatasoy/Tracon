@@ -170,5 +170,5 @@ and the response opens a new one.
 
 ## Read next
 
-- [Runs and recording](/AgentPrism/concepts/runs/) — reading the tree
-- [Evaluation and experiments](/AgentPrism/concepts/evaluation/)
+- [Runs and recording](/concepts/runs/) — reading the tree
+- [Evaluation and experiments](/concepts/evaluation/)

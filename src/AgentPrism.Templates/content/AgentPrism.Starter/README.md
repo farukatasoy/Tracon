@@ -1,6 +1,6 @@
 # AgentPrism.Starter
 
-Generated with `dotnet new agentprism-api`. This is a working [AgentPrism](https://github.com/farukatasoy/AgentPrism) control plane.
+Generated with `dotnet new agentprism-api`. This is a working [AgentPrism](https://agentprism.doayen.web.tr) control plane.
 
 ## 1. Set your secrets
 
@@ -54,5 +54,5 @@ curl http://localhost:5081/agentprism/api/agents
 
 ## More
 
-- [AgentPrism repository](https://github.com/farukatasoy/AgentPrism)
-- [Architecture](https://farukatasoy.github.io/AgentPrism/concepts/)
+- [AgentPrism documentation](https://agentprism.doayen.web.tr)
+- [Architecture](https://agentprism.doayen.web.tr/concepts/)

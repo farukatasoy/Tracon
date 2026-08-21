@@ -292,6 +292,35 @@ Ana dalda çalışılmaz; faz dalı kullanılır (`feature/phase-N-...`).
 
 ---
 
+## Adım 10 — Siteyi yayınla
+
+**Site kendiliğinden güncellenmez.** GitHub Pages bunu her push'ta yapıyordu;
+K-542'den beri yapmıyor — CI'nin `site` işi yalnız derler ve kapıları koşar,
+YAYINLAMAZ. Bu adım atlanırsa kod, doküman ve karar defteri günceldir ama
+**kullanıcının gördüğü site bir önceki fazdan kalmadır** ve bunu hiçbir kapı
+söylemez.
+
+Adım 7 `docs-site/` içinde bir şey değiştirdiyse (veya `///` XML dokümanı,
+`capabilities.md`, OpenAPI belgesi değiştiyse — üçü de üretilen sayfalara
+girer):
+
+```bash
+./scripts/site-deploy.sh
+```
+
+Script derler, dört kapıyı koşar, `rsync`'ler ve konteyneri uzlaştırır. Kapılardan
+biri kırmızıysa hiçbir şey yayınlanmaz. Sonra doğrula:
+
+```bash
+curl -sI https://agentprism.doayen.web.tr/ | head -1     # 200
+curl -sI https://doayen.web.tr/ | head -1                # apex bozulmadi (405 = HEAD, normal)
+```
+
+🚨 **Fazın DEĞİŞTİRDİĞİ sayfayı canlıda aç.** `200` yalnız sitenin ayakta
+olduğunu söyler, YENİ olduğunu değil.
+
+---
+
 ## Kapanış kontrolü
 
 Dört soruya dürüst cevap ver:
@@ -304,6 +333,8 @@ Dört soruya dürüst cevap ver:
 > 4. Bu fazın vaat ettiği davranışı **bir kullanıcı** yayınlanan siteden **ve**
 >    yerel referans dosyasından öğrenebilir mi? (Üç yüzey ayrıdır: site sayfası ·
 >    `<example>` taşıyan XML dokümanı · `capabilities.md` satırı.)
+> 5. Site **yayınlandı mı** (Adım 10)? Yeşil kapı yayın değildir — `dist/`
+>    makinende durur, sunucuda değil.
 
 1'e cevap "hayır" ise eksik bilgiyi **fazın kendi dokümanına** yaz — sıcak
 dokümana değil.

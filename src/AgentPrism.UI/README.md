@@ -57,7 +57,7 @@ the UI under the same prefix; the prefix is written in one place.
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- Console guide: <https://farukatasoy.github.io/AgentPrism/ui/>
+- Full documentation: <https://agentprism.doayen.web.tr>
+- Console guide: <https://agentprism.doayen.web.tr/ui/>
 
 License: MIT

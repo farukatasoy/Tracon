@@ -305,6 +305,6 @@ idempotent.
 
 ## Read next
 
-- [Inbound triggers](/AgentPrism/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
-- [Reliable runs](/AgentPrism/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
-- [Production deployment](/AgentPrism/guides/production/) — where the worker process lives and how many of them you run
+- [Inbound triggers](/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
+- [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
+- [Production deployment](/guides/production/) — where the worker process lives and how many of them you run

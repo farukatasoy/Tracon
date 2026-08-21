@@ -13,6 +13,13 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import sharp from 'sharp';
 
+import { siteUrl } from '../site.config.mjs';
+
+// The address as a reader would type it: no scheme, no trailing slash. Derived
+// rather than typed, because a card is a PNG — a stale address inside one is
+// invisible to every text search over the repository.
+const wordmark = siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
 const here = dirname(fileURLToPath(import.meta.url));
 const outputDirectory = resolve(here, '../public/social');
 const styleSheet = readFileSync(resolve(here, '../src/styles/site.css'), 'utf8');
@@ -149,7 +156,7 @@ function card({ name, title, subtitle }) {
         fill="${ink.muted}">${subtitle}</text>
   <rect x="80" y="470" width="120" height="4" rx="2" fill="url(#spectrum)" />
   <text x="80" y="546" font-family="${font}" font-size="24" font-weight="500"
-        fill="${ink.muted}">farukatasoy.github.io/AgentPrism</text>
+        fill="${ink.muted}">${wordmark}</text>
 </svg>`;
 }
 

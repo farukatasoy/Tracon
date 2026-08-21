@@ -24,6 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { internalHistoryMarker } from './internal-history.mjs';
 
+import { base } from '../site.config.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
@@ -39,10 +40,13 @@ const skipDocfx = process.argv.includes('--skip-docfx');
  *
  * `apiBase` goes into MARKDOWN links, which Astro copies through untouched, so it
  * carries the site base. `sidebarBase` goes into the sidebar config, where Starlight
- * prepends the base itself — including it there produces `/AgentPrism/AgentPrism/...`.
- * The link checker catches it; this comment is here so it is not reintroduced.
+ * prepends the base itself — including it there would double the prefix.
+ *
+ * They hold the same value while `base` is '/', which is what hides the mistake:
+ * swap them today and nothing breaks, then a move to a sub-path base breaks every
+ * sidebar entry at once. Keep them apart. The link checker catches the doubling.
  */
-const apiBase = '/AgentPrism/api';
+const apiBase = `${base}api`;
 const sidebarBase = '/api';
 
 main();

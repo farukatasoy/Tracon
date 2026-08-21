@@ -104,7 +104,7 @@ source generator fills in at compile time with no reflection at all; passing an
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Full documentation: <https://agentprism.doayen.web.tr>
+- API reference: <https://agentprism.doayen.web.tr/api/>
 
 License: MIT
