@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 using AgentPrism.StoreContracts;
+using Microsoft.Data.SqlClient;
 
 namespace AgentPrism.SqlServer.IntegrationTests;
 
@@ -190,5 +191,99 @@ public sealed class SqlServerDialectTests(SqlServerFixture fixture)
 
         exact.Count.ShouldBe(1);
         exact[0].Events.ShouldBe(["run.completed.v2"]);
+    }
+
+    /// <summary>
+    /// 🚨 A deadlock victim is TRANSIENT, not a schema error. Concurrent
+    /// first-time migrations of DIFFERENT schemas (the migration lock is scoped
+    /// to the schema, K-389) touch catalog objects shared by the whole database
+    /// and SQL Server kills one of them with error 1205. Before this was
+    /// classified, <c>MigrationRunner</c> wrapped it in an
+    /// <c>AgentPrismException</c> and the fixture never came up: measured on
+    /// 2026-08-21, five <c>SqlServerRetentionStoreContractTests</c> cases failed
+    /// in a batch run with "Migration '0017_approval_conditions' could not be
+    /// applied: ... deadlocked ... (error 1205, state 51)".
+    /// </summary>
+    [Fact]
+    public async Task Deadlock_victim_is_classified_as_a_deadlock()
+    {
+        var table = "deadlock_probe_" + Guid.NewGuid().ToString("N");
+
+        await using var setup = new SqlConnection(fixture.ConnectionString);
+        await setup.OpenAsync(TestContext.Current.CancellationToken);
+        await ExecuteAsync(setup, null, $"CREATE TABLE dbo.[{table}] (id INT PRIMARY KEY, v INT NOT NULL);");
+        await ExecuteAsync(setup, null, $"INSERT INTO dbo.[{table}] (id, v) VALUES (1, 0), (2, 0);");
+
+        try
+        {
+            await using var first = new SqlConnection(fixture.ConnectionString);
+            await using var second = new SqlConnection(fixture.ConnectionString);
+            await first.OpenAsync(TestContext.Current.CancellationToken);
+            await second.OpenAsync(TestContext.Current.CancellationToken);
+
+            var firstTx = (SqlTransaction)await first.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var secondTx = (SqlTransaction)await second.BeginTransactionAsync(TestContext.Current.CancellationToken);
+
+            // Each transaction takes ONE row's exclusive lock ...
+            await ExecuteAsync(first, firstTx, $"UPDATE dbo.[{table}] SET v = 1 WHERE id = 1;");
+            await ExecuteAsync(second, secondTx, $"UPDATE dbo.[{table}] SET v = 1 WHERE id = 2;");
+
+            // ... then reaches for the OTHER one. The cycle is closed and the
+            // server must kill exactly one of the two.
+            var crossFirst = CaptureAsync(first, firstTx, $"UPDATE dbo.[{table}] SET v = 2 WHERE id = 2;");
+            var crossSecond = CaptureAsync(second, secondTx, $"UPDATE dbo.[{table}] SET v = 2 WHERE id = 1;");
+
+            var outcomes = await Task.WhenAll(crossFirst, crossSecond);
+
+            var victim = outcomes.SingleOrDefault(static error => error is not null);
+
+            victim.ShouldNotBeNull();
+            victim.Number.ShouldBe(1205);
+
+            new SqlServerDialect("dbo").IsDeadlock(victim).ShouldBeTrue();
+
+            await RollbackAsync(firstTx);
+            await RollbackAsync(secondTx);
+        }
+        finally
+        {
+            await ExecuteAsync(setup, null, $"DROP TABLE IF EXISTS dbo.[{table}];");
+        }
+    }
+
+    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction? transaction, string sql)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.Transaction = transaction;
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Runs the statement and RETURNS the deadlock instead of throwing it.</summary>
+    private static async Task<SqlException?> CaptureAsync(
+        SqlConnection connection, SqlTransaction transaction, string sql)
+    {
+        try
+        {
+            await ExecuteAsync(connection, transaction, sql);
+
+            return null;
+        }
+        catch (SqlException exception)
+        {
+            return exception;
+        }
+    }
+
+    /// <summary>The victim is already rolled back by the server; that must not throw here.</summary>
+    private static async Task RollbackAsync(SqlTransaction transaction)
+    {
+        try
+        {
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 }

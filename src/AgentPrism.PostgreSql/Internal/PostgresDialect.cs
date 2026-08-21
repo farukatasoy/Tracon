@@ -27,6 +27,9 @@ internal sealed class PostgresDialect : SqlDialect
     /// <summary>SQLSTATE code for a foreign key constraint violation.</summary>
     private const string ForeignKeyViolation = "23503";
 
+    /// <summary><c>deadlock_detected</c>: the server broke the cycle by aborting this transaction.</summary>
+    private const string DeadlockDetected = "40P01";
+
     /// <summary>SQLSTATE code for an invalid regular expression.</summary>
     private const string InvalidRegularExpression = "2201B";
 
@@ -110,6 +113,10 @@ internal sealed class PostgresDialect : SqlDialect
     /// <inheritdoc />
     public override bool IsForeignKeyViolation(Exception exception)
         => exception is PostgresException { SqlState: ForeignKeyViolation };
+
+    /// <inheritdoc />
+    public override bool IsDeadlock(Exception exception)
+        => exception is PostgresException { SqlState: DeadlockDetected };
 
     /// <inheritdoc />
     public override bool IsInvalidRegexError(Exception exception)

@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
@@ -154,6 +155,30 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// replay's child calls do not carry their own lineage.
     /// </remarks>
     public Guid? ReplayOfRunId { get; init; }
+
+    /// <summary>
+    /// Gets the work that must be DONE AND VISIBLE before the run is closed with
+    /// <see cref="RunStatus.AwaitingApproval"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="RunStatus.AwaitingApproval"/> is TERMINAL and is the signal a
+    /// consumer polls on. Whoever records the pending approval does so AFTER the
+    /// agent call returns — but the run is closed INSIDE that call, so without this
+    /// hook the status is published first and <c>GET /api/approvals/pending</c>
+    /// answers an empty list for a run that already says it is waiting. The window
+    /// was not a race: the order was fixed, so it was open on EVERY such run.
+    /// </para>
+    /// <para>
+    /// The callback receives the messages the run produced and runs on BOTH the
+    /// buffered and the streaming path, immediately before the terminal status is
+    /// written. It runs only when the run actually ends by requesting approval;
+    /// anything it throws fails the run, which is correct — a published
+    /// <see cref="RunStatus.AwaitingApproval"/> whose approval was never recorded
+    /// is unanswerable.
+    /// </para>
+    /// </remarks>
+    public Func<IEnumerable<ChatMessage>, CancellationToken, ValueTask>? BeforePendingApprovalIsPublished { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

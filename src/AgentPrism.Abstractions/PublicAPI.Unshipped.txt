@@ -164,6 +164,8 @@ AgentPrism.AgentPrismRunOptions
 AgentPrism.AgentPrismRunOptions.AgentPrismRunOptions() -> void
 AgentPrism.AgentPrismRunOptions.AgentVersion.get -> int?
 AgentPrism.AgentPrismRunOptions.AgentVersion.init -> void
+AgentPrism.AgentPrismRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
+AgentPrism.AgentPrismRunOptions.BeforePendingApprovalIsPublished.init -> void
 AgentPrism.AgentPrismRunOptions.Budget.get -> AgentPrism.AgentRunBudget?
 AgentPrism.AgentPrismRunOptions.Budget.init -> void
 AgentPrism.AgentPrismRunOptions.Depth.get -> int

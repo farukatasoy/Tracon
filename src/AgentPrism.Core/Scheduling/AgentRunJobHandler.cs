@@ -89,13 +89,42 @@ internal sealed class AgentRunJobHandler(
 
         List<ChatMessage> messages = [new(ChatRole.User, message)];
 
+        // 🚨 Both writes below must be durable BEFORE the run's terminal
+        // AwaitingApproval status is published, and in THIS order:
+        //   session  -> the decision enqueues an ApprovalResume job that reads it
+        //   approval -> the consumer polls the run status and then lists approvals
+        // Closing the run first (which is what agent.RunAsync does internally)
+        // published a status whose approval was not yet listable — measured on
+        // EVERY queued run that asked for approval, not as a race (F-133).
+        var savedInsideTheHook = false;
+
         var response = await agent.RunAsync(
             messages,
             session,
-            new AgentPrismRunOptions { RunId = runId },
+            new AgentPrismRunOptions
+            {
+                RunId = runId,
+                BeforePendingApprovalIsPublished = async (producedMessages, hookCancellation) =>
+                {
+                    var requests = CollectPendingApprovalRequests(producedMessages);
+
+                    // No session means the request can never be answered; the check
+                    // after this call corrects the run to Failed.
+                    if (requests.Count == 0 || session is null)
+                    {
+                        return;
+                    }
+
+                    await sessions.SaveSessionAsync(agent, session, hookCancellation).ConfigureAwait(false);
+                    savedInsideTheHook = true;
+
+                    await RecordPendingApprovalsAsync(requests, runId, sessionId!, context, hookCancellation)
+                        .ConfigureAwait(false);
+                },
+            },
             cancellationToken).ConfigureAwait(false);
 
-        if (session is not null)
+        if (session is not null && !savedInsideTheHook)
         {
             await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
         }
@@ -126,17 +155,32 @@ internal sealed class AgentRunJobHandler(
             return;
         }
 
+        // The approvals themselves were already written inside the hook above.
+    }
+
+    /// <summary>
+    /// Writes one <see cref="PendingApproval"/> per request and announces each.
+    /// Runs from <c>BeforePendingApprovalIsPublished</c>, so every row is visible
+    /// before the run reports <see cref="RunStatus.AwaitingApproval"/>.
+    /// </summary>
+    private async ValueTask RecordPendingApprovalsAsync(
+        IReadOnlyList<ToolApprovalRequestContent> requests,
+        Guid runId,
+        string sessionId,
+        JobContext context,
+        CancellationToken cancellationToken)
+    {
         var expiration = approvalOptionsMonitor?.CurrentValue.DefaultExpiration ?? TimeSpan.FromHours(24);
         var now = _clock.GetUtcNow();
 
-        foreach (var request in pendingRequests)
+        foreach (var request in requests)
         {
             var approval = new PendingApproval
             {
                 Id = AgentPrismId.NewId(),
                 TenantId = context.Job.TenantId,
                 RunId = runId,
-                SessionId = sessionId!,
+                SessionId = sessionId,
                 RequestId = request.RequestId,
                 ToolName = request.ToolCall is FunctionCallContent call ? call.Name : "unknown",
                 Arguments = options.Value.RunRecording.RecordToolPayloads && request.ToolCall is FunctionCallContent argsCall

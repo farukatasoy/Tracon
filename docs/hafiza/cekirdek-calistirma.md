@@ -44,3 +44,21 @@
 - **🚨 Ambient bir baglami bir kayit yolunda DOGRUDAN okuma — tuketicinin uygulamasi firlatabilir ve dogrulanmamis deger dondurebilir** (2026-08-19, Faz 68): garantiler `RunAttributionReader.Read(...)`'e cikarildi; her kayit yolu onu kullanir. Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `CompleteAsync` ustundeki `if (IsDisabled) return;` korumasi kapanis olayini (RunCompleted/RunFailed) HIC uretmiyordu** (Faz 70, K-493): depo ve sink BAGIMSIZ olmali; koruma kaldirildi, yalniz `_store.CompleteRunAsync` `IsDisabled`'a bagli. Yeni bir "erken don" eklerken sor: bu YALNIZ depo icin mi, depo-DISI tuketiciyi de susturuyor mu? Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Plandaki "yeni enum degeri N" iddiasi kod okunmadan guvenilmez** (2026-08-19, Faz 70, K-492): plan `ReasoningDelta`'yi 22 diyordu, `ModelFallbackUsed` Faz 62'den beri zaten 22'ydi — gercek bos deger 23. "Son deger" turunden bir sayi asla varsayilmaz, `RunEventType.cs` okunur.
+
+## 🚨 Terminal durum, ona bağlı kayıtlardan ÖNCE görünür olmamalı (K-541)
+
+`RunRecordingAgent` çalıştırmayı `agent.RunAsync`'in **içinde** kapatır. Çağıranın
+o çalıştırmaya bağlı kayıtları (onay satırı, oturum) çağrı **döndükten** sonra
+yazması, kendini "bekliyorum" ilan etmiş ama beklediği şey henüz listelenemeyen bir
+`run` üretir. F-133 buydu ve kaydı "kırılgan test" diyordu — **değildi**: sıra
+sabitti, pencere onay isteyen her kuyruk çalıştırmasında açıktı; kırılgan olan
+yalnız tüketicinin oraya bakıp bakmadığıydı.
+
+Sıra sabittir: **oturum → onay satırı → durum.** Ortadakini atlarsan karar
+`ApprovalResume` işini kuyruklar ve o iş oturumu bulamaz.
+
+Tamamlamayı çağırana devretme. `CompleteAsync` yalnız durum yazmaz: bitmemiş
+tool'ları boşaltır, compaction usage'ını birleştirir, fallback atfını çözer,
+maliyeti ve metriği yazar. Doğru dikiş, durum yazılmadan hemen önce koşan bir
+kancadır — `AgentPrismRunOptions.BeforePendingApprovalIsPublished`. Kanca akışlı
+yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamalıdır.

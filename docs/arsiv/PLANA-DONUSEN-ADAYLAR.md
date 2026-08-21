@@ -451,3 +451,130 @@ kullanmadan önce yeniden ölç.
 
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Karar verildi ve uygulandı: **K-385** yeniden deneme döngüsüne jitter ekledi ve üst sınırı 5 → **10**'a çıkardı ([`SqlEvalStore.cs:179`](../../src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs)). Özgün kayıt: 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
 
+---
+
+### F-133
+
+| ~~**F-133**~~ | ✅ **KAPANDI (2026-08-21)** — düzeltildi, K-540/K-541 | Faz 77 kapanış koşumu (2026-08-20) | **Kaydın teşhisi 2026-08-21'de ölçümle DÜZELTİLDİ.** Kayıt "izolasyonda HER ZAMAN düşüyor, tam sette bazen geçiyor" diyordu ve zamanlama yarışı sanıyordu. Gerçek: pencere bir yarış DEĞİL, **sabit bir sıraydı** ve onay isteyen HER kuyruk çalıştırmasında açıktı. `RunRecordingAgent` çalıştırmayı `agent.RunAsync`'in İÇİNDE `AwaitingApproval` ile kapatıyor ([`AgentRunJobHandler.cs:92`](../../src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs)), onay satırı ise çağrı döndükten sonra yazılıyordu (satır 150) — arada `GET /api/approvals/pending` boş dizi veriyordu. Kırılgan olan tek şey tüketicinin o pencereye bakıp bakmadığıydı. Deterministik düşen test yazıldı (`ApprovalEndpointTests.Approval_row_exists_before_the_run_reports_AwaitingApproval`, casus bir `IPendingApprovalStore` ile) ve düzeltmeden önce kırmızıydı. Çözüm K-541: sıra **oturum → onay satırı → durum**, `AgentPrismRunOptions.BeforePendingApprovalIsPublished` kancasıyla zorlanır. Özgün kayıt: `Second_decision_on_the_same_approval_gets_409`, `ApprovalEndpointTests.cs:159`, `ShouldHaveSingleItem` → 0 öğe. |
+
+---
+
+## Dalga 1–3 eşleme tabloları (ADAYLAR.md'den taşındı, 2026-08-21)
+
+> Faz 31–52'nin kalem→faz eşlemesi. Faz durumu [`YOL-HARITASI.md`](../YOL-HARITASI.md)'dedir.
+
+### Dalga 1 → Faz 31–37
+
+| Kalem | Faz |
+|---|---|
+| **F-35** Çalıştırma iptali | [Faz 32](fazlar/32-CALISTIRMA-IPTALI.md) |
+| **F-38** ASP.NET Core `IHealthCheck` | [Faz 33](fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) |
+| **F-49** `dotnet new` şablon paketi | [Faz 37](fazlar/37-PROJE-SABLONU.md) |
+| **F-52** Geri bildirim ve puanlama | [Faz 31](fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md) |
+| **F-60** Tanım doğrulama ucu | [Faz 34](fazlar/34-TANIM-DOGRULAMA-UCU.md) |
+| **F-62** Yapılandırma teşhisi | [Faz 33](fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) |
+| **F-70** Maliyet ve kota OTel metrikleri | [Faz 35](fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md) |
+| **F-73** Saklama `MaxRows` uygulaması | [Faz 36](fazlar/36-SAKLAMA-HACIM-SINIRI.md) |
+
+### Dalga 2 → Faz 38–45
+
+| Kalem | Faz |
+|---|---|
+| **F-37** `Idempotency-Key` desteği | [Faz 43](fazlar/43-IDEMPOTENCY-KEY.md) |
+| **F-42** Yapılandırılmış çıktı (JSON şeması) | [Faz 38](fazlar/38-YAPILANDIRILMIS-CIKTI.md) |
+| **F-46** `AgentPrism.Testing` paketi | [Faz 39](fazlar/39-TEST-PAKETI.md) |
+| **F-53** Üretimden eval kümesi toplama | [Faz 45](fazlar/45-URETIMDEN-EVAL-KUMESI.md) |
+| **F-55** Hata sınıflandırma ve arıza kümeleme | [Faz 44](fazlar/44-HATA-SINIFLANDIRMA.md) |
+| **F-57** Tek yürütücü seçimi | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) |
+| **F-63** OpenAPI yayını | [Faz 40](fazlar/40-OPENAPI-YAYINI.md) |
+| **F-76** Kiracı yalıtımının zorlanması | [Faz 41](fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) |
+
+### Dalga 3 → Faz 46–52
+
+| Kalem | Faz |
+|---|---|
+| **F-30** Vektör bellek ve RAG | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) |
+| **F-31** AgentPrism'in MCP sunucusu olması | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
+| **F-32** Guardrails | [Faz 48](fazlar/48-GUARDRAILS.md) |
+| **F-33** A2A protokolü | [Faz 50](fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md) |
+| **F-47** Kaynak üreteci | [Faz 52](fazlar/52-KAYNAK-URETECI.md) |
+| **F-54** Yeniden oynatma | [Faz 47](fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) |
+| **F-66** Konuşma dallandırma | [Faz 47](fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) |
+| **F-68** Dayanıklı çalıştırma (F-39 içinde) | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) |
+| **F-71** Çevrimiçi değerlendirme | [Faz 49](fazlar/49-CEVRIMICI-DEGERLENDIRME.md) |
+
+---
+
+## Dalga 1–3 anlatısı ve doğurdukları (ADAYLAR.md'den taşındı, 2026-08-21)
+
+> Doğurdukları kalemler F-90…F-99 olarak numaralandı; canlı gerekçeler
+> [`ADAYLAR.md`](../ADAYLAR.md) § *Numaralandırılan kapsam-dışı işler* tablosundadır.
+> Buradaki metin o numaralandırmadan **önceki** kayıttır.
+
+### Dalga 1 — ✅ planlandı (2026-08-06), bu listeden çıktı
+
+Sekiz kalemin tamamı [Faz 31–37](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
+dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
+[Plana Dönüşenler](../ADAYLAR.md#plana-dönüşenler-2026-08-06) tablosuna bakın.
+
+**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
+
+### Dalga 2 — ✅ planlandı (2026-08-06), bu listeden çıktı
+
+Sekiz kalemin tamamı [Faz 38–45](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana
+dönüştü. Bölümleri bu dosyadan silindi; yönlendirme için
+[Plana Dönüşenler](../ADAYLAR.md#plana-dönüşenler-2026-08-06) tablosuna bakın.
+
+**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
+
+Dalganın ortak gerekçesi korunur: **her kalem başka bir işten önce yapılmazsa
+iki kat pahalıya gelir** — biri kırıcı bir sürüm kararı, biri yeniden yazım,
+biri güvenlik düzeltmesi olarak geri döner.
+
+### Dalga 2'den doğan yeni aday kalemler
+
+Planlama dokuz işi **bilinçli olarak kapsam dışına** çıkardı. Bunlar yeni kalem
+olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
+
+| Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
+|---|---|---|
+| PostgreSQL RLS ile derinlemesine savunma | [Faz 41](fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | SQLite'ta karşılığı **yok**; üç sağlayıcıda davranış ayrışır. Faz 41 sözleşme testi kapısını seçti, RLS'i **iptal etmedi** |
+| 🚨 Çalıştırmanın alt yazmalarında **açık kiracı** | [Faz 41](fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) | `IRunStore.AppendEventAsync` · `CompleteRunAsync` · `UpdateRunCostAsync` · `RecordToolInvocationAsync` kiracı süzgeci taşımaz (K-280). Ambient ile süzmek denendi ve geri alındı: `RunStartInfo.TenantId` ambient kiracıyı bilerek ezer ve süzgeç meşru yazmaları düşürüyordu. Gerçek denetim, çağrının **beklenen** kiracıyı taşımasını ister — yani `RunEvent`/`RunCompletion`/`ToolInvocationRecord`'a birer alan. Bugün ulaşılabilir sızıntı **yok** (uuid v7 kimlikler, okuma tarafı süzülü); public API büyüteceği için ayrı kalem |
+| MCP OAuth token'ının örnekler arasında paylaşılması | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | 🚨 **K-059 ile çatışır** — `secret` veritabanına yazılmaz. Kendi kararını ister |
+| Paylaşılan (dağıtık) hız sınırı | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | K-158 bunu bilerek bellekte tuttu; tek yürütücü seçimi bu sorunu **çözmez** |
+| Akışlı yanıtta idempotency | [Faz 43](fazlar/43-IDEMPOTENCY-KEY.md) | Doğru evi F-68'in `202 Accepted` + `Location` sözleşmesidir |
+| TypeScript istemci paketi ve npm yayını | [Faz 40](fazlar/40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister |
+| Çok turlu eval vakası terfisi | [Faz 45](fazlar/45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
+| `AgentPrismMcpOptions`'ı `IConfiguration`'a bağlamak | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `.UseMcp()` yalnız kod-taraflı `configure` delegesi kabul eder, `IConfiguration.Bind` hiç çağrılmaz — `AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni **sessizce hiçbir şey yapmaz**. Faz 42'den önce de böyleydi; ilk kez orada gerçek bir dağıtım denemesinde ortaya çıktı |
+| 🚨 `BackgroundService` başlatma sırası migration'la yarışır | [Faz 42](fazlar/42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `MigrationHostedService.StartAsync` migration'ları TAM bekler ama `BackgroundService.StartAsync` (taban sınıf) `ExecuteAsync`'i beklemeden döner; kayıt sırası `.UseMcp()` `.UseSqlite()`'tan önceyse `McpDiscoveryService`'in ilk SQL denemesi migration bitmeden çalışabilir ("no such table"). Kendiliğinden iyileşir (bir sonraki turda) ama gözlemlenebilir bir uyarı üretir. Kalıcı çözüm hosted service sırasını garanti etmek veya ilk turu geciktirmek — ikisi de kendi kararını ister |
+
+### Dalga 3 — ✅ planlandı (2026-08-06), bu listeden çıktı
+
+Dokuz kalem [Faz 46–52](UCUNCU-FAZ-YOL-HARITASI.md) olarak plana dönüştü.
+Bölümleri bu dosyadan silindi; yönlendirme için
+[Plana Dönüşenler](../ADAYLAR.md#plana-dönüşenler-2026-08-06) tablosuna bakın.
+
+🚨 **F-72 seçildi ama plana dönüşmedi.** Ölçüm erteleme getirdi ve kalem
+[C bölümünde](../ADAYLAR.md#f-72--agent-control-specification-acs-uyumu--ölçüldü-ertelendi-2026-08-06)
+ölçülmüş kanıtıyla duruyor. Dalga bu yüzden sekiz değil **yedi** fazdır.
+
+**Kod yazılmadı.** Fazlar `📋 Planlandı` durumundadır.
+
+Dalganın ortak gerekçesi korunur: **her kalem kendi başına bir tur
+büyüklüğündedir** ve hiçbiri eksik bir yarıyı tamamlamaz; her biri .NET'te
+karşılığı **hiç bulunmayan** bir yetenek ekler.
+
+### Dalga 3'ten doğan yeni aday kalemler
+
+Planlama **on** işi bilinçli olarak kapsam dışına çıkardı. Tam liste ve
+gerekçeleri [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md)'nin
+"Dalga 3'ün Açtığı Yeni Aday Kalemler" bölümündedir; burada tekrarlanmaz.
+ID'ler **F-77'den** devam eder.
+
+Öne çıkan üçü:
+
+| Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
+|---|---|---|
+| Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](fazlar/46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar |
+| Azure AI Content Safety adaptörü | [Faz 48](fazlar/48-GUARDRAILS.md) | Ağırlık **4 paket** (ölçüldü) — sorun değil. Erteleme gerekçesi doğrulanamazlıktır (K-212 emsali) |
+| `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](fazlar/51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** |

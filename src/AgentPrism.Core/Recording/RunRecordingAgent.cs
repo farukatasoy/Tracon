@@ -261,6 +261,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             if (start.Scope.Depth == 0 &&
                 ChildRunApproval.Describe(response.Messages) is not null)
             {
+                // 🚨 The caller records the pending approval HERE, before the
+                // terminal status becomes visible. See the remarks on
+                // AgentPrismRunOptions.BeforePendingApprovalIsPublished: closing
+                // the run first published a status whose approval was not yet
+                // listable, on EVERY queued run that asked for one (F-133).
+                await InvokeBeforePendingApprovalAsync(options, response.Messages, cancellationToken)
+                    .ConfigureAwait(false);
+
                 await CompleteAsync(scope, RunStatus.AwaitingApproval, usage, null, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -325,6 +333,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // (HATA-S2-004/MT-MCP-023 - the path/queue distinction was removed).
         var isTopLevelRun = start.Scope.Depth == 0;
         var topLevelPendingApproval = false;
+
+        // The buffered path hands the hook `response.Messages`; the streaming path
+        // has no message list, so the approval-request contents are collected as
+        // they pass and handed over as ONE assistant message.
+        List<AIContent>? approvalContents = null;
 
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
@@ -401,8 +414,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     ? ChildRunApproval.Describe(update.Contents)
                     : null;
 
-                topLevelPendingApproval = topLevelPendingApproval ||
-                    (isTopLevelRun && ChildRunApproval.Describe(update.Contents) is not null);
+                if (isTopLevelRun && ChildRunApproval.Describe(update.Contents) is not null)
+                {
+                    topLevelPendingApproval = true;
+                    (approvalContents ??= []).AddRange(update.Contents);
+                }
 
                 await WriteContentsAsync(scope, update.Contents, cancellationToken).ConfigureAwait(false);
 
@@ -429,6 +445,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             : topLevelPendingApproval
                 ? RunStatus.AwaitingApproval
                 : RunStatus.Completed;
+
+        if (streamingStatus == RunStatus.AwaitingApproval)
+        {
+            await InvokeBeforePendingApprovalAsync(
+                options,
+                [new ChatMessage(ChatRole.Assistant, approvalContents ?? [])],
+                cancellationToken).ConfigureAwait(false);
+        }
 
         await CompleteAsync(
             scope,
@@ -860,6 +884,21 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                       "automatic approval rule for this tool, or limit the child agent to tools " +
                       "that need no approval.",
         };
+
+    /// <summary>
+    /// Lets the caller finish its own bookkeeping before the terminal
+    /// <see cref="RunStatus.AwaitingApproval"/> status is published.
+    /// </summary>
+    private static async ValueTask InvokeBeforePendingApprovalAsync(
+        AgentRunOptions? options,
+        IEnumerable<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        if (options is AgentPrismRunOptions { BeforePendingApprovalIsPublished: { } hook })
+        {
+            await hook(messages, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     private async ValueTask CompleteAsync(
         RunScope scope,
