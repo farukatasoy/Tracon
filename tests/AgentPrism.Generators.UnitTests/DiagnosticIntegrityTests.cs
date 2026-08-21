@@ -70,6 +70,11 @@ public sealed class DiagnosticIntegrityTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
+    private static readonly Regex ApgCodePattern = new(
+        @"APG\d{4}",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
     public static TheoryData<string> DiagnosticIds() => [.. Descriptors().Select(descriptor => descriptor.Id)];
 
     [Theory]
@@ -148,6 +153,42 @@ public sealed class DiagnosticIntegrityTests
             $"{id} points at an address the site does not publish; site.config.mjs declares {SiteUrl}.");
     }
 
+    /// <summary>
+    /// A coding agent's first sight of an <c>APG</c> code is the build log, and
+    /// the only page that explains all of them is <c>troubleshooting.md</c> - it
+    /// already carries nine of the fourteen (F-136). A code missing from it has
+    /// no explanation anywhere a consumer would look.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(DiagnosticIds))]
+    public void Every_diagnostic_is_explained_on_the_troubleshooting_page(string id)
+    {
+        var page = File.ReadAllText(TroubleshootingPath);
+
+        page.ShouldContain(id, Case.Sensitive, $"{id} does not appear on troubleshooting.md.");
+    }
+
+    /// <summary>
+    /// The reverse direction: a code the page still names after its descriptor
+    /// was removed is a dead reference - it sends a consumer looking for a
+    /// diagnostic that can never fire.
+    /// </summary>
+    [Fact]
+    public void The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists()
+    {
+        var page = File.ReadAllText(TroubleshootingPath);
+        var known = Descriptors().Select(descriptor => descriptor.Id).ToHashSet(StringComparer.Ordinal);
+
+        var stale = ApgCodePattern.Matches(page)
+            .Select(match => match.Value)
+            .Distinct(StringComparer.Ordinal)
+            .Where(code => !known.Contains(code))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        stale.ShouldBeEmpty($"troubleshooting.md names a diagnostic no descriptor declares: {string.Join(", ", stale)}.");
+    }
+
     /// <summary>Starlight and GitHub heading slug.</summary>
     private static string Slug(string title)
     {
@@ -176,6 +217,9 @@ public sealed class DiagnosticIntegrityTests
 
     private static string CapabilityMapPath { get; } =
         Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "capabilities.md");
+
+    private static string TroubleshootingPath { get; } =
+        Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "troubleshooting.md");
 
     /// <summary>Where the documentation site is published, ending in a slash.</summary>
     /// <remarks>

@@ -538,6 +538,61 @@ source-generated path, or accept and document that the application is not AOT-sa
 Each message names the API that resolves it, and each diagnostic links to the
 section of the [capability map](/capabilities/) that documents it.
 
+### A tool name is invalid (APG0002)
+
+A method marked `[AgentPrismTool]` has a name — the attribute argument, or the method
+name when none is given — outside the range a tool name may use. A tool name must be
+1-64 characters and contain only letters, digits, `_`, or `-`.
+
+The name reaches the model as-is, and a model's own tool-calling protocol rejects
+names outside this range before the call ever reaches AgentPrism. Rename the method,
+or give an explicit name to `[AgentPrismTool("valid-name")]`.
+
+### A tool parameter type is unsupported (APG0003)
+
+The generator produces a JSON Schema for each parameter from its .NET type, and it
+recognizes primitive types, `string`, `Guid`, `DateTime`/`DateTimeOffset`, `enum`,
+arrays or `IReadOnlyList<T>` of these, and `CancellationToken`. A parameter of any
+other type — a custom class, a dictionary, a tuple — has no schema mapping and is
+reported instead of silently ignored.
+
+Change the parameter to a supported type, or register the tool by hand instead of
+through `[AgentPrismTool]`:
+
+```csharp
+builder.AddAgentPrism()
+       .AddTool(AIFunctionFactory.Create(MyMethod));
+```
+
+`AIFunctionFactory.Create` builds the schema itself and accepts a wider range of
+parameter shapes.
+
+### A generic method is marked as a tool (APG0004)
+
+`[AgentPrismTool]` was put on a generic method. A tool call carries a name and a
+JSON argument object; there is no call syntax that supplies a type argument, so the
+generator has nothing to generate. Write a concrete, non-generic wrapper method and
+mark that one instead.
+
+### AddGeneratedTools() finds nothing to register (APG0005)
+
+`AddGeneratedTools()` was called, but this compilation has no method marked with
+`[AgentPrismTool]`. Either the mark was forgotten on the method meant to become a
+tool, or the call is left over from a tool set that was since removed. Mark a
+method, or remove the call.
+
+### A tool has no description (APG0006)
+
+A model chooses which tool to call from its name and description; a tool with no
+description gives the model only the name and the parameter schema to decide with,
+which is not enough for names that are not entirely self-explanatory. Give a
+description:
+
+```csharp
+[AgentPrismTool("get_order_status", "Returns an order's current shipping status.")]
+public static string GetOrderStatus(string orderId) => "shipped";
+```
+
 ### APG0101 or APG0102 fires although the registration exists
 
 An analyzer sees a single compilation. When `AddAgentPrism()` or a provider

@@ -248,6 +248,15 @@
     <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <!--
+      Faz 79. AgentPrism.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
+      (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
+      bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de
+      DefaultAzureCredential adlandiriyor; her ornegin derlendigini kanitlayan
+      kapinin gercek tipe ihtiyaci var - yalniz test icin, AgentPrism.Azure'un
+      kendi bagimlilik grafigi degismiyor.
+    -->
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
   </ItemGroup>
 
 </Project>
