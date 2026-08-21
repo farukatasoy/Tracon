@@ -12,7 +12,7 @@ internal static class ToolDiagnostics
     /// link. <c>DiagnosticIntegrityTests</c> checks that the section it points at
     /// still exists on the capability map.
     /// </summary>
-    private const string HelpLink = "https://farukatasoy.github.io/AgentPrism/capabilities/#tools-skills-and-context";
+    private const string HelpLink = DocumentationLinks.CapabilityMap + "tools-skills-and-context";
 
     public static readonly DiagnosticDescriptor DuplicateName = new(
         "APG0001",

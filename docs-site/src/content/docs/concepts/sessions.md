@@ -113,6 +113,6 @@ console's origin.
 
 ## Read next
 
-- [Runs and recording](/AgentPrism/concepts/runs/)
-- [Attachments and multimodal input](/AgentPrism/guides/multimodal/)
-- [Workflows](/AgentPrism/concepts/workflows/)
+- [Runs and recording](/concepts/runs/)
+- [Attachments and multimodal input](/guides/multimodal/)
+- [Workflows](/concepts/workflows/)

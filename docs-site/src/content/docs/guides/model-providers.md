@@ -283,7 +283,7 @@ can use a model that is absent from the catalog.
 This also means the catalog must be accurate. If a listed model leaves
 `SupportsStructuredOutput` at its default `false`, an agent that requests JSON or JSON
 Schema output fails compilation. See
-[Structured output](/AgentPrism/guides/structured-output/).
+[Structured output](/guides/structured-output/).
 
 ## Check a prompt against the context window before running it
 
@@ -390,16 +390,16 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 
 ## In the reference
 
-- [Model health HTTP API](/AgentPrism/http-api/models/)
-- [`ModelBinding` API](/AgentPrism/api/agentprism.modelbinding/)
-- [`UseOpenAI` API](/AgentPrism/api/agentprism.openaiproviderextensions/)
-- [`UseOpenAICompatible` API](/AgentPrism/api/agentprism.openaicompatibleproviderextensions/)
-- [`UseAnthropic` API](/AgentPrism/api/agentprism.anthropicproviderextensions/)
-- [`UseGoogle` API](/AgentPrism/api/agentprism.googleproviderextensions/)
-- [`UseAzureOpenAI` API](/AgentPrism/api/agentprism.azureopenaiproviderextensions/)
+- [Model health HTTP API](/http-api/models/)
+- [`ModelBinding` API](/api/agentprism.modelbinding/)
+- [`UseOpenAI` API](/api/agentprism.openaiproviderextensions/)
+- [`UseOpenAICompatible` API](/api/agentprism.openaicompatibleproviderextensions/)
+- [`UseAnthropic` API](/api/agentprism.anthropicproviderextensions/)
+- [`UseGoogle` API](/api/agentprism.googleproviderextensions/)
+- [`UseAzureOpenAI` API](/api/agentprism.azureopenaiproviderextensions/)
 
 ## Read next
 
-- [Reliable runs](/AgentPrism/guides/reliability/) — provider fallback chains and outgoing concurrency limits
-- [Choosing packages](/AgentPrism/packages/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
+- [Reliable runs](/guides/reliability/) — provider fallback chains and outgoing concurrency limits
+- [Choosing packages](/packages/)
+- [Agents and definitions](/concepts/agents/)

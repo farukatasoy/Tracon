@@ -12,11 +12,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { base } from '../site.config.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, '../dist');
-
-/** Matches astro.config.mjs. Links are absolute and carry this prefix. */
-const base = '/AgentPrism/';
 
 if (!existsSync(dist)) {
   throw new Error(`${dist} not found. Run "astro build" first.`);
@@ -33,7 +32,9 @@ for (const page of pages) {
   for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     const target = match[1];
 
-    if (!target.startsWith(base) && !target.startsWith('#')) {
+    // `base` is '/', so the prefix test alone would claim protocol-relative
+    // addresses (`//cdn.example/x`) as internal and report them all as broken.
+    if (target.startsWith('//') || (!target.startsWith(base) && !target.startsWith('#'))) {
       continue; // external or protocol-relative
     }
 

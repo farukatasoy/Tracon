@@ -93,7 +93,7 @@ script.
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 
 Non-positive graph token or run limits remove that limit. See
-[`AgentPrismAgentGraphOptions`](/AgentPrism/api/agentprism.agentprismagentgraphoptions/)
+[`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)
 for the exact runtime interpretation.
 
 ### Skills and script execution
@@ -158,8 +158,8 @@ polling is off.
 `POST /api/agents/{name}/estimate` reports the same numbers regardless of this
 flag. `ModelBinding.Fallbacks` (the fallback chain itself) is per-agent, defined
 on the model binding, not a global setting. See
-[Reliable runs](/AgentPrism/guides/reliability/) and
-[Model providers](/AgentPrism/guides/model-providers/).
+[Reliable runs](/guides/reliability/) and
+[Model providers](/guides/model-providers/).
 
 ### Observability
 
@@ -329,7 +329,7 @@ Covers all three surfaces that reach the network: webhook delivery, MCP server
 connections, and per-tenant model provider endpoints. While it is off, a target that
 resolves to a private network address is refused — at save time for an address written
 as an IP literal, and on every connection for one written as a host name. See
-[Security](/AgentPrism/getting-started/security/#outbound-requests-are-guarded-too).
+[Security](/getting-started/security/#outbound-requests-are-guarded-too).
 
 ### Webhooks
 
@@ -434,7 +434,7 @@ identity is required.
 A tenant provider binding's configuration key name must start with
 `AllowedConfigurationPrefix`; a name outside it is rejected with `400`, both when the
 binding is saved and again when it is resolved. See
-[Per-tenant credentials](/AgentPrism/guides/model-providers/#per-tenant-credentials-byok).
+[Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok).
 
 ## MCP, workflows, and voice
 
@@ -577,13 +577,13 @@ freeze an exposure allowlist at registration, or define request-resolution polic
 - `IDataSubjectResolver` (`services.AddSingleton<IDataSubjectResolver, ...>()`) maps a
   data subject id to their sessions, runs, and conversations — no default
   implementation, no configuration section; see
-  [Data subject rights](/AgentPrism/concepts/governance/#data-subject-rights).
+  [Data subject rights](/concepts/governance/#data-subject-rights).
 
-Use the [API reference](/AgentPrism/api/) for every property on these code-only
+Use the [API reference](/api/) for every property on these code-only
 types. Their absence from this section table is deliberate.
 
 ## Read next
 
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — the options above that decide who can call what
-- [Production deployment](/AgentPrism/guides/production/) — which of these you set differently per environment
-- [Troubleshooting](/AgentPrism/troubleshooting/) — what a wrong value looks like at run time
+- [Securing the endpoints](/getting-started/security/) — the options above that decide who can call what
+- [Production deployment](/guides/production/) — which of these you set differently per environment
+- [Troubleshooting](/troubleshooting/) — what a wrong value looks like at run time

@@ -255,6 +255,6 @@ mistake instead of hiding it.
 
 ## Read next
 
-- [Your first agent](/AgentPrism/getting-started/first-agent/) — the application these tests are written against
-- [Add a tool](/AgentPrism/getting-started/tools/) — tools are the part most worth asserting on
-- [Runs and recording](/AgentPrism/concepts/runs/) — the record a test reads to prove what happened
+- [Your first agent](/getting-started/first-agent/) — the application these tests are written against
+- [Add a tool](/getting-started/tools/) — tools are the part most worth asserting on
+- [Runs and recording](/concepts/runs/) — the record a test reads to prove what happened

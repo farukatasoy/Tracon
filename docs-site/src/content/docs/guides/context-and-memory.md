@@ -154,7 +154,7 @@ file store.
 `EnableVectorSearch` is different. It adds the code-defined `search_knowledge` tool
 over a persistent semantic knowledge base. It is not MAF's
 `ChatHistoryMemoryProvider`. See
-[Knowledge and RAG](/AgentPrism/guides/knowledge/).
+[Knowledge and RAG](/guides/knowledge/).
 
 The console agent editor exposes harness settings, all compaction strategies, file
 memory, todo tracking, and text search. It does not currently expose vector search or
@@ -256,14 +256,14 @@ PostgreSQL.
 
 ## In the reference
 
-- [Agent management HTTP API](/AgentPrism/http-api/agents/)
-- [`HarnessSettings` API](/AgentPrism/api/agentprism.harnesssettings/)
-- [`CompactionSettings` API](/AgentPrism/api/agentprism.compactionsettings/)
-- [`MemorySettings` API](/AgentPrism/api/agentprism.memorysettings/)
-- [`AgentPrismMcpOptions` API](/AgentPrism/api/agentprism.agentprismmcpoptions/)
+- [Agent management HTTP API](/http-api/agents/)
+- [`HarnessSettings` API](/api/agentprism.harnesssettings/)
+- [`CompactionSettings` API](/api/agentprism.compactionsettings/)
+- [`MemorySettings` API](/api/agentprism.memorysettings/)
+- [`AgentPrismMcpOptions` API](/api/agentprism.agentprismmcpoptions/)
 
 ## Read next
 
-- [Sessions and conversations](/AgentPrism/concepts/sessions/)
-- [Agents and definitions](/AgentPrism/concepts/agents/)
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
+- [Sessions and conversations](/concepts/sessions/)
+- [Agents and definitions](/concepts/agents/)
+- [Tools, skills, and MCP](/concepts/tools/)

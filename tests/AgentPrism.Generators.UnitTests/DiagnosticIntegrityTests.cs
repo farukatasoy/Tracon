@@ -142,7 +142,10 @@ public sealed class DiagnosticIntegrityTests
             candidate => string.Equals(candidate, anchor, StringComparison.Ordinal),
             $"{id} points at '#{anchor}', which is not a heading of capabilities.md. Known: {string.Join(", ", anchors)}");
 
-        descriptor.HelpLinkUri.ShouldStartWith("https://farukatasoy.github.io/AgentPrism/capabilities/#");
+        descriptor.HelpLinkUri.ShouldStartWith(
+            $"{SiteUrl}capabilities/#",
+            Case.Sensitive,
+            $"{id} points at an address the site does not publish; site.config.mjs declares {SiteUrl}.");
     }
 
     /// <summary>Starlight and GitHub heading slug.</summary>
@@ -173,6 +176,39 @@ public sealed class DiagnosticIntegrityTests
 
     private static string CapabilityMapPath { get; } =
         Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "capabilities.md");
+
+    /// <summary>Where the documentation site is published, ending in a slash.</summary>
+    /// <remarks>
+    /// The address is declared twice - as a C# constant in <c>DocumentationLinks</c>,
+    /// which ships inside the analyzer package, and as <c>site</c> in
+    /// <c>docs-site/site.config.mjs</c>, which the Astro build imports. Neither language
+    /// can read the other's declaration, so this gate reads the JavaScript one and turns
+    /// red when the shipped help links stop agreeing with it. Same arrangement as
+    /// <c>ShippedDocumentationSelfContainmentTests</c> and the internal-history pattern.
+    /// </remarks>
+    private static string SiteUrl { get; } = ReadSiteUrl();
+
+    private static string ReadSiteUrl()
+    {
+        var path = Path.Combine(RepositoryRoot, "docs-site", "site.config.mjs");
+        var declaration = File.ReadAllText(path);
+
+        var site = Match(declaration, "site");
+        var basePath = Match(declaration, "base");
+
+        if (site.Length == 0 || basePath.Length == 0)
+        {
+            throw new InvalidOperationException($"{path} no longer declares both 'site' and 'base'.");
+        }
+
+        return site + basePath;
+
+        static string Match(string declaration, string name) => Regex.Match(
+            declaration,
+            $"export const {name} = '(?<value>[^']+)'",
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(5)).Groups["value"].Value;
+    }
 
     private static string FindRepositoryRoot()
     {

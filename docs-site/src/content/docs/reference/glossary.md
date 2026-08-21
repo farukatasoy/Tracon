@@ -222,6 +222,6 @@ each term means inside AgentPrism.
 
 ## Read next
 
-- [Architecture](/AgentPrism/concepts/) — the same terms as a system, not a list
-- [Complete capability map](/AgentPrism/capabilities/) — the feature each term belongs to
-- [Configuration](/AgentPrism/reference/configuration/) — the option names these terms appear in
+- [Architecture](/concepts/) — the same terms as a system, not a list
+- [Complete capability map](/capabilities/) — the feature each term belongs to
+- [Configuration](/reference/configuration/) — the option names these terms appear in

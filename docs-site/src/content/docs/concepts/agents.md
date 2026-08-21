@@ -114,7 +114,7 @@ Every save appends a version rather than overwriting. Nothing rewrites history:
 Rollback moving forward is the point: the rollback is itself auditable and can be
 rolled back in turn.
 
-Versions are also what make [experiments](/AgentPrism/concepts/evaluation/) possible —
+Versions are also what make [experiments](/concepts/evaluation/) possible —
 an A/B test splits traffic between two versions of the same agent, which is why a
 code-defined agent cannot be experimented on.
 
@@ -147,5 +147,5 @@ The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
 ## Read next
 
-- [Runs and recording](/AgentPrism/concepts/runs/)
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/)
+- [Runs and recording](/concepts/runs/)
+- [Tools, skills, and MCP](/concepts/tools/)

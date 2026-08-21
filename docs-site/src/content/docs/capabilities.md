@@ -171,7 +171,7 @@ experiment, and automatic rollback is off until you configure it.
 
 An API-key scope never grants a role. Effective authority is the intersection of the
 caller's role and key scopes. See the complete scope table in
-[Compatibility](/AgentPrism/reference/compatibility/#api-key-scopes).
+[Compatibility](/reference/compatibility/#api-key-scopes).
 
 ## Observability and operations
 
@@ -258,13 +258,13 @@ template's `.gitignore` already covers it.
 In-memory stores make every contract usable before any database exists, and the
 consumer's own registration always wins over the built-in one.
 
-Use [Compatibility](/AgentPrism/reference/compatibility/) before you choose packages
+Use [Compatibility](/reference/compatibility/) before you choose packages
 for a target framework or native AOT application. Use
-[Configuration](/AgentPrism/reference/configuration/) for verified section names and
+[Configuration](/reference/configuration/) for verified section names and
 defaults.
 
 ## Read next
 
-- [Choosing packages](/AgentPrism/packages/) — which of these capabilities each package carries
-- [Your first agent](/AgentPrism/getting-started/first-agent/) — the smallest application that uses any of them
-- [Configuration](/AgentPrism/reference/configuration/) — the section names and defaults behind every row above
+- [Choosing packages](/packages/) — which of these capabilities each package carries
+- [Your first agent](/getting-started/first-agent/) — the smallest application that uses any of them
+- [Configuration](/reference/configuration/) — the section names and defaults behind every row above

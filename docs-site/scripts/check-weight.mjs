@@ -16,9 +16,10 @@ import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
+import { base } from '../site.config.mjs';
+
 const here = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const dist = resolve(here, '../dist');
-const base = '/AgentPrism/';
 
 // Measured 2026-08-20: the heaviest page is troubleshooting at 49 365 B, which is
 // also the largest source page on the site. The ceiling adds about 15% of headroom.
@@ -60,7 +61,10 @@ for (const page of pages) {
   const assets = new Set(
     [...text.matchAll(/(?:href|src)="([^"]*\.(?:css|js))"/g)]
       .map(([, url]) => url)
-      .filter((url) => url.startsWith(base)),
+      // `base` is '/', so the prefix test alone would also claim protocol-relative
+      // addresses (`//cdn.example/x.css`), which resolve to no local file and would
+      // trip the unresolved-asset failure below.
+      .filter((url) => !url.startsWith('//') && url.startsWith(base)),
   );
 
   let weight = gzip(html);

@@ -51,7 +51,7 @@ template listens on `http://localhost:5081` by default.
 The first build also writes `AGENTS.md` at the root of your repository: the
 AgentPrism capability map, for a coding agent working in the project. An
 existing file is never overwritten, and
-[the property that writes it](/AgentPrism/troubleshooting/#agentsmd-does-not-appear)
+[the property that writes it](/troubleshooting/#agentsmd-does-not-appear)
 can be removed from the project file.
 
 ## By hand
@@ -153,6 +153,6 @@ store is in memory, so all of it ends when the process does.
 
 ## Read next
 
-- [Adding a tool](/AgentPrism/getting-started/tools/) — let the agent do something
-- [Persistence](/AgentPrism/getting-started/persistence/) — make it survive a restart
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — before it leaves your machine
+- [Adding a tool](/getting-started/tools/) — let the agent do something
+- [Persistence](/getting-started/persistence/) — make it survive a restart
+- [Securing the endpoints](/getting-started/security/) — before it leaves your machine

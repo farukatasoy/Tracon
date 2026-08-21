@@ -26,7 +26,7 @@ process, using your configuration, your authentication, and your database.
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
 | **Governance** | Roles, scoped API keys, tenancy, approvals, guards, quotas, retention, webhooks, and audit |
 
-See the [complete capability map](/AgentPrism/capabilities/) for providers, testing,
+See the [complete capability map](/capabilities/) for providers, testing,
 RAG, voice, scheduling, external protocols, and production operations.
 
 ## What it deliberately is not
@@ -38,14 +38,14 @@ points.
 
 **It is not a place to write code.** Tools are defined in your codebase and nowhere
 else. An agent can be created and edited from the console, but tool *code* can never
-be written through it — see [tools](/AgentPrism/concepts/tools/) for the two narrow,
+be written through it — see [tools](/concepts/tools/) for the two narrow,
 guarded exceptions.
 
 **It is not a hosted service.** There is no account, no telemetry leaving your
 process, and no dependency on anything you do not run yourself. That includes the
 model call itself: point a provider at a cloud API, or at a self-hosted engine such
 as Ollama or vLLM on your own network — see [picking a model
-provider](/AgentPrism/packages/#picking-a-model-provider).
+provider](/packages/#picking-a-model-provider).
 
 ## Four rules it will not break
 
@@ -72,5 +72,5 @@ require .NET 10, and the source generator that ships inside Core targets
 
 ## Read next
 
-- [Your first agent](/AgentPrism/getting-started/first-agent/) — a working application
+- [Your first agent](/getting-started/first-agent/) — a working application
 in about five minutes.

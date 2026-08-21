@@ -99,6 +99,6 @@ source generator; the package is AOT-compatible.
 
 ## Links
 
-- Guide: <https://farukatasoy.github.io/AgentPrism/guides/voice/>
-- Capability map: <https://farukatasoy.github.io/AgentPrism/capabilities/>
-- API reference: <https://farukatasoy.github.io/AgentPrism/api/>
+- Guide: <https://agentprism.eski-site.invalid/guides/voice/>
+- Capability map: <https://agentprism.eski-site.invalid/capabilities/>
+- API reference: <https://agentprism.eski-site.invalid/api/>

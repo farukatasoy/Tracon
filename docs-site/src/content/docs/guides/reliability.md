@@ -314,6 +314,6 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 
 ## Read next
 
-- [Jobs, schedules, and queues](/AgentPrism/guides/background-work/) — the queue these failure boundaries protect
-- [Observability and cost](/AgentPrism/guides/observability/) — the signals that tell you a boundary fired
-- [Production deployment](/AgentPrism/guides/production/) — the process topology that makes reconciliation possible
+- [Jobs, schedules, and queues](/guides/background-work/) — the queue these failure boundaries protect
+- [Observability and cost](/guides/observability/) — the signals that tell you a boundary fired
+- [Production deployment](/guides/production/) — the process topology that makes reconciliation possible

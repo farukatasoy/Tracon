@@ -18,7 +18,7 @@ is allowed to add it.
 ## Tools
 
 A tool is a method you wrote, registered at startup. See
-[adding a tool](/AgentPrism/getting-started/tools/) for the mechanics.
+[adding a tool](/getting-started/tools/) for the mechanics.
 
 The rule that governs the whole design: **tools are defined in code only**. The
 console lets a user *select* from registered tools; it never defines one. If it could,
@@ -82,7 +82,7 @@ execution only, never to a pending approval, which can wait indefinitely.
 declaration lives in code — but with no body at all. The model can still call it; the
 server returns the pending call to the caller instead of running anything, and the
 caller answers it on the next request. See
-[Client-side tools and the embeddable widget](/AgentPrism/guides/client-side-tools/)
+[Client-side tools and the embeddable widget](/guides/client-side-tools/)
 for the full mechanism and the chat widget built on it.
 
 ## Skills
@@ -171,5 +171,5 @@ right chunk does not come back there, the agent was never going to see it.
 
 ## Read next
 
-- [Governance](/AgentPrism/concepts/governance/) — approvals, audit, and limits
-- [Workflows](/AgentPrism/concepts/workflows/)
+- [Governance](/concepts/governance/) — approvals, audit, and limits
+- [Workflows](/concepts/workflows/)

@@ -96,7 +96,7 @@ the hosting dependencies are not — while the runtime packages below it are.
 
 ## Links
 
-- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
-- HTTP API reference: <https://farukatasoy.github.io/AgentPrism/http-api/>
+- Full documentation: <https://agentprism.eski-site.invalid>
+- HTTP API reference: <https://agentprism.eski-site.invalid/http-api/>
 
 License: MIT

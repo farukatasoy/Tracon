@@ -187,6 +187,6 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 
 ## Read next
 
-- [Tools, skills, and MCP](/AgentPrism/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
-- [Securing the endpoints](/AgentPrism/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
-- [Compatibility matrices](/AgentPrism/reference/compatibility/) — which protocol revisions and transports are supported
+- [Tools, skills, and MCP](/concepts/tools/) — the other direction: consuming an MCP server rather than publishing one
+- [Securing the endpoints](/getting-started/security/) — an exposed agent is a public surface, and its budget is the only limit
+- [Compatibility matrices](/reference/compatibility/) — which protocol revisions and transports are supported
