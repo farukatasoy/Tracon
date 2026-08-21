@@ -106,4 +106,34 @@ public sealed record ModelBinding
     /// </para>
     /// </remarks>
     public IReadOnlyList<ModelFallback> Fallbacks { get; init; } = [];
+
+    /// <summary>
+    /// Gets the response caching settings. Disabled when <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Disabled by default: with no cache configured, today's behavior is
+    /// preserved exactly — every call reaches the model, and no cache ring is
+    /// added to the pipeline.
+    /// </para>
+    /// <para>
+    /// Enabling it while no <c>IDistributedCache</c> is registered is not
+    /// silently ignored: compilation stops with
+    /// <c>AgentPrismCompilationException</c>, naming the missing registration.
+    /// </para>
+    /// </remarks>
+    public ResponseCacheSettings? ResponseCache { get; init; }
+
+    /// <summary>
+    /// Gets whether independent tool calls within one turn may run at the
+    /// same time.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="false"/> by default: with no change, tool calls within a
+    /// turn run one after another exactly as they do today. A tool body that
+    /// is not written to be thread-safe (a non-thread-safe field it shares
+    /// across calls, for example) is only safe to run concurrently with
+    /// itself once this is turned on for its agent.
+    /// </remarks>
+    public bool AllowConcurrentToolCalls { get; init; }
 }
