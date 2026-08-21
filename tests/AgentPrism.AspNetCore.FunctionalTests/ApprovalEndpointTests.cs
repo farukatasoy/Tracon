@@ -280,4 +280,128 @@ public sealed class ApprovalEndpointTests
 
         run.GetProperty("status").GetString().ShouldBe("AwaitingApproval");
     }
+
+    /// <summary>
+    /// 🚨 F-133: <see cref="RunStatus.AwaitingApproval"/> is TERMINAL and is the
+    /// signal a consumer polls on. It used to be published BEFORE the approval
+    /// row existed: <c>RunRecordingAgent</c> closed the run inside
+    /// <c>agent.RunAsync()</c> and <c>AgentRunJobHandler</c> wrote the row only
+    /// afterwards, so <c>GET /api/approvals/pending</c> could legitimately answer
+    /// an empty array for a run that already said "AwaitingApproval". The window
+    /// was NOT a race — the order was fixed, so it was open on EVERY queued run;
+    /// the flaky part was only whether the consumer looked inside it.
+    /// </summary>
+    [Fact]
+    public async Task Approval_row_exists_before_the_run_reports_AwaitingApproval()
+    {
+        var probe = new ApprovalOrderProbe();
+
+        await using var host = await AgentPrismTestHost.StartAsync(
+            ConfigureApprovalAgent,
+            configureServices: services =>
+            {
+                services.AddSingleton<IPendingApprovalStore>(serviceProvider => probe.Bind(serviceProvider));
+                services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+            });
+
+        using var accepted = await PostQueuedAsync(
+            host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-order" });
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        (await WaitForStatusAsync(host, runId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
+
+        // The contract a consumer sees: the status and a listable approval arrive
+        // together. Measured before the fix, this read answered an EMPTY array —
+        // the row had not been written yet.
+        using var pending = await host.Client.GetAsync(PendingApprovals, TestContext.Current.CancellationToken);
+        (await AgentPrismTestHost.ReadJsonAsync(pending)).EnumerateArray().ShouldHaveSingleItem();
+
+        // The mechanism behind it: the row is written while the run is still open.
+        probe.RunStatusWhenApprovalWasWritten.ShouldNotBeNull();
+        probe.RunStatusWhenApprovalWasWritten.ShouldNotBe(RunStatus.AwaitingApproval);
+    }
+
+    /// <summary>
+    /// Records the run's status AT THE MOMENT the approval row is written. The
+    /// real store is internal to AgentPrism.Core, so this stands in for it; only
+    /// the members the approval flow touches carry behaviour.
+    /// </summary>
+    private sealed class ApprovalOrderProbe : IPendingApprovalStore
+    {
+        private readonly List<PendingApproval> _approvals = [];
+        private IServiceProvider? _services;
+
+        /// <summary>The status seen when the FIRST approval row was written.</summary>
+        public RunStatus? RunStatusWhenApprovalWasWritten { get; private set; }
+
+        public ApprovalOrderProbe Bind(IServiceProvider services)
+        {
+            _services = services;
+
+            return this;
+        }
+
+        public async ValueTask CreateAsync(PendingApproval approval, CancellationToken cancellationToken = default)
+        {
+            var run = await _services!.GetRequiredService<IRunStore>()
+                .GetRunAsync(approval.RunId, cancellationToken)
+                .ConfigureAwait(false);
+
+            lock (_approvals)
+            {
+                RunStatusWhenApprovalWasWritten ??= run?.Status;
+                _approvals.Add(approval);
+            }
+        }
+
+        public ValueTask<IReadOnlyList<PendingApproval>> ListPendingAsync(CancellationToken cancellationToken = default)
+        {
+            lock (_approvals)
+            {
+                return new ValueTask<IReadOnlyList<PendingApproval>>(
+                    _approvals.Where(static a => a.Status == ApprovalStatus.Pending).ToList());
+            }
+        }
+
+        public ValueTask<PendingApproval?> GetAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            lock (_approvals)
+            {
+                return new ValueTask<PendingApproval?>(_approvals.Find(a => a.Id == id));
+            }
+        }
+
+        public ValueTask<bool> DecideAsync(
+            Guid id,
+            bool approved,
+            string decidedBy,
+            DateTimeOffset decidedAt,
+            CancellationToken cancellationToken = default)
+        {
+            lock (_approvals)
+            {
+                var index = _approvals.FindIndex(a => a.Id == id && a.Status == ApprovalStatus.Pending);
+
+                if (index < 0)
+                {
+                    return new ValueTask<bool>(false);
+                }
+
+                _approvals[index] = _approvals[index] with
+                {
+                    Status = approved ? ApprovalStatus.Approved : ApprovalStatus.Rejected,
+                    DecidedBy = decidedBy,
+                    DecidedAt = decidedAt,
+                };
+
+                return new ValueTask<bool>(true);
+            }
+        }
+
+        public ValueTask<IReadOnlyList<PendingApproval>> ExpireAsync(
+            DateTimeOffset olderThan,
+            int max,
+            CancellationToken cancellationToken = default)
+            => new(Array.Empty<PendingApproval>());
+    }
 }

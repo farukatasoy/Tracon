@@ -299,10 +299,12 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
     /// <summary>
     /// The number of retries when a migration races another schema's
     /// concurrent migration over a catalog object shared across the whole
-    /// database (for example PostgreSQL's <c>CREATE EXTENSION</c>) and hits a
-    /// uniqueness violation.
+    /// database (for example PostgreSQL's <c>CREATE EXTENSION</c>). The race
+    /// surfaces in TWO shapes and both are transient: a uniqueness violation
+    /// when both sides insert the same catalog row, and a DEADLOCK when they
+    /// take the same locks in opposite orders.
     /// </summary>
-    private const int UniqueViolationRetryAttempts = 8;
+    private const int TransientConflictRetryAttempts = 8;
 
     private async ValueTask ApplyOneAsync(
         DbConnection connection,
@@ -319,7 +321,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             + Environment.NewLine
             + _context.Sql.InsertMigration;
 
-        for (var attempt = 1; attempt <= UniqueViolationRetryAttempts; attempt++)
+        for (var attempt = 1; attempt <= TransientConflictRetryAttempts; attempt++)
         {
             var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -342,7 +344,8 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     return;
                 }
                 catch (DbException ex) when (
-                    _context.Dialect.IsUniqueViolation(ex) && attempt < UniqueViolationRetryAttempts)
+                    (_context.Dialect.IsUniqueViolation(ex) || _context.Dialect.IsDeadlock(ex))
+                    && attempt < TransientConflictRetryAttempts)
                 {
                     // The migration lock is SCOPED TO THE SCHEMA (K-389): if a
                     // catalog object shared across the whole database (for
@@ -355,6 +358,14 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     // migrate for the first time at once, a fixed delay would
                     // make them all retry at the same instant and would not
                     // spread out the crowd (herd avoidance).
+                    //
+                    // 🚨 A DEADLOCK is the same race wearing another face and it
+                    // was NOT caught here (measured 2026-08-21): the second catch
+                    // below wrapped it in an AgentPrismException and the whole
+                    // fixture failed to come up — five SqlServer contract cases
+                    // died on "Migration '0017_approval_conditions' could not be
+                    // applied: ... (error 1205, state 51)". The server has ALREADY
+                    // rolled the victim back, so the same retry is correct for it.
                     await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
                     await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * attempt), CancellationToken.None)
                         .ConfigureAwait(false);

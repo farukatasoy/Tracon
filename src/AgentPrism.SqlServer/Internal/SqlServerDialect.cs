@@ -46,6 +46,9 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <summary>Error number for a foreign key constraint violation.</summary>
     private const int ForeignKeyViolation = 547;
 
+    /// <summary>The transaction was chosen as the deadlock victim and rolled back.</summary>
+    private const int DeadlockVictim = 1205;
+
     /// <summary>The resource name prefix for the migration lock.</summary>
     /// <remarks>
     /// The value is specific to AgentPrism and <strong>must not change</strong>.
@@ -156,6 +159,10 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <inheritdoc />
     public override bool IsForeignKeyViolation(Exception exception)
         => exception is SqlException { Number: ForeignKeyViolation };
+
+    /// <inheritdoc />
+    public override bool IsDeadlock(Exception exception)
+        => exception is SqlException { Number: DeadlockVictim };
 
     /// <inheritdoc />
     /// <remarks>SQL Server never sends a regular expression to the server; this path is never hit.</remarks>

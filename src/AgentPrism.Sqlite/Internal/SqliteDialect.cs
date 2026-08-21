@@ -70,6 +70,13 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// <summary><c>SQLITE_CONSTRAINT_FOREIGNKEY</c> extended error code.</summary>
     private const int ForeignKeyConstraint = 787;
 
+    /// <summary>
+    /// <c>SQLITE_BUSY</c> (5) and <c>SQLITE_LOCKED</c> (6). SQLite serializes writers
+    /// instead of detecting a cycle, so it never reports a deadlock; the CALLER sees the
+    /// same thing — a write that was refused and succeeds when it is sent again.
+    /// </summary>
+    private static readonly int[] WriteLockConflicts = [5, 6];
+
     /// <summary>Suffix appended to the database file name for the migration lock file.</summary>
     private const string LockFileSuffix = ".agentprism-migration-lock";
 
@@ -231,6 +238,11 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     /// <inheritdoc />
     public override bool IsForeignKeyViolation(Exception exception)
         => exception is SqliteException sql && sql.SqliteExtendedErrorCode == ForeignKeyConstraint;
+
+    /// <inheritdoc />
+    public override bool IsDeadlock(Exception exception)
+        => exception is SqliteException sql
+            && Array.IndexOf(WriteLockConflicts, sql.SqliteErrorCode) >= 0;
 
     /// <inheritdoc />
     /// <remarks>SQLite never sends the regular expression to a server; this path is never hit.</remarks>

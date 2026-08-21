@@ -102,12 +102,22 @@ internal sealed class SqlAuditLog : IAuditLog
 
                 return;
             }
-            catch (DbException ex) when (Dialect.IsUniqueViolation(ex) && attempt < MaxChainWriteAttempts)
+            catch (DbException ex) when (
+                (Dialect.IsUniqueViolation(ex) || Dialect.IsDeadlock(ex))
+                && attempt < MaxChainWriteAttempts)
             {
                 // Another writer won the race for this tenant's last hash. A
                 // small random delay before retrying breaks the lockstep that
                 // would otherwise form between every writer racing on the
                 // same tenant (see MaxRetryDelayMilliseconds).
+                //
+                // 🚨 A DEADLOCK is the same race under another error code and it
+                // used to escape this loop as a raw DbException — the audit entry
+                // was then LOST, which is the one outcome an audit trail may not
+                // have. Retrying is safe because every attempt re-reads the last
+                // hash and re-derives `hash` from it; nothing from the failed
+                // attempt is carried over. Found by the class scan of the
+                // MigrationRunner deadlock (2026-08-21).
                 await Task.Delay(
                     TimeSpan.FromMilliseconds(Random.Shared.Next(1, MaxRetryDelayMilliseconds)),
                     cancellationToken).ConfigureAwait(false);
