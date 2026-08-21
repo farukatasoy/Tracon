@@ -125,35 +125,64 @@ BOSLUK_ORANI = 0.15
 # tutan bir mekanizma yoktu: hicbir skill `docs-site`'a deginmiyordu. Site
 # bayatlarsa kusur KULLANICIYA gorunur -- kod dogru olsa bile.
 #
-# Kural: fazin dokundugu kaynak yolu kullaniciya donuk bir yuzeyse, site'nin
-# ELLE yazilan sayfalarindan en az biri degismelidir. `api/` ve `http-api/`
-# URETILIR (npm run generate) ve commit EDILMEZ; oradaki is kodda yasar
-# (XML dokumani, .WithTags/.Produces ustverisi), bu yuzden site degisikligi
-# sayilirken haric tutulurlar.
-SITE_URETILEN = ("docs-site/src/content/docs/api/", "docs-site/src/content/docs/http-api/")
-
-SITE_KURALLARI: tuple[tuple[str, tuple[str, ...], str], ...] = (
-    (r"^src/AgentPrism\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
+# Faz 80: eskiden kural KUME halinde "herhangi bir site sayfasi degisti mi"ye
+# bakiyordu -- tetiklenen kural sayisindan BAGIMSIZ. `Workflows/` degistirip
+# yalniz `packages.md`yi duzenlemek de yesil doenuyordu. Artik her kural KENDI
+# hedefine karsi denetlenir (`_kural_eslesmesi`). Dizin hedefi ("concepts/")
+# BILEREK genistir -- Abstractions/Core degisiminin hangi kavram sayfasina
+# dusecegi onceden bilinemez; kalan kurallar TAM dosya eslesmesi ister.
+SITE_KURALLARI: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
+    ("http-api", r"^src/AgentPrism\.AspNetCore/(Endpoints|OpenAICompat|A2A|McpServer)/",
      ("http-api.md",), "HTTP yuzeyi degisti"),
-    (r"^src/AgentPrism\.AspNetCore/(Security|Tenancy)/",
+    ("guvenlik-kiraci", r"^src/AgentPrism\.AspNetCore/(Security|Tenancy)/",
      ("getting-started/security.md", "concepts/governance.md"), "guvenlik/kiraci sinirlari degisti"),
-    (r"^src/AgentPrism\.UI/frontend/src/(screens|components)/",
+    ("arayuz", r"^src/AgentPrism\.UI/frontend/src/(screens|components)/",
      ("ui.md",), "ekran veya bilesen degisti (ekran goruntusu de gerekebilir)"),
-    (r"^src/AgentPrism\.(Abstractions|Core)/",
+    # capabilities.md kurali, genel Abstractions|Core kuralindan ONCE yazilir --
+    # `buildTransitive/` ikisini de tetikler, ikisi de ayri satir olarak raporlanir.
+    ("buildtransitive", r"^src/AgentPrism\.Core/buildTransitive/",
+     ("capabilities.md",), "tuketicinin gordugu MSBuild yuzeyi degisti"),
+    ("cekirdek-kavram", r"^src/AgentPrism\.(Abstractions|Core)/",
      ("concepts/",), "cekirdek kavram yuzeyi degisti"),
-    (r"^src/AgentPrism\.Workflows/",
+    ("workflow", r"^src/AgentPrism\.Workflows/",
      ("concepts/workflows.md",), "workflow yurutmesi degisti"),
-    (r"^src/AgentPrism\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
+    ("kalicilik", r"^src/AgentPrism\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
      ("getting-started/persistence.md",), "kalicilik katmani degisti"),
-    (r"^src/AgentPrism\.(OpenAI|Anthropic|Google|Azure|Voice)/",
+    ("model-saglayici", r"^src/AgentPrism\.(OpenAI|Anthropic|Google|Azure|Voice)/",
      ("getting-started/first-agent.md",), "model saglayicisi degisti"),
-    (r"^src/AgentPrism\.Templates/",
+    ("proje-sablonu", r"^src/AgentPrism\.Templates/",
      ("getting-started/index.md",), "proje sablonu degisti"),
-    (r"^src/AgentPrism[^/]*/[^/]*\.csproj$",
+    ("paket-tanimi", r"^src/AgentPrism[^/]*/[^/]*\.csproj$",
      ("packages.md",), "paket tanimi degisti"),
-    (r"^src/AgentPrism[^/]*/README\.md$",
+    ("paket-readme", r"^src/AgentPrism[^/]*/README\.md$",
      ("packages.md",), "paket README'si degisti"),
 )
+
+
+def _kural_eslesmesi(degisen: list[str]) -> list[tuple[str, tuple[str, ...], str, bool]]:
+    """Her TETIKLENEN SITE_KURALLARI kurali icin (ad, hedefler, tetikleyen dosya,
+    karsilandi mi). Saf fonksiyon -- git veya dosya sistemi cagrisi yapmaz, testi
+    dogrudan bir dosya yolu listesiyle kosar.
+
+    Dizin hedefi ("concepts/") herhangi bir alt sayfanin degismesiyle karsilanir;
+    kalan hedefler TAM dosya adiyla eslesir ve listedeki hedeflerden HERHANGI
+    BIRININ degismesi yeterlidir (guvenlik-kiraci kurali iki alternatif sayfa
+    tasir)."""
+    degisen_kume = set(degisen)
+    sonuc: list[tuple[str, tuple[str, ...], str, bool]] = []
+    for ad, desen, hedefler, _neden in SITE_KURALLARI:
+        vuran = [y for y in degisen if re.search(desen, y)]
+        if not vuran:
+            continue
+        if hedefler == ("concepts/",):
+            karsilandi = any(
+                y.startswith("docs-site/src/content/docs/concepts/") for y in degisen
+            )
+        else:
+            tam_hedefler = {f"docs-site/src/content/docs/{h}" for h in hedefler}
+            karsilandi = bool(tam_hedefler & degisen_kume)
+        sonuc.append((ad, hedefler, vuran[0], karsilandi))
+    return sonuc
 
 
 def _kararlar_kalemleri() -> tuple[list, list]:
@@ -443,93 +472,166 @@ def yol_haritasi_uret() -> str:
     )
 
 
-def _git(*args: str) -> list[str]:
+def _git(*args: str) -> list[str] | None:
+    """Cikis satirlari, ya da `None` -- komut basarisiz olduysa (git yok, repo
+    disi, vb). `None` ile bos listeyi AYIRT ETMEK zorunludur: ayirt edilmezse
+    bir git hatasi "degisiklik yok"e donusur ve kapi SESSIZCE gecer (Faz 80,
+    kullanici karari -- bir kapinin en kotu hali sessiz gecistir)."""
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False)
     if r.returncode != 0:
-        return []
+        return None
     return [s for s in r.stdout.splitlines() if s.strip()]
 
 
-def _degisen_dosyalar(taban: str | None) -> list[str]:
-    """Fazin dokundugu her dosya: taban..HEAD + calisma agaci + izlenmeyenler.
+def _degisen_dosyalar(taban: str | None) -> list[str] | None:
+    """Fazin dokundugu her dosya: taban..HEAD + calisma agaci + izlenmeyenler,
+    ya da `None` -- alttaki `git` cagrilarindan biri basarisiz olduysa.
 
     Izlenmeyenler dahildir cunku yeni bir site sayfasi HENUZ commit edilmemis
     olabilir; onu gormezsek denetim yanlis yere kirmizi verir."""
     yollar: set[str] = set()
     if taban:
-        yollar.update(_git("diff", "--name-only", f"{taban}...HEAD"))
-    yollar.update(_git("diff", "--name-only", "HEAD"))
-    yollar.update(s[3:].strip('"') for s in _git("status", "--porcelain") if s.startswith("??"))
+        d = _git("diff", "--name-only", f"{taban}...HEAD")
+        if d is None:
+            return None
+        yollar.update(d)
+    d2 = _git("diff", "--name-only", "HEAD")
+    if d2 is None:
+        return None
+    yollar.update(d2)
+    d3 = _git("status", "--porcelain")
+    if d3 is None:
+        return None
+    yollar.update(s[3:].strip('"') for s in d3 if s.startswith("??"))
     return sorted(yollar)
 
 
 def site_denetle(taban: str | None, gerekce_yazildi: bool) -> int:
     degisen = _degisen_dosyalar(taban)
+    if degisen is None:
+        print("❌ `git` çağrısı başarısız oldu; docs-site senkronu denetlenemedi.")
+        return 1
     if not degisen:
         print("docs-site senkronu: değişiklik yok (taban verilmedi mi?).")
         return 0
 
-    tetiklenen = []
-    for desen, sayfalar, neden in SITE_KURALLARI:
-        vuran = [y for y in degisen if re.search(desen, y)]
-        if vuran:
-            tetiklenen.append((sayfalar, neden, vuran))
+    eslesme = _kural_eslesmesi(degisen)
+    neden = {ad: n for ad, _desen, _hedefler, n in SITE_KURALLARI}
 
-    site_degisti = [
-        y for y in degisen
-        if y.startswith("docs-site/src/content/docs/") and not y.startswith(SITE_URETILEN)
-    ]
-
-    print(f"docs-site senkronu — {len(degisen)} değişen dosya")
-    if not tetiklenen:
+    print(f"docs-site senkronu — {len(degisen)} değişen dosya, {len(eslesme)} kural tetiklendi")
+    if not eslesme:
         print("  Kullanıcıya dönük yüzey değişmedi. Site güncellemesi gerekmiyor.")
         return 0
 
-    print(f"{'gözden geçirilecek sayfa':<40} {'neden':<45} örnek")
-    for sayfalar, neden, vuran in tetiklenen:
-        print(f"  {' · '.join(sayfalar):<38} {neden:<45} {vuran[0]}")
+    karsilanmadi = [e for e in eslesme if not e[3]]
+    for ad, hedefler, tetikleyen, ok in eslesme:
+        durum = "✅" if ok else "❌"
+        print(f"  {durum} {ad:<18} hedef: {' · '.join(hedefler):<38} "
+              f"{neden[ad]:<40} ör: {tetikleyen}")
 
-    if site_degisti:
-        print(f"\n✅ Site {len(site_degisti)} sayfada değişti: {', '.join(site_degisti[:3])}")
-        print("   Yine de yukarıdaki her satırın karşılığı yazıldı mı, göz at.")
+    if not karsilanmadi:
+        print("\n✅ Tetiklenen her kuralın hedefi değişenler arasında.")
         return 0
 
     if gerekce_yazildi:
-        print("\n⚠️  Site değişmedi; gerekçe faz dokümanına yazıldı (--site-gerekce-yazildi).")
+        print(f"\n⚠️  {len(karsilanmadi)} kural karşılanmadı; gerekçe faz dokümanına "
+              "yazıldı (--site-gerekce-yazildi):")
+        for ad, hedefler, tetikleyen, _ in karsilanmadi:
+            print(f"   - {ad}: hedef {' · '.join(hedefler)} ({tetikleyen} tetikledi)")
         return 0
 
-    print("\n❌ Kullanıcıya dönük yüzey değişti fakat docs-site/ hiç değişmedi.")
-    print("   Ya siteyi güncelle ya gerekçesini faz dokümanına yazıp")
+    print(f"\n❌ {len(karsilanmadi)} kural karşılanmadı:")
+    for ad, hedefler, tetikleyen, _ in karsilanmadi:
+        print(f"   - {ad}: hedef {' · '.join(hedefler)} değişmedi ({tetikleyen} tetikledi)")
+    print("   Ya hedef sayfayı güncelle ya gerekçesini faz dokümanına yazıp")
     print("   --site-gerekce-yazildi ile geç. Sessizce atlama.")
     return 1
 
 
-# --- Kirik baglanti denetimi (Faz 77) ------------------------------------
+# --- Kirik baglanti denetimi (Faz 77, genisletildi Faz 80) ---------------
 # Faz 77 arsivlemesi ayni tuzagi IKI kez uretti: bir blok `docs/X.md`'den
 # `docs/arsiv/Y.md`'ye tasindiginda blogun ICINDEKI goreli linkler hâlâ
 # `docs/`'a goredir ve arsiv dizininden cozulmez. Ilk seferinde 17, ikinci
 # seferinde 3 baglanti kirildi. Elle fark edilmesi guvenilmez -- denetim
 # artik her kosumda bunu sayar.
+#
+# Faz 80: eskiden site-mutlak baglanti (`/reference/x/`) ve `.mdx` sayfalari
+# TAMAMEN denetim disiydi. Naif "dosya yolu = slug" varsayimi 7355 baglantinin
+# 6916'sini kirik gosterdi -- `api/` ve `http-api/` URETILEN sayfalari
+# frontmatter `slug:` ile yeniden adlandirdigi icin. Dogru harita kurulunca
+# (frontmatter `slug:` ONCELIKLI) elle yazilan sayfalardan cikan baglantilarin
+# hicbiri kirik cikmadi (olculdu, 2026-08-21).
 LINK = re.compile(r"\]\(([^)\s]+?)(#[^)\s]*)?\)")
 
-# Uretilen ya da yer tutucu tasiyan yollar: denetim disi.
+# Uretilen ya da yer tutucu tasiyan yollar: kaynak olarak denetim disi.
 BAGLANTI_HARIC = (
     "docs-site/src/content/docs/api/",       # npm run generate uretir
     "docs-site/src/content/docs/http-api/",  # npm run generate uretir
     "docfx/",                                # uretilen ara ciktilar
 )
 
+# Site-mutlak (`/...`) bir baglanti bu dizinlerin ALTINA dusuyorsa hedef olarak
+# da denetim disidir: `api/`, `http-api/` ve `openapi/` `build` isinde henuz
+# URETILMEMISTIR -- ayri bir `site` isi `npm run build` (-> `prebuild` ->
+# `generate`) icinde uretir ve ucu commit EDILMEZ (`.gitignore`). Bagimsiz
+# denetim bunu OLCTU: `http-api.md`deki `/openapi/agentprism.json` baglantisi,
+# `openapi` bu listede olmadan, HER temiz `build` checkout'unda kalici yanlis
+# pozitif uretirdi -- kaynak sayfa hic degismese bile. Kok dizinin kendisi de
+# (`/http-api/`, `/api/`) ayni sebeple denetim disidir -- URL duzeyinde ayirt
+# edilemez.
+SITE_URETILEN_HEDEF = ("api", "http-api", "openapi")
 
-def kirik_baglantilar() -> list[str]:
+
+def _slug_hesapla(rel: str, frontmatter_slug: str | None) -> str:
+    """Bir docs-site sayfasinin Starlight slug'i: frontmatter `slug:` varsa o
+    kullanilir (K-onceligi), yoksa dosya yolundan turetilir -- `x/index.md` ->
+    `x`, kok `index.md`/`index.mdx` -> `""`. Saf fonksiyon; dosya sistemi veya
+    git istemez, testi dogrudan bir yol dizesiyle kosar."""
+    if frontmatter_slug:
+        return frontmatter_slug
+    if rel in ("index.md", "index.mdx"):
+        return ""
+    if rel.endswith("/index.md") or rel.endswith("/index.mdx"):
+        return rel.rsplit("/", 1)[0]
+    return rel.rsplit(".", 1)[0]
+
+
+_FRONTMATTER_SLUG = re.compile(r'^slug:\s*(.+?)\s*$', re.M)
+
+
+def _site_slug_haritasi(kok: pathlib.Path) -> dict[str, pathlib.Path]:
+    """Elle yazilan docs-site sayfalarinin slug -> dosya haritasi. `api/` ve
+    `http-api/` URETILEN oldugu icin haric tutulur -- `build` isinde henuz
+    yoklardir ve dahil edilirlerse fantom hedefler uretirler."""
+    docs = kok / "docs-site" / "src" / "content" / "docs"
+    harita: dict[str, pathlib.Path] = {}
+    if not docs.exists():
+        return harita
+    for p in list(docs.rglob("*.md")) + list(docs.rglob("*.mdx")):
+        rel = p.relative_to(docs).as_posix()
+        if rel.split("/", 1)[0] in SITE_URETILEN_HEDEF:
+            continue
+        try:
+            metin = p.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        m = _FRONTMATTER_SLUG.search(metin)
+        fm_slug = m.group(1).strip("'\"") if m else None
+        harita[_slug_hesapla(rel, fm_slug)] = p
+    return harita
+
+
+def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
     bulunan: list[str] = []
-    for dp, dns, fns in os.walk(ROOT):
+    slug_harita = _site_slug_haritasi(kok)
+    for dp, dns, fns in os.walk(kok):
         dns[:] = [d for d in dns if d not in
                   {".git", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}]
         for fn_ in fns:
-            if not fn_.endswith(".md"):
+            if not (fn_.endswith(".md") or fn_.endswith(".mdx")):
                 continue
             p2 = pathlib.Path(dp) / fn_
-            rel = p2.relative_to(ROOT).as_posix()
+            rel = p2.relative_to(kok).as_posix()
             if rel.startswith(BAGLANTI_HARIC) or "sablonu.md" in rel:
                 continue          # sablonlar `<N>-<AD>.md` gibi yer tutucu tasir
             try:
@@ -538,7 +640,20 @@ def kirik_baglantilar() -> list[str]:
                 continue
             for m in LINK.finditer(metin):
                 h = m.group(1).rstrip("\\")
-                if re.match(r"^([a-z]+:|/|#)", h) or "<" in h or "[" in h:
+                if "<" in h or "[" in h:
+                    continue
+                if re.match(r"^[a-z]+:", h) or h.startswith("#"):
+                    continue      # dis adres ya da aynı sayfa capasi
+                if h.startswith("/"):
+                    govde = h[1:].rstrip("/")
+                    if not govde or govde.split("/", 1)[0] not in SITE_URETILEN_HEDEF:
+                        if re.search(r"\.\w+$", govde):
+                            # `llms.txt`, `openapi/agentprism.json` gibi dosya
+                            # hedefleri sayfa degil `public/` varligidir.
+                            if not (kok / "docs-site" / "public" / govde).exists():
+                                bulunan.append(f"{rel} -> {h}")
+                        elif govde not in slug_harita:
+                            bulunan.append(f"{rel} -> {h}")
                     continue
                 if not (p2.parent / h).exists():
                     bulunan.append(f"{rel} -> {h}")
@@ -681,6 +796,11 @@ def denetle() -> int:
         print(f"  {s}")
     if len(kirik) > 10:
         print(f"  … +{len(kirik) - 10}")
+    # Faz 80, bağımsız denetim: bu sayaç eskiden `hata`'ya hiç katılmıyordu --
+    # `--denetle` kırık bağlantı sayısından BAĞIMSIZ olarak çıkış kodu 0
+    # veriyordu. Tam da bu fazın düzelttiği "kapı sessizce yanıltıyor" kusur
+    # sınıfının kendisiydi; CI'ya bağlanmadan önce yakalandı.
+    hata |= int(bool(kirik))
 
     toplam = sum(len((ROOT / y).read_bytes()) for y in BUTCE if (ROOT / y).exists())
     print(f"\nOturum başı sıcak yol toplamı: {toplam} B (~{toplam * 10 // 24} token)")

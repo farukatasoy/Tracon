@@ -162,6 +162,15 @@ cd docs-site && npm run check
 python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
 ```
 
+🚨 **4. kapı artık KURAL BAŞINA eşleşir (Faz 80).** Eskiden herhangi bir site
+sayfasının değişmesi tetiklenen tüm kuralların karşılığı sayılıyordu; artık her
+kural **kendi hedef sayfasına** karşı denetlenir ve karşılanmayan her kural
+adıyla, hedefiyle ve tetikleyen dosyasıyla raporda tek tek görünür. Aynı kapı
+`--denetle` üzerinden **CI'nın `build` işinde** de koşar (kırık site-mutlak
+bağlantı ve karar defteri yapısıyla birlikte) — bu skill'i elle koşman hâlâ
+gerekir çünkü CI yalnız kırmızıyı yakalar, hangi sayfanın **doğru** güncellendiğini
+(Adım 7) denetlemez.
+
 🚨 **`dotnet test --filter <Ad>` YAZMA — MTP onu sessizce yutar.** Ölçüldü:
 `dotnet test … --filter CapabilityExampleTests` paketin **1004 testinin
 tamamını** koşar ve yeşil döner; daralttığını sanırsın. MTP'de `--filter` diye
