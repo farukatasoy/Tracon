@@ -7,7 +7,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (79 kalem)
+## Fazlar (80 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -90,5 +90,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [76](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) | Doküman Kalitesi ve Görsel Kimlik | ✅ Tamamlandı |
 | [77](77-GIDEN-AG-MUHAFIZI.md) | Giden Ağ Muhafızı | ✅ Tamamlandı |
 | [78](78-YETENEK-HARITASI-ERISIMI.md) | Yetenek Haritası Erişimi | ✅ Tamamlandı |
+| [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
