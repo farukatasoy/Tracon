@@ -14547,6 +14547,14 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("agentCount")]
         public int? AgentCount { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the embedding points a host application binds to attach AgentPrism
+        /// <br/>to its own tenancy, identity, authorization, eventing, and storage.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("extensionPoints")]
+        public System.Collections.Generic.ICollection<ExtensionPointDiagnostic> ExtensionPoints { get; set; } = new System.Collections.Generic.List<ExtensionPointDiagnostic>();
+
     }
 
     /// <summary>
@@ -17517,6 +17525,35 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("averageScore")]
         public double? AverageScore { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One host-bound extension point and whether the host replaced its built-in default.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ExtensionPointDiagnostic
+    {
+        /// <summary>
+        /// Gets the contract's name, for example `ITenantContext`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("contract")]
+        public string Contract { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the registered implementation's type name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("implementation")]
+        public string Implementation { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the registration is AgentPrism's built-in default.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("isBuiltInDefault")]
+        public bool IsBuiltInDefault { get; set; } = default!;
 
     }
 

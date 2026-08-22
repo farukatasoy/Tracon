@@ -226,3 +226,15 @@ Kapı artık var: `python3 scripts/dokuman-bakim.py --denetle` yinelenen numaray
 tabloyu kesen boş satırı ve sıra dışı numarayı **hata** olarak bildirir. Çakışma
 çıkarsa tarih kuralı uygulanır — **önce tahsis edilen numarayı korur**; sonraki
 taşınır ve o fazın dokümanındaki referansları da taşınır.
+
+## 🚨 `build-agent-map.mjs`'in "Rule:" satırı tablo ÖNCESİ paragrafı da toplar (Faz 85)
+
+`section.prose` bir bölümün tablo dışındaki TÜM satırlarını sırayla biriktirir
+— tablo öncesi bir lead-in cümle de, tablo sonrası kural cümlesi de. `Rule:`
+satırı bu birikmiş metnin `firstSentence()`'ıdır, yani tablo öncesine bir
+paragraf eklersen üreteç SESSİZCE o cümleyi kural sanır ve doğru kural asla
+görünmez. Ölçüldü: "Embedding points" bölümüne tablo öncesi bir açıklama
+eklenince map bunu "Rule:" olarak bastı, gerçek kural cümlesi (tablo sonrası)
+hiç görünmedi — hiçbir kapı bunu yakalamadı çünkü üreteç GEÇERLİ bir metin
+üretti, yalnız yanlış cümleyi seçti. Var olan HER bölüm heading→table→(yalnız)
+kural paragrafı sırasını izler; yeni bölüm de bunu izlemeli.

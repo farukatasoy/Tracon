@@ -373,9 +373,10 @@ public static class AgentPrismServiceCollectionExtensions
         // Rationale: K-354.
         services.TryAddSingleton<SchemaReadyGate>();
 
-        // Diagnostics collector (Phase 33). IAgentCatalog and IToolRegistry are
-        // registered after this point, but the explicit factory resolves
-        // lazily; registration order does not matter.
+        // Diagnostics collector (Phase 33; embedding points added Phase 85).
+        // IAgentCatalog, IToolRegistry, and IAttachmentStorage are registered
+        // after this point, but the explicit factory resolves lazily;
+        // registration order does not matter.
         services.TryAddSingleton(static provider => new AgentPrismDiagnosticsCollector(
             provider.GetServices<IModelProvider>(),
             provider.GetRequiredService<ModelProviderHealthCache>(),
@@ -383,6 +384,11 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetServices<SqlPersistenceRegistrationMarker>(),
             provider.GetRequiredService<IAgentCatalog>(),
             provider.GetRequiredService<IToolRegistry>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IRunAttributionContext>(),
+            provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetServices<IRunEventSink>(),
+            provider.GetService<IAttachmentStorage>(),
             provider.GetService<ModelProviderCircuitBreaker>()));
 
         // Chat history provider. Without registration, MAF would set up its own

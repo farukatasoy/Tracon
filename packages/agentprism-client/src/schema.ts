@@ -2843,6 +2843,11 @@ export interface components {
              * @description Gets the number of registered agents. Returns `null` when the catalog cannot be read.
              */
             agentCount: null | number | string;
+            /**
+             * @description Gets the embedding points a host application binds to attach AgentPrism
+             *     to its own tenancy, identity, authorization, eventing, and storage.
+             */
+            extensionPoints: components["schemas"]["ExtensionPointDiagnostic"][];
         };
         /**
          * @description Response for `{prefix}/api/meta`. Carries the minimum information the
@@ -4103,6 +4108,15 @@ export interface components {
              *     contract.
              */
             averageScore?: null | number | string;
+        };
+        /** @description One host-bound extension point and whether the host replaced its built-in default. */
+        ExtensionPointDiagnostic: {
+            /** @description Gets the contract's name, for example `ITenantContext`. */
+            contract: string;
+            /** @description Gets the registered implementation's type name. */
+            implementation: string;
+            /** @description Gets whether the registration is AgentPrism's built-in default. */
+            isBuiltInDefault: boolean;
         };
         /**
          * @description Settings for the harness capabilities. It mirrors a safe subset of the
@@ -7276,6 +7290,7 @@ export type ExperimentSaveRequest = components['schemas']['ExperimentSaveRequest
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type ExperimentVariant = components['schemas']['ExperimentVariant'];
 export type ExperimentVariantResult = components['schemas']['ExperimentVariantResult'];
+export type ExtensionPointDiagnostic = components['schemas']['ExtensionPointDiagnostic'];
 export type HarnessSettings = components['schemas']['HarnessSettings'];
 export type IFormFile = components['schemas']['IFormFile'];
 export type IMcpToolRefresher = components['schemas']['IMcpToolRefresher'];

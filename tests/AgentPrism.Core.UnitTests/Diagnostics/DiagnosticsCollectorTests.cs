@@ -164,6 +164,137 @@ public sealed class DiagnosticsCollectorTests
         report.PersistenceProvider.ShouldNotBeNullOrEmpty();
     }
 
+    // --- Phase 85: embedding points ---
+
+    [Fact]
+    public async Task Bare_setup_reports_all_five_embedding_points_as_built_in_default()
+    {
+        var services = new ServiceCollection();
+        services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
+
+        await using var provider = services.BuildServiceProvider();
+        var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
+
+        var report = await collector.CollectAsync();
+
+        report.ExtensionPoints.Count.ShouldBe(5);
+        report.ExtensionPoints.ShouldAllBe(static point => point.IsBuiltInDefault);
+        report.ExtensionPoints.Select(static point => point.Contract).ShouldBe(
+            [nameof(ITenantContext), nameof(IRunAttributionContext), nameof(IToolAuthorizationHandler), nameof(IRunEventSink), nameof(IAttachmentStorage)]);
+
+        var sink = report.ExtensionPoints.Single(
+            static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal));
+        sink.Implementation.ShouldBe("(none)");
+
+        var storage = report.ExtensionPoints.Single(
+            static point => string.Equals(point.Contract, nameof(IAttachmentStorage), StringComparison.Ordinal));
+        storage.Implementation.ShouldBe("(database)");
+    }
+
+    [Fact]
+    public async Task Host_bound_implementations_report_their_own_type_and_not_built_in()
+    {
+        var services = new ServiceCollection();
+
+        // TryAdd semantics: a registration made BEFORE AddAgentPrism() wins over
+        // the built-in default for the three singleton contracts.
+        services.AddSingleton<ITenantContext, FixedTenantContext>();
+        services.AddSingleton<IRunAttributionContext, FixedRunAttributionContext>();
+        services.AddSingleton<IToolAuthorizationHandler, DenyAllToolAuthorizationHandler>();
+        services.AddSingleton<IRunEventSink, RecordingRunEventSink>();
+        services.AddSingleton<IAttachmentStorage, FakeAttachmentStorage>();
+
+        services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
+
+        await using var provider = services.BuildServiceProvider();
+        var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
+
+        var report = await collector.CollectAsync();
+
+        report.ExtensionPoints.Count.ShouldBe(5);
+        report.ExtensionPoints.ShouldAllBe(static point => !point.IsBuiltInDefault);
+
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(ITenantContext), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(FixedTenantContext));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IRunAttributionContext), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(FixedRunAttributionContext));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IToolAuthorizationHandler), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(DenyAllToolAuthorizationHandler));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(RecordingRunEventSink));
+        report.ExtensionPoints.Single(
+                static point => string.Equals(point.Contract, nameof(IAttachmentStorage), StringComparison.Ordinal))
+            .Implementation.ShouldBe(nameof(FakeAttachmentStorage));
+    }
+
+    [Fact]
+    public async Task Multiple_registered_sinks_are_all_named_and_not_built_in()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IRunEventSink, RecordingRunEventSink>();
+        services.AddSingleton<IRunEventSink, AnotherRunEventSink>();
+        services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
+
+        await using var provider = services.BuildServiceProvider();
+        var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
+
+        var report = await collector.CollectAsync();
+
+        var sink = report.ExtensionPoints.Single(
+            static point => string.Equals(point.Contract, nameof(IRunEventSink), StringComparison.Ordinal));
+        sink.IsBuiltInDefault.ShouldBeFalse();
+        sink.Implementation.ShouldBe($"{nameof(RecordingRunEventSink)}, {nameof(AnotherRunEventSink)}");
+    }
+
+    private sealed class FixedTenantContext : ITenantContext
+    {
+        public string TenantId => "fixed-tenant";
+    }
+
+    private sealed class FixedRunAttributionContext : IRunAttributionContext
+    {
+        public string? UserId => "fixed-user";
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
+
+    private sealed class DenyAllToolAuthorizationHandler : IToolAuthorizationHandler
+    {
+        public ValueTask<ToolAuthorizationResult> AuthorizeAsync(
+            ToolAuthorizationRequest request,
+            CancellationToken cancellationToken = default)
+            => new(ToolAuthorizationResult.Deny("denied by test"));
+    }
+
+    private sealed class RecordingRunEventSink : IRunEventSink
+    {
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => default;
+    }
+
+    private sealed class AnotherRunEventSink : IRunEventSink
+    {
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => default;
+    }
+
+    private sealed class FakeAttachmentStorage : IAttachmentStorage
+    {
+        public ValueTask<Uri> WriteAsync(
+            string tenantId,
+            Guid id,
+            Stream content,
+            string mediaType,
+            CancellationToken cancellationToken = default)
+            => new(new Uri($"fake://{tenantId}/{id}"));
+
+        public ValueTask<Stream?> ReadAsync(Uri uri, CancellationToken cancellationToken = default) => new((Stream?)null);
+
+        public ValueTask DeleteAsync(Uri uri, CancellationToken cancellationToken = default) => default;
+    }
+
     private sealed class ThrowingAgentCatalog : IAgentCatalog
     {
         public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)

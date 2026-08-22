@@ -104,6 +104,8 @@ AgentPrism.AgentPrismDiagnosticsReport.CanConnect.init -> void
 AgentPrism.AgentPrismDiagnosticsReport.Configuration.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ConfigurationDiagnostic!>!
 AgentPrism.AgentPrismDiagnosticsReport.Configuration.init -> void
 AgentPrism.AgentPrismDiagnosticsReport.Equals(AgentPrism.AgentPrismDiagnosticsReport? other) -> bool
+AgentPrism.AgentPrismDiagnosticsReport.ExtensionPoints.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ExtensionPointDiagnostic!>!
+AgentPrism.AgentPrismDiagnosticsReport.ExtensionPoints.init -> void
 AgentPrism.AgentPrismDiagnosticsReport.MigrationsUpToDate.get -> bool
 AgentPrism.AgentPrismDiagnosticsReport.MigrationsUpToDate.init -> void
 AgentPrism.AgentPrismDiagnosticsReport.ModelProviders.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ProviderDiagnostic!>!
@@ -118,6 +120,21 @@ AgentPrism.AgentPrismDiagnosticsReport.ToolCount.get -> int
 AgentPrism.AgentPrismDiagnosticsReport.ToolCount.init -> void
 AgentPrism.AgentPrismDiagnosticsReport.UiEmbedded.get -> bool
 AgentPrism.AgentPrismDiagnosticsReport.UiEmbedded.init -> void
+AgentPrism.ExtensionPointDiagnostic
+AgentPrism.ExtensionPointDiagnostic.<Clone>$() -> AgentPrism.ExtensionPointDiagnostic!
+AgentPrism.ExtensionPointDiagnostic.Contract.get -> string!
+AgentPrism.ExtensionPointDiagnostic.Contract.init -> void
+AgentPrism.ExtensionPointDiagnostic.Equals(AgentPrism.ExtensionPointDiagnostic? other) -> bool
+AgentPrism.ExtensionPointDiagnostic.ExtensionPointDiagnostic() -> void
+AgentPrism.ExtensionPointDiagnostic.Implementation.get -> string!
+AgentPrism.ExtensionPointDiagnostic.Implementation.init -> void
+AgentPrism.ExtensionPointDiagnostic.IsBuiltInDefault.get -> bool
+AgentPrism.ExtensionPointDiagnostic.IsBuiltInDefault.init -> void
+override AgentPrism.ExtensionPointDiagnostic.Equals(object? obj) -> bool
+override AgentPrism.ExtensionPointDiagnostic.GetHashCode() -> int
+override AgentPrism.ExtensionPointDiagnostic.ToString() -> string!
+static AgentPrism.ExtensionPointDiagnostic.operator !=(AgentPrism.ExtensionPointDiagnostic? left, AgentPrism.ExtensionPointDiagnostic? right) -> bool
+static AgentPrism.ExtensionPointDiagnostic.operator ==(AgentPrism.ExtensionPointDiagnostic? left, AgentPrism.ExtensionPointDiagnostic? right) -> bool
 AgentPrism.AgentPrismException
 AgentPrism.AgentPrismException.AgentPrismException() -> void
 AgentPrism.AgentPrismException.AgentPrismException(string! message) -> void

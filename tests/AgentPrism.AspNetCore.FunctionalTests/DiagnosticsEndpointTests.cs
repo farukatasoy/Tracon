@@ -45,6 +45,43 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
+    public async Task Green_field_setup_reports_all_five_embedding_points_as_built_in_default()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(await host.Client.GetAsync(Diagnostics));
+
+        var extensionPoints = body.GetProperty("extensionPoints").EnumerateArray().ToArray();
+
+        extensionPoints.Length.ShouldBe(5);
+        extensionPoints.ShouldAllBe(static point => point.GetProperty("isBuiltInDefault").GetBoolean());
+        extensionPoints.Select(static point => point.GetProperty("contract").GetString()).ShouldBe(
+            ["ITenantContext", "IRunAttributionContext", "IToolAuthorizationHandler", "IRunEventSink", "IAttachmentStorage"]);
+    }
+
+    [Fact]
+    public async Task Host_bound_registration_reports_isBuiltInDefault_false_with_its_own_type_name()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<ITenantContext, HostTenantContext>(),
+            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(await host.Client.GetAsync(Diagnostics));
+
+        var tenantPoint = body.GetProperty("extensionPoints").EnumerateArray()
+            .Single(static point => string.Equals(point.GetProperty("contract").GetString(), "ITenantContext", StringComparison.Ordinal));
+
+        tenantPoint.GetProperty("isBuiltInDefault").GetBoolean().ShouldBeFalse();
+        tenantPoint.GetProperty("implementation").GetString().ShouldBe(nameof(HostTenantContext));
+    }
+
+    private sealed class HostTenantContext : ITenantContext
+    {
+        public string TenantId => "host-tenant";
+    }
+
+    [Fact]
     public async Task Gets_403_when_the_Admin_policy_fails()
     {
         await using var host = await AgentPrismTestHost.StartAsync(

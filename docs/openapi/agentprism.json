@@ -6829,7 +6829,8 @@
           "configuration",
           "uiEmbedded",
           "toolCount",
-          "agentCount"
+          "agentCount",
+          "extensionPoints"
         ],
         "type": "object",
         "properties": {
@@ -6897,6 +6898,13 @@
             ],
             "description": "Gets the number of registered agents. Returns \u0060null\u0060 when the catalog cannot be read.",
             "format": "int32"
+          },
+          "extensionPoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtensionPointDiagnostic"
+            },
+            "description": "Gets the embedding points a host application binds to attach AgentPrism\nto its own tenancy, identity, authorization, eventing, and storage."
           }
         },
         "description": "Reports the self-diagnostics of the installation."
@@ -10169,6 +10177,29 @@
           }
         },
         "description": "Summarizes run results for an experiment variant (calculated in the store)."
+      },
+      "ExtensionPointDiagnostic": {
+        "required": [
+          "contract",
+          "implementation",
+          "isBuiltInDefault"
+        ],
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "description": "Gets the contract\u0027s name, for example \u0060ITenantContext\u0060."
+          },
+          "implementation": {
+            "type": "string",
+            "description": "Gets the registered implementation\u0027s type name."
+          },
+          "isBuiltInDefault": {
+            "type": "boolean",
+            "description": "Gets whether the registration is AgentPrism\u0027s built-in default."
+          }
+        },
+        "description": "One host-bound extension point and whether the host replaced its built-in default."
       },
       "HarnessSettings": {
         "type": "object",
