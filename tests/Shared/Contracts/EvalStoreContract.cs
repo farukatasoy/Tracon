@@ -120,6 +120,43 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
+    public async Task ReplaceCasesAsync_stores_parameter_values_for_a_parameterized_agent()
+    {
+        // A parameterized agent cannot be evaluated without a value for each
+        // placeholder its instructions reference; the case must round-trip
+        // the exact map it was given.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var input = TestData.EvalCase(suite.Id) with
+        {
+            Parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["customer"] = "Acme",
+                ["tone"] = "formal",
+            },
+        };
+
+        await Store.ReplaceCasesAsync(suite.Id, [input]);
+        var loaded = (await Store.ListCasesAsync(suite.Id))[0];
+
+        loaded.Parameters.ShouldNotBeNull();
+        loaded.Parameters!.Count.ShouldBe(2);
+        loaded.Parameters["customer"].ShouldBe("Acme");
+        loaded.Parameters["tone"].ShouldBe("formal");
+    }
+
+    [Fact]
+    public async Task ReplaceCasesAsync_leaves_parameters_null_for_a_case_that_declares_none()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id)]);
+        var loaded = (await Store.ListCasesAsync(suite.Id))[0];
+
+        loaded.Parameters.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task AddCaseAsync_assigns_seq_atomically()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());

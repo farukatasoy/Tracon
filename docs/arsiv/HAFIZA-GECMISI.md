@@ -587,6 +587,10 @@ okunarak yapildi.
 
 ---
 
+## `TagList` ile koşullu metrik etiketi (cekirdek-calistirma.md'den taşındı, 2026-08-22)
+
+- **Metrik etiketini kosullu eklerken `TagList` kullan, `KeyValuePair<string,object?>[]` degil** (2026-08-03, Faz 19): `Counter<T>.Add`/`Histogram<T>.Record`'un `params KeyValuePair[]` asiri yuklemesi sabit uzunluklu dizi ister; bir etiketi (`agentprism.agent.version`) yalniz deger varsa eklemek icin `System.Diagnostics.TagList` (struct, koleksiyon baslatici destekler) kullanilir — `AgentPrismMetrics.RecordRun` bu deseni izler.
+
 ## Migration çakışması — K-540'ın ilk anlatısı (sql-saglayicilari.md'den taşındı, 2026-08-21)
 
 ## 🚨 Migration çakışması iki şekilde gelir; birini denemek yetmez (K-540)

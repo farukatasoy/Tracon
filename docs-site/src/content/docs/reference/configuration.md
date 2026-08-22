@@ -86,6 +86,7 @@ script.
 | Key relative to `AgentPrism` | Default | Meaning |
 |---|---:|---|
 | `DefaultTenantId` | `default` | Tenant used when no request resolver supplies one |
+| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |

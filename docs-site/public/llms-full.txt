@@ -51,6 +51,8 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Concurrent tool calls | Independent tool calls in one turn run at the same time instead of one after another | `ModelBinding.AllowConcurrentToolCalls` | Off by default; each call still gets its own authorization, result, and metric |
+| Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values | `AgentDefinition.Parameters` and the run's `parameters` field | Value substitution only — no expression, condition, loop, or field access |
+| Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
 AgentPrism uses `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction` directly.
 It is a control plane around MAF, not a competing agent abstraction.
@@ -110,6 +112,7 @@ claim to provide an operating-system sandbox.
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
+| Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new AgentPrism message abstraction |
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
@@ -337,6 +340,68 @@ explicit field on the request.
 A compiled agent is cached per resolved culture: two runs of the same agent in
 different cultures never share a compiled instance.
 
+## Parameters
+
+`Parameters` declares named placeholders an agent's instructions may reference as
+`{{name}}`:
+
+```csharp
+new AgentDefinition
+{
+    Instructions = "You help {{customer}}. Use a {{tone}} tone.",
+    Parameters =
+    [
+        new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true },
+        new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, DefaultValue = "formal" },
+    ],
+}
+```
+
+A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
+`/estimate`, which checks the same values without calling a model). A required
+parameter with no value and no `DefaultValue` stops the run before it starts, and
+names the missing parameter; a value for a name the schema does not declare is
+rejected too, not silently dropped.
+
+This is **value substitution, not a template engine**. There is no expression,
+condition, loop, or field access (`{{a.b}}`) — a template language is a security
+surface once it is in a library, and every consumer eventually wants their own
+dialect. Substitution is single-pass: a value that itself contains `{{name}}` is
+inserted literally, never substituted again. A placeholder written as a full JSON
+string value in the instructions (`"customer": "{{customer}}"`) has its value
+JSON-escaped so the produced text stays valid JSON; anywhere else, the value is
+inserted as-is.
+
+Binding runs once per request, after culture resolution and before compilation, and
+the compiled agent is never cached for that run — two runs with different parameter
+values never share a compiled instance, the same rule culture resolution follows.
+Kind (`Text`, `Number`, `Boolean`) only labels the value's expected shape for the
+console's own input form; every value travels as a string.
+
+An agent with an empty `Parameters` list is entirely unaffected by this feature —
+`{{...}}` in its instructions stays plain, coincidental text, exactly as before this
+feature existed.
+
+## Shared instructions blocks
+
+A shared instructions block is an ordinary `AgentDefinition` — there is no separate
+type or table for it. Point another definition at it with `SharedInstructionsName`,
+and its `Instructions` text is prepended to the referencing definition's own resolved
+text at compile time:
+
+```csharp
+// The block: any definition works, even one nobody runs directly.
+new AgentDefinition { Name = "house-rules", Instructions = "Always cite your source." }
+
+// The reference:
+new AgentDefinition { Name = "support", SharedInstructionsName = "house-rules", Instructions = "Answer billing questions." }
+```
+
+Because it is saved through the same store as any other definition, a block gets
+versioning, tenancy, and the audit trail for free. A block cannot reference another
+block — the reference is a single hop, checked and rejected at compile time, not a
+cycle-detecting walk.
+
 ## Where agents come from
 
 The catalog merges two sources, in priority order:
@@ -505,6 +570,12 @@ reordering re-numbers the cases and past results then line up with different one
 Treat the list as ordered data, not a set. `expectedOutput` reaches `containsExpected`;
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
+
+For an agent that declares [parameters](/concepts/agents/#parameters), a case's own
+`parameters` field supplies the values that run's instructions bind against. A case
+missing a value the agent requires fails outright, with a reason naming which
+parameter is missing — the same check `POST /api/agents/{name}/run` applies, so a
+case that would fail in production fails here too, before any model call is made.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
@@ -936,6 +1007,34 @@ Input preview runs before the recording path. When a guard returns `Mask`, the m
 recorded input, and run events receive the masked value. AgentPrism does not retain a
 hidden raw copy for later inspection.
 :::
+
+## The document channel
+
+`documents` on `POST /api/agents/{name}/run` attaches reference text to a run,
+wrapped in a delimiter and marked apart from the agent's instructions:
+
+```json
+{
+  "message": "Summarize the attached policy.",
+  "documents": [{ "name": "policy.md", "content": "Refunds within 30 days." }]
+}
+```
+
+:::caution[Not a security guarantee]
+This is a **convention and an audit trail, not a security guarantee**. No provider
+gives a hard promise that content wrapped this way is never treated as an
+instruction — a capable-enough model can still be steered by content inside a
+document. The value is in keeping the data channel visibly separate in the
+transcript and in the run record, and in the boundary marker surviving content that
+tries to imitate it: a document containing the literal delimiter has that occurrence
+defanged, so it can never forge the end of the document and make the model treat
+what follows as a new set of instructions.
+:::
+
+The run record keeps the document's **name and size**, in its own event — never the
+content, which already lives with the rest of the run's recorded input, subject to
+the same [content protection](#content-protection) and retention settings as
+everything else.
 
 ## Webhooks
 
@@ -7820,6 +7919,7 @@ script.
 | Key relative to `AgentPrism` | Default | Meaning |
 |---|---:|---|
 | `DefaultTenantId` | `default` | Tenant used when no request resolver supplies one |
+| `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |
@@ -9456,6 +9556,12 @@ did rather than just reading the answer.
 
 Attachments can be added to a message, and with the voice layer enabled there is a
 live conversation mode.
+
+When the selected agent declares a parameter schema, the playground renders a form
+for it above the message box — one field per parameter, generated from the schema.
+The Run button is disabled while a required field is empty; this is the same rule
+the server enforces (a run with a missing required value never starts), surfaced
+before the round trip instead of after it.
 
 ## Runs
 

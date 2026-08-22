@@ -175,6 +175,9 @@ internal static class AgentEndpoints
                 IRunStore runStore,
                 ITenantContext tenantContext,
                 ExperimentAssignmentResolver experimentAssignment,
+                IAgentDefinitionStore definitionStore,
+                AgentDefinitionCompiler compiler,
+                IEnumerable<IAgentDecorator> decorators,
                 IOptionsMonitor<AgentPrismAsyncRunOptions> asyncRunOptions,
                 IOptionsMonitor<AgentPrismOptions> optionsMonitor,
                 ContextWindowEstimator contextWindowEstimator,
@@ -246,6 +249,10 @@ internal static class AgentEndpoints
                     attachmentStore,
                     tenantContext,
                     experimentAssignment,
+                    definitionStore,
+                    compiler,
+                    decorators,
+                    optionsMonitor,
                     prefix,
                     httpContext,
                     cancellationToken).ConfigureAwait(false);
@@ -305,7 +312,9 @@ internal static class AgentEndpoints
     private static async Task<IResult> EstimateAsync(
         string name,
         IAgentCatalog catalog,
+        IAgentDefinitionStore definitionStore,
         ContextWindowEstimator estimator,
+        IOptionsMonitor<AgentPrismOptions> optionsMonitor,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -316,6 +325,15 @@ internal static class AgentEndpoints
         if (bindError is not null)
         {
             return bindError;
+        }
+
+        // Same gate, same error shape as POST /api/agents/{name}/run - see
+        // AgentParameterGate.
+        if ((await AgentParameterGate
+                .CheckAsync(optionsMonitor, definitionStore, name, version: null, request!.Parameters, cancellationToken)
+                .ConfigureAwait(false)).Problem is { } parameterProblem)
+        {
+            return parameterProblem;
         }
 
         if (await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false) is not { } descriptor)
@@ -610,6 +628,10 @@ internal static class AgentEndpoints
         IAttachmentStore attachmentStore,
         ITenantContext tenantContext,
         ExperimentAssignmentResolver experimentAssignment,
+        IAgentDefinitionStore definitionStore,
+        AgentDefinitionCompiler compiler,
+        IEnumerable<IAgentDecorator> decorators,
+        IOptionsMonitor<AgentPrismOptions> optionsMonitor,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -672,6 +694,20 @@ internal static class AgentEndpoints
             .ResolveAsync(tenantContext.TenantId, name, assignmentKey, cancellationToken)
             .ConfigureAwait(false);
 
+        // 🚨 Missing/unknown parameters are checked BEFORE the run starts, so
+        // the response is a proper ProblemDetails - this is not possible once
+        // the stream has started. The gate is a no-op (Definition null,
+        // Problem null) for the overwhelming majority of agents that declare
+        // no parameter schema at all.
+        var parameterGate = await AgentParameterGate
+            .CheckAsync(optionsMonitor, definitionStore, name, assignment?.Version, request.Parameters, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (parameterGate.Problem is { } parameterProblem)
+        {
+            return parameterProblem;
+        }
+
         Microsoft.Agents.AI.AIAgent? agent;
 
         // Resolution compiles a declarative definition; an unknown tool or
@@ -680,9 +716,46 @@ internal static class AgentEndpoints
         // stream has started.
         try
         {
-            agent = assignment is null
-                ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
-                : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
+            if (parameterGate.Definition is { Parameters.Count: > 0 } sourceDefinition)
+            {
+                // 🚨 A parameterized run bypasses CompiledAgentCache entirely:
+                // two runs of the same agent with different parameter values
+                // must never share one compiled instance, and the cache has
+                // no notion of "value" in its key. Unlike a tenant-specific
+                // provider credential (BYOK), which only bypasses the cache
+                // while staying inside IAgentCatalog.ResolveAsync, THIS bypass
+                // skips the catalog entirely - so it must apply the SAME
+                // AgentDecoratorPipeline by hand, or the run goes out
+                // undecorated: no recording, no telemetry, no tool-approval gate.
+                agent = await compiler
+                    .CompileParameterizedAsync(sourceDefinition, request.Culture, request.Parameters, cancellationToken)
+                    .ConfigureAwait(false);
+
+                agent = AgentDecoratorPipeline.Apply(
+                    agent,
+                    new AgentDescriptor
+                    {
+                        Name = sourceDefinition.Name,
+                        DisplayName = sourceDefinition.DisplayName,
+                        Description = sourceDefinition.Description,
+                        Origin = AgentDefinitionOrigin.Database,
+                        SourceName = "database",
+                        Version = sourceDefinition.Version,
+                        Model = sourceDefinition.Model,
+                        ToolNames = sourceDefinition.ToolNames,
+                        SkillNames = sourceDefinition.SkillNames,
+                        CallableAgentNames = sourceDefinition.CallableAgentNames,
+                        UsesHarness = sourceDefinition.Harness is not null,
+                        UpdatedAt = sourceDefinition.UpdatedAt,
+                    },
+                    decorators);
+            }
+            else
+            {
+                agent = assignment is null
+                    ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
+                    : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (AgentPrismException ex)
         {
@@ -812,12 +885,13 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0)
+        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0 ||
+            request.Parameters is { Count: > 0 } || request.Documents.Count > 0)
         {
             return Results.Problem(
                 title: "Not supported",
                 detail: "A queued run ('Prefer: respond-async') does not support approval decisions, " +
-                        "client-side tool results, or attachments in this version.",
+                        "client-side tool results, attachments, parameters, or documents in this version.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -1225,6 +1299,16 @@ internal static class AgentEndpoints
                         messages.Add(toolResultsMessage);
                     }
                 }
+            }
+
+            // 🚨 Documents are their own messages, added BEFORE the user's
+            // message: each is wrapped in a delimiter and marked through
+            // AIContent.AdditionalProperties (DocumentChannelMessageBuilder)
+            // so the model - and the run record - can tell reference text
+            // apart from the instructions and from the actual request.
+            foreach (var document in request.Documents)
+            {
+                messages.Add(DocumentChannelMessageBuilder.Build(document));
             }
 
             var contents = new List<AIContent>();

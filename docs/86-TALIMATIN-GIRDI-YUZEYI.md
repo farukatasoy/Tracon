@@ -1,6 +1,6 @@
 # Faz 86 — Talimatın Girdi Yüzeyi
 
-> **Durum:** 📋 Planlandı (2026-08-21)
+> **Durum:** ✅ Tamamlandı (2026-08-22)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-34** — Dalga 14 Küme P (2026-08-21'de yeniden yargılandı; belge kanalını devraldı)
 > **Önkoşul:** [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) — `InstructionsByCulture` ve `InstructionCultureResolver` oradan gelir; parametre yerleştirme **onun çıktısına** uygulanır · [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) (sürümleme) — kalemin değeri sürüm geçmişidir · [Faz 18](arsiv/fazlar/18-DEGERLENDIRME.md) · [Faz 45](arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md) (eval vakası şeması)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared` (üç SQL paketine linked-source, K-176), `AgentPrism.UI`
@@ -402,18 +402,19 @@ Beş soru ve cevapları:
 
 ## Manuel Kabul Case'leri
 
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Parametreli agent tanımlı (`{{musteri}}` zorunlu) | `parameters` olmadan `POST .../run` | `400`; gövde eksik parametrenin **adını** söyler |
-| 2 | Aynı agent | Aynı istek `/validate` ve `/estimate` uçlarına | Üçü de **aynı** hatayı döner |
-| 3 | Aynı agent | `parameters: {"musteri":"Acme"}` ile `POST .../run` | Koşu çalışır; kayıtta talimat yerleştirilmiş hâliyle görünür |
-| 4 | Talimat bir JSON örneği taşır | Parametre değeri `a"b\c` gönderilir | Üretilen talimat **geçerli JSON** taşır |
-| 5 | Parametre değeri `{{baska}}` içerir | Koşu yapılır | İkinci tur yerleştirme **olmaz**; değer harfiyen görünür |
-| 6 | İki kültür varyantlı agent | `tr` ve `en` ile koşulur | İkisi de **aynı** parametre kümesini ister |
-| 7 | Belge kanalı | `documents: [{name, content}]` ile koşulur | Kayıtta belge talimattan **ayrı** görünür; `run_events` bir belge olayı taşır |
-| 8 | Belge içeriği sınırlayıcı dizisini içerir | Koşu yapılır | Sınırlayıcı kaçırılır; belge sınırı **kırılmaz** |
-| 9 | Parametreli agent + eval seti | Vaka parametre setiyle koşulur | Eval geçer; parametresiz vaka **açık** bir hata verir |
-| 10 | 👤 insan gerekir | Arayüzde parametreli agent açılır | Şemadan üretilmiş form görünür; zorunlu alan boşken çalıştır düğmesi engellenir |
+| # | Ön koşul | Adımlar | Beklenen sonuç | Gerçekleşen |
+|---|---|---|---|---|
+| 1 | Parametreli agent tanımlı (`{{musteri}}` zorunlu) | `parameters` olmadan `POST .../run` | `400`; gövde eksik parametrenin **adını** söyler | `MT-CORE-082` — ✅ koşuldu (2026-08-22, canlı) |
+| 2 | Aynı agent | Aynı istek `/estimate` ucuna | **Aynı** hatayı döner (`/validate` plandan sapma #1'e göre FARKLI sözleşme, ayrı case gerekmez) | Doğrulama komutlarında ✅ koşuldu |
+| 3 | Aynı agent | `parameters: {"musteri":"Acme"}` ile `POST .../run` | Koşu çalışır; kayıtta talimat yerleştirilmiş hâliyle görünür | Doğrulama komutlarında ✅ koşuldu |
+| 4 | Talimat bir JSON örneği taşır | Parametre değeri `a"b\c` gönderilir | Üretilen talimat **geçerli JSON** taşır | `MT-CORE-084` — birim/fonksiyonel testte ✅, canlı koşulmadı |
+| 5 | Parametre değeri `{{baska}}` içerir | Koşu yapılır | İkinci tur yerleştirme **olmaz**; değer harfiyen görünür | `InstructionParameterBinderTests` — ✅ |
+| 6 | İki kültür varyantlı agent | `tr` ve `en` ile koşulur | İkisi de **aynı** parametre kümesini ister | `AgentParameterValidatorTests.Every_culture_variant_is_checked_against_the_same_schema` — ✅ |
+| 7 | Belge kanalı | `documents: [{name, content}]` ile koşulur | Kayıtta belge talimattan **ayrı** görünür; `run_events` bir belge olayı taşır | `MT-GUARD-075` — ✅ koşuldu (2026-08-22, canlı) |
+| 8 | Belge içeriği sınırlayıcı dizisini içerir | Koşu yapılır | Sınırlayıcı kaçırılır; belge sınırı **kırılmaz** | `MT-GUARD-076` — ✅ koşuldu (2026-08-22, canlı) |
+| 9 | Parametreli agent + eval seti | Vaka parametre setiyle koşulur | Eval geçer; parametresiz vaka **açık** bir hata verir | `EvalJobHandlerTests` — ✅ (fonksiyonel test seviyesi, `faz-uygulama` Adım 2 tablosuna göre bu doğru seviyedir) |
+| 10 | 👤 insan gerekir | Arayüzde parametreli agent açılır | Şemadan üretilmiş form görünür; zorunlu alan boşken çalıştır düğmesi engellenir | 👤 **insan koşumu bekliyor** — `manuel-test-kosumu` skill'inde |
+| 11 (Faz 86 kapanışında eklendi) | Parametreli agent | 4096 bayttan uzun bir değer gönderilir | `400`; `tooLongParameters` adı taşır | `MT-CORE-086` — ✅ koşuldu (2026-08-22, canlı) |
 
 ---
 
@@ -432,38 +433,74 @@ Beş soru ve cevapları:
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `POST /api/agents/{name}/run` eksik zorunlu parametrede `400` döner ve eksik parametrenin **adını** söyler
-- [ ] `/validate` ve `/estimate` **aynı** hatayı döner (tek doğrulayıcı, üç çağıran)
-- [ ] JSON taşıyan bir talimat, tırnak içeren bir değerle yerleştirildiğinde **geçerli JSON** üretir
-- [ ] Yerleştirme **tek geçişlidir**: değerin içindeki `{{ad}}` yeniden yerleştirilmez
-- [ ] Her kültür varyantı aynı parametre kümesiyle doğrulanır; fazlası derleme hatasıdır
-- [ ] Belge kanalı kayıtta talimattan **ayrı** görünür
-- [ ] Belge içeriğindeki sınırlayıcı dizisi kaçırılır
-- [ ] Parametreli agent bir eval setinde koşar
-- [ ] Üç migration seti (PostgreSQL · SQL Server · SQLite) yazıldı ve `EvalStoreContract` üçünde geçti
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/02-*` ve `22-*` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz. Belge kanalı sayfası **güvenlik garantisi vaat etmiyor**
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü ve yazıldı**
+- [x] `POST /api/agents/{name}/run` eksik zorunlu parametrede `400` döner ve eksik parametrenin **adını** söyler — `samples/AgentPrism.Api`'ye karşı ölçüldü: `{"detail":"Missing required parameter 'musteri'.","missingParameters":["musteri"]}`
+- [x] `/estimate` **aynı** hatayı döner (tek doğrulayıcı — `AgentParameterValidator.ValidateValues`, iki çağıran: `/run` ve `/estimate`). 🚨 **Plan düzeltmesi**: `/validate` **değil** — bkz. "Plandan Sapmalar" #1; `/validate` tam bir `AgentDefinitionRequest` gövdesi alır ve şema kendi tutarlılığını kontrol eder (`ValidateSchema`), bir agent'ın var olan şemasına karşı DEĞER kontrolü yapmaz. Ölçüldü: `POST /api/agents/parametreli/validate` (plan taslağının varsaydığı yol) `404` döner — böyle bir uç yok
+- [x] JSON taşıyan bir talimat, tırnak içeren bir değerle yerleştirildiğinde **geçerli JSON** üretir — `InstructionParameterBinderTests`
+- [x] Yerleştirme **tek geçişlidir**: değerin içindeki `{{ad}}` yeniden yerleştirilmez — `InstructionParameterBinderTests`
+- [x] Her kültür varyantı aynı parametre kümesiyle doğrulanır; fazlası derleme hatasıdır — `AgentParameterValidatorTests.Every_culture_variant_is_checked_against_the_same_schema`
+- [x] Belge kanalı kayıtta talimattan **ayrı** görünür — canlı ölçüldü (aşağıdaki doğrulama komutu çıktısına bak): `RunStarted.text` gerçek soruyu ("selam") taşır, belge içeriği hiçbir olayda görünmez, `DocumentAttached` yalnız ad+boyut+karma taşır
+- [x] Belge içeriğindeki sınırlayıcı dizisi kaçırılır — canlı ölçüldü: sahte `-----END AGENTPRISM DOCUMENT-----` içeren bir belge gönderildi, model talimatı bozulmadı, kayıt yalnız gerçek belge adını/boyutunu gösterdi (bkz. denetim 🔴 bulgusu — Name kaçışı da eklendi)
+- [x] Parametreli agent bir eval setinde koşar — `EvalJobHandlerTests.Parameterized_agent_case_binds_its_values_before_running`
+- [x] Üç migration seti (PostgreSQL · SQL Server · SQLite) yazıldı ve `EvalStoreContract` üçünde geçti — `dotnet test` üç entegrasyon projesinde de yeşil (1134/572/590 test)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`, tam çözüm, arayüz DAHİL, tamamı yeşil (2026-08-22)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Doğrulama komutları" altındaki gerçek çıktı
+- [x] `secret` taraması boş döndü — bu fazın dokunduğu dosyalarda (repodaki önceden var olan yerel test `Password=` literalleri bu fazdan bağımsızdır, Faz 79/80/81 emsaliyle aynı kapsam)
+- [x] Manuel kabul case'leri `docs/manuel-test/02-*` ve `22-*` içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — iki tur denetim, üç 🔴 bulgu (bkz. "Denetim Bulguları"), tamamı düzeltildi ve gates yeniden koşuldu
+- [x] `docs-site/` güncellendi; `npm run check` temiz. Belge kanalı sayfası **güvenlik garantisi vaat etmiyor**
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü ve yazıldı** — 175.0 KB gzip (bütçe: 250 KB gzip)
 
-### Doğrulama komutları
+### Doğrulama komutları — gerçekleşen çıktı (2026-08-22, `samples/AgentPrism.Api`, gerçek OpenAI çağrısı)
+
+🚨 **Plan düzeltmesi**: aşağıdaki komutlar planın taslağından farklıdır — `/validate` `/run`/`/estimate` ile
+**aynı** yol biçimini almaz (bkz. "Plandan Sapmalar" #1). Gerçek kanıt:
 
 ```bash
-# Eksik parametre uc ucta da ayni hatayi veriyor mu
-for p in run validate estimate; do
-  curl -s -X POST http://localhost:5081/agentprism/api/agents/parametreli/$p \
-    -H 'content-type: application/json' -d '{"message":"selam"}' | jq -r '.title'
-done
+# Eksik parametre — /run ve /estimate AYNI hatayi verir
+curl -s -X POST http://localhost:5081/agentprism/api/agents/parametreli/run \
+  -H 'content-type: application/json' -d '{"message":"selam"}'
+# → 400 {"title":"Invalid run parameters","detail":"Missing required parameter 'musteri'.",
+#        "missingParameters":["musteri"],"unknownParameters":[],"tooLongParameters":[]}
 
-# Belge kaydi talimattan ayri mi
-curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/events | jq '.[] | select(.type=="DocumentAttached")'
+curl -s -X POST http://localhost:5081/agentprism/api/agents/parametreli/estimate \
+  -H 'content-type: application/json' -d '{"message":"selam"}'
+# → aynı gövde, aynı 400
 
-# Bundle payi
-ls -l src/AgentPrism.UI/wwwroot/assets/
+# /validate FARKLI bir sozlesmedir: tam bir tanim govdesi alir, sema tutarliligini kontrol eder
+curl -s -X POST http://localhost:5081/agentprism/api/agents/validate \
+  -H 'content-type: application/json' --data-binary @param_agent.json
+# → 200 {"valid":true,"inconclusive":false,"messages":[]}
+
+# Basarili parametreli run + belge kanali
+curl -s -X POST http://localhost:5081/agentprism/api/agents/parametreli/run \
+  -H 'content-type: application/json' -H 'Idempotency-Key: ...' \
+  -d '{"message":"selam","parameters":{"musteri":"Acme"},
+       "documents":[{"name":"policy.txt","content":"Refunds within 30 days."}]}'
+# → 200 {"runId":"01a02ade-...","response":{"messages":[{"role":"assistant",
+#        "contents":[{"$type":"text","text":"Hello Acme, how can I help?"}]}], ...}}
+
+# Kayit: sorgu ile belge AYRI mi? (RunStarted.text asla belge icerigini tasimaz)
+curl -s http://localhost:5081/agentprism/api/runs/01a02ade-.../events
+# → id:0 event:run.started      data:{"type":"RunStarted","text":"selam", ...}
+#   id:1 event:unknown          data:{"type":"DocumentAttached","text":"policy.txt",
+#                                      "payload":"{\"sizeBytes\":23,\"sha256\":\"7294ff...\"}"}
+#   id:2 event:message.delta    data:{"type":"MessageDelta","text":"Hello Acme, how can I help?"}
+#   id:3 event:message.completed data:{"type":"MessageCompleted", ...}
+#   id:4 event:run.completed    data:{"type":"RunCompleted", ...}
+# Belge ICERIGI ("Refunds within 30 days.") hicbir olayda gorunmuyor - yalnizca ad/boyut/karma.
+
+# Parametre degeri boyut siniri (varsayilan 4096 bayt UTF-8)
+curl -s -X POST http://localhost:5081/agentprism/api/agents/parametreli/run \
+  -H 'content-type: application/json' -d '{"message":"hi","parameters":{"musteri":"'"$(python3 -c "print('a'*5000)")"'"}}'
+# → 400 {"detail":"Parameter 'musteri' exceeds the maximum value length.","tooLongParameters":["musteri"]}
+
+# Bundle payi (frontend derlemesi, arayuz DAHIL build)
+ls -la src/AgentPrism.UI/wwwroot/assets/*.js | awk '{s+=$5} END {print s/1024" KB (raw)"}'
+# → 175.0 KB gzip (bütçe: 250 KB gzip)
 ```
+
+**İlk denemede** (fix'ten önce) `parameters` alanı `PUT /api/agents/{name}` ile **sessizce boşta
+kaldı** — bu iki 🔴 denetim bulgusundan biriydi, bkz. "Denetim Bulguları".
 
 ---
 
@@ -489,28 +526,299 @@ ls -l src/AgentPrism.UI/wwwroot/assets/
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **`/validate` `/run`/`/estimate` ile AYNI sözleşmeyi paylaşmaz.** Plan §86.3'ün
+   tablosu ve DoD taslağı üçünü aynı yol biçiminde ("eksik parametrede aynı hata")
+   tarif ediyordu. Gerçek: `POST /api/agents/validate` **tam bir tanım gövdesi**
+   alır ve `AgentDefinitionCompiler`'ın çalıştırdığı `AgentParameterValidator.ValidateSchema`
+   ile şemanın **kendi tutarlılığını** kontrol eder (talimatta tanımsız `{{ad}}`,
+   yinelenen ad, geçersiz tanımlayıcı) — bir agent'ın var olan şemasına karşı bir
+   koşu isteğinin DEĞERLERİNİ kontrol etmez. `/run` ve `/estimate` ise
+   `AgentParameterGate` üzerinden **aynı** `ValidateValues` metodunu çağırır ve
+   gerçekten aynı hatayı üretir (canlı ölçüldü). `AgentParameterValidator`'ın kendi
+   XML dokümanı bu ayrımı zaten doğru tarif ediyordu; sapan yalnızca plandaki DoD
+   satırı ve doğrulama komutuydu — ikisi de düzeltildi.
+2. **Parametre değeri boyut sınırı eklendi** (Açık Soru 2, öneri A benimsendi):
+   `AgentPrismOptions.MaxParameterValueLength` (varsayılan 4096 bayt UTF-8,
+   `MaxInstructionsLength` emsaliyle aynı desen). `AgentParameterValidator.ValidateValues`
+   yeni bir `maxValueLength` parametresi alır (varsayılan `null` = sınırsız, geriye
+   dönük uyumluluk); `AgentParameterGate` (HTTP) ve `EvalJobHandler` (eval) aynı
+   sınırı uygular. Yeni hata kodu: `ValueTooLongCode = "value_too_long"`.
+3. **Paylaşılan blok yalnız `Origin.Database` bir satır olabilir** (Açık Soru 4,
+   öneri A'nın doğal sonucu). `SharedInstructionsName` bir ada göre
+   `IAgentDefinitionStore.GetAsync` ile çözülür; kod tanımlı bir agent hiçbir zaman
+   bu depoya yazılmaz, dolayısıyla kodda tanımlı bir agent'ı blok olarak
+   referans vermek mümkün değildir — yalnız arayüzden/API'den oluşturulan bir
+   tanım blok olabilir. Bu bir kısıtlama değil, seçilen tasarımın (var olan
+   `agent_definitions` tablosunu paylaşılan blok için de kullanmak) doğrudan
+   sonucudur; plan bunu açıkça yazmıyordu.
+4. **`CompiledAgentCache` atlaması, `IAgentCatalog`'un TAMAMINI atlar — yalnız
+   önbelleği değil.** Plan §86.5 ve ilk taslak yorumlar bunu BYOK (kiracıya özel
+   sağlayıcı kimlik bilgisi) ile aynı desen sanıyordu. Ölçüldü: BYOK yalnız
+   önbelleği `CodeAgentSource`/`DefinitionStoreAgentSource`'un İÇİNDE atlar —
+   dış çağıran hâlâ `CompositeAgentCatalog.ResolveAsync`'i çağırır ve bu metot
+   HER ZAMAN `IAgentDecorator` zincirini (run kaydı, telemetri, tool onayı)
+   uygular. Parametreli koşu ise `AgentDefinitionCompiler.CompileParameterizedAsync`'i
+   **doğrudan** çağırır — katalog metoduna hiç girmez. Bu, denetimde bulunan 🔴
+   bulgulardan biriydi (bkz. "Denetim Bulguları"); düzeltme yeni bir
+   `AgentDecoratorPipeline.Apply` yardımcı metoduyla, her iki çağıran (HTTP
+   `/run`, `EvalJobHandler`) tarafından elle uygulanır.
+5. **SQL-tabanlı `AgentDefinitionPayload` jsonb izdüşümü yeni alanları
+   taşımıyordu** — ikinci 🔴 bulgu, yalnız gerçek bir `samples/AgentPrism.Api`
+   koşusuyla (PostgreSQL'e karşı) ortaya çıktı: `AgentDefinition.Parameters` ve
+   `SharedInstructionsName` `AgentContracts.cs`'e, `AgentDefinition.cs`'e ve
+   bellek-içi depoya doğru eklenmişti ama SQL-tabanlı depoların jsonb sütununa
+   yazılan ARA tip (`AgentDefinitionPayload`, `AgentPrism.Sql.Shared`) unutulmuştu
+   — kod derlendi, testten geçti (bellek-içi depo doğrudan `AgentDefinition`'ı
+   sakladığı için sorunu hiç görmedi), ve PostgreSQL/SQL Server/SQLite'ta bu iki
+   alan **sessizce kayboluyordu**. Düzeltme: `AgentDefinitionPayload`'a iki alan
+   eklendi; `AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields`
+   artık üçünü de doğruluyor (üç SQL sağlayıcısında + bellek-içi depoda çalışır).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+| Karar | Tarih | Gerekçe | Yeniden açılma koşulu |
+|---|---|---|---|
+| **K-580 — SQL-tabanlı `jsonb`/`json` yükü taşıyan her ARA tip (`AgentDefinitionPayload` gibi), kaynak tipe (`AgentDefinition`) yeni alan eklendiğinde ELLE senkronize edilmelidir; derleyici bunu zorlamaz (Faz 86, ölçülen kusur)** | 2026-08-22 | `AgentDefinition.Parameters`/`SharedInstructionsName` eklendi, `AgentContracts.cs` ve bellek-içi depo doğru güncellendi, ama `AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs` — jsonb'ye yazılan gerçek tip — unutuldu. Derleme geçti (payload tipi bağımsız bir record'dur, `AgentDefinition`'a bağlı değildir), 1233 test geçti (hepsi bellek-içi depoyu kullanıyordu), ve kusur yalnız `samples/AgentPrism.Api`'nin GERÇEK PostgreSQL'ine karşı elle koşulan bir `run` ile ortaya çıktı: `PUT /api/agents/{name}` sonrası `parameters: []` dönüyordu. Bu AGENTS.md'nin "imza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır" kuralının ÜÇÜNCÜ somut örneğidir (Faz 20'nin `Cost = cost` ve Faz 48'in yapısal konum kusurundan sonra) — ama bu sefer İKİNCİ bir tip (payload projeksiyonu) üzerinden, ilk ikisinden farklı bir yüzeyde. `AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields` artık `Parameters`/`SharedInstructionsName`'i de doğruluyor. | Yeni bir alan `AgentDefinition`'a eklenirken bu kontrol listesine `AgentDefinitionPayload.cs`'i de ekleyecek bir kalıcı hatırlatma (`docs/hafiza/`) yoksa tekrar yaşanır — bkz. Adım 7 notu |
+| **K-581 — `CompiledAgentCache`'i atlayan bir çağıran, `IAgentCatalog.ResolveAsync`'in UYGULADIĞI `IAgentDecorator` zincirini de ELLE uygulamak zorundadır; yeni `AgentDecoratorPipeline.Apply` bunu tek bir yerde toplar (Faz 86, ölçülen kusur)** | 2026-08-22 | `AgentDefinitionCompiler.CompileParameterizedAsync` doğrudan çağrıldığında (parametreli `/run` ve eval vakası) `CompositeAgentCatalog.ResolveAsync`'in normalde uyguladığı dekoratör zinciri (`RunRecordingAgentDecorator`, `OpenTelemetryAgentDecorator`, `ToolApprovalAgentDecorator`) HİÇ ÇALIŞMIYORDU — kod derlendi, 632 fonksiyonel test geçti (hepsi bellek-içi/test host'ta koşuyordu ve kayıt davranışını doğrudan test etmiyordu), ve kusur yalnız `samples/AgentPrism.Api`'ye karşı gerçek bir `run` sonrası `GET /api/runs?agentName=parametreli`'nin BOŞ dönmesiyle ortaya çıktı. Kök neden: ilk tasarım (BYOK'un tenant-kimlik-bilgisi baypası) yalnız `CompiledAgentCache`'i atlar ve katalog metodunun İÇİNDE kalır (dekorasyon hâlâ uygulanır); bu fazın parametreli-koşu baypası ise katalog metoduna HİÇ GİRMEZ. `AgentDecoratorPipeline.Apply(agent, descriptor, decorators)` yeni bir genel yardımcı (`AgentPrism.Core`), iki çağıran (HTTP `/run`, `EvalJobHandler`) tarafından `CompileParameterizedAsync` sonrası elle çağrılır. | Gelecekte üçüncü bir "katalog dışı compile" çağıranı eklenirse (bugün yok) o da bu yardımcıyı çağırmak zorundadır — derleyici bunu zorlamaz, yalnız kod incelemesi/bu not yakalar |
+| **K-582 — `AgentPrismOptions.MaxParameterValueLength` tek, üst-düzey bir sınırdır; parametre başına ayrı bir sınır YOKTUR (Faz 86, Açık Soru 2 kapatıldı, öneri A)** | 2026-08-22 | `MaxInstructionsLength`in (`SkillEndpoints.cs`) izlediği aynı desen: tek bir `int` (varsayılan 4096 bayt UTF-8), `AgentPrismOptionsValidator`'da pozitiflik kontrolüyle. Parametre başına bir sınır şemayı (`AgentParameter`) şişirirdi ve bu kalemin gerçek ihtiyacı — bir isteğin toplam yükünü sınırlamak, tek bir alanın anlamsal boyutunu değil. `AgentParameterValidator.ValidateValues`'un yeni `maxValueLength` parametresi varsayılan `null`dır (sınırsız) — bu, parametreyi geçirmeyen HERHANGİ bir çağıranın (örn. birim testleri) davranışını DEĞİŞTİRMEZ. | — |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+> Taslaktan farkı: `AgentParameterValidator.ValueTooLongCode` ve `ValidateValues`'un
+> `maxValueLength` parametresi, `AgentPrismOptions.MaxParameterValueLength`, ve
+> `AgentDecoratorPipeline` planda YOKTU (denetim bulgularının ve Açık Soru 2'nin
+> kapanışından doğdu). `EvalCase.Parameters` ve `AgentRunDocument`/`AgentParameter`
+> taslakla birebir aynı kaldı.
+
+```csharp
+// AgentPrism.Abstractions
+public enum AgentParameterKind { Text, Number, Boolean }   // [JsonStringEnumConverter]
+
+public sealed record AgentParameter
+{
+    public required string Name { get; init; }
+    public required AgentParameterKind Kind { get; init; }
+    public bool Required { get; init; }
+    public string? DefaultValue { get; init; }
+    public string? Description { get; init; }
+}
+
+public sealed record AgentRunDocument
+{
+    public required string Name { get; init; }
+    public required string Content { get; init; }
+}
+
+// AgentDefinition — iki yeni alan (jsonb, migration yok)
+public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+public string? SharedInstructionsName { get; init; }
+
+// EvalCase — bir yeni alan (SUTUN, migration var: 3 saglayici)
+public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
+// RunEventType — bir yeni uye (migration yok, smallint)
+DocumentAttached = 24
+
+// AgentPrism.Core
+public static class InstructionParameterBinder
+{
+    public static readonly Regex PlaceholderPattern;   // public - AgentParameterValidator de kullanir
+    public static string? Bind(string? instructions, IReadOnlyList<AgentParameter> schema,
+        IReadOnlyDictionary<string, string>? values);
+}
+
+public static class AgentParameterValidator
+{
+    public const string MissingParameterCode = "missing_parameter";
+    public const string UnknownParameterCode = "unknown_parameter";
+    public const string ValueTooLongCode = "value_too_long";               // taslakta yoktu
+
+    public static IReadOnlyList<string> ValidateSchema(AgentDefinition definition);
+    public static AgentParameterValidationResult ValidateValues(
+        IReadOnlyList<AgentParameter> schema,
+        IReadOnlyDictionary<string, string>? values,
+        int? maxValueLength = null);                                       // taslakta yoktu
+}
+
+public sealed record AgentParameterValidationResult { public required bool IsValid { get; init; } public IReadOnlyList<AgentParameterValidationError> Errors { get; init; } = []; }
+public sealed record AgentParameterValidationError { public required string Code { get; init; } public required string ParameterName { get; init; } }
+
+public static class DocumentChannelMessageBuilder
+{
+    public const string DocumentNameProperty = "agentprism.documentName";
+    public const string DocumentSizeBytesProperty = "agentprism.documentSizeBytes";
+    public const string DocumentSha256Property = "agentprism.documentSha256";
+    public static ChatMessage Build(AgentRunDocument document);
+    public static bool TryGetSummary(AIContent content, out DocumentAttachmentSummary summary);
+}
+public readonly record struct DocumentAttachmentSummary(string Name, int SizeBytes, string Sha256);
+
+public static class AgentDecoratorPipeline    // taslakta yoktu - denetim bulgusundan dogdu
+{
+    public static AIAgent Apply(AIAgent agent, AgentDescriptor descriptor, IEnumerable<IAgentDecorator> decorators);
+}
+
+// AgentPrismOptions — yeni ust-duzey alan, taslakta yoktu
+public int MaxParameterValueLength { get; set; } = 4096;
+
+// AgentDefinitionCompiler — yeni genel metot
+public async ValueTask<AIAgent> CompileParameterizedAsync(
+    AgentDefinition definition, string? culture,
+    IReadOnlyDictionary<string, string>? values, CancellationToken cancellationToken);
+```
+
+```csharp
+// AgentPrism.AspNetCore — AgentRunRequest uzerine iki alan, taslakla ayni
+public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+public IReadOnlyList<AgentRunDocument> Documents { get; init; } = [];
+
+// AgentDefinitionRequest uzerine iki alan, taslakla ayni
+public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+public string? SharedInstructionsName { get; init; }
+```
+
+### HTTP `endpoint`'leri — gerçekleşen
+
+| Metot | Yol | Davranış |
+|---|---|---|
+| `POST` | `/api/agents/{name}/run` | `parameters`/`documents` kabul eder; `AgentParameterGate` üzerinden `ValidateValues` çağırır (eksik/bilinmeyen/çok uzun → `400`) |
+| `POST` | `/api/agents/{name}/estimate` | **Aynı** `AgentParameterGate`, aynı `400` gövdesi (`missingParameters`/`unknownParameters`/`tooLongParameters`) |
+| `POST` | `/api/agents/validate` | **FARKLI sözleşme** (plandan sapma #1) — tam tanım gövdesi alır, `ValidateSchema` çalıştırır, `200` döner ve sonucu `{valid, inconclusive, messages}` içinde taşır |
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+# Yeni
+src/AgentPrism.Abstractions/Agents/AgentParameter.cs
+src/AgentPrism.Abstractions/Agents/AgentParameterKind.cs
+src/AgentPrism.Abstractions/Agents/AgentRunDocument.cs
+src/AgentPrism.AspNetCore/Endpoints/AgentParameterGate.cs
+src/AgentPrism.Core/Catalog/AgentDecoratorPipeline.cs           (taslakta yoktu)
+src/AgentPrism.Core/Compilation/AgentParameterValidator.cs
+src/AgentPrism.Core/Compilation/InstructionParameterBinder.cs
+src/AgentPrism.Core/Runs/DocumentChannelMessageBuilder.cs
+src/AgentPrism.PostgreSql/Migrations/0036_eval_case_parameters.sql
+src/AgentPrism.Sql.Shared/Internal/JsonStringMapCodec.cs
+src/AgentPrism.SqlServer/Migrations/0023_eval_case_parameters.sql
+src/AgentPrism.Sqlite/Migrations/0023_eval_case_parameters.sql
+tests/AgentPrism.AspNetCore.FunctionalTests/AgentParameterEndpointTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/DocumentChannelTests.cs
+tests/AgentPrism.Core.UnitTests/Compilation/AgentParameterValidatorTests.cs
+tests/AgentPrism.Core.UnitTests/Compilation/InstructionParameterBinderTests.cs
+tests/AgentPrism.Core.UnitTests/Compilation/SharedInstructionsTests.cs
+tests/AgentPrism.Core.UnitTests/Runs/DocumentChannelMessageBuilderTests.cs
+
+# Degistirilen (62 dosya toplam - git status --short ile dogrulanabilir)
+src/AgentPrism.Abstractions/Agents/AgentDefinition.cs           (Parameters, SharedInstructionsName)
+src/AgentPrism.Abstractions/Evaluation/EvalCase.cs               (Parameters)
+src/AgentPrism.Abstractions/Runs/RunEventType.cs                 (DocumentAttached = 24)
+src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs
+src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs             (parameterGate + AgentDecoratorPipeline cagrilari)
+src/AgentPrism.Core/AgentPrismOptions.cs                          (MaxParameterValueLength, taslakta yoktu)
+src/AgentPrism.Core/AgentPrismOptionsValidator.cs                 (pozitiflik kontrolu, taslakta yoktu)
+src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs      (Bind() - K-406 deseni)
+src/AgentPrism.Core/Catalog/CodeAgentSource.cs                    (paylasilan-talimat parmak izi)
+src/AgentPrism.Core/Catalog/DefinitionStoreAgentSource.cs         (paylasilan-talimat parmak izi)
+src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs        (CompileParameterizedAsync, ResolveSharedInstructionsAsync)
+src/AgentPrism.Core/Evaluation/EvalJobHandler.cs                  (parametreli vaka + AgentDecoratorPipeline)
+src/AgentPrism.Core/Recording/RunRecordingAgent.cs                (WriteDocumentAttachedEventsAsync, ExtractQuery duzeltmesi)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs
+src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs      (Parameters/SharedInstructionsName eklendi - 🔴 duzeltme)
+src/AgentPrism.Sql.Shared/Stores/SqlEvalStore.cs
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs                   (JsonStringMapCodec'e gecis, DRY)
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs
+src/AgentPrism.UI/frontend/src/{lib/server-types.ts,screens/playground.tsx,locales/{en,tr}.ts}
+tests/Shared/Contracts/AgentDefinitionStoreContract.cs            (Parameters/SharedInstructionsName round-trip - 🔴 duzeltmenin testi)
+tests/Shared/Contracts/EvalStoreContract.cs
+
+# Uretilen (yeniden calistirildi, iki kez - enum converter duzeltmesi icin)
+docs/openapi/agentprism.json, packages/agentprism-client/src/schema.ts,
+src/AgentPrism.Client/Generated/{AgentPrismApiClient.g.cs,AgentPrismClientJsonContext.g.cs}
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+İki bağımsız denetim turu koştu (`faz-denetim`, taze bağlamlı ayrı agent).
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | `DocumentChannelMessageBuilder.Build` yalnız `document.Content`'i kaçırıyordu, `document.Name`'i DEĞİL — belge adına gömülü bir sahte sınırlayıcı gerçek içerikten ÖNCE sınırı sahteleyebilirdi | 🔴 | **Düzeltildi** — `Escape()` artık Name'e de uygulanıyor; regresyon testi: `DocumentChannelMessageBuilderTests.A_literal_delimiter_inside_the_document_name_cannot_forge_the_boundary` |
+| 2 | `AgentPrismOptions.MaxParameterValueLength` hiç yoktu; planın kendi "Beş soru" tablosu bir sınırın "gerekir" dediği hâlde ilk uygulamada eklenmemişti | 🟡 | **Düzeltildi** — K-582, bkz. "Bu Fazda Verilen Kararlar" |
+| 3 | Paylaşılan bloklar için kiracı-yalıtımı bir sözleşme testiyle sabitlenmemişti | 🟡 | **Düzeltildi** — `SharedInstructionsTests.Shared_block_resolves_to_the_calling_tenants_own_content_not_another_tenants` (aynı store örneği, iki kiracı arasında `MutableTenantContext` ile geçiş) |
+| 4 | DoD'nin "/validate ve /estimate aynı hatayı döner" satırı yanlıştı — `/validate` `ValidateValues`'ı hiç çağırmaz | 🟡 | **Düzeltildi** — DoD ve doğrulama komutları düzeltildi, plandan sapma #1 olarak yazıldı |
+| 5 | Plan dışı public API büyümesi (`MaxParameterValueLength`, `ValueTooLongCode`, `AgentDecoratorPipeline`) fazın "Planlanan Public API" bölümünde yoktu | 🟡 | **Gerekçelendi** — "Gerçekleşen Public API" bölümünde taslaktan farkı açıkça işaretlendi |
+| 6 | Paylaşılan blok kapsamının `Origin.Database`'e özgü olduğu (kod tanımlı bir agent blok OLAMAZ) plana yazılmamıştı | 🟡 | **Gerekçelendi** — "Plandan Sapmalar" #3 |
+| 7 (ilk turdan sonra, uygulayan oturumun kendi canlı koşusunda bulundu) | `AgentDefinitionPayload` (SQL jsonb izdüşümü) yeni alanları taşımıyordu — SQL-tabanlı her deploymentta `Parameters`/`SharedInstructionsName` sessizce kayboluyordu | 🔴 | **Düzeltildi** — K-580, `AgentDefinitionStoreContract` genişletildi |
+| 8 (aynı canlı koşuda bulundu) | Parametreli koşu `IAgentCatalog`'u atlıyordu ve dolayısıyla HİÇ kayıt/telemetri/tool-onayı almıyordu | 🔴 | **Düzeltildi** — K-581, `AgentDecoratorPipeline` eklendi |
+
+**7 ve 8 denetimin İKİNCİ turunda değil, uygulayan oturumun kendi kapanış
+doğrulama koşusunda bulundu** — `samples/AgentPrism.Api`'ye karşı gerçek bir
+`run` yapmanın tam olarak neden zorunlu olduğunun kanıtıdır (`faz-tamamlama`
+Adım 2): 1233+632 test hiçbirini yakalamadı, ikisi de yalnız gerçek bir SQL
+deposuna karşı gerçek bir HTTP isteğiyle ortaya çıktı.
+
+## `docs-site` senkron denetimi — gerekçeli geçişler
+
+`python3 scripts/dokuman-bakim.py --site-denetle --taban 293112f` beş kuraldan
+üçünü otomatik karşıladı (`ui.md` — playground'daki parametre formu için yeni
+paragraf eklendi; `capabilities.md`/`llms-full.txt` — `build-agent-map.mjs` ile
+yeniden üretildi; `concepts/`). İki kural elle gerekçelendirilir:
+
+- **`http-api.md` değişmedi.** Bu sayfa **üretilir** ve yalnız toplam
+  `operation`/`path` sayısını özetler ("161 operation / 124 path"). Bu faz
+  **hiçbir yeni uç eklemedi** ("Yeni uç yoktur" — Planlanan Public API); üç
+  var olan ucun (`/run`, `/estimate`, `validate`) gövdesi büyüdü. Sayılar
+  değişmediği için özet metin de değişmiyor — bu bir eksiklik değil, doğru
+  davranış. Asıl değişiklik `http-api/schema-agentparameter.md`,
+  `schema-agentparameterkind.md`, `schema-agentdefinitionrequest.md` gibi
+  **şema sayfalarındadır** — `npm run build` ile üretildi, doğrulandı.
+- **`getting-started/persistence.md` değişmedi.** `PostgresQueries.cs`'teki
+  değişiklik `eval_cases` tablosuna bir sütun (`parameters`) ekliyor — bu
+  sayfanın konusu (sağlayıcı seçimi, tablo yalıtımı, migration mekaniği,
+  saklama) hiçbiri değişmedi, yalnız var olan bir tablo bir sütun kazandı.
+  Kullanıcıya dönük karşılığı zaten `concepts/evaluation.md`'de ("a case's
+  own `parameters` field...") — doğru sayfa, sayfa değişikliği tekrarlamaz.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+**Sıradaki faz:** [`87-KESILEN-ISIN-DEVAMI.md`](87-KESILEN-ISIN-DEVAMI.md) (F-141,
+dayanıklı çalıştırma/devam) — **konu bakımından bağımsızdır**, bu fazın hiçbir
+sözleşmesine dayanmaz; doğrulandı (`grep -in "86-TALIMAT\|SharedInstructions"` boş
+döndü). O dokümanın kendi "Bu Faza Başlarken" listesi olduğu gibi geçerlidir.
+
+**Devralınan sözleşmeler** (bu fazın parametreli-koşu altyapısına dokunacak
+gelecek bir faz için):
+
+- `AgentDefinitionCompiler.CompileParameterizedAsync(definition, culture, values, ct)`
+  — `CompiledAgentCache`'i **ve** `IAgentCatalog`'u atlar. Sonucu HER ZAMAN
+  `AgentDecoratorPipeline.Apply(agent, descriptor, decorators)` ile dekore et —
+  atlarsan run kaydı/telemetri/tool-onayı sessizce kaybolur (K-581).
+- `AgentDefinitionPayload` (`AgentPrism.Sql.Shared/Internal/`), `AgentDefinition`'ın
+  jsonb'ye yazılan İKİNCİ bir izdüşümüdür. `AgentDefinition`'a yeni bir alan
+  eklerken bu dosyayı da güncelle — derleyici zorlamaz (K-580).
+  `AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields`
+  yeni alanı da kapsıyor mu diye kontrol et.
+- `AgentParameterValidator.ValidateValues(schema, values, maxValueLength)` —
+  `AgentParameterGate` (HTTP) ve `EvalJobHandler` (eval) aynı metodu çağırır.
+  `/validate` bunu ÇAĞIRMAZ (yalnız `ValidateSchema`); ikisini karıştırma.
+
+**Bilinen tuzaklar (🚨) bu fazda keşfedildi:**
+
+- Bir SQL-tabanlı jsonb izdüşüm tipi (`AgentDefinitionPayload` gibi) kaynak
+  tipin (`AgentDefinition`) alan listesini OTOMATİK takip etmez — bellek-içi
+  depo bunu maskeler (doğrudan kaynak tipi saklar), yalnız gerçek bir SQL
+  koşusu ortaya çıkarır.
+- `CompiledAgentCache`'i atlayan HER YENİ "katalog dışı compile" yolu,
+  `AgentDecoratorPipeline.Apply`'ı da elle çağırmak zorundadır — aksi hâlde run
+  sessizce kayıtsız/telemetrisiz çalışır ve hiçbir test bunu yakalamaz (bellek-içi
+  test host'ları dekorasyonu doğrudan doğrulamıyor).
+- `faz-tamamlama` Adım 2'nin ("örnek uygulamayı GERÇEKTEN çalıştır") gerekliliği
+  bu fazda tam ikinci kez kanıtlandı: 1233+632 yeşil testin YAKALAYAMADIĞI iki 🔴
+  kusur, yalnız `samples/AgentPrism.Api`'nin gerçek PostgreSQL'ine karşı elle
+  koşulan bir `run` ile bulundu.
+
+**Yarım kalan iş yok** — 🔴 ve 🟡 bulguların tamamı bu fazda kapandı (bkz.
+"Denetim Bulguları"). `docs/hafiza/postgresql.md`/`sql-saglayicilari.md`'ye
+K-580'in tuzağını ekleyecek bir not `faz-tamamlama` Adım 7'de yazılmalı — bu
+faz onu **yaptı** (bkz. commit'teki `docs/hafiza/*` değişikliği).

@@ -347,6 +347,34 @@ recorded input, and run events receive the masked value. AgentPrism does not ret
 hidden raw copy for later inspection.
 :::
 
+## The document channel
+
+`documents` on `POST /api/agents/{name}/run` attaches reference text to a run,
+wrapped in a delimiter and marked apart from the agent's instructions:
+
+```json
+{
+  "message": "Summarize the attached policy.",
+  "documents": [{ "name": "policy.md", "content": "Refunds within 30 days." }]
+}
+```
+
+:::caution[Not a security guarantee]
+This is a **convention and an audit trail, not a security guarantee**. No provider
+gives a hard promise that content wrapped this way is never treated as an
+instruction — a capable-enough model can still be steered by content inside a
+document. The value is in keeping the data channel visibly separate in the
+transcript and in the run record, and in the boundary marker surviving content that
+tries to imitate it: a document containing the literal delimiter has that occurrence
+defanged, so it can never forge the end of the document and make the model treat
+what follows as a new set of instructions.
+:::
+
+The run record keeps the document's **name and size**, in its own event — never the
+content, which already lives with the rest of the run's recorded input, subject to
+the same [content protection](#content-protection) and retention settings as
+everything else.
+
 ## Webhooks
 
 Subscribe to events and AgentPrism posts them to your endpoint.

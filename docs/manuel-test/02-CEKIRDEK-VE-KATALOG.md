@@ -2204,3 +2204,175 @@ Arayüz — mutlu yol.
   ekranında `de` için ayrı bir "Instructions (de)" bölümü belirir ve iki
   sürüm arasındaki fark (eklenen metin) vurgulanır. Dil TR↔EN değişince
   panel etiketleri çevrilir (`en.ts`/`tr.ts`, K-228).
+
+---
+
+### MT-CORE-082 — Zorunlu parametre eksikken `run` başlamaz; ad hatada geçer (Faz 86, F-34)
+
+Mutlu yoldan sapma — koşu **hiç başlamamalı** ve eksik parametrenin adı
+gövdede görünmeli.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 86 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `"musteri"` adlı zorunlu (`required: true`), varsayılansız bir parametre
+  taşıyan ve talimatında `{{musteri}}` geçen bir agent (`PARAM_AGENT`)
+  oluşturulmuş olmalı.
+
+**Adımlar**
+1. `parameters` alanı **olmadan** `run` çağır.
+2. Aynı gövdeyi `estimate` ucuna gönder.
+3. Aynı gövdeyi `POST /api/agents/validate`'e gönder (tanımın kendisiyle,
+   `run`'daki gibi bir değer kümesiyle değil — bu uç şema tutarlılığını
+   kontrol eder, değer eksikliğini değil).
+
+**Girilecek veri**
+```bash
+for UC in run estimate; do
+  curl -s -X POST "$APU/api/agents/$PARAM_AGENT/$UC" -H "$APB" -H "content-type: application/json" \
+    -d '{"message":"selam"}' | python3 -m json.tool
+done
+```
+
+**Beklenen sonuç**
+- Her iki uç da `400` döner; gövdedeki `missingParameters` dizisi
+  `"musteri"` içerir. İki ucun hata gövdesi **aynı biçimdedir** — tek bir
+  doğrulayıcı (`AgentParameterValidator`) her ikisini de besler.
+
+---
+
+### MT-CORE-083 — Fazladan parametre sessizce yutulmaz (Faz 86, F-34)
+
+Sınır senaryosu — bir yazım hatası taşıyan parametre adı üretimde fark
+edilmeden kaybolmamalı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 86 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-082'deki `PARAM_AGENT`.
+
+**Adımlar**
+1. `run` çağır; `parameters` alanında hem `musteri` hem de var olmayan bir
+   `musteriii` anahtarı gönder.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"selam","parameters":{"musteri":"Acme","musteriii":"oops"}}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `400`; gövdedeki `unknownParameters` dizisi `"musteriii"` içerir. Koşu
+  başlamaz, model çağrılmaz.
+
+---
+
+### MT-CORE-084 — Değer JSON yapısını bozmaz; talimat tırnak içeren değerle bile geçerli JSON üretir (Faz 86, F-34)
+
+Mutlu yol — JSON-güvenli kaçışın gerçek bir sağlayıcı isteğinde çalıştığını
+kanıtlar.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 86 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Talimatı `{"customer": "{{musteri}}"}` gibi bir JSON örneği taşıyan bir
+  agent.
+
+**Adımlar**
+1. `musteri` değeri olarak tırnak ve ters bölü içeren bir metin gönder
+   (`a"b\c`).
+2. Çalıştırmanın kaydını (`/api/runs/{id}` veya trace) incele; sağlayıcıya
+   giden talimatın hâlâ geçerli JSON olduğunu doğrula.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"selam","parameters":{"musteri":"a\"b\\c"}}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Koşu başarıyla tamamlanır (sağlayıcı JSON'u ayrıştırma hatası vermez).
+  Kayıtlı girdi metninde `a"b\c` **kaçırılmış** biçimde görünür
+  (`a\"b\\c`), talimatın çevresindeki JSON yapısı bozulmamıştır.
+
+---
+
+### MT-CORE-085 — Paylaşılan talimat bloğu prepend edilir; bloğa referans veren blok reddedilir (Faz 86, F-34)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 86 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `house-rules` adlı, `Instructions = "Her zaman kaynağını belirt."` olan
+  sıradan bir agent tanımı (blok olarak kullanılacak, hiç çalıştırılmayacak).
+
+**Adımlar**
+1. `SharedInstructionsName: "house-rules"` taşıyan yeni bir agent
+   (`SHARED_AGENT`) oluştur, `Instructions = "Fatura sorularını yanıtla."`.
+2. `SHARED_AGENT`'ı çalıştır; talimatın her iki metni de içerdiğini
+   trace/kayıttan doğrula.
+3. `house-rules`'un kendisine `SharedInstructionsName: "SHARED_AGENT"`
+   (döngü) yazmayı dene.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"shared-e2e","instructions":"Fatura sorularini yanitla.","sharedInstructionsName":"house-rules","model":{"provider":"...","model":"..."}}' \
+  | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Adım 2: derleme başarılı; birleşik talimat `"Her zaman kaynağını belirt.\n\nFatura sorularını yanıtla."`
+  biçimindedir. Adım 3: `400` — bir blok başka bir bloğa referans veremez,
+  derlemede reddedilir (döngü tespiti gerekmez, tek atlama kuralı yeter).
+
+---
+
+### MT-CORE-086 — Aşırı uzun parametre değeri koşuyu düşürür (Faz 86, F-34, denetim 🟡 bulgusu)
+
+Sınır senaryosu — `AgentPrismOptions.MaxParameterValueLength` (varsayılan 4096
+bayt UTF-8) sınırını doğrular.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 86 |
+| **İlgili karar** | K-582 |
+
+**Ön koşul**
+- MT-CORE-082'deki `PARAM_AGENT`.
+
+**Adımlar**
+1. `musteri` değeri olarak 4096 bayttan uzun bir metin gönder.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: application/json" \
+  -d "{\"message\":\"hi\",\"parameters\":{\"musteri\":\"$(python3 -c "print('a'*5000)")\"}}" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `400`; gövdede `"detail":"Parameter 'musteri' exceeds the maximum value
+  length."` ve `tooLongParameters: ["musteri"]`. Koşu başlamaz, model
+  çağrılmaz. 2026-08-22'de `samples/AgentPrism.Api`'ye karşı canlı doğrulandı
+  (bkz. `docs/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").

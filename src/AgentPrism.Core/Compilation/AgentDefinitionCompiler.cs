@@ -48,6 +48,7 @@ public sealed class AgentDefinitionCompiler
     private readonly IVectorSearchStore? _vectorSearchStore;
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
     private readonly int _knowledgeMaxResults;
+    private readonly IAgentDefinitionStore? _definitionStore;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -106,6 +107,11 @@ public sealed class AgentDefinitionCompiler
     /// <param name="knowledgeMaxResults">
     /// Maximum number of results the <c>search_knowledge</c> tool returns.
     /// </param>
+    /// <param name="definitionStore">
+    /// The definition store, used to resolve <see cref="AgentDefinition.SharedInstructionsName"/>.
+    /// When <see langword="null"/>, a definition that references a shared
+    /// instructions block gets a compilation error.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     public AgentDefinitionCompiler(
@@ -123,7 +129,8 @@ public sealed class AgentDefinitionCompiler
         IMcpResourceContextProviderFactory? mcpResources = null,
         IVectorSearchStore? vectorSearchStore = null,
         IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null,
-        int knowledgeMaxResults = 5)
+        int knowledgeMaxResults = 5,
+        IAgentDefinitionStore? definitionStore = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -144,6 +151,7 @@ public sealed class AgentDefinitionCompiler
         _vectorSearchStore = vectorSearchStore;
         _embeddingGenerator = embeddingGenerator;
         _knowledgeMaxResults = knowledgeMaxResults;
+        _definitionStore = definitionStore;
     }
 
     /// <summary>Converts a definition into an executable agent.</summary>
@@ -218,7 +226,7 @@ public sealed class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        return BuildAgent(definition, callableAgents, toolTransform, culture, CreateChatClient(definition));
+        return BuildAgent(definition, callableAgents, toolTransform, culture, CreateChatClient(definition), sharedInstructions: null);
     }
 
     /// <summary>Converts a definition into an executable agent (BYOK).</summary>
@@ -297,8 +305,70 @@ public sealed class AgentDefinitionCompiler
         ArgumentNullException.ThrowIfNull(definition);
 
         var chatClient = await CreateChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
+        var sharedInstructions = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient);
+        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient, sharedInstructions.Text);
+    }
+
+    /// <summary>
+    /// Binds a parameterized definition's instructions for a single set of
+    /// values and compiles it, bypassing <see cref="CompiledAgentCache"/>.
+    /// </summary>
+    /// <param name="definition">
+    /// The source definition. Its <see cref="AgentDefinition.Parameters"/>
+    /// schema is validated against <paramref name="values"/> the same way
+    /// <c>AgentParameterValidator.ValidateValues</c> validates a run request -
+    /// callers that already ran that check (an HTTP endpoint) do not need to
+    /// repeat it; a caller that has not (an eval case) should call it first,
+    /// since this method does not itself report which parameter was missing.
+    /// </param>
+    /// <param name="culture">The culture to resolve instructions with before binding.</param>
+    /// <param name="values">The parameter values for this one compilation.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The compiled agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// See <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The bound text is written into a definition <em>copy</em>:
+    /// <see cref="AgentDefinition.InstructionsByCulture"/> is cleared (culture
+    /// resolution already happened, once, right here) and
+    /// <see cref="AgentDefinition.Parameters"/> is cleared (the copy's text no
+    /// longer contains template placeholders, so there is nothing left for
+    /// the compiler's schema check to validate).
+    /// </para>
+    /// <para>
+    /// Never cached: two compilations of the same definition with different
+    /// parameter values must never share one compiled instance, and
+    /// <see cref="CompiledAgentCache"/> has no notion of "value" in its key -
+    /// the same reason a tenant-specific provider credential (BYOK) bypasses it.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<AIAgent> CompileParameterizedAsync(
+        AgentDefinition definition,
+        string? culture,
+        IReadOnlyDictionary<string, string>? values,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var boundInstructions = InstructionParameterBinder.Bind(
+            InstructionCultureResolver.Resolve(definition, culture),
+            definition.Parameters,
+            values);
+
+        var boundDefinition = definition with
+        {
+            Instructions = boundInstructions,
+            InstructionsByCulture = null,
+            Parameters = [],
+        };
+
+        var callable = await ResolveCallableAgentsAsync(boundDefinition, cancellationToken).ConfigureAwait(false);
+
+        return await CompileAsync(boundDefinition, callable, culture: null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -322,8 +392,32 @@ public sealed class AgentDefinitionCompiler
         ResolvedCallableAgents callableAgents,
         Func<AIFunction, AIFunction>? toolTransform,
         string? culture,
-        IChatClient chatClient)
+        IChatClient chatClient,
+        string? sharedInstructions)
     {
+        // 🚨 The synchronous Compile() overloads never resolve
+        // SharedInstructionsName (resolving it needs an async store read) — a
+        // definition that references a block through them fails loudly here
+        // instead of silently compiling with the block's content missing.
+        if (definition.SharedInstructionsName is not null && sharedInstructions is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' references shared instructions '{definition.SharedInstructionsName}', " +
+                "but the synchronous Compile() path does not resolve shared instructions blocks. Use CompileAsync().")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        if (AgentParameterValidator.ValidateSchema(definition) is { Count: > 0 } schemaErrors)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' has an invalid parameter schema: {string.Join(" ", schemaErrors)}")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
         var tools = ResolveTools(definition);
         AddVectorSearchTool(definition, tools);
 
@@ -342,11 +436,60 @@ public sealed class AgentDefinitionCompiler
             }
         }
 
-        var chatOptions = BuildChatOptions(definition, tools, culture);
+        var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
         return definition.Harness is null
             ? CompileChatAgent(definition, chatClient, chatOptions, callableAgents)
             : CompileHarnessAgent(definition, chatClient, chatOptions, callableAgents);
+    }
+
+    /// <summary>Resolves <see cref="AgentDefinition.SharedInstructionsName"/> against <see cref="_definitionStore"/>.</summary>
+    /// <exception cref="AgentPrismCompilationException">
+    /// The definition references a shared instructions block but no store is
+    /// registered, the named block does not exist, or the named block itself
+    /// references another block (a shared instructions block cannot chain).
+    /// </exception>
+    internal async ValueTask<ResolvedSharedInstructions> ResolveSharedInstructionsAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.SharedInstructionsName is not { Length: > 0 } blockName)
+        {
+            return ResolvedSharedInstructions.Empty;
+        }
+
+        if (_definitionStore is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' references shared instructions '{blockName}', but no " +
+                "IAgentDefinitionStore is registered.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var block = await _definitionStore.GetAsync(blockName, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' references shared instructions '{blockName}', but no such " +
+                "definition exists.")
+            {
+                AgentName = definition.Name,
+            };
+
+        if (block.SharedInstructionsName is not null)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' references shared instructions '{blockName}', which itself " +
+                $"references '{block.SharedInstructionsName}'. A shared instructions block cannot reference " +
+                "another block.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return new ResolvedSharedInstructions(block.Instructions ?? string.Empty, $"{blockName}:{block.Version}");
     }
 
     /// <summary>
@@ -359,7 +502,7 @@ public sealed class AgentDefinitionCompiler
     /// <exception cref="AgentPrismCompilationException">
     /// The definition wants to call a sub-agent but the feature is not registered.
     /// </exception>
-    internal async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
+    public async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken)
     {
@@ -510,11 +653,11 @@ public sealed class AgentDefinitionCompiler
         return tools;
     }
 
-    private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture)
+    private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture, string? sharedInstructions)
     {
         var options = new ChatOptions
         {
-            Instructions = InstructionCultureResolver.Resolve(definition, culture),
+            Instructions = CombineInstructions(sharedInstructions, InstructionCultureResolver.Resolve(definition, culture)),
             ModelId = definition.Model.Model,
             Temperature = definition.Model.Temperature,
             TopP = definition.Model.TopP,
@@ -534,6 +677,19 @@ public sealed class AgentDefinitionCompiler
         options.ResponseFormat = BuildResponseFormat(definition);
 
         return options;
+    }
+
+    /// <summary>Prepends a shared instructions block's text to a definition's own resolved instructions.</summary>
+    private static string? CombineInstructions(string? sharedInstructions, string? ownInstructions)
+    {
+        if (string.IsNullOrEmpty(sharedInstructions))
+        {
+            return ownInstructions;
+        }
+
+        return string.IsNullOrEmpty(ownInstructions)
+            ? sharedInstructions
+            : string.Concat(sharedInstructions, "\n\n", ownInstructions);
     }
 
     /// <summary>
@@ -1377,4 +1533,23 @@ public readonly record struct ResolvedCallableAgents(
 {
     /// <summary>The result for a definition that calls no sub-agent.</summary>
     public static ResolvedCallableAgents Empty { get; } = new([], string.Empty);
+}
+
+/// <summary>
+/// The resolved text of a definition's <see cref="AgentDefinition.SharedInstructionsName"/>
+/// reference, and its cache fingerprint.
+/// </summary>
+/// <param name="Text">
+/// The referenced block's <see cref="AgentDefinition.Instructions"/> text.
+/// <see langword="null"/> when the definition references no block.
+/// </param>
+/// <param name="Fingerprint">
+/// Fingerprint derived from the block's name and version. Enters the compiled
+/// agent cache's key: the block can change version independently of the
+/// referencing definition.
+/// </param>
+internal readonly record struct ResolvedSharedInstructions(string? Text, string Fingerprint)
+{
+    /// <summary>The result for a definition that references no shared instructions block.</summary>
+    public static ResolvedSharedInstructions Empty { get; } = new(null, string.Empty);
 }
