@@ -203,7 +203,16 @@ var agentPrism = builder.AddAgentPrism()
     {
         options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email | PiiPatterns.ProviderApiKey;
         options.DeniedTerms.Add("confidential-project");
-    });
+    })
+    // At-rest content protection. 🚨 WITHOUT this call, the settings below
+    // are read but never applied: the registration itself is K1's gate, same
+    // as the content guard above. Settings (Enabled/ActiveKeyId/Keys) live in
+    // appsettings.json; the raw key material never does (see the "//" note
+    // next to ContentProtection there) — only when a SQL provider is also
+    // configured does a missing key value surface, and only then (session
+    // state, run input, tool arguments/results, agent files, and attachments
+    // are the columns this sample leaves in scope).
+    .AddContentProtection();
 
 // The provider is optional. Without an API key, the app runs with a sample
 // provider that makes no network calls; nothing breaks.

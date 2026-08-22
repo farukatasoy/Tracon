@@ -166,6 +166,7 @@ experiment, and automatic rollback is off until you configure it.
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, retry jobs, and failure disablement |
 | Outbound network guard | `AgentPrism:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
+| At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
 | Retention and archive | Stored operational data | Deletion defaults are off; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |

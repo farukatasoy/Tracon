@@ -193,26 +193,70 @@ a record written before a prefix was configured cannot quietly read outside it.
 
 ## What is stored in the clear
 
-AgentPrism does **not** encrypt content at rest. Your database holds these in plain
-form, and you should plan for that before storing regulated data:
+By default, AgentPrism does **not** encrypt content at rest. Your database holds
+these in plain form unless you turn on [content protection](#at-rest-content-protection)
+below, so plan for that before storing regulated data:
 
 | Column | What it holds |
 |---|---|
-| `conversation_items.item` | The full conversation history |
+| `sessions.state` | Microsoft Agent Framework's serialized session state |
+| `conversation_items.item` | One stored chat message |
 | `run_inputs.messages` | The prompt a run was started with |
 | `run_events.text`, `run_events.payload` | Streamed output and event detail |
 | `tool_invocations.arguments`, `.result` | What a tool was called with, and what it returned |
-| `sessions.state`, `responses.payload` | Session state and provider responses |
 | `attachments.content`, `agent_files.content` | Uploaded bytes and agent file contents |
+| `responses.payload` | Reserved for provider responses; no store writes to this table today |
 
 Secrets are the exception and are handled separately: a credential value is never
 written to the database. Only the **name** of the configuration key is stored, and the
 value is resolved at call time from your configuration. API keys are stored as a
 SHA-256 hash, never as a recoverable value.
 
-Protect the rest at the layer below: full-disk or tablespace encryption, a managed
-database with encryption at rest, and retention policies that delete what you no longer
-need. Column-level encryption inside AgentPrism is a known gap, not a shipped feature.
+## At-rest content protection
+
+`AddContentProtection(...)` encrypts the ten columns above with AES-256-GCM before
+they reach the database, and decrypts them transparently on read — the rest of
+AgentPrism, and your own code, never sees ciphertext. It is off by default (no
+surprises); turning it on is a deliberate, explicit call.
+
+```csharp
+builder.AddAgentPrism()
+       .AddContentProtection(options =>
+       {
+           options.ActiveKeyId = "2026-08";
+           options.Keys["2026-08"] = "ContentProtectionKeys:2026-08";
+       })
+       .UsePostgreSql(connectionString);
+```
+
+`Keys` never holds a key's raw material — it maps a key id to the **name** of
+another configuration key, the same indirection AgentPrism uses for provider
+credentials. The raw 32-byte, base64-encoded key lives only in `dotnet user-secrets`
+or an environment variable:
+
+```
+dotnet user-secrets set "ContentProtectionKeys:2026-08" "<32-byte base64 key>"
+```
+
+Three limits are worth knowing before you rely on this:
+
+- **It protects data at rest, not a running process.** A process holding the key
+  still sees plaintext once a value is read back — this closes a stolen backup, a
+  discarded disk, or a misconfigured table permission, not a compromised
+  application server.
+- **A protected column cannot be searched or filtered on the server.** Agent file
+  search still returns correct results, but the server-side prefilter is skipped
+  and every candidate file is decrypted and matched on the client instead.
+- **Only new writes are protected.** Turning protection on does not retroactively
+  encrypt existing rows, and turning it off does not decrypt them — each row stays
+  readable either way, because AgentPrism decides whether a value is encrypted by
+  looking at the value itself, never at configuration. Key rotation is lazy for the
+  same reason: an old key id stays configured for as long as any row still carries
+  it, and losing that key makes those rows unrecoverable.
+
+Protect what this does not cover at the layer below: full-disk or tablespace
+encryption, a managed database with encryption at rest, and retention policies that
+delete what you no longer need.
 
 ## A short checklist
 
@@ -221,7 +265,7 @@ need. Column-level encryption inside AgentPrism is a known gap, not a shipped fe
 - [ ] Roles are bound to your claims, and `RequireRolePolicies` is on
 - [ ] Quotas are set, so one caller cannot spend the whole model budget
 - [ ] Retention policies exist for run events and traces
-- [ ] Encryption at rest is provided by the database or the disk — AgentPrism stores content in the clear
+- [ ] Encryption at rest is provided by the database or the disk, `AddContentProtection(...)`, or both
 - [ ] Skill script execution is left off unless you have read what it does
 - [ ] `AgentPrism:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network

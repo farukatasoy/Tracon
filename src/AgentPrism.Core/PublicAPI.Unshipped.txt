@@ -1614,3 +1614,25 @@ static AgentPrism.WebhookUrlValidator.ValidateResolvedAsync(string? url, AgentPr
 ~override AgentPrism.EgressAddressVerdict.ToString() -> string
 AgentPrism.EgressSocketGuard.CreateHttpClient(System.TimeSpan timeout) -> System.Net.Http.HttpClient!
 static AgentPrism.EgressAddressValidator.ValidateAddresses(System.Net.IPAddress![]! addresses, AgentPrism.EgressAddressPolicy policy) -> AgentPrism.EgressAddressVerdict
+AgentPrism.AesGcmContentProtector
+AgentPrism.AesGcmContentProtector.IsEnabled.get -> bool
+AgentPrism.AesGcmContentProtector.Protect(string! plaintext) -> string!
+AgentPrism.AesGcmContentProtector.ProtectBytes(System.ReadOnlySpan<byte> plaintext) -> byte[]!
+AgentPrism.AesGcmContentProtector.Unprotect(string! stored) -> string!
+AgentPrism.AesGcmContentProtector.UnprotectBytes(System.ReadOnlySpan<byte> stored) -> byte[]!
+AgentPrism.AesGcmContentProtector.AesGcmContentProtector(Microsoft.Extensions.Options.IOptionsMonitor<AgentPrism.AgentPrismContentProtectionOptions!>! options, Microsoft.Extensions.Configuration.IConfiguration? configuration) -> void
+AgentPrism.AgentPrismContentProtectionExtensions
+static AgentPrism.AgentPrismContentProtectionExtensions.AddContentProtection(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismContentProtectionOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismContentProtectionExtensions.AddContentProtection<TProtector>(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.AgentPrismContentProtectionOptions
+AgentPrism.AgentPrismContentProtectionOptions.AgentPrismContentProtectionOptions() -> void
+AgentPrism.AgentPrismContentProtectionOptions.Enabled.get -> bool
+AgentPrism.AgentPrismContentProtectionOptions.Enabled.set -> void
+AgentPrism.AgentPrismContentProtectionOptions.ActiveKeyId.get -> string?
+AgentPrism.AgentPrismContentProtectionOptions.ActiveKeyId.set -> void
+AgentPrism.AgentPrismContentProtectionOptions.Keys.get -> System.Collections.Generic.IDictionary<string!, string!>!
+AgentPrism.AgentPrismContentProtectionOptions.Columns.get -> System.Collections.Generic.ISet<AgentPrism.ProtectedColumn>!
+const AgentPrism.AgentPrismContentProtectionOptions.SectionName = "AgentPrism:ContentProtection" -> string!
+AgentPrism.AgentPrismContentProtectionOptionsValidator
+AgentPrism.AgentPrismContentProtectionOptionsValidator.AgentPrismContentProtectionOptionsValidator() -> void
+AgentPrism.AgentPrismContentProtectionOptionsValidator.Validate(string? name, AgentPrism.AgentPrismContentProtectionOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!

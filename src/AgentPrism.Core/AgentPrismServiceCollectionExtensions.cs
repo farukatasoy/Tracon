@@ -183,6 +183,12 @@ public static class AgentPrismServiceCollectionExtensions
         // packages that do not see each other.
         services.AddOptions<AgentPrismMcpSecurityOptions>().ValidateOnStart();
 
+        // At-rest content protection (Phase 82). Same rationale: carries its
+        // own section, requires no separate Use...() call. Enabled defaults
+        // to false (K1); the default IContentProtector below writes plaintext
+        // unchanged until AddContentProtection(...) replaces it.
+        services.AddOptions<AgentPrismContentProtectionOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -213,6 +219,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindEgress(configurationSection.GetSection("Egress"), options));
             services.Configure<AgentPrismMcpSecurityOptions>(
                 options => BindMcpSecurity(configurationSection.GetSection("Mcp"), options));
+            services.Configure<AgentPrismContentProtectionOptions>(
+                options => BindContentProtection(configurationSection.GetSection("ContentProtection"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -244,6 +252,8 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<OnlineEvaluationOptions>, OnlineEvaluationOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<RunReconciliationOptions>, RunReconciliationOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismContentProtectionOptions>, AgentPrismContentProtectionOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -465,6 +475,11 @@ public static class AgentPrismServiceCollectionExtensions
         // adding a dependency on ASP.NET Core.
         services.TryAddSingleton<IAuditLog, InMemoryAuditLog>();
         services.TryAddSingleton<IAuditActorResolver, AmbientAuditActorResolver>();
+
+        // At-rest content protection (Phase 82). The default writes plaintext
+        // unchanged; AddContentProtection(...) replaces it (K1's gate is the
+        // registration itself, same pattern as IAuditLog above).
+        services.TryAddSingleton<IContentProtector>(NullContentProtector.Instance);
 
         // In-memory stores are registered wrapped with the audit-writing
         // decorators. The persistence package (AgentPrism.PostgreSql) wraps its
@@ -1934,6 +1949,69 @@ public static class AgentPrismServiceCollectionExtensions
         if (section[nameof(PatternContentGuardOptions.MaskReplacement)] is { Length: > 0 } replacement)
         {
             options.MaskReplacement = replacement;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:ContentProtection</c> section.</summary>
+    /// <remarks>
+    /// <see cref="ProtectedColumn"/> values are written in configuration as a
+    /// list of names (example: <c>Columns:0 = "RunInput"</c>). <c>Enum.TryParse</c>
+    /// is AOT-clean; an unrecognized name is skipped rather than failing the
+    /// whole bind, matching <see cref="BindList"/>'s tolerance elsewhere.
+    /// </remarks>
+    private static void BindContentProtection(IConfigurationSection section, AgentPrismContentProtectionOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismContentProtectionOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (section[nameof(AgentPrismContentProtectionOptions.ActiveKeyId)] is { Length: > 0 } activeKeyId)
+        {
+            options.ActiveKeyId = activeKeyId;
+        }
+
+        var keysSection = section.GetSection(nameof(AgentPrismContentProtectionOptions.Keys));
+
+        if (keysSection.Exists())
+        {
+            foreach (var child in keysSection.GetChildren())
+            {
+                if (child.Value is { Length: > 0 } configurationKeyName)
+                {
+                    options.Keys[child.Key] = configurationKeyName;
+                }
+            }
+        }
+
+        var columnsSection = section.GetSection(nameof(AgentPrismContentProtectionOptions.Columns));
+
+        if (columnsSection.Exists())
+        {
+            var parsed = new HashSet<ProtectedColumn>();
+
+            foreach (var child in columnsSection.GetChildren())
+            {
+                if (child.Value is { Length: > 0 } value && Enum.TryParse<ProtectedColumn>(value, ignoreCase: true, out var column))
+                {
+                    parsed.Add(column);
+                }
+            }
+
+            if (parsed.Count > 0)
+            {
+                options.Columns.Clear();
+
+                foreach (var column in parsed)
+                {
+                    options.Columns.Add(column);
+                }
+            }
         }
     }
 

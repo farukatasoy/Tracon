@@ -63,6 +63,28 @@ internal sealed class SqlStoreContext
     /// <summary>Gets the SQL texts of this provider.</summary>
     public SqlQueriesBase Sql => Dialect.Queries;
 
+    /// <summary>Gets the at-rest content protector.</summary>
+    /// <remarks>
+    /// <see langword="null"/> is treated the same as a no-op protector by
+    /// <c>ProtectedValue</c> — the field is optional only because a handful
+    /// of migration test fixtures build a <see cref="SqlStoreContext"/>
+    /// directly, without going through <c>AddAgentPrism()</c>. Every real
+    /// <c>Use*</c> registration always resolves and sets it (<c>AddAgentPrism()</c>
+    /// registers a no-op default when the consumer never calls
+    /// <c>AddContentProtection(...)</c>). See <see cref="ProtectedColumns"/> for
+    /// which columns it is actually applied to.
+    /// </remarks>
+    public IContentProtector? ContentProtector { get; init; }
+
+    /// <summary>
+    /// Gets the columns <see cref="ContentProtector"/> is applied to on write.
+    /// Empty when content protection is off — reads still run
+    /// <see cref="IContentProtector.Unprotect"/>/<see cref="IContentProtector.UnprotectBytes"/>
+    /// unconditionally, since those are self-describing and safe either way.
+    /// </summary>
+    public IReadOnlySet<ProtectedColumn> ProtectedColumns { get; init; } =
+        System.Collections.Immutable.ImmutableHashSet<ProtectedColumn>.Empty;
+
     /// <summary>Creates a command with the configured timeout.</summary>
     /// <param name="sql">The command text.</param>
     /// <returns>A command ready to run.</returns>

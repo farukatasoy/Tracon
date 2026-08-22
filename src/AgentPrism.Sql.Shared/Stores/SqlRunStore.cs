@@ -118,10 +118,10 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "run_id", runEvent.RunId);
         DbHelpers.Add(command, "seq", runEvent.Sequence);
         DbHelpers.Add(command, "type", (short)runEvent.Type);
-        AddNullableText(command, "text", runEvent.Text);
+        Dialect.AddText(command, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, runEvent.Text));
         AddNullableText(command, "tool_name", runEvent.ToolName);
         AddNullableText(command, "tool_call_id", runEvent.ToolCallId);
-        AddNullableText(command, "payload", runEvent.Payload);
+        Dialect.AddText(command, "payload", ProtectedValue.Write(_context, ProtectedColumn.RunEventPayload, runEvent.Payload));
         Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
 
         // 🚨 EXPECTED tenant, NOT the ambient tenant. RunStartInfo.TenantId can
@@ -288,7 +288,7 @@ internal sealed class SqlRunStore : IRunStore
             var eventCommand = CreateCommand(_sql.InsertOrphanRunEvent);
             DbHelpers.Add(eventCommand, "run_id", record.Id);
             DbHelpers.Add(eventCommand, "type", (short)RunEventType.RunFailed);
-            AddNullableText(eventCommand, "text", record.Error?.Message);
+            Dialect.AddText(eventCommand, "text", ProtectedValue.Write(_context, ProtectedColumn.RunEventText, record.Error?.Message));
             Dialect.AddTimestamp(eventCommand, "created_at", now);
 
             await DbHelpers.ExecuteAsync(eventCommand, cancellationToken).ConfigureAwait(false);
@@ -644,8 +644,8 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "tool_name", invocation.ToolName);
         AddNullableText(command, "tool_call_id", invocation.ToolCallId);
         AddNullableText(command, "source", invocation.Source);
-        AddNullableText(command, "arguments", invocation.Arguments);
-        AddNullableText(command, "result", invocation.Result);
+        Dialect.AddText(command, "arguments", ProtectedValue.Write(_context, ProtectedColumn.ToolArguments, invocation.Arguments));
+        Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, invocation.Result));
         // Duration is stored in milliseconds in the `integer` column; a tool
         // call longer than 24 days is unrealistic and does not overflow.
         Dialect.AddInt32(command, "duration_ms", invocation.Duration is { } duration
@@ -757,16 +757,16 @@ internal sealed class SqlRunStore : IRunStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
-    private static RunEvent ReadEvent(DbDataReader reader)
+    private RunEvent ReadEvent(DbDataReader reader)
         => new()
         {
             RunId = reader.GetGuid(0),
             Sequence = reader.GetInt64(1),
             Type = (RunEventType)reader.GetInt16(2),
-            Text = DbHelpers.GetNullableString(reader, 3),
+            Text = ProtectedValue.Read(_context, DbHelpers.GetNullableString(reader, 3)),
             ToolName = DbHelpers.GetNullableString(reader, 4),
             ToolCallId = DbHelpers.GetNullableString(reader, 5),
-            Payload = DbHelpers.GetNullableString(reader, 6),
+            Payload = ProtectedValue.Read(_context, DbHelpers.GetNullableString(reader, 6)),
             Timestamp = DbHelpers.GetTimestamp(reader, 7),
         };
 
@@ -1007,7 +1007,7 @@ internal sealed class SqlRunStore : IRunStore
         };
     }
 
-    private static ToolInvocationRecord ReadToolInvocation(DbDataReader reader)
+    private ToolInvocationRecord ReadToolInvocation(DbDataReader reader)
         => new()
         {
             Id = reader.GetGuid(0),
@@ -1015,8 +1015,8 @@ internal sealed class SqlRunStore : IRunStore
             ToolName = reader.GetString(2),
             ToolCallId = DbHelpers.GetNullableString(reader, 3),
             Source = DbHelpers.GetNullableString(reader, 4),
-            Arguments = DbHelpers.GetNullableString(reader, 5),
-            Result = DbHelpers.GetNullableString(reader, 6),
+            Arguments = ProtectedValue.Read(_context, DbHelpers.GetNullableString(reader, 5)),
+            Result = ProtectedValue.Read(_context, DbHelpers.GetNullableString(reader, 6)),
             Duration = reader.IsDBNull(7) ? null : TimeSpan.FromMilliseconds(reader.GetInt32(7)),
             Error = DbHelpers.GetNullableString(reader, 8),
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
