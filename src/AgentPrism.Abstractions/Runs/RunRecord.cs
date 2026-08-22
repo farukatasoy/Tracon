@@ -146,4 +146,15 @@ public sealed record RunRecord
     /// column.
     /// </remarks>
     public Guid? ReplayOfRunId { get; init; }
+
+    /// <summary>
+    /// Gets the id of the run this one continues after an interruption, or
+    /// <see langword="null"/> for a run that is not a continuation.
+    /// </summary>
+    /// <remarks>
+    /// A continuation is a NEW root run in the SAME session, opened by
+    /// orphaned-run reconciliation; it is not a child of the interrupted run
+    /// (<see cref="Depth"/> does not increase for it).
+    /// </remarks>
+    public Guid? ContinuedFromRunId { get; init; }
 }

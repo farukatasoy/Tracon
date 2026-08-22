@@ -78,6 +78,7 @@ internal sealed class SqlRunStore : IRunStore
             ExperimentId = info.ExperimentId,
             Variant = info.Variant,
             ReplayOfRunId = info.ReplayOfRunId,
+            ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
         var command = CreateCommand(_sql.InsertRun);
@@ -97,6 +98,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableUuid(command, "experiment_id", record.ExperimentId);
         AddNullableText(command, "variant", record.Variant);
         AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
+        AddNullableUuid(command, "continued_from_run_id", record.ContinuedFromRunId);
         AddNullableText(command, "user_id", record.UserId);
         Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
 
@@ -806,6 +808,10 @@ internal sealed class SqlRunStore : IRunStore
                 Class = reader.IsDBNull(21) ? null : (RunErrorClass)reader.GetInt16(21),
                 Fingerprint = DbHelpers.GetNullableString(reader, 22),
             },
+
+            // 🚨 23: Added at the END in Phase 87. NULL on every row written
+            // before the column existed, and on every run that is not a continuation.
+            ContinuedFromRunId = reader.IsDBNull(23) ? null : reader.GetGuid(23),
         };
 
     private static RunRecord ReadRun(DbDataReader reader)
@@ -863,6 +869,11 @@ internal sealed class SqlRunStore : IRunStore
                     Class = reader.IsDBNull(37) ? null : (RunErrorClass)reader.GetInt16(37),
                     Fingerprint = DbHelpers.GetNullableString(reader, 38),
                 },
+
+            // 🚨 52: Added at the END in Phase 87 (after tree.cost_cached_input,
+            // the last column Phase 68 appended). NULL on every row written
+            // before the column existed, and on every run that is not a continuation.
+            ContinuedFromRunId = reader.IsDBNull(52) ? null : reader.GetGuid(52),
         };
     }
 

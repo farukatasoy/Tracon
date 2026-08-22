@@ -84,6 +84,7 @@ public sealed class InMemoryRunStore : IRunStore
             ExperimentId = info.ExperimentId,
             Variant = info.Variant,
             ReplayOfRunId = info.ReplayOfRunId,
+            ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
         // 🚨 Phase 46: for a queued run, this method is called TWICE with the

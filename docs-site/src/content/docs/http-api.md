@@ -102,6 +102,7 @@ shows server text as it is.
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |
+| `503` | The process is draining in-flight runs before it stops; retry shortly |
 
 `501` is worth its own note: it means "this build does not have that package wired
 up", which is a different problem from a wrong address, and the API says so rather

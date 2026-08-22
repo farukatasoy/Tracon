@@ -132,6 +132,9 @@ and a store failure never gets permission to stop the run itself.
 | Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
 | Singleton execution | `AgentPrism:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `AgentPrism:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
+| Run continuation | `AgentPrism:RunContinuation` | An orphaned, session-bound run resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat` |
+| Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Graceful drain | `AgentPrism:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,
 checkpoints, schedules, cross-process leases, and recovery need a SQL provider for

@@ -69,4 +69,15 @@ public enum JobKind
     /// identifier of the <see cref="PendingApproval"/> record whose decision was made.
     /// </remarks>
     ApprovalResume = 7,
+
+    /// <summary>
+    /// A NEW run, in the SAME session, that continues an interrupted run.
+    /// </summary>
+    /// <remarks>
+    /// SEPARATE from <see cref="AgentRun"/> and <see cref="ApprovalResume"/>:
+    /// triggered by orphaned-run reconciliation, not by a client request. The
+    /// old run row stays <c>Failed</c> and never changes again; this job
+    /// opens a new <c>runs</c> row whose <c>ContinuedFromRunId</c> points at it.
+    /// </remarks>
+    RunContinuation = 8,
 }

@@ -249,6 +249,46 @@ Choose `OrphanThreshold` above the longest expected database pause, runtime stop
 world event, or deployment handoff. A threshold that is too short can close a run
 whose process is still working.
 
+## Continue an interrupted run automatically
+
+`RunContinuation` builds on reconciliation: right after an orphaned `Running` record
+closes, a session-bound run can be picked up again — in the same session, as a new
+run — instead of staying `Failed` for good.
+
+```json
+{
+  "AgentPrism": {
+    "RunContinuation": {
+      "Enabled": true,
+      "MaxAttempts": 1
+    }
+  }
+}
+```
+
+The continuation re-sends the interrupted turn's original input into the same
+session and lets the model run its turn again from the start. Every tool call the
+interrupted run already completed is answered from its own recorded result instead
+of running again; only a call past the interruption point — one with no recorded
+result, because it never happened — actually runs. A tool the interrupted run called
+with different arguments each time can still repeat, because matching is by the
+exact recorded arguments.
+
+A tool whose effect is destructive or leaves the process (a database delete, a
+payment, a webhook) blocks continuation by default; the interrupted run stays
+`Failed` and its event stream records why. A tool author who can prove a call is
+safe to repeat — typically because it carries its own idempotency key — opts that
+one tool back in when registering it. A run with no session, or one whose chain has
+already reached `MaxAttempts`, is never continued.
+
+The new run's record links back to the interrupted one, so an operator reading the
+run tree can see that a run continued another rather than starting fresh.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `RunContinuation.Enabled` | `false` | No continuation is attempted until `RunReconciliation` is also enabled |
+| `MaxAttempts` | `1` | The most continuations one interruption chain may have before it stays `Failed` |
+
 ## Elect one owner for periodic services
 
 `SingletonExecution.Enabled` adds lease-based cluster election to AgentPrism's
@@ -279,6 +319,35 @@ does not interrupt work already in progress. Token usage becomes known after a m
 call, so concurrent children can produce a bounded overshoot. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
 
+## Wait for in-flight runs before the process stops
+
+By default a process that receives a stop signal exits immediately and any run in
+flight is cut off — the same crash reconciliation and continuation exist to recover
+from. `Drain` makes a graceful stop wait instead:
+
+```json
+{
+  "AgentPrism": {
+    "Drain": {
+      "Enabled": true,
+      "Timeout": "00:00:30"
+    }
+  }
+}
+```
+
+Once a stop signal arrives, new runs are refused — the run endpoint returns `503`,
+and the background job worker stops leasing new jobs — while runs already in flight
+are given up to `Timeout` to finish before the process actually exits. A run that is
+still going when the timeout elapses is cut off anyway; a stuck run must not block a
+deployment forever. The host's own shutdown timeout still applies on top of this
+value, so raise both together for the full wait to take effect.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `Drain.Enabled` | `false` | The process stops immediately, exactly as before |
+| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs |
+
 ## Failure boundaries at a glance
 
 | Failure | AgentPrism response | Your responsibility |
@@ -287,8 +356,9 @@ budgets for externally exposed MCP and A2A agents.
 | Primary provider unavailable, transiently | Try the next `ModelBinding.Fallbacks` link and record which one answered | Configure a fallback chain for agents where availability matters more than a fixed model |
 | Provider approaching its own rate limit | Queue outgoing calls at `ModelConcurrency.MaxConcurrentCallsPerProvider` instead of bursting | Set a limit sized to the provider's own quota, if bursts are a recurring problem |
 | Duplicate supported HTTP request | Replay the completed 2xx response or reject conflict | Keep key and serialized request stable |
-| Process dies during a direct run | Reconcile a stale `Running` record when enabled | Make external tool effects idempotent |
+| Process dies during a direct run | Reconcile a stale `Running` record when enabled, and continue it in the same session when safe | Make external tool effects idempotent, or declare a tool safe to repeat |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
+| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs, refuse new ones | Set a timeout that covers your slowest normal run |
 | Live cancel reaches wrong node | Return `409` | Use sticky routing or a distributed cancellation registry |
 | Child-agent fan-out grows | Refuse new children at tree limits | Set budgets that match cost and latency objectives |
 
@@ -316,6 +386,9 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | Two nodes perform the same periodic scan | Confirm singleton execution is enabled and backed by the same SQL database; in-memory leases are process-local |
 | A cancel request returns `409` | The run is terminal, the live owner restarted, or the request reached another node |
 | A child call is refused | Inspect depth, child-run count, and total-token budget on the root tree |
+| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts` |
+| A continuation stops instead of finishing | A tool it called has no recorded result and no matching arguments in the new turn; check the tool's argument stability, or whether its effect blocks continuation entirely |
+| A run request returns `503` right after a deploy | The process is draining; retry shortly, or lower `Drain.Timeout` if deploys should not wait this long |
 
 ## Read next
 

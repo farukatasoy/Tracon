@@ -341,10 +341,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
         InsertRun = $"""
             INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels)
+                                       replay_of_run_id, user_id, labels, continued_from_run_id)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels)
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_id     = excluded.tenant_id,
                 agent_name    = excluded.agent_name,
@@ -362,6 +362,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 experiment_id = excluded.experiment_id,
                 variant       = excluded.variant,
                 replay_of_run_id = excluded.replay_of_run_id,
+                continued_from_run_id = excluded.continued_from_run_id,
                 -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
                 -- 46): a queued run's placeholder row is written during the HTTP
                 -- request, where the user IS known, and rewritten later by the
@@ -443,7 +444,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
                       model_id, kind, workflow_name, agent_version, experiment_id, variant, replay_of_run_id,
                       parent_run_id, root_run_id, depth, event_count, error_type, error_message, error_class,
-                      error_fingerprint;
+                      error_fingerprint, continued_from_run_id;
             """;
 
         InsertOrphanRunEvent = $"""
@@ -506,7 +507,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT SUM(sub.reasoning_tokens)    FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.audio_input_tokens)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.audio_output_tokens) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
+            (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            r.continued_from_run_id
             """;
 
         SelectRun = $"""

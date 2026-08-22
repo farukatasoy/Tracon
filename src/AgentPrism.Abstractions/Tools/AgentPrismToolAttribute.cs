@@ -88,4 +88,7 @@ public sealed class AgentPrismToolAttribute : Attribute
     /// the unit; the registry converts it.
     /// </remarks>
     public int TimeoutSeconds { get; init; }
+
+    /// <summary>See <see cref="AgentPrismToolRegistration.SafeToRepeat"/>. Defaults to <see langword="false"/>.</summary>
+    public bool SafeToRepeat { get; init; }
 }

@@ -195,6 +195,8 @@ AgentPrism.AgentPrismRunOptions.ParentRunId.get -> System.Guid?
 AgentPrism.AgentPrismRunOptions.ParentRunId.init -> void
 AgentPrism.AgentPrismRunOptions.ReplayOfRunId.get -> System.Guid?
 AgentPrism.AgentPrismRunOptions.ReplayOfRunId.init -> void
+AgentPrism.AgentPrismRunOptions.ContinuedFromRunId.get -> System.Guid?
+AgentPrism.AgentPrismRunOptions.ContinuedFromRunId.init -> void
 AgentPrism.AgentPrismRunOptions.RootRunId.get -> System.Guid?
 AgentPrism.AgentPrismRunOptions.RootRunId.init -> void
 AgentPrism.AgentPrismRunOptions.RunId.get -> System.Guid?
@@ -240,7 +242,8 @@ AgentPrism.AgentPrismToolAttribute.Name.get -> string?
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.init -> void
 AgentPrism.AgentPrismToolRegistration
-AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, AgentPrism.ToolEffect effect = AgentPrism.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null) -> void
+AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, AgentPrism.ToolEffect effect = AgentPrism.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false) -> void
+AgentPrism.AgentPrismToolRegistration.SafeToRepeat.get -> bool
 AgentPrism.AgentPrismToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
 AgentPrism.AgentPrismToolRegistration.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolRegistration.Source.get -> string?
@@ -1432,6 +1435,7 @@ AgentPrism.JobKind
 AgentPrism.JobKind.AgentBatch = 0 -> AgentPrism.JobKind
 AgentPrism.JobKind.AgentRun = 5 -> AgentPrism.JobKind
 AgentPrism.JobKind.ApprovalResume = 7 -> AgentPrism.JobKind
+AgentPrism.JobKind.RunContinuation = 8 -> AgentPrism.JobKind
 AgentPrism.JobKind.Eval = 2 -> AgentPrism.JobKind
 AgentPrism.JobKind.OnlineEval = 6 -> AgentPrism.JobKind
 AgentPrism.JobKind.Retention = 4 -> AgentPrism.JobKind
@@ -2356,6 +2360,8 @@ AgentPrism.RunRecord.ParentRunId.get -> System.Guid?
 AgentPrism.RunRecord.ParentRunId.init -> void
 AgentPrism.RunRecord.ReplayOfRunId.get -> System.Guid?
 AgentPrism.RunRecord.ReplayOfRunId.init -> void
+AgentPrism.RunRecord.ContinuedFromRunId.get -> System.Guid?
+AgentPrism.RunRecord.ContinuedFromRunId.init -> void
 AgentPrism.RunRecord.RootRunId.get -> System.Guid?
 AgentPrism.RunRecord.RootRunId.init -> void
 AgentPrism.RunRecord.RunRecord() -> void
@@ -2440,6 +2446,8 @@ AgentPrism.RunStartInfo.ParentRunId.get -> System.Guid?
 AgentPrism.RunStartInfo.ParentRunId.init -> void
 AgentPrism.RunStartInfo.ReplayOfRunId.get -> System.Guid?
 AgentPrism.RunStartInfo.ReplayOfRunId.init -> void
+AgentPrism.RunStartInfo.ContinuedFromRunId.get -> System.Guid?
+AgentPrism.RunStartInfo.ContinuedFromRunId.init -> void
 AgentPrism.RunStartInfo.RootRunId.get -> System.Guid?
 AgentPrism.RunStartInfo.RootRunId.init -> void
 AgentPrism.RunStartInfo.RunId.get -> System.Guid
@@ -4529,6 +4537,8 @@ AgentPrism.AgentPrismToolAttribute.RequiredPermission.get -> string?
 AgentPrism.AgentPrismToolAttribute.RequiredPermission.init -> void
 AgentPrism.AgentPrismToolAttribute.TimeoutSeconds.get -> int
 AgentPrism.AgentPrismToolAttribute.TimeoutSeconds.init -> void
+AgentPrism.AgentPrismToolAttribute.SafeToRepeat.get -> bool
+AgentPrism.AgentPrismToolAttribute.SafeToRepeat.init -> void
 AgentPrism.AgentPrismToolRegistration.Effect.get -> AgentPrism.ToolEffect
 AgentPrism.AgentPrismToolRegistration.RequiredPermission.get -> string?
 AgentPrism.AgentPrismToolRegistration.Timeout.get -> System.TimeSpan?
@@ -4575,6 +4585,8 @@ AgentPrism.ToolDescriptor.RequiredPermission.get -> string?
 AgentPrism.ToolDescriptor.RequiredPermission.init -> void
 AgentPrism.ToolDescriptor.Timeout.get -> System.TimeSpan?
 AgentPrism.ToolDescriptor.Timeout.init -> void
+AgentPrism.ToolDescriptor.SafeToRepeat.get -> bool
+AgentPrism.ToolDescriptor.SafeToRepeat.init -> void
 AgentPrism.ToolEffect
 AgentPrism.ToolEffect.Destructive = 2 -> AgentPrism.ToolEffect
 AgentPrism.ToolEffect.External = 3 -> AgentPrism.ToolEffect
@@ -4708,3 +4720,6 @@ static AgentPrism.AgentParameter.operator ==(AgentPrism.AgentParameter? left, Ag
 static AgentPrism.AgentRunDocument.operator !=(AgentPrism.AgentRunDocument? left, AgentPrism.AgentRunDocument? right) -> bool
 static AgentPrism.AgentRunDocument.operator ==(AgentPrism.AgentRunDocument? left, AgentPrism.AgentRunDocument? right) -> bool
 AgentPrism.RunEventType.DocumentAttached = 24 -> AgentPrism.RunEventType
+AgentPrism.RunEventType.RunContinuationBlocked = 25 -> AgentPrism.RunEventType
+AgentPrism.IAgentPrismDrainState
+AgentPrism.IAgentPrismDrainState.IsDraining.get -> bool

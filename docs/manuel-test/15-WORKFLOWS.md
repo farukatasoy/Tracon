@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry)
 > **Kaynak:** `src/AgentPrism.Workflows/` (tümü: `AgentPrismWorkflowOptions`,
 > `AgentPrismWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/AgentPrism.Abstractions/Workflows/` (tümü) ·
@@ -2143,3 +2143,87 @@ ve
 3. `POST /api/workflows/runs/{runId}/resume` ile İLK (fonksiyondan önceki)
    kontrol noktasının id'sini vererek sürdür.
 4. Yan etkinin (sayaç) İKİNCİ kez tetiklendiğini doğrula.
+
+---
+
+### MT-WF-117 — Düğüm başına retry: geçici sağlayıcı hatası veren fonksiyon yeniden denenir, koşu düşmez (Faz 87)
+
+**Gerçekten koşuldu ve doğrulandı** —
+`WorkflowNodeRetryTests.A_transient_error_in_a_function_node_is_retried_and_costs_no_extra_super_step`
+üç kez `AgentPrismProviderUnavailableException` fırlatan bir fonksiyon
+düğümünü gerçek bir `WorkflowRunner` üzerinden çalıştırır ve koşunun
+`Completed` bittiğini, deneme sayısının `3` olduğunu ÖLÇER. Açık Soru 2'nin
+cevabı da AYNI testte ölçüldü: retry döngüsü fonksiyonun KENDİ çağrısının
+İÇİNDE kalır — Microsoft Agent Framework düğümü mesaj başına yalnız BİR kez
+çağırır, bu yüzden kaç deneme yapıldığından BAĞIMSIZ olarak
+`SuperStepStartedEvent` sayısı, hiç hata olmayan bir koşumla AYNIDIR (test
+bunu iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak kanıtlar).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ölçülen sözleşme**
+- `AddWorkflowFunction(..., retryPolicy: new WorkflowNodeRetryPolicy { MaxAttempts = N, ... })`
+  ile kaydedilen bir düğüm, çağrısı `IRunErrorClassifier`'ın
+  `ProviderError`/`ProviderUnavailable`/`RateLimited`/`Timeout` sınıflarından
+  birine sınıflandırdığı bir istisna fırlatırsa, `MaxAttempts`'e kadar
+  (üstel geri çekilmeyle) yeniden denenir.
+- Başka bir sınıf (`CompilationFailed`, `ToolError`, …) İLK denemede
+  yeniden denenmeden yukarı fırlatılır.
+- `AgentPrismWorkflowOptions.MaxSuperSteps` sayacı bu düğümün denemelerinden
+  ETKİLENMEZ.
+
+**Adımlar (elle koşum için — sample app'e retry'lı bir düğüm eklendiyse)**
+1. Örnek uygulamaya (veya bir sınama projesine) ilk `N-1` çağrısında
+   `AgentPrismProviderUnavailableException` fırlatan, `N`'inci çağrıda
+   başarılı dönen bir fonksiyon kaydet: `retryPolicy: new WorkflowNodeRetryPolicy
+   { MaxAttempts = N, InitialDelay = TimeSpan.FromMilliseconds(50) }`.
+2. Agent → fonksiyon zincirini çalıştır.
+3. Koşunun `Completed` bittiğini doğrula (`Failed` DEĞİL).
+4. Sunucu günlüğünde/özel bir sayaçta fonksiyonun `N` kez çağrıldığını
+   doğrula.
+
+**Beklenen sonuç**
+- Koşu `Completed` biter — geçici hata koşuyu DÜŞÜRMEZ.
+- Fonksiyon tam `N` kez çağrılmıştır.
+- `GET /api/workflows/runs/{runId}/events`'teki `SuperStepStarted` olay
+  sayısı, AYNI zincirin hiç hatasız çalıştığı bir koşumla EŞİTTİR (unit
+  testin ölçtüğü sözleşme; elle koşumda bu adım opsiyoneldir).
+
+---
+
+### MT-WF-118 — Düğüm başına retry: kalıcı hata veren fonksiyon yeniden DENENMEZ, koşu düşer (Faz 87)
+
+**Gerçekten koşuldu ve doğrulandı** —
+`WorkflowNodeRetryTests.A_permanent_error_is_never_retried` `AgentPrismException`
+(kalıcı, `CompilationFailed` sınıfına düşen) fırlatan bir düğümün TEK bir
+denemede yukarı fırlatıldığını ölçer;
+`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_with_the_real_error`
+(Faz 71, retry'sız) ile AYNI temel davranışın retry POLİTİKASI VARKEN de
+korunduğunu tamamlar.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Adımlar (elle koşum için)**
+1. Her çağrıda kalıcı bir hata fırlatan (`InvalidOperationException` gibi
+   `ProviderError`/`ProviderUnavailable`/`RateLimited`/`Timeout` DIŞINDA
+   sınıflandırılan) bir fonksiyon, `retryPolicy: new WorkflowNodeRetryPolicy
+   { MaxAttempts = 3 }` ile kaydet.
+2. Zinciri çalıştır.
+3. Fonksiyonun kaç kez çağrıldığını ve koşunun son durumunu oku.
+
+**Beklenen sonuç**
+- Fonksiyon **bir kez** çağrılır — `MaxAttempts = 3` olmasına RAĞMEN yeniden
+  denenmez, çünkü hata sınıfı geçici değildir.
+- Koşu `Failed` biter; `error.message` fonksiyonun gerçek istisna metnini
+  taşır (metin eşleştirmesi değil, tipli sağlayıcı hatası sınıflandırması —
+  Faz 44).

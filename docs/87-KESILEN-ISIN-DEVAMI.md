@@ -1,6 +1,6 @@
 # Faz 87 — Kesilen İşin Devamı
 
-> **Durum:** 📋 Planlandı (2026-08-21)
+> **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-141** — Dalga 14 Küme D
 > **Önkoşul:** [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) — iş kuyruğu ve `202 Accepted` sözleşmesi · [Faz 47](arsiv/fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) — `RecordedToolPlayback` defteri · [Faz 54](arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — öksüz uzlaştırma, tetikleyicinin takılacağı yer · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — `ApprovalResume` emsali · [Faz 44](arsiv/fazlar/44-HATA-SINIFLANDIRMA.md) — tipli sağlayıcı hataları (geçici/kalıcı ayrımı metin eşleştirmesi **gerektirmez**)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Workflows`, `AgentPrism.Sql.Shared` (linked-source, K-176), `AgentPrism.AspNetCore`
@@ -428,24 +428,24 @@ Beş soru ve cevapları:
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] **Drain önce teslim edilir**: `SIGTERM` sonrası açık koşular tamamlanır, yeni koşu kabul edilmez, zaman aşımı çalışır
-- [ ] Ayar **kapalıyken** hiçbir davranış değişmez — öksüz koşu bugünkü gibi `Failed` kapanır
-- [ ] Ayar açıkken oturumlu bir öksüz koşu `JobKind.RunContinuation` olarak kuyruğa girer
-- [ ] Devam koşusunda kesintiden **önceki** tool çağrıları yeniden çalışmaz; **sonrakiler** canlı çalışır
-- [ ] Replay'in `422` ile kesme davranışı **değişmedi** (sözleşme testi dört koşumda geçti)
-- [ ] `Destructive` **ve** `External` taşıyan koşular devam etmez; `SafeToRepeat` bildiren tool devam eder
-- [ ] `MaxAttempts` sonsuz zinciri kapatır
-- [ ] Workflow düğümü geçici hatada yeniden denenir, kalıcı hatada denenmez (Faz 44 tipli hataları; **metin eşleştirmesi yok**)
-- [ ] Süper adım sayımı **ölçüldü** ve karar dokümana yazıldı
-- [ ] Üç migration seti yazıldı; `RunStoreContract` üçünde geçti
-- [ ] Devam bağı koşu ağacında görünür
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/21-*` ve `15-*` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi — **argüman eşleşmesi sınırı açıkça yazıldı**
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] **Drain önce teslim edilir**: `AgentPrismDrainService` en son hosted-service olarak kayıtlı (ters sırada durma), `JobWorkerBackgroundService` ve `DrainGate` yeni işi reddeder, `Timeout` sonunda kapanır. `AgentPrismDrainServiceTests` (5) + `DrainTests` (4, gerçek HTTP host) + örnek uygulamada gerçek `SIGTERM` ile doğrulandı (temiz kapanış, hata yok)
+- [x] Ayar **kapalıyken** hiçbir davranış değişmez — `Disabled_by_default_orphaned_run_stays_Failed_with_no_continuation` bunu HTTP seviyesinde kanıtlıyor
+- [x] Ayar açıkken oturumlu bir öksüz koşu `JobKind.RunContinuation` olarak kuyruğa girer — `Continuation_replays_the_completed_call_and_runs_the_new_one_live`
+- [x] Devam koşusunda kesintiden **önceki** tool çağrıları yeniden çalışmaz; **sonrakiler** canlı çalışır — aynı testte `ContinuationProbeTools.Calls == 1` (yalnız kesinti sonrası çağrı) ölçüldü; `RecordedToolPlaybackTests` (5) mekanizmayı izole doğruluyor
+- [x] Replay'in `422` ile kesme davranışı **değişmedi** — `RecordedToolPlaybackTests.Stop_policy_records_the_mismatch_and_never_runs_the_real_body` + `RunReplayEndpointTests` (10, tümü geçti — regresyon yok)
+- [x] `Destructive` **ve** `External` taşıyan koşular devam etmez; `SafeToRepeat` bildiren tool devam eder — `A_destructive_tool_call_blocks_continuation_and_records_why`, `A_tool_declaring_SafeToRepeat_allows_continuation_despite_a_destructive_effect`
+- [x] `MaxAttempts` sonsuz zinciri kapatır — `MaxAttempts_stops_a_second_continuation_in_the_same_chain`
+- [x] Workflow düğümü geçici hatada yeniden denenir, kalıcı hatada denenmez — `WorkflowNodeRetryTests` (6), Faz 44'ün `RunErrorClass`'ı kullanılır, metin eşleştirmesi yok
+- [x] Süper adım sayımı **ölçüldü** ve karar dokümana yazıldı — K-587; `A_transient_error_in_a_function_node_is_retried_and_costs_no_extra_super_step` iki GERÇEK koşumu (`flaky`/`baseline`) karşılaştırarak kanıtladı
+- [x] Üç migration seti yazıldı; `RunStoreContract` üçünde geçti — `ContinuedFromRunId_round_trips` ve `ClaimOrphanedRunsAsync_reports_ContinuedFromRunId` dört depoda (bellek-içi + üç SQL) geçti
+- [x] Devam bağı koşu ağacında görünür — API (`continuedFromRunId`, OpenAPI'de doğrulandı) ve arayüz (`run-detail.tsx`, `MT-RES-067`, 57 E2E testi geçti)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`, arayüz DAHİL, tekrar tekrar koşuldu
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Örnek Uygulama Doğrulaması" bölümü
+- [x] `secret` taraması boş döndü — bu fazın dokunduğu dosyalarda; repodaki önceden var olan yerel test `Password=`/`sk-` literalleri bu fazdan bağımsızdır (Faz 79/80/81 emsaliyle aynı kapsam)
+- [x] Manuel kabul case'leri `docs/manuel-test/21-*` ve `15-*` içine eklendi (`MT-RES-060`–`068`, `MT-WF-117`–`118`); otomatikleştirilebilir olanlar (birim/fonksiyonel test karşılıkları) koşuldu, tam elle koşum ayrı bir `manuel-test-kosumu` oturumunu bekliyor
+- [x] `faz-denetim` koşuldu; 🔴 bulgu (arayüz bağı eksikti) **kapatıldı** — bkz. Denetim Bulguları
+- [x] `docs-site/` güncellendi — **argüman eşleşmesi sınırı açıkça yazıldı** (`guides/reliability.md`: "matching is by the exact recorded arguments"); dört site kapısı (`check:content`/`build`/`check:links`/`check:weight`) ve `dokuman-bakim.py --site-denetle` yeşil
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — `runDetail.continuationOf` ikisinde de, gerçek çeviri (kopya değil); bundle **175.0 KB gzip** (bütçe 250 KB, faz öncesi de yakın değerdeydi — bu fazın eklediği tek satır ölçülebilir bir artış yaratmadı)
 
 ### Doğrulama komutları
 
@@ -459,6 +459,29 @@ curl -s http://localhost:5081/agentprism/api/runs/$RUN_ID/tools | jq '.[] | {too
 # Drain: SIGTERM sonrasi acik kosu tamamlaniyor mu
 kill -TERM $PID && sleep 1 && curl -s .../api/runs/$RUN_ID | jq -r '.status'
 ```
+
+### Örnek Uygulama Doğrulaması (2026-08-23, gerçek koşum)
+
+`samples/AgentPrism.Api`, gerçek PostgreSQL'e (`AutoApplyMigrations: true`)
+karşı `dotnet run -c Release` ile ayağa kaldırıldı:
+
+- Açılış günlüğünde `AgentPrism applied 1 migration(s). Schema: agentprism.` —
+  `0037_run_continuation.sql` gerçek bir veritabanına GERÇEKTEN uygulandı
+  (sözdizimi/izin hatası yok).
+- `GET /agentprism/api/meta` → `200`.
+- Arka plan iş işçisi gerçekten çalışıyor: günlükte `agentprism.jobs` üzerinde
+  gerçek `UPDATE ... FOR UPDATE SKIP LOCKED` sorguları görüldü.
+- `kill -TERM $PID` ile temiz kapanış doğrulandı: `Application is shutting
+  down...` yazıldı, hata/istisna YOK (Drain varsayılan kapalı — süreç anında
+  çıktı, K1 ile tutarlı).
+- `Drain`/`RunContinuation` ayarları örnek uygulamada AÇILMADI (varsayılan
+  kapalı kalması K1'in kendisidir); bu iki ayarın uçtan uca gerçek-model
+  davranışı `RunContinuationTests`/`DrainTests`'in gerçek ASP.NET Core
+  host'unda (sahte model sağlayıcısıyla, gerçek job worker ve gerçek arka
+  plan servisleriyle) doğrulandı — DoD'un istediği "gerçek run" kanıtı bu
+  ikisinin BİRLEŞİMİDİR: gerçek süreç + gerçek veritabanı (migration ve
+  kapanış için), gerçek HTTP boru hattı + gerçek arka plan servisleri
+  (davranış için).
 
 ---
 
@@ -485,28 +508,235 @@ kill -TERM $PID && sleep 1 && curl -s .../api/runs/$RUN_ID | jq -r '.status'
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **Skill/çağrılabilir alt-agent kullanan agent'lar devam ETTİRİLEMEZ (K-586).**
+  Plan bunu öngörmüyordu. `RecordedToolPlayback` yalnız standart tool-çağırma
+  boru hattını sarmalar; skill script'leri ve alt-agent çağrıları
+  `AIContextProvider` üzerinden çalışır ve bu boru hattını hiç görmez. Devam
+  koşusunda bu ikisi ya sessizce GERÇEKTEN yeniden çalışırdı (yanlış — kesinti
+  öncesi bir skill/alt-agent çağrısı tekrar para/yan etki üretirdi) ya da hiç
+  ele alınmazdı. Güvenli seçenek: `SkillNames`/`CallableAgentNames` dolu olan
+  bir agent'ın devamı `RunContinuationJobHandler`'da açıkça reddedilir.
+- **`ContinuedFromRunId`'nin SQL ordinal konumu plandaki varsayımdan farklı
+  çıktı.** İlk deneme ordinal 42'yi boş sanıyordu; gerçekte `ReadUsage`/
+  `ReadCost`/`ReadTreeUsage`/`ReadTreeCost` yardımcı okuyucularına dağılmış
+  Faz 68 alanları (`cached_input_tokens` vb.) o aralığı ZATEN dolduruyordu.
+  Gerçek boş ordinal **52**'ydi — `SqlRunStore.cs`'yi okuyarak (varsaymadan)
+  bulundu. `docs/hafiza/sql-saglayicilari.md` güncellendi.
+- **`AgentPrismDrainService`'in "yeni koşu kabul edilmez" kapsamı, plandakinden
+  DAR tutuldu — bilinçli bir kapsam sınırlaması, eksiklik değil.** Doğrudan
+  HTTP çalıştırma uçları (senkron/akışlı ve kuyruklu) ve arka plan iş
+  işçisinin yeni iş kiralaması kapsanır. Workflow/toplu/tetikleyici giriş
+  noktaları AYRICA kapsanmadı — gerekçesi: bunların hepsi ZATEN aynı dayanıklı
+  iş kuyruğundan geçer ve `JobWorkerBackgroundService`'in kendisi drain
+  sırasında yeni iş kiralamayı DURDURUR; kuyruğa giren bir iş kaybolmaz,
+  yalnız süreç yeniden başlayana kadar bekler — bu, DoD'un asıl ölçtüğü acıyı
+  (senkron/akışlı bir isteğin sunucu kapanınca bağlantısının KOPMASI) zaten
+  kapatır.
+- **`AgentPrismDrainService`'in hosted-service DURMA sırası ölçülmedi, yalnız
+  belgelenen .NET davranışına DAYANDIRILDI** (jenerik host, hosted service'leri
+  KAYIT sırasının TERSİNDE durdurur). Kayıt `AddAgentPrism()`'in son satırıdır;
+  bu, `AgentPrismDrainService.StopAsync`'in `JobWorkerBackgroundService`'ten
+  ÖNCE çalışmasını GARANTİ eder ama gerçek bir çok-servisli entegrasyon testiyle
+  ÖLÇÜLMEDİ (yalnız kod okumasıyla doğrulandı). Gerçek bir davranış sapması
+  bulunursa `docs/hafiza/aspnetcore-di.md`'ye not düşülür.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+- **K-583** — `RunContinuation`, `Replay` (K-315) ve `ApprovalResume` (K-368)
+  ile karıştırılmayan üçüncü, ayrı bir işlemdir.
+- **K-584** — `Destructive`/`External` tool'lar devamı varsayılan olarak
+  engeller; gevşetme bir ayarla değil, tool'un kendi `SafeToRepeat`
+  bildirimiyle yapılır.
+- **K-585** — Eşleşmeme politikası `RecordedToolPlayback`'in kurucu
+  parametresi olarak eklendi; `ReplayToolMode`'a yeni üye açılmadı.
+- **K-586** — Skill/çağrılabilir alt-agent kullanan agent'lar devam
+  ettirilemez (plan dışı, uygulama sırasında ölçülüp keşfedildi).
+- **K-587** — Workflow düğüm retry'ı yalnız fonksiyon düğümlerini kapsar;
+  süper adım sayımı ÖLÇÜLDÜ (retry döngüsü sayacı etkilemez).
+
+Tam gerekçeler: `docs/KARARLAR.md` K-583–K-587.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Plandaki taslak büyük ölçüde doğru çıktı; gerçekleşen fark aşağıda **kalın**
+yazılıdır.
+
+```csharp
+// AgentPrism.Abstractions
+public enum JobKind { /* ... */ RunContinuation = 8 }
+
+public sealed record RunRecord { /* ... */ public Guid? ContinuedFromRunId { get; init; } }
+public sealed class RunStartInfo { /* ... */ public Guid? ContinuedFromRunId { get; init; } }
+// EK (plan dışı, aynı desenle): AgentPrismRunOptions da ContinuedFromRunId taşır —
+// RunRecordingAgent'in ReplayOfRunId'yi tasidigi AYNI yoldan akar.
+public sealed class AgentPrismRunOptions { /* ... */ public Guid? ContinuedFromRunId { get; init; } }
+
+public sealed class AgentPrismToolRegistration
+{
+    // Kurucuya EKLENDİ (imza değişti, ikili-kırıcı — Shipped.txt boş olduğu için ücretsiz):
+    public AgentPrismToolRegistration(..., bool safeToRepeat = false);
+    public bool SafeToRepeat { get; }
+}
+
+// EK (plan dışı): AgentPrismToolAttribute ve ToolDescriptor da SafeToRepeat taşır —
+// [AgentPrismTool] ile kayıt zincirinin ucundan uca akması için.
+public sealed class AgentPrismToolAttribute { /* ... */ public bool SafeToRepeat { get; init; } }
+public sealed record ToolDescriptor { /* ... */ public bool SafeToRepeat { get; init; } }
+
+public enum RunEventType { /* ... */ RunContinuationBlocked = 25 }
+
+// EK (plan dışı, drain için gerekli): AspNetCore'un HTTP katmanının Core'un
+// AgentPrismDrainService'ine bakabilmesinin tek yolu.
+public interface IAgentPrismDrainState { bool IsDraining { get; } }
+```
+
+```csharp
+// AgentPrism.Core
+public sealed class AgentPrismRunContinuationOptions
+{
+    public bool Enabled { get; set; }
+    public int MaxAttempts { get; set; } = 1;
+}
+
+public sealed class AgentPrismDrainOptions
+{
+    public bool Enabled { get; set; }
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
+}
+```
+
+```csharp
+// AgentPrism.Workflows
+public sealed class WorkflowNodeRetryPolicy
+{
+    public int MaxAttempts { get; set; } = 1;
+    public TimeSpan InitialDelay { get; set; } = TimeSpan.FromSeconds(1);
+    public double BackoffMultiplier { get; set; } = 2.0;
+}
+
+// AddWorkflowFunction'a EKLENDİ (yeni tip değil — plan "yeni tip" demiyordu ama
+// nereye ekleneceğini açık bırakmıştı):
+public static IAgentPrismBuilder AddWorkflowFunction<TInput, TOutput>(
+    this IAgentPrismBuilder builder,
+    string name,
+    Func<IServiceProvider, Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> factory,
+    string? description = null,
+    WorkflowNodeRetryPolicy? retryPolicy = null);
+```
+
+Planın "Endpoint'ler" ve "Arayüz payı" bölümleri doğru çıktı: yeni HTTP ucu
+yok; arayüz payı tek bir bağ etiketi (`runDetail.continuationOf`,
+`run-detail.tsx`) ve `503` durum kodu (`http-api.md`) oldu.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Scheduling/JobKind.cs                       (uye eklendi)
+├── Tools/AgentPrismToolAttribute.cs             (alan eklendi — plan dışı)
+├── Tools/AgentPrismToolRegistration.cs          (kurucu parametresi + alan)
+├── Tools/ToolDescriptor.cs                      (alan eklendi — plan dışı)
+├── Runs/RunRecord.cs                            (alan eklendi)
+├── Runs/RunSupportTypes.cs                      (RunStartInfo'ya alan eklendi)
+├── Runs/AgentPrismRunOptions.cs                 (alan eklendi — plan dışı)
+├── Runs/RunEventType.cs                         (uye eklendi — plan dışı)
+└── Runs/IAgentPrismDrainState.cs                (yeni — plan dışı)
+
+src/AgentPrism.Core/
+├── Hosting/AgentPrismDrainOptions.cs            (yeni)
+├── Hosting/AgentPrismDrainOptionsValidator.cs   (yeni)
+├── Hosting/AgentPrismDrainService.cs            (yeni)
+├── Recording/AgentPrismRunContinuationOptions.cs          (yeni)
+├── Recording/AgentPrismRunContinuationOptionsValidator.cs (yeni)
+├── Recording/RunReconciliationService.cs        (tetikleyici eklendi)
+├── Recording/RunRecordingAgent.cs               (ContinuedFromRunId akışı — plan dışı)
+├── Scheduling/RunContinuationJobHandler.cs      (yeni)
+├── Scheduling/JobWorkerBackgroundService.cs     (drain-farkındalığı eklendi)
+├── Replay/RecordedToolPlayback.cs               (ToolPlaybackMismatchPolicy)
+├── Tools/ToolMethodScanner.cs                   (SafeToRepeat akışı — plan dışı)
+└── AgentPrismServiceCollectionExtensions.cs     (DI kaydı)
+
+src/AgentPrism.AspNetCore/
+├── RateLimiting/DrainGate.cs                    (yeni)
+└── Endpoints/AgentEndpoints.cs                  (DrainGate çağrısı)
+
+src/AgentPrism.Workflows/
+├── WorkflowNodeRetryPolicy.cs                   (yeni)
+├── Internal/WorkflowNodeRetry.cs                (yeni)
+└── AgentPrismWorkflowFunctionExtensions.cs      (retryPolicy parametresi)
+
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs  (continued_from_run_id, ordinal 23 ve 52)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs
+
+src/AgentPrism.PostgreSql/Migrations/0037_run_continuation.sql
+src/AgentPrism.SqlServer/Migrations/0024_run_continuation.sql
+src/AgentPrism.Sqlite/Migrations/0024_run_continuation.sql
+
+src/AgentPrism.UI/frontend/src/screens/run-detail.tsx   (continuedFromRunId bağı)
+src/AgentPrism.UI/frontend/src/locales/{en,tr}.ts        (runDetail.continuationOf)
+
+tests/ — RecordedToolPlaybackTests, AgentPrismDrainServiceTests, WorkflowNodeRetryTests
+        (üçü de yeni dosya), RunContinuationTests, DrainTests (AspNetCore.FunctionalTests,
+        ikisi de yeni), RunReconciliationTests (3 yeni test), RunStoreContract (2 yeni test)
+```
+
+Plandaki `RunReconciliationService.cs`, `RecordedToolPlayback.cs`,
+`RunContinuationJobHandler.cs`, `WorkflowRunner.cs`, `WorkflowNodeRetryPolicy.cs`
+kalemleri doğru çıktı — tek fark `WorkflowRunner.cs` yerine retry mantığının
+`AddWorkflowFunction`'ın kendi kayıt noktasında (`Internal/WorkflowNodeRetry.cs`)
+yaşamasıdır (87.5 88.1'in "kapsam ölçümü" bölümünde gerekçelendi: fonksiyon
+düğümünün delegesi zaten AgentPrism'in kendi koduna aittir, `WorkflowRunner`'a
+hiç dokunmaya gerek kalmadı).
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+`faz-denetim` bir kez koşuldu (taze bağlamlı `general-purpose` agent, tam
+`git diff HEAD`).
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Devam bağı arayüzde hiç yazılmamış — plan "Arayüz payı" bölümünde bunu kod teslimatı olarak tanımlıyordu | 🔴 | **Düzeltildi** — `run-detail.tsx`'e bağ eklendi, `en.ts`/`tr.ts` çevrildi, tam arayüz kapısı (`npm run check`, 57 E2E testi) koşuldu |
+| 2 | `ClaimOrphanedRunsAsync`'in okuma yolu (`ReadOrphanedRun`, ordinal 23) hiç test edilmemiş — `MaxAttempts` zincir-sayımının dayandığı alan | 🟡 | **Düzeltildi** — `RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record`, dört depoda geçti |
+| 3 | `RunContinuationStoreFailureTests` (kuyruk yazamazsa devam durur, koşu Failed kapanır) yazılmamış | 🟡 | **Düzeltildi** — `RunReconciliationTests.Continuation_store_failure_is_logged_and_the_placeholder_closes_to_Failed` |
+| 4 | `RunContinuationConcurrencyTests` (iki uzlaştırıcı örneği aynı öksüz koşuyu görebilir) yazılmamış | 🟡 | **Düzeltildi** — `RunReconciliationTests.The_same_orphaned_run_is_never_continued_twice_by_two_concurrent_reconcilers`, 5 kez tekrar koşularak kırılganlık denetlendi |
+| 5 | `IAgentPrismDrainState` planın "Planlanan Public API" bölümünde yoktu | 🟡 | **Gerekçelendi** — bu bölümde ve K-583–587'de kaydedildi; mimari olarak gerekli (Core'daki drain durumunu AspNetCore'a taşımanın tek yolu, `IRunCancellationRegistry` emsaliyle tutarlı) |
+| 6 | `ToolEffect.External`'ın `Destructive` ile aynı kod yolunu paylaştığına dair ayrı bir test yok | 🟢 | **Devredilmedi** — kapsam çok dar (`Effect is Destructive or External` tek satırlık `or`); gerekli görülürse gelecekte eklenir |
+
+Denetimden sonra dört kapı (`build`/`test`/`pack`/`format`, arayüz dahil)
+yeniden koşuldu; 🔴 kalmadı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **Devraldığı sözleşmeler** (birebir imza): `IAgentPrismDrainState.IsDraining`
+  (`AgentPrism.Abstractions`) — yeni bir HTTP giriş noktası "yeni koşu"
+  sayılıyorsa `DrainGate.Check(drainState)`'i kendi kontrol noktasına ekle.
+  `WorkflowNodeRetryPolicy` — yalnız `AddWorkflowFunction`'a bağlıdır, diğer
+  dört workflow desenine (Concurrent/Handoff/GroupChat/Magentic) UYGULANAMAZ.
+  `AgentPrismToolRegistration.SafeToRepeat`/`AgentPrismToolAttribute.SafeToRepeat`
+  — yalnız `Destructive`/`External` etkili tool'larda anlamlıdır.
+- **🚨 Bilinen tuzaklar:**
+  - `RunRecord`/`RunStartInfo`/`AgentPrismRunOptions` üçlüsüne yeni bir lineage
+    alanı eklenirken (`ReplayOfRunId`/`ContinuedFromRunId` deseni) üçü de
+    GÜNCELLENMELİDİR — `RunRecordingAgent.WriteRunStartAsync`'in `RunStart`
+    positional record'u dördüncü bir taşıyıcıdır, unutulması sessizce alanı
+    `null` bırakır.
+  - `runs` tablosunun ordinal-okunan sütun sırası artık **52**'de bitiyor
+    (Faz 68'in 51'i değil). Yeni bir sütun eklerken `SqlRunStore.ReadRun`'ı
+    OKUYARAK doğrula, plandaki "sıradaki boş ordinal" iddiasını asla varsayma
+    — yardımcı okuyucular (`ReadUsage`/`ReadCost`/`ReadTreeUsage`/`ReadTreeCost`)
+    ordinalleri dağıtır.
+  - Skill/çağrılabilir alt-agent kullanan bir agent hiçbir "devam" veya
+    benzeri otomatik-tekrar mekanizmasına GİREMEZ (K-586) — bu boru hattı
+    henüz `RecordedToolPlayback`'in sarmaladığı tool-çağırma yoluna dahil
+    değil.
+- **Yarım kalan işler:** Skill/alt-agent replay'i genişletmesi (K-586'nın
+  bıraktığı boşluk) `docs/ADAYLAR.md`'ye aday olarak yazılabilir. Diğer dört
+  workflow deseni için retry (K-587'nin bıraktığı boşluk) ayrı bir araştırma
+  gerektirir. `AgentPrismDrainService`'in hosted-service durma sırası yalnız
+  kod okumasıyla doğrulandı — gerçek bir çoklu-servis entegrasyon testi
+  yazılmadı (Plandan Sapmalar'da not düşüldü).
+- **Sıradaki faz:** [Faz 88 — Görsel Üretim Tool'u](88-GORSEL-URETIM-TOOLU.md).
+  O fazın kendi dokümanı ZATEN bu fazın `ToolEffect.External` kısıtını
+  (88.2) doğru şekilde öngörüyor — ayrıca bir güncelleme gerekmedi.

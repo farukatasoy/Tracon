@@ -84,7 +84,7 @@ SQLite'a ozgu tum notlar (indeks ad alani, upsert, `ExecuteScalarAsync` CLR
 tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 [`sqlite.md`](sqlite.md) (Faz 36, bütçe asimini gidermek icin ayrildi).
 
-- **🚨 `runs` gibi ordinal okunan tabloya sutun eklerken sira UC dialektte de SONA eklenir** (Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur, uc `runColumns` metni birebir ayni sirayi tasir. Son ordinal **51**. Ayni kural `SelectRunStatistics`'in **sekiz** sonuc kumesi icin de gecerlidir. Kirilim: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 `runs` gibi ordinal okunan tabloya sutun eklerken sira UC dialektte de SONA eklenir** (Faz 68): `SqlRunStore.ReadRun` sabit konumdan okur, uc `runColumns` metni birebir ayni sirayi tasir. Son ordinal **52** (Faz 87). Ayni kural `SelectRunStatistics`'in **sekiz** sonuc kumesi icin de gecerlidir. Kirilim: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Etiket haritası (`runs.labels`) için `jsonb` seçimi ve üç dialektin süzgeç biçimi**: [`postgresql.md`](postgresql.md) (Faz 68, K-479). SQL Server/SQLite'ta harita JSON METNİDİR ve indeks YOKTUR.
 - **🚨 UPSERT'te bir alani duz uzerine yazmak ONU DOGRU BILEN yazimi silebilir** (Faz 68, K-486): kuyruklu `run` `StartRunAsync`'i IKI kez cagirir (HTTP'de kullanici bilinir, iscide `null`); `user_id = EXCLUDED.user_id` atfi SILERDI, `COALESCE(EXCLUDED.user_id, user_id)` korur. Bir alan "set → unset" yonunde MESRU degismiyorsa `COALESCE` her zaman dogrudur. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 

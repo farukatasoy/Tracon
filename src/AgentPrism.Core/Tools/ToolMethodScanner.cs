@@ -60,7 +60,8 @@ internal static class ToolMethodScanner
                 attribute.RequiresApproval,
                 effect: attribute.Effect,
                 requiredPermission: attribute.RequiredPermission,
-                timeout: attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null));
+                timeout: attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null,
+                safeToRepeat: attribute.SafeToRepeat));
         }
 
         if (registrations.Count == 0)

@@ -179,4 +179,12 @@ public enum RunEventType
     /// content itself.
     /// </summary>
     DocumentAttached = 24,
+
+    /// <summary>
+    /// Automatic continuation of this interrupted run was refused. <c>Text</c>
+    /// carries the reason (a tool whose effect cannot be safely repeated).
+    /// Written on a run already closed <see cref="RunStatus.Failed"/> by
+    /// orphaned-run reconciliation; the row itself does not change again.
+    /// </summary>
+    RunContinuationBlocked = 25,
 }
