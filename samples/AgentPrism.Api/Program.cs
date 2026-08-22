@@ -225,6 +225,9 @@ if (openAiEnabled)
     // and "openai-responses" (Responses API). An agent definition chooses
     // between them through ModelBinding.Provider.
     agentPrism.UseOpenAI(openAi);
+    // Image generation is separately enabled by AgentPrism:Images. Registering
+    // this keyed adapter alone does not expose generate_image or map its endpoint.
+    agentPrism.UseOpenAIImages();
 
     // Knowledge base / semantic search. AgentPrism does NOT choose an
     // embedding model (the pattern behind K-032: model names change faster
@@ -272,6 +275,7 @@ var googleEnabled = !string.IsNullOrWhiteSpace(google["ApiKey"]);
 if (googleEnabled)
 {
     agentPrism.UseGoogle(google);
+    agentPrism.UseGoogleImages();
 }
 
 // Azure OpenAI — the default path in the enterprise .NET world. Opening the
@@ -293,6 +297,7 @@ var azureOpenAIEnabled = !string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"])
 if (azureOpenAIEnabled)
 {
     agentPrism.UseAzureOpenAI(azureOpenAI);
+    agentPrism.UseAzureOpenAIImages();
 }
 
 // Voice tools. Without a key, no tool is registered and the /api/voice/*

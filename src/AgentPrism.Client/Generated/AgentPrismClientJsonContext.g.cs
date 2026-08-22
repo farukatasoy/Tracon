@@ -55,6 +55,8 @@ namespace AgentPrism.Client.Generated;
 [JsonSerializable(typeof(ExperimentCanaryResponse))]
 [JsonSerializable(typeof(ExperimentResultsResponse))]
 [JsonSerializable(typeof(ExperimentSaveRequest))]
+[JsonSerializable(typeof(ImageGenerationOperatorRequest))]
+[JsonSerializable(typeof(ImageGenerationOperatorResponse))]
 [JsonSerializable(typeof(InboundTriggerAcceptedResponse))]
 [JsonSerializable(typeof(InboundTriggerResponse))]
 [JsonSerializable(typeof(InboundTriggerSaveRequest))]

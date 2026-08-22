@@ -1,5 +1,6 @@
 #nullable enable
 AgentPrism.OpenAIApiSurface
+AgentPrism.OpenAIImageBuilderExtensions
 AgentPrism.OpenAIApiSurface.ChatCompletions = 0 -> AgentPrism.OpenAIApiSurface
 AgentPrism.OpenAIApiSurface.Responses = 1 -> AgentPrism.OpenAIApiSurface
 AgentPrism.OpenAIChatClientFactory
@@ -40,6 +41,7 @@ const AgentPrism.OpenAIProviderNames.ChatCompletions = "openai" -> string!
 const AgentPrism.OpenAIProviderNames.Responses = "openai-responses" -> string!
 const AgentPrism.OpenAIProviderOptions.SectionName = "AgentPrism:Providers:OpenAI" -> string!
 static AgentPrism.OpenAIChatClientFactory.FromClient(OpenAI.OpenAIClient! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> AgentPrism.OpenAIChatClientFactory!
+static AgentPrism.OpenAIImageBuilderExtensions.UseOpenAIImages(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismImageOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this AgentPrism.IAgentPrismBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Action<AgentPrism.OpenAIProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.OpenAIModelCatalog.Build(AgentPrism.OpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!

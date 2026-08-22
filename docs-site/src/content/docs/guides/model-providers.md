@@ -63,6 +63,37 @@ Each options type validates at startup. Missing required configuration stops the
 before the first run. A named compatible endpoint can be keyless, and Azure can use a
 credential factory instead of an API key.
 
+## Image generation providers
+
+OpenAI, Azure OpenAI, and Google can also register an `IImageGenerator`. These are
+separate from chat-model registrations because an image model or Azure deployment is
+not safely inferred from an agent's chat model.
+
+```csharp title="Program.cs"
+agentPrism
+    .UseOpenAIImages(options =>
+    {
+        options.Enabled = true;
+        options.Model = "gpt-image-1";
+    });
+
+// Azure uses an image deployment name.
+// agentPrism.UseAzureOpenAIImages(options => options.Model = "image-deployment");
+
+// Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
+// agentPrism.UseGoogleImages(options => options.Model = "your-imagen-model");
+```
+
+Each extension shares the authenticated client factory already created by `UseOpenAI`,
+`UseAzureOpenAI`, or `UseGoogle`; it adds no second credential path or package. The
+extensions register generators by provider name. When more than one is registered,
+set `AgentPrism:Images:Provider` to `openai`, `azure-openai`, or `google` to select
+the generator and matching price table. An unkeyed `IImageGenerator` that your
+application registers remains the fallback for a custom provider.
+
+`UseOpenAICompatible()` does not imply image support. Register a supported image
+extension only after you verify that its provider API supports the selected model.
+
 Then bind an agent to one stable provider name:
 
 ```csharp

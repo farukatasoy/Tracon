@@ -199,7 +199,7 @@ recording is best-effort during a storage outage.
 ### Pricing
 
 Pricing has no built-in values. `Currency`, provider/model token prices, and voice
-prices all start empty. The supported shape is:
+and image prices all start empty. The supported shape is:
 
 ```text
 AgentPrism:Pricing:Currency
@@ -208,6 +208,9 @@ AgentPrism:Pricing:{provider}:{model}:Output
 AgentPrism:Pricing:{provider}:{model}:CachedInput
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMinute
+AgentPrism:Pricing:Images:{provider}:{model}:PerImage
+AgentPrism:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
+AgentPrism:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
 ```
 
 Values label and calculate reports only. AgentPrism performs no currency conversion.
@@ -240,6 +243,45 @@ fault. Set it to `0` to state that cache reads are free.
 Reasoning tokens are recorded (`reasoningTokens`) but priced at the output rate:
 providers do not bill them separately today, and an unmeasured distinction is not
 worth widening the price schema.
+
+An image model uses either `PerImage` or `OutputCostPerMillionTokens`, never both.
+`SizeMultipliers` applies only to a per-image price and uses the exact provider size
+string, for example `1024x1024`. An image response with no matching configured price
+records its real quantity but leaves `cost` as `null`; AgentPrism does not estimate
+image prices.
+
+### Images
+
+`AgentPrism:Images` is off by default. When `Enabled` is `true`, `Provider` and
+`Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
+the `generate_image` tool and maps `POST /api/images/generate`.
+
+```json
+{
+  "AgentPrism": {
+    "Images": {
+      "Enabled": true,
+      "Provider": "openai",
+      "Model": "gpt-image-1",
+      "MaxImagesPerRequest": 1
+    },
+    "Pricing": {
+      "Currency": "USD",
+      "Images": {
+        "openai": {
+          "gpt-image-1": {
+            "PerImage": 0.04,
+            "SizeMultipliers": { "1024x1024": 2.0 }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Provider extensions set `Provider` when it is empty. Set it explicitly when the host
+registers more than one image provider or a custom keyed generator.
 
 ## Operational sections
 

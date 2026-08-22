@@ -91,6 +91,22 @@ public sealed class OpenAIChatClientFactory
         return CreateInnerChatClient(model, apiSurface);
     }
 
+    /// <summary>Creates an image generator that shares this factory's OpenAI client.</summary>
+    /// <param name="model">The image model.</param>
+    /// <returns>The native Microsoft.Extensions.AI image generator.</returns>
+    /// <remarks>
+    /// The image surface is marked experimental by MEAI 10.9.0. It remains in
+    /// this one factory method so a future MEAI change does not spread through
+    /// the provider package.
+    /// </remarks>
+#pragma warning disable MEAI001
+    internal IImageGenerator CreateImageGenerator(string model)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        return _client.GetImageClient(model).AsIImageGenerator();
+    }
+#pragma warning restore MEAI001
+
     /// <summary>Builds an OpenAI client from options.</summary>
     /// <param name="options">Provider options.</param>
     /// <param name="egressGuard">

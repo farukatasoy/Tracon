@@ -3035,6 +3035,26 @@ AgentPrism.ToolUsageQuery.TenantId.get -> string?
 AgentPrism.ToolUsageQuery.TenantId.init -> void
 AgentPrism.ToolUsageQuery.ToolUsageQuery() -> void
 AgentPrism.ToolUsageUnits
+AgentPrism.ImageGenerationOperatorRequest
+AgentPrism.ImageGenerationOperatorRequest.<Clone>$() -> AgentPrism.ImageGenerationOperatorRequest!
+AgentPrism.ImageGenerationOperatorRequest.Count.get -> int?
+AgentPrism.ImageGenerationOperatorRequest.Count.init -> void
+AgentPrism.ImageGenerationOperatorRequest.Equals(AgentPrism.ImageGenerationOperatorRequest? other) -> bool
+AgentPrism.ImageGenerationOperatorRequest.ImageGenerationOperatorRequest() -> void
+AgentPrism.ImageGenerationOperatorRequest.Prompt.get -> string?
+AgentPrism.ImageGenerationOperatorRequest.Prompt.init -> void
+AgentPrism.ImageGenerationOperatorRequest.SessionId.get -> string?
+AgentPrism.ImageGenerationOperatorRequest.SessionId.init -> void
+AgentPrism.ImageGenerationOperatorRequest.Size.get -> string?
+AgentPrism.ImageGenerationOperatorRequest.Size.init -> void
+AgentPrism.ImageGenerationOperatorResponse
+AgentPrism.ImageGenerationOperatorResponse.<Clone>$() -> AgentPrism.ImageGenerationOperatorResponse!
+AgentPrism.ImageGenerationOperatorResponse.Attachments.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AttachmentDescriptor!>!
+AgentPrism.ImageGenerationOperatorResponse.Attachments.init -> void
+AgentPrism.ImageGenerationOperatorResponse.Equals(AgentPrism.ImageGenerationOperatorResponse? other) -> bool
+AgentPrism.ImageGenerationOperatorResponse.ImageGenerationOperatorResponse() -> void
+AgentPrism.ImageGenerationOperatorResponse.Usage.get -> AgentPrism.ToolCallUsage!
+AgentPrism.ImageGenerationOperatorResponse.Usage.init -> void
 AgentPrism.TraceSpan
 AgentPrism.TraceSpan.<Clone>$() -> AgentPrism.TraceSpan!
 AgentPrism.TraceSpan.Attributes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
@@ -3638,7 +3658,9 @@ const AgentPrism.ToolArgumentConditionLimits.MaxListLength = 50 -> int
 const AgentPrism.ToolArgumentConditionLimits.MaxPathLength = 200 -> int
 const AgentPrism.ToolArgumentConditionLimits.MaxPathSegments = 10 -> int
 const AgentPrism.ToolUsageUnits.Characters = "characters" -> string!
+const AgentPrism.ToolUsageUnits.Images = "images" -> string!
 const AgentPrism.ToolUsageUnits.Seconds = "seconds" -> string!
+const AgentPrism.ToolUsageUnits.Tokens = "tokens" -> string!
 const AgentPrism.WebhookEvents.ApprovalPending = "approval.pending" -> string!
 const AgentPrism.WebhookEvents.EvalCompleted = "eval.completed" -> string!
 const AgentPrism.WebhookEvents.JobCompleted = "job.completed" -> string!
@@ -4723,3 +4745,13 @@ AgentPrism.RunEventType.DocumentAttached = 24 -> AgentPrism.RunEventType
 AgentPrism.RunEventType.RunContinuationBlocked = 25 -> AgentPrism.RunEventType
 AgentPrism.IAgentPrismDrainState
 AgentPrism.IAgentPrismDrainState.IsDraining.get -> bool
+override AgentPrism.ImageGenerationOperatorRequest.Equals(object? obj) -> bool
+override AgentPrism.ImageGenerationOperatorRequest.GetHashCode() -> int
+override AgentPrism.ImageGenerationOperatorRequest.ToString() -> string!
+override AgentPrism.ImageGenerationOperatorResponse.Equals(object? obj) -> bool
+override AgentPrism.ImageGenerationOperatorResponse.GetHashCode() -> int
+override AgentPrism.ImageGenerationOperatorResponse.ToString() -> string!
+static AgentPrism.ImageGenerationOperatorRequest.operator !=(AgentPrism.ImageGenerationOperatorRequest? left, AgentPrism.ImageGenerationOperatorRequest? right) -> bool
+static AgentPrism.ImageGenerationOperatorRequest.operator ==(AgentPrism.ImageGenerationOperatorRequest? left, AgentPrism.ImageGenerationOperatorRequest? right) -> bool
+static AgentPrism.ImageGenerationOperatorResponse.operator !=(AgentPrism.ImageGenerationOperatorResponse? left, AgentPrism.ImageGenerationOperatorResponse? right) -> bool
+static AgentPrism.ImageGenerationOperatorResponse.operator ==(AgentPrism.ImageGenerationOperatorResponse? left, AgentPrism.ImageGenerationOperatorResponse? right) -> bool

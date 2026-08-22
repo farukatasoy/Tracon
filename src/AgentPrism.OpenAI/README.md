@@ -2,6 +2,23 @@
 
 The OpenAI provider adapter for AgentPrism.
 
+## Image generation
+
+After `UseOpenAI(...)`, call `UseOpenAIImages(...)` to register the shared OpenAI
+image client. The `generate_image` tool remains off until image options enable it and
+set an image model.
+
+```csharp
+agentPrism.UseOpenAIImages(options =>
+{
+    options.Enabled = true;
+    options.Model = "gpt-image-1";
+});
+```
+
+The generator key is `openai`. Configure `AgentPrism:Pricing:Images:openai` when
+cost reporting is required; AgentPrism never supplies an image price.
+
 ```csharp
 builder.AddAgentPrism()
        .UseOpenAI(apiKey);

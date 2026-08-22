@@ -73,6 +73,28 @@ exist and that the call graph has no cycles. The same check runs on the save pat
 a definition that could not run is rejected at write time rather than at the first
 run.
 
+## Optional image generation
+
+An image provider package can register the code-defined `generate_image` tool. The
+feature is disabled until `AgentPrismImageOptions.Enabled` is true and the selected
+provider and image model are set. The tool returns attachment ids, not image bytes,
+and records image or token usage in the normal tool invocation row.
+
+```csharp
+builder.AddAgentPrism()
+       .UseOpenAI(apiKey)
+       .UseOpenAIImages(options =>
+       {
+           options.Enabled = true;
+           options.Model = "gpt-image-1";
+       });
+```
+
+`UseOpenAIImages`, `UseAzureOpenAIImages`, and `UseGoogleImages` use keyed
+generators. Select one with `AgentPrismImageOptions.Provider`; an unkeyed consumer
+`IImageGenerator` remains the fallback for a custom provider. Configure image pricing
+under `AgentPrism:Pricing:Images`; a missing price always records a `null` cost.
+
 ## In-memory by default, durable when configured
 
 | Registered | Runs survive a restart | Good for |

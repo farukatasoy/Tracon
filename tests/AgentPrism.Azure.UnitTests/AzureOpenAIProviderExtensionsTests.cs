@@ -1,4 +1,5 @@
 using AgentPrism.Azure.UnitTests.Infrastructure;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,23 @@ namespace AgentPrism.Azure.UnitTests;
 /// </summary>
 public sealed class AzureOpenAIProviderExtensionsTests
 {
+#pragma warning disable MEAI001
+    [Fact]
+    public void UseAzureOpenAIImages_shares_the_authenticated_factory_and_uses_the_deployment()
+    {
+        var services = new ServiceCollection();
+        services.AddAgentPrism()
+            .UseAzureOpenAI(TestData.Endpoint, TestData.ApiKey)
+            .UseAzureOpenAIImages(options => options.Model = "image-deployment");
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IImageGenerator>(AzureOpenAIProviderNames.AzureOpenAI).ShouldNotBeNull();
+        provider.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value.Provider
+            .ShouldBe(AzureOpenAIProviderNames.AzureOpenAI);
+    }
+#pragma warning restore MEAI001
+
     [Fact]
     public void Single_provider_is_registered()
     {

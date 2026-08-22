@@ -196,6 +196,11 @@ public static class AgentPrismServiceCollectionExtensions
         services.AddOptions<AgentPrismRunContinuationOptions>().ValidateOnStart();
         services.AddOptions<AgentPrismDrainOptions>().ValidateOnStart();
 
+        // Image generation (Phase 88). The option exists even when no provider
+        // package is installed; its default is disabled, so this registration has
+        // no runtime effect until both the option and an IImageGenerator are present.
+        services.AddOptions<AgentPrismImageOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -232,6 +237,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindRunContinuation(configurationSection.GetSection("RunContinuation"), options));
             services.Configure<AgentPrismDrainOptions>(
                 options => BindDrain(configurationSection.GetSection("Drain"), options));
+            services.Configure<AgentPrismImageOptions>(
+                options => BindImages(configurationSection.GetSection("Images"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -269,6 +276,8 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismRunContinuationOptions>, AgentPrismRunContinuationOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismDrainOptions>, AgentPrismDrainOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismImageOptions>, AgentPrismImageOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -290,7 +299,10 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IToolAuthorizationHandler, AllowAllToolAuthorizationHandler>();
 
         // Registries.
-        services.TryAddSingleton<IToolRegistry, ToolRegistry>();
+        // The image tool is conditional: registering its provider package alone
+        // must not expose a paid tool. ToolRegistry.Create reads the final option
+        // and IImageGenerator registrations only when the registry is first built.
+        services.TryAddSingleton<IToolRegistry>(ToolRegistry.Create);
 
         // The circuit breaker is registered BEFORE IModelProviderRegistry:
         // ModelProviderRegistry resolves it in its constructor and wraps every
@@ -576,6 +588,13 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<AttachmentTypeGuard>();
         services.TryAddSingleton<IAttachmentStore>(
             static provider => new InMemoryAttachmentStore(provider.GetService<IAttachmentStorage>()));
+
+        // Image generation uses the same attachment store as uploads and voice.
+        // The writer is registered unconditionally, but it is reached only when
+        // the conditional generate_image tool or its optional HTTP endpoint exists.
+        services.TryAddSingleton<ImagePricing>();
+        services.TryAddSingleton<ImageAttachmentWriter>();
+        services.TryAddSingleton<ImageGeneratorResolver>();
 
         // Workflow definitions and checkpoints. The stores are ALWAYS
         // registered; the execution engine, however, is DISABLED until
@@ -1133,8 +1152,9 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Binds the <c>AgentPrism:Pricing</c> section. The <c>Currency</c> and
-    /// <c>Voice</c> keys are reserved; every other child is read as a provider name.
+    /// Binds the <c>AgentPrism:Pricing</c> section. The <c>Currency</c>,
+    /// <c>Voice</c>, and <c>Images</c> keys are reserved; every other child is
+    /// read as a provider name.
     /// </summary>
     private static void BindPricing(IConfigurationSection section, AgentPrismPricingOptions options)
     {
@@ -1149,6 +1169,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
 
         BindVoicePricing(section.GetSection(nameof(AgentPrismPricingOptions.Voice)), options);
+        BindImagePricing(section.GetSection(nameof(AgentPrismPricingOptions.Images)), options);
 
         foreach (var providerSection in section.GetChildren())
         {
@@ -1161,6 +1182,10 @@ public static class AgentPrismServiceCollectionExtensions
                 string.Equals(
                     providerSection.Key,
                     nameof(AgentPrismPricingOptions.Voice),
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    providerSection.Key,
+                    nameof(AgentPrismPricingOptions.Images),
                     StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -1241,6 +1266,86 @@ public static class AgentPrismServiceCollectionExtensions
             {
                 options.Voice[providerSection.Key] = models;
             }
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:Pricing:Images</c> section.</summary>
+    private static void BindImagePricing(IConfigurationSection section, AgentPrismPricingOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        foreach (var providerSection in section.GetChildren())
+        {
+            var models = new Dictionary<string, ImagePriceOverride>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var modelSection in providerSection.GetChildren())
+            {
+                var price = new ImagePriceOverride
+                {
+                    PerImage = ReadDecimal(modelSection, nameof(ImagePriceOverride.PerImage)),
+                    OutputCostPerMillionTokens = ReadDecimal(
+                        modelSection,
+                        nameof(ImagePriceOverride.OutputCostPerMillionTokens)),
+                };
+
+                foreach (var multiplierSection in modelSection
+                    .GetSection(nameof(ImagePriceOverride.SizeMultipliers))
+                    .GetChildren())
+                {
+                    price.SizeMultipliers[multiplierSection.Key] = decimal.TryParse(
+                        multiplierSection.Value,
+                        NumberStyles.Number,
+                        CultureInfo.InvariantCulture,
+                        out var multiplier)
+                        ? multiplier
+                        : -1m;
+                }
+
+                // Keep an empty record. The validator must detect a misspelled
+                // price key instead of silently making image generation unpriced.
+                models[modelSection.Key] = price;
+            }
+
+            if (models.Count > 0)
+            {
+                options.Images[providerSection.Key] = models;
+            }
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:Images</c> section without reflection.</summary>
+    private static void BindImages(IConfigurationSection section, AgentPrismImageOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismImageOptions.Enabled)], out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (section[nameof(AgentPrismImageOptions.Provider)] is { Length: > 0 } provider)
+        {
+            options.Provider = provider;
+        }
+
+        if (section[nameof(AgentPrismImageOptions.Model)] is { Length: > 0 } model)
+        {
+            options.Model = model;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismImageOptions.MaxImagesPerRequest)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxImages))
+        {
+            options.MaxImagesPerRequest = maxImages;
         }
     }
 

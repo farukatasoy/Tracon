@@ -1,5 +1,7 @@
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -43,6 +45,7 @@ public sealed class OpenApiSnapshotTests
                            "--filter FullyQualifiedName~OpenApiSnapshotTests");
     }
 
+#pragma warning disable MEAI001
     private static async Task<string> GenerateAsync()
     {
         // Section 84.3: the document is generated with every optional endpoint turned
@@ -52,7 +55,17 @@ public sealed class OpenApiSnapshotTests
         // is built from this one file.
         await using var host = await AgentPrismTestHost.StartAsync(
             withOpenApi: true,
-            configureEndpoints: options => options.EnableDiagnosticsEndpoint = true);
+            configureEndpoints: options => options.EnableDiagnosticsEndpoint = true,
+            configureServices: static services =>
+            {
+                services.Configure<AgentPrismImageOptions>(options =>
+                {
+                    options.Enabled = true;
+                    options.Provider = "openapi";
+                    options.Model = "image-1";
+                });
+                services.AddSingleton<IImageGenerator, OpenApiImageGenerator>();
+            });
 
         using var response = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
 
@@ -80,4 +93,20 @@ public sealed class OpenApiSnapshotTests
         return dir?.FullName
             ?? throw new InvalidOperationException("AgentPrism.slnx not found.");
     }
+
+    private sealed class OpenApiImageGenerator : IImageGenerator
+    {
+        public Task<ImageGenerationResponse> GenerateAsync(
+            ImageGenerationRequest request,
+            ImageGenerationOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new ImageGenerationResponse());
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+        }
+    }
+#pragma warning restore MEAI001
 }

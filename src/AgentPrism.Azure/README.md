@@ -2,6 +2,23 @@
 
 Azure OpenAI provider adapter for AgentPrism.
 
+## Image generation
+
+After `UseAzureOpenAI(...)`, call `UseAzureOpenAIImages(...)` to use the same
+authenticated Azure client for image generation. `Model` is the Azure image deployment
+name, not a public model name.
+
+```csharp
+agentPrism.UseAzureOpenAIImages(options =>
+{
+    options.Enabled = true;
+    options.Model = "image-deployment";
+});
+```
+
+The generator key is `azure-openai`. Configure prices under
+`AgentPrism:Pricing:Images:azure-openai` when cost reporting is required.
+
 ```csharp
 builder.AddAgentPrism()
        .UseAzureOpenAI(new Uri("https://my-resource.openai.azure.com/"), apiKey, o =>

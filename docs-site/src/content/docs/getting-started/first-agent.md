@@ -92,6 +92,11 @@ app.MapAgentPrism("/agentprism");
 app.Run();
 ```
 
+This first agent uses a chat model only. To let a later agent generate stored image
+attachments, add `UseOpenAIImages(...)`, set `AgentPrism:Images:Enabled`, and choose
+an image model explicitly. An image model is not inferred from this agent's chat
+model; see [image generation providers](/guides/model-providers/#image-generation-providers).
+
 ```bash
 dotnet run
 ```

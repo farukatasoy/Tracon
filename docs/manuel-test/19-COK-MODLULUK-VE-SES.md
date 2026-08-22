@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88
 > **Kaynak:** `src/AgentPrism.Abstractions/Attachments/` (tümü) ·
 > `src/AgentPrism.Core/Attachments/` (tümü) ·
 > `src/AgentPrism.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -13,6 +13,9 @@
 > `src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs` ·
 > `src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs`
 > (yalnız `MapVoiceConversation` — `UseWebSockets()` koşullu kurulumu) ·
+> `src/AgentPrism.Core/Images/` (tümü) ·
+> `src/AgentPrism.AspNetCore/Endpoints/ImageEndpoints.cs` ·
+> `src/AgentPrism.{OpenAI,Azure,Google}/*Image*` ·
 > Migration'lar: `attachments`/`agent_files` (`0006`), `tool_invocations` beş
 > ölçüm sütunu (`0015`), `voice_sessions` (`0016`).
 >
@@ -2056,3 +2059,107 @@ Negatif/maliyet senaryosu. MT-MM-091 ve MT-MM-092'nin karşılaştırması.
   `VoicePricingTests` zaten karakter tabanlı hesaba dokunulmadığını
   birim seviyesinde kanıtlıyor; bu case aynı iddiayı gerçek sağlayıcıya
   karşı doğrular.
+
+---
+
+# 15 — Görsel Üretim Tool'u (Faz 88)
+
+> **Ek ön koşul:** Bir görsel sağlayıcı anahtarı ve modeli tanımlıdır. OpenAI
+> örneği için `AgentPrism:Images:Enabled=true`, `:Provider=openai`,
+> `:Model=<etkin görsel model>` ayarlanır. Bu bölümdeki canlı çağrılar gerçek
+> sağlayıcı kredisi harcar. Fiyat case'leri için `Pricing:Images` altında açık
+> bir tüketici fiyatı girilir; AgentPrism yerleşik fiyat kullanmaz.
+
+### MT-MM-095 — `generate_image` yalnız ek kimliği döndürür ve ek oturuma bağlıdır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | K-032 |
+
+**Adımlar**
+1. `generate_image` tool'unu taşıyan bir agent tanımı oluştur veya seç.
+2. Agent'a kısa bir görsel istemi gönder: `Gün doğumunda turkuaz bir deniz feneri çiz.`
+3. Koşu bitince tool sonucunu ve session eklerini oku:
+```bash
+curl -s -H "$APB" "$APU/api/runs/$RUN_ID/tools" \
+  | jq '.[] | select(.toolName=="generate_image") | {result,usage}'
+curl -s -H "$APB" "$APU/api/attachments?sessionId=$SESSION_ID" | jq .
+```
+
+**Beklenen sonuç**
+- Tool sonucu `attachmentIds=` ile bir veya daha çok GUID taşır; `iVBOR`, uzun
+  base64 veya ham görsel baytı taşımaz.
+- Her ek `image/*` medya türündedir, aynı `SessionId` ve koşunun `RunId` değeriyle
+  kayıtlıdır; indirilen bayt açılabilir bir görseldir.
+- `usage.unit` `images` veya sağlayıcının bildirdiği `tokens` değeridir.
+
+### MT-MM-096 — Kapalı ayar tool'u ve operator ucunu açmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `AgentPrism:Images:Enabled=false` ile uygulama yeniden başlatılmış.
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
+  -H "$APB" -H 'content-type: application/json' -d '{"prompt":"bir kedi"}'
+```
+
+**Beklenen sonuç**
+- `404` döner; uç bağlı değildir.
+- `generate_image` isteyen yeni agent tanımı doğrulamada reddedilir; tool
+  kaydı kapalıyken bir ücretli yetenek sessizce açılamaz.
+
+### MT-MM-097 — URI görsel çıktısı giden ağ muhafızını atlayamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `UriContent` dönen bir görsel sağlayıcı veya test adapter'ı yapılandırılmış;
+  dönen adres loopback/private ağa çözülür.
+
+**Adımlar**
+1. Agent üzerinden `generate_image` çağrısını başlat.
+2. Koşu ve ek kayıtlarını incele.
+
+**Beklenen sonuç**
+- İndirme giden ağ muhafızında reddedilir; private/loopback adrese bağlantı
+  kurulmaz.
+- Koşu tipli tool hatası taşır ve başarısız çağrı için indirilebilir/belirsiz bir
+  ek oluşturulmaz.
+
+### MT-MM-098 — Google adapter'ı boyut tahmin etmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+- Google görsel adapter'ı etkin ve geçerli bir görsel modeli yapılandırılmış.
+
+**Adımlar**
+1. `generate_image` tool'una `size: "1024x1024"` ile istek gönder.
+2. Aynı istemi `size` olmadan gönder.
+
+**Beklenen sonuç**
+- İlk çağrı açık bir hata döndürür; adapter `WIDTHxHEIGHT` değerini Google'ın
+  aspect-ratio/size-tier sözleşmesine tahmin ederek dönüştürmez.
+- İkinci çağrı sağlayıcının varsayılan boyutuyla çalışır; fiyat kaydı yoksa
+  maliyet `null` kalır.
