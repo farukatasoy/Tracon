@@ -468,6 +468,7 @@ export const tr: Messages = {
   'runDetail.forSession': 'oturum',
   'runDetail.forUser': 'çalıştıran',
   'runDetail.calledBy': 'çağıran',
+  'runDetail.continuationOf': 'devam ettiği koşu',
   'runDetail.inputTokens': 'Girdi token',
   'runDetail.outputTokens': 'Çıktı token',
   'runDetail.awaiting.title': 'Bir kişiyi bekliyor',

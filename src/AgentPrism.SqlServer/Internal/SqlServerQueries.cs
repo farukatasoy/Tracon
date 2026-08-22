@@ -392,6 +392,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    experiment_id = @experiment_id,
                    variant       = @variant,
                    replay_of_run_id = @replay_of_run_id,
+                   continued_from_run_id = @continued_from_run_id,
                    -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
                    -- 46): a queued run's placeholder row is written during the HTTP
                    -- request, where the user IS known, and rewritten later by the
@@ -407,10 +408,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels)
+                                       replay_of_run_id, user_id, labels, continued_from_run_id)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels);
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id);
             """;
 
         UpdateRunCompletion = $"""
@@ -476,7 +477,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    inserted.kind, inserted.workflow_name, inserted.agent_version, inserted.experiment_id,
                    inserted.variant, inserted.replay_of_run_id, inserted.parent_run_id, inserted.root_run_id,
                    inserted.depth, inserted.event_count, inserted.error_type, inserted.error_message,
-                   inserted.error_class, inserted.error_fingerprint
+                   inserted.error_class, inserted.error_fingerprint, inserted.continued_from_run_id
               FROM {Schema}.runs AS r
              WHERE r.id IN (
                        SELECT TOP (@max) id FROM {Schema}.runs
@@ -564,7 +565,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             r.cached_input_tokens, r.reasoning_tokens, r.audio_input_tokens, r.audio_output_tokens,
             r.cached_input_cost,
             tree.cached_input_tokens, tree.reasoning_tokens, tree.audio_input_tokens, tree.audio_output_tokens,
-            tree.cost_cached_input
+            tree.cost_cached_input,
+            r.continued_from_run_id
             """;
 
         SelectRun = $"""

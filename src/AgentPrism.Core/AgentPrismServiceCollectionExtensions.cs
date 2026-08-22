@@ -189,6 +189,13 @@ public static class AgentPrismServiceCollectionExtensions
         // unchanged until AddContentProtection(...) replaces it.
         services.AddOptions<AgentPrismContentProtectionOptions>().ValidateOnStart();
 
+        // Interrupted-run continuation and graceful-shutdown drain (Phase
+        // 87). Same rationale: carry their own section, require no separate
+        // Use...() call. Both default Enabled=false (K1) - see the
+        // RunReconciliation comment above; this is the same pattern.
+        services.AddOptions<AgentPrismRunContinuationOptions>().ValidateOnStart();
+        services.AddOptions<AgentPrismDrainOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -221,6 +228,10 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindMcpSecurity(configurationSection.GetSection("Mcp"), options));
             services.Configure<AgentPrismContentProtectionOptions>(
                 options => BindContentProtection(configurationSection.GetSection("ContentProtection"), options));
+            services.Configure<AgentPrismRunContinuationOptions>(
+                options => BindRunContinuation(configurationSection.GetSection("RunContinuation"), options));
+            services.Configure<AgentPrismDrainOptions>(
+                options => BindDrain(configurationSection.GetSection("Drain"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -254,6 +265,10 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<RunReconciliationOptions>, RunReconciliationOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismContentProtectionOptions>, AgentPrismContentProtectionOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismRunContinuationOptions>, AgentPrismRunContinuationOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismDrainOptions>, AgentPrismDrainOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -617,6 +632,12 @@ public static class AgentPrismServiceCollectionExtensions
         // runs with a NEW RunId, does not touch the old one (K-014).
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, ApprovalResumeJobHandler>());
 
+        // Interrupted-run continuation (Phase 87). Triggered only by
+        // RunReconciliationService, never by a client request; SEPARATE from
+        // both AgentRunJobHandler and ApprovalResumeJobHandler for the same
+        // "new RunId, old row never changes" reason.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, RunContinuationJobHandler>());
+
         // An explicit factory is used: the built-in DI container does not fill
         // in constructor parameters that carry a default value, and
         // IWorkflowRunner is not registered in most setups (unless
@@ -912,6 +933,20 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
 
         services.TryAddSingleton<IAgentCatalog, CompositeAgentCatalog>();
+
+        // Graceful-shutdown drain (Phase 87). Registered LAST among
+        // IHostedService implementations: the generic host stops hosted
+        // services in the REVERSE of their registration order, so this one's
+        // StopAsync runs FIRST during shutdown -- before JobWorkerBackgroundService
+        // and RunReconciliationService stop, while runs they started are
+        // still in flight. Always registered (K-018); while
+        // AgentPrismDrainOptions.Enabled is off (the default) IsDraining
+        // never becomes true and StopAsync returns immediately (K1).
+        services.TryAddSingleton<AgentPrismDrainService>();
+        services.TryAddSingleton<IAgentPrismDrainState>(
+            static provider => provider.GetRequiredService<AgentPrismDrainService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentPrismDrainService>(
+            static provider => provider.GetRequiredService<AgentPrismDrainService>()));
 
         return new AgentPrismBuilder(services);
     }
@@ -1777,6 +1812,51 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxRunsPerScan))
         {
             options.MaxRunsPerScan = maxRunsPerScan;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:RunContinuation</c> section.</summary>
+    private static void BindRunContinuation(IConfigurationSection section, AgentPrismRunContinuationOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismRunContinuationOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismRunContinuationOptions.MaxAttempts)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxAttempts))
+        {
+            options.MaxAttempts = maxAttempts;
+        }
+    }
+
+    /// <summary>Binds the <c>AgentPrism:Drain</c> section.</summary>
+    private static void BindDrain(IConfigurationSection section, AgentPrismDrainOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismDrainOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismDrainOptions.Timeout)],
+                CultureInfo.InvariantCulture,
+                out var timeout))
+        {
+            options.Timeout = timeout;
         }
     }
 

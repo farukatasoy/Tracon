@@ -110,6 +110,7 @@ public sealed class ToolRegistry : IToolRegistry
                 Effect = registration.Effect,
                 RequiredPermission = registration.RequiredPermission,
                 Timeout = registration.Timeout,
+                SafeToRepeat = registration.SafeToRepeat,
             });
         }
 

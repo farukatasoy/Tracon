@@ -273,6 +273,12 @@ public sealed record RunStartInfo
     /// <see langword="null"/> for a normal run.
     /// </summary>
     public Guid? ReplayOfRunId { get; init; }
+
+    /// <summary>
+    /// Gets the id of the run this one continues after an interruption, or
+    /// <see langword="null"/> for a run that is not a continuation.
+    /// </summary>
+    public Guid? ContinuedFromRunId { get; init; }
 }
 
 /// <summary>Everything needed to close a run.</summary>

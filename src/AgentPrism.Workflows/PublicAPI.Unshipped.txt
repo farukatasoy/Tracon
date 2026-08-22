@@ -17,7 +17,15 @@ AgentPrism.AgentPrismWorkflowFunctionExtensions
 AgentPrism.AgentPrismWorkflowsBuilderExtensions
 AgentPrism.WorkflowAgentBinding
 const AgentPrism.AgentPrismWorkflowOptions.SectionName = "AgentPrism:Workflows" -> string!
-static AgentPrism.AgentPrismWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput>(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput>(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, string? description = null, AgentPrism.WorkflowNodeRetryPolicy? retryPolicy = null) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.WorkflowNodeRetryPolicy
+AgentPrism.WorkflowNodeRetryPolicy.WorkflowNodeRetryPolicy() -> void
+AgentPrism.WorkflowNodeRetryPolicy.MaxAttempts.get -> int
+AgentPrism.WorkflowNodeRetryPolicy.MaxAttempts.set -> void
+AgentPrism.WorkflowNodeRetryPolicy.InitialDelay.get -> System.TimeSpan
+AgentPrism.WorkflowNodeRetryPolicy.InitialDelay.set -> void
+AgentPrism.WorkflowNodeRetryPolicy.BackoffMultiplier.get -> double
+AgentPrism.WorkflowNodeRetryPolicy.BackoffMultiplier.set -> void
 static AgentPrism.AgentPrismWorkflowsBuilderExtensions.AddWorkflow(this AgentPrism.IAgentPrismBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismWorkflowsBuilderExtensions.UseWorkflows(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismWorkflowOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!

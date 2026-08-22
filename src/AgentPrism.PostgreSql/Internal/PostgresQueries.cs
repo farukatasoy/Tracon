@@ -285,10 +285,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
-                                       replay_of_run_id, user_id, labels)
+                                       replay_of_run_id, user_id, labels, continued_from_run_id)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
-                    @replay_of_run_id, @user_id, @labels)
+                    @replay_of_run_id, @user_id, @labels, @continued_from_run_id)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_id     = EXCLUDED.tenant_id,
                 agent_name    = EXCLUDED.agent_name,
@@ -306,6 +306,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 experiment_id = EXCLUDED.experiment_id,
                 variant       = EXCLUDED.variant,
                 replay_of_run_id = EXCLUDED.replay_of_run_id,
+                continued_from_run_id = EXCLUDED.continued_from_run_id,
                 -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
                 -- 46): a queued run's placeholder row is written during the HTTP
                 -- request, where the user IS known, and rewritten later by the
@@ -393,7 +394,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
                       model_id, kind, workflow_name, agent_version, experiment_id, variant, replay_of_run_id,
                       parent_run_id, root_run_id, depth, event_count, error_type, error_message, error_class,
-                      error_fingerprint;
+                      error_fingerprint, continued_from_run_id;
             """;
 
         // RunEventWriter no longer exists in that process; the reconciler
@@ -479,7 +480,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.cached_input_tokens, r.reasoning_tokens, r.audio_input_tokens, r.audio_output_tokens,
             r.cached_input_cost,
             tree.cached_input_tokens, tree.reasoning_tokens, tree.audio_input_tokens, tree.audio_output_tokens,
-            tree.cost_cached_input
+            tree.cost_cached_input,
+            r.continued_from_run_id
             """;
 
         SelectRun = $"""

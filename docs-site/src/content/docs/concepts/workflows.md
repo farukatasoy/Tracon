@@ -99,6 +99,31 @@ super-step that follows it, and the handler runs again with the same input. A
 handler with a real side effect must tolerate being called more than once.
 :::
 
+### Retry a node on a transient error
+
+`AddWorkflowFunction` takes an optional retry policy:
+
+```csharp
+agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "call-shipping-api",
+    services => (messages, context, cancellationToken) => CallShippingApiAsync(messages, cancellationToken),
+    "Looks up a shipment.",
+    retryPolicy: new WorkflowNodeRetryPolicy
+    {
+        MaxAttempts = 3,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        BackoffMultiplier = 2.0,
+    });
+```
+
+Only a transient failure is retried — a provider error, an open circuit breaker, a
+rate limit, or a timeout. Anything else (a bad argument, a permanent downstream
+error) is thrown on the first attempt, exactly as without a policy. The retry loop
+runs entirely inside the node's own call: Microsoft Agent Framework invokes the
+node once per routed message either way, so retrying costs nothing against
+`AgentPrismWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
+attempt still counts as exactly one super-step.
+
 Workflows can also be built in code with MAF's own builder.
 
 :::caution[The registration key is what routing uses]
