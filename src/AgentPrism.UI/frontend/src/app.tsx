@@ -32,7 +32,7 @@ import { ApprovalsScreen } from './screens/approvals';
 import { SettingsScreen } from './screens/settings';
 import { AuditScreen } from './screens/audit';
 import { DiagnosticsScreen } from './screens/diagnostics';
-import type { Meta } from './lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
 
 /**
  * Route table.

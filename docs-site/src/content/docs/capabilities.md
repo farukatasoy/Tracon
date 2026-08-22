@@ -199,6 +199,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 | .NET API | `AddAgentPrism()` and `IAgentCatalog`, tuned with `IAgentPrismBuilder.Configure(...)` and extended through `IAgentPrismBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
 | Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
+| Typed TypeScript client | `@agentprism/client`'s `createAgentPrismClient()` | Browser or Node.js code calling a running instance from outside the process that hosts it |
 | CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
@@ -212,7 +213,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-143-operation HTTP reference.
+161-operation HTTP reference.
 
 ## Coding-agent support
 

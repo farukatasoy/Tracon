@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
 import { JobProgressBar, JobStatusBadge } from './jobs';
-import type { JobItemStatus, Meta } from '../lib/types';
+import type { JobItemStatus, AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { JobDetailResponse } from '../lib/server-types';
 
 function ItemStatusBadge({ status }: { status: JobItemStatus }): ReactNode {
   const t = useT();
@@ -23,17 +24,18 @@ function ItemStatusBadge({ status }: { status: JobItemStatus }): ReactNode {
 
 export function JobDetailScreen({ id, meta }: { id: string; meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
 
   const detail = useQuery({
     queryKey: ['job', id],
-    queryFn: () => api.job(id),
+    queryFn: () =>
+      unwrap(client.GET('/api/jobs/{id}', { params: { path: { id } } })) as Promise<JobDetailResponse>,
     refetchInterval: 5_000,
   });
 
   const cancel = useMutation({
-    mutationFn: () => api.cancelJob(id),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['job', id] }),
+    mutationFn: () => unwrap(client.POST('/api/jobs/{id}/cancel', { params: { path: { id } } })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['job', id] }),
   });
 
   if (detail.isPending) {

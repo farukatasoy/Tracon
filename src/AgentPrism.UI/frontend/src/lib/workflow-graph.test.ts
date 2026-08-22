@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeLayers, foldNodeStates, layoutGraph, NODE_WIDTH } from './workflow-graph';
-import type { WorkflowGraph, WorkflowGraphEdge, WorkflowGraphNode } from './types';
+import type { WorkflowGraphEdge, WorkflowGraphNode } from '@agentprism/client';
+import type { WorkflowGraph } from './server-types';
 
 function graph(
   nodes: readonly (readonly [string, WorkflowGraphNode['kind']])[],

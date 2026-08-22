@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
+import type { SessionDetailResponse } from '@agentprism/client';
+import type { ChatMessage, RunRecord } from '../lib/server-types';
 import { absoluteTime, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
 import { foldMessages } from '../lib/transcript';
@@ -27,8 +29,18 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
   const plural = usePlural();
   const [tab, setTab] = useState<Tab>('history');
 
-  const session = useQuery({ queryKey: ['session', id], queryFn: () => api.session(id) });
-  const runs = useQuery({ queryKey: ['runs', 'session', id], queryFn: () => api.runs({ sessionId: id }) });
+  const session = useQuery({
+    queryKey: ['session', id],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/sessions/{sessionId}', { params: { path: { sessionId: id } } }),
+      ) as Promise<SessionDetailResponse>,
+  });
+  const runs = useQuery({
+    queryKey: ['runs', 'session', id],
+    queryFn: () =>
+      unwrap(client.GET('/api/runs', { params: { query: { sessionId: id } } })) as Promise<RunRecord[]>,
+  });
 
   if (session.isPending) {
     return <Loading />;
@@ -39,7 +51,11 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
   }
 
   const detail = session.data;
-  const folds = detail.messages === null ? [] : foldMessages(detail.messages);
+  // `messages` is documented as opaque JSON (the chat history provider does not
+  // guarantee a `ChatMessage[]` shape) but the built-in provider always returns
+  // one; the old hand-written type trusted the same assumption.
+  const messages = detail.messages as ChatMessage[] | null;
+  const folds = messages === null ? [] : foldMessages(messages);
 
   return (
     <>
@@ -80,17 +96,17 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
 
       {tab === 'history' && (
         <Panel>
-          {detail.messages === null ? (
+          {messages === null ? (
             <Empty title={t('sessionDetail.noHistory.title')}>{t('sessionDetail.noHistory.body')}</Empty>
-          ) : detail.messages.length === 0 ? (
+          ) : messages.length === 0 ? (
             <Empty title={t('sessionDetail.noMessages.title')}>
               {t('sessionDetail.noMessages.body')} <Mono>POST /v1/conversations</Mono>.
             </Empty>
           ) : (
             <div className="flex flex-col divide-y divide-line">
-              {detail.messages.map((message, index) => {
+              {messages.map((message, index) => {
                 const folded = folds[index] ?? { items: [], usage: null };
-                const role = (message.role ?? 'unknown').toLowerCase();
+                const role = ((message.role as string | undefined) ?? 'unknown').toLowerCase();
 
                 return (
                   <div key={message.messageId ?? index} className="px-4 py-3">

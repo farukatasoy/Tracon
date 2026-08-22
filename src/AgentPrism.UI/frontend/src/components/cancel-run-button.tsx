@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '../lib/api';
+import { client, unwrap, AgentPrismError } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Button } from './ui';
+import type { RunRecord } from '../lib/server-types';
 
 /**
  * "Cancel run" action for the run detail screen (F-35, Phase 32).
@@ -14,11 +15,14 @@ import { Button } from './ui';
  */
 export function CancelRunButton({ runId }: { runId: string }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
 
   const cancel = useMutation({
-    mutationFn: () => api.cancelRun(runId),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['run', runId] }),
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/runs/{runId}/cancel', { params: { path: { runId } } }),
+      ) as Promise<RunRecord>,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['run', runId] }),
   });
 
   if (cancel.isSuccess) {
@@ -42,7 +46,7 @@ export function CancelRunButton({ runId }: { runId: string }): ReactNode {
 
       {cancel.isError && (
         <span className="text-[11px] text-danger" role="alert">
-          {cancel.error instanceof ApiError && cancel.error.status === 409
+          {cancel.error instanceof AgentPrismError && cancel.error.status === 409
             ? t('runDetail.cancel.conflict')
             : cancel.error.message}
         </span>

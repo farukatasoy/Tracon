@@ -95,7 +95,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | ✅ Tamamlandı |
 | [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | ✅ Tamamlandı |
 | [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | ✅ Tamamlandı |
-| [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | 📋 Planlandı |
+| [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | ✅ Tamamlandı |
 | [85](85-GOMME-EKSENI.md) | Gömme Ekseni | 📋 Planlandı |
 | [86](86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | 📋 Planlandı |
 | [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | 📋 Planlandı |

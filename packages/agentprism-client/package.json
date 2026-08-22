@@ -1,0 +1,41 @@
+{
+  "name": "@agentprism/client",
+  "version": "0.0.0",
+  "description": "Typed TypeScript client for the AgentPrism management API, generated from its OpenAPI document.",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://agentprism.doayen.web.tr",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

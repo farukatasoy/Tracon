@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
+import type { EvalRunDetailResponse } from '../lib/server-types';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Badge, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
@@ -11,7 +12,10 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
   const t = useT();
   const detail = useQuery({
     queryKey: ['evalRun', id],
-    queryFn: () => api.evalRun(id),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/evals/runs/{id}', { params: { path: { id } } }),
+      ) as Promise<EvalRunDetailResponse>,
     refetchInterval: 5_000,
   });
 

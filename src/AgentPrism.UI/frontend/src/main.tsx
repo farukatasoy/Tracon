@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app';
-import { ApiError } from './lib/api';
+import { AgentPrismError } from './lib/api';
 import { LocaleProvider, initialiseLocale } from './lib/i18n';
 import { RouterProvider } from './lib/router';
 import { applyTheme, readThemePreference } from './lib/theme';
@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
       retry: (failureCount, error) => {
         // A rejected token or a denied policy will be rejected again. Retrying
         // only delays the explanation the user needs to see.
-        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        if (error instanceof AgentPrismError && error.status >= 400 && error.status < 500) {
           return false;
         }
 

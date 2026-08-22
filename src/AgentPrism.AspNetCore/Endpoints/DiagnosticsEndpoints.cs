@@ -49,7 +49,8 @@ internal static class DiagnosticsEndpoints
             .WithTags("AgentPrism", "Diagnostics")
             .WithSummary("Returns the setup's self-diagnosing summary report.")
             .WithDescription(
-                "Never carries any secret value. Model provider status is read " +
-                "from the cache; it makes no model call and applies no migration.");
+                "Disabled by default (AgentPrismEndpointOptions.EnableDiagnosticsEndpoint); a deployment " +
+                "that has not turned it on answers 404. Never carries any secret value. Model provider " +
+                "status is read from the cache; it makes no model call and applies no migration.");
     }
 }

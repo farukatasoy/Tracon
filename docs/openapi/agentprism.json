@@ -5935,6 +5935,29 @@
         }
       }
     },
+    "/agentprism/api/diagnostics": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Diagnostics"
+        ],
+        "summary": "Returns the setup\u0027s self-diagnosing summary report.",
+        "description": "Disabled by default (AgentPrismEndpointOptions.EnableDiagnosticsEndpoint); a deployment that has not turned it on answers 404. Never carries any secret value. Model provider status is read from the cache; it makes no model call and applies no migration.",
+        "operationId": "AgentPrismDiagnostics",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPrismDiagnosticsReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/v1/responses": {
       "post": {
         "tags": [
@@ -6794,6 +6817,89 @@
           }
         },
         "description": "Reports which authentication layers are enabled."
+      },
+      "AgentPrismDiagnosticsReport": {
+        "required": [
+          "persistenceProvider",
+          "registeredPersistenceProviders",
+          "canConnect",
+          "migrationsUpToDate",
+          "pendingMigrations",
+          "modelProviders",
+          "configuration",
+          "uiEmbedded",
+          "toolCount",
+          "agentCount"
+        ],
+        "type": "object",
+        "properties": {
+          "persistenceProvider": {
+            "type": "string",
+            "description": "Gets the name of the active persistence provider, for example \u0060PostgreSQL\u0060 or \u0060InMemory\u0060."
+          },
+          "registeredPersistenceProviders": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of registered SQL persistence providers. More than \u00601\u0060\nindicates a setup defect: the last call wins and silently disables the others.",
+            "format": "int32"
+          },
+          "canConnect": {
+            "type": "boolean",
+            "description": "Gets whether the active SQL provider can connect. Returns \u0060true\u0060\nwithout an SQL provider."
+          },
+          "migrationsUpToDate": {
+            "type": "boolean",
+            "description": "Gets whether no migrations are pending. Returns \u0060true\u0060 without an SQL provider."
+          },
+          "pendingMigrations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the pending migration names. The list is empty when there is no SQL\nprovider or all migrations are applied."
+          },
+          "modelProviders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderDiagnostic"
+            },
+            "description": "Gets the last known status of each registered model provider."
+          },
+          "configuration": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigurationDiagnostic"
+            },
+            "description": "Gets the resolution status of configuration keys required by registered providers."
+          },
+          "uiEmbedded": {
+            "type": "boolean",
+            "description": "Gets whether the management UI has embedded assets."
+          },
+          "toolCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of registered tools.",
+            "format": "int32"
+          },
+          "agentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of registered agents. Returns \u0060null\u0060 when the catalog cannot be read.",
+            "format": "int32"
+          }
+        },
+        "description": "Reports the self-diagnostics of the installation."
       },
       "AgentPrismMetaResponse": {
         "required": [
@@ -9113,6 +9219,31 @@
           "Pipeline"
         ],
         "description": "The kind of context compaction strategy that can be bound to an agent definition."
+      },
+      "ConfigurationDiagnostic": {
+        "required": [
+          "key",
+          "resolved"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Gets the full configuration key path, for example \u0060AgentPrism:Providers:OpenAI:ApiKey\u0060."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "Gets whether the key resolves to a non-empty value."
+          },
+          "hint": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets guidance for configuring an unresolved key. The server provides it and the\nUI does not translate it."
+          }
+        },
+        "description": "Reports whether a configuration key resolves. It does not carry the value."
       },
       "ContextWindowEstimate": {
         "required": [
@@ -11716,6 +11847,29 @@
             ]
           }
         }
+      },
+      "ProviderDiagnostic": {
+        "required": [
+          "name",
+          "status",
+          "circuitOpen"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the provider name."
+          },
+          "status": {
+            "type": "string",
+            "description": "Gets the last known model provider health cache status as a\nModelProviderHealthStatus value in text form. Returns\n\u0060\u0022Unknown\u0022\u0060 when the cache is empty."
+          },
+          "circuitOpen": {
+            "type": "boolean",
+            "description": "Gets whether the circuit breaker is open for this provider."
+          }
+        },
+        "description": "Summarizes diagnostics for a model provider."
       },
       "QuotaDefinition": {
         "required": [
@@ -16424,6 +16578,9 @@
     },
     {
       "name": "Voice"
+    },
+    {
+      "name": "Diagnostics"
     },
     {
       "name": "OpenAI"

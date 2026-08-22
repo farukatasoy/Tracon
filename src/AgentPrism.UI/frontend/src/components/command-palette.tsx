@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { shortId } from '../lib/format';
 import { LOCALES, useLocale, useT } from '../lib/i18n';
 import { rankCommands } from '../lib/palette';
@@ -8,7 +8,8 @@ import { useNavigate } from '../lib/router';
 import { setThemePreference, useThemePreference } from '../lib/theme';
 import { cx } from './ui';
 import { SearchIcon } from './icons';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { AgentDescriptor, RunRecord, WorkflowDescriptor } from '../lib/server-types';
 
 /**
  * `Ctrl/Cmd + K` command palette.
@@ -234,11 +235,20 @@ function usePaletteCommands(
   const navigate = useNavigate();
   const { resolved } = useThemePreference();
 
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents, enabled: open });
-  const workflows = useQuery({ queryKey: ['workflows'], queryFn: api.workflows, enabled: open });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+    enabled: open,
+  });
+  const workflows = useQuery({
+    queryKey: ['workflows'],
+    queryFn: () => unwrap(client.GET('/api/workflows')) as Promise<WorkflowDescriptor[]>,
+    enabled: open,
+  });
   const runs = useQuery({
     queryKey: ['runs', 'palette'],
-    queryFn: () => api.runs({ take: 50 }),
+    queryFn: () =>
+      unwrap(client.GET('/api/runs', { params: { query: { take: 50 } } })) as Promise<RunRecord[]>,
     enabled: open,
   });
 

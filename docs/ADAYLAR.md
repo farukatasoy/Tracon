@@ -280,6 +280,40 @@ kurulumunu yeniden kullanır.
 
 ---
 
+### F-145 · Yanlış token'ın konsolda "reddedildi" olarak gösterildiğini kanıtlayan uçtan uca test yok
+
+> Faz 84'ün manuel kabul case'i `MT-TSC-005`'in otomasyon boşluğu (2026-08-22).
+> `Shell_opens_and_asks_for_token_when_required` (E2E) DOĞRU token'ın kabul
+> edildiği yolu kanıtlıyor; `auth.test.ts` (4 birim testi) `rejectToken`/
+> `setToken` durum geçişlerini kanıtlıyor. Ama canlı bir `401` yanıtından
+> `AgentPrismClientOptions.onUnauthorized` çağrısına, oradan `access-gate.tsx`'in
+> "reddedildi" mesajını gösterdiği ekrana kadar olan uçtan uca teli kanıtlayan
+> hiçbir test yok — yalnız elle koşularak doğrulanabilir.
+
+**Sorun:** `src/AgentPrism.UI/frontend/src/lib/api.ts`'teki `client`'ın
+middleware'i bir 401 yanıtında `options.onUnauthorized?.()` çağırır
+(`rejectToken`'a bağlı), sonra `access-gate.tsx` `rejected` durumuna göre
+`TokenPrompt failed={true}` gösterir. Zincirin HİÇBİR halkası şu an canlı bir
+HTTP round-trip'le uçtan uca test edilmiyor.
+**Kapsam:** `UiTests.cs`'e bir E2E senaryosu: yanlış token'la giriş yapılır,
+herhangi bir veri isteyen ekran açılır, `401` alınır, `access.token.rejected`
+metninin (veya karşılığı ARIA rolünün) göründüğü doğrulanır.
+**Değer:** `onUnauthorized` bağlantısı kopsa (ör. bir refactor sırasında
+middleware'den silinse) bugün hiçbir kapı bunu yakalamaz — kullanıcı yanlış
+token girdiğinde sonsuz "yükleniyor" ekranında kalabilir, hiç kimse fark
+etmeden.
+**Mercek:** 84 (TypeScript istemcisi ve npm kanalı — `access-gate.tsx`'in göç
+ettiği faz).
+**Hazırlık:** Yok — `UiTests.cs`'in kendi `UiHost.StartAsync(authToken: ...)`
+kurulumu zaten var, `Shell_opens_and_asks_for_token_when_required`'ın aynı
+deseni.
+**Maliyet:** Düşük — mevcut token testinin bir varyasyonu.
+**Risk:** Yok — salt gözlemsel bir test eklemek.
+**Bağımlılık:** Yok.
+**Ekosistem:** —
+
+---
+
 ### F-107 · Workflow iptali — ✅ KAPATILDI (2026-08-18). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## D. Yetenek derinliği

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
@@ -15,7 +15,8 @@ import {
   Panel,
   TextInput,
 } from './ui';
-import type { ApiKeyCreationResult, ApiKeyRecord, ApiKeyScope } from '../lib/types';
+import type { ApiKeyCreationResult, ApiKeyScope } from '@agentprism/client';
+import type { ApiKeyRecord } from '../lib/server-types';
 
 /** Every scope AgentPrism recognises. Mirrors `ApiKeyScope` on the server. */
 const SCOPES: ApiKeyScope[] = [
@@ -49,15 +50,18 @@ const SCOPES: ApiKeyScope[] = [
  */
 export function ApiKeyPanel(): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [revealed, setRevealed] = useState<ApiKeyCreationResult | null>(null);
 
-  const keys = useQuery({ queryKey: ['api-keys'], queryFn: api.apiKeys });
+  const keys = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: () => unwrap(client.GET('/api/api-keys')) as Promise<ApiKeyRecord[]>,
+  });
 
   const revoke = useMutation({
-    mutationFn: (id: string) => api.revokeApiKey(id),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['api-keys'] }),
+    mutationFn: (id: string) => unwrap(client.DELETE('/api/api-keys/{id}', { params: { path: { id } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-keys'] }),
   });
 
   return (
@@ -103,7 +107,7 @@ export function ApiKeyPanel(): ReactNode {
           onCreated={(result) => {
             setOpen(false);
             setRevealed(result);
-            void client.invalidateQueries({ queryKey: ['api-keys'] });
+            void queryClient.invalidateQueries({ queryKey: ['api-keys'] });
           }}
           onCancel={() => setOpen(false)}
         />
@@ -184,11 +188,15 @@ function ApiKeyForm({
 
   const save = useMutation({
     mutationFn: () =>
-      api.createApiKey({
-        name,
-        scopes,
-        expiresAt: expiresAt.trim() === '' ? null : new Date(expiresAt).toISOString(),
-      }),
+      unwrap(
+        client.POST('/api/api-keys', {
+          body: {
+            name,
+            scopes,
+            expiresAt: expiresAt.trim() === '' ? null : new Date(expiresAt).toISOString(),
+          },
+        }),
+      ),
     onSuccess: onCreated,
   });
 

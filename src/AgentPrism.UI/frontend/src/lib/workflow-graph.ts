@@ -1,4 +1,5 @@
-import type { WorkflowEdgeKind, WorkflowGraph, WorkflowNodeKind } from './types';
+import type { WorkflowEdgeKind, WorkflowNodeKind } from '@agentprism/client';
+import type { WorkflowGraph } from './server-types';
 
 /**
  * Layered layout for a workflow graph.

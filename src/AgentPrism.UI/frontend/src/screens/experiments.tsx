@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -20,7 +20,8 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { Experiment, ExperimentStatus, ExperimentVariant, Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta, ExperimentStatus } from '@agentprism/client';
+import type { AgentDefinition, Experiment, ExperimentVariant } from '../lib/server-types';
 
 export function StatusBadge({ status }: { status: ExperimentStatus }): ReactNode {
   const t = useT();
@@ -62,30 +63,41 @@ const EMPTY_FORM = { agentName: '', variants: [emptyVariant(), emptyVariant()] }
  */
 export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [form, setForm] = useState<{ agentName: string; variants: VariantForm[] }>(EMPTY_FORM);
 
-  const experiments = useQuery({ queryKey: ['experiments'], queryFn: api.experiments });
+  const experiments = useQuery({
+    queryKey: ['experiments'],
+    queryFn: () => unwrap(client.GET('/api/experiments')) as Promise<Experiment[]>,
+  });
 
   const versions = useQuery({
     queryKey: ['agentVersions', form.agentName],
-    queryFn: () => api.agentVersions(form.agentName),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}/versions', { params: { path: { name: form.agentName } } }),
+      ) as Promise<AgentDefinition[]>,
     enabled: form.agentName.trim().length > 0,
   });
 
-  const invalidate = (): void => void client.invalidateQueries({ queryKey: ['experiments'] });
+  const invalidate = (): void => void queryClient.invalidateQueries({ queryKey: ['experiments'] });
 
   const save = useMutation({
     mutationFn: () => {
       const name = editing ?? newName;
 
-      return api.saveExperiment(name, {
-        agentName: form.agentName,
-        variants: form.variants.map(({ key, ...variant }) => variant),
-      });
+      return unwrap(
+        client.PUT('/api/experiments/{name}', {
+          params: { path: { name } },
+          body: {
+            agentName: form.agentName,
+            variants: form.variants.map(({ key, ...variant }) => variant),
+          },
+        }),
+      ) as Promise<Experiment>;
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
@@ -97,7 +109,8 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteExperiment(name),
+    mutationFn: (name: string) =>
+      unwrap(client.DELETE('/api/experiments/{name}', { params: { path: { name } } })),
     onSuccess: invalidate,
   });
 

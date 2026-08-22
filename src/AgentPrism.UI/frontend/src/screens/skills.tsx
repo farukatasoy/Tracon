@@ -1,15 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Link, useNavigate } from '../lib/router';
 import type {
-  AgentSkillRequest,
-  AgentSkillResourceDefinition,
+  AgentPrismMetaResponse as Meta,
   AgentSkillScriptDefinition,
-  Meta,
-} from '../lib/types';
+  SkillScriptGrant,
+} from '@agentprism/client';
+import type { AgentSkillDefinition, AgentSkillResourceDefinition } from '../lib/server-types';
 import {
   Badge,
   Button,
@@ -28,6 +28,23 @@ import {
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
 
+// The generated request type makes every field but name/description/
+// instructions optional (omission means "use the server default"), but this
+// form always sends a fully-populated body — a local shape keeps the JSX's
+// direct field reads (`form.resources.map(...)`, ...) free of `?? []` noise.
+interface SkillForm {
+  name: string;
+  description: string;
+  instructions: string;
+  compatibility: string | null;
+  license: string | null;
+  allowedTools: string | null;
+  metadata?: Record<string, never>;
+  enabled: boolean;
+  resources: AgentSkillResourceDefinition[];
+  scripts: AgentSkillScriptDefinition[];
+}
+
 const emptyResource = (): AgentSkillResourceDefinition => ({
   name: '',
   description: '',
@@ -43,7 +60,7 @@ const emptyScript = (): AgentSkillScriptDefinition => ({
   parametersSchema: null,
 });
 
-const emptyRequest = (): AgentSkillRequest => ({
+const emptyRequest = (): SkillForm => ({
   name: '',
   description: '',
   instructions: '',
@@ -57,7 +74,10 @@ const emptyRequest = (): AgentSkillRequest => ({
 
 export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const skills = useQuery({ queryKey: ['skills'], queryFn: api.skills });
+  const skills = useQuery({
+    queryKey: ['skills'],
+    queryFn: () => unwrap(client.GET('/api/skills')) as Promise<AgentSkillDefinition[]>,
+  });
 
   return (
     <>
@@ -124,7 +144,11 @@ export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {
 function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
-  const grants = useQuery({ queryKey: ['skill-script-grants'], queryFn: api.skillScriptGrants });
+  const grants = useQuery({
+    queryKey: ['skill-script-grants'],
+    queryFn: () =>
+      unwrap(client.GET('/api/skill-script-grants')) as Promise<SkillScriptGrant[]>,
+  });
   const [skillName, setSkillName] = useState('');
   const [scriptName, setScriptName] = useState('');
 
@@ -133,7 +157,12 @@ function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
   };
 
   const grant = useMutation({
-    mutationFn: () => api.grantSkillScript({ skillName, scriptName: scriptName || null }),
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/skill-script-grants', {
+          body: { skillName, scriptName: scriptName || null },
+        }),
+      ) as Promise<SkillScriptGrant>,
     onSuccess: async () => {
       setSkillName('');
       setScriptName('');
@@ -142,7 +171,14 @@ function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
   });
   const revoke = useMutation({
     mutationFn: (target: { skillName: string; scriptName?: string | null }) =>
-      api.revokeSkillScript(target.skillName, target.scriptName),
+      unwrap(
+        client.DELETE('/api/skill-script-grants/{skillName}', {
+          params: {
+            path: { skillName: target.skillName },
+            query: { scriptName: target.scriptName ?? undefined },
+          },
+        }),
+      ),
     onSuccess: invalidate,
   });
 
@@ -206,8 +242,15 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
   const editing = name !== undefined && name.length > 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<AgentSkillRequest>(emptyRequest);
-  const existing = useQuery({ queryKey: ['skill', name], queryFn: () => api.skill(name as string), enabled: editing });
+  const [form, setForm] = useState<SkillForm>(emptyRequest);
+  const existing = useQuery({
+    queryKey: ['skill', name],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/skills/{name}', { params: { path: { name: name as string } } }),
+      ) as Promise<AgentSkillDefinition>,
+    enabled: editing,
+  });
 
   useEffect(() => {
     if (!existing.isSuccess) return;
@@ -227,14 +270,18 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
   }, [existing.isSuccess, existing.data]);
 
   const save = useMutation({
-    mutationFn: () => api.saveSkill(form.name, form),
+    mutationFn: () =>
+      unwrap(
+        client.PUT('/api/skills/{name}', { params: { path: { name: form.name } }, body: form }),
+      ) as Promise<AgentSkillDefinition>,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['skills'] });
       navigate('skills');
     },
   });
   const remove = useMutation({
-    mutationFn: () => api.deleteSkill(form.name),
+    mutationFn: () =>
+      unwrap(client.DELETE('/api/skills/{name}', { params: { path: { name: form.name } } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['skills'] });
       navigate('skills');

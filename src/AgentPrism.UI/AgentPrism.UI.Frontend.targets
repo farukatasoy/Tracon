@@ -18,6 +18,17 @@
     <AgentPrismNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-npm-install.stamp</AgentPrismNpmInstallStamp>
     <AgentPrismFrontendStamp>$(BaseIntermediateOutputPath)agentprism-frontend.stamp</AgentPrismFrontendStamp>
     <AgentPrismShellFile>$(AgentPrismFrontendOutput)/index.html</AgentPrismShellFile>
+
+    <!--
+      @agentprism/client (Phase 84). The frontend consumes it as a repo-local
+      `file:` dependency (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section
+      84.8) — it must be BUILT (tsc -> dist/) before the frontend's own
+      `npm run build`, because the frontend imports its TYPES, and a `file:`
+      dependency's `dist/` is not produced by `npm ci` on its own.
+    -->
+    <AgentPrismClientPackageRoot>$(RepositoryRootPath)packages/agentprism-client</AgentPrismClientPackageRoot>
+    <AgentPrismClientNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-client-npm-install.stamp</AgentPrismClientNpmInstallStamp>
+    <AgentPrismClientBuildStamp>$(BaseIntermediateOutputPath)agentprism-client-build.stamp</AgentPrismClientBuildStamp>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
@@ -33,6 +44,11 @@
     <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/package-lock.json" />
     <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/tsconfig.json" />
     <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/vite.config.ts" />
+
+    <AgentPrismClientInput Include="$(AgentPrismClientPackageRoot)/src/**/*" />
+    <AgentPrismClientInput Include="$(AgentPrismClientPackageRoot)/package.json" />
+    <AgentPrismClientInput Include="$(AgentPrismClientPackageRoot)/package-lock.json" />
+    <AgentPrismClientInput Include="$(AgentPrismClientPackageRoot)/tsconfig.json" />
   </ItemGroup>
 
   <!--
@@ -73,6 +89,35 @@
     <Touch Files="$(AgentPrismNpmInstallStamp)" AlwaysCreate="true" />
   </Target>
 
+  <Target Name="AgentPrismClientNpmInstall"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
+          Inputs="$(AgentPrismClientPackageRoot)/package-lock.json"
+          Outputs="$(AgentPrismClientNpmInstallStamp)">
+    <Message Importance="high" Text="AgentPrism.UI: installing @agentprism/client dependencies (npm ci)" />
+
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(AgentPrismClientPackageRoot)" />
+
+    <Touch Files="$(AgentPrismClientNpmInstallStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="AgentPrismBuildClientPackage"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
+          DependsOnTargets="AgentPrismClientNpmInstall"
+          Inputs="@(AgentPrismClientInput)"
+          Outputs="$(AgentPrismClientBuildStamp)">
+    <Message Importance="high" Text="AgentPrism.UI: building @agentprism/client (npm run build)" />
+
+    <!--
+      Not `npm run generate`: src/schema.ts is committed, and generating it is
+      a development step run by hand when docs/openapi/agentprism.json
+      changes (section 84.2) — `dotnet build` must not depend on network
+      access to the OpenAPI-typescript generator. Only `tsc` runs here.
+    -->
+    <Exec Command="npm run build" WorkingDirectory="$(AgentPrismClientPackageRoot)" />
+
+    <Touch Files="$(AgentPrismClientBuildStamp)" AlwaysCreate="true" />
+  </Target>
+
   <Target Name="AgentPrismBuildFrontend"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
           Inputs="@(AgentPrismFrontendInput)"
@@ -110,7 +155,7 @@
   -->
   <Target Name="AgentPrismFrontendOuterBuild"
           BeforeTargets="DispatchToInnerBuilds"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildFrontend"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
 
   <!--
@@ -122,7 +167,7 @@
     would never run. Measured: the UI was silently not being built.
   -->
   <Target Name="AgentPrismCollectFrontendAssets"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildFrontend"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
           BeforeTargets="AssignTargetPaths"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
     <ItemGroup>

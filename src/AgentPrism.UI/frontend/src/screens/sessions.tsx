@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -18,7 +18,8 @@ import {
   Th,
 } from '../components/ui';
 import { TrashIcon } from '../components/icons';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta, SessionRecord } from '@agentprism/client';
+import type { AgentDescriptor } from '../lib/server-types';
 
 const PAGE_SIZE = 50;
 
@@ -28,20 +29,30 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
   const [agentName, setAgentName] = useState('');
   const [page, setPage] = useState(0);
 
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
 
   const sessions = useQuery({
     queryKey: ['sessions', agentName, page],
     queryFn: () =>
-      api.sessions({
-        agentName: agentName.length > 0 ? agentName : undefined,
-        skip: page * PAGE_SIZE,
-        take: PAGE_SIZE,
-      }),
+      unwrap(
+        client.GET('/api/sessions', {
+          params: {
+            query: {
+              agentName: agentName.length > 0 ? agentName : undefined,
+              skip: page * PAGE_SIZE,
+              take: PAGE_SIZE,
+            },
+          },
+        }),
+      ) as Promise<SessionRecord[]>,
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.deleteSession(id),
+    mutationFn: (id: string) =>
+      unwrap(client.DELETE('/api/sessions/{sessionId}', { params: { path: { sessionId: id } } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessions'] }),
   });
 

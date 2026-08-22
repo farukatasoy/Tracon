@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { count } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
@@ -15,7 +15,8 @@ import {
   Select,
   TextInput,
 } from './ui';
-import type { QuotaDefinition, QuotaPeriod, QuotaUsageRecord } from '../lib/types';
+import type { QuotaPeriod, QuotaUsageRecord, QuotaUsageResponse } from '@agentprism/client';
+import type { QuotaDefinition } from '../lib/server-types';
 
 /**
  * Quota rules and current-period usage.
@@ -26,15 +27,21 @@ import type { QuotaDefinition, QuotaPeriod, QuotaUsageRecord } from '../lib/type
  */
 export function QuotaPanel(): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<QuotaDefinition | null>(null);
   const [open, setOpen] = useState(false);
 
-  const usage = useQuery({ queryKey: ['quota-usage'], queryFn: () => api.quotaUsage() });
+  const usage = useQuery({
+    queryKey: ['quota-usage'],
+    queryFn: () =>
+      unwrap(client.GET('/api/quotas/usage')) as Promise<
+        Omit<QuotaUsageResponse, 'definitions'> & { definitions: QuotaDefinition[] }
+      >,
+  });
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.deleteQuota(id),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['quota-usage'] }),
+    mutationFn: (id: string) => unwrap(client.DELETE('/api/quotas/{id}', { params: { path: { id } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quota-usage'] }),
   });
 
   return (
@@ -65,7 +72,7 @@ export function QuotaPanel(): ReactNode {
           onDone={() => {
             setOpen(false);
             setEditing(null);
-            void client.invalidateQueries({ queryKey: ['quota-usage'] });
+            void queryClient.invalidateQueries({ queryKey: ['quota-usage'] });
           }}
         />
       )}
@@ -133,13 +140,26 @@ function QuotaRow({
 
       <div className="space-y-1.5">
         {definition.maxRuns != null && (
-          <QuotaBar label={t('nav.runs')} used={usage?.runs ?? 0} limit={definition.maxRuns} />
+          <QuotaBar
+            label={t('nav.runs')}
+            used={(usage?.runs as number | undefined) ?? 0}
+            limit={definition.maxRuns as number}
+          />
         )}
         {definition.maxTokens != null && (
-          <QuotaBar label={t('common.tokens')} used={usage?.tokens ?? 0} limit={definition.maxTokens} />
+          <QuotaBar
+            label={t('common.tokens')}
+            used={(usage?.tokens as number | undefined) ?? 0}
+            limit={definition.maxTokens as number}
+          />
         )}
         {definition.maxCost != null && (
-          <QuotaBar label={t('common.cost')} used={usage?.cost ?? 0} limit={definition.maxCost} money />
+          <QuotaBar
+            label={t('common.cost')}
+            used={(usage?.cost as number | undefined) ?? 0}
+            limit={definition.maxCost as number}
+            money
+          />
         )}
       </div>
     </div>
@@ -197,14 +217,18 @@ function QuotaForm({
 
   const save = useMutation({
     mutationFn: () =>
-      api.saveQuota({
-        agentName: agentName.trim() === '' ? null : agentName.trim(),
-        period,
-        maxRuns: parseLimit(maxRuns),
-        maxTokens: parseLimit(maxTokens),
-        maxCost: parseLimit(maxCost),
-        enabled: true,
-      }),
+      unwrap(
+        client.PUT('/api/quotas', {
+          body: {
+            agentName: agentName.trim() === '' ? null : agentName.trim(),
+            period,
+            maxRuns: parseLimit(maxRuns),
+            maxTokens: parseLimit(maxTokens),
+            maxCost: parseLimit(maxCost),
+            enabled: true,
+          },
+        }),
+      ),
     onSuccess: onDone,
   });
 

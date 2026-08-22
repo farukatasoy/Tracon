@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
+import type { SessionBranchResult } from '../lib/server-types';
 import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import { Button, ErrorNote } from './ui';
@@ -32,9 +33,12 @@ export function BranchButton({
 
   const branch = useMutation({
     mutationFn: () =>
-      api.branchSession(sessionId, {
-        upToSequence: upToSequence ?? null,
-      }),
+      unwrap(
+        client.POST('/api/sessions/{sessionId}/branch', {
+          params: { path: { sessionId } },
+          body: { upToSequence: upToSequence ?? null },
+        }),
+      ) as Promise<SessionBranchResult>,
     onSuccess: (result) => navigate(`sessions/${encodeURIComponent(result.sessionId)}`),
   });
 

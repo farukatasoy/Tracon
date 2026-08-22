@@ -73,6 +73,7 @@ internal static class ExamplePrelude
         using Microsoft.Agents.AI.Workflows;
         using Azure.Identity;
         using AgentPrism;
+        using AgentPrism.Client;
         using AgentPrism.Testing;
         """;
 

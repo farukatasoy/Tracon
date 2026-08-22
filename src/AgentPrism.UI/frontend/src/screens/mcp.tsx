@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { McpServerDetail } from '../components/mcp-server-detail';
@@ -22,12 +22,13 @@ import {
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type {
+  AgentPrismMetaResponse as Meta,
   McpServerRequest,
   McpTransportMode,
-  Meta,
   ToolArgumentCondition,
   ToolArgumentOperator,
-} from '../lib/types';
+} from '@agentprism/client';
+import type { McpServerDefinition, ToolApprovalRule } from '../lib/server-types';
 
 const EMPTY_FORM: McpServerRequest & { name: string } = {
   name: '',
@@ -129,26 +130,32 @@ function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolA
  */
 export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
   const [showRuleForm, setShowRuleForm] = useState(false);
 
-  const servers = useQuery({ queryKey: ['mcp-servers'], queryFn: api.mcpServers });
-  const rules = useQuery({ queryKey: ['approval-rules'], queryFn: api.approvalRules });
+  const servers = useQuery({
+    queryKey: ['mcp-servers'],
+    queryFn: () => unwrap(client.GET('/api/mcp-servers')) as Promise<McpServerDefinition[]>,
+  });
+  const rules = useQuery({
+    queryKey: ['approval-rules'],
+    queryFn: () => unwrap(client.GET('/api/approvals/rules')) as Promise<ToolApprovalRule[]>,
+  });
 
   const invalidate = (): void => {
-    void client.invalidateQueries({ queryKey: ['mcp-servers'] });
-    void client.invalidateQueries({ queryKey: ['tools'] });
+    void queryClient.invalidateQueries({ queryKey: ['mcp-servers'] });
+    void queryClient.invalidateQueries({ queryKey: ['tools'] });
   };
 
   const save = useMutation({
     mutationFn: () => {
       const { name, ...body } = form;
 
-      return api.saveMcpServer(name, body);
+      return unwrap(client.PUT('/api/mcp-servers/{name}', { params: { path: { name } }, body }));
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
@@ -158,17 +165,19 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteMcpServer(name),
+    mutationFn: (name: string) =>
+      unwrap(client.DELETE('/api/mcp-servers/{name}', { params: { path: { name } } })),
     onSuccess: invalidate,
   });
 
   const refresh = useMutation({
-    mutationFn: api.refreshMcpTools,
+    mutationFn: () => unwrap(client.POST('/api/mcp-servers/refresh', {})),
     onSuccess: invalidate,
   });
 
   const authorize = useMutation({
-    mutationFn: (name: string) => api.startMcpOAuth(name),
+    mutationFn: (name: string) =>
+      unwrap(client.POST('/api/mcp-servers/{name}/oauth/start', { params: { path: { name } } })),
     onSuccess: (result) => {
       // Opened with an opener reference on purpose: the callback page detects
       // `window.opener` and closes itself once the flow completes.
@@ -177,25 +186,30 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const removeRule = useMutation({
-    mutationFn: (id: string) => api.deleteApprovalRule(id),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['approval-rules'] }),
+    mutationFn: (id: string) =>
+      unwrap(client.DELETE('/api/approvals/rules/{ruleId}', { params: { path: { ruleId: id } } })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['approval-rules'] }),
   });
 
   const createRule = useMutation({
     mutationFn: () =>
-      api.createApprovalRule({
-        toolName: ruleForm.toolName,
-        agentName: ruleForm.agentName.length > 0 ? ruleForm.agentName : null,
-        argumentConditions: ruleForm.conditions.map((row) => ({
-          path: row.path,
-          operator: row.operator,
-          value: buildConditionValue(row.operator, row.value),
-        })),
-      }),
+      unwrap(
+        client.POST('/api/approvals/rules', {
+          body: {
+            toolName: ruleForm.toolName,
+            agentName: ruleForm.agentName.length > 0 ? ruleForm.agentName : null,
+            argumentConditions: ruleForm.conditions.map((row) => ({
+              path: row.path,
+              operator: row.operator,
+              value: buildConditionValue(row.operator, row.value),
+            })),
+          },
+        }),
+      ),
     onSuccess: () => {
       setRuleForm(EMPTY_RULE_FORM);
       setShowRuleForm(false);
-      void client.invalidateQueries({ queryKey: ['approval-rules'] });
+      void queryClient.invalidateQueries({ queryKey: ['approval-rules'] });
     },
   });
 
@@ -261,7 +275,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
 
             <Field label={t('mcp.transport')}>
               <Select
-                value={form.transport}
+                value={form.transport ?? 'StreamableHttp'}
                 onChange={(value) => setForm({ ...form, transport: value as McpTransportMode })}
               >
                 <option value="StreamableHttp">Streamable HTTP</option>

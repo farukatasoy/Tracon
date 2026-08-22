@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, prettyJson } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
@@ -19,7 +19,7 @@ import {
   Th,
 } from '../components/ui';
 import { DiffView } from '../components/diff-view';
-import type { AuditEntry } from '../lib/types';
+import type { AuditEntry } from '@agentprism/client';
 
 const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
 
@@ -40,11 +40,17 @@ export function AuditScreen(): ReactNode {
   const entries = useQuery({
     queryKey: ['audit', filters],
     queryFn: () =>
-      api.audit({
-        actor: filters.actor || undefined,
-        action: filters.action || undefined,
-        entity: filters.entity || undefined,
-      }),
+      unwrap(
+        client.GET('/api/audit', {
+          params: {
+            query: {
+              actor: filters.actor || undefined,
+              action: filters.action || undefined,
+              entity: filters.entity || undefined,
+            },
+          },
+        }),
+      ),
   });
 
   return (

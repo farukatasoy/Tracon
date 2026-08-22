@@ -24,7 +24,7 @@ public static class AgentPrismClientServiceCollectionExtensions
     /// Microsoft recommends when not going through the factory.
     /// <example>
     /// <code>
-    /// services.AddAgentPrismClient(options =>
+    /// builder.Services.AddAgentPrismClient(options =>
     /// {
     ///     options.BaseAddress = new Uri("https://example.com/agentprism/");
     ///     options.Token = builder.Configuration["AgentPrism:Token"];

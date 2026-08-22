@@ -8,7 +8,8 @@ import {
 } from '../lib/workflow-graph';
 import { useT } from '../lib/i18n';
 import { Badge, cx } from './ui';
-import type { WorkflowGraph, WorkflowNodeKind } from '../lib/types';
+import type { WorkflowNodeKind } from '@agentprism/client';
+import type { WorkflowGraph } from '../lib/server-types';
 
 /**
  * The compiled workflow graph, drawn as inline SVG.

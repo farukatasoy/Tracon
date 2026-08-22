@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client as apiClient, unwrap } from '../lib/api';
 import { count, relativeTime } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
 import {
@@ -16,7 +16,23 @@ import {
   Th,
   TextInput,
 } from './ui';
-import type { RetentionPolicy, RetentionPreview, RetentionTarget } from '../lib/types';
+import type { RetentionPolicy, RetentionPreview, RetentionRun } from '../lib/server-types';
+
+// The server models a target only as `target: string` (see RetentionTargets in
+// the API doc comment) — this closed list is a client-side convenience, not
+// part of the OpenAPI schema.
+type RetentionTarget =
+  | 'run_events'
+  | 'tool_invocations'
+  | 'traces'
+  | 'jobs'
+  | 'webhook_deliveries'
+  | 'eval_case_results'
+  | 'workflow_checkpoints'
+  | 'skill_script_grants'
+  | 'attachments'
+  | 'sessions'
+  | 'conversations';
 
 const TARGETS: { value: RetentionTarget; label: MessageKey }[] = [
   { value: 'run_events', label: 'retention.target.runEvents' },
@@ -45,11 +61,20 @@ export function RetentionPanel(): ReactNode {
   const client = useQueryClient();
   const [editingTarget, setEditingTarget] = useState<RetentionTarget | null>(null);
 
-  const preview = useQuery({ queryKey: ['retention-preview'], queryFn: () => api.retentionPreview() });
-  const policies = useQuery({ queryKey: ['retention-policies'], queryFn: () => api.retentionPolicies() });
+  const preview = useQuery({
+    queryKey: ['retention-preview'],
+    queryFn: () => unwrap(apiClient.GET('/api/retention/preview')) as Promise<RetentionPreview[]>,
+  });
+  const policies = useQuery({
+    queryKey: ['retention-policies'],
+    queryFn: () => unwrap(apiClient.GET('/api/retention')) as Promise<RetentionPolicy[]>,
+  });
   const history = useQuery({
     queryKey: ['retention-history'],
-    queryFn: () => api.retentionHistory({ take: 10 }),
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/retention/history', { params: { query: { take: 10 } } }),
+      ) as Promise<RetentionRun[]>,
   });
 
   const invalidate = (): void => {
@@ -58,12 +83,14 @@ export function RetentionPanel(): ReactNode {
   };
 
   const run = useMutation({
-    mutationFn: (target?: string) => api.runRetention(target),
+    mutationFn: (target?: string) =>
+      unwrap(apiClient.POST('/api/retention/run', { params: { query: { target } } })),
     onSuccess: () => void client.invalidateQueries({ queryKey: ['retention-history'] }),
   });
 
   const remove = useMutation({
-    mutationFn: (target: string) => api.deleteRetentionPolicy(target),
+    mutationFn: (target: string) =>
+      unwrap(apiClient.DELETE('/api/retention/{target}', { params: { path: { target } } })),
     onSuccess: invalidate,
   });
 
@@ -264,12 +291,17 @@ function PolicyForm({
 
   const save = useMutation({
     mutationFn: () =>
-      api.saveRetentionPolicy(target, {
-        maxAgeDays: maxAgeDays.trim() === '' ? null : Number(maxAgeDays),
-        maxRows: maxRows.trim() === '' ? null : Number(maxRows),
-        archive,
-        enabled,
-      }),
+      unwrap(
+        apiClient.PUT('/api/retention/{target}', {
+          params: { path: { target } },
+          body: {
+            maxAgeDays: maxAgeDays.trim() === '' ? null : Number(maxAgeDays),
+            maxRows: maxRows.trim() === '' ? null : Number(maxRows),
+            archive,
+            enabled,
+          },
+        }),
+      ) as Promise<RetentionPolicy>,
     onSuccess: onSaved,
   });
 

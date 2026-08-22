@@ -36,6 +36,8 @@
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Voice/AgentPrism.Voice.csproj" />
+    <!-- Phase 84: AgentPrismClientServiceCollectionExtensions carries an <example> too; missed when Phase 83 added the package. -->
+    <ProjectReference Include="../../src/AgentPrism.Client/AgentPrism.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

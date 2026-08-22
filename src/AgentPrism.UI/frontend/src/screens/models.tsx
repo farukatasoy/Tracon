@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { count, latencyText, relativeTime } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
 import { Link } from '../lib/router';
-import type { ModelProviderHealth, ModelProviderHealthStatus } from '../lib/types';
+import type { ModelProviderHealthStatus } from '@agentprism/client';
+import type { ModelProviderDescriptor, ModelProviderHealth } from '../lib/server-types';
 import {
   Badge,
   Button,
@@ -69,12 +70,15 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
  */
 export function ModelsScreen(): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
 
-  const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const providers = useQuery({
+    queryKey: ['models'],
+    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
   const health = useQuery({
     queryKey: ['models-health'],
-    queryFn: () => api.modelsHealth(),
+    queryFn: () => unwrap(client.GET('/api/models/health')) as Promise<ModelProviderHealth[]>,
     // While a provider looks unhealthy (possibly a circuit breaker counting
     // down its break duration), poll gently so the card catches up without a
     // dedicated countdown timer.
@@ -83,9 +87,14 @@ export function ModelsScreen(): ReactNode {
   });
 
   const checkNow = useMutation({
-    mutationFn: (name: string) => api.modelHealth(name, true),
+    mutationFn: (name: string) =>
+      unwrap(
+        client.GET('/api/models/health/{provider}', {
+          params: { path: { provider: name }, query: { refresh: true } },
+        }),
+      ) as Promise<ModelProviderHealth>,
     onSuccess: (result) => {
-      client.setQueryData<ModelProviderHealth[]>(['models-health'], (current) =>
+      queryClient.setQueryData<ModelProviderHealth[]>(['models-health'], (current) =>
         current === undefined
           ? [result]
           : current.map((entry) => (entry.providerName === result.providerName ? result : entry)),
@@ -168,8 +177,12 @@ export function ModelsScreen(): ReactNode {
                             <span className="ml-2 text-muted">{model.displayName}</span>
                           )}
                         </Td>
-                        <Td className="text-muted">{count(model.contextWindowTokens)}</Td>
-                        <Td className="text-muted">{count(model.maxOutputTokens)}</Td>
+                        <Td className="text-muted">
+                          {count(model.contextWindowTokens as number | null | undefined)}
+                        </Td>
+                        <Td className="text-muted">
+                          {count(model.maxOutputTokens as number | null | undefined)}
+                        </Td>
                         <Td>
                           <div className="flex flex-wrap gap-1">
                             {model.supportsStreaming && <Badge tone="info">streaming</Badge>}

@@ -27,6 +27,7 @@ namespace AgentPrism.Client.Generated;
 [JsonSerializable(typeof(AgentDefinition))]
 [JsonSerializable(typeof(AgentDefinitionRequest))]
 [JsonSerializable(typeof(AgentDetailResponse))]
+[JsonSerializable(typeof(AgentPrismDiagnosticsReport))]
 [JsonSerializable(typeof(AgentPrismMetaResponse))]
 [JsonSerializable(typeof(AgentRollbackRequest))]
 [JsonSerializable(typeof(AgentRunRequest))]

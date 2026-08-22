@@ -69,6 +69,11 @@ newer preview than the server it targets sees only the operations the server
 actually serves; calling one the server does not yet have returns a `404`.
 `AgentPrism.Cli` follows the same version family, since it wraps `AgentPrism.Client`.
 
+The npm package `@agentprism/client` is cut from the same `v*` git tag as every
+NuGet package above — there is no separate npm version scheme. `@agentprism/client
+1.0.0-preview.N` and `AgentPrism.Client 1.0.0-preview.N` always describe the
+identical OpenAPI document.
+
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.
