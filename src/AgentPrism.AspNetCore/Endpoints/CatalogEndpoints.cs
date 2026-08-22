@@ -93,7 +93,7 @@ internal static class CatalogEndpoints
                 "RunsWithUnknownPricing field — it is not written as zero. Every breakdown " +
                 "(byAgent, byModel, byVersion, byUser, byLabel) is ALWAYS returned; there is no " +
                 "groupBy switch. 'userId' and 'label' ('key:value') narrow the whole summary " +
-                "rather than choosing a breakdown. 🚨 byLabel rows do NOT sum to totalRuns: a run " +
+                "rather than choosing a breakdown. byLabel rows do NOT sum to totalRuns: a run " +
                 "carrying three labels appears in three of them. cachedInputTokens and " +
                 "reasoningTokens are counted INSIDE inputTokens/outputTokens, so adding them " +
                 "double counts.");

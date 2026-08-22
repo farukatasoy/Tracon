@@ -202,6 +202,8 @@ a failure to record one is logged and stepped over rather than raised to the cal
 |---|---|---|
 | .NET API | `AddAgentPrism()` and `IAgentCatalog`, tuned with `IAgentPrismBuilder.Configure(...)` and extended through `IAgentPrismBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
+| Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
+| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |
@@ -2091,7 +2093,22 @@ schema migration and a re-embed of existing documents. See
 ## Migrations run at startup
 
 The SQL files ship embedded in the assembly and are applied when the application
-starts. Two properties make that safe with several instances starting at once:
+starts, unless that responsibility is moved to its own deployment step:
+
+```mermaid
+flowchart TD
+    accTitle: Two ways a migration is applied
+    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate agentprism migrate step applies the schema first, and the application only verifies it before starting.
+    START["Application starts"] --> CHECK{"AutoApplyMigrations"}
+    CHECK -->|"true (default)"| APPLY["Applies pending migrations itself<br/>provider lock serializes concurrent instances"]
+    CHECK -->|"false"| SEPARATE["agentprism migrate<br/>runs as its own deployment step, no app needed"]
+    SEPARATE --> APP2["Application starts, verifies the schema, does not write"]
+    APPLY --> READY["Ready"]
+    APP2 --> READY
+```
+
+Two properties make in-process application safe with several instances starting at
+once:
 
 - The runner takes the provider-specific lock shown above, so instances serialize
   instead of racing.
@@ -2120,6 +2137,18 @@ app.MapAgentPrism("/agentprism", options =>
 
 After that opt-in, `GET /agentprism/api/diagnostics` is an Admin surface and still
 passes through the configured access layers.
+
+Something still needs to **apply** the schema before the application starts with
+`AutoApplyMigrations = false`. The `agentprism` CLI does that as its own step,
+against the database directly — no running application required:
+
+```bash
+agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Running it again applies nothing (`0 applied`) and exits `0`; `agentprism migrate
+status` lists pending migration names without writing. See the [typed client and
+CLI guide](/guides/cli/) for setup and the rest of the commands.
 
 ## What changes once it is durable
 
@@ -2886,6 +2915,91 @@ idempotent.
 - [Inbound triggers](/guides/inbound-triggers/) — let an external system queue a run over a signed HTTP request, instead of `Prefer: respond-async`
 - [Reliable runs](/guides/reliability/) — what happens to a queued run when a worker dies mid-flight
 - [Production deployment](/guides/production/) — where the worker process lives and how many of them you run
+
+---
+
+# Typed client and CLI
+
+Two packages let you reach a running AgentPrism instance from outside the process
+that hosts it: a typed HTTP client for your own code, and a command-line tool for
+scripts and deployment pipelines.
+
+```mermaid
+flowchart LR
+    accTitle: Two ways to reach a running AgentPrism instance
+    accDescr: A separate application references AgentPrism.Client directly over HTTP. The agentprism CLI wraps that same client for its health command, and talks to the database directly for migrate, because the application has not started yet at that point.
+    APP["Your application"] -->|"references"| CLIENT["AgentPrism.Client<br/>typed HTTP client"]
+    CLIENT -->|"HTTP: /api/*"| SERVER["Running AgentPrism instance"]
+    CLI["agentprism CLI<br/>health"] -->|"uses"| CLIENT
+    CLI2["agentprism CLI<br/>migrate / migrate status"] -.->|"direct connection<br/>no HTTP"| DB[("Database")]
+```
+
+## The typed client
+
+```bash
+dotnet add package AgentPrism.Client --prerelease
+```
+
+`AddAgentPrismClient` builds settings from `AgentPrismClientOptions`:
+
+```csharp
+services.AddAgentPrismClient(options =>
+{
+    // The application root PLUS the MapAgentPrism prefix. The default is
+    // "/agentprism"; an app that called MapAgentPrism("/control") needs
+    // "https://example.com/control/" instead.
+    options.BaseAddress = new Uri("https://example.com/agentprism/");
+    options.Token = configuration["AgentPrism:Token"];
+});
+```
+
+```csharp
+var client = provider.GetRequiredService<AgentPrismApiClient>();
+var agents = await client.AgentPrismListAgentsAsync(cancellationToken);
+```
+
+`AgentPrismApiClient` is generated from the same OpenAPI document that
+`AgentPrism.AspNetCore` serves, so it covers every management operation — agents,
+runs, sessions, evals, workflows, tenants, and the rest. Its request and response
+types are separate from the server's own types: same shape, but the client never
+takes on server-side abstractions it does not need.
+
+The client takes no AgentPrism package and only one NuGet package
+(`Microsoft.Extensions.DependencyInjection.Abstractions`, for the
+`IServiceCollection` extension); an `HttpClient` is built once and kept for the
+container's lifetime rather than going through `IHttpClientFactory`.
+
+## The CLI
+
+```bash
+dotnet tool install -g AgentPrism.Cli --prerelease
+agentprism --help
+```
+
+| Command | Reaches | What it does |
+|---|---|---|
+| `agentprism migrate --provider <postgres\|sqlserver\|sqlite> --connection <connection-string>` | Database, directly | Applies pending migrations. Runs before the application ever starts, so a deployment pipeline can prepare the schema as its own step |
+| `agentprism migrate status --provider ... --connection ...` | Database, directly | Lists pending migration names. Writes nothing |
+| `agentprism health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
+
+`--connection` and `--token` also accept the `AGENTPRISM_CONNECTION` and
+`AGENTPRISM_TOKEN` environment variables — useful in a CI/CD step where a literal
+secret on the command line would show up in shell history and process listings.
+Neither is ever read from a configuration file, and neither is ever printed back.
+Exit code `0` means success, `1` a usage error, `2` a runtime failure (could not
+connect, an HTTP error, a timeout).
+
+`migrate` talks to the database directly instead of over HTTP because the moment
+it matters most is before the application has ever started — there is no endpoint
+to call yet, and adding one would open a database-writing operation to the network
+for no reason. The tool bundles all three database provider packages so it works
+against whichever one you run; that weight lands on the tool's own installation,
+never on your application's dependency graph.
+
+## Read next
+
+- [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
+- [Every public type](/api/) — the full generated client surface
 
 ---
 
@@ -6874,7 +6988,7 @@ The paths, schemas, and descriptions are the same.
 
 # Choosing packages
 
-Seventeen packages. Take the meta package for the common set, or pick individually
+Nineteen packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## The meta package
@@ -6911,6 +7025,18 @@ Add these when you need them.
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
+
+## Calling AgentPrism from elsewhere
+
+These are not runtime packages you host AgentPrism with — they call a running
+AgentPrism instance, from a separate application or from a terminal.
+
+| Package | What it does |
+|---|---|
+| `AgentPrism.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Takes no AgentPrism package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
+| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `health` reads model provider health over HTTP through `AgentPrism.Client` |
+
+See the [CLI guide](/guides/cli/) for setup and every command.
 
 ## Picking a database
 
@@ -6982,6 +7108,7 @@ Eight runtime packages make the trimming and Native AOT compatibility promise:
 | `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
 | `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
 | `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
+| `AgentPrism.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
 
 In `AgentPrism.Core` the only reflection is in `AddTool(Delegate)` and
 `AddToolsFrom<T>()`, both annotated so the warning reaches you. `AddGeneratedTools()`
@@ -8106,6 +8233,15 @@ With Central Package Management, keep the versions in one place:
 
 If you reference individual packages directly, pin each one to the same version. Avoid
 floating ranges in production.
+
+### The typed client and the server it calls
+
+`AgentPrism.Client` is generated from the exact same OpenAPI document the server
+build carries — both come from the same repository build, so they cannot drift
+apart at a given version the way a hand-written client could. A caller on a
+newer preview than the server it targets sees only the operations the server
+actually serves; calling one the server does not yet have returns a `404`.
+`AgentPrism.Cli` follows the same version family, since it wraps `AgentPrism.Client`.
 
 ## Upgrade safely
 

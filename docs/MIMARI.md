@@ -65,6 +65,9 @@ flowchart TD
 
     MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatClientAgent · HarnessAgent<br/>ChatHistoryProvider · AgentSessionStore · Workflows"]
 
+    CLIENT["<b>AgentPrism.Client</b><br/>OpenAPI'den üretilen tipli HTTP istemcisi<br/>AgentPrismApiClient · AddAgentPrismClient()"]
+    CLI["<b>AgentPrism.Cli</b><br/><code>agentprism</code> global tool<br/>migrate · migrate status · health"]
+
     T --> HTTP
     HTTP -->|"IAgentPrismUiProvider · kayıtlıysa"| UI
     HTTP --> PG
@@ -83,6 +86,9 @@ flowchart TD
     WF --> CORE
     HTTP --> CORE
     CORE --> ABS --> MAF
+    CLIENT -.->|"HTTP · /api/*"| T
+    CLI --> CLIENT
+    CLI -.->|"migrate: dogrudan veritabani"| PG
 ```
 
 **Bağımlılık yönü tek yönlüdür ve döngü içermez:** her sağlayıcı/kalıcılık paketi
@@ -94,6 +100,14 @@ tablosu 9. bölümdedir (K-006).
 > katmanı onları `IMcpToolRefresher` ve `IWorkflowRunner` soyutlamaları üzerinden
 > tetikler. Böylece ikisi de isteğe bağlı paket kalır. Workflow motoru kayıtlı
 > değilse yalnız çalıştırma uçları `501` döner; tanım yönetimi çalışır (K-118).
+
+> `AgentPrism.Client` **hiçbir AgentPrism paketini referanslamaz** (Faz 83,
+> K-565): DTO'ları OpenAPI belgesinden üretilir, `Abstractions`'ı yeniden
+> kullanmaz — kesikli ok bunu **HTTP üzerinden çağırma** ilişkisi olarak
+> gösterir, derleme-zamanı bağımlılık değil. `AgentPrism.Cli` üç SQL sağlayıcı
+> paketini de referanslar (diyagramda yalnız `PostgreSql` gösterildi, `SqlServer`
+> ve `Sqlite` aynı ilişkiyi taşır) — bir global tool olduğu için bu ağırlık
+> tüketicinin grafiğine **girmez** (K-568).
 
 Bu grafiği bozan bir referans eklemek yasaktır; mimari testi bunu zorlar.
 

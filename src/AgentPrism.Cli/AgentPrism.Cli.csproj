@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      TargetFrameworks (PLURAL) is left EMPTY: src/Directory.Build.props
+      assigns it "net8.0;net9.0;net10.0", but PackAsTool needs exactly ONE
+      TFM and cannot cross-target (K-263 pattern; AgentPrism.Templates.csproj
+      and AgentPrism.Generators.csproj do the same).
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks></TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <Description>The `agentprism` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`) and reads the health endpoint through AgentPrism.Client (`health`).</Description>
+    <PackageTags>$(CommonPackageTags);cli;tool;migrate</PackageTags>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>agentprism</ToolCommandName>
+    <!-- A dotnet tool ships an executable, not a library API - no public surface to track. -->
+    <AgentPrismPublicApiTrackingEnabled>false</AgentPrismPublicApiTrackingEnabled>
+    <!-- Global tools ship as IL, not native code; nothing here promises AOT. -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+    <RootNamespace>AgentPrism.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Client/AgentPrism.Client.csproj" />
+    <ProjectReference Include="../AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <ProjectReference Include="../AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
+    <ProjectReference Include="../AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

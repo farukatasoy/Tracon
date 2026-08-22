@@ -19,6 +19,8 @@
     <Project Path="src/AgentPrism/AgentPrism.csproj" />
     <Project Path="src/AgentPrism.Templates/AgentPrism.Templates.csproj" />
     <Project Path="src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
+    <Project Path="src/AgentPrism.Client/AgentPrism.Client.csproj" />
+    <Project Path="src/AgentPrism.Cli/AgentPrism.Cli.csproj" />
   </Folder>
 
   <Folder Name="/samples/">
@@ -42,6 +44,8 @@
     <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
     <Project Path="tests/AgentPrism.Templates.Tests/AgentPrism.Templates.Tests.csproj" />
     <Project Path="tests/AgentPrism.Testing.UnitTests/AgentPrism.Testing.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.Client.UnitTests/AgentPrism.Client.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.Cli.FunctionalTests/AgentPrism.Cli.FunctionalTests.csproj" />
   </Folder>
 
   <Folder Name="/solution-items/">

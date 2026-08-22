@@ -184,6 +184,8 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 | `AgentPrism.UI` | Embedded React console — 28 screens across 36 routes, zero JavaScript dependencies |
 | `AgentPrism.Templates` | The `dotnet new agentprism-api` template — not in the meta package |
 | `AgentPrism.Testing` | `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
+| `AgentPrism.Client` | Typed management client generated from the OpenAPI document — 160 operations, zero AgentPrism dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
+| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
 

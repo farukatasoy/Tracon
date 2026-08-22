@@ -317,6 +317,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 31 | [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md) | `DDG` | 75 | `tests/AgentPrism.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/{build-api-reference,build-http-api}.mjs` · `tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs` · `README.md` · `src/*/README.md` · `docs-site/site.config.mjs` | **24** | ✅ | ⬜ henüz koşulmadı |
 | 32 | [`32-DOKUMAN-KALITESI.md`](32-DOKUMAN-KALITESI.md) | `DKL` | 76 | `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` · `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` · `docs-site/scripts/build-social-images.mjs` | **20** | ✅ | ⬜ henüz koşulmadı |
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` | **5** | ✅ | ⬜ henüz koşulmadı |
+| 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83 | `src/AgentPrism.Client` · `src/AgentPrism.Cli` · `nswag.json` · `scripts/nswag-*.py` | **12** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 12 👤 koşulmadı |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 

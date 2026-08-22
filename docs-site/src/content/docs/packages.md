@@ -1,10 +1,10 @@
 ---
 title: Choosing packages
-description: What each of the 17 packages does, which come with the meta package, and what enters your dependency graph.
+description: What each of the 19 packages does, which come with the meta package, and what enters your dependency graph.
 slug: packages
 ---
 
-Seventeen packages. Take the meta package for the common set, or pick individually
+Nineteen packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## The meta package
@@ -41,6 +41,18 @@ Add these when you need them.
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
+
+## Calling AgentPrism from elsewhere
+
+These are not runtime packages you host AgentPrism with — they call a running
+AgentPrism instance, from a separate application or from a terminal.
+
+| Package | What it does |
+|---|---|
+| `AgentPrism.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Takes no AgentPrism package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
+| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `health` reads model provider health over HTTP through `AgentPrism.Client` |
+
+See the [CLI guide](/guides/cli/) for setup and every command.
 
 ## Picking a database
 
@@ -112,6 +124,7 @@ Eight runtime packages make the trimming and Native AOT compatibility promise:
 | `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
 | `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
 | `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
+| `AgentPrism.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
 
 In `AgentPrism.Core` the only reflection is in `AddTool(Delegate)` and
 `AddToolsFrom<T>()`, both annotated so the warning reaches you. `AddGeneratedTools()`

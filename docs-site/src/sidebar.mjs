@@ -80,6 +80,7 @@ export const sidebar = [
       { label: 'Reliable runs', slug: 'guides/reliability' },
       { label: 'Observability and cost', slug: 'guides/observability' },
       { label: 'Governance', slug: 'concepts/governance' },
+      { label: 'Typed client and CLI', slug: 'guides/cli' },
       { label: 'Production deployment', slug: 'guides/production' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },
     ],

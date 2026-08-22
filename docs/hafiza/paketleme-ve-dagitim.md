@@ -69,3 +69,54 @@
 - **`docs/openapi/agentprism.json` `AgentPrism.AspNetCore` paketine KAYNAGINDAN girer**: `<None Include="../../docs/openapi/agentprism.json" Pack="true" PackagePath="buildTransitive/" />`. Olculen maliyet: 1 034 455 → 1 100 931 bayt (**+%6,4**). Kopya uretilmedigi icin sapma yuzeyi yok; belgeyi calisan host'a `OpenApiSnapshotTests` bagliyor.
 - **🚨 Tuketicinin agacina yazilan uretilmis dosya PROJE basina yazilir, depo koküne degil** (2026-08-20, Faz 74 denetim bulgusu 3, olculdu): bir cozumdeki iki proje FARKLI paket kumesi referanslar (`src/Web` meta paket, `src/Worker` yalniz `AgentPrism.Core`) ve tek paylasilan dosya iki cevabi birden tasiyamaz — son derlenen proje kazanir, Web HTTP belgesini KAYBEDER, icerik her derlemede degisir. Birlestirme (merge) COZMEZ: projeler PARALEL derlenir ve okuma-yazma yarisir. `$(MSBuildProjectDirectory)` yapisal olarak dogrudur. `AGENTS.md` istisnadir cunku HIC ezilmez ve icerigi projeye gore degismez.
 - **Proje dizinine yazan bir hedefi "salt-okunur dizin" ile test etme**: proje dizini `bin/`/`obj/` icin zaten yazilabilir olmali; salt-okunur yapilinca DERLEMENIN KENDISI `MSB3021` ile kirilir ve test urunu degil kendini olcer. Tasinabilir bicim: dosyanin yerine bir **dizin** koy. Gercek CI sekli (`UseArtifactsOutput` ile cikti baska yere, kaynak agaci salt-okunur) elle dogrulanir: `warning MSB3491`, `exit=0`.
+
+## NSwag ile uretilen istemci (Faz 83)
+
+> `AgentPrism.Client`, `docs/openapi/agentprism.json`'dan `dotnet nswag run` ile
+> uretilir. Uc script (`scripts/nswag-*.py`) uretim ONCESI/SONRASI donusum
+> yapar; komut sirasi paketin kendi README'sinde.
+
+- **🚨 `[JsonSourceGenerationOptions(Converters = [...])]` PROPERTY UZERINDEN
+  ulasilan enum tipleri icin ETKISIZ** (olculdu): global listeye kayitli bir
+  `JsonStringEnumConverter<T>` yalniz KOK (`[JsonSerializable]`) tip olarak
+  islenirse calisir; bir DTO'nun ozelligi olarak REACHABLE olan enum icin
+  kaynak ureteci sessizce varsayilan SAYISAL `EnumConverter<T>`'a duser — tel
+  degeri ("Running") `JsonException` firlatir. Tanı: `resolver.GetTypeInfo(t,
+  options).Converter` turunu dogrudan sorgula. Cozum global liste degil, HER
+  `enum` bildiriminin USTUNE TIP DUZEYINDE `[JsonConverter(typeof(
+  JsonStringEnumConverter<T>))]` yazmak (K-571) — NSwag'in zaten property
+  duzeyinde uyguladigi (polimorfik `$type` ayrimcilari icin) desenin aynisi.
+- **NJsonSchema, `additionalProperties` anahtari YOK sayilan HER semaya
+  otomatik bir `[JsonExtensionData]` yakalama ozelligi (`AdditionalProperties`)
+  ekler** — semanin KENDI, ayni adli bir alani varsa `CS0102` verir. Uretim
+  ONCESI dokuman kopyasinda her semaya `additionalProperties: false` yazmak
+  hem catismayi giderir hem gereksiz yakalamayi kaldirir (K-570); STJ zaten
+  bilinmeyen alani sessizce atlar, kapatma davranisi DEGISTIRMEZ.
+  `properties` tasiyan ama zaten `additionalProperties` yazan bir semaya
+  DOKUNMA — anahtar SIBLING'dir, `properties` ICINDEKI ayni adli bir ALAN
+  (property) degildir.
+  - **NSwag `.g.cs` dosyasindaki bir 🚨/`K-NNN`/`docs/` referansi ASLINDA
+    KAYNAKTAN gelir**: sunucunun `.WithDescription(...)` metni oldugu gibi
+    OpenAPI `description` alanina, oradan XML doc yorumuna kopyalanir.
+    `ShippedDocumentationSelfContainmentTests` bunu `.cs` dosyasinda YAKALAR
+    ama commit'li `docs/openapi/agentprism.json`'da YAKALAMAZ (emoji orada
+    `🚨` olarak JSON-escape'lidir, ham UTF-8 degildir) — bir
+    onceki fazdan miras kalan boyle bir ihlal, istemci ILK KEZ uretildiginde
+    ortaya cikar. Duzeltme KAYNAK `.WithDescription(...)` metnindedir, uretilen
+    dosyada degil (o zaten yeniden uretilir).
+- **🚨 Linked-source (K-176) bir tipi UC saglayiciyi BIRLIKTE referanslayan
+  bir tuketici derlemesinde `CS0433` (belirsiz referans) verir** (Faz 83,
+  K-568): `MigrationRunner` her SQL saglayici paketine AYRI derlenir (K-247'nin
+  ayni tuzagi, burada "sayim" degil "unqualified referans" baglaminda);
+  `agentprism` CLI'si `--provider`'a gore calisma aninda secim yaptigi icin
+  UCUNU DE ayni derlemede referans eder. `extern alias` uc komut sinifini
+  neredeyse birebir uc kez tekrar etmeyi gerektirirdi. Cozum: paylasilan
+  arayuzu `AgentPrism.Abstractions`'a tasimak (`IMigrationApplier`,
+  `ISqlPersistenceDiagnostics`'in yaninda) — arayuz TEK derlemede tanimli
+  oldugu icin uc saglayici referans edildiginde bile AYNI tip kalir.
+- **`UseBaseUrl: false` (nswag.json) + `HttpClient.BaseAddress`**: istemci
+  URL'leri BAGIL (`"api/agents"`, onek/sonek yok) uretilsin diye. Belge
+  `servers` alanindan gelen sabit bir `_baseUrl` alani (varsayilan `nswag.json`
+  ayariyla) her cagriya ONEK olarak eklenir ve `AddAgentPrismClient`'in
+  `BaseAddress`'ini GORMEZDEN GELIR — `UseBaseUrl:false` bu alani TAMAMEN
+  kaldirir, `HttpClient.BaseAddress` (trailing `/` ile) tek kaynak olur.

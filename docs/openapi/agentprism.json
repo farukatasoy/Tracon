@@ -3299,7 +3299,7 @@
           "Agents"
         ],
         "summary": "Returns run counts, token totals, and the error rate.",
-        "description": "The summary is computed in the store itself. Cost is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero. Every breakdown (byAgent, byModel, byVersion, byUser, byLabel) is ALWAYS returned; there is no groupBy switch. \u0027userId\u0027 and \u0027label\u0027 (\u0027key:value\u0027) narrow the whole summary rather than choosing a breakdown. \uD83D\uDEA8 byLabel rows do NOT sum to totalRuns: a run carrying three labels appears in three of them. cachedInputTokens and reasoningTokens are counted INSIDE inputTokens/outputTokens, so adding them double counts.",
+        "description": "The summary is computed in the store itself. Cost is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero. Every breakdown (byAgent, byModel, byVersion, byUser, byLabel) is ALWAYS returned; there is no groupBy switch. \u0027userId\u0027 and \u0027label\u0027 (\u0027key:value\u0027) narrow the whole summary rather than choosing a breakdown. byLabel rows do NOT sum to totalRuns: a run carrying three labels appears in three of them. cachedInputTokens and reasoningTokens are counted INSIDE inputTokens/outputTokens, so adding them double counts.",
         "operationId": "AgentPrismStats",
         "parameters": [
           {

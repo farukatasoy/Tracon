@@ -8,6 +8,13 @@
         "docfx"
       ],
       "rollForward": false
+    },
+    "nswag.consolecore": {
+      "version": "14.2.0",
+      "commands": [
+        "nswag"
+      ],
+      "rollForward": false
     }
   }
 }
