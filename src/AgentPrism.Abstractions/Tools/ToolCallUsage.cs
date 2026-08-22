@@ -59,4 +59,10 @@ public static class ToolUsageUnits
 
     /// <summary>Seconds. Used in speech-to-text conversion.</summary>
     public const string Seconds = "seconds";
+
+    /// <summary>Generated images. Used when an image provider bills per image.</summary>
+    public const string Images = "images";
+
+    /// <summary>Output tokens. Used when an image provider bills image generation by tokens.</summary>
+    public const string Tokens = "tokens";
 }

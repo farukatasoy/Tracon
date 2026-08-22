@@ -519,6 +519,7 @@ public sealed class AgentPrismRunRecordingOptions
 ///   <item><c>AgentPrism:Pricing:Currency</c></item>
 ///   <item><c>AgentPrism:Pricing:{provider}:{model}:Input|Output</c></item>
 ///   <item><c>AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters|PerMinute</c></item>
+///   <item><c>AgentPrism:Pricing:Images:{provider}:{model}:PerImage|OutputCostPerMillionTokens</c></item>
 /// </list>
 /// Wildcards are not supported.
 /// <para>
@@ -549,6 +550,15 @@ public sealed class AgentPrismPricingOptions
     /// </remarks>
     public IDictionary<string, IDictionary<string, VoicePriceOverride>> Voice { get; }
         = new Dictionary<string, IDictionary<string, VoicePriceOverride>>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets image-generation prices per model, keyed by provider name.</summary>
+    /// <remarks>
+    /// A model is priced either per generated image or per output token. The two
+    /// modes are deliberately separate from <see cref="Providers"/>, which prices
+    /// chat-model input and output tokens.
+    /// </remarks>
+    public IDictionary<string, IDictionary<string, ImagePriceOverride>> Images { get; }
+        = new Dictionary<string, IDictionary<string, ImagePriceOverride>>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>Defines the configured price for one voice model.</summary>
@@ -564,6 +574,24 @@ public sealed class VoicePriceOverride
 
     /// <summary>Gets or sets cost per minute for speech-to-text.</summary>
     public decimal? PerMinute { get; set; }
+}
+
+/// <summary>Defines the configured price for one image-generation model.</summary>
+public sealed class ImagePriceOverride
+{
+    /// <summary>Gets or sets the cost per generated image.</summary>
+    public decimal? PerImage { get; set; }
+
+    /// <summary>Gets image-size multipliers, keyed by the provider's size string.</summary>
+    /// <remarks>
+    /// Keys are not normalized. A provider can add a size without a library release;
+    /// retaining the provider string avoids a stale built-in image-size catalogue.
+    /// </remarks>
+    public IDictionary<string, decimal> SizeMultipliers { get; }
+        = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets the cost per million output tokens.</summary>
+    public decimal? OutputCostPerMillionTokens { get; set; }
 }
 
 /// <summary>Defines a configured price override for one model.</summary>

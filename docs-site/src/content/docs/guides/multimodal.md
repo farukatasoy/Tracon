@@ -1,6 +1,6 @@
 ---
-title: Multimodal input
-description: Upload images, documents, text, and audio safely, attach them to a run, and understand storage, model support, and lifecycle limits.
+title: Multimodal input and generated images
+description: Upload images, documents, text, and audio safely, attach them to a run, or generate a durable image attachment with an agent tool.
 ---
 
 AgentPrism treats binary input as a stored attachment, not as JSON inside a message.
@@ -157,6 +157,52 @@ The default speech output is `mp3_44100_128`. Headerless `pcm_*` and `ulaw_*` ou
 cannot pass attachment magic-byte validation and are rejected. For live WebSocket
 conversation, register `UseVoiceConversation()` as well.
 
+## Generate an image as an attachment
+
+Image generation is off by default. Register an image-capable provider, then enable
+the capability and choose its image model. The built-in `generate_image` tool is added
+to the normal tool registry, so it has the same authorization, timeout, audit, quota,
+and run-recording behavior as every other server-side tool.
+
+```csharp title="Program.cs"
+var agentPrism = builder.AddAgentPrism()
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
+    .UseOpenAIImages(options =>
+    {
+        options.Enabled = true;
+        options.Model = "gpt-image-1";
+        options.MaxImagesPerRequest = 1;
+    });
+```
+
+Add `generate_image` to the agent's `ToolNames`. It accepts `prompt`, optional
+`count`, and optional `size` such as `1024x1024`. Its result contains attachment ids
+only. It never returns image bytes or base64 to the model. The saved attachment uses
+the current tenant and the run's session id, so it appears in the existing transcript
+and attachment UI.
+
+Generated `DataContent` is written directly. A provider `UriContent` result is
+downloaded immediately through AgentPrism's outbound-network guard, then stored as
+bytes; an expired provider URL does not break later downloads. Hosted-file references
+are rejected because an attachment store has no durable provider-file reference field.
+If a multi-image response fails after an earlier image is saved, AgentPrism attempts
+to delete the earlier attachments. That cleanup is best effort: a storage delete
+failure is logged, the original generation failure is returned, and an operator can
+remove any remaining attachment through the normal attachment API.
+
+The optional operator endpoint uses the same path outside a run:
+
+```bash
+curl -sS -X POST http://localhost:5081/agentprism/api/images/generate \
+  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"A teal lighthouse at dawn","sessionId":"case-4182"}'
+```
+
+It is mapped only when images are enabled. The response has attachment descriptors
+and the observed image usage. It does not create a `tool_invocations` row because it
+is not part of a run.
+
 ## Troubleshooting
 
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not
@@ -187,7 +233,9 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 - [Attachment HTTP API](/http-api/attachments/)
 - [Agent run HTTP API](/http-api/agents/)
 - [Voice HTTP API](/http-api/voice/)
+- [Image HTTP API](/http-api/images/)
 - [`AgentPrismAttachmentOptions` API](/api/agentprism.agentprismattachmentoptions/)
+- [`AgentPrismImageOptions` API](/api/agentprism.agentprismimageoptions/)
 - [`AgentRunRequest` API](/api/agentprism.agentrunrequest/)
 - [`UseVoice` API](/api/agentprism.voicebuilderextensions/)
 

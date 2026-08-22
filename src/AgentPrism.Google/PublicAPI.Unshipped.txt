@@ -1,5 +1,6 @@
 #nullable enable
 AgentPrism.GoogleChatClientFactory
+AgentPrism.GoogleImageBuilderExtensions
 AgentPrism.GoogleChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.GoogleChatClientFactory.Dispose() -> void
 AgentPrism.GoogleChatClientFactory.GoogleChatClientFactory(AgentPrism.GoogleProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
@@ -39,6 +40,7 @@ const AgentPrism.GoogleProviderNames.ThinkingBudgetTokensSetting = "google.think
 const AgentPrism.GoogleProviderNames.ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts" -> string!
 const AgentPrism.GoogleProviderOptions.SectionName = "AgentPrism:Providers:Google" -> string!
 static AgentPrism.GoogleChatClientFactory.FromClient(Google.GenAI.Client! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> AgentPrism.GoogleChatClientFactory!
+static AgentPrism.GoogleImageBuilderExtensions.UseGoogleImages(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismImageOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.GoogleModelCatalog.Build(AgentPrism.GoogleProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 static AgentPrism.GoogleProviderExtensions.UseGoogle(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.GoogleProviderExtensions.UseGoogle(this AgentPrism.IAgentPrismBuilder! builder, string! apiKey, System.Action<AgentPrism.GoogleProviderOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!

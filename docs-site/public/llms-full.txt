@@ -114,6 +114,7 @@ claim to provide an operating-system sandbox.
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new AgentPrism message abstraction |
+| Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `AgentPrism:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 
@@ -193,7 +194,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; AgentPrism can also persist a sample |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, and optional quota gauges | Standard .NET metrics; high-cardinality and store-backed gauges are bounded |
-| Cost attribution | Per model, agent, run, child run, and voice usage | Prices come from a model catalog or explicit configuration |
+| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddAgentPrismHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -223,7 +224,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-161-operation HTTP reference.
+162-operation HTTP reference.
 
 ## Embedding points
 
@@ -1637,6 +1638,18 @@ synchronization should not opt in. See
 [Model providers](/guides/model-providers/#concurrent-tool-calls) for where this
 setting lives on `ModelBinding`.
 
+### Built-in image generation
+
+When `AgentPrism:Images:Enabled` is true and a supported image provider is
+registered, AgentPrism adds `generate_image` as an `External` tool. It accepts a
+prompt and returns attachment ids, never base64 image data. Generation can spend money
+and sends a prompt to an external provider, so the normal authorization, timeout, run
+recording, and continuation rules apply. In particular, an interrupted run does not
+automatically repeat an image-generation call.
+
+See [Multimodal input and generated images](/guides/multimodal/) for registration,
+storage, and price configuration.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the
@@ -2022,6 +2035,11 @@ var app = builder.Build();
 app.MapAgentPrism("/agentprism");
 app.Run();
 ```
+
+This first agent uses a chat model only. To let a later agent generate stored image
+attachments, add `UseOpenAIImages(...)`, set `AgentPrism:Images:Enabled`, and choose
+an image model explicitly. An image model is not inferred from this agent's chat
+model; see [image generation providers](/guides/model-providers/#image-generation-providers).
 
 ```bash
 dotnet run
@@ -4743,6 +4761,37 @@ Each options type validates at startup. Missing required configuration stops the
 before the first run. A named compatible endpoint can be keyless, and Azure can use a
 credential factory instead of an API key.
 
+## Image generation providers
+
+OpenAI, Azure OpenAI, and Google can also register an `IImageGenerator`. These are
+separate from chat-model registrations because an image model or Azure deployment is
+not safely inferred from an agent's chat model.
+
+```csharp title="Program.cs"
+agentPrism
+    .UseOpenAIImages(options =>
+    {
+        options.Enabled = true;
+        options.Model = "gpt-image-1";
+    });
+
+// Azure uses an image deployment name.
+// agentPrism.UseAzureOpenAIImages(options => options.Model = "image-deployment");
+
+// Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
+// agentPrism.UseGoogleImages(options => options.Model = "your-imagen-model");
+```
+
+Each extension shares the authenticated client factory already created by `UseOpenAI`,
+`UseAzureOpenAI`, or `UseGoogle`; it adds no second credential path or package. The
+extensions register generators by provider name. When more than one is registered,
+set `AgentPrism:Images:Provider` to `openai`, `azure-openai`, or `google` to select
+the generator and matching price table. An unkeyed `IImageGenerator` that your
+application registers remains the fallback for a custom provider.
+
+`UseOpenAICompatible()` does not imply image support. Register a supported image
+extension only after you verify that its provider API supports the selected model.
+
 Then bind an agent to one stable provider name:
 
 ```csharp
@@ -5146,7 +5195,7 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 
 ---
 
-# Multimodal input
+# Multimodal input and generated images
 
 AgentPrism treats binary input as a stored attachment, not as JSON inside a message.
 The run carries an attachment id. The model receives the verified bytes only when the
@@ -5302,6 +5351,52 @@ The default speech output is `mp3_44100_128`. Headerless `pcm_*` and `ulaw_*` ou
 cannot pass attachment magic-byte validation and are rejected. For live WebSocket
 conversation, register `UseVoiceConversation()` as well.
 
+## Generate an image as an attachment
+
+Image generation is off by default. Register an image-capable provider, then enable
+the capability and choose its image model. The built-in `generate_image` tool is added
+to the normal tool registry, so it has the same authorization, timeout, audit, quota,
+and run-recording behavior as every other server-side tool.
+
+```csharp title="Program.cs"
+var agentPrism = builder.AddAgentPrism()
+    .UseOpenAI(builder.Configuration.GetSection(OpenAIProviderOptions.SectionName))
+    .UseOpenAIImages(options =>
+    {
+        options.Enabled = true;
+        options.Model = "gpt-image-1";
+        options.MaxImagesPerRequest = 1;
+    });
+```
+
+Add `generate_image` to the agent's `ToolNames`. It accepts `prompt`, optional
+`count`, and optional `size` such as `1024x1024`. Its result contains attachment ids
+only. It never returns image bytes or base64 to the model. The saved attachment uses
+the current tenant and the run's session id, so it appears in the existing transcript
+and attachment UI.
+
+Generated `DataContent` is written directly. A provider `UriContent` result is
+downloaded immediately through AgentPrism's outbound-network guard, then stored as
+bytes; an expired provider URL does not break later downloads. Hosted-file references
+are rejected because an attachment store has no durable provider-file reference field.
+If a multi-image response fails after an earlier image is saved, AgentPrism attempts
+to delete the earlier attachments. That cleanup is best effort: a storage delete
+failure is logged, the original generation failure is returned, and an operator can
+remove any remaining attachment through the normal attachment API.
+
+The optional operator endpoint uses the same path outside a run:
+
+```bash
+curl -sS -X POST http://localhost:5081/agentprism/api/images/generate \
+  -H "Authorization: Bearer $AGENTPRISM_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"A teal lighthouse at dawn","sessionId":"case-4182"}'
+```
+
+It is mapped only when images are enabled. The response has attachment descriptors
+and the observed image usage. It does not create a `tool_invocations` row because it
+is not part of a run.
+
 ## Troubleshooting
 
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not
@@ -5332,7 +5427,9 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 - [Attachment HTTP API](/http-api/attachments/)
 - [Agent run HTTP API](/http-api/agents/)
 - [Voice HTTP API](/http-api/voice/)
+- [Image HTTP API](/http-api/images/)
 - [`AgentPrismAttachmentOptions` API](/api/agentprism.agentprismattachmentoptions/)
+- [`AgentPrismImageOptions` API](/api/agentprism.agentprismimageoptions/)
 - [`AgentRunRequest` API](/api/agentprism.agentrunrequest/)
 - [`UseVoice` API](/api/agentprism.voicebuilderextensions/)
 
@@ -7448,7 +7545,7 @@ answer.
 
 # HTTP API
 
-161 operations across 124 paths. This page is the shape they all share; the groups in
+162 operations across 125 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -7615,6 +7712,11 @@ Add these when you need them.
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
+
+`AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
+image-generator registrations. They reuse their chat provider's authenticated client,
+but image generation stays off until you configure `AgentPrism:Images`; see [model
+providers](/guides/model-providers/#image-generation-providers).
 
 ## Calling AgentPrism from elsewhere
 
@@ -8152,7 +8254,7 @@ recording is best-effort during a storage outage.
 ### Pricing
 
 Pricing has no built-in values. `Currency`, provider/model token prices, and voice
-prices all start empty. The supported shape is:
+and image prices all start empty. The supported shape is:
 
 ```text
 AgentPrism:Pricing:Currency
@@ -8161,6 +8263,9 @@ AgentPrism:Pricing:{provider}:{model}:Output
 AgentPrism:Pricing:{provider}:{model}:CachedInput
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters
 AgentPrism:Pricing:Voice:{provider}:{model}:PerMinute
+AgentPrism:Pricing:Images:{provider}:{model}:PerImage
+AgentPrism:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
+AgentPrism:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
 ```
 
 Values label and calculate reports only. AgentPrism performs no currency conversion.
@@ -8193,6 +8298,45 @@ fault. Set it to `0` to state that cache reads are free.
 Reasoning tokens are recorded (`reasoningTokens`) but priced at the output rate:
 providers do not bill them separately today, and an unmeasured distinction is not
 worth widening the price schema.
+
+An image model uses either `PerImage` or `OutputCostPerMillionTokens`, never both.
+`SizeMultipliers` applies only to a per-image price and uses the exact provider size
+string, for example `1024x1024`. An image response with no matching configured price
+records its real quantity but leaves `cost` as `null`; AgentPrism does not estimate
+image prices.
+
+### Images
+
+`AgentPrism:Images` is off by default. When `Enabled` is `true`, `Provider` and
+`Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
+the `generate_image` tool and maps `POST /api/images/generate`.
+
+```json
+{
+  "AgentPrism": {
+    "Images": {
+      "Enabled": true,
+      "Provider": "openai",
+      "Model": "gpt-image-1",
+      "MaxImagesPerRequest": 1
+    },
+    "Pricing": {
+      "Currency": "USD",
+      "Images": {
+        "openai": {
+          "gpt-image-1": {
+            "PerImage": 0.04,
+            "SizeMultipliers": { "1024x1024": 2.0 }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Provider extensions set `Provider` when it is empty. Set it explicitly when the host
+registers more than one image provider or a custom keyed generator.
 
 ## Operational sections
 
