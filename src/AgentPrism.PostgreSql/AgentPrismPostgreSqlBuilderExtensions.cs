@@ -153,6 +153,13 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
+        // Same reasoning, for the `agentprism migrate` CLI command (Phase 83,
+        // section 83.5): MigrationRunner is linked-source, so a consumer that
+        // references more than one provider sees ambiguous types with the
+        // same name (CS0433). IMigrationApplier is the resolvable seam.
+        services.Replace(ServiceDescriptor.Singleton<IMigrationApplier>(
+            static provider => provider.GetRequiredService<MigrationRunner>()));
+
         // The audit trail ledger also replaces the in-memory one.
         services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 

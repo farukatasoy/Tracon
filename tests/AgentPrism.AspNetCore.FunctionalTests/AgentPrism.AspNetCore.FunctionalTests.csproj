@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <!-- ClientTenantScopeTests: proves the generated client sees the same tenant boundary a raw HTTP caller does. -->
+    <ProjectReference Include="../../src/AgentPrism.Client/AgentPrism.Client.csproj" />
     <!--
       AgentPrism.AspNetCore is itself provider-independent (a natural
       consequence of K-008). This project tests the AspNetCore + OpenAI

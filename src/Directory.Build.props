@@ -64,11 +64,13 @@
   </ItemGroup>
 
   <!--
-    Public API tracking applies to every src/ project by default. Two projects
-    opt out by setting AgentPrismPublicApiTrackingEnabled=false in their own
-    csproj: AgentPrism.Generators and AgentPrism.Templates. Neither ships a
-    consumer-facing API surface - Generators' "API" is its diagnostic/source
-    output, Templates' is `dotnet new` content. Rationale: docs/KARARLAR.md.
+    Public API tracking applies to every src/ project by default. Four
+    projects opt out by setting AgentPrismPublicApiTrackingEnabled=false in
+    their own csproj: AgentPrism.Generators and AgentPrism.Templates (neither
+    ships a consumer-facing API surface - Generators' "API" is its
+    diagnostic/source output, Templates' is `dotnet new` content), and
+    AgentPrism.Client and AgentPrism.Cli (their surface is generated from the
+    OpenAPI document, which already has its own drift gate). Rationale: docs/KARARLAR.md.
   -->
   <PropertyGroup Label="Public API takibi katilimi">
     <AgentPrismPublicApiTrackingEnabled Condition=" '$(AgentPrismPublicApiTrackingEnabled)' == '' ">true</AgentPrismPublicApiTrackingEnabled>
