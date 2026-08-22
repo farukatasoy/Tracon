@@ -611,6 +611,7 @@ alt sistem hatası (sunucu kapalı / JSON olmayan gövde).
 - [x] Manuel kabul case'leri `docs/manuel-test/35-TYPESCRIPT-ISTEMCISI.md` içine eklendi (plan `34` öngörmüştü, gerçek boş sıra `35`'ti — denetimin 🟡#4 bulgusu); `00-INDEKS.md` tablosuna `35` satırı yazıldı; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu (taze bağlamlı `general-purpose` agent, izole worktree); 🔴 bulgu **yok**; 5 🟡 bulgunun 4'ü kapandı (regex genişletildi, case 7 metni düzeltildi, dosya numarası düzeltildi, `required` boşluğu doğrulandı), 1'i (E2E'nin denetçinin kendi ortamında koşulamaması) uygulayan oturumun kendi gate koşumuyla zaten kapalıydı — ayrıntı "Denetim Bulguları"
 - [x] `docs-site/` güncellendi — yeni `guides/typescript-client.md`, `packages.md`, `capabilities.md`, `reference/versioning.md`, `http-api.md`/`index.mdx` (161 operasyon), `sidebar.mjs`; `npm run check` (content → build → links → weight) dört kapının tamamı yeşil; `dokuman-bakim.py --site-denetle` iki kural gerekçeyle geçildi (Plandan Sapmalar)
+- [x] Site **yayınlandı** (`scripts/site-deploy.sh`, kullanıcı onayıyla) ve canlıda doğrulandı: `https://agentprism.doayen.web.tr/` → 200, apex (`doayen.web.tr`) bozulmadı (405 = HEAD, beklenen), **yeni sayfa** `https://agentprism.doayen.web.tr/guides/typescript-client/` → 200 ve içeriği (`createAgentPrismClient`) canlıda görüldü
 - [x] Kök `README.md` npm kanalını anlatan bir satır kazandı; `160→161` operasyon sayısı düzeltildi
 
 ### Doğrulama komutları
