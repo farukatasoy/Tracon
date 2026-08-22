@@ -693,7 +693,45 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             ExtractQuery(input),
             cancellationToken).ConfigureAwait(false);
 
+        await WriteDocumentAttachedEventsAsync(start.Writer, input, cancellationToken).ConfigureAwait(false);
         await SaveInputAsync(start, input, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes a <see cref="RunEventType.DocumentAttached"/> event for every
+    /// document channel message in the run's input, keeping the document
+    /// visibly apart from the instructions text in the run record.
+    /// </summary>
+    /// <remarks>
+    /// The event carries only the document's name, size, and hash - never its
+    /// content: the content already lives in <see cref="IRunInputStore"/>
+    /// (subject to the same recording settings as any other input), and
+    /// duplicating it into <c>run_events</c> would both grow that table
+    /// unboundedly and widen the at-rest encryption scope for no added value.
+    /// </remarks>
+    private static async ValueTask WriteDocumentAttachedEventsAsync(
+        RunEventWriter writer,
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (!DocumentChannelMessageBuilder.TryGetSummary(content, out var summary))
+                {
+                    continue;
+                }
+
+                await writer.AppendAsync(
+                    new RunEventDraft(RunEventType.DocumentAttached)
+                    {
+                        Text = summary.Name,
+                        Payload = $$"""{"sizeBytes":{{summary.SizeBytes}},"sha256":"{{summary.Sha256}}"}""",
+                    },
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>
@@ -1145,8 +1183,26 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     // PERSISTED — the session is saved only when the run completes SUCCESSFULLY
     // (AgentEndpoints.AgentRunStream), therefore the query of a failed run cannot be read
     // through any other path.
+    //
+    // 🚨 A document channel message is ChatRole.User too (it needs to sit
+    // beside the actual message in a turn) and, when documents are given,
+    // precedes the query in the list - a naive FirstOrDefault(User) would
+    // make a document's OWN content look like the query it was attached to.
     private static string? ExtractQuery(IReadOnlyList<ChatMessage> messages)
-        => messages.FirstOrDefault(static message => message.Role == ChatRole.User)?.Text;
+    {
+        foreach (var message in messages)
+        {
+            if (message.Role == ChatRole.User && !IsDocumentChannelMessage(message))
+            {
+                return message.Text;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsDocumentChannelMessage(ChatMessage message)
+        => message.Contents is [TextContent content] && DocumentChannelMessageBuilder.TryGetSummary(content, out _);
 
     /// <summary>
     /// Reads the run's attribution.

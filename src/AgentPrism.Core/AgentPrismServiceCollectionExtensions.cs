@@ -447,7 +447,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<IVectorSearchStore>(),
             // The consumer registers their own IEmbeddingGenerator (the K-032 pattern).
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
-            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value.MaxResults));
+            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value.MaxResults,
+            // Resolves SharedInstructionsName. Registered unconditionally a few
+            // lines below (the in-memory store by default), so this is never null
+            // in practice - GetService, not GetRequiredService, only to avoid a
+            // hard dependency order requirement between the two registrations.
+            provider.GetService<IAgentDefinitionStore>()));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,
@@ -986,6 +991,15 @@ public static class AgentPrismServiceCollectionExtensions
         if (section[nameof(AgentPrismOptions.DefaultTenantId)] is { Length: > 0 } tenantId)
         {
             options.DefaultTenantId = tenantId;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismOptions.MaxParameterValueLength)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxParameterValueLength))
+        {
+            options.MaxParameterValueLength = maxParameterValueLength;
         }
 
         // Every sub-section is responsible for ITS OWN existence check. An

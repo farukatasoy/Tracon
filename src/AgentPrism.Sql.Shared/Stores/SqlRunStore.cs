@@ -98,7 +98,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "variant", record.Variant);
         AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
         AddNullableText(command, "user_id", record.UserId);
-        Dialect.AddJsonb(command, "labels", SerializeLabels(record.Labels));
+        Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
 
         // The depth column is smallint; its source is the budget's MaxDepth
         // value and never comes close to the short limit in any deployment.
@@ -849,7 +849,7 @@ internal sealed class SqlRunStore : IRunStore
             // application that registers no IRunAttributionContext (K-014 -- no
             // backfill).
             UserId = DbHelpers.GetNullableString(reader, 40),
-            Labels = DeserializeLabels(DbHelpers.GetNullableString(reader, 41)),
+            Labels = JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, 41)),
 
             // 🚨 37-38: Columns ALWAYS appended at the end (Phase 44). On old
             // rows error_class is NULL -- it falls into the Unknown bucket
@@ -1113,90 +1113,6 @@ internal sealed class SqlRunStore : IRunStore
 
         Dialect.AddText(command, "label_key", key);
         Dialect.AddText(command, "label_value", key is null ? null : labelValue);
-    }
-
-    /// <summary>
-    /// Writes a label map as JSON text.
-    /// </summary>
-    /// <returns><see langword="null"/> when there is nothing to write, so the column stays NULL.</returns>
-    /// <remarks>
-    /// Written with <see cref="Utf8JsonWriter"/> rather than
-    /// <see cref="JsonSerializer"/>: reflection-based serialization is not
-    /// AOT-safe, and a flat string map does not justify a source-generated
-    /// context. This is the same DOM-level approach <c>PgVectorSearchStore</c>
-    /// uses for <c>document_embeddings.metadata</c>.
-    /// </remarks>
-    private static string? SerializeLabels(IReadOnlyDictionary<string, string>? labels)
-    {
-        if (labels is null or { Count: 0 })
-        {
-            return null;
-        }
-
-        var buffer = new ArrayBufferWriter<byte>();
-
-        using (var writer = new Utf8JsonWriter(buffer))
-        {
-            writer.WriteStartObject();
-
-            foreach (var (key, value) in labels)
-            {
-                writer.WriteString(key, value);
-            }
-
-            writer.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
-    }
-
-    /// <summary>
-    /// Reads a label map back from JSON text.
-    /// </summary>
-    /// <returns>
-    /// <see langword="null"/> when the column is empty OR the text does not
-    /// parse.
-    /// </returns>
-    /// <remarks>
-    /// Malformed JSON returns <see langword="null"/> instead of throwing.
-    /// Labels are observability data, and observability must not break
-    /// functionality: a single unreadable map must not fail the whole run list
-    /// (this is the same class of fault as an unassigned <c>JsonElement</c>
-    /// taking down an entire list endpoint). PostgreSQL validates the column at
-    /// write time, but SQL Server and SQLite hold plain text.
-    /// </remarks>
-    private static Dictionary<string, string>? DeserializeLabels(string? json)
-    {
-        if (json is not { Length: > 0 })
-        {
-            return null;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            var labels = new Dictionary<string, string>(StringComparer.Ordinal);
-
-            foreach (var property in document.RootElement.EnumerateObject())
-            {
-                if (property.Value.ValueKind == JsonValueKind.String)
-                {
-                    labels[property.Name] = property.Value.GetString()!;
-                }
-            }
-
-            return labels.Count == 0 ? null : labels;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     private void AddNullableText(DbCommand command, string name, string? value)

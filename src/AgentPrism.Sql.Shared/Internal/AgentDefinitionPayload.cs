@@ -56,6 +56,12 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the free-form application-specific metadata.</summary>
     public Dictionary<string, JsonElement>? Metadata { get; init; }
 
+    /// <summary>Gets the parameter schema.</summary>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
+    /// <summary>Gets the referenced shared instructions block.</summary>
+    public string? SharedInstructionsName { get; init; }
+
     /// <summary>Converts the content of a definition into a payload.</summary>
     /// <param name="definition">The source definition.</param>
     /// <returns>The payload to serialize.</returns>
@@ -78,6 +84,8 @@ internal sealed record AgentDefinitionPayload
             Metadata = definition.Metadata.Count == 0
                 ? null
                 : new Dictionary<string, JsonElement>(definition.Metadata, StringComparer.Ordinal),
+            Parameters = definition.Parameters,
+            SharedInstructionsName = definition.SharedInstructionsName,
         };
 
     /// <summary>Builds the full definition by merging the payload with the column values.</summary>
@@ -108,5 +116,7 @@ internal sealed record AgentDefinitionPayload
             Metadata = Metadata is null
                 ? new Dictionary<string, JsonElement>(StringComparer.Ordinal)
                 : new Dictionary<string, JsonElement>(Metadata, StringComparer.Ordinal),
+            Parameters = Parameters,
+            SharedInstructionsName = SharedInstructionsName,
         };
 }

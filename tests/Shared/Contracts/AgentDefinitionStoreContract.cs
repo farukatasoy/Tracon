@@ -220,6 +220,12 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
                 ["owner"] = TestData.State("\"platform-team\""),
                 ["priority"] = TestData.State("3"),
             },
+            Parameters =
+            [
+                new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true },
+                new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, DefaultValue = "formal" },
+            ],
+            SharedInstructionsName = "house-rules",
         };
 
         await Store.SaveAsync(original);
@@ -262,6 +268,13 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Memory.EnableTextSearch.ShouldBeTrue();
         loaded.Metadata["owner"].GetString().ShouldBe("platform-team");
         loaded.Metadata["priority"].GetInt32().ShouldBe(3);
+        loaded.Parameters.Count.ShouldBe(2);
+        loaded.Parameters[0].Name.ShouldBe("customer");
+        loaded.Parameters[0].Kind.ShouldBe(AgentParameterKind.Text);
+        loaded.Parameters[0].Required.ShouldBeTrue();
+        loaded.Parameters[1].Name.ShouldBe("tone");
+        loaded.Parameters[1].DefaultValue.ShouldBe("formal");
+        loaded.SharedInstructionsName.ShouldBe("house-rules");
     }
 
     [Fact]

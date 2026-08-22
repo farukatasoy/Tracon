@@ -1143,3 +1143,11 @@ static AgentPrism.WorkflowFunctionResponse.From(AgentPrism.WorkflowFunctionDescr
 static AgentPrism.WorkflowFunctionResponse.operator !=(AgentPrism.WorkflowFunctionResponse? left, AgentPrism.WorkflowFunctionResponse? right) -> bool
 static AgentPrism.WorkflowFunctionResponse.operator ==(AgentPrism.WorkflowFunctionResponse? left, AgentPrism.WorkflowFunctionResponse? right) -> bool
 AgentPrism.WorkflowFunctionResponse.<Clone>$() -> AgentPrism.WorkflowFunctionResponse!
+AgentPrism.AgentDefinitionRequest.Parameters.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentParameter!>!
+AgentPrism.AgentDefinitionRequest.Parameters.init -> void
+AgentPrism.AgentDefinitionRequest.SharedInstructionsName.get -> string?
+AgentPrism.AgentDefinitionRequest.SharedInstructionsName.init -> void
+AgentPrism.AgentRunRequest.Documents.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentRunDocument!>!
+AgentPrism.AgentRunRequest.Documents.init -> void
+AgentPrism.AgentRunRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.AgentRunRequest.Parameters.init -> void

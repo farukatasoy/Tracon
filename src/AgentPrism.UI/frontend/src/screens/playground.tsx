@@ -9,6 +9,7 @@ import { useT } from '../lib/i18n';
 import type { ChatMessage, SessionDetailResponse } from '@agentprism/client';
 import type {
   AgentDescriptor,
+  AgentDetailResponse,
   AttachmentDescriptor,
   ConversationResource,
   SpeakResponse,
@@ -18,11 +19,13 @@ import {
   Button,
   Empty,
   ErrorNote,
+  Field,
   Loading,
   Mono,
   PageHeader,
   Panel,
   Select,
+  TextInput,
   cx,
 } from '../components/ui';
 import { CrossIcon, MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
@@ -81,6 +84,20 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const selected = name ?? agents.data?.[0]?.name ?? '';
+
+  // The list endpoint (AgentDescriptor) carries no parameter schema; only the
+  // detail endpoint's AgentDefinition does. Fetched separately so agents
+  // without a schema (the overwhelming majority) pay no extra cost beyond
+  // this one cheap, per-name-cached lookup.
+  const agentDetail = useQuery({
+    queryKey: ['agent-detail', selected],
+    queryFn: () =>
+      unwrap(client.GET('/api/agents/{name}', { params: { path: { name: selected } } })) as Promise<AgentDetailResponse>,
+    enabled: selected.length > 0,
+  });
+  const parameterSchema = agentDetail.data?.definition?.parameters ?? [];
+
+  const [paramValues, setParamValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -146,6 +163,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
     setPendingAttachments([]);
     setUploadError(null);
     setConversation(false);
+    setParamValues({});
 
     // Otherwise a stale '?sessionId=' still in the address bar would re-hydrate
     // the very session 'new chat' just left, right back through the effect above.
@@ -245,6 +263,10 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           message,
           sessionId: conversation,
           attachmentIds: attachments.map((attachment) => attachment.id),
+          // Sent only when the agent declares a schema at all — omitting the
+          // field entirely for the overwhelming majority of agents is the
+          // exact same request shape as before this feature existed.
+          parameters: parameterSchema.length > 0 ? paramValues : undefined,
           // An approval is the input of the next turn, not a resume signal:
           // Microsoft Agent Framework ends the run when a tool needs a decision
           // and expects the answer in the following request.
@@ -316,20 +338,30 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       setBusy(false);
     }
   },
-    [selected, busy, sessionId, queryClient],
+    [selected, busy, sessionId, queryClient, parameterSchema, paramValues],
+  );
+
+  // A run with a value missing for a required AgentParameter never starts on
+  // the server either (AgentParameterGate); blocked here too so the person
+  // running the agent sees why before spending a round trip on it.
+  const missingRequiredParameter = parameterSchema.some(
+    (parameter) =>
+      parameter.required &&
+      (paramValues[parameter.name] ?? '').trim().length === 0 &&
+      (parameter.defaultValue ?? '').length === 0,
   );
 
   const send = useCallback(() => {
     const message = prompt.trim();
 
-    if (message.length === 0 && pendingAttachments.length === 0) {
+    if ((message.length === 0 && pendingAttachments.length === 0) || missingRequiredParameter) {
       return;
     }
 
     setPrompt('');
     setPendingAttachments([]);
     void run(message.length > 0 ? message : null, null, pendingAttachments);
-  }, [prompt, pendingAttachments, run]);
+  }, [prompt, pendingAttachments, run, missingRequiredParameter]);
 
   /**
    * Answers a pending approval.
@@ -520,6 +552,45 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         >
           {uploadError !== null && <ErrorNote error={uploadError} />}
 
+          {parameterSchema.length > 0 && (
+            <div data-testid="playground-parameters" className="flex flex-col gap-2">
+              <p className="text-[11px] font-medium text-subtle uppercase">{t('playground.parameters')}</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {parameterSchema.map((parameter) => (
+                  <Field
+                    key={parameter.name}
+                    label={parameter.name}
+                    required={parameter.required}
+                    hint={parameter.description}
+                  >
+                    {parameter.kind === 'Boolean' ? (
+                      <input
+                        type="checkbox"
+                        checked={(paramValues[parameter.name] ?? parameter.defaultValue ?? 'false') === 'true'}
+                        onChange={(event) =>
+                          setParamValues((current) => ({
+                            ...current,
+                            [parameter.name]: event.target.checked ? 'true' : 'false',
+                          }))
+                        }
+                        className="size-4"
+                      />
+                    ) : (
+                      <TextInput
+                        type={parameter.kind === 'Number' ? 'number' : 'text'}
+                        value={paramValues[parameter.name] ?? parameter.defaultValue ?? ''}
+                        placeholder={parameter.defaultValue ?? undefined}
+                        onChange={(event) =>
+                          setParamValues((current) => ({ ...current, [parameter.name]: event.target.value }))
+                        }
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+            </div>
+          )}
+
           {pendingAttachments.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {pendingAttachments.map((attachment) => (
@@ -594,7 +665,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 type="submit"
                 tone="primary"
                 testId="playground-send"
-                disabled={prompt.trim().length === 0 && pendingAttachments.length === 0}
+                disabled={(prompt.trim().length === 0 && pendingAttachments.length === 0) || missingRequiredParameter}
               >
                 <SendIcon className="size-3.5" />
                 {t('playground.send')}

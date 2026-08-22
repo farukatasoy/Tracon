@@ -14225,6 +14225,22 @@ namespace AgentPrism.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("metadata")]
         public object Metadata { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the schema of named placeholders (`{{name}}`) this definition's
+        /// <br/>instructions may reference.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the name of another definition whose `Instructions` text is
+        /// <br/>prepended to this definition's own resolved instructions at compile time.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sharedInstructionsName")]
+        public string? SharedInstructionsName { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -14321,6 +14337,20 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("memory")]
         public MemorySettings? Memory { get; set; } = default!;
+
+        /// <summary>
+        /// The parameter schema. See IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = default!;
+
+        /// <summary>
+        /// The referenced shared instructions block. See `AgentDefinition.SharedInstructionsName`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sharedInstructionsName")]
+        public string? SharedInstructionsName { get; set; } = default!;
 
     }
 
@@ -14436,6 +14466,71 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("isEditable")]
         public bool IsEditable { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// A single named placeholder an AgentDefinition's instructions can
+    /// <br/>reference as `{{name}}`.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AgentParameter
+    {
+        /// <summary>
+        /// Gets the parameter name, as referenced by `{{name}}` in the instructions text.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the parameter's data kind.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public AgentParameterKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether a run must supply this parameter. A run missing a required
+        /// <br/>parameter with no `DefaultValue` does not start.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("required")]
+        public bool Required { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the value used when a run does not supply this parameter. Applies
+        /// <br/>whether or not `Required` is set.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("defaultValue")]
+        public string? DefaultValue { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a short description shown to the person authoring a run.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The data kind of an AgentParameter.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<AgentParameterKind>))]
+    public enum AgentParameterKind
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Text")]
+        Text = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Number")]
+        Number = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Boolean")]
+        Boolean = 2,
 
     }
 
@@ -14750,6 +14845,29 @@ namespace AgentPrism.Client.Generated
     }
 
     /// <summary>
+    /// A piece of reference text attached to a single run, kept apart from the
+    /// <br/>model's instructions.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AgentRunDocument
+    {
+        /// <summary>
+        /// Gets the document's name, shown to the model inside the delimiter.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the document's text. Never treated as instructions.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("content")]
+        public string Content { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// Request for a trial run made from the UI.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -14799,6 +14917,20 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("attachmentIds")]
         public System.Collections.Generic.ICollection<System.Guid> AttachmentIds { get; set; } = default!;
+
+        /// <summary>
+        /// Values for the target agent's IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters schema.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
+
+        /// <summary>
+        /// Reference text attached to this run, kept apart from the agent's instructions.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("documents")]
+        public System.Collections.Generic.ICollection<AgentRunDocument> Documents { get; set; } = default!;
 
     }
 
@@ -16799,6 +16931,14 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("promotedAt")]
         public System.DateTimeOffset? PromotedAt { get; set; } = default!;
+
+        /// <summary>
+        /// Values for the target agent's IReadOnlyList&amp;lt;AgentParameter&amp;gt; AgentDefinition.Parameters
+        /// <br/>schema. `null` for an agent that declares no parameters.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
 
     }
 

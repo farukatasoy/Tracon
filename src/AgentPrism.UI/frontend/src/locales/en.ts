@@ -1188,6 +1188,7 @@ export const en = {
   'playground.priorMessages': 'Prior messages',
   'playground.empty.title': 'Send a message to start',
   'playground.empty.body': 'The reply streams in token by token. A tool call appears as a card with its arguments and result.',
+  'playground.parameters': 'Parameters',
   'playground.placeholder': 'Send a message…',
   'playground.send': 'Send',
   'playground.attachFile': 'Attach a file',

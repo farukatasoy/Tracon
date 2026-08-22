@@ -25,6 +25,12 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.DefaultTenantId)} cannot be empty.");
         }
 
+        if (options.MaxParameterValueLength < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.MaxParameterValueLength)} must be at least 1.");
+        }
+
         var recording = options.RunRecording;
 
         if (recording is null)

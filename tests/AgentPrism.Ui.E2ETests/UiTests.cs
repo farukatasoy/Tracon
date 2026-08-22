@@ -867,6 +867,51 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Playground_renders_a_parameter_form_and_blocks_send_until_required_values_are_filled()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        using (var created = await client.PostAsJsonAsync(
+            $"{host.Prefix}/api/agents",
+            new
+            {
+                name = "param-e2e",
+                instructions = "Hello {{customer}}!",
+                model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Default },
+                parameters = new[]
+                {
+                    new { name = "customer", kind = "Text", required = true },
+                },
+            }))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/param-e2e");
+
+        await session.Page.GetByTestId("playground-parameters").WaitForAsync();
+
+        var sendButton = session.Page.GetByTestId("playground-send");
+
+        await session.Page.GetByTestId("playground-input").FillAsync("hi there");
+
+        // The required "customer" value is still empty: send stays blocked
+        // even though the message itself is non-empty.
+        (await sendButton.IsDisabledAsync()).ShouldBeTrue();
+
+        await session.Page.GetByLabel("customer").FillAsync("Acme");
+
+        (await sendButton.IsDisabledAsync()).ShouldBeFalse();
+
+        await sendButton.ClickAsync();
+
+        await session.Page.GetByText("Echo: hi there").WaitForAsync(new() { Timeout = 20_000 });
+    }
+
+    [Fact]
     public async Task Write_buttons_are_hidden_for_reader_role()
     {
         // Phase 9: when the Admin policy fails, the UI must hide write

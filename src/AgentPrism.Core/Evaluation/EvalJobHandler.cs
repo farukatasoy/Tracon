@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI.Evaluation;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -29,7 +30,11 @@ namespace AgentPrism;
 internal sealed class EvalJobHandler(
     IEvalStore evalStore,
     IAgentCatalog catalog,
+    IAgentDefinitionStore definitionStore,
+    AgentDefinitionCompiler compiler,
     EvalCheckRegistry checkRegistry,
+    IOptions<AgentPrismOptions> options,
+    IEnumerable<IAgentDecorator> decorators,
     ILogger<EvalJobHandler>? logger = null) : IJobHandler
 {
     /// <inheritdoc />
@@ -112,6 +117,17 @@ internal sealed class EvalJobHandler(
                 ?? throw new AgentPrismException(
                     $"No agent named '{suite.AgentName}' exists in the catalog. The eval suite's agent may have been deleted.");
 
+        // 🚨 Read separately from the resolved AIAgent above: a parameterized
+        // agent cannot be evaluated with ONE shared compiled instance - each
+        // case can carry different AgentParameter values, so each case's
+        // instructions text (after binding) can differ. Null for a code-only
+        // agent, exactly like AgentParameterGate on the HTTP side; such an
+        // agent has no schema and every case below runs against the shared
+        // `agent`, unchanged from before this feature existed.
+        var sourceDefinition = agentVersion is { } pinnedVersion
+            ? await definitionStore.GetVersionAsync(suite.AgentName, pinnedVersion, cancellationToken).ConfigureAwait(false)
+            : await definitionStore.GetAsync(suite.AgentName, cancellationToken).ConfigureAwait(false);
+
         var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
         var casesById = cases.ToDictionary(static evalCase => evalCase.Id);
 
@@ -174,6 +190,7 @@ internal sealed class EvalJobHandler(
                 evalRun,
                 evalCase,
                 agent,
+                sourceDefinition,
                 evaluator,
                 suite.Name,
                 numRepetitions,
@@ -221,11 +238,86 @@ internal sealed class EvalJobHandler(
         EvalRun evalRun,
         EvalCase evalCase,
         AIAgent agent,
+        AgentDefinition? sourceDefinition,
         LocalEvaluator evaluator,
         string evalName,
         int numRepetitions,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE any call reaches the provider - the same
+        // "missing/unknown parameter never runs" rule
+        // POST /api/agents/{name}/run applies (AgentParameterGate). A
+        // parameterless case run against a parameterless agent (the
+        // overwhelming majority) never reaches AgentParameterValidator at
+        // all: schema.Count == 0 short-circuits inside ValidateValues.
+        if (sourceDefinition is { Parameters.Count: > 0 } schemaDefinition)
+        {
+            var validation = AgentParameterValidator.ValidateValues(
+                schemaDefinition.Parameters,
+                evalCase.Parameters,
+                options.Value.MaxParameterValueLength);
+
+            if (!validation.IsValid)
+            {
+                var reason = string.Join(
+                    " ",
+                    validation.Errors.Select(static error =>
+                    {
+                        var kind = error.Code switch
+                        {
+                            AgentParameterValidator.MissingParameterCode => "Missing",
+                            AgentParameterValidator.ValueTooLongCode => "Too long",
+                            _ => "Unknown",
+                        };
+
+                        return $"{kind} parameter '{error.ParameterName}'.";
+                    }));
+
+                await evalStore.RecordCaseResultAsync(
+                    new EvalCaseResult
+                    {
+                        EvalRunId = evalRun.Id,
+                        CaseId = evalCase.Id,
+                        RunId = null,
+                        Passed = false,
+                        FailureReason = reason,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                return (false, 0, 0);
+            }
+
+            // 🚨 Never CompiledAgentCache - see CompileParameterizedAsync's
+            // remarks. Each case in the suite can carry different values, so
+            // this compiles fresh once per case, not once per suite the way
+            // the shared `agent` above does. This bypasses IAgentCatalog
+            // entirely (not just the cache), so AgentDecoratorPipeline is
+            // applied by hand below - otherwise this case's run goes out
+            // undecorated: no run recording, no telemetry.
+            agent = await compiler
+                .CompileParameterizedAsync(schemaDefinition, culture: null, evalCase.Parameters, cancellationToken)
+                .ConfigureAwait(false);
+
+            agent = AgentDecoratorPipeline.Apply(
+                agent,
+                new AgentDescriptor
+                {
+                    Name = schemaDefinition.Name,
+                    DisplayName = schemaDefinition.DisplayName,
+                    Description = schemaDefinition.Description,
+                    Origin = AgentDefinitionOrigin.Database,
+                    SourceName = "database",
+                    Version = schemaDefinition.Version,
+                    Model = schemaDefinition.Model,
+                    ToolNames = schemaDefinition.ToolNames,
+                    SkillNames = schemaDefinition.SkillNames,
+                    CallableAgentNames = schemaDefinition.CallableAgentNames,
+                    UsesHarness = schemaDefinition.Harness is not null,
+                    UpdatedAt = schemaDefinition.UpdatedAt,
+                },
+                decorators);
+        }
+
         var allRepetitionsPassed = true;
         long inputTokens = 0;
         long outputTokens = 0;

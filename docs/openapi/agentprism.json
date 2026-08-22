@@ -6562,6 +6562,20 @@
           "metadata": {
             "type": "object",
             "description": "Gets free-form, application-specific metadata."
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "Gets the schema of named placeholders (\u0060{{name}}\u0060) this definition\u0027s\ninstructions may reference."
+          },
+          "sharedInstructionsName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the name of another definition whose \u0060Instructions\u0060 text is\nprepended to this definition\u0027s own resolved instructions at compile time."
           }
         },
         "description": "The full definition of an agent. The same type is used whether the agent is\ndeclared in code or stored in the database; AgentDefinitionOrigin AgentDefinition.Origin tells the two apart."
@@ -6672,6 +6686,20 @@
                 "$ref": "#/components/schemas/MemorySettings"
               }
             ]
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "The parameter schema. See IReadOnlyList\u0026lt;AgentParameter\u0026gt; AgentDefinition.Parameters."
+          },
+          "sharedInstructionsName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The referenced shared instructions block. See \u0060AgentDefinition.SharedInstructionsName\u0060."
           }
         },
         "description": "Request to create or update an agent definition."
@@ -6794,6 +6822,50 @@
           }
         },
         "description": "Detailed view of a single agent."
+      },
+      "AgentParameter": {
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the parameter name, as referenced by \u0060{{name}}\u0060 in the instructions text."
+          },
+          "kind": {
+            "description": "Gets the parameter\u0027s data kind.",
+            "$ref": "#/components/schemas/AgentParameterKind"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Gets whether a run must supply this parameter. A run missing a required\nparameter with no \u0060DefaultValue\u0060 does not start."
+          },
+          "defaultValue": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the value used when a run does not supply this parameter. Applies\nwhether or not \u0060Required\u0060 is set."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets a short description shown to the person authoring a run."
+          }
+        },
+        "description": "A single named placeholder an AgentDefinition\u0027s instructions can\nreference as \u0060{{name}}\u0060."
+      },
+      "AgentParameterKind": {
+        "enum": [
+          "Text",
+          "Number",
+          "Boolean"
+        ],
+        "description": "The data kind of an AgentParameter."
       },
       "AgentPrismAuthenticationMeta": {
         "required": [
@@ -7067,6 +7139,24 @@
         },
         "description": "Request to roll back a definition to a previous version."
       },
+      "AgentRunDocument": {
+        "required": [
+          "name",
+          "content"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the document\u0027s name, shown to the model inside the delimiter."
+          },
+          "content": {
+            "type": "string",
+            "description": "Gets the document\u0027s text. Never treated as instructions."
+          }
+        },
+        "description": "A piece of reference text attached to a single run, kept apart from the\nmodel\u0027s instructions."
+      },
       "AgentRunRequest": {
         "type": "object",
         "properties": {
@@ -7112,6 +7202,23 @@
               "format": "uuid"
             },
             "description": "Identifiers of attachments previously uploaded via \u0060POST /api/attachments\u0060."
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Values for the target agent\u0027s IReadOnlyList\u0026lt;AgentParameter\u0026gt; AgentDefinition.Parameters schema."
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentRunDocument"
+            },
+            "description": "Reference text attached to this run, kept apart from the agent\u0027s instructions."
           }
         },
         "description": "Request for a trial run made from the UI."
@@ -9468,6 +9575,16 @@
             ],
             "description": "The promotion time. \u0060null\u0060 when hand-written.",
             "format": "date-time"
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Values for the target agent\u0027s IReadOnlyList\u0026lt;AgentParameter\u0026gt; AgentDefinition.Parameters\nschema. \u0060null\u0060 for an agent that declares no parameters."
           }
         },
         "description": "A single test case inside an EvalSuite."

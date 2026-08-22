@@ -1188,6 +1188,7 @@ export const tr: Messages = {
   'playground.priorMessages': 'Önceki mesajlar',
   'playground.empty.title': 'Başlamak için bir mesaj gönderin',
   'playground.empty.body': 'Yanıt token token akar. Tool çağrısı, argümanları ve sonucu ile bir kart olarak görünür.',
+  'playground.parameters': 'Parametreler',
   'playground.placeholder': 'Bir mesaj gönderin…',
   'playground.send': 'Gönder',
   'playground.attachFile': 'Dosya ekle',

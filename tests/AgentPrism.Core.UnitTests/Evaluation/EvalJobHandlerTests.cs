@@ -1,8 +1,10 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
@@ -188,7 +190,15 @@ public sealed class EvalJobHandlerTests
         var evalStore = new InMemoryEvalStore();
         var agent = new MapAgent();
         var catalog = new SingleAgentCatalog(agent, version: 7, modelId: "gpt-test");
-        var handler = new EvalJobHandler(evalStore, catalog, new EvalCheckRegistry([]), NullLogger<EvalJobHandler>.Instance);
+        var handler = new EvalJobHandler(
+            evalStore,
+            catalog,
+            new InMemoryAgentDefinitionStore(),
+            CreateCompiler(),
+            new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions()),
+            [],
+            NullLogger<EvalJobHandler>.Instance);
 
         var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
         var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("question")]);
@@ -213,6 +223,206 @@ public sealed class EvalJobHandlerTests
         completed!.AgentVersion.ShouldBe(3);
     }
 
+    [Fact]
+    public async Task Parameterized_agent_case_binds_its_values_before_running()
+    {
+        var client = new FakeChatClient();
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
+        var definitionStore = new InMemoryAgentDefinitionStore();
+
+        await definitionStore.SaveAsync(TestData.Definition(name: AgentName) with
+        {
+            Instructions = "Hello {{customer}}.",
+            Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+        });
+
+        var evalStore = new InMemoryEvalStore();
+        var handler = new EvalJobHandler(
+            evalStore,
+            new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
+            definitionStore,
+            compiler,
+            new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions()),
+            [],
+            NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("question") with
+            {
+                Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Acme" },
+            }]);
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var reported = new List<JobItemResult>();
+
+        var context = BuildContextForCases(suite, cases, jobId, reported);
+
+        await handler.ExecuteAsync(context);
+
+        // The shared `agent` from the catalog (MapAgent) was never called -
+        // each case with a parameter schema compiles and runs its own instance.
+        client.LastOptions!.Instructions.ShouldBe("Hello Acme.");
+
+        var completed = await evalStore.GetRunAsync(TenantId, run.Id);
+        completed!.Passed.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Parameterized_agent_case_applies_the_same_decorator_pipeline_the_catalog_would()
+    {
+        // 🚨 CompileParameterizedAsync bypasses IAgentCatalog entirely (not
+        // just CompiledAgentCache), so it must NOT go out undecorated - a
+        // parameterized eval case would otherwise run with no recording, no
+        // telemetry, no tool-approval gate.
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(new FakeChatClient())), TestData.Registry());
+        var definitionStore = new InMemoryAgentDefinitionStore();
+
+        await definitionStore.SaveAsync(TestData.Definition(name: AgentName) with
+        {
+            Instructions = "Hello {{customer}}.",
+            Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+        });
+
+        var decorator = new RecordingAgentDecorator();
+        var evalStore = new InMemoryEvalStore();
+        var handler = new EvalJobHandler(
+            evalStore,
+            new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
+            definitionStore,
+            compiler,
+            new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions()),
+            [decorator],
+            NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("question") with
+            {
+                Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Acme" },
+            }]);
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var reported = new List<JobItemResult>();
+
+        var context = BuildContextForCases(suite, cases, jobId, reported);
+
+        await handler.ExecuteAsync(context);
+
+        decorator.DecoratedDescriptor.ShouldNotBeNull();
+        decorator.DecoratedDescriptor!.Name.ShouldBe(AgentName);
+    }
+
+    private sealed class RecordingAgentDecorator : IAgentDecorator
+    {
+        public AgentDescriptor? DecoratedDescriptor { get; private set; }
+
+        public int Order => 0;
+
+        public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
+        {
+            DecoratedDescriptor = descriptor;
+            return agent;
+        }
+    }
+
+    [Fact]
+    public async Task Parameterized_agent_case_missing_a_required_value_fails_without_calling_the_model()
+    {
+        var client = new FakeChatClient();
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
+        var definitionStore = new InMemoryAgentDefinitionStore();
+
+        await definitionStore.SaveAsync(TestData.Definition(name: AgentName) with
+        {
+            Instructions = "Hello {{customer}}.",
+            Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+        });
+
+        var evalStore = new InMemoryEvalStore();
+        var handler = new EvalJobHandler(
+            evalStore,
+            new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
+            definitionStore,
+            compiler,
+            new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions()),
+            [],
+            NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+
+        // No Parameters at all: the required "customer" value is missing.
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("question")]);
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var reported = new List<JobItemResult>();
+
+        var context = BuildContextForCases(suite, cases, jobId, reported);
+
+        await handler.ExecuteAsync(context);
+
+        client.CallCount.ShouldBe(0);
+        reported[0].Status.ShouldBe(JobItemStatus.Failed);
+
+        var results = await evalStore.ListCaseResultsAsync(TenantId, run.Id);
+        results[0].Passed.ShouldBeFalse();
+        results[0].FailureReason.ShouldNotBeNullOrWhiteSpace();
+        results[0].FailureReason!.ShouldContain("customer");
+    }
+
+    [Fact]
+    public async Task Parameterized_agent_case_with_a_value_over_the_configured_limit_fails_without_calling_the_model()
+    {
+        var client = new FakeChatClient();
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider(client)), TestData.Registry());
+        var definitionStore = new InMemoryAgentDefinitionStore();
+
+        await definitionStore.SaveAsync(TestData.Definition(name: AgentName) with
+        {
+            Instructions = "Hello {{customer}}.",
+            Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+        });
+
+        var evalStore = new InMemoryEvalStore();
+        var handler = new EvalJobHandler(
+            evalStore,
+            new SingleAgentCatalog(new MapAgent(), version: 1, modelId: "gpt-test"),
+            definitionStore,
+            compiler,
+            new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions { MaxParameterValueLength = 4 }),
+            [],
+            NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("question") with
+            {
+                Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Acme Corp" },
+            }]);
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var reported = new List<JobItemResult>();
+
+        var context = BuildContextForCases(suite, cases, jobId, reported);
+
+        await handler.ExecuteAsync(context);
+
+        client.CallCount.ShouldBe(0);
+        reported[0].Status.ShouldBe(JobItemStatus.Failed);
+
+        var results = await evalStore.ListCaseResultsAsync(TenantId, run.Id);
+        results[0].Passed.ShouldBeFalse();
+        results[0].FailureReason.ShouldNotBeNullOrWhiteSpace();
+        results[0].FailureReason!.ShouldContain("customer");
+    }
+
     private static JsonElement PayloadWithVersion(string suiteName, int agentVersion)
         => JsonSerializer.SerializeToElement(new { suiteName, agentVersion });
 
@@ -220,8 +430,15 @@ public sealed class EvalJobHandlerTests
         => new(
             evalStore,
             new SingleAgentCatalog(agent, agentVersion, modelId),
+            new InMemoryAgentDefinitionStore(),
+            CreateCompiler(),
             new EvalCheckRegistry([]),
+            Options.Create(new AgentPrismOptions()),
+            [],
             NullLogger<EvalJobHandler>.Instance);
+
+    private static AgentDefinitionCompiler CreateCompiler()
+        => new(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 
     private static EvalSuite Suite(JsonElement checks) => new()
     {

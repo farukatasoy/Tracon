@@ -43,6 +43,68 @@ explicit field on the request.
 A compiled agent is cached per resolved culture: two runs of the same agent in
 different cultures never share a compiled instance.
 
+## Parameters
+
+`Parameters` declares named placeholders an agent's instructions may reference as
+`{{name}}`:
+
+```csharp
+new AgentDefinition
+{
+    Instructions = "You help {{customer}}. Use a {{tone}} tone.",
+    Parameters =
+    [
+        new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true },
+        new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, DefaultValue = "formal" },
+    ],
+}
+```
+
+A run supplies values on the `parameters` field of `POST /api/agents/{name}/run` (and
+`/estimate`, which checks the same values without calling a model). A required
+parameter with no value and no `DefaultValue` stops the run before it starts, and
+names the missing parameter; a value for a name the schema does not declare is
+rejected too, not silently dropped.
+
+This is **value substitution, not a template engine**. There is no expression,
+condition, loop, or field access (`{{a.b}}`) — a template language is a security
+surface once it is in a library, and every consumer eventually wants their own
+dialect. Substitution is single-pass: a value that itself contains `{{name}}` is
+inserted literally, never substituted again. A placeholder written as a full JSON
+string value in the instructions (`"customer": "{{customer}}"`) has its value
+JSON-escaped so the produced text stays valid JSON; anywhere else, the value is
+inserted as-is.
+
+Binding runs once per request, after culture resolution and before compilation, and
+the compiled agent is never cached for that run — two runs with different parameter
+values never share a compiled instance, the same rule culture resolution follows.
+Kind (`Text`, `Number`, `Boolean`) only labels the value's expected shape for the
+console's own input form; every value travels as a string.
+
+An agent with an empty `Parameters` list is entirely unaffected by this feature —
+`{{...}}` in its instructions stays plain, coincidental text, exactly as before this
+feature existed.
+
+## Shared instructions blocks
+
+A shared instructions block is an ordinary `AgentDefinition` — there is no separate
+type or table for it. Point another definition at it with `SharedInstructionsName`,
+and its `Instructions` text is prepended to the referencing definition's own resolved
+text at compile time:
+
+```csharp
+// The block: any definition works, even one nobody runs directly.
+new AgentDefinition { Name = "house-rules", Instructions = "Always cite your source." }
+
+// The reference:
+new AgentDefinition { Name = "support", SharedInstructionsName = "house-rules", Instructions = "Answer billing questions." }
+```
+
+Because it is saved through the same store as any other definition, a block gets
+versioning, tenancy, and the audit trail for free. A block cannot reference another
+block — the reference is a single hop, checked and rejected at compile time, not a
+cycle-detecting walk.
+
 ## Where agents come from
 
 The catalog merges two sources, in priority order:

@@ -1622,7 +1622,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         const string evalCaseColumns = """
             id, suite_id, seq, query, expected_output, expected_tools, context,
-            source_run_id, source_kind, promoted_at
+            source_run_id, source_kind, promoted_at, parameters
             """;
 
         SelectEvalCases = $"""
@@ -1636,9 +1636,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         InsertEvalCase = $"""
             INSERT INTO {Schema}eval_cases
-                (id, suite_id, seq, query, expected_output, expected_tools, context)
+                (id, suite_id, seq, query, expected_output, expected_tools, context, parameters)
             VALUES
-                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context, @parameters);
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
@@ -1647,12 +1647,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,
-                 source_run_id, source_kind, promoted_at)
+                 source_run_id, source_kind, promoted_at, parameters)
             VALUES
                 (@id, @suite_id,
                  COALESCE((SELECT MAX(seq) FROM {Schema}eval_cases WHERE suite_id = @suite_id), -1) + 1,
                  @query, @expected_output, @expected_tools, @context,
-                 @source_run_id, @source_kind, @promoted_at)
+                 @source_run_id, @source_kind, @promoted_at, @parameters)
             RETURNING {evalCaseColumns};
             """;
 

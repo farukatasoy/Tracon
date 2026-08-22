@@ -4665,3 +4665,46 @@ AgentPrism.ProtectedColumn.AttachmentContent = 8 -> AgentPrism.ProtectedColumn
 AgentPrism.ProtectedColumn.ResponsePayload = 9 -> AgentPrism.ProtectedColumn
 AgentPrism.IMigrationApplier
 AgentPrism.IMigrationApplier.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+AgentPrism.AgentDefinition.Parameters.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentParameter!>!
+AgentPrism.AgentDefinition.Parameters.init -> void
+AgentPrism.AgentDefinition.SharedInstructionsName.get -> string?
+AgentPrism.AgentDefinition.SharedInstructionsName.init -> void
+AgentPrism.AgentParameter
+AgentPrism.AgentParameter.<Clone>$() -> AgentPrism.AgentParameter!
+AgentPrism.AgentParameter.AgentParameter() -> void
+AgentPrism.AgentParameter.DefaultValue.get -> string?
+AgentPrism.AgentParameter.DefaultValue.init -> void
+AgentPrism.AgentParameter.Description.get -> string?
+AgentPrism.AgentParameter.Description.init -> void
+AgentPrism.AgentParameter.Equals(AgentPrism.AgentParameter? other) -> bool
+AgentPrism.AgentParameter.Kind.get -> AgentPrism.AgentParameterKind
+AgentPrism.AgentParameter.Kind.init -> void
+AgentPrism.AgentParameter.Name.get -> string!
+AgentPrism.AgentParameter.Name.init -> void
+AgentPrism.AgentParameter.Required.get -> bool
+AgentPrism.AgentParameter.Required.init -> void
+AgentPrism.AgentParameterKind
+AgentPrism.AgentParameterKind.Boolean = 2 -> AgentPrism.AgentParameterKind
+AgentPrism.AgentParameterKind.Number = 1 -> AgentPrism.AgentParameterKind
+AgentPrism.AgentParameterKind.Text = 0 -> AgentPrism.AgentParameterKind
+AgentPrism.AgentRunDocument
+AgentPrism.AgentRunDocument.<Clone>$() -> AgentPrism.AgentRunDocument!
+AgentPrism.AgentRunDocument.AgentRunDocument() -> void
+AgentPrism.AgentRunDocument.Content.get -> string!
+AgentPrism.AgentRunDocument.Content.init -> void
+AgentPrism.AgentRunDocument.Equals(AgentPrism.AgentRunDocument? other) -> bool
+AgentPrism.AgentRunDocument.Name.get -> string!
+AgentPrism.AgentRunDocument.Name.init -> void
+AgentPrism.EvalCase.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AgentPrism.EvalCase.Parameters.init -> void
+override AgentPrism.AgentParameter.Equals(object? obj) -> bool
+override AgentPrism.AgentParameter.GetHashCode() -> int
+override AgentPrism.AgentParameter.ToString() -> string!
+override AgentPrism.AgentRunDocument.Equals(object? obj) -> bool
+override AgentPrism.AgentRunDocument.GetHashCode() -> int
+override AgentPrism.AgentRunDocument.ToString() -> string!
+static AgentPrism.AgentParameter.operator !=(AgentPrism.AgentParameter? left, AgentPrism.AgentParameter? right) -> bool
+static AgentPrism.AgentParameter.operator ==(AgentPrism.AgentParameter? left, AgentPrism.AgentParameter? right) -> bool
+static AgentPrism.AgentRunDocument.operator !=(AgentPrism.AgentRunDocument? left, AgentPrism.AgentRunDocument? right) -> bool
+static AgentPrism.AgentRunDocument.operator ==(AgentPrism.AgentRunDocument? left, AgentPrism.AgentRunDocument? right) -> bool
+AgentPrism.RunEventType.DocumentAttached = 24 -> AgentPrism.RunEventType

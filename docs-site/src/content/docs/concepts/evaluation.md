@@ -63,6 +63,12 @@ Treat the list as ordered data, not a set. `expectedOutput` reaches `containsExp
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
+For an agent that declares [parameters](/concepts/agents/#parameters), a case's own
+`parameters` field supplies the values that run's instructions bind against. A case
+missing a value the agent requires fails outright, with a reason naming which
+parameter is missing — the same check `POST /api/agents/{name}/run` applies, so a
+case that would fail in production fails here too, before any model call is made.
+
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
 conversation that produced it.

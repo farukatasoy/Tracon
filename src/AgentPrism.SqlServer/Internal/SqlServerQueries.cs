@@ -1779,7 +1779,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         const string evalCaseColumns = """
             id, suite_id, seq, query, expected_output, expected_tools, context,
-            source_run_id, source_kind, promoted_at
+            source_run_id, source_kind, promoted_at, parameters
             """;
 
         SelectEvalCases = $"""
@@ -1793,9 +1793,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         InsertEvalCase = $"""
             INSERT INTO {Schema}.eval_cases
-                (id, suite_id, seq, query, expected_output, expected_tools, context)
+                (id, suite_id, seq, query, expected_output, expected_tools, context, parameters)
             VALUES
-                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context, @parameters);
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
@@ -1803,15 +1803,15 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
                 (id, suite_id, seq, query, expected_output, expected_tools, context,
-                 source_run_id, source_kind, promoted_at)
+                 source_run_id, source_kind, promoted_at, parameters)
             OUTPUT inserted.id, inserted.suite_id, inserted.seq, inserted.query,
                    inserted.expected_output, inserted.expected_tools, inserted.context,
-                   inserted.source_run_id, inserted.source_kind, inserted.promoted_at
+                   inserted.source_run_id, inserted.source_kind, inserted.promoted_at, inserted.parameters
             VALUES
                 (@id, @suite_id,
                  ISNULL((SELECT MAX(seq) FROM {Schema}.eval_cases WHERE suite_id = @suite_id), -1) + 1,
                  @query, @expected_output, @expected_tools, @context,
-                 @source_run_id, @source_kind, @promoted_at);
+                 @source_run_id, @source_kind, @promoted_at, @parameters);
             """;
 
         SelectEvalCaseBySourceRun = $"""

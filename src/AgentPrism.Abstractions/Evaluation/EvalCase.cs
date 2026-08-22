@@ -38,4 +38,18 @@ public sealed record EvalCase
 
     /// <summary>The promotion time. <see langword="null"/> when hand-written.</summary>
     public DateTimeOffset? PromotedAt { get; init; }
+
+    /// <summary>
+    /// Values for the target agent's <see cref="AgentDefinition.Parameters"/>
+    /// schema. <see langword="null"/> for an agent that declares no parameters.
+    /// </summary>
+    /// <remarks>
+    /// Evaluating a parameterized agent without this field would run every
+    /// case against unresolved <c>{{name}}</c> placeholders left literally in
+    /// the instructions text - the same missing-parameter check that
+    /// <c>POST /api/agents/{name}/run</c> applies also runs here, and a case
+    /// missing a required value fails outright rather than running with a
+    /// broken prompt.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }

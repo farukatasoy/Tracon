@@ -171,4 +171,12 @@ public enum RunEventType
     /// (<c>AgentPrismRunRecordingOptions.RecordReasoningDeltas</c>).
     /// </summary>
     ReasoningDelta = 23,
+
+    /// <summary>
+    /// A document was attached to the run through the document channel.
+    /// <c>Text</c> carries the document's name; <c>Payload</c> carries its
+    /// size in bytes and a content hash as JSON - never the document's
+    /// content itself.
+    /// </summary>
+    DocumentAttached = 24,
 }
