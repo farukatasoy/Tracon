@@ -315,6 +315,17 @@ that write fails, the whole erasure rolls back.
 Export returns every matching row, keyed by target, as one JSON document.
 Attachment file bytes are not included — only their metadata.
 
+## Content protection
+
+`AddContentProtection(...)` encrypts session state, chat history, run inputs and
+events, tool arguments/results, agent files, and attachments with AES-256-GCM
+before they reach the database, and decrypts them transparently on read. Off by
+default, like the content guards below — turning it on is a deliberate call, and
+only new writes are protected: a row's own content, not configuration, decides
+whether it needs decrypting. See
+[at-rest content protection](/getting-started/security/#at-rest-content-protection)
+for the key configuration and its limits.
+
 ## Content guards
 
 An `IContentGuard` inspects content going to and coming from the model. Decisions are

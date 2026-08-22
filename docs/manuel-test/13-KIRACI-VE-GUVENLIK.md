@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82
 > **Kaynak:** `src/AgentPrism.AspNetCore/Security/` (tümü: `AgentPrismEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `AgentPrismPolicies`,
@@ -27,7 +27,12 @@
 > `src/AgentPrism.Core/Tenancy/` (tümü) ·
 > `src/AgentPrism.Abstractions/Tools/ToolEffect.cs`, `ToolAuthorizationTypes.cs` (Faz 69) ·
 > `src/AgentPrism.Core/Tools/AuthorizingAIFunction.cs`, `TimeoutAIFunction.cs`,
-> `AllowAllToolAuthorizationHandler.cs`, `ToolRegistry.cs` (Faz 69).
+> `AllowAllToolAuthorizationHandler.cs`, `ToolRegistry.cs` (Faz 69) ·
+> `src/AgentPrism.Abstractions/Security/IContentProtector.cs`, `ProtectedColumn.cs`,
+> `src/AgentPrism.Core/Security/` (`AesGcmContentProtector`, `NullContentProtector`,
+> `ContentProtectionEnvelope`, `AgentPrismContentProtectionOptions`,
+> `AgentPrismContentProtectionOptionsValidator`), `AgentPrismContentProtectionExtensions.cs`,
+> `src/AgentPrism.Sql.Shared/Internal/ProtectedValue.cs` (Faz 82 — at-rest içerik koruması).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2517,3 +2522,154 @@ veya bir webhook echo servisi) ve ona işaret eden etkin bir abonelik.
 - Sunucu logunda uyarı: `Webhook subscription 'orders' carries the reserved
   header 'X-AgentPrism-Signature'; it was not sent.`
 - Sıradan adlı bir ek başlık (örn. `X-Tenant`) normal şekilde iletilir.
+
+---
+
+### MT-SEC-131 — Koruma açıkken oturum durumu ve `run` girdisi veritabanında şifreli durur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 82 |
+| **İlgili karar** | K-561, K-562 |
+
+**Ön koşul** `samples/AgentPrism.Api`, bir SQL sağlayıcısı (`UsePostgreSql`/
+`UseSqlServer`/`UseSqlite`) yapılandırılmış, `AgentPrism:ContentProtection:Enabled`
+`true` ve `dotnet user-secrets set "AgentPrism:ContentProtection:RawKeys:sample"
+"$(openssl rand -base64 32)"` ile 32 baytlık bir anahtar tanımlanmış
+(`appsettings.json`'daki `ContentProtection` bölümünün `Keys:sample` girdisi bu
+anahtarın **adını** gösterir, değerini değil).
+
+**Adımlar**
+```bash
+curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"sessionId":"cp-demo","message":"secret marker XYZZY-CP-DEMO"}' \
+  | grep -o '"runId":"[^"]*"'
+```
+Sonra veritabanını doğrudan sorgula (PostgreSQL örneği):
+```sql
+SELECT messages FROM agentprism.run_inputs WHERE run_id = '<runId>';
+SELECT state FROM agentprism.sessions WHERE id = 'cp-demo';
+```
+
+**Beklenen sonuç**
+- İki sütun da `{"$apEnc":1,"kid":"sample","n":"...","c":"..."}` biçiminde bir
+  zarftır; `XYZZY-CP-DEMO` metni sütunda **hiç** görünmez.
+- `curl -s "$APU/api/runs/<runId>/input" -H "$APB"` isteğin **düz metnini**
+  döner — çözme şeffaftır, API hiçbir zaman zarfı göstermez.
+- Aynı `sessionId` ile transcript arayüzde/`GET /api/sessions/cp-demo`
+  üzerinden okunduğunda mesaj yine düz metindir.
+
+---
+
+### MT-SEC-132 — Koruma açılmadan önce yazılmış satır, açıldıktan sonra da okunabilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 82 |
+| **İlgili karar** | K-562 |
+
+**Ön koşul** MT-SEC-131'in kurulumu, ama `ContentProtection:Enabled` **henüz
+kapalı**.
+
+**Adımlar**
+1. `Enabled: false` iken bir `run` yap (`sessionId: "legacy-demo"`).
+2. Uygulamayı durdur, `appsettings.json`'da (veya ortam değişkeniyle)
+   `Enabled: true` yap, yeniden başlat.
+3. `GET $APU/api/sessions/legacy-demo` ile eski oturumu oku.
+
+**Beklenen sonuç**
+- Eski satır **düz metin** olarak veritabanında kalır (adım 1'den sonra
+  kontrol edilirse `$apEnc` yoktur).
+- Adım 3'teki okuma **başarılıdır** ve içerik birebir aynıdır — koruma
+  yalnızca yeni yazmaları etkiler, var olan satırları bozmaz.
+
+---
+
+### MT-SEC-133 — Bilinmeyen `kid` sessiz değil, adını söyleyen net bir hata verir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 82 |
+| **İlgili karar** | K-563 |
+
+**Ön koşul** MT-SEC-131'in kurulumu; **iki** anahtar tanımlı (`sample` eski,
+`sample2` yeni) ve `ActiveKeyId` `sample2`'ye çevrilmiş. En az bir satır eski
+`sample` kid'i ile şifrelenmiş olmalı.
+
+**Adımlar**
+1. `AgentPrism:ContentProtection:Keys:sample` girdisini `appsettings.json`'dan
+   kaldır (`ActiveKeyId`'yi DEĞİL — o zaten `sample2`).
+2. Uygulamayı yeniden başlat. Başlangıç **başarılıdır**: doğrulayıcı yalnız
+   `ActiveKeyId`'nin (`sample2`) `Keys`'te karşılığı olduğunu ister,
+   sözlükteki HER kid'i değil.
+3. `sample` ile yazılmış eski satırı okuyan bir isteği çağır (ör.
+   `GET .../api/sessions/{id}`).
+
+**Beklenen sonuç**
+- Uygulama **açılır** — eksik olan `sample`, `ActiveKeyId` değildir.
+- Adım 3'teki istek bir sunucu hatası döner ve mesaj **`sample`'ı adıyla**
+  söyler — örn. `Content protection key 'sample' is not configured. Add it to
+  AgentPrismContentProtectionOptions.Keys, ...`
+- Hata sessiz bir `null`/boş yanıt DEĞİLDİR; okunamayan veri fark edilir hâlde
+  kalır.
+- `sample2` ile yazılmış YENİ bir satır aynı anda sorunsuz okunur.
+- `Keys:sample`'ı geri eklemek eski satırı yeniden okunur hâle getirir.
+
+---
+
+### MT-SEC-134 — Koruma kapalıyken davranış Faz 82 öncesiyle birebir aynıdır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 82 |
+| **İlgili karar** | K-559 |
+
+**Ön koşul** `samples/AgentPrism.Api`, bir SQL sağlayıcısı yapılandırılmış,
+`AddContentProtection()` kayıtlı ama `appsettings.json`'da `ContentProtection:Enabled`
+`false` (varsayılan).
+
+**Adımlar**
+1. Bir `run` yap, `run_inputs`/`sessions` satırlarını `psql`/`sqlcmd`/`sqlite3`
+   ile doğrudan oku.
+2. `AgentPrism:ContentProtection` bölümünü `appsettings.json`'dan tamamen
+   kaldırıp uygulamayı yeniden başlat, aynı isteği tekrar gönder.
+
+**Beklenen sonuç**
+- İki adımda da sütunlar **düz metin**dir; `$apEnc` hiçbir satırda görünmez.
+- `AddContentProtection()` çağrısının varlığı/yokluğu davranışı değiştirmez —
+  kapıyı açan `Enabled` bayrağıdır, çağrının kendisi değil.
+
+---
+
+### MT-SEC-135 — Koruma açıkken agent dosya araması hâlâ doğru sonuç verir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 82 |
+| **İlgili karar** | K-562 |
+
+**Ön koşul** MT-SEC-131'in kurulumu; dosya belleği (`FileMemoryProvider`) açık
+bir agent.
+
+**Adımlar**
+1. Agent'a bir dosya yazdır: içeriğinde tek bir satırda geçen ayırt edici bir
+   dize olsun (örn. `"needle-XYZZY"`).
+2. Veritabanında `agent_files.content` sütununu doğrudan oku.
+3. Agent'a aynı dizeyi arattır (dosya arama tool'u/uç noktası üzerinden).
+
+**Beklenen sonuç**
+- Adım 2'de sütun bir zarftır (`$apEnc`); `needle-XYZZY` sütunda görünmez.
+- Adım 3'teki arama **doğru dosyayı ve doğru satırı** bulur — sunucu tarafı ön
+  süzgeç (yalnız PostgreSQL'de var) devre dışı kalsa da nihai eşleşme
+  istemcide çalışır ve sonuç değişmez.

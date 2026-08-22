@@ -4629,3 +4629,20 @@ AgentPrism.AgentPrismMcpSecurityOptions.AgentPrismMcpSecurityOptions() -> void
 AgentPrism.AgentPrismMcpSecurityOptions.AllowedConfigurationPrefix.get -> string!
 AgentPrism.AgentPrismMcpSecurityOptions.AllowedConfigurationPrefix.set -> void
 const AgentPrism.AgentPrismMcpSecurityOptions.SectionName = "AgentPrism:Mcp" -> string!
+AgentPrism.IContentProtector
+AgentPrism.IContentProtector.IsEnabled.get -> bool
+AgentPrism.IContentProtector.Protect(string! plaintext) -> string!
+AgentPrism.IContentProtector.ProtectBytes(System.ReadOnlySpan<byte> plaintext) -> byte[]!
+AgentPrism.IContentProtector.Unprotect(string! stored) -> string!
+AgentPrism.IContentProtector.UnprotectBytes(System.ReadOnlySpan<byte> stored) -> byte[]!
+AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.SessionState = 0 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.ConversationItem = 1 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.RunInput = 2 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.RunEventText = 3 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.RunEventPayload = 4 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.ToolArguments = 5 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.ToolResult = 6 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.AgentFileContent = 7 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.AttachmentContent = 8 -> AgentPrism.ProtectedColumn
+AgentPrism.ProtectedColumn.ResponsePayload = 9 -> AgentPrism.ProtectedColumn

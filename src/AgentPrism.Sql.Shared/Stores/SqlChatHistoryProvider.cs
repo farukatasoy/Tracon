@@ -85,7 +85,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
         DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
 
         var messages = await DbHelpers
-            .ReadListAsync(command, static reader => reader.GetString(0), cancellationToken)
+            .ReadListAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, cancellationToken)
             .ConfigureAwait(false);
 
         var history = new List<ChatMessage>(messages.Count);
@@ -163,7 +163,13 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
                     DbHelpers.Add(insert, "seq", sequence++);
                     // `json`, not `jsonb`: ChatMessage contents are polymorphic and
                     // the `$type` discriminator must be the object's first property (decision K-027).
-                    Dialect.AddJson(insert, "item", JsonSerializer.Serialize(message, AgentPrismJsonContext.Default.ChatMessage));
+                    Dialect.AddJson(
+                        insert,
+                        "item",
+                        ProtectedValue.Write(
+                            _context,
+                            ProtectedColumn.ConversationItem,
+                            JsonSerializer.Serialize(message, AgentPrismJsonContext.Default.ChatMessage)));
                     Dialect.AddTimestamp(insert, "created_at", now);
 
                     await DbHelpers.ExecuteAsync(insert, cancellationToken).ConfigureAwait(false);

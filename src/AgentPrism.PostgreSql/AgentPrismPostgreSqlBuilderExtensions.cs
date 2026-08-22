@@ -105,6 +105,8 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
             var knowledgeOptions = provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value;
+            var contentProtector = provider.GetRequiredService<IContentProtector>();
+            var contentProtectionOptions = provider.GetRequiredService<IOptions<AgentPrismContentProtectionOptions>>().Value;
 
             return new SqlStoreContext
             {
@@ -113,6 +115,13 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
                 ProviderName = "PostgreSQL",
+                ContentProtector = contentProtector,
+                // Phase 82: empty unless the protector is actually enabled -
+                // K1 (identical behavior with the feature off) does not depend
+                // on what AgentPrismContentProtectionOptions.Columns holds.
+                ProtectedColumns = contentProtector.IsEnabled
+                    ? (IReadOnlySet<ProtectedColumn>)contentProtectionOptions.Columns
+                    : System.Collections.Immutable.ImmutableHashSet<ProtectedColumn>.Empty,
                 // Phase 51: the {dimension} placeholder of the knowledge set's
                 // 0001_vector migration. Kept SEPARATE from the fixed schema
                 // placeholder (schema) because it comes from

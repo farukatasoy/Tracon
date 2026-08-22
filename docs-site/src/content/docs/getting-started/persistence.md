@@ -154,6 +154,9 @@ written. And because sessions, runs, and conversations are real rows now, a data
 subject's content can be found and erased by identity, not just aged out — see
 [Data subject rights](/concepts/governance/#data-subject-rights).
 
+Durable rows are also what
+[content protection](/getting-started/security/#at-rest-content-protection) encrypts.
+
 ## Read next
 
 - [Securing the endpoints](/getting-started/security/) — required reading

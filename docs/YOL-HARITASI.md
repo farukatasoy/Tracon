@@ -93,7 +93,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | ✅ Tamamlandı |
 | [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | ✅ Tamamlandı |
 | [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | ✅ Tamamlandı |
-| [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | 📋 Planlandı |
+| [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | ✅ Tamamlandı |
 | [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | 📋 Planlandı |
 | [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | 📋 Planlandı |
 | [85](85-GOMME-EKSENI.md) | Gömme Ekseni | 📋 Planlandı |

@@ -47,7 +47,10 @@ internal sealed class SqlRunInputStore : IRunInputStore
         Dialect.AddJson(
             command,
             "messages",
-            JsonSerializer.Serialize(record.Messages, AgentPrismJsonContext.Default.IReadOnlyListChatMessage));
+            ProtectedValue.Write(
+                _context,
+                ProtectedColumn.RunInput,
+                JsonSerializer.Serialize(record.Messages, AgentPrismJsonContext.Default.IReadOnlyListChatMessage)));
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -72,13 +75,13 @@ internal sealed class SqlRunInputStore : IRunInputStore
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
-    private static RunInputRecord Read(DbDataReader reader, string tenantId, Guid runId)
+    private RunInputRecord Read(DbDataReader reader, string tenantId, Guid runId)
         => new()
         {
             RunId = runId,
             TenantId = tenantId,
             Messages = JsonSerializer.Deserialize(
-                reader.GetString(0),
+                ProtectedValue.Read(_context, reader.GetString(0))!,
                 AgentPrismJsonContext.Default.IReadOnlyListChatMessage) ?? [],
             CreatedAt = DbHelpers.GetTimestamp(reader, 1),
         };

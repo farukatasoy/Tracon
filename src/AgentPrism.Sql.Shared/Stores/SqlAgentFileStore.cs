@@ -56,7 +56,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         DbHelpers.Add(command, "path", NormalizePath(path));
 
         return await DbHelpers
-            .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
+            .ReadSingleAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -71,7 +71,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         DbHelpers.Add(command, "path", NormalizePath(path));
-        DbHelpers.Add(command, "content", content);
+        DbHelpers.Add(command, "content", ProtectedValue.Write(_context, ProtectedColumn.AgentFileContent, content)!);
         Dialect.AddTimestamp(command, "now", now);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -177,15 +177,29 @@ internal sealed class SqlAgentFileStore : AgentFileStore
 
         List<(string Path, string Content)> files;
 
-        try
-        {
-            files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (DbException ex) when (Dialect.IsInvalidRegexError(ex))
+        // 🚨 With content protection on, the server-side `~` prefilter would
+        // compare its pattern against CIPHERTEXT and never match; sending it
+        // anyway would make every search pay for a round trip that always
+        // falls back (decision 82.3). Skip it outright instead of relying on
+        // IsInvalidRegexError, which only catches a pattern PostgreSQL's ARE
+        // syntax rejects, not one that is merely comparing against the wrong bytes.
+        if (_context.ProtectedColumns.Contains(ProtectedColumn.AgentFileContent))
         {
             files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern: null, cancellationToken)
                 .ConfigureAwait(false);
+        }
+        else
+        {
+            try
+            {
+                files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (DbException ex) when (Dialect.IsInvalidRegexError(ex))
+            {
+                files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern: null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         var regex = new Regex(regexPattern, RegexOptions.None, TimeSpan.FromSeconds(2));
@@ -249,7 +263,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
 
         return await DbHelpers.ReadListAsync(
             command,
-            static reader => (reader.GetString(0), reader.GetString(1)),
+            reader => (reader.GetString(0), ProtectedValue.Read(_context, reader.GetString(1))!),
             cancellationToken).ConfigureAwait(false);
     }
 

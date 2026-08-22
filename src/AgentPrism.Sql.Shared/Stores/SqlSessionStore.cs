@@ -69,7 +69,7 @@ internal sealed class SqlSessionStore : ISessionStore
         DbHelpers.Add(command, "agent_name", record.AgentName);
         // The `json` column stores the text AS-IS. `jsonb` would reorder keys
         // and invalidate System.Text.Json's `$type` discriminator (decision K-027).
-        Dialect.AddJson(command, "state", record.State.GetRawText());
+        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
         DbHelpers.Add(command, "schema_version", CurrentSchemaVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
         Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
@@ -95,7 +95,7 @@ internal sealed class SqlSessionStore : ISessionStore
         DbHelpers.Add(command, "id", record.Id);
         DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
-        Dialect.AddJson(command, "state", record.State.GetRawText());
+        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
         DbHelpers.Add(command, "schema_version", CurrentSchemaVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
         Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
@@ -126,7 +126,7 @@ internal sealed class SqlSessionStore : ISessionStore
             {
                 Id = sessionId,
                 AgentName = reader.GetString(0),
-                State = ReadState(sessionId, reader.GetString(1), reader.GetInt32(2)),
+                State = ReadState(sessionId, ProtectedValue.Read(_context, reader.GetString(1))!, reader.GetInt32(2)),
                 CreatedAt = DbHelpers.GetTimestamp(reader, 3),
                 UpdatedAt = DbHelpers.GetTimestamp(reader, 4),
                 TenantId = reader.GetString(5),
@@ -180,7 +180,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         return await DbHelpers.ReadListAsync(
             command,
-            static reader =>
+            reader =>
             {
                 var id = reader.GetString(0);
 
@@ -188,7 +188,7 @@ internal sealed class SqlSessionStore : ISessionStore
                 {
                     Id = id,
                     AgentName = reader.GetString(1),
-                    State = ReadState(id, reader.GetString(2), reader.GetInt32(3)),
+                    State = ReadState(id, ProtectedValue.Read(_context, reader.GetString(2))!, reader.GetInt32(3)),
                     CreatedAt = DbHelpers.GetTimestamp(reader, 4),
                     UpdatedAt = DbHelpers.GetTimestamp(reader, 5),
                     TenantId = reader.GetString(6),
