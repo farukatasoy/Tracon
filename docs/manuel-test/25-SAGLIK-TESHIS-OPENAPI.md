@@ -1,6 +1,6 @@
 # 25 — Sağlık Denetimi, Teşhis ve OpenAPI Yayını (`DIAG`)
 
-> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını)
+> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`)
 > **Kaynak:** `src/AgentPrism.AspNetCore/Health/` (tümü) ·
 > `src/AgentPrism.AspNetCore/Endpoints/DiagnosticsEndpoints.cs` ·
 > `src/AgentPrism.Abstractions/Diagnostics/` (tümü) ·
@@ -1298,5 +1298,101 @@ echo "tsc cikis kodu: $?"
 **Beklenen sonuç**
 - `openapi-typescript` hatasız biter, bir `.ts` dosyası üretir.
 - `tsc --strict --noEmit` **sıfır** hatayla biter (çıkış kodu `0`).
+
+---
+
+### MT-DIAG-049 — Yeşil alan örneğinde `extensionPoints`: dördü yerleşik, biri değil — Faz 85
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 85 |
+| **İlgili karar** | — |
+
+🚨 **Plandan sapma:** `samples/AgentPrism.Api` saf bir "beşi de yerleşik"
+örneği DEĞİLDİR — `Program.cs` zaten `IRunAttributionContext`'i
+`DemoRunAttributionContext` ile bağlar (Faz 68, kullanıcı bazlı maliyet
+demosu için). Bu case gerçek durumu ölçer.
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta (`dotnet run --project samples/AgentPrism.Api`),
+  `AgentPrism:Ui:AllowRemoteAccess` gerekmez (loopback yeterli).
+
+**Adımlar**
+1. Teşhis ucunu oku.
+
+**Girilecek veri**
+```bash
+curl -s http://localhost:5080/agentprism/api/diagnostics | jq '.extensionPoints'
+```
+
+**Beklenen sonuç**
+- Dizi **5** eleman taşır.
+- `ITenantContext`, `IToolAuthorizationHandler`, `IRunEventSink`,
+  `IAttachmentStorage` → `isBuiltInDefault: true`.
+- `IRunAttributionContext` → `isBuiltInDefault: false`,
+  `implementation: "DemoRunAttributionContext"` — bu ÖNCEDEN gelen bir
+  bağlamadır, Faz 85'in eklediği bir şey değil.
+
+---
+
+### MT-DIAG-050 — Gömme örneğinde `extensionPoints`: beşi de kendi tipleri — Faz 85
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 85 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Embedded` ayakta (`dotnet run --project samples/AgentPrism.Embedded`).
+
+**Adımlar**
+1. Teşhis ucunu oku.
+
+**Girilecek veri**
+```bash
+curl -s http://localhost:5082/agentprism/api/diagnostics > /tmp/embedded-diag.json
+jq '.extensionPoints' /tmp/embedded-diag.json
+```
+
+**Beklenen sonuç**
+- Dizi **5** eleman taşır, hepsi `isBuiltInDefault: false`.
+- `implementation` alanları sırasıyla `EmbeddedTenantContext`,
+  `EmbeddedRunAttributionContext`, `EmbeddedToolAuthorizationHandler`,
+  `BoundedChannelRunEventSink`, `InMemoryBufferAttachmentStorage`'dır.
+
+---
+
+### MT-DIAG-051 — `extensionPoints` hiçbir yapılandırma değeri sızdırmaz — Faz 85
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 85 |
+| **İlgili karar** | K-059 |
+
+**Ön koşul**
+- MT-DIAG-050 geçti; `/tmp/embedded-diag.json` bu ucun çıktısını taşıyor.
+
+**Adımlar**
+1. `implementation` ve `contract` alanlarının yalnız **tip adı** taşıdığını,
+   hiçbir `Host`/`localhost`/bağlantı dizesi/`ApiKey`/`sk-` deseni
+   İÇERMEDİĞİNİ doğrula.
+
+**Girilecek veri**
+```bash
+jq -r '.extensionPoints[] | .contract, .implementation' /tmp/embedded-diag.json \
+  | grep -inE "sk-|apikey|connectionstring|password|://" \
+  && echo "SIZINTI" || echo "TEMIZ"
+```
+
+**Beklenen sonuç**
+- `TEMIZ` yazdırılır. Her `implementation` yalnız bir CLR tip adıdır
+  (örn. `EmbeddedTenantContext`); tip adı bir sır değildir, ama alanın
+  KENDİSİ hiçbir yapılandırma değeri taşımaz (K-059).
 
 ---

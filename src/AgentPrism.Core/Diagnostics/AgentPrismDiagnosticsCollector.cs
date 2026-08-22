@@ -26,6 +26,11 @@ public sealed class AgentPrismDiagnosticsCollector
     private readonly IEnumerable<SqlPersistenceRegistrationMarker> _sqlMarkers;
     private readonly IAgentCatalog _agentCatalog;
     private readonly IToolRegistry _toolRegistry;
+    private readonly ITenantContext _tenantContext;
+    private readonly IRunAttributionContext _runAttributionContext;
+    private readonly IToolAuthorizationHandler _toolAuthorizationHandler;
+    private readonly IEnumerable<IRunEventSink> _runEventSinks;
+    private readonly IAttachmentStorage? _attachmentStorage;
     private readonly ILogger<AgentPrismDiagnosticsCollector>? _logger;
 
     /// <summary>Initializes a diagnostics collector.</summary>
@@ -35,6 +40,11 @@ public sealed class AgentPrismDiagnosticsCollector
     /// <param name="sqlMarkers">The registered SQL provider markers, counted to detect more than one active provider.</param>
     /// <param name="agentCatalog">The agent catalog.</param>
     /// <param name="toolRegistry">The tool registry.</param>
+    /// <param name="tenantContext">The bound tenant context, reported as an embedding point.</param>
+    /// <param name="runAttributionContext">The bound run attribution context, reported as an embedding point.</param>
+    /// <param name="toolAuthorizationHandler">The bound tool authorization handler, reported as an embedding point.</param>
+    /// <param name="runEventSinks">The registered run event sinks, reported as an embedding point.</param>
+    /// <param name="attachmentStorage">The bound attachment storage, reported as an embedding point. <see langword="null"/> when content lives in the database.</param>
     /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>
     /// <param name="logger">
     /// The logger. When absent, a catalog read failure is ignored and the report
@@ -48,6 +58,11 @@ public sealed class AgentPrismDiagnosticsCollector
         IEnumerable<SqlPersistenceRegistrationMarker> sqlMarkers,
         IAgentCatalog agentCatalog,
         IToolRegistry toolRegistry,
+        ITenantContext tenantContext,
+        IRunAttributionContext runAttributionContext,
+        IToolAuthorizationHandler toolAuthorizationHandler,
+        IEnumerable<IRunEventSink> runEventSinks,
+        IAttachmentStorage? attachmentStorage = null,
         ModelProviderCircuitBreaker? circuitBreaker = null,
         ILogger<AgentPrismDiagnosticsCollector>? logger = null)
     {
@@ -57,6 +72,10 @@ public sealed class AgentPrismDiagnosticsCollector
         ArgumentNullException.ThrowIfNull(sqlMarkers);
         ArgumentNullException.ThrowIfNull(agentCatalog);
         ArgumentNullException.ThrowIfNull(toolRegistry);
+        ArgumentNullException.ThrowIfNull(tenantContext);
+        ArgumentNullException.ThrowIfNull(runAttributionContext);
+        ArgumentNullException.ThrowIfNull(toolAuthorizationHandler);
+        ArgumentNullException.ThrowIfNull(runEventSinks);
 
         _providers = providers;
         _healthCache = healthCache;
@@ -64,6 +83,11 @@ public sealed class AgentPrismDiagnosticsCollector
         _sqlMarkers = sqlMarkers;
         _agentCatalog = agentCatalog;
         _toolRegistry = toolRegistry;
+        _tenantContext = tenantContext;
+        _runAttributionContext = runAttributionContext;
+        _toolAuthorizationHandler = toolAuthorizationHandler;
+        _runEventSinks = runEventSinks;
+        _attachmentStorage = attachmentStorage;
         _circuitBreaker = circuitBreaker;
         _logger = logger;
     }
@@ -161,6 +185,54 @@ public sealed class AgentPrismDiagnosticsCollector
             UiEmbedded = false,
             ToolCount = _toolRegistry.List().Count,
             AgentCount = agentCount,
+            ExtensionPoints = CollectExtensionPoints(),
         };
+    }
+
+    /// <summary>
+    /// Reports the five embedding points, and for each one whether the bound
+    /// implementation is AgentPrism's built-in default or the host's own.
+    /// </summary>
+    private IReadOnlyList<ExtensionPointDiagnostic> CollectExtensionPoints()
+    {
+        var sinks = _runEventSinks.ToList();
+        var sinkIsDefault = sinks.Count == 0;
+        var sinkImplementation = sinkIsDefault
+            ? "(none)"
+            : string.Join(", ", sinks.Select(static sink => sink.GetType().Name).Distinct(StringComparer.Ordinal));
+
+        return
+        [
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(ITenantContext),
+                Implementation = _tenantContext.GetType().Name,
+                IsBuiltInDefault = _tenantContext.GetType() == typeof(SingleTenantContext),
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IRunAttributionContext),
+                Implementation = _runAttributionContext.GetType().Name,
+                IsBuiltInDefault = _runAttributionContext.GetType() == typeof(DefaultRunAttributionContext),
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IToolAuthorizationHandler),
+                Implementation = _toolAuthorizationHandler.GetType().Name,
+                IsBuiltInDefault = _toolAuthorizationHandler.GetType() == typeof(AllowAllToolAuthorizationHandler),
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IRunEventSink),
+                Implementation = sinkImplementation,
+                IsBuiltInDefault = sinkIsDefault,
+            },
+            new ExtensionPointDiagnostic
+            {
+                Contract = nameof(IAttachmentStorage),
+                Implementation = _attachmentStorage?.GetType().Name ?? "(database)",
+                IsBuiltInDefault = _attachmentStorage is null,
+            },
+        ];
     }
 }

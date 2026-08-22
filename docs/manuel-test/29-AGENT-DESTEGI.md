@@ -1,10 +1,11 @@
 # 29 — Tüketici Agent Desteği (`AGD`)
 
-> **Alan kodu:** `AGD` · **Faz:** 73
+> **Alan kodu:** `AGD` · **Faz:** 73, 85 (gömme ekseni: `guides/embedding.md`, `samples/AgentPrism.Embedded`)
 > **Kaynak:** `src/AgentPrism.Generators/{AgentPrismUsageAnalyzer,UsageDiagnostics}.cs` ·
 > `src/AgentPrism.Core/buildTransitive/{AgentPrism.Core.targets,AgentPrism.AgentMap.md}` ·
 > `src/AgentPrism.Templates/content/AgentPrism.Starter/AgentPrism.Starter.csproj` ·
 > `docs-site/scripts/build-agent-map.mjs` · `docs-site/src/content/docs/capabilities.md` ·
+> `docs-site/src/content/docs/guides/embedding.md` · `samples/AgentPrism.Embedded/` ·
 > `tests/AgentPrism.Core.UnitTests/Architecture/CapabilityCoverageTests.cs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -297,3 +298,123 @@ bütçesi için de koşar.
 sürüm işaretiyle başlar ve ≤ 10240 bayttır; `llms-full.txt` elle yazılmış
 sayfaların tamamını taşır (~350 KB) ve üretilen API/HTTP referansını
 **taşımaz**.
+
+---
+
+### MT-AGD-016 — Gömme ekseni haritada — Faz 85
+
+**Ön koşul:** `node docs-site/scripts/build-agent-map.mjs`.
+
+**Adımlar:**
+1. `grep -n "Embedding points" -A 7 src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md`
+2. `wc -c src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md`
+
+**Beklenen sonuç:** `### Embedding points` bölümü beş satır (`ITenantContext`,
+`IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunEventSink`,
+`IAttachmentStorage`) ve bir `- Rule:` satırı taşır. Dosya toplamı **10 240
+bayt**'ı aşmaz.
+
+---
+
+### MT-AGD-017 — Gömme sayfası `llms.txt` sayfa indeksinde — Faz 85
+
+**Ön koşul:** `cd docs-site && npm run build`.
+
+**Adımlar:**
+1. `grep -n "Embedding into a host application" dist/llms.txt`
+
+**Beklenen sonuç:** Bir satır döner — köşeli parantez içinde `Embedding into a
+host application` başlığı, ardından siteye giden bağlantı ve
+`description` metni. Satır kesilmez — sayfanın `title`/`description`
+alanları eksiksizdir.
+
+---
+
+### MT-AGD-018 — 👤 Gömme sayfası bir kod agent'ına sorulmadan yeterli — Faz 85
+
+**Ön koşul:** Yayımlanmış `guides/embedding.md` sayfasının URL'i veya ham
+metni bir kod agent'ına verilir; agent'a "AgentPrism'i mevcut bir ASP.NET
+Core uygulamasına göm; kendi tenant, kullanıcı, tool yetkilendirme, run
+event ve attachment depolama sistemlerimi bağla" denir. `samples/AgentPrism.Embedded`
+agent'a **gösterilmez**.
+
+**Adımlar:**
+1. Agent'ın ürettiği kodu oku.
+
+**Beklenen sonuç:** Agent beş noktayı da (`ITenantContext`/`ITenantStore`,
+`IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunEventSink`,
+`IAttachmentStorage`) soru sormadan bulur ve `AddAgentPrism()`'den **önce**
+kaydeder. Bu kalemin ölçülen boşluğu tam olarak budur — 2026-08-21 ölçümünde
+hiçbir sayfa bu beşini birlikte anlatmıyordu.
+
+---
+
+### MT-AGD-019 — Arka plan işi kendi kiracısıyla kapanır — Faz 85
+
+> Otomatik eşdeğeri koşuldu ve yeşildir:
+> `tests/AgentPrism.Embedded.Tests/EmbeddedSampleTests.cs`,
+> `Background_job_with_no_HTTP_request_carries_tenant_and_user_through_the_run`.
+> Bu case, gerçek `dotnet run` altında elle tekrarıdır.
+
+**Ön koşul:** `samples/AgentPrism.Embedded` ayakta.
+
+**Adımlar:**
+1. HTTP isteği OLMADAN çalışacak bir işi kuyruğa al.
+2. Koşu kaydını oku.
+
+**Girilecek veri**
+```bash
+curl -s -X POST http://localhost:5082/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"tenantId":"acme","userId":"user-42","message":"What is my account balance?"}'
+
+sleep 1
+curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/runs | jq '.[0] | {tenantId, userId, status}'
+```
+
+**Beklenen sonuç:** `{"tenantId": "acme", "userId": "user-42", "status": "Completed"}`.
+İsteğin kendisinde `X-Host-Tenant`/`X-Host-User` başlığı YOKTUR — kimlik
+`AmbientTenantScope`/`AmbientRunAttributionScope` üzerinden, `Jobs/EmbeddedJobWorker.cs`'in
+kendi gövdesinde açılan `using` blokları ile akıyor.
+
+**Ek doğrulama — `AgentPrismRunContext.Current`:** aynı koşunun olay akışını oku:
+```bash
+RUN_ID=$(curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/runs | jq -r '.[0].id')
+curl -s -H 'X-Host-Tenant: acme' "http://localhost:5082/agentprism/api/runs/$RUN_ID/events" \
+  | grep -A1 "tool.invoked"
+```
+`payload` alanı `tenant=acme run=<RUN_ID> session=(none)` yazar —
+`Tools.cs`'teki `current_account` tool'u kimliği yalnızca
+`AgentPrismRunContext.Current`'tan okur, bir parametre olarak almaz; yanlış
+kiracı/run adı burada çıkardı.
+
+---
+
+### MT-AGD-020 — Event bridge doldurulunca DÜŞÜRÜR, koşuyu yavaşlatmaz — Faz 85
+
+> Otomatik eşdeğeri koşuldu ve yeşildir:
+> `tests/AgentPrism.Embedded.Tests/EmbeddedSampleTests.cs`,
+> `Event_bridge_drops_under_backpressure_without_slowing_the_run`.
+
+**Ön koşul:** `samples/AgentPrism.Embedded` ayakta.
+
+**Adımlar:**
+1. Kısa sürede birden çok iş kuyruğa alınır (8 öğelik kanalı taşırmak için).
+2. Köprü sayaçları okunur.
+
+**Girilecek veri**
+```bash
+for i in $(seq 1 10); do
+  curl -s -X POST http://localhost:5082/jobs \
+    -H 'Content-Type: application/json' \
+    -d "{\"tenantId\":\"acme\",\"message\":\"request $i\"}" > /dev/null
+done
+sleep 1
+curl -s http://localhost:5082/jobs/bridge-state
+```
+
+**Beklenen sonuç:** `dropped` sıfırdan büyüktür. Bütün koşular yine de
+**tamamlandı** durumundadır (`GET /agentprism/api/runs`) ve `startedAt`/`completedAt`
+farkı ~1 sn'nin altındadır — köprünün dolması modelin/koşunun hızını
+**etkilememiştir**. Uygulama loglarında `BoundedChannelRunEventSink`'in
+"dropped" uyarı satırları görünür.

@@ -25,10 +25,12 @@
 
   <Folder Name="/samples/">
     <Project Path="samples/AgentPrism.Api/AgentPrism.Api.csproj" />
+    <Project Path="samples/AgentPrism.Embedded/AgentPrism.Embedded.csproj" />
   </Folder>
 
   <Folder Name="/tests/">
     <Project Path="tests/AgentPrism.AspNetCore.FunctionalTests/AgentPrism.AspNetCore.FunctionalTests.csproj" />
+    <Project Path="tests/AgentPrism.Embedded.Tests/AgentPrism.Embedded.Tests.csproj" />
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Generators.UnitTests/AgentPrism.Generators.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Mcp.UnitTests/AgentPrism.Mcp.UnitTests.csproj" />
