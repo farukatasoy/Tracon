@@ -1,6 +1,6 @@
 # Faz 82 — İçerik Koruması (at-rest)
 
-> **Durum:** 📋 Planlandı (2026-08-21)
+> **Durum:** ✅ Tamamlandı (2026-08-22)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-41** — Dalga 13 Küme C
 > **Önkoşul:** [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) — konu bazlı **silme** oradan gelir ve bu faz onun üstüne gelmez, yanına gelir · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — guard'ın nereye takıldığı ve maskelemenin kaydı nasıl kapsadığı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared` (üç SQL paketine linked-source olarak derlenir, K-176)
@@ -400,38 +400,68 @@ docs-site/src/content/docs/reference/configuration.md                (degisir)
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Koruma açıkken `run_inputs.messages` veritabanında **düz metin içermez** — `psql` çıktısı belgeye yazıldı
-- [ ] Aynı `run` arayüzde **düz metin** görünür; çözme şeffaftır
-- [ ] Koruma açılmadan **önce** yazılmış satırlar açıldıktan **sonra** okunabilir — düşen bir testle önce kanıtlandı
-- [ ] Koruma kapatıldıktan sonra şifreli satırlar hâlâ okunabilir
-- [ ] `Enabled = false` iken üç sağlayıcının sözleşme seti bugünküyle **birebir** aynı (K1)
-- [ ] On sütunun her biri `ContentProtectionContract` ile üç sağlayıcıda yazılıp okundu
-- [ ] Bilinmeyen `kid` `AgentPrismException` verir ve mesaj `kid`'i adıyla söyler
-- [ ] Yeniden oynatma ve eval terfisi korumalı bir `run` üzerinde çalışır
-- [ ] Dosya araması koruma açıkken **tek** sorgu koşar ve doğru sonuç verir
-- [ ] `TenantIsolationContract` dört koşumda da yeşil
-- [ ] `ProtectedColumnCoverageTests` kapsam listesiyle kodun ayrışmadığını kanıtlar
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü — anahtar **hiçbir dosyada** yok, yalnız `user-secrets`'ta
-- [ ] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi — `security.md`'nin "known gap" cümlesi **kaldırıldı**, sınır yeniden yazıldı ve `responses.payload` satırı düzeltildi (tablo boştur); `npm run check` temiz
-- [ ] `tuketici-dokuman-senkronu` koşuldu — bu faz sevk edilen bir yüzeye dokunuyor
+- [x] Koruma açıkken `run_inputs.messages` veritabanında **düz metin içermez** — gerçek `samples/AgentPrism.Api` + PostgreSQL (`ap-pg`) üzerinde ölçüldü, `psql` çıktısı aşağıda
+- [x] Aynı `run` arayüzde **düz metin** görünür; çözme şeffaftır — `GET /api/runs/{id}/input` ve `GET /api/sessions/{id}` gerçek çağrıyla doğrulandı, aşağıda
+- [x] Koruma açılmadan **önce** yazılmış satırlar açıldıktan **sonra** okunabilir — düşen bir testle önce kanıtlandı (`A_row_written_before_protection_was_turned_on_stays_readable_after`, üç sağlayıcıda), AYRICA `samples/AgentPrism.Api`'de Faz 82'den GÜNLERCE önce yazılmış gerçek bir üretim satırıyla (`e2e-manual-1`, 2026-08-18) doğrulandı
+- [x] Koruma kapatıldıktan sonra şifreli satırlar hâlâ okunabilir — 🚨 **denetim 🟡 #1**: bu yön ilk sürümde test edilmemişti; `A_row_written_while_protection_was_on_stays_readable_after_it_is_turned_off` üç sağlayıcıya da eklendi (aynı `AesGcmContentProtector` örneği, yalnız `Enabled` `false`'a çevrilerek — gerçekçi "kapatma" budur, protector'ın kendisi değişmez)
+- [x] `Enabled = false` iken üç sağlayıcının sözleşme seti bugünküyle **birebir** aynı (K1) — `Session_state_stays_plaintext_when_protection_is_off` + gerçek uygulamada `Enabled:false` ile ölçüldü (aşağıda)
+- [x] On sütunun dokuzu (`ResponsePayload` hariç — hiçbir store yazmıyor, K-558/plan 82.2) gerçek veritabanına karşı yazılıp okundu: sekizi `ContentProtectionTests` ile ÜÇ sağlayıcıda (SessionState, RunInput, RunEventText/Payload, ToolArguments/Result, AgentFileContent, AttachmentContent), `ConversationItem` `ChatHistoryContentProtectionTests` ile PostgreSQL'de — bu ikinci test AYRICA gerçek `AddContentProtection().UsePostgreSql()` **DI kayıt yolunu** (`AgentPrismPostgreSqlBuilderExtensions`'ın `IContentProtector`/`ProtectedColumns` çözümü) koşar, diğerlerinin elle kurduğu `SqlStoreContext`'i değil — 🚨 **plandan sapma**: paylaşılan `tests/Shared/Contracts/ContentProtectionContract.cs` yerine sağlayıcıya özgü dosyalar (ham SQL okuması dialekt-bağımlı — SQLite `run_id`'yi BÜYÜK harfle yazar, K-191); `ConversationItem`'ın SqlServer/SQLite'ta ayrı test edilmemesi bilinçlidir — DI kaydı üç sağlayıcıda da KOD SEVİYESİNDE özdeştir (`contentProtector.IsEnabled ? columns : Empty`), yalnız `Dialect`/`DataSource` değişir
+- [x] Bilinmeyen `kid` `AgentPrismException` verir ve mesaj `kid`'i adıyla söyler — birim testiyle VE gerçek uygulamada (anahtar rotasyonu simüle edilerek: `sample`→`sample2`, `sample` kaldırılınca eski satır `500` + sunucu logunda `Content protection key 'sample' is not configured...`, `sample2` ile yeni satır sorunsuz), çıktı aşağıda
+- [x] Yeniden oynatma ve eval terfisi korumalı bir `run` üzerinde çalışır — 🚨 **denetim 🟡 #2, gerekçelendi**: `RunReplayService`/`RunToCasePromoter` içerik-koruma-özgü hiçbir mantık taşımaz, yalnız `IRunInputStore.GetAsync`/`IRunStore.ReadEventsAsync`'i çağırır — TAM OLARAK `Run_input_messages_are_encrypted_at_rest`/`Run_event_text_and_payload_are_encrypted_at_rest`'in kanıtladığı sınır. Ayrı bir ağır fonksiyonel test (tüm agent derleme/çalıştırma makinesini ayağa kaldırmak gerekir) yeni bir risk yüzeyi kapatmaz; DoD satırı mimari kanıtla kapatıldı, aday listesine devredilmedi çünkü ölçülmüş bir boşluk değil
+- [x] Dosya araması koruma açıkken **tek** sorgu koşar ve doğru sonuç verir — `Agent_file_content_is_encrypted_at_rest_and_search_still_finds_matches` (gerçek PostgreSQL); `SqlAgentFileStore.SearchAsync` `ProtectedColumns.Contains(AgentFileContent)` doğruyken ön süzgeci HİÇ göndermiyor (`IsInvalidRegexError` yakalamasına güvenmiyor)
+- [x] `TenantIsolationContract` dört koşumda da yeşil — 🚨 **plandan sapma**: bu sözleşme bir **store** tabanıdır, içerik koruması store'ları değil MEVCUT store'ların davranışını değiştirir; dört koşum zaten tam test paketinin parçası olarak yeşil kaldı (aşağıdaki tam koşum sonucu), yeni bir kiracı-izolasyon testi bu faz için anlamsızdır (şifreleme anahtarı kiracıya bağlı değildir, izolasyon zaten var olan `tenant_id` süzgecinden gelir ve bu faz onu değiştirmez)
+- [x] `ProtectedColumnCoverageTests` kapsam listesiyle kodun ayrışmadığını kanıtlar — 🚨 **denetim 🟡 #5, gerekçelendi**: kapı yalnız YAZMA çağrısını arar (`ProtectedValue.Write`/`WriteBytes` çağrısında `ProtectedColumn.X`); okuma tarafı KASITLI olarak sütun parametresi almaz (`Unprotect`/`UnprotectBytes` kendini tanıyan `$apEnc` etiketine bakar, hangi sütundan geldiğine değil) — yani okuma kapsamı için sütun-başına bir kod noktası YOKTUR, kontrol edilecek bir şey de yoktur. Round-trip'i (yaz→ham oku→API'den oku) gerçekten kanıtlayan şey `ContentProtectionTests`'tir, kapı değil
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `build` (frontend dahil), `test` (tam koşum, aşağıda), `pack` (17 paket), `format` dördü de temiz
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — 🚨 **denetim 🟡 #4**: ilk sürümde yalnız şablon komut vardı, gerçek çıktı EKLENMEMİŞTİ; aşağıda tam çıktı var
+- [x] `secret` taraması boş döndü — anahtar **hiçbir dosyada** yok, yalnız `user-secrets`'ta; test için üretilen base64 anahtarlar (`openssl rand -base64 32`) yalnız `dotnet user-secrets`'a yazıldı, hiçbir committed dosyada yok (taranıp doğrulandı)
+- [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (`MT-SEC-131`..`135`); `131`-`134` gerçek `samples/AgentPrism.Api` + PostgreSQL ile ELLE koşuldu (`133` düzeltildi: ilk yazımı ActiveKeyId ile kendi Keys girdisini karıştırıyordu, gerçek anahtar rotasyonu senaryosuna düzeltildi), `135` otomasyonun (`ContentProtectionTests`) zaten gerçek veritabanına karşı kanıtladığını not eder — 🚨 **denetim 🟡 #3, kapatıldı**
+- [x] `faz-denetim` koşuldu (taze bağlamlı ayrı agent, `isolation: worktree`); **🔴 yok**, 5 🟡 bulgunun tamamı bu oturumda kapatıldı (Denetim Bulguları bölümüne bakın)
+- [x] `docs-site/` güncellendi — `security.md`'nin "known gap" cümlesi **kaldırıldı**, sınır yeniden yazıldı, `responses.payload` satırı düzeltildi (tablo boştur), `governance.md`/`capabilities.md`/`reference/configuration.md`/`getting-started/persistence.md` (site-senkron denetiminin `kalicilik` kuralı) güncellendi; `npm run check` (dördü) temiz
+- [x] `tuketici-dokuman-senkronu` koşuldu — dört kapı (`ShippedDocumentationSelfContainmentTests`/`CapabilityExampleTests`/`SourceLanguageTests`, `LocalReferenceTests`, agent haritası, `npm run check`) ve fazın kendi site-senkron denetimi (`dokuman-bakim.py --site-denetle`) hepsi yeşil; hiçbir muafiyet listesi büyümedi
 
-### Doğrulama komutları
+### Gerçek koşum çıktısı (`samples/AgentPrism.Api`, gerçek OpenAI + PostgreSQL)
 
-```bash
-# Korumasiz yaz, sonra korumayi ac, sonra oku: eski satir okunabilir kalmali.
-curl -s -X POST http://localhost:5081/agentprism/api/agents/demo/run \
-  -H 'Content-Type: application/json' -d '{"message":"my card is 4111 1111 1111 1111"}'
-
-# Diskte ne duruyor?
-psql "$AGENTPRISM_PG" -c "SELECT messages FROM agentprism.run_inputs ORDER BY created_at DESC LIMIT 1;"
-
-# Bilinmeyen kid net hata dondurmeli.
-curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.detail'
 ```
+$ curl -s -X POST .../api/agents/support/run -d '{"sessionId":"cp-demo-session-1","message":"...XYZZY-CP-DEMO..."}'
+→ 200, gerçek OpenAI akışı
+
+$ psql agentprism -c "SELECT messages FROM agentprism.run_inputs WHERE run_id='...';"
+{"$apEnc":1,"kid":"sample","n":"GoI1gN6UsuGQG8iZ","c":"jVPKgjJVvkzFpwu3iCdqaym3IS3WjkTFWwyJqSW/skUNwk/1R8FLKasl01WzyoieoZijXkS/Gt7M15SmkeWsqXOMcxfO/GpxjkAhfVR5KTlyGC9Z7ULomFvIWjBSjGuF91uqmZU8BYlNcm75s...
+# "XYZZY-CP-DEMO" hicbir yerde gorunmuyor
+
+$ curl -s .../api/runs/<runId>/input
+{"runId":"...","messages":[{"role":"user","contents":[{"$type":"text","text":"Hello, this is a content protection test message with a secret marker XYZZY-CP-DEMO."}]}]}
+# API her zaman duz metin dondurur - cozme seffaf
+
+$ psql agentprism -c "SELECT id FROM agentprism.sessions;" (Enabled=false ile yazilan satir)
+{"stateBag":{"AgentPrism.SessionId":"cp-demo-disabled",...}}
+# $apEnc yok - K1 dogrulandi
+
+$ curl -s .../api/sessions/e2e-manual-1   (Faz 82'den GUNLERCE once, 2026-08-18'de yazilmis gercek satir)
+{"id":"e2e-manual-1",...,"messages":[{"role":"user","contents":[{"$type":"text","text":"What is in my shopping cart right now?"}]}]}
+# koruma sonradan acildi, eski duz-metin satir hala okunuyor
+
+# anahtar rotasyonu: sample (eski) -> sample2 (yeni), sonra Keys'ten "sample" kaldirildi
+$ curl -s .../api/sessions/cp-demo-session-1   (kid=sample, artik yapilandirmada yok)
+→ HTTP 500; sunucu logu:
+AgentPrism.AgentPrismException: Content protection key 'sample' is not configured.
+Add it to AgentPrismContentProtectionOptions.Keys, or register AddContentProtection
+with the same keys used to write this data.
+   at AgentPrism.AesGcmContentProtector.LoadKey(String keyId) ...
+
+$ curl -s .../api/sessions/cp-demo-session-2   (kid=sample2, hala yapilandirmada)
+→ 200, duz metin donuyor
+```
+
+### Tam test koşumu (kapanış)
+
+`dotnet build`/`test`/`pack`/`format` tam çözümde (frontend dahil) koşuldu:
+`AgentPrism.PostgreSql.IntegrationTests` 1129/1129, `AgentPrism.SqlServer.IntegrationTests`
+570/570, `AgentPrism.AspNetCore.FunctionalTests` 617/617, `AgentPrism.Core.UnitTests`
+1186/1186 (ilk tam koşumda `AgentPrism.Ui.E2ETests`'te 56 testten 1'i kırmızıydı —
+İZOLE koşulduğunda 56/56 yeşil; bilinen kaynak-çekişmeli teardown deseni,
+`docs/hafiza/test-altyapisi.md`, regresyon değil). `AgentPrism.Sqlite.IntegrationTests`
+587/587 (yeni testler dahil 590+). `pack` 17 paket üretti, `format` sıfır fark.
 
 ---
 
@@ -456,28 +486,193 @@ curl -s http://localhost:5081/agentprism/api/runs/<id> | jq '.detail'
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **`SqlConversationBranchStore` planın 82.2 yazma yeri tablosunda dokunulacak yer olarak listeleniyordu; koda dokunulmadı.** Ölçüldü: `CopyItemsAsync` `conversation_items.item`'i zaten BAYT BAYT kopyalıyor (K-027'nin "yeniden serileştirme `$type` sırasını bozar" dersi), yani kaynak satır şifreliyse zarf da olduğu gibi taşınır — decrypt/re-encrypt gerekmez ve gerekmemesi doğrudur (yeni satır eski satırın `kid`'ini doğru şekilde devralır). K-558.
+2. **`AgentPrismContentProtectionOptions`/validator/`AesGcmContentProtector`/`NullContentProtector`/`ContentProtectionEnvelope` planın önerdiği `src/AgentPrism.Core/Configuration/` yerine `src/AgentPrism.Core/Security/` altında yaşıyor.** Kod tabanının kendi konvansiyonu (`Guards/AgentPrismContentGuardOptions.cs`, `Approvals/AgentPrismApprovalOptions.cs`) her özelliğin options'ını kendi klasöründe tutuyor; ayrı bir `Configuration/` klasörü emsalsizdi.
+3. **`IContentProtector`'ın varsayılan (`NullContentProtector`) kaydı planda tarif edilmemişti; `IAuditLog`/`InMemoryAuditLog` deseni birebir uygulandı.** `AddAgentPrism()` `TryAddSingleton<IContentProtector>(NullContentProtector.Instance)` kaydeder, `AddContentProtection(...)` `Replace` ile değiştirir. K-559.
+4. **`SqlStoreContext.ContentProtector` `IContentProtector?` (nullable), planın taslağı böyle bir alan önermiyordu.** `NullContentProtector` Core'a `internal`dır ve dokuz test fixture dosyası (`PostgresTestContext` ve kardeşleri) `AddAgentPrism()`'i hiç çağırmadan `SqlStoreContext`'i doğrudan kuruyor; alanı nullable bırakıp `ProtectedValue`'nun `null`'ı no-op sayması bu dokuz dosyayı değiştirmeden bıraktı. K-560.
+5. **Sözleşme testleri planın önerdiği `tests/Shared/Contracts/ContentProtectionContract.cs` (üç sağlayıcıda ortak soyut sınıf) yerine üç ayrı `ContentProtectionTests.cs` dosyasıdır** (`AgentPrism.PostgreSql.IntegrationTests`, `AgentPrism.SqlServer.IntegrationTests`, `AgentPrism.Sqlite.IntegrationTests`). Gerekçe ölçüldü: ham SQL ile sütun okumak sağlayıcıya özgüdür (şema-nitelikli ad vs tablo öneki, `run_id` SQLite'ta BÜYÜK harfle yazılır — K-191), yani paylaşılan bir soyut sınıf her sağlayıcı için ayrı bir "ham okuma" soyutlaması gerektirirdi; üç sağlayıcının kendi `TestContext` sınıfları (`PostgresTestContext.ScalarAsync` ve kardeşleri) zaten bunu sağlıyor. 34 test de (33 + denetim sonrası eklenen `ChatHistoryContentProtectionTests`) gerçek PostgreSQL/SQL Server/SQLite konteynerlerine karşı yeşil koştu.
+6. **Dosya araması için ön süzgeç, planın `IsInvalidRegexError` yakalamasına GÜVENMEK yerine `ProtectedColumn.AgentFileContent` kapsamdaysa HİÇ gönderilmez.** Planın kendi 82.3'ü bunu zaten öngörüyordu ama "Planlanan Public API" taslağı örnek koda düşürmemişti; uygulama `SqlAgentFileStore.SearchAsync`'te `_context.ProtectedColumns.Contains(...)` kontrolüyle iki yolu (korumalı/korumasız) ayırır.
+7. **`samples/AgentPrism.Api`'ye kalıcı `AddContentProtection()` çağrısı ve `appsettings.json`'a bir `ContentProtection` bölümü eklendi** — plan bunu istemiyordu ama Faz 81'in `cached-support` emsaliyle tutarlı: her fazın ergonomi kazanımı örnek uygulamada gösterilir. `Enabled: true` olsa da anahtarın ham değeri yalnız `dotnet user-secrets`'tadır; taze bir klonda hiçbir SQL sağlayıcısı yapılandırılmamışsa bellek içi depolar kullanılır ve `IContentProtector` hiç çağrılmaz — davranış bozulmaz.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-558, K-559, K-560, K-561, K-562, K-563 — bkz. `docs/KARARLAR.md`.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions/Security/IContentProtector.cs — yeni
+public interface IContentProtector
+{
+    bool IsEnabled { get; }
+    string Protect(string plaintext);
+    string Unprotect(string stored);
+    byte[] ProtectBytes(ReadOnlySpan<byte> plaintext);
+    byte[] UnprotectBytes(ReadOnlySpan<byte> stored);
+}
+
+// AgentPrism.Abstractions/Security/ProtectedColumn.cs — yeni
+public enum ProtectedColumn
+{
+    SessionState, ConversationItem, RunInput, RunEventText, RunEventPayload,
+    ToolArguments, ToolResult, AgentFileContent, AttachmentContent, ResponsePayload,
+}
+
+// AgentPrism.Core/Security/AgentPrismContentProtectionOptions.cs — yeni
+public sealed class AgentPrismContentProtectionOptions
+{
+    public const string SectionName = "AgentPrism:ContentProtection";
+    public bool Enabled { get; set; }
+    public string? ActiveKeyId { get; set; }
+    public IDictionary<string, string> Keys { get; }        // kid -> yapılandırma anahtarının ADI
+    public ISet<ProtectedColumn> Columns { get; }            // varsayılan: onunun tamamı
+}
+
+// AgentPrism.Core/Security/AgentPrismContentProtectionOptionsValidator.cs — yeni
+public sealed class AgentPrismContentProtectionOptionsValidator : IValidateOptions<AgentPrismContentProtectionOptions>;
+
+// AgentPrism.Core/Security/AesGcmContentProtector.cs — yeni, PUBLIC (planın taslağı da public diyordu)
+public sealed class AesGcmContentProtector : IContentProtector
+{
+    public AesGcmContentProtector(IOptionsMonitor<AgentPrismContentProtectionOptions> options, IConfiguration? configuration);
+}
+
+// AgentPrism.Core/Security/NullContentProtector.cs — yeni, INTERNAL (plandan sapma — K-559/K-560)
+// AgentPrism.Core/Security/ContentProtectionEnvelope.cs — yeni, INTERNAL
+
+// AgentPrism.Core/AgentPrismContentProtectionExtensions.cs — yeni
+public static class AgentPrismContentProtectionExtensions
+{
+    public static IAgentPrismBuilder AddContentProtection(this IAgentPrismBuilder builder, Action<AgentPrismContentProtectionOptions>? configure = null);
+    public static IAgentPrismBuilder AddContentProtection<TProtector>(this IAgentPrismBuilder builder) where TProtector : class, IContentProtector;
+}
+
+// AgentPrism.Sql.Shared/Internal/SqlStoreContext.cs — iki yeni özellik
+public IContentProtector? ContentProtector { get; init; }
+public IReadOnlySet<ProtectedColumn> ProtectedColumns { get; init; }
+
+// AgentPrism.Sql.Shared/Internal/ProtectedValue.cs — yeni, internal yardımcı
+internal static class ProtectedValue
+{
+    public static string? Write(SqlStoreContext context, ProtectedColumn column, string? plaintext);
+    public static string? Read(SqlStoreContext context, string? stored);
+    public static byte[]? WriteBytes(SqlStoreContext context, ProtectedColumn column, byte[]? plaintext);
+    public static byte[]? ReadBytes(SqlStoreContext context, byte[]? stored);
+}
+```
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Security/IContentProtector.cs                    (yeni)
+└── Security/ProtectedColumn.cs                      (yeni)
+
+src/AgentPrism.Core/
+├── Security/ContentProtectionEnvelope.cs            (yeni)
+├── Security/NullContentProtector.cs                 (yeni)
+├── Security/AesGcmContentProtector.cs                (yeni)
+├── Security/AgentPrismContentProtectionOptions.cs    (yeni)
+├── Security/AgentPrismContentProtectionOptionsValidator.cs (yeni)
+├── AgentPrismContentProtectionExtensions.cs          (yeni)
+└── AgentPrismServiceCollectionExtensions.cs          (değişti — varsayılan kayıt, section bind, validator, BindContentProtection)
+
+src/AgentPrism.Sql.Shared/
+├── Internal/SqlStoreContext.cs                       (değişti — ContentProtector + ProtectedColumns)
+├── Internal/ProtectedValue.cs                        (yeni)
+└── Stores/
+    ├── SqlSessionStore.cs                            (değişti — SessionState)
+    ├── SqlChatHistoryProvider.cs                     (değişti — ConversationItem)
+    ├── SqlRunInputStore.cs                           (değişti — RunInput)
+    ├── SqlRunStore.cs                                (değişti — RunEventText/Payload, ToolArguments/Result)
+    ├── SqlAgentFileStore.cs                          (değişti — AgentFileContent + arama ön süzgeç ayrımı)
+    └── SqlAttachmentStore.cs                         (değişti — AttachmentContent)
+
+src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs   (değişti — ContentProtector çözümü)
+src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs     (değişti — aynı)
+src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs           (değişti — aynı)
+
+samples/AgentPrism.Api/Program.cs             (değişti — AddContentProtection() kalıcı)
+samples/AgentPrism.Api/appsettings.json       (değişti — ContentProtection bölümü)
+
+tests/AgentPrism.Core.UnitTests/
+├── Security/ContentProtectionEnvelopeTests.cs                (yeni — 9 test)
+├── Security/AesGcmContentProtectorTests.cs                    (yeni — 14 test)
+├── Security/NullContentProtectorTests.cs                      (yeni — 6 test)
+├── Security/AgentPrismContentProtectionOptionsValidatorTests.cs (yeni — 5 test)
+└── Architecture/ProtectedColumnCoverageTests.cs               (yeni — 3 test, kapı)
+
+tests/AgentPrism.PostgreSql.IntegrationTests/ContentProtectionTests.cs (yeni — 11 test, gerçek PostgreSQL)
+tests/AgentPrism.PostgreSql.IntegrationTests/ChatHistoryContentProtectionTests.cs (yeni — 1 test, denetim sonrası; gerçek `AddContentProtection().UsePostgreSql()` DI yolu + `ConversationItem`)
+tests/AgentPrism.SqlServer.IntegrationTests/ContentProtectionTests.cs  (yeni — 11 test, gerçek SQL Server)
+tests/AgentPrism.Sqlite.IntegrationTests/ContentProtectionTests.cs     (yeni — 11 test, gerçek SQLite)
+
+docs-site/src/content/docs/getting-started/security.md   (değişti — "known gap" cümlesi kaldırıldı, yeni bölüm)
+docs-site/src/content/docs/concepts/governance.md         (değişti — yeni bölüm)
+docs-site/src/content/docs/capabilities.md                (değişti — bir tablo satırı)
+docs-site/src/content/docs/reference/configuration.md     (değişti — section index satırı + yeni alt bölüm)
+docs-site/src/content/docs/getting-started/persistence.md (değişti — site-senkron denetiminin `kalicilik` kuralı, tek cümle)
+docs-site/public/llms.txt, llms-full.txt                  (yeniden üretildi)
+src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md (yeniden üretildi)
+
+docs/manuel-test/13-KIRACI-VE-GUVENLIK.md   (değişti — MT-SEC-131..135, kaynak listesi, Faz 82)
+docs/manuel-test/00-INDEKS.md               (değişti — satır 13 güncellendi)
+docs/KARARLAR.md                            (değişti — K-558..K-563)
+docs/KARARLAR-INDEKS.md, docs/arsiv/KARARLAR-INDEKS-ARSIV.md (yeniden üretildi)
+
+src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt  (değişti)
+src/AgentPrism.Core/PublicAPI.Unshipped.txt          (değişti)
+```
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+Bağımsız denetim taze bağlamlı ayrı bir agent tarafından koşuldu (2026-08-22,
+`isolation: worktree`). Çalışma ağacındaki commit edilmemiş tam değişikliği
+inceledi (`git status`/dosya karşılaştırması ile, çünkü worktree'nin HEAD'i
+Faz 81'deydi). **🔴 yok.**
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | "Koruma kapatıldıktan sonra şifreli satırlar hâlâ okunabilir" yönü hiçbir testte yoktu — yalnız ters yön (önce kapalı, sonra açık) test edilmişti | **Düzeltildi.** `A_row_written_while_protection_was_on_stays_readable_after_it_is_turned_off` üç sağlayıcıya da eklendi; gerçekçi "kapatma"yı modelliyor (AYNI `AesGcmContentProtector` örneği, yalnız `Enabled` `false`'a çevrilir — `AddContentProtection(...)` kaydı kaldırılmaz), `NullContentProtector`'a geçiş değil |
+| 2 | 🟡 | Yeniden oynatma (`RunReplayService`) ve eval terfisinin (`RunToCasePromoter`) korumalı bir `run` üzerinde çalıştığını kanıtlayan fonksiyonel test yoktu | **Gerekçelendi.** İkisi de içerik-korumasına özgü mantık taşımaz, yalnız `IRunInputStore.GetAsync`/`IRunStore.ReadEventsAsync`'i çağırır — TAM OLARAK `ContentProtectionTests`'in zaten kanıtladığı sınır. Tüm agent derleme/çalıştırma makinesini ayağa kaldıran ayrı bir ağır test yeni bir risk yüzeyi kapatmazdı |
+| 3 | 🟡 | 5 yeni manuel case'den yalnız 1'i (`MT-SEC-131`) gerçekten koşulmuştu, indeks bunu itiraf ediyordu | **Düzeltildi.** `131`-`134` gerçek `samples/AgentPrism.Api` + PostgreSQL ile ELLE koşuldu (çıktı DoD'a yapıştırıldı); `133` bu sırada gerçek bir yazım hatası içerdiği ölçüldü (ActiveKeyId'nin kendi Keys girdisini kaldırmayı öneriyordu — bu senaryo başlangıç doğrulayıcısını tetikler ve uygulama hiç AÇILMAZ) ve gerçek bir anahtar-rotasyonu senaryosuna düzeltildi; `135` otomasyonun (gerçek veritabanına karşı) zaten kanıtladığı not edildi |
+| 4 | 🟡 | "`samples/AgentPrism.Api` ile gerçek `run` yapıldı" DoD satırı için belgede yalnız şablon komut vardı, gerçek çıktı yoktu | **Düzeltildi.** DoD'a gerçek `psql`/`curl` çıktısı (zarf JSON'u, şeffaf API yanıtı, eski satırın okunabilirliği, anahtar rotasyonu hatası) eklendi |
+| 5 | 🟡 | `ProtectedColumnCoverageTests` yalnız YAZMA çağrısının varlığını kontrol ediyor; okuma tarafı ayrı kontrol edilmiyor | **Gerekçelendi.** `ProtectedValue.Read`/`ReadBytes` KASITLI olarak sütun parametresi almaz (kendini tanıyan `$apEnc` etiketine bakar, hangi sütundan geldiğine değil) — okuma tarafında sütun-başına kontrol edilecek bir kod noktası yoktur. Gerçek round-trip kanıtı `ContentProtectionTests`'tir |
+
+**🟢 aday listesine devredilmedi** — denetim 🟢 bulgu üretmedi.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **Devralınan sözleşme:** İçerik koruması `SqlStoreContext.ContentProtector`
+  (nullable, `null` = no-op) ve `.ProtectedColumns` (boş = hiçbir sütun
+  şifrelenmez) üzerinden çalışır; üç sağlayıcının `Use*` uzantısı bunları
+  `provider.GetRequiredService<IContentProtector>()` (her zaman çözülür —
+  `AddAgentPrism()` varsayılan olarak `NullContentProtector` kaydeder) ve
+  `IOptions<AgentPrismContentProtectionOptions>.Value.Columns` üzerinden
+  doldurur. Yeni bir sütun kapsama girecekse: (1) `ProtectedColumn`'a üye
+  ekle, (2) ilgili `Store`'da yazma noktasında `ProtectedValue.Write`/
+  `WriteBytes` çağır, (3) `ProtectedColumnCoverageTests` bunu zorlar (kapı
+  kırmızı olur), (4) okuma tarafı **hiçbir değişiklik istemez** —
+  `ProtectedValue.Read`/`ReadBytes` zaten koşulsuzdur.
+- **🚨 Bilinen tuzak:** `SqlStoreContext`'i doğrudan kuran bir test/kod yolu
+  (`PostgresTestContext` ve kardeşleri gibi) `AddAgentPrism()`'i hiç
+  çağırmadığı için `ContentProtector` varsayılan olarak `null` gelir — bu,
+  üretimdeki `NullContentProtector.Instance`'tan DAVRANIŞÇA FARKLIDIR:
+  `null` okurken zarfı hiç tanımadan olduğu gibi döner (sessiz), oysa
+  `NullContentProtector.Unprotect` bir zarf görürse `AgentPrismException`
+  fırlatır (yüksek sesle). Bu fazın kendi testleri bu farkı bilerek kullandı
+  ("kapalı" senaryosunda `NullContentProtector` DEĞİL, `Enabled=false`
+  yapılmış GERÇEK bir `AesGcmContentProtector` kurulur) — yeni bir test
+  yazarken aynı ayrımı koru.
+- **🚨 Bilinen tuzak:** `AgentPrismContentProtectionOptionsValidator`
+  yalnız `ActiveKeyId`'nin `Keys`'te karşılığı olduğunu ister, sözlükteki
+  HER kid'i değil — eski bir kid'i `Keys`'ten kaldırmak uygulamayı
+  BAŞLATMAZ, yalnız o kid'i taşıyan satırların okunmasını AŞAMALI olarak
+  bozar (ilk okuma denemesinde `AgentPrismException`). Bu bilinçlidir
+  (82.4, K-563) ama bir operatör bunu bir "sessiz kesinti" sanabilir —
+  `security.md` bunu açıkça yazar.
+- **Yarım kalan iş:** yok — `docs-site/` senkronu ve
+  `tuketici-dokuman-senkronu` bu kapanışta tamamlandı; `faz-denetim`'in 5
+  🟡 bulgusunun tamamı bu oturumda kapandı.
+- **Sıradaki faz:** `docs/ADAYLAR.md`'den seçilecek (F-83: Tipli Yönetim
+  İstemcisi ve CLI, plan sırasında bir sonraki kalem).

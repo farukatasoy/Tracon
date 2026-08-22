@@ -68,7 +68,10 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         DbHelpers.Add(command, "media_type", content.MediaType);
         DbHelpers.Add(command, "byte_size", content.Data.Length);
         DbHelpers.Add(command, "sha256", sha256);
-        Dialect.AddBinary(command, "content", dbContent);
+        // The hash above is computed on PLAINTEXT before this call, on
+        // purpose: it identifies the file's actual content and must not
+        // change depending on whether protection is on.
+        Dialect.AddBinary(command, "content", ProtectedValue.WriteBytes(_context, ProtectedColumn.AttachmentContent, dbContent));
         Dialect.AddText(command, "external_uri", externalUri?.ToString());
         Dialect.AddText(command, "created_by", content.CreatedBy);
         Dialect.AddTimestamp(command, "created_at", now);
@@ -130,7 +133,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
                 .ConfigureAwait(false);
         }
 
-        return row.Content is { } bytes ? new MemoryStream(bytes, writable: false) : null;
+        return row.Content is { } bytes ? new MemoryStream(ProtectedValue.ReadBytes(_context, bytes)!, writable: false) : null;
     }
 
     /// <inheritdoc />

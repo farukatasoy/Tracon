@@ -46,6 +46,7 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:Canary` | `CanaryOptions` | `AddAgentPrism()` |
 | `AgentPrism:ContentGuard` | `AgentPrismContentGuardOptions` | Guard pipeline after a guard is registered |
 | `AgentPrism:ContentGuard:Pattern` | `PatternContentGuardOptions` | Section presence or `AddPatternContentGuard()` |
+| `AgentPrism:ContentProtection` | `AgentPrismContentProtectionOptions` | `AddAgentPrism()` binds it; `AddContentProtection()` makes it apply |
 | `AgentPrism:Idempotency` | `AgentPrismIdempotencyOptions` | `AddAgentPrism()` and the HTTP layer |
 | `AgentPrism:Knowledge` | `AgentPrismKnowledgeOptions` | `AddAgentPrism()`; PostgreSQL and embeddings make it functional |
 | `AgentPrism:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddAgentPrism()` plus at least one judge |
@@ -356,6 +357,23 @@ headers — headers whose name AgentPrism sets itself are always dropped, whatev
 limit is. `AllowPrivateNetworkTargets` here applies to webhook delivery only; the
 shared `AgentPrism:Egress` setting covers this surface too, and either one being on is
 enough.
+
+### At-rest content protection
+
+| Key relative to `AgentPrism:ContentProtection` | Default |
+|---|---:|
+| `Enabled` | `false` |
+| `ActiveKeyId` | (none) |
+| `Keys` | Empty |
+| `Columns` | All ten protected columns |
+
+Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
+`true`. `Keys` maps a key id to the **name** of another configuration key — never to
+the key's raw value — the same indirection
+[other configuration keys](/getting-started/security/#configuration-keys-are-fenced-too)
+use elsewhere. See
+[at-rest content protection](/getting-started/security/#at-rest-content-protection)
+for the full key setup and its limits.
 
 ## Retention defaults
 
