@@ -804,9 +804,15 @@ for (const file of derivedFromConfig) {
 
 // Hand-edited copies, checked for the opposite thing: not that they name the address,
 // but that they do not still name one this site has left behind.
+const packagesRoot = join(repositoryRoot, 'packages');
 const handWritten = [
   ...derivedFromConfig,
   ...collectSources(sourceRoot).filter((file) => basename(file) === 'README.md'),
+  // packages/agentprism-client/README.md ships to npm the same way a NuGet
+  // README does (Phase 84) — same blind spot, same fix.
+  ...(existsSync(packagesRoot) ? collectSources(packagesRoot) : []).filter(
+    (file) => basename(file) === 'README.md',
+  ),
   join(repositoryRoot, 'README.md'),
 ];
 

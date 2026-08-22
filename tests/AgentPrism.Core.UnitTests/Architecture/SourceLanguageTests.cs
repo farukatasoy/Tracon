@@ -35,7 +35,7 @@ public sealed class SourceLanguageTests
 {
     private const string RefreshEnvVar = "AGENTPRISM_SOURCE_LANGUAGE_REFRESH";
 
-    private static readonly string[] ScanRoots = ["src", "tests", "samples"];
+    private static readonly string[] ScanRoots = ["src", "tests", "samples", "packages"];
 
     private static readonly HashSet<string> ScannedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -43,12 +43,14 @@ public sealed class SourceLanguageTests
     };
 
     /// <summary>
-    /// A package README ships inside the <c>.nupkg</c> and is what nuget.org
-    /// renders — <c>src/Directory.Build.props</c> sets <c>PackageReadmeFile</c>.
-    /// Markdown is otherwise out of scope, so only these are matched.
+    /// A package README ships inside the published package and is what the
+    /// registry renders — <c>src/Directory.Build.props</c> sets
+    /// <c>PackageReadmeFile</c> for NuGet, and <c>packages/agentprism-client/README.md</c>
+    /// ships to npm the same way (Phase 84). Markdown is otherwise out of
+    /// scope, so only these are matched.
     /// </summary>
     private static readonly Regex PackagedReadmePattern = new(
-        @"^src/[^/]+/README\.md$",
+        @"^(?:src|packages)/[^/]+/README\.md$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 

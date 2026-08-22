@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, ApiError } from '../lib/api';
+import { client, unwrap, AgentPrismError } from '../lib/api';
 import { count } from '../lib/format';
 import { translate, usePlural, useT } from '../lib/i18n';
 import {
@@ -15,7 +15,8 @@ import {
   Td,
   Th,
 } from '../components/ui';
-import type { ConfigurationDiagnostic, ModelProviderHealthStatus, ProviderDiagnostic } from '../lib/types';
+import type { ConfigurationDiagnostic, ProviderDiagnostic } from '@agentprism/client';
+import type { AgentPrismDiagnosticsReport } from '../lib/server-types';
 
 /**
  * Self-check of this installation (Phase 33).
@@ -28,7 +29,11 @@ import type { ConfigurationDiagnostic, ModelProviderHealthStatus, ProviderDiagno
 export function DiagnosticsScreen(): ReactNode {
   const t = useT();
   const plural = usePlural();
-  const diagnostics = useQuery({ queryKey: ['diagnostics'], queryFn: api.diagnostics, retry: false });
+  const diagnostics = useQuery({
+    queryKey: ['diagnostics'],
+    queryFn: () => unwrap(client.GET('/api/diagnostics')) as Promise<AgentPrismDiagnosticsReport>,
+    retry: false,
+  });
 
   return (
     <>
@@ -37,7 +42,7 @@ export function DiagnosticsScreen(): ReactNode {
       {diagnostics.isPending && <Loading />}
 
       {diagnostics.isError &&
-        (diagnostics.error instanceof ApiError && diagnostics.error.status === 404 ? (
+        (diagnostics.error instanceof AgentPrismError && diagnostics.error.status === 404 ? (
           <Panel>
             <Empty title={t('diagnostics.disabled.title')}>{t('diagnostics.disabled.body')}</Empty>
           </Panel>
@@ -211,7 +216,7 @@ function ConfigurationRow({
   );
 }
 
-function statusTone(status: ModelProviderHealthStatus): 'success' | 'danger' | 'warn' | 'neutral' {
+function statusTone(status: string): 'success' | 'danger' | 'warn' | 'neutral' {
   switch (status) {
     case 'Healthy':
       return 'success';

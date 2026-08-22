@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ApiError, api } from '../lib/api';
+import { AgentPrismError, client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
 import { Button, ErrorNote, Mono, Panel, Select, TextInput } from './ui';
-import type { AgentDefinition, ReplayToolMode, RunReplayResponse } from '../lib/types';
+import type { ReplayToolMode } from '@agentprism/client';
+import type { AgentDefinition, RunInputResponse, RunReplayResponse } from '../lib/server-types';
 
 const TOOL_MODES: ReplayToolMode[] = ['ReplayTools', 'NoTools', 'LiveTools'];
 
@@ -32,25 +33,36 @@ export function ReplayPanel({
   // A 404 here is a normal outcome, not a failure — see the doc comment.
   const input = useQuery({
     queryKey: ['run-input', runId],
-    queryFn: () => api.runInput(runId),
-    retry: (_, error) => !(error instanceof ApiError && error.status === 404),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/runs/{runId}/input', { params: { path: { runId } } }),
+      ) as Promise<RunInputResponse>,
+    retry: (_, error) => !(error instanceof AgentPrismError && error.status === 404),
   });
 
   const versions = useQuery({
     queryKey: ['agent-versions', agentName],
-    queryFn: () => api.agentVersions(agentName),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}/versions', { params: { path: { name: agentName } } }),
+      ) as Promise<AgentDefinition[]>,
     // Code agents keep no version history; a 404 simply leaves the selector
     // showing "today's version" only.
-    retry: (_, error) => !(error instanceof ApiError && error.status === 404),
+    retry: (_, error) => !(error instanceof AgentPrismError && error.status === 404),
   });
 
   const replay = useMutation<RunReplayResponse>({
     mutationFn: () =>
-      api.replayRun(runId, {
-        agentVersion: version === '' ? null : Number(version),
-        modelId: modelId.trim() === '' ? null : modelId.trim(),
-        toolMode,
-      }),
+      unwrap(
+        client.POST('/api/runs/{runId}/replay', {
+          params: { path: { runId } },
+          body: {
+            agentVersion: version === '' ? null : Number(version),
+            modelId: modelId.trim() === '' ? null : modelId.trim(),
+            toolMode,
+          },
+        }),
+      ) as Promise<RunReplayResponse>,
   });
 
   if (input.isError) {

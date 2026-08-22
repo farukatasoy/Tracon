@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { absoluteTime, count, relativeTime, percent } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
@@ -20,7 +20,13 @@ import {
   Th,
 } from '../components/ui';
 import { StatusBadge } from './experiments';
-import type { CanaryDecisionKind, CanaryPolicy, Meta } from '../lib/types';
+import type { CanaryDecisionKind, AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type {
+  CanaryPolicy,
+  Experiment,
+  ExperimentCanaryResponse,
+  ExperimentResultsResponse,
+} from '../lib/server-types';
 
 function emptyCanaryForm(variantName: string): CanaryFormState {
   return { canaryVariant: variantName, maxErrorRateDelta: '', minScore: '', minSampleSize: 20, rampSteps: '', rampIntervalHours: 1 };
@@ -67,15 +73,24 @@ function CanaryDecisionBadge({ decision }: { decision: CanaryDecisionKind }): Re
 
 export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [showCanaryForm, setShowCanaryForm] = useState(false);
   const [canaryForm, setCanaryForm] = useState<CanaryFormState>(emptyCanaryForm(''));
 
-  const experiment = useQuery({ queryKey: ['experiment', name], queryFn: () => api.experiment(name) });
+  const experiment = useQuery({
+    queryKey: ['experiment', name],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/experiments/{name}', { params: { path: { name } } }),
+      ) as Promise<Experiment>,
+  });
 
   const results = useQuery({
     queryKey: ['experimentResults', name],
-    queryFn: () => api.experimentResults(name),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/experiments/{name}/results', { params: { path: { name } } }),
+      ) as Promise<ExperimentResultsResponse>,
     refetchInterval: 5_000,
   });
 
@@ -83,19 +98,33 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
 
   const canary = useQuery({
     queryKey: ['experimentCanary', name],
-    queryFn: () => api.experimentCanary(name),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/experiments/{name}/canary', { params: { path: { name } } }),
+      ) as Promise<ExperimentCanaryResponse>,
     enabled: twoArmed,
     refetchInterval: 5_000,
   });
 
   const invalidate = async (): Promise<void> => {
-    await client.invalidateQueries({ queryKey: ['experiment', name] });
-    await client.invalidateQueries({ queryKey: ['experiments'] });
-    await client.invalidateQueries({ queryKey: ['experimentCanary', name] });
+    await queryClient.invalidateQueries({ queryKey: ['experiment', name] });
+    await queryClient.invalidateQueries({ queryKey: ['experiments'] });
+    await queryClient.invalidateQueries({ queryKey: ['experimentCanary', name] });
   };
 
   const setCanary = useMutation({
-    mutationFn: (policy: CanaryPolicy | null) => api.setExperimentCanary(name, policy),
+    // The endpoint accepts a `null` body to remove the canary policy, but the
+    // generated request type does not model body-level nullability (only
+    // property nullability) — ASP.NET Core's OpenAPI generator does not
+    // describe a nullable request body at all, verified against the source
+    // document (no `nullable`/`oneOf` wrapping on this operation's requestBody).
+    mutationFn: (policy: CanaryPolicy | null) =>
+      unwrap(
+        client.PUT('/api/experiments/{name}/canary', {
+          params: { path: { name } },
+          body: policy as NonNullable<typeof policy>,
+        }),
+      ) as Promise<Experiment>,
     onSuccess: async () => {
       setShowCanaryForm(false);
       await invalidate();
@@ -103,12 +132,18 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
   });
 
   const start = useMutation({
-    mutationFn: () => api.startExperiment(name),
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/experiments/{name}/start', { params: { path: { name } } }),
+      ) as Promise<Experiment>,
     onSuccess: invalidate,
   });
 
   const stop = useMutation({
-    mutationFn: () => api.stopExperiment(name),
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/experiments/{name}/stop', { params: { path: { name } } }),
+      ) as Promise<Experiment>,
     onSuccess: invalidate,
   });
 

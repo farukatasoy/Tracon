@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -22,7 +22,12 @@ import {
   Th,
 } from '../components/ui';
 import { PassRateBar } from './evals';
-import type { EvalCaseInput, EvalRunStatus, Meta } from '../lib/types';
+import type {
+  EvalCaseInput,
+  EvalRunStatus,
+  AgentPrismMetaResponse as Meta,
+} from '@agentprism/client';
+import type { EvalCase, EvalRun, EvalSuite } from '../lib/server-types';
 
 function emptyCase(): EvalCaseInput {
   return { query: '', expectedOutput: null, expectedTools: [], context: null };
@@ -107,14 +112,27 @@ function CaseEditor({
 
 export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [cases, setCases] = useState<EvalCaseInput[]>([]);
 
-  const suite = useQuery({ queryKey: ['evalSuite', name], queryFn: () => api.evalSuite(name) });
-  const existingCases = useQuery({ queryKey: ['evalCases', name], queryFn: () => api.evalCases(name) });
+  const suite = useQuery({
+    queryKey: ['evalSuite', name],
+    queryFn: () =>
+      unwrap(client.GET('/api/evals/{name}', { params: { path: { name } } })) as Promise<EvalSuite>,
+  });
+  const existingCases = useQuery({
+    queryKey: ['evalCases', name],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/evals/{name}/cases', { params: { path: { name } } }),
+      ) as Promise<EvalCase[]>,
+  });
   const runs = useQuery({
     queryKey: ['evalRuns', name],
-    queryFn: () => api.evalRuns(name, { take: 20 }),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/evals/{name}/runs', { params: { path: { name }, query: { take: 20 } } }),
+      ) as Promise<EvalRun[]>,
     refetchInterval: 5_000,
   });
 
@@ -132,13 +150,15 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
   }, [existingCases.isSuccess, existingCases.data]);
 
   const saveCases = useMutation({
-    mutationFn: () => api.saveEvalCases(name, cases),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['evalCases', name] }),
+    mutationFn: () =>
+      unwrap(client.PUT('/api/evals/{name}/cases', { params: { path: { name } }, body: cases })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['evalCases', name] }),
   });
 
   const trigger = useMutation({
-    mutationFn: () => api.triggerEvalRun(name),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['evalRuns', name] }),
+    mutationFn: () =>
+      unwrap(client.POST('/api/evals/{name}/run', { params: { path: { name } }, body: {} })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['evalRuns', name] }),
   });
 
   if (suite.isPending) {

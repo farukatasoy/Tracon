@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices, tokenBreakdown } from '../lib/chart';
 import { count, money } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { RunModelStatistics, RunStatistics, TimeSeriesPoint } from '../lib/types';
+import type { RunModelStatistics, RunStatistics, TimeSeriesPoint } from '../lib/server-types';
 
 /**
  * A faint wash of a theme colour. Same trick as the workflow graph: mixed at

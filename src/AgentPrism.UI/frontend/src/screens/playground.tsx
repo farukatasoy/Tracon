@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, openStream } from '../lib/api';
+import { client, openStream, unwrap } from '../lib/api';
 import { readSse } from '../lib/sse';
 import { emptyTranscript, foldMessages, foldUpdate, type TranscriptState } from '../lib/transcript';
 import { Link, useNavigate, useSearchParams } from '../lib/router';
 import { count, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { AttachmentDescriptor, ChatMessage } from '../lib/types';
+import type { ChatMessage, SessionDetailResponse } from '@agentprism/client';
+import type {
+  AgentDescriptor,
+  AttachmentDescriptor,
+  ConversationResource,
+  SpeakResponse,
+} from '../lib/server-types';
 import {
   Badge,
   Button,
@@ -53,7 +59,10 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
   const urlSessionId = useSearchParams().get('sessionId');
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -99,8 +108,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
     let cancelled = false;
 
-    void api
-      .session(urlSessionId)
+    void (
+      unwrap(
+        client.GET('/api/sessions/{sessionId}', { params: { path: { sessionId: urlSessionId } } }),
+      ) as Promise<SessionDetailResponse>
+    )
       .then((detail) => {
         if (cancelled) {
           return;
@@ -108,7 +120,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
         setSessionId(detail.id);
 
-        const messages = detail.messages ?? [];
+        const messages = (detail.messages as ChatMessage[] | null) ?? [];
         const folds = foldMessages(messages);
 
         setHistory(messages.map((message, index) => ({ message, folded: folds[index] ?? emptyTranscript })));
@@ -156,7 +168,17 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
       try {
         for (const file of Array.from(files)) {
-          const descriptor = await api.uploadAttachment(file, sessionId);
+          const form = new FormData();
+
+          form.append('file', file, file.name);
+
+          const descriptor = (await unwrap(
+            client.POST('/api/attachments', {
+              params: { query: { sessionId: sessionId ?? undefined } },
+              body: form as unknown as { file: string },
+            }),
+          )) as AttachmentDescriptor;
+
           setPendingAttachments((current) => [...current, descriptor]);
         }
       } catch (caught) {
@@ -170,10 +192,12 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
   const removePendingAttachment = useCallback((id: string) => {
     setPendingAttachments((current) => current.filter((attachment) => attachment.id !== id));
-    void api.deleteAttachment(id).catch(() => {
-      // Best effort: the reference is already gone from the next message
-      // either way, and the row is orderless clutter at worst.
-    });
+    void client
+      .DELETE('/api/attachments/{id}', { params: { path: { id } } })
+      .catch(() => {
+        // Best effort: the reference is already gone from the next message
+        // either way, and the row is orderless clutter at worst.
+      });
   }, []);
 
   const run = useCallback(
@@ -202,7 +226,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       let conversation = sessionId;
 
       if (conversation === null) {
-        conversation = (await api.createConversation()).id;
+        const created = (await unwrap(
+          client.POST('/v1/conversations'),
+        )) as ConversationResource;
+
+        conversation = created.id;
         setSessionId(conversation);
       }
 
@@ -345,7 +373,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
     try {
       if (sessionId === null) {
-        setSessionId((await api.createConversation()).id);
+        const created = (await unwrap(
+          client.POST('/v1/conversations'),
+        )) as ConversationResource;
+
+        setSessionId(created.id);
       }
 
       setConversation(true);
@@ -434,7 +466,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             <div className="mb-6 flex flex-col divide-y divide-line border-b border-line pb-4">
               <p className="pb-2 text-[11px] font-medium text-subtle uppercase">{t('playground.priorMessages')}</p>
               {history.map(({ message, folded }, index) => {
-                const role = (message.role ?? 'unknown').toLowerCase();
+                const role = ((message.role as string | undefined) ?? 'unknown').toLowerCase();
 
                 return (
                   <div key={message.messageId ?? index} className="pt-3">
@@ -698,8 +730,15 @@ function SpeakButton({ text, sessionId }: { text: string; sessionId: string | nu
     setNote(null);
 
     try {
-      const result = await api.speak(text, sessionId);
-      const blob = await api.attachmentBlob(result.attachment.id);
+      const result = (await unwrap(
+        client.POST('/api/voice/speak', { body: { text, sessionId } }),
+      )) as SpeakResponse;
+      const blob = (await unwrap(
+        client.GET('/api/attachments/{id}', {
+          params: { path: { id: result.attachment.id } },
+          parseAs: 'blob',
+        }),
+      )) as Blob;
 
       setUrl(URL.createObjectURL(blob));
       setState('ready');
@@ -754,7 +793,7 @@ function SpeakButton({ text, sessionId }: { text: string; sessionId: string | nu
  *
  * A plain `<img src="api/attachments/{id}">` cannot carry the bearer token
  * (browsers do not attach custom headers to resource loads), so the preview
- * has to go through `fetch` and wrap the result — see `api.attachmentBlob`.
+ * has to go through `client.GET(..., { parseAs: 'blob' })` and wrap the result.
  */
 function useAttachmentPreview(id: string, enabled: boolean): string | null {
   const [url, setUrl] = useState<string | null>(null);
@@ -767,8 +806,11 @@ function useAttachmentPreview(id: string, enabled: boolean): string | null {
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    void api
-      .attachmentBlob(id)
+    void (
+      unwrap(
+        client.GET('/api/attachments/{id}', { params: { path: { id } }, parseAs: 'blob' }),
+      ) as Promise<Blob>
+    )
       .then((blob) => {
         if (!cancelled) {
           objectUrl = URL.createObjectURL(blob);

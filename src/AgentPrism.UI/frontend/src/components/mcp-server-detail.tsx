@@ -1,9 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Loading, Mono, Panel } from './ui';
-import type { RoleMeta } from '../lib/types';
+import type {
+  AgentPrismRoleMeta as RoleMeta,
+  McpPromptContent,
+  McpResourceSummary,
+} from '@agentprism/client';
+import type { McpPromptSummary, McpResourceContent } from '../lib/server-types';
 
 /**
  * A registered MCP server's prompts and resources (Phase 22.1 / 22.2).
@@ -77,11 +82,20 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
 
   const prompts = useQuery({
     queryKey: ['mcp-prompts', serverName],
-    queryFn: () => api.mcpPrompts(serverName),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/mcp-servers/{name}/prompts', { params: { path: { name: serverName } } }),
+      ) as Promise<McpPromptSummary[]>,
   });
 
   const fetchContent = useMutation({
-    mutationFn: (prompt: string) => api.mcpPromptContent(serverName, prompt, {}),
+    mutationFn: (prompt: string) =>
+      unwrap(
+        client.POST('/api/mcp-servers/{name}/prompts/{prompt}', {
+          params: { path: { name: serverName, prompt } },
+          body: {},
+        }),
+      ) as Promise<McpPromptContent>,
     onSuccess: (content, prompt) => {
       // The header stays ENGLISH on purpose: it is pasted into an agent's
       // instructions, which are prompt text sent to a model, not UI copy.
@@ -156,12 +170,20 @@ function ResourcesTab({
 
   const resources = useQuery({
     queryKey: ['mcp-resources', serverName],
-    queryFn: () => api.mcpResources(serverName),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/mcp-servers/{name}/resources', { params: { path: { name: serverName } } }),
+      ) as Promise<McpResourceSummary[]>,
   });
 
   const preview = useQuery({
     queryKey: ['mcp-resource-content', serverName, previewUri],
-    queryFn: () => api.mcpResourceContent(serverName, previewUri!),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/mcp-servers/{name}/resources/read', {
+          params: { path: { name: serverName }, query: { uri: previewUri as string } },
+        }),
+      ) as Promise<McpResourceContent>,
     enabled: previewUri != null,
   });
 

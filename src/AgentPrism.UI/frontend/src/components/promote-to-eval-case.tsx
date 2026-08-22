@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import { Button, ErrorNote, Panel, Select } from './ui';
+import type { EvalSuite } from '../lib/server-types';
 
 /**
  * Promotes a finished run into an eval suite's case set with one click
@@ -18,11 +19,20 @@ import { Button, ErrorNote, Panel, Select } from './ui';
 export function PromoteToEvalCase({ runId }: { runId: string }): ReactNode {
   const t = useT();
   const navigate = useNavigate();
-  const suites = useQuery({ queryKey: ['eval-suites'], queryFn: () => api.evalSuites() });
+  const suites = useQuery({
+    queryKey: ['eval-suites'],
+    queryFn: () => unwrap(client.GET('/api/evals')) as Promise<EvalSuite[]>,
+  });
   const [suiteName, setSuiteName] = useState('');
 
   const promote = useMutation({
-    mutationFn: (name: string) => api.promoteRunToEvalCase(name, runId),
+    mutationFn: (name: string) =>
+      unwrap(
+        client.POST('/api/evals/{name}/cases/from-run/{runId}', {
+          params: { path: { name, runId } },
+          body: {},
+        }),
+      ),
     onSuccess: (_case, name) => navigate(`evals/${encodeURIComponent(name)}`),
   });
 

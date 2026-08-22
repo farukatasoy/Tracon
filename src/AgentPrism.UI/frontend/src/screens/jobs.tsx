@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client as apiClient, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -22,7 +22,8 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { JobKind, JobSchedule, JobStatus, Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta, JobKind, JobStatus } from '@agentprism/client';
+import type { JobRecord, JobSchedule } from '../lib/server-types';
 
 const EMPTY_FORM = {
   name: '',
@@ -116,10 +117,16 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
   const [payloadError, setPayloadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
-  const schedules = useQuery({ queryKey: ['schedules'], queryFn: api.schedules });
+  const schedules = useQuery({
+    queryKey: ['schedules'],
+    queryFn: () => unwrap(apiClient.GET('/api/schedules')) as Promise<JobSchedule[]>,
+  });
   const jobs = useQuery({
     queryKey: ['jobs'],
-    queryFn: () => api.jobs({ take: 50 }),
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/jobs', { params: { query: { take: 50 } } }),
+      ) as Promise<JobRecord[]>,
     // A running job's counters move on their own; the list should follow.
     refetchInterval: 5_000,
   });
@@ -131,14 +138,19 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
     mutationFn: () => {
       const payload = JSON.parse(form.payload) as unknown;
 
-      return api.saveSchedule(form.name, {
-        kind: form.kind,
-        targetName: form.targetName,
-        cron: form.cron.length > 0 ? form.cron : null,
-        timeZone: form.timeZone,
-        payload,
-        enabled: form.enabled,
-      });
+      return unwrap(
+        apiClient.PUT('/api/schedules/{name}', {
+          params: { path: { name: form.name } },
+          body: {
+            kind: form.kind,
+            targetName: form.targetName,
+            cron: form.cron.length > 0 ? form.cron : null,
+            timeZone: form.timeZone,
+            payload,
+            enabled: form.enabled,
+          },
+        }),
+      ) as Promise<JobSchedule>;
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
@@ -150,17 +162,22 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteSchedule(name),
+    mutationFn: (name: string) =>
+      unwrap(apiClient.DELETE('/api/schedules/{name}', { params: { path: { name } } })),
     onSuccess: invalidateSchedules,
   });
 
   const trigger = useMutation({
-    mutationFn: (name: string) => api.triggerSchedule(name),
+    mutationFn: (name: string) =>
+      unwrap(
+        apiClient.POST('/api/schedules/{name}/trigger', { params: { path: { name } } }),
+      ) as Promise<JobRecord>,
     onSuccess: invalidateJobs,
   });
 
   const cancel = useMutation({
-    mutationFn: (id: string) => api.cancelJob(id),
+    mutationFn: (id: string) =>
+      unwrap(apiClient.POST('/api/jobs/{id}/cancel', { params: { path: { id } } })),
     onSuccess: invalidateJobs,
   });
 

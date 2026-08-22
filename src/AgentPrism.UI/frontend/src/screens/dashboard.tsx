@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { count, money, percent, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
 import {
@@ -11,7 +11,14 @@ import {
 } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
 import { Link } from '../lib/router';
-import type { Meta, RunErrorStatistics, RunStatistics, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta, TimeSeriesBucket } from '@agentprism/client';
+import type {
+  ModelProviderHealth,
+  OnlineEvaluationSummary,
+  RunErrorStatistics,
+  RunStatistics,
+  TimeSeriesPoint,
+} from '../lib/server-types';
 
 type Range = '1h' | '24h' | '7d' | '30d';
 
@@ -32,7 +39,11 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
   const [range, setRange] = useState<Range>('24h');
   const config = RANGE_CONFIG[range];
 
-  const stats = useQuery({ queryKey: ['stats', 10], queryFn: () => api.stats({ maxAgents: 10 }) });
+  const stats = useQuery({
+    queryKey: ['stats', 10],
+    queryFn: () =>
+      unwrap(client.GET('/api/stats', { params: { query: { maxAgents: 10 } } })) as Promise<RunStatistics>,
+  });
 
   const timeseries = useQuery({
     queryKey: ['timeseries', range],
@@ -40,7 +51,11 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
       const to = new Date();
       const from = new Date(to.getTime() - config.hours * 3_600_000);
 
-      return api.timeseries({ from: from.toISOString(), to: to.toISOString(), bucket: config.bucket });
+      return unwrap(
+        client.GET('/api/stats/timeseries', {
+          params: { query: { from: from.toISOString(), to: to.toISOString(), bucket: config.bucket } },
+        }),
+      ) as Promise<TimeSeriesPoint[]>;
     },
   });
 
@@ -50,11 +65,21 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
       const to = new Date();
       const from = startOfDay(new Date(to.getTime() - 24 * 3_600_000));
 
-      return api.timeseries({ from: from.toISOString(), to: to.toISOString(), bucket: 'Day' });
+      return unwrap(
+        client.GET('/api/stats/timeseries', {
+          params: { query: { from: from.toISOString(), to: to.toISOString(), bucket: 'Day' } },
+        }),
+      ) as Promise<TimeSeriesPoint[]>;
     },
   });
 
-  const health = useQuery({ queryKey: ['models-health-summary'], queryFn: () => api.modelsHealth(false) });
+  const health = useQuery({
+    queryKey: ['models-health-summary'],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/models/health', { params: { query: { refresh: false } } }),
+      ) as Promise<ModelProviderHealth[]>,
+  });
 
   return (
     <>
@@ -187,7 +212,7 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
   const t = useT();
   const summary = useQuery({
     queryKey: ['online-evaluation-summary'],
-    queryFn: () => api.onlineEvaluationSummary(),
+    queryFn: () => unwrap(client.GET('/api/evaluation/online')) as Promise<OnlineEvaluationSummary>,
     refetchInterval: 30_000,
   });
 

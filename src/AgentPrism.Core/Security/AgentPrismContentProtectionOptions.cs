@@ -11,15 +11,19 @@ namespace AgentPrism;
 /// <see cref="Keys"/> never carries a key's raw material — it maps a key id
 /// to the <strong>name</strong> of another configuration key the raw value
 /// is read from at run time, the same indirection AgentPrism uses elsewhere
-/// for provider credentials. The example below shows the two keys involved:
-/// the second line is a name, not a value.
+/// for provider credentials. The example below shows both: the
+/// <c>ContentProtection</c> section names <c>ContentProtectionKeys:2026-08</c>,
+/// and that key holds the actual value — set through
+/// <c>dotnet user-secrets</c>, never committed to <c>appsettings.json</c>.
 /// </para>
 /// <example>
-/// <code>
-/// AgentPrism:ContentProtection:Enabled = true
-/// AgentPrism:ContentProtection:ActiveKeyId = "2026-08"
-/// AgentPrism:ContentProtection:Keys:2026-08 = "ContentProtectionKeys:2026-08"
-/// ContentProtectionKeys:2026-08 = "&lt;32-byte base64 key&gt;"   // dotnet user-secrets
+/// <code language="json">
+/// "AgentPrism": { "ContentProtection": {
+///   "Enabled": true,
+///   "ActiveKeyId": "2026-08",
+///   "Keys": { "2026-08": "ContentProtectionKeys:2026-08" }
+/// }},
+/// "ContentProtectionKeys": { "2026-08": "&lt;32-byte base64 key&gt;" }
 /// </code>
 /// </example>
 /// </remarks>

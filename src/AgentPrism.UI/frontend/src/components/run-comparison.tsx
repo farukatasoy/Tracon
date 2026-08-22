@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { count, money } from '../lib/format';
 import { DiffView, FieldDiffTable } from './diff-view';
 import { ErrorNote, Loading, Panel } from './ui';
-import type { RunComparisonSide } from '../lib/types';
+import type { RunComparisonResponse, RunComparisonSide } from '../lib/server-types';
 
 /**
  * Two runs side by side (F-54, phase 47).
@@ -20,7 +20,10 @@ export function RunComparison({ left, right }: { left: string; right: string }):
 
   const comparison = useQuery({
     queryKey: ['run-compare', left, right],
-    queryFn: () => api.compareRuns(left, right),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/runs/{a}/compare/{b}', { params: { path: { a: left, b: right } } }),
+      ) as Promise<RunComparisonResponse>,
   });
 
   if (comparison.isPending) {

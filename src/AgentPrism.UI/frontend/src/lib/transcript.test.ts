@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { emptyTranscript, foldMessages, foldRunEvents, foldUpdate } from './transcript';
-import type { ChatMessage, RunEvent } from './types';
+import type { ChatMessage } from '@agentprism/client';
+import type { RunEvent } from './run-event';
+
+/**
+ * `foldMessages` deliberately reads `ChatMessage.contents` through a
+ * shape-sniffing fallback, not the generated `AiContent` discriminated union
+ * (see the `ChatContent` comment in transcript.ts) — these fixtures build the
+ * loose wire shape that fallback is FOR, then cross the boundary with the
+ * same cast `foldMessages` itself uses internally.
+ */
+interface LooseChatMessage {
+  role: string;
+  contents: Array<Record<string, unknown>>;
+}
 
 const event = (partial: Partial<RunEvent> & Pick<RunEvent, 'type' | 'sequence'>): RunEvent => ({
   runId: 'run-1',
@@ -135,12 +148,12 @@ describe('foldRunEvents', () => {
 
 describe('foldMessages', () => {
   it('folds a plain user/assistant exchange one item per message', () => {
-    const messages: ChatMessage[] = [
+    const messages: LooseChatMessage[] = [
       { role: 'user', contents: [{ $type: 'text', text: 'Hello' }] },
       { role: 'assistant', contents: [{ $type: 'text', text: 'Hi there' }] },
     ];
 
-    const folds = foldMessages(messages);
+    const folds = foldMessages(messages as unknown as ChatMessage[]);
 
     expect(folds).toHaveLength(2);
     expect(folds[0]?.items).toEqual([{ kind: 'text', id: 'text-0', text: 'Hello' }]);
@@ -154,7 +167,7 @@ describe('foldMessages', () => {
     // (assistant/functionCall, then tool/functionResult) — folding each
     // message on its own (the pre-fix `foldMessage`) left the call stuck
     // 'running' forever, since the result had nowhere to apply (HATA-S4-016).
-    const messages: ChatMessage[] = [
+    const messages: LooseChatMessage[] = [
       { role: 'user', contents: [{ $type: 'text', text: 'Where is my order?' }] },
       {
         role: 'assistant',
@@ -164,7 +177,7 @@ describe('foldMessages', () => {
       { role: 'assistant', contents: [{ $type: 'text', text: 'Your order shipped.' }] },
     ];
 
-    const folds = foldMessages(messages);
+    const folds = foldMessages(messages as unknown as ChatMessage[]);
 
     expect(folds).toHaveLength(4);
     // The call's own message now shows the completed card, result included.
@@ -188,11 +201,11 @@ describe('foldMessages', () => {
   });
 
   it('leaves an unmatched result inert rather than crashing', () => {
-    const messages: ChatMessage[] = [
+    const messages: LooseChatMessage[] = [
       { role: 'tool', contents: [{ $type: 'functionResult', callId: 'no-such-call', result: 'x' }] },
     ];
 
-    expect(foldMessages(messages)[0]?.items).toEqual([]);
+    expect(foldMessages(messages as unknown as ChatMessage[])[0]?.items).toEqual([]);
   });
 
   it('returns one state per message even for an empty message list', () => {

@@ -627,6 +627,7 @@ export const tr: Messages = {
   'dashboard.errorClass.Canceled': 'İptal edildi',
   'dashboard.errorClass.ContentBlocked': 'İçerik politika ile engellendi',
   'dashboard.errorClass.ToolTimeout': "Tool zaman aşımına uğradı",
+  'dashboard.errorClass.Infrastructure': 'Altyapı hatası',
 
   /* --------------------------------------------------------- workflows */
   'workflows.description': "Katalogdaki agent'ların beş hazır desenden biriyle birbirine bağlanması. Bir workflow çalıştırması Çalıştırmalar listesinde tek satırdır; çağırdığı her agent o satırın altındadır.",

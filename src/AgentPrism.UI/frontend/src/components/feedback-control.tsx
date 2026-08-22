@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client as apiClient, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Button, ErrorNote, Panel, TextArea } from './ui';
 import { ThumbsDownIcon, ThumbsUpIcon } from './icons';
-import type { RunScore } from '../lib/types';
+import type { RunScore } from '../lib/server-types';
 
 /**
  * Run-level "was this helpful" control: thumbs up/down plus an optional
@@ -19,7 +19,13 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   const client = useQueryClient();
   const queryKey = ['run-feedback', runId];
 
-  const feedback = useQuery({ queryKey, queryFn: () => api.runFeedback(runId) });
+  const feedback = useQuery({
+    queryKey,
+    queryFn: () =>
+      unwrap(
+        apiClient.GET('/api/runs/{runId}/feedback', { params: { path: { runId } } }),
+      ) as Promise<RunScore[]>,
+  });
 
   // Multiple authenticated reviewers each get their own row (one per
   // author); this control shows and edits only the run-level (no
@@ -37,7 +43,12 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
 
   const rate = useMutation({
     mutationFn: (value: 0 | 1) =>
-      api.saveRunFeedback(runId, { kind: 'Binary', value, comment: comment.trim() || undefined }),
+      unwrap(
+        apiClient.POST('/api/runs/{runId}/feedback', {
+          params: { path: { runId } },
+          body: { kind: 'Binary', value, comment: comment.trim() || undefined },
+        }),
+      ) as Promise<RunScore>,
     onMutate: async (value) => {
       await client.cancelQueries({ queryKey });
       const previous = client.getQueryData<RunScore[]>(queryKey);
@@ -70,7 +81,12 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   });
 
   const remove = useMutation({
-    mutationFn: (scoreId: string) => api.deleteRunFeedback(runId, scoreId),
+    mutationFn: (scoreId: string) =>
+      unwrap(
+        apiClient.DELETE('/api/runs/{runId}/feedback/{scoreId}', {
+          params: { path: { runId, scoreId } },
+        }),
+      ),
     onMutate: async (scoreId) => {
       await client.cancelQueries({ queryKey });
       const previous = client.getQueryData<RunScore[]>(queryKey);
@@ -93,7 +109,10 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   const judgeScores = feedback.data?.filter((score) => score.source.startsWith('judge:')) ?? [];
 
   const judgeNow = useMutation({
-    mutationFn: () => api.judgeRun(runId),
+    mutationFn: () =>
+      unwrap(
+        apiClient.POST('/api/runs/{runId}/judge', { params: { path: { runId } } }),
+      ) as Promise<RunScore[]>,
     onSuccess: () => void client.invalidateQueries({ queryKey }),
   });
 
