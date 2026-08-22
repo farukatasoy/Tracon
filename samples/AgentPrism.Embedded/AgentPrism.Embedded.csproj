@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>AgentPrism.Embedded</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
+    <!--
+      🚨 Needed only for THIS repo, same reason as samples/AgentPrism.Api:
+      OutputItemType=Analyzer does NOT propagate across multi-hop
+      ProjectReference chains (Embedded -> AgentPrism -> Core -> Generators).
+      A real external consumer only takes AgentPrism.Core via PackageReference
+      and does not need this line.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
+  </ItemGroup>
+
+</Project>

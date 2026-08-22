@@ -215,6 +215,22 @@ diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes 
 conditional or separately mapped, so they are not all represented by the generated
 161-operation HTTP reference.
 
+## Embedding points
+
+| Capability | What it gives you | Enable or bind it | Boundary |
+|---|---|---|---|
+| Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
+| Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
+| Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler` | Allows every call by default; a thrown exception denies the call |
+| Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
+| Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
+
+Each contract is registered with `TryAdd`, so a registration made before
+`AddAgentPrism()` wins over AgentPrism's built-in default, and
+`GET /api/diagnostics` reports which of the five are still built-in. A tool body
+reads the same identity through `AgentPrismRunContext`, since it cannot reach
+`AgentSession` directly.
+
 ## Coding-agent support
 
 A coding agent working in your repository cannot use a capability it does not know

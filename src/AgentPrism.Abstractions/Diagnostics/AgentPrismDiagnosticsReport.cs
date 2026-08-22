@@ -61,4 +61,17 @@ public sealed record AgentPrismDiagnosticsReport
     /// especially <see cref="PendingMigrations"/>, is still populated.
     /// </remarks>
     public required int? AgentCount { get; init; }
+
+    /// <summary>
+    /// Gets the embedding points a host application binds to attach AgentPrism
+    /// to its own tenancy, identity, authorization, eventing, and storage.
+    /// </summary>
+    /// <remarks>
+    /// Fixed length: one entry per embedding point (<c>ITenantContext</c>,
+    /// <c>IRunAttributionContext</c>, <c>IToolAuthorizationHandler</c>,
+    /// <c>IRunEventSink</c>, <c>IAttachmentStorage</c>), never more. Carries no
+    /// <c>secret</c>: only the bound implementation's type name and whether it
+    /// is AgentPrism's built-in default.
+    /// </remarks>
+    public required IReadOnlyList<ExtensionPointDiagnostic> ExtensionPoints { get; init; }
 }

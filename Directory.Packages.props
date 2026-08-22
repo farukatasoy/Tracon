@@ -214,6 +214,13 @@
       API uclarini kendi barindiricisinda ayaga kaldirmaya yeter.
     -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <!--
+      Only for testing an actual application ENTRY POINT (samples/AgentPrism.Embedded),
+      not the library: WebApplicationFactory<T> needs one, and AgentPrism.* itself
+      is a library with none — TestHost above stays the pattern for testing it.
+      Same 10.0.10 ASP.NET Core line as TestHost/OpenApi above.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <!--
       CVE zorlamasi. Microsoft.AspNetCore.OpenApi 10.0.10, Microsoft.OpenApi 2.0.0
