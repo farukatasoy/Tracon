@@ -75,6 +75,12 @@ did rather than just reading the answer.
 Attachments can be added to a message, and with the voice layer enabled there is a
 live conversation mode.
 
+When the selected agent declares a parameter schema, the playground renders a form
+for it above the message box — one field per parameter, generated from the schema.
+The Run button is disabled while a required field is empty; this is the same rule
+the server enforces (a run with a missing required value never starts), surfaced
+before the round trip instead of after it.
+
 ## Runs
 
 <a class="ui-shot" href="/screenshots/runs.png"><img src="/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>

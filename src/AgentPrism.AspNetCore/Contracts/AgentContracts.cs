@@ -56,6 +56,12 @@ public sealed record AgentDefinitionRequest
     /// <summary>Memory provider settings. If left empty, no memory provider is added.</summary>
     public MemorySettings? Memory { get; init; }
 
+    /// <summary>The parameter schema. See <see cref="AgentDefinition.Parameters"/>.</summary>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
+    /// <summary>The referenced shared instructions block. See <c>AgentDefinition.SharedInstructionsName</c>.</summary>
+    public string? SharedInstructionsName { get; init; }
+
     /// <summary>Converts the request into a persistable definition.</summary>
     /// <returns>A definition ready to be written to the database.</returns>
     public AgentDefinition ToDefinition()
@@ -73,6 +79,8 @@ public sealed record AgentDefinitionRequest
             Harness = Harness,
             Compaction = Compaction,
             Memory = Memory,
+            Parameters = Parameters,
+            SharedInstructionsName = SharedInstructionsName,
             Origin = AgentDefinitionOrigin.Database,
         };
 }
@@ -280,6 +288,26 @@ public sealed record AgentRunRequest
     /// (<see cref="Microsoft.Extensions.AI.UriContent"/>) is added.
     /// </remarks>
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
+
+    /// <summary>
+    /// Values for the target agent's <see cref="AgentDefinition.Parameters"/> schema.
+    /// </summary>
+    /// <remarks>
+    /// A value for a name the schema does not declare is rejected, not
+    /// silently dropped - a typo in a parameter name would otherwise
+    /// disappear without a trace. A required parameter missing both a value
+    /// here and a default in the schema keeps the run from starting at all.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
+    /// <summary>
+    /// Reference text attached to this run, kept apart from the agent's instructions.
+    /// </summary>
+    /// <remarks>
+    /// This is a convention and an audit trail, not a security guarantee -
+    /// see <see cref="AgentRunDocument"/>.
+    /// </remarks>
+    public IReadOnlyList<AgentRunDocument> Documents { get; init; } = [];
 }
 
 /// <summary>

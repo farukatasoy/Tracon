@@ -25,6 +25,35 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
+    public async Task Document_channel_message_is_recorded_separately_and_never_mistaken_for_the_query()
+    {
+        // 🚨 A document channel message is ChatRole.User too and, when
+        // documents are given, precedes the actual query in the message
+        // list - RunStarted.Text (the ONLY persisted source for eval-case
+        // promotion, phase 45) must still capture the REAL query, not the
+        // document's own content.
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var agent = CreateAgent(store, new FakeChatClient());
+
+        var messages = new List<ChatMessage>
+        {
+            DocumentChannelMessageBuilder.Build(new AgentRunDocument { Name = "policy.md", Content = "Refunds within 30 days." }),
+            new ChatMessage(ChatRole.User, "Summarize the attached policy."),
+        };
+
+        await agent.RunAsync(messages);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        var events = await ReadEventsAsync(store, run.Id);
+
+        events[0].Type.ShouldBe(RunEventType.RunStarted);
+        events[0].Text.ShouldBe("Summarize the attached policy.");
+
+        var documentEvent = events.Where(static e => e.Type == RunEventType.DocumentAttached).ShouldHaveSingleItem();
+        documentEvent.Text.ShouldBe("policy.md");
+    }
+
+    [Fact]
     public async Task Event_sequence_numbers_increase_without_gaps()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());

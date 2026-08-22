@@ -107,6 +107,7 @@ public sealed class CodeAgentSource : IAgentSource
 
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var shared = await _compiler.ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
 
         // 🚨 A tenant-specific provider credential (phase 65, BYOK) gets baked
         // into the compiled agent's chat client; caching it would let a
@@ -121,7 +122,9 @@ public sealed class CodeAgentSource : IAgentSource
             _tenantContext.TenantId,
             definition.Name,
             definition.Version,
-            CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+            CompiledAgentCache.CombineFingerprints(
+                CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+                shared.Fingerprint),
             culture ?? string.Empty,
             () => _compiler.CompileAsync(definition, callable, culture, cancellationToken)).ConfigureAwait(false);
 

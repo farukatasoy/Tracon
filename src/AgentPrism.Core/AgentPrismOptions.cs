@@ -64,6 +64,18 @@ public sealed class AgentPrismOptions
 
     /// <summary>Gets or sets tool execution options.</summary>
     public AgentPrismToolOptions Tools { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the largest byte count (UTF-8) for one <c>AgentParameter</c> value.
+    /// </summary>
+    /// <remarks>
+    /// A single limit for every parameter, not one per parameter: a per-parameter
+    /// limit would have to live in <see cref="AgentParameter"/> itself and grow the
+    /// schema for a concern that is really about the request, not the definition.
+    /// Applies to a value from <c>AgentRunRequest.Parameters</c> and to an eval
+    /// case's own <c>EvalCase.Parameters</c> alike - both feed the same binder.
+    /// </remarks>
+    public int MaxParameterValueLength { get; set; } = 4 * 1024;
 }
 
 /// <summary>Defines tool execution options.</summary>

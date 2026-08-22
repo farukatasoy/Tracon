@@ -2715,6 +2715,16 @@ export interface components {
             updatedAt?: null | string;
             /** @description Gets free-form, application-specific metadata. */
             metadata?: Record<string, never>;
+            /**
+             * @description Gets the schema of named placeholders (`{{name}}`) this definition's
+             *     instructions may reference.
+             */
+            parameters?: components["schemas"]["AgentParameter"][];
+            /**
+             * @description Gets the name of another definition whose `Instructions` text is
+             *     prepended to this definition's own resolved instructions at compile time.
+             */
+            sharedInstructionsName?: null | string;
         };
         /**
          * @description Tells where an agent definition came from.
@@ -2749,6 +2759,10 @@ export interface components {
             harness?: null | components["schemas"]["HarnessSettings"];
             compaction?: null | components["schemas"]["CompactionSettings"];
             memory?: null | components["schemas"]["MemorySettings"];
+            /** @description The parameter schema. See IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters. */
+            parameters?: components["schemas"]["AgentParameter"][];
+            /** @description The referenced shared instructions block. See `AgentDefinition.SharedInstructionsName`. */
+            sharedInstructionsName?: null | string;
         };
         /**
          * @description A summary view of an agent listed in the catalog. It carries everything the user
@@ -2796,6 +2810,33 @@ export interface components {
             /** @description Whether this agent can be modified through the management API. */
             isEditable: boolean;
         };
+        /**
+         * @description A single named placeholder an AgentDefinition's instructions can
+         *     reference as `{{name}}`.
+         */
+        AgentParameter: {
+            /** @description Gets the parameter name, as referenced by `{{name}}` in the instructions text. */
+            name: string;
+            /** @description Gets the parameter's data kind. */
+            kind: components["schemas"]["AgentParameterKind"];
+            /**
+             * @description Gets whether a run must supply this parameter. A run missing a required
+             *     parameter with no `DefaultValue` does not start.
+             */
+            required?: boolean;
+            /**
+             * @description Gets the value used when a run does not supply this parameter. Applies
+             *     whether or not `Required` is set.
+             */
+            defaultValue?: null | string;
+            /** @description Gets a short description shown to the person authoring a run. */
+            description?: null | string;
+        };
+        /**
+         * @description The data kind of an AgentParameter.
+         * @enum {unknown}
+         */
+        AgentParameterKind: "Text" | "Number" | "Boolean";
         /** @description Reports which authentication layers are enabled. */
         AgentPrismAuthenticationMeta: {
             /** @description Whether access from outside loopback is allowed. */
@@ -2919,6 +2960,16 @@ export interface components {
              */
             version: number | string;
         };
+        /**
+         * @description A piece of reference text attached to a single run, kept apart from the
+         *     model's instructions.
+         */
+        AgentRunDocument: {
+            /** @description Gets the document's name, shown to the model inside the delimiter. */
+            name: string;
+            /** @description Gets the document's text. Never treated as instructions. */
+            content: string;
+        };
         /** @description Request for a trial run made from the UI. */
         AgentRunRequest: {
             /** @description User message. May be left empty only if IReadOnlyList&lt;ToolApprovalDecision&gt; AgentRunRequest.Approvals is sent. */
@@ -2940,6 +2991,12 @@ export interface components {
             toolResults?: components["schemas"]["ClientToolResult"][];
             /** @description Identifiers of attachments previously uploaded via `POST /api/attachments`. */
             attachmentIds?: string[];
+            /** @description Values for the target agent's IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters schema. */
+            parameters?: null | {
+                [key: string]: string;
+            };
+            /** @description Reference text attached to this run, kept apart from the agent's instructions. */
+            documents?: components["schemas"]["AgentRunDocument"][];
         };
         /** @description A markdown-based skill definition that can be loaded into an agent at run time. */
         AgentSkillDefinition: {
@@ -3754,6 +3811,13 @@ export interface components {
              * @description The promotion time. `null` when hand-written.
              */
             promotedAt?: null | string;
+            /**
+             * @description Values for the target agent's IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters
+             *     schema. `null` for an agent that declares no parameters.
+             */
+            parameters?: null | {
+                [key: string]: string;
+            };
         };
         /** @description Input shape of an eval case (in a request). */
         EvalCaseInput: {
@@ -7199,6 +7263,8 @@ export type AgentDefinitionOrigin = components['schemas']['AgentDefinitionOrigin
 export type AgentDefinitionRequest = components['schemas']['AgentDefinitionRequest'];
 export type AgentDescriptor = components['schemas']['AgentDescriptor'];
 export type AgentDetailResponse = components['schemas']['AgentDetailResponse'];
+export type AgentParameter = components['schemas']['AgentParameter'];
+export type AgentParameterKind = components['schemas']['AgentParameterKind'];
 export type AgentPrismAuthenticationMeta = components['schemas']['AgentPrismAuthenticationMeta'];
 export type AgentPrismDiagnosticsReport = components['schemas']['AgentPrismDiagnosticsReport'];
 export type AgentPrismMetaResponse = components['schemas']['AgentPrismMetaResponse'];
@@ -7207,6 +7273,7 @@ export type AgentPrismStorageMeta = components['schemas']['AgentPrismStorageMeta
 export type AgentResponseFormat = components['schemas']['AgentResponseFormat'];
 export type AgentResponseFormatKind = components['schemas']['AgentResponseFormatKind'];
 export type AgentRollbackRequest = components['schemas']['AgentRollbackRequest'];
+export type AgentRunDocument = components['schemas']['AgentRunDocument'];
 export type AgentRunRequest = components['schemas']['AgentRunRequest'];
 export type AgentSkillDefinition = components['schemas']['AgentSkillDefinition'];
 export type AgentSkillRequest = components['schemas']['AgentSkillRequest'];

@@ -9,8 +9,10 @@ AgentPrism.AgentCallGraphProblem.Deconstruct(out string! Code, out string! Messa
 AgentPrism.AgentCallGraphProblem.Equals(AgentPrism.AgentCallGraphProblem other) -> bool
 AgentPrism.AgentCallGraphProblem.Message.get -> string!
 AgentPrism.AgentCallGraphProblem.Message.init -> void
+AgentPrism.AgentDecoratorPipeline
+static AgentPrism.AgentDecoratorPipeline.Apply(Microsoft.Agents.AI.AIAgent! agent, AgentPrism.AgentDescriptor! descriptor, System.Collections.Generic.IEnumerable<AgentPrism.IAgentDecorator!>! decorators) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler
-AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5) -> void
+AgentPrism.AgentDefinitionCompiler.AgentDefinitionCompiler(AgentPrism.IModelProviderRegistry! models, AgentPrism.IToolRegistry! tools, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, System.IServiceProvider? services = null, Microsoft.Agents.AI.ChatHistoryProvider? chatHistoryProvider = null, AgentPrism.AgentSkillCatalog? skills = null, AgentPrism.SkillScriptSupport? scripts = null, AgentPrism.CallableAgentResolver? callableAgents = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ModelBinding? utilityModel = null, Microsoft.Agents.AI.AgentFileStore? fileStore = null, AgentPrism.IMcpResourceContextProviderFactory? mcpResources = null, AgentPrism.IVectorSearchStore? vectorSearchStore = null, Microsoft.Extensions.AI.IEmbeddingGenerator<string!, Microsoft.Extensions.AI.Embedding<float>!>? embeddingGenerator = null, int knowledgeMaxResults = 5, AgentPrism.IAgentDefinitionStore? definitionStore = null) -> void
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents) -> Microsoft.Agents.AI.AIAgent!
 AgentPrism.AgentDefinitionCompiler.Compile(AgentPrism.AgentDefinition! definition, AgentPrism.ResolvedCallableAgents callableAgents, System.Func<Microsoft.Extensions.AI.AIFunction!, Microsoft.Extensions.AI.AIFunction!>? toolTransform, string? culture = null) -> Microsoft.Agents.AI.AIAgent!
@@ -176,6 +178,8 @@ AgentPrism.AgentPrismOptions.Skills.get -> AgentPrism.AgentPrismSkillOptions!
 AgentPrism.AgentPrismOptions.Skills.set -> void
 AgentPrism.AgentPrismOptions.Tools.get -> AgentPrism.AgentPrismToolOptions!
 AgentPrism.AgentPrismOptions.Tools.set -> void
+AgentPrism.AgentPrismOptions.MaxParameterValueLength.get -> int
+AgentPrism.AgentPrismOptions.MaxParameterValueLength.set -> void
 AgentPrism.AgentPrismOptions.UtilityModel.get -> AgentPrism.ModelBinding?
 AgentPrism.AgentPrismOptions.UtilityModel.set -> void
 AgentPrism.AgentPrismOptions.Validation.get -> AgentPrism.AgentPrismValidationOptions!
@@ -1636,3 +1640,61 @@ const AgentPrism.AgentPrismContentProtectionOptions.SectionName = "AgentPrism:Co
 AgentPrism.AgentPrismContentProtectionOptionsValidator
 AgentPrism.AgentPrismContentProtectionOptionsValidator.AgentPrismContentProtectionOptionsValidator() -> void
 AgentPrism.AgentPrismContentProtectionOptionsValidator.Validate(string? name, AgentPrism.AgentPrismContentProtectionOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+AgentPrism.AgentParameterValidationError
+AgentPrism.AgentParameterValidationError.<Clone>$() -> AgentPrism.AgentParameterValidationError!
+AgentPrism.AgentParameterValidationError.AgentParameterValidationError() -> void
+AgentPrism.AgentParameterValidationError.Code.get -> string!
+AgentPrism.AgentParameterValidationError.Code.init -> void
+AgentPrism.AgentParameterValidationError.Equals(AgentPrism.AgentParameterValidationError? other) -> bool
+AgentPrism.AgentParameterValidationError.ParameterName.get -> string!
+AgentPrism.AgentParameterValidationError.ParameterName.init -> void
+AgentPrism.AgentParameterValidationResult
+AgentPrism.AgentParameterValidationResult.<Clone>$() -> AgentPrism.AgentParameterValidationResult!
+AgentPrism.AgentParameterValidationResult.AgentParameterValidationResult() -> void
+AgentPrism.AgentParameterValidationResult.Equals(AgentPrism.AgentParameterValidationResult? other) -> bool
+AgentPrism.AgentParameterValidationResult.Errors.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentParameterValidationError!>!
+AgentPrism.AgentParameterValidationResult.Errors.init -> void
+AgentPrism.AgentParameterValidationResult.IsValid.get -> bool
+AgentPrism.AgentParameterValidationResult.IsValid.init -> void
+AgentPrism.AgentParameterValidator
+AgentPrism.InstructionParameterBinder
+const AgentPrism.AgentParameterValidator.MissingParameterCode = "missing_parameter" -> string!
+const AgentPrism.AgentParameterValidator.UnknownParameterCode = "unknown_parameter" -> string!
+const AgentPrism.AgentParameterValidator.ValueTooLongCode = "value_too_long" -> string!
+override AgentPrism.AgentParameterValidationError.Equals(object? obj) -> bool
+override AgentPrism.AgentParameterValidationError.GetHashCode() -> int
+override AgentPrism.AgentParameterValidationError.ToString() -> string!
+override AgentPrism.AgentParameterValidationResult.Equals(object? obj) -> bool
+override AgentPrism.AgentParameterValidationResult.GetHashCode() -> int
+override AgentPrism.AgentParameterValidationResult.ToString() -> string!
+static AgentPrism.AgentParameterValidationError.operator !=(AgentPrism.AgentParameterValidationError? left, AgentPrism.AgentParameterValidationError? right) -> bool
+static AgentPrism.AgentParameterValidationError.operator ==(AgentPrism.AgentParameterValidationError? left, AgentPrism.AgentParameterValidationError? right) -> bool
+static AgentPrism.AgentParameterValidationResult.operator !=(AgentPrism.AgentParameterValidationResult? left, AgentPrism.AgentParameterValidationResult? right) -> bool
+static AgentPrism.AgentParameterValidationResult.operator ==(AgentPrism.AgentParameterValidationResult? left, AgentPrism.AgentParameterValidationResult? right) -> bool
+static AgentPrism.AgentParameterValidator.ValidateSchema(AgentPrism.AgentDefinition! definition) -> System.Collections.Generic.IReadOnlyList<string!>!
+static AgentPrism.AgentParameterValidator.ValidateValues(System.Collections.Generic.IReadOnlyList<AgentPrism.AgentParameter!>! schema, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values, int? maxValueLength = null) -> AgentPrism.AgentParameterValidationResult!
+static AgentPrism.InstructionParameterBinder.Bind(string? instructions, System.Collections.Generic.IReadOnlyList<AgentPrism.AgentParameter!>! schema, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values) -> string?
+AgentPrism.DocumentAttachmentSummary
+AgentPrism.DocumentAttachmentSummary.Deconstruct(out string! Name, out int SizeBytes, out string! Sha256) -> void
+AgentPrism.DocumentAttachmentSummary.DocumentAttachmentSummary() -> void
+AgentPrism.DocumentAttachmentSummary.DocumentAttachmentSummary(string! Name, int SizeBytes, string! Sha256) -> void
+AgentPrism.DocumentAttachmentSummary.Equals(AgentPrism.DocumentAttachmentSummary other) -> bool
+AgentPrism.DocumentAttachmentSummary.Name.get -> string!
+AgentPrism.DocumentAttachmentSummary.Name.init -> void
+AgentPrism.DocumentAttachmentSummary.Sha256.get -> string!
+AgentPrism.DocumentAttachmentSummary.Sha256.init -> void
+AgentPrism.DocumentAttachmentSummary.SizeBytes.get -> int
+AgentPrism.DocumentAttachmentSummary.SizeBytes.init -> void
+AgentPrism.DocumentChannelMessageBuilder
+const AgentPrism.DocumentChannelMessageBuilder.DocumentNameProperty = "agentprism.documentName" -> string!
+const AgentPrism.DocumentChannelMessageBuilder.DocumentSha256Property = "agentprism.documentSha256" -> string!
+const AgentPrism.DocumentChannelMessageBuilder.DocumentSizeBytesProperty = "agentprism.documentSizeBytes" -> string!
+override AgentPrism.DocumentAttachmentSummary.GetHashCode() -> int
+static AgentPrism.DocumentAttachmentSummary.operator !=(AgentPrism.DocumentAttachmentSummary left, AgentPrism.DocumentAttachmentSummary right) -> bool
+static AgentPrism.DocumentAttachmentSummary.operator ==(AgentPrism.DocumentAttachmentSummary left, AgentPrism.DocumentAttachmentSummary right) -> bool
+static AgentPrism.DocumentChannelMessageBuilder.Build(AgentPrism.AgentRunDocument! document) -> Microsoft.Extensions.AI.ChatMessage!
+static AgentPrism.DocumentChannelMessageBuilder.TryGetSummary(Microsoft.Extensions.AI.AIContent! content, out AgentPrism.DocumentAttachmentSummary summary) -> bool
+~override AgentPrism.DocumentAttachmentSummary.Equals(object obj) -> bool
+~override AgentPrism.DocumentAttachmentSummary.ToString() -> string
+AgentPrism.AgentDefinitionCompiler.ResolveCallableAgentsAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<AgentPrism.ResolvedCallableAgents>
+AgentPrism.AgentDefinitionCompiler.CompileParameterizedAsync(AgentPrism.AgentDefinition! definition, string? culture, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>

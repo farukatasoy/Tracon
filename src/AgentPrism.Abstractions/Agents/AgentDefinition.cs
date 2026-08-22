@@ -124,4 +124,37 @@ public sealed record AgentDefinition
     /// <summary>Gets free-form, application-specific metadata.</summary>
     public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Gets the schema of named placeholders (<c>{{name}}</c>) this definition's
+    /// instructions may reference.
+    /// </summary>
+    /// <remarks>
+    /// Validated at compile time: see <see cref="AgentParameter"/>. A run
+    /// supplies concrete values through <c>AgentRunRequest.Parameters</c>; the
+    /// definition itself carries only the schema, never a value.
+    /// </remarks>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
+    /// <summary>
+    /// Gets the name of another definition whose <c>Instructions</c> text is
+    /// prepended to this definition's own resolved instructions at compile time.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A shared instructions block is an ordinary <see cref="AgentDefinition"/> -
+    /// there is no separate type or table for it. It gets versioning, tenancy,
+    /// and the audit trail for free because it is saved through the same
+    /// <c>IAgentDefinitionStore</c>.
+    /// </para>
+    /// <para>
+    /// The reference cannot be recursive: a definition whose own
+    /// <c>SharedInstructionsName</c> is set cannot be referenced by
+    /// another definition. This is checked at compile time and rejected
+    /// outright rather than resolved through a cycle-detecting walk - a single
+    /// disallowed hop is enough for the "shared block" use case and keeps the
+    /// feature far from being a template engine.
+    /// </para>
+    /// </remarks>
+    public string? SharedInstructionsName { get; init; }
 }
