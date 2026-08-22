@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-161 operations across 124 paths. This page is the shape they all share; the groups in
+162 operations across 125 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as

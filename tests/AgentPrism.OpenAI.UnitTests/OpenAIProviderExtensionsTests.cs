@@ -1,4 +1,5 @@
 using AgentPrism.OpenAI.UnitTests.Infrastructure;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,23 @@ namespace AgentPrism.OpenAI.UnitTests;
 /// </remarks>
 public sealed class OpenAIProviderExtensionsTests
 {
+#pragma warning disable MEAI001
+    [Fact]
+    public void UseOpenAIImages_shares_the_authenticated_factory_and_sets_the_default_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddAgentPrism()
+            .UseOpenAI(TestData.ApiKey)
+            .UseOpenAIImages(options => options.Model = "gpt-image-1");
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IImageGenerator>(OpenAIProviderNames.ChatCompletions).ShouldNotBeNull();
+        provider.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value.Provider
+            .ShouldBe(OpenAIProviderNames.ChatCompletions);
+    }
+#pragma warning restore MEAI001
+
     [Fact]
     public void UseOpenAI_registers_two_providers()
     {

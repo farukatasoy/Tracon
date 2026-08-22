@@ -110,6 +110,7 @@ claim to provide an operating-system sandbox.
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new AgentPrism message abstraction |
+| Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `AgentPrism:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `AgentPrism.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
 | Live voice conversation | `UseVoiceConversation()` plus `MapAgentPrism()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 
@@ -189,7 +190,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; AgentPrism can also persist a sample |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, and optional quota gauges | Standard .NET metrics; high-cardinality and store-backed gauges are bounded |
-| Cost attribution | Per model, agent, run, child run, and voice usage | Prices come from a model catalog or explicit configuration |
+| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddAgentPrismHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -219,7 +220,7 @@ a failure to record one is logged and stepped over rather than raised to the cal
 `MapAgentPrism()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-161-operation HTTP reference.
+162-operation HTTP reference.
 
 ## Embedding points
 

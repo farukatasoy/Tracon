@@ -286,5 +286,44 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 }
             }
         }
+
+        foreach (var (providerName, models) in pricing.Images)
+        {
+            foreach (var (modelName, price) in models)
+            {
+                if (price.PerImage is < 0 || price.OutputCostPerMillionTokens is < 0)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: price for 'Images:{providerName}:{modelName}' cannot be negative.");
+                }
+
+                if (price.PerImage is not null && price.OutputCostPerMillionTokens is not null)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: 'Images:{providerName}:{modelName}' cannot contain both " +
+                        $"'{nameof(ImagePriceOverride.PerImage)}' and " +
+                        $"'{nameof(ImagePriceOverride.OutputCostPerMillionTokens)}'.");
+                }
+
+                if (price.PerImage is null && price.OutputCostPerMillionTokens is null)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: 'Images:{providerName}:{modelName}' contains neither " +
+                        $"'{nameof(ImagePriceOverride.PerImage)}' nor " +
+                        $"'{nameof(ImagePriceOverride.OutputCostPerMillionTokens)}'. Check the key name.");
+                }
+
+                foreach (var (size, multiplier) in price.SizeMultipliers)
+                {
+                    if (string.IsNullOrWhiteSpace(size) || multiplier < 0)
+                    {
+                        (failures ??= []).Add(
+                            $"{nameof(AgentPrismPricingOptions)}: image size multiplier for " +
+                            $"'Images:{providerName}:{modelName}' must have a name and cannot be negative.");
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

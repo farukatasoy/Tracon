@@ -2,6 +2,24 @@
 
 Google Gemini provider adapter for AgentPrism.
 
+## Image generation
+
+After `UseGoogle(...)`, call `UseGoogleImages(...)` to register AgentPrism's narrow
+`IImageGenerator` adapter. Set an image-capable Google model explicitly.
+
+```csharp
+agentPrism.UseGoogleImages(options =>
+{
+    options.Enabled = true;
+    options.Model = "your-imagen-model";
+});
+```
+
+The generator key is `google`. This adapter generates from a prompt only; it does not
+map a `WIDTHxHEIGHT` request because Google's image API uses separate aspect-ratio and
+size-tier settings. Configure prices under `AgentPrism:Pricing:Images:google` when
+cost reporting is required.
+
 ```csharp
 builder.AddAgentPrism()
        .UseGoogle(apiKey, o => o.DefaultModel = "gemini-3.6-flash");

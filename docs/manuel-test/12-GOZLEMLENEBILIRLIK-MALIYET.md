@@ -2,7 +2,8 @@
 
 > **Alan kodu:** `OBS` · **Faz:** 6 (iz/span), 20 (maliyet + gösterge paneli),
 > 35 (maliyet/kota metrikleri — OTel enstrümanları),
-> 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı)
+> 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı),
+> 88 (görsel üretim ölçümü)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1323,5 +1324,58 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "$ROLE" "$BASE/api/runs?take=1" | j
 - 👤 Kullanıcı süzgeci listeyi daraltır; ayrıntı sayfasında "çalıştıran `ada`"
   ve etiket rozetleri görünür.
 - 👤 Dil `tr`'ye çevrildiğinde tüm bu metinler Türkçe gelir.
+
+---
+
+### MT-OBS-046 — Görsel fiyatı yalnız açık yapılandırmadan hesaplanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+- `MT-MM-095` için gerçek görsel üretim çalışır.
+- Önce `AgentPrism:Pricing:Images:<provider>:<model>` bölümü tamamen yoktur.
+
+**Adımlar**
+1. Bir görsel üret ve tool çağrısının `usage` kaydını oku.
+2. Uygulamayı şu açık fiyatla yeniden başlat:
+```bash
+dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:PerImage" "0.04"
+dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:SizeMultipliers:1024x1024" "2"
+```
+3. Aynı boyutta bir görsel daha üret ve iki `usage` kaydını karşılaştır.
+
+**Beklenen sonuç**
+- İlk çağrıda ölçülen `quantity` gerçek görsel sayısıdır, fakat `cost` **`null`**'dur;
+  `0` değildir ve `isEstimated` ile fiyat uydurulmaz.
+- İkinci çağrıda `unit=images`, `quantity=1`, `cost=0.08` ve yapılandırılmış
+  para birimi döner. Boyut çarpanı yalnız per-image fiyatına uygulanır.
+
+### MT-OBS-047 — Token fiyatı ile görsel başı fiyat birlikte yapılandırılamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Adımlar**
+```bash
+dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:PerImage" "0.04"
+dotnet user-secrets set "AgentPrism:Pricing:Images:openai:<model>:OutputCostPerMillionTokens" "10"
+cd samples/AgentPrism.Api && dotnet run -c Release
+```
+
+**Beklenen sonuç**
+- Uygulama başlangıçta options validation hatasıyla durur. Hata, aynı image
+  modelinde `PerImage` ve `OutputCostPerMillionTokens` değerlerinin birlikte
+  olamayacağını açıkça söyler.
+- İki değerden biri kaldırılmadan endpoint bağlı olmaz ve hiçbir görsel çağrısı
+  para harcamaz.
 
 ---

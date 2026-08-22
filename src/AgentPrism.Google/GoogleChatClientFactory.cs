@@ -122,6 +122,12 @@ public sealed class GoogleChatClientFactory : IDisposable
         return inner;
     }
 
+    /// <summary>Creates an image generator that shares this factory's Google client.</summary>
+    /// <returns>The native Microsoft.Extensions.AI image generator.</returns>
+#pragma warning disable MEAI001
+    internal IImageGenerator CreateImageGenerator() => new GoogleImageGenerator(_client);
+#pragma warning restore MEAI001
+
     /// <summary>Builds a Google GenAI client from settings.</summary>
     /// <param name="options">Provider settings.</param>
     /// <param name="egressGuard">

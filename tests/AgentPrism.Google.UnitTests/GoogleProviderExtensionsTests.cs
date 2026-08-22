@@ -1,4 +1,5 @@
 using AgentPrism.Google.UnitTests.Infrastructure;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -10,6 +11,23 @@ namespace AgentPrism.Google.UnitTests;
 /// </summary>
 public sealed class GoogleProviderExtensionsTests
 {
+#pragma warning disable MEAI001
+    [Fact]
+    public void UseGoogleImages_registers_the_narrow_adapter_and_sets_the_default_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddAgentPrism()
+            .UseGoogle(TestData.ApiKey)
+            .UseGoogleImages(options => options.Model = "imagen-4.0-generate-001");
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IImageGenerator>(GoogleProviderNames.Google).ShouldNotBeNull();
+        provider.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value.Provider
+            .ShouldBe(GoogleProviderNames.Google);
+    }
+#pragma warning restore MEAI001
+
     [Fact]
     public void Registers_a_single_provider()
     {

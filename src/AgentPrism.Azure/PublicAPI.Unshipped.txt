@@ -1,5 +1,6 @@
 #nullable enable
 AgentPrism.AzureOpenAIChatClientFactory
+AgentPrism.AzureOpenAIImageBuilderExtensions
 AgentPrism.AzureOpenAIChatClientFactory.AzureOpenAIChatClientFactory(AgentPrism.AzureOpenAIProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
 AgentPrism.AzureOpenAIChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AzureOpenAIModelCatalog
@@ -33,6 +34,7 @@ const AgentPrism.AzureOpenAIProviderNames.AzureOpenAI = "azure-openai" -> string
 const AgentPrism.AzureOpenAIProviderNames.SettingsPrefix = "azure-openai" -> string!
 const AgentPrism.AzureOpenAIProviderOptions.SectionName = "AgentPrism:Providers:AzureOpenAI" -> string!
 static AgentPrism.AzureOpenAIModelCatalog.Build(AgentPrism.AzureOpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
+static AgentPrism.AzureOpenAIImageBuilderExtensions.UseAzureOpenAIImages(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AgentPrismImageOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AzureOpenAIChatClientFactory.FromClient(Azure.AI.OpenAI.AzureOpenAIClient! client, string? defaultDeployment = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> AgentPrism.AzureOpenAIChatClientFactory!
 static AgentPrism.AzureOpenAIProviderExtensions.UseAzureOpenAI(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AzureOpenAIProviderExtensions.UseAzureOpenAI(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AzureOpenAIProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!

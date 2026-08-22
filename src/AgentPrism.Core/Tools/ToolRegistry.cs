@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,46 @@ public sealed class ToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, AIFunctionDeclaration> _tools;
     private readonly List<ToolDescriptor> _descriptors;
+
+    /// <summary>Builds the registry from the final service-provider state.</summary>
+    /// <param name="provider">The root service provider.</param>
+    /// <returns>The assembled tool registry.</returns>
+    /// <remarks>
+    /// Image generation is a two-key feature: the image option must be enabled
+    /// and an <see cref="IImageGenerator"/> must be registered. Resolving this
+    /// here preserves the default-off rule: merely referencing a provider package does not expose
+    /// a paid tool to agent definitions.
+    /// </remarks>
+    // MEAI 10.9.0 marks IImageGenerator experimental (MEAI001), although it is
+    // the framework's only image-generation abstraction. The use is limited to
+    // registry gating; provider adapters and the tool own the call path.
+#pragma warning disable MEAI001
+    internal static ToolRegistry Create(IServiceProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        var registrations = provider.GetServices<AgentPrismToolRegistration>().ToList();
+        var images = provider.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value;
+
+        if (images.Enabled)
+        {
+            var generator = provider.GetRequiredService<ImageGeneratorResolver>().Resolve();
+
+            _ = generator;
+            registrations.Add(new AgentPrismToolRegistration(
+                new GenerateImageTool(provider),
+                effect: ToolEffect.External));
+        }
+
+        return new ToolRegistry(
+            registrations,
+            provider.GetRequiredService<IToolAuthorizationHandler>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
+            provider.GetService<IRunAttributionContext>(),
+            provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
+            provider.GetRequiredService<ILogger<TimeoutAIFunction>>());
+    }
+#pragma warning restore MEAI001
 
     /// <summary>Initializes a new registry from registrations.</summary>
     /// <param name="registrations">The tool registrations.</param>

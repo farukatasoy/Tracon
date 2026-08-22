@@ -5066,6 +5066,59 @@
         }
       }
     },
+    "/agentprism/api/images/generate": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Images"
+        ],
+        "summary": "Generates images and saves them as attachments.",
+        "description": "This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent\u0027s generate_image tool instead.",
+        "operationId": "AgentPrismGenerateImage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageGenerationOperatorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageGenerationOperatorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/runs/{runId}/trace": {
       "get": {
         "tags": [
@@ -10402,6 +10455,64 @@
       "IFormFile": {
         "type": "string",
         "format": "binary"
+      },
+      "ImageGenerationOperatorRequest": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the image prompt."
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of images to generate. Defaults to one.",
+            "format": "int32"
+          },
+          "size": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the optional image size in WIDTHxHEIGHT form."
+          },
+          "sessionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the session to which generated attachments belong."
+          }
+        },
+        "description": "The request body for an operator image-generation action."
+      },
+      "ImageGenerationOperatorResponse": {
+        "required": [
+          "attachments",
+          "usage"
+        ],
+        "type": "object",
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentDescriptor"
+            },
+            "description": "Gets the generated image attachments."
+          },
+          "usage": {
+            "description": "Gets the observed generation quantity and configured cost.",
+            "$ref": "#/components/schemas/ToolCallUsage"
+          }
+        },
+        "description": "The result of an operator image-generation action."
       },
       "IMcpToolRefresher": {
         "type": "object",
@@ -16749,6 +16860,9 @@
     },
     {
       "name": "Voice"
+    },
+    {
+      "name": "Images"
     },
     {
       "name": "Diagnostics"

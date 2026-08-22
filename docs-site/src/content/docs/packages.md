@@ -42,6 +42,11 @@ Add these when you need them.
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
+`AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
+image-generator registrations. They reuse their chat provider's authenticated client,
+but image generation stays off until you configure `AgentPrism:Images`; see [model
+providers](/guides/model-providers/#image-generation-providers).
+
 ## Calling AgentPrism from elsewhere
 
 These are not runtime packages you host AgentPrism with — they call a running

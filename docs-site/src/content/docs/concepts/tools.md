@@ -91,6 +91,18 @@ synchronization should not opt in. See
 [Model providers](/guides/model-providers/#concurrent-tool-calls) for where this
 setting lives on `ModelBinding`.
 
+### Built-in image generation
+
+When `AgentPrism:Images:Enabled` is true and a supported image provider is
+registered, AgentPrism adds `generate_image` as an `External` tool. It accepts a
+prompt and returns attachment ids, never base64 image data. Generation can spend money
+and sends a prompt to an external provider, so the normal authorization, timeout, run
+recording, and continuation rules apply. In particular, an interrupted run does not
+automatically repeat an image-generation call.
+
+See [Multimodal input and generated images](/guides/multimodal/) for registration,
+storage, and price configuration.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the

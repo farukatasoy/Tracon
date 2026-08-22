@@ -36,6 +36,29 @@
    [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) (🚨 MCP tool'ları **ikinci** bir sarmalama zinciri kurar)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
    [`MIMARI.md`](MIMARI.md) — tool kayıt yolu
+6. Faz 88 devir notu — yalnız ilgili bölüm:
+   ```bash
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/88-GORSEL-URETIM-TOOLU.md
+   ```
+   `ToolRegistry.Create(...)` images açıksa kodla tanımlı `generate_image`
+   tool'unu `ToolEffect.External` ile ekler. Faz 89 bu factory yoluna halka
+   eklerken bu koşullu kaydı ve effect bilgisini korumalıdır.
+
+---
+
+## Faz 88'den Devralınan Sözleşmeler
+
+| Sözleşme | Faz 89 etkisi |
+|---|---|
+| `ToolRegistry.Create(IServiceProvider)` images açıkken `generate_image`ı kayıt listesine ekler | Yeni output sınırı sarmalayıcısı, statik kayıtlarla birlikte bu built-in tool'a da uygulanmalıdır. Ayrı bir kayıt yolu açma. |
+| `generate_image` `ToolEffect.External` taşır | Devam koşusunda otomatik tekrar edilmez. Kırpma bu effect veya `SafeToRepeat` kararını değiştiremez. |
+| Image attachment yazısı run scope `TenantId`si ile yapılır; URI indirimi bounded ve guard'lıdır | Tool sonucunu kırpmak, attachment kimliği üretildikten sonraki metin yolundadır. Attachment yazma/egress yoluna ikinci bir kopya eklenmez. |
+| `IImageGenerator` MEAI001 deneysel yüzeyidir | Faz 89 bunu kullanmaz. `ToolRegistry`teki mevcut dar pragma'yı genişletme. |
+
+🚨 Faz 89 sarmalayıcı zincirini değiştirirken `ToolRegistry`teki conditional
+image registration'ı normal `AgentPrismToolRegistration` gibi ele almalıdır.
+Kayıt yalnız factory aşamasında eklenir; sarmalayıcı iki ayrı yola bölünürse
+Faz 88'in `External`/kayıt/ölçüm sözleşmesi sessizce kayar.
 
 ---
 

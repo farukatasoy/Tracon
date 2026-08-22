@@ -209,6 +209,17 @@ public sealed class AzureOpenAIChatClientFactory
         return new AzureOpenAIClient(options.Endpoint, new ApiKeyCredential(options.ApiKey), clientOptions);
     }
 
+    /// <summary>Creates an image generator that shares this factory's Azure OpenAI client.</summary>
+    /// <param name="deploymentName">The Azure image deployment name.</param>
+    /// <returns>The native Microsoft.Extensions.AI image generator.</returns>
+#pragma warning disable MEAI001
+    internal IImageGenerator CreateImageGenerator(string deploymentName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deploymentName);
+        return _client.GetImageClient(deploymentName).AsIImageGenerator();
+    }
+#pragma warning restore MEAI001
+
     private static string? Trim(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

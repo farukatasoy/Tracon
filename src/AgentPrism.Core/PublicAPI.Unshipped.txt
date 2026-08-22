@@ -150,6 +150,16 @@ AgentPrism.AgentPrismObservabilityOptions.RecordSensitiveData.set -> void
 AgentPrism.AgentPrismObservabilityOptions.SuccessSampleRatio.get -> double
 AgentPrism.AgentPrismObservabilityOptions.SuccessSampleRatio.set -> void
 AgentPrism.AgentPrismOnlineEvaluationBuilderExtensions
+AgentPrism.AgentPrismImageOptions
+AgentPrism.AgentPrismImageOptions.AgentPrismImageOptions() -> void
+AgentPrism.AgentPrismImageOptions.Enabled.get -> bool
+AgentPrism.AgentPrismImageOptions.Enabled.set -> void
+AgentPrism.AgentPrismImageOptions.MaxImagesPerRequest.get -> int
+AgentPrism.AgentPrismImageOptions.MaxImagesPerRequest.set -> void
+AgentPrism.AgentPrismImageOptions.Model.get -> string?
+AgentPrism.AgentPrismImageOptions.Model.set -> void
+AgentPrism.AgentPrismImageOptions.Provider.get -> string?
+AgentPrism.AgentPrismImageOptions.Provider.set -> void
 AgentPrism.AgentPrismOptions
 AgentPrism.AgentPrismOptions.AgentGraph.get -> AgentPrism.AgentPrismAgentGraphOptions!
 AgentPrism.AgentPrismOptions.AgentGraph.set -> void
@@ -191,6 +201,7 @@ AgentPrism.AgentPrismPricingOptions
 AgentPrism.AgentPrismPricingOptions.AgentPrismPricingOptions() -> void
 AgentPrism.AgentPrismPricingOptions.Currency.get -> string?
 AgentPrism.AgentPrismPricingOptions.Currency.set -> void
+AgentPrism.AgentPrismPricingOptions.Images.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IDictionary<string!, AgentPrism.ImagePriceOverride!>!>!
 AgentPrism.AgentPrismPricingOptions.Providers.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IDictionary<string!, AgentPrism.ModelPriceOverride!>!>!
 AgentPrism.AgentPrismPricingOptions.Voice.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IDictionary<string!, AgentPrism.VoicePriceOverride!>!>!
 AgentPrism.AgentPrismQuotaOptions
@@ -869,6 +880,13 @@ AgentPrism.ModelPriceOverride.InputCostPerMillionTokens.set -> void
 AgentPrism.ModelPriceOverride.ModelPriceOverride() -> void
 AgentPrism.ModelPriceOverride.OutputCostPerMillionTokens.get -> decimal?
 AgentPrism.ModelPriceOverride.OutputCostPerMillionTokens.set -> void
+AgentPrism.ImagePriceOverride
+AgentPrism.ImagePriceOverride.ImagePriceOverride() -> void
+AgentPrism.ImagePriceOverride.OutputCostPerMillionTokens.get -> decimal?
+AgentPrism.ImagePriceOverride.OutputCostPerMillionTokens.set -> void
+AgentPrism.ImagePriceOverride.PerImage.get -> decimal?
+AgentPrism.ImagePriceOverride.PerImage.set -> void
+AgentPrism.ImagePriceOverride.SizeMultipliers.get -> System.Collections.Generic.IDictionary<string!, decimal>!
 AgentPrism.ModelProviderCircuitBreaker
 AgentPrism.ModelProviderCircuitBreaker.EnsureRequestAllowed(string! providerName, string? credentialScope = null) -> void
 AgentPrism.ModelProviderCircuitBreaker.IsEnabled.get -> bool
@@ -1362,6 +1380,7 @@ const AgentPrism.AgentPrismDiagnostics.ToolCounterName = "agentprism.tool.invoca
 const AgentPrism.AgentPrismDiagnostics.ToolDurationName = "agentprism.tool.duration" -> string!
 const AgentPrism.AgentPrismIdempotencyOptions.SectionName = "AgentPrism:Idempotency" -> string!
 const AgentPrism.AgentPrismKnowledgeOptions.SectionName = "AgentPrism:Knowledge" -> string!
+const AgentPrism.AgentPrismImageOptions.SectionName = "AgentPrism:Images" -> string!
 const AgentPrism.AgentPrismOptions.SectionName = "AgentPrism" -> string!
 const AgentPrism.AgentPrismQuotaOptions.SectionName = "AgentPrism:Quotas" -> string!
 const AgentPrism.AgentPrismRateLimitOptions.SectionName = "AgentPrism:RateLimit" -> string!

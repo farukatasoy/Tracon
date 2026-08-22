@@ -162,6 +162,15 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         KnowledgeEndpoints.Map(group, roles);
         ModelHealthEndpoints.Map(group, roles);
         VoiceEndpoints.Map(group, roles);
+
+        if (services.GetRequiredService<IOptions<AgentPrismImageOptions>>().Value.Enabled)
+        {
+            // Resolve eagerly: enabled image generation without a provider must
+            // fail while the HTTP surface is composed, not on its first paid call.
+            _ = services.GetRequiredService<ImageGeneratorResolver>().Resolve();
+            ImageEndpoints.Map(group, roles);
+        }
+
         ObservabilityEndpoints.Map(group, roles);
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);
