@@ -189,6 +189,7 @@ configuration section: it is passed per call, and all but the last property answ
 | `AgentVersion` | The definition version this run used, when you resolved a specific one |
 | `ExperimentId` | The experiment this run is a sample of, so results group correctly |
 | `ReplayOfRunId` | The original run this one replays, which is what makes a comparison possible |
+| `ContinuedFromRunId` | The interrupted run this one continues, set automatically — not something you set by hand |
 | `SessionId` | The session at the root of the tree. It feeds the run scope, not the run row's own `session_id` |
 | `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
 | `BeforePendingApprovalIsPublished` | A callback that runs immediately before a run closes as `AwaitingApproval`, on the streaming and the buffered path alike. Record the approval request here |
@@ -253,6 +254,17 @@ anyone reports it.
 
 See [Reliable runs](/guides/reliability/) for idempotency, cancellation,
 reconciliation, replay constraints, and failure handling.
+
+## Continuing an interrupted run
+
+Replay is something you ask for, on a run you choose, sessionless. Continuation is
+automatic: when reconciliation closes a run a process never finished, a session-bound
+run can be picked up again in that same session, as a new run whose
+`continuedFromRunId` points back at the interrupted one. The run tree shows the link,
+so an operator sees "this run continued that one" rather than two unrelated rows.
+Continuation is off by default and does not run every tool call again — see
+[Continue an interrupted run automatically](/guides/reliability/#continue-an-interrupted-run-automatically)
+for what gets replayed, what runs live, and which tools it refuses to continue.
 
 ## Read next
 

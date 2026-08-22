@@ -28,6 +28,7 @@ internal sealed class JobWorkerBackgroundService(
     IEnumerable<IJobHandler> handlers,
     IOptionsMonitor<AgentPrismSchedulingOptions> optionsMonitor,
     SchemaReadyGate schemaReadyGate,
+    IAgentPrismDrainState drainState,
     TimeProvider? timeProvider = null,
     ILogger<JobWorkerBackgroundService>? logger = null) : BackgroundService
 {
@@ -75,6 +76,16 @@ internal sealed class JobWorkerBackgroundService(
 
     private async Task TickAsync(SemaphoreSlim slots, CancellationToken stoppingToken)
     {
+        // 🚨 Phase 87: while the process is draining, no NEW work starts --
+        // neither a schedule-dispatched job nor a leased one. Jobs already
+        // running (RunJobAsync, fire-and-forget) are untouched here; they
+        // finish on their own, and AgentPrismDrainService's StopAsync is what
+        // actually waits for them.
+        if (drainState.IsDraining)
+        {
+            return;
+        }
+
         try
         {
             await DispatchDueSchedulesAsync(stoppingToken).ConfigureAwait(false);

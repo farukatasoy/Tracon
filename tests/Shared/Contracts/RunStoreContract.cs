@@ -307,6 +307,25 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task ContinuedFromRunId_round_trips()
+    {
+        var sourceRunId = AgentPrismId.NewId();
+        var continuationRunId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(sourceRunId));
+        await Store.StartRunAsync(TestData.Run(continuationRunId) with { ContinuedFromRunId = sourceRunId });
+
+        var source = await Store.GetRunAsync(sourceRunId);
+        var continuation = await Store.GetRunAsync(continuationRunId);
+
+        source.ShouldNotBeNull();
+        source.ContinuedFromRunId.ShouldBeNull();
+
+        continuation.ShouldNotBeNull();
+        continuation.ContinuedFromRunId.ShouldBe(sourceRunId);
+    }
+
+    [Fact]
     public async Task A_run_without_attribution_reads_back_as_null_not_as_an_empty_map()
     {
         // The default behaviour of an application that registers no
@@ -1998,6 +2017,37 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         }
 
         events[^1].Type.ShouldBe(RunEventType.RunFailed);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record()
+    {
+        // ClaimOrphanedRunsAsync reads through a SEPARATE column list from
+        // GetRunAsync (its own RETURNING/OUTPUT clause, a distinct ordinal
+        // position per SQL provider); ContinuedFromRunId_round_trips above
+        // only proves the GetRunAsync path. Orphaned-run reconciliation reads
+        // THIS field directly off the claimed record to decide whether a
+        // continuation chain has already run once (AgentPrismRunContinuationOptions.MaxAttempts).
+        AmbientTenant.TenantId = TenantA;
+
+        var sourceRunId = AgentPrismId.NewId();
+        var continuationRunId = AgentPrismId.NewId();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+
+        await Store.StartRunAsync(TestData.Run(sourceRunId) with { StartedAt = startedAt });
+        await Store.StartRunAsync(TestData.Run(continuationRunId) with
+        {
+            StartedAt = startedAt,
+            ContinuedFromRunId = sourceRunId,
+        });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.Count.ShouldBe(2);
+        claimed.Single(record => record.Id == sourceRunId).ContinuedFromRunId.ShouldBeNull();
+        claimed.Single(record => record.Id == continuationRunId).ContinuedFromRunId.ShouldBe(sourceRunId);
     }
 
     [Fact]

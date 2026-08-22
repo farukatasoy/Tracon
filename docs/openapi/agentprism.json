@@ -484,6 +484,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -10757,7 +10767,8 @@
           "Retention",
           "AgentRun",
           "OnlineEval",
-          "ApprovalResume"
+          "ApprovalResume",
+          "RunContinuation"
         ],
         "description": "What target a job runs."
       },
@@ -13313,6 +13324,14 @@
             ],
             "description": "Gets the source run id when this run is a replay, otherwise\n\u0060null\u0060.",
             "format": "uuid"
+          },
+          "continuedFromRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the id of the run this one continues after an interruption, or\n\u0060null\u0060 for a run that is not a continuation.",
+            "format": "uuid"
           }
         },
         "description": "Summary of a run. It acts as the header of the event stream."
@@ -15142,6 +15161,10 @@
               "string"
             ],
             "description": "The longest duration this tool\u0027s call may run, or \u0060null\u0060\nto use the installation default (\u0060AgentPrismOptions.Tools.DefaultTimeout\u0060)."
+          },
+          "safeToRepeat": {
+            "type": "boolean",
+            "description": "Whether this tool\u0027s call may run again when an interrupted run is\ncontinued. See \u0060AgentPrismToolRegistration.SafeToRepeat\u0060."
           }
         },
         "description": "The UI-facing definition of a tool registered in code. The agent editor\nshows a selection from this list; it does not accept free-text input."

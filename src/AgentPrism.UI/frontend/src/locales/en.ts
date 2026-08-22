@@ -469,6 +469,7 @@ export const en = {
   'runDetail.forSession': 'session',
   'runDetail.forUser': 'run by',
   'runDetail.calledBy': 'called by',
+  'runDetail.continuationOf': 'continued from',
   'runDetail.inputTokens': 'Input tokens',
   'runDetail.outputTokens': 'Output tokens',
   'runDetail.awaiting.title': 'Waiting on a person',

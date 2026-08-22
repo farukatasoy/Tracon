@@ -245,6 +245,17 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                 </Link>
               </>
             )}
+            {record.continuedFromRunId != null && (
+              <>
+                , {t('runDetail.continuationOf')}{' '}
+                <Link
+                  to={`runs/${encodeURIComponent(record.continuedFromRunId)}`}
+                  className="text-accent underline"
+                >
+                  <Mono>{shortId(record.continuedFromRunId, 12, 5)}</Mono>
+                </Link>
+              </>
+            )}
           </>
         }
         actions={

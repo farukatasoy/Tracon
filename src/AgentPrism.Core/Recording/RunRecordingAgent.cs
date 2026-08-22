@@ -579,6 +579,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             // do not correspond to the child calls of the source tree.
             depth == 0 ? prismOptions?.ReplayOfRunId : null,
 
+            // Same rationale as ReplayOfRunId immediately above.
+            depth == 0 ? prismOptions?.ContinuedFromRunId : null,
+
             // Attribution IS written on child runs too, unlike the lineage link: a
             // per-user cost report that stopped at the root would under-report every
             // agent that calls other agents.
@@ -689,6 +692,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 ExperimentId = start.ExperimentId,
                 Variant = start.Variant,
                 ReplayOfRunId = start.ReplayOfRunId,
+                ContinuedFromRunId = start.ContinuedFromRunId,
             },
             ExtractQuery(input),
             cancellationToken).ConfigureAwait(false);
@@ -1302,6 +1306,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         Guid? ExperimentId,
         string? Variant,
         Guid? ReplayOfRunId,
+        Guid? ContinuedFromRunId,
         string? UserId,
         IReadOnlyDictionary<string, string>? Labels);
 

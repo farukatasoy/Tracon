@@ -73,4 +73,10 @@ public sealed record ToolDescriptor
     /// to use the installation default (<c>AgentPrismOptions.Tools.DefaultTimeout</c>).
     /// </summary>
     public TimeSpan? Timeout { get; init; }
+
+    /// <summary>
+    /// Whether this tool's call may run again when an interrupted run is
+    /// continued. See <c>AgentPrismToolRegistration.SafeToRepeat</c>.
+    /// </summary>
+    public bool SafeToRepeat { get; init; }
 }

@@ -24,8 +24,11 @@ public sealed class RunReconciliationTests
         var service = new RunReconciliationService(
             store,
             new InMemorySingletonLeaseStore(),
+            new InMemoryJobStore(),
+            new EmptyToolRegistry(),
             options,
             Options(new SingletonExecutionOptions()),
+            Options(new AgentPrismRunContinuationOptions()),
             gate,
             logger: NullLogger<RunReconciliationService>.Instance);
 
@@ -80,8 +83,11 @@ public sealed class RunReconciliationTests
         var service = new RunReconciliationService(
             store,
             new InMemorySingletonLeaseStore(),
+            new InMemoryJobStore(),
+            new EmptyToolRegistry(),
             options,
             Options(new SingletonExecutionOptions()),
+            Options(new AgentPrismRunContinuationOptions()),
             new SchemaReadyGate([]),
             logger: NullLogger<RunReconciliationService>.Instance);
 
@@ -98,6 +104,57 @@ public sealed class RunReconciliationTests
         var stats = await store.GetStatisticsAsync(new RunStatisticsQuery());
         stats.RunningRuns.ShouldBe(0);
         stats.FailedRuns.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Continuation_store_failure_is_logged_and_the_placeholder_closes_to_Failed()
+    {
+        var store = new InMemoryRunStore();
+        var runId = AgentPrismId.NewId();
+
+        await store.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            SessionId = "session-x",
+        });
+
+        var options = Options(new RunReconciliationOptions
+        {
+            Enabled = true,
+            ScanInterval = TimeSpan.FromMilliseconds(30),
+            OrphanThreshold = TimeSpan.FromMinutes(5),
+            HeartbeatInterval = TimeSpan.FromSeconds(30),
+        });
+
+        var service = new RunReconciliationService(
+            store,
+            new InMemorySingletonLeaseStore(),
+            new ThrowingJobStore(),
+            new EmptyToolRegistry(),
+            options,
+            Options(new SingletonExecutionOptions()),
+            Options(new AgentPrismRunContinuationOptions { Enabled = true }),
+            new SchemaReadyGate([]),
+            logger: NullLogger<RunReconciliationService>.Instance);
+
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        // The pass did not crash (StopAsync returned normally, above). The
+        // source row is Failed as always; the continuation placeholder
+        // EnqueueContinuationAsync opened before the queue write failed must
+        // also close to Failed -- otherwise it would sit as Queued forever,
+        // invisible to reconciliation (which only scans Running rows).
+        var all = await store.QueryRunsAsync(new RunQuery { SessionId = "session-x", OnlyRootRuns = false });
+
+        all.Count.ShouldBe(2);
+        all.ShouldAllBe(record => record.Status == RunStatus.Failed);
+
+        var placeholder = all.Single(record => record.Id != runId);
+        placeholder.ContinuedFromRunId.ShouldBe(runId);
     }
 
     [Fact]
@@ -130,11 +187,15 @@ public sealed class RunReconciliationTests
         var storeA = new CountingRunStore(innerStore);
         var storeB = new CountingRunStore(innerStore);
 
+        var continuationOptions = Options(new AgentPrismRunContinuationOptions());
+
         var serviceA = new RunReconciliationService(
-            storeA, leaseStore, options, singletonOptions, new SchemaReadyGate([]),
+            storeA, leaseStore, new InMemoryJobStore(), new EmptyToolRegistry(), options, singletonOptions,
+            continuationOptions, new SchemaReadyGate([]),
             logger: NullLogger<RunReconciliationService>.Instance);
         var serviceB = new RunReconciliationService(
-            storeB, leaseStore, options, singletonOptions, new SchemaReadyGate([]),
+            storeB, leaseStore, new InMemoryJobStore(), new EmptyToolRegistry(), options, singletonOptions,
+            continuationOptions, new SchemaReadyGate([]),
             logger: NullLogger<RunReconciliationService>.Instance);
 
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
@@ -147,6 +208,61 @@ public sealed class RunReconciliationTests
 
         (storeA.ClaimCalls > 0 ^ storeB.ClaimCalls > 0).ShouldBeTrue(
             $"storeA.ClaimCalls={storeA.ClaimCalls}, storeB.ClaimCalls={storeB.ClaimCalls}");
+    }
+
+    [Fact]
+    public async Task The_same_orphaned_run_is_never_continued_twice_by_two_concurrent_reconcilers()
+    {
+        // Deliberately WITHOUT SingletonExecutionOptions coordination: both
+        // instances scan on every tick, racing on the SAME underlying store.
+        // The safety net this proves is ClaimOrphanedRunsAsync's own atomic
+        // UPDATE ... WHERE status = Running -- once instance A's claim flips
+        // the row to Failed, instance B's claim query no longer matches it,
+        // so at most one of the two ever calls EnqueueContinuationAsync for it.
+        var runStore = new InMemoryRunStore();
+        var jobStore = new InMemoryJobStore();
+        var runId = AgentPrismId.NewId();
+
+        await runStore.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "test-agent",
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            SessionId = "session-race",
+        });
+
+        var options = Options(new RunReconciliationOptions
+        {
+            Enabled = true,
+            ScanInterval = TimeSpan.FromMilliseconds(10),
+            OrphanThreshold = TimeSpan.FromMinutes(5),
+        });
+
+        var continuationOptions = Options(new AgentPrismRunContinuationOptions { Enabled = true });
+        var noSingleton = Options(new SingletonExecutionOptions());
+
+        var serviceA = new RunReconciliationService(
+            runStore, new InMemorySingletonLeaseStore(), jobStore, new EmptyToolRegistry(), options, noSingleton,
+            continuationOptions, new SchemaReadyGate([]),
+            logger: NullLogger<RunReconciliationService>.Instance);
+        var serviceB = new RunReconciliationService(
+            runStore, new InMemorySingletonLeaseStore(), jobStore, new EmptyToolRegistry(), options, noSingleton,
+            continuationOptions, new SchemaReadyGate([]),
+            logger: NullLogger<RunReconciliationService>.Instance);
+
+        await serviceA.StartAsync(TestContext.Current.CancellationToken);
+        await serviceB.StartAsync(TestContext.Current.CancellationToken);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+
+        await serviceA.StopAsync(TestContext.Current.CancellationToken);
+        await serviceB.StopAsync(TestContext.Current.CancellationToken);
+
+        var continuationJobs = await jobStore.QueryAsync(new JobQuery { Kind = JobKind.RunContinuation });
+        continuationJobs.Count.ShouldBe(1);
+
+        var allRuns = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-race", OnlyRootRuns = false });
+        allRuns.Count.ShouldBe(2);
     }
 
     [Fact]
@@ -191,6 +307,59 @@ public sealed class RunReconciliationTests
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
+
+    /// <summary>Fake <see cref="IToolRegistry"/> carrying no tools.</summary>
+    private sealed class EmptyToolRegistry : IToolRegistry
+    {
+        public IReadOnlyList<ToolDescriptor> List() => [];
+
+        public bool TryGet(
+            string name,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Microsoft.Extensions.AI.AIFunctionDeclaration? tool)
+        {
+            tool = null;
+            return false;
+        }
+    }
+
+    /// <summary>Fake <see cref="IJobStore"/> whose <see cref="EnqueueAsync"/> always fails.</summary>
+    private sealed class ThrowingJobStore : IJobStore
+    {
+        private readonly InMemoryJobStore _inner = new();
+
+        public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
+            => throw new AgentPrismException("simulated queue outage");
+
+        public ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => _inner.LeaseAsync(owner, leaseDuration, cancellationToken);
+
+        public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+            => _inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+
+        public ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
+            => _inner.MarkRunningAsync(jobId, owner, cancellationToken);
+
+        public ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+            => _inner.CompleteAsync(completion, cancellationToken);
+
+        public ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+            => _inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+
+        public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+            => _inner.CancelAsync(tenantId, jobId, cancellationToken);
+
+        public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+            => _inner.GetAsync(tenantId, jobId, cancellationToken);
+
+        public ValueTask<IReadOnlyList<JobRecord>> QueryAsync(JobQuery query, CancellationToken cancellationToken = default)
+            => _inner.QueryAsync(query, cancellationToken);
+
+        public ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
+            => _inner.ListItemsAsync(jobId, cancellationToken);
+
+        public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
+            => _inner.ReportItemAsync(item, cancellationToken);
+    }
 
     /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

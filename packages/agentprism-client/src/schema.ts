@@ -4367,7 +4367,7 @@ export interface components {
          * @description What target a job runs.
          * @enum {unknown}
          */
-        JobKind: "AgentBatch" | "Workflow" | "Eval" | "WebhookDelivery" | "Retention" | "AgentRun" | "OnlineEval" | "ApprovalResume";
+        JobKind: "AgentBatch" | "Workflow" | "Eval" | "WebhookDelivery" | "Retention" | "AgentRun" | "OnlineEval" | "ApprovalResume" | "RunContinuation";
         /** @description The summary of a queued job. The header of its items (JobItemRecord). */
         JobRecord: {
             /**
@@ -5651,6 +5651,12 @@ export interface components {
              *     `null`.
              */
             replayOfRunId?: null | string;
+            /**
+             * Format: uuid
+             * @description Gets the id of the run this one continues after an interruption, or
+             *     `null` for a run that is not a continuation.
+             */
+            continuedFromRunId?: null | string;
         };
         /** @description A replay request. */
         RunReplayRequest: {
@@ -6532,6 +6538,11 @@ export interface components {
              *     to use the installation default (`AgentPrismOptions.Tools.DefaultTimeout`).
              */
             timeout?: null | string;
+            /**
+             * @description Whether this tool's call may run again when an interrupted run is
+             *     continued. See `AgentPrismToolRegistration.SafeToRepeat`.
+             */
+            safeToRepeat?: boolean;
         };
         /**
          * @description Classifies the blast radius of a tool call.
@@ -7843,6 +7854,15 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

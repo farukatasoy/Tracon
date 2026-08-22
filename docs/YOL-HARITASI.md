@@ -98,7 +98,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | ✅ Tamamlandı |
 | [85](85-GOMME-EKSENI.md) | Gömme Ekseni | ✅ Tamamlandı |
 | [86](86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | ✅ Tamamlandı |
-| [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | 📋 Planlandı |
+| [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | ✅ Tamamlandı |
 | [88](88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | 📋 Planlandı |
 | [89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | 📋 Planlandı |
 

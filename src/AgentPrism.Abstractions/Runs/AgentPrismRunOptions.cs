@@ -52,6 +52,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         Variant = other.Variant;
         SessionId = other.SessionId;
         ReplayOfRunId = other.ReplayOfRunId;
+        ContinuedFromRunId = other.ContinuedFromRunId;
     }
 
     /// <summary>
@@ -155,6 +156,16 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// replay's child calls do not carry their own lineage.
     /// </remarks>
     public Guid? ReplayOfRunId { get; init; }
+
+    /// <summary>
+    /// If this run continues an interrupted run, the interrupted run's
+    /// identifier. The value is written to the <c>runs.continued_from_run_id</c> column.
+    /// </summary>
+    /// <remarks>
+    /// This field is meaningful only for the <strong>root</strong> run; a
+    /// continuation's child calls do not carry their own lineage.
+    /// </remarks>
+    public Guid? ContinuedFromRunId { get; init; }
 
     /// <summary>
     /// Gets the work that must be DONE AND VISIBLE before the run is closed with

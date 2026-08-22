@@ -154,6 +154,12 @@ than an opaque blob — which is also what makes branching a conversation possib
 Queued runs, schedules, evals, experiments, and quotas all become usable, since they
 depend on state outliving a request.
 
+It is also what makes recovering from a crash possible at all: a run's recorded
+tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
+replays instead of repeating, and orphan reconciliation itself only has a stale
+`Running` row to find because that row, and every tool call it already made, outlived
+the process that opened it.
+
 ## Keeping it from growing forever
 
 A recorded run is data, and recorded runs accumulate. Retention policies set an age

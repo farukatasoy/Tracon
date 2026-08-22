@@ -1698,3 +1698,23 @@ static AgentPrism.DocumentChannelMessageBuilder.TryGetSummary(Microsoft.Extensio
 ~override AgentPrism.DocumentAttachmentSummary.ToString() -> string
 AgentPrism.AgentDefinitionCompiler.ResolveCallableAgentsAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<AgentPrism.ResolvedCallableAgents>
 AgentPrism.AgentDefinitionCompiler.CompileParameterizedAsync(AgentPrism.AgentDefinition! definition, string? culture, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+AgentPrism.AgentPrismDrainOptions
+AgentPrism.AgentPrismDrainOptions.AgentPrismDrainOptions() -> void
+AgentPrism.AgentPrismDrainOptions.Enabled.get -> bool
+AgentPrism.AgentPrismDrainOptions.Enabled.set -> void
+AgentPrism.AgentPrismDrainOptions.Timeout.get -> System.TimeSpan
+AgentPrism.AgentPrismDrainOptions.Timeout.set -> void
+const AgentPrism.AgentPrismDrainOptions.SectionName = "AgentPrism:Drain" -> string!
+AgentPrism.AgentPrismDrainOptionsValidator
+AgentPrism.AgentPrismDrainOptionsValidator.AgentPrismDrainOptionsValidator() -> void
+AgentPrism.AgentPrismDrainOptionsValidator.Validate(string? name, AgentPrism.AgentPrismDrainOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+AgentPrism.AgentPrismRunContinuationOptions
+AgentPrism.AgentPrismRunContinuationOptions.AgentPrismRunContinuationOptions() -> void
+AgentPrism.AgentPrismRunContinuationOptions.Enabled.get -> bool
+AgentPrism.AgentPrismRunContinuationOptions.Enabled.set -> void
+AgentPrism.AgentPrismRunContinuationOptions.MaxAttempts.get -> int
+AgentPrism.AgentPrismRunContinuationOptions.MaxAttempts.set -> void
+const AgentPrism.AgentPrismRunContinuationOptions.SectionName = "AgentPrism:RunContinuation" -> string!
+AgentPrism.AgentPrismRunContinuationOptionsValidator
+AgentPrism.AgentPrismRunContinuationOptionsValidator.AgentPrismRunContinuationOptionsValidator() -> void
+AgentPrism.AgentPrismRunContinuationOptionsValidator.Validate(string? name, AgentPrism.AgentPrismRunContinuationOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!

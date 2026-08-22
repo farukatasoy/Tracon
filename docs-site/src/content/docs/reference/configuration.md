@@ -47,12 +47,14 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:ContentGuard` | `AgentPrismContentGuardOptions` | Guard pipeline after a guard is registered |
 | `AgentPrism:ContentGuard:Pattern` | `PatternContentGuardOptions` | Section presence or `AddPatternContentGuard()` |
 | `AgentPrism:ContentProtection` | `AgentPrismContentProtectionOptions` | `AddAgentPrism()` binds it; `AddContentProtection()` makes it apply |
+| `AgentPrism:Drain` | `AgentPrismDrainOptions` | `AddAgentPrism()` |
 | `AgentPrism:Idempotency` | `AgentPrismIdempotencyOptions` | `AddAgentPrism()` and the HTTP layer |
 | `AgentPrism:Knowledge` | `AgentPrismKnowledgeOptions` | `AddAgentPrism()`; PostgreSQL and embeddings make it functional |
 | `AgentPrism:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddAgentPrism()` plus at least one judge |
 | `AgentPrism:Quotas` | `AgentPrismQuotaOptions` | `AddAgentPrism()` |
 | `AgentPrism:RateLimit` | `AgentPrismRateLimitOptions` | `MapAgentPrism()` |
 | `AgentPrism:Retention` | `AgentPrismRetentionOptions` | `AddAgentPrism()` |
+| `AgentPrism:RunContinuation` | `AgentPrismRunContinuationOptions` | `AddAgentPrism()` |
 | `AgentPrism:RunReconciliation` | `RunReconciliationOptions` | `AddAgentPrism()` |
 | `AgentPrism:Scheduling` | `AgentPrismSchedulingOptions` | `AddAgentPrism()`; `UseScheduling()` can override from code |
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
@@ -264,6 +266,10 @@ worth widening the price schema.
 | `RunReconciliation:OrphanThreshold` | 5 minutes |
 | `RunReconciliation:ScanInterval` | 1 minute |
 | `RunReconciliation:MaxRunsPerScan` | `100` |
+| `RunContinuation:Enabled` | `false`; has no effect unless `RunReconciliation:Enabled` is also `true` |
+| `RunContinuation:MaxAttempts` | `1` |
+| `Drain:Enabled` | `false` |
+| `Drain:Timeout` | 30 seconds |
 
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddAgentPrism()` already registers the core job contracts.

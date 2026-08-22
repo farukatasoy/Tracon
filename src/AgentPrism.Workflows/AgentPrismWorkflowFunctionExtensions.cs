@@ -23,6 +23,11 @@ public static class AgentPrismWorkflowFunctionExtensions
     /// returns the handler that runs on every call.
     /// </param>
     /// <param name="description">A short description shown in the function catalog.</param>
+    /// <param name="retryPolicy">
+    /// Retries this node on a transient provider error instead of failing
+    /// the whole run. <see langword="null"/> (the default) means no retry —
+    /// today's behavior. See <see cref="WorkflowNodeRetryPolicy"/>.
+    /// </param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
@@ -84,7 +89,8 @@ public static class AgentPrismWorkflowFunctionExtensions
         this IAgentPrismBuilder builder,
         string name,
         Func<IServiceProvider, Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> factory,
-        string? description = null)
+        string? description = null,
+        WorkflowNodeRetryPolicy? retryPolicy = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -103,6 +109,15 @@ public static class AgentPrismWorkflowFunctionExtensions
             services =>
             {
                 var handler = factory(services);
+
+                if (retryPolicy is not null)
+                {
+                    handler = WorkflowNodeRetry.Wrap(
+                        handler,
+                        retryPolicy,
+                        services.GetRequiredService<IRunErrorClassifier>(),
+                        services.GetService<TimeProvider>() ?? TimeProvider.System);
+                }
 
                 return executorId => new FunctionExecutor<TInput, TOutput>(executorId, handler);
             }));

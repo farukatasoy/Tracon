@@ -136,6 +136,9 @@ and a store failure never gets permission to stop the run itself.
 | Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
 | Singleton execution | `AgentPrism:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `AgentPrism:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
+| Run continuation | `AgentPrism:RunContinuation` | An orphaned, session-bound run resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat` |
+| Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Graceful drain | `AgentPrism:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,
 checkpoints, schedules, cross-process leases, and recovery need a SQL provider for
@@ -1346,6 +1349,7 @@ configuration section: it is passed per call, and all but the last property answ
 | `AgentVersion` | The definition version this run used, when you resolved a specific one |
 | `ExperimentId` | The experiment this run is a sample of, so results group correctly |
 | `ReplayOfRunId` | The original run this one replays, which is what makes a comparison possible |
+| `ContinuedFromRunId` | The interrupted run this one continues, set automatically — not something you set by hand |
 | `SessionId` | The session at the root of the tree. It feeds the run scope, not the run row's own `session_id` |
 | `Kind` · `Variant` · `Budget` | The run's kind, its experiment variant, and the shared budget a call tree draws from |
 | `BeforePendingApprovalIsPublished` | A callback that runs immediately before a run closes as `AwaitingApproval`, on the streaming and the buffered path alike. Record the approval request here |
@@ -1410,6 +1414,17 @@ anyone reports it.
 
 See [Reliable runs](/guides/reliability/) for idempotency, cancellation,
 reconciliation, replay constraints, and failure handling.
+
+## Continuing an interrupted run
+
+Replay is something you ask for, on a run you choose, sessionless. Continuation is
+automatic: when reconciliation closes a run a process never finished, a session-bound
+run can be picked up again in that same session, as a new run whose
+`continuedFromRunId` points back at the interrupted one. The run tree shows the link,
+so an operator sees "this run continued that one" rather than two unrelated rows.
+Continuation is off by default and does not run every tool call again — see
+[Continue an interrupted run automatically](/guides/reliability/#continue-an-interrupted-run-automatically)
+for what gets replayed, what runs live, and which tools it refuses to continue.
 
 ## Read next
 
@@ -1817,6 +1832,31 @@ not call the handler again — there is nothing left to run. Resuming from an
 super-step that follows it, and the handler runs again with the same input. A
 handler with a real side effect must tolerate being called more than once.
 :::
+
+### Retry a node on a transient error
+
+`AddWorkflowFunction` takes an optional retry policy:
+
+```csharp
+agentPrism.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "call-shipping-api",
+    services => (messages, context, cancellationToken) => CallShippingApiAsync(messages, cancellationToken),
+    "Looks up a shipment.",
+    retryPolicy: new WorkflowNodeRetryPolicy
+    {
+        MaxAttempts = 3,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        BackoffMultiplier = 2.0,
+    });
+```
+
+Only a transient failure is retried — a provider error, an open circuit breaker, a
+rate limit, or a timeout. Anything else (a bad argument, a permanent downstream
+error) is thrown on the first attempt, exactly as without a policy. The retry loop
+runs entirely inside the node's own call: Microsoft Agent Framework invokes the
+node once per routed message either way, so retrying costs nothing against
+`AgentPrismWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
+attempt still counts as exactly one super-step.
 
 Workflows can also be built in code with MAF's own builder.
 
@@ -2273,6 +2313,12 @@ rather than the current process. Sessions can be read back as chat history rathe
 than an opaque blob — which is also what makes branching a conversation possible.
 Queued runs, schedules, evals, experiments, and quotas all become usable, since they
 depend on state outliving a request.
+
+It is also what makes recovering from a crash possible at all: a run's recorded
+tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
+replays instead of repeating, and orphan reconciliation itself only has a stale
+`Running` row to find because that row, and every tool call it already made, outlived
+the process that opened it.
 
 ## Keeping it from growing forever
 
@@ -6437,6 +6483,46 @@ Choose `OrphanThreshold` above the longest expected database pause, runtime stop
 world event, or deployment handoff. A threshold that is too short can close a run
 whose process is still working.
 
+## Continue an interrupted run automatically
+
+`RunContinuation` builds on reconciliation: right after an orphaned `Running` record
+closes, a session-bound run can be picked up again — in the same session, as a new
+run — instead of staying `Failed` for good.
+
+```json
+{
+  "AgentPrism": {
+    "RunContinuation": {
+      "Enabled": true,
+      "MaxAttempts": 1
+    }
+  }
+}
+```
+
+The continuation re-sends the interrupted turn's original input into the same
+session and lets the model run its turn again from the start. Every tool call the
+interrupted run already completed is answered from its own recorded result instead
+of running again; only a call past the interruption point — one with no recorded
+result, because it never happened — actually runs. A tool the interrupted run called
+with different arguments each time can still repeat, because matching is by the
+exact recorded arguments.
+
+A tool whose effect is destructive or leaves the process (a database delete, a
+payment, a webhook) blocks continuation by default; the interrupted run stays
+`Failed` and its event stream records why. A tool author who can prove a call is
+safe to repeat — typically because it carries its own idempotency key — opts that
+one tool back in when registering it. A run with no session, or one whose chain has
+already reached `MaxAttempts`, is never continued.
+
+The new run's record links back to the interrupted one, so an operator reading the
+run tree can see that a run continued another rather than starting fresh.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `RunContinuation.Enabled` | `false` | No continuation is attempted until `RunReconciliation` is also enabled |
+| `MaxAttempts` | `1` | The most continuations one interruption chain may have before it stays `Failed` |
+
 ## Elect one owner for periodic services
 
 `SingletonExecution.Enabled` adds lease-based cluster election to AgentPrism's
@@ -6467,6 +6553,35 @@ does not interrupt work already in progress. Token usage becomes known after a m
 call, so concurrent children can produce a bounded overshoot. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
 
+## Wait for in-flight runs before the process stops
+
+By default a process that receives a stop signal exits immediately and any run in
+flight is cut off — the same crash reconciliation and continuation exist to recover
+from. `Drain` makes a graceful stop wait instead:
+
+```json
+{
+  "AgentPrism": {
+    "Drain": {
+      "Enabled": true,
+      "Timeout": "00:00:30"
+    }
+  }
+}
+```
+
+Once a stop signal arrives, new runs are refused — the run endpoint returns `503`,
+and the background job worker stops leasing new jobs — while runs already in flight
+are given up to `Timeout` to finish before the process actually exits. A run that is
+still going when the timeout elapses is cut off anyway; a stuck run must not block a
+deployment forever. The host's own shutdown timeout still applies on top of this
+value, so raise both together for the full wait to take effect.
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `Drain.Enabled` | `false` | The process stops immediately, exactly as before |
+| `Drain.Timeout` | 30 seconds | The longest a stop waits for in-flight runs |
+
 ## Failure boundaries at a glance
 
 | Failure | AgentPrism response | Your responsibility |
@@ -6475,8 +6590,9 @@ budgets for externally exposed MCP and A2A agents.
 | Primary provider unavailable, transiently | Try the next `ModelBinding.Fallbacks` link and record which one answered | Configure a fallback chain for agents where availability matters more than a fixed model |
 | Provider approaching its own rate limit | Queue outgoing calls at `ModelConcurrency.MaxConcurrentCallsPerProvider` instead of bursting | Set a limit sized to the provider's own quota, if bursts are a recurring problem |
 | Duplicate supported HTTP request | Replay the completed 2xx response or reject conflict | Keep key and serialized request stable |
-| Process dies during a direct run | Reconcile a stale `Running` record when enabled | Make external tool effects idempotent |
+| Process dies during a direct run | Reconcile a stale `Running` record when enabled, and continue it in the same session when safe | Make external tool effects idempotent, or declare a tool safe to repeat |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
+| Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs, refuse new ones | Set a timeout that covers your slowest normal run |
 | Live cancel reaches wrong node | Return `409` | Use sticky routing or a distributed cancellation registry |
 | Child-agent fan-out grows | Refuse new children at tree limits | Set budgets that match cost and latency objectives |
 
@@ -6504,6 +6620,9 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | Two nodes perform the same periodic scan | Confirm singleton execution is enabled and backed by the same SQL database; in-memory leases are process-local |
 | A cancel request returns `409` | The run is terminal, the live owner restarted, or the request reached another node |
 | A child call is refused | Inspect depth, child-run count, and total-token budget on the root tree |
+| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts` |
+| A continuation stops instead of finishing | A tool it called has no recorded result and no matching arguments in the new turn; check the tool's argument stability, or whether its effect blocks continuation entirely |
+| A run request returns `503` right after a deploy | The process is draining; retry shortly, or lower `Drain.Timeout` if deploys should not wait this long |
 
 ## Read next
 
@@ -7425,6 +7544,7 @@ shows server text as it is.
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |
+| `503` | The process is draining in-flight runs before it stops; retry shortly |
 
 `501` is worth its own note: it means "this build does not have that package wired
 up", which is a different problem from a wrong address, and the API says so rather
@@ -7880,12 +8000,14 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<value>"
 | `AgentPrism:ContentGuard` | `AgentPrismContentGuardOptions` | Guard pipeline after a guard is registered |
 | `AgentPrism:ContentGuard:Pattern` | `PatternContentGuardOptions` | Section presence or `AddPatternContentGuard()` |
 | `AgentPrism:ContentProtection` | `AgentPrismContentProtectionOptions` | `AddAgentPrism()` binds it; `AddContentProtection()` makes it apply |
+| `AgentPrism:Drain` | `AgentPrismDrainOptions` | `AddAgentPrism()` |
 | `AgentPrism:Idempotency` | `AgentPrismIdempotencyOptions` | `AddAgentPrism()` and the HTTP layer |
 | `AgentPrism:Knowledge` | `AgentPrismKnowledgeOptions` | `AddAgentPrism()`; PostgreSQL and embeddings make it functional |
 | `AgentPrism:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddAgentPrism()` plus at least one judge |
 | `AgentPrism:Quotas` | `AgentPrismQuotaOptions` | `AddAgentPrism()` |
 | `AgentPrism:RateLimit` | `AgentPrismRateLimitOptions` | `MapAgentPrism()` |
 | `AgentPrism:Retention` | `AgentPrismRetentionOptions` | `AddAgentPrism()` |
+| `AgentPrism:RunContinuation` | `AgentPrismRunContinuationOptions` | `AddAgentPrism()` |
 | `AgentPrism:RunReconciliation` | `RunReconciliationOptions` | `AddAgentPrism()` |
 | `AgentPrism:Scheduling` | `AgentPrismSchedulingOptions` | `AddAgentPrism()`; `UseScheduling()` can override from code |
 | `AgentPrism:SingletonExecution` | `SingletonExecutionOptions` | `AddAgentPrism()` |
@@ -8097,6 +8219,10 @@ worth widening the price schema.
 | `RunReconciliation:OrphanThreshold` | 5 minutes |
 | `RunReconciliation:ScanInterval` | 1 minute |
 | `RunReconciliation:MaxRunsPerScan` | `100` |
+| `RunContinuation:Enabled` | `false`; has no effect unless `RunReconciliation:Enabled` is also `true` |
+| `RunContinuation:MaxAttempts` | `1` |
+| `Drain:Enabled` | `false` |
+| `Drain:Timeout` | 30 seconds |
 
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddAgentPrism()` already registers the core job contracts.
@@ -9583,6 +9709,10 @@ tokens and duration are attributed separately.
 
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.
+
+A run that continues one interrupted by a process crash names the run it continues,
+right next to the session and parent-run links, as a clickable id that opens the
+source run.
 
 ## Sessions
 

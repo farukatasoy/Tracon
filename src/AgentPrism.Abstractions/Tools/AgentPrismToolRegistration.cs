@@ -40,6 +40,7 @@ public sealed class AgentPrismToolRegistration
     /// The longest duration this tool's call may run, or <see langword="null"/>
     /// to use the installation default.
     /// </param>
+    /// <param name="safeToRepeat">See <see cref="SafeToRepeat"/>. Defaults to <see langword="false"/>.</param>
     /// <exception cref="ArgumentNullException"><paramref name="function"/> is <see langword="null"/>.</exception>
     public AgentPrismToolRegistration(
         AIFunctionDeclaration function,
@@ -47,7 +48,8 @@ public sealed class AgentPrismToolRegistration
         string? source = null,
         ToolEffect effect = ToolEffect.Read,
         string? requiredPermission = null,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        bool safeToRepeat = false)
     {
         ArgumentNullException.ThrowIfNull(function);
 
@@ -57,6 +59,7 @@ public sealed class AgentPrismToolRegistration
         Effect = effect;
         RequiredPermission = requiredPermission;
         Timeout = timeout;
+        SafeToRepeat = safeToRepeat;
     }
 
     /// <summary>The registered tool.</summary>
@@ -82,4 +85,30 @@ public sealed class AgentPrismToolRegistration
     /// to use the installation default.
     /// </summary>
     public TimeSpan? Timeout { get; }
+
+    /// <summary>
+    /// Whether this tool's call may run again when an interrupted run is
+    /// continued.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The default, <see langword="false"/>, is safe for every tool: a call
+    /// this repository has no record of finishing is never repeated
+    /// automatically. Continuation asks a stronger question than
+    /// idempotency — not just "does the same call produce the same
+    /// result?" but "may this call's SIDE EFFECT legitimately happen a
+    /// second time?" Only a tool whose author can answer yes to that should
+    /// set this to <see langword="true"/> (typically by carrying its own
+    /// idempotency key).
+    /// </para>
+    /// <para>
+    /// Only consulted for <see cref="ToolEffect.Destructive"/> and
+    /// <see cref="ToolEffect.External"/> tools, which are otherwise refused
+    /// for a continuation — setting this to <see langword="true"/> is how a
+    /// tool author opts a specific irreversible or externally visible call
+    /// back in. <see cref="ToolEffect.Read"/> and <see cref="ToolEffect.Write"/>
+    /// calls are always safe to continue and never consult this flag.
+    /// </para>
+    /// </remarks>
+    public bool SafeToRepeat { get; }
 }

@@ -181,11 +181,20 @@ internal static class AgentEndpoints
                 IOptionsMonitor<AgentPrismAsyncRunOptions> asyncRunOptions,
                 IOptionsMonitor<AgentPrismOptions> optionsMonitor,
                 ContextWindowEstimator contextWindowEstimator,
+                IAgentPrismDrainState drainState,
                 [FromServices] QuotaEnforcer? quotaEnforcer,
                 [FromServices] IRunAttributionContext? attributionContext,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
+                // 🚨 Checked BEFORE anything else: a run refused here never opens
+                // a 'runs' row, so there is nothing to clean up. See
+                // AgentPrismDrainService.
+                if (DrainGate.Check(drainState) is { } drainProblem)
+                {
+                    return drainProblem;
+                }
+
                 var (request, bindError) = await RequestBodyBinding
                     .ReadAsync<AgentRunRequest>(httpContext, cancellationToken)
                     .ConfigureAwait(false);
@@ -287,7 +296,8 @@ internal static class AgentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
-            .ProducesProblem(StatusCodes.Status501NotImplemented);
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         builder.MapPost("/api/agents/{name}/estimate", EstimateAsync)
             .RequireRole(roles.Reader)

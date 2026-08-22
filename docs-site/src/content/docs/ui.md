@@ -102,6 +102,10 @@ tokens and duration are attributed separately.
 Two runs can be compared side by side, and any run can be scored — those scores sit
 next to the ones automatic judges write.
 
+A run that continues one interrupted by a process crash names the run it continues,
+right next to the session and parent-run links, as a clickable id that opens the
+source run.
+
 ## Sessions
 
 <a class="ui-shot" href="/screenshots/sessions.png"><img src="/screenshots/sessions.png" alt="The session list with message counts and last activity" width="2880" height="1800" loading="lazy" decoding="async" /></a>

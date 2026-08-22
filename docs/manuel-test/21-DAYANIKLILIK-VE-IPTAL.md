@@ -1,6 +1,7 @@
 # 21 — Dayanıklılık: Çalıştırma İptali, Öksüz Uzlaştırma ve Asenkron Onay Kutusu (`RES`)
 
-> **Alan kodu:** `RES` · **Faz:** 32, 54, 55 tam kapsam · 44 yalnız `Canceled`/`Infrastructure`
+> **Alan kodu:** `RES` · **Faz:** 32, 54, 55 tam kapsam · 87 (devam mekanizması ve
+> zarif kapanış) tam kapsam · 44 yalnız `Canceled`/`Infrastructure`
 > sınıfları · 46/47 yalnız bu dosyaya özgü kesişim noktaları (bkz. Sınır tablosu).
 >
 > **Kaynak:**
@@ -23,7 +24,16 @@
 > `src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs` (tümü) ·
 > `src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs` (yalnız `RunAsync`,
 > §1'in workflow-iptal denemesi için) ·
-> `src/AgentPrism.UI/frontend/src/screens/approvals.tsx`.
+> `src/AgentPrism.UI/frontend/src/screens/approvals.tsx` ·
+> `src/AgentPrism.Core/Hosting/AgentPrismDrainService.cs`,
+> `AgentPrismDrainOptions.cs` ·
+> `src/AgentPrism.Core/Recording/AgentPrismRunContinuationOptions.cs`,
+> `RunReconciliationService.cs` (yalnız `TryContinueAsync` ve altındakiler) ·
+> `src/AgentPrism.Core/Scheduling/RunContinuationJobHandler.cs` ·
+> `src/AgentPrism.Core/Replay/RecordedToolPlayback.cs` (`ToolPlaybackMismatchPolicy`) ·
+> `src/AgentPrism.Abstractions/Runs/IAgentPrismDrainState.cs` ·
+> `src/AgentPrism.AspNetCore/RateLimiting/DrainGate.cs` ·
+> `src/AgentPrism.UI/frontend/src/screens/run-detail.tsx` (yalnız `continuedFromRunId` bağı).
 >
 > 🚨 **Kaynak eşlemesi kökten daraltıldı — grep ile ölçülen büyük örtüşme
 > (2026-08-10, bu oturumda ölçüldü).** `00-INDEKS.md`'nin §7 tablosu bu
@@ -1236,3 +1246,402 @@ curl -s -i -X POST "$APU/api/runs/$ORPHANED_RUN_ID/replay" -H "$APB" \
   `Infrastructure` olması oynatmayı ENGELLEMEMELİDİR — `200` beklenir.
   Doğrularsa bu, uzlaştırmayla kapanmış bir çalıştırmanın hâlâ
   incelenebilir/tekrarlanabilir kaldığını KANITLAR.
+
+---
+
+# 6 — Kesilen İşin Devamı ve Zarif Kapanış (Faz 87)
+
+Bu bölümün case'leri süreç çöküşünü `MT-RES-010`/`011`'in tekniğiyle simüle
+eder: gerçek bir `Ctrl+C` yerine `runs`/`run_inputs`/`tool_invocations`
+satırları doğrudan SQL ile "yarım kalmış" hâle getirilir — deterministik ve
+tekrarlanabilir. `RunContinuation` ayarları bu bölüme özeldir, `Approvals`
+gibi dosyanın sonunda geri alınmalıdır:
+
+```bash
+dotnet user-secrets set "AgentPrism:RunReconciliation:Enabled" "true"
+dotnet user-secrets set "AgentPrism:RunReconciliation:HeartbeatInterval" "00:00:01"
+dotnet user-secrets set "AgentPrism:RunReconciliation:OrphanThreshold" "00:00:03"
+dotnet user-secrets set "AgentPrism:RunReconciliation:ScanInterval" "00:00:01"
+dotnet user-secrets set "AgentPrism:RunContinuation:Enabled" "true"
+dotnet user-secrets set "AgentPrism:RunContinuation:MaxAttempts" "1"
+# örnek uygulama bu ayarlarla yeniden başlatılmalı
+```
+
+Bu bölümdeki her case, `support` agent'ına bağlı **oturumlu** bir çalıştırma
+kurar (`sessionId` verilir), sonra o çalıştırmayı SQL ile "10 dakika önce
+başlamış, hâlâ çalışıyor" durumuna sokar. §5'in ortam değişkenleri (`APB`,
+`APU`, `PG`) geçerlidir.
+
+### MT-RES-060 — Varsayılan kapalı: `RunContinuation:Enabled=false` iken öksüz koşu devam ETMEZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | K1 (varsayılan kapalı) |
+
+**Ön koşul**
+- `RunReconciliation` açık, **`RunContinuation:Enabled` verilMEMİŞ**
+  (varsayılan `false`).
+- Oturumlu bir çalıştırma (`sessionId` alanı dolu) `runs` tablosunda var.
+
+**Adımlar**
+1. Satırı geçmişe al (`MT-RES-011`'deki `UPDATE`, artı `session_id`).
+2. 5 saniye bekle.
+3. Aynı `sessionId`'ye bağlı çalıştırma sayısını say.
+
+**Girilecek veri**
+```bash
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL,
+        session_id = 'mt-res-060' WHERE id = '$SOME_RUN_ID';"
+sleep 5
+curl -s "$APU/api/runs?sessionId=mt-res-060" -H "$APB" | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"
+```
+
+**Beklenen sonuç**
+- Satır her zamanki gibi `Failed`/`Infrastructure` ile kapanır (`MT-RES-011`
+  değişmedi).
+- `sessionId=mt-res-060` altında **tek** çalıştırma vardır — hiçbir yeni
+  `runId` açılmamıştır.
+
+---
+
+### MT-RES-061 — Açıldığında: oturumlu bir öksüz koşu devam eder; yeni koşunun `continuedFromRunId`'si kaynağı gösterir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | K-315'e teğet (ayrı isim: `ContinuedFromRunId` ≠ `ReplayOfRunId`) |
+
+**Ön koşul**
+- Bu bölümün başındaki `RunContinuation:Enabled=true` ayarları uygulanmış,
+  uygulama yeniden başlatılmış.
+- `support` agent'ına `Prefer: respond-async` ile bir çalıştırma açılmış,
+  `runInputs` kaydı GERÇEKTEN var olsun diye önce normal tamamlanmasına izin
+  verilmiş, sonra satır geçmişe alınmıştır (aşağıdaki gibi iki adımlı kurulum).
+
+**Adımlar**
+1. `support`'a sıradan bir soru gönder (`Prefer: respond-async`), tamamlanmasını
+   bekle — girdi kaydı (`run_inputs`) böylece gerçekten yazılmış olur.
+2. Aynı satırı SQL ile "10 dakika önce başlamış, hâlâ Running" hâline getir.
+3. En fazla 5 saniye bekle.
+4. `GET /api/runs?sessionId={sessionId}` ile aynı oturuma bağlı çalıştırmaları
+   listele.
+
+**Girilecek veri**
+```bash
+RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H "content-type: application/json" -H "Prefer: respond-async" \
+  -d '{"message":"ORD-1001 siparisim nerede?","sessionId":"mt-res-061"}')
+SRC=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
+sleep 3   # gercekten Completed olmasini bekle, girdi kaydi yazilsin
+
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL
+        WHERE id = '$SRC';"
+sleep 5
+curl -s "$APU/api/runs?sessionId=mt-res-061" -H "$APB" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Kaynak çalıştırma (`$SRC`) `Failed`/`Infrastructure` ile kapanır (değişmez).
+- Listede İKİNCİ bir satır vardır: `continuedFromRunId == $SRC`, `status`
+  birkaç saniye içinde `Completed` olur (aynı soruyu yeniden model çalıştırır).
+- İkinci satırın `sessionId`'si BİRİNCİYLE AYNIDIR — yeni bir konuşma değil,
+  aynı oturumun devamıdır.
+
+---
+
+### MT-RES-062 — Devam koşusu kesintiden ÖNCEKİ tool çağrısını yeniden çalıştırmaz, SONRAKİNİ canlı çalıştırır (fazın birinci hata modu)
+
+Bu case fazın en riskli varsayımını doğrudan sınar: `RecordedToolPlayback`'in
+melez semantiği yanlış kurulmuş olsaydı, devam koşusu kesinti noktasında
+`422` ile düşerdi (replay'in ESKİ davranışı). Bu case onun yerine koşunun
+**tamamlandığını** ve kesinti öncesi tool sonucunun DEĞİŞMEDEN kullanıldığını
+doğrudan gözlemler.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-RES-061`'in kurduğu ayarlar hâlâ açık.
+- `support` agent'ının `get_order_status` tool'u sipariş numarasına göre
+  farklı bir metin döner (kod incelemesiyle doğrulanmış: `OrderTools.cs`).
+
+**Adımlar**
+1. `support`'a, modelin `get_order_status`'u ÇAĞIRACAĞI bir soru gönder
+   (`Prefer: respond-async`), tamamlanmasını bekle.
+2. `GET /api/runs/{runId}/tools` ile GERÇEK (canlı) sonucu not et.
+3. Aynı satırı geçmişe al (`MT-RES-061`'deki gibi), ama bu kez
+   `tool_invocations` tablosundaki kaydı da SQL ile DEĞİŞTİR — kaynağın
+   gördüğü sonucu yapay olarak farklı bir metne çevir (`"RECORDED-DEGERI"`).
+4. 5 saniye bekle, yeni (devam) çalıştırmayı bul.
+5. `GET /api/runs/{devamRunId}/tools` ile devam koşusunun gördüğü sonucu oku.
+
+**Girilecek veri**
+```bash
+RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H "content-type: application/json" -H "Prefer: respond-async" \
+  -d '{"message":"ORD-1001 siparisimin durumu ne?","sessionId":"mt-res-062"}')
+SRC=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
+sleep 3
+
+curl -s "$APU/api/runs/$SRC/tools" -H "$APB" | python3 -m json.tool
+
+$PG -c "UPDATE agentprism.tool_invocations SET result = 'RECORDED-DEGERI'
+        WHERE run_id = '$SRC' AND tool_name = 'get_order_status';"
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL
+        WHERE id = '$SRC';"
+sleep 5
+
+CONT=$(curl -s "$APU/api/runs?sessionId=mt-res-062" -H "$APB" | \
+  python3 -c "import json,sys; r=json.load(sys.stdin); print([x['id'] for x in r if x['id']!='$SRC'][0])")
+curl -s "$APU/api/runs/$CONT/tools" -H "$APB" | python3 -m json.tool
+curl -s "$APU/api/runs/$CONT" -H "$APB" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
+```
+
+**Beklenen sonuç**
+- Devam koşusu **`Completed`** olur — `422`/`Failed` DEĞİL (fazın birinci
+  hata modunun tersine çevrilmiş olması gerektiğinin doğrudan kanıtı).
+- Devam koşusunun `get_order_status` sonucu `"RECORDED-DEGERI"`dir — model
+  aynı argümanla tekrar sorduğunda tool'un GERÇEK gövdesi ÇALIŞMAMIŞ,
+  kayıtlı (yapay) sonuç ÖYNETİLMİŞTİR.
+- Devam koşusunun tool listesinde, kaynakta OLMAYAN bir çağrı varsa (model
+  farklı bir takip sorusu sorarsa) o çağrı GERÇEK bir sonuç taşır — kesinti
+  sonrası her çağrı canlı çalışır.
+
+---
+
+### MT-RES-063 — `Destructive` tool taşıyan koşu devam ETMEZ; gerekçe `run_events`'te okunur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | (bu fazda alınan karar — bkz. KARARLAR.md) |
+
+**Ön koşul**
+- `MT-RES-061`'in ayarları açık.
+- `support`'un `cancel_order` tool'u `ToolEffect.Destructive` taşır (kod
+  incelemesiyle: `OrderTools.cs`).
+
+**Adımlar**
+1. `support`'a `cancel_order`'ı çağıracak bir soru gönder, tamamlanmasını
+   bekle.
+2. Satırı geçmişe al (`MT-RES-062`'deki gibi, `tool_invocations`'ı DEĞİŞTİRME
+   — asıl `cancel_order` kaydı yeterli).
+3. 5 saniye bekle.
+4. Aynı oturumda YENİ bir çalıştırma açılıp açılmadığına bak.
+5. Kaynağın olay akışında `RunContinuationBlocked` tipini ara.
+
+**Girilecek veri**
+```bash
+RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H "content-type: application/json" -H "Prefer: respond-async" \
+  -d '{"message":"ORD-1001 siparisimi iptal et","sessionId":"mt-res-063"}')
+SRC=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
+sleep 3
+
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL
+        WHERE id = '$SRC';"
+sleep 5
+
+curl -s "$APU/api/runs?sessionId=mt-res-063" -H "$APB" | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"
+curl -s "$APU/api/runs/$SRC/events" -H "$APB" | python3 -c "
+import json,sys
+events = json.load(sys.stdin)
+blocked = [e for e in events if e['type'] == 'RunContinuationBlocked']
+print(blocked[0]['text'] if blocked else 'YOK')
+"
+```
+
+**Beklenen sonuç**
+- `sessionId=mt-res-063` altında **tek** çalıştırma vardır — devam
+  AÇILMAMIŞTIR.
+- Kaynağın olay akışında bir `RunContinuationBlocked` olayı vardır; `text`
+  alanı `cancel_order` adını içerir.
+
+---
+
+### MT-RES-064 — `SafeToRepeat` bildiren bir tool, `Destructive` olsa bile devamı ENGELLEMEZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-RES-063` ile AYNI kurulum, ama örnek uygulamadaki `cancel_order` yerine
+  `SafeToRepeat = true` bildiren bir tool kayıtlıysa (bu tool örnek
+  uygulamada YOKSA, bu case atlanır ve `docs/hafiza/`'ya "örnek uygulamaya
+  `SafeToRepeat` örneği eklenmedi" notu düşülür — DoD'un kendisi bunu
+  birim/fonksiyonel testle zaten kanıtlıyor,
+  `A_tool_declaring_SafeToRepeat_allows_continuation_despite_a_destructive_effect`).
+
+**Adımlar**
+1-3. `MT-RES-063` ile aynı, `SafeToRepeat` tool'u çağıran bir soruyla.
+
+**Beklenen sonuç**
+- Devam AÇILIR (`continuedFromRunId` kaynağı gösterir) — `Destructive`
+  etkisine rağmen, çünkü tool kendi kodunda `SafeToRepeat` bildirmiştir.
+
+---
+
+### MT-RES-065 — `MaxAttempts` sonsuz devam zincirini kapatır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `RunContinuation:MaxAttempts=1` (varsayılan, bu bölümün başında verildi).
+- `MT-RES-061`'in ÜRETTİĞİ devam koşusu (`$CONT`) elde.
+
+**Adımlar**
+1. Devam koşusunu da (`$CONT`) geçmişe al — sanki O DA kesilmiş gibi.
+2. 5 saniye bekle.
+3. Aynı oturumdaki çalıştırma sayısını say (kaynak + ilk devam = 2 olmalı,
+   3 OLMAMALI).
+
+**Girilecek veri**
+```bash
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL
+        WHERE id = '$CONT';"
+sleep 5
+curl -s "$APU/api/runs?sessionId=mt-res-061" -H "$APB" | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"
+```
+
+**Beklenen sonuç**
+- Sayı **2**'de kalır — ikinci bir devam AÇILMAZ. `$CONT` da `Failed`
+  kapanır ve öyle kalır.
+
+---
+
+### MT-RES-066 — Oturumsuz bir koşu asla devam ETTİRİLMEZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `RunContinuation` açık.
+- `sessionId` verilMEDEN bir çalıştırma (senkron `POST /api/agents/{name}/run`,
+  `Prefer: respond-async` OLMADAN — akış tamamlanınca `runId`'yi not et).
+
+**Adımlar**
+1. Satırı geçmişe al.
+2. 5 saniye bekle, `GET /api/runs/{runId}` ile durumu oku.
+3. `session_id IS NULL` olduğu için hiçbir `sessionId` sorgusu YAPILAMAZ; onun
+   yerine `parent_run_id`/`root_run_id IS NULL` olan ve `started_at`'i son 10
+   saniyede olan satırları say (yeni bir devam açılmışsa görünür).
+
+**Girilecek veri**
+```bash
+$PG -c "UPDATE agentprism.runs SET status = 0, completed_at = NULL,
+        started_at = now() - interval '10 minutes', heartbeat_at = NULL
+        WHERE id = '$SESSIONLESS_RUN_ID';"
+sleep 5
+curl -s "$APU/api/runs/$SESSIONLESS_RUN_ID" -H "$APB" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
+$PG -c "SELECT count(*) FROM agentprism.runs WHERE started_at > now() - interval '15 seconds';"
+```
+
+**Beklenen sonuç**
+- `status: "Failed"` — her zamanki gibi.
+- Son 15 saniyede açılan satır sayısı **0**'dır (uzlaştırmanın kendi
+  `RunFailed` olay yazımı yeni bir `runs` SATIRI açmaz, yalnız bir olay
+  ekler) — hiçbir devam koşusu açılmamıştır.
+
+---
+
+### MT-RES-067 — 👤 insan gerekir — Konsolda devam bağı görünür ve kaynağa tıklanabilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-RES-061`'in ürettiği devam koşusunun kimliği (`$CONT`) elde.
+
+**Adımlar**
+1. Arayüzde `runs/{$CONT}` sayfasını aç.
+2. Başlık satırının altındaki özet metnine bak.
+3. Bağlantıya tıkla.
+
+**Beklenen sonuç**
+- Özet metninde `"..., continued from <kısaltılmış kaynak kimliği>"`
+  (`en`) / `"..., devam ettiği koşu <kısaltılmış kimlik>"` (`tr`) biçiminde
+  bir ibare vardır — `replayOfRunId` ile AYNI görsel desende (alt çizgili
+  mono bağlantı).
+3. Tıklamak kaynak çalıştırmanın (`$SRC`) sayfasına GÖTÜRÜR.
+
+---
+
+### MT-RES-068 — Zarif kapanış: `SIGTERM` açık koşuyu bekler, yeni koşuyu reddeder, zaman aşımından sonra kapanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 87 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Drain:Enabled" "true"
+dotnet user-secrets set "AgentPrism:Drain:Timeout" "00:00:10"
+# örnek uygulama BU ayarla yeniden başlatılmış, PID not edilmiş
+```
+
+**Adımlar**
+1. `FIX-PROMPT-04` ile uzun bir çalıştırma başlat (arka planda, akış sürerken
+   devam et).
+2. Akış sürerken sürece `SIGTERM` gönder (`kill -TERM $PID`, `Ctrl+C` DEĞİL —
+   terminal `Ctrl+C` bazı kabuklarda `SIGINT` gönderir).
+3. `SIGTERM`'den hemen sonra (1 sn içinde) YENİ bir çalıştırma dene.
+4. Sürecin ne zaman gerçekten çıktığını gözle (`ps`/günlük).
+
+**Girilecek veri**
+```bash
+curl -s -N -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" \
+  -d "{\"message\":\"$(python3 -c "print('lorem ipsum dolor sit amet ' * 2000)")\"}" > /tmp/mt-res-068.txt &
+sleep 1
+
+kill -TERM $PID
+
+sleep 1
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -d '{"message":"hi"}'
+```
+
+**Beklenen sonuç**
+- Adım 3: `503` (`title: "Service is shutting down"`) — sürecin kendisi hâlâ
+  ayaktadır (drain penceresi içinde) ama yeni koşu KABUL EDİLMEZ.
+- Adım 4: süreç, adım 1'in akışı TAMAMLANANA kadar (veya en fazla 10 saniye
+  — `Drain:Timeout`) ayakta kalır, sonra çıkar. Süreç `SIGTERM`'den HEMEN
+  sonra ölmez.
+
+---
