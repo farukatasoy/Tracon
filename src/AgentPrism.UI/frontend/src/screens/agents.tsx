@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
@@ -19,7 +19,8 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
-import type { AgentDescriptor, Meta } from '../lib/types';
+import type { AgentPrismMetaResponse } from '@agentprism/client';
+import type { AgentDescriptor } from '../lib/server-types';
 
 export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
   const t = useT();
@@ -43,9 +44,12 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
   return <Badge title={t('agents.origin.other', { source: agent.sourceName })}>{agent.sourceName}</Badge>;
 }
 
-export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
+export function AgentsScreen({ meta }: { meta: AgentPrismMetaResponse }): ReactNode {
   const t = useT();
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
   const [query, setQuery] = useState('');
 
   // HATA-S4-005: the '/' shortcut (components/layout.tsx) has always focused

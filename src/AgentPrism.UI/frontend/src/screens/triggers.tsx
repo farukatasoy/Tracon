@@ -1,10 +1,29 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Link, useNavigate } from '../lib/router';
-import type { InboundTriggerPayloadMode, InboundTriggerSaveRequest, InboundTriggerTargetKind, Meta } from '../lib/types';
+import type {
+  AgentPrismMetaResponse as Meta,
+  CurrentTenantResponse,
+  InboundTriggerPayloadMode,
+  InboundTriggerResponse,
+  InboundTriggerTargetKind,
+} from '@agentprism/client';
+
+// The generated request type makes every field optional (omission means "use
+// the server default"), but this form always sends a fully-populated body —
+// a local shape keeps the JSX's direct field reads (`form.targetKind`, ...)
+// free of `?? default` noise.
+interface TriggerForm {
+  targetKind: InboundTriggerTargetKind;
+  targetName: string;
+  signingSecretConfigurationName: string;
+  payloadMode: InboundTriggerPayloadMode;
+  payloadPath: string | null;
+  enabled: boolean;
+}
 import {
   Badge,
   Button,
@@ -23,7 +42,7 @@ import {
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
 
-const emptyForm = (): InboundTriggerSaveRequest => ({
+const emptyForm = (): TriggerForm => ({
   targetKind: 'Agent',
   targetName: '',
   signingSecretConfigurationName: '',
@@ -34,7 +53,10 @@ const emptyForm = (): InboundTriggerSaveRequest => ({
 
 export function TriggersScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const triggers = useQuery({ queryKey: ['triggers'], queryFn: api.triggers });
+  const triggers = useQuery({
+    queryKey: ['triggers'],
+    queryFn: () => unwrap(client.GET('/api/triggers')) as Promise<InboundTriggerResponse[]>,
+  });
 
   return (
     <>
@@ -107,9 +129,19 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [triggerName, setTriggerName] = useState(name ?? '');
-  const [form, setForm] = useState<InboundTriggerSaveRequest>(emptyForm);
-  const existing = useQuery({ queryKey: ['trigger', name], queryFn: () => api.trigger(name as string), enabled: editing });
-  const tenant = useQuery({ queryKey: ['current-tenant'], queryFn: api.currentTenant });
+  const [form, setForm] = useState<TriggerForm>(emptyForm);
+  const existing = useQuery({
+    queryKey: ['trigger', name],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/triggers/{name}', { params: { path: { name: name as string } } }),
+      ) as Promise<InboundTriggerResponse>,
+    enabled: editing,
+  });
+  const tenant = useQuery({
+    queryKey: ['current-tenant'],
+    queryFn: () => unwrap(client.GET('/api/tenants/current')) as Promise<CurrentTenantResponse>,
+  });
 
   useEffect(() => {
     if (!existing.isSuccess) return;
@@ -125,14 +157,21 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
   }, [existing.isSuccess, existing.data]);
 
   const save = useMutation({
-    mutationFn: () => api.saveTrigger(triggerName, form),
+    mutationFn: () =>
+      unwrap(
+        client.PUT('/api/triggers/{name}', {
+          params: { path: { name: triggerName } },
+          body: form,
+        }),
+      ) as Promise<InboundTriggerResponse>,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['triggers'] });
       navigate('triggers');
     },
   });
   const remove = useMutation({
-    mutationFn: () => api.deleteTrigger(triggerName),
+    mutationFn: () =>
+      unwrap(client.DELETE('/api/triggers/{name}', { params: { path: { name: triggerName } } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['triggers'] });
       navigate('triggers');

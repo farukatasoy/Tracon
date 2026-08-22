@@ -45,7 +45,14 @@ public sealed class OpenApiSnapshotTests
 
     private static async Task<string> GenerateAsync()
     {
-        await using var host = await AgentPrismTestHost.StartAsync(withOpenApi: true);
+        // Section 84.3: the document is generated with every optional endpoint turned
+        // on. A default-off endpoint (like /api/diagnostics) is still part of the
+        // surface a consumer sees once they enable it, and every generated artifact
+        // (this document, the .NET and TypeScript clients, the http-api/ site pages)
+        // is built from this one file.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            withOpenApi: true,
+            configureEndpoints: options => options.EnableDiagnosticsEndpoint = true);
 
         using var response = await host.Client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative));
 

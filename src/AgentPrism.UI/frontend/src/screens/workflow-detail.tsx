@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, openStream } from '../lib/api';
+import { client, openStream, unwrap } from '../lib/api';
 import { readSse } from '../lib/sse';
 import { Link, useNavigate } from '../lib/router';
 import { shortId } from '../lib/format';
@@ -22,7 +22,9 @@ import {
 import { SpinnerIcon } from '../components/icons';
 import { WorkflowGraphLegend, WorkflowGraphView } from '../components/workflow-graph';
 import { KIND_HINT } from './workflows';
-import type { Meta, RunEvent, WorkflowPendingRequest } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { RunEvent } from '../lib/run-event';
+import type { WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '../lib/server-types';
 
 /**
  * One workflow: its graph, a place to run it, and the human decisions it is
@@ -39,12 +41,19 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   const workflow = useQuery({
     queryKey: ['workflow-descriptor', name],
-    queryFn: async () => (await api.workflows()).find((entry) => entry.name === name) ?? null,
+    queryFn: async () => {
+      const list = (await unwrap(client.GET('/api/workflows'))) as WorkflowDescriptor[];
+
+      return list.find((entry) => entry.name === name) ?? null;
+    },
   });
 
   const graph = useQuery({
     queryKey: ['workflow-graph', name],
-    queryFn: () => api.workflowGraph(name),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/workflows/{name}/graph', { params: { path: { name } } }),
+      ) as Promise<WorkflowGraph>,
   });
 
   const [message, setMessage] = useState('');
@@ -63,7 +72,12 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
   // is open the run may still move past the port on its own.
   const pending = useQuery({
     queryKey: ['workflow-requests', runId],
-    queryFn: () => api.workflowRequests(runId as string),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/workflows/runs/{runId}/requests', {
+          params: { path: { runId: runId as string } },
+        }),
+      ) as Promise<WorkflowPendingRequest[]>,
     enabled: finished,
   });
 

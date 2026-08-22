@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import {
@@ -17,7 +17,8 @@ import {
   cx,
 } from '../components/ui';
 import { KIND_HINT } from './workflows';
-import type { WorkflowKind, WorkflowSaveRequest } from '../lib/types';
+import type { WorkflowSaveRequest } from '@agentprism/client';
+import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
 
 const KINDS: WorkflowKind[] = ['Sequential', 'Concurrent', 'Handoff', 'GroupChat', 'Magentic'];
 
@@ -66,11 +67,17 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   const queryClient = useQueryClient();
   const editing = name !== undefined;
 
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
 
   const existing = useQuery({
     queryKey: ['workflow', name],
-    queryFn: () => api.workflow(name as string),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/workflows/{name}', { params: { path: { name: name as string } } }),
+      ) as Promise<WorkflowDefinition>,
     enabled: editing,
   });
 
@@ -113,7 +120,12 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         requirePlanApproval: draft.kind === 'Magentic' && draft.requirePlanApproval,
       };
 
-      return api.saveWorkflow(draft.name.trim(), body);
+      return unwrap(
+        client.PUT('/api/workflows/{name}', {
+          params: { path: { name: draft.name.trim() } },
+          body,
+        }),
+      ) as Promise<WorkflowDefinition>;
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ['workflows'] });

@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-160 operations across 123 paths. This page is the shape they all share; the groups in
+161 operations across 124 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -111,7 +111,7 @@ than answering `404`.
 
 Pick one from the sidebar. Each operation shows every declared media type, parameters,
 responses, and response headers. [HTTP schemas](/http-api/schemas/) expands
-all 226 request and response contracts with required fields, defaults, and validation
+all 254 request and response contracts with required fields, defaults, and validation
 constraints from the OpenAPI snapshot.
 
 ## About the published document

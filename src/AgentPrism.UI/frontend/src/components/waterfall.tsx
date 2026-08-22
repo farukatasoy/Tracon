@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { usePlural, useT } from '../lib/i18n';
 import { Badge, Mono, cx } from './ui';
-import type { RunTrace, TraceSpan } from '../lib/types';
+import type { RunTrace, TraceSpan } from '../lib/server-types';
 
 /**
  * Trace waterfall.

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import {
@@ -17,7 +17,8 @@ import {
   Table,
   TextInput,
 } from './ui';
-import type { WebhookDeliveryStatus, WebhookSubscription } from '../lib/types';
+import type { WebhookDeliveryStatus, WebhookTestResponse } from '@agentprism/client';
+import type { WebhookDelivery, WebhookSubscription } from '../lib/server-types';
 
 /** Every event AgentPrism can publish. Mirrors `WebhookEvents` on the server. */
 const EVENTS = [
@@ -40,15 +41,19 @@ const EVENTS = [
  */
 export function WebhookPanel(): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const subscriptions = useQuery({ queryKey: ['webhooks'], queryFn: api.webhooks });
+  const subscriptions = useQuery({
+    queryKey: ['webhooks'],
+    queryFn: () => unwrap(client.GET('/api/webhooks')) as Promise<WebhookSubscription[]>,
+  });
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteWebhook(name),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['webhooks'] }),
+    mutationFn: (name: string) =>
+      unwrap(client.DELETE('/api/webhooks/{name}', { params: { path: { name } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['webhooks'] }),
   });
 
   return (
@@ -72,7 +77,7 @@ export function WebhookPanel(): ReactNode {
         <WebhookForm
           onDone={() => {
             setOpen(false);
-            void client.invalidateQueries({ queryKey: ['webhooks'] });
+            void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
           }}
         />
       )}
@@ -118,7 +123,12 @@ function SubscriptionRow({
   onDelete: () => void;
 }): ReactNode {
   const t = useT();
-  const test = useMutation({ mutationFn: () => api.testWebhook(subscription.name) });
+  const test = useMutation({
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/webhooks/{name}/test', { params: { path: { name: subscription.name } } }),
+      ) as Promise<WebhookTestResponse>,
+  });
 
   return (
     <div className="px-4 py-3" data-testid="webhook-row">
@@ -192,7 +202,12 @@ function Deliveries({ name }: { name: string }): ReactNode {
   const t = useT();
   const deliveries = useQuery({
     queryKey: ['webhook-deliveries', name],
-    queryFn: () => api.webhookDeliveries(name, { take: 20 }),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/webhooks/{name}/deliveries', {
+          params: { path: { name }, query: { take: 20 } },
+        }),
+      ) as Promise<WebhookDelivery[]>,
   });
 
   if (deliveries.isPending) {
@@ -261,12 +276,17 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
 
   const save = useMutation({
     mutationFn: () =>
-      api.saveWebhook(name, {
-        url,
-        events,
-        secretConfigurationKey: secretKey.trim() === '' ? null : secretKey.trim(),
-        enabled: true,
-      }),
+      unwrap(
+        client.PUT('/api/webhooks/{name}', {
+          params: { path: { name } },
+          body: {
+            url,
+            events,
+            secretConfigurationKey: secretKey.trim() === '' ? null : secretKey.trim(),
+            enabled: true,
+          },
+        }),
+      ) as Promise<WebhookSubscription>,
     onSuccess: onDone,
   });
 

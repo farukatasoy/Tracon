@@ -318,6 +318,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 32 | [`32-DOKUMAN-KALITESI.md`](32-DOKUMAN-KALITESI.md) | `DKL` | 76 | `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` · `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` · `docs-site/scripts/build-social-images.mjs` | **20** | ✅ | ⬜ henüz koşulmadı |
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` | **5** | ✅ | ⬜ henüz koşulmadı |
 | 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83 | `src/AgentPrism.Client` · `src/AgentPrism.Cli` · `nswag.json` · `scripts/nswag-*.py` | **12** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 12 👤 koşulmadı |
+| 35 | [`35-TYPESCRIPT-ISTEMCISI.md`](35-TYPESCRIPT-ISTEMCISI.md) | `TSC` | 84 | `packages/agentprism-client` · `src/AgentPrism.UI/frontend/src/lib/{api.ts,server-types.ts}` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` · `.github/workflows/ci.yml` | **11** | ✅ | ✅ 8/11 otomasyonla veya elle koşuldu (Faz 84 kapanışı); 5 elle koşulmadı (E2E boşluğu, F-145); 8-9 👤 koşulmadı |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 

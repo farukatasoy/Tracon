@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -20,7 +20,8 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { EvalSuite, Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { EvalSuite } from '../lib/server-types';
 
 const EMPTY_FORM = {
   agentName: '',
@@ -71,26 +72,34 @@ function toForm(suite: EvalSuite): SuiteForm {
  */
 export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<SuiteForm>(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [checksError, setChecksError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
-  const suites = useQuery({ queryKey: ['evalSuites'], queryFn: api.evalSuites });
+  const suites = useQuery({
+    queryKey: ['evalSuites'],
+    queryFn: () => unwrap(client.GET('/api/evals')) as Promise<EvalSuite[]>,
+  });
 
-  const invalidate = (): void => void client.invalidateQueries({ queryKey: ['evalSuites'] });
+  const invalidate = (): void => void queryClient.invalidateQueries({ queryKey: ['evalSuites'] });
 
   const save = useMutation({
     mutationFn: () => {
       const name = editing ?? newName;
       const checks = JSON.parse(form.checks) as unknown;
 
-      return api.saveEvalSuite(name, {
-        agentName: form.agentName,
-        description: form.description.length > 0 ? form.description : null,
-        checks,
-      });
+      return unwrap(
+        client.PUT('/api/evals/{name}', {
+          params: { path: { name } },
+          body: {
+            agentName: form.agentName,
+            description: form.description.length > 0 ? form.description : null,
+            checks,
+          },
+        }),
+      ) as Promise<EvalSuite>;
     },
     onSuccess: () => {
       setForm(EMPTY_FORM);
@@ -103,7 +112,8 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   });
 
   const remove = useMutation({
-    mutationFn: (name: string) => api.deleteEvalSuite(name),
+    mutationFn: (name: string) =>
+      unwrap(client.DELETE('/api/evals/{name}', { params: { path: { name } } })),
     onSuccess: invalidate,
   });
 

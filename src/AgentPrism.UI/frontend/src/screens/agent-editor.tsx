@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import {
@@ -18,6 +18,7 @@ import {
   TextInput,
 } from '../components/ui';
 import type {
+  AgentDefinition,
   AgentDefinitionRequest,
   AgentResponseFormat,
   AgentValidationReport,
@@ -28,7 +29,14 @@ import type {
   ModelBinding,
   ModelFallback,
   ValidationSeverity,
-} from '../lib/types';
+} from '@agentprism/client';
+import type {
+  AgentDescriptor,
+  AgentDetailResponse,
+  AgentSkillDefinition,
+  ModelProviderDescriptor,
+  ToolDescriptor,
+} from '../lib/server-types';
 
 const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
 
@@ -57,7 +65,12 @@ const COMPACTION_STRATEGIES: CompactionStrategyKind[] = [
   'Pipeline',
 ];
 
-const emptyCompaction: CompactionSettings = { strategy: 'None' };
+// `strategy` is optional on the generated (request-shaped) type, but the form
+// always carries one — narrowed locally so the strategy switch below and the
+// `<Select>` binding don't need an `?? 'None'` at every read.
+export type CompactionForm = Omit<CompactionSettings, 'strategy'> & { strategy: CompactionStrategyKind };
+
+const emptyCompaction: CompactionForm = { strategy: 'None' };
 const emptyMemory: MemorySettings = {};
 
 export interface CultureInstructions {
@@ -87,7 +100,7 @@ export interface FormState {
   callableAgentNames: string[];
   harnessEnabled: boolean;
   harness: HarnessSettings;
-  compaction: CompactionSettings;
+  compaction: CompactionForm;
   memory: MemorySettings;
 }
 
@@ -225,14 +238,29 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [ready, setReady] = useState(!editing);
 
-  const tools = useQuery({ queryKey: ['tools'], queryFn: api.tools });
-  const skills = useQuery({ queryKey: ['skills'], queryFn: api.skills });
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
-  const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const tools = useQuery({
+    queryKey: ['tools'],
+    queryFn: () => unwrap(client.GET('/api/tools')) as Promise<ToolDescriptor[]>,
+  });
+  const skills = useQuery({
+    queryKey: ['skills'],
+    queryFn: () => unwrap(client.GET('/api/skills')) as Promise<AgentSkillDefinition[]>,
+  });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
+  const providers = useQuery({
+    queryKey: ['models'],
+    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
 
   const existing = useQuery({
     queryKey: ['agent', name],
-    queryFn: () => api.agent(name as string),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}', { params: { path: { name: name as string } } }),
+      ) as Promise<AgentDetailResponse>,
     enabled: editing,
   });
 
@@ -317,7 +345,15 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   const request = useMemo(() => toRequest(form), [form]);
 
   const save = useMutation({
-    mutationFn: () => (editing ? api.updateAgent(name as string, request) : api.createAgent(request)),
+    mutationFn: () =>
+      (editing
+        ? unwrap(
+            client.PUT('/api/agents/{name}', {
+              params: { path: { name: name as string } },
+              body: request,
+            }),
+          )
+        : unwrap(client.POST('/api/agents', { body: request }))) as Promise<AgentDefinition>,
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ['agents'] });
       await queryClient.invalidateQueries({ queryKey: ['agent', saved.name] });
@@ -327,7 +363,12 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   });
 
   // Validation never writes anything — no query is invalidated on success.
-  const validate = useMutation({ mutationFn: () => api.validateAgent(request) });
+  const validate = useMutation({
+    mutationFn: () =>
+      unwrap(
+        client.POST('/api/agents/validate', { body: request }),
+      ) as Promise<AgentValidationReport>,
+  });
 
   if (editing && !ready) {
     return <Loading />;

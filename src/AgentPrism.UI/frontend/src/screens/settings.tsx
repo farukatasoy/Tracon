@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { apiBase, uiBase } from '../lib/base';
 import { setToken, useToken } from '../lib/auth';
 import { Link } from '../lib/router';
@@ -23,7 +23,8 @@ import { ApiKeyPanel } from '../components/api-key-panel';
 import { TenantProviderPanel } from '../components/tenant-provider-panel';
 import { RetentionPanel } from '../components/retention-panel';
 import { readVoiceForLocale, writeVoiceForLocale } from '../lib/voice';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { RunStatistics } from '../lib/server-types';
 
 export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
@@ -31,8 +32,14 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
   const token = useToken();
   const { preference } = useThemePreference();
 
-  const stats = useQuery({ queryKey: ['stats', ''], queryFn: () => api.stats({}) });
-  const tenant = useQuery({ queryKey: ['current-tenant'], queryFn: api.currentTenant });
+  const stats = useQuery({
+    queryKey: ['stats', ''],
+    queryFn: () => unwrap(client.GET('/api/stats', { params: { query: {} } })) as Promise<RunStatistics>,
+  });
+  const tenant = useQuery({
+    queryKey: ['current-tenant'],
+    queryFn: () => unwrap(client.GET('/api/tenants/current')),
+  });
 
   return (
     <>
@@ -172,11 +179,11 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
           {stats.isError && <div className="p-4"><ErrorNote error={stats.error} /></div>}
           {stats.isSuccess && (
             <dl className="divide-y divide-line">
-              <Row label={t('nav.runs')}>{count(stats.data.totalRuns)}</Row>
-              <Row label={t('runs.filter.completed')}>{count(stats.data.completedRuns)}</Row>
-              <Row label={t('runs.stat.failed')}>{count(stats.data.failedRuns)}</Row>
-              <Row label={t('runs.filter.running')}>{count(stats.data.runningRuns)}</Row>
-              <Row label={t('experiments.totalTokens')}>{count(stats.data.totalTokens)}</Row>
+              <Row label={t('nav.runs')}>{count(stats.data.totalRuns as number)}</Row>
+              <Row label={t('runs.filter.completed')}>{count(stats.data.completedRuns as number)}</Row>
+              <Row label={t('runs.stat.failed')}>{count(stats.data.failedRuns as number)}</Row>
+              <Row label={t('runs.filter.running')}>{count(stats.data.runningRuns as number)}</Row>
+              <Row label={t('experiments.totalTokens')}>{count(stats.data.totalTokens as number)}</Row>
               <Row label={t('settings.tenant')}>
                 <Mono>{tenant.data?.tenantId ?? '—'}</Mono>
               </Row>
@@ -198,12 +205,12 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               <dl className="divide-y divide-line">
                 {stats.data.byModel.map((model) => (
                   <Row key={model.modelId} label={model.modelId}>
-                    {t('settings.modelTokens', { tokens: count(model.totalTokens) })}
+                    {t('settings.modelTokens', { tokens: count(model.totalTokens as number | undefined) })}
                     <span className="ml-2 text-[11px] text-subtle">
                       {t('settings.modelBreakdown', {
-                        input: count(model.inputTokens),
-                        output: count(model.outputTokens),
-                        runs: count(model.totalRuns),
+                        input: count(model.inputTokens as number | undefined),
+                        output: count(model.outputTokens as number | undefined),
+                        runs: count(model.totalRuns as number),
                       })}
                     </span>
                   </Row>
@@ -250,7 +257,11 @@ function VoicePreferencePanel(): ReactNode {
   const t = useT();
   const [, setVersion] = useState(0);
 
-  const voices = useQuery({ queryKey: ['voices'], queryFn: api.voices, retry: false });
+  const voices = useQuery({
+    queryKey: ['voices'],
+    queryFn: () => unwrap(client.GET('/api/voice/voices')),
+    retry: false,
+  });
 
   if (!voices.isSuccess || voices.data.length === 0) {
     return null;

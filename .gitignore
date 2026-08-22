@@ -63,6 +63,13 @@ test-results/
 src/AgentPrism.UI/wwwroot/
 
 ## ---------------------------------------------------------------------------
+## packages/ (npm paketleri, Faz 84)
+## `tsc` ciktisi - npm'e o yayinlanir, kaynak agacinda tutulmaz. `src/schema.ts`
+## URETILIR ama commit'lidir (surukleme kapisi); dist/ commit'siz kalir.
+## ---------------------------------------------------------------------------
+packages/*/dist/
+
+## ---------------------------------------------------------------------------
 ## IDE ve editor
 ## ---------------------------------------------------------------------------
 .vs/

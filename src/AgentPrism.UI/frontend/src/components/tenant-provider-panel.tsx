@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Field, Loading, Mono, Panel, Select, TextInput } from './ui';
-import type { TenantProviderBinding } from '../lib/types';
+import type { TenantProviderBindingResponse as TenantProviderBinding } from '@agentprism/client';
+import type { ModelProviderDescriptor } from '../lib/server-types';
 
 /**
  * Per-tenant model provider bindings (BYOK) and egress policy (phase 65).
@@ -17,7 +18,10 @@ import type { TenantProviderBinding } from '../lib/types';
  */
 export function TenantProviderPanel(): ReactNode {
   const t = useT();
-  const current = useQuery({ queryKey: ['current-tenant'], queryFn: api.currentTenant });
+  const current = useQuery({
+    queryKey: ['current-tenant'],
+    queryFn: () => unwrap(client.GET('/api/tenants/current')),
+  });
   const [tenantId, setTenantId] = useState<string | null>(null);
   const effectiveTenantId = tenantId ?? current.data?.tenantId ?? '';
 
@@ -47,18 +51,27 @@ export function TenantProviderPanel(): ReactNode {
 
 function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const providers = useQuery({
+    queryKey: ['models'],
+    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
   const bindings = useQuery({
     queryKey: ['tenant-provider-bindings', tenantId],
-    queryFn: () => api.tenantProviderBindings(tenantId),
+    queryFn: () =>
+      unwrap(client.GET('/api/tenants/{tenantId}/providers', { params: { path: { tenantId } } })),
   });
 
   const remove = useMutation({
-    mutationFn: (provider: string) => api.deleteTenantProviderBinding(tenantId, provider),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['tenant-provider-bindings', tenantId] }),
+    mutationFn: (provider: string) =>
+      unwrap(
+        client.DELETE('/api/tenants/{tenantId}/providers/{provider}', {
+          params: { path: { tenantId, provider } },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tenant-provider-bindings', tenantId] }),
   });
 
   return (
@@ -83,7 +96,7 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
           providerNames={providers.data?.map((provider) => provider.name) ?? []}
           onSaved={() => {
             setOpen(false);
-            void client.invalidateQueries({ queryKey: ['tenant-provider-bindings', tenantId] });
+            void queryClient.invalidateQueries({ queryKey: ['tenant-provider-bindings', tenantId] });
           }}
           onCancel={() => setOpen(false)}
         />
@@ -171,10 +184,15 @@ function BindingForm({
 
   const save = useMutation({
     mutationFn: () =>
-      api.saveTenantProviderBinding(tenantId, provider, {
-        apiKeyConfigurationName: configKeyName,
-        endpoint: endpoint.trim() === '' ? null : endpoint,
-      }),
+      unwrap(
+        client.PUT('/api/tenants/{tenantId}/providers/{provider}', {
+          params: { path: { tenantId, provider } },
+          body: {
+            apiKeyConfigurationName: configKeyName,
+            endpoint: endpoint.trim() === '' ? null : endpoint,
+          },
+        }),
+      ),
     onSuccess: onSaved,
   });
 
@@ -241,29 +259,39 @@ function BindingForm({
 
 function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
 
-  const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const providers = useQuery({
+    queryKey: ['models'],
+    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
   const policy = useQuery({
     queryKey: ['tenant-egress-policy', tenantId],
-    queryFn: () => api.tenantEgressPolicy(tenantId),
+    queryFn: () => unwrap(client.GET('/api/tenants/{tenantId}/egress', { params: { path: { tenantId } } })),
   });
 
   const [draft, setDraft] = useState<string[] | null>(null);
 
   const save = useMutation({
-    mutationFn: (allowedProviders: string[]) => api.saveTenantEgressPolicy(tenantId, allowedProviders),
+    mutationFn: (allowedProviders: string[]) =>
+      unwrap(
+        client.PUT('/api/tenants/{tenantId}/egress', {
+          params: { path: { tenantId } },
+          body: { allowedProviders },
+        }),
+      ),
     onSuccess: () => {
       setDraft(null);
-      void client.invalidateQueries({ queryKey: ['tenant-egress-policy', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['tenant-egress-policy', tenantId] });
     },
   });
 
   const clear = useMutation({
-    mutationFn: () => api.deleteTenantEgressPolicy(tenantId),
+    mutationFn: () =>
+      unwrap(client.DELETE('/api/tenants/{tenantId}/egress', { params: { path: { tenantId } } })),
     onSuccess: () => {
       setDraft(null);
-      void client.invalidateQueries({ queryKey: ['tenant-egress-policy', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['tenant-egress-policy', tenantId] });
     },
   });
 

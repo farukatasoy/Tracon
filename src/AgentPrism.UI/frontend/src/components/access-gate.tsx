@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApiError, api } from '../lib/api';
+import { AgentPrismError, client, unwrap } from '../lib/api';
 import { setToken, useToken, useTokenRejected } from '../lib/auth';
 import { useT } from '../lib/i18n';
 import { Button, Field, Loading, Panel, TextInput } from './ui';
 import { PrismMark } from './icons';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { AgentDescriptor } from '../lib/server-types';
 
 /**
  * Decides whether the console can talk to the API, and explains it when it cannot.
@@ -31,13 +32,18 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   // polling alone is enough to close this gap. The FIRST paint of a fully
   // cold load (server down before any JS runs) is a separate, browser-level
   // failure this cannot reach — see `docs/UCUNCU-FAZ-ADAYLARI.md`.
-  const meta = useQuery({ queryKey: ['meta'], queryFn: api.meta, retry: false, refetchInterval: 30_000 });
+  const meta = useQuery({
+    queryKey: ['meta'],
+    queryFn: () => unwrap(client.GET('/api/meta')) as Promise<Meta>,
+    retry: false,
+    refetchInterval: 30_000,
+  });
 
   // The shell is served without the bearer-token check, so reaching this code
   // says nothing about whether data endpoints will answer. One cheap probe does.
   const probe = useQuery({
     queryKey: ['probe', token],
-    queryFn: api.agents,
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
     enabled: meta.isSuccess,
     retry: false,
   });
@@ -63,7 +69,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
 
   const error = probe.error;
 
-  if (error instanceof ApiError && error.status === 401) {
+  if (error instanceof AgentPrismError && error.status === 401) {
     return <Centered><TokenPrompt failed={rejected} /></Centered>;
   }
 
@@ -71,7 +77,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
     return <Centered><TokenPrompt failed={false} /></Centered>;
   }
 
-  if (error instanceof ApiError && error.status === 403) {
+  if (error instanceof AgentPrismError && error.status === 403) {
     return (
       <Centered>
         <Card title={t('access.denied.title')}>

@@ -1,4 +1,32 @@
-import type { ChatContent, ChatMessage, RunEvent } from './types';
+import type { ChatMessage } from '@agentprism/client';
+import type { RunEvent } from './run-event';
+
+/**
+ * A loosely-typed view of one Microsoft.Extensions.AI content block.
+ *
+ * Deliberately NOT the generated `AiContent` union (`@agentprism/client`):
+ * MAF has renamed discriminators between releases, and `classify()` below
+ * falls back to shape-sniffing so a rename does not silently blank the
+ * transcript. Typing this strictly would fight that fallback, not support
+ * it — the cast at each entry point (`foldMessages`, `foldUpdate`'s caller)
+ * is the honest boundary between "the server's real contract" and "this
+ * folder's deliberately defensive view of it".
+ */
+interface ChatContent {
+  $type?: string;
+  text?: string;
+  name?: string;
+  callId?: string;
+  arguments?: Record<string, unknown> | null;
+  result?: unknown;
+  exception?: unknown;
+  details?: {
+    inputTokenCount?: number | null;
+    outputTokenCount?: number | null;
+    totalTokenCount?: number | null;
+  };
+  [key: string]: unknown;
+}
 
 /**
  * One rendered block of a conversation.
@@ -295,7 +323,7 @@ export function foldMessages(messages: readonly ChatMessage[]): TranscriptState[
   for (const message of messages) {
     const before = shared.items.length;
 
-    for (const content of message.contents ?? []) {
+    for (const content of (message.contents ?? []) as readonly ChatContent[]) {
       applyContent(shared, content, before);
     }
 

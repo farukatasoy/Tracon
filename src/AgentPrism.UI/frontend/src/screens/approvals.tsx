@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
 import { Badge, Button, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
 import { ThumbsDownIcon, ThumbsUpIcon } from '../components/icons';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta, PendingApproval } from '@agentprism/client';
 
 /**
  * Pending tool-approval requests for queued agent runs (phase 55).
@@ -18,17 +18,20 @@ import type { Meta } from '../lib/types';
  */
 export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
 
   const approvals = useQuery({
     queryKey: ['approvals-pending'],
-    queryFn: api.pendingApprovals,
+    queryFn: () => unwrap(client.GET('/api/approvals/pending')) as Promise<PendingApproval[]>,
     refetchInterval: 5_000,
   });
 
   const decide = useMutation({
-    mutationFn: ({ id, approved }: { id: string; approved: boolean }) => api.decideApproval(id, approved),
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['approvals-pending'] }),
+    mutationFn: ({ id, approved }: { id: string; approved: boolean }) =>
+      unwrap(
+        client.POST('/api/approvals/{id}/decide', { params: { path: { id } }, body: { approved } }),
+      ) as Promise<PendingApproval>,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['approvals-pending'] }),
   });
 
   return (

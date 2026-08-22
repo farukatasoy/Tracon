@@ -29,7 +29,7 @@ import {
   TriggersIcon,
   WorkflowIcon,
 } from './icons';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
 
 /**
  * Navigation.

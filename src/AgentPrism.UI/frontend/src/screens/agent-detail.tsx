@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Link, useNavigate } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
@@ -21,7 +21,8 @@ import {
 import { HistoryIcon, TrashIcon } from '../components/icons';
 import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { OriginBadge } from './agents';
-import type { Meta } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse } from '../lib/server-types';
 
 export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
@@ -29,10 +30,14 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
 
-  const agent = useQuery({ queryKey: ['agent', name], queryFn: () => api.agent(name) });
+  const agent = useQuery({
+    queryKey: ['agent', name],
+    queryFn: () =>
+      unwrap(client.GET('/api/agents/{name}', { params: { path: { name } } })) as Promise<AgentDetailResponse>,
+  });
 
   const remove = useMutation({
-    mutationFn: () => api.deleteAgent(name),
+    mutationFn: () => unwrap(client.DELETE('/api/agents/{name}', { params: { path: { name } } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['agents'] });
       navigate('agents');
@@ -187,11 +192,17 @@ function VersionHistory({
 
   const versions = useQuery({
     queryKey: ['agent-versions', name],
-    queryFn: () => api.agentVersions(name),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}/versions', { params: { path: { name } } }),
+      ) as Promise<AgentDefinition[]>,
   });
 
   const rollback = useMutation({
-    mutationFn: (version: number) => api.rollbackAgent(name, version),
+    mutationFn: (version: number) =>
+      unwrap(
+        client.POST('/api/agents/{name}/rollback', { params: { path: { name } }, body: { version } }),
+      ) as Promise<AgentDefinition>,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['agent', name] });
       await queryClient.invalidateQueries({ queryKey: ['agent-versions', name] });
@@ -307,7 +318,10 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
   const t = useT();
   const diff = useQuery({
     queryKey: ['agent-version-diff', name, a, b],
-    queryFn: () => api.agentVersionDiff(name, a, b),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}/versions/{a}/diff/{b}', { params: { path: { name, a, b } } }),
+      ) as Promise<AgentVersionDiffResponse>,
   });
 
   return (

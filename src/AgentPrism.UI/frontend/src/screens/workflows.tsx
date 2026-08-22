@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
@@ -16,7 +16,8 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
-import type { Meta, WorkflowKind } from '../lib/types';
+import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
+import type { WorkflowDescriptor, WorkflowKind } from '../lib/server-types';
 
 /** One-line description of what each pattern does, shown wherever a kind is picked. */
 export const KIND_HINT: Record<WorkflowKind, MessageKey> = {
@@ -29,7 +30,10 @@ export const KIND_HINT: Record<WorkflowKind, MessageKey> = {
 
 export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
-  const workflows = useQuery({ queryKey: ['workflows'], queryFn: api.workflows });
+  const workflows = useQuery({
+    queryKey: ['workflows'],
+    queryFn: () => unwrap(client.GET('/api/workflows')) as Promise<WorkflowDescriptor[]>,
+  });
 
   return (
     <>

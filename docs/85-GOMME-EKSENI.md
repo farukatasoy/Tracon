@@ -39,6 +39,17 @@
    [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (`buildTransitive/` akışı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
    [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve rol modeli (anlatılan beş noktanın üçü oradadır)
+6. 🚨 **[Faz 84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md)'ün Sonraki Faza Devir Notu'nu oku.**
+   `AgentPrismDiagnosticsReport`'a §85.4'te alan eklemek artık ÜÇ yerde
+   yansıtılmalıdır, ikide değil: sunucu kaydı (eskiden olduğu gibi), C#
+   `AgentPrism.Client` (`dotnet nswag run nswag.json` yeniden üretilmeli,
+   `ClientCoverageTests` yeşil kalmalı) **ve** TS `@agentprism/client`
+   (`npm run generate` yeniden üretilmeli, `schema-drift.test.ts` yeşil
+   kalmalı). Frontend'in `diagnostics.tsx` ekranı bu tipi
+   `src/AgentPrism.UI/frontend/src/lib/server-types.ts`'teki GENİŞLETİLMİŞ
+   (`Fix<>`) sürümden okuyor — yeni alan opsiyonel/nullable geliyorsa o
+   dosyanın K-listesine de eklenmesi gerekebilir (bkz. dosyanın kendi başlık
+   yorumu, "iki sistemik kusur").
 
 ---
 

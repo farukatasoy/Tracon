@@ -13061,6 +13061,83 @@ namespace AgentPrism.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Returns the setup's self-diagnosing summary report.
+        /// </summary>
+        /// <remarks>
+        /// Disabled by default (AgentPrismEndpointOptions.EnableDiagnosticsEndpoint); a deployment that has not turned it on answers 404. Never carries any secret value. Model provider status is read from the cache; it makes no model call and applies no migration.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<AgentPrismDiagnosticsReport> AgentPrismDiagnosticsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/diagnostics"
+                    urlBuilder_.Append("api/diagnostics");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AgentPrismDiagnosticsReport>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new AgentPrismApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Run endpoint compatible with the OpenAI Responses API.
         /// </summary>
         /// <remarks>
@@ -14388,6 +14465,87 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("requiresAuthorizationPolicy")]
         public bool RequiresAuthorizationPolicy { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Reports the self-diagnostics of the installation.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AgentPrismDiagnosticsReport
+    {
+        /// <summary>
+        /// Gets the name of the active persistence provider, for example `PostgreSQL` or `InMemory`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("persistenceProvider")]
+        public string PersistenceProvider { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the number of registered SQL persistence providers. More than `1`
+        /// <br/>indicates a setup defect: the last call wins and silently disables the others.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("registeredPersistenceProviders")]
+        public int RegisteredPersistenceProviders { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the active SQL provider can connect. Returns `true`
+        /// <br/>without an SQL provider.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("canConnect")]
+        public bool CanConnect { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether no migrations are pending. Returns `true` without an SQL provider.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("migrationsUpToDate")]
+        public bool MigrationsUpToDate { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the pending migration names. The list is empty when there is no SQL
+        /// <br/>provider or all migrations are applied.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("pendingMigrations")]
+        public System.Collections.Generic.ICollection<string> PendingMigrations { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// Gets the last known status of each registered model provider.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("modelProviders")]
+        public System.Collections.Generic.ICollection<ProviderDiagnostic> ModelProviders { get; set; } = new System.Collections.Generic.List<ProviderDiagnostic>();
+
+        /// <summary>
+        /// Gets the resolution status of configuration keys required by registered providers.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("configuration")]
+        public System.Collections.Generic.ICollection<ConfigurationDiagnostic> Configuration { get; set; } = new System.Collections.Generic.List<ConfigurationDiagnostic>();
+
+        /// <summary>
+        /// Gets whether the management UI has embedded assets.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("uiEmbedded")]
+        public bool UiEmbedded { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the number of registered tools.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("toolCount")]
+        public int ToolCount { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the number of registered agents. Returns `null` when the catalog cannot be read.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("agentCount")]
+        public int? AgentCount { get; set; } = default!;
 
     }
 
@@ -16411,6 +16569,36 @@ namespace AgentPrism.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"Pipeline")]
         Pipeline = 6,
+
+    }
+
+    /// <summary>
+    /// Reports whether a configuration key resolves. It does not carry the value.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ConfigurationDiagnostic
+    {
+        /// <summary>
+        /// Gets the full configuration key path, for example `AgentPrism:Providers:OpenAI:ApiKey`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("key")]
+        public string Key { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the key resolves to a non-empty value.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("resolved")]
+        public bool Resolved { get; set; } = default!;
+
+        /// <summary>
+        /// Gets guidance for configuring an unresolved key. The server provides it and the
+        /// <br/>UI does not translate it.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("hint")]
+        public string? Hint { get; set; } = default!;
 
     }
 
@@ -19257,6 +19445,37 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("instance")]
         public string? Instance { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Summarizes diagnostics for a model provider.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ProviderDiagnostic
+    {
+        /// <summary>
+        /// Gets the provider name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the last known model provider health cache status as a
+        /// <br/>ModelProviderHealthStatus value in text form. Returns
+        /// <br/>`"Unknown"` when the cache is empty.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the circuit breaker is open for this provider.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("circuitOpen")]
+        public bool CircuitOpen { get; set; } = default!;
 
     }
 

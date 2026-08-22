@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, openStream } from '../lib/api';
+import { client, unwrap, openStream, AgentPrismError } from '../lib/api';
 import { formatDateTime, useT } from '../lib/i18n';
 import { readSse } from '../lib/sse';
 import { foldRunEvents } from '../lib/transcript';
@@ -26,8 +26,8 @@ import { RunComparison } from '../components/run-comparison';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
-import { ApiError } from '../lib/api';
-import type { RunEvent, RunEventType, RunRecord, ToolInvocationRecord } from '../lib/types';
+import type { RunEvent, RunEventType } from '../lib/run-event';
+import type { RunRecord, RunTrace, ToolInvocationRecord } from '../lib/server-types';
 
 /** Event name and hue per event type. Shapes and labels carry the meaning too. */
 const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
@@ -80,7 +80,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
   const run = useQuery({
     queryKey: ['run', id],
-    queryFn: () => api.run(id),
+    queryFn: () => unwrap(client.GET('/api/runs/{runId}', { params: { path: { runId: id } } })) as Promise<RunRecord>,
     // 'Queued' polls too (phase 46): the worker has not picked the job up yet,
     // and the row transitions on its own once it does.
     refetchInterval: (query) =>
@@ -98,14 +98,18 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   // always be 404.
   const trace = useQuery({
     queryKey: ['run-trace', id],
-    queryFn: () => api.runTrace(id),
+    queryFn: () =>
+      unwrap(client.GET('/api/runs/{runId}/trace', { params: { path: { runId: id } } })) as Promise<RunTrace>,
     enabled: finished && run.data?.parentRunId == null,
-    retry: (_, error) => !(error instanceof ApiError && error.status === 404),
+    retry: (_, error) => !(error instanceof AgentPrismError && error.status === 404),
   });
 
   const toolCalls = useQuery({
     queryKey: ['run-tools', id],
-    queryFn: () => api.runToolInvocations(id),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/runs/{runId}/tools', { params: { path: { runId: id } } }),
+      ) as Promise<ToolInvocationRecord[]>,
     enabled: finished,
   });
 
@@ -116,7 +120,8 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
   const tree = useQuery({
     queryKey: ['run-tree', id],
-    queryFn: () => api.runTree(id),
+    queryFn: () =>
+      unwrap(client.GET('/api/runs/{runId}/tree', { params: { path: { runId: id } } })) as Promise<RunRecord[]>,
     enabled: partOfTree,
     refetchInterval: (query) =>
       (query.state.data ?? []).some((entry) => entry.status === 'Running') ? 2_000 : false,

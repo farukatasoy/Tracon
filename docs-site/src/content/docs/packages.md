@@ -54,6 +54,28 @@ AgentPrism instance, from a separate application or from a terminal.
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 
+## Calling AgentPrism from TypeScript
+
+`@agentprism/client` is not a NuGet package — it is the npm counterpart to
+`AgentPrism.Client`, generated from the same OpenAPI document for callers that
+are not on .NET.
+
+```bash
+npm install @agentprism/client
+```
+
+| Package | What it does |
+|---|---|
+| `@agentprism/client` | A typed TypeScript client for the management API, built on `openapi-fetch` — its only runtime dependency |
+
+Same OpenAPI document, same version number as every package above — `@agentprism/client`
+and `AgentPrism.Client` are cut from the same `v*` git tag, so a matching pair always
+describes the identical set of operations. There is no separate npm version scheme.
+What differs is the ecosystem: it ships from a browser or Node.js process instead of
+a .NET one, and it is not part of the eight AOT-compatible packages or the nineteen
+NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
+for setup, the error model, and what it deliberately does not cover.
+
 ## Picking a database
 
 All three implement the same contracts and are verified against the same shared

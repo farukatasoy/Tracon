@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { client, unwrap } from '../lib/api';
 import { Link } from '../lib/router';
 import { count, prettyJson, relativeTime, timeSpanMs } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -15,7 +15,8 @@ import {
   Panel,
 } from '../components/ui';
 import { formatMs } from '../components/waterfall';
-import type { ToolEffect, ToolUsage } from '../lib/types';
+import type { ToolEffect } from '@agentprism/client';
+import type { AgentDescriptor, ToolDescriptor, ToolUsage } from '../lib/server-types';
 
 /**
  * Registered tools.
@@ -26,9 +27,18 @@ import type { ToolEffect, ToolUsage } from '../lib/types';
  */
 export function ToolsScreen(): ReactNode {
   const t = useT();
-  const tools = useQuery({ queryKey: ['tools'], queryFn: api.tools });
-  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
-  const usage = useQuery({ queryKey: ['tool-usage'], queryFn: () => api.toolUsage() });
+  const tools = useQuery({
+    queryKey: ['tools'],
+    queryFn: () => unwrap(client.GET('/api/tools')) as Promise<ToolDescriptor[]>,
+  });
+  const agents = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
+  });
+  const usage = useQuery({
+    queryKey: ['tool-usage'],
+    queryFn: () => unwrap(client.GET('/api/tools/usage')) as Promise<ToolUsage[]>,
+  });
 
   const usageByName = new Map((usage.data ?? []).map((row) => [row.toolName, row]));
 
