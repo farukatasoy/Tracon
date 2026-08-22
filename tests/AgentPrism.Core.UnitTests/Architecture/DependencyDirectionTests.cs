@@ -64,6 +64,18 @@ public sealed class DependencyDirectionTests
         // the package that wires up the endpoints.
         ["AgentPrism.Testing"] = ["AgentPrism.Core", "AgentPrism.AspNetCore"],
         ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI", "AgentPrism.Workflows"],
+        // Client is the CALLING side of the control plane, not the hosting
+        // side: it takes NO AgentPrism reference at all. Its DTOs are
+        // generated straight from the OpenAPI document, not reused from
+        // Abstractions - reusing Abstractions would fight the code generator
+        // and would leak server-side store interfaces (IRunStore and
+        // similar) into an HTTP consumer that never needs them (Phase 83).
+        ["AgentPrism.Client"] = [],
+        // Cli is a dotnet tool, not a library a consumer references: it
+        // needs Client for `health` (HTTP) and all three SQL providers for
+        // `migrate` (direct database access, chosen because the app has not
+        // started yet at that point - Phase 83, section 83.5).
+        ["AgentPrism.Cli"] = ["AgentPrism.Client", "AgentPrism.PostgreSql", "AgentPrism.SqlServer", "AgentPrism.Sqlite"],
     };
 
     [Fact]

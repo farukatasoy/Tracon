@@ -33,7 +33,7 @@ namespace AgentPrism;
 /// a uniqueness violation; <see cref="ApplyOneAsync"/> retries this safely.
 /// </para>
 /// </remarks>
-public sealed class MigrationRunner : ISqlPersistenceDiagnostics
+public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationApplier
 {
     private readonly SqlStoreContext _context;
     private readonly ILogger<MigrationRunner> _logger;

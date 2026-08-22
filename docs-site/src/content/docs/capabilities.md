@@ -198,6 +198,8 @@ a failure to record one is logged and stepped over rather than raised to the cal
 |---|---|---|
 | .NET API | `AddAgentPrism()` and `IAgentCatalog`, tuned with `IAgentPrismBuilder.Configure(...)` and extended through `IAgentPrismBuilder.Services` | Application code that wants direct MAF objects |
 | Management HTTP API | `MapAgentPrism()` | The embedded console, automation, or your own client |
+| Typed management client | `AgentPrism.Client`'s `AddAgentPrismClient()` | .NET code calling a running instance from outside the process that hosts it |
+| CLI | `agentprism` global tool (`AgentPrism.Cli`) | Deployment pipelines: `migrate`/`migrate status` apply schema without starting the application, `health` checks model provider health |
 | OpenAPI | Your application's `AddOpenApi()` setup | Client generation and API exploration |
 | OpenAI compatibility | Included in `MapAgentPrism()` | Existing Chat Completions, Responses, and Conversations clients |
 | Embedded console | `AgentPrism.UI` and `UseUI()` | Operators, developers, evaluators, and security administrators |

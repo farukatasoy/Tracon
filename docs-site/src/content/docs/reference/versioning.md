@@ -60,6 +60,15 @@ With Central Package Management, keep the versions in one place:
 If you reference individual packages directly, pin each one to the same version. Avoid
 floating ranges in production.
 
+### The typed client and the server it calls
+
+`AgentPrism.Client` is generated from the exact same OpenAPI document the server
+build carries — both come from the same repository build, so they cannot drift
+apart at a given version the way a hand-written client could. A caller on a
+newer preview than the server it targets sees only the operations the server
+actually serves; calling one the server does not yet have returns a `404`.
+`AgentPrism.Cli` follows the same version family, since it wraps `AgentPrism.Client`.
+
 ## Upgrade safely
 
 1. Create a branch and update all AgentPrism packages together.

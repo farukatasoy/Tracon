@@ -89,7 +89,22 @@ schema migration and a re-embed of existing documents. See
 ## Migrations run at startup
 
 The SQL files ship embedded in the assembly and are applied when the application
-starts. Two properties make that safe with several instances starting at once:
+starts, unless that responsibility is moved to its own deployment step:
+
+```mermaid
+flowchart TD
+    accTitle: Two ways a migration is applied
+    accDescr: With AutoApplyMigrations true, the application applies pending migrations itself at startup. With it false, a separate agentprism migrate step applies the schema first, and the application only verifies it before starting.
+    START["Application starts"] --> CHECK{"AutoApplyMigrations"}
+    CHECK -->|"true (default)"| APPLY["Applies pending migrations itself<br/>provider lock serializes concurrent instances"]
+    CHECK -->|"false"| SEPARATE["agentprism migrate<br/>runs as its own deployment step, no app needed"]
+    SEPARATE --> APP2["Application starts, verifies the schema, does not write"]
+    APPLY --> READY["Ready"]
+    APP2 --> READY
+```
+
+Two properties make in-process application safe with several instances starting at
+once:
 
 - The runner takes the provider-specific lock shown above, so instances serialize
   instead of racing.
@@ -118,6 +133,18 @@ app.MapAgentPrism("/agentprism", options =>
 
 After that opt-in, `GET /agentprism/api/diagnostics` is an Admin surface and still
 passes through the configured access layers.
+
+Something still needs to **apply** the schema before the application starts with
+`AutoApplyMigrations = false`. The `agentprism` CLI does that as its own step,
+against the database directly — no running application required:
+
+```bash
+agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+Running it again applies nothing (`0 applied`) and exits `0`; `agentprism migrate
+status` lists pending migration names without writing. See the [typed client and
+CLI guide](/guides/cli/) for setup and the rest of the commands.
 
 ## What changes once it is durable
 

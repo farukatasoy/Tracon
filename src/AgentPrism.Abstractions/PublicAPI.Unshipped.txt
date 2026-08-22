@@ -4646,3 +4646,5 @@ AgentPrism.ProtectedColumn.ToolResult = 6 -> AgentPrism.ProtectedColumn
 AgentPrism.ProtectedColumn.AgentFileContent = 7 -> AgentPrism.ProtectedColumn
 AgentPrism.ProtectedColumn.AttachmentContent = 8 -> AgentPrism.ProtectedColumn
 AgentPrism.ProtectedColumn.ResponsePayload = 9 -> AgentPrism.ProtectedColumn
+AgentPrism.IMigrationApplier
+AgentPrism.IMigrationApplier.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
