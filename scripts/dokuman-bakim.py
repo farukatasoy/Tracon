@@ -530,6 +530,19 @@ def yol_haritasi_uret() -> str:
     )
 
 
+def _durum_tamamlandi_mi(durum_metni: str) -> bool:
+    """A phase's `> **Durum:**` text reads as completed.
+
+    Faz 91: the literal-word check `Tamamlandı` missed real synonyms already
+    in use (`✅ Tamam`, `✅ Kod tamam`) — a live example is Faz 24, whose two
+    unchecked boxes went undetected by `tamamlanmis_faz_isaretsiz_kutular`
+    until this was widened. Every completed status in the archive either
+    carries a ✅ or the literal word `Tamamlandı`; paused/planned statuses
+    carry neither.
+    """
+    return "✅" in durum_metni or "Tamamlandı" in durum_metni
+
+
 def kapanmis_faz_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     """Kök `docs/` yalnız canlı fazları taşımalıdır.
 
@@ -542,9 +555,97 @@ def kapanmis_faz_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     for p in sorted(docs.glob("[0-9][0-9]-*.md")):
         metin = p.read_text(encoding="utf-8")
         durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
-        if durum and re.search(r"(?:✅\s*)?Tamamlandı", durum.group(1)):
+        if durum and _durum_tamamlandi_mi(durum.group(1)):
             bulgular.append(
                 f"{p.relative_to(kok).as_posix()}: kapanmış faz `docs/arsiv/fazlar/` altında olmalı")
+    return bulgular
+
+
+def tamamlanmis_faz_isaretsiz_kutular(kok: pathlib.Path = ROOT) -> list[str]:
+    """Find unchecked checklist items left in distilled completed phases.
+
+    A completed phase may preserve an unmet historical item as prose, but an
+    unchecked Markdown task marker falsely presents the archived plan as live
+    work. The marker is therefore a documentation-drift finding, not a claim
+    that the historical work was completed.
+    """
+    bulgular: list[str] = []
+    for path in sorted((kok / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md")):
+        metin = path.read_text(encoding="utf-8")
+        durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+        if not durum or not _durum_tamamlandi_mi(durum.group(1)):
+            continue
+        for line_number, line in enumerate(metin.splitlines(), 1):
+            if re.match(r"^\s*- \[ \]", line):
+                bulgular.append(
+                    f"{path.relative_to(kok).as_posix()}:{line_number}: işaretsiz kutu")
+    return bulgular
+
+
+def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Compare known MSBuild-property claims in skills with the real props file."""
+    props = kok / "Directory.Build.props"
+    if not props.exists():
+        return []
+    actual_match = re.search(
+        r"<EnablePublicApiTracking>\s*(true|false)\s*</EnablePublicApiTracking>",
+        props.read_text(encoding="utf-8"),
+        re.I,
+    )
+    if not actual_match:
+        return []
+    actual = actual_match.group(1).lower()
+    bulgular: list[str] = []
+    skills = kok / ".agents" / "skills"
+    if not skills.exists():
+        return []
+    claim = re.compile(r"EnablePublicApiTracking[^\n]{0,100}?\b(true|false)\b", re.I)
+    for path in sorted(skills.rglob("*.md")):
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = claim.search(line)
+            if match and match.group(1).lower() != actual:
+                bulgular.append(
+                    f"{path.relative_to(kok).as_posix()}:{line_number}: "
+                    f"EnablePublicApiTracking={match.group(1).lower()} deniyor, gerçek değer {actual}")
+    return bulgular
+
+
+def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Ensure CI and skills delegate scan/closing commands to ``kapi.py``."""
+    kapi = kok / "scripts" / "kapi.py"
+    ci = kok / ".github" / "workflows" / "ci.yml"
+    agents = kok / "AGENTS.md"
+    completion = kok / ".agents" / "skills" / "faz-tamamlama" / "SKILL.md"
+    if not all(path.exists() for path in (kapi, ci, agents, completion)):
+        return ["kapi.py veya delegasyon hedefi eksik"]
+
+    kapi_text = kapi.read_text(encoding="utf-8")
+    bulgular: list[str] = []
+    if "SECRET_PATTERN" not in kapi_text or "SYNC_ROOTS" not in kapi_text:
+        bulgular.append("scripts/kapi.py sync/secret desenlerinin kaynağı değil")
+
+    ci_text = ci.read_text(encoding="utf-8")
+    if "python3 scripts/kapi.py tarama" not in ci_text:
+        bulgular.append(".github/workflows/ci.yml kapi.py taramasını çağırmıyor")
+    if "find src tests samples docs .agents" in ci_text or "Password|pwd" in ci_text:
+        bulgular.append(".github/workflows/ci.yml eski sync/secret desenini taşıyor")
+
+    agents_text = agents.read_text(encoding="utf-8")
+    if "python3 scripts/kapi.py kapanis" not in agents_text:
+        bulgular.append("AGENTS.md kapanış kapısını kapi.py'ye devretmiyor")
+    if all(command in agents_text for command in (
+        "dotnet build  AgentPrism.slnx",
+        "dotnet test   AgentPrism.slnx",
+        "dotnet pack   AgentPrism.slnx",
+        "dotnet format AgentPrism.slnx",
+    )):
+        bulgular.append("AGENTS.md dört ham kapanış komutunu kopyalıyor")
+
+    completion_text = completion.read_text(encoding="utf-8")
+    if "python3 scripts/kapi.py tarama" not in completion_text:
+        bulgular.append("faz-tamamlama sync/secret taramasını kapi.py'ye devretmiyor")
+    if "find src tests samples docs .agents" in completion_text or "Password|pwd" in completion_text:
+        bulgular.append("faz-tamamlama eski sync/secret desenini taşıyor")
     return bulgular
 
 
@@ -1684,6 +1785,29 @@ def denetle() -> int:
     for s in faz_bulgulari:
         print(f"  {s}")
     hata |= int(bool(faz_bulgulari))
+
+    kutu_bulgulari = tamamlanmis_faz_isaretsiz_kutular()
+    print(f"\nTamamlanmış fazlarda işaretsiz kutu: "
+          f"{'❌ ' + str(len(kutu_bulgulari)) + ' bulgu' if kutu_bulgulari else '✅ temiz'}")
+    for s in kutu_bulgulari[:20]:
+        print(f"  {s}")
+    if len(kutu_bulgulari) > 20:
+        print(f"  … +{len(kutu_bulgulari) - 20}")
+    hata |= int(bool(kutu_bulgulari))
+
+    iddia_bulgulari = dokuman_iddia_cakismalari()
+    print(f"\nDoküman iddiası ↔ repo gerçeği: "
+          f"{'❌ ' + str(len(iddia_bulgulari)) + ' bulgu' if iddia_bulgulari else '✅ temiz'}")
+    for s in iddia_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(iddia_bulgulari))
+
+    kapi_bulgulari = tekrarlanan_kapi_tanimlari()
+    print(f"\nTekrarlanan kapı tanımları: "
+          f"{'❌ ' + str(len(kapi_bulgulari)) + ' bulgu' if kapi_bulgulari else '✅ temiz'}")
+    for s in kapi_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(kapi_bulgulari))
 
     sayi, karar_bulgulari = kararlar_denetle()
     print(f"\nKarar defteri (§2, {sayi} kalem): "

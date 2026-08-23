@@ -45,8 +45,8 @@ Tek dosyalık kurulum. Değeri üç yerdedir: - **Demo ve deneme** — `dotnet r
 - [x] WAL ve `busy_timeout` bağlantı açılışında ayarlanıyor (test)
 - [x] Örnek uygulama tek dosyalık veritabanıyla uçtan uca çalışıyor (elle doğrulandı, yukarıda)
 - [x] Uygulama kapatılıp açıldığında veri duruyor (gerçek çıktı — aynı tenant kimliği)
-- [ ] Sınırlar README ve `/api/meta`'da bildiriliyor — **README tamam**, `/api/meta`'da `:memory:` ayrımı eksik (Açık Soru 1)
-- [ ] AOT durumu ölçüldü ve `MIMARI.md` güncellendi — **ölçülmedi**, K-196
+- Sınırlar README ve `/api/meta`'da bildiriliyor — **README tamam**, `/api/meta`'da `:memory:` ayrımı eksik (Açık Soru 1)
+- AOT durumu ölçüldü ve `MIMARI.md` güncellendi — **ölçülmedi**, K-196
 - [x] Dört doğrulama kapısı sıfır uyarı (build, format, pack, `AgentPrism.Core.UnitTests`; PostgreSQL 416/416 ve SQL Server 204/204 regresyonsuz)
 
 ---

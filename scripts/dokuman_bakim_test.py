@@ -464,6 +464,112 @@ class TamMetinDenetleTestleri(unittest.TestCase):
             self.assertEqual(dokuman_bakim.tam_metin_denetle(pathlib.Path(d)), [])
 
 
+class Faz91DokumanKapilariTestleri(unittest.TestCase):
+    def test_tamamlanmis_fazdaki_isaretsiz_kutulari_bulur(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            fazlar = tmp / "docs" / "arsiv" / "fazlar"
+            fazlar.mkdir(parents=True)
+            (fazlar / "71-ORNEK.md").write_text(
+                "> **Durum:** ✅ Tamamlandı\n\n- [ ] Bir\n- [ ] İki\n", encoding="utf-8")
+            (fazlar / "72-PLAN.md").write_text(
+                "> **Durum:** 📋 Planlandı\n\n- [ ] Açık\n", encoding="utf-8")
+
+            bulgular = dokuman_bakim.tamamlanmis_faz_isaretsiz_kutular(tmp)
+
+            self.assertEqual(len(bulgular), 2)
+            self.assertTrue(all("71-ORNEK.md" in bulgu for bulgu in bulgular))
+
+    def test_tamamlandi_esanlamlisi_yalin_yazimda_da_yakalanir(self):
+        """Faz 91 denetimi: 24-SQLITE.md '✅ Kod tamam' yazıyordu, literal
+        `Tamamlandı` deseni bunu kaçırıyordu — iki gerçek işaretsiz kutu
+        denetimden görünmez kalmıştı."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            fazlar = tmp / "docs" / "arsiv" / "fazlar"
+            fazlar.mkdir(parents=True)
+            (fazlar / "24-ORNEK.md").write_text(
+                "> **Durum:** ✅ Kod tamam · 205/205 test yeşil\n\n- [ ] AOT ölçülmedi\n",
+                encoding="utf-8")
+            (fazlar / "23-ORNEK.md").write_text(
+                "> **Durum:** ✅ Tamam — 204/204 test yeşil\n\n- [ ] Açık kalem\n",
+                encoding="utf-8")
+
+            bulgular = dokuman_bakim.tamamlanmis_faz_isaretsiz_kutular(tmp)
+
+            self.assertEqual(len(bulgular), 2)
+
+    def test_dokuman_iddiasi_gercek_props_degeriyle_karsilastirilir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "Directory.Build.props").write_text(
+                "<EnablePublicApiTracking>true</EnablePublicApiTracking>", encoding="utf-8")
+            skill = tmp / ".agents" / "skills" / "ornek"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "`EnablePublicApiTracking` bugün `false`.", encoding="utf-8")
+
+            bulgular = dokuman_bakim.dokuman_iddia_cakismalari(tmp)
+
+            self.assertEqual(len(bulgular), 1)
+            self.assertIn("gerçek değer true", bulgular[0])
+
+    def test_kapi_tanimlari_merkezi_delegasyonu_zorlar(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "scripts").mkdir()
+            (tmp / "scripts" / "kapi.py").write_text("SECRET_PATTERN SYNC_ROOTS", encoding="utf-8")
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "python3 scripts/kapi.py tarama", encoding="utf-8")
+            (tmp / "AGENTS.md").write_text(
+                "python3 scripts/kapi.py kapanis --taban HEAD", encoding="utf-8")
+            completion = tmp / ".agents" / "skills" / "faz-tamamlama"
+            completion.mkdir(parents=True)
+            (completion / "SKILL.md").write_text(
+                "python3 scripts/kapi.py tarama", encoding="utf-8")
+
+            self.assertEqual(dokuman_bakim.tekrarlanan_kapi_tanimlari(tmp), [])
+
+    def test_kapi_tanimlari_eksik_dosya_ihlali_yakalanir(self):
+        with tempfile.TemporaryDirectory() as d:
+            bulgular = dokuman_bakim.tekrarlanan_kapi_tanimlari(pathlib.Path(d))
+
+            self.assertEqual(bulgular, ["kapi.py veya delegasyon hedefi eksik"])
+
+    def test_kapi_tanimlari_ihlalleri_tek_tek_yakalanir(self):
+        """Faz 91 denetimi: mutlu yol boş liste döndüğünü doğruluyordu ama
+        hiçbir ihlal dalı tetiklenmiyordu — biri bozulsa hiçbir test kırılmazdı."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "scripts").mkdir()
+            (tmp / "scripts" / "kapi.py").write_text("eski script, desen yok", encoding="utf-8")
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "find src tests samples docs .agents -name '* 2.*'", encoding="utf-8")
+            (tmp / "AGENTS.md").write_text(
+                "dotnet build  AgentPrism.slnx\n"
+                "dotnet test   AgentPrism.slnx\n"
+                "dotnet pack   AgentPrism.slnx\n"
+                "dotnet format AgentPrism.slnx\n",
+                encoding="utf-8")
+            completion = tmp / ".agents" / "skills" / "faz-tamamlama"
+            completion.mkdir(parents=True)
+            (completion / "SKILL.md").write_text(
+                "Password|pwd deseniyle secret taranır.", encoding="utf-8")
+
+            bulgular = dokuman_bakim.tekrarlanan_kapi_tanimlari(tmp)
+
+            self.assertEqual(len(bulgular), 7)
+            self.assertIn("scripts/kapi.py sync/secret desenlerinin kaynağı değil", bulgular)
+            self.assertIn(".github/workflows/ci.yml kapi.py taramasını çağırmıyor", bulgular)
+            self.assertIn(".github/workflows/ci.yml eski sync/secret desenini taşıyor", bulgular)
+            self.assertIn("AGENTS.md kapanış kapısını kapi.py'ye devretmiyor", bulgular)
+            self.assertIn("AGENTS.md dört ham kapanış komutunu kopyalıyor", bulgular)
+            self.assertIn("faz-tamamlama sync/secret taramasını kapi.py'ye devretmiyor", bulgular)
+            self.assertIn("faz-tamamlama eski sync/secret desenini taşıyor", bulgular)
+
+
 FAZ_ORNEK = """# Faz 42 — Örnek
 
 > **Durum:** ✅ Tamamlandı (2026-08-07)

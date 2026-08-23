@@ -34,42 +34,6 @@ jobs:
           # MinVer surumu git etiketlerinden uretir; tum gecmis gerekir.
           fetch-depth: 0
 
-      # Bulut senkronizasyon istemcisi "<ad> 2.<uzanti>" kopyalari uretebilir;
-      # boyle bir kopya .cs icin CS0101 yagmuru, .ts icin TS2741 verir. Faz
-      # 57'de bu main'i derlenmez birakti (K-411) cunku tarama yalniz
-      # `faz-tamamlama` icinde elle yapiliyordu. Tek OS yeterli - bu bir dosya
-      # sistemi kontrolu, platforma bagli degil.
-      - name: Senkronizasyon kopyasi taramasi
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          BULUNAN=$(find src tests samples docs .agents \( -name "* 2.*" -o -name "* 2" \) \
-            -not -path "*/node_modules/*" -not -path "*/obj/*" -not -path "*/bin/*")
-          if [ -n "$BULUNAN" ]; then
-            echo "::error::Senkronizasyon kopyasi bulundu, bunlar commit edilmemeli:"
-            echo "$BULUNAN"
-            exit 1
-          fi
-
-      # `secret`'lar yalnizca `dotnet user-secrets` icinde yasamalidir (K-059).
-      # Desen ayni `faz-tamamlama`'da elle kosulan tarama ile birebir ayni:
-      # onekten sonra en az 24 karakter arar, bu yuzden dokumandaki `sk-...`
-      # ornekleri yanlis pozitif uretmez. `docs/manuel-test/`, `docs/arsiv/`
-      # ve manuel-test-kosumu skill kaynaklari haric - buradaki
-      # `Password=agentprism` / `sk-...-test-anahtari` degerleri yerel
-      # Testcontainers/Docker varsayilanlaridir, gercek secret degil (Faz
-      # 79/80/81/87 emsaliyle ayni kapsam disi karar).
-      - name: Secret taramasi
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          BULUNAN=$(grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}" . \
-            --exclude-dir=.git --exclude-dir=artifacts --exclude-dir=node_modules \
-            --exclude-dir=manuel-test --exclude-dir=arsiv --exclude-dir=manuel-test-kosumu || true)
-          if [ -n "$BULUNAN" ]; then
-            echo "::error::Olasi secret bulundu:"
-            echo "$BULUNAN"
-            exit 1
-          fi
-
       - name: .NET SDK kur
         uses: actions/setup-dotnet@v4
         with:
@@ -94,6 +58,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      # Tek OS yeterli; bu bir dosya sistemi kontroludur.
+      - name: Gelistirme dongusu taramasi
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 scripts/kapi.py tarama
 
       - name: NuGet paketlerini onbellekle
         uses: actions/cache@v4

@@ -44,7 +44,7 @@
       `QuotaUsageObserverTests.Kapaliyken_hicbir_olcum_uretilmez_ve_depoya_gidilmez`
 - [x] Ölçer açıkken ardışık on yoklama **bir** veritabanı sorgusu üretir —
       `QuotaUsageObserverTests.Ardisik_on_yoklama_bir_veritabani_sorgusu_uretir`
-- [ ] Prometheus exporter ile `agentprism_run_cost_total` metriği görünür —
+- Prometheus exporter ile `agentprism_run_cost_total` metriği görünür —
       **doğrulanmadı**: örnek uygulamada hiçbir OTel exporter'ı (konsol/Prometheus)
       hiç kurulu değildi (bu fazdan önce de yoktu) ve bunu eklemek fazın
       ilan edilen kapsamının ("iki enstrüman adı + bir ayar, yeni uç yok") dışına

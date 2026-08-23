@@ -16,7 +16,9 @@
 
   <PropertyGroup>
     <AgentPrismNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-npm-install.stamp</AgentPrismNpmInstallStamp>
+    <AgentPrismNodeDetectionStamp>$(BaseIntermediateOutputPath)agentprism-node-detection.stamp</AgentPrismNodeDetectionStamp>
     <AgentPrismFrontendStamp>$(BaseIntermediateOutputPath)agentprism-frontend.stamp</AgentPrismFrontendStamp>
+    <AgentPrismFrontendAssetsStamp>$(BaseIntermediateOutputPath)agentprism-frontend-assets.stamp</AgentPrismFrontendAssetsStamp>
     <AgentPrismShellFile>$(AgentPrismFrontendOutput)/index.html</AgentPrismShellFile>
 
     <!--
@@ -52,12 +54,26 @@
   </ItemGroup>
 
   <!--
+    Keep embedded resources available when the collection target is
+    incremental-skipped. The target refreshes this item group after a
+    frontend build when the frontend stamp is newer.
+  -->
+  <ItemGroup Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND Exists('$(AgentPrismFrontendOutput)') ">
+    <AgentPrismFrontendAsset Include="$(AgentPrismFrontendOutput)/**/*" />
+    <EmbeddedResource Include="@(AgentPrismFrontendAsset)"
+                      LogicalName="AgentPrism.UI.wwwroot/%(AgentPrismFrontendAsset.RecursiveDir)%(AgentPrismFrontendAsset.Filename)%(AgentPrismFrontendAsset.Extension)" />
+  </ItemGroup>
+
+  <!--
     Whether Node.js is present. If not, the build does not stop: if a
     previously produced wwwroot/ exists, the package is still complete. If not,
     a warning is issued and it turns into an error at the `pack` stage - a
     package with an empty UI cannot be published.
   -->
-  <Target Name="AgentPrismDetectNode" Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+  <Target Name="AgentPrismDetectNode"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' "
+          Inputs="@(AgentPrismFrontendInput);@(AgentPrismClientInput)"
+          Outputs="$(AgentPrismNodeDetectionStamp)">
     <Exec Command="npm --version"
           WorkingDirectory="$(AgentPrismFrontendRoot)"
           ContinueOnError="true"
@@ -71,6 +87,28 @@
       <AgentPrismNodeAvailable Condition=" '$(AgentPrismNpmExitCode)' != '0' ">false</AgentPrismNodeAvailable>
     </PropertyGroup>
 
+    <WriteLinesToFile File="$(AgentPrismNodeDetectionStamp)"
+                      Lines="$(AgentPrismNodeAvailable)"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+
+  </Target>
+
+  <!--
+    A skipped target does not restore MSBuild properties. Read the result of
+    the incremental node probe before any dependent target evaluates its
+    Condition; otherwise a hot build would silently treat Node.js as absent.
+  -->
+  <Target Name="AgentPrismReadNodeAvailability"
+          DependsOnTargets="AgentPrismDetectNode"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND Exists('$(AgentPrismNodeDetectionStamp)') ">
+    <ReadLinesFromFile File="$(AgentPrismNodeDetectionStamp)">
+      <Output TaskParameter="Lines" ItemName="AgentPrismNodeAvailabilityLine" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <AgentPrismNodeAvailable Condition=" '@(AgentPrismNodeAvailabilityLine)' == 'true' ">true</AgentPrismNodeAvailable>
+      <AgentPrismNodeAvailable Condition=" '@(AgentPrismNodeAvailabilityLine)' != 'true' ">false</AgentPrismNodeAvailable>
+    </PropertyGroup>
   </Target>
 
   <Target Name="AgentPrismNpmInstall"
@@ -155,7 +193,7 @@
   -->
   <Target Name="AgentPrismFrontendOuterBuild"
           BeforeTargets="DispatchToInnerBuilds"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismReadNodeAvailability;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
 
   <!--
@@ -167,15 +205,25 @@
     would never run. Measured: the UI was silently not being built.
   -->
   <Target Name="AgentPrismCollectFrontendAssets"
-          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismReadNodeAvailability;AgentPrismNpmInstall;AgentPrismBuildClientPackage;AgentPrismBuildFrontend"
           BeforeTargets="AssignTargetPaths"
-          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' "
+          Inputs="$(AgentPrismFrontendStamp);$(AgentPrismClientBuildStamp);$(AgentPrismFrontendOutput)/index.html;@(AgentPrismFrontendAsset)"
+          Outputs="$(AgentPrismFrontendAssetsStamp)">
     <ItemGroup>
+      <!--
+        Evaluation sees the previous asset set. Refresh it after a frontend
+        build so a changed Vite hash is embedded on a single-TFM build too.
+      -->
+      <EmbeddedResource Remove="@(AgentPrismFrontendAsset)" />
+      <AgentPrismFrontendAsset Remove="@(AgentPrismFrontendAsset)" />
       <AgentPrismFrontendAsset Include="$(AgentPrismFrontendOutput)/**/*" />
 
       <EmbeddedResource Include="@(AgentPrismFrontendAsset)"
                         LogicalName="AgentPrism.UI.wwwroot/%(AgentPrismFrontendAsset.RecursiveDir)%(AgentPrismFrontendAsset.Filename)%(AgentPrismFrontendAsset.Extension)" />
     </ItemGroup>
+
+    <Touch Files="$(AgentPrismFrontendAssetsStamp)" AlwaysCreate="true" />
 
     <Warning Condition=" '@(AgentPrismFrontendAsset)' == '' AND '$(AgentPrismNodeAvailable)' != 'true' "
              Code="AGENTPRISM0002"

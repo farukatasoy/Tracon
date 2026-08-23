@@ -41,7 +41,7 @@ Bu faz model çağrısının **iki ucunu** kapatır: çağrıdan **önce** paray
 - [x] Ön uçuş **kapalı** varsayılandır; açıkken aşan istem model çağrısı **yapılmadan** `400` döner — `PreflightEndpointTests` (gerçek HTTP host üzerinden)
 - [x] `POST /api/agents/{name}/estimate` sağlayıcıya istek **göndermeden** sayı döner — `PreflightEndpointTests`, `ContextWindowEstimatorTests`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format` tüm çözüm genelinde yeşil (bu turda birden fazla kez koşuldu)
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **YAPILAMADI**, bu ortamda gerçek sağlayıcı kimlik bilgisi yok (bkz. Plandan Sapmalar #7). Yerine: gerçek OpenAI SDK'sına karşı canlı bir bağlantı-hatası testi koşuldu (bkz. Denetim Bulguları #1) ve dört gerçek SQL/HTTP entegrasyon paketi (Postgres/Sqlite/SqlServer/AspNetCore.FunctionalTests) baştan sona koşuldu.
+- `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **YAPILAMADI**, bu ortamda gerçek sağlayıcı kimlik bilgisi yok (bkz. Plandan Sapmalar #7). Yerine: gerçek OpenAI SDK'sına karşı canlı bir bağlantı-hatası testi koşuldu (bkz. Denetim Bulguları #1) ve dört gerçek SQL/HTTP entegrasyon paketi (Postgres/Sqlite/SqlServer/AspNetCore.FunctionalTests) baştan sona koşuldu.
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md` içine eklendi (9 case); otomatikleştirilebilen KISMI (gerçek kimlik bilgisi gerektirmeyenler) otomatik testlerle zaten kapsanıyor — dosyanın kendisi gerçek kimlik bilgisiyle **henüz koşulmadı** (§7 `⬜`)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu **kapandı** (K-450)

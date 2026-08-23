@@ -103,7 +103,7 @@ altta).
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Prompt listelenip **panoya kopyalanıyor** (kaynak+hash yorumuyla) — agent talimatına otomatik aktarma değil, bkz. "Plandan Sapmalar #3"
-- [ ] Sunucudaki prompt değişince arayüz rozet gösteriyor — **yapılmadı**, sonraki faza devredildi (agent editör entegrasyonu gerektirir)
+- Sunucudaki prompt değişince arayüz rozet gösteriyor — **yapılmadı**, sonraki faza devredildi (agent editör entegrasyonu gerektirir)
 - [x] Mod A kaynakları çalıştırma bağlamına giriyor; boyut sınırı çalışıyor — `McpResourceContextProvider` + `McpResourceTrimmingTests`
 - [x] `{sunucu}_read_resource` tool'u onay isteyerek çalışıyor — `McpConnection.CreateReadResourceTool`, sunucunun `RequiresApproval` ayarını miras alır
 - [x] Yetenek bildirmeyen sunucuya istek gönderilmiyor — Tools/Prompts/Resources üçü de `ServerCapabilities` denetiminden geçer

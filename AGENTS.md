@@ -123,13 +123,11 @@ Commit'i **kullanıcı istemedikçe atma**.
 Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemiştir**.
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release
-dotnet test   AgentPrism.slnx -c Release --no-build
-dotnet pack   AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes --no-restore
+python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 ```
 
-Ölçüldü: sıcak build ~5 sn — **erken ve sık çalıştır**. `dotnet format`,
+`kapi.py` komutları ucuzdan pahalıya koşar, her komutu ekrana basar ve ilk
+kırmızıda durur. Ölçüldü: sıcak build ~5 sn — **erken ve sık çalıştır**. `dotnet format`,
 `dotnet build`'in yakalamadığı analyzer tanılarını yakalar; dördü de bu yüzden
 zorunludur.
 
@@ -197,7 +195,7 @@ soyutlama katmanı değil.
 
 **`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz.** Yazım
 çağırana geri akmaz; `span`/`scope` çağıran metodun **kendi gövdesinde** başlatılır
-ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Beş kez yaşandı —
+ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Vaka kaydı:
 `docs/hafiza/cekirdek-calistirma.md`.
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool
