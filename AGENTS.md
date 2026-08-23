@@ -111,6 +111,13 @@ kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.
 
 ---
 
+## Dal ve Commit
+
+**Ana dalda çalışılabilir.** Repo tek bakımcılıdır; faz dalı bir tur
+maliyeti ekliyordu. Genel "yalnız feature dalı" konvansiyonu burada
+geçersizdir. Geri alması pahalı veya deneysel iş için yine de dal aç.
+Commit'i **kullanıcı istemedikçe atma**.
+
 ## Doğrulama Kapıları
 
 Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemiştir**.
