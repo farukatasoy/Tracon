@@ -116,7 +116,7 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 > (ambient kapsamın `IDisposable`'ı atıldı) sevk edilir; yardımcı-metot vakası
 > taban çizgili bir repo kapısı olur. (b) kuralının C# tarafı **zaten kapalıdır**
 > (`RunCost.Total()`, `CostTotals.Total()`); canlı 18 vakası SQL metnindedir ve
-> [Faz 94](../94-SQL-TEK-KAYNAK.md)'e gitti. Playwright locator sınıfı (3 tekrar)
+> [Faz 94](../arsiv/fazlar/94-SQL-TEK-KAYNAK.md)'e gitti. Playwright locator sınıfı (3 tekrar)
 > Faz 93'e eklendi.
 
 **Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:18`](../hafiza/cekirdek-calistirma.md)
@@ -218,7 +218,7 @@ tip, dolum listesini kalıcı olarak küçültür.
 
 ### 8. Üç SQL dialect'inde ~7.000 satır elle yazılmış sorgu · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-23) — [Faz 94](../94-SQL-TEK-KAYNAK.md).
+> **Durum:** 📋 Planlandı (2026-08-23) — [Faz 94](../arsiv/fazlar/94-SQL-TEK-KAYNAK.md).
 >
 > **Plan anında yapılan ölçüm** ("ölçüm ve karar ister" maddesinin cevabı):
 > 199 ortak sorgunun **117'si** (%59) üç dialect'te özdeştir — ama şema

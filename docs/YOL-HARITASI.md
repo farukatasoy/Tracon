@@ -106,6 +106,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) | Geliştirme Döngüsü Kapıları | ✅ Tamamlandı |
 | [92](arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md) | Zincir Konsolidasyonu | ✅ Tamamlandı |
 | [93](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) | Kusur Sınıfı Kapıları | ✅ Tamamlandı |
-| [94](94-SQL-TEK-KAYNAK.md) | SQL Tek Kaynak | ✅ Tamamlandı |
+| [94](arsiv/fazlar/94-SQL-TEK-KAYNAK.md) | SQL Tek Kaynak | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
