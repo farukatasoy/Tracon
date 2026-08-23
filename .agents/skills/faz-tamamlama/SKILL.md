@@ -212,7 +212,7 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | Pakete ne eklendiği | `docs/arsiv/PAKET-FAZ-GECMISI.md` |
 | **Bugünkü** mimari değiştiyse (veri modeli, çalıştırma yolu, güvenlik sınırı) | `docs/MIMARI.md` — ilgili bölümü **düzelt**, altına ekleme yapma |
 | MAF genişleme noktası kullanıldıysa | `docs/MAF-GENISLEME-NOKTALARI.md` |
-| Yol haritası durumu | `README.md` tablosu (tek kaynak) |
+| Yol haritası durumu | Elle yazılmaz — fazın `> **Durum:**` satırını güncelle; `docs/YOL-HARITASI.md` ondan **üretilir** (K-413) |
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
 | **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) skill'i |
 | **Public tip, HTTP ucu veya yeni paket eklendiyse** | Sevk edilen metin ve yerel referans yüzeyi — aynı skill |
@@ -251,9 +251,14 @@ python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
 kodu 1 verir. Site gerçekten güncelleme gerektirmiyorsa gerekçesini faz
 dokümanına yaz ve `--site-gerekce-yazildi` ile geç.
 
-İlk komut iki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
-dosyalarını yeniden üretir (K-214, Faz 32'de ikiye ayrıldı) ve sıcak yol
-bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
+İlk komut iki iş yapar:
+1. **Dört** üretilen dosyayı yeniden yazar — `docs/KARARLAR-INDEKS.md`,
+   `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`, `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
+   (üçü `KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (faz dokümanlarının
+   `> **Durum:**` satırından).
+2. Bütçeleri, karar defteri yapısını ve bağlantıları denetler.
+
+**Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
 
 ### Çapraz kontrol

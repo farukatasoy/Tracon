@@ -231,10 +231,10 @@ yerde tekrarlanmaz**.
 
 | Dosya | Ne yapılır |
 |---|---|
-| `README.md` — Yol Haritası tablosu | Yeni satır: faz numarası, konu, durum `📋 Planlandı` |
+| `docs/NN-*.md` — `> **Durum:**` satırı | `📋 Planlandı (YYYY-AA-GG)`. `docs/YOL-HARITASI.md` bundan **üretilir**; elle satır ekleme (K-413) |
 | Turun yol haritası dosyası | Sıra tablosuna satır: kalem, neden burada, yeni paket, migration |
 | `docs/ADAYLAR.md` | Plana dönüşen kalemin **bölümünü sil**; hangi faza gittiğini tek satırla yaz |
-| `AGENTS.md` | Yalnız "sıradaki faz" satırı değiştiyse. Tam tablo **yalnız README'dedir** |
+| `AGENTS.md` | Yalnız "sıradaki faz" satırı değiştiyse. Tam liste **yalnız üretilen `docs/YOL-HARITASI.md`'dedir** |
 
 Kalemi aday listesinde bırakma. İki yerde tutmak kayma üretir — belge zaten bu
 kuralı yazıyor.

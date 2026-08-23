@@ -7,7 +7,7 @@ description: Bir faza (docs/NN-*.md) başlarken uygulanacak açılış protokol�
 
 Amaç tek şeydir: **fazı doğru bilgiyle, en az okumayla başlatmak.**
 
-Bu repoda dokümanlar birikimlidir. `KARARLAR.md` 115 KB, `arsiv/` dosyaları
+Bu repoda dokümanlar birikimlidir. `KARARLAR.md` 457 KB, `arsiv/` dosyaları
 onlarca KB'dir. Hepsini okumak bağlamın yarısını harcar ve kod yazacak yer
 bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önce**
 ~125k token doküman yüküyle başlıyordu.
@@ -19,9 +19,9 @@ bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önc
 Sırayla, tamamı:
 
 1. `AGENTS.md` — zaten yüklü
-2. [`MEMORY.md`](../../../MEMORY.md) — 4 KB
+2. [`MEMORY.md`](../../../MEMORY.md) — 5 KB
 3. Fazın kendi dokümanı: `docs/NN-*.md`
-   — kapanmış fazlar (00–59) `docs/arsiv/fazlar/NN-*.md` altındadır (Faz 77);
+   — kapanmış fazlar (00–89) `docs/arsiv/fazlar/NN-*.md` altındadır (Faz 77);
      yeri [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
 
 Bu üçü ~10k token'dır. Başka hiçbir dosya bu adımda okunmaz.
@@ -49,20 +49,14 @@ awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PA
 
 ## Adım 3 — Dokunacağın alanın hafızasını aç
 
-`MEMORY.md`'deki yönlendirme tablosundan **yalnız ilgili** alan dosyasını oku.
-Faz `scope`'una göre tipik seçim:
+[`docs/hafiza/00-INDEKS.md`](../../../docs/hafiza/00-INDEKS.md) alan → dosya
+eşlemesinin **tek kaynağıdır**. Oradan **yalnız ilgili** satırın dosyasını oku;
+indeksi baştan sona okuma.
 
-| Faz konusu | Alan dosyası |
-|---|---|
-| Yeni HTTP ucu, DI kaydı | `docs/hafiza/aspnetcore-di.md` |
-| Yeni tablo/migration/sorgu | `docs/hafiza/postgresql.md` |
-| Yeni MAF tipi, context provider | `docs/hafiza/maf-api.md` |
-| Workflow yürütmesi | `docs/hafiza/workflows.md` |
-| Yeni paket, csproj, analyzer | `docs/hafiza/build-ve-analyzer.md` |
-| Yeni ekran/bileşen | `docs/hafiza/frontend.md` |
-| Yeni test tipi | `docs/hafiza/test-altyapisi.md` |
-| Kayıt zinciri, metrik, sürüm | `docs/hafiza/cekirdek-calistirma.md` |
+Bir alan birden çok dosyaya bölünmüş olabilir (ör. DI kaydı ile HTTP ucu ayrı,
+test yazımı ile test koşumu ayrı). Her dosyanın başlığı kardeşine yollar.
 
+Belirli bir şey arıyorsan indeksi hiç açma: `grep -rn "AsyncLocal" docs/hafiza/`.
 Nerede yaşadığını bilmediğin bir şey için `docs/hafiza/kod-haritasi.md`.
 
 ---
