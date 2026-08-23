@@ -106,7 +106,7 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 ### 3. Tekrarlayan kusur sınıfları yalnız dokümanla korunuyor · 📋 Faz
 
 > **Durum:** 📋 KISMEN planlandı (2026-08-23) — script ile yakalanabilen
-> kalemler [Faz 91](../91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi.
+> kalemler [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi.
 > Roslyn analyzer kuralları (a/b/c) **hâlâ açıktır** ve ayrı bir faz ister.
 
 **Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:22`](../hafiza/cekirdek-calistirma.md)
@@ -387,7 +387,7 @@ manuel sete dayanıyor (bkz. kalem 9).
 ### 20. Doküman yükü kodu geçti · 🔁 Zincir
 
 > **Durum:** 📋 KISMEN planlandı (2026-08-23) — kopyalanan komut ve
-> regex'lerin tek kaynağa inmesi [Faz 91](../91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
+> regex'lerin tek kaynağa inmesi [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
 > skill metinlerinin konsolidasyonu [Faz 92](../92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
 
 `docs/` 143.671 satır Markdown; `src/` 139.425 satır C#. `KARARLAR.md` 657 satır /

@@ -103,7 +103,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [88](arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | ✅ Tamamlandı |
 | [89](arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | ✅ Tamamlandı |
 | [90](arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md) | Doküman Damıtma Politikası | ✅ Tamamlandı |
-| [91](91-GELISTIRME-DONGUSU-KAPILARI.md) | Geliştirme Döngüsü Kapıları | ⏸ Beklemede |
+| [91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) | Geliştirme Döngüsü Kapıları | ⏸ Beklemede |
 | [92](92-ZINCIR-KONSOLIDASYONU.md) | Zincir Konsolidasyonu | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
