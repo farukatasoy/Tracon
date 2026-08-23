@@ -453,7 +453,7 @@ def yol_haritasi_uret() -> str:
 
         ham = (md.group(1) if md else "?").strip()
         ham = ham.replace("*", "").replace("✅", "").replace("⏸", "").replace("📋", "").strip()
-        durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham[:40] or "?")
+        durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham or "?")
 
         no = p.name[:2].lstrip("0") or "0"
         yol = p.relative_to(ROOT / "docs").as_posix()

@@ -32,9 +32,13 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
 
 ### 🚨 Senkronizasyon kopyası taraması (kapılardan ÖNCE)
 
-**Bu adım atlanamaz — Faz 57 atladığı için `main`'i derlenmez hâlde bıraktı.**
-Bulut senkronizasyon istemcisi `<ad> 2.<uzantı>` kopyaları üretir; `.cs`
-kopyası CS0101 yağmuru, `.ts` kopyası TS2741 verir. Beş kez yaşandı.
+**CI bu taramayı artık otomatik yapar** (`.github/workflows/ci.yml`,
+"Senkronizasyon kopyası taraması" adımı, Kesif 2026-08-23 kalem 4). Burada
+elle koşulması push'tan önce erken kapı — CI'ın bulacağı bir şeyi burada
+yakalamak bir turu kurtarır. **Bu adım o yüzden atlanamaz** — Faz 57 atladığı
+için `main`'i derlenmez hâlde bıraktı. Bulut senkronizasyon istemcisi
+`<ad> 2.<uzantı>` kopyaları üretir; `.cs` kopyası CS0101 yağmuru, `.ts`
+kopyası TS2741 verir. Beş kez yaşandı.
 
 ```bash
 find src tests samples docs .agents \( -name "* 2.*" -o -name "* 2" \) \
@@ -55,16 +59,21 @@ Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
 `agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
 gömülmez.
 
-Ek olarak `secret` taraması:
+Ek olarak `secret` taraması — **CI bunu da otomatik yapar** ("Secret taraması"
+adımı, aynı kesif kaydı kalem 5), burada koşmak yine erken kapıdır:
 
 ```bash
 grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}" . \
-  --exclude-dir=.git --exclude-dir=artifacts --exclude-dir=node_modules
+  --exclude-dir=.git --exclude-dir=artifacts --exclude-dir=node_modules \
+  --exclude-dir=manuel-test --exclude-dir=arsiv --exclude-dir=manuel-test-kosumu
 ```
 
-Desen, ön ekten sonra en az 24 karakter arar; bu yüzden dokümanlardaki örnekler
-(`sk-...`) yanlış pozitif üretmez. Çıktı boş olmalıdır — `secret`'lar yalnızca
-`dotnet user-secrets` içinde yaşar.
+Desen, ön ekten sonra en az 24 karakter arar. `docs/manuel-test/`,
+`docs/arsiv/` ve `manuel-test-kosumu` skill kaynakları hariç tutulur —
+bunlarda yerel Testcontainers/Docker varsayılanı `Password=agentprism` ve
+sahte `sk-...-test-anahtari` değerleri **bilerek** vardır (Faz 79/80/81/87
+emsali); hariç tutulmadan koşarsan bu satırlar taramayı boğar. Çıktı boş
+olmalıdır — `secret`'lar yalnızca `dotnet user-secrets` içinde yaşar.
 
 > Testlerde sahte `secret` literali kullanırken **tarama desenine uymayan** bir değer
 > seçin. Yaşandı: `"sk-cok-gizli-..."` biçimindeki bir test sabiti taramayı

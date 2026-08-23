@@ -190,6 +190,17 @@ AgentPrism fills that gap. It does not replace DevUI — it continues where DevU
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` · **License:** MIT
 
+### AOT compatibility
+
+Eight packages promise trimming and Native AOT compatibility:
+`AgentPrism.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`,
+`Google`, `Azure`, and `Voice`. The other twelve do not — including the
+**meta package `AgentPrism` itself**, since it pulls in `AgentPrism.AspNetCore`
+and `AgentPrism.UI`, neither of which makes the promise. Reference the meta
+package expecting "the whole family is AOT-safe" and `PublishAot` fails on
+one of those two. Per-package reasons:
+[Compatibility reference](https://agentprism.doayen.web.tr/reference/compatibility/).
+
 ---
 
 ## Installation

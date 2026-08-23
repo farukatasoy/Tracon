@@ -1,5 +1,5 @@
 using AgentPrism.StoreContracts;
-namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
+namespace AgentPrism.Core.UnitTests.Contracts;
 
 /// <summary>
 /// Runs the contract tests against the in-memory implementation.
@@ -8,7 +8,9 @@ namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
 /// This class tests the implementation in <c>AgentPrism.Core</c>, but its role does not
 /// stop there: verifying the contract from the <em>same</em> source for both
 /// implementations prevents a divergence between them from going unnoticed. It
-/// requires no database.
+/// requires no database and no <c>[assembly: AssemblyFixture]</c> — that is
+/// why it lives here rather than in an integration-test project that starts
+/// a real container for the whole assembly.
 /// </remarks>
 public sealed class InMemoryAgentDefinitionStoreContractTests : AgentDefinitionStoreContract
 {

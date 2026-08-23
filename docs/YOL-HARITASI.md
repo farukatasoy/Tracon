@@ -36,7 +36,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [21](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) | Hız Sınırı, Kota ve Olay Yayını | ✅ Tamamlandı |
 | [22](arsiv/fazlar/22-MCP-DERINLESMESI.md) | MCP Derinleşmesi: Prompts, Resources ve OAuth | ✅ Tamamlandı |
 | [23](arsiv/fazlar/23-SQL-SERVER.md) | SQL Server Desteği | ✅ Tamamlandı |
-| [24](arsiv/fazlar/24-SQLITE.md) | SQLite Desteği | Kod tamam · 205/205 sözleşme+diyalekt te |
+| [24](arsiv/fazlar/24-SQLITE.md) | SQLite Desteği | Kod tamam · 205/205 sözleşme+diyalekt testi yeşil · AOT ölçülmedi (bkz. "Açık Kalan") |
 | [25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) | Veri Saklama Politikası ve Arşivleme | ✅ Tamamlandı |
 | [26](arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md) | Anthropic (Claude) ve Google Gemini Sağlayıcıları | ✅ Tamamlandı |
 | [27](arsiv/fazlar/27-AZURE-FOUNDRY.md) | Azure OpenAI (ve ertelenen Azure AI Foundry) | ✅ Tamamlandı |
