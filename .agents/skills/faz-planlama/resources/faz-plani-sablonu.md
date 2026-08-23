@@ -118,7 +118,7 @@ src/AgentPrism.<Paket>/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — `faz-uygulama` Adım 2.
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|

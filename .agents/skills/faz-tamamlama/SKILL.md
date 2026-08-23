@@ -11,6 +11,42 @@ AgentPrism fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. 
 
 ---
 
+## Kulvar sırası (Faz 92)
+
+Aşağıdaki 10 adım **seri değil kulvarlıdır**. Adım numaraları değişmedi —
+şema sıranın üstüne eklenen bir katmandır.
+
+```mermaid
+flowchart LR
+    accTitle: Paralellestirilmis faz kapanisi
+    accDescr: Kod donduktan sonra denetim ve ornek uygulama kosumu ayni anda kosar. Kirmizi bulgular kapandiktan sonra site senkronu ve dokuman hizalama yine ayni anda kosar. Tek kapi kosucusu ve yayin en sonda birlesir.
+    KOD["kod donar"] --> A["A · Adım 4<br/>faz-denetim"]
+    KOD --> B["B · Adım 2-3<br/>örnek uygulama + manuel case"]
+    A --> J1{"🔴 bulgular kapanır"}
+    B --> J1
+    J1 --> C["C · Adım 7<br/>tuketici-dokuman-senkronu"]
+    J1 --> D["D · Adım 5, 6, 8<br/>faz dokümanı · sonraki faz devri · KARARLAR · hafıza"]
+    C --> J2["J2 · Adım 1<br/>kapi.py kapanis"]
+    D --> J2
+    J2 --> Y["Adım 10 · site-deploy.sh"]
+```
+
+**Kural: denetim sonucuna bağlı her iş `J1`'i bekler.** Geri kalan paralel
+koşar. Gerekçe: 🔴 bir bulgu kodu değiştirir; değişen kod faz dokümanını,
+siteyi ve manuel case'i de değiştirebilir. Bunları `J1`'den önce yazmak iki kez
+yazmaktır. `B` kulvarı `J1`'i **beklemez** çünkü örnek uygulama koşumu
+denetimin **girdisidir**, çıktısı değil — Faz 6, 12, 15, 16, 18, 20, 21 ve
+28'de gerçek hatalar yalnız orada çıktı.
+
+`A` ve `C` **taze bağlamlı ayrı agent**'lardır — ana oturumun bağlamı şişmez.
+
+🚨 **Alt agent mekanizması olmayan ortamda kulvarlar seri koşar.**
+`faz-denetim` bunu zaten yazıyor: *"Aynı oturumda 'şimdi denetçi gibi düşün'
+demek bu skill'i uygulamak değildir."* Paralellik bir hız optimizasyonudur;
+**denetimin bağımsızlığı ondan önce gelir.** İkisi çakışırsa bağımsızlık kazanır.
+
+---
+
 ## Adım 1 — Doğrulama kapıları
 
 Dördü de sıfır uyarı vermelidir. Bir tanesi bile kırmızıysa faz **bitmemiştir**.
@@ -18,6 +54,9 @@ Dördü de sıfır uyarı vermelidir. Bir tanesi bile kırmızıysa faz **bitmem
 ```bash
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 ```
+
+Tam anlatı (komut yüzeyi, neden dördü de zorunlu, `secret` ve ortam kuralları):
+[`.agents/ortak/kapilar.md`](../../ortak/kapilar.md).
 
 Yeni bir **paket** eklendiyse `dotnet pack` çıktısını say: paket sayısı beklenenle
 uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya test kırar:
@@ -27,46 +66,19 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
 - Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
 - `DependencyDirectionTests.AllowedReferences` içine bir satır
 
-### 🚨 Senkronizasyon kopyası taraması (kapılardan ÖNCE)
+### 🚨 Senkronizasyon kopyası ve `secret` taraması (kapılardan ÖNCE)
 
-**CI bu taramayı artık otomatik yapar** (`.github/workflows/ci.yml`,
-"Senkronizasyon kopyası taraması" adımı, Kesif 2026-08-23 kalem 4). Burada
-elle koşulması push'tan önce erken kapı — CI'ın bulacağı bir şeyi burada
-yakalamak bir turu kurtarır. **Bu adım o yüzden atlanamaz** — Faz 57 atladığı
-için `main`'i derlenmez hâlde bıraktı. Bulut senkronizasyon istemcisi
-`<ad> 2.<uzantı>` kopyaları üretir; `.cs` kopyası CS0101 yağmuru, `.ts`
-kopyası TS2741 verir. Beş kez yaşandı.
+**CI bu taramayı otomatik yapar**; burada elle koşulması push'tan önce erken
+kapı — CI'ın bulacağı bir şeyi burada yakalamak bir turu kurtarır. **Bu adım o
+yüzden atlanamaz.**
 
 ```bash
 python3 scripts/kapi.py tarama
 ```
 
-Çıktı **temiz olmalıdır**. Üç tuzak:
-
-- **`git status` bu kopyaları göstermeyebilir** — bir kez `git add` edildiyse
-  izlenen dosyadır ve "temiz" görünür. Taramayı `git status`'a güvenerek atlama.
-- **`src` yetmez.** Faz 57'de kopyalar `tests/` altındaydı; yalnız `src`'ye
-  bakan eski komut onları görmedi. `docs` ve `.agents` de taranır.
-- **Kopya bir `.cs` dosyası olmak zorunda değil.** `-name "* 2.*"` tek başına
-  **dizin** kopyasını kaçırır: noktası yoktur. Üç boş `resources 2/` ve
-  `2026-08-13 2/` dizini tam bu yüzden aylarca durdu. Komut ikisini de arar.
-
-Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
-`agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
-gömülmez.
-
-Secret taraması aynı komutun ikinci kapısıdır. **CI bunu da otomatik yapar**;
-burada koşmak yine erken kapıdır. Desen, ön ekten sonra en az 24 karakter arar.
-`docs/manuel-test/`,
-`docs/arsiv/` ve `manuel-test-kosumu` skill kaynakları hariç tutulur —
-bunlarda yerel Testcontainers/Docker parola varsayılanı ve
-sahte `sk-...-test-anahtari` değerleri **bilerek** vardır (Faz 79/80/81/87
-emsali); hariç tutulmadan koşarsan bu satırlar taramayı boğar. Çıktı boş
-olmalıdır — `secret`'lar yalnızca `dotnet user-secrets` içinde yaşar.
-
-> Testlerde sahte `secret` literali kullanırken **tarama desenine uymayan** bir değer
-> seçin. Yaşandı: `"sk-cok-gizli-..."` biçimindeki bir test sabiti taramayı
-> kirletti ve sonraki oturum için gürültü üretecekti.
+Çıktı **temiz olmalıdır**. Sync kopyası beş kez, gerçek `secret` sızıntısı bir
+kez yaşandı; ikisinin de vaka kaydı ve tuzakları:
+[`references/gerekce.md`](references/gerekce.md).
 
 ---
 
