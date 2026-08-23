@@ -80,17 +80,20 @@ geliştirme sonrası dokümanlar gözden geçirilir.
 - Plandan sapma **gizlenmez**, gerekçesiyle yazılır — en değerli bilgi odur
 - Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır; ayrı bir sohbet
   onunla tek başına çalışabilmeli
-- Her mimari karar `docs/KARARLAR.md`'ye numara ve gerekçeyle yazılır —
-  kapatılmış tartışma yeniden açılmaz
+- Karar defterine yalnız public API/compatibility contract, güvenlik veya kiracı
+  sınırı, kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer.
+  Yerel implementation tercihi faz dokümanında veya kod yorumunda kalır; yeni
+  `K-*` kaydı açılmaz.
 - Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır, `MEMORY.md`'ye değil
 - Birikimli anlatı `docs/arsiv/`'e gider — sıcak yol büyümezse her oturum ucuz başlar
 
 ### Doküman bütçesi (zorunlu)
 
-Sıcak yol her oturumda okunur; büyümesi her oturumu pahalılaştırır. Bütçeler
-`scripts/dokuman-bakim.py` içindedir; `python3 scripts/dokuman-bakim.py` indeksi
-üretir ve bütçeyi denetler. Bütçe aşılırsa **içerik silinmez** — alan dosyasına
-veya `docs/arsiv/`'e taşınır.
+Başlangıç bağlamı yalnız bu dosya, `MEMORY.md` ve aktif fazdır. Sorgu bağlamı
+(indeksler, mimari ve alan hafızası) gerektiğinde okunur; karar/aday kayıtları
+ledger'dır, açılışta okunmaz. `scripts/dokuman-bakim.py` bu üç katmanı ayrı
+raporlar. Bütçe aşılırsa **içerik silinmez** — alan dosyasına veya
+`docs/arsiv/`'e taşınır.
 
 ### Faz durumu
 
@@ -100,6 +103,7 @@ içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üre
 
 Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz; kapanış
 kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.
+`✅ Tamamlandı` durumundaki faz dokümanı kökte kalamaz; denetim bunu hata sayar.
 
 ---
 

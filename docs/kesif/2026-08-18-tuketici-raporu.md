@@ -43,7 +43,7 @@ harcandı. Eleme ölçümün sonucudur.
 
 | # | Rapor kalemi | Ölçüm sonucu | Sonuç |
 |---|---|---|---|
-| 1 | §8.1 Kiracı sağlayıcı anahtarı (BYOK) | **Zaten planda** — [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 | ❌ elendi — kalem yok |
+| 1 | §8.1 Kiracı sağlayıcı anahtarı (BYOK) | **Zaten planda** — [Faz 65](../arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) 📋 | ❌ elendi — kalem yok |
 | 2 | §8.2 Tool düzeyinde yetkilendirme | Yok — ölçüldü | ✅ F-113 |
 | 3 | §8.3 AI olmayan workflow düğümü | Yok — ölçüldü | ✅ F-116 |
 | 4 | §8.4 Faturalandırma çıktısı | Yok, ama **kütüphane sınırının dışı** | ❌ elendi → *Bilerek Önerilmeyenler* |
@@ -125,16 +125,16 @@ taşındı; [`../ADAYLAR.md`](../ADAYLAR.md)'de tek satırlık iz kaldı.
 
 | F-NN | Başlık | Faz |
 |---|---|---|
-| F-110 | `pgvector`'ün isteğe bağlı olması | [Faz 67](../67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
-| F-111 | Çalıştırma kimliği ve maliyet kırılım boyutları | [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-112 | Cache ve reasoning token kırılımı | [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-113 | Tool düzeyinde yetkilendirme ve etki sınıfı | [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-114 | Tool yürütme timeout'u | [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-115 | Çalıştırma olayı hedefi ve `ReasoningDelta` | [Faz 70](../70-CALISTIRMA-OLAYI-HEDEFI.md) |
-| F-116 | Workflow kod düğümü | [Faz 71](../71-WORKFLOW-KOD-DUGUMU.md) |
-| F-117 | Talimatta çok dillilik | [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-118 | Zaman damgalı konuşma sentezi | [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-119 | Kiracı bazlı sağlayıcı allowlist'i | [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katıldı |
+| F-110 | `pgvector`'ün isteğe bağlı olması | [Faz 67](../arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
+| F-111 | Çalıştırma kimliği ve maliyet kırılım boyutları | [Faz 68](../arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-112 | Cache ve reasoning token kırılımı | [Faz 68](../arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-113 | Tool düzeyinde yetkilendirme ve etki sınıfı | [Faz 69](../arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-114 | Tool yürütme timeout'u | [Faz 69](../arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-115 | Çalıştırma olayı hedefi ve `ReasoningDelta` | [Faz 70](../arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) |
+| F-116 | Workflow kod düğümü | [Faz 71](../arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md) |
+| F-117 | Talimatta çok dillilik | [Faz 72](../arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-118 | Zaman damgalı konuşma sentezi | [Faz 72](../arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-119 | Kiracı bazlı sağlayıcı allowlist'i | [Faz 65](../arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katıldı |
 
 **Gruplama gerekçesi (kullanıcı kararı):** F-113+F-114 aynı `ToolDescriptor`
 kaydına, F-111+F-112 aynı `runs` tablosuna dokunur — ayrı planlamak aynı yere

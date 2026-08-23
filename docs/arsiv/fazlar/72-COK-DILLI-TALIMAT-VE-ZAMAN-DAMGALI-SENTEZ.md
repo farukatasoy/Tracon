@@ -1,13 +1,13 @@
 # Faz 72 — Çok Dilli Talimat ve Zaman Damgalı Sentez
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-117**, **F-118**
-> **Önkoşul:** [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](arsiv/fazlar/28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-117**, **F-118**
+> **Önkoşul:** [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) — agent sürümleme ve diff · [Faz 28](28-SES-TOOLLARI.md) — ses tool'ları ve ElevenLabs istemcisi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Voice`, `AgentPrism.Sql.Shared`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **YOK** — plan yanlıştı, bkz. Plandan Sapmalar ve K-499
 > **Public API:** **büyüdü** — `AgentDefinition.InstructionsByCulture`, `AgentDefinitionRequest.InstructionsByCulture`, `AgentRunRequest.Culture`, `IAgentSource`/`IAgentCatalog`/`IVersionedAgentSource` imzalarına `culture`, `CompiledAgentCache`'e culture'lı aşırı yükler, `InstructionCultureResolver` (yeni tip), `SpeechRequest.IncludeTimestamps`, `SpeechAudio.Alignment`, `SpeechAlignment` (yeni tip), `SpeakRequest.IncludeTimestamps`, `SpeakResponse.Alignment`. `PublicAPI.Shipped.txt` hâlâ boş — bedavaydı.
 > **Site etkisi:** `concepts/agents.md`, `guides/voice.md` güncellendi. `reference/configuration.md`'ye dokunulmadı — gerekçe: bu faz `AgentPrismOptions`/`VoiceOptions`'a yeni bir yapılandırma anahtarı eklemedi (`culture`/`includeTimestamps` istek başına alan, config değil)
-> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md) (MT-MM-091..094) · [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) (MT-CORE-075..081)
+> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) (MT-MM-091..094) · [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) (MT-CORE-075..081)
 
 ---
 
@@ -41,8 +41,8 @@ uygulanabilir ve bağımsız olarak iptal edilebilir.
    **K-232** (🚨 **sunucu yanıtları çevrilmez** — bu faz onu ihlal etmiyor,
    §72.1'e bak), **K-178** (migration numaraları), **K-032** (yerleşik liste yok).
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) (ses tool'ları) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (sözlük, bundle)
+   [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) (ses tool'ları) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (sözlük, bundle)
 
 ---
 
@@ -59,9 +59,9 @@ uygulanabilir ve bağımsız olarak iptal edilebilir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinition.cs:33`](../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs) | `public string? Instructions` — tek metin, kültür kavramı yok |
-| [`ElevenLabsSpeechClient.cs:318-319`](../src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs) | Yalnız `v1/text-to-speech/{voiceId}` ve `/stream` çağrılıyor |
-| [`SpeechContracts.cs:111-142`](../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `SpeakRequest` üç alan; `SpeakResponse` ek, karakter, maliyet — **hizalama verisi yok** |
+| [`AgentDefinition.cs:33`](../../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs) | `public string? Instructions` — tek metin, kültür kavramı yok |
+| [`ElevenLabsSpeechClient.cs:318-319`](../../../src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs) | Yalnız `v1/text-to-speech/{voiceId}` ve `/stream` çağrılıyor |
+| [`SpeechContracts.cs:111-142`](../../../src/AgentPrism.Abstractions/Voice/SpeechContracts.cs) | `SpeakRequest` üç alan; `SpeakResponse` ek, karakter, maliyet — **hizalama verisi yok** |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
 
@@ -98,8 +98,8 @@ bir tarayıcı başlığının modele giden içeriği sessizce değiştirmesi s�
 
 ### 🚨 Sürümleme ve eval sorusu — bu fazın asıl kararı
 
-[Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) sürümü ve diff'i **tek** bir talimat
-metni üzerinden kurdu. [Faz 18](arsiv/fazlar/18-DEGERLENDIRME.md) eval'i de öyle. Kültür
+[Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) sürümü ve diff'i **tek** bir talimat
+metni üzerinden kurdu. [Faz 18](18-DEGERLENDIRME.md) eval'i de öyle. Kültür
 eklenince şu soru doğar: **kültür sürümün içinde mi dışında mı?**
 
 | Seçenek | Sonuç |
@@ -107,8 +107,8 @@ eklenince şu soru doğar: **kültür sürümün içinde mi dışında mı?**
 | **A — kültür sürümün İÇİNDE** | Bir sürüm tüm dilleri taşır. Bir dili düzeltmek yeni sürüm açar ve **tüm dilleri** etkiler. Diff çok dilli olur. Eval seti dil seçer |
 | **B — dil başına ayrı sürüm hattı** | Diller bağımsız ilerler. Ama "agent'ın aktif sürümü" tek bir şey olmaktan çıkar; deney (`experiment`) ve kanarya ağırlıkları dil başına ayrışır |
 
-**A önerilir.** B, [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) ve
-[Faz 56](arsiv/fazlar/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)'nın kurduğu "agent'ın tek
+**A önerilir.** B, [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) ve
+[Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)'nın kurduğu "agent'ın tek
 aktif sürümü vardır" sözleşmesini kırar ve o kırılma bu fazın kapsamından
 büyüktür. A'nın bedeli kabul edilebilir: bir dili düzeltmek bir sürüm açar,
 zaten olması gereken budur.

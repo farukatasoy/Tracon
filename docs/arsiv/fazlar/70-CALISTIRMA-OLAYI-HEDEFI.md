@@ -1,13 +1,13 @@
 # Faz 70 — Çalıştırma Olayı Hedefi ve Düşünme Akışı
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-115**
-> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — `RunRecordingAgent` ve olay yazımı · [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — gömülebilir bileşen, taşıyıcı tarafının istemci yarısı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-115**
+> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — `RunRecordingAgent` ve olay yazımı · [Faz 61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — gömülebilir bileşen, taşıyıcı tarafının istemci yarısı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **büyüyor (küçük)** — bir arayüz ve `RunEventType`'a **bir ekleme**. Enum sonuna ekleme K-040 ile serbesttir. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
 > **Site etkisi:** `concepts/runs.md`, `guides/observability.md`, `concepts/agents.md` (reasoning)
-> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
+> **Manuel test alanı:** [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
 
 ---
 
@@ -26,12 +26,12 @@
    `ActivityListener` ile), **K-398** (erken `DisposeAsync`'te terminal durum yazılır).
 3. [`61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md`](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md
    ```
    SSE başlıklarının akış başlamadan gönderilme kısıtı (K-439) bu fazı ilgilendirir.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` ve akışlı yol — **dört kez** bedel ödetti) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (arayüz, bundle)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` ve akışlı yol — **dört kez** bedel ödetti) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (arayüz, bundle)
 
 ---
 
@@ -51,10 +51,10 @@ yanlış yerdir. Bu faz, olayları süreç içinde dinlenebilir kılar.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunEventWriter.cs:22`](../src/AgentPrism.Core/Recording/RunEventWriter.cs) | Tek hedef `IRunStore`. Gözlemci genişleme noktası yok |
+| [`RunEventWriter.cs:22`](../../../src/AgentPrism.Core/Recording/RunEventWriter.cs) | Tek hedef `IRunStore`. Gözlemci genişleme noktası yok |
 | `grep -rn "IRunEventSink\|IRunEventObserver" src --include="*.cs" \| wc -l` → **0** | Kavram kod tabanında yok |
-| [`RunEventType.cs`](../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | Yirmi iki değer, `0`–`21`. `ReasoningDelta` yok |
-| [`RunRecordingAgent.cs:947-965`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `WriteContentsAsync` `switch`'i üç tipi tanır: `TextContent`, `FunctionCallContent`, `FunctionResultContent`. Geri kalan `default: break` |
+| [`RunEventType.cs`](../../../src/AgentPrism.Abstractions/Runs/RunEventType.cs) | Yirmi iki değer, `0`–`21`. `ReasoningDelta` yok |
+| [`RunRecordingAgent.cs:947-965`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `WriteContentsAsync` `switch`'i üç tipi tanır: `TextContent`, `FunctionCallContent`, `FunctionResultContent`. Geri kalan `default: break` |
 | `Microsoft.Extensions.AI.Abstractions` **10.8.3** | `TextReasoningContent` **vardır** ve MAF onu üretir |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -135,7 +135,7 @@ gelir. `RecordMessageDeltas`'tan farklı davranmasının üç gerekçesi vardır
 | **Sağlayıcı politikası** | Bazı sağlayıcılar ham düşünme metnini saklamaya kısıt koyar; kısıtlar **doğrulanmadı** |
 
 Açmak isteyen bir satır yazar. K1 ile uyumludur ve
-[Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama politikasıyla çelişmez.
+[Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md)'in saklama politikasıyla çelişmez.
 
 **Not:** Faz 68 planlanmışsa `ReasoningTokens` alanı orada gelir. İkisi
 bağımsızdır: token **sayısı** kullanımdan, `ReasoningDelta` **metinden** gelir.
@@ -253,7 +253,7 @@ sözleşme testi · alt sistem hatası — hedef ve depo bağımsız düşer.
 |---|---|---|---|
 | 1 | Hedef sıcak yolda mı, kuyrukta mı? | A: sıcak yol, "hızlı ol" sözleşmesi · B: paket içinde kuyruk | **A** — B bir kuyruk, bir tüketici görevi ve bir taşma politikası demektir; K1'i (sıfır sürpriz) zorlar. Kuyruğa alma tüketicinin bilinçli kararıdır |
 | 2 | Hedef hatası kaç kez tolere edilir? | A: ilk hatada o `run` için susar (`IsDisabled` deseni) · B: her olayda yeniden dener | **A** — `RunEventWriter`'ın var olan deseniyle birebir aynı; ikinci bir davranış modeli öğretmez |
-| 3 | `ReasoningDelta` saklama politikasına nasıl girer? | A: `MessageDelta` ile aynı kova · B: ayrı saklama süresi | **A** bu fazda; B ölçülmemiş bir ihtiyaçtır. [Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) sahibidir |
+| 3 | `ReasoningDelta` saklama politikasına nasıl girer? | A: `MessageDelta` ile aynı kova · B: ayrı saklama süresi | **A** bu fazda; B ölçülmemiş bir ihtiyaçtır. [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) sahibidir |
 | 4 | Hedef `RunEvent`'i mi yoksa daraltılmış bir görünümü mü alır? | A: `RunEvent` · B: ayrı bir DTO | **A** — ikinci bir tip iki sözleşme demektir; `RunEvent` zaten public |
 
 ---
@@ -290,7 +290,7 @@ sözleşme testi · alt sistem hatası — hedef ve depo bağımsız düşer.
       karakter (hacim riskine ilk somut veri noktası)
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri
-      [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
+      [`docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md)
       içine eklendi (MT-UIRUN-047/048/049); 047/048 API üzerinden koşuldu,
       049 (arayüzde katlanabilir blok) 👤 insan gerektirir olarak işaretlendi
       — paylaşılan Playwright tarayıcı oturumu meşguldü
@@ -538,4 +538,4 @@ gerektirmiyor).
   önce yeniden arşivleme gerektirebilir.
 
 **Sıradaki faz:** `docs/ADAYLAR.md`'den seçilecek; F-115 bu fazla kapandı.
-`docs/71-WORKFLOW-KOD-DUGUMU.md` (F-116) zaten planlanmış durumda.
+`docs/arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md` (F-116) zaten planlanmış durumda.

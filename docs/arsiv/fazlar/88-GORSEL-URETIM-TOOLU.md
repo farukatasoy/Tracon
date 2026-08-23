@@ -1,14 +1,14 @@
 # Faz 88 — Görsel Üretim Tool'u
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-142** — Dalga 14 Küme Ö
-> **Önkoşul:** [Faz 28](arsiv/fazlar/28-SES-TOOLLARI.md) (ses tool'ları — yapı emsali) · [Faz 14](arsiv/fazlar/14-COK-MODLULUK.md) (ekler ve `IAttachmentStorage`) · [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) (`ToolCallUsage` ve token kırılımı)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-142** — Dalga 14 Küme Ö
+> **Önkoşul:** [Faz 28](28-SES-TOOLLARI.md) (ses tool'ları — yapı emsali) · [Faz 14](14-COK-MODLULUK.md) (ekler ve `IAttachmentStorage`) · [Faz 68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) (`ToolCallUsage` ve token kırılımı)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Azure`, `AgentPrism.Google`
 > **Yeni paket:** 🚨 **Yok — ÖLÇÜLDÜ (2026-08-21).** Aday listesinin "ÖLÇÜLMEDİ" satırı kapandı: hiçbir yeni NuGet paketi gerekmiyor (88.1) · **Migration:** Yok — ölçüm `tool_invocations` satırına `ToolCallUsage` olarak yazılır ve o yol Faz 68'de açıldı
 > **Public API:** Büyüyor — 1 ayar tipi, 2 `ToolUsageUnits` sabiti, sağlayıcı başına 1 kayıt uzantısı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `guides/multimodal.md`, `guides/model-providers.md`, `reference/configuration.md`, `capabilities.md`, `concepts/tools.md`
 > · sevk edilen: tool ve fiyat ayarının XML dokümanı, `src/AgentPrism.Core/README.md`, sağlayıcı paketlerinin `README.md`'leri. `api/` ve `http-api/` **üretilir**
-> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](manuel-test/19-COK-MODLULUK-VE-SES.md) · [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> **Manuel test alanı:** [`docs/manuel-test/19-COK-MODLULUK-VE-SES.md`](../../manuel-test/19-COK-MODLULUK-VE-SES.md) · [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
 
@@ -29,16 +29,16 @@
    tüketiciden gelir), **K-032** (yerleşik model listesi tutulmaz).
 3. [`68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md`](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) — yalnız devir notu:
    ```bash
-   awk '/^## Sonraki Faza Devir Notu/,0' docs/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md
    ```
    `ToolCallUsage` ve `AgentPrismToolUsage.Report(...)` sözleşmesi oradadır; bu
    faz o yolu **kullanır**, yeni bir ölçüm yolu **açmaz**.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) (birebir emsal — tool yapısı, fiyat, ek deposu) ·
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) (sağlayıcı kaydı) ·
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (MEAI tipleri)
+   [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) (birebir emsal — tool yapısı, fiyat, ek deposu) ·
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) (sağlayıcı kaydı) ·
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (MEAI tipleri)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — tool kayıt ve çalıştırma yolu
+   [`MIMARI.md`](../../MIMARI.md) — tool kayıt ve çalıştırma yolu
 
 ---
 
@@ -71,10 +71,10 @@ kalem değerini kaybeder.
 | Kanıt | Gözlem |
 |---|---|
 | `src/` içinde görsel üretimi araması | **0 eşleşme** |
-| [`SpeakTool.cs`](../src/AgentPrism.Voice/Tools/SpeakTool.cs) | `internal sealed class`; modele **ek kimliğini** döndürür, ham içeriği değil — *"base64 bağlam penceresini doldururdu"* |
-| [`AgentPrismOptions.cs:548`](../src/AgentPrism.Core/AgentPrismOptions.cs#L548) | `VoicePriceOverride` `PerMillionCharacters` **veya** `PerMinute` taşır — "bir model ya şu ya bu birimle ücretlenir" ayrımı çözülmüş |
-| [`IAttachmentStore.cs:69`](../src/AgentPrism.Abstractions/Attachments/IAttachmentStore.cs#L69) | `IAttachmentStorage` genişleme noktası **var**; kayıtlı değilse içerik veritabanında yaşar |
-| [`ToolInvocationRecord.cs:68`](../src/AgentPrism.Abstractions/Runs/ToolInvocationRecord.cs#L68) | `Usage` alanı `ToolCallUsage` taşır; `AgentPrismToolUsage.Report(...)` ile doldurulur |
+| [`SpeakTool.cs`](../../../src/AgentPrism.Voice/Tools/SpeakTool.cs) | `internal sealed class`; modele **ek kimliğini** döndürür, ham içeriği değil — *"base64 bağlam penceresini doldururdu"* |
+| [`AgentPrismOptions.cs:548`](../../../src/AgentPrism.Core/AgentPrismOptions.cs#L548) | `VoicePriceOverride` `PerMillionCharacters` **veya** `PerMinute` taşır — "bir model ya şu ya bu birimle ücretlenir" ayrımı çözülmüş |
+| [`IAttachmentStore.cs:69`](../../../src/AgentPrism.Abstractions/Attachments/IAttachmentStore.cs#L69) | `IAttachmentStorage` genişleme noktası **var**; kayıtlı değilse içerik veritabanında yaşar |
+| [`ToolInvocationRecord.cs:68`](../../../src/AgentPrism.Abstractions/Runs/ToolInvocationRecord.cs#L68) | `Usage` alanı `ToolCallUsage` taşır; `AgentPrismToolUsage.Report(...)` ile doldurulur |
 | `ToolUsageUnits` | Bugün yalnız `Characters` ve `Seconds` sabitlerini taşır |
 
 > Kanıtlar 2026-08-21 tarihinde yeniden ölçüldü.
@@ -170,7 +170,7 @@ taşır ve ikisi ek deposuna farklı girer:
 **Kiracı ve oturum.** Ek yazılırken `AgentPrismRunContext.Current` üzerinden
 `TenantId` ve `SessionId` **taşınır**. 🚨 `SessionId` boş bırakılırsa saklama
 politikası eki **öksüz** sayar ve kesim tarihinden sonra siler — bu tuzak
-[`AgentPrismRunContext.cs:81`](../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L81)
+[`AgentPrismRunContext.cs:81`](../../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L81)
 XML dokümanında yazılıdır.
 
 **Tool `ToolEffect.External` taşır** — veri süreç dışına çıkar ve para harcanır.
@@ -207,7 +207,7 @@ Ayar `VoicePriceOverride` desenini izler: bir model **ya şu ya bu** birimle
 ## 88.4 — 🚨 Fiyat uydurulmaz
 
 **Bu fazın en sert kuralıdır.** Eşleşme yoksa `null` döner. Ses tarafının kuralı
-([`VoicePricing.Find`](../src/AgentPrism.Voice/Internal/VoicePricing.cs)) burada
+([`VoicePricing.Find`](../../../src/AgentPrism.Voice/Internal/VoicePricing.cs)) burada
 **aynen** korunur: model kaydı yoksa `null`, tahmin yok.
 
 Gerekçe kalemin kendi karşı görüşüdür: *"yanlış fiyat, fiyat olmamasından

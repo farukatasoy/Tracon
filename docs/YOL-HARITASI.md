@@ -1,7 +1,8 @@
 # Faz Yol Haritası
 
 > **Üretilen dosya. Elle düzenleme.** Kaynak: her fazın kendi
-> `docs/NN-*.md` dosyasındaki `> **Durum:**` satırı.
+> dokümanındaki `> **Durum:**` satırı. Açık fazlar `docs/` kökünde,
+> kapanmış fazlar `docs/arsiv/fazlar/` altında yaşar.
 > Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`
 
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
@@ -71,35 +72,35 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [57](arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md) | Kod Dili Birleştirme (İngilizce) | ✅ Tamamlandı |
 | [58](arsiv/fazlar/58-DOKUMAN-DUZENI.md) | Doküman Düzeni | ✅ Tamamlandı |
 | [59](arsiv/fazlar/59-URUN-DOKUMANTASYONU.md) | Ürün Dokümantasyonu (Doküman Sitesi) | ✅ Tamamlandı |
-| [60](60-PUBLIC-API-KAPISI.md) | Public API Kapısı | ✅ Tamamlandı |
-| [61](61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) | İstemci Tool'ları ve Gömülebilir Sohbet | ✅ Tamamlandı |
-| [62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) | Model Yedek Zinciri ve Ön Uçuş Denetimi | ✅ Tamamlandı |
-| [63](63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) | Argüman Düzeyinde Onay Politikası | ✅ Tamamlandı |
-| [64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) | Denetim Zinciri ve Veri Konusu Hakları | ✅ Tamamlandı |
-| [65](65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | ✅ Tamamlandı |
-| [66](66-GELEN-TETIKLEYICILER.md) | Gelen Tetikleyiciler | ✅ Tamamlandı |
-| [67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | ✅ Tamamlandı |
-| [68](68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | Çalıştırma Kimliği ve Token Kırılımı | ✅ Tamamlandı |
-| [69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) | Tool Yetkilendirmesi ve Yürütme Timeout'u | ✅ Tamamlandı |
-| [70](70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | ✅ Tamamlandı |
-| [71](71-WORKFLOW-KOD-DUGUMU.md) | Workflow Kod Düğümü | ✅ Tamamlandı |
-| [72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | Çok Dilli Talimat ve Zaman Damgalı Sentez | ✅ Tamamlandı |
-| [73](73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | ✅ Tamamlandı |
-| [74](74-YEREL-REFERANS-YUZEYI.md) | Yerel Referans Yüzeyi | ✅ Tamamlandı |
-| [75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) | Tüketici Dokümanının Doğruluğu | ✅ Tamamlandı |
-| [76](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) | Doküman Kalitesi ve Görsel Kimlik | ✅ Tamamlandı |
-| [77](77-GIDEN-AG-MUHAFIZI.md) | Giden Ağ Muhafızı | ✅ Tamamlandı |
-| [78](78-YETENEK-HARITASI-ERISIMI.md) | Yetenek Haritası Erişimi | ✅ Tamamlandı |
-| [79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | ✅ Tamamlandı |
-| [80](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | ✅ Tamamlandı |
-| [81](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | ✅ Tamamlandı |
-| [82](82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | ✅ Tamamlandı |
-| [83](83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | ✅ Tamamlandı |
-| [84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | ✅ Tamamlandı |
-| [85](85-GOMME-EKSENI.md) | Gömme Ekseni | ✅ Tamamlandı |
-| [86](86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | ✅ Tamamlandı |
-| [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | ✅ Tamamlandı |
-| [88](88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | ✅ Tamamlandı |
-| [89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | ✅ Tamamlandı |
+| [60](arsiv/fazlar/60-PUBLIC-API-KAPISI.md) | Public API Kapısı | ✅ Tamamlandı |
+| [61](arsiv/fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) | İstemci Tool'ları ve Gömülebilir Sohbet | ✅ Tamamlandı |
+| [62](arsiv/fazlar/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) | Model Yedek Zinciri ve Ön Uçuş Denetimi | ✅ Tamamlandı |
+| [63](arsiv/fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) | Argüman Düzeyinde Onay Politikası | ✅ Tamamlandı |
+| [64](arsiv/fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) | Denetim Zinciri ve Veri Konusu Hakları | ✅ Tamamlandı |
+| [65](arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) | Kiracı Sağlayıcı Anahtarları (BYOK) | ✅ Tamamlandı |
+| [66](arsiv/fazlar/66-GELEN-TETIKLEYICILER.md) | Gelen Tetikleyiciler | ✅ Tamamlandı |
+| [67](arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | ✅ Tamamlandı |
+| [68](arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) | Çalıştırma Kimliği ve Token Kırılımı | ✅ Tamamlandı |
+| [69](arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) | Tool Yetkilendirmesi ve Yürütme Timeout'u | ✅ Tamamlandı |
+| [70](arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) | Çalıştırma Olayı Hedefi ve Düşünme Akışı | ✅ Tamamlandı |
+| [71](arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md) | Workflow Kod Düğümü | ✅ Tamamlandı |
+| [72](arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) | Çok Dilli Talimat ve Zaman Damgalı Sentez | ✅ Tamamlandı |
+| [73](arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md) | Tüketici Agent Desteği | ✅ Tamamlandı |
+| [74](arsiv/fazlar/74-YEREL-REFERANS-YUZEYI.md) | Yerel Referans Yüzeyi | ✅ Tamamlandı |
+| [75](arsiv/fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md) | Tüketici Dokümanının Doğruluğu | ✅ Tamamlandı |
+| [76](arsiv/fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) | Doküman Kalitesi ve Görsel Kimlik | ✅ Tamamlandı |
+| [77](arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md) | Giden Ağ Muhafızı | ✅ Tamamlandı |
+| [78](arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md) | Yetenek Haritası Erişimi | ✅ Tamamlandı |
+| [79](arsiv/fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md) | Sevk Edilen Yüzey Kapıları | ✅ Tamamlandı |
+| [80](arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | Doküman Kapılarının Doğruluğu | ✅ Tamamlandı |
+| [81](arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | ✅ Tamamlandı |
+| [82](arsiv/fazlar/82-ICERIK-KORUMASI.md) | İçerik Koruması (at-rest) | ✅ Tamamlandı |
+| [83](arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md) | Tipli Yönetim İstemcisi ve CLI | ✅ Tamamlandı |
+| [84](arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md) | TypeScript İstemcisi ve npm Kanalı | ✅ Tamamlandı |
+| [85](arsiv/fazlar/85-GOMME-EKSENI.md) | Gömme Ekseni | ✅ Tamamlandı |
+| [86](arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | ✅ Tamamlandı |
+| [87](arsiv/fazlar/87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | ✅ Tamamlandı |
+| [88](arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | ✅ Tamamlandı |
+| [89](arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

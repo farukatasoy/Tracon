@@ -10,7 +10,7 @@ namespace AgentPrism.Core.UnitTests.Tools;
 /// <summary>
 /// Verifies the composition order <c>ToolRegistry</c> installs — Authorizing
 /// (outermost) then Timeout then ApprovalRequired (innermost) then the real
-/// function — docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, section 69.1.
+/// function — docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, section 69.1.
 /// </summary>
 public sealed class ToolRegistryWrapperOrderTests
 {

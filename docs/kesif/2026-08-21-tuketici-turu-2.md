@@ -90,7 +90,7 @@ Bu turun en değerli çıktısı budur. Beş iddia ölçüldü ve **yanlış** �
 | **§7.7** — tool gövdesi oturumu/koşuyu göremez, `_sessionId` enjeksiyonunun karşılığı planlanmalı | [`AgentPrismRunContext.cs:35`](../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L35) **public**; `AgentRunScope` `RunId`·`RootRunId`·`Depth`·`AgentName`·`TenantId`·`SessionId`·`Budget`·`AgentVersion`·`ExperimentId`·`Variant` taşır. XML dokümanı: *"A tool cannot access `AgentSession`, so this is the only place it can read the session identity from"* | ❌ Yarısı **bugün çözülü**. Kalan yarı (çalışma anı parametresi) F-34'tür |
 | **§4.4** — koşu ağacı maliyet toplamı API'de var mı, ölçmedim | [`RunRecord.cs:121,137`](../../src/AgentPrism.Abstractions/Runs/RunRecord.cs) `TreeUsage`/`TreeCost` · [`RunSupportTypes.cs:155`](../../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs#L155) `RunTreeCost` — `InputCost`·`OutputCost`·`CachedInputCost`·`Currency` ve fiyatı bilinmeyen koşu sayısı | ❌ Zaten var |
 | **§4.2** — kota %80 eşik olayı yayınlanıyor mu, ölçmedim | `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`) · `WebhookEvents.QuotaThreshold`. F-100 bunu **2026-08-18'de kapattı** | ❌ Zaten var |
-| **§4.5** — CI için kütüphane içinden çağrılabilir doğrulayıcı gerekir; `AgentDefinitionCompiler` public mi? | [`AgentDefinitionCompiler.cs:35`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L35) `public sealed class` | ❌ Zaten public. Kalan iş F-50 → [Faz 83](../83-TIPLI-ISTEMCI-VE-CLI.md) |
+| **§4.5** — CI için kütüphane içinden çağrılabilir doğrulayıcı gerekir; `AgentDefinitionCompiler` public mi? | [`AgentDefinitionCompiler.cs:35`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L35) `public sealed class` | ❌ Zaten public. Kalan iş F-50 → [Faz 83](../arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md) |
 
 ### 3.1 Raporun kendi düşürdüğü altı iddia — hepsi doğrulandı
 
@@ -137,7 +137,7 @@ bulamadı, çünkü **hangi soruyu soracağını bilmiyordu**.
 
 **Kanıt seviyesi:** **Ölçüldü.** [`AgentDefinition.cs:33,41`](../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs)
 · [`AgentContracts.cs:212-282`](../../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs)
-— parametre alanı yok. [Faz 82](../82-ICERIK-KORUMASI.md) belge/talimat ayrımını
+— parametre alanı yok. [Faz 82](../arsiv/fazlar/82-ICERIK-KORUMASI.md) belge/talimat ayrımını
 **kapsamıyor** (at-rest şifreleme).
 **Mercek:** 1, 5, 7 (dolaylı 3).
 **Eleyici sınır:** 🚨 **K2 sınırdadır** — bu yüzden yalnız değer yerleştirme;

@@ -1969,7 +1969,7 @@ Regresyon kapısı — `Nodes` boşken hiçbir kod yolu değişmemeli.
 ### MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
 
 **Gerçekten koşuldu ve doğrulandı** (2026-08-19, `samples/AgentPrism.Api`,
-port 5091, EchoModelProvider — bkz. `docs/71-WORKFLOW-KOD-DUGUMU.md` "Doğrulama
+port 5091, EchoModelProvider — bkz. `docs/arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md` "Doğrulama
 komutları" bölümü).
 
 | | |

@@ -1,7 +1,7 @@
 # Faz 81 — Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-45**, **F-134** — Dalga 13 Küme B
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-45**, **F-134** — Dalga 13 Küme B
 > **Önkoşul:** [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) — halka sırası kuralı ve `ModelBinding` bayrak emsali oradan gelir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`
 > **🚨 Plan sonrası sürüm değişimi:** Plan MAF 1.16.0 · MEAI 10.8.3'e karşı yazıldı; depo 2026-08-21'de **MAF 1.18.0 · MEAI 10.9.0 · MCP 2.2.0**'a yükseldi (K-543, K-544). İki etkisi vardır ve ikisi de §81.5 ile §81.1'dedir: eşzamanlı tool bayrağının **ikinci bir evi** doğdu, ve MEAI 10.9.0 kendi yönlendirme/yedek istemcilerini getirdi (`RoutingChatClient` ailesi) — bu faz onları kullanmaz, ama halka sırası kararı verilirken bilinmelidir
@@ -9,7 +9,7 @@
 > **Public API:** Büyüyor — iki `ModelBinding` alanı, bir `sealed record`, bir `public class`. `PublicAPI.Shipped.txt` dosyalarının toplamı **16 satır** (yalnız başlık satırları; ölçüldü) → Faz 7'den önce eklemek ucuzdur, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → `guides/model-providers.md` (önbellek), `guides/reliability.md` (önbelleğin devre kesici ve yedek zincirle ilişkisi), `concepts/tools.md` §"Authorization and timeout" kardeşi (eşzamanlı çağrı), `capabilities.md` §"Agent design and model control" tablosuna iki satır
 > · sevk edilen: `ModelBinding` XML dokümanı (yeni alanlar), `src/AgentPrism.Core/README.md`. `api/` ve `http-api/schema-modelbinding.md` **üretilir** — orada iş XML dokümanıdır
-> **Manuel test alanı:** [`docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md`](manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md) (`MYU`) — ikisi de `ModelBinding` + `ModelProviderRegistry` yüzeyidir
+> **Manuel test alanı:** [`docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md`](../../manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md) (`MYU`) — ikisi de `ModelBinding` + `ModelProviderRegistry` yüzeyidir
 
 ---
 
@@ -32,21 +32,21 @@
    birleştirilen string yasak), **K-007** (yeni paket gerekçesi).
 3. [`62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md`](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md
    ```
    Bu faz onun sözleşmesini devralır: `ModelBinding` üzerinden agent başına
    boru hattı bayrağı ve `ModelProviderRegistry` içindeki halka sırası.
    🚨 **Faz 79 ve Faz 80 planlandı ama uygulanmadı** — devir notları boştur,
    okuma.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (halka sırası ve
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (halka sırası ve
    dekoratör tuzakları — özellikle "yerinde değiştirme" maddesi) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (`AsyncLocal` tuzağı; F-134'ün kayıtlı riski buydu) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (eşzamanlılık testi
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (eşzamanlılık testi
    yazarken kırılganlığı ayırt etme protokolü)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) §6 (Çalıştırma Yolu)
+   [`MIMARI.md`](../../MIMARI.md) §6 (Çalıştırma Yolu)
 
 ---
 
@@ -72,11 +72,11 @@ anahtarı **doğru** vermektir.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rn "IDistributedCache" src` → **boş** | Yanıt önbelleği hiç yok. Aynı istem iki kez sorulursa iki kez ağa çıkar |
-| `grep -rn "AllowConcurrentInvocation" src` → **tek bir yorum** ([`ToolUsageAccumulator.cs:18`](../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)) | Bayrak hiçbir yerde `true` değil. Bir turdaki bağımsız tool'lar sırayla koşar |
-| [`ModelProviderRegistry.cs:318-320`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L318-L320) | Ekleme noktası ayakta: `.AsBuilder().UseFunctionInvocation(_loggerFactory).UseOpenTelemetry(...)`. K-320'nin merkezî kurulum noktası korunuyor |
-| [`ModelBinding.cs`](../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | `Fallbacks`, `ResponseFormat`, `ReasoningEffort` aynı desendedir: agent başına boru hattı bayrağı buraya konur |
-| [`AgentDefinitionPayload.cs:36`](../src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs#L36) | `ModelBinding` `jsonb`'ye **bütün olarak** serileşir → yeni alan migration istemez |
-| [`AgentDefinitionCompiler.cs:444`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L444) → [`AgentDefinitionValidator.cs:332`](../src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs#L332) | Derleyici istemciyi kayıt defterinden alır; `AgentPrismCompilationException` doğrulama ucunda `compilation_error` mesajına dönüşür. Fail-fast yolu **hazır** |
+| `grep -rn "AllowConcurrentInvocation" src` → **tek bir yorum** ([`ToolUsageAccumulator.cs:18`](../../../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs#L18)) | Bayrak hiçbir yerde `true` değil. Bir turdaki bağımsız tool'lar sırayla koşar |
+| [`ModelProviderRegistry.cs:318-320`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L318-L320) | Ekleme noktası ayakta: `.AsBuilder().UseFunctionInvocation(_loggerFactory).UseOpenTelemetry(...)`. K-320'nin merkezî kurulum noktası korunuyor |
+| [`ModelBinding.cs`](../../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | `Fallbacks`, `ResponseFormat`, `ReasoningEffort` aynı desendedir: agent başına boru hattı bayrağı buraya konur |
+| [`AgentDefinitionPayload.cs:36`](../../../src/AgentPrism.Sql.Shared/Internal/AgentDefinitionPayload.cs#L36) | `ModelBinding` `jsonb`'ye **bütün olarak** serileşir → yeni alan migration istemez |
+| [`AgentDefinitionCompiler.cs:444`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L444) → [`AgentDefinitionValidator.cs:332`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs#L332) | Derleyici istemciyi kayıt defterinden alır; `AgentPrismCompilationException` doğrulama ucunda `compilation_error` mesajına dönüşür. Fail-fast yolu **hazır** |
 
 > Kanıtlar 2026-08-21 tarihinde doğrulandı.
 
@@ -221,7 +221,7 @@ flowchart LR
 
 Hata metni **hangi kaydın eksik olduğunu** söyler; "önbellek çalışmıyor"
 demek yetmez. Emsal `ParseReasoningEffort`
-([`AgentDefinitionCompiler.cs:654-662`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L654-L662)):
+([`AgentDefinitionCompiler.cs:654-662`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L654-L662)):
 geçersiz değer sessizce yok sayılmaz, geçerli değerler listelenir.
 
 `ModelProviderRegistry` kurucusuna `IDistributedCache?` eklenir ve
@@ -248,8 +248,8 @@ yapılandırma geri çağrısına geçer:
 >
 > | Ev | Nokta | Ne anlama gelir |
 > |---|---|---|
-> | Boru hattı (planın yazdığı) | [`ModelProviderRegistry.cs:319`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L319) | Bayrak `IChatClient` örneğine bağlanır. `ModelProviderRegistry` istemciyi **kiracı + sağlayıcı** başına önbelleğe alır; agent başına bir bayrak burada agent başına bir istemci örneği demektir |
-> | Agent seçenekleri (1.18.0'ın getirdiği) | [`AgentDefinitionCompiler.cs:1050`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L1050) — `new ChatClientAgentOptions { ... }` | Bayrak **derlenmiş agent'a** bağlanır. `ModelBinding` zaten agent başınadır; `Fallbacks`/`ResponseFormat` ile aynı yolu izler ve istemci önbelleğini bölmez |
+> | Boru hattı (planın yazdığı) | [`ModelProviderRegistry.cs:319`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L319) | Bayrak `IChatClient` örneğine bağlanır. `ModelProviderRegistry` istemciyi **kiracı + sağlayıcı** başına önbelleğe alır; agent başına bir bayrak burada agent başına bir istemci örneği demektir |
+> | Agent seçenekleri (1.18.0'ın getirdiği) | [`AgentDefinitionCompiler.cs:1050`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L1050) — `new ChatClientAgentOptions { ... }` | Bayrak **derlenmiş agent'a** bağlanır. `ModelBinding` zaten agent başınadır; `Fallbacks`/`ResponseFormat` ile aynı yolu izler ve istemci önbelleğini bölmez |
 >
 > **Uygulayan oturum bunu karara bağlamalıdır.** F-45'in önbellek anahtarı da
 > aynı soruyu (örnek başına mı, agent başına mı) sorar; ikisi tek fazdadır ve
@@ -263,17 +263,17 @@ yapılandırma geri çağrısına geçer:
 |---|---|
 | `FunctionInvokingChatClient.CurrentContext` | `AsyncLocal` tabanlı; çakışan iki gövdede **çağrı başına yalıtık** — probe ile kanıtlandı |
 | Gövde içinde yazılan AgentPrism `AsyncLocal`'ı (`AgentPrismRunContext.SetCurrent` deseni) | Aynı probe'ta **yalıtık** |
-| [`ToolUsageAccumulator.cs`](../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs) · [`ToolAuthorizationAccumulator.cs`](../src/AgentPrism.Core/Recording/ToolAuthorizationAccumulator.cs) | İkisi de `ConcurrentDictionary`, `callId` ile anahtarlı |
-| [`AgentRunBudget.cs`](../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | `Interlocked` sayaç + son slot için CAS döngüsü; XML dokümanı eşzamanlı alt `run`'ı zaten anlatıyor |
-| Skill script'leri | `SkillScriptConcurrencyLimiter` zaten var ([`SandboxedSkillScriptRunner.cs:57`](../src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs#L57)) |
+| [`ToolUsageAccumulator.cs`](../../../src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs) · [`ToolAuthorizationAccumulator.cs`](../../../src/AgentPrism.Core/Recording/ToolAuthorizationAccumulator.cs) | İkisi de `ConcurrentDictionary`, `callId` ile anahtarlı |
+| [`AgentRunBudget.cs`](../../../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | `Interlocked` sayaç + son slot için CAS döngüsü; XML dokümanı eşzamanlı alt `run`'ı zaten anlatıyor |
+| Skill script'leri | `SkillScriptConcurrencyLimiter` zaten var ([`SandboxedSkillScriptRunner.cs:57`](../../../src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs#L57)) |
 
 ### 🚨 Ölçülen tek çatlak — ve neden bugün kapalı
 
 `ToolInvocationTracker` **thread-safe değildir** (düz `Dictionary`; sınıfın
 kendi XML dokümanı bunu yazıyor). Bayrak bunu **açmaz**, çünkü sınıf eşzamanlı
 yoldan çağrılmaz: `RunRecordingAgent`'ın **tek okuma döngüsü** sürer
-([`RunRecordingAgent.cs:1092`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L1092) ve
-[`:1109`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L1109)) — tool
+([`RunRecordingAgent.cs:1092`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L1092) ve
+[`:1109`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L1109)) — tool
 gövdeleri değil.
 
 **Bu, akıl yürütmeyle kanıtlanmış bir iddiadır; fazın işi onu testle
@@ -421,7 +421,7 @@ bellek içi hem üç SQL sağlayıcısı üzerinde koşar.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md`](manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md)
+> Kapanışta [`docs/manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md`](../../manuel-test/27-MODEL-YEDEK-VE-ON-UCUS.md)
 > içine eklenecek case'lerin taslağı (`MYU` alan kodu, mevcut 9 case'in
 > devamı). Otomatikleştirilebilenler kapanışta koşulur.
 

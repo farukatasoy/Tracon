@@ -2,12 +2,12 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-16)
 > **Kaynak:** Kullanıcı kararı, 2026-08-16 — süreç iyileştirme oturumu. Aday listesinden gelmez.
-> **Önkoşul:** Yok. [Faz 7](arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) **beklemez** — bu faz yayın kararından bağımsızdır.
+> **Önkoşul:** Yok. [Faz 7](07-SAGLAMLASTIRMA-VE-YAYIN.md) **beklemez** — bu faz yayın kararından bağımsızdır.
 > **Paketler:** Yayınlanan 17 paketin tamamı
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — **daralıyor**. 10 metodun aşırı yükleme çifti sadeleşir (kırıcı; bugün bedava, yayından sonra pahalı)
 > **Site etkisi:** `packages.md` (API kararlılığı vaadi) · `api/` üretilir, elle yazılmaz
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) (`PKG`)
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) (`PKG`)
 
 ---
 
@@ -25,10 +25,10 @@
    çıkarıldı; takip `false` kalır), **K-008** (ön sürüm MAF paketleri yalnız
    `AspNetCore`'da), **K-353** (`UseMcp(IConfiguration, …)` aşırı yüklemesi —
    bu faz ona dokunur), **K-408** (kaynak dili sınırı)
-3. [`07-SAGLAMLASTIRMA-VE-YAYIN.md`](arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) — yalnız
+3. [`07-SAGLAMLASTIRMA-VE-YAYIN.md`](07-SAGLAMLASTIRMA-VE-YAYIN.md) — yalnız
    başlıktaki uyarı bloğu (ilk 15 satır). Bu faz onun bir parçasını **öne alır**;
    Faz 7 yine de yayın fazı olarak kalır.
-4. Alan hafızası: [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md)
+4. Alan hafızası: [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md)
    (MSBuild, analyzer tanısı, `NoWarn` davranışı)
 5. `Directory.Build.props` satır 52–60 — takibin bugünkü kapalı hâli
 
@@ -249,7 +249,7 @@ boş girdi · kiracı · alt sistem hatası) **uygulanmaz**. Gerekçe budur.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 > (`PKG`) içine eklenir.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

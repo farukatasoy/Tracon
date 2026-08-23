@@ -1,13 +1,13 @@
 # Faz 69 — Tool Yetkilendirmesi ve Yürütme Timeout'u
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-113**, **F-114**
-> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — tool onayı ve `ApprovalRequiredAIFunction` sarmalaması · [Faz 9](arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları ve denetim izi
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-113**, **F-114**
+> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — tool onayı ve `ApprovalRequiredAIFunction` sarmalaması · [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — rol politikaları ve denetim izi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Generators`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`tool_invocations` tablosuna yetki kararı ve timeout alanı). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `ToolDescriptor` ve tool attribute'u alan alır, iki yeni arayüz gelir. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
 > **Site etkisi:** `concepts/tools.md`, `concepts/governance.md`, `getting-started/tools.md`, `getting-started/security.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -24,14 +24,14 @@
    **K-218** (🚨 tool'un gördüğü servis sağlayıcı **boştur**), **K-368**
    (onay kararından sonra **yeni** bir `run` açılır), **K-367** (onay yüzeyi
    denetimi istek bazlı filtreye taşındı), **K-178** (migration numaraları).
-3. [`06-GOZLEMLENEBILIRLIK.md`](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — yalnız devir notu:
+3. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md
    ```
    Onay sarmalamasının hangi katmanda durduğunu devralıyorsun.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (`AIFunction`, `DelegatingAIFunction`) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (tool çağrı turu, K-218)
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (`AIFunction`, `DelegatingAIFunction`) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (tool çağrı turu, K-218)
 
 ---
 
@@ -55,12 +55,12 @@ birbirinin yerine geçmez; bu faz ikincisini ekler, birincisini korur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ToolDescriptor.cs:7-50`](../src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs) | Altı alan: `Name`, `Description`, `JsonSchema`, `RequiresApproval`, `Source`, `RunsOnClient`. İzin, etki ve timeout **yok** |
+| [`ToolDescriptor.cs:7-50`](../../../src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs) | Altı alan: `Name`, `Description`, `JsonSchema`, `RequiresApproval`, `Source`, `RunsOnClient`. İzin, etki ve timeout **yok** |
 | `grep -rn "IToolAuthoriz\|ToolAuthorization" src --include="*.cs" \| wc -l` → **0** | Yetkilendirme kavramı kod tabanında yok |
-| [`AgentPrismToolRegistration.cs:45-51`](../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs) | Kayıt üç şey taşır: `Function`, `RequiresApproval`, `Source` |
-| [`AgentPrismOptions.cs:71`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `McpTimeout` — yalnız MCP bağlantısı |
-| [`AgentPrismOptions.cs:210`](../src/AgentPrism.Core/AgentPrismOptions.cs) | Skill script timeout'u — yalnız script yolu |
-| [`ToolRegistry.cs:35-52`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Sarmalama **registry'de** yapılır ve kod yorumu bunu açıkça gerekçelendirir: *"the only place that enforces the rule"* |
+| [`AgentPrismToolRegistration.cs:45-51`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs) | Kayıt üç şey taşır: `Function`, `RequiresApproval`, `Source` |
+| [`AgentPrismOptions.cs:71`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `McpTimeout` — yalnız MCP bağlantısı |
+| [`AgentPrismOptions.cs:210`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | Skill script timeout'u — yalnız script yolu |
+| [`ToolRegistry.cs:35-52`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Sarmalama **registry'de** yapılır ve kod yorumu bunu açıkça gerekçelendirir: *"the only place that enforces the rule"* |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
 
@@ -369,7 +369,7 @@ kanca patlarsa ret sayılır ve loglanır.
       oturumda gerçek anahtarla koşulmaya hazır
 - [x] `secret` taraması boş döndü — yeni eklenen hiçbir dosyada `secret` yok
 - [x] Manuel kabul case'leri
-      [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+      [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
       içine eklendi (MT-SEC-120..127). Her case'in senaryosu — ret/timeout/devre
       kesici/onay+timeout — `ToolGovernanceEndpointTests`'te gerçek bir `run`
       üzerinden AYRICA otomatik test edildi; ancak case'lerin kendisi
@@ -469,7 +469,7 @@ time curl -s -X POST http://localhost:5081/agentprism/api/agents/slow/run \
 
 ## Bu Fazda Verilen Kararlar
 
-K-487, K-488, K-489, K-490, K-491 — bkz. [`docs/KARARLAR.md`](KARARLAR.md), bölüm 2
+K-487, K-488, K-489, K-490, K-491 — bkz. [`docs/KARARLAR.md`](../../KARARLAR.md), bölüm 2
 (K-486'nın hemen altı). Özet:
 
 - **K-487** — sarmalama sırası (Authorizing → Timeout → ApprovalRequired → gerçek

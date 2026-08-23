@@ -1,8 +1,8 @@
 # Faz 73 — Tüketici Agent Desteği
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-120**
-> **Önkoşul:** [Faz 52](arsiv/fazlar/52-KAYNAK-URETECI.md) — generator paketleme borusu ve `APG` tanı deseni oradan devralınır · [Faz 59](arsiv/fazlar/59-URUN-DOKUMANTASYONU.md) — `capabilities.md` ve `docs-site/scripts/` üreteç deseni
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-120**
+> **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) — generator paketleme borusu ve `APG` tanı deseni oradan devralınır · [Faz 59](59-URUN-DOKUMANTASYONU.md) — `capabilities.md` ve `docs-site/scripts/` üreteç deseni
 > **Paketler:** `AgentPrism.Generators`, `AgentPrism.Core` (yalnız paketleme), `AgentPrism.Templates` · `docs-site/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** Analyzer, MSBuild target ve üretilen dosyalar public API yüzeyi değildir; `PublicAPI.*.txt` bu fazda değişmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` her paket için 1 satır (hepsi boş)
@@ -27,18 +27,18 @@
    analyzer aynı projeye girer), **K-007** (yeni paket gerekçe ister — bu faz
    **yeni paket açmaz**), **K-059** (`secret` veritabanına yazılmaz — `APG0201`
    tanısının kaynağı), **K-228** (arayüz sözlüğü; bu faz arayüze **dokunmaz**).
-3. [`52-KAYNAK-URETECI.md`](arsiv/fazlar/52-KAYNAK-URETECI.md) — yalnız devir notu:
+3. [`52-KAYNAK-URETECI.md`](52-KAYNAK-URETECI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/52-KAYNAK-URETECI.md
    ```
    Generator DLL'inin `analyzers/dotnet/cs/` altına nasıl taşındığı ve `APG`
    tanı numaralandırması oradan devralınır. Bu faz aynı boruyu kullanır.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (**ana kaynak** —
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (**ana kaynak** —
    paketleme, analyzer yükleme, `TreatWarningsAsErrors` etkileşimi),
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (cırcır testi deseni)
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (cırcır testi deseni)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — paketleme bölümü
+   [`MIMARI.md`](../../MIMARI.md) — paketleme bölümü
 
 ---
 
@@ -61,16 +61,16 @@ ayrı faz olarak planlanacak.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`docs-site/src/content/docs/api/`](../docs-site/src/content/docs/api/) | 922 dosya, 4.7 MB. [`http-api/`](../docs-site/src/content/docs/http-api/) 494 dosya, 2.1 MB. Toplam ~1.7 M token — hiçbir agent bağlamına sığmaz |
+| [`docs-site/src/content/docs/api/`](../../../docs-site/src/content/docs/api) | 922 dosya, 4.7 MB. [`http-api/`](../../../docs-site/src/content/docs/http-api) 494 dosya, 2.1 MB. Toplam ~1.7 M token — hiçbir agent bağlamına sığmaz |
 | Elle yazılmış anlatı (`concepts` + `guides` + `getting-started` + `reference` + kök sayfalar) | ~384 KB ≈ ~96 K token. Tek seferlik bile pahalı, her oturum imkânsız |
-| [`docs-site/src/content/docs/capabilities.md`](../docs-site/src/content/docs/capabilities.md) | 219 satır, 17 458 bayt, 11 bölüm. Doğru şekle **sahip** ama agent'ın eline hiçbir yoldan geçmiyor |
+| [`docs-site/src/content/docs/capabilities.md`](../../../docs-site/src/content/docs/capabilities.md) | 219 satır, 17 458 bayt, 11 bölüm. Doğru şekle **sahip** ama agent'ın eline hiçbir yoldan geçmiyor |
 | `grep -rn "llms" docs/ docs-site/src` | **Boş.** `llms.txt` yok — siteyi çeken agent için giriş noktası yok |
-| [`src/AgentPrism.Templates/content/AgentPrism.Starter/`](../src/AgentPrism.Templates/content/AgentPrism.Starter/) | 6 dosya; `AGENTS.md` **yok**. Template ile gelen projede agent'a hiçbir harita düşmüyor |
+| [`src/AgentPrism.Templates/content/AgentPrism.Starter/`](../../../src/AgentPrism.Templates/content/AgentPrism.Starter) | 6 dosya; `AGENTS.md` **yok**. Template ile gelen projede agent'a hiçbir harita düşmüyor |
 | `grep -rn "contentFiles\|buildTransitive" src/*/*.csproj` | **Boş.** Pakete giren MSBuild aparatı bugün yok |
-| [`AgentPrism.Core.csproj:63`](../src/AgentPrism.Core/AgentPrism.Core.csproj#L63) | Generator DLL'i `analyzers/dotnet/cs` altına **zaten** taşınıyor — tanı borusu kurulu, yeniden inşa gerekmiyor |
-| [`ToolDiagnostics.cs`](../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0001`–`APG0007` var. `APG0003` mesajı düzeltmeyi **içeriyor** (`AddTool(AIFunctionFactory.Create(...))`) — genişletilecek desen budur |
+| [`AgentPrism.Core.csproj:63`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj#L63) | Generator DLL'i `analyzers/dotnet/cs` altına **zaten** taşınıyor — tanı borusu kurulu, yeniden inşa gerekmiyor |
+| [`ToolDiagnostics.cs`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) | `APG0001`–`APG0007` var. `APG0003` mesajı düzeltmeyi **içeriyor** (`AddTool(AIFunctionFactory.Create(...))`) — genişletilecek desen budur |
 | `grep -rln "PublicAPI" tests/ --include='*.cs'` | **Boş.** 6905 satırlık makine okunur yüzeyi hiçbir test okumuyor |
-| [`check-content.mjs:41`](../docs-site/scripts/check-content.mjs#L41) | `requiredCapabilityEvidence` **elle bakılan** 26 kalemlik liste. Kaldırmayı yakalar, **eklemeyi yakalamaz** |
+| [`check-content.mjs:41`](../../../docs-site/scripts/check-content.mjs#L41) | `requiredCapabilityEvidence` **elle bakılan** 26 kalemlik liste. Kaldırmayı yakalar, **eklemeyi yakalamaz** |
 | `PublicAPI.Unshipped.txt` taraması | 17 `Use*`, 2 `Map*`, 8 `IAgentPrismBuilder` üyesi var. **17 `Use*` üyesinin 9'u** (`UseMcp`, `UseOpenAI`, `UsePostgreSql`, `UseSqlServer`, `UseSqlite`, `UseTenancy`, `UseUI`, `UseVoice`, `UseWorkflows`) `requiredCapabilityEvidence` kapısının dışında |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -154,7 +154,7 @@ açıkça istemeyene kadar:
 `buildTransitive/` seçilir çünkü tüketici çoğu zaman `AgentPrism` meta paketini
 referanslar; `build/` geçişli referansta çalışmaz.
 
-Template ([`AgentPrism.Starter.csproj`](../src/AgentPrism.Templates/content/AgentPrism.Starter/AgentPrism.Starter.csproj))
+Template ([`AgentPrism.Starter.csproj`](../../../src/AgentPrism.Templates/content/AgentPrism.Starter/AgentPrism.Starter.csproj))
 özelliği `true` yazar. Böylece `dotnet new agentprism-api` kullanan geliştirici
 hiçbir şey yapmadan haritayı alır; mevcut projeler bilinçli olarak açar.
 
@@ -216,7 +216,7 @@ Bu fazın en yüksek değerli parçasıdır. Bugün korunmayan yönü kapatır: 
 büyür, harita geride kalır.**
 
 Yeri: `tests/AgentPrism.Core.UnitTests/Architecture/CapabilityCoverageTests.cs` —
-[`SourceLanguageTests.cs`](../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs)
+[`SourceLanguageTests.cs`](../../../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs)
 ile **aynı cırcır mekaniği**. Yeni bir kavram getirilmez.
 
 Çalışma sırası:
@@ -262,7 +262,7 @@ kızarır.
 
 ## 73.6 — `check-content.mjs` genişlemesi
 
-Mevcut script ([348 satır](../docs-site/scripts/check-content.mjs)) zaten
+Mevcut script ([348 satır](../../../docs-site/scripts/check-content.mjs)) zaten
 "Landing-page metric drift" denetimi yapıyor. Aynı desene üç iddia eklenir:
 
 - `AgentPrism.AgentMap.md` üreteci yeniden koşulduğunda **diff boş** olmalı
@@ -368,7 +368,7 @@ docs/manuel-test/29-AGENT-DESTEGI.md    (yeni; 28 numarayi Faz 64 aldi)
 
 Target davranışı **paket sınırını** geçer; birim testi onu kanıtlamaz. Bu
 yüzden beş target case'i de gerçek `dotnet build` üzerinde koşar —
-[`AgentPrism.Templates.Tests`](../tests/AgentPrism.Templates.Tests/) bu altyapıya
+[`AgentPrism.Templates.Tests`](../../../tests/AgentPrism.Templates.Tests) bu altyapıya
 zaten sahiptir.
 
 Beş soru:

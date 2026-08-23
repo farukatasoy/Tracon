@@ -4,7 +4,7 @@
 The NSwag-generated client (src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)
 calls System.Text.Json.JsonSerializer.Deserialize<T>/SerializeToUtf8Bytes<T>
 with a JsonSerializerOptions whose TypeInfoResolver we plug a source-generated
-JsonSerializerContext into (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6).
+JsonSerializerContext into (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6).
 Source generation propagates to every type reachable from a declared root's
 public properties automatically, so this script only needs to find the ROOT
 types: every T passed to ReadObjectResponseAsync<T> (response bodies, success

@@ -1,13 +1,13 @@
 # Faz 63 — Argüman Düzeyinde Onay Politikası
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-61**
-> **Önkoşul:** [Faz 6](arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md) — onay kuralı tablosu ve değerlendirici oradan gelir · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — tool **argümanı** denetimini bilerek kapsam dışı bıraktı; bu faz o boşluğun sahibidir · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — asenkron onay kutusu bu kuralların tüketicisidir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-61**
+> **Önkoşul:** [Faz 6](06-GOZLEMLENEBILIRLIK.md) — onay kuralı tablosu ve değerlendirici oradan gelir · [Faz 48](48-GUARDRAILS.md) — tool **argümanı** denetimini bilerek kapsam dışı bıraktı; bu faz o boşluğun sahibidir · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — asenkron onay kutusu bu kuralların tüketicisidir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (PostgreSQL + SQL Server + SQLite). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `ToolApprovalRule`'a bir alan, iki yeni tip, bir kayıt uzantısı. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
 > **Site etkisi:** `concepts/governance.md`, `concepts/tools.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -27,19 +27,19 @@
    **K-218** (tool bağımlılığı kurulum anında alınır),
    **K-368** (onay kararından sonra **yeni** çalıştırma açılır),
    **K-370** (onay kararı `AuditRecorder` ile değil doğrudan `IAuditLog` ile yazılır)
-3. [`55-ASENKRON-ONAY-KUTUSU.md`](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — yalnız devir notu:
+3. [`55-ASENKRON-ONAY-KUTUSU.md`](55-ASENKRON-ONAY-KUTUSU.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md
    ```
    Bu faz onay **kararının** verilme yolunu değil, onayın **gerekip
    gerekmediğinin** hesaplanmasını değiştirir.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/postgresql.md`](hafiza/postgresql.md) (`jsonb` sütun ve benzersizlik
-   indeksi tuzağı), [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md)
-   (üç sağlayıcıda aynı şema), [`hafiza/frontend.md`](hafiza/frontend.md)
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md) (`jsonb` sütun ve benzersizlik
+   indeksi tuzağı), [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md)
+   (üç sağlayıcıda aynı şema), [`hafiza/frontend.md`](../../hafiza/frontend.md)
    (kural düzenleme ekranı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) bölüm 3 (K2'nin tanımı ve iki istisnası)
+   [`MIMARI.md`](../../MIMARI.md) bölüm 3 (K2'nin tanımı ve iki istisnası)
 
 ---
 
@@ -64,15 +64,15 @@ gelir ve tam güce sahiptir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ToolApprovalRule.cs:20-47`](../src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs) | Alanlar: `Id`, `TenantId`, `AgentName`, `ToolName`, `ArgumentsHash`, `CreatedBy`, `CreatedAt`. Koşul alanı **yok** |
-| [`ToolApprovalRule.cs:41`](../src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs) | `ArgumentsHash` **birebir aynı argüman** demektir. Bir koşul değil, bir parmak izidir |
-| [`ToolApprovalRuleEvaluator.cs:104-111`](../src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs) | Değerlendirmenin **tek** yeri. `ArgumentsHash` `null` ise kural **her** çağrıyı otomatik onaylar; doluysa yalnız hash eşleşmesinde |
-| [`ToolRegistry.cs:33-38`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Onay sarmalaması **tek kapıdır** ve `ToolRegistry` içindedir. Yeni bir kapı açmaya gerek yoktur |
-| [`ToolApprovalResolver.cs:179-180`](../src/AgentPrism.AspNetCore/Internal/ToolApprovalResolver.cs) | "Bu argümanları hatırla" kararı kuralı burada üretir — koşullu kural da buradan doğacaktır |
-| [`GovernanceEndpoints.cs:558`](../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | `GET /api/approvals/rules` ve kardeşleri vardır; kural yönetimi yüzeyi hazırdır |
-| [`0002_observability.sql:76-90`](../src/AgentPrism.PostgreSql/Migrations/0002_observability.sql) | Tablo `tool_approval_rules`. 🚨 Benzersizlik indeksi `COALESCE(arguments_hash, '')` kullanıyor — koşul eklenince **anahtar da genişlemelidir**, yoksa aynı kapsam için sınırsız kural üretilir |
-| [`0004_skill_scripts.sql:28-33`](../src/AgentPrism.PostgreSql/Migrations/0004_skill_scripts.sql) | Aynı ders orada yazılı: PostgreSQL'de `NULL` `NULL`'a eşit değildir; `COALESCE` ifade indeksi şarttır |
-| [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md) devir notu | İçerik denetimi **model sınırındadır**; tool argümanı denetimi bilerek kapsam dışı bırakıldı |
+| [`ToolApprovalRule.cs:20-47`](../../../src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs) | Alanlar: `Id`, `TenantId`, `AgentName`, `ToolName`, `ArgumentsHash`, `CreatedBy`, `CreatedAt`. Koşul alanı **yok** |
+| [`ToolApprovalRule.cs:41`](../../../src/AgentPrism.Abstractions/Approvals/ToolApprovalRule.cs) | `ArgumentsHash` **birebir aynı argüman** demektir. Bir koşul değil, bir parmak izidir |
+| [`ToolApprovalRuleEvaluator.cs:104-111`](../../../src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs) | Değerlendirmenin **tek** yeri. `ArgumentsHash` `null` ise kural **her** çağrıyı otomatik onaylar; doluysa yalnız hash eşleşmesinde |
+| [`ToolRegistry.cs:33-38`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Onay sarmalaması **tek kapıdır** ve `ToolRegistry` içindedir. Yeni bir kapı açmaya gerek yoktur |
+| [`ToolApprovalResolver.cs:179-180`](../../../src/AgentPrism.AspNetCore/Internal/ToolApprovalResolver.cs) | "Bu argümanları hatırla" kararı kuralı burada üretir — koşullu kural da buradan doğacaktır |
+| [`GovernanceEndpoints.cs:558`](../../../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | `GET /api/approvals/rules` ve kardeşleri vardır; kural yönetimi yüzeyi hazırdır |
+| [`0002_observability.sql:76-90`](../../../src/AgentPrism.PostgreSql/Migrations/0002_observability.sql) | Tablo `tool_approval_rules`. 🚨 Benzersizlik indeksi `COALESCE(arguments_hash, '')` kullanıyor — koşul eklenince **anahtar da genişlemelidir**, yoksa aynı kapsam için sınırsız kural üretilir |
+| [`0004_skill_scripts.sql:28-33`](../../../src/AgentPrism.PostgreSql/Migrations/0004_skill_scripts.sql) | Aynı ders orada yazılı: PostgreSQL'de `NULL` `NULL`'a eşit değildir; `COALESCE` ifade indeksi şarttır |
+| [`48-GUARDRAILS.md`](48-GUARDRAILS.md) devir notu | İçerik denetimi **model sınırındadır**; tool argümanı denetimi bilerek kapsam dışı bırakıldı |
 | `ToolApprovalRule` biçimi | 🚨 Aday listesi "`record` olduğu için **ek kurucu ister**" diyordu. **Ölçüldü: yanlış.** Tip konumsal (`positional`) değildir, `required init` özellikleri kullanır; yeni bir `init` özelliği eklemek ek kurucu **istemez** |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -161,7 +161,7 @@ Kanonik biçim uygulama anında sabitlenir: alanlar sıralanır, boşluk normali
 edilir. Aynı koşul kümesi her zaman aynı hash'i üretmelidir.
 
 Üç migration seti gerekir. SQLite'ta `jsonb` yoktur; sütun `text` olur ve
-sağlayıcı farkı [`hafiza/sqlite.md`](hafiza/sqlite.md) kuralına göre yazılır.
+sağlayıcı farkı [`hafiza/sqlite.md`](../../hafiza/sqlite.md) kuralına göre yazılır.
 
 ## 63.5 — Arayüz
 
@@ -314,7 +314,7 @@ sağlayıcısı üzerinde koşar.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

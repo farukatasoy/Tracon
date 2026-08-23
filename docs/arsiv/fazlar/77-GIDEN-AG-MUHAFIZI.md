@@ -1,14 +1,14 @@
 # Faz 77 — Giden Ağ Muhafızı
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-131** · bulgular
-> [`guvenlik-tarama/BULGULAR.md`](guvenlik-tarama/BULGULAR.md) B05-2 · B05-3 · B05-4 · B05-5 · B05-6 · B05-7
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-131** · bulgular
+> [`guvenlik-tarama/BULGULAR.md`](../../guvenlik-tarama/BULGULAR.md) B05-2 · B05-3 · B05-4 · B05-5 · B05-6 · B05-7
 > **Önkoşul:** Yok — K-164'ün `ConnectCallback` deseni bugün webhook yolunda çalışıyor ve bu faz onu genelleştirir
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Mcp`, `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `PublicAPI.Shipped.txt` dosyaları **API kaydı taşımaz** (`wc -l src/*/PublicAPI.Shipped.txt` → her biri tek satır, yalnız `#nullable enable`), yani bugün eklemek ucuzdur; Faz 7'den sonra bir sürüm kararı olur
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/getting-started/security.md` (giden ağ bölümü) · `docs-site/src/content/docs/guides/production.md` (yeni ayar) · sevk edilen: `AgentPrismEgressOptions` XML dokümanı, `capabilities.md` satırı
-> **Manuel test alanı:** [`manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) ve [`manuel-test/18-MCP-VE-A2A.md`](manuel-test/18-MCP-VE-A2A.md)
+> **Manuel test alanı:** [`manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) ve [`manuel-test/18-MCP-VE-A2A.md`](../../manuel-test/18-MCP-VE-A2A.md)
 
 ---
 
@@ -31,14 +31,14 @@
 3. [`76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md`](76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md)
    — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md
    ```
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) (MCP bağlantı kurulumu) ·
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) (sağlayıcı istemci fabrikaları) ·
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (uç kaydı ve seçenek bağlama)
+   [`hafiza/mcp-a2a-sunucu.md`](../../hafiza/mcp-a2a-sunucu.md) (MCP bağlantı kurulumu) ·
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) (sağlayıcı istemci fabrikaları) ·
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (uç kaydı ve seçenek bağlama)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — "Dış ağ erişimi" bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — "Dış ağ erişimi" bölümü
 
 ---
 
@@ -61,14 +61,14 @@ yapabilir ve çözülen API anahtarı o adrese gider.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`GovernanceEndpoints.cs:790`](../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) · [`:800`](../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | MCP `endpoint` yalnız "mutlak URI" ve "şema `http`/`https`" denetimi görür. Adres denetimi yoktur |
-| [`McpTransportFactory.cs:19-23`](../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs) | `IsRemoteHttp` de yalnız şemaya bakar; `169.254.169.254` ve `10.0.0.5:8080` kabul edilir |
-| [`AgentPrismWebhookOptions.cs:28`](../src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptions.cs) | `AllowPrivateNetworkTargets` **yalnız** webhook seçeneklerindedir; MCP ve sağlayıcı yolunda karşılığı yoktur |
-| [`TenantProviderEndpoints.cs:163`](../src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs) | `Endpoint = request.Endpoint` — hiçbir denetimden geçmez. Aynı metotta `ApiKeyConfigurationName` için önek denetimi **vardır** |
-| [`McpTransportFactory.cs:110`](../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs) | `headers["Authorization"] = configuration[key]` — anahtar adı için önek kısıtı yoktur |
-| [`AgentPrismInboundTriggerOptions.cs:27`](../src/AgentPrism.Abstractions/Options/AgentPrismInboundTriggerOptions.cs) · [`AgentPrismTenantProviderOptions.cs:18`](../src/AgentPrism.Abstractions/Options/AgentPrismTenantProviderOptions.cs) | Karşıt desen: iki yerde `AllowedConfigurationPrefix` vardır ve XML dokümanı ikisini de "a security boundary" diye adlandırır |
+| [`GovernanceEndpoints.cs:790`](../../../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) · [`:800`](../../../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | MCP `endpoint` yalnız "mutlak URI" ve "şema `http`/`https`" denetimi görür. Adres denetimi yoktur |
+| [`McpTransportFactory.cs:19-23`](../../../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs) | `IsRemoteHttp` de yalnız şemaya bakar; `169.254.169.254` ve `10.0.0.5:8080` kabul edilir |
+| [`AgentPrismWebhookOptions.cs:28`](../../../src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptions.cs) | `AllowPrivateNetworkTargets` **yalnız** webhook seçeneklerindedir; MCP ve sağlayıcı yolunda karşılığı yoktur |
+| [`TenantProviderEndpoints.cs:163`](../../../src/AgentPrism.AspNetCore/Endpoints/TenantProviderEndpoints.cs) | `Endpoint = request.Endpoint` — hiçbir denetimden geçmez. Aynı metotta `ApiKeyConfigurationName` için önek denetimi **vardır** |
+| [`McpTransportFactory.cs:110`](../../../src/AgentPrism.Mcp/Internal/McpTransportFactory.cs) | `headers["Authorization"] = configuration[key]` — anahtar adı için önek kısıtı yoktur |
+| [`AgentPrismInboundTriggerOptions.cs:27`](../../../src/AgentPrism.Abstractions/Options/AgentPrismInboundTriggerOptions.cs) · [`AgentPrismTenantProviderOptions.cs:18`](../../../src/AgentPrism.Abstractions/Options/AgentPrismTenantProviderOptions.cs) | Karşıt desen: iki yerde `AllowedConfigurationPrefix` vardır ve XML dokümanı ikisini de "a security boundary" diye adlandırır |
 | `grep -rl "WebhookSocketGuard" tests` → boş | K-164'ün gerçek zorlama noktasının testi yoktur |
-| [`WebhookUrlValidator.cs:207-262`](../src/AgentPrism.Core/Webhooks/WebhookUrlValidator.cs) | `::ffff:a.b.c.d` ele alınır; NAT64 (`64:ff9b::/96`) ve `::a.b.c.d` alınmaz |
+| [`WebhookUrlValidator.cs:207-262`](../../../src/AgentPrism.Core/Webhooks/WebhookUrlValidator.cs) | `::ffff:a.b.c.d` ele alınır; NAT64 (`64:ff9b::/96`) ve `::a.b.c.d` alınmaz |
 
 > Kanıtlar 2026-08-20 tarihinde doğrulandı. Satır numaraları aynı gün yapılan
 > güvenlik kapanışından **sonra** yeniden ölçüldü.
@@ -81,9 +81,9 @@ soru buydu ve **ölçüldü**:
 | Sağlayıcı | Kanca | Kanıt |
 |---|---|---|
 | Anthropic | `ClientOptions.HttpClient` (settable) + `ClientOptions.Handlers` | `~/.nuget/packages/anthropic/12.35.1/lib/net9.0/Anthropic.xml` — `P:Anthropic.Core.ClientOptions.HttpClient` |
-| OpenAI | `OpenAIClientOptions` (Azure SDK `ClientPipelineOptions` ailesi) | [`OpenAIChatClientFactory.cs:110`](../src/AgentPrism.OpenAI/OpenAIChatClientFactory.cs) |
-| Azure OpenAI | `AzureOpenAIClientOptions` (aynı aile) | [`AzureOpenAIChatClientFactory.cs:156`](../src/AgentPrism.Azure/AzureOpenAIChatClientFactory.cs) |
-| Google | Fabrika zaten kendi `HttpClient`'ına sahiptir | [`GoogleChatClientFactory.cs:31`](../src/AgentPrism.Google/GoogleChatClientFactory.cs) yorumu |
+| OpenAI | `OpenAIClientOptions` (Azure SDK `ClientPipelineOptions` ailesi) | [`OpenAIChatClientFactory.cs:110`](../../../src/AgentPrism.OpenAI/OpenAIChatClientFactory.cs) |
+| Azure OpenAI | `AzureOpenAIClientOptions` (aynı aile) | [`AzureOpenAIChatClientFactory.cs:156`](../../../src/AgentPrism.Azure/AzureOpenAIChatClientFactory.cs) |
+| Google | Fabrika zaten kendi `HttpClient`'ına sahiptir | [`GoogleChatClientFactory.cs:31`](../../../src/AgentPrism.Google/GoogleChatClientFactory.cs) yorumu |
 
 **Sonuç:** yeni paket gerekmez, `IHttpClientFactory` gerekmez, K-164 korunur.
 
@@ -340,7 +340,7 @@ taşımaz.
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` ve `18-MCP-VE-A2A.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [x] `docs-site/` güncellendi (`security.md` giden ağ bölümü + `production.md` yükseltme notu); `npm run build` + `check-links.mjs` temiz
-- [x] [`BULGULAR.md`](guvenlik-tarama/BULGULAR.md) içindeki B05-2/3/4/5/6/7 satırları **KAPANDI** olarak işaretlendi
+- [x] [`BULGULAR.md`](../../guvenlik-tarama/BULGULAR.md) içindeki B05-2/3/4/5/6/7 satırları **KAPANDI** olarak işaretlendi
 
 ### Doğrulama komutları
 
@@ -558,7 +558,7 @@ Dört kapı da sıfır uyarı: `build` · `test` **4574/4574** · `pack` · `for
 > **izolasyonda 3/3 düşüyor**, tam sette geçiyor (son iki tam koşum 4574/4574).
 > **Ölçüldü:** `git stash -u` ile fazın tüm değişiklikleri geri alınıp temiz
 > `HEAD` derlendiğinde **aynı şekilde düşüyor** — var olan bir kusurdur,
-> regresyon değil. [`ADAYLAR.md`](ADAYLAR.md) **F-133** olarak kaydedildi.
+> regresyon değil. [`ADAYLAR.md`](../../ADAYLAR.md) **F-133** olarak kaydedildi.
 > Onaylar bu fazın dokunduğu hiçbir yüzeyle kesişmiyor (giden ağ · webhook ·
 > MCP · sağlayıcı).
 Site kapıları temiz: `npm run build` (1010 sayfa) · `check-content` · `check-links`

@@ -2,7 +2,7 @@ import type * as Generated from '@agentprism/client';
 
 /**
  * Response types with fields the generated type gets wrong in two specific,
- * verified ways — see docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.6.
+ * verified ways — see docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.6.
  *
  * 1. **Missing `required`.** ASP.NET Core's OpenAPI generator marks a
  *    non-nullable property `required` only when the C# property has no

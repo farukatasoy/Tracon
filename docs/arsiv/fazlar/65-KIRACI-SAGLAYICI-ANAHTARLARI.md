@@ -1,13 +1,13 @@
 # Faz 65 — Kiracı Sağlayıcı Anahtarları (BYOK)
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-40**, **F-119**
-> **Önkoşul:** [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-40**, **F-119**
+> **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımının zemini · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kiracı yönetim yüzeyi ve kapsam modeli · [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlayıcı katmanı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.OpenAI`, `AgentPrism.Anthropic`, `AgentPrism.Google`, `AgentPrism.Azure`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `tenant_provider_bindings` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor ve bir arayüz imzası genişliyor** — `IModelProvider.CreateChatClient`. 🚨 Arayüze metot/parametre eklemek yayından **sonra** en pahalı değişikliktir; `PublicAPI.Shipped.txt` bugün **boş** olduğu için **şimdi bedava**
 > **Site etkisi:** `guides/model-providers.md`, `concepts/governance.md`, `reference/configuration.md`
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -27,18 +27,18 @@
    **K-280** (çalıştırmanın alt yazmalarında açık kiracı sorunu),
    **K-380** (`CompiledAgentCache` anahtarı kiracıyı **zaten** içeriyor),
    **K-382** (`AllowedTenants` dışındaki kiracı sessizce varsayılana düşmez)
-3. [`53-KIRACI-API-ANAHTARLARI.md`](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — yalnız devir notu:
+3. [`53-KIRACI-API-ANAHTARLARI.md`](53-KIRACI-API-ANAHTARLARI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md
    ```
    Kiracı yönetim yüzeyi ve kapsam modeli oradan devralınır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) (sağlayıcı istemci
-   kurulumu), [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (yeni
-   tablo üç sağlayıcıda), [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md)
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) (sağlayıcı istemci
+   kurulumu), [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (yeni
+   tablo üç sağlayıcıda), [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md)
    (`IConfiguration` çözümlemesi ve DI ömrü)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — güvenlik ve çok kiracılılık
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — güvenlik ve çok kiracılılık
 
 ---
 
@@ -59,7 +59,7 @@ kiracıya yansıtılamaz.
 iki kez elden geçirmek ve bu fazın "yayından sonra en pahalı" yüzeyine ikinci
 kez dokunmaktır. Kanıt: `grep -rn "AllowList\|Allowlist\|AllowedProviders" src`
 **üç** sonuç verir ve üçü de skill script ortam değişkenidir
-([`AgentPrismOptions.cs:207`](../src/AgentPrism.Core/AgentPrismOptions.cs));
+([`AgentPrismOptions.cs:207`](../../../src/AgentPrism.Core/AgentPrismOptions.cs));
 sağlayıcı tarafında allowlist **yoktur**.
 
 Karar (kullanıcı, 2026-08-18): **yeni `tenant_provider_bindings` tablosu.**
@@ -70,14 +70,14 @@ dağıtım adı) yer verir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IModelProvider.cs:49`](../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | `CreateChatClient(ModelBinding binding)` — kiracı **almaz** |
-| [`IModelProviderRegistry.cs:18`](../src/AgentPrism.Abstractions/Models/IModelProviderRegistry.cs) | Kayıt defteri de kiracı almaz |
-| [`OpenAIProviderExtensions.cs:20-23`](../src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs) | `UseOpenAI(apiKey, configure)` — anahtar **kurulum anında** sabitlenir. Aynı desen dört sağlayıcıda |
-| [`ModelProviderRegistry.cs:32`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | 🚨 `ITenantContext? _tenantContext` **zaten enjekte ediliyor** — bugün yalnız ek çözümlemesi için kullanılıyor. Kiracı bilgisi kayıt defterinde **hazırdır** |
+| [`IModelProvider.cs:49`](../../../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | `CreateChatClient(ModelBinding binding)` — kiracı **almaz** |
+| [`IModelProviderRegistry.cs:18`](../../../src/AgentPrism.Abstractions/Models/IModelProviderRegistry.cs) | Kayıt defteri de kiracı almaz |
+| [`OpenAIProviderExtensions.cs:20-23`](../../../src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs) | `UseOpenAI(apiKey, configure)` — anahtar **kurulum anında** sabitlenir. Aynı desen dört sağlayıcıda |
+| [`ModelProviderRegistry.cs:32`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | 🚨 `ITenantContext? _tenantContext` **zaten enjekte ediliyor** — bugün yalnız ek çözümlemesi için kullanılıyor. Kiracı bilgisi kayıt defterinde **hazırdır** |
 | `grep -n "ConcurrentDictionary" ModelProviderRegistry.cs` | Kayıt defteri `IChatClient` **önbelleklemiyor**; istemci her çağrıda kuruluyor. Kiracılar arası istemci sızıntısı için **önbellek riski yok** |
-| [`CompiledAgentCache.cs:109`](../src/AgentPrism.Core/Compilation/CompiledAgentCache.cs) | 🚨 Anahtar `CacheKey(TenantId, Name, Version, DependencyFingerprint)`. **Aday listesinin en büyük riski (K-380 ile) zaten kapanmış** — plan bunu tekrar açmaz |
-| [`0001_initial.sql:21-25`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `tenants` tablosu vardır: `id`, `slug`, `display_name`, `created_at` |
-| [`0025_api_keys.sql`](../src/AgentPrism.PostgreSql/Migrations/0025_api_keys.sql) | `api_keys` **gelen** erişim içindir. Bu faz **giden** çağrının kimliğidir; iki kavram karıştırılmaz |
+| [`CompiledAgentCache.cs:109`](../../../src/AgentPrism.Core/Compilation/CompiledAgentCache.cs) | 🚨 Anahtar `CacheKey(TenantId, Name, Version, DependencyFingerprint)`. **Aday listesinin en büyük riski (K-380 ile) zaten kapanmış** — plan bunu tekrar açmaz |
+| [`0001_initial.sql:21-25`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `tenants` tablosu vardır: `id`, `slug`, `display_name`, `created_at` |
+| [`0025_api_keys.sql`](../../../src/AgentPrism.PostgreSql/Migrations/0025_api_keys.sql) | `api_keys` **gelen** erişim içindir. Bu faz **giden** çağrının kimliğidir; iki kavram karıştırılmaz |
 | `PublicAPI.Shipped.txt` (1 satır) | Arayüz imzası genişletmek bugün bedava |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -199,7 +199,7 @@ agent tanımlayabilir.
 | `PUT` | `/api/tenants/{tenantId}/egress` | Admin · `SecurityAdmin` |
 
 **Kapsam dışı:** PII maskeleme ve veri ikametgâhı sertifikasyonu. Guard'lar
-maskelemeyi zaten yapabiliyor ([Faz 48](arsiv/fazlar/48-GUARDRAILS.md)); bu faz yalnız
+maskelemeyi zaten yapabiliyor ([Faz 48](48-GUARDRAILS.md)); bu faz yalnız
 **nereye gidilebileceğini** sınırlar.
 
 ---
@@ -333,7 +333,7 @@ sağlayıcısı üzerinde koşar.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

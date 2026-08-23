@@ -1,8 +1,8 @@
 # Faz 61 — İstemci Tool'ları ve Gömülebilir Sohbet
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-108**, **F-64**
-> **Önkoşul:** [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — tarayıcıya yönetim token'ı konulamaz, kapsamlı anahtar şart · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — sonuç kanalının emsali · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — istemciden gelen sonuç guard'dan geçer
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-108**, **F-64**
+> **Önkoşul:** [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — tarayıcıya yönetim token'ı konulamaz, kapsamlı anahtar şart · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — sonuç kanalının emsali · [Faz 48](48-GUARDRAILS.md) — istemciden gelen sonuç guard'dan geçer
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — senkron kanal seçildi, bekleyen çağrı tablosu **yoktur** (Açık Soru 1'in kullanıcı kararı)
 > **Public API:** büyüyor **ve bir imza genişliyor** — `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. Kırıcı sayılan değişiklik bugün **bedava**, ilk yayından sonra değil
@@ -28,17 +28,17 @@
    **K-232** (sunucu yanıtı çevrilmez),
    **K-296** (SSE başlıkları çoktan gönderilmiştir),
    **K-404** (bilinmeyen tool adı kayıt anında `400` ile reddedilir)
-3. [`55-ASENKRON-ONAY-KUTUSU.md`](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — yalnız 55.2 ve 55.4:
+3. [`55-ASENKRON-ONAY-KUTUSU.md`](55-ASENKRON-ONAY-KUTUSU.md) — yalnız 55.2 ve 55.4:
    ```bash
    awk '/## 55.2/,/## 55.5/' docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md
    ```
    Bu faz onun **kanal desenini** devralır, tablosunu devralmaz.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/frontend.md`](hafiza/frontend.md) (yeni bir Vite çıktısı ve sözlük),
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (yeni uç ve seçenek),
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (`AIFunctionDeclaration` ilk kez kullanılıyor)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (yeni bir Vite çıktısı ve sözlük),
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (yeni uç ve seçenek),
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (`AIFunctionDeclaration` ilk kez kullanılıyor)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) bölüm 3 (K2'nin tanımı ve iki istisnası)
+   [`MIMARI.md`](../../MIMARI.md) bölüm 3 (K2'nin tanımı ve iki istisnası)
 
 ---
 
@@ -60,17 +60,17 @@ Bu faz ikisini birlikte verir, çünkü **gömülebilir bileşen, istemci tool'u
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IToolRegistry.cs:24`](../src/AgentPrism.Abstractions/Tools/IToolRegistry.cs) | `TryGet` bir **`AIFunction`** döndürür. Kayıtlı her tool'un gövdesi sunucudadır |
-| [`ToolRegistry.cs:33-38`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | "Sunucuda çalıştırma" kararının **tek** yeri. `ApprovalRequiredAIFunction` yalnız **kararı** erteler; onaydan sonra gövdeyi yine sunucu çalıştırır |
-| [`ApprovalResumeJobHandler.cs:96`](../src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs) | Sürdürme `ToolApprovalResponseContent` yazar — **karar**, sonuç değil |
-| [`AgentContracts.cs:233`](../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs) | `AgentRunRequest.Approvals` var. İstemci sonucu için **kardeş alanın emsali** budur |
-| [`AgentEndpoints.cs:545`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `approvals` için `sessionId` **zorunlu** — bekleyen istek oturum geçmişinde yaşar. Aynı kısıt tool sonucu için de geçerlidir |
-| [`AgentEndpoints.cs:534-540`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Kuyruğa alınan çalıştırmada `approvals` **bilerek `400`**. Bu fazın kuyruk kararı aynı emsali izler |
+| [`IToolRegistry.cs:24`](../../../src/AgentPrism.Abstractions/Tools/IToolRegistry.cs) | `TryGet` bir **`AIFunction`** döndürür. Kayıtlı her tool'un gövdesi sunucudadır |
+| [`ToolRegistry.cs:33-38`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | "Sunucuda çalıştırma" kararının **tek** yeri. `ApprovalRequiredAIFunction` yalnız **kararı** erteler; onaydan sonra gövdeyi yine sunucu çalıştırır |
+| [`ApprovalResumeJobHandler.cs:96`](../../../src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs) | Sürdürme `ToolApprovalResponseContent` yazar — **karar**, sonuç değil |
+| [`AgentContracts.cs:233`](../../../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs) | `AgentRunRequest.Approvals` var. İstemci sonucu için **kardeş alanın emsali** budur |
+| [`AgentEndpoints.cs:545`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `approvals` için `sessionId` **zorunlu** — bekleyen istek oturum geçmişinde yaşar. Aynı kısıt tool sonucu için de geçerlidir |
+| [`AgentEndpoints.cs:534-540`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Kuyruğa alınan çalıştırmada `approvals` **bilerek `400`**. Bu fazın kuyruk kararı aynı emsali izler |
 | `grep -rn "ClientTool\|DeferredTool\|RemoteTool" src/` | Yalnız MCP'nin kendi `McpClientTool`'u. **Sıfır altyapı** |
 | 🚨 `grep -rn "Cors\|AllowAnyOrigin\|WithOrigins" src/` | **Sıfır sonuç. CORS yoktur.** Farklı origin'deki bir sohbet kutusu bugün tarayıcı tarafından engellenir — F-64'ün gerçek ön koşulu budur ve aday listesi bunu yazmamıştı |
-| [`postbuild.mjs:25`](../src/AgentPrism.UI/frontend/scripts/postbuild.mjs) | `JS_BUDGET_BYTES = 250 * 1024` gzip. Kapı **tek** çıktıya uygulanır |
+| [`postbuild.mjs:25`](../../../src/AgentPrism.UI/frontend/scripts/postbuild.mjs) | `JS_BUDGET_BYTES = 250 * 1024` gzip. Kapı **tek** çıktıya uygulanır |
 | Ölçüm: `wwwroot/assets/index-*.js` | gzip **169.396 B = 165,4 KB** / 250 KB → kalan pay **84,6 KB**. 🚨 Aday listesindeki "151,3 KB, kalan ~99 KB" **bayattı** |
-| [`ApiKeyScope.cs:26`](../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs) | `RunsWrite` = "Starting a run, cancelling, giving approval". Gömülebilir bileşenin ihtiyacı tam olarak budur |
+| [`ApiKeyScope.cs:26`](../../../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs) | `RunsWrite` = "Starting a run, cancelling, giving approval". Gömülebilir bileşenin ihtiyacı tam olarak budur |
 | `PublicAPI.Shipped.txt` (1 satır) · `Directory.Build.props:58` | İzleme **açık**, ama yayınlanmış yüzey **boş**. İmza genişletmek bugün bedava |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -172,7 +172,7 @@ Karar (kullanıcı, 2026-08-18): **senkron alan, tablo yok.**
 
 | Önlem | Nerede |
 |---|---|
-| Guard boru hattından geçer | [`ContentGuardMessageMasker.cs:156`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) `FunctionResultContent`'i **bilerek** kapsıyor — yeni kod gerekmez, kapsandığı **test edilir** |
+| Guard boru hattından geçer | [`ContentGuardMessageMasker.cs:156`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) `FunctionResultContent`'i **bilerek** kapsıyor — yeni kod gerekmez, kapsandığı **test edilir** |
 | Kiracı bağı | Sonuç, çağrıyı üreten çalıştırmanın kiracısına ait olmalı |
 | Boyut sınırı | Sonuç gövdesi sınırlanır; sınırsız metin bağlam penceresini tüketir |
 | Denetim izi | Sonuç `audit_log`'a yazılır. 🚨 K-089'un emsali **uygulanmaz**: bu bir güvenlik **kararı** değil, veridir — yazma hatası çalıştırmayı kesmez ("gözlemlenebilirlik işlevi bozmaz") |

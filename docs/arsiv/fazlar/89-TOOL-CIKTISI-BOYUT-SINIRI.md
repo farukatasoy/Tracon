@@ -1,14 +1,14 @@
 # Faz 89 — Tool Çıktısı Boyut Sınırı
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-143** — Dalga 14 Küme Ö
-> **Önkoşul:** [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) — `Timeout` alanı ve sarmalayıcı zinciri; yeni alan onun **kardeşidir** ve aynı yerde yaşar · [Faz 13](arsiv/fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) (compaction — **tamamlayıcıdır, rakip değil**)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-143** — Dalga 14 Küme Ö
+> **Önkoşul:** [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) — `Timeout` alanı ve sarmalayıcı zinciri; yeni alan onun **kardeşidir** ve aynı yerde yaşar · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) (compaction — **tamamlayıcıdır, rakip değil**)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Mcp`
 > **Yeni paket:** Yok · **Migration:** Yok — kırpma olayı `RunEventType`'a bir üye ekler ve `run_events.type` bir `smallint`'tir (ölçüldü)
 > **Public API:** Büyüyor — 1 tool alanı, 1 kurulum ayarı, 1 olay tipi üyesi, 1 taşınan yardımcı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `concepts/tools.md`, `guides/context-and-memory.md`, `reference/configuration.md`, `capabilities.md`
 > · sevk edilen: yeni alan ve ayarın XML dokümanı, `src/AgentPrism.Core/README.md`. `api/` ve `http-api/` **üretilir**
-> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md) · [`docs/manuel-test/20-BELLEK-RAG-BAGLAM.md`](manuel-test/20-BELLEK-RAG-BAGLAM.md)
+> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md) · [`docs/manuel-test/20-BELLEK-RAG-BAGLAM.md`](../../manuel-test/20-BELLEK-RAG-BAGLAM.md)
 
 ---
 
@@ -27,18 +27,18 @@
    takibi açık).
 3. [`69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md`](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) — yalnız **69.1** ve devir notu:
    ```bash
-   awk '/^## Sonraki Faza Devir Notu/,0' docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md
    ```
    Sarmalayıcı sırası ve gerekçesi oradadır. Bu faz o zincire **dördüncü** bir
    halka ekler; sırayı bozmadan eklemek fazın birinci işidir.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (tool çalıştırma yolu) ·
-   [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) (🚨 MCP tool'ları **ikinci** bir sarmalama zinciri kurar)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (tool çalıştırma yolu) ·
+   [`hafiza/mcp-a2a-sunucu.md`](../../hafiza/mcp-a2a-sunucu.md) (🚨 MCP tool'ları **ikinci** bir sarmalama zinciri kurar)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — tool kayıt yolu
+   [`MIMARI.md`](../../MIMARI.md) — tool kayıt yolu
 6. Faz 88 devir notu — yalnız ilgili bölüm:
    ```bash
-   awk '/^## Sonraki Faza Devir Notu/,0' docs/88-GORSEL-URETIM-TOOLU.md
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md
    ```
    `ToolRegistry.Create(...)` images açıksa kodla tanımlı `generate_image`
    tool'unu `ToolEffect.External` ile ekler. Faz 89 bu factory yoluna halka
@@ -92,13 +92,13 @@ savunmadır.* Varsayılan **sınırsızdır** (K1); sınır açıkça konur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismToolRegistration.cs:63-84`](../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs) | **Tam altı** alan: `Function`, `RequiresApproval`, `Source`, `Effect`, `RequiredPermission`, `Timeout`. **Çıktı boyutu yok** |
-| [`ToolRegistry.cs:57`](../src/AgentPrism.Core/Tools/ToolRegistry.cs#L57) | Sarmalama sırası: `Authorizing` (dış) → `Timeout` → `ApprovalRequired` (iç) → gerçek fonksiyon |
-| [`ToolRegistry.cs:46`](../src/AgentPrism.Core/Tools/ToolRegistry.cs#L46) | Kurulum varsayılanı `AgentPrismOptions.Tools.DefaultTimeout`'tan gelir — yeni ayar **aynı yerden** alınır |
-| 🚨 [`McpTenantTools.cs:86`](../src/AgentPrism.Mcp/Internal/McpTenantTools.cs#L86) | **İKİNCİ** bir sarmalama zinciri kurar ve aynı `TimeoutAIFunction`'ı takar |
-| [`TimeoutAIFunction.cs`](../src/AgentPrism.Core/Tools/TimeoutAIFunction.cs) | `public sealed class : DelegatingAIFunction`; `InvokeCoreAsync` **`object?`** döner — kırpma bir **dönüş değeri dönüşümüdür**, istisna atmak değil |
-| [`ToolInvocationRecord.cs:46`](../src/AgentPrism.Abstractions/Runs/ToolInvocationRecord.cs#L46) | `Result` alanı: *"Raw text; may not be valid JSON"* — çıktının JSON olduğu **varsayılamaz** |
-| [`McpResourceTrimming.cs`](../src/AgentPrism.Core/Tools/TextTrimming.cs) (plandan sonra `TextTrimming.cs`'e taşındı) | 🚨 **Tam bu işi yapan bir fonksiyon zaten var**: UTF-8 bayt sınırı, çok baytlı karakteri asla ortadan kesmiyor, saf ve durumsuz |
+| [`AgentPrismToolRegistration.cs:63-84`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs) | **Tam altı** alan: `Function`, `RequiresApproval`, `Source`, `Effect`, `RequiredPermission`, `Timeout`. **Çıktı boyutu yok** |
+| [`ToolRegistry.cs:57`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs#L57) | Sarmalama sırası: `Authorizing` (dış) → `Timeout` → `ApprovalRequired` (iç) → gerçek fonksiyon |
+| [`ToolRegistry.cs:46`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs#L46) | Kurulum varsayılanı `AgentPrismOptions.Tools.DefaultTimeout`'tan gelir — yeni ayar **aynı yerden** alınır |
+| 🚨 [`McpTenantTools.cs:86`](../../../src/AgentPrism.Mcp/Internal/McpTenantTools.cs#L86) | **İKİNCİ** bir sarmalama zinciri kurar ve aynı `TimeoutAIFunction`'ı takar |
+| [`TimeoutAIFunction.cs`](../../../src/AgentPrism.Core/Tools/TimeoutAIFunction.cs) | `public sealed class : DelegatingAIFunction`; `InvokeCoreAsync` **`object?`** döner — kırpma bir **dönüş değeri dönüşümüdür**, istisna atmak değil |
+| [`ToolInvocationRecord.cs:46`](../../../src/AgentPrism.Abstractions/Runs/ToolInvocationRecord.cs#L46) | `Result` alanı: *"Raw text; may not be valid JSON"* — çıktının JSON olduğu **varsayılamaz** |
+| [`McpResourceTrimming.cs`](../../../src/AgentPrism.Core/Tools/TextTrimming.cs) (plandan sonra `TextTrimming.cs`'e taşındı) | 🚨 **Tam bu işi yapan bir fonksiyon zaten var**: UTF-8 bayt sınırı, çok baytlı karakteri asla ortadan kesmiyor, saf ve durumsuz |
 | `RunEventType` | 24 üye (`0`…`23`), `run_events.type smallint` → yeni olay tipi migration **istemez** |
 
 > Kanıtlar 2026-08-21 tarihinde yeniden ölçüldü. Aday listesinin altı alan
@@ -115,8 +115,8 @@ savunmadır.* Varsayılan **sınırsızdır** (K1); sınır açıkça konur.
 
 | Birim | Durum |
 |---|---|
-| **UTF-8 bayt** | ✅ `McpResourceTrimming.Trim(string, int maxBytes)` (plandan sonra [`TextTrimming.Trim`](../src/AgentPrism.Core/Tools/TextTrimming.cs)'e taşındı) **zaten var**: çok baytlı karakteri ortadan kesmez, saf, durumsuz, birim testli. Ayrıca `MaxInstructionsLength` ([`SkillEndpoints.cs:161`](../src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs#L161)) ve `MaxResourceBytesTotal` de bayt tabanlıdır — kurulum ayarlarının **hepsi** bu birimde |
-| Token | `Microsoft.ML.Tokenizers` `AgentPrism.Core`'da **zaten referanslı** ([`ContextWindowEstimator.cs:31`](../src/AgentPrism.Core/Models/ContextWindowEstimator.cs#L31)) → paket maliyeti sıfır. İki bedeli var: sayaç yalnız `o200k_base` için **kesin**, diğer model ailelerinde tahmindir; ve her tool çıktısını tokenize etmek sıcak yolda maliyet üretir (mercek 4) |
+| **UTF-8 bayt** | ✅ `McpResourceTrimming.Trim(string, int maxBytes)` (plandan sonra [`TextTrimming.Trim`](../../../src/AgentPrism.Core/Tools/TextTrimming.cs)'e taşındı) **zaten var**: çok baytlı karakteri ortadan kesmez, saf, durumsuz, birim testli. Ayrıca `MaxInstructionsLength` ([`SkillEndpoints.cs:161`](../../../src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs#L161)) ve `MaxResourceBytesTotal` de bayt tabanlıdır — kurulum ayarlarının **hepsi** bu birimde |
+| Token | `Microsoft.ML.Tokenizers` `AgentPrism.Core`'da **zaten referanslı** ([`ContextWindowEstimator.cs:31`](../../../src/AgentPrism.Core/Models/ContextWindowEstimator.cs#L31)) → paket maliyeti sıfır. İki bedeli var: sayaç yalnız `o200k_base` için **kesin**, diğer model ailelerinde tahmindir; ve her tool çıktısını tokenize etmek sıcak yolda maliyet üretir (mercek 4) |
 | Karakter | Emsal yok. Çok baytlı metinde gerçek yükü yarıya kadar yanlış gösterir — Türkçe ve CJK içerikte sınır hiç tutmaz |
 
 ### 🚨 `McpResourceTrimming` TAŞINIR, kopyalanmaz
@@ -158,7 +158,7 @@ sınırsızdır; bir yükseltme hiçbir tool'un çıktısını sessizce kesmez.
 
 ## 89.3 — Sarmalayıcı zincire dördüncü halka
 
-Bugünkü sıra ([`ToolRegistry.cs:57`](../src/AgentPrism.Core/Tools/ToolRegistry.cs#L57)):
+Bugünkü sıra ([`ToolRegistry.cs:57`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs#L57)):
 
 ```
 Authorizing (dis) -> Timeout -> ApprovalRequired (ic) -> gercek fonksiyon
@@ -174,8 +174,8 @@ Gerekçe: kırpma yalnız **gerçek tool çıktısını** görmelidir. Daha dı�
 dursaydı `ApprovalRequiredAIFunction`'ın ürettiği bekleyen-onay işaretini de
 görürdü — o bir tool çıktısı değildir ve kırpılması anlamsızdır.
 
-🚨 **Zincir İKİ yerde kuruluyor.** [`ToolRegistry.cs:71`](../src/AgentPrism.Core/Tools/ToolRegistry.cs#L71)
-ve [`McpTenantTools.cs:86`](../src/AgentPrism.Mcp/Internal/McpTenantTools.cs#L86)
+🚨 **Zincir İKİ yerde kuruluyor.** [`ToolRegistry.cs:71`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs#L71)
+ve [`McpTenantTools.cs:86`](../../../src/AgentPrism.Mcp/Internal/McpTenantTools.cs#L86)
 aynı sarmalamayı ayrı ayrı yapar. Yeni halka **ikisine birden** eklenmezse MCP
 tool'ları sınırsız kalır ve boşluk sessizce açık kalır. Bu, planın izlediği
 "imza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır" kuralının tam

@@ -1,14 +1,14 @@
 # Faz 82 — İçerik Koruması (at-rest)
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-41** — Dalga 13 Küme C
-> **Önkoşul:** [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) — konu bazlı **silme** oradan gelir ve bu faz onun üstüne gelmez, yanına gelir · [Faz 48](arsiv/fazlar/48-GUARDRAILS.md) — guard'ın nereye takıldığı ve maskelemenin kaydı nasıl kapsadığı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-41** — Dalga 13 Küme C
+> **Önkoşul:** [Faz 64](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) — konu bazlı **silme** oradan gelir ve bu faz onun üstüne gelmez, yanına gelir · [Faz 48](48-GUARDRAILS.md) — guard'ın nereye takıldığı ve maskelemenin kaydı nasıl kapsadığı
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared` (üç SQL paketine linked-source olarak derlenir, K-176)
 > **Yeni paket:** Yok — koruma `System.Security.Cryptography.AesGcm` ile yazılır; BCL'dedir, geçişli bağımlılık **sıfır** · **Migration:** **Yok** — zarf biçimi mevcut sütun tiplerine sığar (82.1'de ölçüldü)
 > **Public API:** Büyüyor — bir arayüz, bir `sealed class`, bir `Options`, bir kayıt uzantısı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → `getting-started/security.md` §"What is stored in the clear" (bugün "known gap, not a shipped feature" diyor — bu faz o cümleyi geçersiz kılar), `concepts/governance.md`, `capabilities.md`, `reference/configuration.md`
 > · sevk edilen: `IContentProtector` ve `AgentPrismContentProtectionOptions` XML dokümanı, `src/AgentPrism.Core/README.md`. `api/` ve `http-api/` **üretilir** — orada iş XML dokümanıdır
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md) (`SEC` alan kodu)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md) (`SEC` alan kodu)
 
 ---
 
@@ -31,19 +31,19 @@
    **K-007** (yeni paket gerekçesi — bu fazda yeni paket **yok**).
 3. [`64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md`](64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) — yalnız §64.4 ve devir notu:
    ```bash
-   sed -n '/^## 64.4/,/^## 64.5/p' docs/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md
+   sed -n '/^## 64.4/,/^## 64.5/p' docs/arsiv/fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md
    ```
    Silme **sevk edildi**; bu faz onu tekrarlamaz.
    🚨 **Faz 79, 80 ve 81 planlandı ama uygulanmadı** — devir notları boştur, okuma.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (paylaşılan katman
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (paylaşılan katman
    kuralları — özellikle "sağlayıcıya özgü ADO.NET tipine başvurma") ·
-   [`hafiza/postgresql.md`](hafiza/postgresql.md) (🚨 **ordinal okuma**: `runs`
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md) (🚨 **ordinal okuma**: `runs`
    ve kardeşleri sabit sütun konumundan okunur) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (`RunRecording` zinciri ve `secret` filtresi)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md)
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md)
 
 ---
 
@@ -68,10 +68,10 @@ metni görür. 82.5 bunu açıkça yazar ve site metnine de aynen geçer.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rn "IContentProtector" src` → **0 sonuç** | Genişleme noktası **yok**. Yazılacak |
-| [`0001_initial.sql:75`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) `state json NOT NULL` | Oturum durumu açık |
-| [`0023_replay_and_branching.sql:33`](../src/AgentPrism.PostgreSql/Migrations/0023_replay_and_branching.sql) `messages json NOT NULL` | Kullanıcının ham istemi açık |
-| [`0006_attachments.sql:22`](../src/AgentPrism.PostgreSql/Migrations/0006_attachments.sql) `content bytea` | Yüklenen dosya açık |
-| [`security.md:196`](../docs-site/src/content/docs/getting-started/security.md) | Site **on sütunu adıyla** listeliyor ve "Column-level encryption inside AgentPrism is a **known gap, not a shipped feature**" diyor |
+| [`0001_initial.sql:75`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) `state json NOT NULL` | Oturum durumu açık |
+| [`0023_replay_and_branching.sql:33`](../../../src/AgentPrism.PostgreSql/Migrations/0023_replay_and_branching.sql) `messages json NOT NULL` | Kullanıcının ham istemi açık |
+| [`0006_attachments.sql:22`](../../../src/AgentPrism.PostgreSql/Migrations/0006_attachments.sql) `content bytea` | Yüklenen dosya açık |
+| [`security.md:196`](../../../docs-site/src/content/docs/getting-started/security.md) | Site **on sütunu adıyla** listeliyor ve "Column-level encryption inside AgentPrism is a **known gap, not a shipped feature**" diyor |
 
 > Kanıtlar 2026-08-21 tarihinde doğrulandı.
 
@@ -79,11 +79,11 @@ metni görür. 82.5 bunu açıkça yazar ve site metnine de aynen geçer.
 
 | Kayıttaki iddia | Ölçüm | Sonuç |
 |---|---|---|
-| **F-87:** "Guard model sınırındadır; `RunStarted` ve `run_inputs` ham saklar" | [`RunRecordingAgent.cs:661`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L661) kaydı **guard'dan geçiriyor** (`ContentGuardMessageMasker.PreviewAsync`). Aday, `AgentPrismServiceCollectionExtensions.cs:869`'daki yorumu ters okumuş: yorum "bu satır **olmasaydı**" diyor ve satır **var** | 🚫 **YANLIŞ.** F-87 kapatıldı (👤 kullanıcı kararı, 2026-08-21). Faz 64 ayrıca konu bazlı **silme** sevk ediyor |
+| **F-87:** "Guard model sınırındadır; `RunStarted` ve `run_inputs` ham saklar" | [`RunRecordingAgent.cs:661`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L661) kaydı **guard'dan geçiriyor** (`ContentGuardMessageMasker.PreviewAsync`). Aday, `AgentPrismServiceCollectionExtensions.cs:869`'daki yorumu ters okumuş: yorum "bu satır **olmasaydı**" diyor ve satır **var** | 🚫 **YANLIŞ.** F-87 kapatıldı (👤 kullanıcı kararı, 2026-08-21). Faz 64 ayrıca konu bazlı **silme** sevk ediyor |
 | **F-41:** "Bu sınır hiçbir tüketiciye dönük belgede yazmıyor" (B06-1) | `security.md` §"What is stored in the clear" sınırı **ve on sütunun tamamını** yazıyor; kontrol listesinde de satırı var | 🚫 **YANLIŞ.** Dokümantasyon boşluğu kapanmış; kalan iş **yalnız koddur** |
-| "Şifreleme dosya aramasını **tamamen bitirir**" | [`SqlAgentFileStore.cs:167-190`](../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L167) — sunucu regex'i yalnız bir **ön süzgeçtir**; nihai eşleşme **her zaman** .NET `Regex` ile yapılır ve kod zaten ön süzgeçsiz bir yedek yola sahiptir (`IsInvalidRegexError` yakalayınca) | ⚠️ **Fazla güçlü.** Arama bitmez, **ön süzgeci** kaybeder — davranış aynı, maliyet artar (82.3) |
-| "Dokuz sütun" | Site ve tarama kaydı **dokuz kalem** sayıyor ama `tool_invocations.arguments/result` iki sütundur → **on sütun**. Ayrıca tarama **iki sütun kaçırmış**: [`0027_pending_approvals.sql:14`](../src/AgentPrism.PostgreSql/Migrations/0027_pending_approvals.sql) `arguments text` (onay bekleyen tool çağrısının argümanları — `tool_invocations.arguments` ile **aynı** veri) ve `agent_skills` kaynak/script içeriği | ✅ Sayı düzeltildi: **on sütun** + iki aday (82.5) |
-| **`responses.payload` içerik tutuyor** (site böyle diyor) | `INSERT INTO ... responses` **hiçbir yerde yok** (ölçüldü). Tablo `0001_initial.sql`'de kuruldu ("phase 4 fills them") ama hiçbir `store` ona yazmıyor; yalnız [`DataSubjectTargetRegistry.cs:121`](../src/AgentPrism.Sql.Shared/Internal/DataSubjectTargetRegistry.cs#L121) onu silme hedefi olarak tanıyor | 🚫 **YANLIŞ.** Tablo bugün **boştur**. Sevk edilen `security.md` onu "session state and provider responses" diye sayıyor — bu faz o satırı da düzeltir (82.5) |
+| "Şifreleme dosya aramasını **tamamen bitirir**" | [`SqlAgentFileStore.cs:167-190`](../../../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L167) — sunucu regex'i yalnız bir **ön süzgeçtir**; nihai eşleşme **her zaman** .NET `Regex` ile yapılır ve kod zaten ön süzgeçsiz bir yedek yola sahiptir (`IsInvalidRegexError` yakalayınca) | ⚠️ **Fazla güçlü.** Arama bitmez, **ön süzgeci** kaybeder — davranış aynı, maliyet artar (82.3) |
+| "Dokuz sütun" | Site ve tarama kaydı **dokuz kalem** sayıyor ama `tool_invocations.arguments/result` iki sütundur → **on sütun**. Ayrıca tarama **iki sütun kaçırmış**: [`0027_pending_approvals.sql:14`](../../../src/AgentPrism.PostgreSql/Migrations/0027_pending_approvals.sql) `arguments text` (onay bekleyen tool çağrısının argümanları — `tool_invocations.arguments` ile **aynı** veri) ve `agent_skills` kaynak/script içeriği | ✅ Sayı düzeltildi: **on sütun** + iki aday (82.5) |
+| **`responses.payload` içerik tutuyor** (site böyle diyor) | `INSERT INTO ... responses` **hiçbir yerde yok** (ölçüldü). Tablo `0001_initial.sql`'de kuruldu ("phase 4 fills them") ama hiçbir `store` ona yazmıyor; yalnız [`DataSubjectTargetRegistry.cs:121`](../../../src/AgentPrism.Sql.Shared/Internal/DataSubjectTargetRegistry.cs#L121) onu silme hedefi olarak tanıyor | 🚫 **YANLIŞ.** Tablo bugün **boştur**. Sevk edilen `security.md` onu "session state and provider responses" diye sayıyor — bu faz o satırı da düzeltir (82.5) |
 
 ---
 
@@ -160,13 +160,13 @@ Kapsamdaki yazma yerleri (ölçüldü, 2026-08-21):
 
 | Sütun | Yazma yeri |
 |---|---|
-| `sessions.state` | [`SqlSessionStore.cs:72`](../src/AgentPrism.Sql.Shared/Stores/SqlSessionStore.cs#L72) ve `:98` |
-| `conversation_items.item` | [`SqlChatHistoryProvider.cs:166`](../src/AgentPrism.Sql.Shared/Stores/SqlChatHistoryProvider.cs#L166) · [`SqlConversationBranchStore.cs:155`](../src/AgentPrism.Sql.Shared/Stores/SqlConversationBranchStore.cs#L155) |
-| `run_inputs.messages` | [`SqlRunInputStore.cs:47`](../src/AgentPrism.Sql.Shared/Stores/SqlRunInputStore.cs#L47) |
-| `run_events.text` · `.payload` | [`SqlRunStore.cs:121`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L121) ve `:124`; ayrıca `:291` (hata metni) |
-| `tool_invocations.arguments` · `.result` | [`SqlRunStore.cs:647`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L647) ve `:648` |
-| `agent_files.content` | [`SqlAgentFileStore.cs:74`](../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L74) |
-| `attachments.content` | [`SqlAttachmentStore.cs:71`](../src/AgentPrism.Sql.Shared/Stores/SqlAttachmentStore.cs#L71) |
+| `sessions.state` | [`SqlSessionStore.cs:72`](../../../src/AgentPrism.Sql.Shared/Stores/SqlSessionStore.cs#L72) ve `:98` |
+| `conversation_items.item` | [`SqlChatHistoryProvider.cs:166`](../../../src/AgentPrism.Sql.Shared/Stores/SqlChatHistoryProvider.cs#L166) · [`SqlConversationBranchStore.cs:155`](../../../src/AgentPrism.Sql.Shared/Stores/SqlConversationBranchStore.cs#L155) |
+| `run_inputs.messages` | [`SqlRunInputStore.cs:47`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunInputStore.cs#L47) |
+| `run_events.text` · `.payload` | [`SqlRunStore.cs:121`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L121) ve `:124`; ayrıca `:291` (hata metni) |
+| `tool_invocations.arguments` · `.result` | [`SqlRunStore.cs:647`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L647) ve `:648` |
+| `agent_files.content` | [`SqlAgentFileStore.cs:74`](../../../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L74) |
+| `attachments.content` | [`SqlAttachmentStore.cs:71`](../../../src/AgentPrism.Sql.Shared/Stores/SqlAttachmentStore.cs#L71) |
 | `responses.payload` | **Yazma yolu YOK** (ölçüldü) — tabloya hiçbir `store` yazmıyor, okuma yolu da yok. Kapsam listesinde **kalır** ki tablo bir gün dolarsa korumalı doğsun; bugün kod değişikliği doğurmaz |
 
 🚨 **İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Okuma tarafı
@@ -188,9 +188,9 @@ korkuyu küçülttü, çünkü koruma **şeffaftır**: depo katmanı okurken ç�
 
 | Okuma yolu | Kanıt | Şifrelemeden sonra |
 |---|---|---|
-| Yeniden oynatma | [`RunReplayService.cs:30`](../src/AgentPrism.Core/Replay/RunReplayService.cs#L30) `IRunInputStore _inputs` | **Etkilenmez.** `IRunInputStore` uygulaması çözülmüş metni döndürür; replay sadıktır |
-| Eval terfisi | [`RunToCasePromoter.cs:97`](../src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs#L97) `ListToolInvocationsAsync`, `:175` `ReadEventsAsync` | **Etkilenmez.** İkisi de depo üzerinden okur |
-| Dosya araması | [`SqlAgentFileStore.cs:167`](../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L167) | **Ön süzgeç ölür, arama yaşar.** Sunucu tarafı `~` regex'i şifreli metinle eşleşmez; kod bu durumda dizin kapsamındaki dosyaları çeker, çözer ve .NET `Regex` ile eşler — **zaten var olan yedek yol** |
+| Yeniden oynatma | [`RunReplayService.cs:30`](../../../src/AgentPrism.Core/Replay/RunReplayService.cs#L30) `IRunInputStore _inputs` | **Etkilenmez.** `IRunInputStore` uygulaması çözülmüş metni döndürür; replay sadıktır |
+| Eval terfisi | [`RunToCasePromoter.cs:97`](../../../src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs#L97) `ListToolInvocationsAsync`, `:175` `ReadEventsAsync` | **Etkilenmez.** İkisi de depo üzerinden okur |
+| Dosya araması | [`SqlAgentFileStore.cs:167`](../../../src/AgentPrism.Sql.Shared/Stores/SqlAgentFileStore.cs#L167) | **Ön süzgeç ölür, arama yaşar.** Sunucu tarafı `~` regex'i şifreli metinle eşleşmez; kod bu durumda dizin kapsamındaki dosyaları çeker, çözer ve .NET `Regex` ile eşler — **zaten var olan yedek yol** |
 
 🚨 **Ön süzgecin ölmesi sessiz olmamalıdır.** Bugünkü yedek yol yalnız
 *geçersiz regex* durumunda devreye giriyor. Koruma açıkken ön süzgeç
@@ -365,7 +365,7 @@ docs-site/src/content/docs/reference/configuration.md                (degisir)
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek case'lerin taslağı (`SEC` alan kodu).
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

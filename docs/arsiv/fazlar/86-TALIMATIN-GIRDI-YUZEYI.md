@@ -1,14 +1,14 @@
 # Faz 86 — Talimatın Girdi Yüzeyi
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-34** — Dalga 14 Küme P (2026-08-21'de yeniden yargılandı; belge kanalını devraldı)
-> **Önkoşul:** [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) — `InstructionsByCulture` ve `InstructionCultureResolver` oradan gelir; parametre yerleştirme **onun çıktısına** uygulanır · [Faz 19](arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md) (sürümleme) — kalemin değeri sürüm geçmişidir · [Faz 18](arsiv/fazlar/18-DEGERLENDIRME.md) · [Faz 45](arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md) (eval vakası şeması)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-34** — Dalga 14 Küme P (2026-08-21'de yeniden yargılandı; belge kanalını devraldı)
+> **Önkoşul:** [Faz 72](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) — `InstructionsByCulture` ve `InstructionCultureResolver` oradan gelir; parametre yerleştirme **onun çıktısına** uygulanır · [Faz 19](19-SURUM-KARSILASTIRMA-VE-AB.md) (sürümleme) — kalemin değeri sürüm geçmişidir · [Faz 18](18-DEGERLENDIRME.md) · [Faz 45](45-URETIMDEN-EVAL-KUMESI.md) (eval vakası şeması)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared` (üç SQL paketine linked-source, K-176), `AgentPrism.UI`
 > **Yeni paket:** Yok — yerleştirme saf bir fonksiyondur, şablon motoru **alınmaz** · **Migration:** 🚨 **Gerekli — ama yalnız eval tarafı için.** Agent tanımı `jsonb`'dir (ölçüldü: `agent_definitions.definition jsonb`), parametre şeması oraya migration'sız girer. `eval_cases` **sütun tabanlıdır** (ölçüldü) → parametre seti için üç migration seti. Numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — parametre tipi, `AgentDefinition` alanı, `AgentRunRequest` alanı, belge tipi, `EvalCase` alanı. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → `concepts/agents.md` (parametreli tanım), `concepts/governance.md` (belge kanalının **ne olmadığı**), `concepts/evaluation.md` (parametreli vaka), `reference/configuration.md`, `capabilities.md`
 > · sevk edilen: yeni tiplerin XML dokümanı ve `<example>`'ları, `src/AgentPrism.Abstractions/README.md`. `api/` ve `http-api/` **üretilir**
-> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) (parametre) · [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) (belge kanalı)
+> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) (parametre) · [`docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../../manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md) (belge kanalı)
 
 ---
 
@@ -28,17 +28,17 @@
    numaraları sağlayıcı başına bağımsız), **K-176** (linked-source SQL paylaşımı).
 3. [`72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md`](72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) — yalnız devir notu:
    ```bash
-   awk '/^## Sonraki Faza Devir Notu/,0' docs/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md
    ```
    Kültür çözümlemesinin **hangi yollarda çalıştığı** oradadır. Parametre
    yerleştirme aynı yollarda çalışmak zorundadır; F-123 o yolların **eksik**
    olduğunu söylüyor (eval · replay · alt-agent her zaman `culture: null`).
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (derleme ve koşu yolu) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç migration seti) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (parametre formu ve sözlük)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (derleme ve koşu yolu) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç migration seti) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (parametre formu ve sözlük)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — agent derleme yolu
+   [`MIMARI.md`](../../MIMARI.md) — agent derleme yolu
 
 ---
 
@@ -76,11 +76,11 @@ hiç yapmamaktan kötüdür. Sayfa metni bunu açıkça yazar.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinition.cs:33`](../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs#L33) | `Instructions` düz `string?` — yer tutucu kavramı yok |
-| [`AgentDefinition.cs:41`](../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs#L41) | `InstructionsByCulture` yalnız **dile** göre varyant verir |
-| [`AgentContracts.cs:212-282`](../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs) | `AgentRunRequest` **tam altı** alan taşır: `Message`, `SessionId`, `Culture`, `Approvals`, `ToolResults`, `AttachmentIds`. Parametre **yok**, belge **yok** |
-| [`InstructionCultureResolver.cs`](../src/AgentPrism.Core/Compilation/InstructionCultureResolver.cs) | `public static Resolve(definition, culture)` — yerleştirmenin gireceği **temiz dikiş** budur |
-| [`EvalCase.cs`](../src/AgentPrism.Abstractions/Evaluation/EvalCase.cs) | `Query`, `ExpectedOutput`, `ExpectedTools`, `Context` — parametre seti **yok** |
+| [`AgentDefinition.cs:33`](../../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs#L33) | `Instructions` düz `string?` — yer tutucu kavramı yok |
+| [`AgentDefinition.cs:41`](../../../src/AgentPrism.Abstractions/Agents/AgentDefinition.cs#L41) | `InstructionsByCulture` yalnız **dile** göre varyant verir |
+| [`AgentContracts.cs:212-282`](../../../src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs) | `AgentRunRequest` **tam altı** alan taşır: `Message`, `SessionId`, `Culture`, `Approvals`, `ToolResults`, `AttachmentIds`. Parametre **yok**, belge **yok** |
+| [`InstructionCultureResolver.cs`](../../../src/AgentPrism.Core/Compilation/InstructionCultureResolver.cs) | `public static Resolve(definition, culture)` — yerleştirmenin gireceği **temiz dikiş** budur |
+| [`EvalCase.cs`](../../../src/AgentPrism.Abstractions/Evaluation/EvalCase.cs) | `Query`, `ExpectedOutput`, `ExpectedTools`, `Context` — parametre seti **yok** |
 | `agent_definitions.definition` | `jsonb` (`0001_initial.sql:34`) → parametre şeması migration **istemez** |
 | `eval_cases` | **Sütun tabanlı** (`0009_eval.sql:15`) → parametre seti migration **ister** |
 | [`82-ICERIK-KORUMASI.md`](82-ICERIK-KORUMASI.md) | At-rest şifrelemedir; belge/talimat ayrımını **kapsamaz** |
@@ -168,8 +168,8 @@ Aynı hata üç uçta da aynı biçimde döner — ölçüldü, üçü de vardı
 | Uç | Bugünkü yeri | Davranış |
 |---|---|---|
 | `POST /api/agents/{name}/run` | `AgentEndpoints.cs` | Koşu **başlamaz**; `400` |
-| `POST /api/agents/validate` | [`AgentEndpoints.cs:87`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs#L87) | Aynı hata |
-| `POST /api/agents/{name}/estimate` | [`AgentEndpoints.cs:285`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs#L285) | Aynı hata |
+| `POST /api/agents/validate` | [`AgentEndpoints.cs:87`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs#L87) | Aynı hata |
+| `POST /api/agents/{name}/estimate` | [`AgentEndpoints.cs:285`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs#L285) | Aynı hata |
 
 Üçünün **aynı** doğrulayıcıyı çağırması zorunludur. 🚨 Bu repo'da
 "senkronizasyon kopyası" beş kez yaşandı — doğrulama mantığı tek bir yerde
@@ -423,7 +423,7 @@ Beş soru ve cevapları:
 | # | Soru | Seçenekler | Öneri |
 |---|---|---|---|
 | 1 | JSON kaçışı **her zaman** mı, yoksa bağlama bakılarak mı? | A: her zaman kaçır · B: yer tutucunun tırnak içinde olup olmadığına bak | **B**, ama ölçümle: A düz metinde ters bölü çöpü üretir ve talimatın okunabilirliğini bozar. B bir mini tarayıcı ister; maliyeti uygulama anında ölçülmeli |
-| 2 | Parametre değeri için boyut sınırı ne olsun? | A: `AgentPrismOptions`'ta tek bir sınır · B: parametre başına sınır | **A** — `MaxInstructionsLength` emsali var ([`SkillEndpoints.cs:161`](../src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs#L161), UTF-8 bayt). Parametre başına sınır şemayı şişirir |
+| 2 | Parametre değeri için boyut sınırı ne olsun? | A: `AgentPrismOptions`'ta tek bir sınır · B: parametre başına sınır | **A** — `MaxInstructionsLength` emsali var ([`SkillEndpoints.cs:161`](../../../src/AgentPrism.AspNetCore/Endpoints/SkillEndpoints.cs#L161), UTF-8 bayt). Parametre başına sınır şemayı şişirir |
 | 3 | Belge olayı içeriği de taşısın mı, yalnız ad ve boyut mu? | A: ad + boyut + karma · B: tam içerik | **A** — tam içerik `run_events`'i şişirir ve Faz 82'nin at-rest kapsamını genişletir. Karma "hangi belge girdi" sorusunu cevaplar |
 | 4 | Paylaşılan blok yeni bir **tablo** mu, agent tanımının bir türü mü? | A: var olan `agent_definitions` içinde bir tür · B: yeni tablo | **A** — sürümleme, kiracılık ve denetim izi **bedava** gelir; yeni tablo üç migration seti daha ister |
 | 5 | Derlenmiş agent önbelleği şema değişince nasıl geçersizleşir? | A: tanım sürümü anahtara zaten dâhil · B: ayrı bir şema damgası | **A** — önce **ölç**: `CompiledAgentCache` anahtarı tanım sürümünü taşıyorsa iş yoktur |

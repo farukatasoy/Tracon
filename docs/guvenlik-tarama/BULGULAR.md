@@ -938,7 +938,7 @@ B05-4, B05-5, B05-6 ve B05-7'nin altısı da kapatıldı: koruma
 `EgressSocketGuard` + `EgressAddressValidator` + `ConfigurationKeyGuard`
 üçlüsünde ortaklaştı, üç giden yüzeyin (webhook · MCP · model sağlayıcı) hepsine
 takıldı ve K-164'ün zorlama noktası ilk testlerini aldı. Ayrıntı:
-[Faz 77](../77-GIDEN-AG-MUHAFIZI.md).
+[Faz 77](../arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md).
 
 Üç PLAUSIBLE kalem doğrulandı ve kapandı: B01-3 (filtre sırası), B02-7
 (`EvalRunQuery` sözleşmesi), B03-7 (`record` `ToString`). Sınıf taramasının

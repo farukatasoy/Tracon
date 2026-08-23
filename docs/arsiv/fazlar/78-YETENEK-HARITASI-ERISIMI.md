@@ -1,14 +1,14 @@
 # Faz 78 — Yetenek Haritası Erişimi
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-135**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-135**
 > **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — haritayı ve `APG01xx`–`APG0401` ailesini kurar · [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — bu fazın genişlettiği `AgentPrism.LocalReference.md`'yi kurar
 > **Paketler:** `AgentPrism.Core` (targets), `AgentPrism.Generators` (analyzer)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — değişiklik MSBuild target'ı, `internal` bir tanı tanımı ve bir Node üretecidir; hiçbir C# public üye eklenmez
-> **Tüketici yüzeyi:** site: [`guides/coding-agents.md`](../docs-site/src/content/docs/guides/coding-agents.md) (§"`AGENTS.md` — the capability map" yanlış tavsiye veriyor), `capabilities.md` (tanı tablosu satırı)
+> **Tüketici yüzeyi:** site: [`guides/coding-agents.md`](../../../docs-site/src/content/docs/guides/coding-agents.md) (§"`AGENTS.md` — the capability map" yanlış tavsiye veriyor), `capabilities.md` (tanı tablosu satırı)
 > · sevk edilen: `AgentPrism.LocalReference.md` gövdesi (targets içinde), `AgentPrism.AgentMap.md` alt bölümü, `APG0402` tanı metni, `llms.txt`
-> **Manuel test alanı:** [`docs/manuel-test/30-YEREL-REFERANS.md`](manuel-test/30-YEREL-REFERANS.md) — case'ler oraya eklenir
+> **Manuel test alanı:** [`docs/manuel-test/30-YEREL-REFERANS.md`](../../manuel-test/30-YEREL-REFERANS.md) — case'ler oraya eklenir
 
 ---
 
@@ -29,15 +29,15 @@
    başına yazılır).
 3. [`77-GIDEN-AG-MUHAFIZI.md`](77-GIDEN-AG-MUHAFIZI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/77-GIDEN-AG-MUHAFIZI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md
    ```
    Faz 77 `AgentPrism.Core`'un `buildTransitive/` dizinine dokunmadı; devir notu
    yalnız o dizinin bugünkü durumunu doğrulamak için okunur.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (analyzer kayıt
-   ve test altyapısı) · [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md)
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (analyzer kayıt
+   ve test altyapısı) · [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md)
    (`buildTransitive/` akışı ve meta paket) ·
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (site kapıları)
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (site kapıları)
 
 ---
 
@@ -72,12 +72,12 @@ diskte hazır ve yalnız yolu eksik — 78.1 ve 78.2 onu bağlar. **Anlatı** ka
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrism.Core.targets:149-175`](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149) | `LocalReference.md` gövdesi yalnız XML doc yollarını ve OpenAPI belgesini yazar. **Harita yolu yok** |
+| [`AgentPrism.Core.targets:149-175`](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149) | `LocalReference.md` gövdesi yalnız XML doc yollarını ve OpenAPI belgesini yazar. **Harita yolu yok** |
 | Tüketicide üretilen `AgentPrism.LocalReference.md` | 41 satır: 12 XML doc + 1 OpenAPI belgesi. Haritaya tek bir gönderme yok |
 | `~/.nuget/packages/agentprism.core/0.0.0-preview.0.286/buildTransitive/AgentPrism.AgentMap.md` | Harita **diskte var**, 8161 B. Hiçbir üretilen dosya bu yolu göstermiyor |
-| [`AgentPrismUsageAnalyzer.cs:308-313`](../src/AgentPrism.Generators/AgentPrismUsageAnalyzer.cs#L308) | `APG0401` işaret taşımayan dosyada erken döner (K-507, doğru davranış) — yani bu repo'da **hiçbir tanı ötmüyor** |
-| [`AgentPrism.Core.targets:77-80`](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L77) | `AdditionalFiles` opt-in özelliğine **bağlı değil** — tüketicinin `AGENTS.md`'si analyzer'a bugün zaten akıyor |
-| [`guides/coding-agents.md:59-61`](../docs-site/src/content/docs/guides/coding-agents.md#L59) | Site'nin bu duruma cevabı: *"copy the capability section out of a generated one and maintain it yourself"* — elle iş, sessizce bayatlar, hiçbir kapı yakalamaz |
+| [`AgentPrismUsageAnalyzer.cs:308-313`](../../../src/AgentPrism.Generators/AgentPrismUsageAnalyzer.cs#L308) | `APG0401` işaret taşımayan dosyada erken döner (K-507, doğru davranış) — yani bu repo'da **hiçbir tanı ötmüyor** |
+| [`AgentPrism.Core.targets:77-80`](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L77) | `AdditionalFiles` opt-in özelliğine **bağlı değil** — tüketicinin `AGENTS.md`'si analyzer'a bugün zaten akıyor |
+| [`guides/coding-agents.md:59-61`](../../../docs-site/src/content/docs/guides/coding-agents.md#L59) | Site'nin bu duruma cevabı: *"copy the capability section out of a generated one and maintain it yourself"* — elle iş, sessizce bayatlar, hiçbir kapı yakalamaz |
 | Tüketicinin `AGENTS.md:105`'i | 🚨 Dosya AgentPrism'i **zaten ayrıntılı anlatıyor**: `LocalReference.md`'yi, opt-in'in neden kapalı olduğunu, hatta `AgentPrism.AgentMap.md` adını biliyor — ama haritanın **yolunu** taşımıyor |
 
 > Kanıtlar 2026-08-21 tarihinde doğrulandı.
@@ -98,10 +98,10 @@ URL). Yani Faz 78.1 haritayı ulaşılabilir yapınca adres de gelir; adresi ayr
 
 | Kanıt | Gözlem |
 |---|---|
-| [`concepts/governance.md:15`](../docs-site/src/content/docs/concepts/governance.md#L15) | 🚨 Tüketicinin agent'ının kaydettiği tuzağın (`UseTenancy()` çağrılmazsa sessizce single-tenant) cevabı **"Off by default."** — yalnız burada. Harita `- Multi-tenancy: UseTenancy()` der, varsayılanı söylemez; `SingleTenantContext` XML doc'u **tipi** anlatır, riski değil |
+| [`concepts/governance.md:15`](../../../docs-site/src/content/docs/concepts/governance.md#L15) | 🚨 Tüketicinin agent'ının kaydettiği tuzağın (`UseTenancy()` çağrılmazsa sessizce single-tenant) cevabı **"Off by default."** — yalnız burada. Harita `- Multi-tenancy: UseTenancy()` der, varsayılanı söylemez; `SingleTenantContext` XML doc'u **tipi** anlatır, riski değil |
 | `docs-site/public/llms.txt` | `llmstxt.org` konvansiyonu bir **bağ listesi** ister; bizimki yetenek haritasının kopyası + 5 URL. `^- [` deseni **0** kez eşleşiyor — indeks değil |
 | `docs-site/public/llms-full.txt` | **401 254 B**. Site köküne ulaşan agent'ın iki seçeneği var: HTML tarayarak gezinmek, veya bir bağlam penceresini yakmak |
-| [`build-agent-map.mjs:62`](../docs-site/scripts/build-agent-map.mjs#L62) | `llms-full.txt` satırı **yalnız** site kopyasına eklenir. Dağıtım ters: anlatıya başka yolu olmayan **yerel** okuyucudan saklanır, siteye zaten ulaşmış olana verilir |
+| [`build-agent-map.mjs:62`](../../../docs-site/scripts/build-agent-map.mjs#L62) | `llms-full.txt` satırı **yalnız** site kopyasına eklenir. Dağıtım ters: anlatıya başka yolu olmayan **yerel** okuyucudan saklanır, siteye zaten ulaşmış olana verilir |
 | `guides/` · `concepts/` · `reference/` · `getting-started/` | **424 KB** elle yazılmış anlatı; yerel karşılığı **yok**. Buna karşılık `api/` (698 sayfa) ve `http-api/` (272 sayfa) üretilendir — kaynakları tüketicide zaten var |
 | Ölçüm: 38 sayfanın frontmatter'ı | 38/38 sayfa `title` **ve** `description` taşıyor; indeks yedek yol gerektirmeden üretilebilir. İndeks boyutu **5841 B** |
 
@@ -118,7 +118,7 @@ referans değil, **anlatıdır**.
 
 `AgentPrism.LocalReference.md` gövdesine yeni bir bölüm eklenir. Harita
 **kopyalanmaz**, yolu yazılır — XML doc'lar için zaten uygulanan desen budur.
-Yol `$(AgentPrismAgentMapFile)` özelliğinde hazır ([targets:18](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L18)).
+Yol `$(AgentPrismAgentMapFile)` özelliğinde hazır ([targets:18](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L18)).
 
 ```mermaid
 flowchart LR
@@ -134,7 +134,7 @@ Bölüm haritadan **önce** gelir: agent'ın sorduğu ilk soru "ne var", ikincis
 "nasıl çağrılır". Bugünkü gövde ikinciyle başlıyor.
 
 Yazılacak bölüm, mevcut `_AgentPrismLocalReferenceLine` `ItemGroup`'una
-([targets:149](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149))
+([targets:149](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L149))
 girer ve şu biçimdedir:
 
 ```
@@ -189,7 +189,7 @@ adlandırır:
 > machine, so it will hand-write behaviour AgentPrism already ships. Add one line
 > naming that file; the build writes it next to each project.`
 
-🚨 **`NoWarn` listesi genişletilmelidir.** [targets:67](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L67)
+🚨 **`NoWarn` listesi genişletilmelidir.** [targets:67](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L67)
 bugün altı kod sayıyor; `APG0402` eklenmezse `AgentPrismUsageDiagnostics=false`
 aileyi **eksik** susturur. Bunu yakalayan bir test yazılır (78.3 tablosu).
 
@@ -205,7 +205,7 @@ maliyeti ölçülmedi. Uygulayan oturum bunu ölçer; maliyet fark edilirse aram
 
 ## 78.3 — Site yanlış tavsiyeyi bırakır
 
-[`guides/coding-agents.md:59-61`](../docs-site/src/content/docs/guides/coding-agents.md#L59)
+[`guides/coding-agents.md:59-61`](../../../docs-site/src/content/docs/guides/coding-agents.md#L59)
 bugün "bölümü kopyala ve bakımını sen yap" diyor. Bu tavsiye elle iştir, sessizce
 bayatlar ve hiçbir kapı onu yakalamaz. Yerine tek satırlık yönlendirme reçetesi
 ve `APG0402`'nin ne istediği yazılır.
@@ -229,7 +229,7 @@ flowchart TB
     I -.->|son care| F["llms-full.txt · 401 KB<br/>baglam penceresini yakar"]
 ```
 
-**Üreteç değişikliği.** `renderFullText()` ([build-agent-map.mjs:285](../docs-site/scripts/build-agent-map.mjs#L285))
+**Üreteç değişikliği.** `renderFullText()` ([build-agent-map.mjs:285](../../../docs-site/scripts/build-agent-map.mjs#L285))
 elle yazılan sayfa kümesini **zaten** doğru sırayla dolaşıyor
 (`fullTextRootPages` + `fullTextOrder`). İndeks aynı dolaşımı kullanır ve her
 sayfa için frontmatter'ın `title` ve `description` alanlarını okuyup tek satır
@@ -241,7 +241,7 @@ sayfa için frontmatter'ın `title` ve `description` alanlarını okuyup tek sat
 
 Yedek yol gerekmez: **38/38** sayfa iki alanı da taşıyor (ölçüldü). Bir sayfa
 alanı kaybederse üreteç **hata vermelidir**, eksik satır üretmemeli — boş harita
-yasağının (`parseCapabilities`, [satır 82](../docs-site/scripts/build-agent-map.mjs#L82))
+yasağının (`parseCapabilities`, [satır 82](../../../docs-site/scripts/build-agent-map.mjs#L82))
 aynı gerekçesi.
 
 **İki bütçe, tek harita.** İndeks `llms.txt`'i 8256 → **14 097 B**'a çıkarır ve
@@ -258,7 +258,7 @@ kuralı (K-524 emsali). Bu bir bütçe **büyütmesi değildir** (K-214): sını
 konuyor ve haritanın 10 240'ı **düşürülmüyor**.
 
 **Sevk edilen haritaya iki satır.** `build()` içindeki dağıtım düzeltilir
-([satır 62](../docs-site/scripts/build-agent-map.mjs#L62)): `llms-full.txt`
+([satır 62](../../../docs-site/scripts/build-agent-map.mjs#L62)): `llms-full.txt`
 satırı artık **her iki** kopyada bulunur, ve harita indeksi de adlandırır. Sevk
 edilen haritanın "Where to look" bölümü şu iki satırı kazanır:
 
@@ -276,7 +276,7 @@ satır ~200 B ekler ve 10 240 sınırı içinde kalır — ama üreteç sınır�
 **hata verir**, kesmez. Uygulayan oturum bunu ölçer.
 
 **Adres kanonik kalır.** `siteUrl` sabittir (`https://farukatasoy.github.io/AgentPrism/`,
-[satır 30](../docs-site/scripts/build-agent-map.mjs#L30)) ve öyle kalır. Özel
+[satır 30](../../../docs-site/scripts/build-agent-map.mjs#L30)) ve öyle kalır. Özel
 ağdaki bir ayna (`http://10.8.0.3:4321/…`) bir Astro **dev server**'ıdır:
 `npm run dev` durunca ölür ve VPN dışından erişilemez. Sevk edilen bir yapıta
 gömülecek adres değildir; override özelliği bu fazda **açılmaz** (Açık Soru 5).
@@ -385,13 +385,13 @@ Beş soru:
 | Eşzamanlılık | Paralel build'de her proje **kendi** `LocalReference.md`'sini yazar (K-510) — yarış yok. `AGENTS.md` yalnız **okunur**, hiç yazılmaz |
 | Boş/aşırı girdi | Boş `AGENTS.md`: işaret yok, dize yok → tanı öter (doğru). Çok büyük `AGENTS.md`: maliyet **ölçülmeli** (78.2) |
 | Başka kiracının kaydı | İlgisiz — derleme zamanı yüzeyi, çalışma anı verisi yok |
-| Alt sistem hatası | Salt-okunur kaynak ağacı: `WriteLinesToFile` zaten `ContinueOnError="WarnAndContinue"` taşır ([targets:189](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L189)). Yeni bölüm bu davranışı değiştirmez |
+| Alt sistem hatası | Salt-okunur kaynak ağacı: `WriteLinesToFile` zaten `ContinueOnError="WarnAndContinue"` taşır ([targets:189](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets#L189)). Yeni bölüm bu davranışı değiştirmez |
 
 ---
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/30-YEREL-REFERANS.md`](manuel-test/30-YEREL-REFERANS.md)
+> Kapanışta [`docs/manuel-test/30-YEREL-REFERANS.md`](../../manuel-test/30-YEREL-REFERANS.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

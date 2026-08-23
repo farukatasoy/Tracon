@@ -21,7 +21,7 @@ public sealed class ToolInvocationTrackerGovernanceTests
         tracker.OnCall(new FunctionCallContent("call-1", "cancel_order", arguments: null), source: null, arguments: null);
 
         // AuthorizingAIFunction returns the denial reason as an ordinary
-        // (non-exceptional) result — see docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md,
+        // (non-exceptional) result — see docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md,
         // section 69.2. The tracker can only tell it apart from a real success
         // through the accumulator marker.
         authorization.RecordDenied("call-1");

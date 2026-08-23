@@ -1,13 +1,13 @@
 # Faz 66 — Gelen Tetikleyiciler
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-65**
-> **Önkoşul:** [Faz 17](arsiv/fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](arsiv/fazlar/43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-65**
+> **Önkoşul:** [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu · [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — `WebhookSigner` ters yönde kullanılır · [Faz 43](43-IDEMPOTENCY-KEY.md) — tekrar koruması oradan gelir · [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — `JobKind.AgentRun` tetikleyicinin hedefidir · [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — kapsam modeli
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (yeni `inbound_triggers` tablosu). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — bir kayıt tipi, bir depo arayüzü, uç ailesi. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
 > **Site etkisi:** `guides/background-work.md`, `concepts/runs.md`, yeni `guides/inbound-triggers.md`
-> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
+> **Manuel test alanı:** [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 
 ---
 
@@ -28,19 +28,19 @@
    **K-394** (workflow çalıştırmaları kota kapısından geçer — tetikleyici de
    geçmelidir), **K-395** (kimlik doğrulaması olmayan gruplarda başlık nötr
    davranışı)
-3. [`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md) — yalnız devir notu:
+3. [`21-KOTA-VE-OLAY-YAYINI.md`](21-KOTA-VE-OLAY-YAYINI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md
    ```
    Giden webhook'un imza sözleşmesi devralınır; bu faz onu **ters yönde**
    kullanır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (kimlik doğrulamasız uç
-   grubu ve filtre sırası), [`hafiza/postgresql.md`](hafiza/postgresql.md)
-   (benzersizlik indeksi), [`hafiza/frontend.md`](hafiza/frontend.md)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (kimlik doğrulamasız uç
+   grubu ve filtre sırası), [`hafiza/postgresql.md`](../../hafiza/postgresql.md)
+   (benzersizlik indeksi), [`hafiza/frontend.md`](../../hafiza/frontend.md)
    (tetikleyici ekranı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) · [`MIMARI.md`](MIMARI.md) — çalıştırma yolu bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) · [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu bölümü
 
 ---
 
@@ -62,11 +62,11 @@ emsalini izler.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rln "Trigger" src/AgentPrism.AspNetCore/` | Yalnız zamanlama sözleşmelerinde geçiyor. **Gelen tetikleyici ucu yok** |
-| [`WebhookSigner.cs:68`](../src/AgentPrism.Core/Webhooks/WebhookSigner.cs) | `Verify(body, timestamp, secret, signature)` **hazır** ve sabit zamanlı karşılaştırma kullanıyor. Ters yön için yeni kriptografi yazılmaz |
-| [`JobKind.cs:49`](../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | `AgentRun = 5` vardır (Faz 46). Tetikleyicinin hedefi budur; yeni bir iş tipi gerekmez |
-| [`JobKind.cs:18`](../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | `Workflow = 1` — tetikleyici workflow'u da hedefleyebilir |
-| [`IIdempotencyStore.cs:22`](../src/AgentPrism.Abstractions/Idempotency/IIdempotencyStore.cs) | Tekrar koruması için depo **hazır** (Faz 43) |
-| [`0008_scheduling.sql:31-46`](../src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql) | `job_schedules` şeması bu tablonun emsalidir: kiracı, ad, hedef, `enabled`, benzersiz `(tenant_id, name)` |
+| [`WebhookSigner.cs:68`](../../../src/AgentPrism.Core/Webhooks/WebhookSigner.cs) | `Verify(body, timestamp, secret, signature)` **hazır** ve sabit zamanlı karşılaştırma kullanıyor. Ters yön için yeni kriptografi yazılmaz |
+| [`JobKind.cs:49`](../../../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | `AgentRun = 5` vardır (Faz 46). Tetikleyicinin hedefi budur; yeni bir iş tipi gerekmez |
+| [`JobKind.cs:18`](../../../src/AgentPrism.Abstractions/Scheduling/JobKind.cs) | `Workflow = 1` — tetikleyici workflow'u da hedefleyebilir |
+| [`IIdempotencyStore.cs:22`](../../../src/AgentPrism.Abstractions/Idempotency/IIdempotencyStore.cs) | Tekrar koruması için depo **hazır** (Faz 43) |
+| [`0008_scheduling.sql:31-46`](../../../src/AgentPrism.PostgreSql/Migrations/0008_scheduling.sql) | `job_schedules` şeması bu tablonun emsalidir: kiracı, ad, hedef, `enabled`, benzersiz `(tenant_id, name)` |
 | K-138 | Çift tetikleme zamanlamada **benzersiz kısıtla** kapatıldı; aynı ders bu fazda tekrar edilir |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -311,7 +311,7 @@ sağlayıcısı üzerinde koşar.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
+> Kapanışta [`docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../../manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

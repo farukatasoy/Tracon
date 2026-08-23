@@ -8,7 +8,7 @@ namespace AgentPrism.Core.UnitTests.Tools;
 /// Verifies <see cref="TimeoutAIFunction"/>: a call that settles in time
 /// passes through unchanged, a call that outlives its timeout is cut short
 /// even when its body never reads the cancellation token (Manual Case 8,
-/// docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md), and a real caller
+/// docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md), and a real caller
 /// cancellation is never mislabeled as a timeout.
 /// </summary>
 public sealed class TimeoutAIFunctionTests

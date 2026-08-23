@@ -1,8 +1,8 @@
 # Faz 74 — Yerel Referans Yüzeyi
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-121** — kapsamı ölçümle değişti; gerekçe [§74.0](#740--f-121-neden-küçüldü)
-> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — `buildTransitive` borusu, harita üreteci ve `CapabilityCoverageTests` cırcırı oradan devralınır · [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) — `OpenApiSnapshotTests` belgeyi çalışan host'a bağlar, bu yüzden belgeyi paketlemek kayma üretmez
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-121** — kapsamı ölçümle değişti; gerekçe [§74.0](#740--f-121-neden-küçüldü)
+> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — `buildTransitive` borusu, harita üreteci ve `CapabilityCoverageTests` cırcırı oradan devralınır · [Faz 40](40-OPENAPI-YAYINI.md) — `OpenApiSnapshotTests` belgeyi çalışan host'a bağlar, bu yüzden belgeyi paketlemek kayma üretmez
 > **Paketler:** `AgentPrism.Core` (target), `AgentPrism.AspNetCore` (yeni `buildTransitive`), on bir paket (`<example>` yazımı) · `docs-site/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** `<example>` eklemek imza değiştirmez; MSBuild özelliği ve paket içeriği public API yüzeyi değildir. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` = 16 satır (16 paket × 1 boş satır)
@@ -33,18 +33,18 @@
    takibi açık; bu faz yüzeyi büyütmez).
 3. [`73-TUKETICI-AGENT-DESTEGI.md`](73-TUKETICI-AGENT-DESTEGI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/73-TUKETICI-AGENT-DESTEGI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
    ```
    Altı maddenin **üçü bu faz için zorunludur**: madde 3 (tüketici testleri
    global NuGet önbelleğine takılır — `ClearGlobalPackageCache`), madde 4
    (harita kaynağı tektir), madde 2 (Core kendi analyzer'ını kendi üzerinde
    koşturur).
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (**ana kaynak** —
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (**ana kaynak** —
    `buildTransitive` paketleme, `Remove`+`Include` tuzağı),
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (cırcır testi deseni)
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (cırcır testi deseni)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — paketleme bölümü
+   [`MIMARI.md`](../../MIMARI.md) — paketleme bölümü
 
 ---
 
@@ -97,11 +97,11 @@ o zaman bu fazın çıktısı ona kaynak olur.
 | On detay sorgusu (`AddEvalCheck`, `UseMcp`, `AgentPrismTestHost`, tenancy, webhook imzası, compaction, `AddSkill`, `UseVoiceConversation`, `Idempotency`, `AddPatternContentGuard`) | Sekizi ilk `grep`'te, ikisi ikinci `grep`'te (ilk ad tahmini yanlıştı) — **10/10 yerel olarak cevaplandı** |
 | `grep -c "<example>"` tüm XML korpusu | **22**. 2.96 MB özet var, çalışan örnek yok |
 | 39 kayıt giriş noktası (K-509'un kümesi) | **12'sinde** `<example>` var, **27'sinde** yok. Kırılım [§74.4](#744--kapı-capabilityexampletests)'te |
-| [`build-agent-map.mjs:264-269`](../docs-site/scripts/build-agent-map.mjs#L264-L269) | "Where to look" **dört adres** yazar, dördü de web. Yerel korpusa tek işaret yok |
-| [`docs/openapi/agentprism.json`](openapi/agentprism.json) | **515 877 bayt**, 123 path, 250 şema. Gzip **66 283 bayt**. Hiçbir `.nupkg` içinde **yok** — `unzip -l` ile 15 pakette arandı |
-| [`AgentPrism.AspNetCore.csproj`](../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj) | `buildTransitive` **yok**; paket bugün yalnız `lib/` ve `README.md` taşıyor (1 010 KB) |
+| [`build-agent-map.mjs:264-269`](../../../docs-site/scripts/build-agent-map.mjs#L264-L269) | "Where to look" **dört adres** yazar, dördü de web. Yerel korpusa tek işaret yok |
+| [`docs/openapi/agentprism.json`](../../openapi/agentprism.json) | **515 877 bayt**, 123 path, 250 şema. Gzip **66 283 bayt**. Hiçbir `.nupkg` içinde **yok** — `unzip -l` ile 15 pakette arandı |
+| [`AgentPrism.AspNetCore.csproj`](../../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj) | `buildTransitive` **yok**; paket bugün yalnız `lib/` ve `README.md` taşıyor (1 010 KB) |
 | Sonda derlemesi: `%(ReferencePath.NuGetPackageId)` + `%(ReferencePath.Identity)` | MSBuild çözülmüş yolu **veriyor**: `/Users/…/.nuget/packages/agentprism.core/0.0.0-preview.0.271/lib/net10.0/AgentPrism.Core.dll`. `.xml` aynı dizinde, aynı adla |
-| [`OpenApiSnapshotTests.cs:62`](../tests/AgentPrism.AspNetCore.FunctionalTests/OpenApiSnapshotTests.cs#L62) | İşlenmiş belge çalışan host'un ürettiğiyle karşılaştırılıyor — belgeyi paketlemek **yeni bir kayma yüzeyi açmaz** |
+| [`OpenApiSnapshotTests.cs:62`](../../../tests/AgentPrism.AspNetCore.FunctionalTests/OpenApiSnapshotTests.cs#L62) | İşlenmiş belge çalışan host'un ürettiğiyle karşılaştırılıyor — belgeyi paketlemek **yeni bir kayma yüzeyi açmaz** |
 | `grep -rn "PackAsTool"` | **Boş.** `dotnet tool` bu repo için sıfırdan bir dağıtım kanalıdır |
 
 > Kanıtlar 2026-08-19 tarihinde bu depo ve `artifacts/package/release/*.0.271.nupkg`
@@ -236,7 +236,7 @@ kurulur; içinde `;` geçen bir yol satırı ikiye böler. Ölçülmedi, ama yol
 ### `.gitignore`
 
 Dosya makineye özgüdür ve **işlenmemelidir**. Şablon
-([`AgentPrism.Starter/.gitignore`](../src/AgentPrism.Templates/content/AgentPrism.Starter/.gitignore))
+([`AgentPrism.Starter/.gitignore`](../../../src/AgentPrism.Templates/content/AgentPrism.Starter/.gitignore))
 bir satır kazanır. Var olan projelerde bunu tüketici yapar; dosyanın ilk satırı
 bunu söyler. **Tüketicinin `.gitignore`'una AgentPrism yazmaz** — başkasının
 dosyasını değiştirmek K1'in ihlalidir.
@@ -349,7 +349,7 @@ Taban çizgisi bu fazda **boş doğar**: 27 örnek bu fazda yazılır.
 
 ## 74.5 — Haritanın değişimi ve revizyon etkisi
 
-[`build-agent-map.mjs:264-269`](../docs-site/scripts/build-agent-map.mjs#L264-L269)
+[`build-agent-map.mjs:264-269`](../../../docs-site/scripts/build-agent-map.mjs#L264-L269)
 "Where to look" listesine bir satır ekler:
 
 ```
@@ -469,7 +469,7 @@ docs/manuel-test/00-INDEKS.md                     (degisir — satir 30)
 Target davranışı **paket sınırını** geçer; birim testi onu kanıtlamaz. On
 fonksiyonel case'in tamamı gerçek `dotnet build` üzerinde, **paketlenmiş meta
 paket** üzerinden koşar —
-[`AgentPrism.Templates.Tests`](../tests/AgentPrism.Templates.Tests/) bu altyapıya
+[`AgentPrism.Templates.Tests`](../../../tests/AgentPrism.Templates.Tests) bu altyapıya
 Faz 73'ten beri sahiptir.
 
 🚨 **Faz 73 devir notu madde 3 bu faz için zorunludur.** MinVer sürümü commit'ler

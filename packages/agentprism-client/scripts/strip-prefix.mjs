@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The TypeScript counterpart of Faz 83's nswag-prepare-document.py strip_prefix
-// step (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
+// step (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
 //
 // The committed document is generated with every path relative to the DEFAULT
 // MapAgentPrism prefix ('/agentprism'), but that prefix is a runtime parameter

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Development-time generation step (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
+// Development-time generation step (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
 // section 84.2). `npm run build` and `dotnet build` do NOT call this — it is
 // run by hand whenever docs/openapi/agentprism.json changes, and its output
 // (src/schema.ts) is committed.

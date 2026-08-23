@@ -1,14 +1,14 @@
 # Faz 83 — Tipli Yönetim İstemcisi ve CLI
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-50** — Dalga 13 Küme E (birinci yarı)
-> **Önkoşul:** [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) — üretim kaynağı olan OpenAPI belgesi ve onu koda bağlayan `OpenApiSnapshotTests` oradan gelir · [Faz 67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) — `MigrationRunner`'ın set kavramı ve `AutoApplyMigrations` sözleşmesi
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-50** — Dalga 13 Küme E (birinci yarı)
+> **Önkoşul:** [Faz 40](40-OPENAPI-YAYINI.md) — üretim kaynağı olan OpenAPI belgesi ve onu koda bağlayan `OpenApiSnapshotTests` oradan gelir · [Faz 67](67-ISTEGE-BAGLI-MIGRATION-SETI.md) — `MigrationRunner`'ın set kavramı ve `AutoApplyMigrations` sözleşmesi
 > **Paketler:** `AgentPrism.Client` (**yeni**), `AgentPrism.Cli` (**yeni**)
 > **Yeni paket:** İki tane — gerekçe **§83.7** · **Migration:** **Yok** — bu faz migration *çalıştırır*, migration *yazmaz*
 > **Public API:** Büyüyor — ama tamamı **üretilmiş**tir. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; `wc -l src/*/PublicAPI.Shipped.txt` ile ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → yeni `guides/cli.md`, `packages.md` (iki yeni satır), `capabilities.md`, `getting-started/persistence.md` (migration'ı ayrı adım olarak koşma), `reference/versioning.md` (istemci–sunucu sürüm eşleşmesi)
 > · sevk edilen: `src/AgentPrism.Client/README.md` ve `src/AgentPrism.Cli/README.md` (**yeni**, `PackageReadmeFile` zorunlu), `AgentPrismClientOptions` XML dokümanı, kök `README.md` paket tablosu. `api/` ve `http-api/` **üretilir**
-> **Manuel test alanı:** `docs/manuel-test/34-ISTEMCI-VE-CLI.md` — **yeni dosya**, alan kodu `CLI`. Kapanışta `faz-tamamlama` oluşturur ve [`00-INDEKS.md`](manuel-test/00-INDEKS.md) §7 tablosuna `34` satırını yazar — planın "son sıra 32" varsayımı bayattı, kapanışta `33` zaten Faz 80 tarafından alınmıştı
+> **Manuel test alanı:** `docs/manuel-test/34-ISTEMCI-VE-CLI.md` — **yeni dosya**, alan kodu `CLI`. Kapanışta `faz-tamamlama` oluşturur ve [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) §7 tablosuna `34` satırını yazar — planın "son sıra 32" varsayımı bayattı, kapanışta `33` zaten Faz 80 tarafından alınmıştı
 
 ---
 
@@ -32,17 +32,17 @@
    **K-511** (`docs/openapi/agentprism.json` `AgentPrism.AspNetCore`'a **kaynağından** girer).
 3. [`82-ICERIK-KORUMASI.md`](82-ICERIK-KORUMASI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/82-ICERIK-KORUMASI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/82-ICERIK-KORUMASI.md
    ```
    Faz 82 kayıt içeriğini şifreler. Bu fazın **doğrudan** bağı yoktur, ama
    `MigrationRunner` yolu ortaktır: içerik koruması bir migration eklediyse CLI
    onu da uygulamak zorundadır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yeni paket, `PackAsTool`, `IncludeBuildOutput` tuzakları) ·
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (AOT kaçış merdiveni, `TreatWarningsAsErrors`, analyzer bastırma) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (`MigrationRunner` üç sağlayıcıda **ayrı CLR tipidir** — K-176)
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (yeni paket, `PackAsTool`, `IncludeBuildOutput` tuzakları) ·
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (AOT kaçış merdiveni, `TreatWarningsAsErrors`, analyzer bastırma) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (`MigrationRunner` üç sağlayıcıda **ayrı CLR tipidir** — K-176)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) bölüm 2 (katman grafiği — bu faz grafiğe iki düğüm ekler)
+   [`MIMARI.md`](../../MIMARI.md) bölüm 2 (katman grafiği — bu faz grafiğe iki düğüm ekler)
 
 ---
 
@@ -79,11 +79,11 @@ yazılır ve Faz 84 olarak planlanır.
 | Kanıt | Gözlem |
 |---|---|
 | `AgentPrism.slnx:4-21` | 18 kaynak paketi var; **`AgentPrism.Client` yok**, CLI yok |
-| [`MigrationHostedService.cs:13-16`](../src/AgentPrism.Sql.Shared/Migrations/MigrationHostedService.cs) | XML dokümanı aynen şunu diyor: *"`MigrationRunner` can be run as a separate deployment step."* — **çalıştıracak araç yok** |
-| [`MigrationRunner.cs:45`](../src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs) | `ApplyAsync` ve `GetSnapshotAsync` **public**; ctor **`internal`**. Dışarıdan `new` edilemez, yalnız DI ile çözülür |
-| [`ci.yml:154-179`](../.github/workflows/ci.yml) | `publish` işi yalnız **NuGet.org**'a yayınlar (`v*` etiketi, `nuget` environment'ı). Bu faz **aynı** hattı kullanır; yeni kimlik bilgisi istemez |
+| [`MigrationHostedService.cs:13-16`](../../../src/AgentPrism.Sql.Shared/Migrations/MigrationHostedService.cs) | XML dokümanı aynen şunu diyor: *"`MigrationRunner` can be run as a separate deployment step."* — **çalıştıracak araç yok** |
+| [`MigrationRunner.cs:45`](../../../src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs) | `ApplyAsync` ve `GetSnapshotAsync` **public**; ctor **`internal`**. Dışarıdan `new` edilemez, yalnız DI ile çözülür |
+| [`ci.yml:154-179`](../../../.github/workflows/ci.yml) | `publish` işi yalnız **NuGet.org**'a yayınlar (`v*` etiketi, `nuget` environment'ı). Bu faz **aynı** hattı kullanır; yeni kimlik bilgisi istemez |
 | `docs/openapi/agentprism.json` | OpenAPI **3.1.1** · **123** yol · **160** operasyon · **250** şema · `operationId` eksik operasyon **0** · **22** tag. Üretim kaynağı olarak yeterli |
-| [`OpenApiSnapshotTests.cs:40`](../tests/AgentPrism.AspNetCore.FunctionalTests/OpenApiSnapshotTests.cs) | Commit'lenmiş belge koddan sapınca test kızarıyor. Üretim kaynağının **kendi kapısı var** |
+| [`OpenApiSnapshotTests.cs:40`](../../../tests/AgentPrism.AspNetCore.FunctionalTests/OpenApiSnapshotTests.cs) | Commit'lenmiş belge koddan sapınca test kızarıyor. Üretim kaynağının **kendi kapısı var** |
 | `.config/dotnet-tools.json` | Yerel araç manifesti **var** (`docfx` 2.78.5). Üreteci geliştirme adımı olarak eklemenin yeri hazır |
 
 > Kanıtlar 2026-08-21 tarihinde doğrulandı.
@@ -148,7 +148,7 @@ Muafiyet dosyası **yoktur**. Bugün belgede `operationId` eksik operasyon
 
 Ölçüldü: belgedeki **123 yolun 123'ü** `/agentprism` ile başlıyor (118'i
 `/agentprism/api`, 5'i `/agentprism/v1`). Ama `MapAgentPrism` öneki
-**parametredir** — [`AgentPrismEndpointRouteBuilderExtensions.cs:16`](../src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs)
+**parametredir** — [`AgentPrismEndpointRouteBuilderExtensions.cs:16`](../../../src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs)
 `DefaultPrefix = "/agentprism"` yalnız varsayılandır ve `:59` onu
 `string prefix = DefaultPrefix` olarak alır.
 
@@ -244,10 +244,10 @@ var applied = await provider.GetRequiredService<MigrationRunner>().ApplyAsync(ct
 ```
 
 Doğrulanan iki nokta:
-[`AgentPrismServiceCollectionExtensions.cs:58-60`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
+[`AgentPrismServiceCollectionExtensions.cs:58-60`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
 `AddAgentPrism(this IServiceCollection services, IConfiguration? configurationSection = null)`
 — yani **host gerekmez** ve yapılandırma bölümü opsiyoneldir;
-[`AgentPrismPostgreSqlBuilderExtensions.cs:138`](../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs)
+[`AgentPrismPostgreSqlBuilderExtensions.cs:138`](../../../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs)
 `MigrationRunner`'ı `Replace(ServiceDescriptor.Singleton(...))` ile kaydeder.
 
 🚨 **Doğrulanmadı — uygulama oturumunun ilk işi budur:** bu zincir bir
@@ -269,7 +269,7 @@ CLI'da **yoktur** — olmaması bilinçlidir.
 ## 83.6 — Katman grafiğine iki düğüm
 
 `DependencyDirectionTests.AllowedReferences`
-([`DependencyDirectionTests.cs:31`](../tests/AgentPrism.Core.UnitTests/Architecture/DependencyDirectionTests.cs))
+([`DependencyDirectionTests.cs:31`](../../../tests/AgentPrism.Core.UnitTests/Architecture/DependencyDirectionTests.cs))
 bu fazda iki anahtar kazanır:
 
 ```csharp
