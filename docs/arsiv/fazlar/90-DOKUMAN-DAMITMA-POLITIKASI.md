@@ -206,6 +206,16 @@ bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı o
 
 **Açık kalanlar**
 
+- 🚨 **CI'ın `secret` taraması KENDİ yorumunu yakalıyor** (bu fazda bulundu,
+  kapsam dışı — `ci.yml` bu fazda değişmedi). Desen
+  `(Password|pwd)=[^ \";']{6,}`; `.github/workflows/ci.yml:58` ve
+  `.agents/skills/faz-tamamlama/SKILL.md:73` deseni **anlatırken** birebir
+  içeriyor ve `--exclude-dir` listesi bu iki yolu kapsamıyor. İkisi de
+  `efd5247`'de aynen vardı, yani adım CI'da ilk koştuğunda **kırmızı olur**.
+  Düzeltme ucuz: desen anlatılırken değer bölünür (`Pass` + `word=`) ya da
+  `--exclude-dir=.github --exclude-dir=.agents` eklenir. Bir sonraki faz bunu
+  ilk iş kapatmalı.
+
 - **DAR 5 kalem:** `AGENTS.md` (%4), `README.md` (%4), `MIMARI-GUVENLIK.md`
   (%10) — üçü de bu fazdan **önce** DAR'dı; `KARARLAR.md` (%14, %4'ten
   iyileşti); `docs/manuel-test/*` (%10, **bilerek** kapsam dışı — envanter
