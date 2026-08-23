@@ -10,7 +10,7 @@ never touched:
    (AgentPrismEndpointRouteBuilderExtensions.cs), so a client generated
    straight from the document would 404 against any consumer that calls
    MapAgentPrism with a custom prefix. AgentPrismClientOptions.BaseAddress
-   carries the prefix instead (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
+   carries the prefix instead (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
 
 2. Close every object schema (`additionalProperties: false`) that does not
    already say otherwise. Every schema here is generated from a concrete C#

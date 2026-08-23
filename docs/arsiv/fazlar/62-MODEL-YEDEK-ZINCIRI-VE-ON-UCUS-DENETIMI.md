@@ -1,8 +1,8 @@
 # Faz 62 — Model Yedek Zinciri ve Ön Uçuş Denetimi
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-44**, **F-59**
-> **Önkoşul:** [Faz 8](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](arsiv/fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-44**, **F-59**
+> **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — devre kesici ve sağlayıcı sağlığı bu fazın yarısını kurdu · [Faz 13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — `MaxContextWindowTokens`'ın bugünkü tek tüketicisi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok — yedek zinciri agent tanımının içindedir, tanım zaten `jsonb` olarak saklanır
 > **Public API:** **büyüyor** — `ModelBinding`'e bir alan. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 1 satır), `EnablePublicApiTracking` `true`. `sealed record`'a alan eklemek **bugün bedava**, ilk yayından sonra bir sürüm kararıdır
@@ -27,19 +27,19 @@
    deseni — `ModelBinding`'e alan eklemenin emsali), **K-320** (boru hattındaki
    **konum** kabul edilmez, grep'le ölçülür), **K-158** (hız sınırı bilerek
    bellekte tutuldu — eşzamanlılık sınırı da öyle olacaktır)
-3. [`08-SAGLAYICI-GENISLEMESI.md`](arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md) — yalnız devir notu:
+3. [`08-SAGLAYICI-GENISLEMESI.md`](08-SAGLAYICI-GENISLEMESI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md
    ```
    Devre kesicinin sözleşmesi devralınır: yedek zinciri onun **açık** durumunu
    okur, kendi sağlık modelini kurmaz.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) (sağlayıcı
+   [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) (sağlayıcı
    katalogları ve `ModelDescriptor` üretimi),
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`run`
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`run`
    kaydına olay yazma ve `span` kuralları)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — model çağrı yolu bölümü
+   [`MIMARI.md`](../../MIMARI.md) — model çağrı yolu bölümü
 
 ---
 
@@ -59,7 +59,7 @@ harcandıktan sonra gelir.
   sayımı ve aşımda erken red.
 
 İkisi tek fazdadır çünkü **tek bir entegrasyon noktasını** paylaşırlar:
-[`ModelProviderRegistry.CreateChatClient`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
+[`ModelProviderRegistry.CreateChatClient`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
 ve `ModelBinding` sözleşmesi. Ayrı fazlara bölünürse aynı `sealed record` iki
 kez, aynı boru hattı iki kez değişir.
 
@@ -67,17 +67,17 @@ kez, aynı boru hattı iki kez değişir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ModelBinding.cs:9-82`](../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | Alanlar: `Provider`, `Model`, `Temperature`, `MaxOutputTokens`, `TopP`, `ReasoningEffort`, `ProviderSettings`, `ResponseFormat`. **`Fallbacks` yok** |
-| [`ModelProviderRegistry.cs:104`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | `CreateChatClient(ModelBinding binding)` — boru hattının **tek** kurulum yeri. Kiracı veya çalıştırma bağlamı **almaz** |
-| [`ModelProviderRegistry.cs:154`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Devre kesici `Wrap` ile sarmalanır; açık devre bir **istisna** atar. Yedek yoktur, ikinci sağlayıcı denenmez |
-| [`ModelDescriptor.cs:13`](../src/AgentPrism.Abstractions/Models/ModelDescriptor.cs) | `ContextWindowTokens` tanımlıdır |
-| [`OpenAIProviderExtensions.cs:204`](../src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs) · [`GoogleProviderExtensions.cs:174`](../src/AgentPrism.Google/GoogleProviderExtensions.cs) · [`AnthropicProviderExtensions.cs:178`](../src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs) · [`AzureOpenAIProviderExtensions.cs:193`](../src/AgentPrism.Azure/AzureOpenAIProviderExtensions.cs) | **Dört sağlayıcının dördü de** `ContextWindowTokens`'ı yapılandırmadan **yazıyor** |
-| `grep -rn "ContextWindowTokens" src/` | Hiçbir üretim kodu bu değeri **okumuyor**. Tek okuyan yer [`FakeModelProvider.cs:56`](../src/AgentPrism.Testing/FakeModelProvider.cs)'nın kendi sabiti |
-| [`AgentDefinitionCompiler.cs:689`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | `ContextWindow` sıkıştırma stratejisi seçilip `MaxContextWindowTokens` verilmezse **derleme hatası**. Kullanıcı sayıyı elle yazmak zorundadır — model üstverisi orada durduğu hâlde |
-| [`HarnessSettings.cs:15`](../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) · [`CompactionSettings.cs:45`](../src/AgentPrism.Abstractions/Agents/CompactionSettings.cs) | Aynı sayı **iki ayrı yere** elle yazılır |
+| [`ModelBinding.cs:9-82`](../../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | Alanlar: `Provider`, `Model`, `Temperature`, `MaxOutputTokens`, `TopP`, `ReasoningEffort`, `ProviderSettings`, `ResponseFormat`. **`Fallbacks` yok** |
+| [`ModelProviderRegistry.cs:104`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | `CreateChatClient(ModelBinding binding)` — boru hattının **tek** kurulum yeri. Kiracı veya çalıştırma bağlamı **almaz** |
+| [`ModelProviderRegistry.cs:154`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Devre kesici `Wrap` ile sarmalanır; açık devre bir **istisna** atar. Yedek yoktur, ikinci sağlayıcı denenmez |
+| [`ModelDescriptor.cs:13`](../../../src/AgentPrism.Abstractions/Models/ModelDescriptor.cs) | `ContextWindowTokens` tanımlıdır |
+| [`OpenAIProviderExtensions.cs:204`](../../../src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs) · [`GoogleProviderExtensions.cs:174`](../../../src/AgentPrism.Google/GoogleProviderExtensions.cs) · [`AnthropicProviderExtensions.cs:178`](../../../src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs) · [`AzureOpenAIProviderExtensions.cs:193`](../../../src/AgentPrism.Azure/AzureOpenAIProviderExtensions.cs) | **Dört sağlayıcının dördü de** `ContextWindowTokens`'ı yapılandırmadan **yazıyor** |
+| `grep -rn "ContextWindowTokens" src/` | Hiçbir üretim kodu bu değeri **okumuyor**. Tek okuyan yer [`FakeModelProvider.cs:56`](../../../src/AgentPrism.Testing/FakeModelProvider.cs)'nın kendi sabiti |
+| [`AgentDefinitionCompiler.cs:689`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | `ContextWindow` sıkıştırma stratejisi seçilip `MaxContextWindowTokens` verilmezse **derleme hatası**. Kullanıcı sayıyı elle yazmak zorundadır — model üstverisi orada durduğu hâlde |
+| [`HarnessSettings.cs:15`](../../../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) · [`CompactionSettings.cs:45`](../../../src/AgentPrism.Abstractions/Agents/CompactionSettings.cs) | Aynı sayı **iki ayrı yere** elle yazılır |
 | `grep -rn "Tokenizer" src/` | AgentPrism `Microsoft.ML.Tokenizers`'ı **hiç doğrudan çağırmıyor**. K-104 onun geçişli olarak var olduğunu ölçtü; sıkıştırmada tokenizer'ı **MAF içeride** çözüyor |
-| [`RunStatistics.cs:84`](../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | `ByModel` vardır — yedek devreye girdiğinde maliyet raporu hangi modelin çalıştığını gösterebilir |
-| `PublicAPI.Shipped.txt` (1 satır) · [`Directory.Build.props:58`](../Directory.Build.props) | İzleme **açık**, yayınlanmış yüzey **boş**. `ModelBinding`'e alan eklemek bugün bedava |
+| [`RunStatistics.cs:84`](../../../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | `ByModel` vardır — yedek devreye girdiğinde maliyet raporu hangi modelin çalıştığını gösterebilir |
+| `PublicAPI.Shipped.txt` (1 satır) · [`Directory.Build.props:58`](../../../Directory.Build.props) | İzleme **açık**, yayınlanmış yüzey **boş**. `ModelBinding`'e alan eklemek bugün bedava |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
 
@@ -119,7 +119,7 @@ doğruluğunu **test eder**, yeni bir rapor yüzeyi açmaz.
 | Sağlayıcı `HttpRequestException` veya 5xx | Evet |
 | 429 (hız sınırı) | Evet |
 | Kimlik doğrulama hatası (401/403) | **Hayır** — yapılandırma hatasıdır, yedek onu gizler |
-| İçerik filtresi | **Hayır** — [`ContentFilterDetectingChatClient`](../src/AgentPrism.Core/Models/ContentFilterDetectingChatClient.cs) bunu zaten ayırıyor; sağlayıcı **sağlıklıdır** |
+| İçerik filtresi | **Hayır** — [`ContentFilterDetectingChatClient`](../../../src/AgentPrism.Core/Models/ContentFilterDetectingChatClient.cs) bunu zaten ayırıyor; sağlayıcı **sağlıklıdır** |
 | İptal (`OperationCanceledException`) | **Hayır** |
 
 Bu tablo bir davranış sözleşmesidir ve testle kapatılır.
@@ -127,7 +127,7 @@ Bu tablo bir davranış sözleşmesidir ve testle kapatılır.
 ## 62.2 — Yedek boru hattının hangi halkasında durur
 
 🚨 **Konum kabul edilmez, ölçülür (K-320).** Bugünkü sıra
-[`ModelProviderRegistry.cs:118-165`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
+[`ModelProviderRegistry.cs:118-165`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)
 içinde şudur (içten dışa): ham istemci → `ContentGuardingChatClient` →
 `UseFunctionInvocation` → `UseOpenTelemetry` → `AttachmentResolvingChatClient`
 → devre kesici → `ContentFilterDetectingChatClient`.
@@ -147,7 +147,7 @@ Sağlayıcı başına eş zamanlı giden çağrı sayısı sınırlanır. Amaç 
 - Varsayılan **sınırsız** (K1) — bugünkü davranış korunur.
 - Sayaç **bellekte** yaşar. K-158'in gerekçesi birebir geçerlidir: dağıtık bir
   sayaç Redis bağımlılığı ister ve bir kütüphanede sıfır sürprizi bozar.
-- Desen [`VoiceConnectionLimiter`](../src/AgentPrism.Core/) içinde vardır ve
+- Desen [`VoiceConnectionLimiter`](../../../src/AgentPrism.Core) içinde vardır ve
   **uygulama anında okunmalıdır** — kopyalanmadan önce imzası doğrulanır.
 
 ## 62.4 — Ön uçuş denetimi: önce türetme, sonra sayım
@@ -156,7 +156,7 @@ Sağlayıcı başına eş zamanlı giden çağrı sayısı sınırlanır. Amaç 
 
 **Birinci — türetme (ucuz, risksiz).** `MaxContextWindowTokens` verilmediyse
 değer `ModelDescriptor.ContextWindowTokens`'tan **türetilir**. Bugün derleme
-hatası veren yol ([`AgentDefinitionCompiler.cs:689`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs))
+hatası veren yol ([`AgentDefinitionCompiler.cs:689`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs))
 artık yalnız model üstverisi de yoksa hata verir. Hata mesajı hangi iki yoldan
 birinin doldurulacağını söyler.
 

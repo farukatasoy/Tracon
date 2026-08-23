@@ -1,14 +1,14 @@
 # Faz 85 — Gömme Ekseni
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-140** — Dalga 14 Küme K
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-140** — Dalga 14 Küme K
 > **Önkoşul:** [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) — harita ve yerel referans hattı oradan gelir; bu faz o hattın **içeriğini** büyütür, hattı değiştirmez · [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) ve [Faz 70](70-CALISTIRMA-OLAYI-HEDEFI.md) — anlatılan beş noktanın ikisi oradan geldi
 > **Paketler:** `AgentPrism.Abstractions` (tanı raporu alanı), `AgentPrism.AspNetCore` (`/api/diagnostics` gövdesi), `docs-site/`, `samples/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — yalnız `AgentPrismDiagnosticsReport` üzerinde alan(lar). `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**, sonra bir sürüm kararıdır
 > **Tüketici yüzeyi:** `docs-site/` → yeni `guides/embedding.md`, `capabilities.md` (yeni bölüm — harita ve `llms.txt` ondan **üretilir**), `reference/configuration.md`
 > · sevk edilen: `AgentPrism.AgentMap.md` (üretilir), yeni tanı raporu alanlarının XML dokümanı, `samples/` içindeki ikinci örnek. `api/` ve `http-api/` **üretilir** — orada iş XML dokümanı ve `.Produces` üstverisidir
-> **Manuel test alanı:** [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) (tanı raporu) · [`docs/manuel-test/29-AGENT-DESTEGI.md`](manuel-test/29-AGENT-DESTEGI.md) (harita ve yerel referans)
+> **Manuel test alanı:** [`docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) (tanı raporu) · [`docs/manuel-test/29-AGENT-DESTEGI.md`](../../manuel-test/29-AGENT-DESTEGI.md) (harita ve yerel referans)
 
 ---
 
@@ -28,17 +28,17 @@
    **K-517** (sözleşme tiplerinde `<see cref>` değil `<c>` — yeni XML dokümanı yazarken geçerli).
 3. [`78-YETENEK-HARITASI-ERISIMI.md`](78-YETENEK-HARITASI-ERISIMI.md) — yalnız devir notu:
    ```bash
-   awk '/^## Sonraki Faza Devir Notu/,0' docs/78-YETENEK-HARITASI-ERISIMI.md
+   awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
    ```
    Dört madde bu fazı doğrudan bağlar: **§1** (tanının önerdiği düzeltme gerçekten
    uygulanabilir mi), **§4** (yerel referans dosyasının dört bölümü ve sırası),
    **§5** (`llms.txt` = harita + sayfa indeksi; yeni sayfa ikisine de otomatik girer),
    **§6** (harita bütçesi 10 240 B; **8 343 B doluydu**, ölçüldü 2026-08-21).
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (yayın hattı, üretilen sayfalar, `capabilities.md` sözleşmesi) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (`buildTransitive/` akışı)
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (yayın hattı, üretilen sayfalar, `capabilities.md` sözleşmesi) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (`buildTransitive/` akışı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı ve rol modeli (anlatılan beş noktanın üçü oradadır)
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı ve rol modeli (anlatılan beş noktanın üçü oradadır)
 6. 🚨 **[Faz 84](84-TYPESCRIPT-ISTEMCISI-VE-NPM.md)'ün Sonraki Faza Devir Notu'nu oku.**
    `AgentPrismDiagnosticsReport`'a §85.4'te alan eklemek artık ÜÇ yerde
    yansıtılmalıdır, ikide değil: sunucu kaydı (eskiden olduğu gibi), C#
@@ -71,7 +71,7 @@ bildirir, **bağlı genişleme noktalarını bildirmez** — bu faz o boşluğu 
 
 ### Bugün ne çalışmıyor — doğrulanmış kanıt
 
-Sevk edilen harita ([`AgentPrism.AgentMap.md`](../src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md),
+Sevk edilen harita ([`AgentPrism.AgentMap.md`](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.AgentMap.md),
 202 satır) ve elle yazılan **39** site sayfası tarandı. `api/` ve `http-api/`
 **üretilir** ve bilerek sayım dışıdır — bir tüketici oraya ancak tipin adını
 zaten biliyorsa gider.
@@ -91,9 +91,9 @@ Kod tarafındaki kanıt:
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismRunContext.cs:27`](../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L27) | `public static class`; `AgentRunScope` `RunId`·`RootRunId`·`TenantId`·`SessionId`·`Budget` taşır |
-| [`AgentPrismRunContext.cs:81`](../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L81) | XML dokümanı: *"A tool cannot access `AgentSession`, so this is the only place it can read the session identity from"* — yani cevap yazılıdır, yalnız **aranacak yer** belli değildir |
-| [`AgentPrismDiagnosticsReport.cs`](../src/AgentPrism.Abstractions/Diagnostics/AgentPrismDiagnosticsReport.cs) | **On** alan taşır (kalıcılık, migration, sağlayıcı, yapılandırma, arayüz, tool sayısı, agent sayısı). Hiçbiri bağlı genişleme noktası değildir |
+| [`AgentPrismRunContext.cs:27`](../../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L27) | `public static class`; `AgentRunScope` `RunId`·`RootRunId`·`TenantId`·`SessionId`·`Budget` taşır |
+| [`AgentPrismRunContext.cs:81`](../../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs#L81) | XML dokümanı: *"A tool cannot access `AgentSession`, so this is the only place it can read the session identity from"* — yani cevap yazılıdır, yalnız **aranacak yer** belli değildir |
+| [`AgentPrismDiagnosticsReport.cs`](../../../src/AgentPrism.Abstractions/Diagnostics/AgentPrismDiagnosticsReport.cs) | **On** alan taşır (kalıcılık, migration, sağlayıcı, yapılandırma, arayüz, tool sayısı, agent sayısı). Hiçbiri bağlı genişleme noktası değildir |
 | `samples/` | **Tek proje** (`AgentPrism.Api`) — yeşil alan kurulumu. Gömme senaryosu yoktur |
 | `docs-site/scripts/build-agent-map.mjs:57` | Harita `capabilities.md`'den **üretilir**; bütçe **10 240 B**, bugün **8 343 B** dolu → ~1 897 B boşluk (≈22 yetenek satırı) |
 
@@ -105,7 +105,7 @@ Kod tarafındaki kanıt:
 
 ## 85.1 — Gömme ekseni haritaya girer
 
-🚨 **Harita elle yazılmaz.** [`build-agent-map.mjs:3`](../docs-site/scripts/build-agent-map.mjs)
+🚨 **Harita elle yazılmaz.** [`build-agent-map.mjs:3`](../../../docs-site/scripts/build-agent-map.mjs)
 tek bir elle yazılan kaynaktan (`docs-site/src/content/docs/capabilities.md`)
 **üç** çıktı üretir. Yeni ekseni `capabilities.md`'ye yazmak yeterlidir.
 
@@ -123,7 +123,7 @@ Yeni bölümün adı ekseni adlandırmalıdır — haritanın bugünkü
 *Integration surfaces* bölümü **dışa açtığımız** yüzeyleri sayar; eksik olan
 **gömen uygulamanın bağladığı** sözleşmelerdir. İki bölüm karıştırılmamalıdır.
 
-🚨 **Üreteç bir kural paragrafı zorlar.** [`build-agent-map.mjs:160`](../docs-site/scripts/build-agent-map.mjs)
+🚨 **Üreteç bir kural paragrafı zorlar.** [`build-agent-map.mjs:160`](../../../docs-site/scripts/build-agent-map.mjs)
 yetenek tablosu taşıyan ama kural paragrafı olmayan bir bölümde **düşer**.
 Yeni bölüm kendi `Rule:` cümlesini taşımalıdır.
 
@@ -176,7 +176,7 @@ yüzden sessizce bayatlayamaz — ama derleme yalnız *derlenirliği* kanıtlar,
 **Arka plan işi senaryosu — zorunludur.** 🚨 `scope`, koşuyu başlatan metodun
 **kendi gövdesinde** açılır ve akış yolunda her `MoveNextAsync` öncesi açık
 kalır. Bu tuzak bu repo'da **beş kez** yaşandı
-([`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)); tüketici
+([`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)); tüketici
 tarafında ayıklamak daha zordur çünkü belirti yalnız *"kiracı boş"* olur.
 
 **`IRunEventSink` köprüsü.** Sınırlı kanal + arka plan tüketici + dolulukta
@@ -195,8 +195,8 @@ kodu açılmaz.** Gerekçe ölçülmüştür:
 
 | Ölçüm | Sonuç |
 |---|---|
-| `APG` ailesi bugün **14 kod** taşır (`APG0001`…`APG0402`), hepsi `DiagnosticSeverity.Warning` | Şiddet bir seçim değil; [`UsageDiagnostics.cs`](../src/AgentPrism.Generators/UsageDiagnostics.cs) gerekçeyi yazıyor: `Info` hiçbir verbosity'de `dotnet build` çıktısına **ulaşmaz** |
-| [`AgentPrismUsageAnalyzer.cs:26`](../src/AgentPrism.Generators/AgentPrismUsageAnalyzer.cs#L26) | Analyzer **tek derleme** görür; `APG0101`/`APG0102` kendi dokümanında *"kayıt başka assembly'deyse yanlış pozitif"* diyor |
+| `APG` ailesi bugün **14 kod** taşır (`APG0001`…`APG0402`), hepsi `DiagnosticSeverity.Warning` | Şiddet bir seçim değil; [`UsageDiagnostics.cs`](../../../src/AgentPrism.Generators/UsageDiagnostics.cs) gerekçeyi yazıyor: `Info` hiçbir verbosity'de `dotnet build` çıktısına **ulaşmaz** |
+| [`AgentPrismUsageAnalyzer.cs:26`](../../../src/AgentPrism.Generators/AgentPrismUsageAnalyzer.cs#L26) | Analyzer **tek derleme** görür; `APG0101`/`APG0102` kendi dokümanında *"kayıt başka assembly'deyse yanlış pozitif"* diyor |
 | *"Kiracılık açık ama `ITenantContext` varsayılan"* | Bir **çalışma anı** gerçeğidir — hangi uygulamanın hangi servisi kaydettiği derleme anında bilinemez |
 
 Rapor ise gerçek DI konteynerini görür ve yanlış pozitif üretmez.

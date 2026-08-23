@@ -1,13 +1,13 @@
 # Faz 68 — Çalıştırma Kimliği ve Token Kırılımı
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-111**, **F-112**
-> **Önkoşul:** [Faz 20](arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md) — maliyet hesabı ve gösterge paneli · [Faz 41](arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı sözleşmesi
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-111**, **F-112**
+> **Önkoşul:** [Faz 20](20-MALIYET-VE-GOSTERGE-PANELI.md) — maliyet hesabı ve gösterge paneli · [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı sözleşmesi
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`runs` tablosuna sütunlar). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor — dört `sealed record` birden.** `RunRecord`, `RunStartInfo`, `RunUsage`, `RunCost` ve iki istatistik tipi. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 16 satır, hepsi `#nullable enable`) — şimdi bedava, Faz 7'den sonra F-50 dışında en pahalı değişiklik
 > **Site etkisi:** `concepts/runs.md`, `guides/observability.md`, `reference/configuration.md`, `concepts/governance.md`
-> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
 
@@ -26,10 +26,10 @@
    **K-178** (migration numaraları sağlayıcı başına), **K-398** (erken `DisposeAsync`'te
    kısmi `usage` yazılır), **K-394** (workflow'un tamamı tek `run` olarak kotaya yazılır).
 3. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri, metrik) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç sağlayıcı, paylaşılan katman) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (sözlük, bundle bütçesi)
-4. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — veri modeli ve gözlemlenebilirlik bölümleri
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri, metrik) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç sağlayıcı, paylaşılan katman) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (sözlük, bundle bütçesi)
+4. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — veri modeli ve gözlemlenebilirlik bölümleri
 
 ---
 
@@ -49,11 +49,11 @@ yazılır ve ayrı planlanırsa aynı tabloya iki migration gider.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rn "UserId" src --include="*.cs" \| wc -l` → **0** | Kod tabanında kullanıcı kimliği kavramı **yok** |
-| [`RunRecord.cs:14,35,38`](../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Yalnız `AgentName`, `TenantId`, `SessionId` |
-| [`RunStatistics.cs:10-25`](../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | `RunStatisticsQuery` yalnız `AgentName` + `TenantId` + `StartedAfter` ile filtreler |
-| [`0001_initial.sql:133-148`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `runs` tablosunda kullanıcı ve etiket sütunu yok |
-| [`RunSupportTypes.cs:9,12,15`](../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs) | `RunUsage` üç alan: input · output · total |
-| [`RunRecordingAgent.cs:1056-1063`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `ToRunUsage` `UsageDetails`'ten yalnız üç sayacı alır; gerisi **atılır** |
+| [`RunRecord.cs:14,35,38`](../../../src/AgentPrism.Abstractions/Runs/RunRecord.cs) | Yalnız `AgentName`, `TenantId`, `SessionId` |
+| [`RunStatistics.cs:10-25`](../../../src/AgentPrism.Abstractions/Runs/RunStatistics.cs) | `RunStatisticsQuery` yalnız `AgentName` + `TenantId` + `StartedAfter` ile filtreler |
+| [`0001_initial.sql:133-148`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `runs` tablosunda kullanıcı ve etiket sütunu yok |
+| [`RunSupportTypes.cs:9,12,15`](../../../src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs) | `RunUsage` üç alan: input · output · total |
+| [`RunRecordingAgent.cs:1056-1063`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `ToRunUsage` `UsageDetails`'ten yalnız üç sayacı alır; gerisi **atılır** |
 | `Microsoft.Extensions.AI.Abstractions` **10.8.3** (repo'nun sabitlediği sürüm) | `UsageDetails` on üye taşır: `CachedInputTokenCount`, `ReasoningTokenCount`, `InputAudioTokenCount`, `InputTextTokenCount`, `OutputAudioTokenCount`, `OutputTextTokenCount`, `AdditionalCounts` |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı.
@@ -158,7 +158,7 @@ maliyet           = tam_fiyatli_girdi × girdi_fiyati
 ### Toplama noktaları
 
 `RunUsage` üç yerde toplanıyor ve üçü de yeni alanları taşımalıdır:
-`MergeUsage` ([`RunRecordingAgent.cs:1050`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)),
+`MergeUsage` ([`RunRecordingAgent.cs:1050`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)),
 `CompactionUsageAccumulator` ve `TreeUsage` (alt `run` ağacı).
 
 🚨 **İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Faz 20'de

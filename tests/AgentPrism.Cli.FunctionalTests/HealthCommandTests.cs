@@ -4,7 +4,7 @@ namespace AgentPrism.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>agentprism health</c> against a real, listening AgentPrism host
-/// (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.5, manual cases 5-8): the
+/// (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.5, manual cases 5-8): the
 /// client's first consumer.
 /// </summary>
 [Collection(nameof(CliTestGroup))]

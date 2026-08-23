@@ -1,14 +1,14 @@
 # Faz 79 — Sevk Edilen Yüzey Kapıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-125**, **F-136** (Dalga 13, Küme A'nın C# kapı yarısı)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-125**, **F-136** (Dalga 13, Küme A'nın C# kapı yarısı)
 > **Önkoşul:** Yok. [Faz 78](78-YETENEK-HARITASI-ERISIMI.md) `APG0402`'yi ekledi; bu faz onu da kapsar
 > **Paketler:** `AgentPrism.Generators` (yalnız tanı metinleri) · test projesi `AgentPrism.Generators.UnitTests`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. İki kalem de test ve doküman kapısıdır
 > **Tüketici yüzeyi:** `docs-site/` → `troubleshooting.md` (beş yeni tanı bölümü)
 > · sevk edilen: iki XML `<example>` bloğu **yeniden yazılır** (`AgentPrismToolAttribute.cs`, `AgentPrismMcpServerBuilderExtensions.cs`)
-> **Manuel test alanı:** [`docs/manuel-test/31-DOKUMAN-DOGRULUGU.md`](manuel-test/31-DOKUMAN-DOGRULUGU.md)
+> **Manuel test alanı:** [`docs/manuel-test/31-DOKUMAN-DOGRULUGU.md`](../../manuel-test/31-DOKUMAN-DOGRULUGU.md)
 
 ---
 
@@ -27,16 +27,16 @@
    **K-538** (`APG0402` yalnız yerel referans dosyası gerçekten yazılırken öter)
 3. [`78-YETENEK-HARITASI-ERISIMI.md`](78-YETENEK-HARITASI-ERISIMI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/78-YETENEK-HARITASI-ERISIMI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
    ```
    Faz 78 `APG0402`'yi ve yetenek haritası bütçesini bıraktı; bu faz o tanının
    dokümante edilme sözleşmesini devralır.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (tanı descriptor'ları ve
-   `AnalyzerTestHelper`) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (tanı descriptor'ları ve
+   `AnalyzerTestHelper`) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (içerik kapısı yazarken, `check-content.mjs`, site yayın hattı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) — yalnız `<example>`
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) — yalnız `<example>`
    bloklarının hangi giriş noktalarını anlattığını görmek için
 
 ---
@@ -59,11 +59,11 @@ tanı kodunun bir karşılığı bulunur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`CapabilityExampleTests.cs`](../tests/AgentPrism.Core.UnitTests/Architecture/CapabilityExampleTests.cs) | Dört kapı var (`Every_registration_entry_point_shows_a_worked_example`, `The_reader_sees_every_entry_point_including_the_generic_ones`, `No_example_teaches_a_registration_that_does_not_exist`, `Every_example_calls_the_member_it_documents`) — **dördü de ad denetimi**. Hiçbiri derlemiyor |
-| [`AnalyzerTestHelper.cs:82`](../tests/AgentPrism.Generators.UnitTests/AnalyzerTestHelper.cs#L82) | `ShouldCompileCleanly(string source)` **zaten var**. F-125'in ihtiyacı olan ilkel hazır; kurulacak şey blok çıkarma ve prelüd |
-| [`AnalyzerTestHelper.cs:97`](../tests/AgentPrism.Generators.UnitTests/AnalyzerTestHelper.cs#L97) | `BuildReferences()` `TRUSTED_PLATFORM_ASSEMBLIES` okur — derleme yalnız **test projesinin kendi referanslarını** görür |
-| [`ToolDiagnostics.cs`](../src/AgentPrism.Generators/ToolDiagnostics.cs) · [`UsageDiagnostics.cs`](../src/AgentPrism.Generators/UsageDiagnostics.cs) | Toplam **14** descriptor: `APG0001`…`APG0007` ve `APG0101`, `APG0102`, `APG0201`, `APG0301`, `APG0302`, `APG0401`, `APG0402` |
-| [`DiagnosticIntegrityTests.cs:128`](../tests/AgentPrism.Generators.UnitTests/DiagnosticIntegrityTests.cs#L128) | `Every_help_link_resolves_to_a_section_of_the_capability_map` her kodun **yardım bağlantısını** `capabilities.md` başlığına bağlıyor — ama kodun kendisinin bir sayfada **anlatıldığını** hiçbir kapı istemiyor |
+| [`CapabilityExampleTests.cs`](../../../tests/AgentPrism.Core.UnitTests/Architecture/CapabilityExampleTests.cs) | Dört kapı var (`Every_registration_entry_point_shows_a_worked_example`, `The_reader_sees_every_entry_point_including_the_generic_ones`, `No_example_teaches_a_registration_that_does_not_exist`, `Every_example_calls_the_member_it_documents`) — **dördü de ad denetimi**. Hiçbiri derlemiyor |
+| [`AnalyzerTestHelper.cs:82`](../../../tests/AgentPrism.Generators.UnitTests/AnalyzerTestHelper.cs#L82) | `ShouldCompileCleanly(string source)` **zaten var**. F-125'in ihtiyacı olan ilkel hazır; kurulacak şey blok çıkarma ve prelüd |
+| [`AnalyzerTestHelper.cs:97`](../../../tests/AgentPrism.Generators.UnitTests/AnalyzerTestHelper.cs#L97) | `BuildReferences()` `TRUSTED_PLATFORM_ASSEMBLIES` okur — derleme yalnız **test projesinin kendi referanslarını** görür |
+| [`ToolDiagnostics.cs`](../../../src/AgentPrism.Generators/ToolDiagnostics.cs) · [`UsageDiagnostics.cs`](../../../src/AgentPrism.Generators/UsageDiagnostics.cs) | Toplam **14** descriptor: `APG0001`…`APG0007` ve `APG0101`, `APG0102`, `APG0201`, `APG0301`, `APG0302`, `APG0401`, `APG0402` |
+| [`DiagnosticIntegrityTests.cs:128`](../../../tests/AgentPrism.Generators.UnitTests/DiagnosticIntegrityTests.cs#L128) | `Every_help_link_resolves_to_a_section_of_the_capability_map` her kodun **yardım bağlantısını** `capabilities.md` başlığına bağlıyor — ama kodun kendisinin bir sayfada **anlatıldığını** hiçbir kapı istemiyor |
 | `docs-site/.../troubleshooting.md` | **9** kod geçiyor. **Beşi yok:** `APG0002` · `APG0003` · `APG0004` · `APG0005` · `APG0006` |
 | `capability-example-baseline.txt` | 4 satırın **dördü de yorum** → sıfır muafiyet. Dosya kendi sözünü yazıyor: *"born empty and that is the intended state"* |
 
@@ -247,7 +247,7 @@ sınırını geçmiyor. İkisi de derleme anı kapısıdır.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/31-DOKUMAN-DOGRULUGU.md`](manuel-test/31-DOKUMAN-DOGRULUGU.md)
+> Kapanışta [`docs/manuel-test/31-DOKUMAN-DOGRULUGU.md`](../../manuel-test/31-DOKUMAN-DOGRULUGU.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

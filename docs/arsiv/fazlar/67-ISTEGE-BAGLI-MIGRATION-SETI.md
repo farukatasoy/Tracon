@@ -1,13 +1,13 @@
 # Faz 67 — İsteğe Bağlı Migration Seti (`pgvector` opt-in)
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-110**
-> **Önkoşul:** [Faz 51](arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `AgentPrismKnowledgeOptions` oradan gelir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-110**
+> **Önkoşul:** [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) — `0024_vector.sql` ve `AgentPrismKnowledgeOptions` oradan gelir
 > **Paketler:** `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`
 > **Yeni paket:** Yok · **Migration:** **yeni migration yok** — var olan bir dosya ayrı bir sete taşınır. 🚨 Tuzak bu fazın tamamıdır, aşağıya bak
 > **Public API:** büyüyor (küçük) — `MigrationRunner` ve `SqlStoreContext` set kavramı öğrenir. `PublicAPI.Shipped.txt` bugün **boş** (ölçüldü: 16 pakette toplam 16 satır, her biri yalnız `#nullable enable`) — şimdi bedava
 > **Site etkisi:** `getting-started/persistence.md`, `guides/knowledge.md`, `guides/production.md`, `packages.md`, `troubleshooting.md`
-> **Manuel test alanı:** [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](manuel-test/03-KALICILIK-POSTGRESQL.md)
+> **Manuel test alanı:** [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md)
 
 ---
 
@@ -26,9 +26,9 @@
    **K-389** (migration kilidi şemaya kapsandı), **K-178** (migration numaraları
    sağlayıcı başına bağımsızdır), **K-183** (birden çok SQL sağlayıcısı kaydı).
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/postgresql.md`](hafiza/postgresql.md) (extension ve indeks tuzakları) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (paylaşılan SQL katmanı, `SqlDialect`)
-4. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — kalıcılık bölümü
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md) (extension ve indeks tuzakları) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (paylaşılan SQL katmanı, `SqlDialect`)
+4. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — kalıcılık bölümü
 
 ---
 
@@ -46,8 +46,8 @@ olmayan yönetilen bir PostgreSQL üzerinde çalışan tüketicidir.
 
 | Kanıt | Gözlem |
 |---|---|
-| `0024_vector.sql:16` *(faz sonrası: [`MigrationsKnowledge/0001_vector.sql`](../src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql))* | `CREATE EXTENSION IF NOT EXISTS vector;` — koşulsuz |
-| [`MigrationDescriptor.cs:37-39`](../src/AgentPrism.Sql.Shared/Migrations/MigrationDescriptor.cs) | `GetManifestResourceNames()` üzerinde tek ölçüt `resourcePrefix`; koşullu set kavramı **yok** |
+| `0024_vector.sql:16` *(faz sonrası: [`MigrationsKnowledge/0001_vector.sql`](../../../src/AgentPrism.PostgreSql/MigrationsKnowledge/0001_vector.sql))* | `CREATE EXTENSION IF NOT EXISTS vector;` — koşulsuz |
+| [`MigrationDescriptor.cs:37-39`](../../../src/AgentPrism.Sql.Shared/Migrations/MigrationDescriptor.cs) | `GetManifestResourceNames()` üzerinde tek ölçüt `resourcePrefix`; koşullu set kavramı **yok** |
 | `ls src/AgentPrism.PostgreSql/Migrations/*.sql \| wc -l` → **29** | Yirmi dokuzunun hepsi her başlangıçta sıraya girer |
 | `grep -ln "document_embeddings\|vector" src/AgentPrism.PostgreSql/Migrations/*.sql` → **yalnız 0024** | Başka hiçbir migration bu tabloya dayanmıyor — taşıma güvenli |
 | `ls src/AgentPrism.SqlServer/Migrations/*.sql \| wc -l` → **16**, `grep -l vector` → **boş** | SQL Server ve SQLite'ta vektör migration'ı **yok**. Bu faz **yalnız PostgreSQL** işidir |
@@ -71,7 +71,7 @@ SHA-256 sağlamasını ham metnin tamamı üzerinden hesaplar ve uyuşmazlık
 başlangıçta sert hata verir. Sıra da öyledir — `__migrations` defterine yazılmış
 bir kimlik geri alınamaz.
 
-Bugün **hiçbir tüketici yoktur**: [Faz 7](arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
+Bugün **hiçbir tüketici yoktur**: [Faz 7](07-SAGLAMLASTIRMA-VE-YAYIN.md)
 beklemededir, `PublicAPI.Shipped.txt` dosyalarının hepsi boştur. Yani hiçbir
 üretim veritabanında `0024` uygulanmamıştır ve seti bugün ayırmak **bedavadır**.
 
@@ -110,7 +110,7 @@ flowchart TD
 
 Knowledge seti, `AgentPrismKnowledgeOptions`'ın gerçekten kullanıldığı bir kayıt
 varsa etkinleşir. 🚨 **Bugünkü kod bunu ayırt edemez:**
-[`AgentPrismServiceCollectionExtensions.cs:128`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
+[`AgentPrismServiceCollectionExtensions.cs:128`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
 seçenekleri **her zaman** kaydeder (`AddOptions<AgentPrismKnowledgeOptions>()`),
 yani "seçenek var mı" sorusu yanlış sorudur. Ayrı ve açık bir işaret gerekir —
 örneğin `UsePostgreSql(o => o.EnableKnowledge = true)` veya Knowledge'ı kayda
@@ -124,8 +124,8 @@ söyler; söylemeyen `vector` uzantısını hiç görmez.
 `0024_vector.optional.sql` gibi bir ad kuralıyla dosyayı yerinde bırakıp
 yürütmeyi atlamak daha ucuzdur. **Önerilmez:** atlanan migration
 `GetSnapshotAsync`'in "pending" listesinde sonsuza kadar kalır
-([`MigrationRunner.cs:85-89`](../src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs)),
-[Faz 33](arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md) teşhisi kalıcı olarak `Degraded`
+([`MigrationRunner.cs:85-89`](../../../src/AgentPrism.Sql.Shared/Migrations/MigrationRunner.cs)),
+[Faz 33](33-SAGLIK-DENETIMI-VE-TESHIS.md) teşhisi kalıcı olarak `Degraded`
 görünür ve operatör her başlangıçta yanlış bir uyarı okur. Set kavramı bunu
 yapısal olarak çözer.
 
@@ -281,7 +281,7 @@ dokunmaz · alt sistem hatası — uzantı yoksa çekirdek set **yine de** tamam
       — MT-PG-064: gerçek belge yükleme + OpenAI gömü + `pgvector` arama turu
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri
-      [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](manuel-test/03-KALICILIK-POSTGRESQL.md)
+      [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md)
       içine eklendi; otomatikleştirilebilenler koşuldu
       — MT-PG-062..066, dördü gerçek konteynerlere karşı koşulup kanıtı yazıldı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı

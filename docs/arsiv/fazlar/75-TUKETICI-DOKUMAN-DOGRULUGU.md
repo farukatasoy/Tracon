@@ -1,8 +1,8 @@
 # Faz 75 — Tüketici Dokümanının Doğruluğu
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-126**, **F-124**
-> **Önkoşul:** [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — tüketici agent'ını paketlenmiş XML korpusuna yönlendiren faz budur; bu faz o korpusu okunabilir yapar · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — harita üreteci ve cırcır kapısı deseni · [Faz 57](arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md) — `SourceLanguageTests` cırcır altyapısı ve K-408 dil sınırı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-126**, **F-124**
+> **Önkoşul:** [Faz 74](74-YEREL-REFERANS-YUZEYI.md) — tüketici agent'ını paketlenmiş XML korpusuna yönlendiren faz budur; bu faz o korpusu okunabilir yapar · [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) — harita üreteci ve cırcır kapısı deseni · [Faz 57](57-KOD-DILI-BIRLESTIRME.md) — `SourceLanguageTests` cırcır altyapısı ve K-408 dil sınırı
 > **Paketler:** On yedi paketin tamamı (yalnız XML dokümanı ve `README.md`) · `docs-site/` · `tests/`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** XML doküman metnini değiştirmek imza değiştirmez. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` = 16 satır (16 paket × 1 boş satır)
@@ -33,20 +33,20 @@
    **K-421** (public API takibi açık; bu faz yüzeyi büyütmez).
 3. [`74-YEREL-REFERANS-YUZEYI.md`](74-YEREL-REFERANS-YUZEYI.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/74-YEREL-REFERANS-YUZEYI.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/74-YEREL-REFERANS-YUZEYI.md
    ```
    Yedi maddenin **ikisi bu faz için zorunludur**: madde 4 (örneğin doğruluğunu
    yalnız derleme kanıtlar) ve madde 7 (paketlenmiş `agentprism.json` canlı
    belgenin alt kümesidir — bu faz o belgeyi **değiştirir**, kapsamını değil).
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (**ana
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (**ana
    kaynak** — pakete giren dosya, `buildTransitive`, tüketiciye ulaşan yüzey),
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (cırcır testi deseni,
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (cırcır testi deseni,
    `AGENTPRISM_*_REFRESH` ortam değişkeni),
-   [`hafiza/frontend.md`](hafiza/frontend.md) (yalnız ekran görüntüsü üreten
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (yalnız ekran görüntüsü üreten
    E2E testine dokunulacaksa)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — paketleme bölümü
+   [`MIMARI.md`](../../MIMARI.md) — paketleme bölümü
 
 ---
 
@@ -88,27 +88,27 @@ eksiksiz** olmayı ölçer; o faz **iyi** olmayı.
 |---|---|
 | `artifacts/package/release/AgentPrism.*.0.272.nupkg` → `lib/net10.0/*.xml` | **1 033 satır**, 14 XML dosyasının 14'ünde: `phase 64`, `K-032`, `F-53`, `K1`, `docs/NN-*.md`. En yoğunu `AgentPrism.Core.xml` (295), sonra `Abstractions` (191) ve `AspNetCore` (123) |
 | `grep -rniE "(phase\|faz) [0-9]+\|K-[0-9]{3}\|F-[0-9]{2,3}\|K[1-4]\|docs/" src --include="*.cs" \| grep "///"` | Kaynak tarafı: **896 satır**, 17 paketin 17'sinde. `AgentPrism.Core` 287, `Abstractions` 227, `AspNetCore` 132, `Sql.Shared` 91 |
-| [`ApiKeyScope.cs:10`](../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs#L10) | Sevk edilen bir `public enum`'un `<remarks>`'ı: "(docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3)". Tüketicide o dosya yoktur |
-| [`docs/openapi/agentprism.json`](openapi/agentprism.json) | Faz 74 bu belgeyi `AgentPrism.AspNetCore.nupkg` içine koydu. Belge **39 iç referans** taşıyor (26 ayrık), ikisi Türkçe dosya yolu: `docs/arsiv/fazlar/18-DEGERLENDIRME.md`, `docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` |
-| `grep -rniE "K-[0-9]{3}\|docs/" src/*/README.md` | **14 satır, 18 README'nin 9'unda.** `README.md` `PackageReadmeFile`'dır — nuget.org'un render ettiği sayfadır. Örnek: [`AgentPrism.Azure/README.md:96`](../src/AgentPrism.Azure/README.md#L96) "Details: `docs/KARARLAR.md`, decision K-211" |
+| [`ApiKeyScope.cs:10`](../../../src/AgentPrism.Abstractions/Security/ApiKeyScope.cs#L10) | Sevk edilen bir `public enum`'un `<remarks>`'ı: "(docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md, section 53.3)". Tüketicide o dosya yoktur |
+| [`docs/openapi/agentprism.json`](../../openapi/agentprism.json) | Faz 74 bu belgeyi `AgentPrism.AspNetCore.nupkg` içine koydu. Belge **39 iç referans** taşıyor (26 ayrık), ikisi Türkçe dosya yolu: `docs/arsiv/fazlar/18-DEGERLENDIRME.md`, `docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` |
+| `grep -rniE "K-[0-9]{3}\|docs/" src/*/README.md` | **14 satır, 18 README'nin 9'unda.** `README.md` `PackageReadmeFile`'dır — nuget.org'un render ettiği sayfadır. Örnek: [`AgentPrism.Azure/README.md:96`](../../../src/AgentPrism.Azure/README.md#L96) "Details: `docs/KARARLAR.md`, decision K-211" |
 | `grep -rl "farukatasoy.github.io" src/*/README.md` | **18 README'nin yalnız 5'i** doküman sitesine bağlantı taşıyor. On üç paketin nuget.org sayfası okuru hiçbir yere göndermiyor |
-| [`check-content.mjs:271`](../docs-site/scripts/check-content.mjs#L271), [`:301`](../docs-site/scripts/check-content.mjs#L301) | `hasInternalHistory` kapısı **var** ve çalışıyor — ama yalnız `api/`, `http-api/` ve `public/openapi/agentprism.json` üzerinde. Sevk edilen `.nupkg` içeriği ve `docs/openapi/agentprism.json` **kapsam dışı** |
+| [`check-content.mjs:271`](../../../docs-site/scripts/check-content.mjs#L271), [`:301`](../../../docs-site/scripts/check-content.mjs#L301) | `hasInternalHistory` kapısı **var** ve çalışıyor — ama yalnız `api/`, `http-api/` ve `public/openapi/agentprism.json` üzerinde. Sevk edilen `.nupkg` içeriği ve `docs/openapi/agentprism.json` **kapsam dışı** |
 | `npm run check:content` | **Yeşil**: "37 manual pages and 999 total pages passed". Yukarıdaki hiçbir bulguyu görmüyor |
-| [`schema-evalcasepromotionrequest.md:11`](../docs-site/src/content/docs/http-api/schema-evalcasepromotionrequest.md#L11) | Yayında olan cümle: "Request to promote a run to a case,." — sanitize eden süzgeç `(Phase 45, F-53)` parçasını sildi ve **bozuk cümle bıraktı**. Aynı sınıf iki yerde daha: `schema-evalsuite.md:23` ("… `. for the format.") ve `schema-jobschedulesaverequest.md:19` ("`POST.../trigger`") |
-| [`build-agent-map.mjs:331-333`](../docs-site/scripts/build-agent-map.mjs#L331-L333) | `shorten()` son boşluğa değil, karaktere göre kesiyor. Sevk edilen haritada **üç kelime ortası kesme**: `a non-networked model provide…`, `errors,…`, `core s…` |
-| [`build-agent-map.mjs:123-125`](../docs-site/scripts/build-agent-map.mjs#L123-L125) | Kural seçimi bölümün **ilk** düz metnini alır. Ölçüldü: 11 bölümün **9'u** kural üretiyor, **ikisi hiç üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok), **biri kural değil bir yön tarifi** üretiyor ("Storage and testability" → "Use Compatibility before you choose packages…") |
-| [`ui.md`](../docs-site/src/content/docs/ui.md) ↔ [`en.ts:58-75`](../src/AgentPrism.UI/frontend/src/locales/en.ts#L58-L75) | Konsol gezinmesi **17 ekran** taşıyor. `ui.md` üçünü hiç anlatmıyor: **Sessions**, **Jobs**, **Skills**. `jobs` kelimesi sayfada **sıfır** kez geçiyor |
-| [`DocumentationScreenshotTests.cs:45-62`](../tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs#L45-L62) | **14 ekran** görüntüleniyor. Beşi hiç yakalanmıyor: `sessions`, `jobs`, `skills`, `mcp`, `triggers`. Kapı "listedeki her ekran render oldu" der; "her ekran listede" **demez** |
-| [`AgentPrismDiagnostics.cs`](../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs) ↔ [`guides/observability.md:46-55`](../docs-site/src/content/docs/guides/observability.md#L46-L55) | 36 telemetri adı var. Enstrümanların **onu da** dokümanda. Öznitelik anahtarlarının **23'ü hiçbir sayfada geçmiyor** — `agentprism.tenant.id`, `agentprism.agent.name`, `agentprism.run.status`, `agentprism.token.direction` dahil. Gösterge paneli yazan tüketici hangi etikete göre gruplayacağını bulamıyor |
+| [`schema-evalcasepromotionrequest.md:11`](../../../docs-site/src/content/docs/http-api/schema-evalcasepromotionrequest.md#L11) | Yayında olan cümle: "Request to promote a run to a case,." — sanitize eden süzgeç `(Phase 45, F-53)` parçasını sildi ve **bozuk cümle bıraktı**. Aynı sınıf iki yerde daha: `schema-evalsuite.md:23` ("… `. for the format.") ve `schema-jobschedulesaverequest.md:19` ("`POST.../trigger`") |
+| [`build-agent-map.mjs:331-333`](../../../docs-site/scripts/build-agent-map.mjs#L331-L333) | `shorten()` son boşluğa değil, karaktere göre kesiyor. Sevk edilen haritada **üç kelime ortası kesme**: `a non-networked model provide…`, `errors,…`, `core s…` |
+| [`build-agent-map.mjs:123-125`](../../../docs-site/scripts/build-agent-map.mjs#L123-L125) | Kural seçimi bölümün **ilk** düz metnini alır. Ölçüldü: 11 bölümün **9'u** kural üretiyor, **ikisi hiç üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok), **biri kural değil bir yön tarifi** üretiyor ("Storage and testability" → "Use Compatibility before you choose packages…") |
+| [`ui.md`](../../../docs-site/src/content/docs/ui.md) ↔ [`en.ts:58-75`](../../../src/AgentPrism.UI/frontend/src/locales/en.ts#L58-L75) | Konsol gezinmesi **17 ekran** taşıyor. `ui.md` üçünü hiç anlatmıyor: **Sessions**, **Jobs**, **Skills**. `jobs` kelimesi sayfada **sıfır** kez geçiyor |
+| [`DocumentationScreenshotTests.cs:45-62`](../../../tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs#L45-L62) | **14 ekran** görüntüleniyor. Beşi hiç yakalanmıyor: `sessions`, `jobs`, `skills`, `mcp`, `triggers`. Kapı "listedeki her ekran render oldu" der; "her ekran listede" **demez** |
+| [`AgentPrismDiagnostics.cs`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs) ↔ [`guides/observability.md:46-55`](../../../docs-site/src/content/docs/guides/observability.md#L46-L55) | 36 telemetri adı var. Enstrümanların **onu da** dokümanda. Öznitelik anahtarlarının **23'ü hiçbir sayfada geçmiyor** — `agentprism.tenant.id`, `agentprism.agent.name`, `agentprism.run.status`, `agentprism.token.direction` dahil. Gösterge paneli yazan tüketici hangi etikete göre gruplayacağını bulamıyor |
 | 39 `*Options` tipi, 266 public property | **13'ü hiçbir elle yazılmış sayfada geçmiyor**: `AgentPrismTenancyOptions` (`HeaderName`, `ClaimType`, `AllowHeaderResolution`, `AllowedTenants`), `AgentPrismRunOptions` (yedi üye), `AgentPrismOptions.DefaultTimeout`, `ModelRunJudgeOptions.Criteria` |
-| [`http-api.md:9`](../docs-site/src/content/docs/http-api.md#L9) | "143 operations across 112 paths". Belgede bugün **160 işlem / 123 path** var. `index.mdx` sayıları kapıya bağlı ([`check-content.mjs:97-105`](../docs-site/scripts/check-content.mjs#L97-L105)), bu sayfa **değil** |
-| [`README.md:7`](../README.md#L7) ↔ [`README.md:230`](../README.md#L230) | Aynı dosya iki farklı şey söylüyor: "Faz 73 tamamlandı" ve "Faz 0–74 bitti" |
+| [`http-api.md:9`](../../../docs-site/src/content/docs/http-api.md#L9) | "143 operations across 112 paths". Belgede bugün **160 işlem / 123 path** var. `index.mdx` sayıları kapıya bağlı ([`check-content.mjs:97-105`](../../../docs-site/scripts/check-content.mjs#L97-L105)), bu sayfa **değil** |
+| [`README.md:7`](../../../README.md#L7) ↔ [`README.md:230`](../../../README.md#L230) | Aynı dosya iki farklı şey söylüyor: "Faz 73 tamamlandı" ve "Faz 0–74 bitti" |
 
 > Kanıtlar 2026-08-20 tarihinde bu depo ve
 > `artifacts/package/release/*.0.272.nupkg` üzerinde doğrulandı.
 
 🚨 **En önemli satır kapı satırıdır.** Sızıntıyı arayan kod **zaten yazılmış**
-([`check-content.mjs:359`](../docs-site/scripts/check-content.mjs#L359)) ve
+([`check-content.mjs:359`](../../../docs-site/scripts/check-content.mjs#L359)) ve
 doğru çalışıyor. Yeni bir tespit yeteneği icat edilmeyecek; var olan kural
 **sevk edilen yapıtlara** uygulanacak. Bu fazın maliyeti tespit değil,
 **temizliktir**.
@@ -187,7 +187,7 @@ o kaydı okuyabilir. Aynı cümle `<summary>` içine girerse tüketiciye gider.
 ## 75.2 — Kapı: `ShippedDocumentationSelfContainmentTests`
 
 Yeri: `tests/AgentPrism.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs`.
-Mekanik [`SourceLanguageTests.cs`](../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs)
+Mekanik [`SourceLanguageTests.cs`](../../../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs)
 ile **birebir aynıdır** (K-410): dosya başına ihlal sayısı taşıyan bir taban
 çizgisi, yalnız küçülen bir cırcır, `AGENTPRISM_*_REFRESH` ortam değişkeniyle
 yenileme. Yeni kavram getirilmez.
@@ -199,7 +199,7 @@ Desen:
 ```
 
 Bu desen `check-content.mjs`'in
-[`hasInternalHistory`](../docs-site/scripts/check-content.mjs#L359) fonksiyonundan
+[`hasInternalHistory`](../../../docs-site/scripts/check-content.mjs#L359) fonksiyonundan
 **alınır, yeniden yazılmaz**. İki uygulamanın ayrışması yeni bir kayma yüzeyidir;
 plan bu yüzden tek kaynak ister — desen bir sabit olarak tek yerde durur ve
 JavaScript tarafı onu okur ya da iki tarafın aynı deseni taşıdığını bir test
@@ -211,7 +211,7 @@ kapsamı): `src/**/*.cs` içindeki `///` satırları, `src/*/README.md`, kök
 
 🚨 **Taban çizgisi BOŞ doğar.** Bu, 896 satırın **bu fazın içinde** temizlenmesi
 demektir; kapı sonradan yeşile boyanmaz. `SourceLanguageTests`'in
-[taban çizgisi](../tests/AgentPrism.Core.UnitTests/Architecture/source-language-baseline.txt)
+[taban çizgisi](../../../tests/AgentPrism.Core.UnitTests/Architecture/source-language-baseline.txt)
 de dört yorum satırından ibarettir — aynı çıta.
 
 `AgentPrism.Generators` içindeki tek satır da kapsamdadır: o proje `IsPackable=false`
@@ -269,7 +269,7 @@ Düzeltme üç parçadır:
 - Üreteç, bölüm başına **tam bir kural** ister. Kural yoksa üreteç **hata
   verir** — sessizce eksik harita üretmez. Bu, `capabilities.md`'nin boş
   gövde durumunda zaten yaptığı şeydir
-  ([`build-agent-map.mjs:82-84`](../docs-site/scripts/build-agent-map.mjs#L82-L84)).
+  ([`build-agent-map.mjs:82-84`](../../../docs-site/scripts/build-agent-map.mjs#L82-L84)).
 - `capabilities.md` üç bölüme kural cümlesi kazanır: iki eksik bölüme yeni,
   "Storage and testability"nin yön tarifi yerine gerçek kural.
 
@@ -307,7 +307,7 @@ screens" diye ölçülmüş bir sayı ilan ediyor; kılavuz on dördünü göste
 üçünden hiç söz etmiyor.
 
 `ui.md` üç bölüm kazanır. Ekran görüntüsü listesi
-([`DocumentationScreenshotTests.cs:45`](../tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs#L45))
+([`DocumentationScreenshotTests.cs:45`](../../../tests/AgentPrism.Ui.E2ETests/DocumentationScreenshotTests.cs#L45))
 beş satır büyür: `sessions`, `jobs`, `skills`, `mcp`, `triggers`. Son ikisi
 bugün metinde anlatılıyor ama görüntüsü yok.
 
@@ -643,8 +643,8 @@ günlüğünün **sesiyle** yazılmış — **347** satır 🚨/⚠️ taşıyor
 Bu sınıf kapsam dışı **bırakılamaz**, çünkü [§75.3](#753--paketlenen-openapi-ve-sanitize-hasarı)
 sanitize süzgecinin boş çalışmasını istiyor. Ölçüldü: süzgeç tek değil **iki**
 kopyadır ve toplam **110 satırdır** —
-[`build-api-reference.mjs:554-625`](../docs-site/scripts/build-api-reference.mjs#L554-L625)
-(70 satır) ve [`build-http-api.mjs:492-517`](../docs-site/scripts/build-http-api.mjs#L492-L517)
+[`build-api-reference.mjs:554-625`](../../../docs-site/scripts/build-api-reference.mjs#L554-L625)
+(70 satır) ve [`build-http-api.mjs:492-517`](../../../docs-site/scripts/build-http-api.mjs#L492-L517)
 (26 satır). İçlerinde `🚨|⚠️ → **Important:**`, `Rationale: → ''`,
 `Measured (20… → ''` kuralları var; yani proje bu sesi **zaten** tüketiciye
 uygun bulmuyor ve siteye çıkarken siliyor. Kaynak temizlenmezse süzgeç

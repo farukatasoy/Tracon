@@ -1,6 +1,6 @@
 # Kapanmış Faz Dokümanları — Arşiv
 
-> **Baştan sona okunmaz.** Bu dizin kapanmış fazların (00–59) planlarını
+> **Baştan sona okunmaz.** Bu dizin kapanmış fazların (00–89) planlarını
 > tutar; hiçbir oturum bunları açılışta okumaz. Bir fazın neden öyle
 > yapıldığını ararken `grep`'le:
 >
@@ -10,7 +10,7 @@
 > ```
 >
 > Faz durumu ve bağlantılar **üretilir**: [`../../YOL-HARITASI.md`](../../YOL-HARITASI.md).
-> Açık ve yeni fazlar `docs/` kökünde kalır.
+> Yalnız açık veya planlanan fazlar `docs/` kökünde kalır.
 
 ## Neden burada
 

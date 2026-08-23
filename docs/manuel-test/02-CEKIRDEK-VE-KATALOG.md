@@ -2375,4 +2375,4 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 - `400`; gövdede `"detail":"Parameter 'musteri' exceeds the maximum value
   length."` ve `tooLongParameters: ["musteri"]`. Koşu başlamaz, model
   çağrılmaz. 2026-08-22'de `samples/AgentPrism.Api`'ye karşı canlı doğrulandı
-  (bkz. `docs/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").
+  (bkz. `docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").

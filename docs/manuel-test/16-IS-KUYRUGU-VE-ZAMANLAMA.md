@@ -1817,7 +1817,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
 
 ## Gelen Tetikleyiciler (Faz 66)
 
-Bu bölümün kaynağı `docs/66-GELEN-TETIKLEYICILER.md`'dir. İmza `openssl` ile
+Bu bölümün kaynağı `docs/arsiv/fazlar/66-GELEN-TETIKLEYICILER.md`'dir. İmza `openssl` ile
 elle hesaplanır — `$APU`/`$APB` bu dosyanın da temel değişkenleridir
 ([`00-INDEKS.md`](00-INDEKS.md)), ayrıca `$TRIGSECRET` bu bölüme özeldir.
 

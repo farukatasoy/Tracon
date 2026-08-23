@@ -95,8 +95,8 @@ public sealed class ToolRegistry : IToolRegistry
             // the only place that enforces the "an agent can only refer to a registered
             // tool" rule. Enforcing wrapping here prevents another code path from bypassing it.
             //
-            // Composition order (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1;
-            // docs/89-TOOL-CIKTISI-BOYUT-SINIRI.md, 89.3):
+            // Composition order (docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1;
+            // docs/arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md, 89.3):
             // Authorizing (outermost) -> Timeout -> ApprovalRequired -> Truncating (innermost) -> real function.
             // Authorization runs before anything else: asking for approval or waiting
             // out a timeout for a call the caller could never make is backwards.

@@ -28,16 +28,16 @@ aynı gün altı faza dönüştü. Turun tam kaydı:
 
 | Kalem | Faz |
 |---|---|
-| F-110 | [Faz 67](../67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
-| F-111 | [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-112 | [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
-| F-113 | [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-114 | [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
-| F-115 | [Faz 70](../70-CALISTIRMA-OLAYI-HEDEFI.md) |
-| F-116 | [Faz 71](../71-WORKFLOW-KOD-DUGUMU.md) |
-| F-117 | [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-118 | [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
-| F-119 | [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) |
+| F-110 | [Faz 67](fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) |
+| F-111 | [Faz 68](fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-112 | [Faz 68](fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) |
+| F-113 | [Faz 69](fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-114 | [Faz 69](fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) |
+| F-115 | [Faz 70](fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) |
+| F-116 | [Faz 71](fazlar/71-WORKFLOW-KOD-DUGUMU.md) |
+| F-117 | [Faz 72](fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-118 | [Faz 72](fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) |
+| F-119 | [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) |
 
 ---
 
@@ -67,7 +67,7 @@ sonra sıra değiştirilemez. **Faz 7'den önce yapılmalıdır.**
 kalem bir kusuru değil bir **sürtünmeyi** kaldırır. Buna karşılık sürtünme ilk
 beş dakikadadır ve orada kaybedilen tüketici geri gelmez.
 
-> **Plana dönüştü:** [Faz 67](../67-ISTEGE-BAGLI-MIGRATION-SETI.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 67](fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md) · taşındı 2026-08-18
 
 ---
 
@@ -90,11 +90,11 @@ boyutların kayda, filtreye, istatistik kırılımına ve arayüze taşınması.
 `RunStatisticsQuery`, `RunStatistics`, HTTP filtreleri, arayüz, bir migration.
 **Risk:** 🚨 **Kullanıcı kimliği kişisel veridir.** AgentPrism kişisel kimlik
 **saklamamalıdır**; alan opak bir dizedir ve anlamını tüketici verir. Aynı duruş
-[Faz 64](../64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md)'ün `IDataSubjectResolver`
+[Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md)'ün `IDataSubjectResolver`
 kararıyla tutarlıdır. Etiketler kardinaliteyi patlatabilir: metrik etiketi
 **değil**, yalnız sorgu boyutu olmalıdır.
 **Bağımlılık:** F-112 aynı tabloya dokunur.
-[Faz 64](../64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) veri konusu haklarını
+[Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) veri konusu haklarını
 tanımlar — kullanıcı kimliği eklemek o kapsamı büyütür.
 **Ekosistem:** 2026-08-18 — [Langfuse](https://langfuse.com/docs/observability/features/token-and-cost-tracking)
 her trace'te `user_id` + `session_id` + değişmez etiket taşır;
@@ -106,7 +106,7 @@ kimliğini yazabilir. Buna karşılık o zaman oturum ile kimlik kavramı çakı
 bir kullanıcının çok oturumu vardır ve `session_id`'yi kimlik yapmak geçmiş
 gruplamasını bozar. Etiket boyutu ise bu numarayla hiç elde edilemez.
 
-> **Plana dönüştü:** [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 68](fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) · taşındı 2026-08-18
 
 ---
 
@@ -140,7 +140,7 @@ bilgisi bilinmiyor olarak kalır" kuralının aynısıdır.
 **Karşı görüş:** Ciddi bir karşı gerekçe bulunamadı. Veri hazır, sözleşme
 belgelenmiş, bugünkü sonuç yanlış bir sayıdır.
 
-> **Plana dönüştü:** [Faz 68](../68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 68](fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) · taşındı 2026-08-18
 
 ---
 
@@ -164,7 +164,7 @@ kod yolu olamaz.
 kimliği çözmez, tüketicinin kimlik hattına **sorar**. Varsayılanı izin vermek
 olmalıdır, yoksa `AddAgentPrism()` tek başına çalışmaz (K1).
 **Bağımlılık:** F-114 aynı `record`.
-[Faz 63](../63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) `ToolApprovalRule`'a
+[Faz 63](fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) `ToolApprovalRule`'a
 dokunuyor — sıra kararı gerekir.
 **Ekosistem:** 2026-08-18 — [LiteLLM tool izin
 guardrail'i](https://docs.litellm.ai/docs/proxy/guardrails/tool_permission) ve
@@ -177,7 +177,7 @@ yapılabilir. Buna karşılık bu, kararı **model çağırdıktan sonraya** bı
 tool zaten şemayla modele gösterilmiş ve çağrılmıştır. İzin, tool'un modele
 **gösterilip gösterilmeyeceğini** de belirlemelidir.
 
-> **Plana dönüştü:** [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 69](fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) · taşındı 2026-08-18
 
 ---
 
@@ -203,7 +203,7 @@ timeout da circuit breaker sayacına girmemelidir.
 kullanabilir. Buna karşılık bu, her tool yazarının doğru yapmasını gerektirir;
 sözleşmeye koymak tek noktada çözer — `MaxPayloadLength` ile aynı gerekçe.
 
-> **Plana dönüştü:** [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 69](fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) · taşındı 2026-08-18
 
 ---
 
@@ -218,7 +218,7 @@ dekore eder — kalıcılık ile yayını karıştıran yanlış bir yer. **(b)*
 `MessageDelta`'ya karışır.
 **Kapsam:** Kayıt edilebilir bir olay hedefi (`TryAdd`, varsayılan boş) ve
 enum'a `ReasoningDelta` eklenmesi.
-**Değer:** [Faz 61](../61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) tarayıcı
+**Değer:** [Faz 61](fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) tarayıcı
 tarafını çözdü; sunucu tarafı taşıyıcısı hâlâ yok. SignalR'a, mesaj kuyruğuna
 veya özel bir taşıyıcıya bağlanmak bugün tüketicinin kodudur.
 **Mercek:** 1, 2, 6.
@@ -235,7 +235,7 @@ Buna karşılık bu, her tüketiciyi kalıcılık sözleşmesinin tamamını yen
 uygulamaya zorlar ve depo hatası ile yayın hatası aynı yut-geç kuralına girer —
 ikisi ayrı sorumluluktur.
 
-> **Plana dönüştü:** [Faz 70](../70-CALISTIRMA-OLAYI-HEDEFI.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 70](fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md) · taşındı 2026-08-18
 
 ---
 
@@ -267,7 +267,7 @@ yalnız AI kısmı için kullanabilir. Buna karşılık o zaman iki orkestratör
 durum kaynağı ve iki kurtarma yolu doğar — Workflows'un vaadi tam olarak bunu
 ortadan kaldırmaktı.
 
-> **Plana dönüştü:** [Faz 71](../71-WORKFLOW-KOD-DUGUMU.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 71](fazlar/71-WORKFLOW-KOD-DUGUMU.md) · taşındı 2026-08-18
 
 ---
 
@@ -294,7 +294,7 @@ dışında mı** — plan bunu karara bağlamalıdır.
 ve **F-34 (şablon) bunu zaten kapsayabilir**. F-34 planlanırsa bu kalem onun
 içinde erimelidir; ayrı bir alan eklemek erken olabilir.
 
-> **Plana dönüştü:** [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 72](fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) · taşındı 2026-08-18
 
 ---
 
@@ -320,7 +320,7 @@ farklı gelir — iki yol ayrı ele alınmalıdır.
 ucuna bağlıdır. Zayıf kalemdir; ses tarafında başka bir işle birleşmedikçe tek
 başına faz olmamalıdır.
 
-> **Plana dönüştü:** [Faz 72](../72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 72](fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md) · taşındı 2026-08-18
 
 ---
 
@@ -340,15 +340,15 @@ tanımlanabilir.
 **Mercek:** 3.
 **Hazırlık:** Sıfırdan; `AgentDefinitionValidator` doğru yer.
 **Maliyet:** Düşük.
-**Risk:** [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) sağlayıcı çözümlemesini
+**Risk:** [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) sağlayıcı çözümlemesini
 zaten değiştirecek. Bunu ondan **önce** yapmak aynı yere iki kez dokunmaktır.
-**Bağımlılık:** [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) — birlikte
+**Bağımlılık:** [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) — birlikte
 planlanmalı.
 **Ekosistem:** Taranmadı.
 **Karşı görüş:** Yalnız bir mercekten iyi görünüyor (3). Tek başına zayıftır —
 Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 
-> **Plana dönüştü:** [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) · taşındı 2026-08-18
+> **Plana dönüştü:** [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) · taşındı 2026-08-18
 
 ## Faz 77 bütçe rahatlatması — kapanmış kalemler ve tur anlatısı
 
@@ -376,8 +376,8 @@ Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 > bitiriyor. Zorlama süper-adım sınırında ve pompa çıkışında yapılır.
 > Tam gerekçe: **K-432**.
 
-- **F-113** Tool düzeyinde yetkilendirme ve etki sınıfı → [Faz 69](../69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)
-- **F-119** Kiracı bazlı sağlayıcı allowlist'i → [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) ✅ · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)
+- **F-113** Tool düzeyinde yetkilendirme ve etki sınıfı → [Faz 69](fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)
+- **F-119** Kiracı bazlı sağlayıcı allowlist'i → [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) ✅ · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)
 
 #### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması — KAPATILDI (2026-08-08)
 
@@ -408,7 +408,7 @@ Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 > [`kesif/2026-08-18-tuketici-raporu.md`](../kesif/2026-08-18-tuketici-raporu.md).
 >
 > 🚨 **Onu da aynı gün plana dönüştü** — altı yeni faz (67–72) ve F-119'un
-> [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı
+> [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı
 > **22'de kaldı**; gövdeler
 > [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)'dedir.
 >
@@ -445,7 +445,7 @@ kullanmadan önce yeniden ölç.
 
 ### F-121
 
-| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](../74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](../73-TUKETICI-AGENT-DESTEGI.md) | 🚨 **Kaydın istediği ölçüm yapıldı (2026-08-19) ve `dotnet tool` MCP sunucusu okumasını düşürdü.** Paket **2.96 MB** XML dokümanı (~5 600 üye) sevk ediyor ve o korpus tüketicinin `~/.nuget/packages` dizininde **zaten duruyor**; on gerçek detay sorgusunun **onu da** `grep` ile cevaplandı. Sunucunun `grep` üzerine koyacağı tek yeni yetenek anlamsal aramadır — o da RAG'dir ve Dalga 9'da elendi. Maliyet yapısal: `grep -rn PackAsTool` **boş** — yeni dağıtım kanalı, F-93 ile aynı sınıf; benimseme Faz 73'ün opt-in özelliğinden **kötü**. Ölçüm üç gerçek boşluk buldu ve Faz 74 onları alır: yerel korpusa hiçbir işaret yok, `agentprism.json` (123 path) hiçbir pakete girmiyor, 39 giriş noktasının **27'sinde** çalışan örnek yok. Sunucu reddedilmedi, gerekçesi düştü; Faz 74'ün ölçümüyle yeniden açılabilir |
+| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) | 🚨 **Kaydın istediği ölçüm yapıldı (2026-08-19) ve `dotnet tool` MCP sunucusu okumasını düşürdü.** Paket **2.96 MB** XML dokümanı (~5 600 üye) sevk ediyor ve o korpus tüketicinin `~/.nuget/packages` dizininde **zaten duruyor**; on gerçek detay sorgusunun **onu da** `grep` ile cevaplandı. Sunucunun `grep` üzerine koyacağı tek yeni yetenek anlamsal aramadır — o da RAG'dir ve Dalga 9'da elendi. Maliyet yapısal: `grep -rn PackAsTool` **boş** — yeni dağıtım kanalı, F-93 ile aynı sınıf; benimseme Faz 73'ün opt-in özelliğinden **kötü**. Ölçüm üç gerçek boşluk buldu ve Faz 74 onları alır: yerel korpusa hiçbir işaret yok, `agentprism.json` (123 path) hiçbir pakete girmiyor, 39 giriş noktasının **27'sinde** çalışan örnek yok. Sunucu reddedilmedi, gerekçesi düştü; Faz 74'ün ölçümüyle yeniden açılabilir |
 
 ### F-102
 
@@ -583,7 +583,7 @@ ID'ler **F-77'den** devam eder.
 
 ## Dalga 13 Küme B → Faz 81 (ADAYLAR.md'den taşındı, 2026-08-21)
 
-F-45 ve F-134 [Faz 81](../81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md)'e dönüştü.
+F-45 ve F-134 [Faz 81](fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md)'e dönüştü.
 Aşağıdaki iki gövde **plan yazılmadan önceki** aday kaydıdır. Faz dokümanı
 planlama sırasında dört şeyi yeniden ölçtü ve iki kaydı değiştirdi; bugün
 geçerli olan ölçüm oradadır.
@@ -675,7 +675,7 @@ benchmark almaktır, doğrudan bayrağı eklemek değil.
 
 ## Dalga 13 Küme C → Faz 82 (ADAYLAR.md'den taşındı, 2026-08-21)
 
-F-41 [Faz 82](../82-ICERIK-KORUMASI.md)'ye dönüştü. Aşağıdaki gövde **plan yazılmadan
+F-41 [Faz 82](fazlar/82-ICERIK-KORUMASI.md)'ye dönüştü. Aşağıdaki gövde **plan yazılmadan
 önceki** aday kaydıdır; planlama sırasında **üç iddiası çürütüldü** (F-87'nin öncülü,
 dokümantasyon boşluğu, "arama tamamen biter") ve bugün geçerli olan ölçüm faz
 dokümanındadır.
@@ -740,8 +740,8 @@ Kümenin ilk kararı koruma algoritması değil, bu **üç okuma yolunun ne olac
 
 | Kalem | Faz |
 |---|---|
-| **F-108** İstemci tarafında çalışan tool | [Faz 61](../61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
-| **F-64** Gömülebilir sohbet bileşeni | [Faz 61](../61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
+| **F-108** İstemci tarafında çalışan tool | [Faz 61](fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
+| **F-64** Gömülebilir sohbet bileşeni | [Faz 61](fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md) |
 
 İkisi tek fazdadır: gömülebilir bileşen, istemci tool'unu **çalıştıran**
 taraftır ve CORS ikisinin ortak ön koşuludur.
@@ -750,11 +750,11 @@ taraftır ve CORS ikisinin ortak ön koşuludur.
 
 | Kalem | Faz |
 |---|---|
-| **F-44** Model yedek zinciri · **F-59** Ön uçuş bütçe denetimi | [Faz 62](../62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) |
-| **F-61** Argüman düzeyinde onay politikası | [Faz 63](../63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) |
-| **F-75** Denetim hash zinciri · **F-58** Veri konusu hakları | [Faz 64](../64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) |
-| **F-40** Kiracı sağlayıcı anahtarları (BYOK) | [Faz 65](../65-KIRACI-SAGLAYICI-ANAHTARLARI.md) |
-| **F-65** Gelen tetikleyiciler | [Faz 66](../66-GELEN-TETIKLEYICILER.md) |
+| **F-44** Model yedek zinciri · **F-59** Ön uçuş bütçe denetimi | [Faz 62](fazlar/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) |
+| **F-61** Argüman düzeyinde onay politikası | [Faz 63](fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md) |
+| **F-75** Denetim hash zinciri · **F-58** Veri konusu hakları | [Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) |
+| **F-40** Kiracı sağlayıcı anahtarları (BYOK) | [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md) |
+| **F-65** Gelen tetikleyiciler | [Faz 66](fazlar/66-GELEN-TETIKLEYICILER.md) |
 
 Üç faz iki kalemi birleştirir ve gerekçesi her birinde yazılıdır: F-44 ile F-59
 aynı sözleşmeyi (`ModelBinding`) ve aynı boru hattını paylaşır; F-75 ile F-58
@@ -782,7 +782,7 @@ içindedir.
 
 | Kalem | Faz |
 |---|---|
-| **F-120** Tüketici agent desteği (tanılar + üretilen yetenek haritası) | [Faz 73](../73-TUKETICI-AGENT-DESTEGI.md) |
+| **F-120** Tüketici agent desteği (tanılar + üretilen yetenek haritası) | [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) |
 
 Bu kalem bir tüketici sorusundan doğdu: paketi entegre eden uygulamaların **kod
 agent'ları** yeteneklere hâkim değil. Dört seçenek tartıldı (RAG · MCP · yalnız
@@ -796,7 +796,7 @@ koparır, ve indeks tüketicinin kurduğu sürümden kayar. Kalan üç katmanın
 
 | Kalem | Faz |
 |---|---|
-| **F-121** Yerel referans yüzeyi (kapsamı ölçümle değişti) | [Faz 74](../74-YEREL-REFERANS-YUZEYI.md) |
+| **F-121** Yerel referans yüzeyi (kapsamı ölçümle değişti) | [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) |
 
 F-121 bir `dotnet tool` MCP sunucusu olarak yazılmıştı ve kendi kaydı ölçüm
 istiyordu. Ölçüm 2026-08-19'da yapıldı ve **öneriyi düşürdü**: detay korpusu
@@ -811,9 +811,9 @@ noktasının tamamında çalışan bir örnek — hepsi yeni dağıtım kanalı 
 
 | Kalem | Faz |
 |---|---|
-| **F-126** Tüketici dokümanının doğruluğu ve kapıları | [Faz 75](../75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
-| **F-124** Harita üretecinin kesme ve kural kusurları | [Faz 75](../75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
-| **F-127** Doküman kalitesi ve görsel kimlik | [Faz 76](../76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) |
+| **F-126** Tüketici dokümanının doğruluğu ve kapıları | [Faz 75](fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
+| **F-124** Harita üretecinin kesme ve kural kusurları | [Faz 75](fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md) |
+| **F-127** Doküman kalitesi ve görsel kimlik | [Faz 76](fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md) |
 
 Bu tur bir **denetim turudur**, bir keşif turu değil: kaynağı yeni bir ihtiyaç
 değil, Faz 73 ve 74'ün kendi çıktısının ölçülmesidir. Soru şuydu — tüketicinin
@@ -842,7 +842,7 @@ kanıtlanır, F-127 gözle. İkisini tek faza koymak DoD'yi bulanıklaştırırd
 
 | Kalem | Faz |
 |---|---|
-| **F-135** Yetenek haritasının var olan `AGENTS.md` taşıyan repo'ya erişimi | [Faz 78](../78-YETENEK-HARITASI-ERISIMI.md) |
+| **F-135** Yetenek haritasının var olan `AGENTS.md` taşıyan repo'ya erişimi | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) |
 
 F-135 bir keşif turundan değil, **gerçek bir tüketici kurulumundan** doğdu
 (2026-08-21, kullanıcı sorusu — F-108 emsali). Paket
@@ -886,16 +886,16 @@ oranıdır". F-135 o cümlenin ilk ölçülen faturasıdır.
 
 | ID | Kalem | Kaynak | Gerekçe |
 |---|---|---|---|
-| ~~**F-87**~~ | 🚫 **KAPATILDI (2026-08-21, 👤 kullanıcı kararı).** Öncülü ölçüldü ve **yanlış çıktı**: kayıt artık guard'dan geçiyor — [`RunRecordingAgent.cs:661`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L661) `RunStarted` olayını ve `IRunInputStore` yazımını `ContentGuardMessageMasker.PreviewAsync` ile maskeliyor. Kayıt, `AgentPrismServiceCollectionExtensions.cs:869`'daki yorumu ters okumuştu ("bu satır **olmasaydı**" diyor ve satır **var**). Geriye dönük temizlik ihtiyacını da [Faz 64](../64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) konu bazlı **silme** ile karşılıyor (`DELETE /api/data-subjects/{id}`). Geriye kalan tek dar iş — satırı tutup parçayı temizleyen **redaksiyon** — ölçülmüş bir tüketici talebine bağlı değildir; bir talep gelirse yeniden açılır |
+| ~~**F-87**~~ | 🚫 **KAPATILDI (2026-08-21, 👤 kullanıcı kararı).** Öncülü ölçüldü ve **yanlış çıktı**: kayıt artık guard'dan geçiyor — [`RunRecordingAgent.cs:661`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L661) `RunStarted` olayını ve `IRunInputStore` yazımını `ContentGuardMessageMasker.PreviewAsync` ile maskeliyor. Kayıt, `AgentPrismServiceCollectionExtensions.cs:869`'daki yorumu ters okumuştu ("bu satır **olmasaydı**" diyor ve satır **var**). Geriye dönük temizlik ihtiyacını da [Faz 64](fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md) konu bazlı **silme** ile karşılıyor (`DELETE /api/data-subjects/{id}`). Geriye kalan tek dar iş — satırı tutup parçayı temizleyen **redaksiyon** — ölçülmüş bir tüketici talebine bağlı değildir; bir talep gelirse yeniden açılır |
 | ~~**F-100**~~ | ✅ **KAPANDI (2026-08-18)** — bütçe eşiği uyarısı | 2026-08-08 denetimi | 🚨 **İddia ölçüldü ve yanlış çıktı.** Mekanizma koddadır: `AgentPrismQuotaOptions.ThresholdPercents` (varsayılan `[80, 100]`), `QuotaEnforcer.PublishThresholdEventsAsync` ve `WebhookEvents.QuotaThreshold = "quota.threshold"`. Eşik aşımı **zaten** giden webhook tetikliyor |
-| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](../74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](../73-TUKETICI-AGENT-DESTEGI.md) | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-121. |
-| ~~**F-124**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 75](../75-TUKETICI-DOKUMAN-DOGRULUGU.md) §75.4 | [Faz 73](../73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | 🚨 **Kaydın teşhisi ölçümle düzeltildi (2026-08-20).** Kesme iddiası doğruydu — sevk edilen haritada üç kelime ortası kesme var. Kural iddiası **yanlıştı**: "Storage and testability" bölümünün tablodan ÖNCE düz metni yok, yani üreteç tablodan sonrakini zaten alıyor; gerçek kusur alınan cümlenin bir kural değil bir yön tarifi olmasıdır. Ölçüm **üçüncü bir kusur** buldu: 11 bölümün **ikisi hiç kural üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok). Üçü de Faz 75'e girdi |
-| ~~**F-125**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 79](../79-SEVK-EDILEN-YUZEY-KAPILARI.md) | [Faz 74](../74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü ve kayda göre üç düzeltme yapıldı; ayrıntı faz dokümanının "Bugün ne çalışmıyor" bölümündedir. |
-| ~~**F-129**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 80](../80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | [`tuketici-dokuman-senkronu`](../../.agents/skills/tuketici-dokuman-senkronu/SKILL.md) kurulumu (2026-08-20) · K-522 | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü: desen sayısı 9 değil **10**; `buildTransitive/` boşluğu "eşleme yok" değil **"eşleme hatalı"**; ve bir hipotez çürüdü (üretilen haritanın bayatlaması `ci.yml`'de zaten kapalı). Ölçüm iki yeni boşluk buldu: kapının **hiç testi yok** ve **CI'da hiç koşmuyor**. |
-| ~~**F-131**~~ | ✅ **TAMAMLANDI (2026-08-20)** → [Faz 77](../77-GIDEN-AG-MUHAFIZI.md) | Güvenlik taraması (2026-08-20) | Gövde faza taşındı. Planlama sırasında adayın **ölçülmemiş** tek kalemi ölçüldü: dört sağlayıcı SDK'sı da `HttpClient` enjeksiyonuna izin veriyor (`Anthropic.Core.ClientOptions.HttpClient`, OpenAI/Azure `ClientOptions`, Google kendi istemcisine sahip) — yani K-164'ün `IHttpClientFactory` yasağı korunarak muhafız üç yüzeye taşınabilir, yeni paket gerekmez |
+| ~~**F-121**~~ | ✅ **KAPANDI (2026-08-20)** — kapsamı ölçümle değişti → [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) tamamlandı | 2026-08-18 tüketici agent turu · [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-121. |
+| ~~**F-124**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-20)** → [Faz 75](fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md) §75.4 | [Faz 73](fazlar/73-TUKETICI-AGENT-DESTEGI.md) denetimi (2026-08-19) | 🚨 **Kaydın teşhisi ölçümle düzeltildi (2026-08-20).** Kesme iddiası doğruydu — sevk edilen haritada üç kelime ortası kesme var. Kural iddiası **yanlıştı**: "Storage and testability" bölümünün tablodan ÖNCE düz metni yok, yani üreteç tablodan sonrakini zaten alıyor; gerçek kusur alınan cümlenin bir kural değil bir yön tarifi olmasıdır. Ölçüm **üçüncü bir kusur** buldu: 11 bölümün **ikisi hiç kural üretmiyor** ("Runs, sessions, and media" ve "Observability and operations" — `capabilities.md`'de düz metinleri yok). Üçü de Faz 75'e girdi |
+| ~~**F-125**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 79](fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md) | [Faz 74](fazlar/74-YEREL-REFERANS-YUZEYI.md) denetimi (2026-08-20) | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü ve kayda göre üç düzeltme yapıldı; ayrıntı faz dokümanının "Bugün ne çalışmıyor" bölümündedir. |
+| ~~**F-129**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 80](fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | [`tuketici-dokuman-senkronu`](../../.agents/skills/tuketici-dokuman-senkronu/SKILL.md) kurulumu (2026-08-20) · K-522 | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü: desen sayısı 9 değil **10**; `buildTransitive/` boşluğu "eşleme yok" değil **"eşleme hatalı"**; ve bir hipotez çürüdü (üretilen haritanın bayatlaması `ci.yml`'de zaten kapalı). Ölçüm iki yeni boşluk buldu: kapının **hiç testi yok** ve **CI'da hiç koşmuyor**. |
+| ~~**F-131**~~ | ✅ **TAMAMLANDI (2026-08-20)** → [Faz 77](fazlar/77-GIDEN-AG-MUHAFIZI.md) | Güvenlik taraması (2026-08-20) | Gövde faza taşındı. Planlama sırasında adayın **ölçülmemiş** tek kalemi ölçüldü: dört sağlayıcı SDK'sı da `HttpClient` enjeksiyonuna izin veriyor (`Anthropic.Core.ClientOptions.HttpClient`, OpenAI/Azure `ClientOptions`, Google kendi istemcisine sahip) — yani K-164'ün `IHttpClientFactory` yasağı korunarak muhafız üç yüzeye taşınabilir, yeni paket gerekmez |
 | ~~**F-133**~~ | ✅ **KAPANDI (2026-08-21)** — kök sebep ölçüldü, "kırılgan test" teşhisi YANLIŞ çıktı, düzeltildi (K-541) | Faz 77 kapanış koşumu (2026-08-20) | Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-133. |
 | ~~**F-102**~~ | ✅ **KAPANDI (2026-08-18)** — kırılgan eşzamanlılık testi | 2026-08-08 denetimi | Gerekçe: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](../arsiv/PLANA-DONUSEN-ADAYLAR.md) — F-102. |
-| ~~**F-136**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 79](../79-SEVK-EDILEN-YUZEY-KAPILARI.md) | [Faz 78](../78-YETENEK-HARITASI-ERISIMI.md) denetimi (2026-08-21) 🟢 | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü ve kayda göre üç düzeltme yapıldı; ayrıntı faz dokümanının "Bugün ne çalışmıyor" bölümündedir. |
+| ~~**F-136**~~ | 📋 **PLANA DÖNÜŞTÜ (2026-08-21)** → [Faz 79](fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md) | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) denetimi (2026-08-21) 🟢 | Gövde faza taşındı. Planlama sırasında kanıt yeniden ölçüldü ve kayda göre üç düzeltme yapıldı; ayrıntı faz dokümanının "Bugün ne çalışmıyor" bölümündedir. |
 
 ---
 
@@ -952,10 +952,10 @@ Tam koşum kaydı: [`kesif/2026-08-21-faz-adaylari-tespiti.md`](../kesif/2026-08
 
 | Sıra | Küme | Kalemler | Ortak yanı | Bu turda ölçülen |
 |---|---|---|---|---|
-| 1 | **A** Tüketici yüzeyi kapıları — ✅ **tamamı plana döndü**: F-125 + F-136 → [Faz 79](../79-SEVK-EDILEN-YUZEY-KAPILARI.md) · F-129 → [Faz 80](../80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | F-125 · F-129 · F-136 | Yeni yetenek/tanı/örnek sevk edilebilir, **hiçbir kapı kızarmaz** | F-136 **beş belgesiz kod** · F-125 prelüd **iki** yer tutucu · F-129 iddiası **yanlış çıktı**, kalem daraldı |
-| 2 | **B** Model boru hattı ergonomisi — ✅ **plana döndü**: F-45 + F-134 → [Faz 81](../81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | F-45 · F-134 | İkisi de `ModelProviderRegistry` `.AsBuilder()` zincirine takılır, ikisi de varsayılan kapalı | F-45 `IDistributedCache` **yeni bağımlılık kararı** · F-134 **ambient `CurrentContext` riski** |
-| 3 | **C** Kayıt içeriğinin korunması — ✅ **karara bağlandı**: F-41 → [Faz 82](../82-ICERIK-KORUMASI.md) · F-87 🚫 **kapatıldı** (öncülü çürüdü) | F-41 · F-87 | **Aynı dokuz sütun**; ayrı planlanırsa çatışır | Üç okuma yolu adlandırıldı: replay · eval terfisi · dosya araması |
-| 4 | **E** Dağıtım kanalı — 📋 **ikiye bölündü (2026-08-21)**: F-50 → [Faz 83](../83-TIPLI-ISTEMCI-VE-CLI.md) · F-93 **açık kalır**, Faz 84 olarak planlanacak | F-50 · F-93 | Aynı OpenAPI belgesinden üretilir, aynı sürümleme sözleşmesi | Belge **yeterli** (0 eksik `operationId`) · "ikinci üreteç" kısıtı **konusuz** · npm gerçekten yeni kanal · 🚨 npm **ayrı kimlik bilgisi ve ayrı yayın hattı** ister; `ci.yml` yalnız NuGet.org'a iter |
+| 1 | **A** Tüketici yüzeyi kapıları — ✅ **tamamı plana döndü**: F-125 + F-136 → [Faz 79](fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md) · F-129 → [Faz 80](fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md) | F-125 · F-129 · F-136 | Yeni yetenek/tanı/örnek sevk edilebilir, **hiçbir kapı kızarmaz** | F-136 **beş belgesiz kod** · F-125 prelüd **iki** yer tutucu · F-129 iddiası **yanlış çıktı**, kalem daraldı |
+| 2 | **B** Model boru hattı ergonomisi — ✅ **plana döndü**: F-45 + F-134 → [Faz 81](fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) | F-45 · F-134 | İkisi de `ModelProviderRegistry` `.AsBuilder()` zincirine takılır, ikisi de varsayılan kapalı | F-45 `IDistributedCache` **yeni bağımlılık kararı** · F-134 **ambient `CurrentContext` riski** |
+| 3 | **C** Kayıt içeriğinin korunması — ✅ **karara bağlandı**: F-41 → [Faz 82](fazlar/82-ICERIK-KORUMASI.md) · F-87 🚫 **kapatıldı** (öncülü çürüdü) | F-41 · F-87 | **Aynı dokuz sütun**; ayrı planlanırsa çatışır | Üç okuma yolu adlandırıldı: replay · eval terfisi · dosya araması |
+| 4 | **E** Dağıtım kanalı — 📋 **ikiye bölündü (2026-08-21)**: F-50 → [Faz 83](fazlar/83-TIPLI-ISTEMCI-VE-CLI.md) · F-93 **açık kalır**, Faz 84 olarak planlanacak | F-50 · F-93 | Aynı OpenAPI belgesinden üretilir, aynı sürümleme sözleşmesi | Belge **yeterli** (0 eksik `operationId`) · "ikinci üreteç" kısıtı **konusuz** · npm gerçekten yeni kanal · 🚨 npm **ayrı kimlik bilgisi ve ayrı yayın hattı** ister; `ci.yml` yalnız NuGet.org'a iter |
 
 **Küme D düşürüldü** (F-88 · F-89 · F-98). F-88 tek başına faz değil; F-89
 yayından sonra pahalı bir **arayüz** değişimidir; F-98'in erteleme gerekçesi
@@ -975,6 +975,6 @@ kendi oturumudur.
 |---|---|---|---|
 | **F-122** | `Runs_button_on_session_page_navigates_to_filtered_list` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 65 kapanış koşumu (2026-08-19) | 🚨 **Ölçüldü:** izolasyonda 3/3 geçti; tam `AgentPrism.Ui.E2ETests` seti (55 test) koşarken 3 denemeden 2'sinde `tbody tr` satır sayısı, düğme etiketindeki beklenen sayıyla eşleşmeden okundu (`UiTests.cs:720`) — koşu tarayıcı/`Docker` kaynak çekişmesi altında bir zamanlama yarışı. Faz 65'in dokunduğu hiçbir dosyayla (BYOK/egress) ilgisi yok. F-102 emsali: bir kusur değil, kırılgan bir test — ama sessiz bırakılmadı. Ya `runsButton`'ın metnini bekledikten SONRA tablo satır sayısının da stabilize olmasını bekleyen bir `WaitForAsync` eklenir, ya da `expectedCount` okuması tablo render'ından SONRAya taşınır |
 | **F-130** | `Eval_suite_is_created_case_added_and_run_passes` (`AgentPrism.Ui.E2ETests`) kırılgan | Faz 77 doküman bütçesi koşumu (2026-08-20) | 🚨 **Ölçüldü, F-122'nin aynısı.** Tam `Ui.E2ETests` setinde (56 test) `TimeoutException: Timeout 30000ms exceeded` — `GetByPlaceholder("What is your return policy?")` üzerinde `fill` sırasında *"element was detached from the DOM, retrying"* (`UiTests.cs:1113`). Üç adımlı ayırt etme protokolü (`docs/hafiza/test-altyapisi.md`) tam uygulandı: izolasyonda **1/1** geçti, **ikinci tam koşumda 56/56** geçti. Kök sebep tarayıcı/`Docker` kaynak çekişmesi altında React yeniden render'ının `textarea`'yı `fill` ortasında DOM'dan koparması — ürün kusuru değil. Faz 77 yalnız dokümana, bir Python script'ine ve `.cs` **yorumlarına** dokundu; arayüzle ilgisi yok. Çözüm F-122 ile aynı sınıftadır: `fill` öncesi elemanın stabilize olmasını bekleyen bir `WaitForAsync`, ya da locator'ı `fill` anında yeniden çözmek |
-| **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](../78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
+| **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
 | **F-138** | `Respond_does_not_rerun_the_entry_node_when_it_is_an_agent` (`AgentPrism.Workflows.UnitTests`) kırılgan | Kanal 2 kusur koşumu (2026-08-21) | 🚨 **Ölçüldü:** dört tam koşumun yalnız birinde düştü; **izolasyonda 5/5 geçti**. Belirti: `resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput)` eşleşme bulamıyor (`WorkflowAgentEntryRespondTests.cs:55`) — yani `RespondStreamingAsync` devam eden akışta çıktı olayını üretmemiş. F-122/F-130 sınıfı (kaynak çekişmesi) OLABİLİR ama kanıtlanmadı: o ikisi tarayıcı/`Docker` çekişmesiydi, bu saf bir birim testidir ve dış kaynağa dokunmaz. **Bu yüzden gerçek bir çıktı-olayı kaybı ihtimali elenemedi**; ilk adım yük altında tekrar üretmektir. 🚨 **İKİNCİ VAKA ölçüldü (2026-08-21, K-545 koşumu):** `WorkflowHumanInTheLoopTests.Once_a_response_is_given_the_run_completes` (`WorkflowHumanInTheLoopTests.cs:88`) **birebir aynı** iddiada düştü — `resumed.Single(e => e.Type == RunEventType.WorkflowOutput)` eşleşme bulamadı. Aynı ölçüm profili: tam çözüm koşumunda düştü, izolasyonda **5/5**, kendi projesinin tam koşumunda **3/3** geçti. İki farklı test, tek belirti → "kaynak çekişmesi" açıklaması **zayıfladı**; `RespondStreamingAsync`'in devam eden akışında `WorkflowOutput` olayının kaybolması artık iki bağımsız kanıt taşıyor ve kalem bir **ürün kusuru** gibi ele alınmalıdır |
 | **F-139** | `Version_diff_compares_two_versions` (`AgentPrism.Ui.E2ETests`) kırılgan | K-545 koşumu (2026-08-21) | **Ölçüldü, F-122/F-130'un aynısı.** Tam çözüm koşumunda `33 sn` sonra düştü; **izolasyonda 1/1 geçti**. Aynı sınıf: tarayıcı + `Docker` kaynak çekişmesi altında bir zamanlama yarışı, ürün kusuru değil. Kalem sessiz bırakılmadı ama tek başına faz değildir — üç E2E kırılganı (F-122, F-130, F-139) ve F-137 **birlikte** ele alınmalıdır: ortak kök tam koşumun paralelliğidir, tek tek beklemeler değil |

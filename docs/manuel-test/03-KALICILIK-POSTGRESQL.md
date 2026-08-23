@@ -1787,7 +1787,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-esz-1/run" -
 `0024_vector.sql`, `MigrationsKnowledge/0001_vector.sql`'a taşındı ve yalnız
 `AgentPrism:PostgreSql:EnableKnowledge = true` iken uygulanır (K1, varsayılan
 kapalı). Karar: K-475/K-476/K-477. Aşağıdaki beş case, faz dokümanının
-([`67-ISTEGE-BAGLI-MIGRATION-SETI.md`](../67-ISTEGE-BAGLI-MIGRATION-SETI.md))
+([`67-ISTEGE-BAGLI-MIGRATION-SETI.md`](../arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md))
 manuel kabul tablosunun karşılığıdır; MT-PG-062/063/064 kapanışta **gerçek**
 konteynerlere karşı koşuldu (kanıt aşağıda).
 

@@ -211,6 +211,33 @@ class DenetleKirikBaglantiTestleri(unittest.TestCase):
             self.assertEqual(dokuman_bakim.denetle(), 1)
 
 
+class FazYasamDongusuTestleri(unittest.TestCase):
+    """Kapanmış plan kökte kalırsa, arşivleme kapısı kırmızı olmalıdır."""
+
+    def test_kokteki_tamamlanmis_faz_bulgudur(self):
+        with tempfile.TemporaryDirectory() as t:
+            kok = pathlib.Path(t)
+            docs = kok / "docs"
+            docs.mkdir()
+            (docs / "90-ORNEK.md").write_text(
+                "# Faz 90 — Örnek\n\n> **Durum:** ✅ Tamamlandı\n", encoding="utf-8")
+
+            bulgular = dokuman_bakim.kapanmis_faz_bulgulari(kok)
+
+            self.assertEqual(len(bulgular), 1)
+            self.assertIn("90-ORNEK.md", bulgular[0])
+
+    def test_planlanan_faz_kokte_kalabilir(self):
+        with tempfile.TemporaryDirectory() as t:
+            kok = pathlib.Path(t)
+            docs = kok / "docs"
+            docs.mkdir()
+            (docs / "90-ORNEK.md").write_text(
+                "# Faz 90 — Örnek\n\n> **Durum:** 📋 Planlandı\n", encoding="utf-8")
+
+            self.assertEqual(dokuman_bakim.kapanmis_faz_bulgulari(kok), [])
+
+
 class GitHatasiTestleri(unittest.TestCase):
     """`git` çağrısı düşerse kapı sessizce geçmez — çıkış kodu 1 (kullanıcı kararı)."""
 

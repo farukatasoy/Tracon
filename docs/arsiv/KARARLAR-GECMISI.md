@@ -19,7 +19,7 @@ K-387 sonrası SqlServer paketi Postgres'ten hâlâ ~2,8 kat yavaştı (355,5 sn
 
 ## K-510 — Yerel referans dosyasının konumu (Faz 74)
 
-Plan (`docs/74-YEREL-REFERANS-YUZEYI.md` §74.2) dosyayı `AGENTS.md` ile aynı
+Plan (`docs/arsiv/fazlar/74-YEREL-REFERANS-YUZEYI.md` §74.2) dosyayı `AGENTS.md` ile aynı
 dizine, git köküne koyuyordu. Faz denetimi bunu 🔴 bulgu olarak düşürdü.
 
 **Ölçüm.** Bir git kökünde iki proje kuruldu: `src/Web` (`Microsoft.NET.Sdk.Web`,

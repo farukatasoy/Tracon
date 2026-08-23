@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Doküman bakımı — faz kapanışında çalıştırılır.
 
-İki iş yapar:
+Üç iş yapar:
   1. `docs/KARARLAR-INDEKS.md` dosyasını `docs/KARARLAR.md`'den yeniden üretir.
      İndeks elle yazılmaz; böylece bayatlayamaz.
-  2. Sıcak yol dokümanlarının bütçesini denetler. Sıcak yol = her oturumda
-     okunan dosyalar. Bunlar büyürse her oturum daha pahalı başlar.
+  2. Doküman erişim katmanlarının bütçesini denetler: başlangıç bağlamı,
+     gerektiğinde sorgulanan referanslar ve ledger.
+  3. Kapanmış fazın `docs/` kökünde kalmadığını ve tüm yerel bağlantıların
+     çözüldüğünü doğrular.
 
 Kullanım:
     python3 scripts/dokuman-bakim.py           # üret + denetle
@@ -27,8 +29,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Sicak yol: her oturumda (veya her fazda birden cok kez) okunan dosyalar.
-# Bayt butcesi ~2.4 bayt/token varsayimiyla secildi.
+# Doküman erişim katmanları. Başlangıç bağlamı her oturumda okunur. Sorgu
+# bağlamı yalnız ilgili alana girildiğinde, ledger ise yalnız tarihçe/karar
+# aranırken okunur. Bayt bütçesi ~2.4 bayt/token varsayımıyla seçildi.
 #
 # KARARLAR-INDEKS.md 25_000: Faz 25 kapanisinda (203 karar) ilk kez 24_000'i
 # asti ve butce 1_000 bayt buyutuldu; yorum "bir sonraki asimda yapisal cozum"
@@ -64,9 +67,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # esik bu orani saglayacak sekilde secilir, dosya butceye DAYANDIGINDA degil.
 ARSIV_ESIK = 115
 
-BUTCE = {
+BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
+}
+
+SORGU_BUTCESI = {
     "docs/KARARLAR-INDEKS.md": 25_000,
     "docs/MIMARI.md": 44_000,  # K-361 (Faz 53) · Faz 77: §7 ayrildi, 41_043 -> 24_278
     # Faz 77 (K-524): §7 "Guvenlik Modeli" 17 KB'a ulasmisti -- dosyanin %42'si ve
@@ -77,6 +83,9 @@ BUTCE = {
     # birakti ve bugunku mimarinin buyumesine yer birakmak istiyoruz.
     "docs/MIMARI-GUVENLIK.md": 21_000,  # olculen 17_421
     "README.md": 20_000,
+}
+
+YONETIM_BUTCESI = {
     # --- Faz 58.4'te eklendi ---------------------------------------------
     # Bunlar her oturumda BASTAN SONA okunmaz ama her planlama/kapanis
     # turunda buyurler ve hicbir freni yoktu. Sinirlar 2026-08-16'da OLCULEN
@@ -90,6 +99,10 @@ BUTCE = {
     "docs/KARARLAR.md": 475_000,           # olculen 398_967 (faz kapanisindan sonra)
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
+
+# Birleştirilmiş görünüm yalnız büyüme projeksiyonu içindir. Raporlama bu
+# kümeleri birbiriyle toplamaz; ledger boyutu başlangıç maliyeti değildir.
+BUTCE = BASLANGIC_BUTCESI | SORGU_BUTCESI | YONETIM_BUTCESI
 
 # Alan hafiza dosyalari tek tek buyuyebilir ama biri digerlerini yutmamali.
 HAFIZA_DOSYA_BUTCESI = 16_000
@@ -418,7 +431,7 @@ def yol_haritasi_uret() -> str:
         "Planlandı": "📋 Planlandı",
     }
 
-    # Faz 77: kapanmis fazlar (00-59) `docs/arsiv/fazlar/` altina tasindi --
+    # Faz 77: kapanmis fazlar `docs/arsiv/fazlar/` altina tasindi --
     # sicak yol sayacindan cikmalari icin (HARIC listesi arsivi dusuyor). Yol
     # haritasi IKI konumu da tarar; baglanti dosyanin GERCEK yerini gosterir,
     # yoksa 60 faz sessizce listeden duserdi.
@@ -451,7 +464,8 @@ def yol_haritasi_uret() -> str:
             "# Faz Yol Haritası",
             "",
             "> **Üretilen dosya. Elle düzenleme.** Kaynak: her fazın kendi",
-            "> `docs/NN-*.md` dosyasındaki `> **Durum:**` satırı.",
+            "> dokümanındaki `> **Durum:**` satırı. Açık fazlar `docs/` kökünde,",
+            "> kapanmış fazlar `docs/arsiv/fazlar/` altında yaşar.",
             "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
             "",
             "Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;",
@@ -470,6 +484,24 @@ def yol_haritasi_uret() -> str:
             "",
         ]
     )
+
+
+def kapanmis_faz_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Kök `docs/` yalnız canlı fazları taşımalıdır.
+
+    `Tamamlandı` durumundaki bir faz kökte kalırsa, başlangıçta bakılacak dosya
+    sayısı gereksiz büyür ve kapanmış plan güncel bağlam gibi görünür. Taşınan
+    dosyanın bağlantıları `kirik_baglantilar()` tarafından ayrıca doğrulanır.
+    """
+    bulgular = []
+    docs = kok / "docs"
+    for p in sorted(docs.glob("[0-9][0-9]-*.md")):
+        metin = p.read_text(encoding="utf-8")
+        durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+        if durum and re.search(r"(?:✅\s*)?Tamamlandı", durum.group(1)):
+            bulgular.append(
+                f"{p.relative_to(kok).as_posix()}: kapanmış faz `docs/arsiv/fazlar/` altında olmalı")
+    return bulgular
 
 
 def _git(*args: str) -> list[str] | None:
@@ -745,23 +777,28 @@ def projeksiyon(faz_sayisi: int = 6) -> int:
 def denetle() -> int:
     hata = 0
     dar = 0
-    print("Sıcak yol doküman bütçesi")
     print(f"{'dosya':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
-    for yol, sinir in BUTCE.items():
-        p = ROOT / yol
-        if not p.exists():
-            print(f"{yol:<30} {'YOK':>9}")
-            continue
-        s, asti = _satir(yol, len(p.read_bytes()), sinir)
-        hata |= asti
-        dar += int(not asti and _dar_mi(len(p.read_bytes()), sinir))
-        print(s)
+    for baslik, butce in (
+        ("Başlangıç bağlamı — her oturum", BASLANGIC_BUTCESI),
+        ("Sorgu bağlamı — gerektiğinde", SORGU_BUTCESI),
+        ("Yönetim ledger'ı — yalnız aramada", YONETIM_BUTCESI),
+    ):
+        print(f"\n{baslik}")
+        for yol, sinir in butce.items():
+            p = ROOT / yol
+            if not p.exists():
+                print(f"{yol:<30} {'YOK':>9}")
+                continue
+            s, asti = _satir(yol, len(p.read_bytes()), sinir)
+            hata |= asti
+            dar += int(not asti and _dar_mi(len(p.read_bytes()), sinir))
+            print(s)
 
     # Faz 77: bu dongu DAR bandini uygulamiyordu -- yalniz `n > butce`
     # bakiyordu, bu yuzden 16000/16000 bile "ok" yaziyordu. BES dosya ayni
     # anda duvara dayanmisti ve rapor bunu hic soylemedi. Artik digerleriyle
     # ayni `_satir()` yardimcisini kullanir.
-    print("\nAlan hafıza dosyaları")
+    print("\nAlan hafızası — yalnız ilgili alan")
     for p in sorted((ROOT / "docs" / "hafiza").glob("*.md")):
         s, asti = _satir(f"  {p.name}", len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI, genislik=30)
         if asti:
@@ -770,7 +807,7 @@ def denetle() -> int:
         print(s)
         dar += int(not asti and _dar_mi(len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI))
 
-    print(f"\nDizin bütçeleri (hariç: {', '.join(HARIC)})")
+    print(f"\nCanlı geliştirme dokümanları (hariç: {', '.join(HARIC)})")
     print(f"{'dizin':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
     for (yol, ozyinelemeli), sinir in DIZIN_BUTCESI.items():
         ad = f"{yol}/{'**' if ozyinelemeli else '*'}.md"
@@ -782,6 +819,13 @@ def denetle() -> int:
 
     haric_toplam = sum(_dizin_boyutu(h, True, haric_uygula=False) for h in HARIC)
     print(f"  (denetim dışı arşiv + koşum kaydı: {haric_toplam} B — sınırı etkilemez)")
+
+    faz_bulgulari = kapanmis_faz_bulgulari()
+    print(f"\nKök faz yaşam döngüsü: "
+          f"{'❌ ' + str(len(faz_bulgulari)) + ' bulgu' if faz_bulgulari else '✅ temiz'}")
+    for s in faz_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(faz_bulgulari))
 
     sayi, karar_bulgulari = kararlar_denetle()
     print(f"\nKarar defteri (§2, {sayi} kalem): "
@@ -802,8 +846,15 @@ def denetle() -> int:
     # sınıfının kendisiydi; CI'ya bağlanmadan önce yakalandı.
     hata |= int(bool(kirik))
 
-    toplam = sum(len((ROOT / y).read_bytes()) for y in BUTCE if (ROOT / y).exists())
-    print(f"\nOturum başı sıcak yol toplamı: {toplam} B (~{toplam * 10 // 24} token)")
+    baslangic_toplami = sum(
+        len((ROOT / y).read_bytes()) for y in BASLANGIC_BUTCESI if (ROOT / y).exists())
+    sorgu_toplami = sum(
+        len((ROOT / y).read_bytes()) for y in SORGU_BUTCESI if (ROOT / y).exists())
+    ledger_toplami = sum(
+        len((ROOT / y).read_bytes()) for y in YONETIM_BUTCESI if (ROOT / y).exists())
+    print(f"\nBaşlangıç bağlamı: {baslangic_toplami} B (~{baslangic_toplami * 10 // 24} token)")
+    print(f"Sorgu bağlamı: {sorgu_toplami} B (~{sorgu_toplami * 10 // 24} token) — başlangıçta okunmaz")
+    print(f"Yönetim ledger'ı: {ledger_toplami} B (~{ledger_toplami * 10 // 24} token) — başlangıçta okunmaz")
     # Faz 77: ozet eskiden DAR'i hic saymiyordu ve YEDI kalem darken
     # "✅ Bütçeler içinde" yaziyordu. Sikisma bu yuzden sessizce birikti.
     if hata:

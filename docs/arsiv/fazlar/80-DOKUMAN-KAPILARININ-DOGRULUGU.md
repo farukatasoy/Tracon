@@ -1,13 +1,13 @@
 # Faz 80 — Doküman Kapılarının Doğruluğu
 
 > **Durum:** ✅ Tamamlandı (2026-08-21)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-129** (Dalga 13, Küme A'nın Python kapı yarısı) · K-522'nin yeniden açılma koşulu
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-129** (Dalga 13, Küme A'nın Python kapı yarısı) · K-522'nin yeniden açılma koşulu
 > **Önkoşul:** Yok. [Faz 79](79-SEVK-EDILEN-YUZEY-KAPILARI.md) ile bağımsızdır; ikisi farklı alet zincirine dokunur
 > **Paketler:** Yok — iş `scripts/` ve `.github/` içindedir
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
 > **Tüketici yüzeyi:** Yok. Bu faz kapıları düzeltir, sevk edilen metni değiştirmez
-> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](manuel-test/33-DOKUMAN-KAPILARI.md)
+> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md)
 > (`31-DOKUMAN-DOGRULUGU.md` DEĞİL — o alan Faz 75'e ait, kod `DDG`; bkz. Plandan Sapmalar)
 
 ---
@@ -26,11 +26,11 @@
    doküman standardı `tuketici-dokuman-senkronu` skill'ine taşındı — yeniden
    açılma koşulu **bu fazı** adlandırır), **K-539** (aynı script'e eklenen karar
    defteri kapısı; bu fazın kardeşi)
-3. [`.agents/skills/tuketici-dokuman-senkronu/SKILL.md`](../.agents/skills/tuketici-dokuman-senkronu/SKILL.md)
+3. [`.agents/skills/tuketici-dokuman-senkronu/SKILL.md`](../../../.agents/skills/tuketici-dokuman-senkronu/SKILL.md)
    — yalnız **Adım 5** (dört kapı) ve **Adım 7** (gözle denetlenen kalan kalemler).
    Bu faz o skill'in çağırdığı kapıyı düzeltir; skill metni de güncellenir.
 4. Alan hafızası (bu faz tek alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — özellikle
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — özellikle
    **"Kapiyi CI'da hangi is kosuyor?"** ve **"`check-content.mjs` TEMIZ bir
    checkout'ta kosar"** bölümleri; ikisi de bu fazın tuzaklarıdır
 5. `scripts/dokuman-bakim.py` — **tamamını** oku. 670 satırdır ve bu fazın
@@ -56,7 +56,7 @@ senkronu tamam" diyor.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`dokuman-bakim.py`](../scripts/dokuman-bakim.py) `site_denetle()` → `if site_degisti: return 0` | 🚨 **Kapı aktif olarak yanıltıyor.** `docs-site/src/content/docs/` altında **herhangi** bir sayfa değişmişse **tetiklenen tüm kuralların** karşılığı yazılmış sayılır. `Workflows/` değiştirip yalnız `packages.md`'yi düzenlemek ✅ verir. Kapı bunu kendi mesajında itiraf ediyor: *"Yine de yukarıdaki her satırın karşılığı yazıldı mı, göz at."* |
+| [`dokuman-bakim.py`](../../../scripts/dokuman-bakim.py) `site_denetle()` → `if site_degisti: return 0` | 🚨 **Kapı aktif olarak yanıltıyor.** `docs-site/src/content/docs/` altında **herhangi** bir sayfa değişmişse **tetiklenen tüm kuralların** karşılığı yazılmış sayılır. `Workflows/` değiştirip yalnız `packages.md`'yi düzenlemek ✅ verir. Kapı bunu kendi mesajında itiraf ediyor: *"Yine de yukarıdaki her satırın karşılığı yazıldı mı, göz at."* |
 | `SITE_KURALLARI` — **10** desen | Dokuzu dosya hedefi, **biri** dizin hedefi (`concepts/`). `capabilities.md` **hiçbir kuralın hedefi değil**; script'te `capabilities` dizesi **sıfır kez** geçiyor |
 | `^src/AgentPrism\.(Abstractions\|Core)/` → `("concepts/",)` | `src/AgentPrism.Core/buildTransitive/` bu deseni **vuruyor** ama `concepts/`'e yönlendiriyor. Orada `AgentPrism.Core.targets` var ve tüketicinin gördüğü MSBuild özelliklerini tanımlıyor; `AgentPrismWriteLocalReference` **`capabilities.md`**'de belgeleniyor, `concepts/`'te değil |
 | `kirik_baglantilar()` → `if re.match(r"^([a-z]+:\|/\|#)", h): continue` | Site-mutlak bağlantılar (`/AgentPrism/...`) **atlanıyor**. Ayrıca `if not fn_.endswith(".md"): continue` — `.mdx` sayfaları denetim dışı |
@@ -244,7 +244,7 @@ sınırını geçmiyor.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](manuel-test/33-DOKUMAN-KAPILARI.md)
+> Kapanışta [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md)
 > içine eklenecek case'lerin taslağı (bkz. Plandan Sapmalar — plan burada
 > yanlışlıkla `31-DOKUMAN-DOGRULUGU.md`'yi işaret ediyordu).
 
@@ -457,4 +457,4 @@ onları etkilemez).
   gerçek bağlantı sayar (Bulgu #3).
 - **Yarım kalan iş yok.** DoD'nin tamamı ✅; site yayını gerekmedi (bu faz
   `docs-site/`'a hiç dokunmadı, `--site-denetle` 0 kural tetikledi).
-- **Sıradaki faz:** [`docs/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md`](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md).
+- **Sıradaki faz:** [`docs/arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md`](81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md).

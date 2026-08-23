@@ -53,7 +53,7 @@ async function toError(response: Response): Promise<AgentPrismError> {
  *
  * Not part of `@agentprism/client`: six operations answer
  * `text/event-stream`, not JSON, and a `fetch`-based typed client reads a
- * response body as JSON (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.4).
+ * response body as JSON (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.4).
  */
 export async function openStream(
   path: string,

@@ -1,8 +1,8 @@
 # Faz 84 — TypeScript İstemcisi ve npm Kanalı
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-93** — Dalga 13 Küme E (**ikinci yarı**; birinci yarı F-50 → [Faz 83](83-TIPLI-ISTEMCI-VE-CLI.md))
-> **Önkoşul:** [Faz 83](83-TIPLI-ISTEMCI-VE-CLI.md) — üretim akışının şekli (belge → üreteç → commit → kapı), `/agentprism` önekini soyan dönüşüm (§83.3) ve `operationId` kapsama kapısının fikri (§83.2) oradan devralınır · [Faz 40](arsiv/fazlar/40-OPENAPI-YAYINI.md) — üretim kaynağı olan belge ve `OpenApiSnapshotTests` · [Faz 5](arsiv/fazlar/05-AGENTPRISM-UI.md) ve [Faz 30](arsiv/fazlar/30-ARAYUZ-CILASI.md) — göç edecek arayüz katmanı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-93** — Dalga 13 Küme E (**ikinci yarı**; birinci yarı F-50 → [Faz 83](83-TIPLI-ISTEMCI-VE-CLI.md))
+> **Önkoşul:** [Faz 83](83-TIPLI-ISTEMCI-VE-CLI.md) — üretim akışının şekli (belge → üreteç → commit → kapı), `/agentprism` önekini soyan dönüşüm (§83.3) ve `operationId` kapsama kapısının fikri (§83.2) oradan devralınır · [Faz 40](40-OPENAPI-YAYINI.md) — üretim kaynağı olan belge ve `OpenApiSnapshotTests` · [Faz 5](05-AGENTPRISM-UI.md) ve [Faz 30](30-ARAYUZ-CILASI.md) — göç edecek arayüz katmanı
 > **Paketler:** `@agentprism/client` (**yeni — npm**), `AgentPrism.UI` (yalnız `frontend/`)
 > **Yeni paket:** Bir npm paketi. K-007 .NET paketleri içindir; gerekçe ve ağırlık yine sayılır — **§84.9** · **Migration:** Yok
 > **Public API:** .NET yüzeyi **büyümüyor** — bu faz tek bir C# üyesi eklemez. Yeni yüzey npm tarafındadır ve `PublicAPI.*.txt` onu **görmez**; sözleşmesini §84.10'daki kendi kapısı tutar
@@ -34,18 +34,18 @@
    **K-542** (site kendi sunucumuzda barınır; yayın `scripts/site-deploy.sh` ile yapılır — npm kanalı **bundan ayrıdır**).
 3. [`83-TIPLI-ISTEMCI-VE-CLI.md`](83-TIPLI-ISTEMCI-VE-CLI.md) — **§83.1, §83.3 ve devir notu**:
    ```bash
-   sed -n '/^## 83.1/,/^## 83.4/p' docs/83-TIPLI-ISTEMCI-VE-CLI.md
-   awk '/## Sonraki Faza Devir Notu/,0'  docs/83-TIPLI-ISTEMCI-VE-CLI.md
+   sed -n '/^## 83.1/,/^## 83.4/p' docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md
+   awk '/## Sonraki Faza Devir Notu/,0'  docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md
    ```
    Önek soyma adımı ve üretim akışının şekli oradan gelir. 🚨 Faz 83 kapandıysa
    **Plandan Sapmalar** bölümünü de oku: soyma adımı orada değiştiyse bu fazın
    §84.2'si yanlıştır ve koda göre düzeltilir.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/frontend.md`](hafiza/frontend.md) (arayüz kod haritası, sözlük tuzakları) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yayın hattı desenleri) ·
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (dil sınırı kapsam listesi — **yeni bir kök dizin** eklendiği için burası kritiktir, §84.7)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (arayüz kod haritası, sözlük tuzakları) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (yayın hattı desenleri) ·
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (dil sınırı kapsam listesi — **yeni bir kök dizin** eklendiği için burası kritiktir, §84.7)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) bölüm 2 (katman grafiği — bu faz .NET grafiğine düğüm **eklemez**)
+   [`MIMARI.md`](../../MIMARI.md) bölüm 2 (katman grafiği — bu faz .NET grafiğine düğüm **eklemez**)
 
 ---
 
@@ -84,14 +84,14 @@ ve `dotnet build` durur.
 |---|---|
 | `types.ts` (kapanışta **silindi** — bkz. Dosya Listesi) | **1 882 satır · 177 tip** (139 `interface` + 38 `type`). Başlığı sözleşmeyi birebir yansıttığını **iddia eder** |
 | `grep -rn "types.ts" tests/ scripts/ .github/` | **0 eşleşme.** İddiayı denetleyen kapı yok |
-| 🚨 `types.ts:8` (silinmeden önce) | `AgentOrigin = 'Code' \| 'Maf' \| 'Database'`. Sunucudaki enum [`AgentDefinitionOrigin.cs:16`](../src/AgentPrism.Abstractions/Agents/AgentDefinitionOrigin.cs#L16) yalnız **`Code`** ve **`Database`** taşır. **`'Maf'` hayalet bir değerdir** — sürüklenme ölçüldü |
+| 🚨 `types.ts:8` (silinmeden önce) | `AgentOrigin = 'Code' \| 'Maf' \| 'Database'`. Sunucudaki enum [`AgentDefinitionOrigin.cs:16`](../../../src/AgentPrism.Abstractions/Agents/AgentDefinitionOrigin.cs#L16) yalnız **`Code`** ve **`Database`** taşır. **`'Maf'` hayalet bir değerdir** — sürüklenme ölçüldü |
 | 🚨 `types.ts:1629` (silinmeden önce) | `QuotaMetric` tanımlı, arayüzde **hiç kullanılmıyor** ve belgede karşılığı **yok**. Sunucuda yalnız `QuotaDecision` üzerinde yaşar ve o tip HTTP yanıtı değildir. **Ölü sözleşme** |
-| [`api.ts:225-664`](../src/AgentPrism.UI/frontend/src/lib/api.ts#L225) | `api` nesnesi **134 elle yazılmış üye** taşır. **43 dosya** onu import eder, **155 çağrı noktası** vardır |
+| [`api.ts:225-664`](../../../src/AgentPrism.UI/frontend/src/lib/api.ts#L225) | `api` nesnesi **134 elle yazılmış üye** taşır. **43 dosya** onu import eder, **155 çağrı noktası** vardır |
 | `api` üye kullanımı | 134 üyenin **11'i hiç çağrılmıyor**: `deleteTenant` `deleteWorkflow` `entityAudit` `quotas` `recalculateCosts` `saveTenant` `schedule` `tenants` `voiceHealth` `webhook` `workflowCheckpoints` |
 | `docs/openapi/agentprism.json` | OpenAPI **3.1.1** · **123** yol · **160** operasyon · **250** şema · `operationId` eksik **0** · **37** enum şeması · `required` taşıyan şema **175/250** |
-| 🚨 Yol karşılaştırması | `api.ts`'in çağırdığı yolların **yalnız biri** belgede yoktur: **`/api/diagnostics`**. Sebep [`AgentPrismEndpointOptions.cs:149`](../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs#L149) — `EnableDiagnosticsEndpoint` varsayılan **`false`** ve belge varsayılan ayarla üretilir (§84.3) |
-| [`ci.yml:154`](../.github/workflows/ci.yml) | `publish` işi yalnız **NuGet.org**'a iter. `npm publish` · `NPM_TOKEN` · `registry.npmjs` araması `.github/` ve `scripts/` içinde **0 eşleşme** — npm kanalı **yoktur** |
-| `src/AgentPrism.UI/wwwroot/assets/` | Konsol payı **146 916 bayt brotli**. Bütçe [`postbuild.mjs:25`](../src/AgentPrism.UI/frontend/scripts/postbuild.mjs#L25) → **250 KB gzip** |
+| 🚨 Yol karşılaştırması | `api.ts`'in çağırdığı yolların **yalnız biri** belgede yoktur: **`/api/diagnostics`**. Sebep [`AgentPrismEndpointOptions.cs:149`](../../../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs#L149) — `EnableDiagnosticsEndpoint` varsayılan **`false`** ve belge varsayılan ayarla üretilir (§84.3) |
+| [`ci.yml:154`](../../../.github/workflows/ci.yml) | `publish` işi yalnız **NuGet.org**'a iter. `npm publish` · `NPM_TOKEN` · `registry.npmjs` araması `.github/` ve `scripts/` içinde **0 eşleşme** — npm kanalı **yoktur** |
+| `src/AgentPrism.UI/wwwroot/assets/` | Konsol payı **146 916 bayt brotli**. Bütçe [`postbuild.mjs:25`](../../../src/AgentPrism.UI/frontend/scripts/postbuild.mjs#L25) → **250 KB gzip** |
 | `src/AgentPrism.UI/frontend/src/embed/` | Gömülebilir widget'ın **kendi** `client.ts`'i var; `lib/api` veya `lib/types`'ı **import etmiyor** (ölçüldü). Widget'ın 30 KB bütçesi bu fazdan **etkilenmez** |
 | `find . -name ".npmrc"` | **0 sonuç.** Registry yapılandırması yok |
 
@@ -145,7 +145,7 @@ parametredir; yollar olduğu gibi alınırsa öneği değiştiren her tüketicid
 sessizce `404` verir. İstemcinin `baseUrl`'ü uygulama kökü **artı** önektir.
 
 Arayüz için bu değer zaten hesaplanmış durumdadır:
-[`base.ts:26`](../src/AgentPrism.UI/frontend/src/lib/base.ts#L26) `apiBase`'i
+[`base.ts:26`](../../../src/AgentPrism.UI/frontend/src/lib/base.ts#L26) `apiBase`'i
 üretimde `document.baseURI`'den, geliştirmede sabit `/agentprism/`'den alır.
 Göç bu değeri `createClient({ baseUrl: apiBase })`'e verir; **davranış
 değişmez**.
@@ -169,9 +169,9 @@ npm run build         # tsc -> dist/
 
 | Ne | Ölçüm |
 |---|---|
-| Sunucuda var mı? | Evet — [`DiagnosticsEndpoints.cs:38`](../src/AgentPrism.AspNetCore/Endpoints/DiagnosticsEndpoints.cs#L38) `MapGet("/api/diagnostics", ...)` |
+| Sunucuda var mı? | Evet — [`DiagnosticsEndpoints.cs:38`](../../../src/AgentPrism.AspNetCore/Endpoints/DiagnosticsEndpoints.cs#L38) `MapGet("/api/diagnostics", ...)` |
 | Belgede var mı? | **Hayır** — `agentprism.json` içinde `diagnostics` kelimesi yalnız bir vektör arama açıklamasında geçer |
-| Neden yok? | [`AgentPrismEndpointOptions.cs:149`](../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs#L149) `EnableDiagnosticsEndpoint` varsayılan **`false`** (K1 — sıfır sürpriz). Belgeyi üreten `AgentPrismTestHost` varsayılan ayarla açılır, uç bağlanmaz |
+| Neden yok? | [`AgentPrismEndpointOptions.cs:149`](../../../src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs#L149) `EnableDiagnosticsEndpoint` varsayılan **`false`** (K1 — sıfır sürpriz). Belgeyi üreten `AgentPrismTestHost` varsayılan ayarla açılır, uç bağlanmaz |
 | Arayüz çağırıyor mu? | Evet — `api.diagnostics()` |
 
 Yani "belge her ucu tarif eder" iddiası **bugün yanlıştır**: varsayılan kapalı
@@ -325,13 +325,13 @@ proje keşfi ve `AgentPrism.slnx` ile ilişkisi bulanıklaşır. Ayrı bir kök 
 sınırı açık tutar.
 
 🚨 **Bunun ölçülmüş bir bedeli vardır: dil kapısı yeni dizini görmez.**
-[`SourceLanguageTests.cs:38`](../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs#L38)
+[`SourceLanguageTests.cs:38`](../../../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs#L38)
 `ScanRoots = ["src", "tests", "samples"]` der. `packages/` eklenmezse pakete
 giren metin **denetimsiz** kalır — ve bu paket npm.org'da görünen bir yüzeydir.
 
 **Plan `ScanRoots`'a `"packages"` ekler.** Taban çizgisi yalnız küçülür kuralı
 korunur. Kapsam listesi
-[`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) içinde güncellenir.
+[`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) içinde güncellenir.
 
 ---
 
@@ -340,7 +340,7 @@ korunur. Kapsam listesi
 👤 Kullanıcı kararı repo içi yerel bağımlılıktır. Mekanizma seçimi bir
 ölçüme dayanır:
 
-[`AgentPrism.UI.Frontend.targets`](../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets)
+[`AgentPrism.UI.Frontend.targets`](../../../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets)
 `npm ci`'yi `WorkingDirectory="$(AgentPrismFrontendRoot)"` ile, yani
 `src/AgentPrism.UI/frontend/` içinde koşar; artımlılık damgası
 `package-lock.json`'a bağlıdır ve lock dosyası oradadır.
@@ -723,17 +723,17 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 ## Bu Fazda Verilen Kararlar
 
-- [K-573](KARARLAR.md) — OpenAPI belgesi varsayılan kapalı uçları da tarif
+- [K-573](../../KARARLAR.md) — OpenAPI belgesi varsayılan kapalı uçları da tarif
   eder; `/api/diagnostics` belgeye girdi, davranışı değişmedi (§84.3)
-- [K-574](KARARLAR.md) — `packages/` kök dizini dil sınırı kapısının
+- [K-574](../../KARARLAR.md) — `packages/` kök dizini dil sınırı kapısının
   kapsamına girdi; `PackagedReadmePattern` genişletildi (§84.7, denetim 🟡)
-- [K-575](KARARLAR.md) — `@agentprism/client` yerel bağımlılığı `file:`
+- [K-575](../../KARARLAR.md) — `@agentprism/client` yerel bağımlılığı `file:`
   protokolüyle kurulur, npm registry'den kurulmayı beklemez (§84.8)
-- [K-576](KARARLAR.md) — npm yayın işi `npm view` ile elle idempotency
+- [K-576](../../KARARLAR.md) — npm yayın işi `npm view` ile elle idempotency
   kontrolü yapar; NuGet ile aynı `v*` git tag'inden türer (§84.11)
-- [K-577](KARARLAR.md) — konsol göçü tam göçtür; adlandırılmış cephe
+- [K-577](../../KARARLAR.md) — konsol göçü tam göçtür; adlandırılmış cephe
   eklenmedi (kaçış merdiveni kullanılmadı)
-- [K-578](KARARLAR.md) — OpenAPI üretecinin iki sistemik kusuru ve paylaşılan-
+- [K-578](../../KARARLAR.md) — OpenAPI üretecinin iki sistemik kusuru ve paylaşılan-
   şema nullable sızıntısı frontend'de `Fix<T,K>` ile telafi edilir, sunucu
   şeması değiştirilmez (§84.6, Açık Soru 4 karar A)
 
@@ -856,7 +856,7 @@ docs/manuel-test/00-INDEKS.md                # satır 35
 docs/ADAYLAR.md                              # F-145 (E2E boşluğu)
 docs/KARARLAR.md                             # K-573..K-578
 README.md                                    # npm satırı + 160->161 düzeltmesi
-docs/85-GOMME-EKSENI.md                      # Faz 84 bağımlılığı notu eklendi
+docs/arsiv/fazlar/85-GOMME-EKSENI.md                      # Faz 84 bağımlılığı notu eklendi
 docs-site/                                   # yeni guides/typescript-client.md +
                                               # packages.md, capabilities.md,
                                               # reference/versioning.md, http-api.md,

@@ -1,8 +1,8 @@
 # Faz 76 — Doküman Kalitesi ve Görsel Kimlik
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-127**
-> **Önkoşul:** [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) — **zorunlu sıra.** Yanlış bir sayfayı güzelleştirmek onu daha zararlı yapar; doğruluk ve eksiksizlik önce gelir · [Faz 59](arsiv/fazlar/59-URUN-DOKUMANTASYONU.md) — sitenin kendisi, `check-content.mjs` deseni ve `site.css` katmanı oradan devralınır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-127**
+> **Önkoşul:** [Faz 75](75-TUKETICI-DOKUMAN-DOGRULUGU.md) — **zorunlu sıra.** Yanlış bir sayfayı güzelleştirmek onu daha zararlı yapar; doğruluk ve eksiksizlik önce gelir · [Faz 59](59-URUN-DOKUMANTASYONU.md) — sitenin kendisi, `check-content.mjs` deseni ve `site.css` katmanı oradan devralınır
 > **Paketler:** Yok — bu faz `src/**` altına **hiç dokunmaz** · `docs-site/` · `tests/AgentPrism.Ui.E2ETests` (yalnız ekran görüntüsü)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyümüyor.** Bu faz hiçbir `.cs` dosyasını değiştirmez
@@ -30,15 +30,15 @@
    **K-232** (arayüz sözlüğü ve sunucu yanıtı — bu faz ikisine de dokunmaz)
 3. [`75-TUKETICI-DOKUMAN-DOGRULUGU.md`](75-TUKETICI-DOKUMAN-DOGRULUGU.md) — yalnız devir notu:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/75-TUKETICI-DOKUMAN-DOGRULUGU.md
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md
    ```
    Bu faz onun kapılarının **üstüne** yazar. Faz 75'in eklediği beş içerik
    iddiası hâlâ koşuyor olmalıdır; bu fazın hiçbir düzenlemesi onları
    gevşetemez.
 4. Alan hafızası:
-   [`hafiza/frontend.md`](hafiza/frontend.md) (yalnız ekran görüntüsü üreten
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (yalnız ekran görüntüsü üreten
    E2E testine dokunulacaksa) · Faz 75 bir `hafiza/dokumantasyon.md` açtıysa **o**
-5. Gerektiğinde: [`docs-site/README`](../docs-site/package.json) yerine doğrudan
+5. Gerektiğinde: [`docs-site/README`](../../../docs-site/package.json) yerine doğrudan
    `astro.config.mjs` — kenar çubuğu ve bileşen sözleşmesi oradadır
 
 ---
@@ -72,12 +72,12 @@ Kapsam dışı: yeni içerik yazmak. Bir sayfa eksikse o Faz 75'in işidir. Bu f
 |---|---|
 | `grep -LE '```mermaid\|<img \|!\[' <37 sayfa>` | **21 sayfada** ne diyagram ne görsel var. Aralarında en uzun kılavuzlar da var: `guides/reliability.md` (14 771 B), `guides/production.md` (14 812 B), `guides/background-work.md` (12 768 B), `guides/observability.md` (12 720 B) |
 | `grep -l "^## Read next"` / `"^## Related"` / `"^## Next$"` | Aynı iş **üç adla** yapılıyor: **19** sayfa "Read next", **7** sayfa "Related", **5** sayfa "Next". **8** sayfada hiç yok. Okur her sayfanın sonunda farklı bir sözleşmeyle karşılaşıyor |
-| [`index.mdx`](../docs-site/src/content/docs/index.mdx) | **4 698 bayt** — 37 sayfanın en küçüklerinden biri. Ürünün tek satışa dönük yüzeyi bu sayfadır; `troubleshooting.md` ondan **beş kat** büyüktür |
-| [`astro.config.mjs`](../docs-site/astro.config.mjs) | `logo:` anahtarı **yok** — başlık düz metindir. Oysa [`public/favicon.svg`](../docs-site/public/favicon.svg) (814 B) gerçek bir prizma işareti taşıyor ve yorumu "the same mark the console uses" diyor; konsol onu [`layout.tsx`](../src/AgentPrism.UI/frontend/src/components/layout.tsx) içinde kullanıyor |
+| [`index.mdx`](../../../docs-site/src/content/docs/index.mdx) | **4 698 bayt** — 37 sayfanın en küçüklerinden biri. Ürünün tek satışa dönük yüzeyi bu sayfadır; `troubleshooting.md` ondan **beş kat** büyüktür |
+| [`astro.config.mjs`](../../../docs-site/astro.config.mjs) | `logo:` anahtarı **yok** — başlık düz metindir. Oysa [`public/favicon.svg`](../../../docs-site/public/favicon.svg) (814 B) gerçek bir prizma işareti taşıyor ve yorumu "the same mark the console uses" diyor; konsol onu [`layout.tsx`](../../../src/AgentPrism.UI/frontend/src/components/layout.tsx) içinde kullanıyor |
 | `astro.config.mjs` `head:` bloğu | **Tek bir `og:image`** bütün site için: `screenshots/dashboard.png`. Paylaşılan her bağlantı — kavram sayfası, HTTP referansı, sorun giderme — aynı görünüyor |
-| [`site.css`](../docs-site/src/styles/site.css) | **163 satır, 26 CSS değişkeni, 21 sınıf.** Spektrum motifi (`--ap-spectrum`) yalnız **bir** yerde kullanılıyor: `.site-title::after` |
+| [`site.css`](../../../docs-site/src/styles/site.css) | **163 satır, 26 CSS değişkeni, 21 sınıf.** Spektrum motifi (`--ap-spectrum`) yalnız **bir** yerde kullanılıyor: `.site-title::after` |
 | `mermaid({ theme: 'neutral', autoTheme: true })` | 22 diyagramın hepsi Mermaid'in stok `neutral` paletiyle çiziliyor. Marka spektrumuyla ilişkisi yok |
-| [`troubleshooting.md`](../docs-site/src/content/docs/troubleshooting.md) | **23 873 bayt, 62 `###` alt başlığı, 14 `##` bölümü.** Sitenin en büyük sayfası ve tek gezinme yardımı Starlight'ın sağ kenar listesidir |
+| [`troubleshooting.md`](../../../docs-site/src/content/docs/troubleshooting.md) | **23 873 bayt, 62 `###` alt başlığı, 14 `##` bölümü.** Sitenin en büyük sayfası ve tek gezinme yardımı Starlight'ın sağ kenar listesidir |
 | `reference/configuration.md` | **22 616 bayt** — ikinci en büyük. Faz 75 buna 13 üye daha ekliyor |
 | `public/screenshots/` | **14 görüntü** (Faz 75 bunu 19'a çıkarır). Hepsi tek temada, tek çözünürlükte, `2880×1800` |
 | `grep -lE "<img\|!\[" <37 sayfa>` | Görsel taşıyan sayfa sayısı: **1** (`ui.md`). `index.mdx` görselini bir Astro bileşeniyle koyar |
@@ -144,7 +144,7 @@ sorununu değil. Üç ekleme:
    Açılışta bir satırla durmalı — dürüstlük bir satış argümanıdır.
 
 Dört ölçülmüş sayı **kalır** ve kapıya bağlı kalır
-([`check-content.mjs:97-105`](../docs-site/scripts/check-content.mjs#L97-L105)).
+([`check-content.mjs:97-105`](../../../docs-site/scripts/check-content.mjs#L97-L105)).
 Pazarlama dili girmez; sayı ve sınır, sıfat değil.
 
 ---
@@ -198,7 +198,7 @@ sayfası diyagram istemez. Kural şudur:
 
 Her diyagram **Mermaid**'dir (repo kuralı) ve `accTitle` + `accDescr` taşır —
 bu zaten kapıdadır
-([`check-content.mjs:214-221`](../docs-site/scripts/check-content.mjs#L214-L221)).
+([`check-content.mjs:214-221`](../../../docs-site/scripts/check-content.mjs#L214-L221)).
 
 Kalan on üç sayfa (`reference/*`, `packages.md`, `http-api.md`, kısa başlangıç
 sayfaları) **tablo sayfasıdır** ve diyagram almaz. Kapı bu ayrımı bilir:
@@ -263,7 +263,7 @@ gerektirmez.
 **Ağırlık.** Bugün ölçülmemiş bir sayı yok — çünkü hiç ölçülmemiş. Faz bir
 taban çizgisi kurar: bir doküman sayfasının HTML + CSS + JS ağırlığı
 (mermaid parser hariç, çünkü o zaten talep üzerine yükleniyor ve
-[`astro.config.mjs:20-22`](../docs-site/astro.config.mjs#L20-L22) bunu
+[`astro.config.mjs:20-22`](../../../docs-site/astro.config.mjs#L20-L22) bunu
 gerekçelendiriyor). Sınır **ilk ölçümden sonra** konur — plan sayı uydurmaz.
 
 🚨 Font kararı ağırlığın en büyük tek kalemidir. Web fontu **eklenirse**

@@ -102,7 +102,7 @@ function buildConditionValue(operator: ToolArgumentOperator, raw: string): ToolA
         const value = parseScalar(token);
 
         // The server's In/NotIn only accepts text or numbers, never booleans
-        // (docs/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md, 63.2) — a "true"/"false"
+        // (docs/arsiv/fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md, 63.2) — a "true"/"false"
         // token inside a list stays text rather than becoming an invalid element.
         return typeof value === 'boolean' ? token : value;
       });

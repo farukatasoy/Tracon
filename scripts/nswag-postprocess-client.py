@@ -11,7 +11,7 @@ resolves the concrete enum type via `MakeGenericType`, which is
 [JsonConverter] always wins over anything registered on
 JsonSerializerOptions.Converters, so this cannot be fixed by configuration
 alone - the attribute itself has to name the closed generic
-JsonStringEnumConverter<TEnum> (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6).
+JsonStringEnumConverter<TEnum> (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6).
 
 Every OTHER enum (the ~37 plain business enums: RunStatus, ApiKeyScope, ...)
 carries no per-property attribute at all. MEASURED (2026-08-22): registering

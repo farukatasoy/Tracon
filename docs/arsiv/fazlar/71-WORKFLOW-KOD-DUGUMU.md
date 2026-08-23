@@ -1,14 +1,14 @@
 # Faz 71 — Workflow Kod Düğümü
 
 > **Durum:** ✅ Tamamlandı (2026-08-19)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-116**
-> **Önkoşul:** [Faz 15](arsiv/fazlar/15-WORKFLOWS-YURUTME.md) — workflow yürütme ve kalıcılık · [Faz 16](arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-116**
+> **Önkoşul:** [Faz 15](15-WORKFLOWS-YURUTME.md) — workflow yürütme ve kalıcılık · [Faz 16](16-WORKFLOWS-ARAYUZ.md) — graf, arayüz, human-in-the-loop
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Workflows`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** Yok (düğüm tanımı var olan workflow tanımında yaşar) · **Doğrulanacak:** tanım sütununun şeması değişiyorsa üç set gerekir
 > **Public API:** **büyüyor** — `WorkflowNodeKind` enum'una **ekleme**, `WorkflowDefinition`'a alan, bir kayıt yüzeyi. `PublicAPI.Shipped.txt` bugün **boş** — şimdi bedava
 > **Site etkisi:** `concepts/workflows.md` (`guides/background-work.md` PLANDA
 > vardı ama dokunulmadı — bkz. Plandan Sapmalar #5, ilgisiz çıktı)
-> **Manuel test alanı:** [`docs/manuel-test/15-WORKFLOWS.md`](manuel-test/15-WORKFLOWS.md)
+> **Manuel test alanı:** [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
 
 ---
 
@@ -26,13 +26,13 @@
    açmıyor, aşağıya bak), **K-040** (enum sırası değişmez), **K-394** (workflow'un
    tamamı tek `run` olarak kotaya yazılır), **K-401** (`ToRunError` sarmalayıcıları
    soyar), **K-403** (`RunStreamingAsync` gerçek yineleyici), **K-218** (boş servis sağlayıcı).
-3. [`16-WORKFLOWS-ARAYUZ.md`](arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md) — yalnız devir notu:
+3. [`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md
    ```
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/workflows.md`](hafiza/workflows.md) (yürütme, executor kimliği, HITL) ·
-   [`hafiza/maf-api.md`](hafiza/maf-api.md) (MAF tipleri)
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (yürütme, executor kimliği, HITL) ·
+   [`hafiza/maf-api.md`](../../hafiza/maf-api.md) (MAF tipleri)
 
 ---
 
@@ -51,8 +51,8 @@ yolu.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`WorkflowGraph.cs:94-110`](../src/AgentPrism.Abstractions/Workflows/WorkflowGraph.cs) | `WorkflowNodeKind` dört değer: `Unknown`, `Agent`, `Orchestration`, `RequestPort`, `Output`. Kod düğümü yok |
-| [`WorkflowDefinition.cs:40,46`](../src/AgentPrism.Abstractions/Workflows/WorkflowDefinition.cs) | Tanım `AgentNames` ve `ManagerAgentName` taşır — düğüm kümesi **agent adlarıdır** |
+| [`WorkflowGraph.cs:94-110`](../../../src/AgentPrism.Abstractions/Workflows/WorkflowGraph.cs) | `WorkflowNodeKind` dört değer: `Unknown`, `Agent`, `Orchestration`, `RequestPort`, `Output`. Kod düğümü yok |
+| [`WorkflowDefinition.cs:40,46`](../../../src/AgentPrism.Abstractions/Workflows/WorkflowDefinition.cs) | Tanım `AgentNames` ve `ManagerAgentName` taşır — düğüm kümesi **agent adlarıdır** |
 | `Microsoft.Agents.AI.Workflows` **1.16.0** | 🚨 `FunctionExecutor<TInput>` ve `FunctionExecutor<TInput,TOutput>` **vardır**. Kurucu: `(string id, Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>> handlerAsync, ExecutorOptions options, …)` |
 
 > Kanıtlar 2026-08-18 tarihinde doğrulandı. MAF imzası XML dokümanından
@@ -290,7 +290,7 @@ olmalıdır. Doküman bunu açıkça söyler; sessiz bırakılırsa tüketici ve
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `samples/AgentPrism.Api` ile gerçek workflow koşumu yapıldı, çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri [`docs/manuel-test/15-WORKFLOWS.md`](manuel-test/15-WORKFLOWS.md)
+- [ ] Manuel kabul case'leri [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
       içine eklendi; otomatikleştirilebilenler koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
@@ -392,7 +392,7 @@ curl -s http://localhost:5081/agentprism/api/workflows/mixed/graph | jq '.nodes[
   noktasından sürdürme çağırır — `AddWorkflowFunction` işleyicisi bu yüzden
   idempotent olmak zorundadır.
 
-Tam metin: [`KARARLAR.md`](KARARLAR.md), K-494 – K-498.
+Tam metin: [`KARARLAR.md`](../../KARARLAR.md), K-494 – K-498.
 
 ## Gerçekleşen Public API
 

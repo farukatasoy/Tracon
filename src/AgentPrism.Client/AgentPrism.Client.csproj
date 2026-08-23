@@ -15,7 +15,7 @@
     -->
     <AgentPrismPublicApiTrackingEnabled>false</AgentPrismPublicApiTrackingEnabled>
     <!--
-      🚨 MEASURED (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6/risk table):
+      🚨 MEASURED (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6/risk table):
       the AOT promise does NOT hold for the NSwag-generated client. Every
       request/response call is hand-wired to AgentPrismClientJsonContext (a
       source-generated JsonSerializerContext, see AgentPrismApiClient.JsonContext.cs)
@@ -38,7 +38,7 @@
   </PropertyGroup>
 
   <!--
-    NO AgentPrism package is taken on (docs/83-TIPLI-ISTEMCI-VE-CLI.md, section
+    NO AgentPrism package is taken on (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section
     83.6). The generated client's DTOs mirror the OpenAPI document, not
     AgentPrism.Abstractions - reusing Abstractions would fight the code
     generator and would leak server-side store interfaces (like IRunStore)

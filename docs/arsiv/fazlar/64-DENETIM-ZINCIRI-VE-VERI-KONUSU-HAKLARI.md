@@ -1,8 +1,8 @@
 # Faz 64 — Denetim Zinciri ve Veri Konusu Hakları
 
 > **Durum:** ✅ Tamamlandı (2026-08-18)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-75**, **F-58**
-> **Önkoşul:** [Faz 9](arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi oradan gelir · [Faz 25](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yaşa göre temizlik makinesi ve `IRetentionStore` devralınır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-75**, **F-58**
+> **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi oradan gelir · [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yaşa göre temizlik makinesi ve `IRetentionStore` devralınır
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Sql.Shared`, `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
 > **Yeni paket:** Yok · **Migration:** **gerekli — üç set** (`audit_log`'a iki sütun). Numara uygulama anında alınır (K-178)
 > **Public API:** **büyüyor** — `AuditEntry`'ye iki alan, bir yeni arayüz (`IDataSubjectResolver`), iki uç. `PublicAPI.Shipped.txt` bugün **boş**; ekleme **bugün bedava**
@@ -27,17 +27,17 @@
    **K-178** (migration numaraları sağlayıcı başına bağımsız),
    **K-370** (güvenlik kararı `AuditRecorder` ile değil doğrudan `IAuditLog` ile yazılır),
    **K-399** (saklama hedefleri ve varsayılanları)
-3. [`25-VERI-SAKLAMA-VE-ARSIVLEME.md`](arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yalnız devir notu:
+3. [`25-VERI-SAKLAMA-VE-ARSIVLEME.md`](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md
    ```
    Silme makinesi oradan devralınır; bu faz ona **ikinci bir eksen** ekler.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/postgresql.md`](hafiza/postgresql.md) (`audit_log` şeması, indeks),
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç sağlayıcıda
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md) (`audit_log` şeması, indeks),
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç sağlayıcıda
    aynı sütun ve aynı sıralama garantisi)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) · [`MIMARI.md`](MIMARI.md) — veri modeli bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) · [`MIMARI.md`](../../MIMARI.md) — veri modeli bölümü
 
 ---
 
@@ -69,13 +69,13 @@ hiç kırılmaz.
 Bu savunulabilir bir modeldir çünkü denetim kaydı **kim ne yaptı** bilgisidir,
 kişinin içeriği değil. Ölçüldü:
 
-- [`AuditEntry.cs:18-45`](../src/AgentPrism.Abstractions/Audit/AuditEntry.cs) —
+- [`AuditEntry.cs:18-45`](../../../src/AgentPrism.Abstractions/Audit/AuditEntry.cs) —
   `Actor`, `Action`, `Entity`, `Before`, `After`.
-- [`AuditRecorder.cs:47-48`](../src/AgentPrism.Core/Audit/AuditRecorder.cs) —
+- [`AuditRecorder.cs:47-48`](../../../src/AgentPrism.Core/Audit/AuditRecorder.cs) —
   `Before`/`After` zaten `AuditSecretFilter.Redact`'ten geçiyor.
 - Çağrı yerleri yönetim eylemleridir: API anahtarı, katalog, kota, eval, kural
-  ([`ApiKeyEndpoints.cs:122`](../src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs),
-  [`QuotaEndpoints.cs:142`](../src/AgentPrism.AspNetCore/Endpoints/QuotaEndpoints.cs)).
+  ([`ApiKeyEndpoints.cs:122`](../../../src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs),
+  [`QuotaEndpoints.cs:142`](../../../src/AgentPrism.AspNetCore/Endpoints/QuotaEndpoints.cs)).
   Konuşma içeriği **yazılmıyor**.
 
 🚨 Bu bir **kural** hâline gelir: `audit_log`'a konuşma içeriği yazılmaz. Faz bu
@@ -85,12 +85,12 @@ kuralı bir testle kapatır; kural olmadan karar zamanla çürür.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`0001_initial.sql:229-238`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `audit_log` sütunları: `id`, `tenant_id`, `actor`, `action`, `entity`, `before`, `after`, `created_at`. **Hash veya imza yok** |
+| [`0001_initial.sql:229-238`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `audit_log` sütunları: `id`, `tenant_id`, `actor`, `action`, `entity`, `before`, `after`, `created_at`. **Hash veya imza yok** |
 | `grep -rln "prev_hash\|PrevHash" src/` | **Sıfır sonuç.** Zincir hiçbir sağlayıcıda yoktur |
-| [`IAuditLog.cs:17-29`](../src/AgentPrism.Abstractions/Audit/IAuditLog.cs) | Yalnız `WriteAsync` ve `QueryAsync`. Doğrulama metodu **yok** |
-| [`AuditRecorder.cs:16`](../src/AgentPrism.Core/Audit/AuditRecorder.cs) | Yazma hatası **yutulur** ve loglanır. 🚨 Zincir eklendiğinde bu davranış bir kararı zorlar: yutulan bir yazım zinciri **deler** |
-| [`RetentionEndpoints.cs:31-103`](../src/AgentPrism.AspNetCore/Endpoints/RetentionEndpoints.cs) | Uçlar yalnız **hedef** bazlıdır (`/api/retention/{target}`). Kişi ekseni yoktur |
-| [`0001_initial.sql:21-25`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `tenants` sütunları `id`, `slug`, `display_name`, `created_at` |
+| [`IAuditLog.cs:17-29`](../../../src/AgentPrism.Abstractions/Audit/IAuditLog.cs) | Yalnız `WriteAsync` ve `QueryAsync`. Doğrulama metodu **yok** |
+| [`AuditRecorder.cs:16`](../../../src/AgentPrism.Core/Audit/AuditRecorder.cs) | Yazma hatası **yutulur** ve loglanır. 🚨 Zincir eklendiğinde bu davranış bir kararı zorlar: yutulan bir yazım zinciri **deler** |
+| [`RetentionEndpoints.cs:31-103`](../../../src/AgentPrism.AspNetCore/Endpoints/RetentionEndpoints.cs) | Uçlar yalnız **hedef** bazlıdır (`/api/retention/{target}`). Kişi ekseni yoktur |
+| [`0001_initial.sql:21-25`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `tenants` sütunları `id`, `slug`, `display_name`, `created_at` |
 | `sessions` şeması | `id`, `tenant_id`, `agent_name`, `state`, `schema_version`, `created_at`, `updated_at`. 🚨 **Kullanıcı veya konu kimliği yok** — silmenin "kimin verisi" sorusuna bugün cevabı yoktur |
 | K-107 | "Özetlenen mesajlar silinmez" — depo hassas içeriği **bilerek** biriktiriyor |
 | `PublicAPI.Shipped.txt` (1 satır) | Yayınlanmış yüzey boş; `AuditEntry`'ye alan eklemek bugün bedava |

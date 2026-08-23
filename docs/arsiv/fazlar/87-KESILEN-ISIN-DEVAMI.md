@@ -1,14 +1,14 @@
 # Faz 87 — Kesilen İşin Devamı
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-141** — Dalga 14 Küme D
-> **Önkoşul:** [Faz 46](arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md) — iş kuyruğu ve `202 Accepted` sözleşmesi · [Faz 47](arsiv/fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) — `RecordedToolPlayback` defteri · [Faz 54](arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — öksüz uzlaştırma, tetikleyicinin takılacağı yer · [Faz 55](arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md) — `ApprovalResume` emsali · [Faz 44](arsiv/fazlar/44-HATA-SINIFLANDIRMA.md) — tipli sağlayıcı hataları (geçici/kalıcı ayrımı metin eşleştirmesi **gerektirmez**)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-141** — Dalga 14 Küme D
+> **Önkoşul:** [Faz 46](46-DAYANIKLI-CALISTIRMA.md) — iş kuyruğu ve `202 Accepted` sözleşmesi · [Faz 47](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) — `RecordedToolPlayback` defteri · [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — öksüz uzlaştırma, tetikleyicinin takılacağı yer · [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) — `ApprovalResume` emsali · [Faz 44](44-HATA-SINIFLANDIRMA.md) — tipli sağlayıcı hataları (geçici/kalıcı ayrımı metin eşleştirmesi **gerektirmez**)
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.Workflows`, `AgentPrism.Sql.Shared` (linked-source, K-176), `AgentPrism.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** **Gerekli** — `runs` tablosuna nullable bir "hangi koşudan devam" kolonu. Üç set (PostgreSQL · SQL Server · SQLite); numaralar uygulama anında alınır (K-178)
 > **Public API:** Büyüyor — 1 enum üyesi, 1 ayar bölümü, 1 tool alanı, 1 workflow retry politikası. `PublicAPI.Shipped.txt` toplamı **16 satır** (yalnız başlıklar; ölçüldü 2026-08-21) → Faz 7'den önce eklemek **bedava**
 > **Tüketici yüzeyi:** `docs-site/` → `guides/reliability.md`, `guides/background-work.md`, `concepts/runs.md`, `concepts/workflows.md`, `reference/configuration.md`, `capabilities.md`
 > · sevk edilen: yeni ayar ve tool alanının XML dokümanı, `src/AgentPrism.Core/README.md`. `api/` ve `http-api/` **üretilir**
-> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) · [`docs/manuel-test/15-WORKFLOWS.md`](manuel-test/15-WORKFLOWS.md)
+> **Manuel test alanı:** [`docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md`](../../manuel-test/21-DAYANIKLILIK-VE-IPTAL.md) · [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
 
 ---
 
@@ -30,19 +30,19 @@
    workflow yarısının temeli.
    **K-284** (kira tablosu deseni), **K-178** (migration numaraları),
    **K-014** (`run_events` append-only).
-3. [`54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md`](arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — yalnız devir notu:
+3. [`54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md`](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) — yalnız devir notu:
    ```bash
    awk '/^## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md
    ```
    Tetikleyici **tam olarak oraya** takılır. Uzlaştırmanın bugünkü tek işi
    kapatmaktır; bu faz ona ikinci bir iş ekler.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` tuzağı — **beş kez** yaşandı) ·
-   [`hafiza/workflows.md`](hafiza/workflows.md) (checkpoint ve süper adım) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç migration seti) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (sözleşme testi dört koşum)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` tuzağı — **beş kez** yaşandı) ·
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (checkpoint ve süper adım) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç migration seti) ·
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (sözleşme testi dört koşum)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — çalıştırma yolu ve iş kuyruğu
+   [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu ve iş kuyruğu
 
 ---
 
@@ -72,11 +72,11 @@ listesinde **kalır**.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`SqlRunStore.cs:263`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L263) | `ClaimOrphanedRunsAsync` öksüz koşuyu `Failed` + `Infrastructure` kapatır ve bir `RunFailed` olayı yazar. **Kuyruğa koymaz** |
-| [`RunReconciliationService.cs:91`](../src/AgentPrism.Core/Recording/RunReconciliationService.cs#L91) | `TickAsync` yalnız talep eder ve loglar; checkpoint'i olan koşuyu ayırt **etmez** |
+| [`SqlRunStore.cs:263`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L263) | `ClaimOrphanedRunsAsync` öksüz koşuyu `Failed` + `Infrastructure` kapatır ve bir `RunFailed` olayı yazar. **Kuyruğa koymaz** |
+| [`RunReconciliationService.cs:91`](../../../src/AgentPrism.Core/Recording/RunReconciliationService.cs#L91) | `TickAsync` yalnız talep eder ve loglar; checkpoint'i olan koşuyu ayırt **etmez** |
 | `src/AgentPrism.Workflows` içinde `retry`/`backoff` araması | **0 eşleşme** — düğüm başına retry politikası yok |
-| [`AgentPrismWorkflowOptions.cs:25,49,60`](../src/AgentPrism.Workflows/AgentPrismWorkflowOptions.cs) | `EnableCheckpointing` = **`true`**, `MaxSuperSteps` = **100**, `KeepCheckpointsAfterCompletion` = **`true`** → dayanıklılık **var**, otomatiklik yok |
-| [`RecordedToolPlayback.cs:25`](../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs#L25) | `internal sealed class`; `(tool adı, argümanlar)` çiftiyle eşleştirir — public yüzey büyümez |
+| [`AgentPrismWorkflowOptions.cs:25,49,60`](../../../src/AgentPrism.Workflows/AgentPrismWorkflowOptions.cs) | `EnableCheckpointing` = **`true`**, `MaxSuperSteps` = **100**, `KeepCheckpointsAfterCompletion` = **`true`** → dayanıklılık **var**, otomatiklik yok |
+| [`RecordedToolPlayback.cs:25`](../../../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs#L25) | `internal sealed class`; `(tool adı, argümanlar)` çiftiyle eşleştirir — public yüzey büyümez |
 | `AgentSessionManager.SaveSessionAsync` | **Açık** bir çağrıdır (13 çağrı yeri); yarıda kesilen bir tur oturumu **tur öncesi** hâlinde bırakır |
 | `runs` tablosu | `session_id text` **var**; `parent_run_id`·`root_run_id`·`heartbeat_at` da var → yeni kolon için net emsal |
 
@@ -130,10 +130,10 @@ zincir sayılır; sınır aşılınca koşu `Failed` kalır ve bir olay yazılı
 
 **Bu fazın en kolay yanlış yapılan yeridir ve plan onu açıkça yazar.**
 
-[`RecordedToolPlayback.Take`](../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs)
+[`RecordedToolPlayback.Take`](../../../src/AgentPrism.Core/Replay/RecordedToolPlayback.cs)
 bugün şunu yapar: eşleşme yoksa `_mismatch` kaydedilir,
 `FunctionInvocationContext.Terminate = true` konur ve koşu `422` ile düşer.
-[`ReplayToolMode.ReplayTools`](../src/AgentPrism.Abstractions/Runs/RunReplay.cs)
+[`ReplayToolMode.ReplayTools`](../../../src/AgentPrism.Abstractions/Runs/RunReplay.cs)
 XML dokümanı bunu yazıyor: *"A call with no match **stops** the replay."*
 
 Bu semantik **replay için doğrudur** ve **devam için yanlıştır.** Devam
@@ -172,7 +172,7 @@ yeniden çalışır.* Bu cümle 87.4'ün neden gerekli olduğunun da gerekçesid
 devam varsayılan olarak **reddedilir**; gevşetme **tool başına, kodda** bildirilir.
 
 🚨 **Ölçüm kalemi genişletti.** Aday listesi yalnız `Destructive`'i yazıyordu.
-[`ToolEffect.cs`](../src/AgentPrism.Abstractions/Tools/ToolEffect.cs) dört değer
+[`ToolEffect.cs`](../../../src/AgentPrism.Abstractions/Tools/ToolEffect.cs) dört değer
 taşır ve `External = 3`'ün XML dokümanı şunu diyor: *"Data leaves the process
 (an external call, a notification, a **payment**)."* Tekrarlanan bir ödeme
 silinen bir kayıttan az zararlı değildir.
@@ -192,7 +192,7 @@ bildirir. Bu K2 ile tutarlıdır: tool'lar yalnız kodda tanımlanır, dolayıs�
 idempotency iddiası da yalnız kodda yapılabilir.
 
 Alan `Effect`'in kardeşidir, aynı yerde yaşar:
-[`AgentPrismToolRegistration.cs:63-84`](../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs).
+[`AgentPrismToolRegistration.cs:63-84`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs).
 
 Aynı kural workflow düğümü için de geçerlidir — K-498 bunu zaten söylüyor:
 işleyici **idempotent olmak zorundadır**.

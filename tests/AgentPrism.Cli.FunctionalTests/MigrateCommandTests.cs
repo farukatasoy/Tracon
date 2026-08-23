@@ -4,7 +4,7 @@ namespace AgentPrism.Cli.FunctionalTests;
 
 /// <summary>
 /// <c>agentprism migrate</c> / <c>migrate status</c> against a real SQLite
-/// file, without an application ever starting (docs/83-TIPLI-ISTEMCI-VE-CLI.md,
+/// file, without an application ever starting (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md,
 /// section 83.5, manual cases 1-3).
 /// </summary>
 [Collection(nameof(CliTestGroup))]

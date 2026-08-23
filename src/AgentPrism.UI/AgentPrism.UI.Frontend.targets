@@ -21,7 +21,7 @@
 
     <!--
       @agentprism/client (Phase 84). The frontend consumes it as a repo-local
-      `file:` dependency (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section
+      `file:` dependency (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section
       84.8) — it must be BUILT (tsc -> dist/) before the frontend's own
       `npm run build`, because the frontend imports its TYPES, and a `file:`
       dependency's `dist/` is not produced by `npm ci` on its own.
