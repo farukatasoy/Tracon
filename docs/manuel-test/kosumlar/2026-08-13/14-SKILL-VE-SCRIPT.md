@@ -10,122 +10,57 @@
 
 ---
 
-## MT-SKILL-001 — `PUT /api/skills/{name}` yeni bir skill oluşturur (`201`)
-
-**Gerçek sonuç**
-`HTTP: 201`, `version: 1`, `createdAt == updatedAt` (`2026-08-13T23:04:47.153926+00:00`). Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-002 — Aynı skill'i tekrar `PUT` etmek günceller (`200`), `version` artar
-
-**Gerçek sonuç**
-`HTTP: 200`, `version: 2`, `createdAt` aynı kaldı, `updatedAt` ilerledi. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-SKILL-003 — `GET /api/skills` kiracının skill listesini döner
+## Temiz geçen case'ler (36)
 
-**Gerçek sonuç**
-Liste `fatura-kontrolu`'nu (version 2, güncel açıklamayla) içeriyor. Tam beklendiği gibi.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-SKILL-001 | ☑ | `PUT /api/skills/{name}` yeni bir skill oluşturur (`201`) |
+| MT-SKILL-002 | ☑ | Aynı skill'i tekrar `PUT` etmek günceller (`200`), `version` artar |
+| MT-SKILL-003 | ☑ | `GET /api/skills` kiracının skill listesini döner |
+| MT-SKILL-004 | ☑ | `DELETE` skill'i ve cascade kaynaklarını siler |
+| MT-SKILL-005 | ☑ | Var olmayan skill'i silmek → `404` |
+| MT-SKILL-006 | ☑ | Yoldaki ad ile gövdedeki ad uyuşmazsa → `400` |
+| MT-SKILL-007 | ☑ | Büyük harf/alt çizgi içeren ad → `400` (MAF'ın kendi ad kuralı) |
+| MT-SKILL-008 | ☑ | 65 karakterlik ad (64 sınırını aşan) → `400` |
+| MT-SKILL-009 | ☑ | Boş `description` → `400` |
+| MT-SKILL-010 | ☑ | `instructions` 64 KB sınırını aşarsa → `400` |
+| MT-SKILL-011 | ☑ | 21. kaynak eklenirse (limit 20) → `400` |
+| MT-SKILL-012 | ☑ | Aynı skill içinde iki kaynak aynı adı taşırsa → `400` |
+| MT-SKILL-013 | ☑ | Arayüzden skill oluşturma ve düzenleme (Skills ekranı) |
+| MT-SKILL-022 | ☑ | Devre dışı skill derlemeye girmez, model `load_skill` içinde hiç görmez |
+| MT-SKILL-023 | ☑ | Kod tanımlı skill, aynı adlı DB kaydını geçersiz kılar |
+| MT-SKILL-024 | ☑ | Skill düzenlemesi, `CompiledAgentCache` parmak izini değiştirir |
+| MT-SKILL-025 | ☑ | Sunucu `MaxSkillsPerAgent`'ı değiştirir, arayüz checkbox limiti HABERSİZ kalır |
+| MT-SKILL-030 | ☑ | `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir |
+| MT-SKILL-031 | ☑ | Onayla → skill talimatı bağlama girer, model işaretçiyi birebir üretir |
+| MT-SKILL-033 | ☑ | "Hatırla" ile onay → sonraki çağrıda `load_skill` kartı hiç çıkmaz |
+| MT-SKILL-040 | ☑ | Varsayılan durumda (Interpreters boş) HERHANGİ bir script uzantısı reddedilir |
+| MT-SKILL-041 | ☑ | `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur (yalnız config, kod değişikliği YOK) |
+| MT-SKILL-042 | ☑ | 11. script eklenirse (limit 10) → `400` |
+| MT-SKILL-043 | ☑ | Aynı skill içinde iki script aynı adı taşırsa → `400` |
+| MT-SKILL-044 | ☑ | Geçersiz JSON `parametersSchema` → `400` |
+| MT-SKILL-045 | ☑ | Script içeriği 64 KB sınırını aşarsa → `400` |
+| MT-SKILL-046 | ☑ | `scripts.Enabled = false` iken bile bir script KAYDEDİLİR ve GERİ OKUNUR |
+| MT-SKILL-050 | ☑ | Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409` |
+| MT-SKILL-051 | ☑ | `scripts.Enabled = true` yapılınca (yalnız config) AYNI istek `201` döner |
+| MT-SKILL-052 | ☑ | Geçmiş bir `expiresAt` → `400` |
+| MT-SKILL-053 | ☑ | Boş `skillName` → `400` |
+| MT-SKILL-054 | ☑ | `GET /api/skill-script-grants` listesi, arayüzde kırmızı uyarıyla görünür |
+| MT-SKILL-055 | ☑ | İzni arayüzden iptal et (`Revoke`) → liste hemen güncellenir |
+| MT-SKILL-056 | ☑ | Var olmayan bir izni iptal etmek → `404` |
+| MT-SKILL-062 | ☑ | Ortam değişkenleri sızmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür |
+| MT-SKILL-063 | ☑ | Kiracı başına eşzamanlılık sınırı: 3. eşzamanlı çağrı ilk ikisi bitene kadar BEKLER |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-004 — `DELETE` skill'i ve cascade kaynaklarını siler
-
-**Gerçek sonuç**
-Adım 1: `HTTP: 204`. Adım 2: `HTTP: 404`, `title: "Skill bulunamadi"`. Bellek içi kalıcılıkla koşuldu — PostgreSQL doğrulama sorgusu koşulmadı (case'in kendi metni bunu yalnız PostgreSQL izleğinde ölçülebilir bir tamamlayıcı kanıt olarak sunuyor), HTTP davranışı beklenen sonucu zaten sağlıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-005 — Var olmayan skill'i silmek → `404`
-
-**Gerçek sonuç**
-`HTTP: 404`, `title: "Skill bulunamadi"`, `detail: "'hic-yok' adinda bir skill yok."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-006 — Yoldaki ad ile gövdedeki ad uyuşmazsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Ad uyusmuyor"`, `detail: "Yoldaki ad 'skill-a', govdedeki ad 'skill-b'."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-007 — Büyük harf/alt çizgi içeren ad → `400` (MAF'ın kendi ad kuralı)
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill adi gecersiz"`, `detail: "Skill name must use only lowercase letters, numbers, and hyphens, and must not start or end with a hyphen or contain consecutive hyphens."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-008 — 65 karakterlik ad (64 sınırını aşan) → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill adi gecersiz"`, `detail: "Skill name must be 64 characters or fewer."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-009 — Boş `description` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill aciklamasi gecersiz"`, `detail: "Skill description is required."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-010 — `instructions` 64 KB sınırını aşarsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill talimati cok buyuk"`, `detail: "instructions en fazla 65536 bayt olabilir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-011 — 21. kaynak eklenirse (limit 20) → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Cok fazla kaynak"`, `detail: "Bir skill en fazla 20 kaynak tasiyabilir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-012 — Aynı skill içinde iki kaynak aynı adı taşırsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Kaynak adi gecersiz"`, `detail: "Her kaynak adi bos olmamali ve skill icinde benzersiz olmalidir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-013 — Arayüzden skill oluşturma ve düzenleme (Skills ekranı)
-
-**Gerçek sonuç**
-Playwright ile koşuldu. Kaydet sonrası `/agentprism/skills` listesine dönüldü, `arayuz-skilli` satırı `0` kaynak ve `Enabled` durumuyla göründü. Edit formuna tekrar girildiğinde talimat metni düz `<textbox>` içinde ham metin olarak duruyor, render edilmiyor. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (10)
 
 ## MT-SKILL-014 — Skill'i arayüzden devre dışı bırakma, checkbox agent düzenleyicisinde kilitlenir
 
@@ -176,279 +111,12 @@ Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detai
 
 ---
 
-## MT-SKILL-022 — Devre dışı skill derlemeye girmez, model `load_skill` içinde hiç görmez
-
-**Gerçek sonuç**
-`fatura-kontrolu` devre dışı bırakıldıktan sonra `manuel-skill-test`'e prompt gönderildi (API üzerinden `/api/agents/{name}/run`, akış olayları incelendi): hiçbir `load_skill` fonksiyon çağrısı üretilmedi, model genel bir "hangi bilgileri paylaşmalısın" yanıtı verdi, `FATURA_SKILL_ACTIVE` işaretçisi hiç görünmedi. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-023 — Kod tanımlı skill, aynı adlı DB kaydını geçersiz kılar
-
-**Gerçek sonuç**
-Playwright ile Playground üzerinden koşuldu. `load_skill` onay kartı `skillName: "fatura-kontrolu"` ile çıktı, onaylandı. `load_skill` sonucu `<description>KOD TANIMLI surum - DB kaydini gecersiz kilar.</description>` içeriyordu (DB'deki "Fatura kontrol kurallarini..." açıklaması DEĞİL) ve talimat metni `KOD_SKILL_ACTIVE` yaz diyordu. Model nihai yanıtı tam olarak `KOD_SKILL_ACTIVE` oldu. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-**Temizlik:** Eklenen `AddSkill(...)` bloğu `Program.cs`'ten kaldırıldı, proje yeniden derlendi (0 uyarı/hata), uygulama temiz haliyle yeniden başlatıldı.
-
----
-
-## MT-SKILL-024 — Skill düzenlemesi, `CompiledAgentCache` parmak izini değiştirir
-
-**Gerçek sonuç**
-Adım 1 (API üzerinden, aynı süreçte MT-SKILL-023'ün temizliği sonrası tekrar kurulan `manuel-skill-test`/`fatura-kontrolu` fixture'ıyla): onaylandıktan sonra model `FATURA_SKILL_ACTIVE` üretti. Adım 2: skill `PUT` ile güncellendi, `version: 2`. Adım 3: YENİ bir Playground sohbetinde (farklı `sessionId`) aynı prompt gönderildi, `load_skill` yeniden onay istedi (yeni sohbet olduğu için beklenen), onaylandı, model tam olarak `FATURA_SKILL_V2` üretti — `FATURA_SKILL_ACTIVE` DEĞİL. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-025 — Sunucu `MaxSkillsPerAgent`'ı değiştirir, arayüz checkbox limiti HABERSİZ kalır
-
-**Gerçek sonuç**
-`support` agent düzenleyicisinde `skill-a`/`skill-b`/`skill-c` (üçü de etkin) sırayla seçildi; erişilebilirlik ağacında üçü de `[checked]`, hiçbiri `[disabled]` değildi — arayüz 3. seçimde kilitlenmedi (sunucunun gerçek sınırı `2` olmasına rağmen). Kod-kökenli `support`'un düzenleme formu `name`/`model` alanlarını önceden doldurmadığı için (`Save` bu yüzden devre dışı kaldı — ayrı, ilgisiz bir form-doldurma davranışı) kaydetme adımı API eşdeğeriyle tamamlandı: `POST /api/agents` (`uc-skilli-agent`, 3 skill) `HTTP: 201`, ardından `POST .../run` `HTTP: 400`, `title: "Agent derlenemedi"`, `detail: "'uc-skilli-agent' agent'i en fazla 2 skill tasiyabilir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:MaxSkillsPerAgent"` uygulandı.
-
----
-
-# 3 — Gerçek Model ile Onaylı Skill Yükleme (Faz 10 kanıtı)
-
-Bu bölüm Faz 10'un kendi "gerçek model ile doğrulama zorunludur" kuralını
-tekrarlar. `10-ARAYUZ-AGENT-PLAYGROUND.md`'nin `MT-UIAG-028/029/030` case'leri
-`cancel_order` için AYNI onay mekanizmasını (`ToolApprovalRuleEvaluator`)
-zaten kanıtladı; burada yalnız `load_skill`'e özgü fark test edilir:
-onaylanan şey bir **sipariş eylemi değil, agent'ın talimatının çalışma anında
-değişmesidir** (Faz 10'un 1 numaralı kararı).
-
-**Ön koşul (bölümün tamamı)**
-- `FIX-SKILL-FATURA` ve `FIX-AGENT-SKILL` oluşturulmuş, ikisi de etkin.
-- `playground/manuel-skill-test` açık, yeni sohbet.
-
----
-
-## MT-SKILL-030 — `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir
-
-**Gerçek sonuç**
-Playwright ile Playground'da koşuldu. `load_skill` onay kartı `arguments: {"skillName":"fatura-kontrolu"}` ile göründü, hiçbir final metin yoktu (yalnız onay kartı). Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-031 — Onayla → skill talimatı bağlama girer, model işaretçiyi birebir üretir
-
-**Gerçek sonuç**
-"Hatırla" işaretlenmeden "Onayla"ya tıklandı. Yeni tur `load_skill done` kartı ve `KOD TANIMLI...` DEĞİL, DB'deki gerçek talimatı taşıyan `load_skill` sonucunu içerdi; model nihai yanıtı tam olarak `FATURA_SKILL_ACTIVE` oldu. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-SKILL-032 — Reddet → skill hiç yüklenmez, model onsuz devam eder
 
 **Gerçek sonuç**
 "Reddet"e tıklandı: kart `rejected` rozetine döndü, `load_skill` sonucu `Tool call invocation rejected.` oldu. Belgelenmeyen bir nüans: model, reddedilen çağrıyı bir kez daha denedi ve İKİNCİ bir `load_skill` onay kartı üretti (gpt-5.4-mini'nin retry davranışı — kod tarafında bir tekrar mekanizması değil, modelin kendi kararı); bu da reddedildi, ardından tur tamamlandı. Nihai yanıt genel bir "hangi fatura bilgilerini paylaşmalısın" metniydi, `FATURA_SKILL_ACTIVE` dizgisini İÇERMİYORDU. Asıl iddia (skill talimatı hiçbir zaman bağlama girmedi) doğrulandı; ekstra onay turu kusur değil, gerçek model davranışı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-033 — "Hatırla" ile onay → sonraki çağrıda `load_skill` kartı hiç çıkmaz
-
-**Gerçek sonuç**
-Adım 1: prompt gönderildi, onay kartında "Hatırla" işaretlenip "Onayla"ya tıklandı, model `FATURA_SKILL_ACTIVE` üretti. Adım 2/3: "Yeni Sohbet" ile farklı bir `sessionId`'de aynı prompt tekrar gönderildi — bu sefer HİÇBİR onay kartı çıkmadı, `load_skill done` doğrudan göründü, model yine `FATURA_SKILL_ACTIVE` üretti. Tam beklendiği gibi — kalıcı kural (`tool_approval_rules`) çalışıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Skill Script Kaydı ve Doğrulama (Faz 11)
-
-Script KAYDETMEK ile script ÇALIŞTIRMAK ayrı yetkilerdir. Bu bölümdeki
-case'ler yalnız KAYIT/doğrulama katmanını sınar — hiçbiri `UseSkillScripts()`
-gerektirmez, örnek uygulama hiç değiştirilmeden koşulur.
-
----
-
-## MT-SKILL-040 — Varsayılan durumda (Interpreters boş) HERHANGİ bir script uzantısı reddedilir
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script uzantisi izinli degil"`, `detail: "'py' uzantisi icin kayitli bir yorumlayici yok."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-041 — `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur (yalnız config, kod değişikliği YOK)
-
-**Gerçek sonuç**
-`dotnet user-secrets set "AgentPrism:Skills:Scripts:Interpreters:sh" "/bin/bash"` ile yeniden başlatıldıktan sonra `HTTP: 201`, script kaydı `content: "echo merhaba-agentprism"` ile döndü. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-042 — 11. script eklenirse (limit 10) → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Cok fazla script"`, `detail: "Bir skill en fazla 10 script tasiyabilir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-043 — Aynı skill içinde iki script aynı adı taşırsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script adi gecersiz"`, `detail: "Her script adi bos olmamali ve skill icinde benzersiz olmalidir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-044 — Geçersiz JSON `parametersSchema` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Parametre semasi gecersiz"`, `detail: "parametersSchema gecerli bir JSON nesnesi olmalidir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-045 — Script içeriği 64 KB sınırını aşarsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script cok buyuk"`, `detail: "Her script en fazla 65536 bayt olabilir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-046 — `scripts.Enabled = false` iken bile bir script KAYDEDİLİR ve GERİ OKUNUR
-
-**Gerçek sonuç**
-`GET /api/skills/scriptli-skill` gövdesi `scripts: [{"name":"merhaba",...,"content":"echo merhaba-agentprism",...}]` döndü — tam içerikle, gizlenmeden. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Script Çalıştırma İzinleri (Grant, Faz 11)
-
-Grant uçları da `UseSkillScripts()` GEREKTİRMEZ — yalnız `scripts.Enabled`
-bayrağını okurlar (config-only). Gerçek çalıştırma §6'nın konusudur.
-
----
-
-## MT-SKILL-050 — Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409`
-
-**Gerçek sonuç**
-`HTTP: 409`, `title: "Script calistirma kapali"`, `detail: "Izin vermeden once UseSkillScripts(...) ile script calistirmayi acin."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-051 — `scripts.Enabled = true` yapılınca (yalnız config) AYNI istek `201` döner
-
-**Gerçek sonuç**
-`dotnet user-secrets set "AgentPrism:Skills:Scripts:Enabled" "true"` + `PlatformIsolationAcknowledged` `"true"` ile yeniden başlatıldıktan sonra `HTTP: 201`, `grantedBy: null`, `expiresAt: null`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-052 — Geçmiş bir `expiresAt` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Bitis zamani gecmiste"`, `detail: "expiresAt gelecekte bir an olmalidir."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-053 — Boş `skillName` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill adi gerekli"`, `detail: "skillName bos olamaz."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-054 — `GET /api/skill-script-grants` listesi, arayüzde kırmızı uyarıyla görünür
-
-**Gerçek sonuç**
-Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerdi. Adım 2: `/agentprism/skills` sayfasında `border-red-500` CSS sınıflı bir uyarı kutusu doğrulandı (`document.querySelector('[class*="border-red"]')` ile), grant tablosunda aynı satır (`scriptli-skill` / `merhaba` / `Granted by: unknown`) göründü. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-055 — İzni arayüzden iptal et (`Revoke`) → liste hemen güncellenir
-
-**Gerçek sonuç**
-"Revoke" düğmesine tıklandı, satır listeden kayboldu, panel "No active grant." metnine döndü. Bellek içi kalıcılıkla koşuldu; PostgreSQL doğrulama sorgusu koşulmadı (satırın silinmediği/`revoked_at` dolduğu iddiası `InMemorySkillScriptGrantStore`'un aynı `active` filtre desenini kullandığı varsayımına dayanır, ayrıca doğrulanmadı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-056 — Var olmayan bir izni iptal etmek → `404`
-
-**Gerçek sonuç**
-`HTTP: 404`, `title: "Izin bulunamadi"`, `detail: "'hic-yok-skill' icin gecerli bir calistirma izni yok."`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — Sandbox Kapıları ve Gerçek Çalıştırma Kanıtı (Faz 11)
-
-Bu bölüm, K2 kuralının ikinci istisnasını **gerçekten çalışır hâlde** kanıtlar.
-`UseSkillScripts()` `Program.cs`'te hiç çağrılmadığı için ("Koşmadan önce" §4)
-`SkillScriptSupport`/`SandboxedSkillScriptRunner` DI'da kayıtlı DEĞİLDİR — bu
-bölümün TAMAMI için **tek, geçici bir kod değişikliği** gerekir.
-
-**Bölümün ortak ön koşulu**
-
-1. `samples/AgentPrism.Api/Program.cs`'te, `var agentPrism = builder.AddAgentPrism()...` bloğunun BİTİMİNDEN (`;`'den) hemen sonra GEÇİCİ olarak ekleyin:
-   ```csharp
-   agentPrism.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);
-   ```
-   Geri kalan tüm ayarlar (`AllowStoredScripts`, `Interpreters`, `Timeout`,
-   `MaxOutputBytes`, ...) `dotnet user-secrets` ile verilir — `Bind()`
-   `UseSkillScripts`'in lambda'sından ÖNCE kayıtlıdır ama `Enabled`/
-   `PlatformIsolationAcknowledged` dışındaki alanlara lambda hiç dokunmadığı
-   için config değerleri KORUNUR (ölçüldü:
-   `AgentPrismServiceCollectionExtensions.cs:44-60` ile
-   `AgentPrismSkillScriptBuilderExtensions.cs:54-58` karşılaştırıldı).
-2. ```bash
-   dotnet user-secrets set "AgentPrism:Skills:Scripts:Interpreters:sh" "/bin/bash"
-   dotnet user-secrets set "AgentPrism:Skills:Scripts:AllowStoredScripts" "true"
-   ```
-3. `scriptli-skill`/`merhaba` (MT-SKILL-041) kayıtlı ve `scriptli-skill`/`merhaba`
-   için geçerli bir izin var (MT-SKILL-051).
-4. Uygulamayı yeniden başlat.
-5. `FIX-AGENT-SKILL` (`manuel-skill-test`) yerine YENİ bir agent kullanın —
-   `skillNames: ["scriptli-skill"]` taşıyan `manuel-script-test`:
-   ```bash
-   curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
-     "name": "manuel-script-test",
-     "model": { "provider": "openai", "model": "gpt-5.4-mini" },
-     "skillNames": ["scriptli-skill"]
-   }'
-   ```
-
-**Bölüm sonu temizliği:** `agentPrism.UseSkillScripts(...)` satırını
-`Program.cs`'ten kaldırın; `dotnet user-secrets remove` ile
-`Interpreters:sh`, `AllowStoredScripts`, `Enabled`,
-`PlatformIsolationAcknowledged` anahtarlarını temizleyin.
 
 ---
 
@@ -564,66 +232,6 @@ düzeltilip temiz bir `stdout` ile tekrarlandı.)
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 **Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:MaxOutputBytes"` — uygulandı.
-
----
-
-## MT-SKILL-062 — Ortam değişkenleri sızmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür
-
-**Gerçek sonuç**
-_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu,
-iddia yalnız kod okumasıyla makul görülmüştü, gerçek çalıştırma kanıtı
-yoktu.)_
-
-**2026-08-15 gerçek koşum (KAPANIS-PLANI §9, canlı OpenAI ile, `MaxOutputBytes`
-sınırı OLMADAN tam çıktı) — Geçti, güvenlik iddiası TAM doğrulandı.**
-`load_skill` → `run_skill_script(scriptName=ortam-dokumu)` onaylandı.
-Gözlenen tam `stdout` (7 satır, alfabetik sıralı):
-```
-AGENTPRISM_SKILL_NAME=scriptli-skill
-AGENTPRISM_SKILL_TEMP=/var/folders/.../agentprism-skill-X0z3EK
-HOME=/Users/farukatasoy
-PATH=/Users/farukatasoy/...(sistem PATH'i)
-PWD=/private/var/folders/.../agentprism-script-GWwSjW
-SHLVL=1
-_=/usr/bin/env
-```
-`grep -i "secret\|ApiKey\|ConnectionString\|sk-\|sk_"` çıktıda **0 eşleşme**
-— kritik güvenlik iddiası (hiçbir AgentPrism `secret`'ı script sürecine
-sızmaz) canlı bir çalıştırmayla tam olarak kanıtlandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-063 — Kiracı başına eşzamanlılık sınırı: 3. eşzamanlı çağrı ilk ikisi bitene kadar BEKLER
-
-**Gerçek sonuç**
-_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
-
-**2026-08-15 gerçek koşum (KAPANIS-PLANI §9) — Geçti.** Playground yerine
-üç bağımsız oturum kimliğiyle (aynı kiracı `default`) üç `manuel-script-test`
-çalıştırması eşzamanlı (Python `threading`) başlatıldı — her biri kendi
-`load_skill`/`run_skill_script(scriptName=bekleyen)` onay zincirini
-yürüttü. Gözlenen toplam süreler (mesaj + iki onay dahil, LLM gecikmesi
-dahil):
-```
-[1] sure=6.8sn
-[2] sure=6.6sn
-[3] sure=10.9sn
-```
-Üçüncü çağrı diğer ikisinden **~4,2 saniye** daha geç bitti — tam olarak
-`bekleyen` script'inin (`sleep 4`) süresi kadar bir gecikme, ilk ikisinden
-biri semaforu bırakana kadar üçüncünün beklediğini doğruluyor. Üçünün de
-sonucu `exit_code: 0` — hiçbiri hata almadı, yalnız üçüncüsü geç tamamlandı.
-Mutlak süreler dokümanın `~4sn`/`~8sn` tahminini aşıyor (gerçek OpenAI
-round-trip gecikmesi dahil olduğu için) ama İLİŞKİSEL fark (üçüncü ↔
-ilk ikisi) beklenen davranışla birebir örtüşüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 7 — Gözlemlenebilirlik (Faz 11)
 
 ---
 

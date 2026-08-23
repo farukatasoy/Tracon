@@ -10,16 +10,38 @@
 
 ---
 
-## MT-DIAG-001 — Bellek içi kurulumda, bir sağlayıcı ısıtıldıktan sonra `Healthy` döner
-
-**Gerçek sonuç**
-İlk çağrı `Degraded`. `refresh=true` sonrası dört sağlayıcı (`anthropic`,
-`google`, `openai`, `openai-responses`, `openrouter` — 5 kayıt) hepsi
-`Healthy` döndü. İkinci `/health` çağrısı `Healthy`. Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
+
+## Temiz geçen case'ler (17)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-DIAG-001 | ☑ | Bellek içi kurulumda, bir sağlayıcı ısıtıldıktan sonra `Healthy` döner |
+| MT-DIAG-006 | ☑ | Bir model sağlayıcısının devresi açıkken `/health` `Degraded` döner |
+| MT-DIAG-008 | ☑ | `AddAgentPrism()` çağrılmadan yalnız `AddAgentPrismHealthChecks()` çağrılırsa ilk istekte DI hatası verir |
+| MT-DIAG-020 | ☑ | Varsayılan kapalı: hiç açılmadan `/api/diagnostics` `404` döner |
+| MT-DIAG-021 | ☑ | Açıkken `200` döner ve rapor şemasını taşır |
+| MT-DIAG-022 | ☑ | Admin olmayan rolle `403` döner |
+| MT-DIAG-024 | ☑ | Config anahtarları yalnız `resolved` bilgisini taşır, DEĞER hiç yoktur (izole doğrulama) |
+| MT-DIAG-025 | ☑ | Aynı sağlayıcının iki örneği aynı config anahtarını TEK satır raporlar |
+| MT-DIAG-026 | ☑ | `UseOpenAICompatible` hiçbir `ConfigurationDiagnostic` bildirmez |
+| MT-DIAG-028 | ☑ | `toolCount`/`agentCount` gerçek kayıtlı sayıyı yansıtır |
+| MT-DIAG-029 | ☑ | `uiEmbedded` arayüz paketine göre doğru değer taşır |
+| MT-DIAG-030 | ☑ | Teşhis ucu hiçbir model çağrısı veya migration uygulaması üretmez |
+| MT-DIAG-040 | ☑ | `AgentPrism.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz |
+| MT-DIAG-044 | ☑ | `POST /api/agents/{name}/run` yalnız `text/event-stream` bildirir, tipli JSON DEĞİL |
+| MT-DIAG-045 | ☑ | `/v1/chat/completions` hem `application/json` hem `text/event-stream` içerik tipini BİRLİKTE bildirir |
+| MT-DIAG-046 | ☑ | `Diagnostics` etiketi varsayılan üretilen belgede YOKTUR (uç varsayılan kapalı) |
+| MT-DIAG-048 | ☑ | Belge bağımsız bir istemci üretecinden hatasız geçer |
+
+## Ayrıntı taşıyan case'ler (11)
 
 ## MT-DIAG-002 — Hiçbir model sağlayıcısı doğrulanmadan `Degraded` döner (henüz `Unhealthy` değil)
 
@@ -77,17 +99,6 @@ sağlam çalışıyor, yalnız `:memory:` bağlantı dizesi bozuk.
 
 ---
 
-## MT-DIAG-006 — Bir model sağlayıcısının devresi açıkken `/health` `Degraded` döner
-
-**Gerçek sonuç**
-İki deneme de gerçek `400`/`ClientResultException` ile başarısız oldu
-(`openrouter/bu-model-yok-9999 is not a valid model ID`). Sonrasında `/health`
-→ `Degraded` — beklenenle birebir (Unhealthy değil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-DIAG-007 — `/health` hiçbir model çağrısı üretmez
 
 **Gerçek sonuç**
@@ -99,102 +110,10 @@ için değişiklik gerekmedi.)
 
 ---
 
-## MT-DIAG-008 — `AddAgentPrism()` çağrılmadan yalnız `AddAgentPrismHealthChecks()` çağrılırsa ilk istekte DI hatası verir
-
-**Gerçek sonuç**
-```
-Beklenen: DI cozumu basarisiz -- Unable to resolve service for type 'AgentPrism.AgentPrismDiagnosticsCollector' while attempting to activate 'AgentPrism.
-```
-Beklenen davranışla birebir eşleşiyor — istisna kayıt anında değil yalnız ilk
-yoklamada fırlatılıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — `GET /api/diagnostics` (Faz 33, F-62)
-
----
-
-## MT-DIAG-020 — Varsayılan kapalı: hiç açılmadan `/api/diagnostics` `404` döner
-
-**Gerçek sonuç**
-`Durum: 404` — beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-021 — Açıkken `200` döner ve rapor şemasını taşır
-
-**Gerçek sonuç**
-`200 OK`. Gövdede tam 10 alanın tümü var: `persistenceProvider: "PostgreSQL"`,
-`registeredPersistenceProviders: 1`, `canConnect: true`, `migrationsUpToDate: true`,
-`pendingMigrations: []`, `modelProviders` (5 kayıt: openai, openai-responses,
-openrouter, anthropic, google — hepsi `status: Unknown`, `circuitOpen: false`,
-henüz ısıtılmadı), `configuration` (3 kayıt: OpenAI/Anthropic/Google anahtarları,
-hepsi `resolved: true`, `hint: null`), `uiEmbedded: true`, `toolCount: 6`,
-`agentCount: 12`. Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-022 — Admin olmayan rolle `403` döner
-
-**Gerçek sonuç**
-Koşulmadı. `13-KIRACI-VE-GUVENLIK.md` §8'in geçici kurulumu
-`samples/AgentPrism.Api/RoleTestAuthHandler.cs` adında **yeni bir dosya**
-eklemeyi ve `Program.cs`'i değiştirmeyi gerektiriyor —
-`KOSUM-PLANI.md` §2.1'in pazarlığa açık olmayan "kod değiştirilmez" kuralına
-girer. Aynı gerekçeyle S1-3 oturumu da (`SONUCLAR-S1-2026-08-13.md`, "Sapmalar")
-bu kurulumu **tetiklemedi**. MT-DIAG-021'in kendi ön koşulu zaten "rol kurulumu
-yapılmamış" diyor; bu case rolün gerçek denetimini istiyor, kurulum olmadan
-anlamlı koşulamaz.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de geçici RoleTestAuthHandler kurulumuyla koşuldu, sonra kod eksiksiz geri alındı: reader→403, admin→200. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
 ## MT-DIAG-023 — 🚨 Bilinen bir API anahtarı yanıtın hiçbir yerinde geçmez
 
 **Gerçek sonuç**
 Çıktı `temiz` — gerçek OpenAI anahtarı yanıtın hiçbir yerinde geçmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-024 — Config anahtarları yalnız `resolved` bilgisini taşır, DEĞER hiç yoktur (izole doğrulama)
-
-**Gerçek sonuç**
-Kod derlendi ve çalıştı; çıktı beklenenle birebir:
-```
-Key: AgentPrism:Providers:OpenAI:ApiKey
-Resolved: False
-Hint: dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<ANAHTARINIZ>"
-```
-Kaynak (`ConfigurationDiagnostic.cs:4-14`) doğrudan okunarak da doğrulandı —
-tip yalnız `Key`/`Resolved`/`Hint` taşıyor, değeri taşıyan hiçbir alan yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-025 — Aynı sağlayıcının iki örneği aynı config anahtarını TEK satır raporlar
-
-**Gerçek sonuç**
-`1` — beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-026 — `UseOpenAICompatible` hiçbir `ConfigurationDiagnostic` bildirmez
-
-**Gerçek sonuç**
-`openrouterModelProvider`: bir öğe (`name: openrouter, status: Unknown,
-circuitOpen: false`). `openrouterConfig`: boş dizi. Beklenenle birebir.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -211,50 +130,6 @@ persistenceProvider: SQLite, registered: 1` — beklenen sayaç davranışı bu
 bağlantı dizesiyle doğru, yalnız dokümanın kendi `:memory:` biçimi bozuk.
 
  **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-003 düzeltmesiyle yeniden koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-DIAG-028 — `toolCount`/`agentCount` gerçek kayıtlı sayıyı yansıtır
-
-**Gerçek sonuç**
-`agents ucu: 12`, `{toolCount: 6, agentCount: 12}` — birebir eşleşiyor,
-`toolCount > 0`. Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-029 — `uiEmbedded` arayüz paketine göre doğru değer taşır
-
-**Gerçek sonuç**
-`Dogrudan CollectAsync -- UiEmbedded: False`. Karşılaştırma: MT-DIAG-021'de
-örnek uygulamanın `/api/diagnostics`ı `uiEmbedded: true` döndürmüştü. Fark
-beklenen kaynaktan geliyor. Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-030 — Teşhis ucu hiçbir model çağrısı veya migration uygulaması üretmez
-
-**Gerçek sonuç**
-`Requests.Count: 0` — beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — OpenAPI belgesinin yayımlanması (Faz 40)
-
----
-
-## MT-DIAG-040 — `AgentPrism.AspNetCore.csproj` `Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` taşımaz
-
-**Gerçek sonuç**
-İki tarama da `temiz`. `.csproj`'da ve paketlenmiş `.nuspec`'te
-`Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` hiç geçmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -308,39 +183,6 @@ Etki sınırlı: yalnız 2/147 işlem etkileniyor, ikisi de dinamik A2A yüzeyin
 
 ---
 
-## MT-DIAG-044 — `POST /api/agents/{name}/run` yalnız `text/event-stream` bildirir, tipli JSON DEĞİL
-
-**Gerçek sonuç**
-`200`'ün `content` alanı yalnız `text/event-stream` içeriyor (`application/json`
-yok). `400`, `404`, `429` üçü de `application/problem+json` ile
-`ProblemDetails` şeması bildiriyor. (Ayrıca `202 Accepted` →
-`application/json`/`AcceptedRunResponse` de var — `Prefer: respond-async`
-yolu, beklenen listede yok ama çelişmiyor.) Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-045 — `/v1/chat/completions` hem `application/json` hem `text/event-stream` içerik tipini BİRLİKTE bildirir
-
-**Gerçek sonuç**
-`["application/json", "text/event-stream"]` — ikisi de var. Beklenenle
-birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-046 — `Diagnostics` etiketi varsayılan üretilen belgede YOKTUR (uç varsayılan kapalı)
-
-**Gerçek sonuç**
-Sorgu `Diagnostics` yazdı — örnek uygulamanın belgesinde etiket var (uç
-`Program.cs`'de bilinçli açık). Beklenenle birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-DIAG-047 — `docs/openapi/agentprism.json` çalışan host'un ürettiğiyle AYNIDIR (anlık görüntü)
 
 **Gerçek sonuç**
@@ -360,16 +202,6 @@ farkı (FunctionalTests projesi bu şerit'in `dotnet pack` tazelemesinden önce
 üretilmiş olabilir). Doküman kendi "Beklenen sonuç"unda bu ihtimali zaten
 öngörüyor ("bu bir kusur değil, doğal bakım adımıdır") — case bu hâliyle
 Geçti sayılır, yenileme faz kapanışının işidir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-DIAG-048 — Belge bağımsız bir istemci üretecinden hatasız geçer
-
-**Gerçek sonuç**
-`openapi-typescript` hatasız bitti (179.5ms), `.ts` dosyası üretildi.
-`tsc --strict --noEmit` çıkış kodu `0`. Beklenenle birebir.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

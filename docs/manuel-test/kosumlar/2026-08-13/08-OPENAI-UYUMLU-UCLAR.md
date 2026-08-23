@@ -10,207 +10,59 @@
 
 ---
 
-## MT-COMPAT-001 — `model` alanından agent seçilir, mutlu yol
-
-**Gerçek sonuç**
-`HTTP: 200`. `id: "chatcmpl-..."`, `object: "chat.completion"`. `choices[0].message.role: "assistant"`, `finish_reason: "stop"`. `usage` dolu (`prompt_tokens:219, completion_tokens:8, total_tokens:227`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-002 — `metadata.entity_id` ile agent seçilir (DevUI konvansiyonu)
-
-**Gerçek sonuç**
-`HTTP: 200` — `metadata.entity_id` (`support`) `model`'e (`gorunmez-model-adi`) öncelik taşıdı, `choices[0].message` dolu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-COMPAT-003 — Ne `model` ne `metadata.entity_id` verilirse `400`
-
-**Gerçek sonuç**
-`HTTP: 400`. Gövde `{"error":{"message":"...","type":"invalid_request_error"}}` biçiminde (`ProblemDetails` değil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-004 — Bilinmeyen agent `404` + `model_not_found`
-
-**Gerçek sonuç**
-`HTTP: 404`, `error.type: "model_not_found"`, `error.message: "'hic-boyle-bir-agent' adinda bir agent yok."`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-005 — `messages` boş dizi ise `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `error.message: "'messages' bos olamaz."`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-006 — Bozuk JSON gövdesi `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `error.message` `"Govde cozumlenemedi:"` ile başlıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-007 — Parçalı içerik (`content` dizi biçimi) birleştirilir
-
-**Gerçek sonuç**
-`HTTP: 200`. Yanıt `ORD-1001 siparişiniz kargoya verilmiş...` — iki metin parçası birleşti, `get_order_status` çağrıldı. Çapraz doğrulama: `/api/runs?agentName=support&take=1` → `status: Completed`, `eventCount: 6` (tool çağrısı olayları dahil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-008 — `developer` rolü `system`'e eşlenir
-
-**Gerçek sonuç**
-`HTTP: 200`. Yanıt `"tamam"` — `developer` talimatı izlendi, istek reddedilmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-009 — Tool çağrısı tel biçiminde görünmez, ama çalıştırma kaydına düşer
-
-**Gerçek sonuç**
-Adım 2: gövdede `tool_calls`/`function_call` alanı yok, yalnız `choices[0].message.content` düz metin ve `ORD-1001` içeriyor. Adım 3: `/api/runs` en üst kaydı `status: Completed`, `eventCount: 6` (tool çağrısı olayları tel biçiminden dışlandı ama kayıtlara düştü).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-010 — `usage` alanları `snake_case` döner
-
-**Gerçek sonuç**
-Çıktı tam olarak `['prompt_tokens', 'completion_tokens', 'total_tokens']` — snake_case.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-011 — Akışlı yanıt: ilk çerçeve `role` deltası, biten işaret `[DONE]`
-
-**Gerçek sonuç**
-`content-type: text/event-stream`. İlk çerçeve `"delta":{"role":"assistant"}` (content alanı yok/null). Sonraki çerçeveler `"content":"..."` parçaları. Son iki çerçeve `"finish_reason":"stop"` ve `data: [DONE]`. Her çerçevenin `object` alanı `"chat.completion.chunk"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-012 — Akış durumsuzdur: hiçbir oturum/konuşma oluşmaz
-
-**Gerçek sonuç**
-Adım 1 ve 4'te oturum sayısı **aynı** (`0 -> 0`) — akışsız ve akışlı çağrılar `sessions` tablosuna hiçbir satır eklemedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-013 — `Idempotency-Key` tekrarı önbellekten döner
-
-**Gerçek sonuç**
-İlk yanıtta `Idempotency-Replayed` başlığı yok. İkinci yanıtta `Idempotency-Replayed: true` var. İki gövde birebir aynı (`AYNI GOVDE` yazdırıldı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-014 — Aynı `Idempotency-Key`, farklı gövde → `422`
-
-**Gerçek sonuç**
-`HTTP: 422`, `title: "Idempotency-Key farkli bir istek icin kullanilmis"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-015 — `Idempotency-Key` + `stream: true` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Akisli istekte Idempotency-Key desteklenmiyor"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-016 — Aynı tel biçimi gerçek bir Anthropic agent'ıyla da çalışır
-
-**Gerçek sonuç**
-`HTTP: 200`. Gövde MT-COMPAT-001 ile birebir aynı şemada (`object: "chat.completion"`, `choices[0].message`, `usage`) — sağlayıcı (Anthropic) gövde biçiminden anlaşılmıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — `POST /v1/responses` (oturum destekli)
-
----
-
-## MT-COMPAT-017 — `model` alanından agent seçilir, mutlu yol
-
-**Gerçek sonuç**
-`HTTP: 200`. Gövde OpenAI Responses bicimindedir: `id: "resp_..."`, `object: "response"`, `output`, `status: "completed"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-018 — `metadata.entity_id` ile agent seçilir
-
-**Gerçek sonuç**
-`HTTP: 200` - `model` hic verilmedi, dogrudan `metadata.entity_id` kullanildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-019 — Agent seçilmezse `400` + bilinen agent listesi
-
-**Gerçek sonuç**
-`HTTP: 400`. `error.message` "Kayitli agent'lar: " dizgisini ve `support` dahil tum kayitli adlari iceriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-020 — Bilinmeyen agent `404` + bilinen agent listesi
-
-**Gerçek sonuç**
-`HTTP: 404`, `error.type: "model_not_found"`. `error.message` hem "'hic-boyle-bir-agent' adinda bir agent yok." hem "Kayitli agent'lar: " metnini iceriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-021 — `conversation` alanı oturumu o kimlikle saklar (K-043)
-
-**Gerçek sonuç**
-Ilk cagrinin id (resp_GSs7...) manuel-conv-021'den farkli. Ikinci cagri HTTP 200, id: manuel-conv-021, agentName: support tasiyan bir SessionRecord gosterdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-022 — `previous_response_id` geçmişi zincirler
-
-**Gerçek sonuç**
-Ikinci yanit Az once sordugunuz siparis numarasi ORD-1001 - model ilk turun gecmisini gordu. GET /api/sessions/RID1 bu kimlikte oturum kaydi gosterdi (saklama kimligi ilk yanit kimligi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Temiz geçen case'ler (38)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-COMPAT-001 | ☑ | `model` alanından agent seçilir, mutlu yol |
+| MT-COMPAT-002 | ☑ | `metadata.entity_id` ile agent seçilir (DevUI konvansiyonu) |
+| MT-COMPAT-003 | ☑ | Ne `model` ne `metadata.entity_id` verilirse `400` |
+| MT-COMPAT-004 | ☑ | Bilinmeyen agent `404` + `model_not_found` |
+| MT-COMPAT-005 | ☑ | `messages` boş dizi ise `400` |
+| MT-COMPAT-006 | ☑ | Bozuk JSON gövdesi `400` |
+| MT-COMPAT-007 | ☑ | Parçalı içerik (`content` dizi biçimi) birleştirilir |
+| MT-COMPAT-008 | ☑ | `developer` rolü `system`'e eşlenir |
+| MT-COMPAT-009 | ☑ | Tool çağrısı tel biçiminde görünmez, ama çalıştırma kaydına düşer |
+| MT-COMPAT-010 | ☑ | `usage` alanları `snake_case` döner |
+| MT-COMPAT-011 | ☑ | Akışlı yanıt: ilk çerçeve `role` deltası, biten işaret `[DONE]` |
+| MT-COMPAT-012 | ☑ | Akış durumsuzdur: hiçbir oturum/konuşma oluşmaz |
+| MT-COMPAT-013 | ☑ | `Idempotency-Key` tekrarı önbellekten döner |
+| MT-COMPAT-014 | ☑ | Aynı `Idempotency-Key`, farklı gövde → `422` |
+| MT-COMPAT-015 | ☑ | `Idempotency-Key` + `stream: true` → `400` |
+| MT-COMPAT-016 | ☑ | Aynı tel biçimi gerçek bir Anthropic agent'ıyla da çalışır |
+| MT-COMPAT-017 | ☑ | `model` alanından agent seçilir, mutlu yol |
+| MT-COMPAT-018 | ☑ | `metadata.entity_id` ile agent seçilir |
+| MT-COMPAT-019 | ☑ | Agent seçilmezse `400` + bilinen agent listesi |
+| MT-COMPAT-020 | ☑ | Bilinmeyen agent `404` + bilinen agent listesi |
+| MT-COMPAT-021 | ☑ | `conversation` alanı oturumu o kimlikle saklar (K-043) |
+| MT-COMPAT-022 | ☑ | `previous_response_id` geçmişi zincirler |
+| MT-COMPAT-024 | ☑ | Akışlı yanıt OpenAI olay adlarını kullanır, `[DONE]` YOKTUR |
+| MT-COMPAT-025 | ☑ | Gömülü `data:` URI bir eke çevrilir, sohbet geçmişine gömülmez |
+| MT-COMPAT-030 | ☑ | `Idempotency-Key` + `stream: true` `/v1/responses`'ta da `400` |
+| MT-COMPAT-031 | ☑ | Boş gövdeyle oluşturma: `conv_` önekli kimlik döner |
+| MT-COMPAT-032 | ☑ | Metadata ile oluşturma: yalnız metin alanları geri döner |
+| MT-COMPAT-033 | ☑ | Bozuk gövde sessizce yutulmaz, `400` döner |
+| MT-COMPAT-034 | ☑ | Kullanılmamış konuşma `GET`'i `200` boş döner, `404` DEĞİL |
+| MT-COMPAT-035 | ☑ | Kullanılmış konuşmanın `created_at`'i oturum oluşturma zamanını yansıtır |
+| MT-COMPAT-037 | ☑ | Silme, altındaki oturumu da siler |
+| MT-COMPAT-038 | ☑ | Kullanılmamış bir konuşmayı silmek hata değil, `deleted: false` döner |
+| MT-COMPAT-040 | ☑ | Öge listesi mesaj/tool çağrısı/tool sonucu sırasını korur |
+| MT-COMPAT-042 | ☑ | Kullanılmamış konuşmada öge listesi boş dizi döner |
+| MT-COMPAT-045 | ☑ | `responses.create` + `responses.stream` + `previous_response_id` zinciri |
+| MT-COMPAT-046 | ☑ | `conversations.create/retrieve/items.list/delete` zinciri |
+| MT-COMPAT-047 | ☑ | `chat.completions.create` (akışlı/akışsız) + `NotFoundError` yakalama |
+| MT-COMPAT-048 | ☑ | `Authorization` başlığı eksikse `401` |
+
+## Ayrıntı taşıyan case'ler (11)
 
 ## MT-COMPAT-023 — Konuşma kimliğine çapraz kiracı erişimi `404` döner
 
@@ -220,24 +72,6 @@ Ikinci yanit Az once sordugunuz siparis numarasi ORD-1001 - model ilk turun gecm
 ---
 
 **GECTI (Aile Q, bu kosum).** Kok neden yapisaldi: `ISessionStore.GetAsync` UCUN DORDUNUN (InMemory + Postgres/Sqlite/SqlServer) hepsinde ambient kiraciyle filtreleniyordu, dolayisiyla capraz kiraci sorusu hicbir zaman dogru cevaplanamiyordu. Duzeltme: yeni `ISessionStore.GetOwnerTenantIdAsync(sessionId)` metodu eklendi - kiraci filtresi UYGULAMADAN kaydin gercek sahibini doner (InMemory: `_sessions` anahtarlarini tarar; SQL: yeni `SelectSessionOwner` sorgusu, `WHERE id = @id` - `tenant_id` filtresi YOK). `OpenAICompatSupport.IsOwnedByTenantAsync` artik bunu kullaniyor; `OpenAIResponsesEndpoints.cs`'in zaten cagirdigi bu ortak yardimci sayesinde `/v1/responses` da otomatik duzeldi. Canlı Postgres'e karsi yeniden uretildi (gecici `mt_fin_q` semasi): ikinci cagri (kiraci-beta, ayni conversation kimligi) artik `HTTP 404` + `error.type: not_found_error` donuyor; kiraci-alfa'nin oturumu (`GET /api/sessions/manuel-conv-023-q`) YENI bir tur ALMADAN, orijinal 2 mesajla degismeden kaldi. Regresyon: `SessionStoreContract.GetOwnerTenantIdAsync_ambient_kiraciden_bagimsiz_gercek_sahibi_doner` (4 saglayicida da kosar) + `OpenAIConversationsCrossTenantTests.Konusma_kimligine_capraz_kiraci_responses_cagrisi_404_doner`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-024 — Akışlı yanıt OpenAI olay adlarını kullanır, `[DONE]` YOKTUR
-
-**Gerçek sonuç**
-Ilk event: satiri response.created. Akis event: response.completed ile bitti. data: [DONE] hicbir yerde gecmedi. Her cerceve event: alani tasiyor (12 event satiri).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-025 — Gömülü `data:` URI bir eke çevrilir, sohbet geçmişine gömülmez
-
-**Gerçek sonuç**
-/api/attachments?sessionId=manuel-conv-025 listesinde mediaType: image/png tasiyan bir kayit var. Sohbet gecmisinde ham base64 verisi YOK; yalniz api/attachments/{id} bicimli bir referans var.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -343,64 +177,6 @@ Regresyon testleri: `OpenAICompatTests.Responses_onay_bekleyen_tool_cagrisini_ou
 
 ---
 
-## MT-COMPAT-030 — `Idempotency-Key` + `stream: true` `/v1/responses`'ta da `400`
-
-**Gerçek sonuç**
-HTTP: 400, title: Akisli istekte Idempotency-Key desteklenmiyor - MT-COMPAT-015 ile ayni filtre, ayni davranis.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — `/v1/conversations*` (kimlik rezervasyonu ve yaşam döngüsü)
-
----
-
-## MT-COMPAT-031 — Boş gövdeyle oluşturma: `conv_` önekli kimlik döner
-
-**Gerçek sonuç**
-HTTP: 200. id conv_ oneki + 32 hane hex ile basliyor. object: conversation, metadata alani govdede yok (bos govdede metadata yoksayildi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-032 — Metadata ile oluşturma: yalnız metin alanları geri döner
-
-**Gerçek sonuç**
-metadata yalniz {"kaynak":"manuel-test"} icerdi - sayi_alani ve bool_alani sessizce dustu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-033 — Bozuk gövde sessizce yutulmaz, `400` döner
-
-**Gerçek sonuç**
-HTTP: 400, error.message Govde cozumlenemedi: ile basliyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-034 — Kullanılmamış konuşma `GET`'i `200` boş döner, `404` DEĞİL
-
-**Gerçek sonuç**
-HTTP: 200, id verilen kimlikle ayni, object: conversation, created_at simdiki zamana yakin.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-035 — Kullanılmış konuşmanın `created_at`'i oturum oluşturma zamanını yansıtır
-
-**Gerçek sonuç**
-created_at (1786622404) session'in olusturma zamaniyla (2026-08-13T12:00:04) tutarli - rezervasyon degil, /v1/responses'ta dogdu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-COMPAT-036 — Konuşma `GET`'ine çapraz kiracı erişimi `404` döner
 
 **Gerçek sonuç**
@@ -409,24 +185,6 @@ created_at (1786622404) session'in olusturma zamaniyla (2026-08-13T12:00:04) tut
 ---
 
 **GECTI (Aile Q, bu kosum).** `RetrieveAsync` artik `sessions.GetAsync`'ten ONCE, `OpenAICompatSupport.IsOwnedByTenantAsync` (yeni `ISessionStore.GetOwnerTenantIdAsync` uzerinden, kiraci filtresi UYGULAMADAN) ile sahiplik denetimi yapiyor - dosyanin kendi local `IsOwnedByTenant` yardimcisi (olu koddu, `record` zaten hep null geliyordu) kaldirildi. Kok neden ve tasarim: MT-COMPAT-023'un notuna bakiniz. Canlı Postgres'e karsi yeniden uretildi: `GET /v1/conversations/manuel-conv-036-q` kiraci-beta basligiyla artik `HTTP 404` + `error.type: not_found_error` donuyor; ayni ID'yi kiraci-alfa kendi basligiyla sorguladiginda (negatif kontrol) `HTTP 200` olarak dogru calismaya devam ediyor. Regresyon: `OpenAIConversationsCrossTenantTests.Konusma_GET_ucuna_capraz_kiraci_erisimi_404_doner`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-037 — Silme, altındaki oturumu da siler
-
-**Gerçek sonuç**
-DELETE yaniti {"id":"manuel-conv-037","object":"conversation.deleted","deleted":true}. Ardindan GET /api/sessions/manuel-conv-037 HTTP 404.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-038 — Kullanılmamış bir konuşmayı silmek hata değil, `deleted: false` döner
-
-**Gerçek sonuç**
-HTTP: 200, deleted: false - kisa devre dogrulandi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -445,28 +203,10 @@ HTTP: 200, deleted: false - kisa devre dogrulandi.
 
 ---
 
-## MT-COMPAT-040 — Öge listesi mesaj/tool çağrısı/tool sonucu sırasını korur
-
-**Gerçek sonuç**
-data dizisi sirayla message, function_call (get_order_status), function_call_output, message icerdi. function_call ve function_call_output'un call_id alanlari eslesti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-COMPAT-041 — `limit` parametresi kırpar, `has_more` kırpma olduğunda `true` döner (düzeltildi)
 
 **Gerçek sonuç**
 limit=2 ile data tam 2 oge tasidi, has_more: true (gercek toplam 4, kirpma dogru isaretlendi) - fix regresyonu yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-042 — Kullanılmamış konuşmada öge listesi boş dizi döner
-
-**Gerçek sonuç**
-HTTP: 200, data: [], has_more: false.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -500,50 +240,6 @@ Bu bölüm [`00-INDEKS.md`](../../00-INDEKS.md)'nin ortam tablosundaki *"Python 
 `openai` istemcisi ile uyumluluk doğrulanır"* maddesini karşılar. K-036/K-043
 kararları bu akışı `openai` **2.52.0** ile bir kez ölçtü (üretim oturumunda);
 bu case'ler insan tarafından **yeniden** koşulur.
-
----
-
-## MT-COMPAT-045 — `responses.create` + `responses.stream` + `previous_response_id` zinciri
-
-**Gerçek sonuç**
-Ilk yanit ORD-1001 icerdi. Akis bolumu response.created ile basladi, response.completed ile bitti, 12 event, istisna yok. Zincirlenmis yanit ORD-1001'i yeniden icerdi (gecmis korundu). Stok openai 3.0.0 SDK ile tam uyumlu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-046 — `conversations.create/retrieve/items.list/delete` zinciri
-
-**Gerçek sonuç**
-conv.id conv_ ile basladi. items.data en az bir message turu icerdi (2 mesaj: kullanici + asistan). deleted.deleted True. Hicbir adimda SDK istisnasi firlamadi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-COMPAT-047 — `chat.completions.create` (akışlı/akışsız) + `NotFoundError` yakalama
-
-**Gerçek sonuç**
-Ilk yanit ORD-1001 icerdi. Akis kesintisiz metin yazdirdi, istisna yok. NotFoundError yakalandi, status_code 404 - resmi SDK model_not_found zarfini dogru esledi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Erişim denetimi (temsilci set)
-
-Loopback/uzak erişim ve API anahtarı kapsamlarının derinlemesine matrisi
-`13-KIRACI-VE-GUVENLIK.md`'nindir. Burada yalnız iki temsilci case var:
-`v1/*` uçlarının da aynı `AgentPrismEndpointFilter`'dan geçtiğinin kanıtı.
-
----
-
-## MT-COMPAT-048 — `Authorization` başlığı eksikse `401`
-
-**Gerçek sonuç**
-HTTP: 401.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
