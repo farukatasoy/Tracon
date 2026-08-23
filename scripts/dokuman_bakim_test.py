@@ -775,5 +775,33 @@ class GecmiseTasimaTestleri(unittest.TestCase):
         self.assertEqual(dokuman_bakim._gecmise_tasinan_metin("  Düz metin.  "), "Düz metin.")
 
 
+class DizinButcesiTestleri(unittest.TestCase):
+    """`HARIC` muafiyeti ve üçlü anahtar."""
+
+    def test_arsiv_butcesi_SIFIR_olcmez(self):
+        # 🚨 `_dizin_boyutu("docs/arsiv", True)` varsayılan `haric_uygula=True`
+        # ile HARIC'i uygular ve `docs/arsiv` KENDİNİ düşürüp 0 döner. Yeni
+        # bütçeler `haric_uygula=False` ile ölçülmezse sessizce anlamsız olur.
+        self.assertEqual(dokuman_bakim._dizin_boyutu("docs/arsiv", True), 0)
+        self.assertGreater(dokuman_bakim._dizin_boyutu("docs/arsiv", True, haric_uygula=False), 0)
+
+    def test_butce_anahtarlari_UCLU(self):
+        for anahtar in dokuman_bakim.DIZIN_BUTCESI:
+            self.assertEqual(len(anahtar), 3, anahtar)
+            self.assertIsInstance(anahtar[2], bool)
+
+    def test_muaf_agaclarin_hepsinin_butcesi_var(self):
+        # Fazın tezi: muaf tutulan her ağaç KENDİ bütçesini alır.
+        butceli = {a[0] for a in dokuman_bakim.DIZIN_BUTCESI}
+        for h in dokuman_bakim.HARIC:
+            self.assertIn(h, butceli, f"{h} muaf ama bütçesiz")
+
+    def test_damitilmis_faz_kayitlari_butcede(self):
+        import pathlib as _p
+        for f in (_p.Path("docs/arsiv/fazlar")).glob("[0-9][0-9]-*.md"):
+            self.assertLessEqual(len(f.read_bytes()),
+                                 dokuman_bakim.DAMITILMIS_FAZ_BUTCESI, f.name)
+
+
 if __name__ == "__main__":
     unittest.main()

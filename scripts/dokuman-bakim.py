@@ -106,7 +106,9 @@ YONETIM_BUTCESI = {
     # dustu. Bu bir buyume olayi degil, kalibrasyon hatasiydi: sinir fazin
     # SONUNDAKI boyuta gore konur. K-214'un "butce buyutulmez" sozu var olan
     # bir sinirin asilmasi icindir; burada sinir ilk kez konuyor.
-    "docs/KARARLAR.md": 475_000,           # olculen 398_967 (faz kapanisindan sonra)
+    # Faz 90: 475_000 -> 380_000. `karar-damit` 482 satirin gerekcesini
+    # `KARARLAR-GECMISI.md`ye tasidi; olculen 321_691 (+%15 bosluk).
+    "docs/KARARLAR.md": 380_000,           # olculen 321_691
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 
@@ -133,10 +135,30 @@ HAFIZA_DOSYA_BUTCESI = 16_000
 HARIC = ("docs/arsiv", "docs/manuel-test/kosumlar", "docs/kesif")
 
 DIZIN_BUTCESI = {
-    # (yol, ozyinelemeli mi) -> sinir.  Olculen deger 2026-08-16.
-    ("docs/manuel-test", False): 1_950_000,  # olculen 1_646_886 (yalniz spec)
-    ("docs", True): 5_000_000,               # olculen 4_206_267 (haric'ler dusuldu)
+    # (yol, ozyinelemeli mi, HARIC dusulsun mu) -> sinir.
+    #
+    # Faz 90 (K-6xx): `HARIC` KALIR -- kaldirilirsa arsivlemek sayaci
+    # dusurmez ve tek cikis SILMEK olur (`AGENTS.md`: "icerik silinmez").
+    # Kusur muafiyet degil, muafiyetin SINIRSIZ olmasiydi: olculdu, `docs/`un
+    # %62'si (89.569 satir) hicbir tavana tabi degildi. Cozum: muaf tutulan
+    # HER AGAC KENDI BUTCESINI ALIR. Damitma bunu odenebilir kildi -- arsiv
+    # faz basina ~41 KB buyurken artik ~9 KB buyuyor.
+    #
+    # Sinirlar 2026-08-23'te OLCULEN degere %15 bosluk eklenerek konuldu
+    # (58.4 kalibrasyonu), tahminle degil. Hicbiri BUYUTULMEDI: ikisi
+    # dusuruldu, ucu ILK KEZ konuyor (K-214'un emsali: `MIMARI-GUVENLIK.md`).
+    ("docs/manuel-test", False, True): 1_950_000,   # DEGISMEDI; olculen 1_746_526.
+                                                    # olculen/0.85 = 2.05M olurdu --
+                                                    # K-214: var olan sinir BUYUTULMEZ.
+    ("docs", True, True):             3_030_000,    # 5_000_000'DEN DUSURULDU; olculen 2_568_376
+    ("docs/arsiv", True, False):      3_020_000,    # YENI; olculen 2_559_766
+    ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
+    ("docs/kesif", True, False):        260_000,    # YENI; olculen 219_746
 }
+
+# Damitilmis faz kaydi basina tavan: dizin butcesi TOPLAMI frenler, bu tek bir
+# fazin sismesini yakalar. Olculen max 26_068 (`04-HTTP-API.md`) + %16.
+DAMITILMIS_FAZ_BUTCESI = 31_000
 
 # Bir butcenin en az bu kadari bos kalmali; asagisi "DAR" olarak isaretlenir
 # (hata degil, erken uyari). Faz 58.0'in tum sicak yol dosyalarina koydugu hedef.
@@ -765,8 +787,14 @@ def _faz_commitleri(n: int) -> list[str]:
     return list(reversed(bulunan[:n]))
 
 
-def _commit_boyutu(commit: str, hedef: str, dizin: bool, ozyinelemeli: bool) -> int:
-    """Bir kalemin o commit'teki bayti. Dizinse HARIC dusulur."""
+def _commit_boyutu(commit: str, hedef: str, dizin: bool, ozyinelemeli: bool,
+                   haric_uygula: bool = True) -> int:
+    """Bir kalemin o commit'teki bayti.
+
+    🚨 `haric_uygula` `_dizin_boyutu` ile AYNI anlamda gecirilmelidir. Faz 90'a
+    kadar HARIC kosulsuz dusuluyordu; `docs/arsiv` icin projeksiyon KENDINI
+    dusurup her zaman 0 olcer ve "buyumuyor" derdi -- yeni arsiv butcesi icin
+    kalan faz tahmini SESSIZCE anlamsiz olurdu."""
     if not dizin:
         satir = _git("ls-tree", "-l", commit, hedef)
         return int(satir[0].split()[3]) if satir and satir[0].split()[3] != "-" else 0
@@ -778,7 +806,7 @@ def _commit_boyutu(commit: str, hedef: str, dizin: bool, ozyinelemeli: bool) -> 
         yol = parca[4].strip()
         if not yol.endswith(".md"):
             continue
-        if any(yol == h or yol.startswith(h + "/") for h in HARIC):
+        if haric_uygula and any(yol == h or yol.startswith(h + "/") for h in HARIC):
             continue
         if not ozyinelemeli and "/" in yol[len(hedef) + 1:]:
             continue
@@ -792,24 +820,25 @@ def projeksiyon(faz_sayisi: int = 6) -> int:
         print("Projeksiyon: yeterli `phase N` commit'i bulunamadı.")
         return 0
 
-    kalemler: list[tuple[str, str, bool, bool, int]] = [
-        (y, y, False, False, s) for y, s in BUTCE.items()
+    kalemler: list[tuple[str, str, bool, bool, int, bool]] = [
+        (y, y, False, False, s, True) for y, s in BUTCE.items()
     ] + [
-        (f"{y}/{'**' if oz else '*'}.md", y, True, oz, s)
-        for (y, oz), s in DIZIN_BUTCESI.items()
+        (f"{y}/{'**' if oz else '*'}.md", y, True, oz, s, h)
+        for (y, oz, h), s in DIZIN_BUTCESI.items()
     ]
 
     print(f"Büyüme projeksiyonu — son {len(commitler)} faz commit'i")
     print(f"{'kalem':<30} {'bayt/faz':>9} {'boşluk':>9}  kalan faz")
     uyari = []
-    for ad, hedef, dizin, oz, sinir in kalemler:
-        ilk = _commit_boyutu(commitler[0], hedef, dizin, oz)
-        son = _commit_boyutu(commitler[-1], hedef, dizin, oz)
+    for ad, hedef, dizin, oz, sinir, haric in kalemler:
+        ilk = _commit_boyutu(commitler[0], hedef, dizin, oz, haric)
+        son = _commit_boyutu(commitler[-1], hedef, dizin, oz, haric)
         if not ilk or not son:
             continue
         hiz = (son - ilk) / (len(commitler) - 1)
         p2 = ROOT / hedef
-        simdi = _dizin_boyutu(hedef, oz) if dizin else (len(p2.read_bytes()) if p2.exists() else 0)
+        simdi = (_dizin_boyutu(hedef, oz, haric_uygula=haric) if dizin
+                 else (len(p2.read_bytes()) if p2.exists() else 0))
         bosluk = sinir - simdi
         if hiz <= 0:
             print(f"{ad:<30} {int(hiz):>9} {bosluk:>9}  büyümüyor")
@@ -1424,10 +1453,25 @@ def denetle() -> int:
         dar += int(not asti and _dar_mi(len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI))
 
     print(f"\nCanlı geliştirme dokümanları (hariç: {', '.join(HARIC)})")
+    kayitlar = sorted((ROOT / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md"))
+    if kayitlar:
+        asan = [(p2.name, len(p2.read_bytes())) for p2 in kayitlar
+                if len(p2.read_bytes()) > DAMITILMIS_FAZ_BUTCESI]
+        enb = max(len(p2.read_bytes()) for p2 in kayitlar)
+        print(f"\nDamıtılmış faz kaydı — dosya başına (bütçe {DAMITILMIS_FAZ_BUTCESI})")
+        print(f"  {len(kayitlar)} kayıt · en büyük {enb} B · "
+              f"{'✅ hepsi bütçede' if not asan else f'❌ {len(asan)} kayıt aşıyor'}")
+        for ad, n in asan[:5]:
+            print(f"  {ad} {n} B")
+        hata |= int(bool(asan))
+
     print(f"{'dizin':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
-    for (yol, ozyinelemeli), sinir in DIZIN_BUTCESI.items():
+    for (yol, ozyinelemeli, haric), sinir in DIZIN_BUTCESI.items():
         ad = f"{yol}/{'**' if ozyinelemeli else '*'}.md"
-        n = _dizin_boyutu(yol, ozyinelemeli)
+        # 🚨 `haric` gecilmezse `_dizin_boyutu` HARIC'i kosulsuz duser ve
+        # `docs/arsiv` KENDINI dusurup 0 olcer -- yeni butceler sessizce
+        # anlamsiz olurdu.
+        n = _dizin_boyutu(yol, ozyinelemeli, haric_uygula=haric)
         s, asti = _satir(ad, n, sinir)
         hata |= asti
         dar += int(not asti and _dar_mi(n, sinir))
