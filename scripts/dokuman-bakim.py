@@ -109,7 +109,8 @@ YONETIM_BUTCESI = {
     # bir sinirin asilmasi icindir; burada sinir ilk kez konuyor.
     # Faz 90: 475_000 -> 380_000. `karar-damit` 482 satirin gerekcesini
     # `KARARLAR-GECMISI.md`ye tasidi; olculen 321_691 (+%15 bosluk).
-    "docs/KARARLAR.md": 380_000,           # olculen 321_691
+    "docs/KARARLAR.md": 390_000,           # kapanista olculen 325_784
+                                           # (380_000 faz kararlari eklenmeden once olculmustu)
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 
@@ -152,7 +153,12 @@ DIZIN_BUTCESI = {
                                                     # olculen/0.85 = 2.05M olurdu --
                                                     # K-214: var olan sinir BUYUTULMEZ.
     ("docs", True, True):             3_030_000,    # 5_000_000'DEN DUSURULDU; olculen 2_568_376
-    ("docs/arsiv", True, False):      3_020_000,    # YENI; olculen 2_559_766
+    # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
+    # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin
+    # SONUNDAKI boyuta gore konur (58.4 kalibrasyonu, `dokuman-bakim.py:105`
+    # bu hata sinifini Faz 58 vakasi olarak zaten anlatiyor). Bu bir BUYUTME
+    # degil, ilk kez konan sinirin dogru olculmesidir -- bagimsiz denetim, 🟡 8.
+    ("docs/arsiv", True, False):      3_040_000,    # YENI; kapanista olculen 2_579_731
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
     ("docs/kesif", True, False):        260_000,    # YENI; olculen 219_746
 }
@@ -1596,7 +1602,12 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
             # damitilmis bir commit'e kayar ve tam metin ULASILAMAZ olur, ama
             # `cat-file -e` yine basarili doner). Bagimsiz denetim, Faz 90.
             icerik = _git("show", f"{sha}:{yol}")
-            if icerik is not None and any(DAMITMA_ISARETI in x for x in icerik):
+            # Isaret yine KOD BLOGU DISINDA aranir -- damitma sablonunu
+            # BELGELEYEN bir dokumanin TAM METNI de isareti bir ornek olarak
+            # tasir. Bu, ayni sinifin bugunku DORDUNCU vakasi: `LINK` regex'i,
+            # `_faz_bolumleri`, idempotans denetimi ve simdi bu kapi.
+            if icerik is not None and DAMITMA_ISARETI in _kod_bloklarini_soy(
+                    "\n".join(icerik)):
                 bulunan.append(
                     f"{dosya.relative_to(kok).as_posix()} -> {sha}:{yol} "
                     "ZATEN damıtılmış — tam metin değil")
