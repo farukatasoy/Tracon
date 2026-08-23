@@ -176,6 +176,26 @@ kayıttır. Tam metin:
 - **F-134** Eşzamanlı tool çağrısını açığa çıkar → [Faz 81](arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 - **F-112** Cache ve reasoning token kırılımı → [Faz 68](arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 
+### F-146 · Sürüm-sabitli MAF imza kayıtları damıtmada düşüyor
+
+**Nereden geldi:** Faz 90 bağımsız denetimi, 🟢 bulgu 9.
+
+**Kanıt:** `_DUS_DESENLERI[0]` (`^(Doğrulanmış|Kullanılan).*\b(API|İmza)`) yedi
+fazın reflection ile doğrulanmış MAF imza bölümünü düşürüyor — ör. Faz 13'ün
+"MAF 1.16.0 — ikinci kez doğrulandı" bölümü. Koddaki gerekçe "`maf-api-kesfi`
+yeniden üretir"; bu **bugünkü** MAF sürümü için doğru, **sabitlenmiş eski bir
+sürümün** imzası için değil. O sürüm artık kurulu değilse imza geri getirilemez.
+
+**Neden şimdi değil:** Tam metin git geçmişinde ve `tam_metin_denetle()` bunu
+her koşumda kanıtlıyor — kayıp değil, bir tık daha uzakta. Politika bilinçli ve
+koda gerekçesiyle yazılı.
+
+**İş:** `_DUS_DESENLERI`'ne sürüm numarası içeren başlıklar için istisna
+(`MAF 1.16.0` gibi bir sürüm damgası taşıyan bölüm KALIR), ya da o bölümlerin
+`docs/hafiza/maf-api.md`'ye sürüm damgasıyla taşınması. Ölçüm: 7 faz.
+
+---
+
 ## C. Güvenlik, yönetişim ve uyum
 
 ### F-72 · Agent Control Specification (ACS) uyumu — ERTELENDİ (2026-08-06). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).

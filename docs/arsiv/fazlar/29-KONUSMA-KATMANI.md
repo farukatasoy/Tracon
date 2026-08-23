@@ -17,7 +17,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 7f1833e:docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
+> git show efd5247:docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -48,6 +48,100 @@ Bu yüzden yetenek **isteğe bağlıdır**: `UseVoiceConversation()` çağrılma
 > yoktur ve istek **404** alır. Faz 28'in `/api/voice/*` uçları 501 döner çünkü
 > onlar her zaman bağlanır — buradaki uç bağlanmaz. Ayrımı test koruyor:
 > `UseVoiceConversation_cagrilmadiysa_HICBIR_uc_acilmaz`.
+
+---
+
+## 29.0 — Plandan Sapmalar
+
+Beş sapma var; hepsi ölçümle veya kuralla gerekçelendirildi.
+
+### S1 — 🚨 Konuşma katmanı `AgentPrism.Voice`'ta **değil**, `Core`'da
+
+Plan "Paketler: `AgentPrism.Voice` (genişler)" diyordu. **Yanlış.** Boru hattı
+(Seçenek A) yalnızca `ISpeechTranscriber` ve `ISpeechSynthesizer`
+soyutlamalarını kullanır; ElevenLabs'e hiç dokunmaz. Katman `AgentPrism.Voice`'a
+konsaydı iki şey olurdu:
+
+1. `AgentPrism.AspNetCore` konuşma ucunu sunmak için `AgentPrism.Voice`'a
+   referans vermek zorunda kalırdı — **paket yönü kuralı** bunu yasaklar.
+2. Kendi cözüm/sentez uygulamasını kaydeden bir tüketici, kullanmadığı ElevenLabs
+   paketini kurmak zorunda kalırdı.
+
+**Yapıldı.** Sürücü `AgentPrism.Core/Voice/`, sözleşmeler
+`AgentPrism.Abstractions/Voice/`, uç `AgentPrism.AspNetCore/Voice/`.
+`AgentPrism.Voice` bu fazda **hiç değişmedi**. Karar K-222.
+
+### S2 — Artımlı transkript **yok**; `IStreamingSpeechTranscriber` yazılmadı
+
+Faz 28'in devir notu artımlı çözümü ayrı bir arayüz olarak öneriyordu. Kullanıcı
+kararıyla **tek atımlı** yol seçildi: istemci `commit` gönderir, sunucu biriken
+sesi tek bir `TranscribeAsync` çağrısıyla çözer ve `transcript{final:true}`
+yollar.
+
+Gerekçe: artımlı çözüm sağlayıcının realtime STT WebSocket'ini gerektirir ve o
+sözleşme **gerçek abonelik olmadan doğrulanamaz** (Faz 28'de taklit uçla iki
+belirsizlik zaten açık kaldı). Uygulaması olmayan bir arayüz yazmak da ölü
+soyutlama üretirdi.
+
+Sonuç: geçici (interim) transkript yoktur ve bu [29.7](#297--sağlanamayan-şeyler-dürüstlük-bölümü)'ye yazıldı.
+Protokoldeki `final` alanı yerinde durur; hep `true` gelir.
+
+### S3 — `PersistAudio` yalnız **agent'ın ürettiği sesi** saklar
+
+Plan "ses `attachments`'a yazılır" diyordu, yönü söylemiyordu. Kullanıcının sesi
+**hiçbir zaman** saklanmaz:
+
+- Ses **biyometrik veridir**; söylenenin kaydı zaten oturum geçmişindeki
+  transkripttir. İkinci bir kopya risk ekler, bilgi eklemez.
+- Tarayıcı WebM/Opus üretir ve `AttachmentTypeGuard` EBML imzasını tanımaz.
+  Tanıması için sihirli bayt listesine EBML eklemek gerekirdi; bu, `audio/*`
+  beyaz listesi üzerinden **video WebM**'i de ek yüklemesine açardı. Denetleyici
+  bu fazda hiç değişmedi.
+
+Denetim izi açısından değerli olan taraf zaten agent'ın söyledikleridir.
+Karar K-225.
+
+### S4 — Sunucu `UseWebSockets()`'i **kendisi** kurar
+
+Kestrel `IHttpWebSocketFeature` sağlamaz; onu `WebSocketMiddleware` kurar.
+Tüketiciden ayrıca `app.UseWebSockets()` istemek `MapAgentPrism`'in **tek giriş
+noktası** olma kuralını (K1) bozardı ve hata yalnızca ilk konuşma denemesinde
+görünürdü.
+
+`MapAgentPrism` ara yazılımı **yalnızca** sürücü kayıtlıyken ve `endpoints` bir
+`IApplicationBuilder` iken kurar. Zaten kuruluysa ikinci örnek
+`IHttpWebSocketFeature`'ı dolu bulur ve dokunmadan geçer. Karar K-223.
+
+### S5 — Elle kapatma düğmesi eklendi (`Send now`)
+
+Plan yalnız istemci VAD'i öngörüyordu. Sessizlik tespiti gürültülü bir ortamda
+**hiç tetiklenmez**; ayrıca bas-konuş isteyen kullanıcı duraklama beklemek
+zorunda kalır. Arayüz dinlerken bir "Send now" düğmesi gösterir; düğme kaydediciyi
+durdurur ve `commit` aynı yoldan gider.
+
+Yan fayda: E2E testi bunu kullanır — Chromium'un sahte ses cihazı **sürekli ton**
+üretir ve hiç susmaz, dolayısıyla VAD ile test edilemez.
+
+---
+
+## 29.7 — Sağlanamayan Şeyler (dürüstlük bölümü)
+
+- **Artımlı (geçici) transkript yoktur.** Transkript konuşma bitince, tek
+  parça hâlinde gelir (S2)
+- **Telefon (SIP/PSTN) entegrasyonu yoktur**
+- **Ses klonlama ve ses ile kimlik doğrulama yoktur**
+- **Gürültü bastırma ve yankı giderme tarayıcıya bırakılmıştır**
+  (`echoCancellation`, `noiseSuppression` kısıtları)
+- **Çok konuşmacılı ayrıştırma yoktur**
+- **Kullanıcının sesi hiçbir zaman saklanmaz** (S3)
+- **Ses dakikası bir kota birimi değildir.** Koruma bağlantı sayısı, bağlantı
+  süresi ve parça süresi sınırlarından gelir; `QuotaEnforcer` token ve çalıştırma
+  saymaya devam eder. Her tur bir `runs` satırı ürettiği için token kotası zaten
+  işler (kullanıcı kararı)
+- **Yapışkan oturum gerekir.** Bağlantı bir sunucu örneğine bağlıdır; dağıtık
+  durum kapsam dışıdır
+- **Gecikme sağlayıcıya bağlıdır** — aşağıdaki ölçüm sağlayıcı gecikmesini
+  **içermez**
 
 ---
 

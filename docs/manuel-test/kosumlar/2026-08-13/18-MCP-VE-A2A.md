@@ -14,8 +14,11 @@
 > Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
 > `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
 > bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
-> her case'in bloğu AYNEN durur. Tam metin:
-> `git log --follow -- <bu dosya>`
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show efd5247:docs/manuel-test/kosumlar/2026-08-13/18-MCP-VE-A2A.md
+> ```
 
 ---
 
