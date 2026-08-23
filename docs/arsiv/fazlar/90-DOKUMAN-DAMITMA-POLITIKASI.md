@@ -1,13 +1,13 @@
 # Faz 90 — Doküman Damıtma Politikası
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 20** (F numarası yok; kullanıcı doğrudan seçti)
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 20** (F numarası yok; kullanıcı doğrudan seçti)
 > **Önkoşul:** Yok
 > **Paketler:** Yok — bu faz `scripts/`, `docs/` ve `.agents/skills/` üzerinde çalışır
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — bu faz C# koduna dokunmaz
 > **Tüketici yüzeyi:** Yok (site sayfası değişmez) · sevk edilen metin değişmez
-> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](manuel-test/33-DOKUMAN-KAPILARI.md) — yeni kapılar oraya eklenir
+> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md) — yeni kapılar oraya eklenir
 
 ---
 
@@ -26,16 +26,16 @@
    bir koşum kaydıdır, spec değil), **K-523** (kapanmış faz dokümanları
    `docs/arsiv/fazlar/`'a taşındı — bu fazın devraldığı zemin), **K-524**
    (`MIMARI.md` §7 ayrıldı; ilk kez konan sınıra %15 boşluk kuralı)
-3. [`arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md`](arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md) — yalnız devir notu:
+3. [`arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md`](80-DOKUMAN-KAPILARININ-DOGRULUGU.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md
    ```
    "Kapı sessizce yeşil kalıyordu" sınıfını o faz kapattı; bu faz aynı sınıfın
    iki yeni vakasını (çapa denetimi, tazelik) kapatır.
 4. Alan hafızası (bu faz tek alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (yayın hattı, üretilen
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (yayın hattı, üretilen
    sayfalar, `docs/` ↔ `docs-site/` sınırı)
-5. Gerektiğinde, tamamı değil ilgili bölümü: [`arsiv/fazlar/INDEKS.md`](arsiv/fazlar/INDEKS.md)
+5. Gerektiğinde, tamamı değil ilgili bölümü: [`arsiv/fazlar/INDEKS.md`](INDEKS.md)
    ("Neden burada" bölümü — 5 MB dizin bütçesinin nasıl aşılmak üzere olduğunu anlatır)
 
 ---
@@ -58,13 +58,13 @@ geçmişinde kalır ve her CI koşumunda çözülebilirliği kanıtlanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`scripts/dokuman-bakim.py:123`](../scripts/dokuman-bakim.py#L123) | `HARIC` üç ağacı dizin bütçesinden düşer; o üç ağaç (89.569 satır) **hiçbir tavana tabi değil** |
+| [`scripts/dokuman-bakim.py:123`](../../../scripts/dokuman-bakim.py#L123) | `HARIC` üç ağacı dizin bütçesinden düşer; o üç ağaç (89.569 satır) **hiçbir tavana tabi değil** |
 | `--denetle` çıktısı, 2026-08-23 | "denetim dışı arşiv + koşum kaydı: **5.324.346 B** — sınırı etkilemez" |
-| [`scripts/dokuman-bakim.py:594`](../scripts/dokuman-bakim.py#L594) | `LINK` regex'i çapayı (`#slug`) yakalar ama **doğrulamaz** — çapa hedefi silinse kapı yeşil kalır |
+| [`scripts/dokuman-bakim.py:594`](../../../scripts/dokuman-bakim.py#L594) | `LINK` regex'i çapayı (`#slug`) yakalar ama **doğrulamaz** — çapa hedefi silinse kapı yeşil kalır |
 | `docs/KARARLAR.md` ↔ `docs/arsiv/KARARLAR-GECMISI.md` | **18 sarkan işaretçi**: K-176, K-198, K-210, K-211, K-212, K-218, K-239, K-389, K-390, K-391, K-400, K-405, K-407, K-422, K-505, K-506, K-508, K-526 — "Tam gerekçe: GECMISI — K-NNN" diyor, GECMISI'de o başlık **yok** |
 | 12-kelimelik shingle ölçümü | `KARARLAR-GECMISI.md`'nin **%36'sı** `KARARLAR.md`'de birebir tekrar; 358 karar iki yerde tam gerekçeli |
 | `--denetle` çıktısı, 2026-08-23 | `docs/hafiza/` altında **7 dosya DAR**; `cekirdek-calistirma.md` 15.999/16.000 ve `sql-saglayicilari.md` 15.984/16.000 → **%0 boş** |
-| [`.github/workflows/ci.yml:131`](../.github/workflows/ci.yml#L131) | CI yalnız `--denetle` koşuyor; **üretim modu koşulmuyor** → dört üretilen dosya bayat commit edilebilir, hiçbir kapı söylemez |
+| [`.github/workflows/ci.yml:131`](../../../.github/workflows/ci.yml#L131) | CI yalnız `--denetle` koşuyor; **üretim modu koşulmuyor** → dört üretilen dosya bayat commit edilebilir, hiçbir kapı söylemez |
 | `grep -c "shutil\|os.rename\|.unlink" scripts/dokuman-bakim.py` | **0** — taşıma/damıtma otomasyonu yok; `faz-tamamlama` bunu elle yaptırıyor |
 | 91 faz dokümanı, bölüm sayımı | `Planlanan Public API` (4.114 satır) + `Planlanan Dosya Listesi` (1.754) + `Bu Faza Başlarken` (2.060) = **7.928 satır** kapanışta tanımı gereği ölü |
 
@@ -102,14 +102,14 @@ kılar (arşiv faz başına ~41 KB → ~9,4 KB).
 ## 90.2 — Damıtılmış faz kaydının şablonu
 
 Başlık bloğu ve `> **Durum:**` satırı **yerinde kalır** — `yol_haritasi_uret()`
-([`dokuman-bakim.py:419-486`](../scripts/dokuman-bakim.py#L419-L486)) onları
+([`dokuman-bakim.py:419-486`](../../../scripts/dokuman-bakim.py#L419-L486)) onları
 okur. Dosya adı ve yolu değişmez; 613 bağlantının tamamı dosya düzeyindedir.
 
 ```markdown
 # Faz 85 — Gömme Ekseni
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-140**
+> **Kaynak:** [ADAYLAR.md](../../../../ADAYLAR.md) · **F-140**
 > **Paketler:** `AgentPrism.Abstractions` · `AgentPrism.AspNetCore` · `docs-site/`
 > **DoD:** 14/14 ✅ · **Denetim:** 🔴 0 · 🟡 3 (düzeltildi) · **Kararlar:** K-579
 
@@ -157,9 +157,9 @@ bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı o
    "Kapı sessizce yeşil kalıyordu" sınıfını o faz kapattı; bu faz aynı sınıfın
    iki yeni vakasını (çapa denetimi, tazelik) kapatır.
 4. Alan hafızası (bu faz tek alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (yayın hattı, üretilen
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (yayın hattı, üretilen
    sayfalar, `docs/` ↔ `docs-site/` sınırı)
-5. Gerektiğinde, tamamı değil ilgili bölümü: [`arsiv/fazlar/INDEKS.md`](arsiv/fazlar/INDEKS.md)
+5. Gerektiğinde, tamamı değil ilgili bölümü: [`arsiv/fazlar/INDEKS.md`](INDEKS.md)
    ("Neden burada" bölümü — 5 MB dizin bütçesinin nasıl aşılmak üzere olduğunu anlatır)
 
 ---
@@ -182,13 +182,13 @@ geçmişinde kalır ve her CI koşumunda çözülebilirliği kanıtlanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`scripts/dokuman-bakim.py:123`](../scripts/dokuman-bakim.py#L123) | `HARIC` üç ağacı dizin bütçesinden düşer; o üç ağaç (89.569 satır) **hiçbir tavana tabi değil** |
+| [`scripts/dokuman-bakim.py:123`](../../../scripts/dokuman-bakim.py#L123) | `HARIC` üç ağacı dizin bütçesinden düşer; o üç ağaç (89.569 satır) **hiçbir tavana tabi değil** |
 | `--denetle` çıktısı, 2026-08-23 | "denetim dışı arşiv + koşum kaydı: **5.324.346 B** — sınırı etkilemez" |
-| [`scripts/dokuman-bakim.py:594`](../scripts/dokuman-bakim.py#L594) | `LINK` regex'i çapayı (`#slug`) yakalar ama **doğrulamaz** — çapa hedefi silinse kapı yeşil kalır |
+| [`scripts/dokuman-bakim.py:594`](../../../scripts/dokuman-bakim.py#L594) | `LINK` regex'i çapayı (`#slug`) yakalar ama **doğrulamaz** — çapa hedefi silinse kapı yeşil kalır |
 | `docs/KARARLAR.md` ↔ `docs/arsiv/KARARLAR-GECMISI.md` | **18 sarkan işaretçi**: K-176, K-198, K-210, K-211, K-212, K-218, K-239, K-389, K-390, K-391, K-400, K-405, K-407, K-422, K-505, K-506, K-508, K-526 — "Tam gerekçe: GECMISI — K-NNN" diyor, GECMISI'de o başlık **yok** |
 | 12-kelimelik shingle ölçümü | `KARARLAR-GECMISI.md`'nin **%36'sı** `KARARLAR.md`'de birebir tekrar; 358 karar iki yerde tam gerekçeli |
 | `--denetle` çıktısı, 2026-08-23 | `docs/hafiza/` altında **7 dosya DAR**; `cekirdek-calistirma.md` 15.999/16.000 ve `sql-saglayicilari.md` 15.984/16.000 → **%0 boş** |
-| [`.github/workflows/ci.yml:131`](../.github/workflows/ci.yml#L131) | CI yalnız `--denetle` koşuyor; **üretim modu koşulmuyor** → dört üretilen dosya bayat commit edilebilir, hiçbir kapı söylemez |
+| [`.github/workflows/ci.yml:131`](../../../.github/workflows/ci.yml#L131) | CI yalnız `--denetle` koşuyor; **üretim modu koşulmuyor** → dört üretilen dosya bayat commit edilebilir, hiçbir kapı söylemez |
 | `grep -c "shutil\|os.rename\|.unlink" scripts/dokuman-bakim.py` | **0** — taşıma/damıtma otomasyonu yok; `faz-tamamlama` bunu elle yaptırıyor |
 | 91 faz dokümanı, bölüm sayımı | `Planlanan Public API` (4.114 satır) + `Planlanan Dosya Listesi` (1.754) + `Bu Faza Başlarken` (2.060) = **7.928 satır** kapanışta tanımı gereği ölü |
 
@@ -226,14 +226,14 @@ kılar (arşiv faz başına ~41 KB → ~9,4 KB).
 ## 90.2 — Damıtılmış faz kaydının şablonu
 
 Başlık bloğu ve `> **Durum:**` satırı **yerinde kalır** — `yol_haritasi_uret()`
-([`dokuman-bakim.py:419-486`](../scripts/dokuman-bakim.py#L419-L486)) onları
+([`dokuman-bakim.py:419-486`](../../../scripts/dokuman-bakim.py#L419-L486)) onları
 okur. Dosya adı ve yolu değişmez; 613 bağlantının tamamı dosya düzeyindedir.
 
 ```markdown
 # Faz 85 — Gömme Ekseni
 
 > **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-140**
+> **Kaynak:** [ADAYLAR.md](../../../../ADAYLAR.md) · **F-140**
 > **Paketler:** `AgentPrism.Abstractions` · `AgentPrism.AspNetCore` · `docs-site/`
 > **DoD:** 14/14 ✅ · **Denetim:** 🔴 0 · 🟡 3 (düzeltildi) · **Kararlar:** K-579
 
@@ -279,7 +279,7 @@ için tam metni aynı yolda veriyor (00–59 taşıması dahil; `7f1833e` doğru
 SHA damıtmadan **önce** hesaplanabilir — tavuk-yumurta yok.
 
 **İkincil: toplu etiket** `docs/damitma-oncesi-2026-08`. Eğik çizgili ad
-bilinçlidir: [`Directory.Packages.props:184`](../Directory.Packages.props#L184)
+bilinçlidir: [`Directory.Packages.props:184`](../../../Directory.Packages.props#L184)
 MinVer 7.0.0 kullanıyor ve sürümü git etiketinden türetiyor; `v*` desenli yayın
 etiketiyle çakışmamalıdır.
 
@@ -301,7 +301,7 @@ Spec dosyalarına (`docs/manuel-test/*.md`, 48.754 satır) **dokunulmaz**
 `### K-NNN` başlığıyla **eklenir**, *sonra* satır kısaltılır. Tek geçişte iki
 dosya yazılır ya da hiçbiri — ters sıra bir kesintide kalıcı kayıp bırakır.
 
-İşaretçi formatı **zaten var** ([`docs/KARARLAR.md:52`](KARARLAR.md)) ve 376
+İşaretçi formatı **zaten var** ([`docs/KARARLAR.md:52`](../../KARARLAR.md)) ve 376
 satırda uygulanmış; 374'ü hâlâ 400 B'nin üstünde. İş yeni format icat etmek
 değil, **var olan formata bayt tavanı ve kapı koymak**.
 
@@ -310,7 +310,7 @@ Tavan **450 B** (ölçüldü: 350 B → 182 satır iskeletiyle taşar; 600 B →
 
 🚨 **ASLA kesilmez:** `**K-NNN — başlık**` · tarih · yeniden açılma koşulu ·
 `(kullanıcı kararı)` · `yeniden açıldı`. `_kararlar_kalemleri()`
-([`dokuman-bakim.py:210-216`](../scripts/dokuman-bakim.py#L210-L216)) 👤/🔁
+([`dokuman-bakim.py:210-216`](../../../scripts/dokuman-bakim.py#L210-L216)) 👤/🔁
 işaretlerini bu metinlerden türetir; kesilirse indeks sessizce yanlış olur.
 
 ## 90.6 — Sıcak yol acili
@@ -357,7 +357,7 @@ sınırın aşılmasında büyütme" der; ilk kez sınır koymanın emsali
 
 🚨 **İki uygulama tuzağı:**
 1. `_dizin_boyutu("docs/arsiv", True)` bugün **0 döner** — `HARIC` varsayılanı
-   `docs/arsiv`'i kendisinden düşer ([`dokuman-bakim.py:365-372`](../scripts/dokuman-bakim.py#L365-L372)).
+   `docs/arsiv`'i kendisinden düşer ([`dokuman-bakim.py:365-372`](../../../scripts/dokuman-bakim.py#L365-L372)).
    Anahtar bu yüzden **üçlü** olmalı.
 2. `projeksiyon()` / `_commit_boyutu()` aynı hatayı yapar → yeni arşiv
    bütçeleri için hep "büyümüyor" der. Bayrak oraya da geçmeli.
@@ -437,7 +437,7 @@ MEMORY.md                       # yönlendirme tablosuna 3 yeni satır
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](manuel-test/33-DOKUMAN-KAPILARI.md)
+> Kapanışta [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md)
 > içine eklenecek. Hepsi komut tabanlıdır — otomatikleştirilebilir, kapanışta koşulur.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -576,7 +576,7 @@ Planın **iki mekanik kuralı ölçümle çürütüldü**; ikisi de aynı sını
    satıra çıkarınca dosya %1 boşluğa düştü. Tablo **alan sayısıyla**, tuzak
    listesi **öğrenilen dersle** büyür — iki eğri tek bütçede sıkışıyordu
    (`MIMARI.md` §7 ile aynı şekil, K-524). Tablo
-   [`docs/hafiza/00-INDEKS.md`](hafiza/00-INDEKS.md)'e taşındı ve **SORGU**
+   [`docs/hafiza/00-INDEKS.md`](../../hafiza/00-INDEKS.md)'e taşındı ve **SORGU**
    bağlamına kaydedildi: `faz-baslangic` Adım 1 onu okumaz, Adım 3 okur.
    `MEMORY.md` 7.521 → 5.233 B (%6 → %35 boş).
 
