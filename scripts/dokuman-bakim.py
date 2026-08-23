@@ -24,6 +24,7 @@ Bütçe aşılırsa çıkış kodu 1'dir.
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
 import pathlib
 import re
@@ -837,6 +838,225 @@ _URETILEN = (
 )
 
 
+# --- Faz dokumani damitmasi (Faz 90) -------------------------------------
+# Kapanmis bir faz dokumaninin ~%62'si PLANDIR ve kapanista olur: `Planlanan
+# Public API`yi `Gerceklesen` gecersizler, `Bu Faza Baslarken` bir OTURUM
+# TALIMATIDIR, `NN.x` is kalemleri planin govdesidir ve sonuc koddadir.
+# Damitma bunlari DUSURUR, tam metin git gecmisinde kalir ve `tam_metin_denetle`
+# her kosumda cozulebilirligini kanitlar.
+#
+# `Gerceklesen Public API` ve `Dosya Listesi` de duser: kod TEK KAYNAKTIR
+# (`PublicAPI.*.txt`), dokumandaki kopya bayatlar ve AKTIF OLARAK yaniltir;
+# `git show --stat <sha>` gercek listeyi birebir uretir.
+
+DAMITMA_ISARETI = "### ⚗️ Damıtılmış kayıt"
+
+_FAZ_DUS = {
+    "Bu Faza Başlarken", "Planlanan Public API", "Planlanan Dosya Listesi",
+    "Gerçekleşen Public API", "Dosya Listesi", "Riskler", "Testler",
+    "Açık Sorular", "Hata Modları ve Testler", "Manuel Kabul Case'leri",
+    # olculen takma adlar (Faz 90, 91 dosya tarandi)
+    "Riskler — kapanış durumu", "Oluşturulan / Değişen Dosyalar",
+    "Planlanan Dosya Listesi (gerçekleşen)", "Dosya Listesi (gerçekleşen)",
+}
+_FAZ_KAL = {
+    "Plandan Sapmalar", "🚨 Plandan Sapmalar", "Bu Fazda Verilen Kararlar",
+    "Bu Fazda Verilecek Kararlar", "Denetim Bulguları", "Sonraki Faza Devir Notu",
+}
+_FAZ_DOD_ADI = "Bitiş Ölçütleri"
+_FAZ_AMAC = {"Amaç", "Amaç ve Sonuç"}
+_IS_KALEMI = re.compile(r"^\d+\.\d+\b")
+AMAC_SINIRI = 400
+
+# Takma ad kurallari -- olculdu (Faz 90): 98 taninmayan H2 adi var ve cogu tek
+# bir fazda geciyor. Duz liste bayatlar; desen kalicidir. Yalniz KODDAN ya da
+# git'ten BIREBIR yeniden uretilebilen bolumler duser:
+#   * imza anlik goruntusu -- `maf-api-kesfi` skill'i reflection'la yeniden uretir
+#   * dosya listesi        -- `git show --stat <sha>` birebir verir
+#   * planlanan uc listesi -- `docs/openapi/agentprism.json` uretilir
+# Geri kalan HER SEY korunur (varsayilan KAL + RAPORLA).
+_DUS_DESENLERI = (
+    re.compile(r"^(Doğrulanmış|Kullanılan)\s+.*\b(API|İmza)", re.I),
+    re.compile(r"^(Gerçekleşen|Oluşturulan|Üretilen|Planlanan)\s+.*Dosya", re.I),
+    re.compile(r"^Yeni HTTP Uçları$", re.I),
+)
+
+
+def _duser_mu(ad: str, yalin: str) -> bool:
+    if _IS_KALEMI.match(ad) or ad in _FAZ_DUS or yalin in _FAZ_DUS:
+        return True
+    return any(d.match(ad) or d.match(yalin) for d in _DUS_DESENLERI)
+
+
+def _plan_dodu_mu(govde: str) -> bool:
+    """Isaretlenmemis kutu tasiyan ve HIC yesili olmayan DoD, planin kopyasidir:
+    kapanista guncellenmemistir. Yalniz ayni dosyada BASKA bir DoD varsa duser
+    (o zaman sonucu digeri tasir). Tek DoD ise KORUNUR -- isaretsiz kutu
+    gercek bilgidir (`24-SQLITE.md`: "AOT olculmedi")."""
+    return govde.count("- [ ]") > 0 and govde.count("✅") == 0 and "- [x]" not in govde
+
+
+def _faz_bolumleri(metin: str) -> tuple[str, list[tuple[str, str]]]:
+    """(ilk `## ` oncesi baslik blogu, [(H2 adi, govde)]).
+
+    Govde H2 satirini ICERIR; boylece korunan bir bolum bire bir geri yazilir.
+    Saf fonksiyon -- git veya dosya sistemi istemez."""
+    satirlar = metin.split("\n")
+    idx = [i for i, s in enumerate(satirlar) if s.startswith("## ")]
+    if not idx:
+        return metin, []
+    bas = "\n".join(satirlar[: idx[0]])
+    bolumler = []
+    for a, b in zip(idx, idx[1:] + [len(satirlar)]):
+        bolumler.append((satirlar[a][3:].strip(), "\n".join(satirlar[a:b]).rstrip("\n")))
+    return bas, bolumler
+
+
+def _amac_sikis(govde: str, sinir: int = AMAC_SINIRI) -> str:
+    """`Amaç` bolumunu CUMLE SINIRINDA kirpar. Karakter sinirinda kesmek
+    yarim cumle birakir; damitma okunabilirligi bozmamalidir."""
+    satirlar = govde.split("\n")
+    bas, govde_sat = satirlar[0], [s for s in satirlar[1:] if s.strip()]
+    duz = " ".join(" ".join(govde_sat).split())
+    if len(duz.encode()) <= sinir:
+        return f"{bas}\n\n{duz}" if duz else bas
+    parcalar = re.split(r"(?<=[.!?])\s+", duz)
+    tut: list[str] = []
+    for c in parcalar:
+        aday = " ".join(tut + [c])
+        if tut and len(aday.encode()) > sinir:
+            break
+        tut.append(c)
+    return f"{bas}\n\n{' '.join(tut)}"
+
+
+def _damitma_blogu(tam_sha: str, yol: str, bugun: str) -> str:
+    """Kaydin basina konan aciklama + tam metne goturen komutlar.
+    Komut satirlarinda `](` deseni YOKTUR -- `kirik_baglantilar()` yanlis
+    pozitif uretmesin diye kod blogu icinde ve duz metin olarak yazilir."""
+    return (
+        f"> {DAMITMA_ISARETI}\n"
+        "> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**\n"
+        "> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve\n"
+        "> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**\n"
+        ">\n"
+        "> Tam metin — kopyala, çalıştır:\n"
+        ">\n"
+        "> ```bash\n"
+        f"> git show {tam_sha}:{yol}\n"
+        "> ```\n"
+        ">\n"
+        f"> Damıtıldı {bugun} · `scripts/dokuman-bakim.py faz-damit`\n"
+    )
+
+
+def _faz_damit_metni(metin: str, *, tam_sha: str, yol: str,
+                     bugun: str) -> tuple[str, list[str]]:
+    """(damitilmis metin, uyarilar). Saf fonksiyon; SHA disaridan verilir.
+
+    Taninmayan bir H2 **DUSURULMEZ** -- korunur ve uyari uretir. Toplu bir
+    gecişte sessiz kayip yasaktir: olculdu (Faz 90), 103 taninmayan ad /
+    4.078 satir var ve iclerinde `## Açık Kalan`, `## 🚨 Ölçülen MAF
+    Davranışları` gibi kalici degerli bolumler bulunuyor."""
+    if DAMITMA_ISARETI in metin:
+        return metin, []                      # idempotent
+    bas, bolumler = _faz_bolumleri(metin)
+    if not bolumler:
+        return metin, [f"{yol}: `## ` bölümü yok, dokunulmadı"]
+
+    uyari: list[str] = []
+    tutulan: list[str] = []
+    dod_sayisi = sum(1 for ad, _ in bolumler if _FAZ_DOD_ADI in ad)
+    for ad, govde in bolumler:
+        yalin = re.sub(r"\s*\(.*?\)\s*$", "", ad).strip()
+        if _duser_mu(ad, yalin):
+            continue
+        if _FAZ_DOD_ADI in ad:
+            # DoD OZETLENMEZ: isaretsiz kutular gercek bilgidir (olculdu --
+            # 11 fazda tek DoD isaretsiz kutu tasiyor ve o kutu "AOT olculmedi"
+            # gibi kapanmamis bir isi kaydediyor). Yalniz AYNI dosyada baska
+            # bir DoD varken planin isaretsiz kopyasi duser (5 dosya).
+            if dod_sayisi > 1 and _plan_dodu_mu(govde):
+                continue
+            tutulan.append(govde)
+            continue
+        if ad in _FAZ_AMAC or yalin in _FAZ_AMAC:
+            tutulan.append(_amac_sikis(govde))
+            continue
+        tutulan.append(govde)
+        if ad not in _FAZ_KAL and yalin not in _FAZ_KAL:
+            uyari.append(f"{yol}: tanınmayan bölüm KORUNDU — `## {ad}`")
+
+    bas = bas.rstrip("\n")
+    govde = "\n\n".join(tutulan)
+    return f"{bas}\n\n{_damitma_blogu(tam_sha, yol, bugun)}\n---\n\n{govde}\n", uyari
+
+
+# --- Alt komutlar (Faz 90) -----------------------------------------------
+# `add_subparsers(dest=..., required=False)`: bayraksiz cagri ve `--denetle`
+# davranis DEGISTIRMEZ. CI sozlesmesi (`ci.yml:131`) aynen calisir.
+
+def _calisma_agaci_temiz(yollar: list[str]) -> str | None:
+    """Hedefler icin `git status --porcelain` bos mu. Bos degilse HATA MESAJI
+    doner ve hicbir dosyaya dokunulmaz: commit edilmemis bir duzenleme
+    damitmada yok olurdu ve git gecmisinde de olmadigi icin GERI GETIRILEMEZDI."""
+    ciktı = _git("status", "--porcelain", "--", *yollar)
+    if ciktı is None:
+        return "git çağrısı başarısız — damıtma çalışma ağacının temiz olduğunu kanıtlayamıyor"
+    if ciktı:
+        return "çalışma ağacı temiz değil; önce commit et:\n  " + "\n  ".join(ciktı[:10])
+    return None
+
+
+def _faz_dosyalari(secim: list[str]) -> list[pathlib.Path]:
+    kaynak = ROOT / "docs" / "arsiv" / "fazlar"
+    hepsi = sorted(kaynak.glob("[0-9][0-9]-*.md"))
+    if not secim:
+        return hepsi
+    return [p for p in hepsi if p.name.split("-", 1)[0] in {f"{int(x):02d}" for x in secim}]
+
+
+def komut_faz_damit(a: argparse.Namespace) -> int:
+    """Kapanmis faz dokumanlarini damitilmis kayda indirger."""
+    dosyalar = _faz_dosyalari(a.fazlar)
+    if not dosyalar:
+        print("Eşleşen faz dokümanı yok."); return 1
+    rel = [p.relative_to(ROOT).as_posix() for p in dosyalar]
+    if not a.kuru:
+        hata = _calisma_agaci_temiz(rel)
+        if hata:
+            print(f"❌ {hata}"); return 1
+
+    bugun = datetime.date.today().isoformat()
+    yazilan = 0; toplam_o = toplam_y = 0; uyarilar: list[str] = []
+    for p2 in dosyalar:
+        yol = p2.relative_to(ROOT).as_posix()
+        metin = p2.read_text(encoding="utf-8")
+        sha_satir = _git("log", "-1", "--format=%h", "--", yol)
+        if not sha_satir:
+            uyarilar.append(f"{yol}: tam metin commit'i bulunamadı — ATLANDI"); continue
+        yeni, u = _faz_damit_metni(metin, tam_sha=sha_satir[0], yol=yol, bugun=bugun)
+        uyarilar += u
+        toplam_o += len(metin.encode()); toplam_y += len(yeni.encode())
+        if yeni == metin:
+            continue
+        if not a.kuru:
+            p2.write_text(yeni, encoding="utf-8")
+        yazilan += 1
+        if a.ayrintili:
+            print(f"  {yol}  {len(metin.encode()):>7} → {len(yeni.encode()):>6} B")
+
+    print(f"\n{'(kuru) ' if a.kuru else ''}{yazilan}/{len(dosyalar)} dosya · "
+          f"{toplam_o:,} → {toplam_y:,} B  (-%{100 - 100 * toplam_y // max(toplam_o, 1)})")
+    if uyarilar:
+        print(f"\n{len(uyarilar)} uyarı — tanınmayan bölümler KORUNDU (düşürülmedi):")
+        for u in uyarilar[:20]:
+            print(f"  {u}")
+        if len(uyarilar) > 20:
+            print(f"  … +{len(uyarilar) - 20}")
+    return 0
+
+
 # --- Faz 90 kapilari -----------------------------------------------------
 # Ucu de `denetle()`ye katilir, boylece `.github/workflows/ci.yml` DEGISMEDEN
 # CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
@@ -1047,7 +1267,18 @@ def main() -> int:
     ap.add_argument("--taban", help="fazın başladığı commit; site denetimi bu aralığa bakar")
     ap.add_argument("--site-gerekce-yazildi", action="store_true",
                     help="site güncellemesi gerekmiyor; gerekçe faz dokümanına yazıldı")
+
+    # `required=False` (varsayilan): alt komut verilmezse ESKI akis aynen kosar.
+    alt = ap.add_subparsers(dest="komut")
+    fd = alt.add_parser("faz-damit", help="kapanmış faz dokümanını damıtılmış kayda indirge")
+    fd.add_argument("fazlar", nargs="*", help="faz numaraları; boşsa tümü")
+    fd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    fd.add_argument("--ayrintili", action="store_true", help="dosya dosya boyut bas")
+    fd.set_defaults(_calistir=komut_faz_damit)
+
     a = ap.parse_args()
+    if getattr(a, "_calistir", None):
+        return a._calistir(a)
 
     if a.site_denetle:
         return site_denetle(a.taban, a.site_gerekce_yazildi)

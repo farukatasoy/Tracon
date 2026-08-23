@@ -464,5 +464,147 @@ class TamMetinDenetleTestleri(unittest.TestCase):
             self.assertEqual(dokuman_bakim.tam_metin_denetle(pathlib.Path(d)), [])
 
 
+FAZ_ORNEK = """# Faz 42 — Örnek
+
+> **Durum:** ✅ Tamamlandı (2026-08-07)
+> **Paketler:** `AgentPrism.Core`
+
+## Bu Faza Başlarken
+
+Bunu oku, şunu oku.
+
+## Amaç
+
+Birinci cümle. İkinci cümle. Üçüncü cümle.
+
+## 42.1 — İlk tasarım
+
+Plan gövdesi.
+
+## Planlanan Public API
+
+```csharp
+public interface IX { }
+```
+
+## Gerçekleşen Public API
+
+```csharp
+public interface IX { void Y(); }
+```
+
+## Bitiş Ölçütleri (DoD)
+
+- [x] Bir ✅
+- [ ] AOT ölçülmedi
+
+## Plandan Sapmalar
+
+Plan A dedi, gerçek B çıktı.
+
+## Açık Kalan
+
+Gerçek sunucu koşturulamadı.
+
+## Sonraki Faza Devir Notu
+
+Şu sözleşmeyi devral.
+"""
+
+
+class FazBolumleriTestleri(unittest.TestCase):
+    def test_baslik_blogu_ve_bolumler_ayrilir(self):
+        bas, bol = dokuman_bakim._faz_bolumleri(FAZ_ORNEK)
+        self.assertIn("**Durum:**", bas)
+        self.assertNotIn("## ", bas)
+        self.assertEqual(bol[0][0], "Bu Faza Başlarken")
+        self.assertTrue(bol[0][1].startswith("## Bu Faza Başlarken"))
+
+    def test_bolumsuz_metin_bozulmaz(self):
+        bas, bol = dokuman_bakim._faz_bolumleri("# X\n\nyalnız gövde\n")
+        self.assertEqual(bol, [])
+        self.assertIn("yalnız gövde", bas)
+
+
+class FazDamitmaTestleri(unittest.TestCase):
+    def _damit(self, metin=FAZ_ORNEK):
+        return dokuman_bakim._faz_damit_metni(
+            metin, tam_sha="abc1234", yol="docs/arsiv/fazlar/42-X.md", bugun="2026-08-23")
+
+    def test_durum_satiri_damitmadan_sonra_AYNI_yerde(self):
+        # `yol_haritasi_uret()` bu iki satiri okur; kayarsa faz YOL-HARITASI'ndan
+        # sessizce duser ve hicbir hata verilmez.
+        yeni, _ = self._damit()
+        self.assertTrue(yeni.startswith("# Faz 42 — Örnek"))
+        self.assertRegex(yeni, r"(?m)^>\s*\*\*Durum:\*\*\s*✅ Tamamlandı")
+
+    def test_kalici_bolumler_BIRE_BIR_korunur(self):
+        yeni, _ = self._damit()
+        for b in ("## Plandan Sapmalar\n\nPlan A dedi, gerçek B çıktı.",
+                  "## Sonraki Faza Devir Notu\n\nŞu sözleşmeyi devral."):
+            self.assertIn(b, yeni)
+
+    def test_plan_bolumleri_duser(self):
+        yeni, _ = self._damit()
+        for d in ("## Bu Faza Başlarken", "## 42.1", "## Planlanan Public API",
+                  "## Gerçekleşen Public API"):
+            self.assertNotIn(d, yeni)
+
+    def test_tek_dodun_isaretsiz_kutusu_KORUNUR(self):
+        # `24-SQLITE.md` gercegi: "AOT olculmedi" kapanmamis bir isi kaydeder.
+        yeni, _ = self._damit()
+        self.assertIn("- [ ] AOT ölçülmedi", yeni)
+
+    def test_iki_dod_varsa_planin_isaretsiz_kopyasi_duser(self):
+        metin = FAZ_ORNEK.replace(
+            "## Bitiş Ölçütleri (DoD)\n\n- [x] Bir ✅\n- [ ] AOT ölçülmedi",
+            "## Bitiş Ölçütleri (DoD)\n\n- [ ] Plan kutusu\n\n"
+            "## Bitiş Ölçütleri (DoD) — sonuç\n\n- [x] Gerçekleşen ✅")
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertNotIn("Plan kutusu", yeni)
+        self.assertIn("Gerçekleşen ✅", yeni)
+
+    def test_taninmayan_bolum_DUSURULMEZ_uyari_uretir(self):
+        yeni, uyari = self._damit()
+        self.assertIn("## Açık Kalan", yeni)
+        self.assertTrue(any("Açık Kalan" in u for u in uyari))
+
+    def test_amac_cumle_sinirinda_kirpilir(self):
+        uzun = FAZ_ORNEK.replace("Birinci cümle. İkinci cümle. Üçüncü cümle.",
+                                 ("Kısa cümle. " + "Çok uzun bir cümle daha. " * 40).strip())
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            uzun, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        _, bol = dokuman_bakim._faz_bolumleri(yeni)
+        amac = next(g for a, g in bol if a == "Amaç")
+        self.assertLessEqual(len(amac.encode()), dokuman_bakim.AMAC_SINIRI + 120)
+        self.assertTrue(amac.rstrip().endswith("."), amac[-40:])
+
+    def test_tam_metin_komutu_yazilir(self):
+        yeni, _ = self._damit()
+        self.assertIn("git show abc1234:docs/arsiv/fazlar/42-X.md", yeni)
+
+    def test_uretilen_metinde_markdown_link_deseni_YOK(self):
+        # Damitma blogu `](` tasirsa `kirik_baglantilar()` yanlis pozitif uretir.
+        yeni, _ = self._damit()
+        blok = yeni[yeni.index(dokuman_bakim.DAMITMA_ISARETI):yeni.index("\n---\n")]
+        self.assertNotIn("](", blok)
+
+    def test_IDEMPOTENT(self):
+        bir, _ = self._damit()
+        iki, uyari = self._damit(bir)
+        self.assertEqual(bir, iki)
+        self.assertEqual(uyari, [])
+
+    def test_imza_anlik_goruntusu_ve_dosya_listesi_duser(self):
+        for baslik in ("## Doğrulanmış MAF API'si", "## Kullanılan MAF API'si (reflection)",
+                       "## Gerçekleşen Dosya Listesi", "## Üretilen Dosyalar",
+                       "## Yeni HTTP Uçları"):
+            metin = FAZ_ORNEK.replace("## Açık Kalan", f"{baslik}\n\nGÖVDE\n\n## Açık Kalan")
+            yeni, _ = dokuman_bakim._faz_damit_metni(
+                metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
+            self.assertNotIn("GÖVDE", yeni, baslik)
+
+
 if __name__ == "__main__":
     unittest.main()
