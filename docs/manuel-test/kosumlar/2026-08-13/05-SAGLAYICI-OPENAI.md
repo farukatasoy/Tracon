@@ -10,16 +10,51 @@
 
 ---
 
-## MT-OAI-001 — `UseOpenAI()` tek çağrıyla iki sağlayıcı kaydeder
-
-**Gerçek sonuç**
-`GET /api/models` yanıtı beş sağlayıcı döndü: `anthropic`, `google`, `openai`,
-`openai-responses`, `openrouter`. `openai` ve `openai-responses` ikisi de
-`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra` — aynı üç model, aynı sıra.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
+
+## Temiz geçen case'ler (30)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-OAI-001 | ☑ | `UseOpenAI()` tek çağrıyla iki sağlayıcı kaydeder |
+| MT-OAI-004 | ☑ | İkinci `UseOpenAI()` çağrısı sağlayıcıları çoğaltmaz |
+| MT-OAI-011 | ☑ | Sıfır veya negatif `Timeout` reddedilir |
+| MT-OAI-020 | ☑ | Katalog yalnız yapılandırmadan gelir ve `/api/models`'te görünür |
+| MT-OAI-022 | ☑ | Aynı ad iki kez tanımlanırsa son tanım kazanır |
+| MT-OAI-030 | ☑ | `openai-responses` yüzeyi PostgreSQL kalıcılığıyla çatışmaz |
+| MT-OAI-031 | ☑ | İki yüzey de `/api/models`'te bağımsız görünür ve aynı katalogu taşır |
+| MT-OAI-040 | ☑ | Tool çağrısı ile uçtan uca çalıştırma |
+| MT-OAI-041 | ☑ | Akış (SSE) üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-OAI-042 | ☑ | `Idempotency-Key` başlığı akışsız (tek JSON) yanıt üretir |
+| MT-OAI-050 | ☑ | `openrouter` adlandırılmış sağlayıcı olarak görünür |
+| MT-OAI-052 | ☑ | Endpoint verilmeyen adlandırılmış sağlayıcı doğrulama hatası verir |
+| MT-OAI-054 | ☑ | Responses yüzeyi varsayılan olarak KAYDEDİLMEZ |
+| MT-OAI-055 | ☑ | `EnableResponsesSurface = true` ikinci bir sağlayıcı kaydeder |
+| MT-OAI-056 | ☑ | Gerçek OpenRouter çağrısı: tool kullanımı |
+| MT-OAI-058 | ☑ | İki adlandırılmış sağlayıcı farklı adreslere bağlanır |
+| MT-OAI-070 | ☑ | Tüm sağlayıcılar `Healthy` döner |
+| MT-OAI-071 | ☑ | Bilinmeyen sağlayıcı adıyla sağlık sorgusu `404` döner |
+| MT-OAI-072 | ☑ | Önbellek TTL'si (60 sn) çalışır; `refresh=true` onu atlar |
+| MT-OAI-073 | ☑ | Erişilemeyen sağlayıcının hata detayında adres veya anahtar sızmaz |
+| MT-OAI-074 | ☑ | `/api/models`'in `status` alanı önbellekten gelir, ağ çağrısı yapmaz |
+| MT-OAI-080 | ☑ | Ardışık gerçek hatalar devreyi açar |
+| MT-OAI-081 | ☑ | Açık devre `/api/models/health`'te `Unhealthy` olarak yansır |
+| MT-OAI-082 | ☑ | Mola süresi dolunca yarı-açık tek deneme; başarılıysa devre kapanır |
+| MT-OAI-083 | ☑ | Devre kesici kapatılırsa (`Enabled=false`) hatalar sayılmaz |
+| MT-OAI-084 | ☑ | İçerik guard engellemesi devre kesici tarafından hata SAYILMAZ |
+| MT-OAI-090 | ☑ | API anahtarı hiçbir HTTP çıktısında görünmez |
+| MT-OAI-091 | ☑ | API anahtarı doğrulama/hata mesajlarında görünmez |
+| MT-OAI-092 | ☑ | `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz |
+| MT-OAI-093 | ☑ | Konsol günlüğünde API anahtarı görünmez |
+
+## Ayrıntı taşıyan case'ler (10)
 
 ## MT-OAI-002 — Bilinmeyen sağlayıcı adıyla çalıştırma anlaşılır hata verir
 
@@ -43,28 +78,6 @@ geldi — atlandı. Orijinal beklenti (`OpenAIChatClientFactory`'nin çalıştı
 anı mesajı) koddan farklı çıktı; yukarıda düzeltildi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-004 — İkinci `UseOpenAI()` çağrısı sağlayıcıları çoğaltmaz
-
-**Gerçek sonuç**
-`Program.cs:135`'e ikinci `agentPrism.UseOpenAI(openAi);` çağrısı geçici
-eklendi, derlendi, uygulama başlatıldı — çökme yok, `Now listening on:
-http://localhost:5083` normal çıktı. `GET /api/models` → `['anthropic',
-'google', 'openai', 'openai-responses', 'openrouter']` — `openai` ve
-`openai-responses` yalnız birer kez. Değişiklik `git checkout --
-samples/AgentPrism.Api/Program.cs` ile geri alındı (`git diff` boş
-doğrulandı), uygulama temiz haliyle yeniden derlenip başlatıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — Ayar doğrulama (`OpenAIProviderOptionsValidator`)
-
-Doğrulama açılışta (`ValidateOnStart`) çalışır; geçersiz bir ayar uygulamanın
-**hiç başlamamasına** yol açar.
 
 ---
 
@@ -104,21 +117,6 @@ OpenAIProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen deger:
 `tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
 `Yapilandirmadan_gelen_goreli_adres_reddedilir` (fix geri alınıp koşulduğunda
 KIRMIZI verdiği ampirik olarak doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-011 — Sıfır veya negatif `Timeout` reddedilir
-
-**Gerçek sonuç**
-`AgentPrism:Providers:OpenAI:Timeout=00:00:00` (env değişkeni) ile uygulama
-`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
-OpenAIProviderOptions.Timeout sifirdan buyuk olmalidir. Gelen deger:
-00:00:00.` ile çöktü, port `5083`'e hiç bağlanmadı. Mesaj birebir eşleşti.
-(MT-OAI-010'un aksine `Bind()` içindeki `TimeSpan.TryParse` "00:00:00"'ı
-geçerli bir `TimeSpan` olarak ayrıştırıp doğrudan atıyor, bu yüzden
-doğrulayıcıya sağlıklı ulaşıyor — Endpoint'teki gibi sessiz eleme yok.)
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -195,18 +193,6 @@ yapılandırmadan gelir ve bir **doğrulama listesi değildir**.
 
 ---
 
-## MT-OAI-020 — Katalog yalnız yapılandırmadan gelir ve `/api/models`'te görünür
-
-**Gerçek sonuç**
-`openai` sağlayıcısının `models` dizisi tam üç öge: `gpt-5.4-mini`,
-`gpt-5.6-luna`, `gpt-5.6-terra` — bu sıra alfabetik doğru (`5.4` <
-`5.6-l` < `5.6-t`). Üçünün de `supportsStructuredOutput:true`,
-`contextWindowTokens:null`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-OAI-021 — Katalogda olmayan bir model adı reddedilmez, yalnız günlüğe yazılır
 
 **Gerçek sonuç**
@@ -226,95 +212,6 @@ erişebildiği TÜM modeller `gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`
 DIŞINDA erişilebilir hiçbir sohbet modeli yok. Bu bir AgentPrism kusuru
 değil, hesabın model erişim kapsamı sınırlı; ürün davranışının kendisi
 (engellemeden iletme + log uyarısı) log kanıtıyla doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-022 — Aynı ad iki kez tanımlanırsa son tanım kazanır
-
-**Gerçek sonuç**
-`appsettings.json`'a `gpt-5.4-mini` için ikinci bir girdi (`DisplayName:
-"IKINCI TANIM"`, diğer alanlar boş) eklendi. `GET /api/models` →
-`openai` sağlayıcısında **3 model** (4 değil), `gpt-5.4-mini`'nin
-`displayName`'i `IKINCI TANIM` — son yazan kazandı, tek kayıt olarak
-göründü. Değişiklik `git checkout --
-samples/AgentPrism.Api/appsettings.json` ile geri alındı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Chat Completions ve Responses yüzeyleri
-
-`UseOpenAI()`'nin kaydettiği iki yüzey de aynı `OpenAIClient`'ı paylaşır ama
-farklı bir OpenAI API'sine gider. Bu bölüm S2 sapmasını (Responses API'nin
-sunucu tarafı depolamayı bilerek kapatması) gerçek bir PostgreSQL kurulumunda
-kanıtlar.
-
----
-
-## MT-OAI-030 — `openai-responses` yüzeyi PostgreSQL kalıcılığıyla çatışmaz
-
-**Gerçek sonuç**
-İki çalıştırma da `error` çerçevesi ÜRETMEDEN `done` ile bitti.
-`InvalidOperationException` görülmedi. İkinci çalıştırmanın metin
-içeriği `"47"` — ilk mesajdaki "sansli sayim 47" PostgreSQL
-kalıcılığından (`mt_s3` şeması) doğru hatırlandı, aynı `responseId`
-(OpenAI'ın kendi konuşma kimliği) İKİNCİ çalıştırmada FARKLIYDI
-(`resp_0715af...` → `resp_0d9606...`) — geçmiş OpenAI'ın kendi tarafında
-değil AgentPrism'in deposunda tutulduğunu doğruluyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-031 — İki yüzey de `/api/models`'te bağımsız görünür ve aynı katalogu taşır
-
-**Gerçek sonuç**
-Çıktı `True` — `openai` ve `openai-responses` sağlayıcılarının `models`
-listeleri birebir aynı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Gerçek OpenAI çağrısı, akış ve hata sınıflandırması
-
-Bu bölüm gerçek ağ çağrısı yapar ve ölçülebilir ücrete yol açar.
-
----
-
-## MT-OAI-040 — Tool çağrısı ile uçtan uca çalıştırma
-
-**Gerçek sonuç**
-Yanıt metni "ORD-1001 siparişiniz verilmiş... Tahmini teslimat: 2 gün."
-içeriyor. `get_order_status` tool'u tam bir kez `orderId:"ORD-1001"` ile
-çağrıldı (`id: 13` frame). `GET /api/runs/{runId}`: `status:"Completed"`,
-`usage.totalTokens:307` (null değil, pozitif). runId
-`019ffb8a-1386-763e-bf50-9a5f48e90f70`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-041 — Akış (SSE) üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-`Content-Type: text/event-stream` doğrulandı. Çerçeve sırası: 1× `event: run`
-(`data: {"runId":"019ffb8a-ab26-7284-a1b5-8b9472105044","sessionId":"oai-sse-01"}`,
-camelCase) → 5× `event: update` → 1× `event: done`
-(`data: {"sessionId":"oai-sse-01"}`). `event: error` hiç görünmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-042 — `Idempotency-Key` başlığı akışsız (tek JSON) yanıt üretir
-
-**Gerçek sonuç**
-`HTTP: 200`, `CT: application/json; charset=utf-8`. Gövde tek JSON nesnesi,
-`response.messages[0].contents[0].text:"tamam"` dolu. `usage.totalTokenCount:224`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -347,17 +244,6 @@ uca **adlandırılmış** bir sağlayıcı olarak bağlanma. Örnek uygulama bun
 
 ---
 
-## MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
-
-**Gerçek sonuç**
-`/api/models` listesi: `['anthropic','google','openai','openai-responses','openrouter']`
-— `openrouter-responses` yok. `openrouter`'ın `models` dizisi tek girdi taşıyor:
-`openai/gpt-5.4-mini`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-OAI-051 — Sağlayıcı adı doğrulaması: rezerve ad, geçersiz desen, 33. karakter
 
 **Gerçek sonuç**
@@ -386,18 +272,6 @@ binary'yi test etti (yanlış negatif, düzeltilip tekrarlandı).
 
 ---
 
-## MT-OAI-052 — Endpoint verilmeyen adlandırılmış sağlayıcı doğrulama hatası verir
-
-**Gerçek sonuç**
-`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
-OpenAIProviderOptions.Endpoint uyumlu saglayicilar icin zorunludur. Bos
-birakilirsa istek sessizce resmi OpenAI adresine giderdi. ...` — tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-OAI-053 — Anahtarsız yerel sağlayıcı (Ollama) — koşullu
 
 **Gerçek sonuç**
@@ -405,39 +279,6 @@ beklendiği gibi.
 makinede kurulu değil.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
-
----
-
-## MT-OAI-054 — Responses yüzeyi varsayılan olarak KAYDEDİLMEZ
-
-**Gerçek sonuç**
-Çıktı `False`. `/api/models` listesi `openrouter-responses` içermiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-055 — `EnableResponsesSurface = true` ikinci bir sağlayıcı kaydeder
-
-**Gerçek sonuç**
-Doküman'ın öngördüğü gibi `OpenAIProviderExtensions.Bind` `internal` olduğu
-için erişilemedi; genel `IConfiguration.Bind(object)` uzantı metoduyla
-(`openRouter.Bind(o); o.EnableResponsesSurface = true;`) değiştirildi —
-derlendi ve çalıştı. `/api/models`: `['anthropic','google','openai',
-'openai-responses','openrouter','openrouter-responses']` — çıktı `True`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-056 — Gerçek OpenRouter çağrısı: tool kullanımı
-
-**Gerçek sonuç**
-Yanıt metni "ORD-1002 siparişiniz kargoya verildi. Tahmini teslimat: 2 gün."
-içeriyor. `get_order_status` tam bir kez `orderId:"ORD-1002"` ile çağrıldı.
-`HTTP 402` görülmedi. runId `019ffb94-2556-7541-afdc-62887ada74a7`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -452,223 +293,5 @@ max_tokens. You requested up to 65536 tokens, but can only afford 8816. ..."`
 istemcisinin varsayılan `max_tokens=65536` göndermesi doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-058 — İki adlandırılmış sağlayıcı farklı adreslere bağlanır
-
-**Gerçek sonuç**
-`openai` sağlığı: 5 model (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`, ...)
-— `appsettings.json` katalogundaki 3 modelle sınırlı değil, hesabın ham
-listesi. `openrouter` sağlığı: 200 model (`aion-labs/aion-2.0`, ...). İki
-liste tamamen farklı — iki sağlayıcının farklı `Endpoint`'e bağlandığının
-ağ-seviyesi kanıtı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 7 — Sağlayıcı sağlık denetimi
-
-Denetim **ücret üretmez**: `GET {endpoint}/models`'e gider, model çağrısı
-yapmaz.
-
----
-
-## MT-OAI-070 — Tüm sağlayıcılar `Healthy` döner
-
-**Gerçek sonuç**
-Beş sağlayıcının hepsi (`anthropic`, `google`, `openai`, `openai-responses`,
-`openrouter`) `status:"Healthy"`, `latency` dolu (`00:00:0X.XXXXXXX`), `models`
-dizisi dolu (openai: 5, openrouter: 200, anthropic: 10, google: 49 model).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-071 — Bilinmeyen sağlayıcı adıyla sağlık sorgusu `404` döner
-
-**Gerçek sonuç**
-`HTTP: 404`. Gövde `ProblemDetails`: `title:"Saglayici bulunamadi"`,
-`detail:"'hic-boyle-bir-saglayici' adinda kayitli bir model saglayicisi
-yok."` — tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-072 — Önbellek TTL'si (60 sn) çalışır; `refresh=true` onu atlar
-
-**Gerçek sonuç**
-Çağrı 1: `00:00:10.0110195`. Çağrı 2: `00:00:10.0110195` (birebir aynı —
-önbellekten). Çağrı 3 (`refresh=true`): `00:00:01.0158424` (farklı —
-yeniden ölçüldü).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-073 — Erişilemeyen sağlayıcının hata detayında adres veya anahtar sızmaz
-
-**Gerçek sonuç**
-`status:"Unhealthy"`, `detail:"Baglanti hatasi (ConnectionError)."` —
-`ConnectionError` geçerli bir `HttpRequestError` kategorisidir (doküman
-örneği `ConnectionRefused` idi, gerçek kategori farklı ama aynı enum'dan).
-`grep -c` ile `127.0.0.1`, `59999`, `sk-cok-gizli-test-anahtari-12345`
-taraması: `0` — hiçbiri sızmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-074 — `/api/models`'in `status` alanı önbellekten gelir, ağ çağrısı yapmaz
-
-**Gerçek sonuç**
-İlk okuma: `openai` → `"Unknown"` (uygulama az önce başlatıldı, hiçbir
-`/health` çağrısı yapılmadan). `/api/models/health/openai` bir kez
-çağrıldıktan sonra ikinci okuma: `openai` → `"Healthy"`. İki `/api/models`
-çağrısı da hızlı: 0.026s ve altındaki python3 ayrıştırması dahil <0.1s.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — Devre kesici (`ModelProviderCircuitBreaker`)
-
-Varsayılan: `Enabled=true`, `FailureThreshold=5`, `BreakDuration=30sn`.
-Koşumu hızlandırmak için bu bölümdeki case'ler eşiği ve süreyi geçici olarak
-düşürür.
-
----
-
-## MT-OAI-080 — Ardışık gerçek hatalar devreyi açar
-
-**Gerçek sonuç**
-`dotnet user-secrets` yerine ortam değişkeni kullanıldı
-(`AgentPrism__CircuitBreaker__FailureThreshold=2`,
-`AgentPrism__CircuitBreaker__BreakDuration=00:00:20`) — şerit izolasyonu
-(KOSUM-PLANI §2.2, `user-secrets` deposu makine genelinde paylaşılıyor).
-Deneme 1 ve 2: gerçek OpenAI 404 (`ClientResultException`, `model_not_found`).
-Deneme 3: anında `event: error`,
-`type:"AgentPrismProviderUnavailableException"`,
-`message:"'openai' saglayicisi devre kesici tarafindan gecici olarak
-durduruldu (2 ardisik hata). 20 sn sonra yeniden denenecek."` — tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-081 — Açık devre `/api/models/health`'te `Unhealthy` olarak yansır
-
-**Gerçek sonuç**
-İlk koşumda breaker'ı tetikleyen üç denemeden sonra dokümantasyona yazma
-sırasında geçen süre `BreakDuration=20s`'yi aştı ve gecikmeli `refresh=true`
-çağrısı yanlışlıkla `Healthy` döndü (breaker zaten kapanmıştı — ölçüm
-hatası, ürün hatası değil). `BreakDuration=30s`'ye çıkarılıp deneme üçlüsü
-ile bu case'in kendi çağrısı **aynı komutta arka arkaya** koşularak
-tekrarlandı: `status:"Unhealthy"`,
-`detail:"Devre kesici acik. 29 sn sonra yeniden denenecek."` — tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-082 — Mola süresi dolunca yarı-açık tek deneme; başarılıysa devre kapanır
-
-**Gerçek sonuç**
-`BreakDuration=30s` doldurulup (`sleep 32`) `support` agent'ı çalıştırıldı:
-`event: run` → normal metin akışı ("tamam") → `event: done` — başarıyla
-tamamlandı, hata görülmedi. Ardından `GET /api/models/health/openai`:
-`status:"Healthy"`, `detail:null` — devre `Closed`'a döndü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-083 — Devre kesici kapatılırsa (`Enabled=false`) hatalar sayılmaz
-
-**Gerçek sonuç**
-`AgentPrism__CircuitBreaker__Enabled=false`, `FailureThreshold=1` ile üç
-deneme de gerçek OpenAI'a gitti — üçü de `ClientResultException`/
-`model_not_found` (404), `AgentPrismProviderUnavailableException` hiç
-görünmedi. `GET /api/models/health/openai`: `status:"Healthy"`,
-`detail:null` — ham sonuç, devre kesici katmanı eklenmemiş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-084 — İçerik guard engellemesi devre kesici tarafından hata SAYILMAZ
-
-**Gerçek sonuç**
-Beş çağrı da `event: error`, `type:"AgentPrismContentBlockedException"`,
-`message:"Icerik 'pattern' guard'i tarafindan engellendi (kural:
-denied-term, yon: Input)..."` ile bloklandı (`HTTP: 200` — SSE bağlantı
-seviyesinde). Altıncı (geçerli) çağrı normal tamamlandı: `run` → `update`
-("tamam") → `done`, hiçbir devre kesici belirtisi yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 9 — `secret` sızıntısı
-
-`ApiKey` hiçbir çıktıda, hiçbir günlükte, hiçbir hata mesajında görünmemelidir.
-
----
-
-## MT-OAI-090 — API anahtarı hiçbir HTTP çıktısında görünmez
-
-**Gerçek sonuç**
-Dört uç da (`/api/models`, `/api/models/health`, `/api/models/health/openai`,
-`/api/tools`) tarandı, `grep -c` sayımı hepsinde `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-091 — API anahtarı doğrulama/hata mesajlarında görünmez
-
-**Gerçek sonuç**
-Beş case'in kayıtlı "Gerçek sonuç" metinleri yeniden gözden geçirildi:
-MT-OAI-010 (`Endpoint=sadece-bir-yol` — sorunsuz başladı, anahtar yok),
-MT-OAI-011 (`OptionsValidationException: Timeout sifirdan buyuk olmalidir` —
-anahtar yok), MT-OAI-052 (`Endpoint ... zorunludur` — anahtar yok),
-MT-OAI-073 (`Baglanti hatasi (ConnectionError).` — anahtar yok, ayrıca
-`grep -c` ile doğrulandı). Hiçbirinde `sk-...` veya `sk-or-...` dizgisi yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OAI-092 — `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz
-
-**Gerçek sonuç**
-`HTTP: 200` (401/403 yok, 13 dosyasına not düşülmesi gerekmedi). `configuration`
-dizisinde `AgentPrism:Providers:OpenAI:ApiKey` **tam olarak bir kez**,
-`resolved:true`, `hint:null`. `openrouter`'a ait hiçbir girdi yok. `key`
-alanları yalnız ayar yolu adı taşıyor, gerçek değer hiçbir yerde yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Not.** `Admin` rolünün bu tokene gerçekte nasıl bağlandığı (rol sistemi
-> hiç kayıtlı değilse üç katmanlı düşüş: loopback + bearer token) koşumda
-> gözlemlenir ve gerekirse [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md)'ye
-> not düşülür — bu dosya yalnız OpenAI'a özgü rapor içeriğini sınar.
-
----
-
-## MT-OAI-093 — Konsol günlüğünde API anahtarı görünmez
-
-**Gerçek sonuç**
-Ayrı bir kısa koşum yerine, bu oturumun tüm §5–§9 çalıştırmalarını (onlarca
-gerçek OpenAI çağrısı dahil) kapsayan sürekli konsol logu (`s3-app.log`)
-tarandı — daha geniş kapsam. `grep -c "$ANAHTAR"` çıktısı `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `rm -f /tmp/ap-oai-log.txt`
 
 ---

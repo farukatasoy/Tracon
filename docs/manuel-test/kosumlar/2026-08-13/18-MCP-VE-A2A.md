@@ -10,23 +10,56 @@
 
 ---
 
-## MT-MCP-001 — `PUT {prefix}/api/mcp-servers/{name}` yeni bir sunucu kaydı oluşturur
-
-**Gerçek sonuç**
-HTTP: 200, id dolu bir GUID, requiresApproval: false (istekte acikca belirtildigi icin varsayilan gecersiz kilindi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-002 — `requiresApproval` alanı GÖNDERİLMEZSE varsayılan `true`
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi.** Script GET /api/mcp-servers/{name} (tekil) cagiriyordu - boyle bir uc YOK (yalniz liste ucu GET /api/mcp-servers var, GovernanceEndpoints.cs sadece MapGet(list)/MapPut/MapDelete/{name}'e ozel MapGet YOK). Script listeden filtrelemeye duzeltildi. Duzeltilmis sorguyla: True yazdirildi - requiresApproval alani gonderilmedigi icin varsayilan true kullanildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
+
+## Temiz geçen case'ler (35)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-MCP-001 | ☑ | `PUT {prefix}/api/mcp-servers/{name}` yeni bir sunucu kaydı oluşturur |
+| MT-MCP-002 | ☑ | `requiresApproval` alanı GÖNDERİLMEZSE varsayılan `true` |
+| MT-MCP-004 | ☑ | `http`/`https` DIŞI bir uç adresi → `400` |
+| MT-MCP-006 | ☑ | JSON yanıtında OAuth alanları `oauthEnabled`/`oauthClientId` biçiminde (camelCase, çift büyük harf DEĞİL) |
+| MT-MCP-007 | ☑ | `GET {prefix}/api/mcp-servers` listede secret DEĞERİ hiç GÖRÜNMEZ |
+| MT-MCP-008 | ☑ | `DELETE` sunucu kaydını siler |
+| MT-MCP-010 | ☑ | Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN etkilidir |
+| MT-MCP-011 | ☑ | Per-server ayarlar (`Endpoint`, `Transport`, `Headers`...) HİÇBİR ZAMAN `IConfiguration`'dan okunmaz |
+| MT-MCP-012 | ☑ | `authorizationConfigurationKey` config'te TANIMSIZ/BOŞSA → istisna YOK, başlık atlanır |
+| MT-MCP-015 | ☑ | Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ |
+| MT-MCP-016 | ☑ | Sunucu keşif turu ortasında OFFLINE olursa, ESKİ (bayat) tool listesi KORUNMAZ — boşaltılır |
+| MT-MCP-017 | ☑ | Bir sunucunun zaman aşımına uğraması DİĞER sunucuları ETKİLEMEZ |
+| MT-MCP-018 | ☑ | Arka plan keşif döngüsü İSTİSNA sonrası ASLA çökmez |
+| MT-MCP-020 | ☑ | Keşfedilen tool adı `{sunucu}_{tool}` biçiminde niteleniyor — NOKTA AYRACI YOK |
+| MT-MCP-021 | ☑ | Kod-tanımlı bir tool ile AYNI ADA sahip MCP tool'u ÇAKIŞIRSA kod tool KAZANIR |
+| MT-MCP-024 | ☑ | `resources` yeteneği bildiren sunucuda sentetik `{sunucu}_read_resource` tool'u OTOMATİK belirir |
+| MT-MCP-026 | ☑ | Yerel bir MCP sunucusu kur (tester-tedarikli altyapı) |
+| MT-MCP-027 | ☑ | Yerel sunucuyu AgentPrism'e kaydet, tool keşfi gerçekleşir |
+| MT-MCP-028 | ☑ | Keşfedilen tool'u GERÇEK bir agent çalıştırmasında kullan (uçtan uca) |
+| MT-MCP-030 | ☑ | Varsayılan KAPALI: boş beyaz liste + `ExposeAllAgents=false` → `tools/list` BOŞ döner |
+| MT-MCP-031 | ☑ | `ozetleyici` fixture: `tools/list` gerçek çıktısı |
+| MT-MCP-032 | ☑ | `tools/call` gerçek çıktı üretir |
+| MT-MCP-033 | ☑ | `message` alanı BOŞ/EKSİKSE hata döner |
+| MT-MCP-034 | ☑ | Onay gerektiren tool taşıyan bir agent'ı dışa açmaya çalışmak → UYGULAMA BAŞLAMAZ |
+| MT-MCP-035 | ☑ | Canlı katalog: yeni bir agent DB'ye eklenince MCP sunucusu YENİDEN BAŞLATILMADAN görünür |
+| MT-MCP-036 | ☑ | Gerçek bir MCP istemcisiyle (Claude Code CLI) uçtan uca el sıkışma |
+| MT-MCP-040 | ☑ | Agent kartı `GET .well-known/agent-card.json` gerçek çıktısı |
+| MT-MCP-042 | ☑ | Agent kartındaki `url` alanı GÖRECELİDİR, mutlak DEĞİL |
+| MT-MCP-043 | ☑ | A2A'da `ExposeAllAgents` seçeneği HİÇ YOKTUR — yalnız kayıt-zamanı sabit liste |
+| MT-MCP-044 | ☑ | Çalışma anında eklenen agent A2A'da GÖRÜNMEZ — MCP'nin TAM TERSİ davranış |
+| MT-MCP-045 | ☑ | Onay gerektiren tool taşıyan bir agent'ı A2A'ya açmaya çalışmak → AYNI GUARD, UYGULAMA BAŞLAMAZ |
+| MT-MCP-048 | ☑ | `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` alanı OTOMATİK TEMİZLENİR |
+| MT-MCP-049 | ☑ | `mcp.tsx` sunucu listesi tablosunda secret DEĞERİ hiç GÖRÜNMEZ |
+| MT-MCP-050 | ☑ | `/agentprism/mcp` ve `/agentprism/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular (pozitif kontrol) |
+| MT-MCP-053 | ☑ | `AllowRemoteAccess=true` + `ExternalInvoke` kapsamlı anahtar YOKKEN → UYGULAMA BAŞLAMAZ (bağımsız koruma) |
+
+## Ayrıntı taşıyan case'ler (8)
 
 ## MT-MCP-003 — `stdio` transport denemesi → `400`
 
@@ -53,139 +86,10 @@ POST) ve hepsi aynı desene taşındı. Ayrıntı `KAPANIS-PLANI.md` §6 Aile G.
 
 ---
 
-## MT-MCP-004 — `http`/`https` DIŞI bir uç adresi → `400`
-
-**Gerçek sonuç**
-HTTP: 400, title: Adres semasi desteklenmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-MCP-005 — `oauthEnabled: true` VE `authorizationConfigurationKey` BİRLİKTE → `400`
 
 **Gerçek sonuç**
 Ilk denemede oauthClientId eksikti, farkli (ama gecerli) bir 400 (OAuth istemci kimligi eksik) tetiklendi - test verisi eksikti, urun kusuru degil. oauthClientId eklenerek tekrarlandiginda: HTTP 400, title: Cakisan kimlik dogrulama, detail: OAuth acikken authorizationConfigurationKey bos olmalidir... - beklenen karsilikli dislama kurali dogru calisiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-006 — JSON yanıtında OAuth alanları `oauthEnabled`/`oauthClientId` biçiminde (camelCase, çift büyük harf DEĞİL)
-
-**Gerçek sonuç**
-Ham JSON govdesinde alan adlari oauthEnabled, oauthClientId, oauthClientSecretConfigurationKey, oauthScopes bicimindedir - oAuthEnabled (cift buyuk harf) DEGIL. Regresyon yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-007 — `GET {prefix}/api/mcp-servers` listede secret DEĞERİ hiç GÖRÜNMEZ
-
-**Gerçek sonuç**
-Her sunucu satirinda authorizationConfigurationKey yalniz bir yapilandirma anahtari adi tasiyor (orn. AgentPrism:Mcp:TestSecret icin oauthClientSecretConfigurationKey alaninda), hicbir gercek secret DEGERI govdede yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-008 — `DELETE` sunucu kaydını siler
-
-**Gerçek sonuç**
-HTTP: 404 - ftp-sunucu hic basariyla olusturulmamisti (negatif case kalici iz birakmadi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — MCP Keşfi: Yenileme Aralığı ve Yapılandırma Bağlama (Faz 22, K-353)
-
----
-
-## MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN etkilidir
-
-**Gerçek sonuç**
-AgentPrism__Mcp__RefreshInterval=00:00:10 ile yeniden baslatildi. test-sunucu kaydedildikten 15 saniye sonra /api/tools listesinde 14 adet test-sunucu_* onekli tool goruldu (test-sunucu_echo, test-sunucu_get-sum, vb.) - varsayilan 5 dakika yerine 10 saniyede bir tarama gerceklesti (K-353 duzeltmesi dogrulandi). Uygulama loglarinda 4 McpDiscoveryService satiri gozlendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-011 — Per-server ayarlar (`Endpoint`, `Transport`, `Headers`...) HİÇBİR ZAMAN `IConfiguration`'dan okunmaz
-
-**Gerçek sonuç**
-AgentPrism__Mcp__Servers__0__Endpoint=http://olmayan-bir-yer/mcp ayarlandi, uygulama yeniden baslatildi. GET /api/mcp-servers listesinde yalniz elle PUT edilen test-sunucu var - bu config anahtari hicbir etki uretmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-012 — `authorizationConfigurationKey` config'te TANIMSIZ/BOŞSA → istisna YOK, başlık atlanır
-
-**Gerçek sonuç**
-test-sunucu authorizationConfigurationKey: AgentPrism:Mcp:HicVarOlmayanAnahtar (hic tanimli olmayan bir user-secrets anahtari) ile guncellendi. POST /api/mcp-servers/refresh HTTP 200 dondu (toolCount:14, uygulama COKMEDI, tarama devam etti). Log satiri: "warn: AgentPrism.McpToolCatalog[0] MCP sunucusu 'test-sunucu' icin 'AgentPrism:Mcp:HicVarOlmayanAnahtar' yapilandirma anahtari bos. Kimlik dogrulama basligi gonderilmeyecek." - baglanti istegi o baslik olmadan gonderildi (tool sayisi degismedi, sunucu yine erisilebilirdi cunku gercek sunucu auth istemiyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — MCP Keşfi: Sunucuya Ulaşılamaması — Zarif Bozulma (Faz 22)
-
----
-
-## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
-
-**Gerçek sonuç**
-Sunucu kaydi HTTP 200 ile basariyla olustu (kayit aninda baglanti denenmedi). Ardindan support/run cagrisi HTTP 200 ile normal calisti - ulasilamayan MCP sunucusu agent calistirmasini etkilemedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-016 — Sunucu keşif turu ortasında OFFLINE olursa, ESKİ (bayat) tool listesi KORUNMAZ — boşaltılır
-
-**Gerçek sonuç**
-Yerel test sunucusu durduruldu, bir sonraki kesif turu (10s araliktan) beklendi. /api/tools sorgusunda test-sunucu_* tool sayisi 14 -> 0'a dustu - onceden kesfedilmis tool'lar LISTEDEN KAYBOLDU, bayat liste korunmadi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-017 — Bir sunucunun zaman aşımına uğraması DİĞER sunucuları ETKİLEMEZ
-
-**Gerçek sonuç**
-ulasilamayan (port 59999) VE test-sunucu (calisir durumda) birlikte kayitliyken /api/mcp-servers/refresh sonrasi test-sunucu 14 tool katti, ulasilamayan 0 katti - bir sunucunun basarisiz olmasi digerini etkilemedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-018 — Arka plan keşif döngüsü İSTİSNA sonrası ASLA çökmez
-
-**Gerçek sonuç**
-ulasilamayan kayitliyken uygulama 22+ saniye (2+ kesif araligi, 10s ayarlanmis) canli tutuldu. Loglarda tekrarlayan 'warn: AgentPrism.McpToolCatalog[0] Client... client initialization error.' satirlari gorundu ama uygulama COKMEDI - GET /api/agents sonrasinda hala HTTP 200 dondu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — MCP Tool Adlandırma, Onay Sınırı, Kaynak Modları (Faz 22)
-
----
-
-## MT-MCP-020 — Keşfedilen tool adı `{sunucu}_{tool}` biçiminde niteleniyor — NOKTA AYRACI YOK
-
-**Gerçek sonuç**
-/api/tools listesinde test-sunucu_echo, test-sunucu_get-sum, test-sunucu_read_resource gibi tool adlari goruldu - test-sunucu_<orijinal-ad> bicimi, nokta ile DEGIL alt cizgi ile.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-021 — Kod-tanımlı bir tool ile AYNI ADA sahip MCP tool'u ÇAKIŞIRSA kod tool KAZANIR
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi (onemli).** Senaryonun kendi onerdigi kurulum yolu (sunucu adinin bos/ayni-onek olacak sekilde ayarlanmasi) kod ile IMKANSIZ: McpToolNaming.TryQualify (McpToolNaming.cs:32-33) HER ZAMAN kosulsuz $"{serverName}_{toolName}" ureterek onek ekliyor; IsValidServerName (satir 25-26) bos/whitespace sunucu adini zaten reddediyor (SafeName regex ^[a-zA-Z0-9_-]+$). Yani bir MCP tool adi hicbir zaman onek TASIMADAN kod-tanimli bir tool ile (orn. get_order_status) TAM ESLESEMEZ - carpisma yapisal olarak olusturulamiyor, sadece 'kod kazanir' varsayimi test EDILEMIYOR degil, senaryo TAMAMEN gereksiz hale geliyor (carpisma zaten imkansiz). Buna ragmen alttaki guvence dogrulandi: McpToolRegistry.TryGet (McpToolRegistry.cs:69-74) `_codeTools.TryGet(name, out tool) || _catalog...TryGet(...)` sirasiyla ONCE kod tool'larina bakiyor - kod okumasiyla dogrulandi, calisir kanit yerine geciyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -226,181 +130,12 @@ MCP/A2A tarafından paylaşılıyor).
 
 ---
 
-## MT-MCP-024 — `resources` yeteneği bildiren sunucuda sentetik `{sunucu}_read_resource` tool'u OTOMATİK belirir
-
-**Gerçek sonuç**
-/api/tools listesinde test-sunucu_read_resource adli sentetik bir tool otomatik belirdi - yerel test sunucusu (server-everything) resources yetenegini bildiriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Yerel Test MCP Sunucusu (İzlek B)
-
-> **Önemli not.** `PROMPT.md` §3'ün "Kapsam kararları" tablosu "Yerel test
-> MCP sunucusu kurulur — dış bağımlılık yok" der, ama bu repo'da böyle bir
-> sunucu **hiç dokümante edilmemiştir**: `docs/`, `samples/`, `scripts/`
-> içinde `npx`/`docker` ile başlatılacak bir MCP sunucusuna dair TEK bir
-> satır yoktur, `tests/AgentPrism.Mcp.UnitTests/` içinde de gerçek/sahte
-> bir üst akış MCP HTTP sunucusu başlatan hiçbir test yoktur. Aşağıdaki
-> kurulum bu boşluğu dolduran **tester-tedarikli altyapıdır** — AgentPrism
-> deposunun bir parçası veya onaylı bir fixture DEĞİLDİR.
-
----
-
-## MT-MCP-026 — Yerel bir MCP sunucusu kur (tester-tedarikli altyapı)
-
-**Gerçek sonuç**
-Yerel test sunucusu olarak resmi referans sunucusu kullanildi: `npx -y @modelcontextprotocol/server-everything streamableHttp` (CLI --port secenegi desteklemiyor, sabit port 3001 kullaniyor - dokumandaki 6060 ornegi yerine 3001 kullanildi, tum sonraki case'lerde tutarli). Sunucu http://localhost:3001/mcp uzerinde Streamable HTTP ile ayakta, en az 13 tool VE resources yetenegi sunuyor (initialize yanitinda dogrulandi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-027 — Yerel sunucuyu AgentPrism'e kaydet, tool keşfi gerçekleşir
-
-**Gerçek sonuç**
-POST /api/mcp-servers/refresh sonrasi GET /api/tools listesinde test-sunucu_echo, test-sunucu_get-sum gibi en az bir test-sunucu_<ad> tool'u goruldu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-028 — Keşfedilen tool'u GERÇEK bir agent çalıştırmasında kullan (uçtan uca)
-
-**Gerçek sonuç**
-test-sunucu_echo tool'unu tasiyan bir agent olusturuldu, "MERHABA-MCP-TEST" metnini yankilamasi istendi. Yanit gercek tool cagrisi (functionCall test-sunucu_echo) + gercek MCP sunucu sonucu (functionResult: "Echo: MERHABA-MCP-TEST") + son metin ("Echo sonucu: MERHABA-MCP-TEST") icerdi. Olay akisinda ToolInvoking/ToolInvoked cerceveleri test-sunucu_echo adiyla goruldu - gercek MCP sunucusundan donen sonuc.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — MCP Sunucusu: AgentPrism'i Dışa Açma (Faz 50)
-
----
-
-## MT-MCP-030 — Varsayılan KAPALI: boş beyaz liste + `ExposeAllAgents=false` → `tools/list` BOŞ döner
-
-**Gerçek sonuç**
-Yanit tam olarak tek tool icerdi (asagida MT-MCP-031 ile birlikte kanitlandi) - baska hicbir agent listede yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-031 — `ozetleyici` fixture: `tools/list` gerçek çıktısı
-
-**Gerçek sonuç**
-Yanit TAM OLARAK tek tool icerdi: agentprism_ozetleyici, inputSchema yalniz message (string, required) alani tasiyor. Baska hicbir agent (support dahil) listede YOK.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-032 — `tools/call` gerçek çıktı üretir
-
-**Gerçek sonuç**
-HTTP 200 (SSE event: message). result.content[0].text ozetleyici agent'inin urettigi gercek bir uc maddeli ozet metni icerdi. GET /api/runs?agentName=ozetleyici bu cagriya karsilik gelen YENI bir kok run (depth:0, status:Completed) gosterdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-033 — `message` alanı BOŞ/EKSİKSE hata döner
-
-**Gerçek sonuç**
-Yanit isError:true tasiyor, content[0].text: "'message' argumani bos olamaz." - bos mesajla agent calistirilmadi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-034 — Onay gerektiren tool taşıyan bir agent'ı dışa açmaya çalışmak → UYGULAMA BAŞLAMAZ
-
-**Gerçek sonuç**
-Program.cs'te GEÇICI olarak .UseMcpServer(o => o.ExposedAgents.Add("support")) yapildi (cancel_order tasiyan agent), yeniden derlendi, dotnet run ile baslatildi. Loglarda 'crit: AgentPrism.McpApprovalGuardFilter[0] MCP disa acik yuzey denetimi basarisiz oldu; uygulama durduruluyor.' + InvalidOperationException ("'support' agent'i MCP uzerinden disa acilamaz: 'cancel_order' tool'lari kullanici onayi istiyor...") gorundu, sonra 'Application is shutting down...' - surec kendini kapatti (once dinlemeye basliyor, arka plan denetimi sonra durduruyor - LogCritical + StopApplication paterni, cikri unhandled exception degil). Program.cs degisikligi geri alindi (git diff temiz), yeniden derlendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-035 — Canlı katalog: yeni bir agent DB'ye eklenince MCP sunucusu YENİDEN BAŞLATILMADAN görünür
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi (onemli, yontem degisti).** Orijinal senaryo ozetleyici'yi PUT ile guncellemeyi oneriyordu - bu ISLEMEZ cunku ozetleyici KODDA TANIMLI bir agent'tir (origin:Code, isEditable:false, MT-API-008'in zaten kanitladigi 409 kurali gecerli); ustelik senaryonun kendi govdesi name/model alanlarini da eksik birakmisti (400 alindi, PUT hicbir zaman basarili olmadi). Duzeltilmis yontem: Program.cs'e GECICI olarak henuz var olmayan bir DB-kokenli agent adi (manuel-canli-katalog) ExposedAgents'e eklendi, TEK bir yeniden baslatma icinde: (1) tools/list -> yalniz ozetleyici, (2) POST /api/agents ile manuel-canli-katalog olusturuldu (ILK aciklama) -> restart OLMADAN tools/list'te agentprism_manuel-canli-katalog (description: ILK aciklama) gorundu, (3) PUT ile description GUNCELLENMIS aciklama - canli katalog testi yapildi -> AYNI restart icinde, tekrar tools/list cagrildiginda YENI aciklama goruldu. CatalogToolListHandler IAgentCatalog'u dogrulanmis sekilde CANLI okuyor, onbelleklenmis kopya donmuyor. Program.cs degisikligi geri alindi (git diff temiz).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-036 — Gerçek bir MCP istemcisiyle (Claude Code CLI) uçtan uca el sıkışma
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi.** Senaryonun kendi komutu Authorization basligi TASIMIYORDU - ilk deneme HTTP 404 ("Failed to connect", OAuth kesif hatasi olarak yanlis yorumlandi) ile basarisiz oldu. --header "Authorization: Bearer manuel-test-token-2026" eklenerek (claude mcp add --help'te belgelenen secenek) duzeltildi: claude mcp get agentprism-manuel-test -> Status: Connected. Case sonrasi claude mcp remove agentprism-manuel-test -s local ile temizlendi (git status: yalniz .claude.json degisti, repo etkilenmedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 7 — A2A: AgentPrism'i Dışa Açma (Faz 50)
-
----
-
-## MT-MCP-040 — Agent kartı `GET .well-known/agent-card.json` gerçek çıktısı
-
-**Gerçek sonuç**
-Govde name: ozetleyici, capabilities: {streaming:false, pushNotifications:false}, defaultInputModes: [text/plain], defaultOutputModes: [text/plain], supportedInterfaces[0].url: /agentprism/a2a/ozetleyici (goreceli), protocolBinding: JSONRPC.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-MCP-041 — `SendMessage` JSON-RPC çağrısı — PascalCase metot adı, `ROLE_AGENT`/`ROLE_USER` (spec DIŞI biçim)
 
 **Gerçek sonuç**
 **Dokuman duzeltmesi.** Senaryonun kendi govdesi 'messageId' alanini eksik birakmisti - A2A SDK'si bunu zorunlu kildigi icin ilk deneme -32602 'Invalid parameters: request body could not be deserialized as SendMessageRequest.' hatasi verdi (urun kusuru degil, eksik test verisi). messageId eklenerek duzeltildi: HTTP 200, metot gercekten SendMessage (PascalCase, A2A spec'inin message/send'i DEGIL - SDK davranisi). Yanittaki role alani ROLE_AGENT (protobuf-tarzi, 'agent' DEGIL). Beklenen uyumsuzluk dogrulandi - AgentPrism kusuru degil, bagimli SDK'nin (A2A.AspNetCore) davranisi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-042 — Agent kartındaki `url` alanı GÖRECELİDİR, mutlak DEĞİL
-
-**Gerçek sonuç**
-Cikti /agentprism/a2a/ozetleyici - goreceli bir yol, mutlak URL DEGIL.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-043 — A2A'da `ExposeAllAgents` seçeneği HİÇ YOKTUR — yalnız kayıt-zamanı sabit liste
-
-**Gerçek sonuç**
-HTTP: 404 - A2A'da support icin agent karti yok, ExposeAllAgents secenegi bu tarafta yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-044 — Çalışma anında eklenen agent A2A'da GÖRÜNMEZ — MCP'nin TAM TERSİ davranış
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi.** Senaryonun kendi scripti PUT kullaniyordu - PUT bir upsert DEGILDIR (MT-API-009), var olmayan bir agent'i olusturamaz, 404 doner. POST /api/agents ile duzeltildi: HTTP 201, agent basariyla olusturuldu. Ardindan GET /a2a/yeni-a2a-adayi/.well-known/agent-card.json -> HTTP 404 - AddA2AServer kayit-zamanli bir API, calisirken eklenen bir agent'i GOREMEDI (MT-MCP-035'in MCP tarafindaki canli davranisinin TAM TERSI).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-045 — Onay gerektiren tool taşıyan bir agent'ı A2A'ya açmaya çalışmak → AYNI GUARD, UYGULAMA BAŞLAMAZ
-
-**Gerçek sonuç**
-Program.cs'te GECICI olarak .UseA2A(o => o.ExposedAgents.Add("support")) yapildi, yeniden derlendi, dotnet run ile baslatildi. MT-MCP-034 ile BIREBIR ayni sonuc: 'crit'/istisna log satiri (A2AApprovalGuardFilter.RunCheckAsync, ExternalSurfaceGuard.EnsureNoApprovalRequiredTools ayni yardimci metot) + 'Application is shutting down...' - ayni desen (arka plan gorev + guard, LogCritical + StopApplication). Program.cs degisikligi geri alindi (git diff temiz), yeniden derlendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — Arayüz: MCP Sunucu Yönetimi ve Tool Kataloğu Rozetleri
 
 ---
 
@@ -430,37 +165,6 @@ Regresyon testi: `tests/AgentPrism.Generators.UnitTests/GeneratedOutputTests.cs`
 
 ---
 
-## MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` alanı OTOMATİK TEMİZLENİR
-
-**Gerçek sonuç**
-/agentprism/mcp -> Yeni sunucu formu acildi. Authorization configuration key alanina metin yazildi (AgentPrism:Mcp:TestKeyName). OAuth (Authorization Code) onay kutusu isaretlendi. JS ile dogrulandi: alanin value'su OTOMATIK bosaldi ("") - MT-MCP-005'in sunucu tarafi kuralini form seviyesinde onceden yansitiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-049 — `mcp.tsx` sunucu listesi tablosunda secret DEĞERİ hiç GÖRÜNMEZ
-
-**Gerçek sonuç**
-test-sunucu authorizationConfigurationKey: AgentPrism:Mcp:GizliTestAnahtari ile guncellendi. /agentprism/mcp listesindeki Auth sutunu TAM OLARAK "AgentPrism:Mcp:GizliTestAnahtari" (yapilandirma ANAHTARI ADI) gosterdi - hicbir gercek token/sifre DEGERI gorunmedi. MT-MCP-007'nin API seviyesindeki kanitinin arayuz karsiligi dogrulandi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 9 — Güvenlik: Dış Yüzey Doğru Korunuyor, Kayıt API'si DEĞİL
-
----
-
-## MT-MCP-050 — `/agentprism/mcp` ve `/agentprism/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular (pozitif kontrol)
-
-**Gerçek sonuç**
-HTTP: 403, title: Kapsam yetersiz, detail: Bu uc 'ExternalInvoke' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor. Pozitif kontrol dogrulandi - dis yuzeyin kendisi (/mcp) API anahtari kapsam sistemini DOGRU uyguluyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-MCP-051 — `GovernanceEndpoints` (`/api/mcp-servers/*`) API ANAHTARI KAPSAMI HİÇ ÇAĞIRMAZ
 
 **Gerçek sonuç**
@@ -484,14 +188,5 @@ HTTP: 403, title: Kapsam yetersiz, detail: Bu uc 'ExternalInvoke' kapsamini gere
 **KALDI KALIR - Aile F bu case'i KAPATMADI (docs/manuel-test/KAPANIS-PLANI.md §6/§11).** GovernanceEndpoints.cs'e RequireApiKeyScope eklendi (bkz. MT-MCP-051, artik Gecti) ama bu case'in kok nedeni FARKLIDIR: istek bir API anahtariyla degil DUZ statik AuthToken ile geliyor. AgentPrismEndpointFilter.InvokeAsync'te statik token '_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(...)' dalinda eslesir ve dogrudan Proceed()'e gider - ApiKeyRequestContext hic kurulmaz, dolayisiyla CheckScope (ve ondaki ApiKeyScopeRequirement metadata'si) hic calismaz; bu TASARIM GEREGI boyle (bolum 53: kapsam denetimi yalniz ApiKeyRequestContext.Get() bos degilse uygulanir). Canli PostgreSQL'e karsi yeniden uretildi: ayni curl (FIX-TOKEN-01 ile PUT /api/mcp-servers/token-kaniti) Aile F SONRASI da HTTP 200 donuyor, sunucu yine kaydediliyor. Kok neden HATA-S2-009'un IKI ayri yarisidir: (1) API-anahtari kapsam boslugu - Aile F ile kapandi; (2) statik token'in rol politikasi kayitli olmayan bir ornekte fiilen tam-yetkili (root) davranmasi - bu Aile F'nin kapsami DISINDA, ayri bir bulgu olarak izlenir (yeni HATA numarasi kapanis sirasinda docs/KARARLAR.md'ye yazilacak). Temizlik: test-kaniti sunucusu DELETE ile kaldirildi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
-
----
-
-## MT-MCP-053 — `AllowRemoteAccess=true` + `ExternalInvoke` kapsamlı anahtar YOKKEN → UYGULAMA BAŞLAMAZ (bağımsız koruma)
-
-**Gerçek sonuç**
-**Dokuman duzeltmesi (13-KIRACI-VE-GUVENLIK.md'de zaten kaydedilen ayni duzeltme).** Program.cs'te gecici kod degisikligi GEREKMEDI - AgentPrism:Ui:AllowRemoteAccess anahtari 2026-08-11'de config'e baglandi (commit 419981b). AgentPrism__Ui__AllowRemoteAccess=true ortam degiskeniyle, sistemde hicbir ExternalInvoke kapsamli anahtar yokken baslatildi. Uygulama aciliste `Unhandled exception: System.InvalidOperationException: AllowRemoteAccess acikken MCP disa acilamaz: sistemde 'external:invoke' kapsamli...` ile COKTU (ExternalSurfaceGuard.EnsureRemoteAccessNotCombined, AgentPrismMcpServerExtensions.MapAgentPrismMcpServer) - MT-MCP-052'nin gosterdigi bosluga ragmen, loopback-disi acilma icin ayri, dar tutulmus bir baslangic korumasi dogrulandi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---

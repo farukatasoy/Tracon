@@ -10,19 +10,50 @@
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
+
+---
+
+## Temiz geçen case'ler (24)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-UI-002 | ☑ | Doğru token girilince kabuk açılır ve token sekme boyunca kalıcılaşır |
+| MT-UI-006 | ☑ | Token sekmeye özeldir: yeni bir sekme yeniden sorar |
+| MT-UI-007 | ☑ | Ayarlar'dan "Unut" butonu token'ı siler, kapı yeniden kapanır |
+| MT-UI-009 | ☑ | 17 nav öğesi doğru sırada, doğru rotalara gider |
+| MT-UI-012 | ☑ | Aktif rota kenar çubuğunda vurgulanır |
+| MT-UI-013 | ☑ | Dar ekranda yan menü gizlenir, üstte yatay kaydırılabilir menü belirir |
+| MT-UI-014 | ☑ | Depolama notu bellek içi/kalıcı durumu doğru renkle gösterir |
+| MT-UI-015 | ☑ | Bilinmeyen bir rota "sayfa bulunamadı" boş durumunu gösterir |
+| MT-UI-016 | ☑ | Tarayıcının geri/ileri düğmeleri konsol içi gezinmeyi senkronlar |
+| MT-UI-017 | ☑ | `/agentprism` ile `/agentprism/` aynı sayfayı gösterir |
+| MT-UI-018 | ☑ | `⌘K`/`Ctrl+K` paleti açar, giriş alanına odaklanır |
+| MT-UI-019 | ☑ | Ok tuşlarıyla gezinme + Enter seçili komutu çalıştırır |
+| MT-UI-022 | ☑ | `g a` gibi iki tuşlu diziler doğru rotaya gider, 1.2 saniyede zaman aşımına uğrar |
+| MT-UI-023 | ☑ | Metin alanına yazarken `g` yalnızca harf olarak yazılır |
+| MT-UI-025 | ☑ | `?` kısayol yardım kartını açar |
+| MT-UI-027 | ☑ | Tema düğmesi açık/koyu arasında geçiş yapar, tercih kalıcılaşır |
+| MT-UI-029 | ☑ | Üst çubuktaki düğmeden "sistemi izle"ye geri dönülemez |
+| MT-UI-030 | ☑ | Dil düğmesi TR↔EN arasında anında geçiş yapar, sayfa yenilenmez |
+| MT-UI-034 | ☑ | Sayı ve tarih biçimleri yerel ayara göre değişir |
+| MT-UI-035 | ☑ | Örnek/sürüm/önek bilgileri `meta`'yla birebir eşleşir |
+| MT-UI-036 | ☑ | Erişim bölümü gerçek yapılandırmayı yansıtır |
+| MT-UI-037 | ☑ | Depolama bölümü gerçek store tiplerini gösterir |
+| MT-UI-040 | ☑ | Araçlar ekranı salt-okunurdur; hiçbir düzenleme/silme eylemi yoktur |
+| MT-UI-041 | ☑ | Onay gerektiren tool rozetle işaretlenir |
+
+## Ayrıntı taşıyan case'ler (19)
+
 ## MT-UI-001 — Bearer token açıkken ilk açılışta token isteme kartı görünür
 
 **Gerçek sonuç**
 "AgentPrism" başlığı ve "Access token required" kartı görünür. Giriş alanı `placeholder="Bearer token"`, sayfa açılışında odaklanmış (`[active]`). Boş alanla "Continue" butonu `[disabled]`. Konsolda `GET /api/agents` 401'i var — bu beklenen yoklama mekanizmasının kendisi (`AccessGate`nin token kartını tetikleyen 401), kusur değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-002 — Doğru token girilince kabuk açılır ve token sekme boyunca kalıcılaşır
-
-**Gerçek sonuç**
-Doğru token girilince kabuk (kenar çubuğu + üst çubuk, 17 nav öğesi) açıldı, Dashboard ekranına düştü. `sessionStorage['agentprism.token'] = "manuel-test-token-2026"`, `localStorage['agentprism.token'] = null` — doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -107,24 +138,6 @@ senaryosu) doğrulanabilir.
 
 ---
 
-## MT-UI-006 — Token sekmeye özeldir: yeni bir sekme yeniden sorar
-
-**Gerçek sonuç**
-Sekme 0'da token girilip kabuk açıldıktan sonra bağımsız açılan sekme 1 (aynı adres) token kartını yeniden gösterdi — doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-007 — Ayarlar'dan "Unut" butonu token'ı siler, kapı yeniden kapanır
-
-**Gerçek sonuç**
-Ayarlar → Erişim → "This tab" → "Forget"a tıklanınca `sessionStorage['agentprism.token']` silindi ve sayfa anında token kartına düştü — doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UI-008 — 403 (uzak erişim kapalı) durumunda sunucu metni olduğu gibi görünür
 
 **Gerçek sonuç**
@@ -160,15 +173,6 @@ sonra fix geri uygulandı).
 
 ---
 
-## MT-UI-009 — 17 nav öğesi doğru sırada, doğru rotalara gider
-
-**Gerçek sonuç**
-Kenar çubuğu snapshot'ı 17 öğeyi tam belirtilen sırayla listeledi: Agents, Dashboard, Playground, Sessions, Workflows, Jobs, Evals, Experiments, Runs, Tools, Skills, Models, MCP, Approvals, Audit, Diagnostics, Settings. "Agents"e tıklandı: URL `/agentprism/agents`'a değişti, ilgili ekran yüklendi; tıklama öncesi `window` üzerine konan bir işaretçi (`window.__navtest`) tıklamadan SONRA hâlâ mevcuttu — tam sayfa yenilemesi olmadığı doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UI-010 — Reader rolüyle Audit/Diagnostics nav öğeleri görünmez
 
 **Gerçek sonuç**
@@ -184,92 +188,6 @@ Atlandı: `13-KIRACI-VE-GUVENLIK.md` §8'in tek belgelenmiş rol-test iskelesi (
 Atlandı — MT-UI-010 ile aynı gerekçe: `Reader` oturumu tarayıcıda kurulamıyor (bkz. MT-UI-010'un notu).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
-
----
-
-## MT-UI-012 — Aktif rota kenar çubuğunda vurgulanır
-
-**Gerçek sonuç**
-`/workflows`e gidince "Workflows" öğesi `bg-raised text-fg` sınıfını aldı, diğerleri `text-muted` kaldı. Alt rota `/workflows/new`e gidince de "Workflows" vurgusu korundu — doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-013 — Dar ekranda yan menü gizlenir, üstte yatay kaydırılabilir menü belirir
-
-**Gerçek sonuç**
-600px genişlikte sol kenar çubuğu (`complementary`) kayboldu, nav öğeleri üst çubuğa (`banner`) taşındı. `header.textContent` içinde dil düğmesi (`en`) ve `v0.0.0-preview.0.88` etiketi hâlâ mevcuttu — üçü de doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-014 — Depolama notu bellek içi/kalıcı durumu doğru renkle gösterir
-
-**Gerçek sonuç**
-PostgreSQL açıkken: `<span class="...bg-success">` + "Persistent storage", ek satır yok. `PostgreSql:ConnectionString` boşaltılıp yeniden başlatılınca (`/api/meta` → `persistent:false`, `InMemory*Store`): `<span class="...bg-warn">` + "In-memory storage" + `<span class="block text-subtle">Data is lost when the process exits.</span>`. İkisi de doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-015 — Bilinmeyen bir rota "sayfa bulunamadı" boş durumunu gösterir
-
-**Gerçek sonuç**
-`/hic-boyle-bir-rota`ya gidince kabuk (kenar çubuğu + üst çubuk) normal kaldı, içerik alanında "Page not found" / "The address does not match any screen in this console." göründü. Hiçbir nav öğesinin tam `bg-raised` sınıfı yoktu (yalnız hover pseudo-class token'ı vardı, aktif değildi). Konsol çökmedi, beyaz ekran yoktu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-016 — Tarayıcının geri/ileri düğmeleri konsol içi gezinmeyi senkronlar
-
-**Gerçek sonuç**
-SPA link tıklamalarıyla Dashboard → Agents → Runs gezildi. `goBack()` iki kez: sırasıyla Agents, sonra Dashboard'a döndü — URL de eşleşti. `history.forward()` (tarayıcı İleri düğmesiyle aynı `popstate` olayı) bir kez: Agents'a geçti, kenar çubuğunda "Agents" `bg-raised` ile vurgulandı — doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-017 — `/agentprism` ile `/agentprism/` aynı sayfayı gösterir
-
-**Gerçek sonuç**
-`http://localhost:5084/agentprism` (sondaki `/` olmadan) Dashboard'u doğrudan gösterdi — "sayfa bulunamadı" görünmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — Komut paleti ve klavye kısayolları
-
----
-
-## MT-UI-018 — `⌘K`/`Ctrl+K` paleti açar, giriş alanına odaklanır
-
-**Gerçek sonuç**
-`Cmd+K` basıldığında `role="dialog" aria-modal="true"` taşıyan palet açıldı,
-`document.activeElement` `role="combobox"` (`aria-label="Jump to a screen, an
-agent or a run"`) taşıyan giriş alanıydı. Playground ekranında istem kutusu
-(`textbox "Send a message…"`) odaktayken de `Cmd+K` aynı şekilde paleti açtı
-ve odak yine combobox'a geçti — `insideText: true` davranışı doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-019 — Ok tuşlarıyla gezinme + Enter seçili komutu çalıştırır
-
-**Gerçek sonuç**
-`agents` yazınca liste iki sonuca daraldı: 1) "Go to Agents" (otomatik seçili,
-`aria-selected="true"`), 2) "Run OpenRouter Destek in the playground" (fuzzy
-eşleşme — "Agent" kelimesi eşleşiyor). Ok-aşağı basınca seçim ikinci satıra
-geçti (`aria-selected="true"` ikinci `option`'a taşındı, birincisi `false`
-oldu). Enter'a basınca palet kapandı ve URL
-`/agentprism/playground/openrouter-destek`'e gitti — vurgulu komutun
-`perform()`'u doğru çalıştı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -327,31 +245,6 @@ YOK olması) tarayıcıda ölçülemedi.
 
 ---
 
-## MT-UI-022 — `g a` gibi iki tuşlu diziler doğru rotaya gider, 1.2 saniyede zaman aşımına uğrar
-
-**Gerçek sonuç**
-Adım 1: `g` sonra hemen `a` (`document.dispatchEvent(new KeyboardEvent('keydown', ...))` ile
-gerçek `keydown` olayları tetiklendi) → `location.pathname`
-`/agentprism/agents`'a geçti. Adım 2: `g` bas, 2.2 sn bekle, sonra `a` bas →
-`location.pathname` `/agentprism/dashboard`'da kaldı, hiçbir gezinme
-olmadı. Konsol hatası/uyarı yok (`browser_console_messages` boş).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-023 — Metin alanına yazarken `g` yalnızca harf olarak yazılır
-
-**Gerçek sonuç**
-Playground istem kutusuna (`textarea[data-testid=playground-input]`) harf harf
-(`pressSequentially`) `merhaba` yazıldı; kutunun `.value`'su tam olarak
-`"merhaba"` — `g` harfinden sonraki `e` bir gezinme dizisi olarak yutulmadı,
-hiçbir karakter kayıp değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UI-024 — `/` tuşu sayfadaki arama kutusuna odaklanır
 
 **Gerçek sonuç**
@@ -393,25 +286,6 @@ düştü (`claude-destek`, `claude-dusunen`).
 
 ---
 
-## MT-UI-025 — `?` kısayol yardım kartını açar
-
-**Gerçek sonuç**
-`Shift+/` tetiklenince `role="dialog"` "Keyboard shortcuts" kartı açıldı, tam
-11 satır (`dt`/`dd` çifti): Command palette, Go to agents, Go to runs, Go to
-sessions, Go to the dashboard, Go to workflows, Go to the playground, Focus
-the search box, Send the prompt, Close the open layer, This list. "Close"
-butonu açılışta otomatik odaklıydı (`[active]`). `Esc` kartı kapattı
-(`role=dialog` DOM'dan kalktı); ayrı bir denemede "Close" butonuna tıklamak da
-kartı kapattı — ikisi de çalışıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Tema
-
----
-
 ## MT-UI-026 — Sistem tercihi karanlıksa ilk yüklemede yanıp sönme olmadan karanlık tema uygulanır
 
 **Gerçek sonuç**
@@ -431,21 +305,6 @@ dışında hiçbir görünür içerik taşımıyor. Bu ikisi birlikte mimari ola
 gözlemin yerini tutmaz.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
-
----
-
-## MT-UI-027 — Tema düğmesi açık/koyu arasında geçiş yapar, tercih kalıcılaşır
-
-**Gerçek sonuç**
-Başlangıç: `data-theme="light"`, `localStorage['agentprism.theme']="system"`,
-düğme başlığı "Switch to dark theme". Tıklama sonrası: `data-theme="dark"`
-ANINDA (aynı `evaluate` çağrısında ölçüldü), `localStorage['agentprism.theme']
-="dark"` (`system` değil), düğmenin `title`'ı `"Theme: dark"`'a döndü. Sayfa
-`http://localhost:5084/agentprism/dashboard`'a yeniden yüklendikten sonra
-`data-theme` hâlâ `"dark"`, `localStorage` hâlâ `"dark"` — kalıcılık
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -495,39 +354,6 @@ düğmenin `title` özniteliği AYNI SPA oturumunda (sayfa yenilemeden)
 `"Theme: dark"`'a dönüyor; "Light" seçilince `"Theme: light"`'a. Regresyon
 testi: `tests/AgentPrism.Ui.E2ETests/UiTests.cs`
 `Ayarlardaki_tema_secici_ust_cubuktaki_dugmeyi_ayni_oturumda_gunceller`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-029 — Üst çubuktaki düğmeden "sistemi izle"ye geri dönülemez
-
-**Gerçek sonuç**
-`localStorage` temizlenip sayfa yeniden yüklendi: `agentprism.theme` başta
-`"system"`. Düğmeye 1 kez tıklayınca `"dark"` oldu. Art arda 3 tıklama daha
-yapıldı (toplam 4): her seferinde yalnız `"dark"`/`"light"` arasında gidip
-geldi, `"system"` bir daha hiç görünmedi — son değer `"dark"`,
-`document.documentElement.dataset.theme` de `"dark"`. Kod okumasındaki iddia
-canlı ortamda doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Dil (i18n) ve derin metin denetimi
-
----
-
-## MT-UI-030 — Dil düğmesi TR↔EN arasında anında geçiş yapar, sayfa yenilenmez
-
-**Gerçek sonuç**
-Başlangıç: `lang="en"`, `localStorage['agentprism.locale']` boş. Dil düğmesi
-(`data-testid="language-toggle"`, direkt buton — açılır menü değil, tek
-tıklamada diğer dile geçiyor) tıklandı; `location.pathname` DEĞİŞMEDİ (SPA içi
-geçiş, tam sayfa yenilemesi yok), nav etiketleri anında Türkçeye döndü
-("Agents"→"Agent'lar", "Dashboard"→"Gösterge Paneli" vb.), sayfa başlığı
-"Dashboard"→"Gösterge Paneli". `document.documentElement.lang="tr"`,
-`localStorage['agentprism.locale']="tr"`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -650,70 +476,6 @@ görsel olarak taşmadı.
 
 ---
 
-## MT-UI-034 — Sayı ve tarih biçimleri yerel ayara göre değişir
-
-**Gerçek sonuç**
-1000'in üzerine veri üretmek için Playground'da `support` (gpt-5.4-mini)
-agent'ıyla 3 gerçek tur çalıştırıldı (347 + 578 + kalan token'lar). Ayarlar
-ekranının "Activity"/"Etkinlik" panelinde: `en` dilinde `Total tokens: "1,540"`
-(virgül ayraçlı), `tr`'ye geçince AYNI değer `Toplam token: "1.540"` (nokta
-ayraçlı) — `Intl.NumberFormat` locale'e göre doğru biçimlendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — Ayarlar ekranı (yalnız genel kısım)
-
-`QuotaPanel`/`WebhookPanel`/`ApiKeyPanel`/`RetentionPanel`'in kendi işlevi
-kapsam dışıdır (bkz. Sınır tablosu); burada yalnız bu panellerin **var
-olduğu** ve genel bilgi panellerinin doğruluğu ölçülür.
-
----
-
-## MT-UI-035 — Örnek/sürüm/önek bilgileri `meta`'yla birebir eşleşir
-
-**Gerçek sonuç**
-`GET /api/meta` → `version: "0.0.0-preview.0.88"`, `prefix: "/agentprism"`.
-Ayarlar ekranı: Sürüm `0.0.0-preview.0.88`, Önek `/agentprism`, Arayüz
-tabanı `/agentprism/`, API tabanı `/agentprism/` — dördü de birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-036 — Erişim bölümü gerçek yapılandırmayı yansıtır
-
-**Gerçek sonuç**
-Ayarlar → Erişim: "Uzaktan erişim" = "yalnız loopback" (`/api/meta`'nın
-`allowRemoteAccess:false` ile tutarlı), "Bearer token" = "gerekli"
-(`requiresBearerToken:true` ile tutarlı), "Authorization policy" =
-"tanımlı değil" (`requiresAuthorizationPolicy:false` ile tutarlı), "Bu
-sekme" satırı token girildiği için "token saklandı" + "Unut" düğmesiyle
-görünüyor. Dördü de beklenenle eşleşiyor (metin ifadeleri Türkçe küçük
-harf üslupla ama anlamca birebir).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-037 — Depolama bölümü gerçek store tiplerini gösterir
-
-**Gerçek sonuç**
-Ayarlar → Depolama: "Kip" = "kalıcı". Agent tanımları =
-`SqlAgentDefinitionStore`, Çalıştırmalar = `SqlRunStore`, Oturumlar =
-`SqlSessionStore` — üçü de `GET /api/meta`'nın `storage.*` alanlarıyla
-birebir eşleşiyor. Bellek içi ipucu satırı bu oturumda görünmedi (beklenen —
-persistence açık, koşul sağlanmıyor, bu ekranın kendisi doğru davranış).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 7 — Modeller ve Araçlar ekranları
-
----
-
 ## MT-UI-038 — Boş model kataloğu hata değil, yönlendirici boş durum gösterir
 
 **Gerçek sonuç**
@@ -754,41 +516,6 @@ kusur değil; bu case'in kapsamı olan "yalnız o satır güncellenir" davranı�
 etkilemedi.)
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-040 — Araçlar ekranı salt-okunurdur; hiçbir düzenleme/silme eylemi yoktur
-
-**Gerçek sonuç**
-6 tool kartı incelendi (`cancel_order`, `get_order_status`,
-`list_recent_orders`, `list_voices`, `speak`, `transcribe`). Her kartta
-yalnız ad, açıklama, MCP kaynağı rozeti (varsa), kullanan agent linkleri,
-çağrı istatistiği ve JSON şema kutusuyla "Kopyala" düğmesi var. Hiçbir
-kartta düzenle/sil/ekle eylemi yok — ekran gözlemle salt-okunur.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UI-041 — Onay gerektiren tool rozetle işaretlenir
-
-**Gerçek sonuç**
-`cancel_order` kartında "onay gerekli" rozeti görünüyor
-(tooltip: "Microsoft Agent Framework bu tool'u çalıştırmak yerine bir onay
-isteği üretir; Playground onaylamak veya reddetmek için bir kart gösterir.").
-Bu tool hiç çağrılmadığı için "Hiç çağrılmadı." notu görünüyor — beklenenle
-birebir eşleşiyor. (Karşılaştırma: `get_order_status` 3 kez çağrılmış ve
-"çağrı 3 · başarısız 0 · ortalama 10ms · son 12 dk. önce" istatistiğini
-gösteriyor — çağrılmış/çağrılmamış iki durum da doğru davranıyor.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — Tarayıcı uyumluluğu (kısa kontrol)
-
-[`00-INDEKS.md`](../../00-INDEKS.md) §environment: "Safari kısa, dar ekran kısa" —
-bu bölüm derinlemesine değil, kırıcı bir sorun var mı diye kısa bir taramadır.
 
 ---
 

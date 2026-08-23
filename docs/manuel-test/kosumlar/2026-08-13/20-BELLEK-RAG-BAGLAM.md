@@ -10,33 +10,40 @@
 
 ---
 
-## MT-MEM-001 — Tetikleyicisiz `SlidingWindow` derleme hatası verir
-
-**Gerçek sonuç**
-`valid:false`, `messages[0].code="compilation_error"`, mesaj metni beklenenle
-birebir eşleşti. `GET /api/agents` çıktısında `manuel-tetiksiz` yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-002 — `ContextWindow` stratejisi `MaxContextWindowTokens` olmadan derleme hatası verir
-
-**Gerçek sonuç**
-Mesaj metni beklenenle birebir eşleşti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-MEM-003 — Geçerli `SlidingWindow` tanımı `valid: true` döner (pozitif kontrol)
+## Temiz geçen case'ler (19)
 
-**Gerçek sonuç**
-`valid:true`, `messages:[]`.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-MEM-001 | ☑ | Tetikleyicisiz `SlidingWindow` derleme hatası verir |
+| MT-MEM-002 | ☑ | `ContextWindow` stratejisi `MaxContextWindowTokens` olmadan derleme hatası verir |
+| MT-MEM-003 | ☑ | Geçerli `SlidingWindow` tanımı `valid: true` döner (pozitif kontrol) |
+| MT-MEM-005 | ☑ | Harness çakışma denetimi: `Disable*` bayrakları etkin ayarlarla çelişirse derleme hatası |
+| MT-MEM-007 | ☑ | Sıkıştırılan mesajlar `conversation_items`'ta SİLİNMEZ (K-107) |
+| MT-MEM-008 | ☑ | `Summarization` stratejisi: özet sonrası token sayısı azalır, çalıştırma toplamı pozitif kalır |
+| MT-MEM-009 | ☑ | `Pipeline` stratejisi uçtan uca çalışır ve çökmez |
+| MT-MEM-010 | ☑ | Sıkıştırma **kapalıyken** uzun konuşmada `HistoryCompacted` hiç üretilmez (kontrol grubu) |
+| MT-MEM-015 | ☑ | Düz metinle belge yükleme: sunucu parçalar ve gömüler |
+| MT-MEM-016 | ☑ | `GET .../documents` yüklenen kaynağı listeler |
+| MT-MEM-017 | ☑ | Anlamsal arama KELİME EŞLEŞMESİ OLMAYAN bir sorguyla doğru parçayı bulur |
+| MT-MEM-018 | ☑ | `DELETE .../documents/{sourceId}` kaynağı siler; sonraki arama onu döndürmez |
+| MT-MEM-019 | ☑ | Hazır `chunks` ile (embedding VERİLMİŞ) yükleme: sunucu yeniden gömmez |
+| MT-MEM-020 | ☑ | Aynı `sourceId` ile yeniden yükleme ESKİ parçaları değiştirir (upsert) |
+| MT-MEM-026 | ☑ | `bilgi-asistani` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır |
+| MT-MEM-027 | ☑ | `VectorCollection` boş bırakılırsa koleksiyon adı olarak AGENT ADI kullanılır |
+| MT-MEM-028 | ☑ | `EnableVectorSearch=true` + `IVectorSearchStore` kayıtlı değil → derleme hatası, sessizce boş sonuç DÖNMEZ |
+| MT-MEM-029 | ☑ | `EnableVectorSearch=true` + PostgreSQL var ama `IEmbeddingGenerator` kayıtlı değil → derleme hatası |
+| MT-MEM-030 | ☑ | Vektör arama kiracı yalıtımı: bir kiracının belgesi diğerinde görünmez |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (12)
 
 ## MT-MEM-004 — Bilinmeyen `strategy` string değeri JSON deserialize hatası verir (`400`)
 
@@ -58,23 +65,6 @@ o path'e hiç ulaşmıyor. **Kusur, Önem: Orta** — `HATA-S1-007` olarak kayde
 
 ---
 
-## MT-MEM-005 — Harness çakışma denetimi: `Disable*` bayrakları etkin ayarlarla çelişirse derleme hatası
-
-**Gerçek sonuç**
-Üç adımın üçü de beklenen mesajla birebir eşleşti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — Sıkıştırma: Gerçek Çalıştırma ve Kalıcılık (Faz 13, İzlek B)
-
-`POST /api/agents` compile denetimi yapmaz (bkz. §1 girişi); bu bölümdeki
-her case önce `PUT /api/agents/{name}` ile kaydeder, sonra gerçek turlarla
-çalıştırır.
-
----
-
 ## MT-MEM-006 — `SlidingWindow` gerçek konuşmada tetiklenir; `HistoryCompacted` olayı üretilir
 
 **Gerçek sonuç**
@@ -89,60 +79,6 @@ altında; bu yalnız script'in kendi kolaylık çıktısı, bir kusur değil, hi
 `Beklenen sonuç` bu alana bağlı değil.)
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-007 — Sıkıştırılan mesajlar `conversation_items`'ta SİLİNMEZ (K-107)
-
-**Gerçek sonuç**
-`mem-sikistir-01` oturumu için `toplam_oge=10` — 5 turun ürettiği tüm
-mesajlar (kullanıcı+asistan) korunmuş, `MT-MEM-006`'nın `afterMessages=5`
-değerinden büyük.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-008 — `Summarization` stratejisi: özet sonrası token sayısı azalır, çalıştırma toplamı pozitif kalır
-
-**Gerçek sonuç**
-Son run'ın olay listesinde `HistoryCompacted`: `payload:"beforeMessages=9,
-afterMessages=7, beforeTokens=36, afterTokens=27"` — `afterTokens(27) <
-beforeTokens(36)`. `GET /api/runs/{id}` yanıtında `usage.totalTokens=232`
-(`NULL` değil, pozitif).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-009 — `Pipeline` stratejisi uçtan uca çalışır ve çökmez
-
-**Gerçek sonuç**
-5 turun tamamı `HTTP:200`. Son run'ın olay listesinde `HistoryCompacted`:
-`payload:"beforeMessages=7, afterMessages=5, beforeTokens=31, afterTokens=23"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-010 — Sıkıştırma **kapalıyken** uzun konuşmada `HistoryCompacted` hiç üretilmez (kontrol grubu)
-
-**Gerçek sonuç**
-`count=0` — `support` agent'ında (`Compaction` tanımsız) 5 turluk konuşmada
-hiç `HistoryCompacted` üretilmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — Bellek Sağlayıcıları: Dosya Belleği, Todo, Metin Arama (Faz 13)
-
-Üçü de `AgentDefinitionCompiler.CreateMemoryProviders` üzerinden **düz sohbet
-agent'ına da** bağlanır (Harness gerekmez). Hepsi tek bir paylaşılan
-`AgentFileStore` singleton'ı üzerinde çalışır
-(`AgentPrismServiceCollectionExtensions.cs:300-301`,
-`TryAddSingleton<AgentFileStore>` — **süreç genelinde tek örnek**, tenant/
-agent/session başına ayrılmaz).
 
 ---
 
@@ -237,73 +173,6 @@ DÖNMEZ, `501` döner (K1).
 
 ---
 
-## MT-MEM-015 — Düz metinle belge yükleme: sunucu parçalar ve gömüler
-
-**Gerçek sonuç**
-Koşulamadı: `POST /api/knowledge/{collection}/documents` gerçek bir OpenAI
-embedding çağrısı gerektiriyor (`text-embedding-3-small`). Bu şeridin
-kullandığı OpenAI anahtarının bağlı olduğu proje bu modele (ve denenen
-diğer embedding modellerine — `3-large`, `ada-002`) erişemiyor
-(`403 model_not_found`, doğrudan OpenAI API'sine karşı doğrulandı; `/v1/models`
-embedding modeli hiç listelemiyor). Program.cs modeli sabit kodluyor,
-config'den değiştirilemiyor (bkz. dosya başındaki not). Kullanıcı kararı:
-bloke edilen case'ler `Beklemede` bırakılıp koşum sürdürüldü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — HTTP 200, gövde tam olarak {"sourceId":"izin-notu","chunkCount":1}. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-016 — `GET .../documents` yüklenen kaynağı listeler
-
-**Gerçek sonuç**
-Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
-koşulamadı (bkz. o case'in notu).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — ["izin-notu"] döndü, tam beklenen gibi. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-017 — Anlamsal arama KELİME EŞLEŞMESİ OLMAYAN bir sorguyla doğru parçayı bulur
-
-**Gerçek sonuç**
-Koşulamadı: sorgu embedding'i gerektirir, embedding erişimi yok (bkz.
-`MT-MEM-015`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — sourceId=izin-notu, distance=0.548 (<2.0). S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-018 — `DELETE .../documents/{sourceId}` kaynağı siler; sonraki arama onu döndürmez
-
-**Gerçek sonuç**
-Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
-koşulamadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — silme 204, sonraki arama [] , liste []. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-019 — Hazır `chunks` ile (embedding VERİLMİŞ) yükleme: sunucu yeniden gömmez
-
-**Gerçek sonuç**
-`HTTP: 200`, gövde tam olarak `{"sourceId":"hazir-parca","chunkCount":1}`.
-Hazır embedding verildiği için embedding API'ye hiç çıkılmadı (bu, §4'ün
-embedding erişimi olmadan koşulabilen tek yükleme case'i).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-020 — Aynı `sourceId` ile yeniden yükleme ESKİ parçaları değiştirir (upsert)
-
-**Gerçek sonuç**
-Koşulamadı: `text` ile yükleme embedding gerektirir, embedding erişimi yok
-(bkz. `MT-MEM-015`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — iki çağrı da 200; DB'de tek satır, içerik "Ikinci surum..." ile başlıyor. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
 ## MT-MEM-021 — Hem `text` hem `chunks` birlikte gönderilirse `400`
 
 **Gerçek sonuç**
@@ -375,78 +244,6 @@ atandı (§2.2'nin tam istediği desen), bu kez doğru çalıştı: dördü de
 ---
 
 # 5 — Anlamsal Arama: `search_knowledge` ve Agent Entegrasyonu (Faz 51)
-
----
-
-## MT-MEM-026 — `bilgi-asistani` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
-
-**Gerçek sonuç**
-Koşulamadı: belge yükleme ve `search_knowledge` tool'unun sorgu embedding'i
-üretmesi gerekiyor, embedding erişimi yok (bkz. `MT-MEM-015`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — yanıt "14 gün" içeriyor, search_knowledge tam bir kez çağrıldı (tool_invocations doğrulandı). S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-027 — `VectorCollection` boş bırakılırsa koleksiyon adı olarak AGENT ADI kullanılır
-
-**Gerçek sonuç**
-Koşulamadı: belge yükleme embedding gerektiriyor, embedding erişimi yok
-(bkz. `MT-MEM-015`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — yanıt "bulut-42" içeriyor, varsayılan koleksiyon = agent adı doğrulandı. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-## MT-MEM-028 — `EnableVectorSearch=true` + `IVectorSearchStore` kayıtlı değil → derleme hatası, sessizce boş sonuç DÖNMEZ
-
-**Gerçek sonuç**
-Sapma: ortam değişkeni `=""` ile kullanıldı (bu kez baştan doğru — bkz.
-`MT-MEM-025`'in notu). `valid:false`, `messages[0].message` beklenenle
-birebir eşleşti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-MEM-029 — `EnableVectorSearch=true` + PostgreSQL var ama `IEmbeddingGenerator` kayıtlı değil → derleme hatası
-
-**Gerçek sonuç**
-Sapma: `AgentPrism__Providers__OpenAI__ApiKey=""` ortam değişkeni ile
-kapatıldı, PostgreSQL bağlantısı `mt_s1`'e açık bırakıldı. `valid:false`,
-mesaj beklenenle birebir eşleşti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — Anlamsal Arama: Kiracı Yalıtımı (Faz 51, K-343 ile tezat)
-
-`PgVectorSearchStore` `document_embeddings` sorgularının HER BİRİNDE
-`tenant_id` filtresi taşır (Faz 51 DoD, `VectorTenantIsolationTests`) — bu YENİ
-anlamsal arama yüzeyi baştan tenant-farkındaydı. `MT-MEM-014`'ün ölçtüğü eski
-`TextSearchProvider` deseni (paylaşılan dosya deposunda kiracı filtresi
-yoktu) 2026-08-10'da `TenantPrefixingAgentFileStore` ile aynı garantiye
-kavuştu — bkz. `MT-MEM-014`'ün güncellenmiş notu.
-
----
-
-## MT-MEM-030 — Vektör arama kiracı yalıtımı: bir kiracının belgesi diğerinde görünmez
-
-**Gerçek sonuç**
-Koşulamadı: belge yükleme ve arama embedding gerektiriyor, embedding
-erişimi yok (bkz. `MT-MEM-015`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — kiraci-beta araması [] döndü, kiraci-alfa (kontrol) alfa-belge'yi buldu. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
-
----
-
-# 7 — Güvenlik: API Anahtarı Kapsam Boşluğu (Faz 51)
-
-> **Rol matrisi burada da NO-OP'tur, tekrar test edilmez** (`00-INDEKS.md`
-> §8 ve `14`/`15`/`16`/`17`/`18-*.md`'nin zaten kaydettiği genel bulgu).
-> `KnowledgeEndpoints`'in `RequireRole(roles.Operator/Reader)` çağrıları,
-> `AgentPrismPolicies.*` örnek uygulamada kayıtlı OLMADIĞI için etkisizdir.
 
 ---
 

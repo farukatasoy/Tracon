@@ -10,6 +10,47 @@
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
+
+---
+
+## Temiz geçen case'ler (25)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-OBS-002 | ☑ | Fiyat tanımsızken "Bugünkü Maliyet" karosu `—` gösterir, `runsWithUnknownPricing` sıfır DEĞİLDİR |
+| MT-OBS-005 | ☑ | `delta()` hesaplaması: dünü sıfırken bugün de sıfırsa `%0`, dün sıfırken bugün pozitifse rozet HİÇ görünmez |
+| MT-OBS-006 | ☑ | Aralık düğmeleri farklı kova boyutuyla istek atar; 30 gün özellikle günlük kovaya düşer |
+| MT-OBS-007 | ☑ | Zaman serisi grafiğinde çalışma/başarısızlık çizgileri ve durum dağılım çubuğu doğru veriyi çizer |
+| MT-OBS-009 | ☑ | En aktif agent'lar listesinde başarısız run varsa kırmızı ek metin görünür |
+| MT-OBS-010 | ☑ | Hata sınıfı kırılımı, sınıf başına en sık kümenin örnek mesajını ve son görülme zamanını gösterir |
+| MT-OBS-012 | ☑ | Fiyatı tanımsız run varken sarı uyarı rozeti görünür; "Fiyatı yapılandır" bağlantısı yalnız Admin'e görünür |
+| MT-OBS-013 | ☑ | Bekleyen girdi run'ı varken mavi uyarı rozeti "Çalıştırmalar"a bağlanır |
+| MT-OBS-014 | ☑ | Hiç puanlanmış run yokken "henüz yok" metni; çevrimiçi değerlendirme paneli 30 saniyede bir kendiliğinden yenilenir |
+| MT-OBS-015 | ☑ | `SuccessSampleRatio = 0` iken: başarılı run'da trace KESİN YOK, başarısız run'da `AlwaysPersistFailures` sayesinde YİNE DE VAR |
+| MT-OBS-016 | ☑ | `SuccessSampleRatio = 1` iken başarılı bir run'da trace KESİN VAR |
+| MT-OBS-017 | ☑ | Waterfall ebeveyn-çocuk yuvalamayı girintiyle gösterir; kök span en üstte |
+| MT-OBS-018 | ☑ | Sıfıra yakın süreli bir span bile en az %0,6 genişlikte GÖRÜNÜR kalır |
+| MT-OBS-020 | ☑ | Alt çalıştırmanın trace ucu, "span yok" ile "hiç çalıştırma yok"u AYNI mesajla döner |
+| MT-OBS-021 | ☑ | Fiyat tanımsızken maliyet alanları `null`'dur, `0` DEĞİL |
+| MT-OBS-022 | ☑ | Yalnız `Input` fiyatı tanımlanınca `outputCost` `null` kalır, `source = Configuration` olur |
+| MT-OBS-023 | ☑ | Rezerve anahtar: `Pricing:Voice:...` bir "Voice" sağlayıcısı olarak ayrıştırılmaz |
+| MT-OBS-025 | ☑ | `POST /api/stats/recalculate-costs` Admin ister, denetim izine yazar, sayaçları tutarlı döner |
+| MT-OBS-026 | ☑ | `from >= to` (eşitlik dahil) `400 "Aralik gecersiz"` döner |
+| MT-OBS-027 | ☑ | 30 günlük aralığı saatlik kovayla istemek `400 "Kova sayisi asildi"` döner, günlük kova önerir |
+| MT-OBS-028 | ☑ | Boş kovalar sıfır sayımlarla döner; hiçbir kova ATLANMAZ |
+| MT-OBS-029 | ☑ | Yalnızca süren run'ları içeren bir kova `averageDurationMs = null` döner, `runs > 0` olsa bile |
+| MT-OBS-030 | ☑ | `maxTools=0` sunucuda `1`'e yükseltilir, `0` tool DEĞİL |
+| MT-OBS-031 | ☑ | `startedAfter` filtresi run'ın BAŞLANGIÇ zamanına göre süzer, tool çağrısının kendi zamanına göre DEĞİL |
+| MT-OBS-032 | ☑ | Dashboard sağlık verisini `refresh=true` OLMADAN çeker; 60 saniyelik önbellek payına düşer |
+
+## Ayrıntı taşıyan case'ler (11)
+
 ## MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları aynı anda görünür
 
 **Gerçek sonuç**
@@ -30,20 +71,6 @@ tarif ettiği boş-durum davranışıyla TUTARLI görünüyor — canlı doğrul
 yapılamadı ama kod okumasında bir tutarsızlık bulunmadı.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
-
----
-
-## MT-OBS-002 — Fiyat tanımsızken "Bugünkü Maliyet" karosu `—` gösterir, `runsWithUnknownPricing` sıfır DEĞİLDİR
-
-**Gerçek sonuç**
-Dashboard'ta "Bugünkü tutar" karosu `—` gösterdi (`0` DEĞİL) — 107 birikmiş
-çalıştırmadan hiçbiri fiyatlı değil (varsayılan hâl, `AgentPrism:Pricing:*`
-hiç tanımlı değil). `curl .../api/stats?maxAgents=10` → `runsWithUnknownPricing:
-93` (kök `run` sayısı; toplam 107 run'ın 93'ü kök seviyede fiyatsız — kalan
-14'ü alt çalıştırma/iptal/sürüyor gibi maliyet hesabına girmeyen durumlar).
-Sıfır DEĞİL, beklenen davranış birebir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -100,70 +127,6 @@ HATA kaydı açılmadı (zaten `HATA-S4-019`'un notunda `money()`'nin iki farkl�
 
 ---
 
-## MT-OBS-005 — `delta()` hesaplaması: dünü sıfırken bugün de sıfırsa `%0`, dün sıfırken bugün pozitifse rozet HİÇ görünmez
-
-**Gerçek sonuç**
-Adım 1 tam biçimiyle koşulamadı — reset yasak (bkz. `MT-OBS-001`), "Bugünkü
-Çalıştırma" `0` durumu canlı üretilemedi. Ama Adım 2'nin ÖZDEŞ dalı doğal
-olarak zaten gerçekleşmiş durumda: `mt_s4` şeması bu şeridin ilk günü
-(2026-08-13) açıldığından `topStrip` sorgusunun `yesterday` kovası (bir
-önceki takvim günü, 08-12) GERÇEKTEN sıfır — `points[0].runs===0` — ve
-`today` (108-13) `107`. Dashboard'ta "Bugünkü çalıştırma" karosu `107`
-gösterdi ve YANINDA HİÇBİR delta rozeti YOK — tam olarak `previous===0 &&
-current!==0 → null` dalı, birebir Adım 2'nin beklentisi. Adım 1'in
-`previous===0 && current===0 → 0` dalı (rozet GÖRÜNÜR kalır, gizlenmez)
-canlı gözlenemedi; `dashboard.tsx:359-369` (`delta()`) ve `:393-398`
-(`StripTile`, `deltaValue!==null` şartı — `0` bu şartı GEÇER) okunarak
-doğrulandı: `0` değeri `null` DEĞİLDİR, bu yüzden badge yine render edilir
-(`+0,0% dashboard.vsYesterday`). Kod, dokümanla tutarlı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — Zaman serisi ve durum dağılımı grafiği
-
----
-
-## MT-OBS-006 — Aralık düğmeleri farklı kova boyutuyla istek atar; 30 gün özellikle günlük kovaya düşer
-
-**Gerçek sonuç**
-Dört düğme sırayla tıklandı, `GET api/stats/timeseries` istekleri
-`browser_network_requests` ile izlendi:
-- `1h` → `bucket=Hour`, `from=20:44:35Z` `to=21:44:35Z` (tam 1 saat).
-- `24h` → `bucket=Hour`, `from=08-12T21:44:46Z` `to=08-13T21:44:46Z`.
-- `7d` → `bucket=Hour`, `from=08-06T21:44:51Z` `to=08-13T21:44:51Z`.
-- `30d` → `bucket=Day`, `from=07-14T21:44:56Z` `to=08-13T21:44:56Z`.
-Her tıklamada `to` damgası farklı (o anın "şimdi"si) — yeniden hesaplandığı
-doğrulandı. `30d` tek başına `Day` kovasına düşen, geri kalan üçü `Hour`
-kalan — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-007 — Zaman serisi grafiğinde çalışma/başarısızlık çizgileri ve durum dağılım çubuğu doğru veriyi çizer
-
-**Gerçek sonuç**
-`24h` aralığında `document.querySelectorAll` ile SVG içeriği okundu.
-`timeseries-chart`: tam 2 `path` — biri `stroke="var(--ap-violet)"` (mor,
-kesiksiz, çalışma sayısı), diğeri `stroke="var(--ap-rose)"`
-`stroke-dasharray="4 3"` (kesikli gül rengi, başarısız sayısı) — birebir
-beklenen (renk körlüğünde bile dash deseniyle ayırt edilir).
-`status-distribution-chart`: 50 `rect` (25 saatlik kova × 2 segment), dolu
-kovalarda emerald (`color-mix(... --ap-emerald ...)`) segment y=0'dan
-başlayıp rose segmentin ÜSTÜNE yığılmış duruyor (ör. bir kovada emerald
-h=46.83 y=1.17, rose h=1.17 y=0 — toplam kova yüksekliği 48px'in
-`runs`/`max(1,...)` oranına eşit) — iki segment de görünür, yığılma doğru.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — Model kırılımı ve en aktif agent'lar
-
----
-
 ## MT-OBS-008 — Model kırılımı run sayısına göre azalan sırada çubuklar çizer; fiyat tanımsızken tutar `—`
 
 **Gerçek sonuç**
@@ -193,47 +156,6 @@ davranışı TUTARLI ve DOĞRU (kalıcılık ilkesi) — case'in ön koşul vars
 
 ---
 
-## MT-OBS-009 — En aktif agent'lar listesinde başarısız run varsa kırmızı ek metin görünür
-
-**Gerçek sonuç**
-"En çok çalışan agent'lar" panelinin DOM'u okundu (9 agent satırı). Yalnız
-`support` (`2 başarısız`) ve `manuel-destek` (`1 başarısız`) satırlarında
-`<span class="ml-2 text-danger">N başarısız</span>` var; diğer 7 satırda
-(`manuel-bos`, `yonlendirici`, `claude-destek`, `ozetleyici`, `cevirmen`,
-`ozetle-ve-cevir`, `ozetle-ve-onayla` — hepsi 0 başarısız) bu ek `span` HİÇ
-yok. Birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Hata kırılımı
-
----
-
-## MT-OBS-010 — Hata sınıfı kırılımı, sınıf başına en sık kümenin örnek mesajını ve son görülme zamanını gösterir
-
-**Gerçek sonuç**
-Ön koşul zaten birikmiş veriyle karşılanıyordu — "geçersiz model" yerine
-`content_blocked` sınıfı iki başarısız run'la (ikisi de `support`, guard
-`denied-term` kuralı) hazır geldi, ayrıca yeni bir run üretmeye gerek
-kalmadı. Dashboard "Hata Kırılımı" paneli: **"İçerik politika ile
-engellendi" — 2 başarısız**, altında "2× görüldü · Icerik 'pattern' guard'i
-tarafindan engellendi (kural: denied-term, yon: Input)... · 1 sa. önce".
-İkinci satır: **"Sağlayıcı hatası" — 1 başarısız**, "1× görüldü · HTTP 404
-(invalid_request_error: model_not_found) The model
-`gecersiz-model-adi-xyz`... · 2 sa. önce". İkisi de okunabilir Türkçe
-etiketle geldi (ham anahtar YOK, `dashboard.errorClass.*` çevirisi
-tanımlı). `title` tooltip'i (DOM `title` attribute) tam mesajı taşıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Uyarılar paneli
-
----
-
 ## MT-OBS-011 — Hiçbir koşul tetiklenmediğinde "Her şey yolunda" metni görünür
 
 **Gerçek sonuç**
@@ -256,132 +178,6 @@ bayrağın hepsi `false` olduğunda `dashboard.allClear` döndüğü zaten
 
 ---
 
-## MT-OBS-012 — Fiyatı tanımsız run varken sarı uyarı rozeti görünür; "Fiyatı yapılandır" bağlantısı yalnız Admin'e görünür
-
-**Gerçek sonuç**
-"Uyarılar" panelinde sarı `Fiyatsız modelli 93 çalıştırma` rozeti göründü
-(tooltip: "Bu çalıştırmalar, fiyatı tanımlanmamış bilinen bir model
-kullandı."). Yanında `Fiyatlandırmayı ayarla →` bağlantısı vardı, `href` =
-`/agentprism/settings` (genel ayarlar rotası, özel bir fiyat ekranı yok —
-beklendiği gibi). Token `canAdminister:true` taşıyor (`/api/meta`), bu
-yüzden bağlantı görünürdü; farklı rolde görünüp görünmeyeceği bu case'in
-kapsamı dışında (`13-KIRACI-VE-GUVENLIK.md`'nin konusu).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-013 — Bekleyen girdi run'ı varken mavi uyarı rozeti "Çalıştırmalar"a bağlanır
-
-**Gerçek sonuç**
-Mavi `1 çalıştırma girdi bekliyor` rozeti göründü (`ozetle-ve-onayla`,
-`019ffcca-f0f1-712b-b7b8-a79f2cb415ed`, dosya 11'in `MT-UIRUN-012`
-fixture'ı — hâlâ `AwaitingInput`). Tıklanınca `/agentprism/runs`'a gitti;
-agent/durum/kapsam filtreleri sırasıyla "Bütün agent'lar"/"Her durum"/"Kök
-çalıştırmalar" — hiçbiri `AwaitingInput`'a önceden ayarlanmadı, birebir
-beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — Geri bildirim ve çevrimiçi değerlendirme özetleri
-
----
-
-## MT-OBS-014 — Hiç puanlanmış run yokken "henüz yok" metni; çevrimiçi değerlendirme paneli 30 saniyede bir kendiliğinden yenilenir
-
-**Gerçek sonuç**
-Adım 1: "Geri Bildirim" paneli "Henüz hiçbir çalıştırma puanlanmadı."
-(`feedback.noneYet`), "Çevrimiçi Değerlendirme" paneli "Henüz hiçbir
-çalıştırma yargılanmadı." (`onlineEval.noneYet`) gösterdi — hiçbir run
-puanlanmadığı/yargılanmadığı gerçek duruma birebir uygun. Adım 2: 35 sn
-bekleme + `browser_network_requests` — `GET api/evaluation/online` toplam
-6 kez gitti (sayfa yüklemesi dahil, ~30 sn periyotlu tekrarlar dahil) —
-EN AZ iki isteği açıkça aştı. Aynı 35 sn'lik pencerede `GET
-api/stats?maxAgents=10` yalnız 1 KEZ gitti — "Geri Bildirim" paneli
-`stats` sorgusuna bağlı ve kendi zamanlayıcısı yok, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 7 — İz (Trace) ve Waterfall
-
----
-
-## MT-OBS-015 — `SuccessSampleRatio = 0` iken: başarılı run'da trace KESİN YOK, başarısız run'da `AlwaysPersistFailures` sayesinde YİNE DE VAR
-
-**Gerçek sonuç**
-`AgentPrism__Observability__SuccessSampleRatio=0` ile yeniden başlatıldı.
-Geçersiz model turu için `manuel-destek` GEÇİCİ olarak `manuel-model-hata-obs`
-modeline PUT edildi (v7→v8, S4-6'nın `MT-UIAG-043` deseni), çalıştırıldı,
-SONRA orijinal `gpt-5.4-mini`'ye geri PUT edildi (v8→v9, içerik v7 ile
-birebir aynı). Adım 1: taze `support`/`Merhaba` turu (`019ffd1f-2f58-...`,
-`Completed`) → `GET .../trace` **`404`**, gövde `"Trace bulunamadi"` +
-`"...AgentPrism:Observability:SuccessSampleRatio"` adını anıyor; arayüzde
-"İz" paneli "Kayıtlı span yok" + aynı açıklama metnini gösterdi. Adım 2:
-geçersiz-model turu (`019ffd1e-a44f-...`, `Failed`, hata
-`model_not_found`) → `GET .../trace` **`200`**, `spans[0].status:"Error"`,
-`attributes["error.message"]` hata metnini taşıyor — `AlwaysPersistFailures`
-oranı geçersiz kıldı, birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-016 — `SuccessSampleRatio = 1` iken başarılı bir run'da trace KESİN VAR
-
-**Gerçek sonuç**
-`AgentPrism__Observability__SuccessSampleRatio=1` ile yeniden başlatıldı.
-`playground`'a eşdeğer `POST /api/agents/support/run` (`Merhaba`) →
-`019ffd20-585f-7026-a562-b394bbc05a67`, `Completed`. `GET .../trace` →
-`200`. Çalıştırma sayfasının "İz" paneli render edildi: `3 span`, W3C iz
-kimliği `1f7287bcfb7f10d3532a124b7c1ed240`, toplam süre `2.14s` — üçü de
-başlıkta birebir göründü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-017 — Waterfall ebeveyn-çocuk yuvalamayı girintiyle gösterir; kök span en üstte
-
-**Gerçek sonuç**
-`yonlendirici`'ye eşdeğer `POST /api/agents/yonlendirici/run`,
-`FIX-PROMPT-01` gönderildi → `019ffd21-0539-7976-85c3-3705ec542996`
-(`Completed`, `childRunCount:1`). Adım 2: KÖK run'ın "İz" paneli **16 span**
-gösterdi. DOM `padding-left` ölçüldü: kök `agentprism.run`/`invoke_agent
-yonlendirici` `0px`/`10px`; `yonlendirici`'nin kendi `chat`/`execute_tool
-background_agents_start_task` çağrıları `20px`; ALT ÇALIŞTIRMANIN
-(`support`) kendi `agentprism.run`/`invoke_agent support` çifti `30px`/
-`40px`'e, `support`'un `chat`/`execute_tool get_order_status` çağrıları
-`50px`'e İNDİRİLİ — `depth*10px` birebir doğrulandı, `support` span'i
-`yonlendirici`'ninkinden GİRİNTİLİ. Adım 3: `execute_tool
-get_order_status` satırına tıklandı, ayrıntı bölümü açıldı: `kind:Internal`,
-`status:Unset`, `spanId:f85e6ca5b2d9586b` (mono), öznitelik tablosu 5 satır
-(`gen_ai.tool.name`, `gen_ai.tool.type`, `gen_ai.tool.call.id`,
-`gen_ai.operation.name`, `gen_ai.tool.description`) — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-018 — Sıfıra yakın süreli bir span bile en az %0,6 genişlikte GÖRÜNÜR kalır
-
-**Gerçek sonuç**
-`MT-OBS-017`'nin 16 span'lık verisi DOM'dan okundu (`style="left:...;
-width:...;"`). Dört tool span'i (`1ms`/`3ms`/`2ms`/`1ms` süreli
-`get_order_status`, `background_agents_start_task`,
-`background_agents_get_task_results`, `background_agents_clear_completed_
-task`) — dördü de `width: 0.6%` ile RENDER edildi (taban değere BİREBİR
-eşit, `%0` DEĞİL). Diğer, daha uzun süreli span'ler (`14`-`30`+ arası
-gerçek yüzdeler) taban değere TAKILMADI — yalnız gerçekten kısa olanlar
-`0.6%`'ye kenetlendi. Kod davranışı birebir doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır; `RecordSensitiveData=true` ile aynı tür çağrıda görünür
 
 **Gerçek sonuç**
@@ -396,72 +192,6 @@ HİÇBİR env override OLMADAN yeniden başlatıldı — `RecordSensitiveData`
 varsayılana (`false`) döndü, `SuccessSampleRatio` da kod varsayılanına
 (`0.1`, `AgentPrismOptions.cs:361`) döndü; S4-10 (§8-12) temiz bir başlangıç
 durumu devralacak.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-020 — Alt çalıştırmanın trace ucu, "span yok" ile "hiç çalıştırma yok"u AYNI mesajla döner
-
-**Gerçek sonuç**
-`MT-OBS-017`'nin alt çalıştırması (`019ffd21-0b92-785f-9191-cc8e2251639d`,
-`support`, `parentRunId:019ffd21-0539-...`) ve rastgele bir GUID
-(`00000000-0000-0000-0000-000000000000`) ile ayrı ayrı çağrıldı. İkisi de
-`404`. Gövde şablonu birebir aynı: `title:"Trace bulunamadi"`,
-`detail:"'<id>' calistirmasi icin kayitli span yok. Span yazma yolu
-orneklenir: basarili calistirmalarin yalnizca bir kismi kaydedilir
-(AgentPrism:Observability:SuccessSampleRatio)."` — yalnız `<id>` yer
-tutucusu farklı (beklenildiği gibi, doc'un "birebir aynı" ifadesi başlık +
-açıklama şablonunu kastediyor, id'yi değil). Sunucu "run hiç yok" ile "run'ın
-span'i yok"u ayırt etmiyor, birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — Maliyet hesaplama ve yeniden hesaplama
-
----
-
-## MT-OBS-021 — Fiyat tanımsızken maliyet alanları `null`'dur, `0` DEĞİL
-
-**Gerçek sonuç**
-`manuel-bos` ile `v1/conversations` → `api/agents/manuel-bos/run` üzerinden
-üretilen run (`019ffd2a-905e-78ce-a2f2-931b70754ef3`), hiçbir `Pricing:*`
-ayarı yokken: `GET .../runs/{id}` → `cost.source:"Unknown"`,
-`cost.inputCost:null`, `cost.outputCost:null` — birebir beklenen. SQL
-doğrulaması: `mt_s4.runs.input_cost`/`output_cost` boş (NULL), `pricing_source
-= 2` (`PricingSource.Unknown`, `src/AgentPrism.Abstractions/Runs/PricingSource.cs:24`)
-— `0` DEĞİL.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-022 — Yalnız `Input` fiyatı tanımlanınca `outputCost` `null` kalır, `source = Configuration` olur
-
-**Gerçek sonuç**
-Uygulama yalnız `AgentPrism__Pricing__openai__gpt-5.4-mini__Input=0.15`
-(nokta içeren env anahtarı `env 'KEY=val' ... dotnet run` ile verildi, `Output`
-hiç ayarlanmadı) ile yeniden başlatıldı; `ps eww` ile süreç ortamı
-doğrulandı. `support` (`openai`/`gpt-5.4-mini`) ile `Merhaba` turu
-tamamlandı: `GET .../runs/{id}` → `cost.source:"Configuration"`,
-`cost.inputCost:3.165e-05` (sıfırdan büyük), `cost.outputCost:null`,
-`cost.currency:"USD"` — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-023 — Rezerve anahtar: `Pricing:Voice:...` bir "Voice" sağlayıcısı olarak ayrıştırılmaz
-
-**Gerçek sonuç**
-Uygulama `AgentPrism__Pricing__Voice__openai__gpt-5.4-mini__Input=999` İLE
-(gerçek `AgentPrism:Pricing:openai:gpt-5.4-mini:Input` boş string ile
-kaldırılmış) yeniden başlatıldı. `support` ile `Merhaba` turu tamamlandı:
-`cost.source:"Unknown"`, `cost.inputCost:null`, `cost.outputCost:null` —
-`999` gibi anormal bir `Voice` alt-bölüm tutarı sohbet maliyetine hiç
-yansımadı, birebir beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -489,126 +219,6 @@ rağmen. K-154'ün belgelediği sınırlama birebir doğrulandı, kod kusuru
 DEĞİL.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-025 — `POST /api/stats/recalculate-costs` Admin ister, denetim izine yazar, sayaçları tutarlı döner
-
-**Gerçek sonuç**
-`MT-OBS-024`'ün karışık fiyatlandırması (`openai`/`openrouter`, ikisi de
-`openai/gpt-5.4-mini` anahtarıyla) etkinken çağrıldı:
-`{"runsConsidered":104,"runsUpdated":2,"runsStillUnknown":102}` —
-`runsConsidered(104) >= runsUpdated(2)` doğru; `runsStillUnknown(102) >=`
-`manuel-bos`'un çalıştırma sayısı (`SELECT count(*) FROM mt_s4.runs WHERE
-agent_name='manuel-bos'` → `32`) doğru. `mt_s4.audit_log`'da satır:
-`tenant_id:default, action:stats.recalculate-costs, entity:runs:*,
-created_at:2026-08-13 22:12:45+00` — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 9 — Zaman serisi ucu (`GET api/stats/timeseries`)
-
----
-
-## MT-OBS-026 — `from >= to` (eşitlik dahil) `400 "Aralik gecersiz"` döner
-
-**Gerçek sonuç**
-`from=to=2026-08-10T00:00:00Z` ile: `HTTP 400`,
-`title:"Aralik gecersiz"`, `detail:"'from' 'to''dan once olmalidir."` —
-birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-027 — 30 günlük aralığı saatlik kovayla istemek `400 "Kova sayisi asildi"` döner, günlük kova önerir
-
-**Gerçek sonuç**
-31 günlük aralık + `bucket=Hour`: `HTTP 400`, `title:"Kova sayisi asildi"`,
-`detail:"Istenen aralik 744 kova uretir, en fazla 500 kovaya izin verilir.
-Onerilen kova: day."` — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-028 — Boş kovalar sıfır sayımlarla döner; hiçbir kova ATLANMAZ
-
-**Gerçek sonuç**
-`2020-01-01`/`2020-01-02` aralığı, `bucket=Hour`: tam `24` öge, hepsi
-`runs:0`, `failedRuns:0`, `inputTokens:0`, `outputTokens:0`, `cost:null`,
-`averageDurationMs:null` — hiçbir kova atlanmadı, birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-029 — Yalnızca süren run'ları içeren bir kova `averageDurationMs = null` döner, `runs > 0` olsa bile
-
-**Gerçek sonuç**
-`FIX-PROMPT-04` (50.000 karakter) `support`'a `curl` ile ARKA PLANDA
-gönderildi (Playground'a HİÇ tıklanmadı — kural #6), aynı script içinde
-sıkı bir döngüyle `GET .../runs?sessionId=` yoklandı; 2. denemede run
-`"status":"Running"` YAKALANDI, O ANDA `GET .../stats/timeseries?bucket=Hour`
-çağrıldı: güncel saatlik kova `runs:8` (bir önceki durgun ölçümde `7`'ydi —
-çalışan run SAYILARA girdi) ama `averageDurationMs:1398.7515714285714`
-DEĞİŞMEDİ (yeni run'ın süresi ortalamaya HİÇ karışmadı) — bu kovada zaten
-7 tamamlanmış run olduğundan sonuç literal `null` değil ama MEKANİZMA
-birebir aynı. Kod kanıtı bunu kesinleştiriyor:
-`src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs:855` (`COUNT(*)`,
-FİLTRESİZ — çalışan satır da sayılır) vs. `:861-862`
-(`AVG(...) FILTER (WHERE completed_at IS NOT NULL)` — yalnız TAMAMLANMIŞ
-satırlar ortalamaya girer). Boş bir kovada (bu run TEK satır olsaydı)
-sonuç literal `averageDurationMs:null` olurdu — canlı + kod kanıtı ile
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 10 — Araç kullanım ucu (`GET api/tools/usage`)
-
----
-
-## MT-OBS-030 — `maxTools=0` sunucuda `1`'e yükseltilir, `0` tool DEĞİL
-
-**Gerçek sonuç**
-`maxTools=0` ile `GET api/tools/usage`: `1` öge döndü (`get_order_status`,
-`totalCalls:23`) — parametresiz istekte `7` öge dönerken `maxTools=0`
-sessizce `1`'e yuvarlandı, birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-OBS-031 — `startedAfter` filtresi run'ın BAŞLANGIÇ zamanına göre süzer, tool çağrısının kendi zamanına göre DEĞİL
-
-**Gerçek sonuç**
-`startedAfter=` (şu andan +1 saat, macOS `date -v+1H`) ile:
-`GET api/tools/usage` → `[]` — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 11 — Model sağlığı (Dashboard özeti)
-
----
-
-## MT-OBS-032 — Dashboard sağlık verisini `refresh=true` OLMADAN çeker; 60 saniyelik önbellek payına düşer
-
-**Gerçek sonuç**
-Dashboard (`/agentprism/dashboard`) açıldı, Playwright ağ günlüğü:
-`GET http://localhost:5084/agentprism/api/models/health` — sorgu dizgisi
-YOK, `refresh=true` parametresi taşımıyor, birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 12 — Faz 35 metrikleri (`dotnet-counters`)
 
 ---
 

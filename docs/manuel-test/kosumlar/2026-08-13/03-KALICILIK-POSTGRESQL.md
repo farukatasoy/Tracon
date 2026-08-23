@@ -10,6 +10,48 @@
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
+
+---
+
+## Temiz geçen case'ler (26)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PG-002 | ☑ | Şema adı `public` olamaz |
+| MT-PG-003 | ☑ | Geçersiz şema adı biçimleri ve enjeksiyon denemesi reddedilir |
+| MT-PG-004 | ☑ | `CommandTimeoutSeconds` sınırları |
+| MT-PG-005 | ☑ | Üç `UsePostgreSql` aşırı yüklemesi aynı sonucu üretir |
+| MT-PG-006 | ☑ | Bağlantı dizesi hiç verilmezse hangi denetim önce tetiklenir |
+| MT-PG-007 | ☑ | Yanlış host ile başlatma migration adımında çöker (fail-fast) |
+| MT-PG-020 | ☑ | Boş DB'de 28 migration sırayla uygulanır |
+| MT-PG-021 | ☑ | Yeniden başlatma migration'ları tekrar uygulamaz (idempotent) |
+| MT-PG-022 | ☑ | Var olan (kısmi) şema üzerine devam |
+| MT-PG-023 | ☑ | Uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir |
+| MT-PG-024 | ☑ | İki eşzamanlı örnek çakışmadan migration uygular |
+| MT-PG-026 | ☑ | Şema adı değiştirildiğinde bağımsız bir migration seti oluşur |
+| MT-PG-027 | ☑ | `Dimensions` değişikliği uygulanmış `vector` sütununun boyutunu DEĞİŞTİRMEZ |
+| MT-PG-033 | ☑ | Diğer depolar `Replace` ile kayıtlıdır: tüketici önce kaydetse de PostgreSQL kazanır |
+| MT-PG-035 | ☑ | Sağlayıcı çağrı sırası değişirse kazanan değişir |
+| MT-PG-040 | ☑ | `pgvector` eklentisi ve HNSW indeksi migration sonrası kuruludur |
+| MT-PG-041 | ☑ | Embedding uzunluğu depo boyutuyla eşleşmezse `UpsertAsync` reddedilir |
+| MT-PG-042 | ☑ | Aynı kaynak yeniden yazılırsa eski parçalar silinir (upsert-üzerine-yazma) |
+| MT-PG-043 | ☑ | Arama kosinüs mesafesine göre artan sıralı döner |
+| MT-PG-044 | ☑ | İki kiracı aynı koleksiyon/kaynak kimliğini paylaşsa da birbirini görmez |
+| MT-PG-045 | ☑ | Kaynak silindiğinde tüm parçaları kaybolur |
+| MT-PG-046 | ☑ | `MaxDistance` filtresi uzak sonuçları eler |
+| MT-PG-047 | ☑ | Koleksiyon adı geçersiz karakter taşıyorsa HTTP ucu 400 döner |
+| MT-PG-052 | ☑ | Teşhis ucu migration UYGULAMAZ (salt okunur) |
+| MT-PG-060 | ☑ | 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır |
+| MT-PG-061 | ☑ | PostgreSQL koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur, uygulama çökmez |
+
+## Ayrıntı taşıyan case'ler (10)
+
 ## MT-PG-001 — Boş bağlantı dizesiyle başlatma reddedilir
 
 **Gerçek sonuç**
@@ -58,96 +100,6 @@ Case'in İzlek A/C'ye taşınması ayrı bir doküman görevi olarak açık kal�
 
 ---
 
-## MT-PG-002 — Şema adı `public` olamaz
-
-**Gerçek sonuç**
-> Beklendiği gibi. Uygulama `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
-> AgentPrismPostgreSqlOptions.SchemaName 'public' olamaz. AgentPrism tuketicinin
-> public semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.` ile
-> başlamadan sonlandı (`Now listening` satırı hiç görünmedi). Doğrulama sorgusu
-> `count = 0` döndü — denemeden önceki durumla aynı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"` — uygulandı.
-
----
-
-## MT-PG-003 — Geçersiz şema adı biçimleri ve enjeksiyon denemesi reddedilir
-
-**Gerçek sonuç**
-> Beklendiği gibi, üçü de AYNI biçimde reddetti (mesaj kalıbı sabit,
-> yalnız "Gelen deger" değişiyor):
-> `AgentPrismPostgreSqlOptions.SchemaName gecerli bir tirnaksiz PostgreSQL
-> tanimlayicisi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf,
-> rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger:
-> '<deger>'.` — `Agentprism`, `agent prism`, ve enjeksiyon dizesinin tamamı
-> (`agentprism; DROP SCHEMA public CASCADE;--`) sırayla bu kalıba düştü.
-> Doğrulama sorgusu bir satır döndü — `public` şeması hâlâ var, `DROP SCHEMA`
-> hiç çalışmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"` — uygulandı.
-
----
-
-## MT-PG-004 — `CommandTimeoutSeconds` sınırları
-
-**Gerçek sonuç**
-> Beklendiği gibi, dört değer de. `-1` → `AgentPrismPostgreSqlOptions.CommandTimeoutSeconds
-> 0 ile 3600 arasinda olmalidir. Gelen deger: -1.` ile reddedildi. `3601` → aynı
-> kalıp, `Gelen deger: 3601.` ile reddedildi. `0` ve `3600` ikisi de `Now
-> listening on: http://localhost:5080` ile normal başladı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:CommandTimeoutSeconds"` (varsayılan 30'a döner) — uygulandı.
-
----
-
-## MT-PG-005 — Üç `UsePostgreSql` aşırı yüklemesi aynı sonucu üretir
-
-**Gerçek sonuç**
-> Beklendiği gibi (paketlenmiş `AgentPrism.PostgreSql` 0.0.0-preview.0.64,
-> yerel feed üzerinden). Üç satır da birebir aynı:
-> `ConnectionString='Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism'
-> SchemaName='agentprism'`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-006 — Bağlantı dizesi hiç verilmezse hangi denetim önce tetiklenir
-
-**Gerçek sonuç**
-> `00-INDEKS.md` §8'deki şüphe DOĞRULANDI: `Microsoft.Extensions.Options.OptionsValidationException`
-> fırlıyor — `AgentPrism.AgentPrismException` DEĞİL. Mesaj:
-> `AgentPrismPostgreSqlOptions.ConnectionString bos olamaz. Baglanti dizesini
-> "UsePostgreSql(...)" cagrisinda verin veya 'AgentPrism:PostgreSql:ConnectionString'
-> ayarini "dotnet user-secrets" icinde tanimlayin.` `Validator`, `NpgsqlDataSourceFactory.Create`
-> içindeki kendi boş-dize kontrolünden önce tetikleniyor; o kontrol normal DI
-> akışında gerçekten ulaşılamaz durumda (şüphe kaydındaki tahmin gibi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-007 — Yanlış host ile başlatma migration adımında çöker (fail-fast)
-
-**Gerçek sonuç**
-> Beklendiği gibi. `Npgsql.NpgsqlException: Failed to connect to 127.0.0.1:1
-> ---> System.Net.Sockets.SocketException (61): Connection refused` zinciri
-> `MigrationRunner.ApplyAsync` → `MigrationHostedService.StartAsync` üzerinden
-> fırladı, süreç ~4 saniyede sonlandı, `Now listening` HİÇ yazılmadı. `/health`
-> isteği `HTTP: 000` (bağlantı kurulamadı) döndü — Kestrel hiç dinlemedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"` — uygulandı.
-
----
-
 ## MT-PG-008 — `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz
 
 **Gerçek sonuç**
@@ -173,71 +125,6 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 > **29**). Sayı kaydı bozmamak için değiştirilmedi. **İkinci koşumda sayı
 > yeniden türetilir**, ezberden alınmaz:
 > `ls src/AgentPrism.PostgreSql/Migrations/*.sql | wc -l`
-
----
-
-## MT-PG-020 — Boş DB'de 28 migration sırayla uygulanır
-
-**Gerçek sonuç**
-> Beklendiği gibi. Log `AgentPrism 28 migration uyguladi. Sema: agentprism.`
-> satırını taşıdı. `count(*) = 28`. `id` 1'den 28'e boşluksuz sıralı, son satır
-> `0028_experiment_canary`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-021 — Yeniden başlatma migration'ları tekrar uygulamaz (idempotent)
-
-**Gerçek sonuç**
-> Beklendiği gibi. `"... migration uyguladi."` satırı görünmedi (0 eşleşme),
-> `__migrations` hâlâ 28 satır, uygulama normal dinlemeye geçti, hata yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-022 — Var olan (kısmi) şema üzerine devam
-
-**Gerçek sonuç**
-> Beklendiği gibi. Log `AgentPrism 23 migration uyguladi. Sema: agentprism.`
-> yazdı (28 − 5). Checksum uyuşmazlığı hatası oluşmadı. `count(*) = 28`; id
-> 1–5'in `applied_at` değeri (`20:04:33.2xx`–`.7xx`, elle yazılan) id 6–28'inkinden
-> (`20:04:45.8xx`, uygulamanın açılış anı) FARKLI — elle yazılan beşi dokunulmadan
-> kaldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-023 — Uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir
-
-**Gerçek sonuç**
-> Beklendiği gibi. `AgentPrism.AgentPrismException: '0001_initial' migration'i
-> veritabaninda uygulanmis ancak dosyanin icerigi degismis. Veritabanindaki
-> ozet: BOZUK00...0000, dosyanin ozeti: FDC95ECB...66F1D. Uygulanmis bir
-> migration duzenlenmez; degisiklik icin yeni bir migration dosyasi ekleyin.`
-> ile başlamadı, `Now listening` görünmedi. Mesaj iki özeti de gösterdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** Checksum `FDC95ECB390F5C465A071751607C6917E022AC4ED684A386413B4FA62F166F1D`
-> değerine geri yazıldı — uygulandı.
-
----
-
-## MT-PG-024 — İki eşzamanlı örnek çakışmadan migration uygular
-
-**Gerçek sonuç**
-> Beklendiği gibi. İki `dotnet` süreci (5080 ve 5090) neredeyse eşzamanlı
-> başlatıldı. Yalnız 5090 örneği `AgentPrism 28 migration uyguladi.` yazdı;
-> 5080 örneği hiç migration log satırı yazmadan doğrudan `Now listening`'e
-> geçti (kilidi aldığında migration'lar zaten bitmişti). İkisi de hatasız
-> dinlemeye başladı. `count(*) = 28` — 56 değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** İki süreç de `kill -9` ile durduruldu — uygulandı.
 
 ---
 
@@ -309,47 +196,6 @@ yoldan test edilir — boş DB, yeniden çalıştırma (idempotent), var olan ş
 
 ---
 
-## MT-PG-026 — Şema adı değiştirildiğinde bağımsız bir migration seti oluşur
-
-**Gerçek sonuç**
-> Beklendiği gibi. Log `AgentPrism 28 migration uyguladi. Sema:
-> agentprism_ikinci.` yazdı. `information_schema.schemata` her iki şemayı da
-> listeledi; her ikisinin `__migrations`'ı `count(*) = 28`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:**
-> ```bash
-> dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"
-> $PG -c "DROP SCHEMA IF EXISTS agentprism_ikinci CASCADE;"
-> ```
-
----
-
-## MT-PG-027 — `Dimensions` değişikliği uygulanmış `vector` sütununun boyutunu DEĞİŞTİRMEZ
-
-**Gerçek sonuç**
-> Beklendiği gibi. Uygulama normal başladı, checksum uyuşmazlığı hatası
-> oluşmadı. `atttypmod = 1536` — `Dimensions=3` ayarı sessizce hiçbir şey
-> yapmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:Knowledge:Dimensions"`
-
----
-
-# 3 — Kayıt deseni: `Replace` / `TryAdd`, denetim izi, çoklu sağlayıcı
-
-`UsePostgreSql()` yirmiden fazla depoyu `Replace` ile üzerine yazar (K-025);
-yalnız `IConversationBranchStore` ve `IVectorSearchStore` `TryAddSingleton` ile
-kaydedilir. Beş yazma yapan depo (agent tanımı, oturum, deney, tool onay kuralı,
-MCP sunucusu, kiracı) `Auditing*` dekoratörüyle sarılır; yürütmenin yan ürünü
-olan depolar (run, iş kuyruğu, kota, webhook, ses oturumu, run skoru vb.)
-sarılmaz.
-
----
-
 ## MT-PG-030 — Yönetimsel yazmalar denetim izine düşer, yürütme yan ürünleri düşmez
 
 **Gerçek sonuç**
@@ -395,25 +241,6 @@ sarılmaz.
 > `UsePostgreSql`'in `builder` üzerinden çağrılması oldu.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-033 — Diğer depolar `Replace` ile kayıtlıdır: tüketici önce kaydetse de PostgreSQL kazanır
-
-**Gerçek sonuç**
-> Beklendiği gibi — `Cozumlenen tip: AgentPrism.SqlRunStore`, `SahteRunStore`
-> DEĞİL. `IRunStore`'un 14 metotlu tam imzası doğrulanıp `throw new
-> NotImplementedException()` gövdeleriyle derlendi (dosya:
-> `src/AgentPrism.Abstractions/Runs/IRunStore.cs`); doc'un öngördüğü gibi
-> yalnız derlenmesi yeterliydi, hiçbiri çalışmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> Not: `SahteRunStore` sınıfının gövdesi koşumda `IRunStore`'un gerçek imzasına
-> göre yazılır (`maf-api-kesfi` benzeri bir reflection ile önce doğrulanır); bu
-> case'in amacı yalnız kazananın TİPİNİ göstermektir, metotların çalışması
-> gerekmez (derlenmesi yeterlidir, hatta `throw new NotImplementedException()`
-> gövdeleriyle de amaç sağlanır).
 
 ---
 
@@ -474,131 +301,6 @@ sarılmaz.
 > Geçici kod değişikliği adım 4'e göre geri alındı (`git diff` boş).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-035 — Sağlayıcı çağrı sırası değişirse kazanan değişir
-
-**Gerçek sonuç**
-> Beklendiği gibi — bu kez ÇÖKMEDEN. `AgentPrism'de birden fazla kalicilik
-> saglayicisi kayitli: SQLite, PostgreSQL. Son kayit kazanir ve su an
-> PostgreSQL kullaniliyor.` uyarısı, `persistenceProvider: "PostgreSQL"`,
-> `registeredPersistenceProviders: 2`, `/health` → `Degraded` (200).
->
-> **MT-PG-034'ün kök nedenini doğrulayan kontrast:** burada uygulama
-> ÇÖKMEDİ çünkü kazanan sağlayıcı (PostgreSQL) önceki case'lerden zaten TAM
-> migrasyonlu — `SchemaReadyGate` hangi sağlayıcı tarafından açılırsa açılsın,
-> sorgulanan tablolar zaten vardı. MT-PG-034'te kazanan SQLite'tı ve SQLite'ın
-> KENDİ migrasyonu henüz bitmemişken kapı (muhtemelen daha hızlı biten
-> PostgreSQL tarafından) açılmıştı — bu yüzden orada çöktü, burada çökmedi.
-> Yani çökme, "hangi sağlayıcı kazanıyor" değil "kapıyı açan sağlayıcının
-> migrasyonu, KAZANANIN tablolarını garanti etmiyor" sorunudur — bkz. MT-PG-034.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — `pgvector` / `IVectorSearchStore` depolama katmanı
-
-`PgVectorSearchStore` `IVectorSearchStore`'un **tek** somut uygulamasıdır (K4).
-Bu bölüm yükleme/parçalama kalitesini DEĞİL, depolama sözleşmesini kanıtlar:
-boyut zorunluluğu, kiracı yalıtımı, upsert-üzerine-yazma, kosinüs sıralaması.
-Konsol uygulamaları `IVectorSearchStore`'u DI'dan çözerek gerçek embedding
-üretmeden (OpenAI anahtarı gerekmeden) deterministik vektörlerle çalışır.
-
----
-
-## MT-PG-040 — `pgvector` eklentisi ve HNSW indeksi migration sonrası kuruludur
-
-**Gerçek sonuç**
-> Beklendiği gibi. `vector` eklentisi kurulu (`extversion 0.8.6`). İndeks
-> listesi dörtünü de taşıyor, artı `document_embeddings_pkey` ve
-> `document_embeddings_uq`. `document_embeddings_hnsw_idx` tanımı:
-> `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-041 — Embedding uzunluğu depo boyutuyla eşleşmezse `UpsertAsync` reddedilir
-
-**Gerçek sonuç**
-> Beklendiği gibi. `Dimensions: 1536`. İkinci satır: `beklenen istisna: Parca 0
-> gomu uzunlugu (10) depo boyutuyla (1536) eslesmiyor. (Parameter 'chunks')`.
-> `ISTISNA ATILMADI` görünmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-042 — Aynı kaynak yeniden yazılırsa eski parçalar silinir (upsert-üzerine-yazma)
-
-**Gerçek sonuç**
-> Beklendiği gibi. `arama sonuc sayisi (ikinci yazimdan sonra): 1`, tek satır
-> `manuel-kaynak parca=0 icerik='ikinci surum, tek parca' mesafe=0,0000`. SQL
-> sorgusu da tek satır döndü, aynı içerik. `ilk surum` metni hiçbir yerde yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-043 — Arama kosinüs mesafesine göre artan sıralı döner
-
-**Gerçek sonuç**
-> Beklendiği gibi. `eksen-0 mesafe=0,0000`, ardından `eksen-1 mesafe=1,0000`
-> ve `eksen-2 mesafe=1,0000` — artan sırada.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-044 — İki kiracı aynı koleksiyon/kaynak kimliğini paylaşsa da birbirini görmez
-
-**Gerçek sonuç**
-> Beklendiği gibi. `kiraci-beta 1 sonuc goruyor: BETA'nin gizli belgesi`.
-> `ALFA'nin gizli belgesi` hiç görünmedi — kiracı yalıtımı korunuyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-045 — Kaynak silindiğinde tüm parçaları kaybolur
-
-**Gerçek sonuç**
-> Beklendiği gibi. `silinen parca sayisi: 3`, `kalan kaynak sayisi: 0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-046 — `MaxDistance` filtresi uzak sonuçları eler
-
-**Gerçek sonuç**
-> Beklendiği gibi. `filtresiz: 2`, `filtreli (<=0.5): 1`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-047 — Koleksiyon adı geçersiz karakter taşıyorsa HTTP ucu 400 döner
-
-**Gerçek sonuç**
-> Beklendiği gibi. 1. istek **400**: `'gecersiz%2Fkoleksiyon' gecerli bir
-> koleksiyon adi degil. Yalniz harf, rakam, alt cizgi ve tire icerebilir.` 2.
-> istek de **400** ama FARKLI mesajla: `Parca 0 gomu uzunlugu (1) depo
-> boyutuyla (1536) eslesmiyor.` — iki doğrulama bağımsız.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Teşhis ve sağlık entegrasyonu (PostgreSQL'e özgü)
-
-`MigrationRunner` `ISqlPersistenceDiagnostics`'i uygular; `/health` ve
-`/agentprism/api/diagnostics` bu sözleşme üzerinden PostgreSQL bağlantı ve
-migration durumunu okur. Genel sözleşme (sağlayıcı bağımsız alanlar, model
-sağlayıcı devre kesici durumu) [`25-SAGLIK-TESHIS-OPENAPI.md`](25-SAGLIK-TESHIS-OPENAPI.md)'dedir;
-burada yalnız PostgreSQL'in ürettiği veriler sınanır.
 
 ---
 
@@ -664,20 +366,6 @@ kendiliğinden toparlanması) doğrulandı.
 
 ---
 
-## MT-PG-052 — Teşhis ucu migration UYGULAMAZ (salt okunur)
-
-**Gerçek sonuç**
-> _(2026-08-13 koşumu: Kaldı — ön koşul `MT-PG-025` yüzünden kurulamıyordu.)_
->
-> **2026-08-14 yeniden koşum — Geçti.** Ön koşul artık kurulabiliyor
-> (`MT-PG-051`'e bakın). Üç art arda çağrının üçü de **28** yazdırdı; sayı
-> değişmedi. `SELECT to_regclass('mt_fin.__migrations')` **NULL** döndü —
-> `__migrations` tablosu oluşturulmadı, teşhis ucu şemaya hiçbir şey yazmıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PG-053 — Migration tamamsa ve bir model sağlayıcı sağlıklıysa `/health` Healthy döner
 
 **Gerçek sonuç**
@@ -694,28 +382,5 @@ düzeltildi. Ürün kusuru yok.
 ---
 
 # 6 — Sınır durumları: yük ve bağlantı kesintisi
-
----
-
-## MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
-
-**Gerçek sonuç**
-> Beklendiği gibi. 20 isteğin 20'si de **201** döndü. `count(*) = 20`. Loglarda
-> `TimeoutException`/pool tükenmesi hatası yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PG-061 — PostgreSQL koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur, uygulama çökmez
-
-**Gerçek sonuç**
-> Beklendiği gibi. Container durdurulmuşken istek **500** döndü (`ProblemDetails`
-> gövdesi, `traceId` taşıyor), süreç ÇÖKMEDİ. Container yeniden başlayıp 3
-> saniye beklendikten sonra AYNI istek **200** ile SSE akışını tamamladı
-> (`Echo: merhaba`) — uygulama yeniden başlatılmadan Npgsql havuzu kendiliğinden
-> toparlandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---

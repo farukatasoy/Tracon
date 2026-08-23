@@ -10,92 +10,56 @@
 
 ---
 
-## MT-TEST-001 — Şablon paketten kurulur ve `dotnet new list`'te görünür
-
-**Gerçek sonuç**
-- Yerel NuGet feed'i `~/agentprism-local-feed` yeni bir `dotnet pack` ile
-  tazelendi (`MSBUILDDISABLENODEREUSE=1`, sürüm `0.0.0-preview.0.107` —
-  önceki feed içeriği eski, `0.78`'e kadardı). Şablon önce
-  `dotnet new uninstall` ile temizlendi (zaten kurulu değildi, çıkış kodu
-  `103` ile doğrulandı), sonra `dotnet new install ./src/AgentPrism.Templates`
-  ile kuruldu. Çıktı: `"AgentPrism control plane (ASP.NET Core)" installed`,
-  tablo `Short Name: agentprism-api`, `Language: [C#]`. `dotnet new list
-  agentprism-api` aynı satırı tekrar gösterdi. Beklenenle eşleşiyor
-  (kimlik `AgentPrism.Api.CSharp` CLI çıktısında ayrıca görünmüyor —
-  `dotnet new list` varsayılan olarak yalnız görünen adı/kısa adı/dili
-  gösteriyor, kimlik `template.json`'da doğrudan doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-TEST-002 — En yalın birleşim (`memory`+`openai`+`ui:false`) sıfır uyarıyla derlenir
+## Temiz geçen case'ler (35)
 
-**Gerçek sonuç**
-- `dotnet new` çıkış kodu `0`. `dotnet build -c Release`: `Build succeeded.
-  0 Warning(s), 0 Error(s)`. Beklenenle eşleşiyor.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-TEST-001 | ☑ | Şablon paketten kurulur ve `dotnet new list`'te görünür |
+| MT-TEST-002 | ☑ | En yalın birleşim (`memory`+`openai`+`ui:false`) sıfır uyarıyla derlenir |
+| MT-TEST-003 | ☑ | En dolu birleşim (`sqlserver`+`azure`+`ui:true`) sıfır uyarıyla derlenir |
+| MT-TEST-004 | ☑ | Üretilen `appsettings.json` yalnız boş placeholder taşır, hiçbir dosyada `secret` görünümlü değer yok |
+| MT-TEST-005 | ☑ | Üretilen `Program.cs` hiçbir sağlayıcı için sabit bir model adı taşımaz |
+| MT-TEST-006 | ☑ | `-n` ile yeniden adlandırma: `AgentPrism.Starter` dizesi hiçbir dosyada/dosya adında kalmaz |
+| MT-TEST-007 | ☑ | Varsayılan (`memory`) birleşim kurulumsuz `dotnet run` ile ayağa kalkar |
+| MT-TEST-009 | ☑ | `--skip-restore` restore adımını atlar |
+| MT-TEST-010 | ☑ | `--AgentPrismVersion` belirli bir sürüme sabitler |
+| MT-TEST-011 | ☑ | Tanınmayan bir `--persistence` değeri reddedilir |
+| MT-TEST-012 | ☑ | `-h` çıktısında üç bayrak görünür, `AgentPrismVersion` gizlidir |
+| MT-TEST-013 | ☑ | Şablon paketi derlenmez; üretilen proje `AgentPrism.Templates`'e hiç referans vermez |
+| MT-TEST-021 | ☑ | `EchoesUserMessage()` son kullanıcı mesajını `Echo: ` öneki ile yankılar |
+| MT-TEST-022 | ☑ | `RespondsWith(...)` yanıtları sırayla tüketir |
+| MT-TEST-023 | ☑ | Kuyruk tükendikten sonra `EchoesUserMessage()` fallback'i devreye girer |
+| MT-TEST-024 | ☑ | Fallback tanımlanmamışsa kuyruk tükendikten sonra sabit `"fake response"` tekrar tekrar döner |
+| MT-TEST-025 | ☑ | `CallsTool(...)` bir `FunctionCallContent` üretir; anonim tip argümanları yansımayla sözlüğe kopyalanır |
+| MT-TEST-026 | ☑ | `ForModel(...)` farklı modeller için bağımsız kuyruk tutar |
+| MT-TEST-027 | ☑ | `EchoesLastToolResult(prefix)` gerçek tool-çağrı boru hattı üzerinden son tool sonucunu yankılar |
+| MT-TEST-028 | ☑ | `RespondsWith(text, inputTokens, outputTokens)` bildirilen kullanım gerçek boru hattında `RunRecord.Usage`'a yansır |
+| MT-TEST-029 | ☑ | `Requests` listesi gönderilen mesaj geçmişini ve `ChatOptions.Tools`'u kaydeder |
+| MT-TEST-030 | ☑ | `Models` kataloğunda olmayan bir model adı agent kaydını ENGELLEMEZ |
+| MT-TEST-040 | ☑ | `StartAsync()` hiçbir yapılandırma olmadan ayağa kalkar, `/agentprism/api/meta` `200` döner |
+| MT-TEST-041 | ☑ | Özel `Prefix` yalnız o önekten yanıt verir, varsayılan önek artık yanıt vermez |
+| MT-TEST-042 | ☑ | `DisposeAsync()` sonrası `Client` kullanılırsa `ObjectDisposedException` fırlatılır |
+| MT-TEST-043 | ☑ | `RunAsync` var olmayan bir agent adıyla çağrılırsa `AgentPrismAssertionException` fırlatılır |
+| MT-TEST-045 | ☑ | `ConfigureServices`, `AddAgentPrism()` çağrısından ÖNCE çalışır |
+| MT-TEST-050 | ☑ | `ShouldHaveCompleted()` geçer; başarısız bir çalıştırmada beklenen/bulunan durumu yazan mesajla düşer |
+| MT-TEST-051 | ☑ | `ShouldHaveFailedWith(errorType)` kararlı bir hata tipini doğrular |
+| MT-TEST-052 | ☑ | `ShouldHaveCalledTool(name, times:)` sayı uyuşmazsa beklenen/bulunan sayıyı yazan mesajla düşer |
+| MT-TEST-053 | ☑ | `ShouldNotHaveCalledTool(name)` çağrılmış bir tool için düşer |
+| MT-TEST-055 | ☑ | Zincirleme iddialar art arda çalışır |
+| MT-TEST-060 | ☑ | Paketlenmiş `.nuspec` hiçbir test çerçevesi bağımlılığı taşımaz |
+| MT-TEST-061 | ☑ | Meta paket (`AgentPrism`) `AgentPrism.Testing`'e referans VERMEZ |
+| MT-TEST-064 | ☑ | Depo dışı tüketici: gerçek model çağırmadan uçtan uca bir agent testi |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-003 — En dolu birleşim (`sqlserver`+`azure`+`ui:true`) sıfır uyarıyla derlenir
-
-**Gerçek sonuç**
-- `dotnet new` çıkış kodu `0`. `dotnet build -c Release`: `Build succeeded.
-  0 Warning(s), 0 Error(s)`. `.csproj` içinde `<PackageReference
-  Include="AgentPrism.SqlServer" .../>` ve `<PackageReference
-  Include="AgentPrism.Azure" .../>` bulundu. Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-004 — Üretilen `appsettings.json` yalnız boş placeholder taşır, hiçbir dosyada `secret` görünümlü değer yok
-
-**Gerçek sonuç**
-- Tarama **"temiz"** yazdı. `appsettings.json` içeriği:
-  `SqlServer.ConnectionString: ""`, `Providers.AzureOpenAI.Endpoint: ""`,
-  `Providers.AzureOpenAI.ApiKey: ""` — üçü de boş dize. Beklenenle
-  birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-005 — Üretilen `Program.cs` hiçbir sağlayıcı için sabit bir model adı taşımaz
-
-**Gerçek sonuç**
-- Dört sağlayıcının (`openai`, `anthropic`, `google`, `azure`) hepsi için
-  `grep -c MODEL_ADINI_BURAYA_YAZIN` → `1`, bilinen model öneki taraması
-  → `"temiz"`. Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-006 — `-n` ile yeniden adlandırma: `AgentPrism.Starter` dizesi hiçbir dosyada/dosya adında kalmaz
-
-**Gerçek sonuç**
-- `Benim.Agent.csproj` var, `AgentPrism.Starter` taraması "temiz". `dotnet
-  build -c Release`: `Build succeeded. 0 Warning(s), 0 Error(s)`.
-  Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-007 — Varsayılan (`memory`) birleşim kurulumsuz `dotnet run` ile ayağa kalkar
-
-**Gerçek sonuç**
-- Hiçbir `user-secrets` ayarlanmadan `dotnet run -c Release` başlatıldı,
-  bağlantı hatası olmadan ayağa kalktı. `GET /agentprism/api/agents` →
-  `HTTP/1.1 200 OK`, gövde `[{"name":"support","displayName":"Destek
-  Asistani",...}]` — tek agent. Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (6)
 
 ## MT-TEST-008 — `postgres`/`openai` seçiminde ayrı bir paket referansı EKLENMEZ (zaten meta pakette)
 
@@ -116,72 +80,6 @@
 
 ---
 
-## MT-TEST-009 — `--skip-restore` restore adımını atlar
-
-**Gerçek sonuç**
-- İlk projede `obj/` dolu (`project.assets.json` dahil restore çıktıları).
-  İkinci projede (`--skip-restore true`) `obj/` klasörü **hiç yok** (`ls`:
-  "No such file or directory"). Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-010 — `--AgentPrismVersion` belirli bir sürüme sabitler
-
-**Gerçek sonuç**
-- `<PackageReference Include="AgentPrism" Version="0.0.0-preview.0.107" />`
-  — tam olarak `$SURUM` değeri, `*-*` değil. Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-011 — Tanınmayan bir `--persistence` değeri reddedilir
-
-**Gerçek sonuç**
-- Çıkış kodu `127` (sıfırdan farklı). Hata mesajı: `'mysql' is not a
-  valid value for --persistence. The possible values are: memory,
-  postgres, sqlite, sqlserver` — dört seçenek de listelendi. `$TMP/g`
-  dizini hiç oluşturulmadı ("No such file or directory"). Beklenenle
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-012 — `-h` çıktısında üç bayrak görünür, `AgentPrismVersion` gizlidir
-
-**Gerçek sonuç**
-- Çıktıda dört bayrağın hepsi (`-p/--persistence`, `-pr/--provider`, `-ui`,
-  `-sr/--skip-restore`), kısa açıklamalar ve varsayılan değerlerle
-  listelendi. `--AgentPrismVersion` hiçbir yerde görünmedi. Beklenenle
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-013 — Şablon paketi derlenmez; üretilen proje `AgentPrism.Templates`'e hiç referans vermez
-
-**Gerçek sonuç**
-- `unzip -l` taraması: hiçbir `.dll` yok ("dll yok -- beklenen").
-  Üretilen projede `AgentPrism.Templates` dizesi taraması "temiz".
-  Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — `FakeModelProvider` davranışları (Faz 39a)
-
-> Aşağıdaki her case, "Koşmadan önce" adım 4'te kurulan
-> `~/agentprism-manuel/test-paketi` konsol projesinin `Program.cs`'ini
-> **tamamen** değiştirir. Metin eşleşmesi burada izlek C kuralı gereği
-> serbesttir — `FakeModelProvider` deterministiktir.
-
----
-
 ## MT-TEST-020 — Varsayılan kurulum sabit `"fake response"` döner; katalog tek bir `fake-model` girdisi taşır
 
 **Gerçek sonuç**
@@ -191,159 +89,6 @@
   yazmış, `using AgentPrism;` eksik. `using AgentPrism;` eklenince: çıktı
   `Models.Count: 1`, `Model adi: fake-model`, `Yanit: fake response` —
   beklenenle birebir eşleşti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-021 — `EchoesUserMessage()` son kullanıcı mesajını `Echo: ` öneki ile yankılar
-
-**Gerçek sonuç**
-- Çıktı: `Echo: ORD-7 nerede` / `Echo: ikinci soru`. Beklenenle birebir
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-022 — `RespondsWith(...)` yanıtları sırayla tüketir
-
-**Gerçek sonuç**
-- (Aynı `using AgentPrism;` eksikliği MT-TEST-020'de kaydedildi, burada
-  da tekrar eklendi.) Çıktı: `ilk yanit` / `ikinci yanit`. Beklenenle
-  birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-023 — Kuyruk tükendikten sonra `EchoesUserMessage()` fallback'i devreye girer
-
-**Gerçek sonuç**
-- Çıktı: `1: ilk`, `2: Echo: sonraki mesaj`, `3: Echo: ucuncu mesaj`.
-  Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-024 — Fallback tanımlanmamışsa kuyruk tükendikten sonra sabit `"fake response"` tekrar tekrar döner
-
-**Gerçek sonuç**
-- Çıktı: `1: tek yanit`, `2: fake response`, `3: fake response`.
-  Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-025 — `CallsTool(...)` bir `FunctionCallContent` üretir; anonim tip argümanları yansımayla sözlüğe kopyalanır
-
-**Gerçek sonuç**
-- Çıktı: `Tool: get_order_status`, `orderId: ORD-7`. Beklenenle birebir
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-026 — `ForModel(...)` farklı modeller için bağımsız kuyruk tutar
-
-**Gerçek sonuç**
-- Çıktı: `router: router yaniti`, `researcher: researcher yaniti`,
-  `Models.Count: 2`. Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-027 — `EchoesLastToolResult(prefix)` gerçek tool-çağrı boru hattı üzerinden son tool sonucunu yankılar
-
-**Gerçek sonuç**
-- `ModelProviderRegistry` üzerinden: çıktı tam olarak `Sonuc: hazirlaniyor
-  (ORD-7)`. Doğrudan `FakeModelProvider.CreateChatClient(binding)` ile
-  (defter olmadan) aynı `ChatOptions` verilince: `Contents:
-  FunctionCallContent` (tek içerik türü), `Text: ''` (boş) — tool hiç
-  çalıştırılmadı. Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-028 — `RespondsWith(text, inputTokens, outputTokens)` bildirilen kullanım gerçek boru hattında `RunRecord.Usage`'a yansır
-
-**Gerçek sonuç**
-- Çıktı: `InputTokens: 42`, `OutputTokens: 17`. Beklenenle birebir
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-029 — `Requests` listesi gönderilen mesaj geçmişini ve `ChatOptions.Tools`'u kaydeder
-
-**Gerçek sonuç**
-- Çıktı: `Requests.Count: 2`, `Ilk istek son mesaj: birinci`, `Ilk istek
-  Tools.Count: 1`, `Ikinci istek Options: null`. Beklenenle birebir
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-030 — `Models` kataloğunda olmayan bir model adı agent kaydını ENGELLEMEZ
-
-**Gerçek sonuç**
-- Hiçbir istisna fırlatılmadı, `run.ShouldHaveCompleted()` geçti, "Basarili
-  -- katalogda olmayan model kaydi engellemedi." yazdırıldı. Beklenenle
-  eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — `AgentPrismTestHost` (Faz 39b)
-
----
-
-## MT-TEST-040 — `StartAsync()` hiçbir yapılandırma olmadan ayağa kalkar, `/agentprism/api/meta` `200` döner
-
-**Gerçek sonuç**
-- `Durum: 200`. Gövde `"version":"0.0.0-preview.0.107","prefix":
-  "/agentprism",...` içeriyor (ayrıca `authentication`/`storage`/`roles`
-  alt nesneleri de var, dokümanın belirttiği asgari şart karşılandı).
-  Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-041 — Özel `Prefix` yalnız o önekten yanıt verir, varsayılan önek artık yanıt vermez
-
-**Gerçek sonuç**
-- `/panel: 200`, `/agentprism: 404`. Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-042 — `DisposeAsync()` sonrası `Client` kullanılırsa `ObjectDisposedException` fırlatılır
-
-**Gerçek sonuç**
-- Çıktı: `Beklenen: ObjectDisposedException firlatildi`. Beklenenle
-  birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-043 — `RunAsync` var olmayan bir agent adıyla çağrılırsa `AgentPrismAssertionException` fırlatılır
-
-**Gerçek sonuç**
-- Yakalandı: `'olmayan-agent' calistirilamadi. Beklenen durum kodu
-  basarili, bulunan '404': {...,"title":"Agent bulunamadi","status":404,
-  "detail":"'olmayan-agent' adinda bir agent yok."}`. Beklenenle
-  eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -381,110 +126,11 @@ kalıyor.
 
 ---
 
-## MT-TEST-045 — `ConfigureServices`, `AddAgentPrism()` çağrısından ÖNCE çalışır
-
-**Gerçek sonuç**
-- Çıktı: `Sira: ConfigureServices -> ConfigureAgentPrism`, `Deger:
-  ozel-deger`. Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — `RunAssertions` — geçen ve düşen yol (Faz 39c)
-
----
-
-## MT-TEST-050 — `ShouldHaveCompleted()` geçer; başarısız bir çalıştırmada beklenen/bulunan durumu yazan mesajla düşer
-
-**Gerçek sonuç**
-- Çıktı: `GECEN YOL: basarili.` sonra `DUSEN YOL mesaji: Calistirmanin
-  durumu 'Failed' olmasi beklenirdi ama 'Completed' bulundu.` Beklenenle
-  birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-051 — `ShouldHaveFailedWith(errorType)` kararlı bir hata tipini doğrular
-
-**Gerçek sonuç**
-- Çıktı: `GECEN YOL: dogru hata tipi.` sonra `DUSEN YOL mesaji: Hata
-  tipinin 'baska_bir_tip' olmasi beklenirdi ama 'content_blocked'
-  bulundu.` Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-052 — `ShouldHaveCalledTool(name, times:)` sayı uyuşmazsa beklenen/bulunan sayıyı yazan mesajla düşer
-
-**Gerçek sonuç**
-- Çıktı: `GECEN YOL: tam olarak 2 cagri.` sonra `DUSEN YOL mesaji:
-  'get_order_status' tool'unun 5 kez cagrilmasi beklenirdi ama 2 kez
-  cagrildi.` Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-053 — `ShouldNotHaveCalledTool(name)` çağrılmış bir tool için düşer
-
-**Gerçek sonuç**
-- Çıktı: `GECEN YOL: cancel_order hic cagrilmadi.` sonra `DUSEN YOL
-  mesaji: 'get_order_status' tool'unun hic cagrilmamasi beklenirdi ama
-  1 kez cagrildi.` Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-TEST-054 — 🚨 `ShouldHaveOutputContaining` SSE (`/run`) yolunda `MessageDelta` parçalarını birleştirir
 
 **Gerçek sonuç**
 - Çıktı: `GECEN: cikti iceriyor.`, `MessageCompleted sayisi: 0`,
   `MessageDelta sayisi: 1`. Beklenenle birebir eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-055 — Zincirleme iddialar art arda çalışır
-
-**Gerçek sonuç**
-- README'deki örnek birebir çalıştırıldı, hiçbir aşamada istisna
-  atılmadı. Çıktı: `Zincir basariyla tamamlandi -- hicbir asamada istisna
-  atilmadi.` Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Paket kalitesi ve sınırlar (K-007/K-008/K-270)
-
----
-
-## MT-TEST-060 — Paketlenmiş `.nuspec` hiçbir test çerçevesi bağımlılığı taşımaz
-
-**Gerçek sonuç**
-- `<dependencies>` bloğu tam olarak üç bağımlılık listeliyor:
-  `AgentPrism.AspNetCore`, `AgentPrism.Core`, `Microsoft.AspNetCore.TestHost`
-  (sürüm `0.0.0-preview.0.107`/`10.0.10`). Test çerçevesi taraması bu blok
-  içinde "temiz". (Not: `.nuspec`'in `<description>` alanı — bağımlılık
-  bloğunun DIŞINDA — paketin "xunit, NUnit, MSTest'e bağlı değildir"
-  şeklindeki kendi açıklamasında bu isimleri metin olarak geçiriyor; bu
-  bir bağımlılık değil, tarama doğru şekilde yalnız `<dependencies>`
-  bloğuna uygulandı.) Beklenenle eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-061 — Meta paket (`AgentPrism`) `AgentPrism.Testing`'e referans VERMEZ
-
-**Gerçek sonuç**
-- `.nuspec` taraması "temiz". Kaynak `.csproj` taraması `0`. Beklenenle
-  birebir eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -537,23 +183,6 @@ kalıyor.
   hiç taranmıyor olabilir. Bu koşumda ne pozitif ne negatif "kusur"
   olarak işaretlenmiyor — dokümanın kendi talimatı gereği yalnız ölçüm
   kaydediliyor ve not düşülüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TEST-064 — Depo dışı tüketici: gerçek model çağırmadan uçtan uca bir agent testi
-
-**Gerçek sonuç**
-- Tamamen yeni, depo dışı bir dizinde (`~/agentprism-manuel/depo-disi
-  -tuketici`) sıfırdan proje oluşturuldu, `AgentPrism.Testing` eklendi,
-  MT-TEST-055'in kodu birebir yapıştırıldı. `dotnet run -c Release` →
-  `Zincir basariyla tamamlandi -- hicbir asamada istisna atilmadi.`
-  Ağ trafiği iddiası kod okumasıyla da doğrulandı: `FakeChatClient.cs`
-  içinde `HttpClient` veya herhangi bir `Http.` kullanımı YOK — sağlayıcı
-  yapısal olarak ağa çıkamaz. Hiçbir OpenAI/Anthropic/vb. `secret`
-  ayarlanmadan (bu proje `samples/AgentPrism.Api`'nin `user-secrets`
-  deposuna hiç dokunmuyor) program başarıyla bitti. Beklenenle eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

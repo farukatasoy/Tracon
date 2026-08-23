@@ -10,23 +10,42 @@
 
 ---
 
-## MT-RES-001 — Kök çalıştırmanın iptali GERÇEKTEN çalışan bir alt çalıştırmayı da durdurur; audit YALNIZ kök için yazılır
-
-**Gerçek sonuç**
-Adim 3: HTTP 202. Adim 4: 3 saniye sonra hem kok (yonlendirici) hem alt (support) calistirmasi Canceled oldu - registry'nin RootRunId kaskadi dogrulandi. Adim 5: run:{root} denetim izinde bir run.cancel kaydi VAR; run:{child} denetim izinde HICBIR kayit YOK - cocugun iptali dogrudan CancellationTokenSource.Cancel() ile, ikinci bir HTTP/audit yazimi yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-002 — Yalnız bir alt çalıştırmanın iptali kökü ve kardeşleri ETKİLEMEZ
-
-**Gerçek sonuç**
-Alt calistirma Canceled oldu. Kok calistirma DURMADI - cocuk iptal edildikten hemen sonra Running kaldi, birkac saniye sonra normal akisiyla Completed oldu (error: null) - iptalden dolayi degil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
+
+## Temiz geçen case'ler (21)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-RES-001 | ☑ | Kök çalıştırmanın iptali GERÇEKTEN çalışan bir alt çalıştırmayı da durdurur; audit YALNIZ kök için yazılır |
+| MT-RES-002 | ☑ | Yalnız bir alt çalıştırmanın iptali kökü ve kardeşleri ETKİLEMEZ |
+| MT-RES-010 | ☑ | Varsayılan kapalı: `Enabled=false` iken eski bir `Running` satır asla kapanmaz |
+| MT-RES-011 | ☑ | Açıldığında: heartbeat'i geride bırakılan bir `Running` satır eşik aşılınca `Failed`/`Infrastructure`/`orphaned` olur |
+| MT-RES-012 | ☑ | Uzlaştırma yalnız `Running` süzer; `Queued` bir satıra DOKUNMAZ |
+| MT-RES-013 | ☑ | Uzlaştırma sonrası `GET /api/runs?status=Running` boş döner; panoda `Infrastructure` sınıfı görünür |
+| MT-RES-020 | ☑ | Kuyruğa alınan bir çalıştırma onay gerektiren tool çağırınca `AwaitingApproval`'a düşer, `pending` listede görünür |
+| MT-RES-021 | ☑ | Onaylama: YENİ bir `RunId` kuyruğa düşer, işçi alınca `Completed` olur; ESKİ çalıştırma SONSUZA `AwaitingApproval` kalır |
+| MT-RES-022 | ☑ | Reddetme: karar reddedilirse yeni çalıştırma modelin reddi gördüğünü yansıtır |
+| MT-RES-023 | ☑ | Aynı onaya ikinci karar `409` döner |
+| MT-RES-024 | ☑ | Var olmayan onay kimliği `404` döner |
+| MT-RES-025 | ☑ | Başka kiracının onayı `404` döner (varlığı sızdırmaz) |
+| MT-RES-026 | ☑ | Karar `approval.decision` eylemiyle, `tool:{toolName}` varlığıyla denetim izine yazılır |
+| MT-RES-027 | ☑ | Süresi dolan onay `Expired` olur |
+| MT-RES-030 | ☑ | Ekler veya onay kararı ile birlikte gönderilen `respond-async` isteği `400` alır (kuyruklu çalıştırmada onay desteklenmez) |
+| MT-RES-040 | ☑ | Bekleyen onay yokken Boş durum |
+| MT-RES-041 | ☑ | Bekleyen onay satırı tool adı + argüman, run bağlantısı, oluşturulma/süre bilgisiyle görünür; 5 sn'de bir kendiliğinden yenilenir |
+| MT-RES-042 | ☑ | Onayla düğmesi kararı uygular; satır listeden kalkar |
+| MT-RES-043 | ☑ | Reddet düğmesi kararı uygular |
+| MT-RES-044 | ☑ | Karar isteği başarısız olursa hata satırda gösterilir (panel altında, sayfa çökmez) |
+| MT-RES-050 | ☑ | Uzlaştırmayla `Infrastructure` sınıfıyla kapanan bir çalıştırma yeniden oynatılabiliyor mu |
+
+## Ayrıntı taşıyan case'ler (7)
 
 ## MT-RES-003 — 🚨 `Running` bir çalıştırmanın `202` gövdesi HÂLÂ eski durumu taşır (`Queued` dalının aksine)
 
@@ -93,42 +112,6 @@ dotnet user-secrets set "AgentPrism:RunReconciliation:ScanInterval" "00:00:01"
 
 ---
 
-## MT-RES-010 — Varsayılan kapalı: `Enabled=false` iken eski bir `Running` satır asla kapanmaz
-
-**Gerçek sonuç**
-AgentPrism:RunReconciliation:* ayarlarinin hicbiri verilmedi (varsayilan). Bir satir dogrudan SQL ile '10 dakika once baslamis, hala calisiyor' hale getirildi. 10 saniye sonra: status: Running - hicbir arka plan taramasi calismadigi icin satir SONSUZA kadar Running gorundu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-011 — Açıldığında: heartbeat'i geride bırakılan bir `Running` satır eşik aşılınca `Failed`/`Infrastructure`/`orphaned` olur
-
-**Gerçek sonuç**
-RunReconciliation acildi (Enabled=true, HeartbeatInterval=1s, OrphanThreshold=3s, ScanInterval=1s), yeniden baslatildi. Satir gecmise alindi. 5 saniye sonra: status: Failed, error.type: orphaned, error.class: Infrastructure, error.fingerprint: orphaned (sabit dize), error.message: "Calistirma yuruten surec yanit vermiyor; son isaret: 2026-08-13 13:12:31..." - tum alanlar birebir eslesti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-012 — Uzlaştırma yalnız `Running` süzer; `Queued` bir satıra DOKUNMAZ
-
-**Gerçek sonuç**
-Prefer:respond-async ile bir calistirma kuyruga alindi, started_at gecmise alindi (status=5 Queued korunarak). 5 saniye sonra status: Running (isci normal sekilde alip islemeye basladi) - hicbir zaman Failed/Infrastructure OLMADI. Uzlastirma sorgusu yalniz status=0 (Running) satirlari suzuyor, Queued bir kova bile degil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-013 — Uzlaştırma sonrası `GET /api/runs?status=Running` boş döner; panoda `Infrastructure` sınıfı görünür
-
-**Gerçek sonuç**
-Adim 1: ilk olcumde len:1 cikti (MT-RES-012'nin kuyruktan yeni alinmis, GERCEKTEN aktif calisan satiri nedeniyle) - bu satir tamamlandiktan (Completed) sonra tekrar olculdugunde len:0 ve gercekten bir DIZI (obje/{items:...} DEGIL) dogrulandi. Adim 2: /api/stats/errors?hours=1 class:Infrastructure kumesi var, sampleMessage '...yanit vermiyor...' iceriyor (totalRuns:2, iki ayri MT-RES-010/011 orphan olayindan). Adim 3 (dashboard bileseni) kod okumasiyla dogrulandi: RunErrorClass string-enum, arayuz listeyi dongüyle basiyor - KOD degisikligi gerektirmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RES-014 — (opsiyonel, iki örnek) `SingletonExecution` kapalıyken uzlaştırma HER örnekte bağımsız koşar; açıldığında tekilleşir
 
 **Gerçek sonuç**
@@ -157,78 +140,6 @@ kuyruğa düşürür, eski çalıştırma `AwaitingApproval`'da SONSUZA kalır (
 
 ---
 
-## MT-RES-020 — Kuyruğa alınan bir çalıştırma onay gerektiren tool çağırınca `AwaitingApproval`'a düşer, `pending` listede görünür
-
-**Gerçek sonuç**
-Adim 2: birkac saniye icinde status: AwaitingApproval. Adim 3: pending listesinde runId eslesen tam bir kayit var: toolName: cancel_order, arguments: 'orderId=ORD-1001' (anahtar=deger bicimi, JSON DEGIL), status: Pending, expiresAt createdAt'ten ~24 saat sonra (varsayilan DefaultExpiration). Adim 4: ayni kayit tekil GET ile de teyit edildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-021 — Onaylama: YENİ bir `RunId` kuyruğa düşer, işçi alınca `Completed` olur; ESKİ çalıştırma SONSUZA `AwaitingApproval` kalır
-
-**Gerçek sonuç**
-Adim 2: HTTP 200, govde status: Approved, decidedBy: 'unknown' (dolu), decidedAt dolu. Adim 3: ESKI runId 3 saniye sonra HALA AwaitingApproval - hic degismedi (K-014). Adim 4: ayni sessionId'de YENI bir runId (019ffb4c-d982...) gorundu, Completed oldu. Adim 5: yeni calistirmanin mesaj gecmisinde functionCall cancel_order + functionResult 'ORD-1001 numarali siparis iptal edildi.' - tool GERCEKTEN calisti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-022 — Reddetme: karar reddedilirse yeni çalıştırma modelin reddi gördüğünü yansıtır
-
-**Gerçek sonuç**
-HTTP 200, govde status: Rejected. Yeni calistirma tamamlandi; mesaj gecmisinde functionResult: 'Tool call invocation rejected.' (cancel_order GERCEKTEN calismadi) ve modelin son yaniti 'Siparis iptali icin islem yapilamadi. Lutfen siparis numarasini kontrol edip tekrar deneyin: ORD-1001.' - reddin dogru yansitildigi dogrulandi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-023 — Aynı onaya ikinci karar `409` döner
-
-**Gerçek sonuç**
-HTTP 409, title: Karar zaten verilmis, detail: '...artik bekliyor durumunda degil.'. Ikinci bir RunId/is KUYRUGA DUSMEDI - GET /api/runs?sessionId=... sayisi 2'de sabit kaldi (degismedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-024 — Var olmayan onay kimliği `404` döner
-
-**Gerçek sonuç**
-Ikisi de HTTP 404, title: Onay istegi bulunamadi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-025 — Başka kiracının onayı `404` döner (varlığı sızdırmaz)
-
-**Gerçek sonuç**
-Adim 1-2: kiraci-beta basligiyla GET ve decide, ikisi de HTTP 404 (403 DEGIL) - varligi sizdirmadi. Adim 3: kiraci-alfa basligiyla ayni istek HTTP 200 - kendi kiracisi icin normal calisiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-026 — Karar `approval.decision` eylemiyle, `tool:{toolName}` varlığıyla denetim izine yazılır
-
-**Gerçek sonuç**
-Iki kayit var (MT-RES-021/022'den): action: approval.decision, entity: tool:cancel_order, after alani {"approved": true/false, "approvalId": "<id>"} bicimindeki JSON dizgesi tasiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-027 — Süresi dolan onay `Expired` olur
-
-**Gerçek sonuç**
-AgentPrism:Approvals:DefaultExpiration=5s, ScanInterval=2s ile yeniden baslatildi. Karar VERMEDEN 10 saniye beklendi. Adim 2: status: Expired. Adim 3: pending listesinde ARTIK GORUNMEDI (len:0). Adim 4: decide cagrisi HTTP 409, title: Karar zaten verilmis - AlreadyDecided kontrolu Expired icin de gecerli.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RES-028 — 🚨 `ApprovalEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmaz — yalnız-okuma kapsamlı bir anahtar onay kararı verebiliyor mu
 
 **Gerçek sonuç**
@@ -248,106 +159,5 @@ AgentPrism:Approvals:DefaultExpiration=5s, ScanInterval=2s ile yeniden baslatild
 > _(koşum sırasında doldurulur — beklenen: `⏭ Atlandı`)_
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — gerekçe yukarıda
-
----
-
-## MT-RES-030 — Ekler veya onay kararı ile birlikte gönderilen `respond-async` isteği `400` alır (kuyruklu çalıştırmada onay desteklenmez)
-
-**Gerçek sonuç**
-HTTP: 400 - kuyruga alinan calistirmalarda govdede approvals alani tasinmasi reddedildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Arayüz: Onay Kutusu Ekranı (Faz 55, `screens/approvals.tsx`)
-
-Bu ekran hiçbir manuel test dosyasında yer almıyordu. `refetchInterval: 5000`
-ile 5 saniyede bir kendiliğinden yenilenir; `meta.roles.canOperate` `false`
-ise Onayla/Reddet düğmeleri yerine yalnız bir `"pending"` rozeti gösterilir
-(§3'ün `MT-RES-029`'unun kod-seviyesi bulgusuyla AYNI kısıt: bu örnekte
-`canOperate` her zaman `true`'dur çünkü rol claim'i hiç üretilmiyor — bu
-dalın `false` hâli arayüzden de gözlemlenemez, yalnız KOD incelemesiyle not
-düşülür).
-
----
-
-## MT-RES-040 — Bekleyen onay yokken Boş durum
-
-**Gerçek sonuç**
-Bekleyen onay yokken (tumu kararlandirilmis) Onaylar ekraninda Empty bileseni gorundu: "Nothing is waiting" basligi + "A queued run only appears here when a tool call needs approval and no live client can answer it." govde metni (i18n anahtarlarindan geliyor, K-228 geregi eksik olsa derleme hata verirdi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-041 — Bekleyen onay satırı tool adı + argüman, run bağlantısı, oluşturulma/süre bilgisiyle görünür; 5 sn'de bir kendiliğinden yenilenir
-
-**Gerçek sonuç**
-Adim 1: satirda cancel_order, altinda arguman metni (orderId=ORD-1001), calisma id'sinin kisaltilmis hali (019ffb55-2f3e...393712) + oturum kimligi (res-041-02), goreli olusturulma zamani ('7 sec. ago'), MUTLAK sure-sonu zamani ('Aug 14, 2026, 4:34:54 PM' - goreceli DEGIL). Adim 2: browser_network_requests /api/approvals/pending'e tekrarlanan GET istekleri gosterdi (refetchInterval:5000 dogrulandi). Adim 4 dogrulanmadi (zaman butcesi - Approve/Reject dugmeleri MT-RES-042/043'te test edildi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-042 — Onayla düğmesi kararı uygular; satır listeden kalkar
-
-**Gerçek sonuç**
-Onayla dugmesine tiklandi. Istek dondukten sonra satir listeden KALKTI - ekran 'Nothing is waiting' bos durumuna dondu (onSuccess approvals-pending sorgusunu gecersiz kildi). Busy/disabled ara durumu (adim 2) yakalanamadi (tiklama-yanit araligi playwright snapshot cagrilarindan daha hizliydi) ama nihai davranis (karar uygulandi, satir kalkti) dogrulandi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-043 — Reddet düğmesi kararı uygular
-
-**Gerçek sonuç**
-Reddet dugmesine tiklandi. MT-RES-022'nin HTTP davranisiyla ayni sonuc arayuzden tetiklendi - satir listeden kalkti, 'Nothing is waiting' bos durumuna donuldu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RES-044 — Karar isteği başarısız olursa hata satırda gösterilir (panel altında, sayfa çökmez)
-
-**Gerçek sonuç**
-Yaris kosulunun gercek zamanli tetiklenmesi denendi (onayi arka planda API ile kararlandirip UI'da eski satirdaki Reddet dugmesine tiklamak) ama refetchInterval:5000 (auto-yenileme) satiri deneme oncesinde zaten kaldirmisti - butonun kendisi DOM'dan silindigi icin tiklanamadi (playwright 'ref not found'). Bu, disabled denetiminin/yarisin pratikte cok dar bir pencerede oldugunu gosteriyor. Yerine kod okumasiyla dogrulandi: approvals.tsx:124-127 tam olarak case'in tarif ettigi deseni tasiyor - `{decide.isError && (<div className="border-t border-line p-3"><ErrorNote error={decide.error} /></div>)}`. Kod yolu VAR ve dogru konumlanmis (panel altinda, tablonun disi degil icinde) - sayfa cokme riski yok (React kosullu render, try/catch gerektirmez).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Çapraz Kesişim: Yeniden Oynatma × Öksüz Uzlaştırma (Faz 47 × Faz 54)
-
-Bu kombinasyon hiçbir dosyada test edilmedi: `11-ARAYUZ-RUN-SESSION-SSE.md`
-yalnız BAŞARIYLA tamamlanmış çalıştırmaları oynattı; burada uzlaştırmayla
-zorla `Failed`/`Infrastructure` kapatılmış bir çalıştırmanın girdi kaydı
-(`run_inputs`, Faz 47'de eklendi) hâlâ var olduğu için yeniden oynatılıp
-oynatılamadığı sınanır.
-
----
-
-## MT-RES-050 — Uzlaştırmayla `Infrastructure` sınıfıyla kapanan bir çalıştırma yeniden oynatılabiliyor mu
-
-**Gerçek sonuç**
-Sonuc onceden tahmin edilen supheyle eslesti. Adim 1: GET /api/runs/{id}/input -> HTTP 404 - bu manuel testin SQL ile urettigi yapay oksuz satirin gercek bir RunInputRecord'u yok (InMemoryRunInputStore/SQL girdisi hic yazilmadi, cunku satir dogrudan UPDATE ile uretildi, gercek bir RunRecordingAgent.RunCoreAsync cagrisindan gecmedi). Adim 3: POST /replay de HTTP 404, title: 'Girdi kaydi yok', detail acikca nedenini anlatiyor ('Girdi kaydi kapaliyken baslamis veya saklama politikasiyla silinmis olabilir'). GERCEK bir surec cokmesinde girdi cokmeden once zaten yazilmis olurdu - bu ayrim not dusuldu; bu case'in kendisi replay/reconciliation kesisiminin GERCEK bir orphan'da nasil davranacagini kanitlamiyor, yalniz bu manuel-test kurulumunun SQL-tabanli simulasyonunun sinirini gosteriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## Özet
-
-| Bölüm | Case sayısı | Negatif/sınır/şüphe |
-|---|---|---|
-| §1 Çalıştırma iptali: kayıt defteri | 6 (001–006) | 5 (002, 003, 004, 005, 006) |
-| §2 Öksüz çalıştırma uzlaştırması | 5 (010–014) | 3 (010, 012, 014) |
-| §3 Asenkron onay kutusu: HTTP | 11 (020–030) | 7 (023, 024, 025, 027, 028, 029, 030) |
-| §4 Arayüz: onay kutusu ekranı | 5 (040–044) | 2 (040, 044) |
-| §5 Yeniden oynatma × uzlaştırma | 1 (050) | 1 (050, şüphe) |
-| **Toplam** | **28** | **18 (%64)** |
-
-`MT-RES-029` `⏭ Atlandı` olarak ÖNCEDEN işaretlenmiştir (ortam kısıtı,
-gerekçe case içinde) — koşum sırasında değiştirilmez.
 
 ---

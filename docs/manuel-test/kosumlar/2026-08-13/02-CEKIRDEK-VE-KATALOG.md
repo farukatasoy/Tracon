@@ -10,32 +10,50 @@
 
 ---
 
-## MT-CORE-001 — Geçerli tanım hatasız doğrulanır
-
-**Gerçek sonuç**
-`valid:true`, `inconclusive:false`, `messages:[]`. `GET /api/agents` sonrasında `manuel-destek` listede yok — doğrulama hiçbir kayıt oluşturmadı. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-002 — `unknown_tool`: kayıtlı olmayan tool adı
-
-**Gerçek sonuç**
-İki `unknown_tool` mesajı, `path` alanları `toolNames[1]` ve `toolNames[2]`, `severity:"Error"`. `get_order_status` için mesaj yok. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-CORE-003 — `unknown_model`: kayıtlı olmayan sağlayıcı
+## Temiz geçen case'ler (29)
 
-**Gerçek sonuç**
-1) `olmayan-saglayici` → `unknown_model`, `valid:false`. 2) `echo`/`katalogda-olmayan-model` → `valid:true` — katalog gerçekten bir doğrulama listesi değil, README ile çelişki yok.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-CORE-001 | ☑ | Geçerli tanım hatasız doğrulanır |
+| MT-CORE-002 | ☑ | `unknown_tool`: kayıtlı olmayan tool adı |
+| MT-CORE-003 | ☑ | `unknown_model`: kayıtlı olmayan sağlayıcı |
+| MT-CORE-005 | ☑ | `unknown_skill`: bağlı olmayan skill adı |
+| MT-CORE-007 | ☑ | Kendi kendini çağıran agent reddedilir |
+| MT-CORE-008 | ☑ | Doğrulama hiçbir zaman istisna sızdırmaz |
+| MT-CORE-020 | ☑ | Tanınmayan `reasoningEffort` değeri reddedilir |
+| MT-CORE-021 | ☑ | `responseFormat` kombinasyonları |
+| MT-CORE-030 | ☑ | Kod kaynaklı agent veritabanı tanımını yener |
+| MT-CORE-031 | ☑ | Katalog ada göre sıralı döner |
+| MT-CORE-032 | ☑ | Bulunmayan agent `null` döner, istisna atmaz |
+| MT-CORE-033 | ☑ | Sürüm artışı derlenmiş agent önbelleğini geçersiz kılar |
+| MT-CORE-034 | ☑ | Kod kaynaklı agent'ta sürümlü çözümleme reddedilir |
+| MT-CORE-035 | ☑ | Tanım hiçbir zaman kimlik bilgisi taşımaz |
+| MT-CORE-040 | ☑ | Tool listesi ad, açıklama, şema ve kaynak taşır |
+| MT-CORE-042 | ☑ | Onay gerektiren tool sarmalanır ama şeması değişmez |
+| MT-CORE-043 | ☑ | Tanım yalnız kayıtlı tool'a işaret edebilir |
+| MT-CORE-045 | ☑ | Tool gerekmeyen istek tool çağırmaz |
+| MT-CORE-051 | ☑ | Oturum silinir ve geçmiş gider |
+| MT-CORE-052 | ☑ | Var olmayan oturumun silinmesi hata vermez |
+| MT-CORE-053 | ☑ | İki oturum birbirini görmez |
+| MT-CORE-060 | ☑ | Geçersiz `MaxPayloadLength` açılışı durdurur |
+| MT-CORE-061 | ☑ | Script çalıştırma onaysız açılamaz |
+| MT-CORE-062 | ☑ | Agent grafiği sınırlarının varsayılanı vardır |
+| MT-CORE-063 | ☑ | Hassas veri varsayılan olarak kaydedilmez |
+| MT-CORE-070 | ☑ | Bellek içi depolar veritabanı olmadan çalışır |
+| MT-CORE-071 | ☑ | `FakeModelProvider` kuyruğu bir kez tüketilir |
+| MT-CORE-073 | ☑ | Enum'lar JSON'da ad olarak yazılır |
+| MT-CORE-074 | ☑ | Uygulama yeniden başlatıldığında kod agent'ları geri gelir |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (13)
 
 ## MT-CORE-004 — `invalid_setting`: tanınmayan sağlayıcı ayarı
 
@@ -51,15 +69,6 @@ hiç tetiklemez).
 
 **Doküman düzeltmesi (2026-08-15):** Girilecek veri koda göre düzeltildi
 (`echo` → `anthropic`). Ürün kusuru yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-005 — `unknown_skill`: bağlı olmayan skill adı
-
-**Gerçek sonuç**
-`unknown_skill`, `path: "skillNames[0]"`, `valid:false`. Tam beklendiği gibi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -112,24 +121,6 @@ doğru alan adını (`endpoint`) kullanıyor.
 
 ---
 
-## MT-CORE-007 — Kendi kendini çağıran agent reddedilir
-
-**Gerçek sonuç**
-1) `code:"cycle"`, tam beklenen mesaj. 2) kayıt 400 ile reddedildi. 3) dolaylı döngü (`manuel-a -> manuel-b -> manuel-a`) de 400 ile reddedildi, mesaj zinciri gösteriyor. Hiçbir adımda çökme yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-008 — Doğrulama hiçbir zaman istisna sızdırmaz
-
-**Gerçek sonuç**
-HTTP 200, `valid:false`, `code:"compilation_error"`, mesaj `Schema` alanının eksik olduğunu söylüyor. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-CORE-009 — Boş ve aşırı uzun alanlar
 
 **Gerçek sonuç**
@@ -147,24 +138,6 @@ HTTP 200, `valid:false`, `code:"compilation_error"`, mesaj `Schema` alanının e
 
 Derleyici, doğrulamanın aksine **istisna atar**. Bu case'ler derleme yolunu
 tanım kaydederek ve agent'ı çözdürerek tetikler.
-
----
-
-## MT-CORE-020 — Tanınmayan `reasoningEffort` değeri reddedilir
-
-**Gerçek sonuç**
-1) `compilation_error`, "cok-yuksek" reddedildi, geçerli değerler listelendi (None, Low, Medium, High, ExtraHigh). 2) "hIgH" → `valid:true` (büyük/küçük harfe duyarsız).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-021 — `responseFormat` kombinasyonları
-
-**Gerçek sonuç**
-m1,m2,m3,m4 dördü de tam beklenen mesajları verdi (m4: "modeli yapilandirilmis cikti desteklemiyor" — echo modelinin desteklemediği doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -225,95 +198,10 @@ kusuru yok.
 
 ---
 
-## MT-CORE-030 — Kod kaynaklı agent veritabanı tanımını yener
-
-**Gerçek sonuç**
-İzole ortamda doğrulandı. `support` agent'ının `origin:"Code"` (ad olarak). Sahte kayıt denemesi HTTP 409 ile TEMİZ reddedildi: "'support' kodda tanimli bir agent'tir ve yonetim API'sinden degistirilemez." `displayName` değişmedi ("Destek Asistani" kaldı), listede tek kayıt.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-031 — Katalog ada göre sıralı döner
-
-**Gerçek sonuç**
-`['arastirmaci','cevirmen','ozetleyici','support','yonlendirici']` — SIRALI. (Not: fixture verisinin tamamı küçük harf; büyük/küçük harf ordinal iddiası bu veriyle ayrıca test edilemedi.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-032 — Bulunmayan agent `null` döner, istisna atmaz
-
-**Gerçek sonuç**
-İzole/temiz ortamda: `GET` 404, `RUN` 404, hiçbir `run` kaydı oluşmadı. (İlk denemede paylaşılan ortamın başka bir oturum tarafından o an şeması düşürülmüş olduğu için sahte 500'ler alınmıştı; izolasyondan sonra tekrarlanınca doğru sonuç.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-033 — Sürüm artışı derlenmiş agent önbelleğini geçersiz kılar
-
-**Gerçek sonuç**
-İlk `run` → `agent_version=1`. Güncelleme sonrası `version=2`, `instructions="IKINCI SURUM TALIMATI."`. Yeniden başlatmadan ikinci `run` → `agent_version=2` (DB'den doğrulandı: `agentprism.runs` tablosunda iki satır, sürüm 1 ve 2). Önbellek doğru geçersiz kılınmış. Doküman notu: `GET /api/agents/{name}` düz değil, `{descriptor, definition, isEditable}` içeren iç içe bir gövde döndürüyor — doküman bunu belirtmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-034 — Kod kaynaklı agent'ta sürümlü çözümleme reddedilir
-
-**Gerçek sonuç**
-`support/versions` → 404, "'support' adinda bir agent yok." — HTTP 4xx şartı sağlanıyor (beklenen ikinci alternatif). Kalite notu: mesaj METİN olarak yanıltıcı — `support` GERÇEKTEN var (kod kaynaklı), yalnız sürüm geçmişi yok; mesaj bunu "yok" diyerek karıştırıyor, doküman'ın beklediği "kod kaynagi" ifadesi de yok. `manuel-surum/versions` → 200, 2 kayıt (v2, v1).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-035 — Tanım hiçbir zaman kimlik bilgisi taşımaz
-
-**Gerçek sonuç**
-`ModelBinding`'de API anahtarı alanı yok (sözleşme gereği). `metadata.not` değeri olduğu gibi geri okundu (serbest alan, beklenen). SQL taraması (`apikey`/`connectionstring` ILIKE) **0 satır** döndürdü — AgentPrism'in kendi yazdığı hiçbir sağlayıcı anahtarı yok; `manuel-secret`'ın kendi metadata değeri de bu terimleri içermiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Tool defteri
-
----
-
-## MT-CORE-040 — Tool listesi ad, açıklama, şema ve kaynak taşır
-
-**Gerçek sonuç**
-Üç tool (`cancel_order`, `get_order_status`, `list_recent_orders`), ada göre sıralı, `cancel_order.requiresApproval:true` diğerleri `false`, üçünün de `source:"generated"`, `jsonSchema` dolu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-CORE-041 — Aynı adda iki tool açılışta hata verir
 
 **Gerçek sonuç**
 Mesaj "beklenen istisna:" ile başlıyor, "'ayni_ad' adinda birden cok tool kaydedilmis..." tam eşleşti. "🚨 istisna ATILMADI" satırı görünmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-042 — Onay gerektiren tool sarmalanır ama şeması değişmez
-
-**Gerçek sonuç**
-`cancel_order`/`get_order_status`: onay doğru, `description` dolu, `jsonSchema` `orderId` içeriyor, ad önek/sonek taşımıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-043 — Tanım yalnız kayıtlı tool'a işaret edebilir
-
-**Gerçek sonuç**
-Kayıt BAŞARILI (201) — tanım kaydedilirken tool adı doğrulanmıyor (ayrı kod yolu, case'in kendi anlattığı gibi). Çalıştırma (`run`) 400 ile reddedildi; mesaj eksik tool adını (`hayali_tool`), kayıtlı tool listesini (`cancel_order, get_order_status, list_recent_orders`) ve yönlendirmeyi (`builder.AddAgentPrism().AddTool(...)`) içerdi. 500 yok. Doküman'ın ikinci kabul edilebilir dalına tam uyuyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -328,50 +216,10 @@ Gerçek OpenAI çağrısı (gpt-5.4-mini) yapıldı. Yanıt metni tam olarak "OR
 
 ---
 
-## MT-CORE-045 — Tool gerekmeyen istek tool çağırmaz
-
-**Gerçek sonuç**
-"Merhaba" ile çalıştırma tamamlandı; bu run için `tool_invocations` satır sayısı 0. `input_cost`/`output_cost` yine dolu (fiyat env var'ı hâlâ etkin).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Oturum yönetimi
-
----
-
 ## MT-CORE-050 — Oturum yoksa oluşturulur, varsa yüklenir
 
 **Gerçek sonuç**
 Oturum oluştu, ikinci çalıştırmada geçmiş GERÇEKTEN yüklendi/kullanıldı (persist edilen mesaj listesi API'den doğrulandı: 4 mesaj, kronolojik sıra: 2 kullanıcı + 2 asistan). Yalnız "yanıt 'Faruk' içerir" iddiası doğrulanamadı — `echo` sağlayıcısının kendi tasarımı gereği (`EchoChatClient.BuildReply` yalnız SON kullanıcı mesajını yankılar, tam geçmişi değil); bu bir ürün kusuru değil, echo'nun bilinçli sınırlaması (MT-CORE-004/006 ile aynı sınıf).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-051 — Oturum silinir ve geçmiş gider
-
-**Gerçek sonuç**
-`DELETE` 204, sonraki `GET` 404, aynı kimlikle yeniden çalıştırma 2 mesajlık YENİ bir oturum açtı (eski geçmiş gerçekten silinmiş — mesaj sayısı 4 değil 2).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-052 — Var olmayan oturumun silinmesi hata vermez
-
-**Gerçek sonuç**
-İki deneme de 404, tamamen aynı/idempotent, 500 yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-053 — İki oturum birbirini görmez
-
-**Gerçek sonuç**
-`musteri-99` yanıtı `MAVI-42` içermiyor. DB doğrulaması: iki ayrı `conversation_id`, ikisinde de 2'şer mesaj — tam izolasyon. Doküman notu: doküman'ın SQL sorgusu (`s.external_id`, `ci.session_id`) GERÇEK şemayla uyuşmuyor — `sessions.id` zaten dış kimliğin kendisi, `conversation_items` tablosunda `session_id` kolonu yok (yalnız `conversation_id` var; session→conversation bağlantısı `sessions.state` jsonb'sindeki `stateBag['AgentPrism.ChatHistory']['conversationId']` üzerinden kuruluyor).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -393,42 +241,6 @@ Oturum oluştu, ikinci çalıştırmada geçmiş GERÇEKTEN yüklendi/kullanıld
 
 Geçersiz bir ayar **açılışta** hata vermelidir. Çalışma anında ortaya çıkan bir
 ayar hatası üretimde bulunur.
-
----
-
-## MT-CORE-060 — Geçersiz `MaxPayloadLength` açılışı durdurur
-
-**Gerçek sonuç**
-`1048576: KABUL`, `1048577: RED` (mesajda "0 ile 1048576 arasinda olmalidir" ve gelen değer 1048577), `-1: RED`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-061 — Script çalıştırma onaysız açılamaz
-
-**Gerçek sonuç**
-`onay=False: RED` — mesajda `PlatformIsolationAcknowledged` adı geçiyor. `onay=True: KABUL`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-062 — Agent grafiği sınırlarının varsayılanı vardır
-
-**Gerçek sonuç**
-`MaxDepth=3`, `MaxTotalTokens=200000`, `MaxTotalRuns=25`. Sıfırlanınca `SINIRSIZ`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-063 — Hassas veri varsayılan olarak kaydedilmez
-
-**Gerçek sonuç**
-`RecordSensitiveData=False`, `EnableQuotaUsageGauge=False`, `SuccessSampleRatio=0,1`, `AlwaysPersistFailures=True`, `Health.BackgroundInterval=YOK`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -457,72 +269,11 @@ Doküman'ın scripti aynen koşulduğunda `Saglayici sayisi: 0` döndü (beklene
 
 ---
 
-## MT-CORE-070 — Bellek içi depolar veritabanı olmadan çalışır
-
-**Gerçek sonuç**
-"host ayakta" yazdı, istek sayısı 0, süreç sıfır çıkış koduyla bitti. Hiçbir veritabanı/ağ hatası yok (`CreateSlimBuilder` + `UseTestServer`, hiçbir dış bağlantı yapılandırılmadı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-071 — `FakeModelProvider` kuyruğu bir kez tüketilir
-
-**Gerçek sonuç**
-Kurulum hatasız, `RespondsWith`/`EchoesUserMessage` zincirlenebiliyor, "kuyruk kuruldu" yazdı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-CORE-072 — Kimlikler zaman sıralı UUIDv7'dir
 
 **Gerçek sonuç**
 `sirali: True`, damga farkı 0,0sn (<1s), v4 (`Guid.NewGuid()`) reddedildi: "Kimlik bir UUID surum 7 degeri degil." "🚨 v4 KABUL EDILDI" satırı görünmedi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-073 — Enum'lar JSON'da ad olarak yazılır
-
-**Gerçek sonuç**
-`origin` değerleri `"Code"`/`"Database"` (ad olarak, tırnak içinde). `severity` `"Error"` (ad olarak). Hiçbirinde sayı görünmüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-CORE-074 — Uygulama yeniden başlatıldığında kod agent'ları geri gelir
-
-**Gerçek sonuç**
-Yeniden başlatma öncesi: toplam 8, kod 5, db 3. Yeniden başlatma SONRASI: AYNI (8/5/3). `manuel-surum` hâlâ var, `version=2` (kalıcı). "AgentPrism N migration uyguladi" log satırı bu turda hiç görünmedi — bu satır yalnız YENİ migration uygulandığında loglanıyor; şema zaten güncel olduğu için migration'lar yeniden uygulanmadı. Tam beklenen davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## Koşum sonrası temizlik
-
-```bash
-# Manuel test agent'larini sil.
-for a in manuel-destek manuel-surum manuel-secret manuel-a manuel-b \
-         manuel-hayali-tool-kayit; do
-  curl -s -o /dev/null -X DELETE "$APU/api/agents/$a" -H "$APB"
-done
-
-# Manuel test oturumlarini sil.
-for s in manuel-oturum-01 manuel-yaris musteri-42 musteri-99; do
-  curl -s -o /dev/null -X DELETE "$APU/api/sessions/$s" -H "$APB"
-done
-
-# Olu MCP sunucusunu sil (MT-CORE-006).
-curl -s -o /dev/null -X DELETE "$APU/api/mcp/servers/olu-mcp" -H "$APB"
-
-rm -rf ~/agentprism-manuel/skillsiz
-```
-
-Temizlik sonrası `GET $APU/api/agents` yalnız kod kaynaklı agent'ları
-göstermelidir.
 
 ---

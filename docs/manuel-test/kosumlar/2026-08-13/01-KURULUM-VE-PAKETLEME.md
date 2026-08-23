@@ -10,66 +10,54 @@
 
 ---
 
-## MT-PKG-001 — SDK sürümü ve roll-forward politikası
-
-**Gerçek sonuç**
-```
-dotnet --list-sdks:
-9.0.305 [/usr/local/share/dotnet/sdk]
-9.0.306 [/usr/local/share/dotnet/sdk]
-10.0.100 [/usr/local/share/dotnet/sdk]
-
-dotnet --version: 10.0.100
-
-global.json:
-{
-  "sdk": {
-    "version": "10.0.100",
-    "rollForward": "latestFeature",
-    "allowPrerelease": false
-  }
-}
-```
-`dotnet --version` 10.0.100 — 10.0.1xx bandında. `global.json` üç değeri de birebir taşıyor. Önizleme sürümü yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-PKG-002 — Node.js ve npm arayüz derlemesi için yeterli
+## Temiz geçen case'ler (33)
 
-**Gerçek sonuç**
-```
-node --version: v20.19.4
-npm --version : 11.6.3
-```
-Node 20.19.4 ≥ 20.19. `npm --version` sıfır çıkış kodu ile döndü.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PKG-001 | ☑ | SDK sürümü ve roll-forward politikası |
+| MT-PKG-002 | ☑ | Node.js ve npm arayüz derlemesi için yeterli |
+| MT-PKG-003 | ☑ | Docker hazır ve `mssql/server` imajı arm64'te çekilebiliyor |
+| MT-PKG-012 | ☑ | Uyarı gerçekten hataya dönüşüyor |
+| MT-PKG-014 | ☑ | Hızlı iç döngü arayüz zincirini atlar |
+| MT-PKG-015 | ☑ | Arayüz varlığı yokken `pack` hata verir |
+| MT-PKG-016 | ☑ | Yayınlanabilir pakette `README.md` eksikse derleme durur |
+| MT-PKG-020 | ☑ | Paket sayısı ve sembol paketi sayısı |
+| MT-PKG-022 | ☑ | Her pakette üç TFM ve XML dokümanı var |
+| MT-PKG-024 | ☑ | Sembol paketi taşınabilir PDB taşır |
+| MT-PKG-026 | ☑ | Şablon paketi doğru biçimde kurulur |
+| MT-PKG-027 | ☑ | Sürüm git etiketinden gelir |
+| MT-PKG-030 | ☑ | Meta paket yalnız altı bileşen getirir |
+| MT-PKG-031 | ☑ | Geçişli sabitleme kapalı: grafik kirlenmiyor |
+| MT-PKG-032 | ☑ | Önsürüm MAF paketleri yalnız `AgentPrism.AspNetCore`'da |
+| MT-PKG-040 | ☑ | Üreteç işaretli statik metodu kaydeder |
+| MT-PKG-041 | ☑ | Üretilen kod `dotnet format` kapısını geçer |
+| MT-PKG-042 | ☑ | `APG0001`: aynı tool adı iki metotta |
+| MT-PKG-045 | ☑ | `APG0004`: generic metot tool olamaz |
+| MT-PKG-046 | ☑ | `APG0005`: çağrı var, işaretli metot yok |
+| MT-PKG-047 | ☑ | `APG0006`: açıklama eksik — hata değil, uyarı |
+| MT-PKG-048 | ☑ | `APG0007`: örnek metot tool olamaz |
+| MT-PKG-049 | ☑ | İşaretsiz metot sessizce tool olmaz |
+| MT-PKG-050 | ☑ | Üreteç meta paket üzerinden de akıyor |
+| MT-PKG-060 | ☑ | AOT uyumlu paketler sıfır trim uyarısı verir |
+| MT-PKG-061 | ☑ | `AddToolsFrom` AOT bedelini çağırana iletiyor |
+| MT-PKG-070 | ☑ | Yerel feed kurulur ve şablon yüklenir |
+| MT-PKG-073 | ☑ | Kalıcılık seçenekleri doğru paket ve kod üretiyor |
+| MT-PKG-074 | ☑ | Sağlayıcı seçenekleri doğru paket ve kod üretiyor |
+| MT-PKG-075 | ☑ | `--ui false` arayüzü hiç bağlamaz |
+| MT-PKG-076 | ☑ | Şablon sürüm sabitlemesi çalışıyor |
+| MT-PKG-077 | ☑ | Şablon `secret` sızdırmıyor |
+| MT-PKG-080 | ☑ | Tüketicinin kaydı her zaman kazanır |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-003 — Docker hazır ve `mssql/server` imajı arm64'te çekilebiliyor
-
-**Gerçek sonuç**
-```
-docker info: 29.7.2 · 10 CPU · 8321515520 bayt
-uname -m    : arm64
-
-docker pull mcr.microsoft.com/mssql/server:2022-latest
-Status: Image is up to date for mcr.microsoft.com/mssql/server:2022-latest
-```
-Bellek 8321515520 bayt = 8,32 GB (ondalık) / 7,75 GiB (ikili) — sınırda ama
-ondalık yorumla eşik geçiliyor ve imaj zaten çekili, `docker pull` sıfır
-hatayla bitti. `uname -m` `arm64`. Rosetta gerekmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — Derleme kapıları
-
----
+## Ayrıntı taşıyan case'ler (15)
 
 ## MT-PKG-010 — Dört kapı sıfır uyarı verir
 
@@ -165,21 +153,6 @@ güvenli (build kendisi yakalıyor), yalnız case'in kurgusu geçersiz.
 
 ---
 
-## MT-PKG-012 — Uyarı gerçekten hataya dönüşüyor
-
-**Gerçek sonuç**
-```
-dotnet build src/AgentPrism.Core -c Release -> cikis kodu: 1
-CS1591 error (uc TFM icin, hem tip hem uye icin) -> 6 satir, tumu "error"
-dosya silindikten sonra: Build succeeded, 0 Warning(s), 0 Error(s)
-```
-Derleme başarısız oldu, `CS1591` her yerde `error` olarak çıktı (`warning`
-değil). Dosya silindikten sonra derleme temiz geçti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-013 — Senkronizasyon kopyası derlemeyi kırar, sessizce geçmez
 
 **Gerçek sonuç**
@@ -205,78 +178,6 @@ derleme `CS0101` ile kırıldı, kopya silinince temiz geçti.
 
 ---
 
-## MT-PKG-014 — Hızlı iç döngü arayüz zincirini atlar
-
-**Gerçek sonuç**
-```
-time dotnet build ... -p:AgentPrismFrontendEnabled=false -> 10,4 sn, exit 0
-Cikti: NPM ADIMI YOK - beklenen
-Build succeeded. 0 Warning(s) 0 Error(s)
-```
-Çıktı beklendiği gibi `NPM ADIMI YOK - beklenen` yazdı, npm adımı hiç
-çalışmadı, derleme başarılı bitti (~6-10 sn, tam derlemenin ~40 sn'sine
-kıyasla belirgin şekilde hızlı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-015 — Arayüz varlığı yokken `pack` hata verir
-
-**Gerçek sonuç**
-```
-pack cikis kodu: 1
-error AGENTPRISM0003: AgentPrism.UI: arayuz varligi uretilmemis
-  (.../wwwroot/index.html yok). Ici bos bir arayuz paketi yayinlanamaz.
-  Node.js 20.19+ kurun ve derlemeyi tekrarlayin.
-wwwroot geri konulduktan sonra: Build succeeded, 0 Warning(s), 0 Error(s)
-index.html yeniden var.
-```
-`pack` beklendiği gibi `AGENTPRISM0003` ile başarısız oldu; mesaj hem
-"arayuz varligi uretilmemis" hem "Node.js 20.19+ kurun" ifadelerini taşıyor.
-Dosyalar geri konulduktan sonra normal derleme geçti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-016 — Yayınlanabilir pakette `README.md` eksikse derleme durur
-
-**Gerçek sonuç**
-```
-README.md tasindiktan sonra pack -> cikis kodu: 1
-error AGENTPRISM0001: Yayinlanabilir paket 'AgentPrism.Voice' icin README.md
-  eksik. NuGet paket sayfasinda gorunecek bir README.md dosyasi ekleyin.
-README.md geri konulduktan sonra pack -> cikis kodu: 0, .nupkg + .snupkg üretildi
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — Paket çıktısı ve kalite denetimi
-
----
-
-## MT-PKG-020 — Paket sayısı ve sembol paketi sayısı
-
-**Gerçek sonuç**
-```
-nupkg : 17
-snupkg: 16
-Generators yayimlanmadi - beklenen
-
-Paketler: AgentPrism, .Abstractions, .Anthropic, .AspNetCore, .Azure, .Core,
-.Google, .Mcp, .OpenAI, .PostgreSql, .SqlServer, .Sqlite, .Templates,
-.Testing, .UI, .Voice, .Workflows  (17 adet, beklenen liste ile birebir)
-```
-17 `.nupkg`, 16 `.snupkg` üretildi (eksik olan `AgentPrism.Templates`).
-`AgentPrism.Generators` listede yok. `AgentPrism.Sql.Shared` görünmüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-021 — 🚨 Kaynak üreteci `.nupkg` içinde taşınıyor mu
 
 **Gerçek sonuç**
@@ -293,20 +194,6 @@ Dört satırın dördü de `1` — üreteç DLL'i her dört senaryoda da
 Doküman'ın atıfta bulunduğu önceki üretim ölçümünde `tek-nobuild` için `0`
 bekleniyordu (K-348'in tetiklediği şüphe); bugünkü koşumda bu **doğrulanmadı**
 — dördü de geçiyor, kapsam kesinleşmiş durumda ve yayın engeli yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-022 — Her pakette üç TFM ve XML dokümanı var
-
-**Gerçek sonuç**
-```
-AgentPrism.Core: lib/net8.0/*.dll+xml, lib/net9.0/*.dll+xml, lib/net10.0/*.dll+xml,
-                 README.md (kökte)
-AgentPrism.Testing: yalnız lib/net10.0/*.dll+xml
-AgentPrism (meta): "meta pakette lib/ yok - beklenen"
-```
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -339,19 +226,6 @@ kusuru yok.
 
 ---
 
-## MT-PKG-024 — Sembol paketi taşınabilir PDB taşır
-
-**Gerçek sonuç**
-```
-lib/net8.0/AgentPrism.Core.pdb, lib/net9.0/AgentPrism.Core.pdb,
-lib/net10.0/AgentPrism.Core.pdb  -> üçü de var
-Uzantı: .snupkg (.symbols.nupkg değil)
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-025 — Deterministik build: iki paketleme aynı derlemeyi üretir
 
 **Gerçek sonuç**
@@ -368,88 +242,6 @@ geri konurken bulut senkronizasyonunun (muhtemelen iCloud Drive) ürettiği bir
 çakışma kopyası. İçerik orijinaliyle birebir aynıydı (`diff` sıfır fark);
 dosya silindi. Bu, projenin kendi `MEMORY.md`'sinde belgelenen "kopya dosyalar"
 tuzağının doğrudan bir örneği — kod kusuru değil, ortam/senkronizasyon riski.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-026 — Şablon paketi doğru biçimde kurulur
-
-**Gerçek sonuç**
-```
-content/AgentPrism.Starter/.template.config/template.json    -> var
-content/AgentPrism.Starter/.template.config/dotnetcli.host.json -> var
-content/AgentPrism.Starter/.gitignore                         -> var
-Yollar tek katmanlı (content/content/... yok)
-<packageType name="Template" />                                -> var
-lib/ klasörü yok
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-027 — Sürüm git etiketinden gelir
-
-**Gerçek sonuç**
-```
-etiketsiz : AgentPrism.Abstractions.0.0.0-preview.0.63.nupkg
-etiketli  : AgentPrism.Abstractions.1.0.0-preview.1.nupkg
-git tag -d sonrası: git tag boş
-```
-Etiketsiz sürüm `0.0.0-preview.0.63` biçiminde (`<N>` = commit yüksekliği).
-Etiketten sonra sürüm tam olarak `1.0.0-preview.1`. Etiket silindikten sonra
-`git tag` yine boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Bağımlılık grafiği
-
----
-
-## MT-PKG-030 — Meta paket yalnız altı bileşen getirir
-
-**Gerçek sonuç**
-```
-AgentPrism.AspNetCore, AgentPrism.Mcp, AgentPrism.OpenAI, AgentPrism.PostgreSql,
-AgentPrism.UI, AgentPrism.Workflows   (6 adet, birebir beklenen)
-```
-`SqlServer`, `Sqlite`, `Anthropic`, `Google`, `Azure`, `Voice`, `Testing`,
-`Templates` hiçbiri görünmüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-031 — Geçişli sabitleme kapalı: grafik kirlenmiyor
-
-**Gerçek sonuç**
-```
-PostgreSql (net10.0)   : AgentPrism.Core, Npgsql                      -> 2
-Abstractions (net10.0) : Microsoft.Agents.AI.Abstractions,
-                          Microsoft.Extensions.AI.Abstractions         -> 2
-```
-İkisinde de `OpenTelemetry.Api`, `OpenAI` gibi geçişli paketler görünmüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-032 — Önsürüm MAF paketleri yalnız `AgentPrism.AspNetCore`'da
-
-**Gerçek sonuç**
-```
-Tüm önsürüm satırları (15 satır, 3 TFM × 5 paket) yalnız
-AgentPrism.AspNetCore ile başlıyor:
-  A2A.AspNetCore 1.0.0-preview2
-  Microsoft.Agents.AI.Hosting 1.16.0-preview.260730.1
-  Microsoft.Agents.AI.Hosting.A2A 1.16.0-preview.260730.1
-  Microsoft.Agents.AI.Hosting.AspNetCore 1.16.0-preview.260730.1
-  Microsoft.Agents.AI.Hosting.OpenAI 1.16.0-alpha.260730.1
-```
-Core, Abstractions, PostgreSql, OpenAI hiçbir satırda görünmüyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -514,51 +306,6 @@ repo'nun `ProjectReference` zinciri sonucu bulandırmaz.
 > ```
 > 🚨 `AgentPrism.Core` **doğrudan** `PackageReference` ile alınır. MT-PKG-021
 > bunun neden önemli olduğunu ölçer.
-
----
-
-## MT-PKG-040 — Üreteç işaretli statik metodu kaydeder
-
-**Gerçek sonuç**
-```
-exit: 0 · Build succeeded · 0 Warning(s) · 0 Error(s)
-Üretilen dosyalar:
-  .../GetOrderStatus_274C17A0Tool.g.cs
-  .../AgentPrismGeneratedTools.g.cs
-İlk satır: // <auto-generated/>
-AddGeneratedTools uzantı metodu namespace AgentPrism içinde tanımlı
-"get_order_status" dizgisi GetOrderStatus_274C17A0Tool.g.cs içinde geçiyor
-System.Reflection / Activator. / GetMethod( / AIFunctionFactory -> hiçbiri geçmiyor
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-041 — Üretilen kod `dotnet format` kapısını geçer
-
-**Gerçek sonuç**
-```
-format cikis kodu: 0
-TAB yok
-satir sonu temiz
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-042 — `APG0001`: aynı tool adı iki metotta
-
-**Gerçek sonuç**
-```
-exit: 1
-error APG0001: 'ayni_ad' tool adi birden fazla metotta kullanilmis:
-  global::CakisanTools.Bir, global::CakisanTools.Iki. Her tool adi derleme
-  icinde tek olmalidir.  (iki ayrı konumda: satır 6 ve satır 9)
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -648,128 +395,6 @@ değişikliği gerekmedi.
 
 ---
 
-## MT-PKG-045 — `APG0004`: generic metot tool olamaz
-
-**Gerçek sonuç**
-```
-error APG0004: 'GenericTools.Getir' metodu [AgentPrismTool] ile isaretli
-  ancak generic. Tool metotlari generic olamaz; somut bir sarmalayici metot
-  yazin.
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-046 — `APG0005`: çağrı var, işaretli metot yok
-
-**Gerçek sonuç**
-```
-error APG0005: 'AddGeneratedTools()' cagrildi ancak bu derlemede
-  [AgentPrismTool] ile isaretli metot yok. Tool metotlarini isaretleyin
-  veya bu cagriyi kaldirin.
-Tools.cs geri konduktan sonra: Build succeeded, 0 Warning(s), 0 Error(s)
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-047 — `APG0006`: açıklama eksik — hata değil, uyarı
-
-**Gerçek sonuç**
-```
-Birinci derleme: exit 0
-  warning APG0006: 'aciklamasiz' tool'unun aciklamasi yok. Model tool'u ne
-  zaman cagiracagini aciklamadan bilemez; [AgentPrismTool] icin bir
-  aciklama verin.
-Bastırılmış (-p:NoWarn=APG0006): exit 0, tanı sayısı 0
-```
-`TreatWarningsAsErrors` bu tüketici projede yok; derleme uyarıyla birlikte
-başarılı bitti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-048 — `APG0007`: örnek metot tool olamaz
-
-**Gerçek sonuç**
-```
-error APG0007: 'OrnekTools.Getir' bir ornek metodudur ve tool olamaz. MAF,
-  AIFunctionArguments.Services olarak bos bir saglayici gecirir (karar K-218).
-  Metodu 'static' yapin veya tool'u kurulum aninda ornekleyip
-  'AddTool(AIFunctionFactory.Create(...))' ile kaydedin.
-static yapıldıktan sonra: exit 0, tanı sayısı 0
-```
-Mesaj K-218'e açıkça atıf yapıyor ve iki çözüm gösteriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-049 — İşaretsiz metot sessizce tool olmaz
-
-**Gerçek sonuç**
-```
-exit: 0, 0 Warning(s), 0 Error(s)
-GizliYardimci sayısı: 0
-GetOrderStatus sayısı: 1
-```
-Hiçbir tanı üretilmedi — işaretsiz metot hata değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-050 — Üreteç meta paket üzerinden de akıyor
-
-**Gerçek sonuç**
-```
-dotnet add package AgentPrism --version 0.0.0-preview.0.63  -> başarılı
-dotnet build -c Release -> cikis kodu: 0
-Build succeeded. 0 Warning(s) 0 Error(s)
-CS1061 sayısı: 0
-```
-Meta paketi (`AgentPrism`) doğrudan referanslayan bir tüketici derlendi;
-`AddGeneratedTools` bulunamadı hatası çıkmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — AOT publish
-
----
-
-## MT-PKG-060 — AOT uyumlu paketler sıfır trim uyarısı verir
-
-**Gerçek sonuç**
-```
-dotnet publish -r osx-arm64 -p:PublishAot=true -> exit 0
-IL2xxx/IL3xxx sayısı: 0
-Çalıştırma çıktısı: kayit tamam
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-061 — `AddToolsFrom` AOT bedelini çağırana iletiyor
-
-**Gerçek sonuç**
-```
-warning IL2026: ... 'AddToolsFrom(Type)' ... 'RequiresUnreferencedCodeAttribute' ...
-warning IL3050: ... 'AddToolsFrom(Type)' ... 'RequiresDynamicCodeAttribute' ...
-(hem derleme-anı hem trim/AOT analiz uyarısı olarak iki kez, toplam 4 satır)
-```
-En az bir `IL2026`/`IL3050` çıktı ve `RequiresUnreferencedCode`/
-`RequiresDynamicCode` gerekçesini taşıyor — bastırma yapılmamış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-062 — AOT bayrağı paket bazında doğru
 
 **Gerçek sonuç**
@@ -803,29 +428,6 @@ src/*/*.csproj` yeniden koşuldu, aynı 10'lu küme doğrulandı.
 ---
 
 # 7 — İzlek A: temiz tüketici ve proje şablonu
-
----
-
-## MT-PKG-070 — Yerel feed kurulur ve şablon yüklenir
-
-**Gerçek sonuç**
-```
-Success: AgentPrism.Templates::0.0.0-preview.0.63 installed the following templates:
-Template Name                            Short Name      Language  Tags
-AgentPrism control plane (ASP.NET Core)  agentprism-api  [C#]      Web/AgentPrism/AI/Agents
-
-dotnet new list agentprism -> aynı satırı listeliyor
-```
-Kısa ad `agentprism-api`, şablon adı `AgentPrism control plane (ASP.NET Core)`,
-dil `C#`, tip `project` (`--columns-all` ile doğrulandı: `Type: project`).
-
-Not: `dotnet new install AgentPrism.Templates::*-*` sözdizimi zsh altında
-`*-*` glob'unu shell'e genişletmeye çalışıp "no matches found" ile başarısız
-oldu; tırnaklı (`'...*-*'`) hâliyle çalıştı. Ayrıca .NET SDK `::` ayıracının
-kullanımdan kaldırıldığını, yerine `@` kullanılması gerektiğini bildirdi
-(fonksiyonel bir engel değil, bir uyarı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -898,119 +500,6 @@ Ayrıca ilk deneme sırasında önceki adımdan (MT-PKG-071) kalan `dotnet run`
 süreci portu (5081) tutmaya devam etti — `kill %1` yeni bir Bash oturumunda
 işe yaramadı (job kontrolü kalıcı değil). `lsof -ti:5081 | xargs kill -9` ile
 temizlendi. Bu bir kod kusuru değil, bu koşumun kendi süreç yönetimi hatası.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-073 — Kalıcılık seçenekleri doğru paket ve kod üretiyor
-
-**Gerçek sonuç**
-```
-postgres  : PackageReference AgentPrism (tek), UsePostgreSql(...),
-            appsettings: yalnız PostgreSql bölümü -> derlendi
-sqlite    : + AgentPrism.Sqlite, UseSqlite(...),
-            appsettings: yalnız Sqlite bölümü -> derlendi
-sqlserver : + AgentPrism.SqlServer, UseSqlServer(...),
-            appsettings: yalnız SqlServer bölümü -> derlendi
-Çapraz kirlenme: yok. #if/// #if kalıntısı: yok.
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-074 — Sağlayıcı seçenekleri doğru paket ve kod üretiyor
-
-**Gerçek sonuç**
-```
-openai    : ek paket yok (AgentPrism meta içinde), UseOpenAI(...)      -> derlendi
-anthropic : + AgentPrism.Anthropic, UseAnthropic(...)                  -> derlendi
-google    : + AgentPrism.Google, UseGoogle(...)                        -> derlendi
-azure     : + AgentPrism.Azure, UseAzureOpenAI(...)                    -> derlendi
-```
-Dördü de kimlik bilgisi olmadan derlendi. Azure'un gerçek `run` denemesi
-doküman gereği burada **Atlandı** — `06-SAGLAYICI-DIGER.md`'ye bırakıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-075 — `--ui false` arayüzü hiç bağlamaz
-
-**Gerçek sonuç**
-```
-grep -c "UseUI" Program.cs -> 0
-dotnet build -> exit 0
-meta  : 200
-arayuz: 404
-Log'da arayüzle ilgili hata yok, uygulama çökmedi.
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-076 — Şablon sürüm sabitlemesi çalışıyor
-
-**Gerçek sonuç**
-```
-1) --skip-restore: <PackageReference Include="AgentPrism" Version="*-*" />
-   "Restoring" satırı çıktıda yok.
-   AGENTPRISM_TEMPLATE_PACKAGE_VERSION yer tutucusu kalmamış.
-2) --AgentPrismVersion 99.99.99 --skip-restore, sonra dotnet restore:
-   error NU1102: Unable to find package AgentPrism with version (>= 99.99.99)
-     - Found 1 version(s) in ap-yerel [ Nearest version: 0.0.0-preview.0.63 ]
-```
-Hata mesajı hem `AgentPrism` paket adını hem `99.99.99` sürümünü açıkça
-taşıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-077 — Şablon `secret` sızdırmıyor
-
-**Gerçek sonuç**
-```
-grep taraması (sk-... / api-key deseni, *.json/*.cs/*.csproj) -> 0 satır
---- tarama bitti ---
-UserSecretsId -> var (agentprism-starter-568A3F84-890D-4796-B8D4-E0293326B319)
-.gitignore içeriği:
-  bin/
-  obj/
-  *.user
-  appsettings.*.local.json
-```
-Gerçek OpenAI API anahtarı (MT-PKG-072'de kullanıcı tarafından sağlandı ve
-yalnızca `dotnet user-secrets` ile saklandı) hiçbir dosyada bulunmadı.
-`appsettings.json`'daki `ApiKey` boş dize kaldı.
-
-Not: `.gitignore`'da literal `secrets` kelimesi yok, ama
-`appsettings.*.local.json` deseni aynı amaca hizmet ediyor (yerel geçersiz
-kılma dosyaları — gerçek `secret`'ların konması beklenen yer — asla commit'e
-girmez). Doğrulama sorgum tam bu satırla eşleşmedi (`appsettings\.\*\.json`
-deseni ile "appsettings.*.local.json" arasında ".local" farkı var); niyet
-karşılanıyor, literal kelime eşleşmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — Sıfır sürpriz ve `TryAdd` sözleşmesi
-
----
-
-## MT-PKG-080 — Tüketicinin kaydı her zaman kazanır
-
-**Gerçek sonuç**
-```
-once : BenimRunStore
-sonra: BenimRunStore
-```
-Her iki kayıt sırasında da tüketicinin `BenimRunStore`'u kazandı; hiçbir
-istisna atılmadı. `IRunStore`'un 13 üyesi `NotSupportedException` ile
-uygulandı (kaynak: `src/AgentPrism.Abstractions/Runs/IRunStore.cs`).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

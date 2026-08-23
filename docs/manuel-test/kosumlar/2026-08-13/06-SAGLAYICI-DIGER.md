@@ -10,32 +10,40 @@
 
 ---
 
-## MT-PROV-001 — `UseAnthropic()`/`UseGoogle()` doğru adlarla kaydeder
-
-**Gerçek sonuç**
-`anthropic`: 3 model (`claude-haiku-4-5-20251001`, `claude-opus-5`,
-`claude-sonnet-5`), alfabetik sıralı. `google`: 3 model
-(`gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`),
-alfabetik sıralı. `azure-openai` yok. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin:
+> `git log --follow -- <bu dosya>`
 
 ---
 
-## MT-PROV-002 — Anahtar yokken sağlayıcı VE ona bağlı agent'lar hiç kaydolmaz
+## Temiz geçen case'ler (19)
 
-**Gerçek sonuç**
-Anthropic anahtarı env var ile boş verilerek yeniden başlatıldı (KOSUM-PLANI
-§2.2 — `user-secrets remove` yerine env var isolation; paylaşılan
-`user-secrets` deposu bu yüzden hiç dokunulmadı). Uygulama hatasız başladı.
-Sağlayıcı listesi: `['google','openai','openai-responses','openrouter']` —
-`anthropic` yok, `google` hâlâ var. Agent listesinde `claude-destek` ve
-`claude-dusunen` yok, diğerleri (gemini-destek dahil) hâlâ var. Tam
-beklendiği gibi.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PROV-001 | ☑ | `UseAnthropic()`/`UseGoogle()` doğru adlarla kaydeder |
+| MT-PROV-002 | ☑ | Anahtar yokken sağlayıcı VE ona bağlı agent'lar hiç kaydolmaz |
+| MT-PROV-010 | ☑ | Anthropic: `DefaultMaxOutputTokens` sıfır veya negatifse reddedilir |
+| MT-PROV-011 | ☑ | Anthropic: negatif `MaxRetries` reddedilir |
+| MT-PROV-020 | ☑ | Aynı ad iki kez tanımlanırsa son tanım kazanır (Anthropic VE Google) |
+| MT-PROV-030 | ☑ | Yabancı sağlayıcının ayarı reddedilir (`google.*` anahtarı `anthropic` binding'inde) |
+| MT-PROV-031 | ☑ | Bilinmeyen Anthropic ayarı reddedilir ve desteklenen anahtarları listeler |
+| MT-PROV-032 | ☑ | Anthropic düşünme bütçesi sıfır veya negatifse reddedilir |
+| MT-PROV-033 | ☑ | Google düşünme bütçesi `[-1, 65535]` aralığı dışındaysa reddedilir |
+| MT-PROV-035 | ☑ | `claude-dusunen` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır |
+| MT-PROV-040 | ☑ | `claude-destek`: tool çağrısıyla uçtan uca çalıştırma |
+| MT-PROV-041 | ☑ | Akış (SSE) `claude-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-PROV-050 | ☑ | `gemini-destek`: tool çağrısıyla uçtan uca çalıştırma |
+| MT-PROV-051 | ☑ | Akış (SSE) `gemini-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-PROV-060 | ☑ | Anthropic ve Google `Healthy` döner, farklı kimlik başlıkları kullanır |
+| MT-PROV-061 | ☑ | Erişilemeyen Anthropic adresi hata detayında adres veya anahtar sızdırmaz |
+| MT-PROV-070 | ☑ | API anahtarları hiçbir HTTP çıktısında görünmez |
+| MT-PROV-071 | ☑ | `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz (Anthropic + Google) |
+| MT-PROV-072 | ☑ | Konsol günlüğünde API anahtarı görünmez |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (20)
 
 ## MT-PROV-003 — `ApiKey` boşken `UseAnthropic()`/`UseGoogle()` çağrılırsa doğrulama hata verir
 
@@ -66,32 +74,6 @@ pozitiflik kontrolü OpenAI'de zaten kanıtlandı (MT-OAI-010/011) — burada
 **tekrarlanmaz**, yalnız Anthropic'e özgü iki alan (`DefaultMaxOutputTokens`,
 `MaxRetries` — OpenAI'de yok) ve temsilci bir Google/ortak alan kontrolü
 koşulur.
-
----
-
-## MT-PROV-010 — Anthropic: `DefaultMaxOutputTokens` sıfır veya negatifse reddedilir
-
-**Gerçek sonuç**
-Uygulama başlamayı reddetti: `Unhandled exception.
-Microsoft.Extensions.Options.OptionsValidationException:
-AnthropicProviderOptions.DefaultMaxOutputTokens sifirdan buyuk olmalidir.
-Anthropic Messages API'si \`max_tokens\` alanini zorunlu tutar. Gelen
-deger: 0.` — HTTP portu hiç açılmadı (`curl` bağlantı reddetti). Tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-011 — Anthropic: negatif `MaxRetries` reddedilir
-
-**Gerçek sonuç**
-Uygulama başlamayı reddetti: `Unhandled exception.
-Microsoft.Extensions.Options.OptionsValidationException:
-AnthropicProviderOptions.MaxRetries negatif olamaz. Gelen deger: -1.` Tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -197,16 +179,6 @@ kanıtı, log satırı Anthropic'e özgü metinle) koşulur.
 
 ---
 
-## MT-PROV-020 — Aynı ad iki kez tanımlanırsa son tanım kazanır (Anthropic VE Google)
-
-**Gerçek sonuç**
-`3 ['IKINCI TANIM']` — dizi hâlâ 3 öge, `claude-haiku-4-5-20251001` için
-tek `displayName` ve o da "IKINCI TANIM". Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PROV-021 — Katalogda olmayan bir Claude modeli reddedilmez, yalnız günlüğe yazılır
 
 **Gerçek sonuç**
@@ -240,55 +212,6 @@ eklenir (`AgentDefinitionValidator.cs:161-175`).
 
 ---
 
-## MT-PROV-030 — Yabancı sağlayıcının ayarı reddedilir (`google.*` anahtarı `anthropic` binding'inde)
-
-**Gerçek sonuç**
-`valid:false`, `code:invalid_setting`, `path:model.providerSettings`.
-Mesaj: "...su anahtarlar 'anthropic' saglayicisina ait degil:
-google.safety.harassment. ModelBinding.ProviderSettings yalnizca
-ModelBinding.Provider alanindaki saglayicinin anahtarlarini tasiyabilir;
-saglayici degistirildiginde eski ayarlar temizlenmelidir. Desteklenen
-anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens."
-Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-031 — Bilinmeyen Anthropic ayarı reddedilir ve desteklenen anahtarları listeler
-
-**Gerçek sonuç**
-`valid:false`, `code:invalid_setting`. Mesaj: "...su anahtarlar
-taninmiyor: anthropic.thinkingBudget. Desteklenen anahtarlar:
-anthropic.promptCaching, anthropic.thinking.budgetTokens." Tam beklendiği
-gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-032 — Anthropic düşünme bütçesi sıfır veya negatifse reddedilir
-
-**Gerçek sonuç**
-`valid:false`, `code:invalid_setting`. Mesaj: "'anthropic.thinking.
-budgetTokens' sifirdan buyuk olmalidir. Gelen deger: 0." Tam beklendiği
-gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-033 — Google düşünme bütçesi `[-1, 65535]` aralığı dışındaysa reddedilir
-
-**Gerçek sonuç**
-`valid:false`, `code:invalid_setting`. Mesaj: "'google.thinking.
-budgetTokens' degeri [-1, 65535] araliginda olmalidir (-1 modele birakir,
-0 dusunmeyi kapatir). Gelen deger: 100000." Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PROV-034 — Google güvenlik eşiği taninmayan bir değer taşırsa reddedilir
 
 **Gerçek sonuç**
@@ -300,17 +223,6 @@ doğrulandı: `GoogleSafetySettings.ParseThreshold`,
 `Google.GenAI.Types.HarmBlockThreshold.AllValues`'daki TÜM üyeleri
 (6 tane) listeliyor — kod tasarlandığı gibi çalışıyor, doküman kusuruydu
 (yukarıda düzeltildi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-035 — `claude-dusunen` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır
-
-**Gerçek sonuç**
-Yanıt metninde "408" birden fazla kez geçti (adım adım hesap + özet: "17 ×
-24 = 408" ve "Sonuç: 17 × 24 = 408"). Genişletilmiş düşünme (`thinking`
-bloğu) da akışta gözlendi. Tam beklendiği gibi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -356,30 +268,6 @@ biçimine doğru eşlediği burada kanıtlanır.
 
 ---
 
-## MT-PROV-040 — `claude-destek`: tool çağrısıyla uçtan uca çalıştırma
-
-**Gerçek sonuç**
-Yanıt metni "ORD-1001" içerdi ("...siparişiniz **kargoya verildi**.
-Tahmini teslim süresi **2 gün**..."). `status:Completed`,
-`totalTokens:913` (pozitif). `get_order_status` tam bir kez çağrıldı
-(`toolu_01Ks96...`), argüman `{"orderId":"ORD-1001"}`, sonuç doğru şekilde
-`functionResult`'a eşlendi. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-041 — Akış (SSE) `claude-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-Çerçeve sayımı: `1 event: done`, `1 event: run`, `8 event: update`, `0
-event: error`. Tam beklendiği gibi (içerik-type ayrıca kontrol edilmedi,
-önceki case'lerde zaten doğrulandı, tekrar edilmedi — bütçe gerekçesiyle).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PROV-042 — Var olmayan bir Claude modeliyle çalıştırma: SSE `error` çerçevesi üretilir (düzeltildi); sınıflandırma hâlâ `Unknown` olabilir
 
 **Gerçek sonuç**
@@ -403,29 +291,6 @@ dosyanın en değerli case'idir**: `ContentFilterDetectingChatClient`
 (`05-SAGLAYICI-OPENAI.md`'nin akış diyagramında listelenen ama hiç
 tetiklenemeyen düğüm) burada `gemini-kati-filtre` fixture'ı ile gerçekten
 koşulur.
-
----
-
-## MT-PROV-050 — `gemini-destek`: tool çağrısıyla uçtan uca çalıştırma
-
-**Gerçek sonuç**
-Yanıt metni "ORD-1001" içerdi. `status:Completed`, `usage.totalTokens:447`
-(pozitif). Olay listesi (`GET /api/runs/{id}/events`) `tool.invoking` /
-`tool.invoked` ile `get_order_status` tam bir kez çağrıldığını gösterdi
-(`orderId=ORD-1001` → "ORD-1001 numarali siparis kargoya verildi..."). Tam
-beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-051 — Akış (SSE) `gemini-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-Çerçeve sayımı: `1 event: done`, `1 event: run`, `3 event: update`, `0
-event: error`. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -468,91 +333,6 @@ Denetim **ücret üretmez**: Anthropic `GET {endpoint}/models`'e,
 Google `GET {endpoint}/{apiVersion}/models`'e gider, model çağrısı yapmaz.
 Önbellek TTL'si ve bilinmeyen sağlayıcı için `404` davranışı OpenAI'de
 kanıtlandı (MT-OAI-071/072) — burada **tekrarlanmaz**.
-
----
-
-## MT-PROV-060 — Anthropic ve Google `Healthy` döner, farklı kimlik başlıkları kullanır
-
-**Gerçek sonuç**
-`anthropic`: `status:Healthy`, `latency:00:00:00.64`, 10 gerçek model
-kimliği (appsettings'teki 3'ün dışında da modeller var — katalog
-doğrulama listesi değil, K-032 doğrulandı). `google`: `status:Healthy`,
-`latency:00:00:00.37`, 48 gerçek model kimliği, hiçbirinde `models/`
-öneki yok (temiz). Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-061 — Erişilemeyen Anthropic adresi hata detayında adres veya anahtar sızdırmaz
-
-**Gerçek sonuç**
-`status:Unhealthy`, `detail:"Baglanti hatasi (ConnectionError)."` — ne
-sahte anahtar (`sk-ant-cok-gizli-test-anahtari-12345`) ne de sahte adres
-(`127.0.0.1:59999`) `detail` içinde göründü. Tüm konsol logu da tarandı
-(`grep -c`): `0` eşleşme. Tam beklendiği gibi. Program.cs `git checkout
---` ile geri alındı, örnek uygulama yeniden derlendi (0 uyarı, 0 hata).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 8 — `secret` sızıntısı
-
-`ApiKey` hiçbir çıktıda, hiçbir günlükte, hiçbir hata mesajında görünmemelidir
-(K-059). MT-PROV-014 doğrulama mesajlarını zaten kapsadı; bu bölüm çalışma
-zamanı uçlarını ve konsolu kapsar.
-
----
-
-## MT-PROV-070 — API anahtarları hiçbir HTTP çıktısında görünmez
-
-**Gerçek sonuç**
-Dört uç da (`/api/models`, `/api/models/health`,
-`/api/models/health/anthropic`, `/api/models/health/google`) `0`
-(temiz) döndü. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-071 — `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz (Anthropic + Google)
-
-**Gerçek sonuç**
-`configuration` dizisinde `key:"AgentPrism:Providers:Anthropic:ApiKey"`
-ve `key:"AgentPrism:Providers:Google:ApiKey"` — her biri tam bir kez,
-ikisi de `resolved:true`, `hint:null`. İki sağlayıcı bağımsız girdiler
-(OpenAI'nin tekilleştirilmiş girişinden farklı olarak). Hiçbir `key`
-alanı gerçek anahtar dizgisi taşımıyor. Tam beklendiği gibi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PROV-072 — Konsol günlüğünde API anahtarı görünmez
-
-**Gerçek sonuç**
-Uygulama konsol çıktısı `/tmp/ap-prov-console.log`'a yönlendirilerek
-başlatıldı; `claude-destek` ve `gemini-destek` çalıştırıldı (MT-PROV-040/
-050'nin tekrarı). Gerçek anahtarlar için `grep -c` sayımı: `0` (temiz).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 9 — Azure OpenAI
-
-> ⏭ **ATLA — Azure kimliği yok.** `Sabit gerçekler` tablosuna göre bu ortamda
-> gerçek bir Azure OpenAI kaynağı **yoktur**. Aşağıdaki her case yine de
-> koddan doğrulanarak yazılmıştır — kullanıcı sonradan bir Azure kaynağı
-> açarsa bu bölüm hazırdır. Her case'in kendi `⏭ ATLA` satırı vardır
-> (`PROMPT.md` §6).
-
-`AgentPrism.Azure` aynı `AgentPrism.OpenAI` boru hattından geçer
-(`UseFunctionInvocation`, `OpenTelemetry`, devre kesici, içerik filtresi —
-hepsi `ModelProviderRegistry` düzeyinde, bedava). Kendine özgü tek yüzey:
-deployment≠model ayrımı, sıfır `ProviderSettings` ve iki kimlik doğrulama
-yolu (API anahtarı / Microsoft Entra).
 
 ---
 
