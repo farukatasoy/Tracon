@@ -1057,6 +1057,97 @@ def komut_faz_damit(a: argparse.Namespace) -> int:
     return 0
 
 
+# --- Kosum kaydi damitmasi (Faz 90) --------------------------------------
+# Bir kosum kaydi case basina ~14 satirlik blok tasir ama tasidigi bilgi cogu
+# zaman iki satirdir: `Gercek sonuc` + `Durum: ☑ Gecti`. Kosum bittiginde bir
+# GECEN case'in ortam ciktisi degerini kaybeder.
+#
+# ANCAK asimetrik: gecmeyen case'in blogu `kusur-giderme`nin girdisidir ve
+# AYNEN korunur. Dahasi olculdu (Faz 90): GECEN 1.061 case'in 254'u ⚠️/🚨/
+# "duzeltme"/"kusur"/"HATA-" isareti tasiyor -- ornegin MT-RET-001 "Gecti"
+# oldugu halde IKI dokuman duzeltmesi kaydediyor. Duz "gecti -> tek satir"
+# kurali bu 383 KB'lik icerigi yok ederdi.
+
+KOSUM_ISARETI = "### ⚗️ Damıtılmış koşum kaydı"
+
+# Bilerek dar tutuldu: "dokuman" ve "eksik" gibi genel kelimeler OLCULDU ve
+# yanlis tetikliyordu (`MT-PKG-022 — Her pakette ... XML dokumani var` bir
+# dokuman KUSURU degil, dokumana DAIR bir case'tir).
+_KOSUM_IZ = ("⚠️", "🚨", "HATA-", "düzelt", "Düzelt", "DÜZELT", "kusur", "Kusur", "KUSUR")
+_KOSUM_CASE = re.compile(r"^## (MT-[A-Z]+-\d+)\s*(?:—\s*(.*))?$")
+_KOSUM_GECTI = re.compile(r"☑\s*Geçti")
+
+
+def _kosum_damit_metni(metin: str) -> tuple[str, dict[str, int]]:
+    """(damitilmis metin, sayac). Saf fonksiyon.
+
+    Daraltilan: YALNIZ `☑ Geçti` olan VE hicbir eylem isareti tasimayan case.
+    Korunan: gecmeyen her case + isaret tasiyan her case, BIRE BIR."""
+    if KOSUM_ISARETI in metin:
+        return metin, {"daraltilan": 0, "korunan": 0}
+    satirlar = metin.split("\n")
+    idx = [i for i, x in enumerate(satirlar) if _KOSUM_CASE.match(x)]
+    if not idx:
+        return metin, {"daraltilan": 0, "korunan": 0}
+
+    bas = "\n".join(satirlar[: idx[0]]).rstrip("\n")
+    daralt: list[tuple[str, str]] = []
+    koru: list[str] = []
+    for a, b in zip(idx, idx[1:] + [len(satirlar)]):
+        blok = "\n".join(satirlar[a:b]).rstrip("\n")
+        m = _KOSUM_CASE.match(satirlar[a])
+        kimlik, baslik = m.group(1), (m.group(2) or "").strip()
+        if _KOSUM_GECTI.search(blok) and not any(x in blok for x in _KOSUM_IZ):
+            daralt.append((kimlik, baslik))
+        else:
+            koru.append(blok)
+
+    parcalar = [bas, "", (
+        f"> {KOSUM_ISARETI}\n"
+        "> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin\n"
+        "> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum\n"
+        "> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**\n"
+        "> her case'in bloğu AYNEN durur. Tam metin:\n"
+        "> `git log --follow -- <bu dosya>`\n"), "---", ""]
+    if daralt:
+        parcalar += [f"## Temiz geçen case'ler ({len(daralt)})", "",
+                     "| Case | Durum | Başlık |", "|---|---|---|"]
+        parcalar += [f"| {k} | ☑ | {b} |" for k, b in daralt]
+        parcalar.append("")
+    if koru:
+        parcalar += [f"## Ayrıntı taşıyan case'ler ({len(koru)})", ""]
+        parcalar.append("\n\n".join(koru))
+    return "\n".join(parcalar).rstrip("\n") + "\n", {
+        "daraltilan": len(daralt), "korunan": len(koru)}
+
+
+def komut_kosum_damit(a: argparse.Namespace) -> int:
+    """Koşum kaydı dizinlerini asimetrik damıtır."""
+    dizinler = [pathlib.Path(d) if pathlib.Path(d).is_absolute() else ROOT / d
+                for d in a.dizinler]
+    dosyalar = sorted(f for d in dizinler for f in d.glob("*.md"))
+    if not dosyalar:
+        print("Eşleşen koşum kaydı yok."); return 1
+    rel = [f.relative_to(ROOT).as_posix() for f in dosyalar]
+    if not a.kuru:
+        hata = _calisma_agaci_temiz(rel)
+        if hata:
+            print(f"❌ {hata}"); return 1
+
+    o = y = 0; d_top = k_top = 0
+    for f in dosyalar:
+        metin = f.read_text(encoding="utf-8")
+        yeni, sayac = _kosum_damit_metni(metin)
+        o += len(metin.encode()); y += len(yeni.encode())
+        d_top += sayac["daraltilan"]; k_top += sayac["korunan"]
+        if yeni != metin and not a.kuru:
+            f.write_text(yeni, encoding="utf-8")
+    print(f"{'(kuru) ' if a.kuru else ''}{len(dosyalar)} dosya · "
+          f"{d_top} case daraltıldı · {k_top} case AYNEN korundu")
+    print(f"{o:,} → {y:,} B  (-%{100 - 100 * y // max(o, 1)})")
+    return 0
+
+
 # --- Faz 90 kapilari -----------------------------------------------------
 # Ucu de `denetle()`ye katilir, boylece `.github/workflows/ci.yml` DEGISMEDEN
 # CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
@@ -1275,6 +1366,11 @@ def main() -> int:
     fd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     fd.add_argument("--ayrintili", action="store_true", help="dosya dosya boyut bas")
     fd.set_defaults(_calistir=komut_faz_damit)
+
+    kd = alt.add_parser("kosum-damit", help="koşum kaydını asimetrik damıt")
+    kd.add_argument("dizinler", nargs="+", help="koşum dizini/dizinleri")
+    kd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    kd.set_defaults(_calistir=komut_kosum_damit)
 
     a = ap.parse_args()
     if getattr(a, "_calistir", None):
