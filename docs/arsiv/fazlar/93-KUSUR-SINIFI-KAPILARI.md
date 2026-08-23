@@ -1,13 +1,13 @@
 # Faz 93 — Kusur Sınıfı Kapıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (analyzer kuralları — Faz 91'de kapanmayan bölüm). Bu faz bir `F-NN` adayından gelmez.
-> **Önkoşul:** [Faz 91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) — kapı komut yüzeyi (`scripts/kapi.py`) ve `denetim-paketi.py` oradan gelir; bu faz aynı desende iki kapı daha ekler
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (analyzer kuralları — Faz 91'de kapanmayan bölüm). Bu faz bir `F-NN` adayından gelmez.
+> **Önkoşul:** [Faz 91](91-GELISTIRME-DONGUSU-KAPILARI.md) — kapı komut yüzeyi (`scripts/kapi.py`) ve `denetim-paketi.py` oradan gelir; bu faz aynı desende iki kapı daha ekler
 > **Paketler:** `AgentPrism.Generators`, `AgentPrism.Workflows` (yalnız analyzer referansı), `AgentPrism.Core` (yalnız `buildTransitive` `NoWarn` listesi)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Ölçüldü 2026-08-23: `src/*/PublicAPI.Unshipped.txt` 8.079 satır, `Shipped.txt` dosyaları boş (16 dosya × 1 satır). `AgentPrism.Generators` `AgentPrismPublicApiTrackingEnabled=false` taşır; tanı ve baseline dosyaları public üye değildir
 > **Tüketici yüzeyi:** **Var.** Sevk edilen: iki yeni `APG` tanısı (`AgentPrism.Core` nupkg'i, `analyzers/dotnet/cs/`) + `src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets` `NoWarn` listesi + `docs-site/src/content/docs/troubleshooting.md` (her tanı orada açıklanmalıdır — `DiagnosticIntegrityTests` bunu zorlar). Site: `troubleshooting.md`. `tuketici-dokuman-senkronu` koşar
-> **Manuel test alanı:** [`docs/manuel-test/29-AGENT-DESTEGI.md`](manuel-test/29-AGENT-DESTEGI.md) (APG tanıları) + [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md) (repo kapıları)
+> **Manuel test alanı:** [`docs/manuel-test/29-AGENT-DESTEGI.md`](../../manuel-test/29-AGENT-DESTEGI.md) (APG tanıları) + [`docs/manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) (repo kapıları)
 
 ---
 
@@ -22,17 +22,17 @@
    grep -n "K-281\|K-483\|K-506\|K-567" docs/KARARLAR.md
    ```
    **K-281** (`TenantCoverageTests` kapsam kapısı — bu fazın cırcır kapıları o deseni izler), **K-483** (elle tekrarlanan toplama ifadesi kusur sınıfı), **K-506** (`Info` tanısı `dotnet build` çıktısına düşmez; tanı `Warning` olmalı), **K-567** (`AgentPrism.Client` AOT denemesi terk edildi — analyzer'ın AOT dışı olması normaldir)
-3. [`arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md`](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md`](91-GELISTIRME-DONGUSU-KAPILARI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md
    ```
    Faz 91 hangi tuzağın kapı kazandığını listeler. Bu faz o listenin **kalanını** alır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) (tanı yazımı, `RS1035`, `CompilerVisibleProperty`, Core'un kendi analyzer'ını kendi üzerinde koşturması) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) satır 18 (üç `AsyncLocal` vakası — bu fazın konusu) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (cırcır testi deseni)
+   [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) (tanı yazımı, `RS1035`, `CompilerVisibleProperty`, Core'un kendi analyzer'ını kendi üzerinde koşturması) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) satır 18 (üç `AsyncLocal` vakası — bu fazın konusu) ·
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (cırcır testi deseni)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`.agents/skills/kusur-giderme/SKILL.md`](../.agents/skills/kusur-giderme/SKILL.md) — kusur sınıfı tablosu ve Adım 5 (sınıf taraması)
+   [`.agents/skills/kusur-giderme/SKILL.md`](../../../.agents/skills/kusur-giderme/SKILL.md) — kusur sınıfı tablosu ve Adım 5 (sınıf taraması)
 
 ---
 
@@ -57,13 +57,13 @@ vakaları SQL metnindedir — **Faz 94'ün işidir**, bu fazın değil.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`hafiza/cekirdek-calistirma.md:18`](hafiza/cekirdek-calistirma.md) | Tek maddede üç vaka: kök span async yardımcıda açıldı · `run scope` async yardımcıda yazıldı · `async IAsyncEnumerable` gövdesindeki yazım `yield return` sınırını aşmadı |
-| [`.agents/skills/kusur-giderme/SKILL.md:16-20`](../.agents/skills/kusur-giderme/SKILL.md) | Sayaç tablosu: `AsyncLocal` **4**, senkronizasyon kopyası **5**, Playwright locator **3** |
-| [`arsiv/HAFIZA-GECMISI.md:374`](arsiv/HAFIZA-GECMISI.md) | Playwright üç vakası adıyla: `GetByPlaceholder("github")` · `GetByText("Awaiting input")` · `GetByRole(Heading, Name: "Experiments")` |
+| [`hafiza/cekirdek-calistirma.md:18`](../../hafiza/cekirdek-calistirma.md) | Tek maddede üç vaka: kök span async yardımcıda açıldı · `run scope` async yardımcıda yazıldı · `async IAsyncEnumerable` gövdesindeki yazım `yield return` sınırını aşmadı |
+| [`.agents/skills/kusur-giderme/SKILL.md:16-20`](../../../.agents/skills/kusur-giderme/SKILL.md) | Sayaç tablosu: `AsyncLocal` **4**, senkronizasyon kopyası **5**, Playwright locator **3** |
+| [`arsiv/HAFIZA-GECMISI.md:374`](../HAFIZA-GECMISI.md) | Playwright üç vakası adıyla: `GetByPlaceholder("github")` · `GetByText("Awaiting input")` · `GetByRole(Heading, Name: "Experiments")` |
 | `grep -rn "SetCurrent(\|AmbientTenantScope.Begin(\|StartActivity(" src/` | **14** ambient yazım yeri. Hiçbiri makine ile korunmuyor |
 | `tests/` içinde `GetBy*` çağrısı | **181** çağrı; **125**'i ne `Exact` ne `.First`/`.Nth` taşıyor |
-| [`src/AgentPrism.Core/AgentPrism.Core.csproj:22`](../src/AgentPrism.Core/AgentPrism.Core.csproj) | `OutputItemType="Analyzer"` **yalnız** Core'da. `AgentPrism.Workflows/AgentPrism.Workflows.csproj:14` tek `ProjectReference` taşır — analyzer oraya ulaşmıyor |
-| [`src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets:68`](../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets) | `NoWarn` listesi yedi tanı taşıyor; yeni tanı buraya eklenmezse tüketicinin tek anahtarı eksik kalır |
+| [`src/AgentPrism.Core/AgentPrism.Core.csproj:22`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj) | `OutputItemType="Analyzer"` **yalnız** Core'da. `AgentPrism.Workflows/AgentPrism.Workflows.csproj:14` tek `ProjectReference` taşır — analyzer oraya ulaşmıyor |
+| [`src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets:68`](../../../src/AgentPrism.Core/buildTransitive/AgentPrism.Core.targets) | `NoWarn` listesi yedi tanı taşıyor; yeni tanı buraya eklenmezse tüketicinin tek anahtarı eksik kalır |
 
 > Kanıtlar 2026-08-23 tarihinde doğrulandı.
 
@@ -79,12 +79,12 @@ yazımı."* Bu kural bugünkü kodda **altı kez** öter — ve altısı da **do
 
 | Yer | Neden doğru |
 |---|---|
-| [`RunRecordingAgent.cs:207`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L207) | `RunCoreAsync` `async`'tir ve `SetCurrent`'i **kendi gövdesinde** çağırır — istenen desen budur |
-| [`RunRecordingAgent.cs:316`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L316) | Akışlı yolun kendi gövdesi |
-| [`RunRecordingAgent.cs:381`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L381) | Döngü içinde, her `MoveNextAsync` öncesi — Faz 12'nin **düzeltmesi** |
-| [`WorkflowRunner.cs:452`](../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L452) | Aynı desen |
-| [`WorkflowRunner.cs:610`](../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L610) | Yürütme başlamadan önce; `InProcessExecution` `ExecutionContext`'i o anda yakalar |
-| [`WorkflowRunner.cs:701`](../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L701) | Döngü içinde — Faz 15'in **düzeltmesi** |
+| [`RunRecordingAgent.cs:207`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L207) | `RunCoreAsync` `async`'tir ve `SetCurrent`'i **kendi gövdesinde** çağırır — istenen desen budur |
+| [`RunRecordingAgent.cs:316`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L316) | Akışlı yolun kendi gövdesi |
+| [`RunRecordingAgent.cs:381`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs#L381) | Döngü içinde, her `MoveNextAsync` öncesi — Faz 12'nin **düzeltmesi** |
+| [`WorkflowRunner.cs:452`](../../../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L452) | Aynı desen |
+| [`WorkflowRunner.cs:610`](../../../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L610) | Yürütme başlamadan önce; `InProcessExecution` `ExecutionContext`'i o anda yakalar |
+| [`WorkflowRunner.cs:701`](../../../src/AgentPrism.Workflows/Internal/WorkflowRunner.cs#L701) | Döngü içinde — Faz 15'in **düzeltmesi** |
 
 Sebep şudur: `AsyncLocal` yazımı **aşağı** akar (aynı gövdedeki `await` edilen
 çağrılar yazımı görür) ama **yukarı** akmaz (metot dönünce çağıran görmez).
@@ -310,7 +310,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
