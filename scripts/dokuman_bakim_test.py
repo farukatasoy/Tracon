@@ -946,5 +946,33 @@ class SatirIciKodTestleri(unittest.TestCase):
             self.assertFalse(any("yok1.md" in k for k in kirik), kirik)
 
 
+class KodBlogundakiBaslikTestleri(unittest.TestCase):
+    """Kod bloğundaki `## ` bir BAŞLIK değildir — damıtma şablonunu GÖSTEREN
+    bir doküman kendi örneğini gerçek bölüm sanıp parçalanıyordu."""
+
+    ORNEK = ("# Faz 1\n\n> **Durum:** ✅ Tamamlandı\n\n"
+             "## Amaç\n\nGerçek amaç.\n\n"
+             "## 1.2 — Şablon\n\n```markdown\n## Amaç\n\nÖRNEK\n\n"
+             "## Plandan Sapmalar\n\nÖRNEK SAPMA\n```\n\n"
+             "## Plandan Sapmalar\n\nGerçek sapma.\n")
+
+    def test_kod_blogundaki_baslik_bolum_saymaz(self):
+        _, bol = dokuman_bakim._faz_bolumleri(self.ORNEK)
+        self.assertEqual([a for a, _ in bol], ["Amaç", "1.2 — Şablon", "Plandan Sapmalar"])
+
+    def test_ornek_govde_gercek_bolume_karismaz(self):
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            self.ORNEK, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertIn("Gerçek sapma.", yeni)
+        self.assertNotIn("ÖRNEK SAPMA", yeni)   # `1.2` iş kalemiyle birlikte düşer
+
+    def test_isareti_ORNEK_olarak_gosteren_dokuman_damitilabilir(self):
+        m = self.ORNEK.replace("```markdown\n## Amaç",
+                               f"```markdown\n> {dokuman_bakim.DAMITMA_ISARETI}\n## Amaç")
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            m, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertNotEqual(yeni, m, "örnek işaret 'zaten damıtılmış' sanıldı")
+
+
 if __name__ == "__main__":
     unittest.main()
