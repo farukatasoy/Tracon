@@ -1148,6 +1148,132 @@ def komut_kosum_damit(a: argparse.Namespace) -> int:
     return 0
 
 
+# --- Karar defteri damitmasi (Faz 90) ------------------------------------
+# `KARARLAR.md` bir LEDGER'dir: bastan sona okunmaz, grep'lenir. Ama satirlarin
+# medyani 625 B ve en uzunu 4.052 B; dosya 456 KB'ye ulasip butcesinin %4'une
+# dusmustu. Isaretci formati ZATEN VAR (376 satirda uygulanmis) -- eksik olan
+# bir bayt tavani ve bir kapiydi.
+#
+# Bu bir TASIMADIR, silme degil (AGENTS.md: "icerik silinmez -- taşınır"):
+# kesilen gerekce ONCE `KARARLAR-GECMISI.md`'ye `### K-NNN` basligiyla eklenir,
+# SONRA satir kisaltilir. Tek gecişte iki dosya da yazilir ya da hicbiri.
+
+KARAR_SINIRI = 450
+# Iskelet tavani asiyorsa bile gerekcenin ILK CUMLESI durur -- satir
+# okunabilir kalmali; damitma bir ozet uretir, bir kirpinti degil.
+_EN_AZ_GEREKCE = 120
+_KARAR_BAS = re.compile(r"\|\s*\*\*(K-\d+)\b.*?\*\*(.*?)\|\s*(\d{4}-\d{2}-\d{2})\s*\|")
+# `_kararlar_kalemleri()` bu iki ifadeyi satirin TAMAMINDA arar; kesilen
+# kuyrukta kalirlarsa indeks SESSIZCE yanlis olur.
+_KORUNACAK = ("yeniden açıldı", "kullanıcı kararı")
+_ISARETCI_METNI = ("**Tam gerekçe:** [`arsiv/KARARLAR-GECMISI.md`]"
+                   "(arsiv/KARARLAR-GECMISI.md) — {k}.")
+
+
+def _karar_satiri_damit(satir: str, sinir: int = KARAR_SINIRI) -> tuple[str, str | None, str | None]:
+    """(yeni satir, GECMISI'ye tasinacak metin | None, atlama sebebi | None).
+
+    Saf fonksiyon. ASLA kesilmez: baslik, tarih, yeniden acilma kosulu sutunu,
+    `(kullanıcı kararı)` ve `yeniden açıldı` ifadeleri."""
+    if len(satir.encode()) <= sinir:
+        return satir, None, None
+    m = _KARAR_BAS.match(satir)
+    if not m:
+        return satir, None, "başlık/tarih deseni tanınmadı"
+    k = m.group(1)
+    bas = satir[: m.end()]
+    # Son sutun = yeniden acilma kosulu; ASLA dokunulmaz. Gerekce, basliktan
+    # SON iki `|` arasindaki metindir -- gerekce ICINDE `|` olsa bile dogru
+    # calisir (olculdu: 8 satirda fazladan `|` var).
+    son = satir.rstrip()
+    if not son.endswith("|"):
+        return satir, None, "satır `|` ile bitmiyor"
+    onceki = son.rfind("|", 0, len(son) - 1)
+    if onceki <= m.end():
+        return satir, None, "gerekçe sütunu ayrıştırılamadı"
+    gerekce = satir[m.end():onceki]
+    kuyruk_sutun = satir[onceki:]
+    if _ISARETCI_METNI.format(k=k) in gerekce:
+        return satir, None, None                     # zaten damıtılmış
+
+    isaretci = " " + _ISARETCI_METNI.format(k=k) + " "
+    pay = sinir - len(bas.encode()) - len(kuyruk_sutun.encode()) - len(isaretci.encode())
+    duz = " ".join(gerekce.split())
+    # Iskelet (baslik + tarih + kosul + isaretci) tek basina siniri asabilir --
+    # olculdu: 596 satirin 146'sinda oyle. O satirlarda tavan YUMUSAKTIR:
+    # baslik ve kosul kesilmez, ama gerekce yine de ILK CUMLEYE indirilir.
+    # Satiri oldugu gibi birakmak 146 satirin tamamini damitma disi birakirdi.
+    pay = max(pay, _EN_AZ_GEREKCE)
+
+    parcalar = re.split(r"(?<=[.!?])\s+", duz)
+    tut: list[str] = []
+    for c in parcalar:
+        if tut and len(" ".join(tut + [c]).encode()) > pay:
+            break
+        tut.append(c)
+    kalan = " ".join(tut)
+    tasinan = duz[len(kalan):].strip()
+    if not tasinan:
+        return satir, None, None
+    if any(w in tasinan for w in _KORUNACAK):
+        return satir, None, "kesilecek kuyruk 👤/🔁 kaynağı taşıyor — elle"
+    return f"{bas} {kalan}{isaretci}{kuyruk_sutun}", tasinan, None
+
+
+def komut_karar_damit(a: argparse.Namespace) -> int:
+    """`KARARLAR.md` satırlarını sınıra indirir; kesileni GECMISI'ye TAŞIR."""
+    kararlar = ROOT / "docs" / "KARARLAR.md"
+    gecmis = ROOT / "docs" / "arsiv" / "KARARLAR-GECMISI.md"
+    if not a.kuru:
+        hata = _calisma_agaci_temiz([kararlar.relative_to(ROOT).as_posix(),
+                                     gecmis.relative_to(ROOT).as_posix()])
+        if hata:
+            print(f"❌ {hata}"); return 1
+
+    metin = kararlar.read_text(encoding="utf-8")
+    satirlar = metin.split("\n")
+    g_metin = gecmis.read_text(encoding="utf-8")
+    mevcut = {m.group(1) for m in _GECMIS_BASLIK.finditer(g_metin)}
+
+    yeni_bolumler: list[str] = []
+    atlanan: list[str] = []
+    n = 0; kazanc = 0
+    for i, satir in enumerate(satirlar):
+        if not satir.startswith("| **K-"):
+            continue
+        yeni, tasinan, sebep = _karar_satiri_damit(satir, a.sinir)
+        if sebep:
+            atlanan.append(f"{_KARAR_BAS.match(satir).group(1) if _KARAR_BAS.match(satir) else '?'}: {sebep}")
+            continue
+        if tasinan is None:
+            continue
+        k = _KARAR_BAS.match(satir).group(1)
+        kazanc += len(satir.encode()) - len(yeni.encode())
+        satirlar[i] = yeni; n += 1
+        if k not in mevcut:
+            yeni_bolumler.append(f"### {k}\n\n{tasinan}\n")
+        else:
+            yeni_bolumler.append(f"### {k} — devam (Faz 90 damıtması)\n\n{tasinan}\n")
+
+    if not a.kuru and n:
+        # ONCE tasi, SONRA kisalt: ters sira bir kesintide kalici kayip birakir.
+        gecmis.write_text(
+            g_metin.rstrip("\n") + "\n\n" +
+            "## Faz 90 damıtmasında taşınan gerekçeler\n\n" +
+            "\n".join(yeni_bolumler) + "\n", encoding="utf-8")
+        kararlar.write_text("\n".join(satirlar), encoding="utf-8")
+
+    print(f"{'(kuru) ' if a.kuru else ''}{n} satır damıtıldı · {kazanc:,} B taşındı")
+    print(f"docs/KARARLAR.md: {len(metin.encode()):,} → {len(metin.encode()) - kazanc:,} B")
+    if atlanan:
+        print(f"\n{len(atlanan)} satır ATLANDI (elle bakılmalı):")
+        for x in atlanan[:15]:
+            print(f"  {x}")
+        if len(atlanan) > 15:
+            print(f"  … +{len(atlanan) - 15}")
+    return 0
+
+
 # --- Faz 90 kapilari -----------------------------------------------------
 # Ucu de `denetle()`ye katilir, boylece `.github/workflows/ci.yml` DEGISMEDEN
 # CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
@@ -1371,6 +1497,11 @@ def main() -> int:
     kd.add_argument("dizinler", nargs="+", help="koşum dizini/dizinleri")
     kd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     kd.set_defaults(_calistir=komut_kosum_damit)
+
+    krd = alt.add_parser("karar-damit", help="KARARLAR.md satırlarını sınıra indir")
+    krd.add_argument("--sinir", type=int, default=KARAR_SINIRI, help=f"bayt (varsayılan {KARAR_SINIRI})")
+    krd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    krd.set_defaults(_calistir=komut_karar_damit)
 
     a = ap.parse_args()
     if getattr(a, "_calistir", None):
