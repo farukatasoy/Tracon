@@ -264,11 +264,10 @@ internal abstract class SqlDialect
     /// <remarks>
     /// PostgreSQL and SQL Server use <c>{schema}.{table}</c> (with a dot); on SQLite
     /// the object names share a single namespace across the database, so the prefix
-    /// is concatenated directly and there is NO dot. The default
-    /// implementation qualifies with a dot; provider-independent SQL generation such
-    /// as <see cref="RetentionTargetRegistry"/> uses it.
+    /// is concatenated directly and there is NO dot. Provider-independent SQL
+    /// generation such as <see cref="RetentionTargetRegistry"/> uses this.
     /// </remarks>
-    public virtual string QualifyTable(string tableName) => $"{Queries.Schema}.{tableName}";
+    public virtual string QualifyTable(string tableName) => Queries.QualifyTable(tableName);
 
     // --- Retention (phase 25): data plane batch queries ---
 

@@ -86,13 +86,16 @@ namespace AgentPrism;
 /// </remarks>
 internal sealed class SqliteQueries : SqlQueriesBase
 {
+    /// <inheritdoc />
+    /// <remarks>SQLite has no schema; the prefix is concatenated directly, with no dot.</remarks>
+    protected override string Table(string name) => $"{Schema}{name}";
+
     /// <summary>Creates a new query set.</summary>
     /// <param name="tablePrefix">The table prefix to validate.</param>
     /// <exception cref="AgentPrismException">The prefix is not a valid identifier.</exception>
     public SqliteQueries(string tablePrefix)
+        : base(tablePrefix)
     {
-        Schema = SqlIdentifier.RequireSchemaName(tablePrefix);
-
         // SQLite has no schema-creation concept; MigrationRunner still calls
         // this step, so a harmless no-op is given.
         CreateSchema = "SELECT 1;";
@@ -115,13 +118,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             );
             """;
 
-        SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Schema}__migrations ORDER BY set_name, id;";
-
-        InsertMigration = $"""
-            INSERT INTO {Schema}__migrations (set_name, id, name, checksum, applied_at)
-            VALUES (@set_name, @id, @name, @checksum, @applied_at);
-            """;
-
         UpsertTenant = $"""
             INSERT INTO {Schema}tenants (id, slug, display_name, created_at)
             VALUES (@id, @slug, @display_name, @created_at)
@@ -138,41 +134,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     definition = excluded.definition,
                     updated_at = excluded.updated_at
             RETURNING id, version;
-            """;
-
-        InsertAgentDefinitionVersion = $"""
-            INSERT INTO {Schema}agent_definition_versions (id, agent_id, version, definition, created_by, created_at)
-            VALUES (@id, @agent_id, @version, @definition, @created_by, @created_at);
-            """;
-
-        SelectAgentDefinition = $"""
-            SELECT definition, version, updated_at
-            FROM {Schema}agent_definitions
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
-        SelectAgentDefinitions = $"""
-            SELECT name, definition, version, updated_at
-            FROM {Schema}agent_definitions
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        DeleteAgentDefinition = $"DELETE FROM {Schema}agent_definitions WHERE tenant_id = @tenant_id AND name = @name;";
-
-        SelectAgentDefinitionVersions = $"""
-            SELECT v.definition, v.version, v.created_at
-            FROM {Schema}agent_definition_versions v
-            JOIN {Schema}agent_definitions d ON d.id = v.agent_id
-            WHERE d.tenant_id = @tenant_id AND d.name = @name
-            ORDER BY v.version DESC;
-            """;
-
-        SelectAgentDefinitionVersion = $"""
-            SELECT v.definition, v.created_at
-            FROM {Schema}agent_definition_versions v
-            JOIN {Schema}agent_definitions d ON d.id = v.agent_id
-            WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
             """;
 
         // --- Skills ---
@@ -213,41 +174,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING {skillColumns};
             """;
 
-        DeleteAgentSkill = $"DELETE FROM {Schema}agent_skills WHERE tenant_id = @tenant_id AND name = @name;";
-
-        DeleteAgentSkillResources = $"DELETE FROM {Schema}agent_skill_resources WHERE skill_id = @skill_id;";
-
-        InsertAgentSkillResource = $"""
-            INSERT INTO {Schema}agent_skill_resources
-                (id, skill_id, name, description, media_type, content, created_at)
-            VALUES
-                (@id, @skill_id, @name, @description, @media_type, @content, @created_at);
-            """;
-
-        SelectAgentSkillResources = $"""
-            SELECT name, description, media_type, content
-            FROM {Schema}agent_skill_resources
-            WHERE skill_id = @skill_id
-            ORDER BY name;
-            """;
-
         // --- Skill scripts ---
-
-        DeleteAgentSkillScripts = $"DELETE FROM {Schema}agent_skill_scripts WHERE skill_id = @skill_id;";
-
-        InsertAgentSkillScript = $"""
-            INSERT INTO {Schema}agent_skill_scripts
-                (id, skill_id, name, description, extension, content, parameters_schema, created_at)
-            VALUES
-                (@id, @skill_id, @name, @description, @extension, @content, @parameters_schema, @created_at);
-            """;
-
-        SelectAgentSkillScripts = $"""
-            SELECT name, description, extension, content, parameters_schema
-            FROM {Schema}agent_skill_scripts
-            WHERE skill_id = @skill_id
-            ORDER BY name;
-            """;
 
         // --- Script execution grants ---
 
@@ -307,21 +234,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     schema_version = excluded.schema_version,
                     updated_at     = excluded.updated_at;
             """;
-
-        InsertSession = $"""
-            INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
-            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
-            """;
-
-        SelectSession = $"""
-            SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id
-            FROM {Schema}sessions
-            WHERE id = @id AND tenant_id = @tenant_id;
-            """;
-
-        SelectSessionOwner = $"SELECT tenant_id FROM {Schema}sessions WHERE id = @id;";
-
-        DeleteSession = $"DELETE FROM {Schema}sessions WHERE id = @id AND tenant_id = @tenant_id;";
 
         SelectSessions = $"""
             SELECT id, agent_name, state, schema_version, created_at, updated_at, tenant_id
@@ -447,13 +359,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
                       error_fingerprint, continued_from_run_id;
             """;
 
-        InsertOrphanRunEvent = $"""
-            INSERT INTO {Schema}run_events (run_id, seq, type, text, created_at)
-            VALUES (@run_id,
-                    COALESCE((SELECT MAX(seq) FROM {Schema}run_events WHERE run_id = @run_id), -1) + 1,
-                    @type, @text, @created_at);
-            """;
-
         // Phase 68 attribution filter, written ONCE and reused by the run list
         // and by every result set of the statistics query.
         //
@@ -484,9 +389,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
             r.parent_run_id, r.root_run_id, r.depth,
             (SELECT COUNT(*) FROM {Schema}runs child WHERE child.parent_run_id = r.id),
-            (SELECT COALESCE(SUM(sub.input_tokens), 0)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT COALESCE(SUM(sub.output_tokens), 0) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT COALESCE(SUM(sub.total_tokens), 0)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("input_tokens", "sub", true)}  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("output_tokens", "sub", true)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("total_tokens", "sub", true)}  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(sub.total_tokens)              FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
@@ -503,10 +408,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             -- 🚨 NOT COALESCE'd to zero, unlike the token totals above: a
             -- descendant tree in which nobody reported cache usage must read as
             -- "not measured", not "measured zero".
-            (SELECT SUM(sub.cached_input_tokens) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.reasoning_tokens)    FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.audio_input_tokens)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.audio_output_tokens) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("cached_input_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("reasoning_tokens", "sub", false)}    FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("audio_input_tokens", "sub", false)}  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {TreeSum("audio_output_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.continued_from_run_id
             """;
@@ -573,11 +478,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COUNT(*) FILTER (WHERE status = @status_canceled),
                    COUNT(*) FILTER (WHERE status = @status_running),
                    COUNT(*) FILTER (WHERE status = @status_awaiting),
-                   COALESCE(SUM(input_tokens), 0),
-                   COALESCE(SUM(output_tokens), 0),
-                   COALESCE(SUM(total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END,
+                   {TreeSum("input_tokens", null, true)},
+                   {TreeSum("output_tokens", null, true)},
+                   {TreeSum("total_tokens", null, true)},
+                   CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
+                        THEN NULL ELSE {CostTotal(null)} END,
                    MAX(cost_currency),
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown),
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter}),
@@ -589,10 +494,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    -- Ordinals 14-17, APPENDED so the reader's fixed positions
                    -- above do not move. These four are counted INSIDE the
                    -- input/output totals and are reported beside them.
-                   COALESCE(SUM(cached_input_tokens), 0),
-                   COALESCE(SUM(reasoning_tokens), 0),
-                   COALESCE(SUM(audio_input_tokens), 0),
-                   COALESCE(SUM(audio_output_tokens), 0)
+                   {TreeSum("cached_input_tokens", null, true)},
+                   {TreeSum("reasoning_tokens", null, true)},
+                   {TreeSum("audio_input_tokens", null, true)},
+                   {TreeSum("audio_output_tokens", null, true)}
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -603,7 +508,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             SELECT agent_name,
                    COUNT(*),
                    COUNT(*) FILTER (WHERE status = @status_failed),
-                   COALESCE(SUM(total_tokens), 0)
+                   {TreeSum("total_tokens", null, true)}
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -616,11 +521,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
             SELECT model_id,
                    COUNT(*),
-                   COALESCE(SUM(input_tokens), 0),
-                   COALESCE(SUM(output_tokens), 0),
-                   COALESCE(SUM(total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
+                   {TreeSum("input_tokens", null, true)},
+                   {TreeSum("output_tokens", null, true)},
+                   {TreeSum("total_tokens", null, true)},
+                   CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
+                        THEN NULL ELSE {CostTotal(null)} END
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -636,7 +541,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    agent_version,
                    COUNT(*),
                    COUNT(*) FILTER (WHERE status = @status_failed),
-                   COALESCE(SUM(total_tokens), 0)
+                   {TreeSum("total_tokens", null, true)}
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -713,9 +618,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
             SELECT user_id,
                    COUNT(*),
                    COUNT(*) FILTER (WHERE status = @status_failed),
-                   COALESCE(SUM(total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END
+                   {TreeSum("total_tokens", null, true)},
+                   CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
+                        THEN NULL ELSE {CostTotal(null)} END
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -736,9 +641,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    kv.value,
                    COUNT(*),
                    COUNT(*) FILTER (WHERE r.status = @status_failed),
-                   COALESCE(SUM(r.total_tokens), 0),
-                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END
+                   {TreeSum("total_tokens", "r", true)},
+                   CASE WHEN {CountWhereAnyNotNull(CostAddends, "r")} = 0
+                        THEN NULL ELSE {CostTotal("r")} END
             FROM {Schema}runs AS r, json_each(r.labels) AS kv
             WHERE r.tenant_id = @tenant_id
               AND r.kind <> @kind_eval
@@ -751,25 +656,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @max_agents;
 """;
 
-        // 🚨 SELECT ... WHERE EXISTS instead of VALUES: the write applies only
-        // if the target run belongs to the EXPECTED tenant (K-355). If
-        // @tenant_id is NULL, no check is done.
-        InsertRunEvent = $"""
-            INSERT INTO {Schema}run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
-            SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
-            WHERE EXISTS (
-                SELECT 1 FROM {Schema}runs r
-                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
-            """;
-
-        SelectRunEvents = $"""
-            SELECT e.run_id, e.seq, e.type, e.text, e.tool_name, e.tool_call_id, e.payload, e.created_at
-            FROM {Schema}run_events e
-            JOIN {Schema}runs r ON r.id = e.run_id
-            WHERE e.run_id = @run_id AND e.seq >= @from_sequence AND r.tenant_id = @tenant_id
-            ORDER BY e.seq;
-            """;
-
         // --- Conversations (chat history) ---
 
         UpsertConversation = $"""
@@ -779,54 +665,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 SET updated_at = excluded.updated_at;
             """;
 
-        SelectNextConversationSequence = $"""
-            SELECT COALESCE(MAX(seq), -1) + 1
-            FROM {Schema}conversation_items
-            WHERE conversation_id = @conversation_id;
-            """;
-
-        InsertConversationItem = $"""
-            INSERT INTO {Schema}conversation_items (id, conversation_id, seq, item, created_at)
-            VALUES (@id, @conversation_id, @seq, @item, @created_at);
-            """;
-
-        SelectConversationItems = $"""
-            SELECT i.item
-            FROM {Schema}conversation_items i
-            JOIN {Schema}conversations c ON c.id = i.conversation_id
-            WHERE i.conversation_id = @conversation_id AND c.tenant_id = @tenant_id
-            ORDER BY i.seq;
-            """;
-
         // --- Conversation branching (Phase 47) ---
         // See PostgresQueries for the rationale and column meanings.
         // 🚨 Table names carry a PREFIX (K-193): {Schema} is not a schema, it
         // is a prefix.
-
-        SelectConversationBranchPoint = $"""
-            SELECT COALESCE(MAX(seq), -1), COUNT(*)
-            FROM {Schema}conversation_items
-            WHERE conversation_id = @conversation_id
-              AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
-            """;
-
-        InsertBranchConversation = $"""
-            INSERT INTO {Schema}conversations
-                (id, tenant_id, agent_name, metadata, created_at, updated_at,
-                 parent_conversation_id, branch_from_seq)
-            SELECT @id, c.tenant_id, c.agent_name, c.metadata, @now, @now,
-                   c.id, @branch_from_seq
-            FROM {Schema}conversations c
-            WHERE c.id = @parent_conversation_id AND c.tenant_id = @tenant_id;
-            """;
-
-        SelectConversationItemsForBranch = $"""
-            SELECT i.seq, i.item, i.created_at
-            FROM {Schema}conversation_items i
-            WHERE i.conversation_id = @conversation_id
-              AND (@up_to_sequence IS NULL OR i.seq <= @up_to_sequence)
-            ORDER BY i.seq;
-            """;
 
         // --- Run inputs (Phase 47) ---
 
@@ -836,41 +678,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ON CONFLICT (run_id) DO NOTHING;
             """;
 
-        SelectRunInput = $"""
-            SELECT messages, created_at
-            FROM {Schema}run_inputs
-            WHERE run_id = @run_id AND tenant_id = @tenant_id;
-            """;
-
         // --- Tool invocations ---
-
-        // Same tenant guard as InsertRunEvent (K-355).
-        InsertToolInvocation = $"""
-            INSERT INTO {Schema}tool_invocations
-                (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
-                 usage_unit, usage_quantity, usage_estimated, cost, cost_currency,
-                 authorization_denied, timed_out)
-            SELECT @id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
-                   @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency,
-                   @authorization_denied, @timed_out
-            WHERE EXISTS (
-                SELECT 1 FROM {Schema}runs r
-                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
-            """;
-
-        // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
-        // readers (ReadToolInvocation) are never renumbered. Lesson from
-        // Phase 20.
-        SelectToolInvocations = $"""
-            SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
-                   t.duration_ms, t.error, t.created_at,
-                   t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency,
-                   t.authorization_denied, t.timed_out
-            FROM {Schema}tool_invocations t
-            JOIN {Schema}runs r ON r.id = t.run_id
-            WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id
-            ORDER BY t.created_at, t.id;
-            """;
 
         SelectToolUsage = $"""
             SELECT t.tool_name,
@@ -934,11 +742,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id;
             """;
 
-        DeleteExperiment = $"""
-            DELETE FROM {Schema}experiments
-            WHERE tenant_id = @tenant_id AND name = @name AND status <> 1;
-            """;
-
         StartExperiment = $"""
             UPDATE {Schema}experiments
             SET status = 1, started_at = @now, updated_at = @now
@@ -991,13 +794,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COUNT(*) FILTER (WHERE r.status = @status_completed),
                    COUNT(*) FILTER (WHERE r.status = @status_failed),
                    COUNT(*) FILTER (WHERE r.status = @status_canceled),
-                   COALESCE(SUM(r.input_tokens), 0),
-                   COALESCE(SUM(r.output_tokens), 0),
-                   COALESCE(SUM(r.total_tokens), 0),
+                   {TreeSum("input_tokens", "r", true)},
+                   {TreeSum("output_tokens", "r", true)},
+                   {TreeSum("total_tokens", "r", true)},
                    AVG(CASE WHEN r.completed_at IS NOT NULL
                             THEN (julianday(r.completed_at) - julianday(r.started_at)) * 86400000.0 END),
-                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL OR r.cached_input_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) + COALESCE(SUM(r.cached_input_cost), 0) END,
+                   CASE WHEN {CountWhereAnyNotNull(CostAddends, "r")} = 0
+                        THEN NULL ELSE {CostTotal("r")} END,
                    MAX(r.cost_currency),
                    AVG(s.avg_score)
             FROM {Schema}runs r
@@ -1033,10 +836,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                         END) AS bucket,
                        COUNT(*) AS runs,
                        COUNT(*) FILTER (WHERE status = @status_failed) AS failed_runs,
-                       COALESCE(SUM(input_tokens), 0) AS input_tokens,
-                       COALESCE(SUM(output_tokens), 0) AS output_tokens,
-                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL OR cached_input_cost IS NOT NULL) = 0
-                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) + COALESCE(SUM(cached_input_cost), 0) END AS cost,
+                       {TreeSum("input_tokens", null, true)} AS input_tokens,
+                       {TreeSum("output_tokens", null, true)} AS output_tokens,
+                       CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
+                            THEN NULL ELSE {CostTotal(null)} END AS cost,
                        AVG(CASE WHEN completed_at IS NOT NULL
                                 THEN (julianday(completed_at) - julianday(started_at)) * 86400000.0 END) AS avg_duration_ms
                 FROM {Schema}runs
@@ -1093,32 +896,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     status     = excluded.status;
             """;
 
-        SelectTraceByRun = $"""
-            SELECT id, trace_id, run_id, tenant_id, started_at, ended_at
-            FROM {Schema}traces
-            WHERE run_id = @run_id AND tenant_id = @tenant_id;
-            """;
-
-        SelectSpans = $"""
-            SELECT id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status
-            FROM {Schema}spans
-            WHERE trace_id = @trace_id
-            ORDER BY started_at, id;
-            """;
-
         // --- Tool approval rules ---
 
         // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
         // reads argument_conditions by fixed ordinal 7.
         const string approvalColumns = """
             id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
-            """;
-
-        SelectToolApprovalRules = $"""
-            SELECT {approvalColumns}
-            FROM {Schema}tool_approval_rules
-            WHERE tenant_id = @tenant_id
-            ORDER BY created_at DESC;
             """;
 
         // A second rule for the same scope is not opened; the existing record
@@ -1134,34 +917,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING {approvalColumns};
             """;
 
-        DeleteToolApprovalRule = $"""
-            DELETE FROM {Schema}tool_approval_rules
-            WHERE id = @id AND tenant_id = @tenant_id;
-            """;
-
         // --- MCP servers ---
 
-        const string mcpServerColumns = """
-            id, tenant_id, name, description, endpoint, transport,
-            authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
-            oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode
-            """;
-
-        SelectMcpServers = $"""
-            SELECT {mcpServerColumns}
-            FROM {Schema}mcp_servers
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        SelectMcpServer = $"""
-            SELECT {mcpServerColumns}
-            FROM {Schema}mcp_servers
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
         UpsertMcpServer = $"""
-            INSERT INTO {Schema}mcp_servers ({mcpServerColumns})
+            INSERT INTO {Schema}mcp_servers ({McpServerColumns})
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
                  @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
@@ -1180,18 +939,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     oauth_client_secret_configuration_key   = excluded.oauth_client_secret_configuration_key,
                     oauth_scopes                            = excluded.oauth_scopes,
                     oauth_authorization_mode                = excluded.oauth_authorization_mode
-            RETURNING {mcpServerColumns};
+            RETURNING {McpServerColumns};
             """;
-
-        DeleteMcpServer = $"DELETE FROM {Schema}mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";
 
         // --- Tenants ---
-
-        SelectTenants = $"""
-            SELECT id, slug, display_name, created_at
-            FROM {Schema}tenants
-            ORDER BY slug;
-            """;
 
         UpsertTenantDescriptor = $"""
             INSERT INTO {Schema}tenants (id, slug, display_name, created_at)
@@ -1201,33 +952,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id, slug, display_name, created_at;
             """;
 
-        DeleteTenant = $"DELETE FROM {Schema}tenants WHERE slug = @slug;";
-
         // --- Attachments ---
 
         const string attachmentColumns = """
             id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
-            """;
-
-        InsertAttachment = $"""
-            INSERT INTO {Schema}attachments
-                (id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256,
-                 content, external_uri, created_by, created_at)
-            VALUES
-                (@id, @tenant_id, @session_id, @run_id, @file_name, @media_type, @byte_size, @sha256,
-                 @content, @external_uri, @created_by, @created_at);
-            """;
-
-        SelectAttachment = $"""
-            SELECT {attachmentColumns}
-            FROM {Schema}attachments
-            WHERE tenant_id = @tenant_id AND id = @id;
-            """;
-
-        SelectAttachmentContent = $"""
-            SELECT content, external_uri, media_type
-            FROM {Schema}attachments
-            WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
         SelectAttachments = $"""
@@ -1253,23 +981,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Persistent agent file memory ---
 
-        SelectAgentFile = $"""
-            SELECT content
-            FROM {Schema}agent_files
-            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
-            """;
-
         UpsertAgentFile = $"""
             INSERT INTO {Schema}agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @path, @content, @now, @now)
             ON CONFLICT (tenant_id, agent_name, path) DO UPDATE
                 SET content    = excluded.content,
                     updated_at = excluded.updated_at;
-            """;
-
-        DeleteAgentFile = $"""
-            DELETE FROM {Schema}agent_files
-            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
         // Phase 51, Work Item A: the prefix, depth limit, and glob go down to
@@ -1301,58 +1018,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING version, updated_at;
             """;
 
-        SelectWorkflow = $"""
-            SELECT definition, version, updated_at
-            FROM {Schema}workflows
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
-        SelectWorkflows = $"""
-            SELECT definition, version, updated_at, name
-            FROM {Schema}workflows
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        DeleteWorkflow = $"DELETE FROM {Schema}workflows WHERE tenant_id = @tenant_id AND name = @name;";
-
-        InsertWorkflowCheckpoint = $"""
-            INSERT INTO {Schema}workflow_checkpoints
-                (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, created_at)
-            VALUES (@id, @tenant_id, @session_id, @checkpoint_id, @parent_id, @run_id, @state, @created_at);
-            """;
-
-        SelectWorkflowCheckpoint = $"""
-            SELECT state
-            FROM {Schema}workflow_checkpoints
-            WHERE tenant_id = @tenant_id AND session_id = @session_id AND checkpoint_id = @checkpoint_id;
-            """;
-
-        SelectWorkflowCheckpoints = $"""
-            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
-            FROM {Schema}workflow_checkpoints
-            WHERE tenant_id = @tenant_id AND session_id = @session_id
-            ORDER BY created_at, checkpoint_id;
-            """;
-
-        SelectWorkflowCheckpointsByRun = $"""
-            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
-            FROM {Schema}workflow_checkpoints
-            WHERE tenant_id = @tenant_id AND run_id = @run_id
-            ORDER BY created_at, checkpoint_id;
-            """;
-
-        DeleteWorkflowCheckpoints = $"""
-            DELETE FROM {Schema}workflow_checkpoints
-            WHERE tenant_id = @tenant_id AND session_id = @session_id;
-            """;
-
         // --- Audit log ---
-
-        InsertAuditEntry = $"""
-            INSERT INTO {Schema}audit_log (id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash)
-            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at, @prev_hash, @hash);
-            """;
 
         SelectAuditLog = $"""
             SELECT id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash
@@ -1395,13 +1061,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Scheduling and job queue ---
 
-        const string scheduleColumns = """
-            id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
-            next_run_at, last_run_at, created_by, created_at, updated_at
-            """;
-
         UpsertJobSchedule = $"""
-            INSERT INTO {Schema}job_schedules ({scheduleColumns})
+            INSERT INTO {Schema}job_schedules ({ScheduleColumns})
             VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
                     @next_run_at, @last_run_at, @created_by, @created_at, @updated_at)
             ON CONFLICT (tenant_id, name) DO UPDATE
@@ -1417,42 +1078,16 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id, created_by, created_at;
             """;
 
-        SelectJobSchedule = $"""
-            SELECT {scheduleColumns}
-            FROM {Schema}job_schedules
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
-        SelectJobSchedules = $"""
-            SELECT {scheduleColumns}
-            FROM {Schema}job_schedules
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
         SelectDueJobSchedules = $"""
-            SELECT {scheduleColumns}
+            SELECT {ScheduleColumns}
             FROM {Schema}job_schedules
             WHERE enabled = 1 AND cron IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= @as_of;
             """;
 
-        DeleteJobSchedule = $"DELETE FROM {Schema}job_schedules WHERE tenant_id = @tenant_id AND name = @name;";
-
-        TryClaimJobScheduleNextRun = $"""
-            UPDATE {Schema}job_schedules
-               SET next_run_at = @new_next_run_at, last_run_at = @ran_at
-             WHERE id = @id AND next_run_at = @expected_next_run_at;
-            """;
-
         // --- Inbound triggers (Phase 66) ---
 
-        const string inboundTriggerColumns = """
-            id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
-            payload_mode, payload_path, enabled, created_at, updated_at
-            """;
-
         UpsertInboundTrigger = $"""
-            INSERT INTO {Schema}inbound_triggers ({inboundTriggerColumns})
+            INSERT INTO {Schema}inbound_triggers ({InboundTriggerColumns})
             VALUES (@id, @tenant_id, @name, @target_kind, @target_name, @signing_secret_configuration_name,
                     @payload_mode, @payload_path, @enabled, @created_at, @updated_at)
             ON CONFLICT (tenant_id, name) DO UPDATE
@@ -1466,29 +1101,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING id, created_at;
             """;
 
-        SelectInboundTrigger = $"""
-            SELECT {inboundTriggerColumns}
-            FROM {Schema}inbound_triggers
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
-        SelectInboundTriggers = $"""
-            SELECT {inboundTriggerColumns}
-            FROM {Schema}inbound_triggers
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        DeleteInboundTrigger = $"DELETE FROM {Schema}inbound_triggers WHERE tenant_id = @tenant_id AND name = @name;";
-
-        InsertJob = $"""
-            INSERT INTO {Schema}jobs
-                (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
-                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts)
-            VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
-                    0, 0, 0, @scheduled_for, @created_at, @max_attempts);
-            """;
-
         // Ids are generated on the C# side; the two JSON arrays are opened
         // with json_each and matched on key (0-based index).
         InsertJobItems = $"""
@@ -1496,12 +1108,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             SELECT ids.value, @job_id, ids.key, inputs.value, 0
             FROM json_each(@ids) AS ids
             JOIN json_each(@inputs) AS inputs ON inputs.key = ids.key;
-            """;
-
-        const string jobColumns = """
-            id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
-            failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
-            error_message, created_at, max_attempts
             """;
 
         // 🚨 FOR UPDATE SKIP LOCKED IS NOT NEEDED: SQLite is a single writer,
@@ -1516,45 +1122,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        OR (status IN (1, 2) AND lease_until < @now)
                     ORDER BY scheduled_for
                     LIMIT 1)
-            RETURNING {jobColumns};
-            """;
-
-        RenewJobLease = $"""
-            UPDATE {Schema}jobs SET lease_until = @lease_until WHERE id = @id AND lease_owner = @owner;
-            """;
-
-        MarkJobRunning = $"""
-            UPDATE {Schema}jobs SET status = 2 WHERE id = @id AND lease_owner = @owner AND status = 1;
-            """;
-
-        CompleteJob = $"""
-            UPDATE {Schema}jobs
-               SET status = @status, completed_at = @completed_at, error_message = @error_message,
-                   lease_owner = NULL, lease_until = NULL
-             WHERE id = @id;
-            """;
-
-        ReleaseJobForRetry = $"""
-            UPDATE {Schema}jobs
-               SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
-                   scheduled_for = COALESCE(@retry_at, scheduled_for)
-             WHERE id = @id;
-            """;
-
-        CancelJob = $"""
-            UPDATE {Schema}jobs
-               SET status = 5, completed_at = @completed_at, lease_owner = NULL, lease_until = NULL
-             WHERE id = @id AND tenant_id = @tenant_id AND status IN (0, 1, 2);
-            """;
-
-        SelectJob = $"""
-            SELECT {jobColumns}
-            FROM {Schema}jobs
-            WHERE id = @id AND tenant_id = @tenant_id;
+            RETURNING {JobColumns};
             """;
 
         SelectJobs = $"""
-            SELECT {jobColumns}
+            SELECT {JobColumns}
             FROM {Schema}jobs
             WHERE (@tenant_id   IS NULL OR tenant_id   = @tenant_id)
               AND (@kind        IS NULL OR kind        = @kind)
@@ -1562,13 +1134,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
             ORDER BY created_at DESC
             LIMIT @take OFFSET @skip;
-            """;
-
-        SelectJobItems = $"""
-            SELECT id, job_id, seq, input, run_id, status, error
-            FROM {Schema}job_items
-            WHERE job_id = @job_id
-            ORDER BY seq;
             """;
 
         // 🚨 A data-modifying CTE does not exist in SQLite (same limit as SQL
@@ -1590,23 +1155,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Evaluation (eval) ---
 
-        const string suiteColumns = """
-            id, tenant_id, name, description, agent_name, checks, created_at, updated_at
-            """;
-
-        SelectEvalSuites = $"""
-            SELECT {suiteColumns}
-            FROM {Schema}eval_suites
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        SelectEvalSuite = $"""
-            SELECT {suiteColumns}
-            FROM {Schema}eval_suites
-            WHERE tenant_id = @tenant_id AND name = @name;
-            """;
-
         UpsertEvalSuite = $"""
             INSERT INTO {Schema}eval_suites
                 (id, tenant_id, name, description, agent_name, checks, created_at, updated_at)
@@ -1617,30 +1165,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     agent_name  = excluded.agent_name,
                     checks      = excluded.checks,
                     updated_at  = excluded.updated_at
-            RETURNING {suiteColumns};
-            """;
-
-        DeleteEvalSuite = $"DELETE FROM {Schema}eval_suites WHERE tenant_id = @tenant_id AND name = @name;";
-
-        const string evalCaseColumns = """
-            id, suite_id, seq, query, expected_output, expected_tools, context,
-            source_run_id, source_kind, promoted_at, parameters
-            """;
-
-        SelectEvalCases = $"""
-            SELECT {evalCaseColumns}
-            FROM {Schema}eval_cases
-            WHERE suite_id = @suite_id
-            ORDER BY seq;
-            """;
-
-        DeleteEvalCases = $"DELETE FROM {Schema}eval_cases WHERE suite_id = @suite_id;";
-
-        InsertEvalCase = $"""
-            INSERT INTO {Schema}eval_cases
-                (id, suite_id, seq, query, expected_output, expected_tools, context, parameters)
-            VALUES
-                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context, @parameters);
+            RETURNING {SuiteColumns};
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
@@ -1655,55 +1180,18 @@ internal sealed class SqliteQueries : SqlQueriesBase
                  COALESCE((SELECT MAX(seq) FROM {Schema}eval_cases WHERE suite_id = @suite_id), -1) + 1,
                  @query, @expected_output, @expected_tools, @context,
                  @source_run_id, @source_kind, @promoted_at, @parameters)
-            RETURNING {evalCaseColumns};
-            """;
-
-        SelectEvalCaseBySourceRun = $"""
-            SELECT {evalCaseColumns}
-            FROM {Schema}eval_cases
-            WHERE suite_id = @suite_id AND source_run_id = @source_run_id;
-            """;
-
-        const string evalRunColumns = """
-            id, tenant_id, suite_id, job_id, agent_version, model_id, status, total, passed, failed,
-            input_tokens, output_tokens, started_at, completed_at
+            RETURNING {EvalCaseColumns};
             """;
 
         InsertEvalRun = $"""
             INSERT INTO {Schema}eval_runs
                 (id, tenant_id, suite_id, job_id, status, total, passed, failed, started_at)
             VALUES (@id, @tenant_id, @suite_id, @job_id, 0, @total, 0, 0, @started_at)
-            RETURNING {evalRunColumns};
-            """;
-
-        MarkEvalRunRunning = $"""
-            UPDATE {Schema}eval_runs
-               SET status = 1, agent_version = @agent_version, model_id = @model_id
-             WHERE id = @id;
-            """;
-
-        CompleteEvalRun = $"""
-            UPDATE {Schema}eval_runs
-               SET status = @status, completed_at = @completed_at, total = @total,
-                   passed = @passed, failed = @failed, input_tokens = @input_tokens,
-                   output_tokens = @output_tokens
-             WHERE id = @id;
-            """;
-
-        SelectEvalRun = $"""
-            SELECT {evalRunColumns}
-            FROM {Schema}eval_runs
-            WHERE id = @id AND tenant_id = @tenant_id;
-            """;
-
-        SelectEvalRunByJobId = $"""
-            SELECT {evalRunColumns}
-            FROM {Schema}eval_runs
-            WHERE tenant_id = @tenant_id AND job_id = @job_id;
+            RETURNING {EvalRunColumns};
             """;
 
         SelectEvalRuns = $"""
-            SELECT {evalRunColumns}
+            SELECT {EvalRunColumns}
             FROM {Schema}eval_runs
             WHERE (@tenant_id IS NULL OR tenant_id = @tenant_id)
               AND (@suite_id  IS NULL OR suite_id  = @suite_id)
@@ -1711,35 +1199,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
-        InsertEvalCaseResult = $"""
-            INSERT INTO {Schema}eval_case_results
-                (id, eval_run_id, case_id, run_id, passed, output, scores, failure_reason)
-            VALUES
-                (@id, @eval_run_id, @case_id, @run_id, @passed, @output, @scores, @failure_reason);
-            """;
-
-        SelectEvalCaseResults = $"""
-            SELECT ecr.id, ecr.eval_run_id, ecr.case_id, ecr.run_id, ecr.passed, ecr.output,
-                   ecr.scores, ecr.failure_reason
-            FROM {Schema}eval_case_results ecr
-            JOIN {Schema}eval_runs er ON er.id = ecr.eval_run_id
-            WHERE er.tenant_id = @tenant_id AND ecr.eval_run_id = @eval_run_id
-            ORDER BY ecr.id;
-            """;
-
         // --- Quota ---
-
-        const string quotaColumns = """
-            id, tenant_id, agent_name, period, max_runs, max_tokens, max_cost, enabled,
-            created_at, updated_at
-            """;
 
         // 🚨 The conflict target is the expression COALESCE(agent_name, ''):
         // like PostgreSQL, SQLite does NOT count NULLs as equal to each other;
         // a plain (tenant_id, agent_name, period) target would allow the same
         // rule with agent_name NULL to be added an unlimited number of times.
         UpsertQuota = $"""
-            INSERT INTO {Schema}quotas ({quotaColumns})
+            INSERT INTO {Schema}quotas ({QuotaColumns})
             VALUES
                 (@id, @tenant_id, @agent_name, @period, @max_runs, @max_tokens, @max_cost, @enabled,
                  @created_at, @updated_at)
@@ -1749,24 +1216,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    max_cost   = excluded.max_cost,
                    enabled    = excluded.enabled,
                    updated_at = excluded.updated_at
-            RETURNING {quotaColumns};
+            RETURNING {QuotaColumns};
             """;
 
         SelectQuotas = $"""
-            SELECT {quotaColumns}
+            SELECT {QuotaColumns}
             FROM {Schema}quotas
             WHERE tenant_id = @tenant_id
             ORDER BY COALESCE(agent_name, ''), period;
-            """;
-
-        SelectQuota = $"""
-            SELECT {quotaColumns}
-            FROM {Schema}quotas
-            WHERE id = @id AND tenant_id = @tenant_id;
-            """;
-
-        DeleteQuota = $"""
-            DELETE FROM {Schema}quotas WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
         // Consumption is incremented ATOMICALLY.
@@ -1782,26 +1239,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    updated_at = excluded.updated_at;
             """;
 
-        SelectQuotaUsage = $"""
-            SELECT tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at
-            FROM {Schema}quota_usage
-            WHERE tenant_id = @tenant_id
-              AND (@agent_name IS NULL OR agent_name = @agent_name)
-              AND (@period     IS NULL OR period     = @period)
-            ORDER BY agent_name, period, period_start DESC;
-            """;
-
         // --- Webhook ---
 
-        // 🚨 The column list contains NO SECRET: only secret_configuration_key
-        // (the NAME of the key) is present (K-059).
-        const string webhookSubscriptionColumns = """
-            id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
-            consecutive_failures, created_at, updated_at
-            """;
-
         UpsertWebhookSubscription = $"""
-            INSERT INTO {Schema}webhook_subscriptions ({webhookSubscriptionColumns})
+            INSERT INTO {Schema}webhook_subscriptions ({WebhookSubscriptionColumns})
             VALUES
                 (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
                  @consecutive_failures, @created_at, @updated_at)
@@ -1812,35 +1253,18 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    headers                  = excluded.headers,
                    enabled                  = excluded.enabled,
                    updated_at               = excluded.updated_at
-            RETURNING {webhookSubscriptionColumns};
-            """;
-
-        SelectWebhookSubscriptions = $"""
-            SELECT {webhookSubscriptionColumns}
-            FROM {Schema}webhook_subscriptions
-            WHERE tenant_id = @tenant_id
-            ORDER BY name;
-            """;
-
-        SelectWebhookSubscription = $"""
-            SELECT {webhookSubscriptionColumns}
-            FROM {Schema}webhook_subscriptions
-            WHERE tenant_id = @tenant_id AND name = @name;
+            RETURNING {WebhookSubscriptionColumns};
             """;
 
         // 🚨 events is a JSON array; the counterpart of PostgreSQL's
         // = ANY(events) expression is an EXACT match over json_each.
         SelectWebhookSubscriptionsForEvent = $"""
-            SELECT {webhookSubscriptionColumns}
+            SELECT {WebhookSubscriptionColumns}
             FROM {Schema}webhook_subscriptions
             WHERE tenant_id = @tenant_id
               AND enabled = 1
               AND EXISTS (SELECT 1 FROM json_each(events) WHERE value = @event_type)
             ORDER BY name;
-            """;
-
-        DeleteWebhookSubscription = $"""
-            DELETE FROM {Schema}webhook_subscriptions WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
         // The consecutive-failure counter and auto-disable are done in a
@@ -1858,37 +1282,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             RETURNING (NOT enabled) AND (@succeeded = 0);
             """;
 
-        const string webhookDeliveryColumns = """
-            id, subscription_id, tenant_id, event_type, payload, status, attempt, response_code,
-            error, created_at, delivered_at
-            """;
-
-        InsertWebhookDelivery = $"""
-            INSERT INTO {Schema}webhook_deliveries
-                ({webhookDeliveryColumns})
-            VALUES
-                (@id, @subscription_id, @tenant_id, @event_type, @payload, @status, @attempt,
-                 @response_code, @error, @created_at, @delivered_at);
-            """;
-
-        SelectWebhookDelivery = $"""
-            SELECT {webhookDeliveryColumns}
-            FROM {Schema}webhook_deliveries
-            WHERE id = @id;
-            """;
-
-        UpdateWebhookDeliveryResult = $"""
-            UPDATE {Schema}webhook_deliveries
-               SET status        = @status,
-                   attempt       = @attempt,
-                   response_code = @response_code,
-                   error         = @error,
-                   delivered_at  = CASE WHEN @status = 1 THEN @recorded_at ELSE delivered_at END
-             WHERE id = @id;
-            """;
-
         SelectWebhookDeliveries = $"""
-            SELECT {webhookDeliveryColumns}
+            SELECT {WebhookDeliveryColumns}
             FROM {Schema}webhook_deliveries
             WHERE tenant_id = @tenant_id
               AND (@subscription_id IS NULL OR subscription_id = @subscription_id)
@@ -1899,44 +1294,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Phase 53: tenant-scoped API keys ---
 
-        // 🚨 The column list contains NO RAW VALUE: only the irreversible
-        // key_hash digest is present (section 53.2).
-        const string apiKeyColumns = """
-            id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
-            last_used_at, created_at
-            """;
-
         InsertApiKey = $"""
-            INSERT INTO {Schema}api_keys ({apiKeyColumns})
+            INSERT INTO {Schema}api_keys ({ApiKeyColumns})
             VALUES (@id, @tenant_id, @name, @key_hash, @key_prefix, @scopes, @expires_at, @revoked_at,
                     @last_used_at, @created_at);
-            """;
-
-        SelectApiKeys = $"""
-            SELECT {apiKeyColumns}
-            FROM {Schema}api_keys
-            WHERE tenant_id = @tenant_id
-            ORDER BY created_at;
-            """;
-
-        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
-        // is the output of this query, not its input.
-        SelectApiKeyByHash = $"""
-            SELECT {apiKeyColumns}
-            FROM {Schema}api_keys
-            WHERE key_hash = @key_hash;
-            """;
-
-        RevokeApiKey = $"""
-            UPDATE {Schema}api_keys
-               SET revoked_at = @revoked_at
-             WHERE tenant_id = @tenant_id AND id = @id AND revoked_at IS NULL;
-            """;
-
-        TouchApiKeyLastUsed = $"""
-            UPDATE {Schema}api_keys
-               SET last_used_at = @last_used_at
-             WHERE id = @id;
             """;
 
         // Setup health check (ExternalSurfaceGuard, section 53.4): the tenant
@@ -1950,15 +1311,12 @@ internal sealed class SqliteQueries : SqlQueriesBase
             );
             """;
 
-        const string retentionPolicyColumns =
-            "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
-
         // Upsert is identical to PostgreSQL (K-194): a single-statement
         // INSERT ... ON CONFLICT ... RETURNING; SQL Server's two-branch
         // pattern (K-177) is absent here.
         UpsertRetentionPolicy = $"""
             INSERT INTO {Schema}retention_policies
-                ({retentionPolicyColumns})
+                ({RetentionPolicyColumns})
             VALUES
                 (@id, @tenant_id, @target, @max_age_days, @max_rows, @archive, @enabled, @created_at, @updated_at)
             ON CONFLICT (tenant_id, target) DO UPDATE
@@ -1967,55 +1325,11 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    archive      = excluded.archive,
                    enabled      = excluded.enabled,
                    updated_at   = excluded.updated_at
-            RETURNING {retentionPolicyColumns};
-            """;
-
-        SelectRetentionPolicies = $"""
-            SELECT {retentionPolicyColumns}
-            FROM {Schema}retention_policies
-            WHERE tenant_id = @tenant_id
-            ORDER BY target;
-            """;
-
-        SelectRetentionPolicy = $"""
-            SELECT {retentionPolicyColumns}
-            FROM {Schema}retention_policies
-            WHERE tenant_id = @tenant_id
-              AND target    = @target;
-            """;
-
-        DeleteRetentionPolicy = $"""
-            DELETE FROM {Schema}retention_policies
-             WHERE tenant_id = @tenant_id
-               AND target    = @target;
-            """;
-
-        const string retentionRunColumns =
-            "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
-
-        InsertRetentionRun = $"""
-            INSERT INTO {Schema}retention_runs
-                ({retentionRunColumns})
-            VALUES
-                (@id, @tenant_id, @target, 0, 0, @started_at, NULL, NULL);
-            """;
-
-        UpdateRetentionRunProgress = $"""
-            UPDATE {Schema}retention_runs
-               SET deleted_rows  = deleted_rows + @deleted_delta,
-                   archived_rows = archived_rows + @archived_delta
-             WHERE id = @id;
-            """;
-
-        CompleteRetentionRun = $"""
-            UPDATE {Schema}retention_runs
-               SET completed_at = @completed_at,
-                   error        = @error
-             WHERE id = @id;
+            RETURNING {RetentionPolicyColumns};
             """;
 
         SelectRetentionRuns = $"""
-            SELECT {retentionRunColumns}
+            SELECT {RetentionRunColumns}
             FROM {Schema}retention_runs
             WHERE tenant_id = @tenant_id
               AND (@target IS NULL OR target = @target)
@@ -2051,8 +1365,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // -------------------------------------------------------------------
         // Phase 31 -- run/message score
         // -------------------------------------------------------------------
-        const string runScoreColumns =
-            "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
 
         // Upsert is identical to PostgreSQL (K-194): message_id is equalized
         // with COALESCE(…, ''), author is DELIBERATELY NOT COALESCED --
@@ -2060,7 +1372,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // author is empty (an identity-less setup) each call opens a new row.
         UpsertRunScore = $"""
             INSERT INTO {Schema}run_scores
-                ({runScoreColumns})
+                ({RunScoreColumns})
             VALUES
                 (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at)
             ON CONFLICT (tenant_id, run_id, COALESCE(message_id, ''), author) DO UPDATE
@@ -2069,17 +1381,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    comment    = excluded.comment,
                    source     = excluded.source,
                    created_at = excluded.created_at
-            RETURNING {runScoreColumns};
-            """;
-
-        SelectRunScores = $"""
-            SELECT {runScoreColumns}
-            FROM {Schema}run_scores
-            WHERE tenant_id = @tenant_id AND run_id = @run_id;
-            """;
-
-        DeleteRunScore = $"""
-            DELETE FROM {Schema}run_scores WHERE id = @id AND tenant_id = @tenant_id;
+            RETURNING {RunScoreColumns};
             """;
 
         // Upsert is identical to PostgreSQL (K-194).
@@ -2093,16 +1395,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE {Schema}singleton_leases.owner_id = excluded.owner_id
                OR {Schema}singleton_leases.expires_at < @now
             RETURNING name;
-            """;
-
-        RenewSingletonLease = $"""
-            UPDATE {Schema}singleton_leases
-               SET expires_at = @expires_at, updated_at = @now
-             WHERE name = @name AND owner_id = @owner_id;
-            """;
-
-        ReleaseSingletonLease = $"""
-            DELETE FROM {Schema}singleton_leases WHERE name = @name AND owner_id = @owner_id;
             """;
 
         // Plain INSERT: a uniqueness violation is caught by
@@ -2131,38 +1423,6 @@ internal sealed class SqliteQueries : SqlQueriesBase
             DELETE FROM {Schema}idempotency_keys WHERE tenant_id = @tenant_id AND "key" = @key;
             """;
 
-        InsertPendingApproval = $"""
-            INSERT INTO {Schema}pending_approvals
-                (id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                 decided_by, decided_at, expires_at, created_at)
-            VALUES
-                (@id, @tenant_id, @run_id, @session_id, @request_id, @tool_name, @arguments, @status,
-                 @decided_by, @decided_at, @expires_at, @created_at);
-            """;
-
-        SelectPendingApprovals = $"""
-            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                   decided_by, decided_at, expires_at, created_at
-              FROM {Schema}pending_approvals
-             WHERE tenant_id = @tenant_id AND status = @status
-             ORDER BY created_at ASC;
-            """;
-
-        SelectPendingApproval = $"""
-            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
-                   decided_by, decided_at, expires_at, created_at
-              FROM {Schema}pending_approvals
-             WHERE id = @id AND tenant_id = @tenant_id;
-            """;
-
-        // WHERE status = @status_pending: a second decision affects 0 rows,
-        // DecideAsync interprets that as false.
-        DecidePendingApproval = $"""
-            UPDATE {Schema}pending_approvals
-               SET status = @status, decided_by = @decided_by, decided_at = @decided_at
-             WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
-            """;
-
         // The SAME pattern as ClaimOrphanedRuns: closed rows are read via
         // RETURNING. There is NO tenant filter -- this is a maintenance
         // operation.
@@ -2182,39 +1442,16 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // -------------------------------------------------------------------
         // Phase 65 -- tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------
-        // 🚨 The column list contains NO SECRET VALUE: only the NAME of the
-        // configuration key the value is read from at call time (K-059,
-        // section 65.1). Table/index names carry the PREFIX (K-193).
-        const string tenantProviderBindingColumns =
-            "tenant_id, provider_name, api_key_configuration_name, endpoint, updated_at";
 
         UpsertTenantProviderBinding = $"""
             INSERT INTO {Schema}tenant_provider_bindings
-                ({tenantProviderBindingColumns})
+                ({TenantProviderBindingColumns})
             VALUES
                 (@tenant_id, @provider_name, @api_key_configuration_name, @endpoint, @updated_at)
             ON CONFLICT (tenant_id, provider_name) DO UPDATE
                 SET api_key_configuration_name = excluded.api_key_configuration_name,
                     endpoint = excluded.endpoint,
                     updated_at = excluded.updated_at;
-            """;
-
-        SelectTenantProviderBinding = $"""
-            SELECT {tenantProviderBindingColumns}
-            FROM {Schema}tenant_provider_bindings
-            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
-            """;
-
-        SelectTenantProviderBindings = $"""
-            SELECT {tenantProviderBindingColumns}
-            FROM {Schema}tenant_provider_bindings
-            WHERE tenant_id = @tenant_id
-            ORDER BY provider_name;
-            """;
-
-        DeleteTenantProviderBinding = $"""
-            DELETE FROM {Schema}tenant_provider_bindings
-            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
             """;
 
         UpsertTenantEgressPolicy = $"""
@@ -2227,15 +1464,5 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     updated_at = excluded.updated_at;
             """;
 
-        SelectTenantEgressPolicy = $"""
-            SELECT tenant_id, allowed_providers, updated_at
-            FROM {Schema}tenant_egress_policies
-            WHERE tenant_id = @tenant_id;
-            """;
-
-        DeleteTenantEgressPolicy = $"""
-            DELETE FROM {Schema}tenant_egress_policies
-            WHERE tenant_id = @tenant_id;
-            """;
     }
 }

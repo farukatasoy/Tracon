@@ -351,13 +351,6 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             value?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ", CultureInfo.InvariantCulture));
 
     /// <inheritdoc />
-    /// <remarks>
-    /// SQLite shares a single object namespace across the whole database; there is no schema,
-    /// the prefix is prepended directly to the table name (no dot).
-    /// </remarks>
-    public override string QualifyTable(string tableName) => $"{Queries.Schema}{tableName}";
-
-    /// <inheritdoc />
     public override string BuildRetentionCountSql(string table, string wherePredicate)
         => $"SELECT COUNT(*) FROM {table} WHERE {wherePredicate};";
 

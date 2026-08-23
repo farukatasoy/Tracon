@@ -14,6 +14,26 @@
 
 - **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test AgentPrism.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `AgentPrism.Templates.Tests` fikstürüdür: `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
 
+## 🚨 `sed -i.bak` + `mv .bak dosya` ESKI mtime'i geri getirir, `dotnet build` DERLEMEZ (Faz 94)
+
+Bir gate'in gercekten bir kusuru YAKALADIGINI dogrulamak icin sahte bir kusur
+enjekte edip test kosmak (bu depoda standart pratik) su sirayla YANLIS sonuc
+verebilir: `sed -i.bak 's/X/Y/' dosya.cs` → build+test (kusur yakalanir, DOGRU)
+→ `mv dosya.cs.bak dosya.cs` (geri al) → build (yesil, ama **YANLIS**: `mv`
+hedefin mtime'ini KAYNAK dosyanin (`.bak`, sahte-kusurdan ONCEKI) mtime'iyla
+degistirir; bu bazen sahte-kusurlu derlemenin CIKTI dosyasindan daha ESKI
+kalir). `dotnet build` artimli derleme icin mtime karsilastirir, "kaynak
+DLL'den eski" gorunce **YENIDEN DERLEMEZ** ve bir onceki (SAHTE KUSURLU)
+derlemeyi sessizce kullanmaya devam eder — sonraki `dotnet test` calistirmasi
+YESIL doner ama gercekte hala BOZUK derlemeyi test etmektedir. Bu depoda
+`AGENTPRISM_SQL_SNAPSHOT_REFRESH=1` ile checked-in bir taban cizgisi dosyasi
+BU SEKILDE bir kez BOZULMUS (sahte terim iceren cikti taban cizgisine
+yazilmis) ve fark edilene kadar 4 test sahte SUCCESS/FAILURE dongusu
+uretti. **Kural**: bir kaynak dosyayi geri aldiktan (`mv`, `git checkout`,
+`cp`) hemen sonra `touch <dosya>` calistir, SONRA derle — ya da direkt
+`--no-incremental` kullan. Refresh/generate gibi CIKTI-YAZAN bir komutu
+supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
+
 ## 🚨 `dotnet test --filter` SESSIZCE YUTULUR (Faz 77)
 
 - **`--filter` MTP'de YOKTUR ve hata da vermez — tum paketi kosar.** 2026-08-20'de

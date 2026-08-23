@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!--
+      All three SQL providers, directly, not via AgentPrism.Sql.Shared (it has
+      no csproj of its own, K-176). The text-fidelity and completeness checks in
+      this project read the SqlQueriesBase-derived types by their concrete
+      provider name; no cross-assembly type unification is needed (K-247 does
+      not apply here). No Docker/Testcontainers dependency: every check here
+      builds a query-set object in memory and never opens a connection.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

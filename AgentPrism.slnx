@@ -42,6 +42,7 @@
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
     <Project Path="tests/AgentPrism.SqlServer.IntegrationTests/AgentPrism.SqlServer.IntegrationTests.csproj" />
     <Project Path="tests/AgentPrism.Sqlite.IntegrationTests/AgentPrism.Sqlite.IntegrationTests.csproj" />
+    <Project Path="tests/AgentPrism.Sql.Shared.UnitTests/AgentPrism.Sql.Shared.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
     <Project Path="tests/AgentPrism.Templates.Tests/AgentPrism.Templates.Tests.csproj" />

@@ -41,4 +41,14 @@
     <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
+  <!--
+    AgentPrism.Sql.Shared.UnitTests (phase 94) checks the SQL text of the three
+    providers side by side and cannot use the "$(MSBuildProjectName).UnitTests"
+    convention below (that name belongs to a single provider). No Docker
+    dependency: it never opens a connection, only builds a query-set object.
+  -->
+  <ItemGroup Label="Internal visibility - cross-provider SQL text tests (phase 94)">
+    <InternalsVisibleTo Include="AgentPrism.Sql.Shared.UnitTests" />
+  </ItemGroup>
+
 </Project>

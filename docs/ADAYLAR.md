@@ -196,6 +196,26 @@ koda gerekçesiyle yazılı.
 
 ---
 
+### F-147 · `runColumns`'daki ağaç maliyet sütunları `TreeSum` ile ifade edilebilir
+
+**Nereden geldi:** Faz 94 bağımsız denetimi, 🟢 bulgu 2.
+
+**Kanıt:** `SqlQueriesBase.TreeSum(column, alias, coalesceToZero)` Faz 94'te
+token ağaç toplamları için eklendi (94.4.2). Üç dialektin `runColumns`
+listesindeki ağaç MALİYET sütunları (`tree.cost_input`, `tree.cost_output`,
+`tree.cost_cached_input` — `SUM(sub.input_cost)` vb.) metinsel olarak
+`TreeSum(column, alias, false)`'ın ürettiğiyle BİREBİR aynı, ama elle yazılı
+kaldı; 94.4.2'nin kapsamı yalnız token sütunlarıydı.
+
+**Neden şimdi değil:** Kusur değil, bir tutarlılık iyileştirmesi — bugünkü
+metin doğru ve `SqlTextSnapshotTests` onu koruyor. Dokunmak üç dialektin
+`runColumns` metnini yeniden üretip 94.6 anlık görüntü kapısına karşı
+doğrulamak ister; ayrı, dar kapsamlı bir iş.
+
+**İş:** `runColumns`'daki 3 ağaç maliyet sütununu (üç dialektte de) `{TreeSum("input_cost", "sub", false)}` gibi çağrılara çevir; `SqlTextSnapshotTests` sıfır fark vermeli. Ölçüm: 3 sütun × 3 dialekt = 9 yer.
+
+---
+
 ## C. Güvenlik, yönetişim ve uyum
 
 ### F-72 · Agent Control Specification (ACS) uyumu — ERTELENDİ (2026-08-06). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).

@@ -1629,3 +1629,66 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-mssql-yuk-1" -H "$AP
   ama yanıt VERİR.
 - Container geri geldikten sonra aynı istek **2xx** döner — `SqlServerDataSource`
   yeni bir bağlantı kurar, süreç yeniden başlatmaya gerek duymaz.
+
+---
+
+### MT-SQL-074 — SQLite: SQL tek kaynak sonrası tablo nitelendirmesi noktasız kalır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 94 |
+| **İlgili karar** | K-193 |
+
+Faz 94, `SqlDialect.QualifyTable`'ı `SqlQueriesBase.Table(name)`'e devretti;
+SQLite bunu `protected override string Table(string name) => $"{Schema}{name}"`
+ile (noktasız) ezer. 115 taşınan sorgu `{Table("...")}` çağrısı üretir — yanlış
+uygulanırsa SQLite'ta `agentprism_.runs` gibi geçersiz bir ad üretilirdi.
+
+**Adımlar**
+1. `AgentPrism.Sqlite.IntegrationTests` tam sözleşme koşumunu çalıştır.
+2. `AgentPrism.Sql.Shared.UnitTests`'teki SQLite metin anlık görüntüsünü
+   (`sql-text-baseline.sqlite.txt`) aç, taşınan bir sorguda (`SelectMcpServers`
+   gibi) tablo adını kontrol et.
+
+**Beklenen sonuç**
+- Anlık görüntüde `agentprism_mcp_servers` gibi noktasız bir ad görülür,
+  `agentprism_.mcp_servers` DEĞİL.
+- Sözleşme koşumu davranış değişikliği olmadan geçer.
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `AgentPrism.Sqlite.IntegrationTests`
+592/592, gerçek dosya veritabanına karşı; anlık görüntü dosyası elle kontrol
+edildi, tüm tablo adları noktasız.
+
+---
+
+### MT-SQL-075 — Boşluk kapısı: bir sorgu `string.Empty`'ye ezilirse `SqlQueryCompletenessTests` düşer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 94 |
+| **İlgili karar** | — |
+
+`SqlQueriesBase`'e 117 metin eklenmesiyle bir türetilmiş sınıfın bir sorguyu
+yanlışlıkla `string.Empty`'ye ezme riski arttı (94.5). `SqliteQueries`'in
+`UpgradeMigrationsTable` muafiyeti (K-475 — SQLite bunu kodda, dinamik olarak
+yapar) TEK belgeli istisnadır.
+
+**Adımlar**
+1. `SqliteQueries.cs`'te dialekt'e özgü kalan bir sorguyu (`UpgradeMigrationsTable`
+   HARİÇ — bu, K-475 gerekçesiyle tek belgeli istisnadır) geçici olarak
+   `string.Empty` yap.
+2. `dotnet test tests/AgentPrism.Sql.Shared.UnitTests -c Release` çalıştır.
+3. Değişikliği geri al.
+
+**Beklenen sonuç**
+- Adım 2: `SqlQueryCompletenessTests.Sqlite_leaves_no_query_empty` düşer ve
+  boş bırakılan sorgunun adını yazar.
+- Geri alınca yeniden yeşil.
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `UpsertMcpServer`'ı elle
+`string.Empty` yaptım — test `["UpsertMcpServer"]` mesajıyla düştü; geri
+alınınca `AgentPrism.Sql.Shared.UnitTests` 8/8.
