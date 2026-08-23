@@ -684,5 +684,74 @@ class KosumDamitmaTestleri(unittest.TestCase):
         self.assertEqual(yeni, metin)
 
 
+class KararSatiriDamitmaTestleri(unittest.TestCase):
+    """`_karar_satiri_damit` saf fonksiyonu."""
+
+    def _satir(self, gerekce: str, baslik="K-100 — kısa başlık", kosul="Yeniden ölçülürse"):
+        return f"| **{baslik}** | 2026-08-01 | {gerekce} | {kosul} |"
+
+    def test_sinirin_altindaki_satir_dokunulmaz(self):
+        s = self._satir("Kısa gerekçe.")
+        self.assertEqual(dokuman_bakim._karar_satiri_damit(s), (s, None, None))
+
+    def test_baslik_tarih_ve_kosul_ASLA_kesilmez(self):
+        s = self._satir("Birinci cümle. " + "Uzun bir gerekçe cümlesi. " * 40)
+        yeni, tasinan, sebep = dokuman_bakim._karar_satiri_damit(s)
+        self.assertIsNone(sebep)
+        self.assertTrue(yeni.startswith("| **K-100 — kısa başlık** | 2026-08-01 |"))
+        self.assertTrue(yeni.rstrip().endswith("| Yeniden ölçülürse |"))
+        self.assertIn("Birinci cümle.", yeni)
+
+    def test_kesilen_kuyruk_dondurulur(self):
+        s = self._satir("Bir. " + "İki üç dört beş altı. " * 40)
+        _, tasinan, _ = dokuman_bakim._karar_satiri_damit(s)
+        self.assertTrue(tasinan)
+        self.assertIn("İki üç dört beş altı.", tasinan)
+
+    def test_isaretci_eklenir(self):
+        s = self._satir("Bir. " + "Uzun cümle burada. " * 40)
+        yeni, _, _ = dokuman_bakim._karar_satiri_damit(s)
+        self.assertIn("KARARLAR-GECMISI.md", yeni)
+        self.assertIn("— K-100.", yeni)
+
+    def test_yeniden_acildi_kuyrukta_kalirsa_ATLANIR(self):
+        # `_kararlar_kalemleri()` 🔁'yi satırın TAMAMINDA arar; kesilirse
+        # indeks sessizce yanlış olur.
+        s = self._satir("Bir. " + "Dolgu cümlesi. " * 40 + "Bu karar yeniden açıldı.")
+        yeni, tasinan, sebep = dokuman_bakim._karar_satiri_damit(s)
+        self.assertEqual(yeni, s)
+        self.assertIsNone(tasinan)
+        self.assertIn("👤/🔁", sebep)
+
+    def test_kullanici_karari_kuyrukta_kalirsa_ATLANIR(self):
+        s = self._satir("Bir. " + "Dolgu cümlesi. " * 40 + "Bu bir kullanıcı kararı.")
+        yeni, _, sebep = dokuman_bakim._karar_satiri_damit(s)
+        self.assertEqual(yeni, s)
+        self.assertIn("👤/🔁", sebep)
+
+    def test_gerekce_icindeki_boru_satiri_bozmaz(self):
+        # Ölçüldü: 8 satırın gerekçesinde fazladan `|` var (tablo/kod).
+        s = self._satir("Bir. " + "A | B tablosu var. " * 40)
+        yeni, _, sebep = dokuman_bakim._karar_satiri_damit(s)
+        self.assertIsNone(sebep)
+        self.assertTrue(yeni.rstrip().endswith("| Yeniden ölçülürse |"))
+
+    def test_IDEMPOTENT(self):
+        s = self._satir("Bir. " + "Uzun cümle burada. " * 40)
+        bir, _, _ = dokuman_bakim._karar_satiri_damit(s)
+        iki, tasinan, _ = dokuman_bakim._karar_satiri_damit(bir)
+        self.assertEqual(bir, iki)
+        self.assertIsNone(tasinan)
+
+    def test_uzun_iskelette_bile_ilk_cumle_durur(self):
+        s = self._satir("Bir cümle. " + "Dolgu. " * 40,
+                        baslik="K-100 — " + "çok uzun bir başlık " * 12,
+                        kosul="çok uzun bir yeniden açılma koşulu " * 8)
+        yeni, tasinan, sebep = dokuman_bakim._karar_satiri_damit(s)
+        self.assertIsNone(sebep)
+        self.assertIn("Bir cümle.", yeni)
+        self.assertLess(len(yeni.encode()), len(s.encode()))
+
+
 if __name__ == "__main__":
     unittest.main()
