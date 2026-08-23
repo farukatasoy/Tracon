@@ -8,30 +8,10 @@
 
 ## Nereye Bakmalı
 
-**Yalnız ilgili satırın dosyasını** oku. Hepsini okuma. Belirli bir şey
-arıyorsan dosyayı açmak yerine grep et: `grep -rn "AsyncLocal" docs/hafiza/`.
-
-| Dokunduğun iş | Oku |
-|---|---|
-| Bir şeyin nerede yaşadığını arıyorsun | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
-| Ses tool'ları, gerçek zamanlı konuşma katmanı | [`docs/hafiza/ses-ve-konusma.md`](docs/hafiza/ses-ve-konusma.md) |
-| MAF tipi, harness, `AIContextProvider`, skill | [`docs/hafiza/maf-api.md`](docs/hafiza/maf-api.md) |
-| Workflow yürütme, executor kimliği, HITL | [`docs/hafiza/workflows.md`](docs/hafiza/workflows.md) |
-| SQL, migration, `jsonb`, sütun indeksi (PostgreSQL) | [`docs/hafiza/postgresql.md`](docs/hafiza/postgresql.md) |
-| Paylaşılan SQL katmanı, SQL Server, yeni sağlayıcı | [`docs/hafiza/sql-saglayicilari.md`](docs/hafiza/sql-saglayicilari.md) |
-| SQLite'a özgü (indeks ad alanı, upsert, `ExecuteScalarAsync` CLR tipi) | [`docs/hafiza/sqlite.md`](docs/hafiza/sqlite.md) |
-| Minimal API ucu, DI kaydı, HTTP davranışı | [`docs/hafiza/aspnetcore-di.md`](docs/hafiza/aspnetcore-di.md) |
-| Enum/alan JSON serileştirme, `.WithTags`/`.Produces` | [`aspnetcore-json.md`](docs/hafiza/aspnetcore-json.md) |
-| MSBuild, csproj, AOT, `.editorconfig`, analyzer tanısı | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
-| `dotnet pack`, `.nuspec`, `buildTransitive/`, şablon, tüketiciye yazılan dosya | [`paketleme-ve-dagitim.md`](docs/hafiza/paketleme-ve-dagitim.md) |
-| Kaynak üreteci veya analyzer **yazımı** (`APG*`) | [`docs/hafiza/analyzer-yazimi.md`](docs/hafiza/analyzer-yazimi.md) |
-| Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
-| Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |
-| Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
-| `IChatClient` dekoratörü, devre kesici, bağlantı hatası sınıflandırması | [`docs/hafiza/model-boru-hatti.md`](docs/hafiza/model-boru-hatti.md) |
-| `RunRecording` zinciri, `secret` filtresi, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
-| Dışa açılan MCP/A2A sunucusu (`McpServer/`, `A2A/`) | [`docs/hafiza/mcp-a2a-sunucu.md`](docs/hafiza/mcp-a2a-sunucu.md) |
-| Sevk edilen doküman metni, `docs-site/` üreteçleri, ekran görüntüsü | [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md) |
+Alan notları `docs/hafiza/` altındadır. Hangi dosya olduğunu
+[`docs/hafiza/00-INDEKS.md`](docs/hafiza/00-INDEKS.md) söyler — **yalnız
+dokunduğun alanın** dosyasını aç. Belirli bir şey arıyorsan indeksi hiç açma,
+doğrudan grep'le: `grep -rn "AsyncLocal" docs/hafiza/`.
 
 ---
 
@@ -59,13 +39,13 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   Öksüz MSBuild düğümleri (`nodeReuse:true`) boruyu açık tutar ve
   `WaitForExitAsync` ~15 dk bloke kalır; çözüm `MSBUILDDISABLENODEREUSE=1`
   (8 dk+ → 18,5 sn). İkinci sebep: `-p:AgentPrismFrontendEnabled=false` ile
-  derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
+  derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-kosum-tuzaklari.md`.
 - **🚨 Elle tekrarlanan bir toplama ifadesine terim eklemek sessiz bir kusur
   SINIFI üretir.** Faz 68'de `InputCost + OutputCost` yedi yerde elle yazılıydı;
   üçüncü terim (cache ücreti) eklenince yalnız SQL düzeltildi ve **maliyet tavanı
   olan bir kiracı tavanı aşabilirdi** — 4241 test yakalamadı, bağımsız denetim buldu.
   Toplama alan bir `record`'a alan eklerken ona `Total()` ver ve `grep` ile sınıfı
-  tara (K-483, `docs/hafiza/cekirdek-calistirma.md`).
+  tara (K-483, `docs/hafiza/olcum-kota-ve-secenekler.md`).
 - **🚨 Kaynak okuması GÖRÜNMEZ karakteri doğrulayamaz.** MCP cache anahtarındaki
   ayırıcı `U+001F` idi; `cat` onu göstermez. Hem güvenlik denetçisi hem kapanış
   oturumu kodu okuyup "ayırıcı yok" dedi ve **yanlış bir 🔴 bulgu** üretildi;

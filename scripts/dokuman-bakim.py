@@ -82,6 +82,12 @@ SORGU_BUTCESI = {
     # kalibrasyon kurali. MIMARI.md'nin siniri DUSURULMEDI: bolunme zaten %45 bosluk
     # birakti ve bugunku mimarinin buyumesine yer birakmak istiyoruz.
     "docs/MIMARI-GUVENLIK.md": 21_000,  # olculen 17_421
+    # Faz 90 (K-6xx): alan yonlendirme tablosu `MEMORY.md`den ayrildi. Tablo ALAN
+    # SAYISIYLA buyur (20 -> 27 dosya), `MEMORY.md`nin tuzak listesi OGRENILEN
+    # DERSLE; iki egri tek butcede sikisip dosyayi %1 bosluga dusurmustu.
+    # BASLANGIC degil SORGU: `faz-baslangic` Adim 1 bunu okumaz, Adim 3 okur.
+    # Sinir ILK KEZ konuyor -> olculene %15 bosluk eklendi (58.4 kalibrasyonu).
+    "docs/hafiza/00-INDEKS.md": 4_100,  # olculen 3_424
     "README.md": 20_000,
 }
 
@@ -846,6 +852,9 @@ def denetle() -> int:
     # ayni `_satir()` yardimcisini kullanir.
     print("\nAlan hafızası — yalnız ilgili alan")
     for p in sorted((ROOT / "docs" / "hafiza").glob("*.md")):
+        if p.name == "00-INDEKS.md":
+            continue   # alan dosyasi degil, yonlendirme; SORGU_BUTCESI'nde
+                       # ayrica olculur -- burada da sayilsa cift raporlanirdi.
         s, asti = _satir(f"  {p.name}", len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI, genislik=30)
         if asti:
             hata = 1
