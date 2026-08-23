@@ -9,7 +9,7 @@ namespace AgentPrism.Mcp.UnitTests;
 /// to <see cref="ToolEffect.External"/> (its definition lives on a remote
 /// server and can change, so the most cautious class is the honest default),
 /// and every server-side tool is wrapped the same way <c>ToolRegistry</c>
-/// wraps a code-defined one (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md).
+/// wraps a code-defined one (docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md).
 /// </summary>
 public sealed class McpTenantToolsTests
 {

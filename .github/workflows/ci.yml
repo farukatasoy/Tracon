@@ -98,7 +98,7 @@ jobs:
       - name: Dokuman kapilari testleri
         run: python3 -m unittest discover -s scripts -p "*_test.py" -v
 
-      # @agentprism/client'in kendi kapisi (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
+      # @agentprism/client'in kendi kapisi (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md,
       # bolum 84.10): schema-drift + paths-coverage + error-mapping + prefix +
       # client testleri. `npm test`'e baglidir, `dotnet test`'e degil -- dort
       # kapinin suresi uretec/paket surumune baglanmaz.
@@ -213,7 +213,7 @@ jobs:
           --skip-duplicate
 
   # ---------------------------------------------------------------------------
-  # @agentprism/client -> npm.org (docs/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, bolum 84.11)
+  # @agentprism/client -> npm.org (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, bolum 84.11)
   #
   # NuGet yayiniyla AYNI 'v*' etiketinde tetiklenir ve surumu AYNI etiketten
   # turetir -- iki kanal boylece YAPISAL olarak eslesir, ayri bir surum dosyasi
