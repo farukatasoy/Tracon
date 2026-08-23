@@ -1,6 +1,6 @@
 # Faz 90 — Doküman Damıtma Politikası
 
-> **Durum:** 📋 Planlandı (2026-08-23)
+> **Durum:** ✅ Tamamlandı (2026-08-23)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 20** (F numarası yok; kullanıcı doğrudan seçti)
 > **Önkoşul:** Yok
 > **Paketler:** Yok — bu faz `scripts/`, `docs/` ve `.agents/skills/` üzerinde çalışır
@@ -400,31 +400,128 @@ dotnet build AgentPrism.slnx -c Release
 
 ---
 
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
-
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+Planın **iki mekanik kuralı ölçümle çürütüldü**; ikisi de aynı sınıftandı —
+"kısa olan yeterlidir" varsayımı, ayrıntının kanıt olduğu yerde.
+
+1. **DoD tek satıra özetlenmedi.** Plan 86 fazın tamamı ✅ olduğu için DoD'yi
+   `N/N ✅` satırına indirmeyi öngörüyordu. Ölçüldü: **11 fazın tek DoD'u**
+   işaretsiz kutu taşıyor ve o kutu kapanmamış bir işi kaydediyor
+   (`24-SQLITE.md`: "AOT ölçülmedi"). DoD **aynen** korunuyor; yalnız aynı
+   dosyada İKİ DoD varken planın işaretsiz kopyası düşüyor (5 dosya).
+   Sonucu: dosya başına bütçe 21.000 değil **31.000** (ölçülen max 26.068).
+
+2. **`docs/hafiza` dosyalarında 400 B madde tavanı uygulanmadı** (kullanıcı
+   kararı). `test-altyapisi.md:20` (1.296 B) 400 B'de kesilseydi kök sebep
+   kalır, **çözüm giderdi** — `MSBUILDDISABLENODEREUSE=1` ve 8 dk → 18,5 sn
+   ölçümü kuyruktaydı. Yerine K-214'ün merdiveni uygulandı: **eksene göre
+   gerçek bölünme**, sıfır bayt kaybı. Yedi dosya bölündü (planda üçtü);
+   `dokumantasyon.md` de bölündü çünkü tek bölümü dosyanın %31'ine ulaşmıştı.
+
+3. **Koşum damıtmasının "geçti → tek satır" kuralı daraltıldı.** Ölçüldü: geçen
+   1.061 case'in **254'ü** ⚠️/🚨/`düzeltme`/`kusur` işareti taşıyor —
+   `MT-RET-001` "Geçti" olduğu hâlde **iki doküman düzeltmesi** kaydediyor.
+   Düz kural 383 KB eylem taşıyan içeriği yok ederdi. `doküman` ve `eksik`
+   kelimeleri işaret kümesinden **çıkarıldı**: `MT-PKG-022` ("her pakette XML
+   dokümanı var") dokümana DAİR bir case'tir, doküman kusuru değil.
+
+4. **`karar-damit` tavanı yumuşatıldı.** 596 satırın **146'sında** iskelet
+   (başlık + tarih + koşul + işaretçi) tek başına 450 B'yi aşıyor. Plan bunları
+   atlıyordu; atlamak 146 satırı tümüyle damıtma dışı bırakırdı. Gerekçe yine
+   ilk cümleye indiriliyor, başlık ve koşul korunuyor. Sonuç 482 satır (366 değil).
+
+### Planda olmayan, ölçümle ortaya çıkan dört iş
+
+5. **Bağlantı kapısı kod bloğunu ayırt etmiyordu.** Bu fazın kendi planı
+   `docs/90-...md -> ../../ADAYLAR.md` diye kırık bağlantı ürettirdi: `LINK`
+   regex'i ham metni tarıyordu, bir dokümanın markdown ÖRNEĞİ göstermesi
+   yanlış pozitif oluyordu. Damıtma şablonu `INDEKS.md`'de anlatılamazdı.
+   `_kod_bloklarini_soy` eklendi — fence yalnız **sütun 0**'da tanınır: liste
+   öğesi içindeki kod bloğunun kapanış fence'i girintilidir
+   (`30-YEREL-REFERANS.md:451`) ve girintiliyi saysaydık o satır YENİ bir blok
+   açıp dosyanın geri kalanını kapıdan **sessizce** düşürürdü.
+
+6. **`MEMORY.md` yönlendirme tablosu ayrıldı.** Bölünmeler tabloyu 20 → 27
+   satıra çıkarınca dosya %1 boşluğa düştü. Tablo **alan sayısıyla**, tuzak
+   listesi **öğrenilen dersle** büyür — iki eğri tek bütçede sıkışıyordu
+   (`MIMARI.md` §7 ile aynı şekil, K-524). Tablo
+   [`docs/hafiza/00-INDEKS.md`](hafiza/00-INDEKS.md)'e taşındı ve **SORGU**
+   bağlamına kaydedildi: `faz-baslangic` Adım 1 onu okumaz, Adım 3 okur.
+   `MEMORY.md` 7.521 → 5.233 B (%6 → %35 boş).
+
+7. **18 sarkan karar işaretçisi kapatıldı.** Yeni kapı bulunca araştırıldı:
+   12'si arşivde **hiç geçmiyordu**, 6'sı yalnız değinilmişti — hiçbirinin
+   ayrı gerekçesi yoktu. İşaretçi 18 vakada da **yalan sözdü**; kaldırıldı.
+   İşaretçi metni standart olmadığı için (beş farklı yazım ölçüldü) kapı karar
+   numarasını satırın **kendi** `| **K-NNN` önekinden okur.
+
+8. **Taşınan gerekçelerin bağlantıları yeniden yazılmalıydı.** İlk uygulama
+   **292 kırık bağlantı** üretti — `docs/`e göre yazılmış bağlantılar
+   `docs/arsiv/`'den çözülmüyor. Script'in kendi yorumunda yazılı tuzağın
+   ta kendisi (Faz 58: önce 17, sonra 3).
+
+9. **🔁 işareti yanlış pozitif üretiyordu.** K-600 ifadeyi **alıntıladığı**
+   için "yeniden açılmış" göründü. Ayrıştırıcı şablonun iki noktasını
+   (`yeniden açıldı:`) ister hâle getirildi — altı gerçek kaydın hepsi taşıyor.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur.
+**K-597** (damıtma politikası · 👤) · **K-598** (git geçmişi + kanıtlayan kapı) ·
+**K-599** (`HARIC` korunur, her ağaca kendi bütçesi · 👤) · **K-600** (450 B
+karar tavanı, önce taşı sonra kes).
+
+Ledger'a girmeyen yerel tercihler burada kalır: `docs/hafiza` bölünmelerinin
+eksenleri, işaret kümeleri, alt komut adları.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+**Yok** — faz C# koduna dokunmadı. `src/` ve `tests/` altında tek satır
+değişmedi; `dotnet pack` sürümü `0.0.0-preview.0.310` → `.324` yalnız commit
+yüksekliğinden (MinVer) arttı.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+`git diff --stat efd5247..HEAD` — 146 dosya, +7.237 / −48.481 satır.
+
+- `scripts/dokuman-bakim.py` 906 → 1.701 satır · `dokuman_bakim_test.py` 259 → 866
+- `docs/hafiza/` 20 → **28** dosya (7 bölünme + `00-INDEKS.md`)
+- `docs/arsiv/fazlar/` 90 kayıt damıtıldı · `INDEKS.md` politikayı taşıyor
+- `.agents/skills/`: `faz-tamamlama`, `faz-baslangic`, `faz-planlama`,
+  `manuel-test-kosumu` · `AGENTS.md`, `MEMORY.md`, `README.md`
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+`faz-denetim` koşuldu — bulgular aşağıdadır.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+**Devraldığın sözleşmeler**
+
+- Faz kapanışı artık **iki komut** ister: `faz-arsivle <NN>` sonra
+  `faz-damit <NN>`. `faz-tamamlama` Adım 7 bunu yazıyor. Elle `mv` **kullanma**.
+- `--denetle` üç yeni kapı koşuyor: **tazelik** (üretilen dosyayı elle
+  üretmeden commit edersen kırmızı), **karar işaretçisi**, **tam metin SHA**.
+- Muaf ağaçların hepsinin bütçesi var. Yeni bir ağacı `HARIC`e eklersen
+  `test_muaf_agaclarin_hepsinin_butcesi_var` **kırılır** — bütçesini de yaz.
+
+🚨 **Tuzaklar**
+
+- `DIZIN_BUTCESI` anahtarı **üçlüdür**. `_dizin_boyutu(yol, oz)` varsayılanı
+  HARIC'i uygular ve `docs/arsiv` **kendini düşürüp 0 ölçer**.
+- Damıtma tanımadığı bölümü **düşürmez**, korur ve uyarır. `--kuru` çıktısındaki
+  uyarıları oku; cevabı **desen** olsun, ad listesi değil (98 tanınmayan ad var).
+- `kirik_baglantilar()` fence'i yalnız **sütun 0**'da tanır. Girintili fence'in
+  içi taranır — güvenli yön.
+- Bir dosyayı `docs/`'tan `docs/arsiv/`'e taşırken içindeki göreli bağlantıları
+  **mutlaka** yeniden yaz. `faz-arsivle` bunu yapar; elle taşırsan yapmaz.
+
+**Açık kalanlar**
+
+- **DAR 5 kalem:** `AGENTS.md` (%4), `README.md` (%4), `MIMARI-GUVENLIK.md`
+  (%10) — üçü de bu fazdan **önce** DAR'dı; `KARARLAR.md` (%14, %4'ten
+  iyileşti); `docs/manuel-test/*` (%10, **bilerek** kapsam dışı — envanter
+  kalem 9'un otomatikleştirme zinciri).
+- **F-130 üçüncü kez görüldü.** `Ui.E2ETests` tam koşumda kırılgan;
+  `docs/hafiza/test-kosum-tuzaklari.md` üç vakayı da kaydediyor. Artık bir
+  **sınıf**: o paket tam koşumda yalıtılmalı.

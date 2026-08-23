@@ -65,6 +65,7 @@
   ayni desen, bu kez `fill` sirasinda *"element was detached from the DOM"* (`UiTests.cs:1113`).
   Uc adim da kosuldu: tam kosumda dustu, izolasyonda 1/1, ikinci tam kosumda 56/56 gecti.
   Aday: **F-130**. Iki vaka ayni sinif -- `Ui.E2ETests` tam kosumda kaynak cekismesine acik.
+  **Ucuncu vaka (2026-08-23, Faz 90 kapanisi): AYNI test** (`Eval_suite_is_created_case_added_and_run_passes`). Uc adim yine kosuldu: tam kosumda 4956/4957 (bu tek test dustu), izolasyonda 1/1 (7,7 sn), ikinci tam kosum cikis kodu 0. Faz 90 C#'a, TypeScript'e ve frontend'e HIC dokunmadi -- nedensellik da dislaniyor. Uc vaka artik F-130'u bir **kirilganlik sinifi** olarak sabitliyor: `Ui.E2ETests` tam kosumda yalitilmali.
 
 - **🚨 `dotnet test ... | grep ... | head -N` KOSUMU ERKEN KESER.** `head` N
   satiri alinca boruyu kapatir, `dotnet test` SIGPIPE alir ve kalan test
