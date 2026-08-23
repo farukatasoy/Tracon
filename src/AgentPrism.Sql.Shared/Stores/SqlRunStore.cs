@@ -816,48 +816,48 @@ internal sealed class SqlRunStore : IRunStore
 
     private static RunRecord ReadRun(DbDataReader reader)
     {
-        var errorType = DbHelpers.GetNullableString(reader, 12);
+        var errorType = DbHelpers.GetNullableString(reader, RunOrdinals.ErrorType);
         var ownUsage = ReadUsage(reader);
         var ownCost = ReadCost(reader);
 
         return new RunRecord
         {
-            Id = reader.GetGuid(0),
-            TenantId = reader.GetString(1),
-            AgentName = reader.GetString(2),
-            SessionId = DbHelpers.GetNullableString(reader, 3),
-            Status = (RunStatus)reader.GetInt16(4),
-            StartedAt = DbHelpers.GetTimestamp(reader, 5),
-            CompletedAt = reader.IsDBNull(6) ? null : DbHelpers.GetTimestamp(reader, 6),
-            IsStreaming = reader.GetBoolean(7),
+            Id = reader.GetGuid(RunOrdinals.Id),
+            TenantId = reader.GetString(RunOrdinals.TenantId),
+            AgentName = reader.GetString(RunOrdinals.AgentName),
+            SessionId = DbHelpers.GetNullableString(reader, RunOrdinals.SessionId),
+            Status = (RunStatus)reader.GetInt16(RunOrdinals.Status),
+            StartedAt = DbHelpers.GetTimestamp(reader, RunOrdinals.StartedAt),
+            CompletedAt = reader.IsDBNull(RunOrdinals.CompletedAt) ? null : DbHelpers.GetTimestamp(reader, RunOrdinals.CompletedAt),
+            IsStreaming = reader.GetBoolean(RunOrdinals.IsStreaming),
             Usage = ownUsage,
-            EventCount = reader.GetInt64(11),
-            ModelId = DbHelpers.GetNullableString(reader, 14),
-            ParentRunId = reader.IsDBNull(15) ? null : reader.GetGuid(15),
-            RootRunId = reader.IsDBNull(16) ? null : reader.GetGuid(16),
-            Depth = reader.GetInt16(17),
-            ChildRunCount = reader.IsDBNull(18) ? 0 : reader.GetInt32(18),
+            EventCount = reader.GetInt64(RunOrdinals.EventCount),
+            ModelId = DbHelpers.GetNullableString(reader, RunOrdinals.ModelId),
+            ParentRunId = reader.IsDBNull(RunOrdinals.ParentRunId) ? null : reader.GetGuid(RunOrdinals.ParentRunId),
+            RootRunId = reader.IsDBNull(RunOrdinals.RootRunId) ? null : reader.GetGuid(RunOrdinals.RootRunId),
+            Depth = reader.GetInt16(RunOrdinals.Depth),
+            ChildRunCount = reader.IsDBNull(RunOrdinals.ChildCount) ? 0 : reader.GetInt32(RunOrdinals.ChildCount),
             TreeUsage = ReadTreeUsage(reader, ownUsage),
-            Kind = (RunKind)reader.GetInt16(23),
-            WorkflowName = DbHelpers.GetNullableString(reader, 24),
-            AgentVersion = reader.IsDBNull(25) ? null : reader.GetInt32(25),
-            ExperimentId = reader.IsDBNull(26) ? null : reader.GetGuid(26),
-            Variant = DbHelpers.GetNullableString(reader, 27),
+            Kind = (RunKind)reader.GetInt16(RunOrdinals.Kind),
+            WorkflowName = DbHelpers.GetNullableString(reader, RunOrdinals.WorkflowName),
+            AgentVersion = reader.IsDBNull(RunOrdinals.AgentVersion) ? null : reader.GetInt32(RunOrdinals.AgentVersion),
+            ExperimentId = reader.IsDBNull(RunOrdinals.ExperimentId) ? null : reader.GetGuid(RunOrdinals.ExperimentId),
+            Variant = DbHelpers.GetNullableString(reader, RunOrdinals.Variant),
             Cost = ownCost,
             TreeCost = ReadTreeCost(reader, ownCost),
 
-            // 🚨 39: Added at the END in Phase 47. NULL on old rows; that means
+            // Added at the END in Phase 47. NULL on old rows; that means
             // the row is not a replay.
-            ReplayOfRunId = reader.IsDBNull(39) ? null : reader.GetGuid(39),
+            ReplayOfRunId = reader.IsDBNull(RunOrdinals.ReplayOfRunId) ? null : reader.GetGuid(RunOrdinals.ReplayOfRunId),
 
-            // 🚨 40-41: Appended at the END in Phase 68. NULL on every row
+            // Appended at the END in Phase 68. NULL on every row
             // written before the columns existed, and on every run of an
             // application that registers no IRunAttributionContext (K-014 -- no
             // backfill).
-            UserId = DbHelpers.GetNullableString(reader, 40),
-            Labels = JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, 41)),
+            UserId = DbHelpers.GetNullableString(reader, RunOrdinals.UserId),
+            Labels = JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, RunOrdinals.Labels)),
 
-            // 🚨 37-38: Columns ALWAYS appended at the end (Phase 44). On old
+            // Columns ALWAYS appended at the end (Phase 44). On old
             // rows error_class is NULL -- it falls into the Unknown bucket
             // (RunStatistics.ByErrorClass, K-014 -- no backfill).
             Error = errorType is null
@@ -865,15 +865,15 @@ internal sealed class SqlRunStore : IRunStore
                 : new RunError
                 {
                     Type = errorType,
-                    Message = DbHelpers.GetNullableString(reader, 13) ?? string.Empty,
-                    Class = reader.IsDBNull(37) ? null : (RunErrorClass)reader.GetInt16(37),
-                    Fingerprint = DbHelpers.GetNullableString(reader, 38),
+                    Message = DbHelpers.GetNullableString(reader, RunOrdinals.ErrorMessage) ?? string.Empty,
+                    Class = reader.IsDBNull(RunOrdinals.ErrorClass) ? null : (RunErrorClass)reader.GetInt16(RunOrdinals.ErrorClass),
+                    Fingerprint = DbHelpers.GetNullableString(reader, RunOrdinals.ErrorFingerprint),
                 },
 
-            // 🚨 52: Added at the END in Phase 87 (after tree.cost_cached_input,
+            // Added at the END in Phase 87 (after tree.cost_cached_input,
             // the last column Phase 68 appended). NULL on every row written
             // before the column existed, and on every run that is not a continuation.
-            ContinuedFromRunId = reader.IsDBNull(52) ? null : reader.GetGuid(52),
+            ContinuedFromRunId = reader.IsDBNull(RunOrdinals.ContinuedFromRunId) ? null : reader.GetGuid(RunOrdinals.ContinuedFromRunId),
         };
     }
 
@@ -887,7 +887,7 @@ internal sealed class SqlRunStore : IRunStore
     /// </remarks>
     private static RunUsage? ReadTreeUsage(DbDataReader reader, RunUsage? ownUsage)
     {
-        var descendantRows = reader.IsDBNull(22) ? 0 : reader.GetInt64(22);
+        var descendantRows = reader.IsDBNull(RunOrdinals.UsageRows) ? 0 : reader.GetInt64(RunOrdinals.UsageRows);
 
         if (descendantRows == 0 && ownUsage is null)
         {
@@ -896,18 +896,18 @@ internal sealed class SqlRunStore : IRunStore
 
         return new RunUsage
         {
-            InputTokens = (reader.IsDBNull(19) ? 0 : reader.GetInt64(19)) + (ownUsage?.InputTokens ?? 0),
-            OutputTokens = (reader.IsDBNull(20) ? 0 : reader.GetInt64(20)) + (ownUsage?.OutputTokens ?? 0),
-            TotalTokens = (reader.IsDBNull(21) ? 0 : reader.GetInt64(21)) + (ownUsage?.TotalTokens ?? 0),
+            InputTokens = (reader.IsDBNull(RunOrdinals.TreeInputTokens) ? 0 : reader.GetInt64(RunOrdinals.TreeInputTokens)) + (ownUsage?.InputTokens ?? 0),
+            OutputTokens = (reader.IsDBNull(RunOrdinals.TreeOutputTokens) ? 0 : reader.GetInt64(RunOrdinals.TreeOutputTokens)) + (ownUsage?.OutputTokens ?? 0),
+            TotalTokens = (reader.IsDBNull(RunOrdinals.TreeTotalTokens) ? 0 : reader.GetInt64(RunOrdinals.TreeTotalTokens)) + (ownUsage?.TotalTokens ?? 0),
 
-            // 🚨 Ordinals 47-50 use a NULL-PRESERVING sum, unlike the three
-            // totals above: the SQL text deliberately does NOT COALESCE them to
-            // zero, so "nobody in this tree reported cache usage" survives as
-            // null instead of becoming an observed zero.
-            CachedInputTokens = AddTreeCounter(reader, 47, ownUsage?.CachedInputTokens),
-            ReasoningTokens = AddTreeCounter(reader, 48, ownUsage?.ReasoningTokens),
-            AudioInputTokens = AddTreeCounter(reader, 49, ownUsage?.AudioInputTokens),
-            AudioOutputTokens = AddTreeCounter(reader, 50, ownUsage?.AudioOutputTokens),
+            // 🚨 The tree cache/reasoning/audio ordinals use a NULL-PRESERVING
+            // sum, unlike the three totals above: the SQL text deliberately
+            // does NOT COALESCE them to zero, so "nobody in this tree reported
+            // cache usage" survives as null instead of becoming an observed zero.
+            CachedInputTokens = AddTreeCounter(reader, RunOrdinals.TreeCachedInputTokens, ownUsage?.CachedInputTokens),
+            ReasoningTokens = AddTreeCounter(reader, RunOrdinals.TreeReasoningTokens, ownUsage?.ReasoningTokens),
+            AudioInputTokens = AddTreeCounter(reader, RunOrdinals.TreeAudioInputTokens, ownUsage?.AudioInputTokens),
+            AudioOutputTokens = AddTreeCounter(reader, RunOrdinals.TreeAudioOutputTokens, ownUsage?.AudioOutputTokens),
         };
     }
 
@@ -920,28 +920,29 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <remarks>
-    /// Ordinals 42-45 are the token breakdown. They participate in the
-    /// "did the provider report anything at all" test below: a provider that
-    /// reports ONLY a cache count still measured something, and returning
-    /// <see langword="null"/> would throw that measurement away.
+    /// The token breakdown ordinals participate in the "did the provider report
+    /// anything at all" test below: a provider that reports ONLY a cache count
+    /// still measured something, and returning <see langword="null"/> would
+    /// throw that measurement away.
     /// </remarks>
     private static RunUsage? ReadUsage(DbDataReader reader)
     {
-        if (reader.IsDBNull(8) && reader.IsDBNull(9) && reader.IsDBNull(10)
-            && reader.IsDBNull(42) && reader.IsDBNull(43) && reader.IsDBNull(44) && reader.IsDBNull(45))
+        if (reader.IsDBNull(RunOrdinals.InputTokens) && reader.IsDBNull(RunOrdinals.OutputTokens) && reader.IsDBNull(RunOrdinals.TotalTokens)
+            && reader.IsDBNull(RunOrdinals.CachedInputTokens) && reader.IsDBNull(RunOrdinals.ReasoningTokens)
+            && reader.IsDBNull(RunOrdinals.AudioInputTokens) && reader.IsDBNull(RunOrdinals.AudioOutputTokens))
         {
             return null;
         }
 
         return new RunUsage
         {
-            InputTokens = reader.IsDBNull(8) ? null : reader.GetInt64(8),
-            OutputTokens = reader.IsDBNull(9) ? null : reader.GetInt64(9),
-            TotalTokens = reader.IsDBNull(10) ? null : reader.GetInt64(10),
-            CachedInputTokens = reader.IsDBNull(42) ? null : reader.GetInt64(42),
-            ReasoningTokens = reader.IsDBNull(43) ? null : reader.GetInt64(43),
-            AudioInputTokens = reader.IsDBNull(44) ? null : reader.GetInt64(44),
-            AudioOutputTokens = reader.IsDBNull(45) ? null : reader.GetInt64(45),
+            InputTokens = reader.IsDBNull(RunOrdinals.InputTokens) ? null : reader.GetInt64(RunOrdinals.InputTokens),
+            OutputTokens = reader.IsDBNull(RunOrdinals.OutputTokens) ? null : reader.GetInt64(RunOrdinals.OutputTokens),
+            TotalTokens = reader.IsDBNull(RunOrdinals.TotalTokens) ? null : reader.GetInt64(RunOrdinals.TotalTokens),
+            CachedInputTokens = reader.IsDBNull(RunOrdinals.CachedInputTokens) ? null : reader.GetInt64(RunOrdinals.CachedInputTokens),
+            ReasoningTokens = reader.IsDBNull(RunOrdinals.ReasoningTokens) ? null : reader.GetInt64(RunOrdinals.ReasoningTokens),
+            AudioInputTokens = reader.IsDBNull(RunOrdinals.AudioInputTokens) ? null : reader.GetInt64(RunOrdinals.AudioInputTokens),
+            AudioOutputTokens = reader.IsDBNull(RunOrdinals.AudioOutputTokens) ? null : reader.GetInt64(RunOrdinals.AudioOutputTokens),
         };
     }
 
@@ -953,21 +954,21 @@ internal sealed class SqlRunStore : IRunStore
     /// </summary>
     private static RunCost? ReadCost(DbDataReader reader)
     {
-        if (reader.IsDBNull(31))
+        if (reader.IsDBNull(RunOrdinals.PricingSource))
         {
             return null;
         }
 
         return new RunCost
         {
-            InputCost = DbHelpers.GetNullableDecimal(reader, 28),
-            OutputCost = DbHelpers.GetNullableDecimal(reader, 29),
+            InputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.InputCost),
+            OutputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.OutputCost),
 
-            // Ordinal 46, appended in phase 68. NULL when no cache rate was
+            // Appended in phase 68. NULL when no cache rate was
             // configured -- which is NOT the same as PricingSource.Unknown.
-            CachedInputCost = DbHelpers.GetNullableDecimal(reader, 46),
-            Currency = DbHelpers.GetNullableString(reader, 30),
-            Source = (PricingSource)reader.GetInt16(31),
+            CachedInputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.CachedInputCost),
+            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.CostCurrency),
+            Source = (PricingSource)reader.GetInt16(RunOrdinals.PricingSource),
         };
     }
 
@@ -975,15 +976,15 @@ internal sealed class SqlRunStore : IRunStore
     /// <remarks>Same rationale as <see cref="ReadTreeUsage"/>.</remarks>
     private static RunTreeCost? ReadTreeCost(DbDataReader reader, RunCost? ownCost)
     {
-        var pricedDescendants = reader.IsDBNull(36) ? 0 : reader.GetInt64(36);
+        var pricedDescendants = reader.IsDBNull(RunOrdinals.PricingRows) ? 0 : reader.GetInt64(RunOrdinals.PricingRows);
 
         if (pricedDescendants == 0 && ownCost is null)
         {
             return null;
         }
 
-        var inputCost = DbHelpers.GetNullableDecimal(reader, 32);
-        var outputCost = DbHelpers.GetNullableDecimal(reader, 33);
+        var inputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeCostInput);
+        var outputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeCostOutput);
 
         if (ownCost?.InputCost is { } ownInput)
         {
@@ -995,13 +996,13 @@ internal sealed class SqlRunStore : IRunStore
             outputCost = (outputCost ?? 0) + ownOutput;
         }
 
-        var unknownPricing = (reader.IsDBNull(35) ? 0 : reader.GetInt64(35))
+        var unknownPricing = (reader.IsDBNull(RunOrdinals.UnknownPricingRows) ? 0 : reader.GetInt64(RunOrdinals.UnknownPricingRows))
             + (ownCost?.Source == PricingSource.Unknown ? 1 : 0);
 
-        // Ordinal 51: the descendants' cache charge. A THIRD addend of the tree
-        // total, not a subset of InputCost -- every run's own InputCost already
-        // excludes its cached tokens.
-        var cachedInputCost = DbHelpers.GetNullableDecimal(reader, 51);
+        // The descendants' cache charge: a THIRD addend of the tree total, not
+        // a subset of InputCost -- every run's own InputCost already excludes
+        // its cached tokens.
+        var cachedInputCost = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeCostCachedInput);
 
         if (ownCost?.CachedInputCost is { } ownCached)
         {
@@ -1013,7 +1014,7 @@ internal sealed class SqlRunStore : IRunStore
             InputCost = inputCost,
             OutputCost = outputCost,
             CachedInputCost = cachedInputCost,
-            Currency = DbHelpers.GetNullableString(reader, 34) ?? ownCost?.Currency,
+            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.TreeCostCurrency) ?? ownCost?.Currency,
             RunsWithUnknownPricing = unknownPricing,
         };
     }
