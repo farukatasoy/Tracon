@@ -105,11 +105,21 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 
 ### 3. Tekrarlayan kusur sınıfları yalnız dokümanla korunuyor · 📋 Faz
 
-> **Durum:** 📋 KISMEN planlandı (2026-08-23) — script ile yakalanabilen
-> kalemler [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi.
-> Roslyn analyzer kuralları (a/b/c) **hâlâ açıktır** ve ayrı bir faz ister.
+> **Durum:** 📋 Planlandı (2026-08-23) — script ile yakalanabilen kalemler
+> [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi; kalanı
+> [Faz 93](../93-KUSUR-SINIFI-KAPILARI.md)'tür.
+>
+> **Plan anında ölçülen düzeltme:** (a) kuralı **sevk edilen bir analyzer kuralı
+> olarak yazılamaz** — "async metotta ambient yazımı" bugünkü kodda altı kez öter
+> ve altısı da doğrudur (`AsyncLocal` yazımı aşağı akar, yukarı akmaz). Faz 93
+> sınıfı üçe böler: `APG0501` (akışlı yolda yineleme dışı yazım) ve `APG0502`
+> (ambient kapsamın `IDisposable`'ı atıldı) sevk edilir; yardımcı-metot vakası
+> taban çizgili bir repo kapısı olur. (b) kuralının C# tarafı **zaten kapalıdır**
+> (`RunCost.Total()`, `CostTotals.Total()`); canlı 18 vakası SQL metnindedir ve
+> [Faz 94](../94-SQL-TEK-KAYNAK.md)'e gitti. Playwright locator sınıfı (3 tekrar)
+> Faz 93'e eklendi.
 
-**Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:22`](../hafiza/cekirdek-calistirma.md)
+**Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:18`](../hafiza/cekirdek-calistirma.md)
 `AsyncLocal` / `Activity.Current` kusurunun **üç vakasını** kaydediyor (Faz 6, 11, 12);
 [`MEMORY.md`](../../MEMORY.md) senkronizasyon kopyasını **beş kez** yaşandı diye
 yazıyor. K-483: elle tekrarlanan `InputCost + OutputCost` ifadesine üçüncü terim
@@ -207,6 +217,17 @@ tip, dolum listesini kalıcı olarak küçültür.
 ---
 
 ### 8. Üç SQL dialect'inde ~7.000 satır elle yazılmış sorgu · 📋 Faz
+
+> **Durum:** 📋 Planlandı (2026-08-23) — [Faz 94](../94-SQL-TEK-KAYNAK.md).
+>
+> **Plan anında yapılan ölçüm** ("ölçüm ve karar ister" maddesinin cevabı):
+> 199 ortak sorgunun **117'si** (%59) üç dialect'te özdeştir — ama şema
+> niteleyicisi yüzünden bugün **hiçbiri** paylaşılamaz (PostgreSQL/SQL Server
+> `{Schema}.runs`, SQLite `{Schema}runs`). Bu 117 sorgu, sorgu bloklarının yalnız
+> **%37**'sidir (dialect başına ~610 satır): birleştirme ~**1.220** satır düşürür,
+> 7.000'in tamamını değil. Kalan 82 sorgu gerçekten farklıdır ve birleştirilmez.
+> Asıl kazanç satır değil kusur sınıfıdır: maliyet toplama ifadesi **18 yerde**
+> elle yazılıdır. Faz 94 iki ekseni birden alır.
 
 **Ölçüm:** [`SqlServerQueries.cs`](../../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs)
 2.477 + [`PostgresQueries.cs`](../../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs)

@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (93 kalem)
+## Fazlar (95 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -105,5 +105,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [90](arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md) | Doküman Damıtma Politikası | ✅ Tamamlandı |
 | [91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) | Geliştirme Döngüsü Kapıları | ✅ Tamamlandı |
 | [92](arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md) | Zincir Konsolidasyonu | ✅ Tamamlandı |
+| [93](93-KUSUR-SINIFI-KAPILARI.md) | Kusur Sınıfı Kapıları | 📋 Planlandı |
+| [94](94-SQL-TEK-KAYNAK.md) | SQL Tek Kaynak | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
