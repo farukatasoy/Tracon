@@ -104,6 +104,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [89](arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | ✅ Tamamlandı |
 | [90](arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md) | Doküman Damıtma Politikası | ✅ Tamamlandı |
 | [91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) | Geliştirme Döngüsü Kapıları | ✅ Tamamlandı |
-| [92](92-ZINCIR-KONSOLIDASYONU.md) | Zincir Konsolidasyonu | ✅ Tamamlandı |
+| [92](arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md) | Zincir Konsolidasyonu | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
