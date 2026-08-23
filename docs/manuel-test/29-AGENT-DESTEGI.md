@@ -418,3 +418,61 @@ curl -s http://localhost:5082/jobs/bridge-state
 farkı ~1 sn'nin altındadır — köprünün dolması modelin/koşunun hızını
 **etkilememiştir**. Uygulama loglarında `BoundedChannelRunEventSink`'in
 "dropped" uyarı satırları görünür.
+
+---
+
+### MT-AGD-021 — `APG0501`/`APG0502` gerçek tüketici derlemesinde öter — Faz 93
+
+> Otomatik eşdeğeri koşuldu ve yeşildir:
+> `tests/AgentPrism.Generators.UnitTests/UsageAnalyzerTests.cs` (`APG0501_*`, `APG0502_*`).
+> Bu case, sentetik derleme yerine **gerçek paket dağıtım yolunu**
+> (`analyzers/dotnet/cs/`) kanıtlar.
+
+**Ön koşul:** §2'nin tüketici projesi.
+
+**Adımlar:**
+1. `src/Consumer/Program.cs`'e aşağıdaki metodu ekle (döngü dışında yazan,
+   döngü içinde tekrarlamayan `async IAsyncEnumerable`):
+   ```csharp
+   using AgentPrism;
+   using System.Collections.Generic;
+   using System.Runtime.CompilerServices;
+
+   static class Streaming
+   {
+       public static async IAsyncEnumerable<int> BadAsync(
+           IAsyncEnumerator<int> source,
+           AgentRunScope scope,
+           [EnumeratorCancellation] CancellationToken cancellationToken = default)
+       {
+           AgentPrismRunContext.SetCurrent(scope);
+
+           while (true)
+           {
+               if (!await source.MoveNextAsync())
+               {
+                   break;
+               }
+
+               yield return source.Current;
+           }
+       }
+   }
+   ```
+2. `dotnet build src/Consumer/Consumer.csproj -c Release`
+3. Yazımı döngü içine taşı (`AgentPrismRunContext.SetCurrent(scope);` satırını
+   `while` gövdesinin başına taşı, döngü dışındakini sil); tekrar build et.
+4. `AmbientTenantScope.Begin("t1");` satırını `using` OLMADAN, ayrı bir statik
+   metoda ekle; build et.
+5. `Consumer.csproj`'a `<AgentPrismUsageDiagnostics>false</AgentPrismUsageDiagnostics>`
+   ekle; build et.
+
+**Beklenen sonuç:**
+- Adım 2: `warning APG0501` çıkar; mesaj `MoveNextAsync` öncesi tekrarı adlandırır.
+- Adım 3: Uyarı **kaybolur**.
+- Adım 4: `warning APG0502` çıkar.
+- Adım 5: İki uyarı da **çıkmaz**.
+
+Gerçek koşum (2026-08-24, `AgentPrism 0.0.0-preview.0.340` yerel besleme,
+`analyzers/dotnet/cs/` üzerinden): beş adım da beklenen sonucu verdi —
+adım 2 `APG0501`, adım 3 sessiz, adım 4 `APG0502`, adım 5 sessiz.

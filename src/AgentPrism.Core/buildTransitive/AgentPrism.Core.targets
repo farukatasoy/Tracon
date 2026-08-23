@@ -65,7 +65,7 @@
     instead of writing one .editorconfig entry per diagnostic.
   -->
   <PropertyGroup Condition="'$(AgentPrismUsageDiagnostics)' == 'false'">
-    <NoWarn>$(NoWarn);APG0101;APG0102;APG0201;APG0301;APG0302;APG0401;APG0402</NoWarn>
+    <NoWarn>$(NoWarn);APG0101;APG0102;APG0201;APG0301;APG0302;APG0401;APG0402;APG0501;APG0502</NoWarn>
   </PropertyGroup>
 
   <!--

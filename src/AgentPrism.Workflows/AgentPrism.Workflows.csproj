@@ -12,6 +12,18 @@
 
   <ItemGroup>
     <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+    <!--
+      OutputItemType=Analyzer does not propagate across a multi-hop
+      ProjectReference chain (measured, docs/hafiza/analyzer-yazimi.md): Core
+      already references AgentPrism.Generators this way, but that reference is
+      not transitive, so Workflows needs its own. A real (package) consumer is
+      unaffected - the analyzer reaches them through analyzers/dotnet/cs/ in
+      Core's nupkg, which IS transitive.
+    -->
+    <ProjectReference Include="../AgentPrism.Generators/AgentPrism.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>
