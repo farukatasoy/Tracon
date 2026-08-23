@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-23)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **8**. Bu faz bir `F-NN` adayından gelmez.
-> **Önkoşul:** [Faz 93](93-KUSUR-SINIFI-KAPILARI.md) — zorunlu değil, ama sıra kullanıcı tarafından böyle seçildi: önce kusur sınıfı kapıları, sonra bu faz. Faz 93 bu fazın kapsamındaki C# tarafını (K-483'ün `RunCost.Total()` ikizi) etkilemez
+> **Önkoşul:** [Faz 93](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) — zorunlu değil, ama sıra kullanıcı tarafından böyle seçildi: önce kusur sınıfı kapıları, sonra bu faz. Faz 93 bu fazın kapsamındaki C# tarafını (K-483'ün `RunCost.Total()` ikizi) etkilemez
 > **Paketler:** `AgentPrism.Sql.Shared` (bağlı kaynak, K-176), `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`
 > **Yeni paket:** Yok · **Migration:** **Yok** — bu faz şemaya dokunmaz, yalnız SQL **metninin** nerede yaşadığını değiştirir
 > **Public API:** Büyümüyor. Ölçüldü 2026-08-23: `PublicAPI.Unshipped.txt` 8.079 satır, `Shipped.txt` boş. `SqlQueriesBase`, `SqlDialect` ve `Sql*Store` tiplerinin tamamı `internal`'dır
@@ -23,7 +23,7 @@
    sed -n '16,17p;29,30p' docs/KARARLAR.md   # EF Core REDDEDILDI — bu faz ORM önermez
    ```
    **K-176** (`Sql.Shared` paket değil, bağlı kaynak), **K-193** (SQLite tablo öneki noktasızdır), **K-194** (yeni sağlayıcı sözleşme testi yazmaz, koşucu türetir), **K-247** (bağlı kaynak tipin `internal` işareti çapraz derleme sayımında güvenilmez), **K-259** (`EXISTS` korelasyonunda bare tablo adı yazma), **K-479** (`runs.labels` süzgeci üç dialektte farklıdır), **K-483** (elle tekrarlanan toplama ifadesi — **bu fazın çekirdeği**)
-3. [`93-KUSUR-SINIFI-KAPILARI.md`](93-KUSUR-SINIFI-KAPILARI.md) — yalnız devir notu:
+3. [`93-KUSUR-SINIFI-KAPILARI.md`](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/93-KUSUR-SINIFI-KAPILARI.md
    ```

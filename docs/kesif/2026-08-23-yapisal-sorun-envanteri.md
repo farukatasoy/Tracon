@@ -107,7 +107,7 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 
 > **Durum:** 📋 Planlandı (2026-08-23) — script ile yakalanabilen kalemler
 > [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi; kalanı
-> [Faz 93](../93-KUSUR-SINIFI-KAPILARI.md)'tür.
+> [Faz 93](../arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md)'tür.
 >
 > **Plan anında ölçülen düzeltme:** (a) kuralı **sevk edilen bir analyzer kuralı
 > olarak yazılamaz** — "async metotta ambient yazımı" bugünkü kodda altı kez öter
