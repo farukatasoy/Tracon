@@ -589,6 +589,388 @@ public sealed class UsageAnalyzerTests
     }
 
     [Fact]
+    public async Task APG0501_reports_a_loop_that_does_not_repeat_the_ambient_write()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using AgentPrism;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerator<int> source,
+                    AgentRunScope scope,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    AgentPrismRunContext.SetCurrent(scope);
+
+                    while (true)
+                    {
+                        if (!await source.MoveNextAsync())
+                        {
+                            break;
+                        }
+
+                        yield return source.Current;
+                    }
+                }
+            }
+            """);
+
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("APG0501");
+        reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
+        reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("StreamAsync");
+    }
+
+    [Fact]
+    public async Task APG0501_is_silent_when_the_write_repeats_inside_the_loop()
+    {
+        var source = """
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using AgentPrism;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerator<int> source,
+                    AgentRunScope scope,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    while (true)
+                    {
+                        AgentPrismRunContext.SetCurrent(scope);
+
+                        if (!await source.MoveNextAsync())
+                        {
+                            break;
+                        }
+
+                        yield return source.Current;
+                    }
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// A container loop must not be reported as if its own body were the
+    /// enumeration boundary, and the leaf loop it contains must still be
+    /// evaluated on its own account. Measured against AgentPrism's own code
+    /// (phase 93): the naive shape - "does the outer loop's body carry the
+    /// write, anywhere inside it" - read the inner loop's write as covering
+    /// the outer loop too, and separately never gave the inner loop its own
+    /// verdict. <see cref="AgentPrismUsageAnalyzer"/>'s remarks on
+    /// <c>ImmediateDescendants</c> record the real production shape this
+    /// guards.
+    /// </summary>
+    [Fact]
+    public async Task APG0501_evaluates_a_nested_loop_on_its_own_account()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using AgentPrism;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerator<IAsyncEnumerator<int>> batches,
+                    AgentRunScope scope,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    AgentPrismRunContext.SetCurrent(scope);
+
+                    while (await batches.MoveNextAsync())
+                    {
+                        var inner = batches.Current;
+
+                        while (true)
+                        {
+                            if (!await inner.MoveNextAsync())
+                            {
+                                break;
+                            }
+
+                            yield return inner.Current;
+                        }
+                    }
+                }
+            }
+            """);
+
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("APG0501");
+    }
+
+    /// <summary>
+    /// A plain <c>await foreach</c> that only reshapes what it consumes - no
+    /// further await, no nested call - is safe by construction: whatever it
+    /// enumerates owns its own ambient safety. This is
+    /// <c>WorkflowRunner.RunGuardedAsync</c>'s own shape.
+    /// </summary>
+    [Fact]
+    public async Task APG0501_is_silent_for_an_await_foreach_passthrough_with_no_further_await()
+    {
+        var source = """
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using AgentPrism;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerable<int> source,
+                    AgentRunScope scope,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    AgentPrismRunContext.SetCurrent(scope);
+
+                    await foreach (var value in source)
+                    {
+                        yield return value;
+                    }
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Open soru 1 (phase 93): an <c>await foreach</c> is not exempt just
+    /// because it is a <c>foreach</c> - a further await inside its body is the
+    /// same MoveNextAsync boundary as any other loop.
+    /// </summary>
+    [Fact]
+    public async Task APG0501_reports_an_await_foreach_with_a_further_unguarded_await()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using AgentPrism;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerable<int> source,
+                    AgentRunScope scope,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    AgentPrismRunContext.SetCurrent(scope);
+
+                    await foreach (var value in source)
+                    {
+                        await Task.Yield();
+
+                        yield return value;
+                    }
+                }
+            }
+            """);
+
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("APG0501");
+    }
+
+    [Fact]
+    public async Task APG0501_is_silent_for_a_method_that_never_writes_ambient_state()
+    {
+        var source = """
+            using System.Collections.Generic;
+            using System.Runtime.CompilerServices;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public sealed class Streamer
+            {
+                public async IAsyncEnumerable<int> StreamAsync(
+                    IAsyncEnumerator<int> source,
+                    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+                {
+                    while (true)
+                    {
+                        if (!await source.MoveNextAsync())
+                        {
+                            break;
+                        }
+
+                        yield return source.Current;
+                    }
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task APG0502_reports_a_discarded_ambient_scope()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId) => AmbientTenantScope.Begin(tenantId);
+            }
+            """);
+
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("APG0502");
+        reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
+        reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("AmbientTenantScope.Begin");
+    }
+
+    [Fact]
+    public async Task APG0502_reports_a_scope_assigned_to_a_discard()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId) => _ = AmbientTenantScope.Begin(tenantId);
+            }
+            """);
+
+        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("APG0502");
+    }
+
+    [Fact]
+    public async Task APG0502_is_silent_for_a_using_var_declaration()
+    {
+        var source = """
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId)
+                {
+                    using var scope = AmbientTenantScope.Begin(tenantId);
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task APG0502_is_silent_for_a_using_statement()
+    {
+        var source = """
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId)
+                {
+                    using (AmbientTenantScope.Begin(tenantId))
+                    {
+                    }
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>Open soru 4 (phase 93): a plain variable keeps a handle on the scope, whether or not it disposes it.</summary>
+    [Fact]
+    public async Task APG0502_is_silent_for_a_plain_local_variable()
+    {
+        var source = """
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId)
+                {
+                    var scope = AmbientTenantScope.Begin(tenantId);
+                    scope.Dispose();
+                }
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>The result reaching an argument keeps a handle on it just as well as a variable does.</summary>
+    [Fact]
+    public async Task APG0502_is_silent_when_the_result_is_passed_as_an_argument()
+    {
+        var source = """
+            using System;
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string tenantId) => Keep(AmbientTenantScope.Begin(tenantId));
+
+                private static void Keep(IDisposable scope) => scope.Dispose();
+            }
+            """;
+
+        AnalyzerTestHelper.ShouldCompileCleanly(source);
+
+        var diagnostics = await AnalyzerTestHelper.RunAsync(source);
+
+        diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task APG0502_reports_a_discarded_attribution_scope()
+    {
+        var diagnostics = await AnalyzerTestHelper.RunAsync("""
+            using AgentPrism;
+
+            public static class Jobs
+            {
+                public static void Run(string userId) => AmbientRunAttributionScope.Begin(userId, null);
+            }
+            """);
+
+        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("APG0502");
+    }
+
+    [Fact]
     public async Task Correct_wiring_reports_nothing()
     {
         var source = $$"""

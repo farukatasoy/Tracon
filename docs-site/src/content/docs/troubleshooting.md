@@ -534,6 +534,8 @@ source-generated path, or accept and document that the application is not AOT-sa
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
 | `APG0401` | `AgentPrism.Usage` | `AGENTS.md` was generated from an older capability map. |
 | `APG0402` | `AgentPrism.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
+| `APG0501` | `AgentPrism.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
+| `APG0502` | `AgentPrism.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
 
 Each message names the API that resolves it, and each diagnostic links to the
 section of the [capability map](/capabilities/) that documents it.
@@ -667,6 +669,65 @@ map and the API documentation of the installed version.
 there. It stays silent in two other cases as well: while the property above is off,
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
+
+### An ambient write does not survive a streaming loop (APG0501)
+
+`AgentPrismRunContext.SetCurrent`, `AmbientTenantScope.Begin`, `AmbientRunAttributionScope.Begin`,
+and `ActivitySource.StartActivity` all write through an `AsyncLocal<T>`. An assignment
+made inside an `async` iterator's body does not cross a `yield return`: the driver
+restores the execution context, and the next step of the loop starts with a null or
+stale scope, so a nested call inside it reads the wrong tenant, run, or span.
+
+```csharp
+// Wrong: the write happens once, before the loop starts.
+AgentPrismRunContext.SetCurrent(scope);
+
+while (true)
+{
+    if (!await enumerator.MoveNextAsync())
+    {
+        break;
+    }
+
+    yield return enumerator.Current;
+}
+```
+
+```csharp
+// Right: the write repeats immediately before every step that advances the
+// enumeration.
+while (true)
+{
+    AgentPrismRunContext.SetCurrent(scope);
+
+    if (!await enumerator.MoveNextAsync())
+    {
+        break;
+    }
+
+    yield return enumerator.Current;
+}
+```
+
+The diagnostic is reported on the loop, not on the write: move the assignment it
+names into the loop the warning points at, immediately before the call that advances
+the enumeration.
+
+### A `Begin(...)` scope is opened without being restored (APG0502)
+
+`AmbientTenantScope.Begin(...)` and `AmbientRunAttributionScope.Begin(...)` return an
+`IDisposable` for exactly one reason: disposing it restores the ambient value that was
+there before the scope opened. A call whose result is never assigned anywhere never
+restores it, and the value it set stays visible for the rest of the current execution
+context.
+
+```csharp
+// Wrong: the scope is never restored.
+AmbientTenantScope.Begin(tenantId);
+
+// Right.
+using var scope = AmbientTenantScope.Begin(tenantId);
+```
 
 ### The agent knows a capability exists but not how to call it
 

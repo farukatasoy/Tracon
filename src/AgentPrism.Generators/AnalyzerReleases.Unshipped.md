@@ -19,3 +19,5 @@ APG0301 | AgentPrism.Usage | Warning | A retry loop is written by hand around a 
 APG0302 | AgentPrism.Usage | Warning | An agent is wrapped by hand. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0401 | AgentPrism.Usage | Warning | The agent map file is stale. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 APG0402 | AgentPrism.Usage | Warning | The agent instructions never point at the local reference file. See docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
+APG0501 | AgentPrism.Usage | Warning | An ambient write is not repeated inside an async iterator's loop. See docs/93-KUSUR-SINIFI-KAPILARI.md
+APG0502 | AgentPrism.Usage | Warning | An ambient scope is opened and never restored. See docs/93-KUSUR-SINIFI-KAPILARI.md
