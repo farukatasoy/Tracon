@@ -803,5 +803,36 @@ class DizinButcesiTestleri(unittest.TestCase):
                                  dokuman_bakim.DAMITILMIS_FAZ_BUTCESI, f.name)
 
 
+class YenidenKonumlandirmaTestleri(unittest.TestCase):
+    """`_yeniden_konumlandir` — `docs/` -> `docs/arsiv/fazlar/` taşımasında
+    dosyanın İÇİNDEKİ göreli bağlantılar. Faz 58'de bu iş elle yapıldı ve önce
+    17, sonra 3 bağlantı kırdı."""
+
+    def _tasi(self, metin):
+        return dokuman_bakim._yeniden_konumlandir(metin, "docs", "docs/arsiv/fazlar")
+
+    def test_kardes_dosya_iki_seviye_yukari_cikar(self):
+        self.assertIn("](../../MIMARI.md)", self._tasi("[x](MIMARI.md)"))
+
+    def test_ayni_dizine_gelen_hedef_sadelesir(self):
+        self.assertIn("](78-X.md)", self._tasi("[x](arsiv/fazlar/78-X.md)"))
+
+    def test_arsiv_kokundeki_hedef_bir_seviye_yukari(self):
+        self.assertIn("](../KARARLAR-GECMISI.md)", self._tasi("[x](arsiv/KARARLAR-GECMISI.md)"))
+
+    def test_repo_koku_disina_cikan_hedef(self):
+        self.assertIn("](../../../src/A/B.cs)", self._tasi("[x](../src/A/B.cs)"))
+
+    def test_capa_korunur(self):
+        self.assertIn("](../../MIMARI.md#bolum-7)", self._tasi("[x](MIMARI.md#bolum-7)"))
+
+    def test_dis_adres_ve_site_mutlak_dokunulmaz(self):
+        for h in ("https://x.dev/a", "/reference/compatibility/"):
+            self.assertIn(f"]({h})", self._tasi(f"[x]({h})"))
+
+    def test_alt_dizin_hedefi(self):
+        self.assertIn("](../../hafiza/maf-api.md)", self._tasi("[x](hafiza/maf-api.md)"))
+
+
 if __name__ == "__main__":
     unittest.main()
