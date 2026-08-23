@@ -2197,3 +2197,1933 @@ Saklanmış tercih yokken `navigator.languages` içindeki ilk desteklenen birinc
 
 Zaman aşımı sarmalayıcının kendi `Task.WhenAny` yarışı `OperationCanceledException`'a benzer bir görünüm üretebilirdi; `Canceled` sınıfıyla birleştirmek her tool zaman aşımını "kullanıcı iptal etti" arkasına gizlerdi. Ayrıca çalıştırma-düzeyi `Timeout` (bütün `run` süresini aştı) ile karıştırılmaması için AYRI bir değer gerekti — ikisi farklı şeyleri ölçer. `DefaultRunErrorClassifier.StableIdentities`'e diğer `AgentPrismException` türevleriyle aynı desende eklendi.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-021 — devam (Faz 90 damıtması)
+
+Önce `EnableConfigurationBindingGenerator=true` denendi; `dotnet build` temiz geçti ama **`dotnet format` tanıları yeniden gösterdi** — kaynak üreteci format'ın analyzer geçişinde devreye girmiyor. Elle bağlama (`AgentPrismServiceCollectionExtensions.Bind`) her iki kapıda da temiz ve bir paket bağımlılığını (`Options.
+
+### K-025 — devam (Faz 90 damıtması)
+
+Üzerine yazma burada doğrudur çünkü `UsePostgreSql()` tüketicinin **açık** tercihidir. K4 kuralı ("TryAdd ile
+
+### K-026 — devam (Faz 90 damıtması)
+
+`AgentSessionManager` sağlayıcıdan bağımsızdır, bellek içi depoyla da çalışır ve Faz 4'teki
+
+### K-027 — devam (Faz 90 damıtması)
+
+System.Text.Json'ın polimorfik ayracı `$type` nesnenin **ilk** özelliği olmak zorundadır; `jsonb` bu garantiyi bozar ve okuma `JsonException: The metadata property ...
+
+### K-029 — devam (Faz 90 damıtması)
+
+Böylece enjeksiyon yüzeyi kapanır ve PostgreSQL'in tırnaksız tanımlayıcıları küç
+
+### K-031
+
+Bastırma yalnız `OpenAIChatClientFactory.CreateInnerChatClient` içinde, gerekçesi koda yazılı. K-020 ile aynı desen.
+
+### K-032 — devam (Faz 90 damıtması)
+
+OpenAI model adları ve fiyatları bir NuGet paketinin yayın sıklığından hızlı değişi
+
+### K-033 — devam (Faz 90 damıtması)
+
+Ayrıca C# statik sınıfları tür argümanı kabul etmez (`CS0718`), bu yüzden `AddToolsFrom(Type)` aşırı yüklemesi de gerekti
+
+### K-034 — devam (Faz 90 damıtması)
+
+`AgentDefinitionCompiler.BuildChatOptions` artık `ChatOptions.Reasoning`'e çeviriyor. Geçersiz değer sessizce yok sayılmaz: bu ayar hem maliyeti hem gecikmeyi değiştirir; yanlış yazılmış bir değer fark edilmeden çalışırsa kullanıcı
+
+### K-035
+
+`OpenAIProviderOptions` ve `AgentPrismPostgreSqlOptions` bu yüzden `class`. `SecretLeakTests` tipin kendi `ToString`'ini tanımlamadığını doğrular.
+
+### K-036 — devam (Faz 90 damıtması)
+
+Kullanılan yol paketin **public** yardımcısı `OpenAIResponses`: `ToAgentRunRequest` (gövde → `Messages`/`Options`/`ConversationId`/`PreviousResponseId`), `GetSessionStoreId`, `CreateResponseId`, `WriteResponse`, `WriteResponseStreamAsync` (hazır SSE çerçeveleri). Kablo biçimi MAF'tan geldiği için stok SDK uyumu korunur; agent çözümleme, kalıcılık, kiracı
+
+### K-037 — devam (Faz 90 damıtması)
+
+Geçmiş, MAF'ın public `ChatHistoryProvider.InvokingAsync` + `InvokingContext` kurucusu ile okunur (`MAAI001` bastırması tek dosyada: `SessionEndpoints.
+
+### K-038
+
+Ölçüldü: Python SDK 404'ü `NotFoundError` olarak doğru yakalıyor ve mesajı okunabilir gösteriyor. Yönetim API'si (`/api/*`) `ProblemDetails` kullanmaya **devam eder**; iki sözleşme bilinçlidir ve `ProblemDetailsTests` ikisini de korur.
+
+### K-039
+
+Tüketici kendi uygulamasında `AddOpenApi()` çağırdığında AgentPrism uçları belgede kendiliğinden görünür — `OpenApiDocumentTests` bunu doğruluyor. CVE'li sürüm, K-007'nin öngördüğü şekilde tek bir bilinçli `PackageReference` ile (`Microsoft.OpenApi` 2.11.0) yalnız OpenAPI kullanan projelerde zorlanır.
+
+### K-040 — devam (Faz 90 damıtması)
+
+`RunStatus`, `RunEventType` ve `AgentDefinitionOrigin` tip düzeyinde `[JsonConverter(typeof(JsonStringEnumConverter<T>))]` taşır; böylece tüketicinin uygulama genelindeki JSON ayarların
+
+### K-041 — devam (Faz 90 damıtması)
+
+`IRunStore.GetStatisticsAsync` eklendi; PostgreSQL'de tek gidiş dönüşte iki sonuç kümesi (`COUNT(*) FILTER (...)` + `GROUP BY agent_name`), bellek içi depoda tek geçiş. Durum değerleri SQL'e sabit sayı olarak gömülmez
+
+### K-042
+
+Birleşik bir builder döndürülseydi `MapAgentPrism(...).RequireAuthorization()` yazan bir tüketici `/api/meta` ucunu da kilitlerdi; arayüz o zaman hangi kimlik yöntemini kullanacağını öğrenemez ve hiçbir zaman oturum açamazdı. Meta ucu ayrıca `AllowAnonymous()` taşır, böylece uygulama genelindeki bir fallback policy de onu kapatamaz. `SecurityTests` üç senaryoyu da (token, loopback, başarısız policy) doğruluyor.
+
+### K-043 — devam (Faz 90 damıtması)
+
+Konuşma kimliği doğrudan oturum kimliğidir — `/v1/responses` içindeki `conversation` alanı zaten öyle çalışıyordu. Oluşturma anında hangi agent'ın kullanılacağı bilinmediği, oturum ise bir agent'a bağlı olduğu için `POST /v1/conversations` yalnız kimlik üretir; oturum ilk `/v1/responses` çağrısında doğar. Tek davranış farkı: kull
+
+### K-044 — devam (Faz 90 damıtması)
+
+`RunRecordingAgent` kimliği kendi içinde üretiyor ve dışarı bildirmiyordu, dolayısıyla Playground ile Runs ekranı arasında köprü kurulamıyordu. `AgentRunOptions`'tan türeyen küçük bir sınıf (`RunId`) bunu ek bir bildirim kanalı veya ortam durumu olmadan çözer ve `RunStartInfo.
+
+### K-045 — devam (Faz 90 damıtması)
+
+`History` API üzerine ~110 satır yeterli oldu ve taban yol (base path) çalışma anından **doğal olarak** geliyor — her yönlendirme kütüphanesine bu ayrıca bildirilmek zorundadır ve AgentPrism'in prefix'i yalnızca çalışma anında bilinir. Ölçüldü: bund
+
+### K-046 — devam (Faz 90 damıtması)
+
+Kabuk token katmanıyla kilitlenseydi kullanıcı token'ı girebileceği ekranı hiçbir zaman göremezdi; token modu tarayıcıdan kullanılamaz hale gelirdi. Kabuk hiçbir veri taşımaz — yalnızca HTML, JS ve CSS. Loopback kısıtı ve authorization policy kabuğa da uygu
+
+### K-047
+
+Maliyet: her yeni sekmede token yeniden girilir — token kimlik doğrulamasını bilinçli olarak açmış bir kurulum için kabul edilebilir. Token hiçbir zaman günlüğe yazılmaz, URL'ye konmaz ve yalnızca aynı kaynağa giden isteklerin `Authorization` başlığında gönderilir.
+
+### K-048 — devam (Faz 90 damıtması)
+
+Hem ham hem sıkıştırılmış gömmek assembly'yi gereksiz büyütürdü, hiç sıkıştırmamak ise `AgentPrism.UI.
+
+### K-049 — devam (Faz 90 damıtması)
+
+Soyutlamanın varlık listesi, içerik tipi, `ETag`, önbellek başlıkları, sıkıştırma biçimi ve SPA geri dönüşü gibi ayrıntıları taşıması hâlinde arayüz paketi paketleme biçimini her değiştirdiği
+
+### K-050 — devam (Faz 90 damıtması)
+
+Üçü de aynı `wwwroot/` dizinine yazar; Vite `emptyOutDir` ile dizini önce boşalttığı için birbirlerinin dosyalarını siler ve derleme `ENOENT: no such file or directory, unlink .../index-*.js` ile kırılır. Zincir `BeforeTargets="DispatchToInnerBuilds"` ile dış derlemeye alındı;
+
+### K-051 — devam (Faz 90 damıtması)
+
+does not exist in the project, and will be ignored"* mesajıyla **sessizce** atılır. Sonuç ölçüldü: arayüz varlıkları hiç gömülmüyor, paket arayü
+
+### K-052
+
+Ölçüldü: 40 Vitest testi **0,3 saniyede** koşuyor, dolayısıyla her `dotnet build`'e eklemenin maliyeti yok denecek kadar azdır. Aynı komut tip denetimini (`tsc --noEmit`) ve bundle bütçesi kapısını da çalıştırır — kapı CI'a özgü değildir, yerelde de kırar.
+
+### K-054
+
+Gözlemlenebilirlik + tool onayı + MCP + çok kiracılılık birlikte tutarlı bir "işletilebilirlik" paketi oluşturur; `Microsoft.Agents.AI.Workflows` ise ayrı bir yürütme modeli getirir (graf, checkpoint, human-in-the-loop) ve API'si hiç keşfedilmemişti. Ayrıca arayüzde graf görselleştirme bundle bütçesini zorlardı.
+
+### K-055
+
+`ActivityListener` **pasif** bir dinleyicidir: aynı span'ler tüketicinin exporter'ına gitmeye devam eder, AgentPrism yalnızca kendi deposuna bir kopya yazar. `OpenTelemetryAgent` kullanımı `MAAI001` bastırması gerektirir ve tek dosyada toplanmıştır (`OpenTelemetryAgentDecorator`).
+
+### K-056
+
+Karar sonda verilirse hatalar %100 korunur. Bedeli span'lerin o ana kadar bellekte tutulmasıdır; `MaxSpansPerRun` (varsayılan 200) bunu eşzamanlı çalıştırma sayısıyla çarpım sınırında tutar. Tamponun sahibi `RunRecordingAgent`'tır ve her iki sonda da (başarı/hata) boşaltır — sızıntı yapısal olarak mümkün değildir.
+
+### K-057
+
+`.Core` bağımlılıkları: `Microsoft.Extensions.AI.Abstractions` 10.8.3 (bizim sürümümüzle birebir aynı), `Logging.Abstractions` 10.0.10, `System.IO.Pipelines`, `System.Net.ServerSentEvents`. Tüketicinin bağımlılık grafiğini kirletmeme kuralının doğrudan uygulamasıdır.
+
+### K-058
+
+Arayüzden MCP sunucusu eklenebildiği için bu, arayüze erişen birinin sunucuda program çalıştırması demektir ve tasarım kuralı K2'yi ("tool'lar yalnız kodda") temelden bozar. Kısıt iki yerde zorlanır: `GovernanceEndpoints.Validate` (400 döner) ve `McpConnection.IsRemoteHttp` (bağlantı kurulmaz).
+
+### K-059
+
+Böylece veritabanı yedeği, denetim izi ve arayüz yanıtı hiçbir zaman sır taşımaz. Proje kuralı "sırlar asla dosyaya yazılmaz"ın veritabanına uzantısıdır. Sözleşmede sır alanı **hiç yoktur**; `Mcp_yaniti_sir_tasimaz` testi fazladan gönderilen bir `authorization` alanının bağlanmadığını doğrular.
+
+### K-060
+
+Nokta **kullanılamaz** çünkü OpenAI ve uyumlu sağlayıcılar fonksiyon adlarında yalnızca `[a-zA-Z0-9_-]` kabul eder; `sunucu.tool` biçimi çağrı anında sağlayıcı tarafından reddedilirdi. Kodda kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** — uzak bir sunucu yerel bir tool'un yerini alamaz.
+
+### K-061
+
+Kural `IToolApprovalRuleStore` içine yazılır (kiracı + agent + tool [+ argüman parmak izi]), sonraki çalıştırmalarda `ToolApprovalRuleEvaluator` tarafından `ToolApprovalAgentOptions.AutoApprovalRules` üzerinden uygulanır ve `/api/approvals/rules` ucundan silinebilir. Depo hatası **onay vermez** — güvenli taraf budur.
+
+### K-062 — devam (Faz 90 damıtması)
+
+Sunucuda yüzey açan gerçek üyeler `FileAccessStore` (+ `FileAccessProviderOptions`) ve `BackgroundAgents`'tır. İkisi de yalnızca **değer atandığında** etkinleşir; `AgentDefinitionCompiler` o değerleri hiç atamaz, dolayısıyla varsayılan ka
+
+### K-063 — devam (Faz 90 damıtması)
+
+Faz 7'nin yük testi (saniyede 100 çalıştırma × ~50 olay) bu kararın tetikleyicisidir
+
+### K-064 — devam (Faz 90 damıtması)
+
+Cevap **yetenek derinliği**. Sıra buna göre kuruldu: skill'ler (Faz 10–11), agent çağrı grafiği (12), bağlam yönetimi (13), çok modluluk (14) ve workflows (15–16) öne alındı; kurum
+
+### K-065 — devam (Faz 90 damıtması)
+
+Yine de iki faza bölündü ([28](fazlar/28-SES-TOOLLARI.md) ve [29](fazlar/29-KONUSMA-KATMANI.md)): sağlayıcı soyutlaması, kimlik doğrulama, ses depolama ve maliyet ölçümü konuşma katmanından bağımsızdır ve önce çözülmelidir. Faz
+
+### K-066 — devam (Faz 90 damıtması)
+
+Birinci istisna MCP'ydi (K-058) ve orada süreç **uzakta** çalışıyor. Skill script'lerinde süreç **AgentPrism'in makinesinde** çalışır. Kullanıcı bunu kabul edilebilir buldu. Kabul, kontrolsüz çalıştırma anlamına gelmez; [Faz 11](fazlar/11-SKILL-SCRIPT-CALISTIRMA.md) şu koşulları zorunlu kılar: yorumlayıcı beyaz listesi (varsayılan **boş**), skill başına izin kaydı, Faz 6 onay akışı, ayrı OS süreci, zaman aşımı, çıktı sınırı, temiz ortam değişkenleri ve
+
+### K-067 — devam (Faz 90 damıtması)
+
+Gerekçe: tek satırda toplanırsa "3 dakika sürdü, sebebi bilinmiyor" durumu oluşur — alt agent'ın maliyeti, süresi ve hatası görünmez. Ayrı satır `runs.parent_run_id` gerektirir ve waterfall doğal olarak iç içe geçer. Ek olarak `root_run_id` denormalize edilir: ö
+
+### K-068 — devam (Faz 90 damıtması)
+
+Sonuç: `07-SAGLAMLASTIRMA-VE-YAYIN.md` bir sıra numarası taşımaya devam eder ama **sıradaki faz değildir**; her an araya girebilir. ~~`EnablePublicApiTracking` **`false`** kalır (K-016 aynen geçerli).~~ Faz 60'ta bu yarı K-421 ile değişti: takip **açık**, yalnız `Unshipped.txt` → `Shipped.
+
+### K-069
+
+Ayrı ad kod okunurluğunu artırır: `UseOpenAI(apiKey)` her zaman resmi OpenAI'yı, `UseOpenAICompatible(ad, ...)` her zaman üçüncü taraf/yerel bir ucu ifade eder — aynı metot adının iki farklı davranışı gizlemesi riski ortadan kalkar. `openai` ve `openai-responses` adları rezervedir.
+
+### K-070
+
+`AgentPrismOptions.CircuitBreaker.Enabled = false` ile tamamen kapatılabilir. Eşik varsayılanı 5 ardışık hata, mola süresi 30 sn.
+
+### K-071
+
+`AgentPrismHealthOptions.BackgroundInterval` verilirse (`ModelProviderHealthBackgroundService`) çalışır; varsayılan `null`. Denetim varsayılan olarak yalnızca arayüzden "Check now" veya `/api/models/health` çağrıldığında tetiklenir.
+
+### K-072
+
+Regex bağımlılığı ve analyzer bastırması yok.
+
+### K-073
+
+`HttpRequestError` (.NET 8+ kategori enum'u — `NameResolutionError`, `ConnectionError` vb.) adres taşımaz. Doğrulandı: `Baglanamayan_saglayicinin_detayinda_ne_anahtar_ne_adres_gorunur` testi kapalı bir porta (`127.0.0.1:1`) bağlanarak detayın adresi içermediğini kanıtlıyor.
+
+### K-074 — devam (Faz 90 damıtması)
+
+circuitBreaker = null` eklendi ve üretilen her `IChatClient`, sağlayıcı adına göre `CircuitBreakingChatClient` ile sarılır. Opsiyonel parametre sayesinde doğrudan `new ModelProviderRegistry(providers)` ile kurulan mevcut testler
+
+### K-075 — devam (Faz 90 damıtması)
+
+`MapAgentPrism()` `app.Build()` sonrası, istek işleme dışında çağrıldığı için `GetAwaiter().GetResult()` burada güvenlidir (varsayılan sağlayıcı `Task.
+
+### K-076 — devam (Faz 90 damıtması)
+
+`AgentPrismEndpointFilter` (AspNetCore), her korumalı isteğin güvenlik denetimleri geçtikten sonra `AuditActorContext.Current = httpContext.User` yazar; `C
+
+### K-078 — devam (Faz 90 damıtması)
+
+`AllowAnonymous()` kimlik doğrulama boru hattını devre dışı bırakmaz, yalnızca yetkilendirme şartını kaldırır; bu yüzden `HttpContext.User` istek gerçekten kimlik doğrulamasından geçtiyse
+
+### K-079
+
+Tek makul yazma noktası `GovernanceEndpoints` ucudur. Diğer tüm yazmalar (agent, mcp sunucu CRUD, kiracı, onay kuralı, oturum silme) depo dekoratöründe kalır.
+
+### K-080 — devam (Faz 90 damıtması)
+
+Uygulama: `AgentDefinition`, `McpServerDefinition`, `TenantDescriptor`, `ToolApprovalRule` doğrudan `AgentPrismCoreJsonC
+
+### K-081 — devam (Faz 90 damıtması)
+
+Bu depodaki tüm token SAYIM alanları (`maxOutputTokens`, `maxContextWindowTokens`, `totalTokens`, `inputTokens`, `outputTokens`) çoğuldur; kimlik doğrulama
+
+### K-086 — devam (Faz 90 damıtması)
+
+AgentPrism işletim sistemi seviyesinde yalıtım **sağlamaz**: süreç, sunucu kullanıcısının hakları ve ağ erişimiyle çalışır. Bu gerçeği tüketicinin görmeden geçmesi mümkün olmamalıdır; `AgentPrismOptionsValidator`, `Enabled = true` iken `PlatformIsolati
+
+### K-087 — devam (Faz 90 damıtması)
+
+Dosya kaynağı MAF'ın `AgentFileSkillsSource` üzerinden gelir ve kök dizinler **yalnız kodda** (`UseSkillScripts`) verilir — arayüzden kök eklenemez, aksi hâlde yönetici arayüzü keyfî dosya sistemi okuması yapabilirdi. Saklanan scrip
+
+### K-088
+
+Kullanıcı kararı gereği `python3`, `node` ve `bash` desteklenen üç yorumlayıcıdır; hiçbiri kendiliğinden kayıtlı değildir.
+
+### K-089
+
+`SandboxedSkillScriptRunner` `script.run` kaydını yazamazsa `AgentPrismException` fırlatır. Regresyon testi: `Denetim_izi_yazilamazsa_script_calismaz`.
+
+### K-090
+
+`SkillScriptArgumentValidator` kökün nesne olmasını, `required` alanların varlığını ve üst düzey `properties[x].type` uyumunu denetler. Güvenlik sınırı buna dayanmaz: argümanlar komut satırına değil **stdin'e** yazılır, dolayısıyla hatalı bir şema komut enjeksiyonuna dönüşemez.
+
+### K-091
+
+`ProcessStartInfo.Environment.Clear()` ile ortam da sıfırlanır ve yalnız beyaz listedeki değişkenler eklenir. Regresyon testi: `Ortam_degiskenleri_surece_sizmaz`.
+
+### K-092
+
+`script_name` NULL olabildiği için benzersizlik `COALESCE(script_name, '')` ile kurulur — aksi hâlde PostgreSQL NULL'ları farklı sayar ve aynı skill için kopya satırlar birikirdi. Regresyon testi: `Ayni_izin_iki_kez_verilirse_tek_kayit_kalir`.
+
+### K-093
+
+Gerekçe ölçülebilir: gerçek bir çağrıda kök `yonlendirici` 904 token, alt `support` 598 token harcadı; tek satırda toplansaydı "bu çalıştırma neden 1502 token?" sorusunun cevabı kaydın içinde bulunmazdı. Ayrı satır, alt agent'ın süresini, hatasını ve modelini de görünür kılar. Bedeli: `runs` tablosu ağaç başına birden çok satır alır — Faz 25'in saklama politikası bunu ele alır.
+
+### K-094
+
+`root_run_id` ile `runs_root_idx (tenant_id, root_run_id, started_at)` üzerinden tek indeksli sorgu yeter. Ek maliyet bir `uuid` sütundur. Kök kaydın alanı **boş** kalır (kendisine işaret eden bir değer, "kök mü, alt mı" sorusunu sorguda ikinci bir koşula dönüştürürdü).
+
+### K-095
+
+Yetim bir `parent_run_id` arayüzde "üst çalıştırma bulunamadı" olarak görünür; veri bütünlüğü sorunu değildir. Arayüzün ağaç çizimi bunu bilerek karşılar: ebeveyni listede olmayan satır üst seviyede gösterilir, düşürülmez.
+
+### K-096
+
+`AgentPrismRunOptions.Clone()` bütçeyi **aynı örnek** olarak taşır; regresyon testi (`Clone_agac_alanlarinin_hepsini_korur`) `ShouldBeSameAs` ile bunu doğrular. Sayaçlar `Interlocked` ile kilitsiz artar: MAF'ın arka plan agent görevleri bloke etmeden çalışır ve aynı bütçe birden çok iş parçacığında okunur (`Es_zamanli_yer_ayirma_siniri_asmaz` 200 eşzamanlı denemede sınırı 10'da tuttu).
+
+### K-097 — devam (Faz 90 damıtması)
+
+Bu, K-053'te belgelenen harness kusurunun (tool çağrısı bağlanmıyor) bu özelliği de vurmasını engell
+
+### K-098
+
+İki kazanç: (1) `IAgentCatalog → IAgentSource → AgentDefinitionCompiler → çözücü → IAgentCatalog` dairesi kurucu enjeksiyonuyla kurulamazdı; `CallableAgentResolver` katalogu ilk kullanımda ister. (2) Alt agent'ın tanımı güncellendiğinde çağıran agent'ın derlenmiş kopyası bayatlamaz. Yalnızca alt agent'ın **açıklaması** derleme anında gömülür (modele gönderilen listede yer alır), bu yüzden ad+sürüm parmak izi önbellek anahtarına girer.
+
+### K-099 — devam (Faz 90 damıtması)
+
+Alt çalıştırma da tamponu kapattığında — ki **önce o biter** — tüm ağacın span'leri alt çalıştırmaya bağlandı ve kökün `/trace` ucu `404` döndü. `RunRecordingAgent` art
+
+### K-100
+
+Mevcut istemciler için davranış değişikliğidir; eski davranış `/api/runs?includeChildren=true` ile alınır. `ParentRunId` verildiğinde kök filtresi **bilerek** yok sayılır: ikisi mantıksal olarak çelişir ve sessizce boş liste dönmek hata ayıklanması zor bir davranıştır.
+
+### K-101 — devam (Faz 90 damıtması)
+
+Sınırsız bırakılan bir kurulumda ilk yanlış tanım faturayla öğrenilir — alt agent çağrısı maliyeti **çarpar**, her katman kendi model çağrılarını yapar. Değerler `AgentPrism:AgentGraph` bölümünden ayarlanır
+
+### K-102
+
+Kök akışa `ChildRunStarted` / `ChildRunCompleted` (SSE'de `child.started` / `child.completed`) yazılır; alt çalıştırmanın tam akışı aynalanmaz — aynalama olay hacmini ağaç boyunca katlar ve istemciye aynı metni iki kez gönderirdi. Olaylar kök çalıştırmanın **kendi** `RunEventWriter`'ı ile yazılır (kapsam üzerinden taşınır): sıra numarası tek bir yazıcıdan üretilmelidir (K-014), ikinci bir sayaç numaraları çakıştırırdı.
+
+### K-103 — devam (Faz 90 damıtması)
+
+Bir alt agent ağacın ortasında onay isterse tüm ağacın durdurulup daha sonra tam olarak aynı noktadan sürdürülmesi
+
+### K-104 — devam (Faz 90 damıtması)
+
+Ek doğrulama: gerçek bir `RunAsync` çağrısı `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi olmadan hatasız çalıştı — `CompactionProvider` tokenizer'ı içeri
+
+### K-105 — devam (Faz 90 damıtması)
+
+Reflection ile doğrulandı: gerçek kurucusu `(VectorStore vectorStore, string collectionName, int vectorDimensions, ...)` istiyor — vektör tabanlı anlamsal arama. Depoda somut bir `VectorStore` implementasyonu yok; eklemek yeni bir paket + embedding sağlayıcısı kararı gerek
+
+### K-110
+
+`AgentDefinitionCompiler.SearchFileStoreAsync` hangi somut depo `TryAddSingleton<AgentFileStore>` ile kayıtlıysa onun üzerinde regex arar. Kalıcı sürüm (`PostgresAgentFileStore`) Faz 14'ün `attachments`/`agent_files` tablosuna bağlanabilir; kod değişmeden kalıcı aramaya döner.
+
+### K-111 — devam (Faz 90 damıtması)
+
+Doğrudan `DataContent` (base64) taşınsaydı 1 MB'lık bir görsel
+
+### K-112 — devam (Faz 90 damıtması)
+
+Bir oturum silindiğinde eklerin gitmesi tamamen uygulama katmanında yapılır: `SessionEndpoints.DeleteSessionAsync` → `IAttachmentStore.
+
+### K-113
+
+`Content-Disposition: attachment` + `X-Content-Type-Options: nosniff` ile birlikte uygulanır — üçü birlikte tarayıcıda satır içi çalıştırmayı engeller.
+
+### K-114 — devam (Faz 90 damıtması)
+
+`PostgresAgentFileStore` bu yüzden `AgentPrismRunContext.Current?.AgentName`'i (Faz 12'nin ambient çalıştırma kapsamı) okur; kapsam yoksa açık bir `AgentPrismException` fırlatır. Kira
+
+### K-115
+
+AgentPrism `UseAntiforgery()` çağırmaz (bearer token ile korunur, tarayıcı oturumu değildir); bu yüzden `POST /api/attachments` her istekte "middleware not found" ile `500` veriyordu. `.DisableAntiforgery()` uç tanımına eklendi. Gelecekte form gövdesi alan başka bir uç eklenirse aynı tuzak geçerlidir.
+
+### K-116 — devam (Faz 90 damıtması)
+
+`/v1/responses` bunu MAF'ın kendi `OpenAIResponses.ToAgentRunRequest` çözümleyicisi + `AttachmentIngestion` ile bedavaya alır; Chat Completions ise kablo biçimini elle çözer (`OpenAIChatCompletionsEndpoints.ReadContent`) ve
+
+### K-118
+
+HTTP katmanı `IWorkflowRunner` soyutlaması üzerinden çalışır — MCP'deki `IMcpToolRefresher` deseninin birebir aynısı; motor kayıtlı değilse yalnız çalıştırma uçları `501` döner, tanım yönetimi çalışmaya devam eder. Kural `DependencyDirectionTests` ile korunur.
+
+### K-120
+
+Ayrım `kind smallint NOT NULL DEFAULT 0` ile yapılır — varsayılan mevcut satırları doğru sınıflar. Workflow içindeki agent'lar Faz 12'nin `parent_run_id` mekanizmasıyla altına bağlanır; ölçüldü: bir workflow + iki agent satırı, ağaç toplamı 329 token.
+
+### K-121
+
+`jsonb` anahtarları önce uzunluğa sonra bayta göre sıralar ve ayracı ilk özellik olmaktan çıkarır → okuma `JsonException` ile patlar. Gerçek PostgreSQL 18'de doğrulandı; sözleşme testi `Polimorfik_yuk_ANAHTAR_SIRASI_KORUNARAK_okunur` her iki depo uygulamasında koşar.
+
+### K-122 — devam (Faz 90 damıtması)
+
+Sonuç: graf her çalıştırmada yeniden kurulduğunda agent'lar da yeniden kurulursa kontrol noktaları uyumsuz hale gelir (`InvalidDataException: The specified checkpoint is not compatible wi
+
+### K-123 — devam (Faz 90 damıtması)
+
+209 test yeşildi; yalnızca örnek
+
+### K-124
+
+Bu bir human-in-the-loop akışıdır ve yanıt verme yolu Faz 16'nın konusudur; açık bırakmak her Magentic çalıştırmasını yarım bırakırdı. `RunEventType.WorkflowRequest` (18) değeri şimdiden ayrıldı — Faz 16 enum sırasını değiştirmek zorunda kalmaz.
+
+### K-125
+
+Ölçüldü: `AgentWorkflowBuilder.CreateGroupChatBuilderWith` bir `Func<IReadOnlyList<AIAgent>, GroupChatManager>` alır — yönetici bir *agent* değil, kod tarafındaki `RoundRobinGroupChatManager`'dır. Alan başka desende verilirse `400` döner; sessizce yok saymak kullanıcının beklediği davranışın oluşmadığını gizlerdi.
+
+### K-126
+
+Gerekçe: bir workflow tanımı ad listesi ve desenden ibarettir; geri almak için gereken bilgi `audit_log` içinde (`workflow.save` eyleminin `before`/`after` alanlarında) zaten bulunur. Agent tanımı ise talimat **metni** taşır ve o metnin eski hâli başka hiçbir yerde yeniden kurulamaz — fark budur. `workflows.version` yine artar (iyimser eşzamanlılık ve önbellek anahtarı için).
+
+### K-127 — devam (Faz 90 damıtması)
+
+Faz 15 dokümanı "hazır desenler yeniden yazılmalı" diyordu — gerek yoktu. `AIAgent.Id` sanal değildir ve setter'ı yoktur, ama derleyicinin ürettiği arka alan (`<Id>k__BackingField`) salt-okunur deği
+
+### K-128 — devam (Faz 90 damıtması)
+
+Olay akışı zaten append-only (K-014), kiracı filtreli ve sayfalanabilir; ikinci bir kayıt hattı ay
+
+### K-129 — devam (Faz 90 damıtması)
+
+Yine de alınmadı, iki ölçülmüş gerekçeyle. (1) **Bağımlılık grafiği:** geçişli paket sayısı 23 → 42 (**+19**); gelenler arasında tüm Power Fx yorumlayıcı yığını (`Microsoft.PowerFx.Core/.Interpreter/.Json/.LanguageServerProtocol/.Transport.Attributes`), `Microsoft.Agents.ObjectModel.*` (ayrı sürüm şeması `2026.2.4.1`) ve `System.CodeDom` var. K-001 ve "tüketicinin
+
+### K-130 — devam (Faz 90 damıtması)
+
+Devam eden iş yeni `runs` satır
+
+### K-131
+
+Tanımdan çizilen bir graf o düğümleri göstermez ve gelen olaylar hiçbir düğümle eşleşmez — graf çizilir ama hiçbir zaman renklenmezdi. Bedeli: `/graph` ucu motor kayıtlı değilken `501` döner (derleyici motorla gelir), oysa tanım yönetimi motorsuz çalışmaya devam eder. Düğüm kimlikleri olay metinleriyle **birebir** aynı tutulur; etiket kısaltılır, kimlik hiçbir zaman değiştirilmez.
+
+### K-132 — devam (Faz 90 damıtması)
+
+Elle çizim, tüm workflow ekran ailesiyle birlikte **+12,8 KB gzip** ile geldi (92,4 → 105,2 KB). Kaçış yolu korundu: "Copy Mermaid" düğmesi MAF'ın `ToMermaidString` çıktısını panoya kopyalar, karmaş
+
+### K-133
+
+`WorkflowErrorEvent` artık olay akışına yazılmakla kalmaz, durumu da `Failed` yapar. `ExecutorFailedEvent` bilerek durumu değiştirmez: bir dalın hatası her grafta ölümcül değildir; `WorkflowErrorEvent` ise MAF'ın "yürütme durdu" sinyalidir.
+
+### K-134 — devam (Faz 90 damıtması)
+
+`WorkflowJobHandler` kurucusunda `IWorkflowRunner?` (nullable, opsiyonel servis) alır — `Wor
+
+### K-135 — devam (Faz 90 damıtması)
+
+logger = null)` yalnızca `logger`'da `= null` taşıyordu; `TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>())` (otomatik kurucu çözümleme) `IWorkflowRunner` kayıtl
+
+### K-137
+
+Yürütücü işçi her öğeden sonra kendi `jobs` satırının durumunu tekrar okur (`JobContext.IsCancelledAsync`); `Cancelled` görürse döngüyü durdurur ve `Completed`'a yazmaz. Ek bir sütun, iki yerde aynı bilgiyi tutup zamanla ayrışırdı (K-128'in "ikinci bir kayıt hattı açma" gerekçesiyle aynı).
+
+### K-138 — devam (Faz 90 damıtması)
+
+Migration 0008 metne göre tamamlandı: `CONSTRAINT jobs_schedule_sc
+
+### K-140
+
+`18-DEGERLENDIRME.md` "İki ayrı kavram"); uygulama sırasında teyit edildi. Eval yalnız kod ile yazılmış, model çağırmayan `EvalCheck` denetimleriyle çalışır — bu, eval'i **ücretsiz** tutar (agent çalıştırma maliyeti hariç). `LoopAgent`'in kendisi bir çalıştırmayı yeterli olana kadar tekrarlayan ayrı bir yetenektir, ölçüm değil.
+
+### K-141 — devam (Faz 90 damıtması)
+
+`RunKind` içine `Eval = 2` eklendi; `AgentPrismRunOptions.Kind` çağıranın (yalnız `EvalJobHandler`) türü bildirmesini sağlar; `RunRecordingAgent.PrepareRun/BeginRunAsync` bunu `RunStartInfo.
+
+### K-142 — devam (Faz 90 damıtması)
+
+Gerçek davranış küçük bir repro programıyla ölçüldü: `DetailedItems` **her zaman `null`** (yalnız uzak raporlama arka uçlarıyla doldurulan bir alan), ama `Items` (`IReadOnlyList<Microsoft.Extensions.AI.Evaluation.EvaluationResult>`) ve üstteki `AllPassed`
+
+### K-144
+
+runId.ToString("D")`'dir — `ExperimentAssignmentResolver` bunu hiçbir zaman `AssignmentKey` alanından okumaz. Alan modelde tutulur ama çalışma zamanında hiç kullanılmaz: AgentPrism kullanıcı kimliği taşımaz (kimlik tüketicinindir), bu yüzden "kullanıcı bazlı atama" stratejisini şimdi kablolamak doğrulanmamış bir varsayıma dayanırdı.
+
+### K-145
+
+Eval çalıştırmaları `ExperimentId`/`Variant` **hiçbir zaman** taşımaz — iki kavram birbirine karışmaz: eval "bu sürüm ne kadar iyi" sorusuna, deney "canlı trafik hangi sürüme gitmeli" sorusuna cevap verir.
+
+### K-146
+
+Deney kimliği ise sınırsız büyür; deney kırılımı yalnız `IRunStore.GetExperimentResultsAsync` sorgusuyla yapılır, hiçbir zaman bir metrik etiketine girmez.
+
+### K-147 — devam (Faz 90 damıtması)
+
+Deney ataması bu ortak kapıya gömülseydi alt-agent çağrıları ve workflow adımları da habersiz A/B'ye girerdi — bir kullanıcının gördüğü
+
+### K-148 — devam (Faz 90 damıtması)
+
+Marker arayüz yalnızca sürüm geçmişi tutan kaynakların (`DefinitionStoreAgentSource`) uygulamasını sağlar; `CompositeAgentCatalog.ResolveAsync(name, version, ct)` bir kaynağın `IVersionedAgentSource` olup olmadığını çalışma anında kontr
+
+### K-149 — devam (Faz 90 damıtması)
+
+Ayrı bir tablo gereksiz
+
+### K-150
+
+Para birimi tek bir etiket olarak `AgentPrism:Pricing:Currency`'den gelir; birden fazla para biriminde fiyatlanan modeller aynı toplamda görünür ama etiket tekildir.
+
+### K-152
+
+`RunTimeSeriesQuery.Kind` ile isteğe bağlı filtrelenebilir. Bu, iki ucun **bilerek** farklı varsayılanı olduğu anlamına gelir; gözden kaçmış bir tutarsızlık değildir.
+
+### K-153
+
+Bakım ucu olduğu için Admin rolü ister; çağrı `stats.recalculate-costs` eylemiyle denetim izine yazılır.
+
+### K-154 — devam (Faz 90 damıtması)
+
+Canlı hesaplamada saglayici `ModelBinding.Provider`'dan bilinir ve doğru fiyatı seçer; ama geçmiş bir satırın ha
+
+### K-155
+
+Yapılandırma yolu da (`AgentPrism:Pricing:...`) doğrudan `AgentPrism:` altındadır, `AgentPrism:Providers:X:` altında değil. Bağlama K-021'in elle-bağlama kuralına uyar (`AgentPrismServiceCollectionExtensions.BindPricing`).
+
+### K-157 — devam (Faz 90 damıtması)
+
+Örnek uygulama gerçek bir OpenAI çağrısıyla çalıştırılıp `/api/runs`
+
+### K-158 — devam (Faz 90 damıtması)
+
+Kota gün/ay ölçeğinde toplam tüketimi sınırlar ve süreç yeniden başlasa da korunmalıdır — bellekte tutmak, çok örne
+
+### K-159
+
+Sıkı garanti her çalıştırma öncesinde kilit almayı gerektirir ve her isteğe gecikme ekler — bir kontrol düzleminin ödeyeceği bedel değildir. "Yaklaşık kota" dürüst bir ifadedir; "kesin kota" olmayan bir şeyi vaat etmek olurdu. Sınır dokümante edilir ve `QuotaEnforcer` XML dokümanında yazar.
+
+### K-160 — devam (Faz 90 damıtması)
+
+Faz 17'nin kuyruğu geri adımlı bekleme yapamıyordu (`ReleaseForRetryAsync` gec
+
+### K-161 — devam (Faz 90 damıtması)
+
+İçerik isteyen alıcı `GET {prefix}/
+
+### K-162
+
+Kota zaten yaklaşıktır (K-159); süren bir çalıştırmayı kesmek o yaklaşıklığı düzeltmez, yalnızca kullanıcı deneyimini bozar. Denetim `QuotaGate` içinde, çalıştırma başlamadan önce yapılır.
+
+### K-163
+
+Alıcının bir tolerans penceresi denetlemesi gerekir; AgentPrism bunu zorlayamaz, README'de yazar ve `AgentPrismWebhookOptions.SignatureTolerance` önerilen değeri taşır. Doğrulama `CryptographicOperations.FixedTimeEquals` ile sabit zamanlıdır.
+
+### K-164 — devam (Faz 90 damıtması)
+
+Denetim `SocketsHttpHandler.ConnectCallback` içindedir: **doğrulanan ad
+
+### K-165
+
+Filtre her zaman eklenir ama `Enabled = false` iken hiçbir istek reddedilmez. Önerilen değerler README'de yazar. Aynı gerekçe kota için de geçerlidir: **varsayılan kota yoktur**, kural tanımlanmadıkça hiçbir şey reddedilmez.
+
+### K-166 — devam (Faz 90 damıtması)
+
+Etki tek bir işle sınırlı değildi: `GET /api/jobs` **tüm** iş listesini 500 ile döndürüyordu. 1231 testin hiçbiri yakalamadı — birim testleri işi kuyruğa y
+
+### K-167 — devam (Faz 90 damıtması)
+
+Sonuç: yerel bir dinleyiciye teslim **imkânsızdı** — teslim `Dropped` oldu ve kullanıcı, `10/8` ile `169.254.169.254` dâhil tüm özel ağı açan `AllowPrivateNetworkTargets`'a zorlanırdı. Geliştirme kolayl
+
+### K-168 — devam (Faz 90 damıtması)
+
+`ModelContextProtocol.Core` 2.0.0'ın `ClientOAuthOptions` tipini reflection ile doğrularken `RedirectU
+
+### K-169
+
+Bu yüzden `AgentPrismMcpOptions.OAuthCallbackBaseUri` bir HTTP isteğinin `Host` başlığından değil, açık bir yapılandırma değerinden okunur — hem etkileşimli akış (`/oauth/start`) hem arka plan yeniden bağlanma aynı değeri kullanır. Ayarlanmamışsa OAuth açık bir sunucuya **hiç bağlanılmaz** (sessiz yarım kalma yerine açık atlama).
+
+### K-170
+
+İkisi ayrı `ITokenCache` örneği kullansaydı arka plan hiçbir zaman etkileşimli akışın aldığı token'ı göremezdi ve her tazelemede yeniden (imkânsız) bir yetkilendirme denerdi. `McpOAuthTokenCacheRegistry` ile ikisi aynı `InMemoryMcpTokenCache` örneğini `GetOrCreate` üzerinden paylaşır. Token hiçbir zaman veritabanına yazılmaz (K-059'un uzantısı).
+
+### K-171
+
+Bu yol kasıtlı olarak `Task.FromException` ile anında başarısız olur; bağlantı "erişilemedi" olarak loglanır ve o sunucunun tool'ları listeden düşer — mevcut "sunucu çökerse atla" davranışıyla aynı koda düşer. Gerçek yetkilendirme yalnız `/oauth/start` üzerinden, bir yöneticinin başlattığı akışta olur.
+
+### K-172 — devam (Faz 90 damıtması)
+
+System.Text.Json'ın camelCase politikası yalnız **ilk** harfi küçültür; "OAuth" iki büyük harfle başladığı için varsayılan çıktı `oAuthEnabled` oluyordu (beklenen `oauthEnabled` değil). Birim/işlevsel testler bunu yakalamadı çünkü ASP.NET Core'un istek gövdesi bağlaması varsayılan olarak büyük/küçük harfe duya
+
+### K-173 — devam (Faz 90 damıtması)
+
+MCP ekranındaki "Copy" düğmesi kaynak sunucu/prompt adı ve SHA-256 özetini yorum olarak taşıyan haz
+
+### K-174
+
+Soyutlama `AgentPrism.Abstractions`'a kondu — zaten `Microsoft.Agents.AI.Abstractions`'a bağlı olduğu için `AIContextProvider` dönebiliyor. Desen `IMcpToolRefresher` ile birebir aynı: `UseMcp()` çağrılmazsa `McpResourceUris` kullanan bir tanım derleme hatası alır (sessizce eksik kaynakla çalışmaz).
+
+### K-175
+
+Yeni okuyucu bu varsayımı bozdu: bir tazeleme sırasında eşzamanlı okuma çökme veya bozuk veri riski taşırdı. `ConcurrentDictionary`'e geçiş, yazma tarafını değiştirmeden (hâlâ tek yazar) güvenli eşzamanlı okuma sağlar.
+
+### K-176
+
+Bunu mümkün kılan bulgu: 21 upsert'ün tamamı PostgreSQL/SQL Server'da aynı satır kümesini döndürüyor, diyalekt farkı `SqlDialect` içinde kalıyor.
+
+### K-177
+
+OUTPUT inserted.*` deseni kullanılır. `SERIALIZABLE` (=`HOLDLOCK`) ipucu anahtar aralığı kilidi alır; böylece iki oturum UPDATE ile INSERT arasında aynı anahtarı ekleyemez. İki dal **aynı sütunları** döndürdüğü için paylaşılan C# tarafında tek bir okuyucu yeter.
+
+### K-178 — devam (Faz 90 damıtması)
+
+Eşleştirmeye çalışmak, ileride bir sağlayıcıya özel düzeltme gerektiğinde (yalnız SQL Server'da bir indeks eklemek gibi) n
+
+### K-179
+
+Sebep taşınabilirliktir — aynı `SchemaName` değeri iki sağlayıcı arasında değiştirilmeden kullanılabilmelidir. Küçük harf şartı PostgreSQL'in tırnaksız tanımlayıcıları küçük harfe çevirmesinden gelir. Yasak ad sağlayıcıya göre değişir: PostgreSQL'de `public`, SQL Server'da `dbo`. K-029'un devamıdır.
+
+### K-180 — devam (Faz 90 damıtması)
+
+Bu yüzden K-015'in zaman sıralı uuid v7 anahtarları SQL Server'da zaman sıralı **görünmez** ve kümelenmiş bir birincil anahtar sayfa bölünmesi üretir — PostgreSQL'de olmayan bir sorun. Çözüm: `runs`, `tool_invocations`, `spans`, `audit_log`, `attachments`, `webhook_deliveries`, `eval_case_results` tablolarında PK `NONCLUSTERED`, kümelenmiş indeks `(zaman_sütunu, id)` ü
+
+### K-181 — devam (Faz 90 damıtması)
+
+Sonuç: **sıfır** IL2xxx/IL3xxx uyarısı; native ikili üretil
+
+### K-182 — devam (Faz 90 damıtması)
+
+Tablo değerli parametre (TVP) alternatifi elenmiştir: migration'da ayrı bir `TYPE` tanımı ve `SqlDbType.Structured` gerektirir, yani
+
+### K-183 — devam (Faz 90 damıtması)
+
+Bu bir yapılandırma hatasıdır ama **engellenmez**: bilinçli bir geçiş senaryosu olabilir ve kütüphanenin
+
+### K-184 — devam (Faz 90 damıtması)
+
+SQL Server benzersiz indekste NULL'ları birbirine eşit sayar ve tek bir NULL satırına izin verir — **istenen davra
+
+### K-185 — devam (Faz 90 damıtması)
+
+SQL Server'ı da eklemek, PostgreSQL kullanan her tüketiciye `Microsoft.Data.SqlClient` bağımlılığını (ve onun native SNI/kimlik doğrulama ağacını) zorlardı — K2 "tüketicinin bağımlılık grafiğini kirletme" kuralının doğrudan ihlali. SQL Server kullanan tüketici `AgentPrism.
+
+### K-186 — devam (Faz 90 damıtması)
+
+Kullanıcı, Faz 24'e geçmeden önce paylaşım modelini doğrulamak amacıyla arm64 native `mcr.microsoft.com/azure-sql-edge` imajıyla 204 sözleşme testinin tamamının koşturulmasını onayladı. `SqlServerFixture` geçici olarak bu imaja yönlendirildi, testler koşturuldu, sonra **orijinal `mssql/server` yapılandırmasına geri alındı** — CI ve ger
+
+### K-187
+
+Hiçbir test bunu yakalayamamıştı çünkü SQL Server testleri hiç koşmamıştı (Faz 23 "Açık Kalan"). azure-sql-edge koşusunda 204 testin 95'i "Incorrect syntax near the keyword 'ROWCOUNT'" ile aynı anda kırıldı. Düzeltme: dosya genelinde `ROWCOUNT` → `@@ROWCOUNT`.
+
+### K-188 — devam (Faz 90 damıtması)
+
+OUTPUT` deseni, UPDATE 0 satır etkilediğinde (kayıt henüz yoksa) gerçek satırı **ikinci** sonuç kümesine yazar. `ReadSingleAsync` `reader.ReadAsync()`'i yalnızca ilk kümede çağırıyordu — kayıt aslında INSERT edilmiş olsa bile ilk kümenin boş olması `null` döndürüyordu ve çağıran kod "veritabanı sürüm bilgi
+
+### K-189 — devam (Faz 90 damıtması)
+
+PostgreSQL'de çalışıyordu (Npgsql array desteği) ama SQL Server'da `System.String`'i `System.String[]`'e cast ede
+
+### K-190
+
+Önek `SqlIdentifier.RequireSchemaName` ile PostgreSQL/SQL Server'daki şema adıyla AYNI katı kuraldan geçer — taşınabilirlik gerekçesi K-179 ile aynıdır.
+
+### K-191 — devam (Faz 90 damıtması)
+
+Ölçüldü: `Microsoft.Data.Sqlite` hem tipsiz (`DbHelpers.Add`'in zorunlu Guid'ler için kullandığı yol) hem `DbType.Guid` ile (taban sınıfın `AddUuid` varsayılanı, nullable Guid'ler için kullanılan yol) BİREBİR AYNI büyük harfli metni yazıyor. `SqliteDialect.AddUuid`'i küçük harfe çevirecek şekilde ezmek bu ik
+
+### K-192 — devam (Faz 90 damıtması)
+
+Ölçüldü: `Microsoft.Data.Sqlite` iç içe işlem DESTEKLEMEZ (`SqliteConnection does not support nested transactions`); bu yüzden `AcquireMigrationLockAsync` içinde `BEGIN IMMEDIATE` açıp tüm migration boyunca tutmak, `MigrationRunner.ApplyOneAsync`'in her
+
+### K-193 — devam (Faz 90 damıtması)
+
+İlk yazımda yalnızca TABLO adları önek alıyordu, indeks adları almıyordu (`CREATE UNIQUE INDEX IF NOT EXISTS quotas_scope_uq ON {schema}quotas ...
+
+### K-194 — devam (Faz 90 damıtması)
+
+RETURNING`'i PostgreSQL'inkiyle aynı semantikte destekler — `COALESCE(col, '')` gibi ifade tabanlı çakışma hedefleri dahil, ve NULL'ları PostgreSQL gibi birbirinden AYIRT EDER (SQL
+
+### K-198
+
+Bunun yerine `Sql.Shared/Internal/RetentionTargetRegistry.cs` her hedefin tablosunu ve `@cutoff` koşulunu TEK yerde tanımlar; `SqlDialect` yalnız 3 şablon yöntemi sağlar.
+
+### K-199 — devam (Faz 90 damıtması)
+
+Faz 6/7'nin hedef yükü saniyede 100 çalıştırma × ~50 olay = saniyede 5.000 olaydır; ölçülen silme hızı bunun ~144 katı. Yazma tarafı da ölçüldü: 100.000 satırlık toplu ekleme 1,7 sn'de tamamlandı (~58.
+
+### K-200 — devam (Faz 90 damıtması)
+
+SQL Server `DELETE TOP (n) FROM t WHERE kosul` kullanır — alt sorgu gerekmez ve `TOP (0)` hata VERMEZ (OFFSET/FETCH'in aksine, K-026/hafiza tuzağı burada geçerli değil). SQLite `DELETE ...
+
+### K-201 — devam (Faz 90 damıtması)
+
+K-063'ün kendi gerekçesiyle aynı desen izlendi: ölçüm olmadan eklenen bi
+
+### K-203 — devam (Faz 90 damıtması)
+
+Uygulamada `conversations` hedefi silinince `conversation_items` ve `responses` `ON DELETE CASCADE` ile birlikte gider (aynı `traces`→`spans`, `jobs`→`job_items` deseni) — ayrı bir "conversation_items" hedefine gerek yoktu. `sessions` tablosu ise bağımsızdır (kendi
+
+### K-204 — devam (Faz 90 damıtması)
+
+Ölçüldü: ikisinin de **resmî birinci taraf** karşılığı var — `Anthropic` 12.39.0 (sahip: Anthropic, MIT, 2,8M indirme) ve `Google.GenAI` 1.16.0 (sahip: Google LLC, Apache-2.0, doğrulanmış, 2,3M indirme). İkisi de kendi `Microsoft.Extensions.AI.AsIChatClient` adaptörünü taşır; bu yüzden mesaj eşlemesi, akış, tool çağrısı ve kullanım sayaçları AgentPrism'de yazılmadı ve faz "büyük iş" senaryosuna girmedi. İkisi de `Is
+
+### K-205 — devam (Faz 90 damıtması)
+
+Bu, K2'nin "tüketicinin bağımlılı
+
+### K-206 — devam (Faz 90 damıtması)
+
+Sağlayıcı başına yazmak, aynı mantığı iki pakette tekrarlar ve Faz 27 (Azure) üçüncü kez yazardı. Bunun yerine `ContentFilterDetectingChatClient` (internal, `DelegatingChatClient`) `ModelProviderRegistry.CreateChatClient` içinde her istemciye uygulanır — devre kesiciyle **birebir aynı desen** (Faz 8, K-072). Ölçüldü: hem Anthropic hem Google adaptörü güvenlik/refuse durumunu `ChatFinishReason.ContentFilter`'a eşl
+
+### K-207 — devam (Faz 90 damıtması)
+
+`gemini` adı paketi tek bir model ailesine kilitler; aynı paket ileride Vertex AI'yi de kapsayabilir ve o zaman ikinci bir paket ya da yanıltıcı bir ad kalırdı. Sağlayıcı adı `ModelBinding.Provider` üzerinden **veritabanında saklanır**; sonradan değiştirmek kayıtlı tüm agent tanımlarını bozar, bu
+
+### K-208 — devam (Faz 90 damıtması)
+
+`IReadOnlyDictionary<string, JsonElement>` seçildi — `AgentDefinition.Metadata` ile **aynı şekil**, dolayısıyla `jsonb` yolu, HTTP sözleşmesi ve kaynak üreteci bağlamı hiç değişmeden çalıştı (Postgre
+
+### K-209 — devam (Faz 90 damıtması)
+
+Anthropic ve Google'ı da eklemek, yalnız OpenAI kullanan her tüketiciye Anthropic SDK'sini ve `Google.Apis.Auth` zincirini (Newtonsoft.Json, System.Management, System.CodeDom — K-205) zorlardı. Bu sağlayıcıları is
+
+### K-210
+
+Ölçüldü: `AzureOpenAIClient`'ın `TokenCredential` kurucusu `Azure.Core`'da yaşıyor; `Azure.Identity` almadan tüketiciden `Func<TokenCredential>` alınır (K2, bağımlılık grafiğini kirletmeme), API anahtarını ezer.
+
+### K-211
+
+`SupportedSettings` bu yüzden bilinçli olarak boş liste.
+
+### K-213 — devam (Faz 90 damıtması)
+
+Karşılaştırma: `GetChatClient()` Azure'a özgü `Azure.AI.OpenAI.Chat.AzureChatClient` döndürüyor. Yani SDK, Responses için Azure'un yol ve `api-version` şeklini **uygulamıyor**; çalışıp çalışma
+
+### K-214 — devam (Faz 90 damıtması)
+
+Faz 27'de (213 kalem) tekrar aşıldı; söz tutuldu. İndeksin işi **kalemi bulup satır numarasını vermektir**; tarih o işte kullanılmaz ve satır başına ~15 bayt t
+
+### K-215 — devam (Faz 90 damıtması)
+
+Sebep paket yönü kuralıdır: `AgentPrism.AspNetCore` ses uçlarını (`/api/voice/health`, `/voices`, `/speak`) sunarken bu tipleri görmek zorundadır ama `AgentPrism.Voice`'a referans **veremez**. Aynı
+
+### K-216 — devam (Faz 90 damıtması)
+
+Gerekçe üç katmanlı: (1) kullanılan yüzey **üç uçtan** ibarettir (`/v1/text-to-speech/{id}`, `/v1/speech-to-text`, `/v2/voices`) ve JSON sözleşmesi basittir; (2) `System.Text.Json` kaynak üreteci ile pak
+
+### K-217 — devam (Faz 90 damıtması)
+
+`RetentionTargetRegistry`'nin `attachments` hedefi tam olarak `session_id IS NULL` satırlarını **sahipsiz** sayıp siler (Faz 25) — yani oturum hâlâ yaşarken transcript'teki ses kesim tarihinden sonra kaybolurdu. B
+
+### K-218
+
+Çözüm: tool'lar `IServiceProvider`'ı kurucuda alır, `services.AddSingleton(provider => new AgentPrismToolRegistration(new SpeakTool(provider), ...))` ile fabrika üzerinden kaydedilir.
+
+### K-219 — devam (Faz 90 damıtması)
+
+Ses ücretlendirmesi karakter (üretim) veya süre (çözüm) bazlıdır; `tool_invocations` hiçbir ölçüm sütunu taşımıyordu, dolayısıyla planın "Migration: Yok" satırı yanlıştı. Eklenenler: `usage_unit`, `usage_quantity`, `usage_estimated`, `cost`, `cost_currency` (Postgres 0015, SqlServer/Sqlite 0003). `pricing_source` **eklenmedi**: ses fiyatının tek kaynağı yapılandırmadır, ayırt edilecek kaynak yoktur. İki
+
+### K-220 — devam (Faz 90 damıtması)
+
+Üç seçenek vardı: (a) düğmeyi kaldırıp yalnız agent'ın tool'unu bırakmak — faz kapsamındaki arayüz gereksinimini düşürürdü; (b) düğmenin bir çalıştırma başlatması — sırf ses için bir model çağrısı ödetirdi; (c) uç eklemek ve ölçümün kalıcı olmadığını **açıkça** söylemek.
+
+### K-221 — devam (Faz 90 damıtması)
+
+K-059 bir sırrın **veritabanına** yazılmasını yasaklar — MCP sunucu tanımları arayüzden oluşturulur ve veritabanında yaşar. Ses yapılandırması veritabanına **hiç girmez**; `IConfiguration` üzerinden ge
+
+### K-222 — devam (Faz 90 damıtması)
+
+Bedel gecikmedir, karşılığı çalıştırma kaydı, span, maliyet, tool onayı, kiracı ve kotanın ses turunda da **aynen** işlemesidir — ölçüldü: gerçek bir konuşma turu `Completed` bir `runs` satırı ve 413 token üretti. AgentPrism bir kontrol
+
+### K-223 — devam (Faz 90 damıtması)
+
+Tüketiciden ayrıca `app.UseWebSockets()` istemek `MapAgentPrism`'in **tek giriş noktası** olma kuralını (K1) bozardı ve eksiklik yalnızca ilk konu
+
+### K-224 — devam (Faz 90 damıtması)
+
+Sorgu dizesi ise sunucu günlüklerine, ters vekil günlüklerine ve tarayıcı geçmişine yazılır; bir sır oraya konmaz. Token `Sec-WebSocket-Protocol: agentprism.voice.v1, agentprism.token.<token>` ile gelir ve uç onu `BearerTokenValidator.
+
+### K-225 — devam (Faz 90 damıtması)
+
+Kullanıcının söylediği zaten oturum geçmişinde transkript olarak durur; sesin ikinci kopyası risk ekler, bilgi eklemez. Denetim izi açısından
+
+### K-226 — devam (Faz 90 damıtması)
+
+Artımlı çözüm sağlayıcının realtime STT WebSocket'ini gerektirir ve o sözleşme **gerçek abonelik olmadan doğrulanamaz** — Faz 28'de taklit uçla iki belirsizlik zaten açık kaldı (fatural
+
+### K-227 — devam (Faz 90 damıtması)
+
+Yeni bir birim eklemek kota şeması migration'ı, `QuotaEnforcer` genişlemesi, arayüz paneli ve testler demektir. Koruma bunun yerine bu fazın kendi sınırlarından gelir: kiracı başına eşzamanlı bağlantı (5), bağlantı süresi (30 dk), boşta zaman aşımı (2 dk),
+
+### K-228 — devam (Faz 90 damıtması)
+
+Elle yazılan katman **~150 satırdır** ve bir kütüphanenin veremeyeceği bir şey verir: `tr` sözlüğü `Messages` tipiyle bildirilir, bu yüzden eksik anahtar **derleme hatasıdır** (kanıt: `nav.runs` silinince `TS2741`). Çalışma anı
+
+### K-229
+
+Dil başına yeni bir closure döndürülseydi bu fonksiyon `useCallback` bağımlılık dizilerine girerdi; `voice-panel.tsx` içindeki `start`/`stop` yeniden kurulur ve **açık bir konuşma WebSocket'i kopardı**. Faz 30 dokümanının 🚨 uyarısı buydu ve tasarım doğrudan onu karşılıyor.
+
+### K-231 — devam (Faz 90 damıtması)
+
+Değerlendirilen alternatif "her zaman İngilizce başla": ekran görüntüsü ve destek tutarlılığı yüksek olurdu ama Türkçe bir tarayıcıda konsolu açan kul
+
+### K-232
+
+Paket NuGet.org'a uluslararası yayınlanır ve aynı hata metni günlükte, testte ve destek kaydında aynı olmalıdır. Arayüz **kendi** başlıklarını çevirir, sunucudan geleni olduğu gibi gösterir (`ErrorNote`, `role="alert"`). Bilmediği bir hata için Türkçe cümle uydurmak, gerçekte ne olduğunu gizlerdi.
+
+### K-233
+
+Tek anahtar kümesi kullanmak ikisinden birini bozardı; bu yüzden `runs.filter.*` ayrı tutulur. Bu bir kopya değildir: iki farklı sunum bağlamıdır.
+
+### K-234 — devam (Faz 90 damıtması)
+
+Ama sağlayıcı bir sesin **hangi dili konuştuğunu bildirmez** — `VoiceDescriptor` yalnız `VoiceId`, `Name`, `Category` taşır — bu yüzden eşleme türetilemez. Operatör Ayarlar ekranında dil başına bir ses seçer; seçim `localStorage`'da durur ve konuşma paneli
+
+### K-235
+
+Dil kodunu göndermek `VoiceClientMessage`'a alan, sürücüde bir `TranscriptionRequest` kurulumu ve yeni test demektir; kullanılan sağlayıcı dili başarıyla seziyor. Bilinçli bir sınır, unutulmuş bir iş değil.
+
+### K-236
+
+Yeni değerler `#6b6b79` / `#85859a`; ölçülen aralık panel ve `raised` zeminlerde 4.7–5.3:1. `--ap-muted` açık temada `#55555f`'e koyulaştırıldı ki `subtle` ile arasındaki görsel basamak korunsun. Değerler `styles.css` içinde 🚨 ile işaretli; değiştirmeden önce yeniden ölçülür.
+
+### K-237
+
+`createShortcutMatcher` bunu zorlar: yalnız `insideText: true` diyen bağlama (`mod+k`, `escape`) metin alanında ateşler ve bir sıra öneki (`g`) metin alanında **hiç kurulmaz** — kurulursa sonraki harfi yutardı. `Ctrl/Cmd+Enter` bilinçli olarak **global değildir**: gönderme, imleci taşıyan forma aittir ve Playground'un kendi `textarea`'sında bağlanır. Global bir bağlama hangi formun kastedildiğini tahmin etmek zorunda kalırdı.
+
+### K-238
+
+Sorgular yalnız palet **açıkken** koşar: gösterge panelinde duran bir konsol, bir kalıp açılabilir diye agent listesini yoklamaz. Komutlar role göre süzülür — Reader'a "Yeni agent" gösterilmez; sunucunun reddedeceği bir eylemi sunmak sunmamaktan kötüdür (Faz 9 sınırı).
+
+### K-239
+
+`message_id` için TERSİ doğrudur: PostgreSQL/SQLite `COALESCE(message_id, '')` ister, SQL Server düz sütun yeter.
+
+### K-240 — devam (Faz 90 damıtması)
+
+SQL sağlayıcılarında çözüm ucuzdu: `SelectRunStatistics` sorgusuna `run_scores` tablosuna bakan iki skaler alt sorgu eklendi (aynı kiracı/eval/agent/tarih filtresi tekrarlanarak) — `IRu
+
+### K-241 — devam (Faz 90 damıtması)
+
+scores = null` parametresi, verilmez
+
+### K-242
+
+Gerekçe kapsam disiplinidir (K1): DoD metni "puan düğmeleri + yorum kutusu" der, iki puan türü için eşzamanlı UI (birbirinden bağımsız iki puan, iki yorum) belirsiz bir tasarım kararı gerektirirdi ve hiçbir yerde istenmemişti. API'nin genişliği bunu ucuza bir sonraki faza bırakıyor.
+
+### K-243 — devam (Faz 90 damıtması)
+
+`IRunCancellationRegistry.TryCancel` bir kökü iptal ederken aynı `RootRunId`'yi taşıyan TÜM kayıtların kaynağını tek tek `Cancel()` eder — çocuğun kendi `cancellationToke
+
+### K-245
+
+Workflow satırı kendi ağacının köküdür (`RunId == RootRunId`).
+
+### K-248 — devam (Faz 90 damıtması)
+
+Ayrı bir sarmalayıcı tip, ay
+
+### K-249 — devam (Faz 90 damıtması)
+
+Yanlıştı: `UseOpenAICompatible(ad, Action<>)` yapılandırmayı KODDA alır (`o.ApiKey = configuration["OpenRouter:ApiKey"]` gibi rastgele bir kaynaktan), sabit bir bölüm yolu yoktur — sabit bir anahtar adı raporlamak kullanıcı
+
+### K-254
+
+Kullanıcıya iki seçenek sunuldu (`quota.metric` ekle / yalnız `Cost` yay); "ekle" seçildi.
+
+### K-257 — devam (Faz 90 damıtması)
+
+Faz kapsamı "yeni tablo/uç yok"tu; çapraz kiracı listeleme için `IQuotaStore`'a yeni bir üye eklemek (üç SQL sağla
+
+### K-259 — devam (Faz 90 damıtması)
+
+PostgreSQL/SQL Server'da bu çalışır çünkü ikisi de aliassız bir `FROM sema.tablo`'yu hem `sema.tablo.sütun` hem bare `tablo.sütun` ile referanslamaya izin verir; SQLite'ta ise `QualifyTable` önek+ad BİTİŞTİRİR (nokta yok, K-193) ve gerçek nesne adı (`t_xxxxxxxxworkflow_checkpoints`) bare `workflow_checkpoints`'e HİÇ eşleşm
+
+### K-260 — devam (Faz 90 damıtması)
+
+İnceleme gösterdi ki `RetentionTargetRegistry`'nin ÜÇ mevcut şablonu (say/oku/sil, Faz 25) hiçbirinde `tenant_id` filtresi YOKTUR — yaş bazlı silme bugün zaten kiracı genelinde çalışır; tenant yalnız HANGİ POLİTİKANIN uygulanacağını seçer (`Reten
+
+### K-262 — devam (Faz 90 damıtması)
+
+`AgentPrism.Templates` derlenmez (`IncludeBuildOutput=false`) — üretecek `.pdb` yok, dolayısıyla eşlik eden sembol paketi BOŞ kalır ve `NuGet.Build.Tasks.Pack` onu `NU501
+
+### K-264 — devam (Faz 90 damıtması)
+
+`ContentTargetFolders` KULLANILMAZ: açık `PackagePath` verildiğinde bu özellik hiç uygulanmıyor; birlikte kullanmak (`ContentTargetFolders=content` + item'in kendi `content/` kök yolu) "content/content/...
+
+### K-265 — devam (Faz 90 damıtması)
+
+Sabit bir sürüm gömmek şablonun her kütüphan
+
+### K-266 — devam (Faz 90 damıtması)
+
+Şablonun `sourceName` mekanizması "AgentPrism.Starter" metnini `-n` ile verilen HER ADA (örn. `Calisma.Deneme`) döner — bu, `namespace AgentPrism.
+
+### K-267 — devam (Faz 90 damıtması)
+
+`AgentResponseFormatKind.Text` hiçbir sağlayıcıya özel yüzey istemez — "açıkça düz metin iste" talimatı her modelde çalışır, `null` (hiçbir kısıt yok) davranışından yalnız görünürlük açısından farklıdır (bkz.
+
+### K-268 — devam (Faz 90 damıtması)
+
+Templates.Tests suitinin tek basina calismasi bu yuzden ~1 saat suruyordu. `.slnf` cozum filtresi `.slnx` formatini da destekler (.NET 10 SDK ile dogrulandi: `dotnet sln <filtre>.
+
+### K-269 — devam (Faz 90 damıtması)
+
+Eski Routing/ScriptedModelProvider mesaj gecmisindeki `FunctionCallContent`/`FunctionResultContent` ciftlerini korele ederek "bu tool zaten calisti mi" cikariyordu — bu mantik genellestirilebilir ama testin KENDI durumunu (kuyruk sirasi) saglayicinin DISINDA, cagiranin kontrol
+
+### K-271 — devam (Faz 90 damıtması)
+
+Inceleme gosterdi ki 27 cagrı yerinden 20'den fazlasi ARGUMANLI bir `IChatClient` (`Core.UnitTests.Fakes.FakeChatClient` veya satir-ici lambda) geciriyor — derleyici/kayit zincirinin (`AgentDefinitionCompiler`, `RunRecordingAgent`, maliyet metrikleri) INTERNALLERINI beyaz-kutu test eden, `AgentPrism.Testing`'in siralı-kuyruk tasarimiyla KARSILANAMAYAN bir kullanim bicimi. Yeni paketin public yuzeyine "ham `IChatClient` gecir" kacis kapisi eklemek K-016'nin "test paketi API'si bir kez dogru yapi
+
+### K-273 — devam (Faz 90 damıtması)
+
+`.Produces<string>(200, contentType: "text/event-stream")` veya `.Produces<Stream>(200, contentType: "application/octet-stream")` (ikili gövde için, `format
+
+### K-274 — devam (Faz 90 damıtması)
+
+İki ayrı `.Produces(200, ...)` çağrısı denendi — ikincisi birinciyi ezdi (K-272 ile aynı "s
+
+### K-275 — devam (Faz 90 damıtması)
+
+On bir ucun TAMAMI incelendiğinde: beşi (`AgentPrismRunAgent`, üç workflow ucu, indirme) başarı yanıtında SAADECE SSE/ikili döndürüyor — hiçbir zaman tipli JSON dönmüyor; altısı (`/v1/responses`, `/v1/chat/completions`, dört conversations ucu) `Results.Json(...)` ile ÖZEL `JsonSerializerOptions` (`OpenAICompatSupport.
+
+### K-279 — devam (Faz 90 damıtması)
+
+Sonuç: A kiracısının admin'i `/api/retention/run` çağırınca B kiracısının verisi
+
+### K-280 — devam (Faz 90 damıtması)
+
+Sebep: `RunStartInfo.TenantId` ambient kiracıyı bilerek ezebilir (workflow yürütücüsü ve iş kuyruğu bir kiracı adına çalışır); süzgeç meşru yazmaları sessizce düşürüyordu ve `Ozet_baska_kiracinin_cagrilar
+
+### K-281 — devam (Faz 90 damıtması)
+
+Uygulanamaz: muafiyetin gerekçesi **metodun yanında** durmalıdır (planın Açık Soru 2'de "liste dosyası uzaktadır ve bayatlar" diye reddettiği şey), bu da ö
+
+### K-282 — devam (Faz 90 damıtması)
+
+Bellek içi depolar kendi durumlarını **örnek içinde** taşır; iki örnek aynı arka uca bakmaz ve "A'nın yazdığını B görüyor mu" sorusu hiç sorulamaz. `MutableTenantContext` (test altyapısı) tek bir depo örneğinin kiracısını çağrılar arasında değiştirir; kiracıyı
+
+### K-283 — devam (Faz 90 damıtması)
+
+K-277'den sonra `ISessionStore.GetAsync` kiracıyla sınırlıdır ve o kayıt `null` döner; bağlantı artık reddedilmez, kendi kiracısında **taze** bir
+
+### K-284
+
+Desen `jobs` kirasıyla (Faz 17) birebir aynıdır ve zaten üretimde kanıtlanmıştır. `singleton_leases` tablosu kiracı sütunu TAŞIMAZ: tek yürütücü seçimi kurulum genelinde bir işletim kavramıdır. Migration: PostgreSQL `0019`, SQL Server `0007`, SQLite `0007` (K-178).
+
+### K-285 — devam (Faz 90 damıtması)
+
+`InternalsVisibleTo` yalnız `$(MSBuildProjectName).UnitTests/.IntegrationTests/.FunctionalTests`'i kapsar (`Directory.Build.p
+
+### K-286 — devam (Faz 90 damıtması)
+
+Bu oran `60sn` varsayılan kirada en kötü durumda **~90 sn**'lik bir devralm
+
+### K-288 — devam (Faz 90 damıtması)
+
+Akışsız dal eklenmeden faz kendi amacını gerçekleştire
+
+### K-289
+
+Ama `AgentPrismRateLimitOptions` (Faz 21) ve `AgentPrismRetentionOptions` (Faz 25) — HTTP filtresi/uç tarafından tüketilen ama kendi `SectionName`'ini taşıyan, ayrı bir `Use...()` çağrısı gerektirmeyen iki emsal — ikisi de Core'dadır ve `AgentPrismServiceCollectionExtensions.AddAgentPrism()` içinde bağlanır. Tutarlılık için aynı yerleşim izlendi.
+
+### K-291 — devam (Faz 90 damıtması)
+
+Kapalı gelseydi, başlığı gönderen bir istemci korunduğunu SANIP korunmazdı; bu, K1'in önle
+
+### K-292 — devam (Faz 90 damıtması)
+
+Ama `/api/agents/{name}/run` govdesi minimal API'nin otomatik `[FromBody]` baglamasıyla `IEndpointFilter.InvokeAsync` ÇAĞRILMADAN ÖNCE tüketilir (ASP.NET Core, tipli parametreleri filtre zincirinden ÖNCE bağlar) — `Request.EnableBuffering()`'i filtrenin içinde çağırmak ÇOK GEÇ ka
+
+### K-294 — devam (Faz 90 damıtması)
+
+Her çağrı noktasına ayrı ayrı sınıflandırıcı çağrısı eklemek üç kopya ve gelecekte eklenecek dördüncü bir
+
+### K-295 — devam (Faz 90 damıtması)
+
+SQL tarafında bu, PostgreSQL/SQL Server/SQLite'ın PAYLAŞTIĞI çok-sonuç-kümeli `SelectRunStatistics` toplu sorgusuna beşinci (sınıf toplamı) ve altıncı (kümeler) sonuç kümesi eklemek
+
+### K-296 — devam (Faz 90 damıtması)
+
+`samples/AgentPrism.Api`'de gerçek bir OpenAI 404 yanıtı (`gpt-olmayan-model-xyz`) tetiklendiğinde resmi OpenAI SDK'sının `System.ClientModel.ClientResultException` fırlattığı görüldü — bu tip
+
+### K-299 — devam (Faz 90 damıtması)
+
+PostgreSQL, SQL Server (2012+) ve SQLite (3.25+, Microsoft.Data.Sqlite 10.0.10'un gömdüğü sürüm) üçü de standart pencere fonksiyonlarını destekler; sorgu üç diyalektte neredeyse birebir aynı ya
+
+### K-300 — devam (Faz 90 damıtması)
+
+Gerçek bir HTTP testiyle ölçüldü: `AgentEndpoints.AgentRunStream`'de `sessions.SaveSessionAsync(...)` YALNIZ başarı yolunda çağrılıyor; ilk turu başarısız olan bir oturum `ISessionStore`'a hiç yazılmıyor. Bu, planın 🚨 işaretli en önemli DoD maddesini ("başarısız bir çalıştırma terfi edilir, `expectedOut
+
+### K-301 — devam (Faz 90 damıtması)
+
+`RunToCasePromoter.HasEarlierRunInSameSessionAsync`, `IRunStore.QueryRunsAsync(new RunQuery { SessionId = ..., OnlyRootRuns = false })` ile aynı `sessionId`'de bu çalıştırmadan ÖNCE başlamış başka bir
+
+### K-303 — devam (Faz 90 damıtması)
+
+Faz 45 bu tanımı yapmak zorunda kaldı: `Stars 1-5` ölçeğin
+
+### K-304 — devam (Faz 90 damıtması)
+
+`RunStartInfo`'ya varsayılanı `Running` olan bir `Status` alanı eklendi; enqueue anında `Queued` ile yazılan satır, işçi işi gerçekten çalıştırdığında AYNI `RunId` ile ikinci kez `StartRunAsync` çağrısı alır. Düz bir `INSERT` bu ikinci çağrıda birincil anahtar çakışması üretirdi (özellikle `MaxAttempts > 1` yapılandırıldığında). Üç SQL sağlayıcısının `InsertRun` deyimi `ON CONFLICT (id) DO UPDATE` (Postgres/SQLite) ve `UPDATE ...
+
+### K-305
+
+`AcceptedRunResponse.JobId` alanı teşhis amacıyla yanıtta durur ama değeri `RunId` ile özdeştir.
+
+### K-306
+
+Yükseltmek (`MaxAttempts > 1`) tüketicinin bilinçli tercihidir ve K-304'ün UPSERT'i sayesinde güvenlidir (yeniden deneme aynı `runs` satırını günceller, ikinci bir satır açmaz).
+
+### K-308 — devam (Faz 90 damıtması)
+
+`messages` polimorfik `ChatMessage` taşır ve `$type` ayracı nesnenin ilk özelliği olmak zorundadır; `jsonb` anahtarları yeniden sıralar ve okuma çalışma anında çöker. Ayrı tablo seçildi çünkü `runs` en sıcak tablodur ve her liste/istatistik sorgusu onu okur — aynı gere
+
+### K-309 — devam (Faz 90 damıtması)
+
+Sessizce atlamak modelin göremediği bir boşluk üretir ve sonucu sessizce yanlış yapar; canlı çalıştırmak kullanıcının istemediği bir yan etkidir. Eşleşme `(tool adı, argümanlar)` çiftiyle yapılır — `tool_call_id` KULLANILMAZ çünkü yeni çalıştırmada model yeni kimlikler üretir. Aynı çift birden çok kez
+
+### K-311 — devam (Faz 90 damıtması)
+
+Kopyalamayla okuma yolu TEK SATIR bile değişmez ve `parent_conversatio
+
+### K-312 — devam (Faz 90 damıtması)
+
+Kısıtı yalnız PostgreSQL ve SQLite'a koymak aynı silme işlemini üç sağlayıcıda üç farklı sonuca çevirirdi; K-184'ün dersi şem
+
+### K-314
+
+Sessizce `LiveTools`'a düşmek K1'e aykırıdır: kullanıcı yan etki üretmediğini sanırdı. Kod agent'ı yalnız `toolMode: LiveTools` ile ve bindirmesiz oynatılabilir.
+
+### K-315
+
+Oynatmayı aynı oturumda çalıştırmak kaynağın konuşmasına yazardı (append-only, K-014) ve kaydı bozardı. Çok turlu bir konuşmayı baştan almanın yolu dallandırmadır.
+
+### K-316
+
+Kapsam dışı bırakıldı çünkü kuyruktan koşan bir oynatma iki ölçülmemiş şey ister: iş yükünün oynatma parametrelerini (`toolMode`, `agentVersion`, `modelId`) taşıması ve `RunReplayService`'in kiracı bağlamını işçi sürecinde DOĞRU çözmesi (`ITenantContext` orada isteğin değil işin kiracısıdır). Uç sözleşmesi değişmez: aynı yol sonradan `Prefer: respond-async` kazanabilir.
+
+### K-317 — devam (Faz 90 damıtması)
+
+
+
+### K-318 — devam (Faz 90 damıtması)
+
+SQL Server bir toplu işlemi ÇALIŞTIRMADAN ÖNCE TAMAMINI derler; var olan bir tabloya `ALTER TABLE ADD` ile eklenen bir sütun, derleme anında henüz metadataya yansımamıştır, bu
+
+### K-319 — devam (Faz 90 damıtması)
+
+`scores` alanı zaten anlamca bir LİSTEDİR (dokümantasyonu "denetim bazinda skor listesi" der) ve sütunun kendi `DEFAULT` değeri de `N'[]'`dir — düzeltme `RecordCaseResultAsync` çağrı yerinde `Undefined` durumunu `Ra
+
+### K-321 — devam (Faz 90 damıtması)
+
+Bir dekoratör agent'ın yalnız ilk girdisini ve son çıktısını görür; aradaki turları görmez. Ölçüldü ve doğrulandı (`ContentGuardPipelineTests.Tool_sonucundaki_icerik_ikinci_model_cagrisinda_yakalanir`): uzak bir tool zararlı içerik döndürdüğünde guard ikinci model çağrısında yakalar ve sahte istemcinin çağrı sayacı
+
+### K-322 — devam (Faz 90 damıtması)
+
+Ölçüldü: `FailureThreshold = 2` ile arka arkaya engellenen istekler sağlayıcıyı kapatıyordu
+
+### K-323 — devam (Faz 90 damıtması)
+
+
+
+### K-324 — devam (Faz 90 damıtması)
+
+Ölçüldü: `POST /api/agents/{name}/run` varsayılan olarak SSE'dir ve `SseWriter.StartAsync` çalıştırma BAŞLAMADAN başlıkları gönderir; guard model boru hattında (K-321) olduğu için karar durum kodu yazıldıktan SONRA oluşur.
+
+### K-325 — devam (Faz 90 damıtması)
+
+`ContentGuardResult` yalnız kural adı ve sebep taşır (eşleşme sayısı ve karakter aralığı da bilerek dışarıda bırakıldı — aralık içeriğin uzunluğunu ve konumunu sızdırır). Yazılanlar: guard adı, ku
+
+### K-326 — devam (Faz 90 damıtması)
+
+Bir guard kararını aynı kovaya yazmak operatörün "model reddetti" ile "bizim politikamız reddetti" ayrımını kaybetmesine yol açardı; karşılık gelen eylem de farklıdır (biri sağlayıcı ayarını gevşetmek — Gemini'de `google.safety.
+
+### K-327 — devam (Faz 90 damıtması)
+
+`LoopAgent` ayrı bir yetenektir (bir çalıştırmayı
+
+### K-328 — devam (Faz 90 damıtması)
+
+İki depo uygulaması da (`InMemoryRunStore`, `SqlRunStore`) bu türü `RunStatistics`'ten zaten dışlıyordu (Faz 18'in açık soru 4 kararı, K-141
+
+### K-329 — devam (Faz 90 damıtması)
+
+Tek kapı (yalnız `Enabled`) yeterli olmazdı — bir kurulum `Enabled=true` yapıp oranı unutursa yine tam oranda (SampleRate varsayılanı 1.0 olsaydı) harcama başlardı. Üçü
+
+### K-330 — devam (Faz 90 damıtması)
+
+**(b) seçildi ve hiçbir özel kod yazılmadı** — `ModelRunJudge` standart `IModelProviderRegistry.CreateChatClient` yolunu kullandı
+
+### K-331 — devam (Faz 90 damıtması)
+
+Yargıç puanı için bu YANLIŞ davranış olurdu: bir işin geri adımlı yeniden denenmesi veya `POST /api/runs/{id}/judge`'ın elle tekrarl
+
+### K-333 — devam (Faz 90 damıtması)
+
+`TryAddEnumerable(Singleton<IJobHandler, OnlineEvalJobHandler>())` yalnız arayüz üzerinden çözülebilen bir
+
+### K-334 — devam (Faz 90 damıtması)
+
+`ModelContextProtocol.AspNetCore` 2.0.0 (GA) yalnızca `AgentPrism.AspNetCore` içine girdi — 13 geçişli paket, tümü `Microsoft.Extensions.*` ailesinden ve bizim sürümlerimizle (10.0.10, `Microsoft.Extensions.AI.Abstractions` 10.8.
+
+### K-335 — devam (Faz 90 damıtması)
+
+Gerçek uygulama sırasında ölçüldü (`dotnet list package --include-transitive`, base=bugünkü `Microsoft.Agents.AI.Hosting`+`.Hosting.OpenAI`): gerçek ek dört pakettir — `Microsoft.Agents.AI.Hosting.A2A`, `A2A`, ve plan taslağında HİÇ geçmeyen `Microsoft.Agents.AI.Hosting.AspNetCore` + `A2A.
+
+### K-336 — devam (Faz 90 damıtması)
+
+Ölçüldü: A2A protokolü bir sunucuyu bir agent kimliği olarak modeller (`AddA2AServer` de agent adıyla KEYED kayıt yapar); birden çok agent'ı AYNI k
+
+### K-338 — devam (Faz 90 damıtması)
+
+Ama AYNI üç katmanlı korumayı (loopback + bearer + policy) kullanmaları gerekir ve bu ayarlar (`AgentPrismEndpointOptions`) `MapAgentPrism
+
+### K-339 — devam (Faz 90 damıtması)
+
+Tespidi `internal` tutup üçüncü yerde YENİDEN YAZMAK "tek yerde tespit" ilkesini (ayn
+
+### K-340 — devam (Faz 90 damıtması)
+
+Ölçüldü: `ChildAgentInvoker.Refuse()` `scope.Depth + 1 > maxDepth` kuralını uygular; dış çağrı KÖK'tür (`Depth=0`), dolayısıyla `MaxDepth=1` iken `0+1=1 > 1` YANLIŞTIR ve ilk seviye alt çağrıya İZİN VE
+
+### K-341 — devam (Faz 90 damıtması)
+
+K-211'in ikinci uygulaması: sürü
+
+### K-343 — devam (Faz 90 damıtması)
+
+`IVectorSearchStore` Abstractions'a girdi, varsayılan uygulaması YOK (K4); SQL Server/SQ
+
+### K-344
+
+`IVectorSearchStore`'un TEK somut uygulaması (K-343) olduğu için bir `SqlDialect`/`SqlQueriesBase` soyutlaması eklemek gereksiz dolaylamadır; `PgVectorSearchStore` doğrudan `Npgsql` kullanır ve `AgentPrism.PostgreSql` derlemesinde yaşar (linked-source değil).
+
+### K-345
+
+`PgVectorSearchStore` bunu yansımasız `Utf8JsonWriter`/`JsonDocument` (DOM tabanlı) ile serileştirir/ayrıştırır — AOT güvenlidir.
+
+### K-346 — devam (Faz 90 damıtması)
+
+Genel bir `IReadOnlyDictionary<string,string>` eklenip `MigrationRunner.ApplyTemplate` içinde şema değiştirmesinden SONRA uygulanır; SQL
+
+### K-347 — devam (Faz 90 damıtması)
+
+: throw` deseniyle reddi ÇAĞRI ANINA erteliyordu; MAF `Services`'e her zaman `EmptyServiceProvider` (asla `null`) geçirdiği için `throw` dalı hiç çalışmıyordu — ölü kod, K-218'in yan bulgusu. Onarım: `CreateFunction` `!method.IsStatic` denetimini `Scan()` içinde, ilk tool çağrısını beklemeden yapar; `AgentPrismException` tarama anında (uygulama a
+
+### K-348 — devam (Faz 90 damıtması)
+
+Seçilen: ayrı proje (`AgentPrism.Generators`, `IsPackable=false`), `Core.csproj`'a `ProjectReference` `PrivateAssets=all` + `ReferenceOutputAssembly=
+
+### K-349 — devam (Faz 90 damıtması)
+
+Ölçüm (`AssemblyName.GetAssemblyName`/`FileVersionInfo`, bu makinede kurulu üç SDK): .NET 8.0.100 SDK GA → Roslyn `4.8.0` (dotnet/roslyn#70919, WebSearch ile doğrulandı — bu makinede 8.x SDK kurulu değildi); .NET 9 SDK (9.0.305/9.0.306, kurulu) → `4.14.0`; .NET 10 SDK (10.0.100, `global.json`'daki) → `5.0.
+
+### K-350 — devam (Faz 90 damıtması)
+
+Çözülen gerçek desen: üreteç HER tüketici derlemesinde kendi `namespace AgentPrism { public static class AgentPrismGeneratedToolsBuilderExtensions { public static IAgentPrismBuilder AddGeneratedTools(this IAg
+
+### K-351 — devam (Faz 90 damıtması)
+
+Composite tip AOT-güvenli bağlamak ya reflection (`JsonSerializer`'ın reflection yolu → `RequiresUnreferencedCode`, fazın kendi AOT DoD'sini bozar) ya da ikinci bir iç içe kaynak üreteci (tüketicinin `JsonSerializerContext`'i — TEK derleme geçişinde bir üretecin diğerinin çıktısını görüp göremeyeceği Roslyn'de belgelenmemiş/garantisiz bir davranıştır) gerektirirdi; ikisi de bu fazın ka
+
+### K-353 — devam (Faz 90 damıtması)
+
+`AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni **hiçbir hata vermeden hiçbir şey yapmıyordu**; container/K8s (env-var-first) dağıtımlarında tipik bir sessiz yapılandırma kaybı. Çözüm, otomatik bağlama **değil**, depodaki her `Use*` uzantısıyla tutarlı bir aşırı yüklemedir: `UseMcp(IConfiguration section, A
+
+### K-354 — devam (Faz 90 damıtması)
+
+`IHostedService`'ler kayıt sırasında başlatıldığı için zincirde `.UseMcp()` `.UseSqlite()`'tan önce çağrılırsa `McpDiscoveryService`'in ilk SQL denemesi migration bitmeden koşar ("no such table"); kendiliğinden düzelir ama gözlenebilir bir hata üretir ve ilk açılış sağlık kontrollerinde yanlış alarm verir. İki çözüm
+
+### K-356
+
+`ApiKeyGenerator.ComputeHash` `SHA256.HashData` kullanır; arama her zaman ozet üzerinden yapılır (`key_hash` sütunu benzersiz indekslidir), ham değer hiçbir sorguya girmez.
+
+### K-357
+
+Önce doğru çalışsın, gecikme ölçülsün; gerekirse önbellek sonra eklenir. `key_hash` üzerindeki benzersiz indeks aramayı ucuz tutar.
+
+### K-358
+
+`AgentPrismEndpointFilter.TouchLastUsedIfStale` damgayı yalnızca `now - LastUsedAt >= 1 dakika` ise günceller; bu, "kullanılmayan anahtarı gör" ihtiyacını dakika hassasiyetiyle karşılar.
+
+### K-359 — devam (Faz 90 damıtması)
+
+API anahtarı ikinci bir kimlik kaynağı olarak eklenince bu sessiz geçiş, geçersiz bir anahtar denemesinin farkedilmeden redded
+
+### K-360 — devam (Faz 90 damıtması)
+
+Her ucu tek tek scope'a bağlamak bu fazın kapsamını kat kat büyütürdü (K2 ruhu: gereksiz genişleme). `RequireApiKeyScope` yalnız DoD'nin adlandırdığı yüzeyde uygulandı: `AgentEndpoints` (agents:read/agents:admin), `RunEndpoints`'in run başlatma/iptal/yeniden oynatma/okuma uçları (runs:write/runs:read),
+
+### K-362 — devam (Faz 90 damıtması)
+
+WHERE id IN (...)` ile N çalıştırmayı günceller") çelişiyordu — taslak düzeltildi. `RunHeartbeatWriter` her turda `IRunCancellationRegistry.ActiveRunIds`'in anlık görüntüsünü alır ve depoya BİR kez yazar; N suren çalıştırma için N ayrı sorgu yerine tur
+
+### K-363 — devam (Faz 90 damıtması)
+
+Oksuz çalıştırma "hiçbir yanıt alınamadı" durumudur ve mevcut hiçbir sınıfa (ProviderError, Timeout, ToolError…) uymaz; `Unknown`'a düşürmek taksonominin amacını (
+
+### K-364 — devam (Faz 90 damıtması)
+
+Alternatif olarak mesajı normalleştirip SHA-256 hash'ini elle yeniden üretmek kırılgan olurdu (alg
+
+### K-365 — devam (Faz 90 damıtması)
+
+İkisi karışırsa SQLite'ın harf-duyarlı metin eşleşmesi SESSİZCE sıfır satır günceller — tam da K-191'in uyardığı tuzak, bu kez dizi yönünde. `TouchHeartbeatAsync` bu riski almamak için `runIds` üzerinde DÖNGÜYLE tekil `UPDATE ...
+
+### K-366 — devam (Faz 90 damıtması)
+
+Store, `runs` UPDATE'inin RETURNING/OUTPUT'undan kapanan satırları okur, ardından her biri için `INSERT INTO run_events (... , seq, ...) VALUES (..., COALESCE((SELECT MAX(seq) FROM run_events WHERE run_id=@run_id), -1) + 1, ...
+
+### K-368 — devam (Faz 90 damıtması)
+
+`RunStatus.AwaitingInput` bu problemi zaten çözmüş bir emsaldi: karar `AwaitingApproval` durumuna gelen bir çalıştırmanın satırını da SONSUZA KADAR değiştirmemek, kararı `POST /api/approvals/{id}/decide` ile YENİ bir `RunId` açarak devam ettirmek yönünde verildi — ikinci
+
+### K-369 — devam (Faz 90 damıtması)
+
+`reten
+
+### K-371 — devam (Faz 90 damıtması)
+
+Ama `ApprovalExpirationService`'in süresi dolan her onay için karşılık gelen çalıştırma satırını da kapatması (`RunStatus.AwaitingApproval` → `Failed`, zaman aşımı) gerekiyordu — bunun için `RunId`
+
+### K-372 — devam (Faz 90 damıtması)
+
+Ama senkron/MCP/A2A yolda karar zaten CANLI bir istemciye (bir sonraki turdaki `approvals` alanı) bağlıdır — aynı `ToolApprovalRequestContent`i AYNI ANDA hem operatör konsoldan hem orijinal istemciden karara bağlamak, ikisinin sonuç olarak AYNI oturum geçmişine yarışan `ToolApprovalResponseContent` yazmasına yol açardı (çift karar yarışı). Yalnız kuyruk yolunda CANLI istemci yoktur (Faz 46'nın çözdüğü asıl boşluk, bkz. §55.
+
+### K-374 — devam (Faz 90 damıtması)
+
+`CanaryEvaluationServiceTests.Kademeli_artirma_...` ve `ExperimentAssignmentResolverTests.Kanarya_agirligi_buyudukce_...` bunu
+
+### K-375 — devam (Faz 90 damıtması)
+
+56.1'in kendi uyarısı ("üçüncü bir eşik kuralı yazmak üç yerde bakım demektir") burada da geçerlidir: bir sonraki ramp adımına geçmeden önce gereken asgari örnek sayısı, geri alma kararı için za
+
+### K-378 — devam (Faz 90 damıtması)
+
+Bu bilinçli bir ayrımdır: geri alma trafiği KESEN, insan onayı olmadan gerçekleşen ve gerekçesi sonradan incelenmesi gereken bir eylemdir (K-089 sınıfı); ramp adımı ise yalnızca trafik payını artıran, geri alınabilir (bir sonraki
+
+### K-379 — devam (Faz 90 damıtması)
+
+bir A/B deneyi kanarya gözetimine SONRADAN alınır) — bunu `SaveAsync`'in Draft kısıtına bağlamak, kuralın yalnızca deney başlamadan ÖNCE tanıml
+
+### K-380 — devam (Faz 90 damıtması)
+
+Agent adları yalnız kiracı İÇİNDE benzersizdir (`SqlAgentDefinitionStore`); iki farklı kiracının ikisi de `"support"` adında, ikisi de ilk kayıt (sürüm 1), ikisi de skill/çağrılabilir-agent kullanmıyorsa (bağımlılık parmak izi boş) AYNI anahtara düşer. `DefinitionStoreAgentSource`/`CodeAgentSource` artık `ITenantContext` alır (repo genelinde zaten kurulu desen — `InMemoryAgentDefinitionStore` vb. aynı bağımlılığı taşır) ve `_tenantContext.
+
+### K-381 — devam (Faz 90 damıtması)
+
+
+
+### K-382 — devam (Faz 90 damıtması)
+
+DefaultTenantId`) `Resolve()`'un `Accept()` üzerinden ürettiği `null`'ı (beyaz liste reddi) varsayılan kiracıya düşürüyordu — `AgentPrismTenancyOptions.AllowedTenants`'ın kendi XML belgesinin ("listede olmayan bir değer varsayılan kiracıya düşmez") doğrudan tersiydi. Denetim `HttpTenantContext`'in İÇİNE değil, `AgentPrismEndpointFilter`'a eklendi: filtre zaten `CheckTenantHeaderConflict`/`CheckScope` ile AYNI şekilde istek endpo
+
+### K-383 — devam (Faz 90 damıtması)
+
+Repo'nun kendi dört-kapı doğrulaması `dotnet pack AgentPrism.slnx -c Release --no-build` kullandığı için
+
+### K-384 — devam (Faz 90 damıtması)
+
+
+
+### K-385 — devam (Faz 90 damıtması)
+
+Kök neden: kaybedenler `MAX(seq)+1` çakışmasından hemen sonra gecikmesiz yeniden deniyordu; eşit gecikmeyle art arda deneyen 8 yazıcı, kazananların ayrışmasını rastgele şansa bırakıyor ve "thunderi
+
+### K-386 — devam (Faz 90 damıtması)
+
+gerçek `mssql/server` ile tekrarlanır") gerçekleşti.
+
+### K-387 — devam (Faz 90 damıtması)
+
+Tek konteynerde paylaşılan ~340 testlik koşuda yüzlerce şema birikince `sys.tables`/`sys.indexes` katalog taramaları (migration'ların `IF OBJECT_ID(...)` idempotency kontrolleri İÇİN) giderek y
+
+### K-388 — devam (Faz 90 damıtması)
+
+`ApplyOneAsync` migration dosyası başına 4 round-trip atıyordu: `BeginTransactionAsync` → migration SQL'i çalıştır → `INSERT INTO __migrations` → `CommitAsync`.
+
+### K-389
+
+Bu gerçek bir üretim kusuruydu da: `SchemaName` iki bağımsız kurulumun aynı veritabanını paylaşabilmesi içindir, global kilit bunları birbirine bağlıyordu. 🚨 `string.GetHashCode()` KULLANILMADI (süreç başına rastgeler, iki replika farklı anahtar hesaplar).
+
+### K-390
+
+322 paylaşılan sözleşme testini (`tests/Shared/Contracts/`) sınıflandırdım: 29'u `[TenantAgnostic]` (kiracı parametresi ALMAYAN) depo metotlarını çağırıyor — `SqlJobStore.LeaseAsync`, `SqlJobScheduleStore.ListDueAsync`, `SqlApiKeyStore.HasActiveScopeAsync`, `SqlRunStore.ClaimOrphanedRunsAsync` gibi — ve `ShouldBeNull()`/`ShouldHaveSingleItem()` gibi KURULUM GENELİ (paylaşılan tabloda boş/tek kayıt bekleyen) iddialar taşıyor.
+
+### K-391
+
+`MigrationRunner.ApplyOneAsync`'e jitter'lı yeniden deneme eklendi; test fixture'ı ayrıca uzantıyı fixture'lardan ÖNCE bir kez kurarak yarışı tamamen önledi.
+
+### K-396 — devam (Faz 90 damıtması)
+
+
+
+### K-400
+
+Kök neden 1: `AgentPrismSkillsSource.cs:10`'daki `SerializerOptions` (`new(JsonSerializerDefaults.Web)`) hiçbir `TypeInfoResolver` taşımıyordu; MAF bu örneği `AgentInlineSkill`/`AddScript` içinde `MakeReadOnly()` ile donduruyordu.
+
+### K-402 — devam (Faz 90 damıtması)
+
+
+
+### K-403 — devam (Faz 90 damıtması)
+
+
+
+### K-404 — devam (Faz 90 damıtması)
+
+
+
+### K-405
+
+Yalnız `RunsRead` kapsamlı bir anahtar `PUT /api/workflows/{name}` (tanım yaz) ve `POST /api/workflows/{name}/run` (gerçek para harcayan bir Magentic çalıştırması başlat) çağırabiliyordu — kontrol grubu (`PUT /api/agents/{name}`, `AgentsAdmin` gerektirir) aynı anahtarla doğru şekilde `403` alarak kapsam sisteminin GENEL olarak çalıştığını, yalnız `WorkflowEndpoints`'te devre dışı olduğunu kanıtladı.
+
+### K-406 — devam (Faz 90 damıtması)
+
+
+
+### K-407
+
+Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (takım oluşturuldu), `PUT /api/experiments/{name}` → `200` (deney oluşturuldu).
+
+### K-408 — devam (Faz 90 damıtması)
+
+Kanıt: `GenerateDocumentationFile=true` yüzünden Türkçe XML doküman `.xml` dosyası olarak `.nupkg`'a giriyordu; imza İngilizce, açıklama Türkçe idi (paketin en görünür kalite kusuru). Kural artık kalıcıdı
+
+### K-409 — devam (Faz 90 damıtması)
+
+AgentPrism henüz NuGet'e yayınlanmadığı (K-068) ve uygulanmış migration taşıyan bilinen bir dağıtım olmadığı için
+
+### K-410 — devam (Faz 90 damıtması)
+
+Desen `tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs`: `src/`, `tests/`, `samples/` içinde `.cs/.sql/.csproj/.props/.targets/.json/.ts/.tsx` dosyalarını diskten okur, kelime sınırlı (`\b...\b`) 140+ kelimelik ASCII-Türkçe sözlük + Türkçe'ye özgü harf (çğıöşüÇĞİÖŞÜ) taraması yapar; `source-language-baseline.txt` dosya başına İZİN VERİLEN
+
+### K-411 — devam (Faz 90 damıtması)
+
+Ölçümle doğrulandı — `HEAD`'te ayrı bir `git worktree` kurulup derlendi, hata aynen üretildi. Kopyalar ayrıca K-408'in çevirdiği Türkçe kaynağı geri getiri
+
+### K-412 — devam (Faz 90 damıtması)
+
+Ölçüm bunu çürüttü: 58.1 ve 58.3 içeriği SİLMEZ, TAŞIR (`AGENTS.md`'nin "içerik silinmez, taşınır" kuralı) ve her iki hedef de `docs/` içindedir — net etki yalnız −12 KB (`PROMPT.md`). `docs/` 5,8 MB'de kalıyordu; 4 MB ulaşılamazdı. Kullanıcıya üç seçenek ölçümle sunuldu; se
+
+### K-413 — devam (Faz 90 damıtması)
+
+README'nin tablosu Faz 21–56'yı üç özet satırında topluyordu; tek tek açmak ~36 satır (~4 KB) ekler ve README'yi 20 KB bütçesinden taşırırdı. Planın risk tablosu kaçış yolunu zaten yazmıştı ("gerekirse yol haritası ayrı dosyaya taşınır"). Bir adım ileri gidildi: dosya ELLE YAZILMAZ, `scripts/dokuman-bakim.py` tarafından `docs/NN-*.md` başlıklarından ve `Durum:` satırlarından üretilir — `KARARLAR-INDEKS.
+
+### K-414 — devam (Faz 90 damıtması)
+
+İkinci bir koşum bu 2,2 MB'ı ya ezecek ya çatallayacaktı. Dönüşüm önce YAPISAL olarak ölçüldü (1097 case tarandı: 1094'ü tek `Gerçek sonuç` + tek `Durum`, 2'si yeniden koşum nedeniyle çift `Durum`, 1'i bilerek yazılmamış `MT-SKILL-071`), sonra uygulandı: 25 dosya, 1096 kayıt, 735 KB `kosumlar/20
+
+### K-415 — devam (Faz 90 damıtması)
+
+Site altyapısı sıfırdı (repo genelinde DocFX/Docusaurus/MkDocs/Pages izi yoktu). Dil kararı K-232 ile aynı gerekçeye dayanır: paket uluslararası yayınlanır. `docs/` Türkçe kalır — iki karar bağımsızdır. Ad ayrımı bilinçlidir: `docs/` geliştirme günlüğü, `docs-site/` ürün dokümantasyonu; kural `AGENTS.md`'ye yazıldı. Site `dotnet build`'e BAĞLANMAZ v
+
+### K-416 — devam (Faz 90 damıtması)
+
+İki çıktı biçimi karşılaştırıldı. `apiPage`/HTML: ikinci bir tema, ikinci bir arama indeksi. `markdown`: tek site, tek tema, Pagefind referansı da indeksler. Markdown'ın tek kusuru ölçüldü — DocFX prose içindeki `<see cref>`'leri **ham `<xref>` etiketi** olarak bırakıyor: 590 sayfanın 3
+
+### K-417 — devam (Faz 90 damıtması)
+
+Ölçüldü: `@scalar/api-reference` standalone tarayıcı paketi **7,4 MB / 90 chunk**, kendi temasında render ediyor ve — kararı veren nokta — içeriğinin hiçbiri Pagefind'e girmiyor. Bu fazda 143 operasyonun **tamamına** açıklama yazıldı; onları sitenin kendi aramasından gizleyip karşılı
+
+### K-418 — devam (Faz 90 damıtması)
+
+Sebep: .NET 10'un XML doküman desteği bir **interceptor**'dır ve yalnız parametresiz `AddOpenApi()` çağrı şeklini yakalar; delege alan aşırı yüklem
+
+### K-419 — devam (Faz 90 damıtması)
+
+`DocumentationScreenshotTests` 14 ekranı gerçek tarayıcıda gezer, her ekranın işaret öğesini bekler ve görüntüyü alır; yazma `AGENTPRISM_UI_SCREENSHOTS=1` ile kapılıdır (`OpenApiSnapshotTests` emsali) — bayrak yokken test yine de KOŞAR ve render'ı doğrular, yani boş `dotnet test` dosya kir
+
+### K-420
+
+Bu metinler OpenAPI belgesine ve oradan yayınlanan siteye giriyor; tüketici o dosyaları göremez, dolayısıyla referans bilgi değil gürültüdür. Faz 57.5'in emsali uygulandı: "faz numarası referansı yerine yetenek adı". Altısı da yeniden yazıldı; yeni yazılan 75 açıklama baştan bu kurala uyar.
+
+### K-421 — devam (Faz 90 damıtması)
+
+Kullanıcı kararı: kapı yayından ÖNCE, bugün açılsın — "bugün bedava, yayından sonra pahalı" ilkesi K-160'ta zaten Faz 21 için uygulanmıştı. Uygulama: `Directory.Build.props`'ta `EnablePublicApiTracking=true`, `NoWarn` koşullu satırı silindi; 17 paketin `PublicAPI.Unshipped.txt` dosyaları `dotnet format analyzers --diagnostics RS0016` ile (13 iteratif koşum) dolduruldu, `Shipped.
+
+### K-422
+
+Dört çözüm ailesi kullanıldı: (1) birleştirme + RS0027 uyumu (`IAgentCatalog.ResolveAsync` ailesi), (2) hiç kullanılmayan varsayılanı kaldırma (`AddTool`), (3) sıfır-opsiyonel üçlü desen (`UseVoiceConversation`/`UseMcp`, `UseOpenAI` ailesinin zaten kullandığı desen), (4) `private` ctor + `public static FromClient(...)` (dört sağlayıcının ham client constructor'ı).
+
+### K-423 — devam (Faz 90 damıtması)
+
+Bu, Microsoft'un kend
+
+### K-424 — devam (Faz 90 damıtması)
+
+Ölçüldü: `Generators` gerçekten `RS0016` üretiyordu (3 üye × 2); `dotnet format analyzers` tüm çözümü tararken bu iki projede "Adding additional documents is not supported" (`System.NotSupportedException`) ile ÇÖKTÜ — `MSBuildWorkspace` eksik `PublicAPI.Unshipped.
+
+### K-425 — devam (Faz 90 damıtması)
+
+
+
+### K-426 — devam (Faz 90 damıtması)
+
+Bütçeye sayılsaydı arşivlemek sayacı düşürmezdi ve
+
+### K-427 — devam (Faz 90 damıtması)
+
+Altısı da `git mv` ile `docs/arsiv/`'e taşındı; içerik SİLİNMEDİ (AGENTS.
+
+### K-428 — devam (Faz 90 damıtması)
+
+Ad turdan bağımsız hâle getirildi. 56 dosyadaki 86 referans satırı, her dosyanın kendi konumuna göre yeniden hesaplanarak güncellendi (skill'ler, `dokuman-bakim.py`'nin `BUTCE` anahtarı ve ürettiği bağla
+
+### K-429 — devam (Faz 90 damıtması)
+
+Bir so
+
+### K-430 — devam (Faz 90 damıtması)
+
+Sütun `kosumlar/2026-08-13/` kayıtlarından case bazında sayılarak yeniden üretil
+
+### K-432 — devam (Faz 90 damıtması)
+
+Bu yüzden `PumpAsync`'in `catch (OperationCanceledException)` dalı hiç çalışmıyordu ve `RunGuardedAsync`'in varsayılan `status = RunStatus.Completed` değeri olduğu gibi kalıyordu; çalıştırma `Completed` + `error: null` olarak kaydediliyordu (t
+
+### K-433 — devam (Faz 90 damıtması)
+
+Çözüm `run.GetStatusAsync()` ile çerçevenin **kendi durumuna** bakmaktır; `PendingRequests` veya `Running` değilse döngü kırılır. Round-limit **metnini** eşleştirmek bilerek
+
+### K-434 — devam (Faz 90 damıtması)
+
+Aday kalemin önerdiği yol (`AsyncLocal` tabanlı "güncel oturum" kapsamı) **alınmadı**: bu depoda `AsyncLocal` dört kez yanlış açıldı (Faz 6, 11, 12, 15) ve beşinc
+
+### K-435 — devam (Faz 90 damıtması)
+
+Ölçüldü: `AITool` tabanının kendisi `.JsonSchema` taşımıyor — yalnız `AIFunctionDeclaration` (ve onun altındaki `AIFunction`) taşıyor. `ToolRegistry`'nin descriptor üretimi şemaya i
+
+### K-436 — devam (Faz 90 damıtması)
+
+Üçüncü, ölçülmüş bir yol bulundu: `AIFunctionFactory.CreateDeclaration(name, description, jsonSchema, returnJsonSchema)` doğrudan `AIFunctionDeclaration` döndürüyor — sahte bir gövde fonksiyonu kurup s
+
+### K-438 — devam (Faz 90 damıtması)
+
+Ölçüldü: `app.UseCors(...)` `AddCors()` olmadan **host başlangıcında** `InvalidOperationException` (`ICorsService` çözülemiyor) fırlatıyor. `AgentPrism.Core`'a `AddCors()`'u koşulsuz eklemek de çalışmazdı — o paket `Microsoft.AspNetCore.App`'e `FrameworkReference` taş
+
+### K-439 — devam (Faz 90 damıtması)
+
+Aynı kısıt `toolResults` için de geçerli: planın istediği `400`/`409` ayrımı (bilinmeyen `callId` / ikinci kez yanıtlanan `callId`) yalnız akış başlamadan ÖNCE bir `ProblemDetails` olarak dönebilir. `ClientToolResultResolver.MatchAsync` bu yüzden `RunAsync`'te (akıştan önce, doğrulama amaçlı) ve `BuildMessagesAsync`'te (akış için
+
+### K-440 — devam (Faz 90 damıtması)
+
+İstemci tool sonucu farklı bir tehdit sınıfı taşıyor: DOM metni veya bir API yanıtı gibi rastgele tarayıcı içeriği, oturum geçmişinde KALICI kalır ve her sonraki turda bağlam penceresini tüketir — `request.Message`'ın aksine, kullanıcının
+
+### K-443 — devam (Faz 90 damıtması)
+
+İçerik filtresi tespitinin İÇİNDE durması ise kasıtlı bir tasarım kazancı: bir sağlayıcı filtresi bu katmanda İSTİSNA değil, yalnız `ChatFinishReason.ContentFilter` taşıyan sıradan bir `ChatResponse`'tur — dönüşüm yalnız `ContentFilterDet
+
+### K-444 — devam (Faz 90 damıtması)
+
+Yedek modelin kendi ay
+
+### K-445 — devam (Faz 90 damıtması)
+
+`ProviderConcurrencyLimiter.AcquireAsync` bu yüzden `SemaphoreSlim.WaitAsync(cancellationToken)` kullanır — `VoiceConnectionLimiter`'ın CAS tabanlı ANINDA-RET desenini KOPYALAMAZ,
+
+### K-446
+
+`PreflightGate.CheckAsync` `Results.Problem(statusCode: 400, ...)` döner; gövde `promptTokens`/`contextWindowTokens`/`allowedPromptTokens` alanlarını taşır.
+
+### K-447 — devam (Faz 90 damıtması)
+
+`FallbackChatClient.RecordFallbackUsedAsync` olayı ambient `AgentPrismRunContext.Current.Writer` üzerinden yazar (aynı desen: `AgentRunScope.
+
+### K-448 — devam (Faz 90 damıtması)
+
+İkinci ölçüm: veri paketi `Microsoft.Bcl.Memory` 9.0.4'ü çekiyor ve NU1903 (yüksek önem, GH
+
+### K-449 — devam (Faz 90 damıtması)
+
+Ölçüldü ve düzeltildi: kural artık üç aşamalı `catch` zinciri — `OperationCanceledExce
+
+### K-451 — devam (Faz 90 damıtması)
+
+Ölçüldü: `grep -rn "approvals/rules" src/AgentPrism.AspNetCore/` yalnız `MapGet` ve `MapDelete` buluyordu — kural yazmanın tek yolu `ToolApprovalResolver.RememberAsync`'in (agent onay akışından
+
+### K-453 — devam (Faz 90 damıtması)
+
+Aynı isim aynı `AgentPrism` ad alanında ikinci kez tanımlanınca `CS0436` (tip çakış
+
+### K-455 — devam (Faz 90 damıtması)
+
+
+
+### K-456 — devam (Faz 90 damıtması)
+
+Kanıt: çağıran yerler (`ApiKeyEndpoints`, `QuotaEndpoints` vb.) yönetim eylemleridir, konuşma içeriği hiç ya
+
+### K-457
+
+Yalnız `SessionIds`/`RunIds` ile konuşma/`conversation_items`/ilişkili `responses` verisine hiç ulaşılamazdı. Çözümleyici zaten tüketici tarafından yazıldığı için üçüncü listeyi eklemek yeni bir kişisel veri alanı DOĞURMUYOR.
+
+### K-458
+
+İçerik idari olarak yüklenen bilgi tabanıdır (F-51), bir kullanıcının konuşma verisi değildir; zorla bağlamak yanlış bir silme kapsamı üretirdi.
+
+### K-460
+
+`sessions.state`/`conversation_items.item`'ın zaten izlediği desenin audit_log'a taşınmasıdır. Geriye dönük uyum: `ALTER COLUMN ... TYPE json USING ...::json` kayıpsız bir dönüşümdür.
+
+### K-461 — devam (Faz 90 damıtması)
+
+`(tenant_id, prev_hash)` üzerindeki benzersiz dizin (yalnız `hash IS NOT NULL` satırlarında, geriye dönük uyum için filtreli) yarışı DOĞAL olarak serileştirir; kaybeden `SqlIdem
+
+### K-467 — devam (Faz 90 damıtması)
+
+Egress/kimlik bilgisi mantığını BURAYA (tek nokta) değil de HTTP uç katmanına veya `AgentDefinitionCompiler`'a dağıtmak, ikinci bir giriş yolunun (ör. doğrudan `IModelProviderRegistry` kullanan bir
+
+### K-468 — devam (Faz 90 damıtması)
+
+Mimari kural (K-176'nın ruhu) dört paketin birbirini GÖREMEMESİ; ama hepsi `AgentPrism.Core`'a bağımlı, bu yüzden paylaşılan yardımcı ORAYA konuldu — `OpenAINamedChatClientFactoryCache`'in (adlandırılmış OpenAI-uyumlu sağ
+
+### K-469 — devam (Faz 90 damıtması)
+
+`HttpTenantContext.IsValidTenantId` ile aynı doğrulama (`GovernanceEndpoints.
+
+### K-471 — devam (Faz 90 damıtması)
+
+Alternatifler değerlendirildi: (A) credential'ı önbellek anahtarına eklemek — `ApiKey` değerini bellekte bir anahtar parçası olarak taşımak K-0
+
+### K-472 — devam (Faz 90 damıtması)
+
+`faz-denetim`'in bağımsız denetçisi bunu 🔴 olarak işaretledi ve yayınlanan `docs-site` sayfa
+
+### K-473 — devam (Faz 90 damıtması)
+
+Slack) o dakikaki bütçesini tüketebiliyordu — 66.5'in "hız sınırı kuyruğu korur" gerekçesi ancak DOĞRULANMIŞ is
+
+### K-474 — devam (Faz 90 damıtması)
+
+Bağımsız denetim bunun bir kusur mu kasıtlı bir kapsam kararı mı olduğunu sorguladı; incelemede `SchedulingEndpoints.SaveAsync` (job_schedules, Faz 17) emsalinin AYNI şekilde davrandığı (yalnız `TargetName` boş mu diye bakar, var mı diye
+
+### K-475 — devam (Faz 90 damıtması)
+
+Uygulama anında ölçüldü: bu migration KENDİ İZLEDİĞİ TABLOYU (`__migrations`) değiştiriyor, ve her migration'ın SQL'i `InsertMigration`'ın SABİT metniyle TEK bir toplu komutta (K-388) birleştirilir. SQL Server bir toplu işi BAŞTAN SONA derler; `set_name` sütununu SIRADAN bir `ALTER TABLE ...
+
+### K-476 — devam (Faz 90 damıtması)
+
+`services.TryAddSingleton<IVectorSearchStore>(factory)` fabrikası `EnableKnowledge` kapalıyken `null!` döner; Microsoft.Extensions.DependencyIn
+
+### K-477
+
+Yeni bir public alan (`SqlPersistenceDiagnosticsSnapshot`'a) eklemek gereksiz kapsam büyümesiydi: mevcut `IReadOnlyList<string>` üzerinde `"knowledge:0001_vector"` gibi bir önek aynı bilgiyi taşır, çekirdek setin adları (`"0001_initial"`) GERİYE DÖNÜK UYUMLU kalır.
+
+### K-478 — devam (Faz 90 damıtması)
+
+`AgentRunRequest`'e `userId` eklemek, herhangi bir istemcinin BAŞKA bir kullanıcı adına harcama yazdırabi
+
+### K-479 — devam (Faz 90 damıtması)
+
+Sekiz etiket sınırıyla ayrı tablo aşırıdır: `runs` en sıcak tablodur, her yazıma N ek
+
+### K-480 — devam (Faz 90 damıtması)
+
+Kırpma reddedildi: kırpılmış bir etiket kümesi raporu s
+
+### K-481 — devam (Faz 90 damıtması)
+
+Kapı yorum değil testtir: `TelemetryTagTests` dört enstrümanın etiket kümesini AÇIKÇA yazarak sabitler ve gerçekten kullanı
+
+### K-482 — devam (Faz 90 damıtması)
+
+İkinci kural ölçülebilir bir ayrımdır: `0` "ölçüldü, yoktu" İDDİASIDIR, `null` "hiç ölçülmedi" der — birleştiren bir rapor, susan HER sağlayıcı için kend
+
+### K-483 — devam (Faz 90 damıtması)
+
+`runs.input_cost` cache'i zaten dışarıda bıraktığı için yalnız `input+output` toplayan her sorgu cache isabetli her `run`'ı EKSİK raporlar — bağımsız denetim bunu **yedi** çalışma anı noktasında buldu (kota, `run.cost` metriği, webhook, workflow kotası, `ModelRunJudge`, `OnlineEvalSummaryService`, arayüz karşılaştırma paneli) ve **maliyet tavanı olan bir kiracı tavanı aşabilirdi**. Çözüm `RunCost.Total()`/`RunTreeCost.Tot
+
+### K-484 — devam (Faz 90 damıtması)
+
+Proje düzeyinde bastırma reddedildi: değerlendirme amaçlı bir API'nin vermesi GEREKEN sinyali her yerde gizlerdi. Bastırma iki `return` deyimine daraltıldı; desen `AgentPrismA2ABuilderExtensions` (MEA
+
+### K-485 — devam (Faz 90 damıtması)
+
+`ByAgent`/`ByModel`/`ByVersion`/`ByErrorClass`'ın hiçbiri koşullu değil ve `SqlRunStore.GetStatisticsAsync` sonuç kümelerini KONUMA göre okur — kümeleri koşullu yapmak okuyucuyu kırılgan hâle getirir ve yeni kırılımı var olan dördünden farklı davranan bir istisna yapardı. Bunun y
+
+### K-486 — devam (Faz 90 damıtması)
+
+Düz üzerine yazma, ilk yazımın DOĞRU aldığı atf
+
+### K-487 — devam (Faz 90 damıtması)
+
+Timeout onayın DIŞINDadır çünkü `ApprovalRequiredAIFunction` insanın kararını tek bir çağrı içinde HİÇ BEKLEMEZ — K-368 gereği karar YENİ bir `run` açar; bu
+
+### K-488 — devam (Faz 90 damıtması)
+
+`AuthorizingAIFunction` reddedilen çağrıda `result.Reason`'ı DOĞRUDAN döner (K-232 — model'e giden metin), `ToolAuthorizationAccumulator` (call-id anahtarlı ambient yazma/okuma, `ToolUsageAccumulator`'ın Faz 28 deseninin aynısı) bunu `ToolInvocationRecord.
+
+### K-489 — devam (Faz 90 damıtması)
+
+Ayrıca çalıştırma-düzeyi `Timeout` (bütün `run` süresini aştı) ile karıştırılmaması için AYRI
+
+### K-491
+
+`AgentPrismToolOptions.DefaultTimeout`, `AgentPrismOptionsValidator`'da sıfırdan büyük olmalı diye doğrulanıyor.
+
+### K-492
+
+K-040 (enum sırası değişmez, yalnız eklenir) gereği 22 numarası korunur, `ReasoningDelta` sona (`23`) eklenir. `PublicAPI.Unshipped.txt` bugün boş olduğu için kırıcı değişiklik değildir.
+
+### K-493 — devam (Faz 90 damıtması)
+
+(2) bir hedef ilk hatada `RunEventWriter`'ın var olan `IsDisabled` deseniyle BİREBİR aynı şekilde SADECE O RUN için devre dışı kalır (`bool[]` writer örneğine bağlı, sinke değil) — ikinci bir davranış modeli öğretilmedi. (3) hedef `RunEvent`'in KENDİSİNİ alır, dara
+
+### K-495 — devam (Faz 90 damıtması)
+
+Yalnız GİRİŞ düğümü `WorkflowRunner.StartAsync`'in gönderdiği `TurnToken`'ı alıyor; MAF'ın hazır `Sequential` kalıbı ajanlar arasında bu "sırayı al" sinyalini kendi iç protokolüyle taşıyor ve bu protokol hazır kalıp kurucuları DIŞINDA erişilebilir değil.
+
+### K-496 — devam (Faz 90 damıtması)
+
+Fonksiyon kaydı ise `AddWorkflowFunction` ile YALNIZ kod içinde, uygulama başlangıcında sabitlenir; süre
+
+### K-497
+
+Bu fazda hiçbir kod yazılmadı; bir kod düğümü sonsuza kadar çalışabilir, yalnız workflow'un genel `RunTimeout`'u onu keser.
+
+### K-499
+
+`InstructionsByCulture` yeni bir sütun değil, mevcut blob'un yeni bir alanıdır — sıfır migration ile üç sağlayıcı + bellek içi sözleşme testinde doğrulandı.
+
+### K-500
+
+Seçenek B (dil başına sürüm hattı) Faz 19 ve 56'nın "agent'ın tek aktif sürümü vardır" sözleşmesini (deney/kanarya ağırlıkları dahil) kırardı — bu fazın kapsamının üzerinde bir kırılma.
+
+### K-501
+
+Planın taslak imzası "word-level" varsayıyordu ve bilerek "doğrulanmadı" işaretlenmişti (Açık Soru 4); uygulama gerçek şemayı ölçüp düzeltti. Kelimeye gruplama veya SRT/VTT üretimi tüketicinin işi bırakıldı — hizalama HAM hâliyle döner.
+
+### K-502
+
+ElevenLabs'ın `/stream/with-timestamps` ucu ayrı bir JSON-parça-akışı protokolü kullanır (şema doğrulandı); bu faz o protokolü YAZMADI — yalnız kombinasyonu erken ve açık biçimde reddetti, sessiz veri kaybı üretmedi.
+
+### K-503
+
+Plan bu senaryoyu adlandırmadı. Ambient kültürü MAF'ın background-agent akışına taşımak ayrı bir tasarım kararı gerektirir ve bugün ölçülmemiş bir ihtiyaçtır — bilinçli bir sınır olarak bırakıldı.
+
+### K-505
+
+`docs-site` ayrı bir yayın hattıdır ve Node 22.12+ ister; `dotnet build`'e bağlamak paket tüketicisine Node zorunluluğu getirirdi. Bedeli — üretilen dosya commit edildiği için kaynağıyla sapabilir — ÜÇ kapıyla ödendi: üretecin `--check` kipi, `check-content.mjs` ve CI'ın `build` işindeki bağımlılıksız adım. Ölçülen boyutlar: harita 7.763 B, `llms.txt` 7.861 B, `llms-full.txt` 356 KB.
+
+### K-506
+
+Katman 0'ın tek okuru o çıktıdır, yani `Info` tanıyı kapatmakla eşdeğerdi. Altısı da `Warning`; bedel tek satırlık kaçışla sınırlandı: `AgentPrismUsageDiagnostics=false` aileyi `$(NoWarn)`'a çevirir.
+
+### K-507
+
+İşaret artık harita gövdesinin SHA-256'sının ilk 8 hanesidir ve `APG0401` tüketicinin dosyasını paketin taşıdığı haritayla karşılaştırır. İki dosya da `AdditionalFiles` olarak gelir — analyzer diskten okuyamaz (RS1035). İşaret taşımayan, elle yazılmış bir `AGENTS.md` hiç bildirilmez.
+
+### K-508
+
+Bulgu doğruydu — sarmalayıcı, `IAgentDecorator`'ın işini yapma biçimidir. Kural derleme geneline taşındı: hiç `IAgentDecorator` uygulaması VE hiç `AddAgent(name, factory)` çağrısı yoksa bildirilir (ikincisi bağımsız denetimde bulundu; fabrika belgelenmiş bir kaçış kapısıdır). Aynı gerekçeyle `APG0301` de daraltıldı: döngü bir `catch` içermelidir.
+
+### K-509 — devam (Faz 90 damıtması)
+
+Kapsam, alıcısı `IAgentPrismBuilder`, `IServiceCollection`, `IHostApplicationBuilder`, `IHealthChecksBuilder` veya `IEndpointRouteBuilder` olan her `Add*`/`Use*`/`Map*` üyesi oldu — 39 üye;
+
+### K-510 — devam (Faz 90 damıtması)
+
+Denetim ölçtü ve iddiayı düşürdü: bir çözümde `src/Web` (meta paket) ve `src/Worker` (yalnız `AgentPrism.Core`) varken tek paylaşılan dosya iki cevabı birden taşıyamaz — son derlenen proje kazanır, Web HTTP belgesini KAYBEDER ve içerik derlemeden derlemeye değişir. Birleştirme (merge) denendi ve düşürüldü; projeler PARALEL derlendiği için okuma-yazma yarışını çözmez. Proje başına dosya yapısal olarak doğrudur: yarış yok, birleştirme yok, `WriteOnlyWhenDifferent` dediğini yapar. `AGENTS.md` istisnadır çünkü HİÇ ezilmez ve içeriği projeye göre değişmez. Yan sonuç: ayrı `Installed version:` başlığı kaldırıldı — sürüm zaten her yolun içindedir.
+
+### K-511 — devam (Faz 90 damıtması)
+
+Statik bir JSON dosyası hiçbir bağımlılık eklemez — `.nuspec` değişmedi. Belge kopyalanmaz, kaynağından paketlenir; ikinci bir sapma yüzeyi oluşmaz ve `OpenApiSnapshotTests` belgeyi zaten çalışan host'a sabitler. Ölçülen maliyet: 1 034 455 → 1 100 931 bayt (**+%6,4**). Paketlenen belge canlı yüzeyin ALT KÜMESİDİR (127 path sunulur, 123 belgelenir; fark dört isteğe bağlı uçtur). `buildTransitive/AgentPrism.AspNetCore.targets` adı sözleşmedir: NuGet yalnız `<PackageId>.props`/`.targets` dosyasını kendiliğinden import eder, yanlış ad UYARISIZ hiçbir şey yapmaz.
+
+### K-512 — devam (Faz 90 damıtması)
+
+İkincisi zorunlu: XML kimliğinde metot jeneriği ÇİFT ters tırnak taşır (``AddContentGuard``1``) ve naif eşleştirme DÖRT üyeyi atlıyordu. Üçüncüsü bir `ForeignRegistrationMembers` listesi ister — ad şeklinden AgentPrism üyesi olup olmadığı anlaşılamaz (`AddSingleton`, `AddHealthChecks`, `MapHealthChecks` Microsoft'undur); liste YALNIZ Microsoft üyelerini taşır. Kapı XML bulamazsa YÜKSEK SESLE düşer, aksi hâlde derlenmemiş çözümde sessizce yeşil geçerdi. Taban çizgisi BOŞ doğdu.
+
+### K-513 — devam (Faz 90 damıtması)
+
+İkisi de GERÇEK API adlarıdır, yalnız yanlış tipin üzerinde kullanılmışlardır; hiçbir ad kümesi denetimi bunu göremez. Kapanış kanıtı: 40 `<example><code>` bloğu XML'den programatik olarak çıkarılıp pake
+
+### K-514 — devam (Faz 90 damıtması)
+
+Ölçüldü: 15 paketin XML dosyalarında **1 033 satır**, paketlenen `agentprism.json`'da **39 yer** ve 18 paket README'sinin **9'unda** `phase 64` · `K-032` · `docs/NN-*.md` gibi tüketicide var olmayan adresler vardı. K-408'in kanıt cümlesi neredeyse aynıydı ("imza İngilizce, açıklama Türkçe"); bu, aynı kusurun bir k
+
+### K-515
+
+Ölçüldü: XML yorumu kaynak genişliğinde sarıldığı için `(phase 65)` rutin olarak iki satıra bölünüyor ve satır bazlı tarama **iki yarıyı da göremiyor**; üç referans bu delikten geçti ve yalnız site üretecinin bloğu birleştirmesiyle yakalandı. Kapı artık `///` bloğunu birleştirip eşleştirir, sonra eşleşmeyi kapsadığı satırlara dağıtır — taban çizgisi hâlâ satır sayar.
+
+### K-516
+
+for the format."`, `POST.../trigger`. K-514 kaynağı temizledikten sonra zincir **ölçülerek** emekliye ayrıldı: kaldırıldığında üretilen 689 sayfanın **yalnız biri** değişti, o da amaçlanan düzeltmeydi. Yerine kaynakta iç referans bulursa **hata veren** bir koruma kondu.
+
+### K-517 — devam (Faz 90 damıtması)
+
+Kaynağı AgentPrism değil ASP.NET Core'un XML doküman üretecidir. Site kopyası bunu bir süzgeç kuralıyla siliyordu, paketlenen kopya silmiyordu. OpenAPI belgesini okuyan tüketici CLR imzasını değil JSON alanını görür; 43 satırda `<see cre
+
+### K-518
+
+Aynı geçişte iki kayma düzeldi: dosya hem "Faz 73 tamamlandı" hem "Faz 0–74 bitti" diyordu, ve dalga tablosu K-413'ün ürettiği `YOL-HARITASI.md` ile çakışıyordu. Tablo devredildi; dosya 19 966 → 17 701 bayta düştü (bütçe 20 000). Depo içi `docs/` bağlantıları KORUNUR — okur depodadır, dosya oradadır.
+
+### K-519 — devam (Faz 90 damıtması)
+
+Karar o katmanı kapatır: her renk `--ap-*` olarak **iki tema bloğunda birden** bildirilir, Starlight'ın semantik özellikleri (`--sl-color-bg/text/accent/hairline`, ve metin boyayan `gray-2`/`gray-3`) bu token'lara BAĞLANIR, ve `check-content.mjs` token'ları ayrıştırıp 19 çifti WCAG AA'ya karşı hesaplar (metin 4.5:1, metin dışı 1.4.11 için 3:1). Kapı tarayıcı istemez ve `check-content.
+
+### K-520 — devam (Faz 90 damıtması)
+
+(1) Konsol ekran görüntüleri **açık** temadadır (ölçüldü: gösterge paneli ortalaması rgb(250, 249, 251)); koyu sayfada koyu bir diyagram, yanındaki açık ekran görüntüsüyle çakışırdı. (2) Mermaid paletini çalışma anında JavaScript'te hesaplar ve bir CSS değişkenini çözemez, bu yüzden temaya tepki veren palet her tema d
+
+### K-521 — devam (Faz 90 damıtması)
+
+Kenar çubuğu `astro.config.mjs` içinde gömülü kalsaydı eşleme ikinci bir kopya olurdu ve yeni bir bölüm sessizce başka bir bölümün önizlemesini miras alırdı. Şimdi `astro.config.mjs` gezinmeyi, `starlightRouteData.mjs` paylaşım görselini, `check-content.mjs` ise hem erişilebilirliği hem görsel kapsamını AYNI yapıdan okur — ve `check-content.mjs`'in erişilebilirlik denetimi metin araması (`astroConfig.includes("slug: '...
+
+### K-522 — devam (Faz 90 damıtması)
+
+Standardın tamamı **birikimli faz dokümanlarında** yaşıyordu (`74-*.md`, `75-*.md`, `76-*.md`) ve okuma protokolü o dosyaları okumaz — yan
+
+### K-523 — devam (Faz 90 damıtması)
+
+K-214'ün "bütçe büyütülmez, bölünme uygulanır" zinciri altıncı kez tutuldu. Taşınan küme faz 00–59 (60 dosya, 1.775.033 B); sayaç **3.146.
+
+### K-524
+
+`MIMARI.md` zaten **bölüm bölüm** okunur (`AGENTS.md` yönlendirme tablosu "ilgili bölüm" der), bu yüzden ayrım okuma biçimini değiştirmez; yalnız yönlendirme tablosuna bir satır ekler. Sonuç: `MIMARI.md` 41.043 → **24.278** (%45 boş), `MIMARI-GUVENLIK.md` **17.421**. Yeni dosyanın bütçesi (21.000) ÖLÇÜLEN boyuta %15 boşluk eklenerek kondu — Faz 58.4'ün kalibrasyon kuralı. Bu bir bütçe BÜYÜTMESİ değildir (K-214): sınır ilk kez konuyor ve `MIMARI.md`'nin 44.000'i düşürülmedi, bugünkü mimarinin büyümesine yer bırakıldı.
+
+### K-525
+
+Üçüncüsü asıl dersi verdi: ayırıcı görünmez bir `U+001F` idi, yani **kaynak okuması anahtar biçimini doğrulayamaz**. Elle tekrarlanan bir anahtar ifadesi okuma ile yazmanın sessizce ayrışmasına izin verir. Kural: `record struct` anahtar kullan. `CircuitKey` ayrıca kapsamı **credential** sınırına bağlar — paylaşılan kimlik ortak devre, BYOK kiracıya özel.
+
+### K-526
+
+(1) Elle interpolasyonla kurulan JSON, tırnak taşıyan bir değerde bozuluyordu; `AuditSecretFilter.Redact` `JsonException`'ı yakalayıp metni **redakte etmeden** döndürüyor, PostgreSQL'de `jsonb` cast'i 22P02 veriyor, `AuditRecorder` hatayı yutuyordu. `GET /api/audit/verify` bunu göremez: hash zinciri yalnız var olan satırları bağlar, hiç yazılmamış satır boşluk bırakmaz. Denetçi 3 yer bildirdi, sınıf taraması **10** buldu. (2) `AuditingSkillScriptGrantStore` sunucuda **kod çalıştırma yetkisi veren** `script.grant`'i `AuditRecorder` ile yazıyordu; kayıt düşse bile uç `201` dönüyordu. Kural `arsiv/KARARLAR-GECMISI.md` satır 1622'de zaten yazılıydı, uygulanmamıştı. Artık `IAuditLog` doğrudan çağrılıyor, yazım **mutasyondan önce**, yazamazsa eylem kesiliyor.
+
+### K-527
+
+Üç ayrı sevk edilen belge ise "yalnız kodda açılır" diyordu (`MIMARI-GUVENLIK.md`, `README.md`, Faz 11 dokümanı) ve K-087 config'ten skill kökü almayı zaten reddetmişti. `Enabled` ve `PlatformIsolationAcknowledged` bağlı kalır: ikisi de yüzeyi genişletemez, yalnız kapatır veya sınırı kabul eder. `AgentPrismOptionsBindingCoverageTests.ExcludedPaths`'e gerekçesiyle kaydedildi.
+
+### K-528
+
+Sonuç: `AllowRemoteAccess=true` + `AuthToken` yok + policy yok kurulumunda `POST /agentprism/mcp` kimlik doğrulamasız `200` alıyordu; mevcut bir fonksiyonel test bu davranışı **sabitlemişti**. `RequireApiKeyScope(..., mandatory: true)` eklendi ve filtre üç yolda (başlıksız, statik token eşleşen, grup token'ı) reddediyor. Zorlama `AllowRemoteAccess` ile sınırlı — muhafızın kendi koşuluyla aynı; loopback'te sıfır-yapılandırma varsayılanı korunur. Statik bearer token bilerek yetmez: kurulumu tanımlar, çağıranı değil, ve kapsam taşımaz.
+
+### K-529
+
+Kural K-164'tür ve korunmuştur: denetim `SocketsHttpHandler.ConnectCallback` **içindedir** (doğrulanan adres soketin bağlandığı adresin ta kendisidir, TOCTOU penceresi yoktur) ve `IHttpClientFactory` **kullanılmaz**. Yeni olan, mantığın `WebhookSocketGuard`'dan `EgressSocketGuard` + `EgressAddressValidator`'a çıkarılıp üçüne birden takılmasıdır. Üç kopya reddedildi: B05-1'in dersi tam buydu (elle tekrarlanan ifade, okuma yolu ile yazma yolu sessizce ayrıştı) ve `WebhookSocketGuard` zaten döngüyü `ValidateResolvedAsync`'ten **kopyalıyordu** (B05-6) ve testi yoktu. Zorlama: `EgressSocketGuard.CreateHandler()`/`CreateHttpClient()` — kendi `SocketsHttpHandler`'ını kuran bir yol sessizce korumasız kalırdı.
+
+### K-530
+
+Bu bir **davranış değişikliğidir ve yükseltmede kırabilir**: iç ağda MCP sunucusu çalıştıran bir kurulum bağlantı kuramaz. K1 ("yeni genişleme noktası kapalı gelir") ile çelişmez — burada kapalı olan **hedef**tir, yetenek değil: muhafız açık gelir ve özel ağı reddeder; sürpriz olan, bir kurulumun farkında olmadan metadata adresine (`169.254.169.254`) istek atabilmesidir. Geri alma tek satırdır ve hata mesajı ayarın **adını** yazar. `AgentPrismWebhookOptions.AllowPrivateNetworkTargets` kaldırılmadı: var olan webhook kurulumları kırılmasın diye ikisi **VEYA**'lanır (`WebhookUrlValidator.ToPolicy`).
+
+### K-531
+
+Muhafızı her zaman takmak sovereign cloud ve iç ağ proxy'si kurulumlarını gereksiz kırardı — bunlar bilerek özeldir. Zorlama noktası `*ModelProvider.GuardFor(overrideEndpoint)`: `null` dönerse istemci muhafızsız kurulur, ve `overrideEndpoint` yalnız `credential.Endpoint` dolu olduğunda doludur.
+
+### K-532
+
+Reflection ile ölçüldü ve ikisi yanlış çıktı: **OpenAI ve Azure** `HttpClient` property'si taşımaz — `OpenAIClientOptions`/`AzureOpenAIClientOptions` `System.ClientModel.ClientPipelineOptions`'tan türer ve kanca `Transport`'tur (`new HttpClientPipelineTransport(httpClient)`). **Google** de "zaten kendi `HttpClient`'ı var" değildi; kanca `Google.GenAI.Types.ClientOptions.HttpClientFactory` (`Func<HttpClient>`). Yalnız **Anthropic** tahmin edildiği gibiydi (`Anthropic.Core.ClientOptions.HttpClient`). Sonuç değişmedi (yeni paket gerekmez, `IHttpClientFactory` gerekmez), ama tahmin edilmiş imza sessizce yanlış koda dönüşürdü.
+
+### K-533
+
+Eksik ikisi eklendi: MCP (`AgentPrism:McpSecrets:`, hem `authorizationConfigurationKey` hem `oauthClientSecretConfigurationKey`) ve webhook (`AgentPrism:WebhookSecrets:`). K-059 kaydın **değer** değil **ad** taşımasını sağlar; tek başına yetmez — önek kısıtı olmadan o ad `ConnectionStrings:Default`'u gösterebilir ve değeri uzak MCP sunucusuna `Authorization` başlığı olarak giderdi. Dördü de artık `ConfigurationKeyGuard.RequirePrefix` ile tek yerden zorlanır, **iki katmanda**: kaydetme ucunda ve çözüm anında (önek yapılandırılmadan önce yazılmış bir kayıt sessizce okumasın diye). **Kırıcıdır:** önek dışı anahtar adı taşıyan mevcut bir kayıt okunabilir ama yeniden kaydedilemez; hata mesajı hangi alanın düzeltileceğini ve izinli öneki yazar.
+
+### K-534
+
+Bu iki paket **birbirini görmez** — `AspNetCore` yalnız `Core`'a bağlıdır ve `AgentPrismMcpOptions` `AgentPrism.Mcp` içindedir. Ayarı `AgentPrismMcpOptions`'ta bırakmak, ucun kendi kopyasını taşımasını gerektirirdi ve iki kaynak sessizce ayrışırdı. `SectionName` aynı kalır (`AgentPrism:Mcp`), yani operatör için tek bölümdür.
+
+### K-535
+
+Rezerve adlar düşürülür ve **loglanır** (sessizce yutulmaz; operatör başlığın neden gitmediğini görebilmeli). Ayrıca sayı sınırı geldi (`MaxExtraHeaders`, varsayılan 20); rezerve adlar bu bütçeyi harcamaz.
+
+### K-536
+
+`SocketsHttpHandler.UseProxy` varsayılanı `true`'dur ve `Proxy` `null` iken `HttpClient.DefaultProxy` ortam değişkenlerinden (`HTTPS_PROXY`/`HTTP_PROXY`) kurulur. Bir proxy varken `ConnectCallback` **proxy'nin** adresini görür ve onu yargılar; gerçek hedef `CONNECT` isteğinin gövdesinde gider ve hiç denetlenmez — yani muhafız sessizce devre dışı kalır. Sevk edilen `security.md` korumayı "the check that cannot be evaded" diye anlatıyor, dolayısıyla ortam değişkeninden gelen bir proxy'yi miras almak dokümanı yalancı çıkarırdı. Bilinçli bedel: gerçekten proxy arkasından çıkması gereken bir kurulum bugün desteklenmiyor; o ihtiyaç doğduğunda çözüm proxy'yi miras almak değil, proxy'nin **kendisini** allow-list'e bağlayan açık bir ayar olur. K-164'ün "tüketici korumayı sessizce kaldıramaz" ilkesinin aynısıdır.
+
+### K-537
+
+Faz 78 `llms.txt`'e sayfa başına bir satırlık indeks ekledi; ölçüldü: indeks **8 002 B**, `llms.txt` **16 617 B** (plan 5 841 / 14 097 öngörmüştü — ortalama satır 153 değil **211 B** çıktı). Tek bütçe ya haritayı aç bırakırdı ya da 10 240 sınırını haritaya da yükseltirdi. **Bu bir tavan YÜKSELTMESİDİR** (`llms.txt` eskiden 10 240'a karşı denetleniyordu) ve K-214 gereği ölçümle yazıldı: 16 617 × 1,15 ≈ 19 110 → 20 480 (Faz 58.4 kalibrasyon kuralı). Harita bütçesi **düşürülmedi**; harita 8 391 B'dedir. İkisi de üreteçte tek yerde: `budgets` (`docs-site/scripts/build-agent-map.mjs`).
+
+### K-538
+
+Ölü işaretçi işaretçisizlikten kötüdür: agent bir tur harcar ve hiçbir şey öğrenmez. Ayrıca `buildTransitive` hedefinin kendi sözünü ("installing surprises nobody") ve K1'i kırıyordu. Çözüm `<CompilerVisibleProperty Include="AgentPrismWriteLocalReference" />` ile özelliği analyzer'a akıtmaktır (`build_property.` öneki); tanı yalnız değer `true` iken öter. Bedeli kullanıcıyla konuşularak kabul edildi: hiç opt-in yapmamış bir depo bir dürtme almaz, ve site reçeteyi bu yüzden **iki adımlı** yazar. Adı değiştirmek analyzer'daki `WriteLocalReferenceProperty` sabitini de değiştirmeyi gerektirir — ikisi de `AgentPrism.Core` ile sevk edilir.
+
+### K-539
+
+Dört satır, iki numara, farklı içerik — ve hiçbir kapı ötmedi. Sebep ölçüldü: indeks üreteci (`_kararlar_kalemleri`) satır satır regex okur ve tablo **yapısına** hiç bakmaz, bu yüzden yinelenen numarayı da tabloyu kesen boş satırı da sessizce geçiriyordu. Sıra denetimi kozmetik değildir, **nedensel**dir: iki faz da "son numara ne" sorusunu tablonun sonuna bakarak yanıtladı; tablo sıralı değilse o bakış yanlış cevap verir. Boş satır Markdown'da tabloyu ORADA bitirir — sonraki kararlar başlıksız ikinci bir tabloya düşer; iki vaka vardı (`K-351`/`K-352` arası ve `K-535`/`K-536` arası) ve Faz 77 denetimi yalnız ikincisini gördü, "kozmetik" diye kapattı. Düzeltme tarih kuralıyla yapıldı — **önce tahsis edilen numarayı korur**: Faz 77 `K-535`/`K-536`'yı tuttu, Faz 78 `K-537`/`K-538`'e taşındı (Faz 77'nin `K-535`'i `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`'den de referanslıdır). Kapı `python3 scripts/dokuman-bakim.py --denetle` içindedir ve bütçe hatasıyla aynı çıkış kodunu verir.
+
+### K-540
+
+deadlocked ... (error 1205, state 51)`. Migration kilidi ŞEMAYA kapsamlıdır (K-389), bu yüzden farklı şemaların ilk kez göç eden `fixture`'ları veritabanı genelinde paylaşılan katalog nesnelerinde çarpışır. `MigrationRunner` bu çarpışmanın unique-ihlali şeklini **zaten** yeniden deniyordu (sekiz deneme, herd-avoidance gecikmesiyle); deadlock şekli ise ikinci `catch`'e düşüp `AgentPrismException`'a sarılıyordu ve `fixture` hiç ayağa kalkmıyordu. Geçici bir durumu kalıcı hata gibi sunmak yanlıştır: sunucu kurbanı ZATEN geri almıştır ve migration'lar yalnız `IF NOT EXISTS` korumalı DDL yazar, yani aynı yeniden deneme kurban için de doğrudur. `SqlDialect.IsDeadlock` eklendi (SQL Server 1205 · PostgreSQL 40P01 · SQLite `SQLITE_BUSY`/`SQLITE_LOCKED` — SQLite döngü tespit etmez, yazarları sıraya sokar ama ÇAĞIRAN aynı şeyi görür). Sabitin adı `UniqueViolationRetryAttempts` → `TransientConflictRetryAttempts` oldu. Sınıf taraması ikinci vakayı buldu: `SqlAuditLog.AppendAsync` — deadlock oradan ham `DbException` olarak çıkıyor ve **denetim kaydı kayboluyordu**; döngü her denemede son hash'i taze okuyup yeniden türettiği için yeniden deneme orada da güvenlidir. Kapı: `SqlServerDialectTests.Deadlock_victim_is_classified_as_a_deadlock` gerçek bir deadlock üretir (iki işlem, ters kilit sırası) ve düzeltmeden önce kırmızıydı.
+
+### K-543
+
+Bedeli aynı gün ölçüldü — elle koşulan tek bir `dotnet list package --outdated` **42** paketin sürüklendiğini gösterdi (MAF 1.16→1.18, MEAI 10.8.3→10.9.0, MCP 2.0.0→2.2.0 dahil). **Dependabot seçildi**: GitHub'ın kendisi çalıştırır, repo dışı bir servise bağımlılık doğurmaz ve NuGet tarafında Central Package Management'ı (tek dosya: `Directory.Packages.props`) destekler. **Renovate reddedildi** — kural dili daha güçlü ama bir GitHub App kurulumu ve repo dışı bir servis ister; bu repo özeldir (K-542) ve dış yüzeyi büyütmek bedava değildir. **CI içi kendi kapımız da reddedildi**: PR açmaz, yalnız bildirir, ve beklenen taban çizgisini elle güncel tutmayı gerektirir — yani kaçırılan bir güncelleme kapıyı sessizce yeşil bırakır. Gruplar sürüm hattı kısıtlarını **korur**: MAF'ın GA + preview + alpha katmanları tek PR'da ilerler (K-008 — ayrı PR'lara bölünürse hat kayar), MEAI'nin üç paketi tek PR'da, MCP `.Core` + `.AspNetCore` tek PR'da (K-334). `ignore` listesindeki beş kalem **keyfî değildir**; her biri `Directory.Packages.props` içinde gerekçesi yazılı bir sabittir ve yalnız o gerekçenin geçersiz kaldığı sürüm aralığı kapatılır, paketin tamamı değil: `Microsoft.CodeAnalysis.CSharp` > 4.8.0 (üreteç, kendisini yükleyen derleyicinin Roslyn'inden yeni olamaz — net8.0 tüketicisi K-005), `Microsoft.Testing.Extensions.TrxReport` ≥ 2.0.0 ve `xunit.v3` ≥ 4.0.0 (aynı kısıtın iki ucu: platform v1↔v2 `TypeLoadException`), `Microsoft.OpenApi` ≥ 3.0.0 ve `SQLitePCLRaw.*` ≥ 3.0.0 (ikisi de CVE zorlaması, K-007 deseni; major atlama zorlanan hattın dışındadır). npm iki ayrı dizinde ayrı ayrı izlenir (`src/AgentPrism.UI/frontend` ve `docs-site`) çünkü bütçeleri ve kapıları farklıdır.
+
+### K-544
+
+Pin 10.0.10'da bırakılınca `restore` NU1903 değil **NU1605** (paket düşürme) verdi ve `TreatWarningsAsErrors` altında restore **kırıldı** — beş paket projesinde birden. Bu yüzden `MicrosoftExtensionsVersion` 10.0.10 → 10.0.11 yükseltmesi MEAI kararının bir parçasıdır, ayrı bir kapsam genişletmesi değil; `Directory.Packages.props` bunu satırın üstünde yazar ki sonraki oturum onu 'gereksiz sürüklenme' sanıp geri almasın. Yükseltme sonrası dört kapı da sıfır uyarı verdi.
+
+### K-545
+
+Bedeli ölçüldü: bir tam koşumda `SqlServerRunScoreStoreContractTests`'in **15** case'i birden düştü, **hepsi 0 ms**, çünkü düşen şey test değil sınıf `fixture`'ının `InitializeAsync`'iydi; `SqlDialect.UpgradeMigrationsTableAsync` deadlock kurbanı seçildi ve ham `SqlException` dışarı çıktı. Migration kilidi şemaya kapsamlıdır (K-389), bu yüzden bootstrap deyimleri de veritabanı genelindeki katalog nesnelerinde yarışır — dördü de `IF NOT EXISTS` korumalı DDL veya salt okuma olduğu için yeniden deneme K-540'ın gerekçesiyle **aynı ölçüde** güvenlidir. Politika tek yere toplandı: `IsTransientConflict` (unique ihlali VEYA deadlock) ve `DelayAfterTransientConflictAsync` (herd-avoidance) artık her iki yolun da kullandığı ortak parçalardır; `RetryOnTransientConflictAsync` ayrıca son denemeyi **okunabilir** bir `AgentPrismException`'a çevirir — eskiden bootstrap hatası hangi adımda olduğunu söylemeyen çıplak bir sağlayıcı istisnasıydı. **Sınıf taraması iki şey daha buldu.** (1) SQLite'ın defter rebuild'i yeniden çalıştırılabilir DEĞİLDİ: dört deyim tek komut metninde gider, SQLite her birine kendi örtük transaction'ını verir, ortada kalan `_new` tablosu sonraki denemeyi "already exists" ile öldürürdü — bu geçici değildir ve denemeleri boşa harcardı; başa `DROP TABLE IF EXISTS` kondu. (2) `SqliteDialect.AcquireMigrationLockAsync` dışarıdan gelen `DbConnection`'ı `((SqliteConnection)connection)` diye cast ediyordu, oysa yalnız `DataSource`'a bakıyor ve o taban sınıfın üyesidir; cast, bağlantıyı saran her çağıranı (proxy, telemetri dekoratörü, testteki hata enjektörü) `InvalidCastException` ile kırar — kusurun kendi testi tam olarak buna çarptı. `src` taraması ikinci bir haksız cast bulmadı. **Karıştırılmaması gereken ayrım:** `SqlSessionStore`, `SqlIdempotencyStore`, `SqlExperimentStore` ve `SqlEvalStore` de `IsUniqueViolation` yakalar ama bunlar **anlamsal** dallardır ("zaten var → `false`"), yarış değil; yazımları idempotent olmadığı için yeniden denenmezler. Kapı: `AgentPrism.Sqlite.IntegrationTests` içinde beş test — bağlantı seviyesinde hata enjekte eden bir `DbDataSource` sarmalayıcısı dört bootstrap deyiminin her birini ayrı ayrı düşürür (`[Theory]`) ve sekizinci denemenin okunabilir hatasını pinler; beşi de düzeltmeden önce **kırmızıydı**. Seam bilerek bağlantıdır, dialect değil: dialect sahtesi yalnız ezdiği metoda ulaşır ve diğer üç deyimi test dışında bırakırdı.
+
+### K-546
+
+`ToolMethodScanner` yalnız metodun `IsStatic` olduğuna bakıyor, konteyner sınıfın statik olmasını istemiyor (APG0007 de yalnız metottan bahsediyor). `internal static class` → `internal class`; `[AgentPrismTool]` işaretli metot `public static` kaldı.
+
+### K-547
+
+`AzureOpenAIProviderOptions.CredentialFactory`'nin sevk edilen `<example>`'ı `DefaultAzureCredential`'ı (o pakette) adlandırıyor — bilerek: `AgentPrism.Azure` o bağımlılığı ALMIYOR (yorum: "Azure.Identity does not appear... credential type is left to the consumer"). Yeni derleme kapısının (F-125) örneği GERÇEKTEN derlemesi gerektiği için gerçek tipe ihtiyaç duydu. `Directory.Packages.props`'ta `Label="Test"` grubuna eklendi (`Label="Saglayicilar"` değil — ilk taslak yanlış grup altına koymuştu, bağımsız denetim buldu, taşındı).
+
+### K-548
+
+`_kural_eslesmesi` saf fonksiyonu her kuralı KENDİ hedef sayfasına/sayfalarına karşı denetler; dizin hedefi (`concepts/`) bilerek geniş kalır (hangi kavram sayfasına düşeceği önceden bilinemez), kalan on kural tam dosya eşleşmesi ister ve birden fazla hedefi olan kurallar (`guvenlik-kiraci`) OR semantiğiyle karşılanır. `src/AgentPrism.Core/buildTransitive/` için ayrı bir `capabilities.md` kuralı eklendi — genel `Abstractions|Core` kuralından ÖNCE yazılır, ikisi birden tetiklenebilir ve ayrı satır olarak raporlanır. `_git`/`_degisen_dosyalar` artık `git` çağrısı başarısız olduğunda (dönüş kodu ≠ 0) `None` döner ve `site_denetle` çıkış kodu 1 verir; eskiden boş listeye düşüp sessizce "değişiklik yok" diyordu — bir kapının en kötü hâli sessiz geçiştir. Bu davranış yalnız `--site-denetle` yolunu etkiler; CI'daki `--denetle` `_degisen_dosyalar`'ı hiç çağırmaz. Dört açık soru kullanıcıya soruldu ve dördü de önerilen seçenekle onaylandı: kural adı raporda kısa bir ad alanı taşır (dörtlü: ad, desen, hedefler, neden); `## Read next` hedefinin DOĞRU sayfa olduğu makineyle denetlenmez (çözülebilirlik makine işidir, doğruluk semantiktir); `--denetle` CI'da bütçe aşımını da kırar.
+
+### K-549
+
+`docs-site/site.config.mjs`'in `base`'i K-542'de kalıcı olarak `/` oldu; bu fazın PLANI hâlâ `/AgentPrism/` önekini varsayıyordu — ölçüldü, artık geçerli değil (plandan sapma, aşağıda). Slug haritası frontmatter `slug:`'ı ÖNCELİKLİ okur, yoksa dosya yolundan türetir (`_slug_hesapla`, saf fonksiyon); naif "dosya yolu = slug" varsayımı denenince `api/`/`http-api/` üretilen sayfalarının frontmatter yeniden adlandırması yüzünden binlerce yanlış pozitif üretiyordu (ölçüldü: 7 355 bağlantının 6 916'sı). `api/`, `http-api/` **ve** `openapi/` hedef olarak da hariç tutulur: bu üç yol `build` CI işinde henüz ÜRETİLMEMİŞTİR (DocFX/OpenAPI üretimi ayrı `site` işindedir ve yalnız `main` push'ta koşar); bağımsız denetim `openapi/agentprism.json`'ı OLMADAN bunu buldu — `http-api.md`'deki `/openapi/agentprism.json` bağlantısı her temiz `build` checkout'unda kaynak sayfa hiç değişmese bile kalıcı yanlış pozitif üretiyordu. `.mdx` artık okunuyor. Bugünkü ağaçta ölçülen: 0 kırık (163 site-mutlak bağlantı elle yazılan sayfalardan çıkıyor).
+
+### K-550
+
+Bu, fazın kendisinin peşinde olduğu "boş küme tuzağı" sınıfının bir başka biçimidir: yanlış ada göre yazılan test dosyası CI'ya asla girmeden sessizce yeşil kalırdı. Plan kaynak dosyanın adını (`dokuman-bakim.py`, CLI script konvansiyonu) test dosyasına da uyguluyordu; bu yanlıştı. Kaynak modül `importlib.util.spec_from_file_location` ile tire taşıyan hâliyle yüklenir — düz `import dokuman_bakim` çalışmaz.
+
+### K-551
+
+Aynı kiracıda aynı istemi soran ama farklı tool kümesine sahip iki agent aynı kayda düşer; bu bir performans kusuru değil bir yetki sızıntısıdır — isabet eden yanıt, çağıran agent'ın sahip olmadığı bir tool için `FunctionCallContent` taşıyabilir ve `FunctionInvokingChatClient.TerminateOnUnknownCalls` varsayılanı `false` olduğu için döngü bunu kesmez. Düşen bir testle önce kanıtlandı (`ResponseCacheKeyTests.Different_tool_set_does_not_share_a_cache_entry` — `GetCacheKey` `base.GetCacheKey(...)`'e indirgendiğinde test kırmızıya düşüyor), sonra geçti. Anahtar `base.GetCacheKey(...)`'in ürettiği taban anahtarı üç ek girdiyle (kiracı, sıralanmış tool adları, sağlayıcı adı — aynı model adı bir OpenAI-uyumlu `endpoint`'te farklı bir sağlayıcıya ait olabilir) SHA-256 ile birleştirir. Agent adı BİLEREK anahtarda YOKTUR: aynı kiracıda aynı talimatı, aynı tool kümesini ve aynı model bağlamasını taşıyan iki agent davranışsal olarak aynıdır. `record struct` seçimi K-525'in dersini uygular: derleyicinin ürettiği `ToString()` her alanı etiketli ve ayrık yazdığı için farklı alanlar arasında elle yazılmış, görünmez bir ayırıcının gizlenebileceği bir sınır yoktur.
+
+### K-552
+
+Halka `ModelProviderRegistry.BuildPipeline`'da `.UseFunctionInvocation(...)` ile `.UseOpenTelemetry(...)` arasına eklenir. Gerekçe iki yönlüdür: (1) isabet hiçbir maliyet yazmaz — halka `OTel`'in DIŞINDA olduğu için isabet eden bir çağrı `chat` span'i üretmez ve token/maliyet kaydına girmez; Faz 68'in maliyet kırılımı harcanmamış token'ı saymaz. (2) tool'lar koşmaya devam eder — halka döngünün İÇİNDEDİR, yani isabet eden bir yanıt `FunctionCallContent` taşıyorsa döngü onu yine yürütür; yan etkili bir tool sessizce atlanmaz. Bilinçli bedel: isabet content guard'ı da atlar (kayıt yazılırken guard koşmuştu, ama kural sonradan değişirse eski yanıt yeniden denetlenmez) — bu pencere `ResponseCacheSettings.Lifetime` ile sınırlanır ve `docs-site` bunu açıkça yazar. `ChatClientBuilder`'ın sarma sırası ölçülüp doğrulandı: ilk kayıtlı `.Use...()` en dıştaki halka olur, sonraki her çağrı bir önceki halkanın İÇİNE eklenir — bu yüzden halka `.UseFunctionInvocation(...)` ile `.UseOpenTelemetry(...)` arasına, ikisinin çağrılma SIRASINA göre eklenmelidir.
+
+### K-553
+
+İki ev ölçüldü. **Boru hattı evi (seçilen)**: `ModelProviderRegistry.BuildPipeline` zaten `.UseFunctionInvocation(_loggerFactory, fic => ...)` çağrısıyla tool döngüsünü GERÇEKTEN çalıştıran `FunctionInvokingChatClient` örneğini kuruyor; `fic.AllowConcurrentInvocation` doğrudan BU örneğe yazılır. `Fallbacks`/`ReasoningEffort`/şimdi `ResponseCache` de aynı yoldan (agent'a bağlı `ModelBinding` → boru hattı kurulumu) gider; tutarlı bir tek yerdedir. **Agent seçenekleri evi (reddedildi)**: `AgentDefinitionCompiler.CompileChatAgent` derleyiciye zaten TAM kurulmuş bir `IChatClient` verir (`chatClient.AsAIAgent(options, ...)`) — `ChatClientAgentOptions`'a AgentPrism bugün hiçbir boru hattı bayrağı koymuyor, ve MAF'ın bu seçeneği muhtemelen yalnız KENDİ ham istemciden pipeline kurduğu bir yol için anlamlıdır, AgentPrism'in HER ZAMAN önceden sarılmış bir istemci verdiği yol için değil. Reflection'la doğrulandı: `FunctionInvokingChatClient.AllowConcurrentInvocation` bağımsız bir `bool` property'dir, hangi katman ayarladığından etkilenmez — seçilen ev davranışı doğrudan ve tek bir örnek üzerinden garantiler.
+
+### K-554
+
+Planın "bir `public class`" notu uygulamadan ÖNCE yazılmıştı ve bu yerleşik ayrımı ölçmeden varsaymıştı. `internal` yapmak `PublicAPI.Unshipped.txt`'e beş ek üye (Read* aşırı yüklemeleri, hata-açık davranış için) eklemeyi de bedelsiz kıldı — sınıf zaten sevk edilen yüzeyin dışındadır.
+
+### K-555
+
+`docs/hafiza/cekirdek-calistirma.md`'nin zaten yazılı kuralı (`run kaydı store'u hata verirse run devam eder, hata loglanır`) burada da uygulandı: `ReadCacheAsync`/`ReadCacheStreamingAsync`/`WriteCacheAsync`/`WriteCacheStreamingAsync`'in dördü de `_storage` çağrısını `catch (Exception ex) when (ex is not OperationCanceledException)` ile sarar, `ILogger?.LogWarning(...)` yazar ve YUTAR — bir okuma hatası ıska sayılır (gerçek model yine çağrılır), bir yazma hatası yalnızca o kaydı kaybeder. İptal (`OperationCanceledException`) BİLEREK yutulmaz — çağıranın iptali normal şekilde yükselir. Kapı: `ResponseCacheLifetimeTests.A_cache_read_failure_is_treated_as_a_miss_and_the_real_model_still_answers` ve `A_cache_write_failure_does_not_fail_the_call_that_already_succeeded`.
+
+### K-556
+
+Ölçüldü: `AgentDefinitionValidator.CheckModelAsync` zaten `_models.CreateChatClientAsync(definition.Model, ...)`'i DOĞRUDAN çağırıyor (Faz 62'den beri, `Unrecognized_provider_setting_rejects_running_with_a_clear_message` testinin de aynı yoldan geçtiği çağrı) ve `AgentPrismException`'ı `invalid_setting`/`model.providerSettings` olarak yakalıyor; `ValidateAsync` `HasError(messages)` doğruysa `CheckStructureAsync`'i (yani `compilation_error`'ın tek kaynağını) HİÇ çalıştırmıyor. Yeni fail-fast kontrolü (`ModelProviderRegistry.BuildPipeline`, `IDistributedCache` `null` iken `ResponseCache.Enabled`) AYNI `AgentPrismException` tipini fırlattığı için AYNI erken kontrol tarafından yakalanır — yeni bir kod yolu icat etmek yerine, `ModelBinding` inşasını bozan HER hatayla aynı, zaten var olan ve tutarlı mekanizmaya oturur. Gerçek `run` (validate değil) yolunda AYNI istisna `AgentDefinitionCompiler.CreateChatClient`/`CreateChatClientAsync` tarafından `AgentPrismCompilationException`'a sarılır — o yol değişmedi.
+
+### K-557
+
+Ölçüm: aynı istem iki kez sorulunca `GET /api/runs/{id}` ikinci `run` için `usage.totalTokens: 244` döndürdü — BİRİNCİ `run`'ın SAYISIYLA birebir aynı. Kök sebep: `DistributedCachingChatClient`'ın önbelleğe yazdığı `ChatResponse` orijinal çağrının kullanım bilgisini AYNEN taşır (`Usage` özelliği + mesaj içeriğindeki `UsageContent`); bir isabet bu nesneyi OLDUĞU GİBİ geri verdiğinde, `run`'ın kendi kullanım toplamı bunu YENİDEN BİRİKTİRİR — 81.1'in "isabet hiçbir maliyet yazmaz" iddiası kod SEVİYESİNDE hiç zorlanmıyordu, yalnız `chat` span'inin eksikliğine güveniyordu. Düzeltme `AgentPrismResponseCachingChatClient.ReadCacheAsync`/`ReadCacheStreamingAsync`'e eklenen `StripUsage(...)`'tır: `Usage`'ı `null` yapar ve her mesajdan/`update`'ten `UsageContent` öğelerini KALDIRIR — yalnız DÖNDÜRÜLEN nesnede, `store`'a yazılan bayt dizisi DOKUNULMADAN kalır (bir sonraki isabet aynı şekilde taze bir `deserialize`'dan sıyırır). Düzeltmeden önce düşen bir testle kanıtlandı (`ResponseCacheUsageTests`, ikisi de). Ölçülen değer (`0` değil `null`) K-482'nin "sayaç `null` ile `0` ayrı bilgidir" kuralıyla tutarlıdır — bir `run` kaydının `usage` alanı isabet için kasıtlı olarak "ölçülmedi" der, "sıfır harcandı" demez.
+
+### K-558
+
+Kod okundu: `CopyItemsAsync` satırı zaten "AS-IS kopyalanır, yeniden serileştirilmez" yorumuyla korunuyordu (K-027'nin `$type` sırası dersi) — kaynak satır şifreliyse zarfın kendisi (JSON metni, `$apEnc`/`kid`/`n`/`c` alanlarıyla birlikte) hiç değişmeden yeni satıra yazılır. Bu, tam olarak istenen davranıştır: yeni satır ESKİ satırın `kid`'ini taşır ve o `kid` yapılandırmada kaldığı sürece okunabilir kalır — decrypt-recrypt döngüsü ne gereklidir ne de arzu edilir. Kod değişikliği YOK.
+
+### K-559
+
+`NullContentProtector.IsEnabled` her zaman `false` döner ve `Protect`/`ProtectBytes` girdiyi olduğu gibi yazar; `Unprotect`/`UnprotectBytes` kendini tanıtan zarfı (`$apEnc` veya ikili sihirli sayı) yine de tanır ve varsa `AgentPrismException` fırlatır (koruma daha önce açılıp sonra tamamen kaldırılmışsa sessiz bozulma yerine net hata). `UsePostgreSql()`/`UseSqlServer()`/`UseSqlite()` üçü de `provider.GetRequiredService<IContentProtector>()` çağırır — asla `null` dönmez, bu yüzden üç sağlayıcı da eşzamanlı bir `?? Instance` yazmaz.
+
+### K-560
+
+`ContentProtector`'ı `NullContentProtector.Instance`'a varsayılan değerli yapmak bu görünürlük sınırını ihlal ederdi; iki seçenek kaldı: tipi `public` yapmak (gereksiz yüzey büyütme) veya alanı nullable bırakıp `ProtectedValue`'nun `null`'ı no-op sayması. İkincisi seçildi — dokuz test dosyasının (`PostgresTestContext` ve kardeşleri) `SqlStoreContext`'i doğrudan kurduğu, `AddAgentPrism()`'i hiç çağırmadığı yerler de böylece dokunulmadan kaldı.
+
+### K-561
+
+Yine de aynı dolaylama bilinçli olarak tekrarlandı: `AgentPrismContentProtectionOptions` bir gün bir teşhis ucundan (`/api/diagnostics` gibi) dökülürse, nesnenin kendisi ham anahtar malzemesi TAŞIMAZ — yalnız hangi yapılandırma anahtarının okunacağını taşır. Çözüm `TenantProviderCredentialResolver`'ın izlediği aynı yoldan geçer: `_configuration?[configurationKeyName]`. Örnek dokümantasyon bilerek iki satırlı gösterilir (`Keys:2026-08` bir ADI taşır, o ad başka bir yerde çözülür) — tek satırlı bir örnek dolaylamayı gizleyip yanlış anlaşılmaya açardı.
+
+### K-562
+
+Zarf JSON nesnesine sarılınca kısıt sağlanır, migration gerekmez. `$apEnc` alanı KENDİNİ TANITIR — okuma yolu şifreli mi diye yapılandırmaya değil DEĞERE bakar, bu yüzden bir satır koruma açılmadan önce ya da kapatıldıktan sonra da okunabilir kalır. İkili sütun (`attachments.content`) aynı JSON zarfını TAŞIYAMAZ (base64'leme boyutu üçte bir büyütür ve `bytea` bir JSON kısıtı taşımaz); onun yerine sabit genişlikli bir ikili başlık kullanılır. İki biçim de `ContentProtectionEnvelope` (`internal`, `AgentPrism.Core`) içinde TEK yerde tanımlıdır; `AesGcmContentProtector` ve `NullContentProtector`'ın zarf algılama mantığı ikisi de oradan geçer.
+
+### K-563
+
+rotasyon sırasında geçici bir eksiklik). Başlangıçta ham değeri de çözmek validator'a bir `IConfiguration` bağımlılığı ekler ve tembelliğin kazancını (yalnız gerçekten kullanılan anahtarın maliyetini ödemek) geçersiz kılardı. Bunun yerine en sık yapılan hata (Enabled=true ama `ActiveKeyId` unutulmuş, ya da `ActiveKeyId`'nin `Keys`'te karşılığı yok) başlangıçta yakalanır; base64 biçimi/uzunluk/eksik değer hataları `AesGcmContentProtector`'ın ilk gerçek `Protect`/`Unprotect` çağrısında net bir `AgentPrismException` ile ortaya çıkar.
+
+### K-564
+
+Üreteç `.config/dotnet-tools.json`'a yerel araç olarak eklendi (`docfx` ile aynı desen); `dotnet build` onu ÇAĞIRMAZ, üretim elle koşulan bir geliştirme adımıdır (`dotnet nswag run nswag.json`). Kapı byte-diff değil davranışsaldır: `ClientCoverageTests` belgedeki her `operationId` için istemcide karşılık gelen bir metot arar — asıl kaçırılacak şey (yeni uç eklenip istemci yeniden üretilmezse sessizce eskimesi) üreteci teste sokmadan yakalanır.
+
+### K-565
+
+Bedel aynı şeklin iki tipte yaşamasıdır (`RunRecord` sunucuda `AgentPrism.RunRecord`, istemcide `AgentPrism.Client.Generated.RunRecord`); kazanç HTTP tüketicisinin sunucu soyutlamalarını hiç görmemesidir. `DependencyDirectionTests["AgentPrism.Client"] = []` bunu zorlar.
+
+### K-566
+
+`AgentPrism.Generators` ve `AgentPrism.Templates` aynı gerekçeyle (üretilmiş/yazarı olmayan yüzey) zaten dışarıdadır — artık dört proje bu kümede. `AgentPrism.Cli` zaten hiçbir public tip sevk etmez (`Program` ve komut işleyicileri `internal`), tracking'in ona hiç bir maliyeti yoktu; birlikte kapatıldı.
+
+### K-567
+
+K-571) ama NSwag'ın ürettiği kod, `System.Text.Json.JsonSerializer.Deserialize<T>(json, options)`/`SerializeToUtf8Bytes<T>(value, options)` GENERIC aşırı yüklemelerini 42 çağrı noktasında (39 istek gövdesi + üç yerden çağrılan `ReadObjectResponseAsync<T>` yardımcı metodu) sabit kullanır; trim/AOT analizcisi bu aşırı yüklemeyi ÇALIŞMA ANINDA `TypeInfoResolver` ne olursa olsun İŞARETLER, çünkü derleme anında tip kapsamını kanıtlayamaz. Ölçüldü: `-p:AgentPrismAotCompatible=true` ile zorlanan derleme 146 IL2026/IL3050/IL2075 tanısı üretti (42 satır × 3 TFM). 320 üretilen çağrı noktasını elle `JsonTypeInfo<T>` tabanlı aşırı yüklemelere taşımak (üretilen dosya her `dotnet nswag run`'da sıfırlanır) bu paketin vaat ettiğiyle orantısızdır. K-006 katman bazlıdır, küresel bir söz değildir — `AgentPrism.AspNetCore` ve `AgentPrism.UI` zaten kendi gerekçeleriyle dışarıdadır.
+
+### K-568
+
+`extern alias` ile üç dalı ayrı ayrı derlemek CLI'nin üç komut sınıfını neredeyse birebir üç kez tekrar etmeyi gerektirirdi. `IMigrationApplier` (`ApplyAsync`) `ISqlPersistenceDiagnostics`'in (Faz 33, K-248) yanına, AYNI desenle eklendi: her `Use*()` uzantısı `services.Replace(ServiceDescriptor.Singleton<IMigrationApplier>(provider => provider.GetRequiredService<MigrationRunner>()))` çağırır — arayüz `Abstractions`'da tanımlı olduğu için üç sağlayıcı referans edildiğinde bile TEK bir tip olarak kalır. `ISqlPersistenceDiagnostics`'ten AYRI bir arayüz olması bilinçlidir: biri salt okunur teşhis, diğeri veritabanını DEĞİŞTİREN bir işlem — aynı arayüze koymak Arayüz Ayrımı ilkesini ihlal ederdi.
+
+### K-569
+
+`WebhookHttpClient`'ın (K-164) izlediği aynı gerekçe burada da geçerli: adlandırılmış istemciyi tüketicinin yeniden yapılandırıp korumayı/kurulumu geçersiz kılabilmesi riski + ekstra paket. `HttpClient` `TryAddSingleton` ile TEK SEFER kurulur ve uygulamanın ömrü boyunca tutulur — Microsoft'un factory kullanılmadığında önerdiği desen. Tüketilen tek NuGet paketi `Microsoft.Extensions.DependencyInjection.Abstractions`'tır (geçişli bağımlılığı yok).
+
+### K-570
+
+~30 MEAI polimorfik şemasının (`AIContent*`/`ToolCallContent*`) KENDİ, aynı isimli bir `additionalProperties` alanı zaten vardı — çakışma `CS0102` verdi. Kapatma hem çakışmayı giderdi hem de bu tamamen kod-üretilmiş sözleşmede gerçekten hiçbir yerde ihtiyaç duyulmayan ~250 gereksiz yakalama özelliğini kaldırdı; sunucudan gelen bilinmeyen bir alan STJ'nin varsayılan davranışıyla (sessizce atlanır, hata vermez) zaten aynı sonucu verir. Dönüşüm `scripts/nswag-prepare-document.py`'de, üretim ÖNCESİ bir adımdır; commit'li belgeye dokunmaz.
+
+### K-571
+
+Bir fonksiyonel test (`ClientTenantScopeTests`, gerçek host'a karşı) bunun ÇALIŞMADIĞINI buldu: `RunKind.Agent` gibi bir tel değeri `JsonException` fırlattı. Tanı: `probe.Options.TypeInfoResolver.GetTypeInfo(typeof(RunKind), ...).Converter` varsayılan SAYISAL `EnumConverter<T>` döndürüyordu — global `Converters` listesi yalnız PROPERTY ÜZERİNDEN ulaşılan enum tipleri için HİÇ ETKİLİ OLMUYORDU. Çözüm, ~30 MEAI ayrımcı özelliğinde ZATEN çalıştığı kanıtlanmış TİP DÜZEYİ `[JsonConverter]` deseninin TÜM 67 enum'a genişletilmesidir (`nswag-postprocess-client.py`); `Converters` listesi kaldırıldı.
+
+### K-572
+
+Belgedeki 123 yol arasında EN GENEL "sağlık" ucu `/api/models/health`'tir (`RequireRole(roles.Reader)` + `RequireApiKeyScope(PlatformRead)` — yani token'a duyarlıdır, manuel case 6'nın istediği `401` davranışını verir). `--url` argümanının `MapAgentPrism` önekini taşıması gerekliliğiyle de (§83.3) tutarlıdır.
+
+### K-573
+
+Eski davranış "belgede yok = tüketici bu uca göre kod üretemez" demekti; kapalı bir ucun **varlığını** gizlemek isteyerek yapılmış bir tasarım değildi, bir yan etkiydi. Düzeltme tek satır: `AgentPrismTestHost.StartAsync(configureEndpoints: options => options.EnableDiagnosticsEndpoint = true)` ile belge üretimi sırasında uç açılır, `.WithDescription(...)`'a "varsayılan kapalı, açılmamışsa 404" cümlesi eklenir. Uç HÂLÂ varsayılan kapalıdır — değişen yalnız belgenin onu tarif etmesidir. `docs/openapi/agentprism.json`: 123 yol/160 operasyon → 124 yol/161 operasyon.
+
+### K-574
+
+Bağımsız denetim (`faz-denetim`) bunu 🟡 bulgu olarak yakaladı: regex genişletilmediği için bugün ihlal yoktu ama kapı gelecekte bu dosyaya Türkçe satır sızsa HİÇ GÖRMEYECEKTİ. Düzeltme: regex `^(?:src\|packages)/[^/]+/README\.md$` (non-capturing grup — `MA0023` analyzer kuralı capturing grup istemiyor). 1186/1186 test yeşil kaldı.
+
+### K-575
+
+`file:` bağımlılığı `npm ci`'nin paketi YEREL dizinden sembolik bağlamasını sağlar; `AgentPrism.UI.Frontend.targets`'e eklenen `AgentPrismClientNpmInstall`/`AgentPrismBuildClientPackage` hedefleri `packages/agentprism-client`'ı konsol derlemesinden ÖNCE `npm ci && npm run build` ile hazırlar (damga dosyası deseniyle artımlı — paket kaynağı değişmezse adım koşmaz). npm'e YAYINLANMIŞ paket yalnız GERÇEK tüketiciler (Kabul case 8) içindir; repo kendi konsolu için asla dışarıdan çekmez.
+
+### K-576
+
+Çözüm: `npm view @agentprism/client@$VERSION version` önce çalıştırılır; sürüm zaten varsa `npm publish` adımı ATLANIR (aynı NuGet job'ının izlediği "var olanı atla, kırma" ilkesi). `npm version $VERSION --no-git-tag-version --allow-same-version` ile `package.json`'daki `0.0.0` yer tutucusu git tag'inden gelen GERÇEK sürümle değiştirilir — NuGet paketinin sürümünü türeten AYNI `${GITHUB_REF#refs/tags/v}` ifadesi kullanılır, ayrı bir sürüm dosyası veya karar noktası yoktur. `--access public` zorunludur (scoped paket varsayılan PRIVATE yayınlanır).
+
+### K-577
+
+Gerçekleşen: 43 dosya/155 çağrı noktasının TAMAMI tek oturumda, ekran ekran, her adımda `tsc --noEmit` sıfır hatayla doğrulanarak göç etti — cepheye ihtiyaç DOĞMADI. Eski `api.ts` (666 satır, 134 üyeli elle yazılmış nesne) ve `types.ts` (1882 satır, 177 tip) TAMAMEN silindi; kalan `api.ts` yalnız paylaşılan `client` + `unwrap()` + `openStream` (81 satır). Zorlayıcı olan tek şey React Query'nin üç seviyeli intersection tiplerini (`Fix<T,K> & {...}`) `useQuery`'nin jenerik çıkarımından geçirememesiydi (bkz. K-578'in `server-types.ts` başlık yorumu) — bu bir cephe sorunu değil, tek tek widening tiplerinin düzleştirilmesiyle (bkz. `RunStatistics`, `Experiment`) çözüldü.
+
+### K-578
+
+`RunErrorClass`, `WorkflowKind`) belgede hem NULLABLE hem NON-NULLABLE kullanılınca üretilen TEK paylaşılan tip `\| null` taşır, non-null kullanıldığı yerde bile. Sunucu tarafını düzeltmek (~150 `required` ek satırı + üretecin numeric-string izninin denetimi) bu fazın kapsamının kat kat üstündedir ve bir istemci üretme fazının yan etkisi olmamalıdır — ertelendi (aday listesine değil, çünkü davranışı BOZAN bir kusur değil, yalnız TİP DAR olmayan bir sözleşme). Frontend tarafı bunu `Fix<T,K> = Omit<T,K> & {[P in K]-?: ...}` tek yardımcı tipiyle, script-üretilmiş ~104 giriş ile (`server-types.ts`) telafi eder — 43 ekranın hiçbiri elle `?.`/`!`/`Number(...)` yazmaz. Doğrulama yöntemi: `grep -rln "JsonIgnoreCondition.WhenWritingDefault\|WhenWritingNull" src/` 6 dosya buldu, hepsi yönetim API'sinin `/api/*` yanıt gövdesi DIŞINDA (webhook payload'ı, `/v1/*` OpenAI hata zarfı, workflow iç olay-metni, üçüncü taraf istemci ayrıştırması, SQL iç depolama, WebSocket ses protokolü) — `Fix<>`'ın dayandığı "varsayılan değerli alan her zaman yazılır" varsayımı doğrulandı. | Sunucu tarafı `required` boşluğu ayrı bir fazda kapatılırsa (F-NN, ölçülmüş bir talep bugün yok) `Fix<>`'ın "eksik required" yarısı gereksiz kalır ve kaldırılabilir; "number\
+
+### K-579
+
+Ama `samples/AgentPrism.Embedded`'ın GERÇEK `Program.cs`'ini (elle yeniden kurulmuş bir eşdeğerini değil) uçtan uca test etmek tam olarak `WebApplicationFactory<T>`'nin tasarlandığı senaryodur — sample bir giriş noktası TAŞIR. `tests/AgentPrism.Embedded.Tests` bu paketi kullanır (yalnız test-only, `PublicAPI` yüzeyine girmez); kütüphanenin kendi fonksiyonel testleri (`AgentPrism.AspNetCore.FunctionalTests`) `TestHost` kullanmaya devam eder. Ölçülen tuzak: `WebApplicationFactory<T>.Server`/`.Services` built-in property'leri `IServer`'ı `TestServer`'a CAST eder ve Kestrel'e geçilince `InvalidCastException` fırlatır — bu yüzden `MapAgentPrism`'in loopback denetimini simüle etmek için gerçek Kestrel yerine bir `IStartupFilter` ile `RemoteIpAddress` in-memory `TestServer` üzerinde ayarlandı (`AgentPrismTestHost`'un zaten yaptığı başlık-tabanlı simülasyonun `WebApplicationFactory` eşdeğeri).
+
+### K-580
+
+Derleme geçti (payload tipi bağımsız bir record'dur, `AgentDefinition`'a bağlı değildir), 1233 test geçti (hepsi bellek-içi depoyu kullanıyordu), ve kusur yalnız `samples/AgentPrism.Api`'nin GERÇEK PostgreSQL'ine karşı elle koşulan bir `run` ile ortaya çıktı: `PUT /api/agents/{name}` sonrası `parameters: []` dönüyordu. Bu AGENTS.md'nin "imza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır" kuralının ÜÇÜNCÜ somut örneğidir (Faz 20'nin `Cost = cost` ve Faz 48'in yapısal konum kusurundan sonra) — ama bu sefer İKİNCİ bir tip (payload projeksiyonu) üzerinden, ilk ikisinden farklı bir yüzeyde. `AgentDefinitionStoreContract.SaveAsync_round_trips_all_definition_fields` artık `Parameters`/`SharedInstructionsName`'i de doğruluyor.
+
+### K-581
+
+Kök neden: ilk tasarım (BYOK'un tenant-kimlik-bilgisi baypası) yalnız `CompiledAgentCache`'i atlar ve katalog metodunun İÇİNDE kalır (dekorasyon hâlâ uygulanır); bu fazın parametreli-koşu baypası ise katalog metoduna HİÇ GİRMEZ. `AgentDecoratorPipeline.Apply(agent, descriptor, decorators)` yeni bir genel yardımcı (`AgentPrism.Core`), iki çağıran (HTTP `/run`, `EvalJobHandler`) tarafından `CompileParameterizedAsync` sonrası elle çağrılır.
+
+### K-582
+
+Parametre başına bir sınır şemayı (`AgentParameter`) şişirirdi ve bu kalemin gerçek ihtiyacı — bir isteğin toplam yükünü sınırlamak, tek bir alanın anlamsal boyutunu değil. `AgentParameterValidator.ValidateValues`'un yeni `maxValueLength` parametresi varsayılan `null`dır (sınırsız) — bu, parametreyi geçirmeyen HERHANGİ bir çağıranın (örn. birim testleri) davranışını DEĞİŞTİRMEZ.
+
+### K-583
+
+Üçünü tek bir `ReplayOfRunId`-benzeri alanda birleştirmek "bu run neden var" sorusunun cevabını belirsizleştirirdi — üç ayrı köken üç ayrı operasyonel tepki gerektirir (biri kullanıcı isteği, biri onay, biri otomatik kurtarma).
+
+### K-584
+
+`SafeToRepeat`, `Effect`'in KARDEŞİDİR — `ToolEffect` "ne yapıyor" sorusunu, `SafeToRepeat` "tekrarlanabilir mi" sorusunu cevaplar; bunlar dik eksenlerdir ve `ToolEffect`'e beşinci bir değer eklemek ikisini karıştırırdı. Yalnız gerçekten idempotent bir tool'un YAZARI (tipik olarak kendi idempotency anahtarını taşıyan bir ödeme gibi) bunu kod düzeyinde bildirebilir — K3'ün "tool'lar yalnız kodda tanımlanır" sınırıyla tutarlı.
+
+### K-585
+
+`RecordedToolPlayback` zaten `internal`dır; kurucusuna parametre eklemek public yüzeye dokunmaz. İkinci bir sarmalayıcı tipi (öneri B) `(tool adı, argüman)` eşleştirme mantığının İKİNCİ bir kopyasını doğururdu — bu sınıf beş kez senkronizasyon-kopyası kusuruna yol açtı (farklı bağlamda da olsa aynı "iki kopya birbirinden sapar" riski). `Stop` (replay'in bugünkü davranışı, varsayılan) ve `RunLive` (devamın davranışı) tek bir `Take` metodunda yaşar.
+
+### K-586
+
+Skill script'leri ve çağrılabilir alt-agent'lar `AIContextProvider` üzerinden çalışır — replay'in kendi `ApplyOverrides`'ının ZATEN `NoTools`/`ReplayTools` modlarında bu ikisini kapatmasının AYNI gerekçesiyle (skill script'i veya alt-agent çağrısı GERÇEKTEN çalışır, gerçek para/yan etki üretir). Bu boru hattını da sarmalamak Faz 87'nin kapsamı dışında kalan ayrı bir gövde işiydi; sessizce YARIM bırakmak yerine (bir skill çağrısının kesinti öncesi/sonrası ayrımı YAPILAMAZDI) bu agent sınıfı için devam TAMAMEN reddedildi.
+
+### K-587
+
+Süper-adım sayacı MAF'ın kendi `SuperStepStartedEvent`'ini sayar; bu olay düğüm başına BİR kez üretilir, düğümün İÇİNDEKİ retry denemeleri MAF'a hiç GÖRÜNMEZ. `WorkflowNodeRetryTests`'in iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak bunu KANITLADI — varsayım değil ölçüm.
+
+### K-588
+
+AgentPrism K3 gereği paralel bir sarmalayıcı kurmaz, native tipi doğrudan kullanır. Bastırma yalnız `GenerateImageTool`, `ImageGeneratorResolver`, endpoint ve sağlayıcı kayıt dosyalarındadır; çağrı yüzeyi olgunlaşınca aranacak ve kaldırılacaktır.
+
+### K-589
+
+Sağlayıcı paketleri kararlı provider adıyla keyed kayıt yapar ve resolver o adı seçer. Bir consumer'ın kendi isimsiz MEAI kaydı ise açık bir provider adıyla birlikte çalışabilsin diye fallback kalır.
+
+### K-590
+
+Kimliği görsel verisi diye yazmak ya da süreli bir URI saklamak transcript'i bozuk eki işaret eder hâle getirirdi. `DataContent` doğrudan, `UriContent` giden ağ muhafızından indirilerek saklanır; `HostedFileContent` ancak depo sözleşmesi dayanıklı sağlayıcı referansı kazandığında desteklenir.
+
+### K-591
+
+Yakın bir değer seçmek modelden modele değişen maliyet ve biçim üretirdi. Adapter yalnız güvenli `GenerateAsync` yüzeyini taşır ve boyut istenince açık hata döner.
+
+### K-592
+
+Token sayacı yalnız `o200k_base` için kesindir ve her tool çıktısını tokenize etmek sıcak yolda maliyet üretir; karakter birimi çok baytlı metinde gerçek yükü yarıya kadar yanlış gösterir.
+
+### K-593
+
+`truncated`/`omittedBytes` HER ZAMAN taşınır; sessiz kırpma modeli yanlış ve kendinden emin bir sonuca götürür. Gevşetilmiş kodlayıcı BİLİNÇLİ seçildi: bu JSON bir API istek gövdesidir, HTML'e hiç gömülmez, dolayısıyla varsayılan kodlayıcının çok baytlı metni `\uXXXX` dizisine çeviren tutucu davranışı gereksizdir ve Türkçe/CJK ağırlıklı bir çıktıyı güvenlik kazancı olmadan bütçeden taşırırdı.
+
+### K-594
+
+Bağımsız denetim MEAI'nin gerçek tel serileştirmesinin (`AIFunctionFactory`'nin ürettiği `JsonElement` dışında) bunu KULLANMADIĞINI kanıtladı: özel bir `ToString()` taşımayan bir POCO için varsayılan `Object.ToString()` çıplak tip adı döner — ölçüm ya devasa bir sonucu YANLIŞLIKLA atlar ya da zarfa anlamsız bir tip adı yazar. `JsonElement.GetRawText()` ise AOT-güvenli (reflection'sız) ve tam olarak tel'e giden baytlarla eşleşir. Kapsanmayan tür (kod üreticisinin ham CLR nesnesi) dokunulmadan geçer — alanın belgelenmiş sınırıdır, tool'un kendi gövdesinde sınırlamak burada da daha iyidir.
+
+### K-595
+
+K1 ihlali en pahalı hatadır; "doğrulayıcı başlangıçta bildirir" ilkesiyle tutarlı biçimde imkânsız bir yapılandırma ÇALIŞMA ANINDA sessizce sınırı aşmak yerine KURULUŞTA reddedilir. `AgentPrismOptionsValidator` aynı tabanı `AgentPrismToolOptions.DefaultMaxOutputBytes` için de zorlar.
+
+### K-596
+
+Bu repoda "senkronizasyon kopyası" BEŞ kez yaşandı ve her seferinde iki kopya sessizce ayrıştı; taşıma tek kaynağı korur. `AgentPrism.Mcp` zaten `AgentPrism.Core`'a bağımlıdır, yön DOĞRUDUR (`DependencyDirectionTests`).
+

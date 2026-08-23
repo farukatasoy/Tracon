@@ -1220,6 +1220,28 @@ def _karar_satiri_damit(satir: str, sinir: int = KARAR_SINIRI) -> tuple[str, str
     return f"{bas} {kalan}{isaretci}{kuyruk_sutun}", tasinan, None
 
 
+# `KARARLAR.md` `docs/` altindadir, `KARARLAR-GECMISI.md` `docs/arsiv/`
+# altinda. Tasinan metnin ICINDEKI goreli baglantilar hâlâ `docs/`'a goredir
+# ve yeni konumdan COZULMEZ -- `kirik_baglantilar()`in yorumunda yazili tuzagin
+# ta kendisi (Faz 58'de once 17, sonra 3 baglanti boyle kirildi). Olculdu:
+# bu duzeltme olmadan damitma 292 kirik baglanti uretiyordu.
+_TASIMA_OZ = re.compile(
+    r"\s*\*{0,2}[^.|]{0,60}?:?\*{0,2}:?\s*\[`arsiv/KARARLAR-GECMISI\.md`\]"
+    r"\(arsiv/KARARLAR-GECMISI\.md\)(?:\s*—\s*K-\d+)?\.")
+
+
+def _gecmise_tasinan_metin(tasinan: str) -> str:
+    """Tasinan gerekceyi HEDEF dosyanin konumuna gore duzeltir.
+
+    1. Kendi kendine isaretci ("tam gerekce: KARARLAR-GECMISI.md") anlamsizdir
+       -- metin ZATEN o dosyaya giriyor; cumle tumuyle silinir.
+    2. Kalan `arsiv/...` hedeflerinden onek dusurulur: dosya `docs/arsiv/`
+       icindedir, `arsiv/fazlar/X.md` oradan `fazlar/X.md`'dir.
+    Saf fonksiyon."""
+    tasinan = _TASIMA_OZ.sub("", tasinan)
+    return tasinan.replace("](arsiv/", "](").strip()
+
+
 def komut_karar_damit(a: argparse.Namespace) -> int:
     """`KARARLAR.md` satırlarını sınıra indirir; kesileni GECMISI'ye TAŞIR."""
     kararlar = ROOT / "docs" / "KARARLAR.md"
@@ -1251,9 +1273,9 @@ def komut_karar_damit(a: argparse.Namespace) -> int:
         kazanc += len(satir.encode()) - len(yeni.encode())
         satirlar[i] = yeni; n += 1
         if k not in mevcut:
-            yeni_bolumler.append(f"### {k}\n\n{tasinan}\n")
+            yeni_bolumler.append(f"### {k}\n\n{_gecmise_tasinan_metin(tasinan)}\n")
         else:
-            yeni_bolumler.append(f"### {k} — devam (Faz 90 damıtması)\n\n{tasinan}\n")
+            yeni_bolumler.append(f"### {k} — devam (Faz 90 damıtması)\n\n{_gecmise_tasinan_metin(tasinan)}\n")
 
     if not a.kuru and n:
         # ONCE tasi, SONRA kisalt: ters sira bir kesintide kalici kayip birakir.

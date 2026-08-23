@@ -753,5 +753,27 @@ class KararSatiriDamitmaTestleri(unittest.TestCase):
         self.assertLess(len(yeni.encode()), len(s.encode()))
 
 
+class GecmiseTasimaTestleri(unittest.TestCase):
+    """`_gecmise_tasinan_metin` — hedef `docs/arsiv/` altında; göreli
+    bağlantılar oraya göre yeniden yazılmalı. Ölçüldü: bu düzeltme olmadan
+    damıtma 292 kırık bağlantı üretti."""
+
+    def test_kendi_kendine_isaretci_silinir(self):
+        m = ("Ölçüm şu. **Tam gerekçe:** [`arsiv/KARARLAR-GECMISI.md`]"
+             "(arsiv/KARARLAR-GECMISI.md) — K-9.")
+        self.assertEqual(dokuman_bakim._gecmise_tasinan_metin(m), "Ölçüm şu.")
+
+    def test_arsiv_oneki_dusurulur(self):
+        m = "Bkz. [`28-SES`](arsiv/fazlar/28-SES-TOOLLARI.md) dosyası."
+        self.assertIn("](fazlar/28-SES-TOOLLARI.md)", dokuman_bakim._gecmise_tasinan_metin(m))
+
+    def test_arsiv_disi_baglanti_dokunulmaz(self):
+        m = "Bkz. [`MIMARI`](../MIMARI.md)."
+        self.assertIn("](../MIMARI.md)", dokuman_bakim._gecmise_tasinan_metin(m))
+
+    def test_baglantisiz_metin_bozulmaz(self):
+        self.assertEqual(dokuman_bakim._gecmise_tasinan_metin("  Düz metin.  "), "Düz metin.")
+
+
 if __name__ == "__main__":
     unittest.main()
