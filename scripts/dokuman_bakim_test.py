@@ -255,5 +255,94 @@ class GitHatasiTestleri(unittest.TestCase):
             self.assertEqual(dokuman_bakim.site_denetle(None, False), 1)
 
 
+class KodBloguSoymaTestleri(unittest.TestCase):
+    """`_kod_bloklarini_soy` saf fonksiyonu — dosya sistemi veya git istemez."""
+
+    def test_fence_ici_bosaltilir_satir_sayisi_korunur(self):
+        metin = "a\n```\ngizli\n```\nb"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertNotIn("gizli", cikti)
+        self.assertEqual(len(metin.split("\n")), len(cikti.split("\n")))
+        self.assertEqual(cikti.split("\n")[0], "a")
+        self.assertEqual(cikti.split("\n")[-1], "b")
+
+    def test_fence_disindaki_metin_dokunulmaz(self):
+        metin = "[x](../yok.md)\n```\ny\n```"
+        self.assertIn("[x](../yok.md)", dokuman_bakim._kod_bloklarini_soy(metin))
+
+    def test_bilgi_dizeli_fence_acilir(self):
+        cikti = dokuman_bakim._kod_bloklarini_soy("```markdown\n[a](../../b.md)\n```")
+        self.assertNotIn("b.md", cikti)
+
+    def test_alintili_ic_fence_dis_fencei_kapatmaz(self):
+        # Damitilmis faz kaydinin sablonu tam bu sekli tasir: ```markdown
+        # blogunun icinde `> ```bash` satirlari vardir. Kapanis fence'i satir
+        # basinda olmadigi icin dis blok orada KAPANMAMALI.
+        metin = "```markdown\n> ```bash\n> git show x\n> ```\n[a](../../b.md)\n```\nson"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertNotIn("b.md", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
+    def test_daha_uzun_fence_kisa_olanla_kapanmaz(self):
+        metin = "````\n```\n[a](../../b.md)\n````\nson"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertNotIn("b.md", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
+    def test_tilde_fence_de_soyulur(self):
+        self.assertNotIn("b.md", dokuman_bakim._kod_bloklarini_soy("~~~\n[a](b.md)\n~~~"))
+
+    def test_tilde_fence_backtickle_kapanmaz(self):
+        cikti = dokuman_bakim._kod_bloklarini_soy("~~~\n```\n[a](b.md)\n~~~\nson")
+        self.assertNotIn("b.md", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
+    def test_liste_ogesindeki_girintili_fence_blok_acmaz(self):
+        # `docs/manuel-test/30-YEREL-REFERANS.md:451` gercegi: numarali liste
+        # icindeki kod blogunun KAPANIS fence'i girintilidir. Girintiliyi fence
+        # sayarsak dosyanin geri kalani sessizce denetim disi kalir.
+        metin = "3. ```bash\n   x\n   ```\n[a](yok.md)\nson"
+        cikti = dokuman_bakim._kod_bloklarini_soy(metin)
+        self.assertIn("[a](yok.md)", cikti)
+        self.assertEqual(cikti.split("\n")[-1], "son")
+
+    def test_kapanmamis_fence_dosya_sonuna_kadar_yutar(self):
+        cikti = dokuman_bakim._kod_bloklarini_soy("a\n```\n[x](b.md)\nc")
+        self.assertNotIn("b.md", cikti)
+        self.assertEqual(cikti.split("\n")[0], "a")
+
+
+class KirikBaglantiKodBloguTestleri(unittest.TestCase):
+    """Fence soyma `kirik_baglantilar` icinde gercekten devrede mi — ve
+    GERCEK kirik baglantilari maskeliyor mu (asil risk budur)."""
+
+    def test_kod_blogundaki_ornek_baglanti_bulgu_uretmez(self):
+        with tempfile.TemporaryDirectory() as t:
+            tmp = pathlib.Path(t)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "a.md").write_text(
+                "Sablon:\n\n```markdown\n[ADAYLAR.md](../../ADAYLAR.md)\n```\n"
+            )
+            self.assertEqual(dokuman_bakim.kirik_baglantilar(tmp), [])
+
+    def test_kod_blogu_disindaki_kirik_baglanti_HALA_yakalanir(self):
+        with tempfile.TemporaryDirectory() as t:
+            tmp = pathlib.Path(t)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "a.md").write_text(
+                "```\n[gizli](yok1.md)\n```\n[gercek](yok2.md)\n"
+            )
+            kirik = dokuman_bakim.kirik_baglantilar(tmp)
+            self.assertTrue(any("yok2.md" in k for k in kirik), kirik)
+            self.assertFalse(any("yok1.md" in k for k in kirik), kirik)
+
+    def test_fence_sonrasi_baglanti_yeniden_taranir(self):
+        with tempfile.TemporaryDirectory() as t:
+            tmp = pathlib.Path(t)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "a.md").write_text("```\nx\n```\n[a](yok.md)\n")
+            self.assertTrue(any("yok.md" in k for k in dokuman_bakim.kirik_baglantilar(tmp)))
+
+
 if __name__ == "__main__":
     unittest.main()

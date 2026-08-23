@@ -653,6 +653,52 @@ def _site_slug_haritasi(kok: pathlib.Path) -> dict[str, pathlib.Path]:
     return harita
 
 
+# Faz 90: `LINK` ham metni tarar ve KOD BLOGUNU ayirt etmez. Bir dokuman bir
+# markdown ORNEGI gosterdiginde (damitilmis faz kaydinin sablonu gibi) ornekteki
+# `](...)` gercek bir baglanti sanilir ve kapi kalici yanlis pozitif uretir --
+# olculdu: `docs/90-DOKUMAN-DAMITMA-POLITIKASI.md -> ../../ADAYLAR.md`. Var olan
+# `"sablonu.md" in rel` istisnasi ayni sinifin dosya bazli, kaba cozumuydu;
+# bu islev sorunu kaynaginda kapatir ve istisnayi gereksizlestirmez (sablon
+# dosyalari fence DISINDA da yer tutucu tasir).
+# Fence YALNIZ sutun 0'da taninir. CommonMark 3 bosluga kadar girinti kabul
+# eder, ama bir LISTE OGESI icindeki kod blogunun kapanis fence'i de girintili
+# olur (`docs/manuel-test/30-YEREL-REFERANS.md:451` -> "   ```") ve acilis
+# fence'i "3. ```bash" oldugu icin bu islevce hic acilmamistir. Girintiliyi
+# saysaydik o kapanis satiri YENI bir blok ACAR ve dosyanin geri kalanindaki
+# baglantilar denetimden SESSIZCE duserdi -- yanlis negatif, kapinin yalan
+# soylemesi. Sutun 0 kurali bu sinifi kapatir: girintili fence'in ICI taranir
+# (yanlis pozitif olabilir, guvenli yon), hicbir sey denetim disi kalmaz.
+# Olculdu 2026-08-23: `^ {0,3}` ile 2 dosya dengesiz, sutun 0 ile 1 (o da
+# zaten denetim disi olan `sablonu.md`).
+_FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
+
+
+def _kod_bloklarini_soy(metin: str) -> str:
+    """Fenced kod bloklarinin ICINI bosaltir; satir sayisini KORUR ki bulgu
+    mesajlari ve olasi satir referanslari kaymasin. Kapanis fence'i acilisla
+    AYNI karakterden ve EN AZ o uzunlukta olmali (CommonMark); bu yuzden
+    ```markdown blogunun icindeki `> ```bash` satiri onu kapatmaz -- alintili
+    fence satir basinda degildir ve regex sutun 0 ister.
+    Saf fonksiyon; testi dogrudan bir dizeyle kosar."""
+    cikti: list[str] = []
+    acik: str | None = None
+    for satir in metin.split("\n"):
+        m = _FENCE.match(satir)
+        if acik is None:
+            if m:
+                acik = m.group(1)
+                cikti.append("")
+                continue
+            cikti.append(satir)
+        else:
+            # Kapanis: ayni karakter, en az ayni uzunluk, arkasinda bilgi dizesi yok.
+            if m and m.group(1)[0] == acik[0] and len(m.group(1)) >= len(acik) \
+                    and not m.group(2).strip():
+                acik = None
+            cikti.append("")
+    return "\n".join(cikti)
+
+
 def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
     bulunan: list[str] = []
     slug_harita = _site_slug_haritasi(kok)
@@ -670,7 +716,7 @@ def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
                 metin = p2.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):
                 continue
-            for m in LINK.finditer(metin):
+            for m in LINK.finditer(_kod_bloklarini_soy(metin)):
                 h = m.group(1).rstrip("\\")
                 if "<" in h or "[" in h:
                     continue
