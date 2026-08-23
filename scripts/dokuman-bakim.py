@@ -27,6 +27,7 @@ import argparse
 import datetime
 import os
 import pathlib
+import posixpath
 import re
 import subprocess
 import sys
@@ -1325,6 +1326,101 @@ def komut_karar_damit(a: argparse.Namespace) -> int:
     return 0
 
 
+# --- Kapanmis fazi arsive tasima (Faz 90) --------------------------------
+# Bugune kadar ELLE yapiliyordu (`shutil`/`rename` scriptte hic gecmiyordu) ve
+# Faz 58'de ayni is once 17, sonra 3 baglanti kirdi. Uc isi BIRLIKTE yapmak
+# gerekir; biri atlanirsa kapi kirmizi olur:
+#   1. `git mv` (gecmis korunur),
+#   2. dosyanin ICINDEKI goreli baglantilari yeni derinlige gore yeniden yaz,
+#   3. repo genelinde bu dosyaya GIDEN baglantilari yeni yola cevir.
+
+_YEREL_LINK = re.compile(r"\]\(([^)\s#]+)((?:#[^)\s]*)?)\)")
+
+
+def _yeniden_konumlandir(metin: str, eski_dizin: str, yeni_dizin: str) -> str:
+    """Bir dosyanin ICINDEKI goreli baglantilari, dosya `eski_dizin`den
+    `yeni_dizin`e tasindiginda cozulmeye devam edecek sekilde yazar.
+
+    Dis adres (`http:`), site-mutlak (`/x/`) ve saf capa (`#x`) dokunulmaz.
+    Saf fonksiyon -- dosya sistemi istemez."""
+    def cevir(m: re.Match) -> str:
+        hedef, capa = m.group(1), m.group(2)
+        if re.match(r"^[a-z][a-z0-9+.-]*:", hedef) or hedef.startswith("/"):
+            return m.group(0)
+        mutlak = posixpath.normpath(posixpath.join(eski_dizin, hedef))
+        return f"]({posixpath.relpath(mutlak, yeni_dizin)}{capa})"
+    return _YEREL_LINK.sub(cevir, metin)
+
+
+def _gelen_baglantilari_cevir(kok: pathlib.Path, eski: str, yeni: str) -> int:
+    """Repo genelinde `eski` yola giden baglantilari `yeni`ye cevirir."""
+    n = 0
+    for f in sorted(kok.rglob("*.md")):
+        r = f.relative_to(kok).as_posix()
+        if r.startswith(("node_modules/", ".git/")) or r == eski:
+            continue
+        try:
+            metin = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        dizin = posixpath.dirname(r)
+
+        def cevir(m: re.Match) -> str:
+            hedef, capa = m.group(1), m.group(2)
+            if re.match(r"^[a-z][a-z0-9+.-]*:", hedef) or hedef.startswith("/"):
+                return m.group(0)
+            if posixpath.normpath(posixpath.join(dizin, hedef)) != eski:
+                return m.group(0)
+            return f"]({posixpath.relpath(yeni, dizin) if dizin else yeni}{capa})"
+
+        guncel = _YEREL_LINK.sub(cevir, metin)
+        if guncel != metin:
+            f.write_text(guncel, encoding="utf-8")
+            n += 1
+    return n
+
+
+def komut_faz_arsivle(a: argparse.Namespace) -> int:
+    """`docs/NN-*.md` -> `docs/arsiv/fazlar/NN-*.md`, bağlantılarıyla birlikte."""
+    onek = f"{int(a.faz):02d}-"
+    adaylar = [p2 for p2 in sorted((ROOT / "docs").glob("[0-9][0-9]-*.md"))
+               if p2.name.startswith(onek)]
+    if len(adaylar) != 1:
+        print(f"❌ `docs/{onek}*.md` için {len(adaylar)} eşleşme; tam olarak 1 olmalı.")
+        return 1
+    kaynak = adaylar[0]
+    eski = kaynak.relative_to(ROOT).as_posix()
+    yeni = f"docs/arsiv/fazlar/{kaynak.name}"
+
+    hata = _calisma_agaci_temiz(["docs", ".agents", "README.md", "AGENTS.md", "MEMORY.md"])
+    if hata:
+        print(f"❌ {hata}"); return 1
+    if a.kuru:
+        print(f"(kuru) {eski} → {yeni}"); return 0
+
+    once = len(kirik_baglantilar())
+    if _git("mv", eski, yeni) is None:
+        print("❌ `git mv` başarısız."); return 1
+    hedef = ROOT / yeni
+    hedef.write_text(
+        _yeniden_konumlandir(hedef.read_text(encoding="utf-8"),
+                             posixpath.dirname(eski), posixpath.dirname(yeni)),
+        encoding="utf-8")
+    dokunulan = _gelen_baglantilari_cevir(ROOT, eski, yeni)
+
+    sonra = kirik_baglantilar()
+    if len(sonra) > once:
+        # Kismi tasima birakma: kapi kirmiziysa her seyi geri al.
+        _git("reset", "--hard", "HEAD")
+        print(f"❌ Taşıma {len(sonra) - once} yeni kırık bağlantı üretti — GERİ ALINDI.")
+        for b in sonra[:5]:
+            print(f"  {b}")
+        return 1
+    print(f"✅ {eski} → {yeni}  ·  {dokunulan} dosyada gelen bağlantı güncellendi")
+    print("   `python3 scripts/dokuman-bakim.py` ile YOL-HARITASI'nı yeniden üret.")
+    return 0
+
+
 # --- Faz 90 kapilari -----------------------------------------------------
 # Ucu de `denetle()`ye katilir, boylece `.github/workflows/ci.yml` DEGISMEDEN
 # CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
@@ -1568,6 +1664,11 @@ def main() -> int:
     krd.add_argument("--sinir", type=int, default=KARAR_SINIRI, help=f"bayt (varsayılan {KARAR_SINIRI})")
     krd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     krd.set_defaults(_calistir=komut_karar_damit)
+
+    fa = alt.add_parser("faz-arsivle", help="kapanmış fazı docs/arsiv/fazlar/ altına taşı")
+    fa.add_argument("faz", help="faz numarası")
+    fa.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    fa.set_defaults(_calistir=komut_faz_arsivle)
 
     a = ap.parse_args()
     if getattr(a, "_calistir", None):
