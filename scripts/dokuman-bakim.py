@@ -2,16 +2,19 @@
 """Doküman bakımı — faz kapanışında çalıştırılır.
 
 Üç iş yapar:
-  1. `docs/KARARLAR-INDEKS.md` dosyasını `docs/KARARLAR.md`'den yeniden üretir.
-     İndeks elle yazılmaz; böylece bayatlayamaz.
+  1. DÖRT dosyayı yeniden üretir: `docs/KARARLAR-INDEKS.md`,
+     `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`, `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
+     (üçü `docs/KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (faz dokümanlarının
+     `> **Durum:**` satırından). Hiçbiri elle yazılmaz; böylece bayatlayamazlar.
   2. Doküman erişim katmanlarının bütçesini denetler: başlangıç bağlamı,
      gerektiğinde sorgulanan referanslar ve ledger.
   3. Kapanmış fazın `docs/` kökünde kalmadığını ve tüm yerel bağlantıların
      çözüldüğünü doğrular.
 
 Kullanım:
-    python3 scripts/dokuman-bakim.py           # üret + denetle
-    python3 scripts/dokuman-bakim.py --denetle # yalnız denetle (CI/kapı)
+    python3 scripts/dokuman-bakim.py               # üret + denetle
+    python3 scripts/dokuman-bakim.py --denetle     # yalnız denetle (CI/kapı)
+    python3 scripts/dokuman-bakim.py --projeksiyon # bayt/faz + kalan faz tahmini
 
     # Faz kapanışında: kullanıcıya dönük yüzey değişti mi, site güncellendi mi?
     python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>

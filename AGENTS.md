@@ -17,7 +17,7 @@ işi vardır, aradığın iş bu tablodadır:
 
 | İhtiyaç | Yol |
 |---|---|
-| Bir tuzak/desen var mı? | `MEMORY.md`'deki tabloyla [`docs/hafiza/<alan>.md`](docs/hafiza/) |
+| Bir tuzak/desen var mı? | [`docs/hafiza/00-INDEKS.md`](docs/hafiza/00-INDEKS.md) → alan dosyası |
 | Bir şey nerede yaşıyor? | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
 | Bir karar alınmış mı? | [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
 | Mimari resim (katman, veri modeli, çalıştırma yolu) | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |

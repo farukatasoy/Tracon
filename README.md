@@ -366,7 +366,7 @@ site — `docs/` is the journal, `docs-site/` is the product documentation.
 | [docs/MIMARI.md](docs/MIMARI.md) · [MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) | Architecture — layers, data model, execution path · the security model |
 | [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | The MAF extension points we use, and the ones we deliberately do not |
 | [docs/KARARLAR.md](docs/KARARLAR.md) · [index](docs/KARARLAR-INDEKS.md) · [rejected](docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | The decision ledger — lasting choices and rejected approaches, with their reasons |
-| [docs/](docs/) `NN-*.md` · [arsiv/fazlar/](docs/arsiv/fazlar/) · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Phase documents — open ones in `docs/`, closed ones (00–59) archived · phase status (generated) · unselected candidates |
+| [docs/](docs/) `NN-*.md` · [arsiv/fazlar/](docs/arsiv/fazlar/) · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Phase documents — open ones in `docs/`, closed ones (00–89) archived · phase status (generated) · unselected candidates |
 | [docs/manuel-test/](docs/manuel-test/) | The manual acceptance-test specification; the `manuel-test-kosumu` skill drives a run |
 | [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Area-specific traps · closed record (phase narrative, run rounds) |
 | [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent instructions, memory routing, workflow skills (`CLAUDE.md` is a symlink to `AGENTS.md`) |
