@@ -134,130 +134,6 @@ okur. Dosya adı ve yolu değişmez; 613 bağlantının tamamı dosya düzeyinde
 
 ## Bu Fazda Verilen Kararlar
 ## Denetim Bulguları
-
-Bağımsız denetçi (taze bağlam) `efd5247..HEAD` aralığını denetledi. Fazın
-merkezî iddiası **doğrulandı**: 90/90 kayıtta `git show` çözüldü ve tam metin
-döndü, `Plandan Sapmalar`/`Devir Notu`/`Kararlar`/`Denetim Bulguları` 90/90
-bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı oldu.
-
-| # | Seviye | Bulgu | Sonuç |
-|---|---|---|---|
-| 1 | 🔴 | `faz-arsivle` kapsamsız `git reset --hard` koşuyordu ama temizlik ön denetimi yalnız `docs`/`.agents`/üç kök dosyaya bakıyordu — `src/` altındaki commit edilmemiş düzenleme geri almada **kalıcı** kaybolurdu | **Düzeltildi.** `_izlenen_degisiklik_var_mi()` ağacın **tamamını** denetler (`-uno`: izlenmeyen dosyalar hariç, çünkü `reset --hard` onlara dokunmaz). 3 test |
-| 2 | 🔴 | Damıtma `NN.x` önekli bölümleri uyarısız düşürüyordu; Faz 29 sapmalarını `29.0 — Plandan Sapmalar` diye numaralandırdığı için **fazın kendi sözü sessizce bozuldu** (73 + 21 satır) | **Düzeltildi.** `NN.x` bir numaralandırma konvansiyonudur, anlamsal sınıf değil: sınıflandırma numaradan **sonraki** başlıkla yapılır. Faz 29 tam metinden yeniden damıtıldı, iki bölüm de yerinde. Ölçüldü: 397 `NN.x` başlığının etkilenen **3**'ü. 4 test |
-| 3 | 🔴 | Planlanan 7 manuel kabul case'i yazılmamıştı; `33-DOKUMAN-KAPILARI.md` bu fazda hiç değişmemişti | **Düzeltildi.** 7 case eklendi (5 → 12) ve **hepsi koşuldu**. Koşum iki kusur da buldu: eklenen tablo bir boş satırla kesilmişti (K-539 sınıfı) ve case 7'nin `sed` deseni fire etmiyordu (aynı karar iki başlıkta) |
-| 4 | 🟡 | `komut_faz_arsivle` için test yok; yazılmayan testler sapma olarak kaydedilmemiş | **Kısmen kapandı.** Ön denetim ve `NN.x` sınıflandırması test edildi; `git mv` + geri alma yolunun uçtan uca testi **devredildi** — gerçek bir git deposu fixture'ı ister, `MT-DKP-010` manuel karşılığını kapsıyor |
-| 5 | 🟡 | Koşum kayıtları `git log --follow` yazıyordu — fazın kendi §90.3'ü bunu **yasaklıyor**; ayrıca kapı koşum kayıtlarını hiç taramıyordu | **Düzeltildi.** 25 kaydın işaretçisi `git show efd5247:<yol>` oldu ve `tam_metin_denetle()` artık `kosumlar/` ile arşiv koşum dizinini de tarar (bozuk SHA ile kırmızı olduğu doğrulandı) |
-| 6 | 🟡 | `tam_metin_denetle()` SHA'nın çözüldüğünü kanıtlıyordu, çözülen içeriğin **damıtılmamış** olduğunu değil | **Düzeltildi.** Kapı artık çözülen içerikte `DAMITMA_ISARETI` arar; bulursa "ZATEN damıtılmış — tam metin değil" der. 1 test |
-| 7 | 🟡 | DoD satırları sevk edilen sabitlerle çelişiyordu (21.000 ↔ 31.000, 596 ↔ 600, 335.000 ↔ 380.000) ve 15 kutunun 15'i işaretsizken başlık ✅ diyordu | **Düzeltildi.** DoD gerçeğe uyduruldu, kutular işaretlendi, karşılanmayan tek şart (DAR ≤ 1) gerekçesiyle **açıkça** yazıldı |
-| 8 | 🟡 | Bu fazda konan iki bütçe kapanış günü DAR — sınır fazın kendi eklemelerinden **önce** ölçülmüştü (`dokuman-bakim.py` bu hata sınıfını Faz 58 vakası olarak zaten anlatıyor) | **Düzeltildi.** `docs/**.md` ve `docs/KARARLAR.md` **kapanış** boyutuna göre yeniden kalibre edildi |
-| 9 | 🟢 | `_DUS_DESENLERI` sürüm-sabitli MAF imza bölümlerini düşürüyor; "`maf-api-kesfi` yeniden üretir" gerekçesi **eski** bir MAF sürümü için geçerli değil | **Devredildi.** Tam metin git'te ve kapı bunu kanıtlıyor. `docs/ADAYLAR.md`'ye yazılacak bir kalem |
-
-## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md
-   ```
-   "Kapı sessizce yeşil kalıyordu" sınıfını o faz kapattı; bu faz aynı sınıfın
-   iki yeni vakasını (çapa denetimi, tazelik) kapatır.
-4. Alan hafızası (bu faz tek alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (yayın hattı, üretilen
-   sayfalar, `docs/` ↔ `docs-site/` sınırı)
-5. Gerektiğinde, tamamı değil ilgili bölümü: [`arsiv/fazlar/INDEKS.md`](INDEKS.md)
-   ("Neden burada" bölümü — 5 MB dizin bütçesinin nasıl aşılmak üzere olduğunu anlatır)
-
----
-
-## Amaç
-
-AgentPrism'in doküman disiplini **bütçeli bölgede çalışıyor, muaf bölgede
-çalışmıyor.** Bir oturum `AGENTS.md` (228 satır) + `MEMORY.md` (103) + faz
-dokümanı ile başlıyor; `docs/hafiza/` alan bazlı ve çakışmasız. Buna karşılık
-`docs/`'un **%62'si (89.569 satır)** hiçbir tavana tabi değil.
-
-Bu faz arşivlemeyi *taşımak* olmaktan çıkarıp *damıtmak* yapar: faz kapandığında
-doküman tam metniyle değil, sabit boyutlu bir kayıtla arşivlenir; tam metin git
-geçmişinde kalır ve her CI koşumunda çözülebilirliği kanıtlanır.
-
-- **Kalem 20** — her fazın kalıcı doküman maliyetini sabitle: Faz 91'in
-  bıraktığı kayıt Faz 30'unkiyle aynı boyutta olmalı.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`scripts/dokuman-bakim.py:123`](../../../scripts/dokuman-bakim.py#L123) | `HARIC` üç ağacı dizin bütçesinden düşer; o üç ağaç (89.569 satır) **hiçbir tavana tabi değil** |
-| `--denetle` çıktısı, 2026-08-23 | "denetim dışı arşiv + koşum kaydı: **5.324.346 B** — sınırı etkilemez" |
-| [`scripts/dokuman-bakim.py:594`](../../../scripts/dokuman-bakim.py#L594) | `LINK` regex'i çapayı (`#slug`) yakalar ama **doğrulamaz** — çapa hedefi silinse kapı yeşil kalır |
-| `docs/KARARLAR.md` ↔ `docs/arsiv/KARARLAR-GECMISI.md` | **18 sarkan işaretçi**: K-176, K-198, K-210, K-211, K-212, K-218, K-239, K-389, K-390, K-391, K-400, K-405, K-407, K-422, K-505, K-506, K-508, K-526 — "Tam gerekçe: GECMISI — K-NNN" diyor, GECMISI'de o başlık **yok** |
-| 12-kelimelik shingle ölçümü | `KARARLAR-GECMISI.md`'nin **%36'sı** `KARARLAR.md`'de birebir tekrar; 358 karar iki yerde tam gerekçeli |
-| `--denetle` çıktısı, 2026-08-23 | `docs/hafiza/` altında **7 dosya DAR**; `cekirdek-calistirma.md` 15.999/16.000 ve `sql-saglayicilari.md` 15.984/16.000 → **%0 boş** |
-| [`.github/workflows/ci.yml:131`](../../../.github/workflows/ci.yml#L131) | CI yalnız `--denetle` koşuyor; **üretim modu koşulmuyor** → dört üretilen dosya bayat commit edilebilir, hiçbir kapı söylemez |
-| `grep -c "shutil\|os.rename\|.unlink" scripts/dokuman-bakim.py` | **0** — taşıma/damıtma otomasyonu yok; `faz-tamamlama` bunu elle yaptırıyor |
-| 91 faz dokümanı, bölüm sayımı | `Planlanan Public API` (4.114 satır) + `Planlanan Dosya Listesi` (1.754) + `Bu Faza Başlarken` (2.060) = **7.928 satır** kapanışta tanımı gereği ölü |
-
-> Kanıtlar 2026-08-23 tarihinde doğrulandı.
-
----
-
-## 90.1 — Damıtma nedir, arşivleme neden yetmez
-
-`docs/arsiv/fazlar/INDEKS.md` bugünkü modeli anlatıyor: dizin bütçesi her fazda
-~41 KB büyüyordu, Faz 76'da 74 KB boşluk kalmıştı, kapanmış fazlar arşive
-taşındı ve sayaç 4.925.858 → 3.146.178 B'ye düştü (K-523).
-
-**Taşıma sayacı düşürdü, repo'yu düşürmedi.** Damıtma ikisini birden yapar.
-
-```mermaid
-flowchart LR
-  A["Faz dokümanı<br/>~600 satır"] -->|kapanış| B{Bölüm sınıfı}
-  B -->|"Plandan Sapmalar<br/>Devir Notu<br/>Kararlar<br/>Denetim Bulguları"| C["KAL — aynen"]
-  B -->|"Amaç"| D["SIKIŞ — ≤400 B"]
-  B -->|"DoD tamamı ✅"| E["Tek satır özet"]
-  B -->|"Planlanan API/Dosya<br/>Bu Faza Başlarken<br/>Riskler · Testler<br/>Gerçekleşen API/Dosya"| F["DÜŞ"]
-  C --> G["Damıtılmış kayıt<br/>~80 satır · ≤21 KB"]
-  D --> G
-  E --> G
-  F -.->|"silinmez"| H[("git geçmişi<br/>git show SHA:yol")]
-  G -->|"kayıtlı SHA"| H
-```
-
-**`HARIC` kalır.** Kaldırmak "arşivlemek sayacı düşürmez" sorununu geri getirir
-ve tek çıkışı silmek yapar — `AGENTS.md` "içerik silinmez, taşınır" der. Bunun
-yerine **muaf tutulan her ağaç kendi bütçesini alır**; damıtma bunu ödenebilir
-kılar (arşiv faz başına ~41 KB → ~9,4 KB).
-
-## 90.2 — Damıtılmış faz kaydının şablonu
-
-Başlık bloğu ve `> **Durum:**` satırı **yerinde kalır** — `yol_haritasi_uret()`
-([`dokuman-bakim.py:419-486`](../../../scripts/dokuman-bakim.py#L419-L486)) onları
-okur. Dosya adı ve yolu değişmez; 613 bağlantının tamamı dosya düzeyindedir.
-
-```markdown
-# Faz 85 — Gömme Ekseni
-
-> **Durum:** ✅ Tamamlandı (2026-08-22)
-> **Kaynak:** [ADAYLAR.md](../../../../ADAYLAR.md) · **F-140**
-> **Paketler:** `AgentPrism.Abstractions` · `AgentPrism.AspNetCore` · `docs-site/`
-> **DoD:** 14/14 ✅ · **Denetim:** 🔴 0 · 🟡 3 (düzeltildi) · **Kararlar:** K-579
-
-> ### ⚗️ Damıtılmış kayıt
-> Bu dosya fazın **planını** değil, **bıraktığı kalıcı bilgiyi** taşır.
-> Plan gövdesi kapanışta düştü — **silinmedi, git geçmişindedir.**
->
-> ```bash
-> git show 9c32242:docs/arsiv/fazlar/85-GOMME-EKSENI.md   # planın tamamı
-> git show --stat 293112f                                  # gerçek dosya listesi
-> git diff 6b296f0..293112f -- src/ tests/                 # fazın gerçek kodu
-> ```
-> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
-
----
-
-## Amaç
-<≤400 B>
-
-## Plandan Sapmalar
-<AYNEN — tek karakter değişmez>
-
-## Bu Fazda Verilen Kararlar
-## Denetim Bulguları
 ## Sonraki Faza Devir Notu
 <hepsi AYNEN>
 ```
@@ -466,28 +342,27 @@ MEMORY.md                       # yönlendirme tablosuna 3 yeni satır
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `python3 scripts/dokuman-bakim.py --denetle` çıkış 0
-- [x] `kirik_baglantilar()` = 0 · **kod bloğu farkındalığı eklendi** (fence yalnız sütun 0)
+- [x] `kirik_baglantilar()` = 0 · **kod bloğu ve satır içi kod farkındalığı eklendi**
 - [x] `tam_metin_denetle()` temiz — 90 faz kaydı **+ 25 koşum kaydı**
 - [x] `gecmis_isaretci_denetle()` = 0 bulgu (bu fazın başında **18**)
 - [x] Üretilen dosya tazeliği kapısı devrede · **`.github/workflows/ci.yml` değişmedi**
-- [x] `docs/YOL-HARITASI.md` damıtma öncesi/sonrası **byte-identical** (üç damıtma commit'inde de doğrulandı)
-- [x] `docs/arsiv/fazlar/*.md` her biri ≤ **31.000 B** (ölçülen max 26.068)
-      — plan 21.000 diyordu; DoD özeti reddedildiği için sınır **ölçülene göre** kondu, bkz. Plandan Sapmalar 1
-- [x] `docs/KARARLAR.md` ≤ **380.000 B** (ölçülen 325.784) · `_kararlar_kalemleri()` **600 kalem**
-      (596 + bu fazın 4 kararı) · 👤 ve 🔁 sayıları damıtma öncesiyle **aynı**
+- [x] `docs/YOL-HARITASI.md` damıtma öncesi/sonrası **byte-identical**
+- [x] `docs/arsiv/fazlar/*.md` her biri ≤ **31.000 B** (ölçülen max 26.068) — plan
+      21.000 diyordu; DoD özeti reddedildiği için sınır ölçülene göre kondu
+- [x] `docs/KARARLAR.md` bütçesinde · `_kararlar_kalemleri()` **600 kalem** ·
+      👤 ve 🔁 sayıları damıtma öncesiyle **aynı**
 - [x] `docs/hafiza/*.md` hiçbiri DAR değil · `HAFIZA_DOSYA_BUTCESI` **hâlâ 16.000**
-- [x] Geçmeyen manuel case bloğu `git diff`'te değişmemiş görünür (35/35 bire bir)
-- [x] `python3 -m unittest discover -s scripts -p "*_test.py"` — **105 test** yeşil (26 mevcut + 79 yeni)
-- [x] Dört doğrulama kapısı: `build` 0 uyarı · `format` temiz · `pack` başarılı · `test` çıkış 0
-- [x] `dotnet pack` sürümü etiket öncesiyle aynı hesaplandı — MinVer kayması yok
-- [x] `secret` taraması boş döndü
-- [x] Manuel kabul case'leri `docs/manuel-test/33-DOKUMAN-KAPILARI.md`'ye eklendi (5 → **12**)
-      ve **7'si de koşuldu**; her biri kapıyı gerçekten kırmızıya çevirdi
+- [x] Geçmeyen manuel case bloğu değişmemiş (35/35 bire bir)
+- [x] `python3 -m unittest discover -s scripts -p "*_test.py"` — **109 test** yeşil
+- [x] Dört kapı: `build` 0 uyarı · `format` temiz · `pack` başarılı · `test` çıkış 0
+- [x] MinVer kayması yok — etiket öncesi/sonrası sürüm aynı ölçüldü
+- [x] `secret` taraması boş
+- [x] Manuel kabul case'leri 5 → **12**; yedisi de **koşuldu** ve kapıyı kırdı
 - [x] `faz-denetim` koşuldu; 🔴 bulguların üçü de kapandı
 
-> **DAR kalem ≤ 1 şartı KARŞILANMADI** (ölçülen 5) ve bu bilinçlidir:
-> `AGENTS.md`, `README.md`, `MIMARI-GUVENLIK.md` bu fazdan **önce** DAR'dı ve
-> kapsam dışıdır; `docs/manuel-test/*` kullanıcı kararıyla kapsam dışı;
+> **DAR ≤ 1 şartı KARŞILANMADI** (ölçülen 5) ve bu bilinçlidir: `AGENTS.md`,
+> `README.md`, `MIMARI-GUVENLIK.md` bu fazdan **önce** DAR'dı ve kapsam
+> dışıdır; `docs/manuel-test/*` kullanıcı kararıyla kapsam dışı;
 > `docs/KARARLAR.md` %4 → %14'e **iyileşti**. Şartın kendisi fazlaydı — bir faz
 > kendi kapsamı dışındaki dosyaları DoD'sine yazmamalıydı.
 
@@ -622,8 +497,33 @@ yüksekliğinden (MinVer) arttı.
 
 ## Denetim Bulguları
 
-`faz-denetim` koşuldu — bulgular aşağıdadır.
+Bağımsız denetçi (taze bağlam) `efd5247..HEAD` aralığını denetledi. Fazın
+merkezî iddiası **doğrulandı**: 90/90 kayıtta `git show` çözüldü ve tam metin
+döndü, `Plandan Sapmalar`/`Devir Notu`/`Kararlar`/`Denetim Bulguları` 90/90
+bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı oldu.
 
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | `faz-arsivle` kapsamsız `git reset --hard` koşuyordu ama temizlik ön denetimi yalnız `docs`/`.agents`/üç kök dosyaya bakıyordu — `src/` altındaki commit edilmemiş düzenleme geri almada **kalıcı** kaybolurdu | **Düzeltildi.** Ön denetim ağacın **tamamını** kapsar (`-uno`: izlenmeyen dosyalar hariç, `reset --hard` onlara dokunmaz). 3 test |
+| 2 | 🔴 | Damıtma `NN.x` önekli bölümleri uyarısız düşürüyordu; Faz 29 sapmalarını `29.0 — Plandan Sapmalar` diye numaralandırdığı için **fazın kendi sözü sessizce bozuldu** | **Düzeltildi.** `NN.x` bir numaralandırma konvansiyonudur: sınıflandırma numaradan **sonraki** başlıkla yapılır. Faz 29 tam metinden yeniden damıtıldı. Ölçüldü: 397 `NN.x` başlığının etkilenen **3**'ü. 4 test |
+| 3 | 🔴 | Planlanan 7 manuel kabul case'i yazılmamıştı | **Düzeltildi.** 7 case eklendi (5 → 12) ve **hepsi koşuldu**. Koşum iki kusur daha buldu: tablo bir boş satırla kesilmişti (K-539 sınıfı) ve case 7'nin deseni fire etmiyordu |
+| 4 | 🟡 | `komut_faz_arsivle` için uçtan uca test yok | **Kısmen kapandı.** Ön denetim ve sınıflandırma test edildi; `git mv` + geri alma yolu gerçek bir git fixture'ı ister, `MT-DKP-010` manuel karşılığı kapsıyor |
+| 5 | 🟡 | Koşum kayıtları `git log --follow` yazıyordu — fazın kendi §90.3'ü bunu **yasaklıyor**; kapı koşum kayıtlarını hiç taramıyordu | **Düzeltildi.** 25 kaydın işaretçisi `git show <sha>:<yol>` oldu; kapı artık `kosumlar/`'ı da tarar (bozuk SHA ile kırmızı olduğu doğrulandı) |
+| 6 | 🟡 | `tam_metin_denetle()` SHA'nın çözüldüğünü kanıtlıyordu, çözülen içeriğin **damıtılmamış** olduğunu değil | **Düzeltildi.** Kapı çözülen içerikte damıtma işareti arar. 1 test |
+| 7 | 🟡 | DoD satırları sevk edilen sabitlerle çelişiyordu ve 15 kutunun 15'i işaretsizken başlık ✅ diyordu | **Düzeltildi.** DoD gerçeğe uyduruldu; karşılanmayan tek şart gerekçesiyle **açıkça** yazıldı |
+| 8 | 🟡 | Bu fazda konan iki bütçe kapanış günü DAR — sınır fazın kendi eklemelerinden **önce** ölçülmüştü | **Düzeltildi.** Kapanış boyutuna göre yeniden kalibre edildi |
+| 9 | 🟢 | `_DUS_DESENLERI` sürüm-sabitli MAF imza bölümlerini düşürüyor | **Devredildi** → **F-146** |
+
+🚨 **Denetimden sonra iki kusur daha bu dosyanın kendisinde çıktı** — ikisi de
+"düz metin arama, gösterimi gerçekten ayırt edemez" sınıfı:
+
+- Bu dokümanı **kapatan düzenleme** dokümanı bozdu: `s.index("## Sonraki Faza
+  Devir Notu")` bir `awk` komutunun **içinde** eşleşti ve dosyayı satır ortasından
+  böldü; içerik ikiye katlandı. Son iyi sürümden geri yüklendi, düzenleme satır
+  başına çapalanmış `rindex` ile tekrarlandı.
+- Damıtmanın idempotans denetimi (`DAMITMA_ISARETI in metin`) bu dokümanı
+  **zaten damıtılmış** sandı — §90.2 işareti bir **örnek** olarak gösteriyor.
+  Denetim artık `_kod_bloklarini_soy` üzerinden koşar.
 ## Sonraki Faza Devir Notu
 
 **Devraldığın sözleşmeler**
