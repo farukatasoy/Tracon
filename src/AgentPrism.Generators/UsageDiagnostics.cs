@@ -110,4 +110,24 @@ internal static class UsageDiagnostics
         description: "Reported only while the build writes that file, and only for a file this package did not generate - a generated map already names it. The pointer cannot go stale, because the file it names is rewritten on every build.",
         helpLinkUri: $"{HelpBase}coding-agent-support",
         WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor AmbientWriteMissingFromLoop = new(
+        "APG0501",
+        "An ambient write is not repeated inside an async iterator's loop",
+        "'{0}' writes ambient state, but a loop in this async iterator body advances the enumeration again without repeating the write. An assignment made in an async iterator body does not cross a yield return boundary: the driver restores the execution context, and the next step starts with a null scope. Repeat the assignment inside the loop, immediately before the call that advances it.",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Reported on the loop, not the write: move the ambient assignment this diagnostic names into the loop body it points at.",
+        helpLinkUri: $"{HelpBase}observability-and-operations");
+
+    public static readonly DiagnosticDescriptor AmbientScopeNotDisposed = new(
+        "APG0502",
+        "An ambient scope is opened and never restored",
+        "'{0}' returns a scope that must be disposed to restore the previous ambient value, but the result is discarded here. The scope is never restored, and the value it set stays visible for the rest of this execution context. Assign the result to a using var declaration.",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "Every 'Begin' call on an ambient scope returns an IDisposable for exactly this reason; discarding it is never correct.",
+        helpLinkUri: $"{HelpBase}security-and-governance");
 }

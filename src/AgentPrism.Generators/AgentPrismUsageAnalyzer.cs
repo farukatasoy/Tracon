@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 
 namespace AgentPrism.Generators;
@@ -105,7 +106,9 @@ public sealed class AgentPrismUsageAnalyzer : DiagnosticAnalyzer
             UsageDiagnostics.HandWrittenRetry,
             UsageDiagnostics.HandWrittenAgentWrapper,
             UsageDiagnostics.StaleAgentMap,
-            UsageDiagnostics.MissingLocalReferencePointer);
+            UsageDiagnostics.MissingLocalReferencePointer,
+            UsageDiagnostics.AmbientWriteMissingFromLoop,
+            UsageDiagnostics.AmbientScopeNotDisposed);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -115,6 +118,8 @@ public sealed class AgentPrismUsageAnalyzer : DiagnosticAnalyzer
 
         context.RegisterCompilationStartAction(OnCompilationStart);
         context.RegisterCompilationAction(ReportAgentsFileDiagnostics);
+        context.RegisterSyntaxNodeAction(VisitAsyncIteratorMethod, SyntaxKind.MethodDeclaration);
+        context.RegisterSyntaxNodeAction(VisitAmbientScopeInvocation, SyntaxKind.InvocationExpression);
     }
 
     private static void OnCompilationStart(CompilationStartAnalysisContext context)
@@ -604,6 +609,240 @@ public sealed class AgentPrismUsageAnalyzer : DiagnosticAnalyzer
         var separator = path.LastIndexOfAny(['/', '\\']);
 
         return separator < 0 ? path : path.Substring(separator + 1);
+    }
+
+    /// <summary>
+    /// Reports APG0501 for every loop, in an async iterator, that advances the
+    /// enumeration without repeating an ambient write the method also makes
+    /// elsewhere.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rule is deliberately narrow. It is not "an async iterator that
+    /// writes ambient state" - most of AgentPrism's own streaming wrappers do
+    /// that safely (they repeat the write inside the loop). It is not "a loop
+    /// that awaits" either: <see cref="AgentPrismUsageAnalyzer"/> pumps its own
+    /// events through a plain <c>await foreach</c> in more than one place
+    /// (<c>WorkflowRunner.RunGuardedAsync</c>) whose body only reshapes the
+    /// produced value - no further await, no nested call - and that loop is
+    /// safe by construction: whatever sits on the other side of the
+    /// <c>await foreach</c> owns its own ambient safety.
+    /// </para>
+    /// <para>
+    /// What actually matters is: does an <c>await</c> point exist <em>inside</em>
+    /// the loop body (not the loop's own driving await, such as an implicit
+    /// <c>await foreach</c> MoveNextAsync) with no ambient write beside it? That
+    /// is the shape that crosses the <c>yield return</c> boundary and then makes
+    /// a nested call with a stale or null scope - the repeated real-world defect
+    /// this diagnostic exists for.
+    /// </para>
+    /// </remarks>
+    private static void VisitAsyncIteratorMethod(SyntaxNodeAnalysisContext context)
+    {
+        var declaration = (MethodDeclarationSyntax)context.Node;
+
+        if (!declaration.Modifiers.Any(SyntaxKind.AsyncKeyword) || declaration.Body is null)
+        {
+            return;
+        }
+
+        if (context.SemanticModel.GetDeclaredSymbol(declaration, context.CancellationToken) is not IMethodSymbol method ||
+            !IsAsyncEnumerable(method.ReturnType))
+        {
+            return;
+        }
+
+        // The method has to write ambient state SOMEWHERE for this rule to
+        // apply at all; a method that never touches it is not this rule's
+        // business.
+        if (!declaration.Body.DescendantNodes().Any(node => IsAmbientWrite(node, context.SemanticModel, context.CancellationToken)))
+        {
+            return;
+        }
+
+        foreach (var loop in declaration.Body.DescendantNodes())
+        {
+            if (!IsLoop(loop))
+            {
+                continue;
+            }
+
+            var body = LoopBody(loop);
+
+            // A loop that contains another loop is a CONTAINER, not the
+            // MoveNextAsync boundary itself: its own await/write shape says
+            // nothing about whether the loop actually driving the enumeration
+            // is safe. WorkflowRunner.PumpAsync's outer loop opens a new
+            // enumerator, runs a nested loop that repeats the ambient write on
+            // its own, then queries status and disposes - none of that is a
+            // nested call, and reporting the outer loop reported AgentPrism's
+            // own correct code (measured, phase 93). The nested loop is still
+            // evaluated on its own account in a later iteration of this
+            // foreach, so nothing here is skipped, only misattributed.
+            if (body.DescendantNodes().Any(IsLoop))
+            {
+                continue;
+            }
+
+            if (!ImmediateDescendants(body).OfType<AwaitExpressionSyntax>().Any())
+            {
+                continue;
+            }
+
+            if (ImmediateDescendants(body).Any(node => IsAmbientWrite(node, context.SemanticModel, context.CancellationToken)))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                UsageDiagnostics.AmbientWriteMissingFromLoop,
+                LoopKeywordLocation(loop),
+                method.Name));
+        }
+    }
+
+    /// <summary>Reports APG0502 for a discarded ambient-scope <c>Begin(...)</c> result.</summary>
+    private static void VisitAmbientScopeInvocation(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+
+        if (context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken).Symbol is not IMethodSymbol method ||
+            !IsAmbientScopeBegin(method) ||
+            !IsDiscarded(invocation, context.SemanticModel, context.CancellationToken))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            UsageDiagnostics.AmbientScopeNotDisposed,
+            invocation.GetLocation(),
+            $"{method.ContainingType!.Name}.{method.Name}"));
+    }
+
+    private static bool IsAmbientScopeBegin(IMethodSymbol method)
+        => string.Equals(method.Name, "Begin", StringComparison.Ordinal) &&
+           method.ContainingType is { } containingType &&
+           (string.Equals(FullName(containingType), "AgentPrism.AmbientTenantScope", StringComparison.Ordinal) ||
+            string.Equals(FullName(containingType), "AgentPrism.AmbientRunAttributionScope", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Whether the call's result reaches nothing: a bare expression statement
+    /// - including a void-returning expression body such as
+    /// <c>void Run() => Begin(...)</c>, which is the same statement in the
+    /// operation tree - or an assignment to a discard. Everything else - a
+    /// using declaration, a plain variable, a field, a return, an argument -
+    /// keeps a handle on the scope and is out of scope for this diagnostic
+    /// (see the class remarks on APG0502 not being CA2000).
+    /// </summary>
+    /// <remarks>
+    /// Read through <see cref="IOperation"/> rather than syntax alone: a
+    /// syntactic check for <see cref="ExpressionStatementSyntax"/> misses the
+    /// expression-body shape entirely - its parent is an
+    /// <see cref="ArrowExpressionClauseSyntax"/>, never a statement syntax
+    /// node, even though a void-returning arrow body discards its expression's
+    /// value exactly as a statement does.
+    /// </remarks>
+    private static bool IsDiscarded(InvocationExpressionSyntax invocation, SemanticModel model, CancellationToken cancellationToken)
+    {
+        if (invocation.Parent is AssignmentExpressionSyntax { Left: IdentifierNameSyntax { Identifier.ValueText: "_" } } assignment &&
+            assignment.Right == invocation)
+        {
+            return true;
+        }
+
+        return model.GetOperation(invocation, cancellationToken)?.Parent is IExpressionStatementOperation;
+    }
+
+    private static bool IsAsyncEnumerable(ITypeSymbol type)
+        => type is INamedTypeSymbol named &&
+           string.Equals(named.OriginalDefinition.ToDisplayString(), "System.Collections.Generic.IAsyncEnumerable<T>", StringComparison.Ordinal);
+
+    private static bool IsLoop(SyntaxNode node)
+        => node is WhileStatementSyntax or ForStatementSyntax or DoStatementSyntax or CommonForEachStatementSyntax;
+
+    private static StatementSyntax LoopBody(SyntaxNode loop) => loop switch
+    {
+        WhileStatementSyntax whileLoop => whileLoop.Statement,
+        ForStatementSyntax forLoop => forLoop.Statement,
+        DoStatementSyntax doLoop => doLoop.Statement,
+        CommonForEachStatementSyntax forEachLoop => forEachLoop.Statement,
+        _ => throw new ArgumentOutOfRangeException(nameof(loop), loop.Kind(), "Not a loop statement."),
+    };
+
+    private static Location LoopKeywordLocation(SyntaxNode loop) => loop switch
+    {
+        WhileStatementSyntax whileLoop => whileLoop.WhileKeyword.GetLocation(),
+        ForStatementSyntax forLoop => forLoop.ForKeyword.GetLocation(),
+        DoStatementSyntax doLoop => doLoop.DoKeyword.GetLocation(),
+        CommonForEachStatementSyntax forEachLoop => forEachLoop.ForEachKeyword.GetLocation(),
+        _ => loop.GetLocation(),
+    };
+
+    /// <summary>
+    /// The nodes of <paramref name="root"/>, not descending into a NESTED
+    /// loop's own body, or into a <c>finally</c> clause.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A nested loop is its own MoveNextAsync boundary and is evaluated
+    /// independently when the outer walk of
+    /// <see cref="VisitAsyncIteratorMethod"/> reaches it as its own node.
+    /// Without this boundary an outer loop that merely CONTAINS a risky inner
+    /// loop would read as safe (the inner write is still "somewhere in the
+    /// outer body"), which both hides the inner loop's own defect and never
+    /// reports it on its own account.
+    /// </para>
+    /// <para>
+    /// A <c>finally</c> clause is excluded for a different reason, and it was
+    /// measured, not assumed: <c>WorkflowRunner.PumpAsync</c>'s outer loop
+    /// disposes its enumerator in a <c>finally</c> block
+    /// (<c>await enumerator.DisposeAsync()</c>) - an await that ends the loop's
+    /// resources rather than making a nested call, and the outer loop's inner
+    /// loop already repeats the ambient write on its own account. Counting
+    /// that await would turn this rule against AgentPrism's own correct code.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<SyntaxNode> ImmediateDescendants(SyntaxNode root)
+        => root.DescendantNodesAndSelf(descendIntoChildren: node =>
+            ReferenceEquals(node, root) || (!IsLoop(node) && node is not FinallyClauseSyntax));
+
+    private static bool IsAmbientWrite(SyntaxNode node, SemanticModel model, CancellationToken cancellationToken)
+    {
+        if (node is AssignmentExpressionSyntax { Left: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Value" } target } &&
+            model.GetSymbolInfo(target, cancellationToken).Symbol is IPropertySymbol { Name: "Value" } property)
+        {
+            return string.Equals(
+                property.ContainingType.OriginalDefinition.ToDisplayString(),
+                "System.Threading.AsyncLocal<T>",
+                StringComparison.Ordinal);
+        }
+
+        if (node is InvocationExpressionSyntax invocation &&
+            model.GetSymbolInfo(invocation, cancellationToken).Symbol is IMethodSymbol method)
+        {
+            return IsAmbientWriteMethod(method);
+        }
+
+        return false;
+    }
+
+    private static bool IsAmbientWriteMethod(IMethodSymbol method)
+    {
+        if (method.ContainingType is not { } containingType)
+        {
+            return false;
+        }
+
+        var fullName = FullName(containingType);
+
+        return (string.Equals(fullName, "AgentPrism.AgentPrismRunContext", StringComparison.Ordinal) &&
+                string.Equals(method.Name, "SetCurrent", StringComparison.Ordinal)) ||
+               (string.Equals(fullName, "AgentPrism.AmbientTenantScope", StringComparison.Ordinal) &&
+                string.Equals(method.Name, "Begin", StringComparison.Ordinal)) ||
+               (string.Equals(fullName, "AgentPrism.AmbientRunAttributionScope", StringComparison.Ordinal) &&
+                string.Equals(method.Name, "Begin", StringComparison.Ordinal)) ||
+               (string.Equals(fullName, "System.Diagnostics.ActivitySource", StringComparison.Ordinal) &&
+                string.Equals(method.Name, "StartActivity", StringComparison.Ordinal));
     }
 
     /// <summary>

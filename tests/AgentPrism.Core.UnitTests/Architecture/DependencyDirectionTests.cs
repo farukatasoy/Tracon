@@ -55,7 +55,12 @@ public sealed class DependencyDirectionTests
         // Workflows likewise depends only on Core: the HTTP layer runs
         // workflows through the IWorkflowRunner abstraction and does NOT
         // reference this package. The exact same pattern as MCP.
-        ["AgentPrism.Workflows"] = ["AgentPrism.Core"],
+        // AgentPrism.Generators is here for the same reason it is in Core's
+        // entry above: OutputItemType=Analyzer does not propagate across a
+        // multi-hop ProjectReference chain (measured, phase 93), so Workflows
+        // needs its own analyzer reference to run APG0501/APG0502 over its
+        // own async iterators. Never loaded as a runtime dependency.
+        ["AgentPrism.Workflows"] = ["AgentPrism.Core", "AgentPrism.Generators"],
         ["AgentPrism.AspNetCore"] = ["AgentPrism.Core"],
         ["AgentPrism.UI"] = ["AgentPrism.AspNetCore"],
         // Testing is a test-helper package: it is NOT referenced by the meta

@@ -189,6 +189,30 @@ public sealed class DiagnosticIntegrityTests
         stale.ShouldBeEmpty($"troubleshooting.md names a diagnostic no descriptor declares: {string.Join(", ", stale)}.");
     }
 
+    /// <summary>
+    /// Every <c>AgentPrism.Usage</c> diagnostic (not <c>AgentPrism.Tools</c>,
+    /// which reports a real compile error and must stay loud) has to reach the
+    /// package's own <c>NoWarn</c> switch, or a consumer who sets
+    /// <c>AgentPrismUsageDiagnostics=false</c> still sees the new diagnostic -
+    /// the one property the build target documents stops covering the whole
+    /// family it claims to (phase 93).
+    /// </summary>
+    public static TheoryData<string> UsageDiagnosticIds() => [.. Descriptors()
+        .Where(descriptor => string.Equals(descriptor.Category, "AgentPrism.Usage", StringComparison.Ordinal))
+        .Select(descriptor => descriptor.Id)];
+
+    [Theory]
+    [MemberData(nameof(UsageDiagnosticIds))]
+    public void Every_usage_diagnostic_is_in_the_NoWarn_switch(string id)
+    {
+        var targets = File.ReadAllText(CoreTargetsPath);
+
+        targets.ShouldContain(
+            id,
+            Case.Sensitive,
+            $"{id} does not appear in AgentPrism.Core.targets' NoWarn list; AgentPrismUsageDiagnostics=false would not silence it.");
+    }
+
     /// <summary>Starlight and GitHub heading slug.</summary>
     private static string Slug(string title)
     {
@@ -214,6 +238,9 @@ public sealed class DiagnosticIntegrityTests
     }
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
+
+    private static string CoreTargetsPath { get; } =
+        Path.Combine(RepositoryRoot, "src", "AgentPrism.Core", "buildTransitive", "AgentPrism.Core.targets");
 
     private static string CapabilityMapPath { get; } =
         Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "capabilities.md");
