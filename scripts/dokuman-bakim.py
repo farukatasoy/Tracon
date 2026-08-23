@@ -248,7 +248,12 @@ def _kararlar_kalemleri() -> tuple[list, list]:
         isaret = ""
         if "kullanıcı kararı" in baslik + kuyruk:
             isaret += "👤"
-        if "yeniden açıldı" in s:
+        # Faz 90: eskiden ciplak "yeniden açıldı" araniyordu ve kalemi ANLATAN
+        # her satir yanlis 🔁 aliyordu -- K-600'un gerekcesi ifadeyi ALINTILADIGI
+        # icin "yeniden acilmis" gorundu. Sablon (bolum 3) her zaman iki nokta
+        # ister: `**(yeniden açıldı: YYYY-AA-GG, sebep)**`. Olculdu: gercek
+        # kayitlarin 6'sinin da iki noktasi var.
+        if "yeniden açıldı:" in s:
             isaret += "🔁"
         kalemler.append((no, baslik.strip(), tarih, isaret))
 

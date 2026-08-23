@@ -834,5 +834,33 @@ class YenidenKonumlandirmaTestleri(unittest.TestCase):
         self.assertIn("](../../hafiza/maf-api.md)", self._tasi("[x](hafiza/maf-api.md)"))
 
 
+class YenidenAcildiIsaretiTestleri(unittest.TestCase):
+    """🔁 işareti şablonun biçimini (iki nokta) ister — çıplak ifadeyi değil."""
+
+    def _isaret(self, satir):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d); (tmp / "docs").mkdir()
+            (tmp / "docs" / "KARARLAR.md").write_text(
+                "## 2. Kalıcı\n\n" + satir + "\n", encoding="utf-8")
+            with mock.patch.object(dokuman_bakim, "ROOT", tmp):
+                # dönüş sırası: (reddedilen, kalıcı)
+                _, kalici = dokuman_bakim._kararlar_kalemleri()
+        return kalici[0][3]
+
+    def test_sablon_bicimi_isaret_uretir(self):
+        self.assertIn("🔁", self._isaret(
+            "| **K-9 — x (yeniden açıldı: 2026-08-02, ölçüm)** | 2026-08-01 | g | — |"))
+
+    def test_ifadeyi_ALINTILAYAN_satir_isaret_ALMAZ(self):
+        # Gerçek vaka: K-600'ün gerekçesi "asla kesilmez" listesinde ifadeyi
+        # anıyor; çıplak arama onu "yeniden açılmış" sanıyordu.
+        self.assertNotIn("🔁", self._isaret(
+            "| **K-9 — x** | 2026-08-01 | ASLA kesilmez: `yeniden açıldı` ifadesi. | — |"))
+
+    def test_kullanici_karari_isareti_calisir(self):
+        self.assertIn("👤", self._isaret(
+            "| **K-9 — x (kullanıcı kararı)** | 2026-08-01 | g | — |"))
+
+
 if __name__ == "__main__":
     unittest.main()
