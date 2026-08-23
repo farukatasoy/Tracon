@@ -33,14 +33,14 @@ AgentPrism Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir �
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Kod düğümü kaydedilmemişken hiçbir davranış değişmez
-- [ ] Agent → fonksiyon → agent zinciri uçtan uca koşar; çıktı belgeye yazıldı
-- [ ] Kayıtlı olmayan ada işaret eden tanım **kaydetme anında** reddedilir
-- [ ] Fonksiyon düğümü `ExecutorInvoked`/`ExecutorCompleted`/`ExecutorFailed` üretir
-- [ ] İptal fonksiyona ulaşır
-- [ ] Kontrol noktasından devam davranışı **ölçüldü ve belgelendi**
+- Kod düğümü kaydedilmemişken hiçbir davranış değişmez
+- Agent → fonksiyon → agent zinciri uçtan uca koşar; çıktı belgeye yazıldı
+- Kayıtlı olmayan ada işaret eden tanım **kaydetme anında** reddedilir
+- Fonksiyon düğümü `ExecutorInvoked`/`ExecutorCompleted`/`ExecutorFailed` üretir
+- İptal fonksiyona ulaşır
+- Kontrol noktasından devam davranışı **ölçüldü ve belgelendi**
       (idempotency sözleşmesi dokümana yazıldı)
-- [ ] Kod düğümü maliyet toplamına `0` katkı verir
+- Kod düğümü maliyet toplamına `0` katkı verir
 - [x] Bilinmeyen düğüm tipi eski istemcide yok sayılır — 🚨 bağımsız denetimde
       BULUNDU ve kapandı: `WorkflowGraphView`'in `KIND_STYLE[node.kind]`
       araması tanımadığı bir `kind` için `undefined` döndürüyordu ve
@@ -54,14 +54,14 @@ AgentPrism Workflows bugün yalnız **agent zinciri** kurabiliyor. Gerçek bir �
       `JsonStringEnumConverter<T>` kullanır ve tanımadığı bir adı
       **fırlatarak** reddeder — bu yalnız arayüz (TypeScript, çalışma-anında
       tip denetimi olmayan) tarafı için bir gereklilikti.
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek workflow koşumu yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
+- Dört doğrulama kapısı sıfır uyarı verir
+- `samples/AgentPrism.Api` ile gerçek workflow koşumu yapıldı, çıktı belgeye yazıldı
+- `secret` taraması boş döndü
+- Manuel kabul case'leri [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
       içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
 
 ### Doğrulama komutları
 

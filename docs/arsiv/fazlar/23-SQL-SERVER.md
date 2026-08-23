@@ -123,7 +123,7 @@ tekrar dene rehberi: `docs/hafiza/sql-server-yerel-test.md`.
 - [x] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — `azure-sql-edge` (arm64) ile 204/204 (Faz 23 kapanışında); gerçek `mssql/server` ile 479/479 (2026-08-12, K-386)
 - [x] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — `MigrationRunnerTests` `azure-sql-edge` üzerinde yeşil
 - [x] Eşzamanlı iki süreçte migration bir kez uygulanıyor — `azure-sql-edge` üzerinde yeşil
-- [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı (gerçek SQL Server gerektirir)
+- Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı (gerçek SQL Server gerektirir)
 - [x] AOT durumu ölçüldü ve `MIMARI.md` bölüm 9 güncellendi (K-181)
 - [x] Paket kontrol listesi tamam (README, slnx, meta paket kararı, csproj)
 - [x] Dört doğrulama kapısı sıfır uyarı

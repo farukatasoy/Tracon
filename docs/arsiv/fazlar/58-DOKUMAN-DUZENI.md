@@ -30,14 +30,14 @@
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `python3 scripts/dokuman-bakim.py` çıkış kodu 0, **genişletilmiş** bütçe altında
-- [ ] Bütçeli her dosyada en az %15 boşluk
-- [ ] `docs/` toplam boyutu ölçüldü ve üst sınırın altında
-- [ ] 58.2 tablosundaki altı yanlışın altısı düzeltildi
-- [ ] README yol haritası Faz 0–59'u **tek tek** listeliyor
-- [ ] Kendini "bayat/kullanılmaz" ilan eden üç bölüm kaldırıldı
-- [ ] `grep -rn "00–32" README.md` boş döner
-- [ ] Dört doğrulama kapısı sıfır uyarı verir (kod değişmese de koşulur)
+- `python3 scripts/dokuman-bakim.py` çıkış kodu 0, **genişletilmiş** bütçe altında
+- Bütçeli her dosyada en az %15 boşluk
+- `docs/` toplam boyutu ölçüldü ve üst sınırın altında
+- 58.2 tablosundaki altı yanlışın altısı düzeltildi
+- README yol haritası Faz 0–59'u **tek tek** listeliyor
+- Kendini "bayat/kullanılmaz" ilan eden üç bölüm kaldırıldı
+- `grep -rn "00–32" README.md` boş döner
+- Dört doğrulama kapısı sıfır uyarı verir (kod değişmese de koşulur)
 
 ### Doğrulama komutları
 

@@ -16,10 +16,7 @@ AgentPrism fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. 
 Dördü de sıfır uyarı vermelidir. Bir tanesi bile kırmızıysa faz **bitmemiştir**.
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release
-dotnet test   AgentPrism.slnx -c Release --no-build
-dotnet pack   AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes --no-restore
+python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 ```
 
 Yeni bir **paket** eklendiyse `dotnet pack` çıktısını say: paket sayısı beklenenle
@@ -41,11 +38,10 @@ için `main`'i derlenmez hâlde bıraktı. Bulut senkronizasyon istemcisi
 kopyası TS2741 verir. Beş kez yaşandı.
 
 ```bash
-find src tests samples docs .agents \( -name "* 2.*" -o -name "* 2" \) \
-  -not -path "*/node_modules/*" -not -path "*/obj/*" -not -path "*/bin/*"
+python3 scripts/kapi.py tarama
 ```
 
-Çıktı **boş olmalıdır**. Üç tuzak:
+Çıktı **temiz olmalıdır**. Üç tuzak:
 
 - **`git status` bu kopyaları göstermeyebilir** — bir kez `git add` edildiyse
   izlenen dosyadır ve "temiz" görünür. Taramayı `git status`'a güvenerek atlama.
@@ -59,18 +55,11 @@ Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
 `agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
 gömülmez.
 
-Ek olarak `secret` taraması — **CI bunu da otomatik yapar** ("Secret taraması"
-adımı, aynı kesif kaydı kalem 5), burada koşmak yine erken kapıdır:
-
-```bash
-grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}" . \
-  --exclude-dir=.git --exclude-dir=artifacts --exclude-dir=node_modules \
-  --exclude-dir=manuel-test --exclude-dir=arsiv --exclude-dir=manuel-test-kosumu
-```
-
-Desen, ön ekten sonra en az 24 karakter arar. `docs/manuel-test/`,
+Secret taraması aynı komutun ikinci kapısıdır. **CI bunu da otomatik yapar**;
+burada koşmak yine erken kapıdır. Desen, ön ekten sonra en az 24 karakter arar.
+`docs/manuel-test/`,
 `docs/arsiv/` ve `manuel-test-kosumu` skill kaynakları hariç tutulur —
-bunlarda yerel Testcontainers/Docker varsayılanı `Password=agentprism` ve
+bunlarda yerel Testcontainers/Docker parola varsayılanı ve
 sahte `sk-...-test-anahtari` değerleri **bilerek** vardır (Faz 79/80/81/87
 emsali); hariç tutulmadan koşarsan bu satırlar taramayı boğar. Çıktı boş
 olmalıdır — `secret`'lar yalnızca `dotnet user-secrets` içinde yaşar.

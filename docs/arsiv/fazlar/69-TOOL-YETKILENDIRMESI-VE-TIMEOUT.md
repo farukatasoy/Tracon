@@ -59,7 +59,7 @@ AgentPrism bugün bir tool'un çağrılmasına **insan** kapısı koyabiliyor (o
       `Undeclared_effect_permission_and_timeout_generate_defaults`
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `build`/`test`/`pack`/`format`
       hepsi temiz (arayüz dahil)
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
+- `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
       **yapılamadı**: bu oturumun sandbox'ında model sağlayıcı API anahtarı/ağ
       erişimi yok. Yerine geçen kanıt: yukarıdaki `ToolGovernanceEndpointTests`
       GERÇEK bir `FunctionInvokingChatClient` boru hattından (`FakeModelProvider`,

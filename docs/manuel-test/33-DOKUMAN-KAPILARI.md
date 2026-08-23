@@ -80,3 +80,11 @@ awk '/^  build:/{j="build"} /^  site:/{j="site"} /^  pages:/{j="pages"}
 - **`## Read next` bağlantısının hedefinin DOĞRU sayfa olduğu** (yalnız var
   olduğu değil) bu kapıyla denetlenmez — bilerek: çözülebilirlik makine işidir,
   doğruluk semantiktir (`tuketici-dokuman-senkronu` skill Adım 7).
+
+## Faz 91 ek case'leri
+
+| # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|---|
+| 13 | `MT-DKP-013` | Tamamlanmış arşiv fazında `- [ ]` satırı | `python3 scripts/dokuman-bakim.py --denetle` | Faz dosyası ve satır raporlanır; kutu düz metne çevrilince bulgu kaybolur |
+| 14 | `MT-DKP-014` | Skill içinde `EnablePublicApiTracking=false` iddiası | `python3 scripts/dokuman-bakim.py --denetle` | `Directory.Build.props` gerçek değeriyle çakışma raporlanır |
+| 15 | `MT-DKP-015` | CI veya kapanış skill'inde eski sync/secret deseni | `python3 scripts/dokuman-bakim.py --denetle` | Kopyalanmış desen raporlanır; desen `kapi.py`'ye taşınınca kapı temizlenir |

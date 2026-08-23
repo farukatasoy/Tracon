@@ -121,7 +121,7 @@ Kod yazarken bu altısına dokunduysan ilgili kuralı uygula:
 
 | Dokunduğun şey | Kural |
 |---|---|
-| `span`, `scope`, `AsyncLocal` | Çağıran metodun **kendi gövdesinde** başlat; akışlı yolda **her `MoveNextAsync` öncesi** tekrarla (dört kez yaşandı) |
+| `span`, `scope`, `AsyncLocal` | Çağıran metodun **kendi gövdesinde** başlat; akışlı yolda **her `MoveNextAsync` öncesi** tekrarla. Vaka kaydı: [`docs/hafiza/cekirdek-calistirma.md`](../../../docs/hafiza/cekirdek-calistirma.md) |
 | Tool tanımı | Tool'un gördüğü servis sağlayıcı **boştur**. Bağımlılık **kurulum anında** alınır (`new BenimTool(provider)` + fabrika kaydı, K-218) |
 | Yeni kayıt tipi | Zorunlu olmayan alanları da doldur; `default` struct seri hâle getirmeyi çökertir |
 | Ekran metni | `en.ts` **ve** `tr.ts`. Sunucu yanıtı çevrilmez (K-232) |
