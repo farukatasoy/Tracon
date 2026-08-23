@@ -185,7 +185,26 @@ kuralları — secret/İngilizce/XML doküman/`ConfigureAwait`), 3.8 (ürün yü
 
 Denetim sonrası dört doğrulama kapısı **yeniden koşuldu**:
 `python3 scripts/kapi.py kapanis --taban 7d1f43c` → tüm 10 alt komut ✅
-(2026-08-24, ikinci koşum).
+(2026-08-24, dördüncü koşum — üçüncü koşum iki kararsız testle kırmızı oldu,
+bkz. "Kararsız test keşfi" altında).
+
+### Kararsız test keşfi (Faz 93'ün kapsamı dışında)
+
+Üçüncü kapı koşumunda iki test düştü:
+`AspNetCore.FunctionalTests.ToolGovernanceEndpointTests.Timed_out_call_...`
+ve `Ui.E2ETests.UiTests.Shell_opens_and_asks_for_token_when_required`. İkisi
+de Faz 93'ün dokunduğu koddan tamamen bağımsız. Doğrulandı:
+- `ToolGovernanceEndpointTests` testi **baz commit'te (`7d1f43c`, Faz 93
+  öncesi) izole `git worktree`'de** de aynı `ObjectDisposedException`'ı verdi
+  — `JobWorkerBackgroundService.RunJobAsync:148`'de host teardown'ı ile
+  yarışan **önceden var olan** bir kusur, Faz 93 sebep olmadı.
+- `Shell_opens_and_asks_for_token_when_required` testi **izole** koşulduğunda
+  geçti — paralel test yüküyle kaynak çekişmesi yaşayan kararsız bir E2E testi.
+
+Dördüncü koşumda tüm 20 test projesi (2647+ test) yeşildi. `ToolGovernanceEndpointTests`
+kusuru bu fazın kapsamı dışında bırakıldı ve `docs/hafiza/cekirdek-calistirma.md`'ye
+tuzak olarak kaydedildi (bu bir yetenek adayı değil, `ADAYLAR.md`'nin
+formatına girmiyor).
 
 ### `samples/AgentPrism.Api` gerçek koşum (2026-08-24)
 
