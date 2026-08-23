@@ -1,8 +1,8 @@
 # Faz 94 — SQL Tek Kaynak
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **8**. Bu faz bir `F-NN` adayından gelmez.
-> **Önkoşul:** [Faz 93](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) — zorunlu değil, ama sıra kullanıcı tarafından böyle seçildi: önce kusur sınıfı kapıları, sonra bu faz. Faz 93 bu fazın kapsamındaki C# tarafını (K-483'ün `RunCost.Total()` ikizi) etkilemez
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **8**. Bu faz bir `F-NN` adayından gelmez.
+> **Önkoşul:** [Faz 93](93-KUSUR-SINIFI-KAPILARI.md) — zorunlu değil, ama sıra kullanıcı tarafından böyle seçildi: önce kusur sınıfı kapıları, sonra bu faz. Faz 93 bu fazın kapsamındaki C# tarafını (K-483'ün `RunCost.Total()` ikizi) etkilemez
 > **Paketler:** `AgentPrism.Sql.Shared` (bağlı kaynak, K-176), `AgentPrism.PostgreSql`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite`
 > **Yeni paket:** Yok · **Migration:** **Yok** — bu faz şemaya dokunmaz, yalnız SQL **metninin** nerede yaşadığını değiştirir
 > **Public API:** Büyümüyor. Ölçüldü 2026-08-23: `PublicAPI.Unshipped.txt` 8.079 satır, `Shipped.txt` boş. `SqlQueriesBase`, `SqlDialect` ve `Sql*Store` tiplerinin tamamı `internal`'dır
@@ -13,7 +13,7 @@
 > açıklayan bir yorumdur (bkz. Dosya Listesi). Ne kalıcılık davranışı ne paket
 > tanımı (bağımlılık, sürüm, açıklama) değişti; `getting-started/persistence.md`
 > ve `packages.md` güncellenmeyecek. `--site-gerekce-yazildi` ile geçildi.
-> **Manuel test alanı:** [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](manuel-test/03-KALICILIK-POSTGRESQL.md) ve [`docs/manuel-test/04-KALICILIK-DIGER.md`](manuel-test/04-KALICILIK-DIGER.md)
+> **Manuel test alanı:** [`docs/manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md) ve [`docs/manuel-test/04-KALICILIK-DIGER.md`](../../manuel-test/04-KALICILIK-DIGER.md)
 
 ---
 
@@ -29,18 +29,18 @@
    sed -n '16,17p;29,30p' docs/KARARLAR.md   # EF Core REDDEDILDI — bu faz ORM önermez
    ```
    **K-176** (`Sql.Shared` paket değil, bağlı kaynak), **K-193** (SQLite tablo öneki noktasızdır), **K-194** (yeni sağlayıcı sözleşme testi yazmaz, koşucu türetir), **K-247** (bağlı kaynak tipin `internal` işareti çapraz derleme sayımında güvenilmez), **K-259** (`EXISTS` korelasyonunda bare tablo adı yazma), **K-479** (`runs.labels` süzgeci üç dialektte farklıdır), **K-483** (elle tekrarlanan toplama ifadesi — **bu fazın çekirdeği**)
-3. [`93-KUSUR-SINIFI-KAPILARI.md`](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) — yalnız devir notu:
+3. [`93-KUSUR-SINIFI-KAPILARI.md`](93-KUSUR-SINIFI-KAPILARI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/93-KUSUR-SINIFI-KAPILARI.md
    ```
    Faz 93 kusur sınıfını C# tarafında kapattı; bu faz aynı sınıfın SQL ikizini alır.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (**tamamı** — bu fazın ana alanı) ·
-   [`hafiza/sql-server-tuzaklari.md`](hafiza/sql-server-tuzaklari.md) ·
-   [`hafiza/sqlite.md`](hafiza/sqlite.md) ·
-   [`hafiza/postgresql.md`](hafiza/postgresql.md)
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (**tamamı** — bu fazın ana alanı) ·
+   [`hafiza/sql-server-tuzaklari.md`](../../hafiza/sql-server-tuzaklari.md) ·
+   [`hafiza/sqlite.md`](../../hafiza/sqlite.md) ·
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — kalıcılık katmanı bölümü
+   [`MIMARI.md`](../../MIMARI.md) — kalıcılık katmanı bölümü
 
 ---
 
@@ -72,10 +72,10 @@ Aşağıdaki tüm sayılar 2026-08-23'te repo üzerinde ölçüldü.
 | `grep -c cached_input_cost` | Maliyet toplama ifadesi **6 + 6 + 6 = 18** yerde elle yazılı. Terim listesi (`input_cost`, `output_cost`, `cached_input_cost`) üçünde **aynı**; yalnız NULL koruma deyimi farklı |
 | `grep -c "SUM(sub.input_tokens)\|COALESCE(SUM(input_tokens), 0)"` | Token ağaç toplamları **4 + 4 + 4 = 12** yerde |
 | `runColumns` yerel sabiti | Üç dosyada **ayrı ayrı** yazılı; **53** sütunluk sıra sözleşmesi taşır |
-| [`SqlRunStore.cs:930-1020`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L930-L1020) | Okuyucu **sabit ordinal** kullanır (8, 9, 10, 28…52). Sıra üç dialect metniyle **elle** hizalanır; `hafiza/sql-saglayicilari.md` "son ordinal 52" der |
+| [`SqlRunStore.cs:930-1020`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs#L930-L1020) | Okuyucu **sabit ordinal** kullanır (8, 9, 10, 28…52). Sıra üç dialect metniyle **elle** hizalanır; `hafiza/sql-saglayicilari.md` "son ordinal 52" der |
 | `grep "string.Empty" tests/` | `SqlQueriesBase`'in **200** özelliğinden hiçbirinin doldurulduğunu doğrulayan test **yok**. Dosyanın kendi XML'i riski yazıyor: "yazılmayan sorgu boş metin kalır, hata yalnız çalışma anında görünür" |
 | `SqliteQueries.cs` | `UpgradeMigrationsTable` **atanmıyor** — bilerek (SQLite kodda ezer). Boşluk kapısı bu muafiyeti tanımalıdır |
-| [`docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` L16, L29](arsiv/KARARLAR-INDEKS-REDDEDILEN.md) | EF Core **reddedildi** (kullanıcı kararı). Bu faz bir ORM veya sorgu oluşturucu **önermez** |
+| [`docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` L16, L29](../KARARLAR-INDEKS-REDDEDILEN.md) | EF Core **reddedildi** (kullanıcı kararı). Bu faz bir ORM veya sorgu oluşturucu **önermez** |
 
 > Kanıtlar 2026-08-23 tarihinde doğrulandı.
 
@@ -115,7 +115,7 @@ flowchart TD
 PostgreSQL/SQL Server `{Schema}.runs`, SQLite `{Schema}runs` yazar.
 
 `SqlDialect.QualifyTable` zaten bu ayrımı biliyor
-([`SqlDialect.cs:283`](../src/AgentPrism.Sql.Shared/Internal/SqlDialect.cs),
+([`SqlDialect.cs:283`](../../../src/AgentPrism.Sql.Shared/Internal/SqlDialect.cs),
 `SqliteDialect.cs:358` ezer) — ama **yanlış katmandadır**: `SqlQueriesBase`
 dialect'ten **önce** kurulur ve ona erişemez.
 
@@ -221,7 +221,7 @@ Dördüncü maliyet terimi eklemek **tek satır** değiştirir: `CostAddends`.
 Aynı desen. `TokenAddends` listesi + `TreeSum(column, alias)` üreticisi.
 
 > **🚨 Token toplamı `COALESCE(…, 0)` alır, cache maliyeti ALMAZ.**
-> [`SqliteQueries.cs:504-510`](../src/AgentPrism.Sqlite/Internal/SqliteQueries.cs)
+> [`SqliteQueries.cs:504-510`](../../../src/AgentPrism.Sqlite/Internal/SqliteQueries.cs)
 > bunu yorumla yazıyor: kimsenin cache kullanımı bildirmediği bir alt ağaç
 > "ölçülmedi" okunmalıdır, "sıfır ölçüldü" değil. Üretici bu ayrımı **parametre
 > olarak** taşımalıdır; tek bir `TreeSum` ikisini birden yapamaz.
@@ -377,7 +377,7 @@ tests/<sağlayıcı>.IntegrationTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
