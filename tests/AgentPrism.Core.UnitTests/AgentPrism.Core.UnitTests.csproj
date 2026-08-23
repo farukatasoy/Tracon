@@ -13,4 +13,19 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 
+  <!--
+    Shared contract tests (Phase 23), in-memory side only. The same abstract
+    classes also run in AgentPrism.PostgreSql.IntegrationTests and
+    AgentPrism.SqlServer.IntegrationTests against their real backends;
+    running them here too, from a project with no [assembly: AssemblyFixture]
+    and no Testcontainers dependency, means the in-memory store — the
+    default a consumer gets when they add no persistence package — is
+    verified on a machine with no Docker. TenantCoverageTests.cs is
+    excluded: it reflects over SqlRunStore, a type this project does not
+    reference.
+  -->
+  <ItemGroup Label="Shared contract tests (Phase 23)">
+    <Compile Include="../Shared/**/*.cs" Exclude="../Shared/Contracts/TenantCoverageTests.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

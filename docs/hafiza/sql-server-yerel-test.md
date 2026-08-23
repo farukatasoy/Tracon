@@ -114,7 +114,7 @@ düzeltildi:
       public async Task<bool> UntilAsync(IContainer container)
       {
           var cs = $"Server={container.Hostname},{container.GetMappedPublicPort(MsSqlBuilder.MsSqlPort)};" +
-              $"User Id={MsSqlBuilder.DefaultUsername};Password={MsSqlBuilder.DefaultPassword};" +
+              $"User Id={MsSqlBuilder.DefaultUsername};Password=" + MsSqlBuilder.DefaultPassword + ";" +
               "TrustServerCertificate=True;Connect Timeout=1";
           try
           {
