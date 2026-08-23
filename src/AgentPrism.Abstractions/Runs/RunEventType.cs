@@ -187,4 +187,17 @@ public enum RunEventType
     /// orphaned-run reconciliation; the row itself does not change again.
     /// </summary>
     RunContinuationBlocked = 25,
+
+    /// <summary>
+    /// A tool result was trimmed to its byte limit. <c>ToolName</c> carries
+    /// the tool's name; <c>Text</c> a short summary of how many bytes were
+    /// dropped and the limit. <c>Payload</c> carries the same information as
+    /// JSON, subject to <c>AgentPrismRunRecordingOptions.RecordToolPayloads</c>.
+    /// </summary>
+    /// <remarks>
+    /// Neither field carries the dropped content itself — the point of
+    /// trimming is to reduce volume, and writing the discarded part back
+    /// into <c>run_events</c> would undo that.
+    /// </remarks>
+    ToolOutputTruncated = 26,
 }

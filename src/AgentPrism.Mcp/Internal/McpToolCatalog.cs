@@ -165,7 +165,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _coreOptions.Value.Tools.DefaultTimeout,
                         _attribution,
                         _loggerFactory.CreateLogger<AuthorizingAIFunction>(),
-                        _loggerFactory.CreateLogger<TimeoutAIFunction>());
+                        _loggerFactory.CreateLogger<TimeoutAIFunction>(),
+                        _coreOptions.Value.Tools.DefaultMaxOutputBytes);
                     total += registrations.Count;
                 }
             }

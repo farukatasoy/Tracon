@@ -34,6 +34,12 @@ A session preserves continuity. Compaction reduces what the model sees. It does 
 delete the durable run record. File memory and knowledge search add capabilities; they
 do not replace session history.
 
+These five layers all shape what already made it into the conversation. A tool's
+[output size limit](/concepts/tools/#output-size-limit) works earlier, at the source:
+it bounds a single tool result before that result ever becomes context to compact. The
+two are complementary, not competing — a tool limit caps one call's contribution,
+compaction manages the accumulated history afterward.
+
 ## Session history starts with `sessionId`
 
 A run with no `sessionId` is sessionless. The next request does not receive its chat

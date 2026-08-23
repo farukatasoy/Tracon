@@ -15276,6 +15276,16 @@
           "safeToRepeat": {
             "type": "boolean",
             "description": "Whether this tool\u0027s call may run again when an interrupted run is\ncontinued. See \u0060AgentPrismToolRegistration.SafeToRepeat\u0060."
+          },
+          "maxOutputBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The most bytes (UTF-8) this tool\u0027s result may carry, or\n\u0060null\u0060 to use the installation default\n(\u0060AgentPrismOptions.Tools.DefaultMaxOutputBytes\u0060).",
+            "format": "int32"
           }
         },
         "description": "The UI-facing definition of a tool registered in code. The agent editor\nshows a selection from this list; it does not accept free-text input."

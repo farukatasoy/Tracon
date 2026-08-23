@@ -1091,6 +1091,15 @@ public static class AgentPrismServiceCollectionExtensions
         {
             options.DefaultTimeout = defaultTimeout;
         }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismToolOptions.DefaultMaxOutputBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var defaultMaxOutputBytes))
+        {
+            options.DefaultMaxOutputBytes = defaultMaxOutputBytes;
+        }
     }
 
     /// <summary>Binds the <c>AgentPrism:Preflight</c> section.</summary>

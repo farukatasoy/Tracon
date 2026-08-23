@@ -81,6 +81,7 @@ prices.
 | Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
+| Tool output size limit | `AgentPrismToolRegistration.MaxOutputBytes` or `AgentPrismOptions.Tools.DefaultMaxOutputBytes` | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
 | Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults` |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |

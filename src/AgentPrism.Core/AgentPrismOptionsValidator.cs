@@ -141,11 +141,22 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             (failures ??= []).Add(
                 $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Tools)} cannot be empty.");
         }
-        else if (tools.DefaultTimeout <= TimeSpan.Zero)
+        else
         {
-            (failures ??= []).Add(
-                $"{nameof(AgentPrismToolOptions)}.{nameof(AgentPrismToolOptions.DefaultTimeout)} " +
-                $"must be greater than zero. Actual value: {tools.DefaultTimeout}.");
+            if (tools.DefaultTimeout <= TimeSpan.Zero)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismToolOptions)}.{nameof(AgentPrismToolOptions.DefaultTimeout)} " +
+                    $"must be greater than zero. Actual value: {tools.DefaultTimeout}.");
+            }
+
+            if (tools.DefaultMaxOutputBytes is { } maxOutputBytes && maxOutputBytes < TruncatingAIFunction.MinimumEnvelopeBytes)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismToolOptions)}.{nameof(AgentPrismToolOptions.DefaultMaxOutputBytes)} " +
+                    $"must be at least {TruncatingAIFunction.MinimumEnvelopeBytes} when supplied — below that, " +
+                    $"no tool result could ever fit inside the envelope. Actual value: {maxOutputBytes}.");
+            }
         }
 
         return failures is null

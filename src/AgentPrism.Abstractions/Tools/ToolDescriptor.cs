@@ -79,4 +79,11 @@ public sealed record ToolDescriptor
     /// continued. See <c>AgentPrismToolRegistration.SafeToRepeat</c>.
     /// </summary>
     public bool SafeToRepeat { get; init; }
+
+    /// <summary>
+    /// The most bytes (UTF-8) this tool's result may carry, or
+    /// <see langword="null"/> to use the installation default
+    /// (<c>AgentPrismOptions.Tools.DefaultMaxOutputBytes</c>).
+    /// </summary>
+    public int? MaxOutputBytes { get; init; }
 }
