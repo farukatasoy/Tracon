@@ -334,7 +334,13 @@ git status --short
 git diff --stat
 ```
 
-Ana dalda çalışılmaz; faz dalı kullanılır (`feature/phase-N-...`).
+**Ana dalda çalışmak serbesttir** (kullanıcı kararı, 2026-08-23). Bu repo
+tek bakımcılıdır ve faz dalı bir tur maliyeti ekliyordu. Genel "yalnız
+feature dalı" konvansiyonu burada geçerli **değildir**; `AGENTS.md` bunu
+yazar ve proje kuralı genel kuralı ezer.
+
+Yine de dal aç: geri alması pahalı veya deneysel bir iş yapıyorsan
+(`git checkout -b ...`). Karar senin değil, işin riskine aittir.
 
 ---
 

@@ -105,6 +105,10 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 
 ### 3. Tekrarlayan kusur sınıfları yalnız dokümanla korunuyor · 📋 Faz
 
+> **Durum:** 📋 KISMEN planlandı (2026-08-23) — script ile yakalanabilen
+> kalemler [Faz 91](../91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi.
+> Roslyn analyzer kuralları (a/b/c) **hâlâ açıktır** ve ayrı bir faz ister.
+
 **Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:22`](../hafiza/cekirdek-calistirma.md)
 `AsyncLocal` / `Activity.Current` kusurunun **üç vakasını** kaydediyor (Faz 6, 11, 12);
 [`MEMORY.md`](../../MEMORY.md) senkronizasyon kopyasını **beş kez** yaşandı diye
@@ -381,6 +385,10 @@ ekran başına bileşen ayrışması yapılmadıkça her yeni özellik bu dosyal
 manuel sete dayanıyor (bkz. kalem 9).
 
 ### 20. Doküman yükü kodu geçti · 🔁 Zincir
+
+> **Durum:** 📋 KISMEN planlandı (2026-08-23) — kopyalanan komut ve
+> regex'lerin tek kaynağa inmesi [Faz 91](../91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
+> skill metinlerinin konsolidasyonu [Faz 92](../92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
 
 `docs/` 143.671 satır Markdown; `src/` 139.425 satır C#. `KARARLAR.md` 657 satır /
 596 `K-*` · `ADAYLAR.md` 793 satır · `arsiv/` 4,3 MB. Bunu yönetmek için özel bir
