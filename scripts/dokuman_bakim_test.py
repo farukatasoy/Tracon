@@ -606,5 +606,83 @@ class FazDamitmaTestleri(unittest.TestCase):
             self.assertNotIn("GÖVDE", yeni, baslik)
 
 
+KOSUM_ORNEK = """# 23 — Saklama (`RET`) — Koşum Kaydı (2026-08-13)
+
+> Bu dosya bir koşum kaydıdır, spesifikasyon değildir.
+
+---
+
+## MT-RET-001 — Temiz geçen
+
+**Gerçek sonuç**
+- Her şey beklendiği gibi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-RET-002 — Geçti ama düzeltme gerekiyor
+
+**Gerçek sonuç**
+- Çalıştı.
+
+⚠️ **Doküman düzeltmesi gerekiyor:** `INSERT` güncel şemayla uyuşmuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-RET-003 — Kaldı
+
+**Gerçek sonuç**
+- `500` döndü, beklenen `200`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+"""
+
+
+class KosumDamitmaTestleri(unittest.TestCase):
+    def test_temiz_gecen_case_tek_satira_iner(self):
+        yeni, sayac = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        self.assertIn("| MT-RET-001 | ☑ | Temiz geçen |", yeni)
+        self.assertNotIn("Her şey beklendiği gibi", yeni)
+        self.assertEqual(sayac["daraltilan"], 1)
+
+    def test_gecti_ama_ISARETLI_case_BIRE_BIR_korunur(self):
+        # Gerçek vaka: MT-RET-001 "Geçti" olduğu hâlde iki doküman düzeltmesi
+        # kaydediyordu. Ölçüldü: geçen 1061 case'in 254'ü işaret taşıyor.
+        yeni, sayac = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        self.assertIn("⚠️ **Doküman düzeltmesi gerekiyor:**", yeni)
+        self.assertIn("`INSERT` güncel şemayla uyuşmuyor", yeni)
+
+    def test_gecmeyen_case_blogu_BIRE_BIR_korunur(self):
+        yeni, _ = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        self.assertIn("`500` döndü, beklenen `200`.", yeni)
+
+    def test_korunan_case_sayisi_dogru(self):
+        _, sayac = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        self.assertEqual(sayac["korunan"], 2)
+
+    def test_spec_baglantisi_ve_baslik_korunur(self):
+        yeni, _ = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        self.assertTrue(yeni.startswith("# 23 — Saklama"))
+        self.assertIn("spesifikasyon değildir", yeni)
+
+    def test_durum_satiri_olmayan_case_korunur(self):
+        # Ölçüldü: 20 case durum satırı taşımıyor. "Geçti" varsayılamaz.
+        metin = KOSUM_ORNEK.replace(
+            "**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı\n\n## MT-RET-002",
+            "## MT-RET-002")
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertIn("Her şey beklendiği gibi", yeni)
+
+    def test_IDEMPOTENT(self):
+        bir, _ = dokuman_bakim._kosum_damit_metni(KOSUM_ORNEK)
+        iki, sayac = dokuman_bakim._kosum_damit_metni(bir)
+        self.assertEqual(bir, iki)
+        self.assertEqual(sayac["daraltilan"], 0)
+
+    def test_case_tasimayan_dosya_dokunulmaz(self):
+        metin = "# Kapanış Planı\n\nDüz metin.\n"
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertEqual(yeni, metin)
+
+
 if __name__ == "__main__":
     unittest.main()
