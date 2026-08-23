@@ -95,6 +95,7 @@ script.
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
+| `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 
 Non-positive graph token or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)

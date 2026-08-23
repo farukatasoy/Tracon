@@ -85,6 +85,7 @@ public sealed class ToolRegistry : IToolRegistry
         _descriptors = [];
 
         var defaultTimeout = optionsMonitor.CurrentValue.Tools.DefaultTimeout;
+        var defaultMaxOutputBytes = optionsMonitor.CurrentValue.Tools.DefaultMaxOutputBytes;
 
         foreach (var registration in registrations)
         {
@@ -94,20 +95,30 @@ public sealed class ToolRegistry : IToolRegistry
             // the only place that enforces the "an agent can only refer to a registered
             // tool" rule. Enforcing wrapping here prevents another code path from bypassing it.
             //
-            // Composition order (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1):
-            // Authorizing (outermost) -> Timeout -> ApprovalRequired (innermost) -> real function.
+            // Composition order (docs/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md, 69.1;
+            // docs/89-TOOL-CIKTISI-BOYUT-SINIRI.md, 89.3):
+            // Authorizing (outermost) -> Timeout -> ApprovalRequired -> Truncating (innermost) -> real function.
             // Authorization runs before anything else: asking for approval or waiting
             // out a timeout for a call the caller could never make is backwards.
             // Timeout sits OUTSIDE approval: ApprovalRequiredAIFunction never blocks on
             // the human decision within one call (K-368 — the decision resumes as a NEW
             // run), so this ordering only ever bounds the tool's own execution.
+            // Truncating sits directly around the real function, INSIDE approval: it
+            // must see only the tool's own output, never the pending-approval signal
+            // ApprovalRequiredAIFunction produces instead of running the body.
             AIFunctionDeclaration function;
 
             if (registration.Function is AIFunction invocable)
             {
-                AIFunction wrapped = registration.RequiresApproval
-                    ? new ApprovalRequiredAIFunction(invocable)
+                var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
+
+                AIFunction wrapped = effectiveMaxOutputBytes is { } maxOutputBytes
+                    ? new TruncatingAIFunction(invocable, maxOutputBytes)
                     : invocable;
+
+                wrapped = registration.RequiresApproval
+                    ? new ApprovalRequiredAIFunction(wrapped)
+                    : wrapped;
 
                 wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
 
@@ -152,6 +163,7 @@ public sealed class ToolRegistry : IToolRegistry
                 RequiredPermission = registration.RequiredPermission,
                 Timeout = registration.Timeout,
                 SafeToRepeat = registration.SafeToRepeat,
+                MaxOutputBytes = registration.MaxOutputBytes,
             });
         }
 

@@ -425,7 +425,7 @@ internal sealed class McpConnection : IAsyncDisposable
         var raw = text.Text ?? string.Empty;
         var byteSize = System.Text.Encoding.UTF8.GetByteCount(raw);
 
-        var (trimmed, truncated) = McpResourceTrimming.Trim(raw, maxBytesPerResource);
+        var (trimmed, truncated) = TextTrimming.Trim(raw, maxBytesPerResource);
 
         return new CachedResource
         {

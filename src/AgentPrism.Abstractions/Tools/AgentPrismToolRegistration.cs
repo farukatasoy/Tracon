@@ -41,6 +41,10 @@ public sealed class AgentPrismToolRegistration
     /// to use the installation default.
     /// </param>
     /// <param name="safeToRepeat">See <see cref="SafeToRepeat"/>. Defaults to <see langword="false"/>.</param>
+    /// <param name="maxOutputBytes">
+    /// The most bytes (UTF-8) this tool's result may carry, or
+    /// <see langword="null"/> to use the installation default.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="function"/> is <see langword="null"/>.</exception>
     public AgentPrismToolRegistration(
         AIFunctionDeclaration function,
@@ -49,7 +53,8 @@ public sealed class AgentPrismToolRegistration
         ToolEffect effect = ToolEffect.Read,
         string? requiredPermission = null,
         TimeSpan? timeout = null,
-        bool safeToRepeat = false)
+        bool safeToRepeat = false,
+        int? maxOutputBytes = null)
     {
         ArgumentNullException.ThrowIfNull(function);
 
@@ -60,6 +65,7 @@ public sealed class AgentPrismToolRegistration
         RequiredPermission = requiredPermission;
         Timeout = timeout;
         SafeToRepeat = safeToRepeat;
+        MaxOutputBytes = maxOutputBytes;
     }
 
     /// <summary>The registered tool.</summary>
@@ -111,4 +117,17 @@ public sealed class AgentPrismToolRegistration
     /// </para>
     /// </remarks>
     public bool SafeToRepeat { get; }
+
+    /// <summary>
+    /// The most bytes (UTF-8) this tool's result may carry, or
+    /// <see langword="null"/> to use the installation default. A result over
+    /// the limit is trimmed and handed to the model inside an envelope that
+    /// states how many bytes were dropped.
+    /// </summary>
+    /// <remarks>
+    /// Bounding the output inside the tool's own body is always better: the
+    /// tool knows its data, this only counts bytes. This limit is the last
+    /// defence for the day that bound is forgotten.
+    /// </remarks>
+    public int? MaxOutputBytes { get; }
 }

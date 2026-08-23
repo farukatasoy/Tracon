@@ -31,7 +31,8 @@ export type RunEventType =
   | 'ContentMasked'
   | 'ContentBlocked'
   | 'ModelFallbackUsed'
-  | 'ReasoningDelta';
+  | 'ReasoningDelta'
+  | 'ToolOutputTruncated';
 
 export interface RunEvent {
   runId: string;

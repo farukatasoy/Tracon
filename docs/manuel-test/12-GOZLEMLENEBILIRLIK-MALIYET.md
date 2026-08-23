@@ -3,7 +3,7 @@
 > **Alan kodu:** `OBS` · **Faz:** 6 (iz/span), 20 (maliyet + gösterge paneli),
 > 35 (maliyet/kota metrikleri — OTel enstrümanları),
 > 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı),
-> 88 (görsel üretim ölçümü)
+> 88 (görsel üretim ölçümü), 89 (tool çıktısı boyut sınırı)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1377,5 +1377,74 @@ cd samples/AgentPrism.Api && dotnet run -c Release
   olamayacağını açıkça söyler.
 - İki değerden biri kaldırılmadan endpoint bağlı olmaz ve hiçbir görsel çağrısı
   para harcamaz.
+
+---
+
+### MT-OBS-048 — Sınır konmuş bir tool çıktısı kırpılır ve zarfa sarılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 89 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+Uygulama küçük bir kurulum varsayılanıyla başlatılmış. Sınır
+`TruncatingAIFunction.MinimumEnvelopeBytes`'ın (bugün 57) altında **olamaz** —
+düşük bir değer uygulamayı options validation hatasıyla başlatmaz:
+```bash
+export AgentPrism__Tools__DefaultMaxOutputBytes=100
+cd samples/AgentPrism.Api && dotnet run -c Release --urls http://localhost:5081
+```
+
+**Adımlar**
+1. `support` agent'ına, `get_order_status`'un doğal çıktısını 100 baytın üstüne
+   çıkaracak kadar uzun bir sipariş numarasıyla bir mesaj gönder (kısa bir
+   numarayla — ör. `ORD-1` — doğal çıktı 100 bayttan küçüktür ve kırpma HİÇ
+   tetiklenmez):
+```bash
+curl -s -X POST "$BASE/api/agents/support/run" -H "$APB" -H "Content-Type: application/json" \
+  -d '{"message":"What is the status of order ORD-0000000000000000000000000000000000000000000000000000-LONG?"}'
+```
+2. Dönen `RunId`'yi al, `run_events`'i oku:
+```bash
+curl -s "$BASE/api/runs/$RUN_ID/events" -H "$APB" \
+  | jq '.[] | select(.type=="ToolOutputTruncated")'
+```
+
+**Beklenen sonuç**
+- `functionResult` içeriği geçerli bir JSON zarfıdır: `{"truncated":true,"omittedBytes":N,"content":"..."}`.
+- Zarfın toplam UTF-8 bayt boyutu **100'ü aşmaz**.
+- `run_events`'te bir `ToolOutputTruncated` satırı vardır; `toolName` `"get_order_status"`,
+  `toolCallId` gerçek çağrının kimliğiyle eşleşir, `text` alanı atlanan bayt
+  sayısını ve sınırı okunabilir biçimde taşır (`"N byte(s) omitted (limit 100)"`),
+  `payload` `{"maxOutputBytes":100,"omittedBytes":N}` biçimindedir.
+- `ToolOutputTruncated` olayının sırası `ToolInvoking` ile `ToolInvoked` arasındadır.
+
+---
+
+### MT-OBS-049 — Sınır konmadığında çıktı dokunulmadan geçer (K1)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 89 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+Uygulama **varsayılan** yapılandırmayla (herhangi bir `MaxOutputBytes`
+ayarlanmadan) çalışıyor.
+
+**Adımlar**
+1. MT-OBS-048'in 1. adımını tekrarla.
+2. `run_events`'i oku.
+
+**Beklenen sonuç**
+- `run_events` içinde hiçbir `ToolOutputTruncated` satırı yoktur.
+- `ToolInvoked` olayının `payload`'ı tool'un ham metnidir (bir zarf **DEĞİLDİR**) —
+  `get_order_status` için `"Order ORD-1 has shipped. Estimated delivery: 2 days."`
+  biçiminde, `truncated`/`omittedBytes`/`content` alanları yoktur.
 
 ---

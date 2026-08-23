@@ -172,7 +172,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         switch (contents)
         {
             case TextResourceContents text:
-                var (trimmed, truncated) = McpResourceTrimming.Trim(text.Text ?? string.Empty, maxBytes);
+                var (trimmed, truncated) = TextTrimming.Trim(text.Text ?? string.Empty, maxBytes);
 
                 return (McpOperationStatus.Ok, new McpResourceContent
                 {

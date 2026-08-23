@@ -76,6 +76,39 @@ as a denial. `CancellationToken` is cooperative, so a tool body that never reads
 token is not forcibly stopped — only the *wait* is cut short; the timeout applies to
 execution only, never to a pending approval, which can wait indefinitely.
 
+### Output size limit
+
+A tool's result is unbounded by default and goes straight into the model's context. Set
+a byte limit — per tool, or once for every tool that does not set its own — and a
+result over it is trimmed before the model ever sees it:
+
+```csharp
+services.AddSingleton(new AgentPrismToolRegistration(
+    AIFunctionFactory.Create(GetReport, "get_report", "Fetches a report."),
+    maxOutputBytes: 4096));
+
+services.Configure<AgentPrismOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
+```
+
+No change is required to keep today's behavior: the default is unlimited, and a tool
+that never sets a limit is never touched.
+
+Bounding a tool's output inside its own body is always better — the tool knows its
+data, this only counts bytes. Treat the limit as the last line of defense for the day
+that bound is forgotten, not a substitute for it: a single runaway tool can otherwise
+spend a tenant's whole token budget on one call.
+
+A result over the limit is trimmed and wrapped in an envelope, so the trimmed text can
+never break the JSON the model reads:
+
+```json
+{"truncated": true, "omittedBytes": 1830, "content": "..."}
+```
+
+`truncated` and `omittedBytes` are always present on a trimmed result — a silently
+shortened answer would lead the model to a confident, wrong conclusion. A result that
+already fits is returned exactly as the tool produced it, never wrapped.
+
 ### Concurrent tool calls
 
 By default, when a model turn calls several independent tools at once, AgentPrism

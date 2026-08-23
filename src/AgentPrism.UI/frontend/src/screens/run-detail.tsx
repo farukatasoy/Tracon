@@ -62,6 +62,9 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   // Phase 70. Distinct from MessageDelta's cyan: this is the model's
   // reasoning, not its answer.
   ReasoningDelta: { label: 'reasoning.delta', hue: 'var(--ap-violet)' },
+  // Phase 89. Amber, same "needs attention" hue as ModelFallbackUsed: a tool
+  // that keeps getting truncated is a sign its own output bound is missing.
+  ToolOutputTruncated: { label: 'tool.output-truncated', hue: 'var(--ap-amber)' },
 };
 
 /**

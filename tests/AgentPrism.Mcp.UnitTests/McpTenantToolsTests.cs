@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -75,6 +76,78 @@ public sealed class McpTenantToolsTests
 
         result?.ToString().ShouldBe("Not authorized for remote tools.");
         ran.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task An_mcp_tools_output_is_truncated_the_same_way_a_code_defined_tools_is()
+    {
+        // 🚨 MCP tools go through a SECOND, separate wrapping chain
+        // (McpTenantTools.Create) — this is the contract that both chains
+        // must carry the same rings, proven directly rather than assumed.
+        var registration = new AgentPrismToolRegistration(
+            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
+            source: "github-mcp",
+            maxOutputBytes: 100);
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
+
+        tools.TryGet("remote_report", out var tool).ShouldBeTrue();
+
+        var result = await ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(100);
+    }
+
+    [Fact]
+    public async Task The_installation_default_output_limit_applies_to_mcp_tools_too()
+    {
+        var registration = new AgentPrismToolRegistration(
+            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
+            source: "github-mcp");
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            defaultMaxOutputBytes: 100);
+
+        tools.TryGet("remote_report", out var tool).ShouldBeTrue();
+
+        var result = await ((AIFunction)tool!).InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(100);
+    }
+
+    [Fact]
+    public void No_output_limit_anywhere_means_no_truncating_layer_is_installed_for_mcp_tools()
+    {
+        var registration = new AgentPrismToolRegistration(
+            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
+            source: "github-mcp");
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
+
+        tools.TryGet("remote_report", out var tool).ShouldBeTrue();
+
+        ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeNull();
     }
 
     private sealed class DenyingHandler(string reason) : IToolAuthorizationHandler

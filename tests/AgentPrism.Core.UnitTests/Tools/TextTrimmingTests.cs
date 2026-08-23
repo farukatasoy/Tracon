@@ -1,11 +1,11 @@
-namespace AgentPrism.Mcp.UnitTests;
+namespace AgentPrism.Core.UnitTests.Tools;
 
-public sealed class McpResourceTrimmingTests
+public sealed class TextTrimmingTests
 {
     [Fact]
     public void Text_below_the_limit_is_not_trimmed()
     {
-        var (text, truncated) = McpResourceTrimming.Trim("hello world", maxBytes: 1024);
+        var (text, truncated) = TextTrimming.Trim("hello world", maxBytes: 1024);
 
         text.ShouldBe("hello world");
         truncated.ShouldBeFalse();
@@ -14,7 +14,7 @@ public sealed class McpResourceTrimmingTests
     [Fact]
     public void Text_above_the_limit_is_trimmed()
     {
-        var (text, truncated) = McpResourceTrimming.Trim("0123456789", maxBytes: 5);
+        var (text, truncated) = TextTrimming.Trim("0123456789", maxBytes: 5);
 
         text.ShouldBe("01234");
         truncated.ShouldBeTrue();
@@ -27,7 +27,7 @@ public sealed class McpResourceTrimmingTests
         // (byte 3), it must back off until a valid boundary is found.
         var text = "abé"; // a(1) b(1) é(2) = 4 bytes
 
-        var (trimmed, truncated) = McpResourceTrimming.Trim(text, maxBytes: 3);
+        var (trimmed, truncated) = TextTrimming.Trim(text, maxBytes: 3);
 
         trimmed.ShouldBe("ab");
         truncated.ShouldBeTrue();
@@ -39,7 +39,7 @@ public sealed class McpResourceTrimmingTests
     [Fact]
     public void Zero_limit_returns_empty_text()
     {
-        var (text, truncated) = McpResourceTrimming.Trim("some text", maxBytes: 0);
+        var (text, truncated) = TextTrimming.Trim("some text", maxBytes: 0);
 
         text.ShouldBe(string.Empty);
         truncated.ShouldBeTrue();
@@ -48,7 +48,7 @@ public sealed class McpResourceTrimmingTests
     [Fact]
     public void Empty_text_does_not_count_as_trimmed()
     {
-        var (text, truncated) = McpResourceTrimming.Trim(string.Empty, maxBytes: 100);
+        var (text, truncated) = TextTrimming.Trim(string.Empty, maxBytes: 100);
 
         text.ShouldBe(string.Empty);
         truncated.ShouldBeFalse();
