@@ -968,7 +968,14 @@ def _faz_bolumleri(metin: str) -> tuple[str, list[tuple[str, str]]]:
     Govde H2 satirini ICERIR; boylece korunan bir bolum bire bir geri yazilir.
     Saf fonksiyon -- git veya dosya sistemi istemez."""
     satirlar = metin.split("\n")
-    idx = [i for i, s in enumerate(satirlar) if s.startswith("## ")]
+    # 🚨 Kod blogundaki `## ` bir BASLIK DEGILDIR. Damitma sablonunu GOSTEREN
+    # bir dokuman (`90-*.md` §90.2) ornegin icindeki `## Amaç`, `## Plandan
+    # Sapmalar` satirlarini gercek bolum sanip belgeyi parcalar -- olculdu.
+    # `_kod_bloklarini_soy` satir sayisini KORUDUGU icin indeksler ORIJINAL
+    # metinle birebir hizalidir; baslik konumu soyulmus metinden, govde
+    # orijinalinden alinir.
+    soyulmus = _kod_bloklarini_soy(metin).split("\n")
+    idx = [i for i, x in enumerate(soyulmus) if x.startswith("## ")]
     if not idx:
         return metin, []
     bas = "\n".join(satirlar[: idx[0]])
