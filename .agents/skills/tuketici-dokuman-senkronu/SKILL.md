@@ -146,11 +146,10 @@ Ucuzdan pahalıya sıralıdır. Bir tanesi kırmızıysa sonrakini koşma, önce
 
 ```bash
 # 1 — Sevk edilen metin kapıları (.NET, ölçüldü: 15 test / ~2 sn)
-./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
-  --filter-class "*ShippedDocumentationSelfContainmentTests*" \
-                 "*CapabilityExampleTests*" "*SourceLanguageTests*"
-./artifacts/bin/AgentPrism.Templates.Tests/release/AgentPrism.Templates.Tests \
-  --filter-class "*LocalReferenceTests*"
+python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests \
+  --sinif "*ShippedDocumentationSelfContainmentTests*" "*CapabilityExampleTests*" "*SourceLanguageTests*"
+python3 scripts/kapi.py test --proje AgentPrism.Templates.Tests \
+  --sinif "*LocalReferenceTests*"
 
 # 2 — Sevk edilen agent haritası ve llms dosyaları bayat mı
 cd docs-site && node scripts/build-agent-map.mjs --check
@@ -171,13 +170,8 @@ bağlantı ve karar defteri yapısıyla birlikte) — bu skill'i elle koşman h�
 gerekir çünkü CI yalnız kırmızıyı yakalar, hangi sayfanın **doğru** güncellendiğini
 (Adım 7) denetlemez.
 
-🚨 **`dotnet test --filter <Ad>` YAZMA — MTP onu sessizce yutar.** Ölçüldü:
-`dotnet test … --filter CapabilityExampleTests` paketin **1004 testinin
-tamamını** koşar ve yeşil döner; daralttığını sanırsın. MTP'de `--filter` diye
-bir seçenek yoktur, `--filter-class` / `--filter-method` / `--filter-namespace`
-vardır ve yalnız **derlenmiş test ikilisi** doğrudan çağrılırken geçerlidir.
-Aynı bayat komut `docs/73`, `docs/74` ve `docs/75` içinde de durur; oradan
-kopyalama.
+🚨 **`dotnet test --filter <Ad>` YAZMA — MTP onu sessizce yutar.** Kapı:
+`kapi.py test --sinif`. Vaka kaydı: [`references/gerekce.md`](references/gerekce.md).
 
 🚨 **`npm run build && check-links.mjs` yetmez.** O eski komut `check:content`
 ve `check:weight` kapılarını atlar — yani sayfa sözleşmesini, diyagram kuralını,

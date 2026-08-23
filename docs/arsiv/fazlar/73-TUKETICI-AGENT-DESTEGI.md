@@ -85,7 +85,7 @@ dotnet build /tmp/tuketici/Tuketici.csproj -p:AgentPrismWriteAgentsFile=true
 wc -c /tmp/tuketici/AGENTS.md   # <= 10240
 
 # Kapinin gercekten yakaladigi gosterilir
-dotnet test --filter CapabilityCoverageTests
+python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif "*CapabilityCoverageTests*"
 ```
 
 ---

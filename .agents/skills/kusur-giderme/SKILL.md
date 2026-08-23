@@ -67,8 +67,9 @@ kilidi · yük altında `seq` üretimi · öksüz MSBuild düğümleri.
 
 Düzeltmeden önce kusuru gösteren testi yaz ve **kırmızı olduğunu gör**.
 
-Test kırmızı olmuyorsa **yanlış seviyedesin**. `faz-uygulama` Adım 2 tablosuna
-dön: davranış bir sınırı (DI · HTTP · kiracı · akış · depo · paket) geçiyorsa
+Test kırmızı olmuyorsa **yanlış seviyedesin**. Sınır tablosuna dön
+([`.agents/ortak/test-seviyeleri.md`](../../ortak/test-seviyeleri.md)):
+davranış bir sınırı (DI · HTTP · kiracı · akış · depo · paket) geçiyorsa
 birim testi onu göremez. Bu repoda kusurların çoğu tam olarak bu yüzden
 görünmedi.
 
@@ -136,11 +137,10 @@ kopyaları böyle `faz-tamamlama` Adım 1'e bir taramaya dönüştü.
 Düzeltme yeni kusur üretebilir. Dördü de koşar:
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release
-dotnet test   AgentPrism.slnx -c Release --no-build
-dotnet pack   AgentPrism.slnx -c Release --no-build
-dotnet format AgentPrism.slnx --verify-no-changes --no-restore
+python3 scripts/kapi.py kapanis --taban <düzeltme öncesi commit>
 ```
+
+Tam anlatı: [`.agents/ortak/kapilar.md`](../../ortak/kapilar.md).
 
 Kusur bir faz sırasında bulunduysa fazın dokümanına yazılır. Faz dışında
 bulunduysa ve tek başına bir düzeltmeyse: `docs/KARARLAR.md`'ye kararı,

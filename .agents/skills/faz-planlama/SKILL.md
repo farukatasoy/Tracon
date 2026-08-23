@@ -198,7 +198,8 @@ hangi **seviyede** yakalanır. Seviyeyi plan seçer, uygulayan oturum değil —
 | `store` yazamazsa `run` durur | Fonksiyonel | `QuotaStoreFailureTests` |
 
 Seviye kuralı: bir davranış **sınır** geçiyorsa (DI · HTTP · kiracı · akış ·
-depo · paket) birim testi onu kanıtlamaz. Ayrıntı: `faz-uygulama` Adım 2.
+depo · paket) birim testi onu kanıtlamaz. Ayrıntı:
+[`.agents/ortak/test-seviyeleri.md`](../../ortak/test-seviyeleri.md).
 
 Her yeni kod yolu için beş soru sorulur ve cevabı tabloya girer: iptal ·
 eşzamanlılık · boş/aşırı girdi · başka kiracı · alt sistem hatası.

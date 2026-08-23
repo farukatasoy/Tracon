@@ -96,7 +96,7 @@ grep -c "…" docs-site/public/llms.txt        # beklenen: 0
 grep -c "^- Rule:" docs-site/public/llms.txt # beklenen: 11
 
 # Kapinin gercekten yakaladigi gosterilir
-dotnet test --filter ShippedDocumentationSelfContainment
+python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif "*ShippedDocumentationSelfContainmentTests*"
 cd docs-site && npm run check:content
 ```
 

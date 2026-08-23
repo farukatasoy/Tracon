@@ -43,28 +43,11 @@ Sapma gizlenmez — gerekçesi sonraki oturumun en değerli bilgisidir.
 
 ## Adım 2 — Her davranış için test seviyesini seç
 
-Birim testi yeterli sanmak bu repoda **sekiz kez** bedel ödetti. Kural basittir:
-
-> Bir davranış bir **sınırı** geçiyorsa, o sınırın olduğu seviyede test edilir.
-> Sınır: DI kapsamı · HTTP · kiracı · akış (SSE) · depo · süreç · paket sınırı.
-
-| Davranış | Doğru seviye | Neden |
-|---|---|---|
-| Saf hesap, biçimlendirme, doğrulama | Birim | Sınır yok |
-| Depo sözleşmesi (yazma/okuma/yalıtım) | `tests/Shared/Contracts/` sözleşme testi | Bellek içi + üç SQL sağlayıcısında birden koşar |
-| HTTP davranışı, DI kaydı, yetki | Fonksiyonel (`AgentPrism.AspNetCore.FunctionalTests`) | Bir depo davranışını düzeltmek çağıranı sessizce değiştirir (K-283) |
-| `span`, `scope`, `AsyncLocal`, akışlı yol | Fonksiyonel **ve** örnek uygulama | Birim testi `AsyncLocal` akışını taklit eder, kanıtlamaz |
-| Ekran, rota, iki dillilik | E2E (Playwright) | `tsc` yalnız anahtar varlığını zorlar |
-| Paketlenmiş tüketicinin gördüğü yüzey | Örnek uygulama + manuel case | `ProjectReference` ile koşan iç test bu sınıfı hiç görmez |
-
-Bir davranışı yanlış seviyede test etmek, test **yokken** yanlış bir güven
-üretir. Yeşil bir birim testi bir sınırın doğru çalıştığını **kanıtlamaz**.
-
-### Hata modunu da test et, mutlu yolu değil
-
-Planın hata modu tablosundaki her satır bir teste dönüşür. Tablo yoksa şu beşini
-yine de sor: iptal (`CancellationToken`) · eşzamanlılık · boş/aşırı girdi ·
-başka kiracının kaydı · alt sistem hatası (`store` yazamıyor).
+Birim testi yeterli sanmak bu repoda **sekiz kez** bedel ödetti. Sınır tablosu
+ve hata modu soruları tek kaynakta:
+[`.agents/ortak/test-seviyeleri.md`](../../ortak/test-seviyeleri.md). Bir
+davranış bir **sınırı** geçiyorsa (DI · HTTP · kiracı · akış · depo · paket),
+o sınırın olduğu seviyede test edilir — yeşil bir birim testi bunu kanıtlamaz.
 
 ---
 

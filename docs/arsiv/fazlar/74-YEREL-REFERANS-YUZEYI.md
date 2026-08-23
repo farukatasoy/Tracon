@@ -103,7 +103,7 @@ grep -A 12 "AddToolApprovalPolicy" $(grep -m1 -o '/.*AgentPrism\.Core\.xml' $LR)
 unzip -l artifacts/package/release/AgentPrism.AspNetCore.*.nupkg | grep agentprism.json
 
 # Kapinin gercekten yakaladigi gosterilir
-dotnet test --filter CapabilityExampleTests
+python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif "*CapabilityExampleTests*"
 ```
 
 ---

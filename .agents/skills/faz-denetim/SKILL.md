@@ -92,11 +92,13 @@ Her DoD satırını tek tek al. Karşılığı olan kod veya test hangisi? Satı
 
 ### 3.3 Yanlış test seviyesi
 Bir sınırı (DI · HTTP · kiracı · akış · depo · paket) geçen davranış yalnız
-birim testiyle mi kanıtlanmış? `faz-uygulama` Adım 2 tablosuna göre bak.
+birim testiyle mi kanıtlanmış? Sınır tablosuna göre bak:
+[`.agents/ortak/test-seviyeleri.md`](../../ortak/test-seviyeleri.md).
 
 ### 3.4 Kapsanmayan hata yolları
-Beş soru, her yeni kod yolu için: iptal · eşzamanlılık · boş/aşırı girdi ·
-**başka kiracının** kaydı · alt sistem hatası (`store` yazamıyor).
+Beş soru, her yeni kod yolu için (aynı dosya): iptal · eşzamanlılık ·
+boş/aşırı girdi · **başka kiracının** kaydı · alt sistem hatası
+(`store` yazamıyor).
 
 Gözlemlenebilirlik özel kural taşır: `run` kaydı `store`'u hata verirse `run`
 **devam etmelidir**. Bunu doğrulayan test var mı?

@@ -126,25 +126,9 @@ Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemişti
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 ```
 
-`kapi.py` komutları ucuzdan pahalıya koşar, her komutu ekrana basar ve ilk
-kırmızıda durur. Ölçüldü: sıcak build ~5 sn — **erken ve sık çalıştır**. `dotnet format`,
-`dotnet build`'in yakalamadığı analyzer tanılarını yakalar; dördü de bu yüzden
-zorunludur.
-
-**Hızlı iç döngü.** Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false`
-npm/Vite/Vitest adımlarını atlar. Dördünün tamamı **faz kapanışında** ve
-arayüz/paket değişiminde çalışır. E2E tuzağı: `faz-uygulama` Adım 5.
-
-`TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer
-kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa
-gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
-
-**`secret` asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız
-`dotnet user-secrets` içinde yaşar; `appsettings.json` boş placeholder taşır.
-Faz sonunda `secret` taraması yapılır (`faz-tamamlama`).
-
-`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite →
-Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
+Tam anlatı — komut yüzeyi, neden dördü de zorunlu, hızlı iç döngü, `secret` ve
+ortam kuralları — [`.agents/ortak/kapilar.md`](.agents/ortak/kapilar.md)
+içindedir (Faz 91 · 92).
 
 ---
 
@@ -163,12 +147,14 @@ burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `aday-kesfi`
 (yalnız istek üzerine) → `faz-planlama` (aday F-NN faza
 dönüşürken) → `faz-baslangic` (okuma protokolü) →
 `faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (bağımsız
-denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış;
-tüketici yüzeyine dokunulduysa `tuketici-dokuman-senkronu`'nu çağırır).
-Zincir dışı: `maf-api-kesfi` (MAF tipini ilk kez kullanmadan önce) ·
-`kusur-giderme` (kusur bulunduğunda) · `manuel-test-kosumu` (kabul setinin
-tamamında).
-Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
+denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış; kod
+donduktan sonra **kulvarlı** koşar — denetim ve örnek uygulama koşumu paralel,
+sonra doküman senkronu ve site senkronu paralel; sıra `faz-tamamlama`'nın
+kendi kulvar şemasındadır, Faz 92). Zincir dışı: `maf-api-kesfi` (MAF tipini
+ilk kez kullanmadan önce) · `kusur-giderme` (kusur bulunduğunda) ·
+`manuel-test-kosumu` (kabul setinin tamamında).
+Ortak sözleşme (kapı koşumu, test seviyeleri): `.agents/ortak/`. Konvansiyon:
+[`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
 
@@ -225,7 +211,8 @@ alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle 
 Faz 20'de 1068 test bunu kaçırdı. Kontrol listesi: `faz-uygulama` Adım 4.
 
 **Bir davranış sınır geçiyorsa birim testi onu kanıtlamaz.** Sınır: DI · HTTP ·
-kiracı · akış · depo · paket. Seviye tablosu: `faz-uygulama` Adım 2.
+kiracı · akış · depo · paket. Seviye tablosu:
+[`.agents/ortak/test-seviyeleri.md`](.agents/ortak/test-seviyeleri.md).
 
 ---
 

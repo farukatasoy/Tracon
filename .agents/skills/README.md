@@ -18,10 +18,17 @@ kurallarını** anlatır.
 ## Taşınabilirlik
 
 Skill mekanizması olmayan agent'lar (GitHub Copilot vb.) `SKILL.md`'yi normal
-bir doküman gibi okuyup uygular. Bu yüzden `SKILL.md` **kendi kendine yeten**
-bir metin olmalıdır; bir `runtime`'a bağlı yazılmaz.
+bir doküman gibi okuyup uygular. `SKILL.md` **kendi protokolü** bakımından
+kendi kendine yeter — bir `runtime`'a bağlı yazılmaz. Ortak sözleşme
+(kapı koşumu, test seviyeleri) `.agents/ortak/` altında tek kaynakta yaşar ve
+adıyla bağlanır; skill'ler zaten birbirine sürekli bağlanıyor
+(`faz-tamamlama` → `tuketici-dokuman-senkronu`, `faz-denetim` → kalite
+sözleşmesi, K-522 emsali). Bağlantı hedefi repo içinde olmalıdır; skill
+mekanizması olmayan bir agent onu normal bir dosya olarak açar (Faz 92).
 
 Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
+`.agents/ortak/` bu symlink'in **dışındadır** — skill keşfi onu bir skill
+sanmaz, çünkü `SKILL.md`/frontmatter taşımaz.
 
 ## Mevcut skill'ler ve zincir
 
