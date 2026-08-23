@@ -1024,7 +1024,11 @@ def _faz_damit_metni(metin: str, *, tam_sha: str, yol: str,
     gecişte sessiz kayip yasaktir: olculdu (Faz 90), 103 taninmayan ad /
     4.078 satir var ve iclerinde `## Açık Kalan`, `## 🚨 Ölçülen MAF
     Davranışları` gibi kalici degerli bolumler bulunuyor."""
-    if DAMITMA_ISARETI in metin:
+    # 🚨 Isaret KOD BLOGU DISINDA aranir: damitma sablonunu BELGELEYEN bir
+    # dokuman (`docs/arsiv/fazlar/90-*.md` §90.2, `INDEKS.md`) isareti bir
+    # ORNEK olarak gosterir ve duz arama onu "zaten damitilmis" sanar --
+    # olculdu: Faz 90 kendi kaydini damitamadi. Fence ile ayni sinif.
+    if DAMITMA_ISARETI in _kod_bloklarini_soy(metin):
         return metin, []                      # idempotent
     bas, bolumler = _faz_bolumleri(metin)
     if not bolumler:
@@ -1172,7 +1176,11 @@ def _kosum_damit_metni(metin: str, *, tam_sha: str = "",
 
     Daraltilan: YALNIZ `☑ Geçti` olan VE hicbir eylem isareti tasimayan case.
     Korunan: gecmeyen her case + isaret tasiyan her case, BIRE BIR."""
-    if KOSUM_ISARETI in metin:
+    # 🚨 Isaret KOD BLOGU DISINDA aranir: damitma sablonunu BELGELEYEN bir
+    # dokuman (`docs/arsiv/fazlar/90-*.md` §90.2, `INDEKS.md`) isareti bir
+    # ORNEK olarak gosterir ve duz arama onu "zaten damitilmis" sanar --
+    # olculdu: Faz 90 kendi kaydini damitamadi. Fence ile ayni sinif.
+    if KOSUM_ISARETI in _kod_bloklarini_soy(metin):
         return metin, {"daraltilan": 0, "korunan": 0}
     satirlar = metin.split("\n")
     idx = [i for i, x in enumerate(satirlar) if _KOSUM_CASE.match(x)]
