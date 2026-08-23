@@ -23,3 +23,24 @@ tanıma uyar çünkü `faz-baslangic` yalnız **güncel** fazı ve bir öncekini
 
 Taşıma sonrası sayaç: **4.925.858 → 3.146.178 bayt** (%37 boş).
 Karar: `docs/KARARLAR.md` — K-523.
+
+## Bu kayıtlar damıtılmıştır (Faz 90)
+
+Bir faz kapandığında dokümanı **tam metniyle** arşivlenmez. `faz-damit` planın
+kapanışta ölen kısmını düşürür ve kalıcı bilgiyi tutar:
+
+| Kalır | Düşer |
+|---|---|
+| Başlık bloğu + `> **Durum:**` (üreteç bunu okur) | `Bu Faza Başlarken` — bir oturum talimatı |
+| `Plandan Sapmalar` · `Bu Fazda Verilen Kararlar` | `Planlanan Public API` / `Dosya Listesi` |
+| `Denetim Bulguları` · `Sonraki Faza Devir Notu` | `NN.x` iş kalemleri — planın gövdesi |
+| `Bitiş Ölçütleri (DoD)` — aynen, işaretsiz kutu dahil | `Gerçekleşen Public API` / `Dosya Listesi` |
+| Tanınmayan her bölüm (korunur + raporlanır) | `Riskler` · `Testler` · `Açık Sorular` |
+
+**İçerik silinmez.** Her kaydın başındaki blok tam metne götüren `git show`
+komutunu taşır ve `dokuman-bakim.py --denetle` her koşumda o SHA'nın
+çözüldüğünü **kanıtlar** — git geçmişine güvenmek ancak bir kapı onu
+doğruluyorsa meşrudur.
+
+Ölçüm (2026-08-23): 3.040.663 → 1.200.025 B (−%61); medyan kayıt 12.584 B.
+`docs/arsiv/**` artık kendi bütçesine tabidir — muafiyet sınırsız değildir.

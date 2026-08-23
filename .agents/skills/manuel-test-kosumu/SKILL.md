@@ -301,6 +301,25 @@ Tur **bitti** sayılır:
 
 ---
 
+
+## Koşum kaydını damıt (Faz 90 · kapanışta)
+
+Koşum bitip bulunan kusurlar kapandığında koşum kaydı damıtılır:
+
+```bash
+python3 scripts/dokuman-bakim.py kosum-damit docs/manuel-test/kosumlar/<tarih> --kuru
+python3 scripts/dokuman-bakim.py kosum-damit docs/manuel-test/kosumlar/<tarih>
+```
+
+**Asimetriktir.** Yalnız `☑ Geçti` olan **ve** hiçbir ⚠️/🚨/`düzeltme`/`kusur`
+işareti taşımayan case tek tablo satırına iner. Geçmeyen her case ve işaret
+taşıyan her case **bire bir** korunur — geçen bir case'in bloğu bile bir
+doküman düzeltmesi kaydediyor olabilir (ölçüldü: 1.061 geçen case'in 254'ü).
+
+Spesifikasyon dosyalarına (`docs/manuel-test/*.md`) **dokunulmaz**.
+
+---
+
 ## 8. Nereye ne yazılır
 
 | Bilgi | Yer |

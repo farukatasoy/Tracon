@@ -261,6 +261,38 @@ dokümanına yaz ve `--site-gerekce-yazildi` ile geç.
 **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
 
+Denetim ayrıca üç kapı koşar (Faz 90): **üretilen dosya tazeliği** (elle
+`dokuman-bakim.py` koşmadan commit ettiysen kırmızı olur), **karar gerekçesi
+işaretçisi** (`KARARLAR-GECMISI.md`'ye yolladığın karar orada gerçekten var mı)
+ve **damıtılmış kayıt tam metni** (her kayıttaki `git show <sha>:<yol>`
+çözülüyor mu).
+
+### Fazı arşivle ve damıt (Faz 90 · zorunlu)
+
+Faz `✅ Tamamlandı` olduğunda dokümanı **kökte bırakma**. İki komut, bu sırayla:
+
+```bash
+python3 scripts/dokuman-bakim.py faz-arsivle <NN>          # git mv + bağlantı onarımı
+python3 scripts/dokuman-bakim.py faz-damit <NN> --kuru     # ne düşecek, önce BAK
+python3 scripts/dokuman-bakim.py faz-damit <NN>            # uygula
+python3 scripts/dokuman-bakim.py                           # YOL-HARITASI'nı yeniden üret
+```
+
+`faz-arsivle` üç işi birlikte yapar (`git mv`, dosyanın içindeki bağlantılar,
+dosyaya gelen bağlantılar) ve **tek bir yeni kırık bağlantı** üretirse taşımayı
+geri alır. Elle `mv` kullanma — Faz 58'de aynı iş önce 17, sonra 3 bağlantı
+kırdı.
+
+`faz-damit` planı düşürür, **kalıcı bilgiyi tutar**: `Plandan Sapmalar`,
+`Bu Fazda Verilen Kararlar`, `Denetim Bulguları`, `Sonraki Faza Devir Notu`
+ve DoD **aynen** kalır. Tam metin silinmez; kayda yazılan `git show <sha>:<yol>`
+komutu onu geri getirir ve her denetimde çözülebilirliği kanıtlanır.
+
+🚨 **`--kuru` çıktısındaki "tanınmayan bölüm KORUNDU" uyarılarını oku.** Damıtma
+tanımadığı bir başlığı **düşürmez**, korur ve bildirir. Uyarı gördüğün bölüm
+gerçekten kalıcı değer taşımıyorsa `_DUS_DESENLERI`'ne kural ekle — tek tek ad
+listeleme, desen yaz.
+
 ### Çapraz kontrol
 
 ```bash
