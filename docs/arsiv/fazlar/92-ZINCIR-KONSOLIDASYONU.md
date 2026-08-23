@@ -1,8 +1,8 @@
 # Faz 92 — Zincir Konsolidasyonu
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **20** (skill metni ayağı) · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu
-> **Önkoşul:** 🚨 [Faz 91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) — **kesin bağımlılık.** Politika "önce kapı, sonra kısaltma"; bu faz ancak 91'in hangi tuzağı kapıya çevirdiğini bilerek metin düşürebilir. 91 kapanmadan başlatılamaz
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **20** (skill metni ayağı) · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu
+> **Önkoşul:** 🚨 [Faz 91](91-GELISTIRME-DONGUSU-KAPILARI.md) — **kesin bağımlılık.** Politika "önce kapı, sonra kısaltma"; bu faz ancak 91'in hangi tuzağı kapıya çevirdiğini bilerek metin düşürebilir. 91 kapanmadan başlatılamaz
 > **Paketler:** Yok — iş `.agents/` ve `AGENTS.md` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Hiçbir `src/` dosyasına dokunulmaz
@@ -22,17 +22,17 @@
    ```
    **K-522** (kalite sözleşmesi faz dokümanlarından **ayrıştırıldı** — bu fazın
    yapacağı işin emsali) · **K-599** (her ağaç kendi bütçesini alır)
-3. [`91-GELISTIRME-DONGUSU-KAPILARI.md`](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)
+3. [`91-GELISTIRME-DONGUSU-KAPILARI.md`](91-GELISTIRME-DONGUSU-KAPILARI.md)
    — 🚨 **yalnız devir notu, ama tamamı:**
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/91-*.md
    ```
    O bölüm **hangi tuzağın kapı kazandığını** listeler. Bu fazın tüm kısaltma
    yetkisi o listeden gelir. Liste yoksa faz başlatılamaz — 91 eksik kapanmıştır.
-4. Alan hafızası: [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+4. Alan hafızası: [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (doküman kuralı yazma tuzakları — 🚨 "bir kuralın kendi sınıfını üretmesi"
    vakası iki kez yaşandı)
-5. [`.agents/skills/README.md`](../.agents/skills/README.md) — klasör
+5. [`.agents/skills/README.md`](../../../.agents/skills/README.md) — klasör
    konvansiyonu ve taşınabilirlik kuralı. Bu faz o dosyayı **değiştirir**
 
 ---
@@ -105,7 +105,7 @@ bütçe aşımında da aynıdır (`AGENTS.md`).
 
 ### Taşınabilirlik konvansiyonu güncellenir
 
-[`.agents/skills/README.md`](../.agents/skills/README.md) bugün şunu diyor:
+[`.agents/skills/README.md`](../../../.agents/skills/README.md) bugün şunu diyor:
 *"`SKILL.md` **kendi kendine yeten** bir metin olmalıdır."*
 
 Zincir bu kuralı zaten esnetiyor — skill'ler birbirine sürekli bağlanıyor

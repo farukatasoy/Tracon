@@ -388,7 +388,7 @@ manuel sete dayanıyor (bkz. kalem 9).
 
 > **Durum:** 📋 KISMEN planlandı (2026-08-23) — kopyalanan komut ve
 > regex'lerin tek kaynağa inmesi [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
-> skill metinlerinin konsolidasyonu [Faz 92](../92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
+> skill metinlerinin konsolidasyonu [Faz 92](../arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
 
 `docs/` 143.671 satır Markdown; `src/` 139.425 satır C#. `KARARLAR.md` 657 satır /
 596 `K-*` · `ADAYLAR.md` 793 satır · `arsiv/` 4,3 MB. Bunu yönetmek için özel bir
