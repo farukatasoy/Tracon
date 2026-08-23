@@ -734,7 +734,15 @@ def _kod_bloklarini_soy(metin: str) -> str:
                     and not m.group(2).strip():
                 acik = None
             cikti.append("")
-    return "\n".join(cikti)
+    return _SATIR_ICI_KOD.sub(lambda m: " " * len(m.group(0)), "\n".join(cikti))
+
+
+# Satir ici kod da GOSTERIMDIR: `[x](../../YOK.md)` bir baglanti degil, bir
+# ornektir. Fence ile ayni sinif -- olculdu, manuel test case'ini yazmak bu
+# yanlis pozitifi uretti. Uzunluk korunur ki sutun kaymasin.
+# `[`dosya.md`](dosya.md)` deseni GUVENLIDIR: yalniz ETIKET bir kod parcasidir,
+# hedef parantez disinda kalir ve taranmaya devam eder.
+_SATIR_ICI_KOD = re.compile(r"(?<!`)`[^`\n]+`(?!`)")
 
 
 def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
@@ -897,7 +905,12 @@ _FAZ_DUS = {
 _FAZ_KAL = {
     "Plandan Sapmalar", "🚨 Plandan Sapmalar", "Bu Fazda Verilen Kararlar",
     "Bu Fazda Verilecek Kararlar", "Denetim Bulguları", "Sonraki Faza Devir Notu",
+    # Olculdu: 90 fazda TEK vaka (Faz 29) ama tam olarak AGENTS.md'nin
+    # "plandan sapma gizlenmez -- en degerli bilgi odur" kuralinin somut hali.
+    "Sağlanamayan Şeyler (dürüstlük bölümü)", "Sağlanamayan Şeyler",
 }
+# `NN.x` kalani bunlardan biriyse de kalir (DoD bazi fazlarda numaralanmis).
+_FAZ_DOD_KALICI = {"Bitiş Ölçütleri", "Bitiş Ölçütleri (DoD)"}
 _FAZ_DOD_ADI = "Bitiş Ölçütleri"
 _FAZ_AMAC = {"Amaç", "Amaç ve Sonuç"}
 _IS_KALEMI = re.compile(r"^\d+\.\d+\b")
@@ -917,8 +930,26 @@ _DUS_DESENLERI = (
 )
 
 
+def _is_kalemi_kalani(ad: str) -> str | None:
+    """`## 29.0 — Plandan Sapmalar` -> `Plandan Sapmalar`; `NN.x` degilse None.
+
+    🚨 `NN.x` bir NUMARALANDIRMA konvansiyonudur, anlamsal bir sinif DEGILDIR.
+    Faz 90'in ilk uygulamasi oneke bakip dusuruyordu ve Faz 29 sapmalarini
+    `29.0 — Plandan Sapmalar` diye numaralandirdigi icin fazin "Plandan
+    Sapmalar AYNEN kalir" sozunu SESSIZCE bozdu (bagimsiz denetim buldu).
+    Siniflandirma numaradan SONRAKI baslikla yapilir."""
+    m = _IS_KALEMI.match(ad)
+    if not m:
+        return None
+    return re.sub(r"^\d+\.\d+\s*[—–-]?\s*", "", ad).strip()
+
+
 def _duser_mu(ad: str, yalin: str) -> bool:
-    if _IS_KALEMI.match(ad) or ad in _FAZ_DUS or yalin in _FAZ_DUS:
+    kalan = _is_kalemi_kalani(ad)
+    if kalan is not None:
+        # Numaranin ardindaki baslik kalici bir bolume isaret ediyorsa KALIR.
+        return kalan not in _FAZ_KAL and kalan not in _FAZ_DOD_KALICI
+    if ad in _FAZ_DUS or yalin in _FAZ_DUS:
         return True
     return any(d.match(ad) or d.match(yalin) for d in _DUS_DESENLERI)
 
@@ -1043,6 +1074,28 @@ def _calisma_agaci_temiz(yollar: list[str]) -> str | None:
     return None
 
 
+def _izlenen_degisiklik_var_mi() -> str | None:
+    """TUM agacta izlenen (tracked) degisiklik var mi. Hata mesaji ya da None.
+
+    🚨 `git reset --hard` KAPSAMSIZDIR: calisma agacindaki HER izlenen
+    degisikligi yok eder, komutun dokundugu yollarla sinirli degildir. Bu
+    yuzden geri alma yolu olan bir komut, dar bir yol listesiyle degil
+    AGACIN TAMAMIYLA dogrulanmalidir -- yoksa `src/` altindaki commit
+    edilmemis bir duzenleme on denetimden gecer ve geri almada kalici olarak
+    kaybolur (bagimsiz denetim, Faz 90 bulgu 1).
+
+    Izlenmeyen dosyalar (`-uno`) BILEREK haric: `git reset --hard` onlara
+    dokunmaz, dolayisiyla build ciktisi komutu bloke etmemelidir."""
+    ciktı = _git("status", "--porcelain", "--untracked-files=no")
+    if ciktı is None:
+        return "git çağrısı başarısız — çalışma ağacının temizliği kanıtlanamıyor"
+    if ciktı:
+        return ("çalışma ağacında commit edilmemiş değişiklik var; bu komut "
+                "başarısızlıkta `git reset --hard` koşar ve onları YOK EDER:\n  "
+                + "\n  ".join(ciktı[:10]))
+    return None
+
+
 def _faz_dosyalari(secim: list[str]) -> list[pathlib.Path]:
     kaynak = ROOT / "docs" / "arsiv" / "fazlar"
     hepsi = sorted(kaynak.glob("[0-9][0-9]-*.md"))
@@ -1113,7 +1166,8 @@ _KOSUM_CASE = re.compile(r"^## (MT-[A-Z]+-\d+)\s*(?:—\s*(.*))?$")
 _KOSUM_GECTI = re.compile(r"☑\s*Geçti")
 
 
-def _kosum_damit_metni(metin: str) -> tuple[str, dict[str, int]]:
+def _kosum_damit_metni(metin: str, *, tam_sha: str = "",
+                       yol: str = "") -> tuple[str, dict[str, int]]:
     """(damitilmis metin, sayac). Saf fonksiyon.
 
     Daraltilan: YALNIZ `☑ Geçti` olan VE hicbir eylem isareti tasimayan case.
@@ -1142,8 +1196,11 @@ def _kosum_damit_metni(metin: str) -> tuple[str, dict[str, int]]:
         "> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin\n"
         "> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum\n"
         "> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**\n"
-        "> her case'in bloğu AYNEN durur. Tam metin:\n"
-        "> `git log --follow -- <bu dosya>`\n"), "---", ""]
+        "> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:\n"
+        ">\n"
+        "> ```bash\n"
+        f"> git show {tam_sha}:{yol}\n"
+        "> ```\n"), "---", ""]
     if daralt:
         parcalar += [f"## Temiz geçen case'ler ({len(daralt)})", "",
                      "| Case | Durum | Başlık |", "|---|---|---|"]
@@ -1172,7 +1229,10 @@ def komut_kosum_damit(a: argparse.Namespace) -> int:
     o = y = 0; d_top = k_top = 0
     for f in dosyalar:
         metin = f.read_text(encoding="utf-8")
-        yeni, sayac = _kosum_damit_metni(metin)
+        yol = f.relative_to(ROOT).as_posix()
+        sha = _git("log", "-1", "--format=%h", "--", yol)
+        yeni, sayac = _kosum_damit_metni(
+            metin, tam_sha=(sha[0] if sha else ""), yol=yol)
         o += len(metin.encode()); y += len(yeni.encode())
         d_top += sayac["daraltilan"]; k_top += sayac["korunan"]
         if yeni != metin and not a.kuru:
@@ -1397,7 +1457,8 @@ def komut_faz_arsivle(a: argparse.Namespace) -> int:
     eski = kaynak.relative_to(ROOT).as_posix()
     yeni = f"docs/arsiv/fazlar/{kaynak.name}"
 
-    hata = _calisma_agaci_temiz(["docs", ".agents", "README.md", "AGENTS.md", "MEMORY.md"])
+    # DAR bir yol listesi YETMEZ -- asagidaki geri alma `git reset --hard`'tir.
+    hata = _izlenen_degisiklik_var_mi()
     if hata:
         print(f"❌ {hata}"); return 1
     if a.kuru:
@@ -1503,10 +1564,10 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     agresif `gc` veya sig bir klon SHA'yi gecersizleyebilir. `fetch-depth: 0`
     (ci.yml:35) MinVer yuzunden zaten zorunludur -- beklenmedik bir sigorta."""
     bulunan: list[str] = []
-    kaynak = kok / "docs" / "arsiv" / "fazlar"
-    if not kaynak.exists():
-        return []
-    for dosya in sorted(kaynak.glob("*.md")):
+    kaynaklar = [kok / "docs" / "arsiv" / "fazlar",
+                 kok / "docs" / "manuel-test" / "kosumlar",
+                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-08"]
+    for dosya in sorted(d for k in kaynaklar if k.exists() for d in k.rglob("*.md")):
         try:
             metin = dosya.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
@@ -1514,6 +1575,16 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
         for sha, yol in set(_TAM_METIN.findall(metin)):
             if _git("cat-file", "-e", f"{sha}:{yol}") is None:
                 bulunan.append(f"{dosya.relative_to(kok).as_posix()} -> {sha}:{yol} çözülmüyor")
+                continue
+            # SHA'nin cozulmesi YETMEZ: cozulen icerik de damitilmis olabilir
+            # (kaydin isareti elle silinip `faz-damit` tekrar kosulursa SHA
+            # damitilmis bir commit'e kayar ve tam metin ULASILAMAZ olur, ama
+            # `cat-file -e` yine basarili doner). Bagimsiz denetim, Faz 90.
+            icerik = _git("show", f"{sha}:{yol}")
+            if icerik is not None and any(DAMITMA_ISARETI in x for x in icerik):
+                bulunan.append(
+                    f"{dosya.relative_to(kok).as_posix()} -> {sha}:{yol} "
+                    "ZATEN damıtılmış — tam metin değil")
     return bulunan
 
 

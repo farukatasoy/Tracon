@@ -862,5 +862,89 @@ class YenidenAcildiIsaretiTestleri(unittest.TestCase):
             "| **K-9 — x (kullanıcı kararı)** | 2026-08-01 | g | — |"))
 
 
+class DenetimBulgulariTestleri(unittest.TestCase):
+    """Bağımsız denetimin (Faz 90) bulduğu üç kusur için regresyon kapıları."""
+
+    def test_NNx_onekli_kalici_bolum_DUSMEZ(self):
+        # 🔴 Bulgu 2: `NN.x` bir NUMARALANDIRMA konvansiyonudur. Faz 29
+        # sapmalarını `29.0 — Plandan Sapmalar` diye numaralandırmıştı ve
+        # önekle sınıflandırma onu SESSİZCE düşürdü.
+        metin = FAZ_ORNEK.replace("## Plandan Sapmalar", "## 42.0 — Plandan Sapmalar")
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertIn("Plan A dedi, gerçek B çıktı.", yeni)
+
+    def test_NNx_onekli_saglanamayanlar_DUSMEZ(self):
+        metin = FAZ_ORNEK.replace(
+            "## Açık Kalan", "## 42.7 — Sağlanamayan Şeyler (dürüstlük bölümü)")
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertIn("Gerçek sunucu koşturulamadı.", yeni)
+
+    def test_NNx_onekli_GERCEK_is_kalemi_duser(self):
+        metin = FAZ_ORNEK.replace("## Açık Kalan", "## 42.3 — Protokol tasarımı")
+        yeni, _ = dokuman_bakim._faz_damit_metni(
+            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
+        self.assertNotIn("Gerçek sunucu koşturulamadı.", yeni)
+
+    def test_is_kalemi_kalani_ayristirir(self):
+        self.assertEqual(dokuman_bakim._is_kalemi_kalani("29.0 — Plandan Sapmalar"),
+                         "Plandan Sapmalar")
+        self.assertIsNone(dokuman_bakim._is_kalemi_kalani("Plandan Sapmalar"))
+
+    def test_kirli_agac_reset_hard_koşan_komutu_ENGELLER(self):
+        # 🔴 Bulgu 1: ön denetim dar bir yol listesine bakıyordu ama geri alma
+        # `git reset --hard` idi — `src/` altındaki düzenleme yok olurdu.
+        with mock.patch.object(dokuman_bakim, "_git",
+                               return_value=[" M src/AgentPrism.Core/X.cs"]):
+            self.assertIsNotNone(dokuman_bakim._izlenen_degisiklik_var_mi())
+
+    def test_temiz_agac_gecer(self):
+        with mock.patch.object(dokuman_bakim, "_git", return_value=[]):
+            self.assertIsNone(dokuman_bakim._izlenen_degisiklik_var_mi())
+
+    def test_git_hatasi_temiz_SAYILMAZ(self):
+        with mock.patch.object(dokuman_bakim, "_git", return_value=None):
+            self.assertIsNotNone(dokuman_bakim._izlenen_degisiklik_var_mi())
+
+    def test_cozulen_icerik_damitilmissa_bulgudur(self):
+        # 🟡 Bulgu 6: `cat-file -e` başarılı olsa bile içerik damıtılmış olabilir.
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+            (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
+                "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
+            with mock.patch.object(dokuman_bakim, "_git",
+                                   return_value=[dokuman_bakim.DAMITMA_ISARETI]):
+                bulgu = dokuman_bakim.tam_metin_denetle(tmp)
+            self.assertTrue(any("ZATEN damıtılmış" in b for b in bulgu), bulgu)
+
+
+class SatirIciKodTestleri(unittest.TestCase):
+    """Satır içi kod da GÖSTERİMDİR — fence ile aynı sınıf."""
+
+    def test_satir_ici_koddaki_baglanti_sayilmaz(self):
+        self.assertNotIn("YOK.md", dokuman_bakim._kod_bloklarini_soy("`[x](../../YOK.md)` yaz"))
+
+    def test_kod_ETIKETLI_baglantinin_HEDEFI_taranmaya_devam_eder(self):
+        # `[`dosya.md`](dosya.md)` yaygın biçimdir; yalnız ETİKET kod parçasıdır.
+        # Hedefi de gizleseydik gerçek kırık bağlantılar görünmez olurdu.
+        c = dokuman_bakim._kod_bloklarini_soy("[`dosya.md`](hedef.md)")
+        self.assertIn("](hedef.md)", c)
+
+    def test_uzunluk_korunur(self):
+        m = "a `kod` b"
+        self.assertEqual(len(dokuman_bakim._kod_bloklarini_soy(m)), len(m))
+
+    def test_kod_ici_baglanti_gercek_kirigi_MASKELEMEZ(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d); (tmp / "docs").mkdir()
+            (tmp / "docs" / "a.md").write_text(
+                "`[gizli](yok1.md)` ve [gerçek](yok2.md)\n", encoding="utf-8")
+            kirik = dokuman_bakim.kirik_baglantilar(tmp)
+            self.assertTrue(any("yok2.md" in k for k in kirik), kirik)
+            self.assertFalse(any("yok1.md" in k for k in kirik), kirik)
+
+
 if __name__ == "__main__":
     unittest.main()
