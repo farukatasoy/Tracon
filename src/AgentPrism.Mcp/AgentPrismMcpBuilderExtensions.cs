@@ -139,14 +139,15 @@ public static class AgentPrismMcpBuilderExtensions
         // The registry is REPLACED, not added with TryAdd: AddAgentPrism() runs
         // earlier in the chain and has already registered ToolRegistry. The new
         // registry wraps the old one; tools registered in code keep priority.
+        //
+        // 🚨 The inner registry is built through ToolRegistry.Create, not a
+        // second hand-written construction. Create() also gates the
+        // code-defined `generate_image` tool on AgentPrismImageOptions; a
+        // duplicated construction here previously skipped that gate, so an
+        // enabled image tool silently disappeared whenever MCP was also
+        // configured (measured 2026-08-23).
         services.Replace(ServiceDescriptor.Singleton<IToolRegistry>(static provider => new McpToolRegistry(
-            new ToolRegistry(
-                provider.GetServices<AgentPrismToolRegistration>(),
-                provider.GetRequiredService<IToolAuthorizationHandler>(),
-                provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
-                provider.GetService<IRunAttributionContext>(),
-                provider.GetRequiredService<ILogger<AuthorizingAIFunction>>(),
-                provider.GetRequiredService<ILogger<TimeoutAIFunction>>()),
+            ToolRegistry.Create(provider),
             provider.GetRequiredService<McpToolCatalog>(),
             provider.GetRequiredService<ITenantContext>())));
 

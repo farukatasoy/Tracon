@@ -406,10 +406,10 @@ Beş soru ve cevapları:
 - [x] **Yeni NuGet paketi alınmadı** — `dotnet list package --include-transitive` farkı sıfır.
 - [x] `AgentPrism.OpenAI` AOT uyumlu kaldı.
 - [x] Dört doğrulama kapısı sıfır uyarı ile geçti: build, test, pack ve format.
-- [x] `samples/AgentPrism.Api` ile gerçek istek yapıldı. Başlangıç başarılıydı; yetkisiz `gpt-image-1` çağrısı kontrollü `502` ve alt `403 model_not_found` döndü.
+- [x] `samples/AgentPrism.Api` ile gerçek istek yapıldı. İlk turda yetkisiz `gpt-image-1` çağrısı kontrollü `502` ve alt `403 model_not_found` döndü; yetki tanındıktan sonra (2026-08-23) hem operatör ucu hem `generate_image` tool yolu **gerçek** `gpt-image-1` görseli üretti ve doğru PNG olarak ek deposuna yazıldı — bkz. üçüncü denetim turu.
 - [x] Bu fazın değiştirdiği ve eklediği dosyalarda `secret` taraması boş döndü. Repo genelindeki eski manuel-test örnekleri ve Astro cache'i bu kapsam dışındadır.
 - [x] Manuel kabul case'leri `docs/manuel-test/19-*` ve `12-*` içine eklendi; otomatikleştirilebilenler koşuldu.
-- [x] `faz-denetim` iki kez koşuldu; 🔴 bulgu kalmadı.
+- [x] `faz-denetim` üç kez koşuldu (üçüncüsü gerçek `gpt-image-1` ile canlı manuel koşum); 🔴 bulgu kalmadı.
 - [x] `docs-site/` güncellendi; `npm run check`, link ve agent-map kapıları temiz.
 - [x] Arayüze dokunulmadı; sözlük veya bundle değişimi yok.
 
@@ -556,7 +556,8 @@ src/AgentPrism.Core/
 ├── AgentPrismServiceCollectionExtensions.cs
 ├── Images/GenerateImageTool.cs · ImageGeneratorResolver.cs
 ├── Images/ImagePricing.cs · ImageAttachmentWriter.cs    (yeni)
-└── Tools/ToolRegistry.cs
+├── Tools/ToolRegistry.cs
+└── Properties/AssemblyInfo.cs                           (üçüncü denetim: InternalsVisibleTo("AgentPrism.Mcp"))
 
 src/AgentPrism.{OpenAI,Azure,Google}/
 ├── *ChatClientFactory.cs
@@ -566,10 +567,14 @@ src/AgentPrism.{OpenAI,Azure,Google}/
 src/AgentPrism.AspNetCore/
 └── Endpoints/ImageEndpoints.cs                           (yeni)
 
+src/AgentPrism.Mcp/
+└── AgentPrismMcpBuilderExtensions.cs                     (üçüncü denetim: ToolRegistry.Create çağrısı)
+
 tests/
 ├── AgentPrism.Core.UnitTests/Images/{ImagePricingTests,ImageAttachmentWriterTests,
-│   ImageGeneratorResolverTests,ImageOptionsValidationTests}.cs
+│   ImageGeneratorResolverTests,ImageOptionsValidationTests,GenerateImageToolTests}.cs
 ├── AgentPrism.AspNetCore.FunctionalTests/ImageEndpointTests.cs
+├── AgentPrism.Mcp.UnitTests/McpToolRegistryImageGateTests.cs (üçüncü denetim, yeni)
 └── sağlayıcı extension testleri · OpenApiSnapshotTests.cs
 
 docs-site/ · docs/openapi/agentprism.json · üretilen C# client · sample ayarları
@@ -579,7 +584,10 @@ docs-site/ · docs/openapi/agentprism.json · üretilen C# client · sample ayar
 **Otomatik test kanıtı:** `ImagePricingTests` fiyat uydurmama ve iki fiyat
 birimini; `ImageAttachmentWriterTests` data/URI, egress, chunked limit, rollback
 ve hosted red; `ImageEndpointTests` varsayılan kapalı, saklama, tool-run ölçümü,
-girdi ve provider hatasını; üç provider extension testi keyed kayıtları doğrular.
+girdi ve provider hatasını; üç provider extension testi keyed kayıtları doğrular;
+`GenerateImageToolTests` tool'un kendi sayım sınırını ve hata yollarını HTTP'siz
+doğrular; `McpToolRegistryImageGateTests` `.UseMcp()` etkinken tool'un derlemede
+görünür kaldığını doğrular (eski koda karşı kırmızı olduğu ölçüldü).
 
 ## Denetim Bulguları
 
@@ -596,6 +604,8 @@ girdi ve provider hatasını; üç provider extension testi keyed kayıtları do
 | Operatör request/response tipleri plan API'sinde yoktu | 🟡 | Gerçekleşen API bölümüne eklendi. |
 | Rollback cleanup hatası için garanti ve test belirsizdi | 🟡 | Cleanup best-effort olarak ürün dokümanına yazıldı; delete hatası asıl hatayı koruyan test eklendi. |
 | Shipped agent map Google image giriş noktasını içermiyordu | 🟡 | `capabilities.md` kaynağından map yeniden üretildi; `UseGoogleImages()` artık sevk edilen map'te. |
+| 🚨 `.UseMcp(...)` etkinken `generate_image` derlemeye hiç girmiyordu | 🔴 | Üçüncü denetim turu — gerçek `gpt-image-1` çağrısıyla canlı koşumda bulundu. `AgentPrismMcpBuilderExtensions.UseMcpCore` `IToolRegistry`'yi `McpToolRegistry` ile REPLACE ederken iç registry'yi `ToolRegistry.Create(provider)` üzerinden değil, kayıtları elle yeniden toplayan ikinci bir inşa yoluyla kuruyordu; bu ikinci yol 88.1'in `images.Enabled` kapısını hiç çalıştırmıyordu. Ayar açık, sağlayıcı kayıtlı olsa bile `GET /api/tools` ve agent derlemesi tool'u hiç görmüyordu — hata da vermiyordu. Düzeltme: `AgentPrism.Core`'un `InternalsVisibleTo`'suna `AgentPrism.Mcp` eklendi, `UseMcpCore` artık `ToolRegistry.Create(provider)`'ı çağırıyor (K3/K1 ile aynı kapıyı paylaşıyor). `McpToolRegistryImageGateTests` (`tests/AgentPrism.Mcp.UnitTests/`) eski koda karşı doğrulanmış: fix'siz kırmızı, fix'li yeşil. |
+| `GenerateImageTool`'un kendi `MaxImagesPerRequest` reddi yalnız HTTP operatör ucunun kopya kontrolüyle test ediliyordu, tool yolu hiç değil | 🟡 | `GenerateImageToolTests` (`tests/AgentPrism.Core.UnitTests/Images/`) eklendi: sayım sınırı, yalnız-ek-kimliği sonucu, sağlayıcı hatasının yutulmadığı, eksik run scope/tenant durumları, `size` ayrıştırması — tool'un kendi gövdesi üzerinden, HTTP'siz. |
 
 🔴 ve 🟡 açık bulgu yoktur.
 
@@ -605,6 +615,17 @@ girdi ve provider hatasını; üç provider extension testi keyed kayıtları do
 - Faz 89 `ToolRegistry` sarmalayıcı zincirine yeni halka eklerken, images açıkken
   factory'nin `generate_image`ı `ToolEffect.External` ile eklediğini korumalıdır.
   Bu tool devam koşusunda otomatik tekrar edilmez.
+- 🚨 **Ölçüldü ve düzeltildi (2026-08-23, üçüncü denetim turu):** `.UseMcp(...)`
+  `IToolRegistry`'yi `McpToolRegistry` ile REPLACE ederken iç registry'yi
+  `ToolRegistry.Create(provider)` üzerinden değil, kayıtları elle yeniden
+  toplayan bir kopya inşa yoluyla kuruyordu. Bu kopya 88.1'in `images.Enabled`
+  kapısını atlıyordu: ayar açık ve sağlayıcı kayıtlı olsa bile `generate_image`
+  MCP açıkken (sample'da her zaman) derlemeye hiç girmiyordu — hatasız, sessizce.
+  Düzeltme `AgentPrism.Core` → `InternalsVisibleTo("AgentPrism.Mcp")` ekleyip
+  `UseMcpCore`'u `ToolRegistry.Create(provider)`'ı çağıracak şekilde değiştirdi.
+  **Ders:** `IToolRegistry`'yi REPLACE/sarmalayan her yeni yer `ToolRegistry.Create`
+  üzerinden inşa etmelidir — kayıtları elle yeniden toplamak, `Create`'e sonradan
+  eklenen her gate'i (bugünkü images, yarın başka biri) sessizce atlar.
 - 🚨 Image attachment yazısı `AgentRunScope.TenantId` ile yapılır; async akışta
   yeniden `ITenantContext` çözmek tenant/run ayrışması üretir.
 - 🚨 URI gövdesi `Content-Length`e güvenmez. `ImageAttachmentWriter`ın bounded
@@ -612,8 +633,9 @@ girdi ve provider hatasını; üç provider extension testi keyed kayıtları do
   hatasını maskelemez ve loglanır.
 - `HostedFileContent` provider `FileId`si dışında okunabilir içerik vermez.
   Depo sözleşmesi değişmeden destek eklenmez.
-- Faz 89'da provider erişimi olmayan sample hesapları için canlı deneme başarısız
-  olabilir. Bu fazda OpenAI isteği `HTTP 502`, alttaki `HTTP 403 model_not_found`
-  sonucu verdi; `gpt-image-1` bu projectte yetkili değildir. Uygulama başlangıcı
-  ve hata çevirisi gerçek hostta doğrulandı; başarılı canlı görsel için yetkili bir
-  image model gerekir.
+- 2026-08-23 güncellemesi: `gpt-image-1` erişimi tanındı. Hem
+  `POST /api/images/generate` hem agent üzerinden `generate_image` tool çağrısı
+  gerçek bir görsel üretti (1024×1024 PNG, ek deposuna doğru yazıldı, `usage.unit
+  = tokens` ve fiyat kaydı yokken `cost = null`). Faz 89 artık bu modelle canlı
+  deneme yapabilir; provider erişimi kaybolursa yine `HTTP 502` / alt
+  `403 model_not_found` beklenir.
