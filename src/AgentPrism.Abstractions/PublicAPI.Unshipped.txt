@@ -242,7 +242,7 @@ AgentPrism.AgentPrismToolAttribute.Name.get -> string?
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.get -> bool
 AgentPrism.AgentPrismToolAttribute.RequiresApproval.init -> void
 AgentPrism.AgentPrismToolRegistration
-AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, AgentPrism.ToolEffect effect = AgentPrism.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false) -> void
+AgentPrism.AgentPrismToolRegistration.AgentPrismToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, AgentPrism.ToolEffect effect = AgentPrism.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false, int? maxOutputBytes = null) -> void
 AgentPrism.AgentPrismToolRegistration.SafeToRepeat.get -> bool
 AgentPrism.AgentPrismToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
 AgentPrism.AgentPrismToolRegistration.RequiresApproval.get -> bool
@@ -4755,3 +4755,7 @@ static AgentPrism.ImageGenerationOperatorRequest.operator !=(AgentPrism.ImageGen
 static AgentPrism.ImageGenerationOperatorRequest.operator ==(AgentPrism.ImageGenerationOperatorRequest? left, AgentPrism.ImageGenerationOperatorRequest? right) -> bool
 static AgentPrism.ImageGenerationOperatorResponse.operator !=(AgentPrism.ImageGenerationOperatorResponse? left, AgentPrism.ImageGenerationOperatorResponse? right) -> bool
 static AgentPrism.ImageGenerationOperatorResponse.operator ==(AgentPrism.ImageGenerationOperatorResponse? left, AgentPrism.ImageGenerationOperatorResponse? right) -> bool
+AgentPrism.RunEventType.ToolOutputTruncated = 26 -> AgentPrism.RunEventType
+AgentPrism.AgentPrismToolRegistration.MaxOutputBytes.get -> int?
+AgentPrism.ToolDescriptor.MaxOutputBytes.get -> int?
+AgentPrism.ToolDescriptor.MaxOutputBytes.init -> void

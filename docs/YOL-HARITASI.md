@@ -100,6 +100,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [86](86-TALIMATIN-GIRDI-YUZEYI.md) | Talimatın Girdi Yüzeyi | ✅ Tamamlandı |
 | [87](87-KESILEN-ISIN-DEVAMI.md) | Kesilen İşin Devamı | ✅ Tamamlandı |
 | [88](88-GORSEL-URETIM-TOOLU.md) | Görsel Üretim Tool'u | ✅ Tamamlandı |
-| [89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | 📋 Planlandı |
+| [89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) | Tool Çıktısı Boyut Sınırı | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

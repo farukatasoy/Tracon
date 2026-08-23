@@ -53,6 +53,13 @@ public sealed class AgentPrismOptionsBindingCoverageTests
         "Skills.Scripts.AllowStoredScripts",
         "Skills.Scripts.EnvironmentAllowList",
         "Attachments.AllowedMediaTypes",
+
+        // The generic int sentinel is "(current ?? 0) + 7"; this field's own
+        // AgentPrismOptionsValidator floor is TruncatingAIFunction.MinimumEnvelopeBytes
+        // (57 at time of writing) — the generic +7 sentinel would fail that
+        // check before the scan ever reads the bound value back. Covered
+        // directly by DefaultMaxOutputBytes_binds_from_configuration below.
+        "Tools.DefaultMaxOutputBytes",
     };
 
     [Fact]
@@ -83,6 +90,30 @@ public sealed class AgentPrismOptionsBindingCoverageTests
         }
 
         failures.ShouldBeEmpty(customMessage: string.Join('\n', failures));
+    }
+
+    /// <summary>
+    /// Excluded from the generic scan above (see <see cref="ExcludedPaths"/>);
+    /// covered directly here with a value that clears the field's own
+    /// validation floor.
+    /// </summary>
+    [Fact]
+    public void DefaultMaxOutputBytes_binds_from_configuration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                [$"{AgentPrismOptions.SectionName}:Tools:DefaultMaxOutputBytes"] = "500",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddAgentPrism(configuration.GetSection(AgentPrismOptions.SectionName));
+
+        using var provider = services.BuildServiceProvider();
+        var bound = provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value;
+
+        bound.Tools.DefaultMaxOutputBytes.ShouldBe(500);
     }
 
     private static void Collect(

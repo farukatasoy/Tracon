@@ -85,6 +85,7 @@ prices.
 | Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
+| Tool output size limit | `AgentPrismToolRegistration.MaxOutputBytes` or `AgentPrismOptions.Tools.DefaultMaxOutputBytes` | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
 | Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults` |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
@@ -1622,6 +1623,39 @@ timeout does not fail the run either: the model sees a tool error and continues,
 as a denial. `CancellationToken` is cooperative, so a tool body that never reads its own
 token is not forcibly stopped — only the *wait* is cut short; the timeout applies to
 execution only, never to a pending approval, which can wait indefinitely.
+
+### Output size limit
+
+A tool's result is unbounded by default and goes straight into the model's context. Set
+a byte limit — per tool, or once for every tool that does not set its own — and a
+result over it is trimmed before the model ever sees it:
+
+```csharp
+services.AddSingleton(new AgentPrismToolRegistration(
+    AIFunctionFactory.Create(GetReport, "get_report", "Fetches a report."),
+    maxOutputBytes: 4096));
+
+services.Configure<AgentPrismOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
+```
+
+No change is required to keep today's behavior: the default is unlimited, and a tool
+that never sets a limit is never touched.
+
+Bounding a tool's output inside its own body is always better — the tool knows its
+data, this only counts bytes. Treat the limit as the last line of defense for the day
+that bound is forgotten, not a substitute for it: a single runaway tool can otherwise
+spend a tenant's whole token budget on one call.
+
+A result over the limit is trimmed and wrapped in an envelope, so the trimmed text can
+never break the JSON the model reads:
+
+```json
+{"truncated": true, "omittedBytes": 1830, "content": "..."}
+```
+
+`truncated` and `omittedBytes` are always present on a trimmed result — a silently
+shortened answer would lead the model to a confident, wrong conclusion. A result that
+already fits is returned exactly as the tool produced it, never wrapped.
 
 ### Concurrent tool calls
 
@@ -3572,6 +3606,12 @@ flowchart LR
 A session preserves continuity. Compaction reduces what the model sees. It does not
 delete the durable run record. File memory and knowledge search add capabilities; they
 do not replace session history.
+
+These five layers all shape what already made it into the conversation. A tool's
+[output size limit](/concepts/tools/#output-size-limit) works earlier, at the source:
+it bounds a single tool result before that result ever becomes context to compact. The
+two are complementary, not competing — a tool limit caps one call's contribution,
+compaction manages the accumulated history afterward.
 
 ## Session history starts with `sessionId`
 
@@ -8150,6 +8190,7 @@ script.
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
+| `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 
 Non-positive graph token or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)

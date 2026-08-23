@@ -38,6 +38,10 @@ internal sealed class McpTenantTools
     /// <param name="attribution">The run attribution context, or <see langword="null"/> when none is registered.</param>
     /// <param name="authorizingLogger">The logger passed to every <see cref="AuthorizingAIFunction"/> instance.</param>
     /// <param name="timeoutLogger">The logger passed to every <see cref="TimeoutAIFunction"/> instance.</param>
+    /// <param name="defaultMaxOutputBytes">
+    /// The output byte limit applied when a tool's own registration sets
+    /// none, or <see langword="null"/> for unlimited.
+    /// </param>
     /// <returns>The set.</returns>
     /// <remarks>
     /// A name collision is <strong>not an error</strong>. In the code
@@ -53,7 +57,8 @@ internal sealed class McpTenantTools
         TimeSpan defaultTimeout,
         IRunAttributionContext? attribution,
         ILogger<AuthorizingAIFunction> authorizingLogger,
-        ILogger<TimeoutAIFunction> timeoutLogger)
+        ILogger<TimeoutAIFunction> timeoutLogger,
+        int? defaultMaxOutputBytes = null)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
         var descriptors = new List<ToolDescriptor>(registrations.Count);
@@ -64,11 +69,11 @@ internal sealed class McpTenantTools
 
             // Wrapping happens here. For tools registered in code, ToolRegistry
             // does the same job; MCP tools do not go through that registry, so
-            // the wrapping is repeated on this path (docs/69, section 69.1 for
-            // the ordering rationale). MCP tools are always real AIFunctions
-            // (McpClientTool : AIFunction); the guard below only ever fires for
-            // a misconfigured direct AgentPrismToolRegistration registration,
-            // same as in ToolRegistry.
+            // the wrapping is repeated on this path (docs/69, section 69.1;
+            // docs/89, section 89.3 for the ordering rationale). MCP tools are
+            // always real AIFunctions (McpClientTool : AIFunction); the guard
+            // below only ever fires for a misconfigured direct
+            // AgentPrismToolRegistration registration, same as in ToolRegistry.
             //
             // An MCP tool's definition lives on a remote server the moment it is
             // read; it never carries its own effect classification, so it
@@ -79,9 +84,15 @@ internal sealed class McpTenantTools
 
             if (registration.Function is AIFunction invocable)
             {
-                AIFunction wrapped = registration.RequiresApproval
-                    ? new ApprovalRequiredAIFunction(invocable)
+                var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
+
+                AIFunction wrapped = effectiveMaxOutputBytes is { } maxOutputBytes
+                    ? new TruncatingAIFunction(invocable, maxOutputBytes)
                     : invocable;
+
+                wrapped = registration.RequiresApproval
+                    ? new ApprovalRequiredAIFunction(wrapped)
+                    : wrapped;
 
                 wrapped = new TimeoutAIFunction(wrapped, registration.Timeout ?? defaultTimeout, timeoutLogger);
 
@@ -127,6 +138,7 @@ internal sealed class McpTenantTools
                 Effect = effect,
                 RequiredPermission = registration.RequiredPermission,
                 Timeout = registration.Timeout,
+                MaxOutputBytes = registration.MaxOutputBytes,
             });
         }
 

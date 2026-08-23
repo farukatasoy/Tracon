@@ -1737,3 +1737,10 @@ const AgentPrism.AgentPrismRunContinuationOptions.SectionName = "AgentPrism:RunC
 AgentPrism.AgentPrismRunContinuationOptionsValidator
 AgentPrism.AgentPrismRunContinuationOptionsValidator.AgentPrismRunContinuationOptionsValidator() -> void
 AgentPrism.AgentPrismRunContinuationOptionsValidator.Validate(string? name, AgentPrism.AgentPrismRunContinuationOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
+AgentPrism.AgentPrismToolOptions.DefaultMaxOutputBytes.get -> int?
+AgentPrism.AgentPrismToolOptions.DefaultMaxOutputBytes.set -> void
+AgentPrism.TextTrimming
+static AgentPrism.TextTrimming.Trim(string! text, int maxBytes) -> (string! Text, bool Truncated)
+AgentPrism.TruncatingAIFunction
+AgentPrism.TruncatingAIFunction.TruncatingAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, int maxOutputBytes) -> void
+static readonly AgentPrism.TruncatingAIFunction.MinimumEnvelopeBytes -> int

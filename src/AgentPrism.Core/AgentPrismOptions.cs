@@ -92,6 +92,18 @@ public sealed class AgentPrismToolOptions
     /// the first real run.
     /// </remarks>
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Gets or sets the default byte limit for a tool result. <see langword="null"/> means
+    /// unlimited, which is the default: an upgrade never silently cuts output.
+    /// </summary>
+    /// <remarks>
+    /// Used when a tool's own registration does not set
+    /// <see cref="ToolDescriptor.MaxOutputBytes"/>. Bounding output inside the
+    /// tool's own body is always better; this is the installation-wide last
+    /// defence for the day that bound is forgotten.
+    /// </remarks>
+    public int? DefaultMaxOutputBytes { get; set; }
 }
 
 /// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>

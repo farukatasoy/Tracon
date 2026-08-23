@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri)
 > **Kaynak:** `src/AgentPrism.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/AgentPrism.AspNetCore/McpServer/`
 > (tümü — AgentPrism'i MCP sunucusu olarak dışa açma) ·
@@ -1476,3 +1476,42 @@ kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 - Adım 3'te sunucunun tool'ları listelenir — yani muhafız yalnız kaydetmeyi
   değil, **gerçek bağlantıyı** da geçirir. Bu, `ConnectCallback` içindeki
   denetimin çalışan bir bağlantıyı yanlışlıkla kesmediğini kanıtlayan tek case'tir.
+
+---
+
+### MT-MCP-059 — 🚨 👤 MCP tool'undan gelen büyük çıktı da kurulum varsayılanıyla kırpılır
+
+| | |
+|---|---|
+| **İzlek** | A (izole — insan gerekir, `tester-tedarikli` MCP sunucusu) |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 89 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+Büyük metin döndüren en az bir tool taşıyan bir MCP sunucusu kayıtlı (bkz. §5 —
+repo'da dokümante edilmiş bir yerel MCP sunucusu yoktur, tester kendi
+sunucusunu getirir). Uygulama küçük bir kurulum varsayılanıyla başlatılmış:
+```bash
+export AgentPrism__Tools__DefaultMaxOutputBytes=200
+```
+
+**Adımlar**
+1. MCP sunucusundaki büyük çıktılı tool'u bir agent'a bağla, agent'ı çalıştırarak
+   tool'u çağırt.
+2. `run_events`'i oku:
+```bash
+curl -s "$BASE/api/runs/$RUN_ID/events" -H "$APB" \
+  | jq '.[] | select(.type=="ToolOutputTruncated")'
+```
+
+**Beklenen sonuç**
+- Modele giden `functionResult` içeriği `{"truncated":true,"omittedBytes":N,"content":"..."}`
+  zarfıdır ve toplam boyutu 200 baytı aşmaz — kod-tanımlı bir tool'la
+  **aynı davranış**, MCP tool'ları kırpmanın **ikinci, ayrı** sarmalama
+  zincirinden (`McpTenantTools.Create`) geçtiği için bu ayrı case gerekir.
+- `run_events`'te bir `ToolOutputTruncated` satırı vardır; `toolName` MCP
+  sunucusundaki tool'un adıyla eşleşir.
+- 🚨 Bu case atlanırsa ve MCP zincirine yeni bir sarmalayıcı eklenmesi
+  unutulursa, MCP tool'ları sınırsız kalır ve bu sessizce fark edilmez —
+  kod-tanımlı tool'ların case'i (MT-OBS-048) bu boşluğu KANITLAMAZ.

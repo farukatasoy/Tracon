@@ -3,13 +3,14 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// Trims MCP resource content to a byte limit.
+/// Trims text to a UTF-8 byte limit.
 /// </summary>
 /// <remarks>
-/// Pure and stateless; requires neither the network nor <c>McpClient</c>, so
-/// it is verified directly with a unit test.
+/// Pure and stateless. Used both to bound a tool's result
+/// (<see cref="TruncatingAIFunction"/>) and an MCP resource's content
+/// (<c>AgentPrism.Mcp</c>).
 /// </remarks>
-internal static class McpResourceTrimming
+public static class TextTrimming
 {
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
