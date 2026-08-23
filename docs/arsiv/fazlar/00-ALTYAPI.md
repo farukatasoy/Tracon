@@ -6,13 +6,24 @@
 
 ---
 
-## Amaç
-
-Bir NuGet paket ailesinin ihtiyaç duyduğu build, kalite ve sürümleme altyapısını kurmak. Bu fazda **ürün kodu yazılmaz**; iskelet ve kapılar kurulur.
-
-Gerekçe: paketleme kararları sonradan değiştirilmesi en pahalı kararlardır. Hedef framework kümesi, paket sınırları ve bağımlılık grafiği ilk günden doğru olmalıdır.
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/00-ALTYAPI.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
+
+## Amaç
+
+Bir NuGet paket ailesinin ihtiyaç duyduğu build, kalite ve sürümleme altyapısını kurmak. Bu fazda **ürün kodu yazılmaz**; iskelet ve kapılar kurulur. Gerekçe: paketleme kararları sonradan değiştirilmesi en pahalı kararlardır. Hedef framework kümesi, paket sınırları ve bağımlılık grafiği ilk günden doğru olmalıdır. ---
 
 ## Kapsam
 
@@ -99,51 +110,6 @@ The argument ...AgentPrism.Core.UnitTests.dll is invalid.
 ### Sürüm MinVer ile git etiketinden
 
 Elle sürüm düzenlemesi yok. `v1.0.0-preview.1` etiketi atıldığında paketler o sürümü alır. Etiket yokken `0.0.0-preview.0` üretilir.
-
----
-
-## Üretilen Dosyalar
-
-### Kök yapılandırma
-
-| Dosya | İçerik |
-|-------|--------|
-| `global.json` | SDK `10.0.100`, `rollForward: latestFeature` |
-| `NuGet.config` | Yalnız nuget.org, `<clear />` ile makine kaynakları devre dışı |
-| `Directory.Build.props` | Dil, kalite kapıları, deterministik build, CPM |
-| `Directory.Build.targets` | Paket doğrulama kapısı, `AdditionalFiles`, README denetimi |
-| `Directory.Packages.props` | Tüm paket sürümleri (CPM) |
-| `.editorconfig` | Kod stili + tanı seviyeleri |
-| `.gitignore` | Sırlar, build çıktıları, Node, IDE |
-| `AgentPrism.slnx` | .NET 10 SDK çözüm formatı |
-| `.github/workflows/ci.yml` | build / test / pack / publish |
-
-### Katman yapılandırması
-
-| Dosya | İçerik |
-|-------|--------|
-| `src/Directory.Build.props` | Paketleme metadata'sı, TFM'ler, MinVer, AOT bayrağı |
-| `tests/Directory.Build.props` | `net10.0`, xunit.v3 + Microsoft Testing Platform, Shouldly, NSubstitute |
-| `samples/Directory.Build.props` | `net10.0`, paketlenmez |
-
-### Projeler
-
-```
-src/AgentPrism.Abstractions      → Microsoft.Agents.AI.Abstractions, Microsoft.Extensions.AI.Abstractions
-src/AgentPrism.Core              → Abstractions + Microsoft.Agents.AI, .Harness, Extensions.*
-src/AgentPrism.PostgreSql        → Core + Npgsql
-src/AgentPrism.OpenAI            → Core + Microsoft.Agents.AI.OpenAI, OpenAI
-src/AgentPrism.AspNetCore        → Core + Microsoft.Agents.AI.Hosting(.OpenAI) + AspNetCore.App
-src/AgentPrism.UI                → AspNetCore + AspNetCore.App
-src/AgentPrism                   → meta (yalnız ProjectReference)
-
-samples/AgentPrism.Api           → AgentPrism (meta)
-
-tests/AgentPrism.Core.UnitTests   → xunit.v3 + Shouldly + NSubstitute
-
-```
-
-Her yayınlanabilir pakette: `README.md` (NuGet sayfasında görünür), `PublicAPI.Shipped.txt`, `PublicAPI.Unshipped.txt`.
 
 ---
 

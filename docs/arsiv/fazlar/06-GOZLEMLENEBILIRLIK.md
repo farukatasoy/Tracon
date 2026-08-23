@@ -7,17 +7,24 @@
 
 ---
 
-## Amaç
-
-Üretim işletimi için gereken görünürlüğü ve denetimi eklemek. Faz 5 sonunda
-AgentPrism **çalışıyordu**; bu faz sonunda **işletilebilir** hâle geldi:
-
-- her çalıştırmanın span ağacı ve metriği var
-- geri alınamaz tool'lar kullanıcı onayı bekliyor
-- tool'lar uzak MCP sunucularından da gelebiliyor
-- kiracı istekten çözülüyor ve hiçbir uçtan sızmıyor
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
+
+## Amaç
+
+Üretim işletimi için gereken görünürlüğü ve denetimi eklemek. Faz 5 sonunda AgentPrism **çalışıyordu**; bu faz sonunda **işletilebilir** hâle geldi: - her çalıştırmanın span ağacı ve metriği var - geri alınamaz tool'lar kullanıcı onayı bekliyor - tool'lar uzak MCP sunucularından da gelebiliyor - kiracı istekten çözülüyor ve hiçbir uçtan sızmıyor ---
 
 ## Plandan Sapmalar
 
@@ -78,199 +85,6 @@ ise 8 baytlık onaltılıktır. Çözüm: veritabanı kimliği W3C kimliklerinde
 tamamlanabilir) ve aynı span iki kez yazılırsa tekrar kaydı oluşmaz.
 Migration 0002, W3C kimliğini `spans.span_id` sütununda ayrıca saklar — kullanıcı
 aynı span'i kendi APM sisteminde bulabilmelidir.
-
----
-
-## Gerçekleşen Public API
-
-### AgentPrism.Abstractions
-
-```csharp
-// Telemetri
-public sealed record TraceSpan {
-    Guid Id; Guid? ParentId; string SpanId; string Name;
-    TraceSpanKind Kind; DateTimeOffset StartedAt; DateTimeOffset? EndedAt;
-    TraceSpanStatus Status; IReadOnlyDictionary<string,string> Attributes;
-    TimeSpan? Duration { get; }            // [JsonIgnore]
-}
-public sealed record RunTrace { Guid Id; string TraceId; Guid? RunId; string TenantId;
-                                DateTimeOffset StartedAt; DateTimeOffset? EndedAt;
-                                IReadOnlyList<TraceSpan> Spans; }
-public enum TraceSpanKind   { Internal, Server, Client, Producer, Consumer }   // JSON: ad
-public enum TraceSpanStatus { Unset, Ok, Error }                               // JSON: ad
-
-public interface ITraceStore {
-    ValueTask WriteSpansAsync(TraceSpanBatch batch, CancellationToken ct = default);
-    ValueTask<RunTrace?> GetTraceByRunAsync(Guid runId, CancellationToken ct = default);
-}
-public sealed record TraceSpanBatch { string TraceId; string TenantId; Guid? RunId;
-                                      IReadOnlyList<TraceSpan> Spans; }
-
-// Tool cagrilari — IRunStore'a UC yeni uye eklendi
-public sealed record ToolInvocationRecord {
-    Guid Id; Guid RunId; string ToolName; string? ToolCallId; string? Source;
-    string? Arguments; string? Result; TimeSpan? Duration; string? Error;
-    DateTimeOffset CreatedAt; bool Succeeded { get; }
-}
-public sealed record ToolUsage { string ToolName; long TotalCalls; long FailedCalls;
-                                 double? AverageDurationMs; DateTimeOffset? LastCalledAt;
-                                 double? ErrorRate { get; } }
-public sealed record ToolUsageQuery { string? TenantId; DateTimeOffset? StartedAfter; int MaxTools = 50; }
-
-interface IRunStore {                        // ...mevcut uyeler + :
-    ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken ct = default);
-    ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken ct = default);
-    ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken ct = default);
-}
-
-// Onay
-public sealed record ToolApprovalRule { Guid Id; string TenantId; string? AgentName;
-                                        string ToolName; string? ArgumentsHash;
-                                        string? CreatedBy; DateTimeOffset CreatedAt; }
-public interface IToolApprovalRuleStore {
-    ValueTask<IReadOnlyList<ToolApprovalRule>> ListAsync(string tenantId, CancellationToken ct = default);
-    ValueTask<ToolApprovalRule> AddAsync(ToolApprovalRule rule, CancellationToken ct = default);
-    ValueTask<bool> DeleteAsync(string tenantId, Guid ruleId, CancellationToken ct = default);
-}
-
-// MCP
-public enum McpTransportMode { StreamableHttp, Sse }                            // stdio YOK (K-058)
-public sealed record McpServerDefinition { Guid Id; string TenantId; string Name; string? Description;
-                                           Uri Endpoint; McpTransportMode Transport;
-                                           string? AuthorizationConfigurationKey;   // SIR DEGIL, ANAHTAR ADI
-                                           IReadOnlyDictionary<string,string> Headers;
-                                           bool Enabled = true; bool RequiresApproval = true;
-                                           DateTimeOffset CreatedAt; DateTimeOffset UpdatedAt; }
-public interface IMcpServerStore  { ListAsync · GetAsync · SaveAsync · DeleteAsync }
-public interface IMcpToolRefresher { ValueTask<int> RefreshAsync(CancellationToken ct = default); }
-
-// Kiracilar
-public sealed record TenantDescriptor { Guid Id; string Slug; string DisplayName; DateTimeOffset CreatedAt; }
-public interface ITenantStore { ListAsync · SaveAsync · DeleteAsync }
-
-// Genisletilen tipler
-record RunRecord     { ...; string? ModelId; }
-record RunStartInfo  { ...; string? ModelId; }
-record RunStatistics { ...; IReadOnlyList<RunModelStatistics> ByModel; }        // Faz 20'de TotalCost/Currency/RunsWithUnknownPricing eklendi
-record RunModelStatistics { string ModelId; long TotalRuns; long InputTokens; long OutputTokens; long TotalTokens; }  // Faz 20'de TotalCost eklendi
-record ToolDescriptor { ...; string? Source; }     // MCP tool'unda sunucu adi
-class  AgentPrismToolRegistration(AIFunction function, bool requiresApproval = false, string? source = null)
-```
-
-### AgentPrism.Core
-
-```csharp
-public static class AgentPrismDiagnostics {
-    const string ActivitySourceName = "AgentPrism";
-    const string MeterName          = "AgentPrism";
-    const string RunActivityName    = "agentprism.run";
-    const string RunCounterName     = "agentprism.runs";
-    const string RunDurationName    = "agentprism.run.duration";
-    const string TokenCounterName   = "agentprism.tokens";
-    const string ToolCounterName    = "agentprism.tool.invocations";
-    const string ToolDurationName   = "agentprism.tool.duration";
-    static class Tags { RunId, AgentName, TenantId, SessionId, Status, Streaming, ModelId, ToolName, Direction }
-}
-
-public sealed class AgentPrismMetrics : IDisposable {
-    AgentPrismMetrics(IMeterFactory? meterFactory = null);
-    void RecordRun(string agentName, RunStatus status, string tenantId, string? modelId,
-                   TimeSpan duration, RunUsage? usage);
-    void RecordToolInvocation(string toolName, bool succeeded, TimeSpan? duration);
-}
-
-public sealed class RunTraceCollector : IDisposable {
-    bool IsCollecting { get; }
-    bool BeginRun(string traceId);
-    ValueTask<bool> CompleteRunAsync(string traceId, Guid runId, string tenantId,
-                                     RunStatus status, CancellationToken ct = default);
-}
-
-public sealed class ToolApprovalRuleEvaluator {
-    ValueTask<bool> IsAutoApprovedAsync(string agentName, FunctionCallContent call, CancellationToken ct = default);
-    static string ComputeArgumentsHash(IDictionary<string, object?>? arguments);
-}
-
-public sealed class OpenTelemetryAgentDecorator : IAgentDecorator { int Order => 10; }
-public sealed class ToolApprovalAgentDecorator  : IAgentDecorator { int Order => 20; }
-
-public sealed class AgentPrismObservabilityOptions {
-    bool   Enabled              = true;
-    bool   PersistSpans         = true;
-    double SuccessSampleRatio   = 0.1;
-    bool   AlwaysPersistFailures = true;
-    int    MaxSpansPerRun       = 200;
-    bool   RecordSensitiveData  = false;
-}
-
-// Bellek ici depolar
-InMemoryTraceStore · InMemoryToolApprovalRuleStore · InMemoryMcpServerStore · InMemoryTenantStore
-```
-
-### AgentPrism.AspNetCore
-
-```csharp
-public static IAgentPrismBuilder UseTenancy(this IAgentPrismBuilder builder,
-                                            Action<AgentPrismTenancyOptions> configure);
-
-public sealed class AgentPrismTenancyOptions {
-    bool         Enabled              = false;   // varsayilan KAPALI
-    string?      ClaimType;                      // ayarliysa baslik HIC okunmaz
-    string       HeaderName            = "X-AgentPrism-Tenant";
-    bool         AllowHeaderResolution = false;  // baslik sahtelenebilir
-    IList<string> AllowedTenants       { get; }
-}
-
-public sealed partial class HttpTenantContext : ITenantContext {
-    static bool IsValidTenantId(string? tenantId);
-}
-
-// Sozlesmeler
-record CurrentTenantResponse { string TenantId; }
-record TenantRequest         { string? DisplayName; }
-record McpServerRequest      { ... }            // sir alani YOK
-record McpRefreshResponse    { int ToolCount; }
-record ToolApprovalDecision  { string RequestId; bool Approved; string? Reason;
-                               bool Remember; bool RememberArgumentsOnly; }
-record AgentRunRequest       { string? Message;  // artik istege bagli
-                               string? SessionId;
-                               IReadOnlyList<ToolApprovalDecision> Approvals = []; }
-```
-
-### AgentPrism.Mcp (yeni paket)
-
-```csharp
-public static IAgentPrismBuilder UseMcp(this IAgentPrismBuilder builder,
-                                        Action<AgentPrismMcpOptions>? configure = null);
-
-public sealed class AgentPrismMcpOptions {
-    const string SectionName = "AgentPrism:Mcp";
-    bool     Enabled           = true;
-    TimeSpan RefreshInterval   = 5 dk;
-    TimeSpan ConnectionTimeout = 30 sn;
-    int      MaxToolsPerServer = 100;
-}
-
-public sealed class McpToolRegistry : IToolRegistry;   // kodda kayitli tool'lar ONCELIKLI
-```
-
----
-
-## Yeni HTTP Uçları
-
-| Uç | Ne döner |
-|----|----------|
-| `GET  {prefix}/api/runs/{id}/trace` | Span ağacı. **404 normaldir** — span yazımı örneklenir |
-| `GET  {prefix}/api/runs/{id}/tools` | Çalıştırmanın tool çağrıları, zaman sırasına göre |
-| `GET  {prefix}/api/tools/usage` | Tool bazında çağrı sayısı, hata oranı, ortalama süre |
-| `GET  {prefix}/api/tenants/current` | Geçerli isteğin kiracısı |
-| `GET/PUT/DELETE {prefix}/api/tenants[/{slug}]` | Kiracı kayıtları |
-| `GET/PUT/DELETE {prefix}/api/mcp-servers[/{name}]` | Uzak MCP sunucuları |
-| `POST {prefix}/api/mcp-servers/refresh` | Tool listesini şimdi tazeler (`501` = MCP kayıtlı değil) |
-| `GET/DELETE {prefix}/api/approvals/rules[/{id}]` | Kalıcı "bir daha sorma" kuralları |
-
-`POST {prefix}/api/agents/{name}/run` gövdesi genişledi: `message` artık isteğe
-bağlı, `approvals` eklendi. İkisinden **en az biri** zorunludur.
 
 ---
 
@@ -337,76 +151,6 @@ onaylanır.
 > `tool_approval_rules` benzersizliği düz bir `UNIQUE` kısıtla kurulamaz:
 > `agent_name` ve `arguments_hash` `NULL` olabilir ve PostgreSQL'de `NULL`'lar
 > birbirine eşit sayılmaz — aynı kural sınırsız kez eklenebilirdi.
-
----
-
-## Dosya Listesi
-
-```
-src/AgentPrism.Abstractions/
-├── Observability/TraceSpan.cs · ITraceStore.cs
-├── Runs/ToolInvocationRecord.cs
-├── Approvals/ToolApprovalRule.cs
-├── Mcp/McpServerDefinition.cs · IMcpToolRefresher.cs
-└── Tenancy/TenantDescriptor.cs
-
-src/AgentPrism.Core/
-├── Diagnostics/AgentPrismDiagnostics.cs · AgentPrismMetrics.cs
-│                RunTraceCollector.cs · TraceSpanIdentity.cs
-│                OpenTelemetryAgentDecorator.cs
-├── Approvals/ToolApprovalRuleEvaluator.cs · ToolApprovalAgentDecorator.cs
-├── Recording/ToolInvocationTracker.cs
-└── Storage/InMemoryTraceStore.cs · InMemoryApprovalAndMcpStores.cs
-
-src/AgentPrism.PostgreSql/
-├── Migrations/0002_observability.sql
-└── Stores/PostgresTraceStore.cs · PostgresApprovalAndMcpStores.cs
-
-src/AgentPrism.Mcp/                            (YENI PAKET)
-├── AgentPrismMcpBuilderExtensions.cs · AgentPrismMcpOptions.cs
-├── McpToolRegistry.cs · README.md
-└── Internal/McpToolCatalog.cs · McpConnection.cs
-             McpTenantTools.cs · McpToolNaming.cs · McpDiscoveryService.cs
-
-src/AgentPrism.AspNetCore/
-├── Endpoints/ObservabilityEndpoints.cs · GovernanceEndpoints.cs
-├── Contracts/GovernanceContracts.cs
-├── Internal/ToolApprovalResolver.cs
-└── Tenancy/AgentPrismTenancyOptions.cs · HttpTenantContext.cs
-            AgentPrismTenancyBuilderExtensions.cs
-
-src/AgentPrism.UI/frontend/src/
-├── components/waterfall.tsx
-└── screens/mcp.tsx
-```
-
----
-
-## Testler
-
-| Paket | Test | Değişim |
-|-------|------|---------|
-| `AgentPrism.Core.UnitTests` | 85 | +23 (telemetri, onay) |
-| `AgentPrism.OpenAI.UnitTests` | 48 | — |
-| `AgentPrism.AspNetCore.FunctionalTests` | 112 | +24 (yönetişim, kiracılık) |
-| `AgentPrism.PostgreSql.IntegrationTests` | 128 | +21 (tool çağrısı + span sözleşmeleri) |
-| `AgentPrism.Ui.E2ETests` | 10 | +2 (MCP ekranı, tool istatistiği) |
-| Frontend (Vitest) | 40 | — |
-| **Toplam** | **383 + 40** | |
-
-Yeni test sınıfları:
-
-- `Diagnostics/ObservabilityTests` — metrik adlarının kararlılığı, saniye birimi,
-  örnekleme (hata %100 / başarı orana bağlı), sızıntısız tampon ve
-  **iç span'lerin kök span'in çocuğu olması** (S8 regresyonu)
-- `Approvals/ToolApprovalTests` — defterin sarmalaması, kural kapsamı
-  (agent/argüman/kiracı), depo hatasında onay **verilmemesi**, parmak izinin
-  anahtar sırasından bağımsızlığı
-- `GovernanceEndpointTests` — yeni uçlar, MCP sır sızdırmama, stdio reddi
-- `TenancyTests` — **claim ayarlıyken başlığın hiç okunmaması**, beyaz liste,
-  kiracılar arası sızıntı
-- `Contracts/ToolInvocationContract` + `Contracts/TraceStoreContract` — bellek içi
-  ve PostgreSQL uygulamalarında **aynı** davranış
 
 ---
 

@@ -8,30 +8,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-1. [`MIMARI.md`](../../MIMARI.md) — bölüm 4 (Faz 3'te kullanılanlar), bölüm 6 (çalıştırma yolu)
-2. [`KARARLAR.md`](../../KARARLAR.md) — **K-032** (model kataloğu yapılandırmadan), **K-030** (Responses depolama), **K-007** (geçişli sabitleme kapalı), **K-025** (`Replace` vs `TryAdd`)
-3. [`03-SAGLAYICI-VE-DERLEYICI.md`](03-SAGLAYICI-VE-DERLEYICI.md) — bugünkü sağlayıcı tasarımı
-4. [`../MEMORY.md`](../../../MEMORY.md) — OpenAI tip adı tuzakları
-5. Bu doküman
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Bugün AgentPrism tek satıcıya bağlı. "Kontrol düzlemi" iddiası tek sağlayıcıyla
-zayıf kalır. Bu faz üç şeyi yapar:
-
-- **F-03** — OpenAI uyumlu **herhangi** bir uca bağlanma (OpenRouter, Groq, vLLM, Together…)
-- **F-05** — Yerel modeller (Ollama, LM Studio) — F-03 ile büyük ölçüde bedava gelir
-- **F-16** — Sağlayıcı sağlık denetimi ve devre kesici (Faz 5'ten **açık kalem**)
-
-Bu faz baştadır çünkü **sonraki her fazı ucuzlatır**: skill, workflow ve eval
-fazları çok token harcar; yerel bir modelle veya ucuz bir OpenRouter modeliyle
-geliştirmek maliyeti düşürür.
-
----
+Bugün AgentPrism tek satıcıya bağlı. "Kontrol düzlemi" iddiası tek sağlayıcıyla zayıf kalır.
 
 ## Bugün Ne Var (ölçüldü, 2026-08-02)
 
@@ -55,172 +49,6 @@ yalnız yapılandırmadan doldurulur.
 
 ---
 
-## 8.1 — Adlandırılmış OpenAI Uyumlu Sağlayıcılar (F-03)
-
-Hedef kullanım:
-
-```csharp
-builder.AddAgentPrism()
-       .UseOpenAI(apiKey)                                   // degismedi
-       .UseOpenAICompatible("openrouter", o =>
-       {
-           o.Endpoint = new Uri("https://openrouter.ai/api/v1");
-           o.ApiKey   = configuration["OpenRouter:ApiKey"];  // SIR: user-secrets
-       })
-       .UseOpenAICompatible("ollama", o =>
-       {
-           o.Endpoint = new Uri("http://localhost:11434/v1");
-           // ApiKey YOK — yerel sunucu istemiyor
-       });
-```
-
-Yapılandırmadan (K-028 ile uyumlu alt bölüm düzeni):
-
-```
-AgentPrism:Providers:OpenAICompatible:openrouter:Endpoint
-AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey        ← user-secrets
-AgentPrism:Providers:OpenAICompatible:openrouter:DefaultModel
-AgentPrism:Providers:OpenAICompatible:openrouter:Models:0:Name
-```
-
-Yapılacak işler:
-
-1. **Adlandırılmış ayar.** `IOptionsMonitor<OpenAIProviderOptions>.Get(name)`
-   kullanılır. `services.Configure<OpenAIProviderOptions>(name, configure)`.
-   Doğrulayıcı (`OpenAIProviderOptionsValidator`) adlandırılmış örnekleri de
-   denetlemelidir — `IValidateOptions<T>.Validate(string? name, T options)`
-   imzası bunu zaten destekler; bugünkü uygulama `name` parametresini yok
-   sayıyorsa düzeltilir.
-2. **Fabrika artık ada göre.** `OpenAIChatClientFactory` tekil kayıttan çıkar;
-   `IOpenAIChatClientFactoryProvider.Get(name)` benzeri bir sözlük gelir veya
-   fabrika `name` parametresi alır. `OpenAIClient` **ad başına bir kez** kurulur
-   ve önbelleklenir — her çağrıda yeni istemci kurmak bağlantı havuzunu bozar.
-3. **Ad doğrulaması.** Sağlayıcı adı `[a-z0-9][a-z0-9-]{0,31}` ile sınırlanır.
-   `openai` ve `openai-responses` **rezervedir**; bu adlarla kayıt hata verir.
-   Gerekçe: agent tanımındaki `ModelBinding.Provider` bu adı taşır ve çakışma
-   sessiz bir yanlış yönlendirmedir.
-4. **Yalnız Chat Completions yüzeyi.** Uyumlu sağlayıcılar için `Responses`
-   yüzeyi **kaydedilmez**. Ölçülmedi ama biliniyor: uyumlu sunucuların çoğu
-   `/v1/responses` uygulamıyor. İsteyen `o.EnableResponsesSurface = true` ile
-   açar; varsayılan kapalıdır.
-5. **API anahtarı isteğe bağlı.** Yerel sunucular anahtar istemez (F-05).
-   `ApiKey` boşsa sabit bir yer tutucu ile `ApiKeyCredential` kurulur
-   (`OpenAIClient` boş kimlik kabul etmez). Bu davranış **yalnız** uyumlu
-   sağlayıcılarda geçerlidir; `UseOpenAI` anahtarsız çalışmaya devam etmez.
-
-> 🚨 **K-032 aynen geçerlidir.** Uyumlu sağlayıcının model kataloğu da
-> yapılandırmadan gelir. Katalog bir **doğrulama listesi değildir**: listede
-> olmayan model adı da kullanılabilir.
-
----
-
-## 8.2 — Yerel Modeller (F-05)
-
-F-03 tamamlandığında Ollama ve LM Studio ek kod istemez. Bu bölüm yalnız
-**doğrulama ve dokümantasyondur**:
-
-- `samples/AgentPrism.Api` içine yorumlanmış bir Ollama örneği eklenir
-- `src/AgentPrism.OpenAI/README.md` yerel kurulum bölümü alır
-- Bilinen fark listesi yazılır: Ollama `tool_choice` desteğini model bazında
-  değiştirir; akışta `usage` göndermeyen sunucular vardır — o durumda
-  `RunRecord.TotalTokens` **null** kalır ve bu bir hata değildir
-
----
-
-## 8.3 — Sağlayıcı Sağlık Denetimi (F-16)
-
-Faz 5'in Models ekranındaki "sağlık kontrolü faz 6'da gelir" notu **hâlâ
-açıktır**; Faz 6 bunu yapmadı. Burada kapanır.
-
-### Sözleşme
-
-`IModelProvider` arayüzüne üye **eklenmez** — bu, tüketicinin kendi sağlayıcı
-uygulamasını kırar (K4). Ayrı ve isteğe bağlı bir arayüz gelir:
-
-```csharp
-namespace AgentPrism;
-
-public interface IModelProviderHealthCheck
-{
-    ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken ct = default);
-}
-
-public sealed record ModelProviderHealth
-{
-    public required string ProviderName { get; init; }
-    public required ModelProviderHealthStatus Status { get; init; }
-    public string? Detail { get; init; }              // SIR TASIMAZ
-    public TimeSpan? Latency { get; init; }
-    public DateTimeOffset CheckedAt { get; init; }
-    public IReadOnlyList<string> Models { get; init; } = [];
-}
-
-public enum ModelProviderHealthStatus { Unknown, Healthy, Degraded, Unhealthy }
-```
-
-Bir sağlayıcı bu arayüzü uygulamıyorsa durumu `Unknown`'dır ve bu bir hata
-değildir.
-
-### Denetim nasıl yapılır
-
-**Ücretli bir model çağrısı yapılmaz.** OpenAI ve uyumlu sunucular
-`GET {endpoint}/models` ucunu sunar; denetim bu uca gider. Yanıt gövdesi model
-adlarını verir, ücret oluşturmaz.
-
-```mermaid
-flowchart LR
-    UI["Models ekrani"] -->|"GET /api/models/health"| EP["ModelEndpoints"]
-    EP --> C["ModelProviderHealthCache<br/>TTL varsayilan 60 sn"]
-    C -->|"onbellek bos veya ?refresh=true"| P["IModelProviderHealthCheck"]
-    P -->|"GET {endpoint}/models"| S["Saglayici"]
-    C -->|"onbellek dolu"| EP
-
-    style C fill:#1f4f7a,stroke:#0d2740,color:#ffffff
-```
-
-- Denetim **isteğe bağlıdır**, arka planda zamanlayıcı ile koşmaz.
-  `AgentPrismHealthOptions.BackgroundInterval` verilirse koşar; varsayılan `null`.
-- Sonuç önbelleklenir. Arayüz her açılışta sağlayıcıya gitmez.
-- Hata detayı **sır taşımaz**: HTTP durum kodu ve kısa neden yazılır, yanıt
-  gövdesi ve başlıklar yazılmaz.
-
-### Devre kesici
-
-Bugün bir sağlayıcı çökerse her çalıştırma tek tek hata verir ve kullanıcı aynı
-hatayı defalarca görür.
-
-**Yeni paket eklenmez.** `Microsoft.Extensions.Http.Resilience` (10.8.0) mevcut
-ama `AgentPrism.OpenAI` AOT uyumludur ve K-007 gereği tüketicinin bağımlılık
-grafiği kirletilmez. Yerine `AgentPrism.Core` içinde ~120 satırlık bir
-`ModelProviderCircuitBreaker` yazılır:
-
-| Durum | Davranış |
-|-------|----------|
-| `Closed` | İstekler geçer. Ardışık hata sayacı tutulur |
-| `Open` | `AgentPrismProviderUnavailableException` **anında** atılır; model çağrısı yapılmaz |
-| `HalfOpen` | Tek bir deneme geçer; başarılıysa `Closed`, değilse yeniden `Open` |
-
-Ayarlar: `FailureThreshold` (varsayılan 5), `BreakDuration` (varsayılan 30 sn),
-`Enabled` (varsayılan **true**). Devre durumu sağlık ucunda görünür.
-
-> Devre kesici `IChatClient` boru hattına **dekoratör** olarak girer, sağlayıcı
-> uygulamasının içine değil. Böylece Anthropic (Faz 26) ve Azure (Faz 27) aynı
-> korumayı bedava alır.
-
----
-
-## Yeni HTTP Uçları
-
-| Uç | Ne döner |
-|----|----------|
-| `GET {prefix}/api/models/health` | Tüm sağlayıcıların önbellekli sağlık durumu |
-| `GET {prefix}/api/models/health?refresh=true` | Önbelleği atlar, sağlayıcıya gider |
-| `GET {prefix}/api/models/health/{provider}` | Tek sağlayıcı |
-
-`GET {prefix}/api/models` yanıtı `providers[].status` alanı ile genişler.
-
----
-
 ## Arayüz
 
 `frontend/src/screens/models.tsx`:
@@ -231,20 +59,6 @@ Ayarlar: `FailureThreshold` (varsayılan 5), `BreakDuration` (varsayılan 30 sn)
 - Faz 5'ten kalan "sağlık kontrolü faz 6'da gelir" notu **silinir**
 
 Bundle etkisi hedefi: **+3 KB gzip'ten az**. Yeni kütüphane eklenmez.
-
----
-
-## Testler
-
-| Proje | Yeni test |
-|-------|-----------|
-| `AgentPrism.OpenAI.UnitTests` | Adlandırılmış sağlayıcı kaydı; rezerve ad reddi; ad doğrulama; anahtarsız uyumlu sağlayıcı; iki sağlayıcının **farklı** `Endpoint` kullandığının kanıtı (`ChatClientMetadata.ProviderUri`) |
-| `AgentPrism.Core.UnitTests` | Devre kesici durum makinesi; `HalfOpen` tek deneme; eşik sonrası çağrı **yapılmaması** |
-| `AgentPrism.AspNetCore.FunctionalTests` | Sağlık ucu; önbellek davranışı; sağlayıcı hata detayının **sır taşımaması**; kimlik doğrulama katmanlarının uygulanması |
-| `AgentPrism.Ui.E2ETests` | Models ekranında rozet görünür |
-
-> `ChatClientMetadata.ProviderUri` kullanın — `OpenAIClient.Endpoint` `OPENAI001`
-> işaretlidir ve testte bastırma ister (MEMORY.md).
 
 ---
 
@@ -272,172 +86,6 @@ Karar defterine yazıldı (bkz. `docs/KARARLAR.md`, K-069–K-073):
 1. **Devre kesici varsayılan açık** (`Enabled = true`).
 2. **`UseOpenAICompatible(ad, ...)`** — ayrı ad, `UseOpenAI` aşırı yüklemesi değil.
 3. **Sağlık denetimi arka planda varsayılan kapalı** (`BackgroundInterval = null`).
-
----
-
-## Gerçekleşen Public API
-
-Plandaki taslak değil, koddaki gerçek imzalar.
-
-### `AgentPrism.OpenAI` — yeni/değişen
-
-```csharp
-public sealed class OpenAIProviderOptions
-{
-    // ...mevcut uyeler...
-
-    // YENI. Yalniz UseOpenAICompatible() okur; UseOpenAI() yok sayar.
-    public bool EnableResponsesSurface { get; set; }
-}
-
-// YENI dosya. Yalniz SectionName tasir.
-public static class OpenAICompatibleProviderOptions
-{
-    public const string SectionName = "AgentPrism:Providers:OpenAICompatible";
-}
-
-// YENI dosya.
-public static class OpenAICompatibleProviderExtensions
-{
-    public static IAgentPrismBuilder UseOpenAICompatible(
-        this IAgentPrismBuilder builder, string name, Action<OpenAIProviderOptions> configure);
-
-    public static IAgentPrismBuilder UseOpenAICompatible(
-        this IAgentPrismBuilder builder, string name, IConfiguration configurationSection);
-}
-
-// OpenAIProviderOptionsValidator — DEGISTI. name parametresi artik kullaniliyor:
-//   name bos (varsayilan ornek, UseOpenAI())  -> ApiKey ZORUNLU
-//   name dolu  (adlandirilmis, UseOpenAICompatible()) -> Endpoint ZORUNLU, ApiKey ISTEGE BAGLI
-
-// OpenAIModelProvider — DEGISTI: artik IModelProviderHealthCheck da uyguluyor.
-public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck
-{
-    public OpenAIModelProvider(
-        string name, OpenAIApiSurface apiSurface, OpenAIChatClientFactory chatClientFactory,
-        IReadOnlyList<ModelDescriptor> models, ILogger<OpenAIModelProvider>? logger = null,
-        OpenAIProviderOptions? healthCheckOptions = null);   // YENI, son parametre, opsiyonel
-
-    public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default);
-}
-
-// internal — GET {endpoint}/models denetimi. Statik yardimcilari testler icin internal.
-internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProviderOptions options)
-    : IModelProviderHealthCheck
-{
-    internal static Uri BuildModelsEndpoint(Uri? baseEndpoint);
-    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(HttpResponseMessage response, CancellationToken ct);
-}
-
-// internal — adlandirilmis ornekler icin OpenAIChatClientFactory onbellegi.
-internal sealed class OpenAINamedChatClientFactoryCache
-{
-    public OpenAIChatClientFactory Get(string name);
-}
-```
-
-### `AgentPrism.Abstractions` — yeni
-
-```csharp
-public interface IModelProviderHealthCheck
-{
-    ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default);
-}
-
-public sealed record ModelProviderHealth
-{
-    public required string ProviderName { get; init; }
-    public required ModelProviderHealthStatus Status { get; init; }
-    public string? Detail { get; init; }              // SIR TASIMAZ — HTTP kodu + kisa neden
-    public TimeSpan? Latency { get; init; }
-    public DateTimeOffset CheckedAt { get; init; }
-    public IReadOnlyList<string> Models { get; init; } = [];
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter<ModelProviderHealthStatus>))]   // K-040
-public enum ModelProviderHealthStatus { Unknown, Healthy, Degraded, Unhealthy }
-
-// ModelProviderDescriptor — YENI ALAN:
-public sealed record ModelProviderDescriptor
-{
-    // ...mevcut uyeler...
-    public ModelProviderHealthStatus Status { get; init; }   // onbellekten; /api/models ag cagrisi yapmaz
-}
-
-// YENI istisna.
-public sealed class AgentPrismProviderUnavailableException : AgentPrismException
-{
-    public string? ProviderName { get; init; }
-    public DateTimeOffset? RetryAfter { get; init; }
-}
-```
-
-### `AgentPrism.Core` — yeni
-
-```csharp
-public sealed class AgentPrismOptions
-{
-    // ...mevcut uyeler...
-    public AgentPrismCircuitBreakerOptions CircuitBreaker { get; set; } = new();
-    public AgentPrismHealthOptions Health { get; set; } = new();
-}
-
-public sealed class AgentPrismCircuitBreakerOptions
-{
-    public bool Enabled { get; set; } = true;
-    public int FailureThreshold { get; set; } = 5;
-    public TimeSpan BreakDuration { get; set; } = TimeSpan.FromSeconds(30);
-}
-
-public sealed class AgentPrismHealthOptions
-{
-    public TimeSpan CacheTtl { get; set; } = TimeSpan.FromSeconds(60);
-    public TimeSpan? BackgroundInterval { get; set; }   // null = kapali (varsayilan)
-}
-
-public sealed class ModelProviderCircuitBreaker
-{
-    public ModelProviderCircuitBreaker(IOptionsMonitor<AgentPrismOptions> optionsMonitor, TimeProvider? timeProvider = null);
-    public bool IsEnabled { get; }
-    public IChatClient Wrap(string providerName, IChatClient inner);
-    public void EnsureRequestAllowed(string providerName);   // Open ise atar
-    public void RecordSuccess(string providerName);
-    public void RecordFailure(string providerName);
-    public bool IsOpen(string providerName, out TimeSpan? retryAfter);   // durumu DEGISTIRMEZ
-}
-
-public sealed class ModelProviderHealthCache
-{
-    public ModelProviderHealthCache(
-        IEnumerable<IModelProvider> providers, IOptionsMonitor<AgentPrismOptions> optionsMonitor,
-        ModelProviderCircuitBreaker? circuitBreaker = null, TimeProvider? timeProvider = null);
-
-    public ValueTask<IReadOnlyList<ModelProviderHealth>> GetAllAsync(bool refresh, CancellationToken ct = default);
-    public ValueTask<ModelProviderHealth?> GetAsync(string providerName, bool refresh, CancellationToken ct = default);
-    public bool TryPeek(string providerName, out ModelProviderHealth health);   // ag cagrisi YAPMAZ
-}
-
-// internal — BackgroundInterval null ise hicbir zamanlayici kurmadan doner.
-internal sealed class ModelProviderHealthBackgroundService : BackgroundService;
-
-// internal — devre kesici dekoratoru.
-internal sealed class CircuitBreakingChatClient : DelegatingChatClient;
-
-// ModelProviderRegistry — DEGISTI: yeni, OPSIYONEL ikinci parametre (geriye uyumlu).
-public sealed class ModelProviderRegistry : IModelProviderRegistry
-{
-    public ModelProviderRegistry(IEnumerable<IModelProvider> providers, ModelProviderCircuitBreaker? circuitBreaker = null);
-}
-```
-
-### `AgentPrism.AspNetCore` — yeni uçlar
-
-```
-GET {prefix}/api/models/health                  -> ModelProviderHealth[]  (onbellekli, TTL 60 sn)
-GET {prefix}/api/models/health?refresh=true      -> ayni, onbellek atlanir
-GET {prefix}/api/models/health/{provider}        -> ModelProviderHealth (404 bilinmeyen ad)
-GET {prefix}/api/models                          -> ModelProviderDescriptor[] — DEGISTI: her ogede artik `status` alani var (onbellekten, ag cagrisi YOK)
-```
 
 ---
 
@@ -513,86 +161,6 @@ hiçbir zaman sağlayıcıya ağ çağrısı yapmaz.
 
 ---
 
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.OpenAI/
-├── OpenAIProviderOptions.cs               EnableResponsesSurface eklendi
-├── OpenAIProviderOptionsValidator.cs      name-duyarli dogrulama
-├── OpenAIProviderExtensions.cs            Bind() internal yapildi, EnableResponsesSurface baglama
-├── OpenAIModelProvider.cs                 IModelProviderHealthCheck eklendi
-├── OpenAICompatibleProviderOptions.cs     YENI
-├── OpenAICompatibleProviderExtensions.cs  YENI — UseOpenAICompatible
-├── OpenAINamedChatClientFactoryCache.cs   YENI — internal
-└── OpenAIProviderHealthCheck.cs           YENI — internal, GET /models denetimi
-
-src/AgentPrism.Abstractions/
-├── Models/IModelProviderHealthCheck.cs    YENI — arayuz + ModelProviderHealth + enum
-├── Models/ModelDescriptor.cs              ModelProviderDescriptor.Status eklendi
-└── AgentPrismException.cs                 AgentPrismProviderUnavailableException eklendi
-
-src/AgentPrism.Core/
-├── AgentPrismOptions.cs                   CircuitBreaker + Health nested options
-├── AgentPrismOptionsValidator.cs          yeni alan dogrulamalari
-├── AgentPrismServiceCollectionExtensions.cs  DI kayitlari + Bind
-├── Models/ModelProviderRegistry.cs        opsiyonel devre kesici parametresi
-├── Models/ModelProviderCircuitBreaker.cs  YENI
-├── Models/CircuitBreakingChatClient.cs    YENI — internal
-├── Models/ModelProviderHealthCache.cs     YENI
-└── Models/ModelProviderHealthBackgroundService.cs  YENI — internal
-
-src/AgentPrism.AspNetCore/
-├── Endpoints/ModelHealthEndpoints.cs      YENI
-├── Endpoints/CatalogEndpoints.cs          /api/models 'status' alani ile genisledi
-└── AgentPrismEndpointRouteBuilderExtensions.cs  ModelHealthEndpoints.Map baglandi
-
-src/AgentPrism.UI/frontend/src/
-├── screens/models.tsx                     saglik rozeti, "Check now", devre kesici notu
-├── lib/types.ts                           ModelProviderHealth(Status) turleri
-├── lib/api.ts                             modelsHealth/modelHealth
-└── lib/format.ts (+.test.ts)              timeSpanMs/latencyText
-
-samples/AgentPrism.Api/
-├── Program.cs                             UseOpenAICompatible("openrouter", ...) + yorumlanmis Ollama + /health
-└── appsettings.json                       OpenAICompatible:openrouter semasi
-
-tests/AgentPrism.OpenAI.UnitTests/
-├── OpenAICompatibleProviderExtensionsTests.cs  YENI (16 test)
-└── OpenAIProviderHealthCheckTests.cs           YENI (9 test)
-
-tests/AgentPrism.Core.UnitTests/
-├── Models/ModelProviderCircuitBreakerTests.cs  YENI (14 test)
-└── Fakes/ManualTimeProvider.cs                 YENI
-
-tests/AgentPrism.AspNetCore.FunctionalTests/
-├── ModelHealthEndpointsTests.cs                 YENI (7 test)
-├── Infrastructure/FakeOpenAiCompatibleServer.cs YENI — gercek Kestrel, 127.0.0.1
-└── AgentPrism.AspNetCore.FunctionalTests.csproj ProjectReference: AgentPrism.OpenAI eklendi
-
-tests/AgentPrism.Ui.E2ETests/
-└── UiTests.cs                             Models_ekraninda_saglik_rozeti_gorunur eklendi
-```
-
----
-
-## Testler
-
-**434 test geçiyor** (Faz 7 sonunda ~407 idi; artış +27 net yeni test, bazı
-sayılar mevcut projelere eklendi).
-
-| Proje | Sayı | Faz 8'de eklenen |
-|-------|------|-------------------|
-| `AgentPrism.OpenAI.UnitTests` | 77 | `OpenAICompatibleProviderExtensionsTests` (ad dogrulama, rezerve ad, anahtarsiz yerel saglayici, iki farkli Endpoint kaniti, Responses yuzeyi acik/kapali, yapilandirmadan okuma), `OpenAIProviderHealthCheckTests` (adres birlestirme, JSON ayristirma, 200 model sinirlamasi) |
-| `AgentPrism.Core.UnitTests` | 99 | `ModelProviderCircuitBreakerTests` (Closed/Open/HalfOpen gecisleri, `ManualTimeProvider` ile mola suresi kontrolu, `Wrap` ile gercek basari/hata sayimi) |
-| `AgentPrism.AspNetCore.FunctionalTests` | 119 | `ModelHealthEndpointsTests` (Unknown/404/onbellek/refresh/hata detayi sizinti testi/devre kesicinin saglik ucuna yansimasi) — `FakeOpenAiCompatibleServer` ile gercek soket |
-| `AgentPrism.Ui.E2ETests` | 11 | Models ekraninda rozet + "Check now" dugmesi |
-| `AgentPrism.PostgreSql.IntegrationTests` | 128 | degismedi |
-
-**Gerçek OpenAI/OpenRouter çağrısı yapan test yoktur** (Faz 3'teki karar
-korunuyor). Ağ gerektiren doğrulama elle yapıldı — aşağıda.
-
----
-
 ## Bitiş Ölçütleri (DoD)
 
 Elle doğrulama: gerçek OpenAI anahtarı + gerçek OpenRouter anahtarı,
@@ -646,18 +214,6 @@ başarısız oldu — `max_tokens` varsayılanı (65536) hesabın karşılayabil
 kredinin üzerindeydi. `ModelBinding.MaxOutputTokens = 512` eklenince sorun
 çözüldü (sapma S6). Bu, koddaki bir hata değil, gerçek bir OpenRouter hesap
 kısıtıydı ve gizlenmedi.
-
----
-
-## Riskler — kapanış durumu
-
-| Risk | Sonuç |
-|------|-------|
-| "OpenAI uyumlu" iddiası her sunucuda tutmaz | Sağlık ucu erişilebilirlik ölçer, yetenek değil. OpenRouter'ın `max_tokens` kredi davranışı (sapma S6) bunun somut bir örneği — README'ye bilinen sınır olarak eklenmeli |
-| Adlandırılmış ayar doğrulaması atlanır | `Endpoint_verilmeyen_adlandirilmis_saglayici_dogrulama_hatasi_verir` testi bunu koruyor |
-| Devre kesici çok agresif olur | Eşik ve süre yapılandırılabilir; `Enabled=false` ile tamamen kapanır. Varsayılan `Enabled=true` (kullanıcı kararı) |
-| Yerel modelde `usage` gelmez | Kod değişmedi; `TotalTokens` null kalır — Faz 20'ye devredildi |
-| Ollama gerçek kurulu değildi | **Gerçekleşti.** Sapma S5 — mekanizma sahte sunucuyla doğrulandı, gerçek Ollama ile yeniden doğrulama Faz 8 sonrası açık kalan bir iştir |
 
 ---
 

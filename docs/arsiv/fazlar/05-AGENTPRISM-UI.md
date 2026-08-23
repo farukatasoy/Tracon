@@ -7,31 +7,18 @@
 
 ---
 
-## Bu Faza Başlarken
-
-Önce şunları bu sırayla okuyun:
-
-1. [`MIMARI.md`](../../MIMARI.md) — bölüm 3 (dört değişmez kural), bölüm 6 (çalıştırma yolu), bölüm 7 (güvenlik)
-2. [`KARARLAR.md`](../../KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın
-3. [`04-HTTP-API.md`](04-HTTP-API.md) — "Gerçekleşen Public API", "Plandan Sapmalar" ve "Faz 5'e Devreden Notlar"
-4. [`../MEMORY.md`](../../../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
-5. Bu doküman
-
-Arayüzü geliştirirken **çalışan bir arka uç** gerekir:
-
-```bash
-cd samples/AgentPrism.Api && dotnet run
-# http://localhost:5080/agentprism
-```
-
-Örnek uygulama API anahtarı olmadan da çalışır (ağ çağrısı yapmayan `EchoModelProvider`).
-
-Frontend üzerinde çalışıyorsanız Vite geliştirme sunucusu daha hızlıdır:
-
-```bash
-cd src/AgentPrism.UI/frontend && npm run dev
-# http://localhost:5173  —  /agentprism/* istekleri 5080'e vekillenir
-```
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/05-AGENTPRISM-UI.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
@@ -77,19 +64,7 @@ error   -> { type, message }
 
 ## Amaç
 
-Hafif ama eksiksiz bir yönetim arayüzü. Gömülü, sıfır kurulum. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz.
-
-Bu faz sonunda kabul senaryosu tamamlandı: paket kurulur, iki satır kod yazılır, tarayıcıda çalışan bir kontrol düzlemi açılır.
-
-```csharp
-builder.AddAgentPrism()
-       .UseOpenAI(apiKey)
-       .UseUI();            // ← arayuz varliklarini kaydeder
-
-app.MapAgentPrism("/agentprism");   // api + v1 + arayuz, tek onek
-```
-
----
+Hafif ama eksiksiz bir yönetim arayüzü. Gömülü, sıfır kurulum. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz. Bu faz sonunda kabul senaryosu tamamlandı: paket kurulur, iki satır kod yazılır, tarayıcıda çalışan bir kontrol düzlemi açılır.
 
 ## Teknoloji Seçimi
 
@@ -339,39 +314,6 @@ aynı kapıdır.
 
 ---
 
-## Gerçekleşen Public API
-
-```csharp
-// AgentPrism.UI
-public static class AgentPrismUiBuilderExtensions
-{
-    // Ayri bir esleme cagrisi YOKTUR. MapAgentPrism kaydi DI'dan cozer.
-    public static IAgentPrismBuilder UseUI(this IAgentPrismBuilder builder);
-}
-
-// AgentPrism.AspNetCore — arayuz paketinin uyguladigi sozlesme
-public interface IAgentPrismUiProvider
-{
-    bool HasAssets { get; }
-    ValueTask<bool> TryServeAsync(HttpContext context, string basePath, string relativePath);
-}
-
-// AgentPrism.Abstractions — calistirma kimligini cagiran uretir
-public sealed class AgentPrismRunOptions : Microsoft.Agents.AI.AgentRunOptions
-{
-    public AgentPrismRunOptions();
-    public Guid? RunId { get; init; }
-    public override AgentRunOptions Clone();   // RunId'yi korur
-}
-```
-
-`IAgentPrismUiProvider` bilerek **tek metotludur**: varlık listesi, içerik tipi,
-`ETag`, önbellek başlıkları, sıkıştırma biçimi ve SPA geri dönüşü tamamen uygulamaya
-aittir. Arayüz paketi paketleme biçimini değiştirdiğinde HTTP katmanının public
-API'si değişmez.
-
----
-
 ## Plandan Sapmalar
 
 ### S1 — `/api/agents/{name}/run` akışına `run` çerçevesi eklendi *(kullanıcı kararı)*
@@ -569,18 +511,6 @@ gomulu     : 80.9 KB brotli, 315.1 KB ham
 AgentPrism.UI.nupkg : 288 KB (uc hedef cerceve x gomulu varliklar)
 nuspec dogrudan bagimlilik : 1  (AgentPrism.AspNetCore)
 ```
-
----
-
-## Riskler — kapanış durumu
-
-| Risk | Sonuç |
-|------|-------|
-| CI'da Node.js gerekliliği build zincirini karmaşıklaştırır | **Kapandı.** Node adımı Faz 0'da eklenmişti; zincir artımsal, `pack` varlık yoksa `AGENTPRISM0003` ile anlaşılır hata veriyor |
-| Gömülü varlıklar assembly boyutunu büyütür | **Kapandı.** Brotli gömme ile 315 KB → 81 KB; nupkg 288 KB |
-| Ters vekil arkasında SSE arabelleği | **Kapandı** (Faz 4). `X-Accel-Buffering: no` |
-| `npm ci` ağ hatası build'i kırar | **Açık.** `package-lock.json` sabit; CI'da npm önbelleği var. Ağsız bir ortamda ilk derleme başarısız olur |
-| Üç hedef çerçeve tek çıktı dizinine yazar | **Kapandı.** Sapma S3 |
 
 ---
 

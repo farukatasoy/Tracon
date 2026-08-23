@@ -7,94 +7,24 @@
 
 ---
 
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/02-POSTGRESQL-KALICILIK.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
+
+---
+
 ## Amaç
 
-Tüm durumu PostgreSQL'e taşımak. Uygulama yeniden başladığında oturumlar, agent tanımları ve çalıştırma geçmişi yerinde durmalıdır.
-
-**Sonuç:** hedefe ulaşıldı. Örnek API durdurulup yeniden başlatıldığında çalıştırma geçmişi, oturum ve sohbet geçmişi yerinde kaldı (aşağıdaki DoD tablosunda gerçek çıktı var).
-
----
-
-## Gerçekleşen Public API
-
-Plandaki taslak değil, koddaki gerçek imzalar.
-
-### `AgentPrism.PostgreSql`
-
-```csharp
-// AgentPrismPostgreSqlBuilderExtensions — üç aşırı yükleme
-public static IAgentPrismBuilder UsePostgreSql(this IAgentPrismBuilder builder, string connectionString);
-public static IAgentPrismBuilder UsePostgreSql(this IAgentPrismBuilder builder, IConfiguration configurationSection);
-public static IAgentPrismBuilder UsePostgreSql(this IAgentPrismBuilder builder, Action<AgentPrismPostgreSqlOptions> configure);
-
-public sealed class AgentPrismPostgreSqlOptions
-{
-    public const string SectionName = "AgentPrism:PostgreSql";   // ← plandaki "AgentPrism" kökü değil
-    public string? ConnectionString { get; set; }
-    public string SchemaName { get; set; } = "agentprism";
-    public bool AutoApplyMigrations { get; set; } = true;
-    public int CommandTimeoutSeconds { get; set; } = 30;
-}
-
-public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<AgentPrismPostgreSqlOptions>;
-
-public sealed class MigrationRunner
-{
-    public MigrationRunner(NpgsqlDataSource dataSource, IOptions<AgentPrismPostgreSqlOptions> options, ILogger<MigrationRunner> logger);
-    public ValueTask<int> ApplyAsync(CancellationToken cancellationToken = default);   // uygulanan migration sayısı
-}
-
-public sealed class MigrationHostedService : IHostedService;
-
-public sealed class PostgresAgentDefinitionStore : IAgentDefinitionStore;
-public sealed class PostgresRunStore            : IRunStore;
-public sealed class PostgresSessionStore        : ISessionStore { public const int CurrentSchemaVersion = 1; }
-public sealed class PostgresChatHistoryProvider : Microsoft.Agents.AI.ChatHistoryProvider
-{
-    public const string SessionStateKey = "AgentPrism.ChatHistory";
-    public override IReadOnlyList<string> StateKeys { get; }
-}
-```
-
-Her deponun kurucusu aynıdır: `(NpgsqlDataSource, IOptions<AgentPrismPostgreSqlOptions>, ITenantContext)`.
-
-### `AgentPrism.Core` — bu fazda eklenenler
-
-```csharp
-// Oturum yaşam döngüsü. Sağlayıcıdan bağımsızdır; bellek içi depoyla da çalışır.
-public sealed class AgentSessionManager
-{
-    public AgentSessionManager(ISessionStore store, ITenantContext tenantContext, TimeProvider? timeProvider = null);
-
-    public ValueTask<AgentSession> GetOrCreateSessionAsync(AIAgent agent, string sessionId, CancellationToken ct = default);
-    public ValueTask<string>       SaveSessionAsync(AIAgent agent, AgentSession session, CancellationToken ct = default);
-    public ValueTask<bool>         DeleteSessionAsync(string sessionId, CancellationToken ct = default);
-    public ValueTask<IReadOnlyList<SessionRecord>> QuerySessionsAsync(SessionQuery query, CancellationToken ct = default);
-}
-
-// Oturum kimliğini AgentSession.StateBag içine damgalar.
-public static class AgentSessionIdentity
-{
-    public const string StateKey = "AgentPrism.SessionId";
-    public static void    SetId(AgentSession session, string sessionId);
-    public static string? GetId(AgentSession session);
-}
-```
-
-**Değişen imza:** `AgentDefinitionCompiler` kurucusuna beşinci, isteğe bağlı parametre eklendi:
-
-```csharp
-public AgentDefinitionCompiler(
-    IModelProviderRegistry models,
-    IToolRegistry tools,
-    ILoggerFactory? loggerFactory = null,
-    IServiceProvider? services = null,
-    ChatHistoryProvider? chatHistoryProvider = null);   // ← YENİ
-```
-
-Derleyici bu sağlayıcıyı ürettiği her agent'ın `ChatClientAgentOptions.ChatHistoryProvider` / `HarnessAgentOptions.ChatHistoryProvider` alanına koyar. DI'da kayıtlı değilse `null` geçer ve MAF'ın bellek içi varsayılanı kullanılır.
-
----
+Tüm durumu PostgreSQL'e taşımak. Uygulama yeniden başladığında oturumlar, agent tanımları ve çalıştırma geçmişi yerinde durmalıdır. **Sonuç:** hedefe ulaşıldı. Örnek API durdurulup yeniden başlatıldığında çalıştırma geçmişi, oturum ve sohbet geçmişi yerinde kaldı (aşağıdaki DoD tablosunda gerçek çıktı var). ---
 
 ## Plandan Sapmalar
 
@@ -161,74 +91,6 @@ Akış:
 Checksum, şema yer tutucusu değiştirilmeden **önce** hesaplanır ve satır sonu farkı (`CRLF`/`LF`) normalleştirilir. Böylece `SchemaName` ayarını değiştirmek veya depoyu farklı bir git ayarıyla klonlamak uygulanmış migration'ları geçersiz kılmaz.
 
 Tüm adımlar **tek bir bağlantı** üzerinde yürür — advisory lock oturum kapsamlıdır.
-
----
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.PostgreSql/
-├── AgentPrismPostgreSqlBuilderExtensions.cs   (UsePostgreSql ×3, elle yapılandırma bağlama)
-├── AgentPrismPostgreSqlOptions.cs
-├── AgentPrismPostgreSqlOptionsValidator.cs
-├── AgentPrismJsonContext.cs                   (JsonSerializerContext — AOT)
-├── Internal/
-│   ├── AgentDefinitionPayload.cs              (+ ChatHistoryState)
-│   ├── NpgsqlDataSourceFactory.cs
-│   ├── NpgsqlHelpers.cs                       (ConfigureAwait kalıbı tek yerde)
-│   ├── SqlIdentifier.cs                       (şema adı doğrulaması)
-│   └── SqlQueries.cs                          (şemaya göre kurulmuş SQL metinleri)
-├── Migrations/
-│   ├── 0001_initial.sql                       (EmbeddedResource)
-│   ├── MigrationDescriptor.cs
-│   ├── MigrationHostedService.cs
-│   └── MigrationRunner.cs
-└── Stores/
-    ├── PostgresAgentDefinitionStore.cs
-    ├── PostgresChatHistoryProvider.cs
-    ├── PostgresRunStore.cs
-    └── PostgresSessionStore.cs
-
-src/AgentPrism.Core/                           (bu fazda değişenler)
-├── AgentPrismCoreJsonContext.cs               (YENİ — StateBag serileştirmesi)
-├── Sessions/AgentSessionIdentity.cs           (YENİ)
-├── Sessions/AgentSessionManager.cs            (YENİ)
-├── Compilation/AgentDefinitionCompiler.cs     (ChatHistoryProvider bağlantısı)
-├── Recording/RunRecordingAgent.cs             (GetSessionId gerçek kimliği okuyor)
-├── Storage/InMemorySessionStore.cs            (CreatedAt korunuyor)
-└── AgentPrismServiceCollectionExtensions.cs   (AgentSessionManager kaydı)
-
-tests/AgentPrism.PostgreSql.IntegrationTests/  (YENİ)
-├── Contracts/     AgentDefinitionStoreContract · RunStoreContract · SessionStoreContract
-│                  InMemoryStoreContractTests · PostgresStoreContractTests
-├── Infrastructure/ PostgresFixture · PostgresTestContext · TestData · EchoModelProvider · AssemblyFixtures
-├── IsolationTests.cs        (SchemaIsolationTests · TenantIsolationTests)
-├── MigrationTests.cs        (MigrationRunnerTests)
-├── ServiceRegistrationTests.cs
-└── SessionPersistenceTests.cs
-```
-
----
-
-## Testler
-
-`tests/AgentPrism.PostgreSql.IntegrationTests` — **88 test, hepsi geçiyor.**
-`tests/AgentPrism.Core.UnitTests` — 42 test, değişmedi.
-
-| Sınıf | Kapsam |
-|-------|--------|
-| `AgentDefinitionStoreContract` (×2 uygulama) | Sürümleme, geri alma, silme, sıralama, tüm alanların round-trip'i |
-| `RunStoreContract` (×2 uygulama) | Sıra numarası, olay alanları, filtreleme, sayfalama, sonlandırma özeti |
-| `SessionStoreContract` (×2 uygulama) | Opak durumun bozulmadan dönmesi, `CreatedAt` koruması, sıralama, sayfalama |
-| `MigrationRunnerTests` | Idempotency, defter kaydı, **5 eşzamanlı runner → tek uygulama**, bozuk checksum → hata, özel şema adı, geçersiz şema adı reddi |
-| `SchemaIsolationTests` | `public` şeması migration öncesi/sonrası **değişmiyor** |
-| `TenantIsolationTests` | Kiracı A, kiracı B'nin tanımını/çalıştırmasını/oturumunu/olaylarını göremiyor; aynı agent adı iki kiracıda bağımsız |
-| `ServiceRegistrationTests` | `UsePostgreSql()` sonrası üç depo da `Postgres*`; ayar doğrulaması; derlenen agent geçmişi veritabanına yazıyor |
-| `SessionPersistenceTests` | Oturum yeni bir `ServiceProvider`'da geri yükleniyor; sohbet geçmişi sürüyor; çalıştırma kaydı **gerçek** oturum kimliğini taşıyor |
-
-**Testcontainers** kullanılır; her çalıştırmada yerel, tek kullanımlık bir container ayağa kalkar. Uzak veya paylaşılan bir sunucuya hiçbir test bağlanmaz. Container tüm derleme için bir kez başlar; sema sözleşme test SINIFI başına paylaşılır, testler arası izolasyon `ResetDataAsync` ile veri sıfırlanarak sağlanır (K-390). `SchemaName` ayarının varsayılan olmayan bir semada çalıştığı `MigrationRunnerTests`'te ayrıca doğrulanır.
-
-Sözleşme testleri bellek içi uygulama üzerinde de koşar ve **Docker gerektirmez**; yalnızca `Postgres*` varyantları container'a ihtiyaç duyar.
 
 ---
 

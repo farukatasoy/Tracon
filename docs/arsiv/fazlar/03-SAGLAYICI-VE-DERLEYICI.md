@@ -7,115 +7,24 @@
 
 ---
 
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/03-SAGLAYICI-VE-DERLEYICI.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
+
+---
+
 ## Amaç ve Sonuç
 
-OpenAI'ı bağlamak ve `AgentDefinition` → çalışan `AIAgent` yolunu uçtan uca tamamlamak.
-
-**Sonuç:** Veritabanındaki bir tanım gerçek bir OpenAI yanıtı üretiyor, tool çağırıyor ve çağrı `run_events` tablosuna yazılıyor. Arayüz ve HTTP katmanı olmadan. Elle doğrulandı; çıktılar aşağıda.
-
----
-
-## Gerçekleşen Public API
-
-Plandaki taslak imzalar değil, **koddaki gerçek imzalar**.
-
-### `AgentPrism.OpenAI`
-
-```csharp
-// Saglayici adlari — KARARLIDIR, agent tanimlari veritabaninda bu adlarla saklanir
-public static class OpenAIProviderNames
-{
-    public const string ChatCompletions = "openai";
-    public const string Responses       = "openai-responses";
-}
-
-public enum OpenAIApiSurface { ChatCompletions = 0, Responses = 1 }
-
-// UseOpenAI() TEK cagriyla IKI saglayici kaydeder
-public static class OpenAIProviderExtensions
-{
-    public static IAgentPrismBuilder UseOpenAI(this IAgentPrismBuilder builder, string apiKey,
-                                               Action<OpenAIProviderOptions>? configure = null);
-    public static IAgentPrismBuilder UseOpenAI(this IAgentPrismBuilder builder, IConfiguration configurationSection);
-    public static IAgentPrismBuilder UseOpenAI(this IAgentPrismBuilder builder, Action<OpenAIProviderOptions> configure);
-}
-
-public sealed class OpenAIProviderOptions
-{
-    public const string SectionName = "AgentPrism:Providers:OpenAI";
-
-    public string? ApiKey       { get; set; }   // SIR — yalniz user-secrets/ortam degiskeni
-    public string? DefaultModel { get; set; }
-    public Uri?    Endpoint     { get; set; }   // OpenAI uyumlu ara sunucular
-    public string? Organization { get; set; }
-    public TimeSpan? Timeout    { get; set; }
-    public IList<ModelDescriptor> Models { get; }   // katalog TAMAMEN buradan gelir
-}
-
-public sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProviderOptions>;
-
-public sealed class OpenAIChatClientFactory
-{
-    public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null);
-    public OpenAIChatClientFactory(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null);
-
-    public IChatClient CreateChatClient(ModelBinding binding, OpenAIApiSurface apiSurface);
-    public static OpenAIClient CreateClient(OpenAIProviderOptions options);
-}
-
-public sealed class OpenAIModelProvider : IModelProvider
-{
-    public OpenAIModelProvider(string name, OpenAIApiSurface apiSurface,
-                               OpenAIChatClientFactory chatClientFactory,
-                               IReadOnlyList<ModelDescriptor> models,
-                               ILogger<OpenAIModelProvider>? logger = null);
-
-    public string Name { get; }
-    public OpenAIApiSurface ApiSurface { get; }
-    public IReadOnlyList<ModelDescriptor> Models { get; }
-    public IChatClient CreateChatClient(ModelBinding binding);
-}
-
-public static class OpenAIModelCatalog
-{
-    public static IReadOnlyList<ModelDescriptor> Build(OpenAIProviderOptions options);
-}
-```
-
-### `AgentPrism.Abstractions` — yeni
-
-```csharp
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-public sealed class AgentPrismToolAttribute : Attribute
-{
-    public AgentPrismToolAttribute();
-    public AgentPrismToolAttribute(string name);
-    public AgentPrismToolAttribute(string name, string description);
-
-    public string? Name { get; }
-    public string? Description { get; init; }
-    public bool RequiresApproval { get; init; }
-}
-```
-
-### `AgentPrism.Core` — yeni üyeler
-
-```csharp
-public interface IAgentPrismBuilder
-{
-    // ...mevcut uyeler...
-
-    [RequiresUnreferencedCode] [RequiresDynamicCode]
-    IAgentPrismBuilder AddToolsFrom<T>();
-
-    [RequiresUnreferencedCode] [RequiresDynamicCode]
-    IAgentPrismBuilder AddToolsFrom(Type type);   // static class'lar icin
-}
-```
-
-`AgentDefinitionCompiler`'ın imzası **değişmedi**. İçinde tek ekleme var: `ModelBinding.ReasoningEffort` artık `ChatOptions.Reasoning`'e çevriliyor.
-
----
+OpenAI'ı bağlamak ve `AgentDefinition` → çalışan `AIAgent` yolunu uçtan uca tamamlamak. **Sonuç:** Veritabanındaki bir tanım gerçek bir OpenAI yanıtı üretiyor, tool çağırıyor ve çağrı `run_events` tablosuna yazılıyor. Arayüz ve HTTP katmanı olmadan. Elle doğrulandı; çıktılar aşağıda. ---
 
 ## Plandan Sapmalar
 
@@ -160,54 +69,6 @@ System.InvalidOperationException: Only ConversationId or ChatHistoryProvider may
 
 ---
 
-## Doğrulanmış MAF / OpenAI İmzaları
-
-Reflection ile çıkarıldı (`OpenAI` 2.12.0, `Microsoft.Extensions.AI.OpenAI` 10.8.3, `Microsoft.Agents.AI` 1.16.0).
-
-```csharp
-// OpenAI 2.12.0 — DIKKAT: tip adi "ResponsesClient", "OpenAIResponseClient" DEGIL
-sealed class OpenAIClient
-{
-    OpenAIClient(ApiKeyCredential credential, OpenAIClientOptions options);
-    ChatClient      GetChatClient(string model);
-    ResponsesClient GetResponsesClient();          // [OPENAI001]
-    Uri Endpoint { get; }                          // [OPENAI001]
-}
-
-sealed class OpenAIClientOptions : ClientPipelineOptions
-{
-    Uri?    Endpoint       { get; set; }
-    string? OrganizationId { get; set; }           // "Organization" DEGIL
-    string? ProjectId      { get; set; }
-    // ClientPipelineOptions'tan:
-    TimeSpan? NetworkTimeout { get; set; }         // "Timeout" DEGIL
-}
-
-// Microsoft.Extensions.AI.OpenAI 10.8.3
-static IChatClient AsIChatClient(this ChatClient chatClient);                          // temiz
-static IChatClient AsIChatClient(this ResponsesClient c, string? defaultModelId);      // [OPENAI001]
-
-// Microsoft.Agents.AI.OpenAI 1.16.0
-static IChatClient AsIChatClientWithStoredOutputDisabled(                              // [OPENAI001][MAAI001]
-    this ResponsesClient responseClient, string? model = null, bool includeReasoningEncryptedContent = true);
-
-// Microsoft.Extensions.AI — boru hatti
-static ChatClientBuilder AsBuilder(this IChatClient innerClient);
-static ChatClientBuilder UseFunctionInvocation(this ChatClientBuilder b, ILoggerFactory? lf, Action<FunctionInvokingChatClient>? cfg);
-static ChatClientBuilder UseOpenTelemetry(this ChatClientBuilder b, ILoggerFactory? lf, string? sourceName, Action<OpenTelemetryChatClient>? cfg);
-
-// ChatOptions.Reasoning — Faz 3'te baglandi
-sealed class ReasoningOptions { ReasoningEffort? Effort; ReasoningOutput? Output; }
-enum ReasoningEffort { None, Low, Medium, High, ExtraHigh }
-
-// AIFunctionFactory — AddToolsFrom bunu kullanir
-static AIFunction Create(MethodInfo method, object? target, AIFunctionFactoryOptions options);
-static AIFunction Create(MethodInfo method, Func<AIFunctionArguments, object> createInstanceFunc, AIFunctionFactoryOptions? options);
-sealed class AIFunctionArguments { IServiceProvider? Services { get; set; } }   // ornek metotlari icin
-```
-
----
-
 ## `IChatClient` Boru Hattı
 
 Her sağlayıcı aynı hattı kurar:
@@ -227,90 +88,6 @@ inner.AsBuilder()
 | `openai-responses` | `GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model)` | AgentPrism (aynı) |
 
 İki yüzey de **tek** `OpenAIClient` örneğini, dolayısıyla tek HTTP bağlantı havuzunu paylaşır.
-
----
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.Abstractions/Tools/
-└── AgentPrismToolAttribute.cs           YENI
-
-src/AgentPrism.Core/
-├── IAgentPrismBuilder.cs                AddToolsFrom<T>() + AddToolsFrom(Type)
-├── AgentPrismBuilder.cs                 uygulamalari
-├── Tools/ToolMethodScanner.cs           YENI — yansimali tarama, tek dosyada
-└── Compilation/AgentDefinitionCompiler.cs   ParseReasoningEffort eklendi
-
-src/AgentPrism.OpenAI/
-├── OpenAIProviderExtensions.cs          UseOpenAI x3 + elle yapilandirma baglama
-├── OpenAIProviderOptions.cs
-├── OpenAIProviderOptionsValidator.cs    YENI (planda yoktu)
-├── OpenAIProviderNames.cs               YENI (planda yoktu)
-├── OpenAIApiSurface.cs                  YENI (planda yoktu)
-├── OpenAIModelProvider.cs
-├── OpenAIChatClientFactory.cs           OPENAI001/MAAI001 bastirmasi YALNIZ burada
-└── OpenAIModelCatalog.cs                yerlesik liste yok; Build(options)
-
-tests/AgentPrism.OpenAI.UnitTests/       YENI PROJE (slnx'e eklendi)
-├── Infrastructure/RecordingLoggerProvider.cs
-├── Infrastructure/TestData.cs
-├── OpenAIModelCatalogTests.cs
-├── OpenAIChatClientFactoryTests.cs
-├── OpenAIModelProviderTests.cs
-├── OpenAIProviderExtensionsTests.cs
-└── SecretLeakTests.cs
-
-tests/AgentPrism.Core.UnitTests/
-├── Models/ModelProviderRegistryTests.cs YENI
-├── Tools/ToolRegistrationTests.cs       YENI
-└── Compilation/AgentDefinitionCompilerTests.cs   3 reasoning testi eklendi
-
-samples/AgentPrism.Api/
-├── Program.cs                           UseOpenAI + harness agent'i
-├── OrderTools.cs                        [AgentPrismTool] ile isaretli
-└── appsettings.json                     Models ornegi
-```
-
-`Directory.Packages.props`: `Microsoft.Extensions.Configuration` 10.0.10 eklendi (yalnız test projesi kullanır).
-
----
-
-## Testler
-
-**198 test geçiyor** (Faz 2 sonunda 130 idi).
-
-| Proje | Sayı | Kapsam |
-|-------|------|--------|
-| `AgentPrism.Core.UnitTests` | 62 | +20: sağlayıcı defteri, tool tarama, reasoning eşlemesi |
-| `AgentPrism.OpenAI.UnitTests` | 48 | tamamı yeni |
-| `AgentPrism.PostgreSql.IntegrationTests` | 88 | değişmedi |
-
-Yeni test sınıfları:
-
-| Test sınıfı | Neyi doğrular |
-|-------------|---------------|
-| `ModelProviderRegistryTests` | Ada göre çözüm, harfe duyarsızlık, bilinmeyen sağlayıcı hatası, çift kayıt, sıralama |
-| `ToolRegistrationTests` | JSON şema üretimi, `AddToolsFrom` yalnız işaretli metotları alır, işaretsiz sınıf hata verir, örnek metodu DI'dan çözülür |
-| `OpenAIModelCatalogTests` | Yapılandırmadan katalog kurma, ad çakışması, sıralama, adsız girdi |
-| `OpenAIChatClientFactoryTests` | Endpoint eşlemesi, model çözümü, `DefaultModel` yedeği, boru hattında `FunctionInvokingChatClient` + `OpenTelemetryChatClient` |
-| `OpenAIModelProviderTests` | Katalogda olmayan model reddedilmez, günlüğe yazılır, argüman doğrulama |
-| `OpenAIProviderExtensionsTests` | İki sağlayıcı kaydı, tek fabrika paylaşımı, ikinci çağrı çoğaltmaz, yapılandırma bağlama, doğrulama hataları |
-| `SecretLeakTests` | API anahtarı 7 farklı çıktıda görünmüyor |
-
-**Gerçek OpenAI çağrısı yapan test yoktur.** Ağ gerektiren doğrulama elle yapılır (aşağıda).
-
-### `SecretLeakTests` neyi kapsar
-
-| Çıktı | Test |
-|-------|------|
-| `IModelProviderRegistry.List()` JSON'u | ✅ |
-| Model kataloğu JSON'u | ✅ |
-| `OpenAIProviderOptions.ToString()` | ✅ tip kendi `ToString`'ini tanımlamıyor (record **olmamalı**) |
-| Doğrulama hata mesajları | ✅ |
-| Fabrika istisna mesajları | ✅ |
-| `ChatClientMetadata` (Faz 6 telemetrisi bunu span'e yazar) | ✅ |
-| Günlük satırları (`Trace` seviyesinde, kurulum + istemci üretimi) | ✅ |
 
 ---
 
@@ -437,12 +214,3 @@ builder.AddAgentPrism()
 **6. `AgentPrism.OpenAI` AOT uyumlu kaldı.** Chat Completions yolu `IsAotCompatible=true` ile sıfır uyarı verir. `AddToolsFrom` yansıma kullanır ama `AgentPrism.Core` içindedir ve `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretlidir — uyarı bastırılmaz, çağırana iletilir.
 
 ---
-
-## Riskler — kapanış durumu
-
-| Risk | Sonuç |
-|------|-------|
-| OpenAI model adları ve fiyatları değişir | **Gerçekleşti.** Yerleşik liste kaldırıldı; katalog yapılandırmadan gelir (K-032) |
-| `HarnessAgentOptions` API'si MAF'ta değişebilir | Açık. Kullanım hâlâ tek dosyada (`AgentDefinitionCompiler.CompileHarnessAgent`) |
-| Tool JSON şema üretimi AOT'ta reflection gerektirir | `AIFunctionFactory` şemayı kendisi üretiyor; kendi reflection'ımızı yazmadık |
-| Responses API sunucu durumu ile çakışma | **Gerçekleşti.** Sapma S2 |
