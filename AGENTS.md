@@ -17,17 +17,17 @@ işi vardır, aradığın iş bu tablodadır:
 
 | İhtiyaç | Yol |
 |---|---|
-| Bir tuzak/desen var mı? | [`docs/hafiza/00-INDEKS.md`](docs/hafiza/00-INDEKS.md) → alan dosyası |
-| Bir şey nerede yaşıyor? | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
-| Bir karar alınmış mı? | [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
-| Mimari resim (katman, veri modeli, çalıştırma yolu) | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |
-| Güvenlik modeli (kiracı, rol, denetim izi, script sandbox) | [`docs/MIMARI-GUVENLIK.md`](docs/MIMARI-GUVENLIK.md) |
-| MAF genişleme noktası | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) |
-| Faz durumu (**üretilen**) · seçilmemiş adaylar · keşif turları | [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md) · [`docs/ADAYLAR.md`](docs/ADAYLAR.md) · [`docs/kesif/`](docs/kesif/) |
-| Elle koşulan kabul testi | [`docs/manuel-test/00-INDEKS.md`](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` skill'i yürütür |
-| Geçmişte neden öyle yapıldı? | [`docs/arsiv/`](docs/arsiv/) — kapanmış kayıt, yalnız grep'le |
-| Paketler ve kurulum | [`README.md`](README.md) |
-| Kullanıcıya dönük ürün metni | [`docs-site/`](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
+| Bir tuzak/desen var mı? | [hafiza/00-INDEKS](docs/hafiza/00-INDEKS.md) → alan dosyası |
+| Bir şey nerede yaşıyor? | [hafiza/kod-haritasi](docs/hafiza/kod-haritasi.md) |
+| Bir karar alınmış mı? | [KARARLAR-INDEKS](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
+| Mimari resim (katman, veri modeli, çalıştırma yolu) | [MIMARI](docs/MIMARI.md) — ilgili bölüm |
+| Güvenlik modeli (kiracı, rol, denetim izi, sandbox) | [MIMARI-GUVENLIK](docs/MIMARI-GUVENLIK.md) |
+| MAF genişleme noktası | [MAF-GENISLEME-NOKTALARI](docs/MAF-GENISLEME-NOKTALARI.md) |
+| Faz durumu (**üretilen**) · adaylar · keşif turları | [YOL-HARITASI](docs/YOL-HARITASI.md) · [ADAYLAR](docs/ADAYLAR.md) · [kesif/](docs/kesif/) |
+| Elle koşulan kabul testi | [manuel-test/00-INDEKS](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` yürütür |
+| Geçmişte neden öyle yapıldı? | [arsiv/](docs/arsiv/) — kapanmış kayıt, yalnız grep'le |
+| Paketler ve kurulum | [README](README.md) |
+| Kullanıcıya dönük ürün metni | [docs-site/](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
 
 **`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** İndeksten satır numarasını al,
 `sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/`.
@@ -90,10 +90,14 @@ geliştirme sonrası dokümanlar gözden geçirilir.
 ### Doküman bütçesi (zorunlu)
 
 Başlangıç bağlamı yalnız bu dosya, `MEMORY.md` ve aktif fazdır. Sorgu bağlamı
-(indeksler, mimari ve alan hafızası) gerektiğinde okunur; karar/aday kayıtları
+(indeksler, mimari, alan hafızası) gerektiğinde okunur; karar/aday kayıtları
 ledger'dır, açılışta okunmaz. `scripts/dokuman-bakim.py` bu üç katmanı ayrı
-raporlar. Bütçe aşılırsa **içerik silinmez** — alan dosyasına veya
-`docs/arsiv/`'e taşınır.
+raporlar. Bütçe aşılırsa **içerik silinmez** — taşınır.
+
+**Arşivlemek taşımak değil, damıtmaktır.** Faz kapanışında `faz-arsivle` +
+`faz-damit` koşar: plan düşer, kalıcı bilgi kalır, tam metin git'te durur ve
+her denetimde çözülebilirliği kanıtlanır. Muaf ağaçlar dahil **her ağacın kendi
+bütçesi vardır**. Kural: [`docs/arsiv/fazlar/INDEKS.md`](docs/arsiv/fazlar/INDEKS.md).
 
 ### Faz durumu
 

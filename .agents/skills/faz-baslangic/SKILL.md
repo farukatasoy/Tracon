@@ -23,6 +23,10 @@ Sırayla, tamamı:
 3. Fazın kendi dokümanı: `docs/NN-*.md`
    — kapanmış fazlar (00–89) `docs/arsiv/fazlar/NN-*.md` altındadır (Faz 77);
      yeri [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
+   — o kayıtlar **damıtılmıştır** (Faz 90): planın gövdesi değil, fazın bıraktığı
+     kalıcı bilgi (sapmalar, kararlar, denetim bulguları, devir notu) durur.
+     Plana gerçekten bakman gerekirse kaydın içindeki `git show <sha>:<yol>`
+     komutunu koştur — **önce kaydı oku, tam metni refleksle açma.**
 
 Bu üçü ~10k token'dır. Başka hiçbir dosya bu adımda okunmaz.
 
