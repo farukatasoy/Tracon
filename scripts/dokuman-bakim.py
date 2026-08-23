@@ -829,6 +829,105 @@ def projeksiyon(faz_sayisi: int = 6) -> int:
     return 0
 
 
+_URETILEN = (
+    ("docs/KARARLAR-INDEKS.md", lambda: kararlar_indeksi_uret()),
+    ("docs/arsiv/KARARLAR-INDEKS-ARSIV.md", lambda: kararlar_indeksi_arsiv_uret()),
+    ("docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md", lambda: kararlar_reddedilen_uret()),
+    ("docs/YOL-HARITASI.md", lambda: yol_haritasi_uret()),
+)
+
+
+# --- Faz 90 kapilari -----------------------------------------------------
+# Ucu de `denetle()`ye katilir, boylece `.github/workflows/ci.yml` DEGISMEDEN
+# CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
+
+def tazelik_denetle(kok: pathlib.Path = ROOT) -> list[str]:
+    """Uretilen DORT dosya kaynagiyla ayni mi. Bellekte yeniden uretip diskle
+    karsilastirir; farkliysa bulgu. HICBIR SEY YAZMAZ.
+
+    Bosluk (Faz 90'da olculdu): CI yalniz `--denetle` kosuyordu, URETIM modunu
+    hic kosmuyordu. `YOL-HARITASI.md` veya karar indeksleri bayat commit
+    edilebilir ve HICBIR kapi bunu soylemezdi -- "tek kaynak, elle yazilmaz"
+    diyen dosyanin bayat olmasi tam da kapinin yalan soylemesidir.
+    `docs-site/scripts/build-agent-map.mjs --check` (ci.yml:118) ayni deseni
+    agent haritasi icin zaten uyguluyordu; dokuman uretecinin esdegeri yoktu."""
+    bulunan: list[str] = []
+    for rel, uret in _URETILEN:
+        hedef = kok / rel
+        try:
+            diskteki = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
+        except OSError:
+            continue
+        if diskteki != uret():
+            bulunan.append(f"{rel} — kaynakla ayni degil; `python3 scripts/dokuman-bakim.py` calistir")
+    return bulunan
+
+
+_GECMIS_BASLIK = re.compile(r"^#{2,3}\s*(K-\d+)(?:\s*/\s*(K-\d+))?", re.M)
+_KARAR_NO = re.compile(r"^\| \*\*(K-\d+)")
+
+
+def gecmis_isaretci_denetle(kok: pathlib.Path = ROOT) -> list[str]:
+    """`KARARLAR-GECMISI.md`'ye yollayan her karar satiri icin o karara ait
+    `### K-NNN` basligi GECMISI'de GERCEKTEN var mi.
+
+    Karar numarasi satirin KENDI `| **K-NNN` onekinden okunur, isaretci
+    METNINDEN degil: isaretci ifadesi standart DEGILDIR -- olculdu (Faz 90),
+    en az bes farkli yazim kullaniliyor ("Tam gerekce:", "Olcumun tamami:",
+    "Tam anlati:", "Ayrinti:", "Olcumler ve birlestirmenin neden dustugu:").
+    Metne bagli bir denetim bunlarin cogunu SESSIZCE kacirirdi.
+
+    `kirik_baglantilar()` bunu goremez: baglanti DOSYA duzeyindedir, dosya
+    vardir, capa hic denetlenmez. Olculdu: 18 sarkan isaretci -- okuyucu var
+    olmayan bir gerekceye yollaniyordu."""
+    kararlar = kok / "docs" / "KARARLAR.md"
+    gecmis = kok / "docs" / "arsiv" / "KARARLAR-GECMISI.md"
+    if not kararlar.exists() or not gecmis.exists():
+        return []
+    var: set[str] = set()
+    for m in _GECMIS_BASLIK.finditer(gecmis.read_text(encoding="utf-8")):
+        var.add(m.group(1))
+        if m.group(2):
+            var.add(m.group(2))
+    eksik: list[str] = []
+    for satir in kararlar.read_text(encoding="utf-8").splitlines():
+        # CIPLAK atif ("Kural `...GECMISI.md` satir 1622'de yazilidir") bir
+        # "tam gerekce orada" sozu degildir; yalniz BAGLANTI verilen satir
+        # okuyucuyu oraya yollar ve yalniz o satir capa borcludur.
+        if "](arsiv/KARARLAR-GECMISI.md)" not in satir:
+            continue
+        m = _KARAR_NO.match(satir)
+        if m and m.group(1) not in var:
+            eksik.append(m.group(1))
+    return [f"docs/KARARLAR.md -> arsiv/KARARLAR-GECMISI.md#{k} (baslik yok)"
+            for k in sorted(set(eksik), key=lambda k: int(k[2:]))]
+
+
+_TAM_METIN = re.compile(r"git show ([0-9a-f]{7,40}):(\S+\.md)")
+
+
+def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
+    """Damitilmis her kayittaki `git show <sha>:<yol>` gercekten cozuluyor mu.
+
+    Damitma tam metni SILMEZ, git gecmisine birakir. Git gecmisine guvenmek
+    ancak bir kapi onu HER kosumda kanitliyorsa mesrudur: `filter-branch`,
+    agresif `gc` veya sig bir klon SHA'yi gecersizleyebilir. `fetch-depth: 0`
+    (ci.yml:35) MinVer yuzunden zaten zorunludur -- beklenmedik bir sigorta."""
+    bulunan: list[str] = []
+    kaynak = kok / "docs" / "arsiv" / "fazlar"
+    if not kaynak.exists():
+        return []
+    for dosya in sorted(kaynak.glob("*.md")):
+        try:
+            metin = dosya.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for sha, yol in set(_TAM_METIN.findall(metin)):
+            if _git("cat-file", "-e", f"{sha}:{yol}") is None:
+                bulunan.append(f"{dosya.relative_to(kok).as_posix()} -> {sha}:{yol} çözülmüyor")
+    return bulunan
+
+
 def denetle() -> int:
     hata = 0
     dar = 0
@@ -904,6 +1003,18 @@ def denetle() -> int:
     # sınıfının kendisiydi; CI'ya bağlanmadan önce yakalandı.
     hata |= int(bool(kirik))
 
+    for ad, bulgular in (
+        ("Üretilen dosya tazeliği", tazelik_denetle()),
+        ("Karar gerekçesi işaretçisi", gecmis_isaretci_denetle()),
+        ("Damıtılmış kayıt tam metni", tam_metin_denetle()),
+    ):
+        print(f"\n{ad}: {'✅ temiz' if not bulgular else f'{len(bulgular)} bulgu'}")
+        for b in bulgular[:10]:
+            print(f"  {b}")
+        if len(bulgular) > 10:
+            print(f"  … +{len(bulgular) - 10}")
+        hata |= int(bool(bulgular))
+
     baslangic_toplami = sum(
         len((ROOT / y).read_bytes()) for y in BASLANGIC_BUTCESI if (ROOT / y).exists())
     sorgu_toplami = sum(
@@ -945,12 +1056,8 @@ def main() -> int:
         return projeksiyon()
 
     if not a.denetle:
-        for hedef, uret in (
-            (ROOT / "docs" / "KARARLAR-INDEKS.md", kararlar_indeksi_uret),
-            (ROOT / "docs" / "arsiv" / "KARARLAR-INDEKS-ARSIV.md", kararlar_indeksi_arsiv_uret),
-            (ROOT / "docs" / "arsiv" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
-            (ROOT / "docs" / "YOL-HARITASI.md", yol_haritasi_uret),
-        ):
+        for rel, uret in _URETILEN:
+            hedef = ROOT / rel
             yeni = uret()
             eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
             hedef.write_text(yeni, encoding="utf-8")

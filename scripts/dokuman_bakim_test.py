@@ -344,5 +344,125 @@ class KirikBaglantiKodBloguTestleri(unittest.TestCase):
             self.assertTrue(any("yok.md" in k for k in dokuman_bakim.kirik_baglantilar(tmp)))
 
 
+class TazelikDenetleTestleri(unittest.TestCase):
+    """`tazelik_denetle` — üretilen dosya kaynağıyla aynı mı."""
+
+    def test_bayat_dosya_bulgu_uretir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "X.md").write_text("BAYAT")
+            sahte = (("docs/X.md", lambda: "TAZE"),)
+            with mock.patch.object(dokuman_bakim, "_URETILEN", sahte):
+                self.assertTrue(dokuman_bakim.tazelik_denetle(tmp))
+
+    def test_taze_dosya_bulgu_uretmez(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "X.md").write_text("TAZE")
+            sahte = (("docs/X.md", lambda: "TAZE"),)
+            with mock.patch.object(dokuman_bakim, "_URETILEN", sahte):
+                self.assertEqual(dokuman_bakim.tazelik_denetle(tmp), [])
+
+    def test_hicbir_sey_YAZMAZ(self):
+        # `--denetle`nin "yazmaz" sözü: kapı diski değiştirirse denetim
+        # kendi ölçtüğü şeyi bozar.
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs").mkdir()
+            hedef = tmp / "docs" / "X.md"
+            hedef.write_text("BAYAT")
+            sahte = (("docs/X.md", lambda: "TAZE"),)
+            with mock.patch.object(dokuman_bakim, "_URETILEN", sahte):
+                dokuman_bakim.tazelik_denetle(tmp)
+            self.assertEqual(hedef.read_text(), "BAYAT")
+
+
+class GecmisIsaretciTestleri(unittest.TestCase):
+    """`gecmis_isaretci_denetle` — GECMISI'ye yollayan kararın başlığı var mı."""
+
+    def _kur(self, tmp: pathlib.Path, kararlar: str, gecmis: str) -> None:
+        (tmp / "docs" / "arsiv").mkdir(parents=True)
+        (tmp / "docs" / "KARARLAR.md").write_text(kararlar, encoding="utf-8")
+        (tmp / "docs" / "arsiv" / "KARARLAR-GECMISI.md").write_text(gecmis, encoding="utf-8")
+
+    def test_sarkan_isaretci_yakalanir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._kur(tmp,
+                      "| **K-9 — x** | 2026 | Ayrıntı: [`arsiv/KARARLAR-GECMISI.md`]"
+                      "(arsiv/KARARLAR-GECMISI.md). | — |\n", "### K-8\n\nmetin\n")
+            self.assertTrue(any("K-9" in b for b in dokuman_bakim.gecmis_isaretci_denetle(tmp)))
+
+    def test_baslikli_karar_bulgu_uretmez(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._kur(tmp,
+                      "| **K-9 — x** | 2026 | Ayrıntı: [`arsiv/KARARLAR-GECMISI.md`]"
+                      "(arsiv/KARARLAR-GECMISI.md). | — |\n", "### K-9\n\nmetin\n")
+            self.assertEqual(dokuman_bakim.gecmis_isaretci_denetle(tmp), [])
+
+    def test_ciplak_atif_isaretci_SAYILMAZ(self):
+        # "Kural `arsiv/KARARLAR-GECMISI.md` satır 1622'de yazılıydı" olgusal bir
+        # ifadedir, "tam gerekçe orada" sözü değil (gerçek vaka: K-526).
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._kur(tmp,
+                      "| **K-9 — x** | 2026 | Kural `arsiv/KARARLAR-GECMISI.md` "
+                      "satır 1622'de yazılıydı. | — |\n", "### K-8\n\nmetin\n")
+            self.assertEqual(dokuman_bakim.gecmis_isaretci_denetle(tmp), [])
+
+    def test_egik_cizgili_baslik_iki_karari_da_cozer(self):
+        # Gerçek biçim: `## K-512 / K-513 — ...`
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._kur(tmp,
+                      "| **K-512 — x** | 2026 | [`arsiv/KARARLAR-GECMISI.md`]"
+                      "(arsiv/KARARLAR-GECMISI.md) | — |\n"
+                      "| **K-513 — y** | 2026 | [`arsiv/KARARLAR-GECMISI.md`]"
+                      "(arsiv/KARARLAR-GECMISI.md) | — |\n",
+                      "## K-512 / K-513 — birlikte\n\nmetin\n")
+            self.assertEqual(dokuman_bakim.gecmis_isaretci_denetle(tmp), [])
+
+    def test_dosya_yoksa_sessizce_bos_doner(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(dokuman_bakim.gecmis_isaretci_denetle(pathlib.Path(d)), [])
+
+
+class TamMetinDenetleTestleri(unittest.TestCase):
+    """`tam_metin_denetle` — damıtılmış kayıttaki SHA git'te çözülüyor mu."""
+
+    def _faz(self, tmp: pathlib.Path, govde: str) -> None:
+        (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+        (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(govde, encoding="utf-8")
+
+    def test_cozulmeyen_sha_yakalanir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._faz(tmp, "> git show deadbee:docs/arsiv/fazlar/01-X.md\n")
+            with mock.patch.object(dokuman_bakim, "_git", return_value=None):
+                self.assertTrue(dokuman_bakim.tam_metin_denetle(tmp))
+
+    def test_cozulen_sha_bulgu_uretmez(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._faz(tmp, "> git show deadbee:docs/arsiv/fazlar/01-X.md\n")
+            with mock.patch.object(dokuman_bakim, "_git", return_value=[]):
+                self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
+
+    def test_sha_tasimayan_kayit_git_cagirmaz(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._faz(tmp, "# Faz 1\n\nSHA yok.\n")
+            with mock.patch.object(dokuman_bakim, "_git") as g:
+                self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
+                g.assert_not_called()
+
+    def test_arsiv_dizini_yoksa_bos_doner(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(dokuman_bakim.tam_metin_denetle(pathlib.Path(d)), [])
+
+
 if __name__ == "__main__":
     unittest.main()
