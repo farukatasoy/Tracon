@@ -974,5 +974,31 @@ class KodBlogundakiBaslikTestleri(unittest.TestCase):
         self.assertNotEqual(yeni, m, "örnek işaret 'zaten damıtılmış' sanıldı")
 
 
+class TamMetinKodBloguTestleri(unittest.TestCase):
+    """Kapı, işareti ÖRNEK olarak gösteren bir tam metni damıtılmış sanmamalı —
+    aynı sınıfın dördüncü vakası (LINK regex'i, `_faz_bolumleri`, idempotans
+    denetimi ve bu kapı)."""
+
+    def _kur(self, tmp):
+        (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+        (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
+            "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
+
+    def test_ORNEK_olarak_gosterilen_isaret_bulgu_uretmez(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d); self._kur(tmp)
+            tam = ["# Faz 1", "", "```markdown", f"> {dokuman_bakim.DAMITMA_ISARETI}",
+                   "```", "", "## Plandan Sapmalar"]
+            with mock.patch.object(dokuman_bakim, "_git", return_value=tam):
+                self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
+
+    def test_GERCEKTEN_damitilmis_icerik_bulgudur(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d); self._kur(tmp)
+            with mock.patch.object(dokuman_bakim, "_git",
+                                   return_value=[f"> {dokuman_bakim.DAMITMA_ISARETI}"]):
+                self.assertTrue(dokuman_bakim.tam_metin_denetle(tmp))
+
+
 if __name__ == "__main__":
     unittest.main()
