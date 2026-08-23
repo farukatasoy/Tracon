@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-23)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **20** (skill metni ayağı) · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu
-> **Önkoşul:** 🚨 [Faz 91](91-GELISTIRME-DONGUSU-KAPILARI.md) — **kesin bağımlılık.** Politika "önce kapı, sonra kısaltma"; bu faz ancak 91'in hangi tuzağı kapıya çevirdiğini bilerek metin düşürebilir. 91 kapanmadan başlatılamaz
+> **Önkoşul:** 🚨 [Faz 91](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md) — **kesin bağımlılık.** Politika "önce kapı, sonra kısaltma"; bu faz ancak 91'in hangi tuzağı kapıya çevirdiğini bilerek metin düşürebilir. 91 kapanmadan başlatılamaz
 > **Paketler:** Yok — iş `.agents/` ve `AGENTS.md` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Hiçbir `src/` dosyasına dokunulmaz
@@ -22,7 +22,7 @@
    ```
    **K-522** (kalite sözleşmesi faz dokümanlarından **ayrıştırıldı** — bu fazın
    yapacağı işin emsali) · **K-599** (her ağaç kendi bütçesini alır)
-3. [`91-GELISTIRME-DONGUSU-KAPILARI.md`](91-GELISTIRME-DONGUSU-KAPILARI.md)
+3. [`91-GELISTIRME-DONGUSU-KAPILARI.md`](arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)
    — 🚨 **yalnız devir notu, ama tamamı:**
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/91-*.md

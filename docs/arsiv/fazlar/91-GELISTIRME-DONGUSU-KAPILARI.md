@@ -1,13 +1,13 @@
 # Faz 91 — Geliştirme Döngüsü Kapıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (kısmi) ve kalem **20** · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu. Bu faz bir `F-NN` adayından gelmez; envanter turunun iki kalemini birleştirir.
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (kısmi) ve kalem **20** · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu. Bu faz bir `F-NN` adayından gelmez; envanter turunun iki kalemini birleştirir.
 > **Önkoşul:** Yok
 > **Paketler:** Yok — iş `scripts/`, `.github/`, `src/AgentPrism.UI/*.targets` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `PublicAPI.Unshipped.txt` 8079 satır, `Shipped.txt` dosyaları boş (16 dosya × 1 satır); bu faz ikisine de dokunmaz
 > **Tüketici yüzeyi:** **Yok.** `tuketici-dokuman-senkronu` Adım 0 tablosundaki hiçbir yol tutmuyor: public üye değişmiyor, HTTP ucu yok, ekran yok, yeni paket yok. `AgentPrism.UI.Frontend.targets` yalnız `AgentPrism.UI.csproj:61` tarafından import edilir; `buildTransitive/` içinde **değildir**, tüketiciye gitmez. Skill koşmaz — gerekçe budur
-> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](manuel-test/33-DOKUMAN-KAPILARI.md) (Adım 4 kapıları) + yeni aile `36-GELISTIRME-KAPILARI.md` (`kapi.py`, `denetim-paketi.py`)
+> **Manuel test alanı:** [`docs/manuel-test/33-DOKUMAN-KAPILARI.md`](../../manuel-test/33-DOKUMAN-KAPILARI.md) (Adım 4 kapıları) + yeni aile `36-GELISTIRME-KAPILARI.md` (`kapi.py`, `denetim-paketi.py`)
 
 ---
 
@@ -25,7 +25,7 @@
    (`EnablePublicApiTracking` açık) · **K-598** (tam metin git'te yaşar,
    çözülebilirliği her denetimde kanıtlanır) · **K-599** (her ağaç kendi
    bütçesini alır)
-3. [`docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md`](arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md)
+3. [`docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md`](90-DOKUMAN-DAMITMA-POLITIKASI.md)
    — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md
@@ -34,12 +34,12 @@
    gerekçesi işaretçisi, damıtılmış kayıt tam metni). Bu faz aynı dosyaya üç
    kapı daha ekler; o üçünün deseni izlenir.
 4. Alan hafızası — bu faz üç alana dokunuyor:
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (MTP filtre
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) (MTP filtre
    biçimi, asılma, kırılganlık) ·
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (MSBuild target
-   davranışı) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (doküman
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (MSBuild target
+   davranışı) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (doküman
    kapısı yazma tuzakları)
-5. Gerektiğinde: [`.agents/skills/faz-tamamlama/SKILL.md`](../.agents/skills/faz-tamamlama/SKILL.md)
+5. Gerektiğinde: [`.agents/skills/faz-tamamlama/SKILL.md`](../../../.agents/skills/faz-tamamlama/SKILL.md)
    Adım 1 ve Adım 7 — bu fazın devraldığı komutlar oradadır
 
 ---
@@ -56,7 +56,7 @@ uyma iradesine bağlı kalır (kalite). Repo doğru ilkeyi zaten yazmış ama
 
 > "Bir kusur sınıfı **üçüncü** kez tekrarlıyorsa yazı yetmemiştir: o zaman kapı
 > gerekir (test, analyzer kuralı veya `scripts/` denetimi)."
-> — [`kusur-giderme/SKILL.md:128`](../.agents/skills/kusur-giderme/SKILL.md)
+> — [`kusur-giderme/SKILL.md:128`](../../../.agents/skills/kusur-giderme/SKILL.md)
 
 Bu faz o ilkeyi varsayılan yapar. Tek cümlelik tez: **bir kural prose'dan koda
 taşındığında token maliyeti sıfıra, güvenilirliği tam güvene gider.**
@@ -72,12 +72,12 @@ taşındığında token maliyeti sıfıra, güvenilirliği tam güvene gider.**
 | Kanıt | Gözlem |
 |---|---|
 | Ölçüm yok | Tam `dotnet test` süresi, CI süresi ve kapanış kapısı toplam maliyeti repoda **hiçbir yerde kayıtlı değil**. "Hızlandırdık" iddiası bugün kanıtlanamaz |
-| [`hafiza/test-kosum-tuzaklari.md:23-26`](hafiza/test-kosum-tuzaklari.md) | `dotnet test --filter` MTP'de sessizce yutulur; **1004 testin tamamı** koşar ve yeşil döner. "Tehlike yeşil bir yanlıştır" |
-| [`ci.yml:42`](../.github/workflows/ci.yml) + [`faz-tamamlama/SKILL.md:44`](../.agents/skills/faz-tamamlama/SKILL.md) | Senkronizasyon kopyası `find` deseni **iki yerde** kopyalanmış |
-| [`ci.yml:61`](../.github/workflows/ci.yml) + [`faz-tamamlama/SKILL.md:66`](../.agents/skills/faz-tamamlama/SKILL.md) | `secret` regex'i **iki yerde** kopyalanmış; birinde değişirse diğeri bayatlar |
-| [`Frontend.targets:60`](../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets) | `AgentPrismDetectNode`'un `Inputs`/`Outputs` çifti **yok**; `DependsOnTargets` üzerinden dış build + üç iç build'de tetiklenir |
-| [`Frontend.targets:169`](../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets) | `AgentPrismCollectFrontendAssets` de `Inputs`/`Outputs` taşımaz; her iç build'de `wwwroot/**/*` glob'lanır |
-| [`faz-denetim/SKILL.md:114`](../.agents/skills/faz-denetim/SKILL.md) ↔ [`Directory.Build.props:58`](../Directory.Build.props) | Skill "`EnablePublicApiTracking` bugün `false`" diyor; `.props` `true` diyor. Skill **bayat** |
+| [`hafiza/test-kosum-tuzaklari.md:23-26`](../../hafiza/test-kosum-tuzaklari.md) | `dotnet test --filter` MTP'de sessizce yutulur; **1004 testin tamamı** koşar ve yeşil döner. "Tehlike yeşil bir yanlıştır" |
+| [`ci.yml:42`](../../../.github/workflows/ci.yml) + [`faz-tamamlama/SKILL.md:44`](../../../.agents/skills/faz-tamamlama/SKILL.md) | Senkronizasyon kopyası `find` deseni **iki yerde** kopyalanmış |
+| [`ci.yml:61`](../../../.github/workflows/ci.yml) + [`faz-tamamlama/SKILL.md:66`](../../../.agents/skills/faz-tamamlama/SKILL.md) | `secret` regex'i **iki yerde** kopyalanmış; birinde değişirse diğeri bayatlar |
+| [`Frontend.targets:60`](../../../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets) | `AgentPrismDetectNode`'un `Inputs`/`Outputs` çifti **yok**; `DependsOnTargets` üzerinden dış build + üç iç build'de tetiklenir |
+| [`Frontend.targets:169`](../../../src/AgentPrism.UI/AgentPrism.UI.Frontend.targets) | `AgentPrismCollectFrontendAssets` de `Inputs`/`Outputs` taşımaz; her iç build'de `wwwroot/**/*` glob'lanır |
+| [`faz-denetim/SKILL.md:114`](../../../.agents/skills/faz-denetim/SKILL.md) ↔ [`Directory.Build.props:58`](../../../Directory.Build.props) | Skill "`EnablePublicApiTracking` bugün `false`" diyor; `.props` `true` diyor. Skill **bayat** |
 | `docs/arsiv/fazlar/*.md` | `✅ Tamamlandı` işaretli **8 fazda 28 işaretsiz `- [ ]` kutusu**. En ağırı `71-WORKFLOW-KOD-DUGUMU.md`: 14 kutu, `- [ ] faz-denetim koşuldu` dahil — oysa aynı dosya satır 149'da "🔴 yok" diyor |
 | `cekirdek-calistirma.md:18` · `faz-uygulama/SKILL.md:124` · `AGENTS.md:193` | Aynı kusur sınıfının sayacı üç dosyada **üç farklı değer**: "uc vaka" · "dört kez" · "Beş kez" |
 | `tests/` geneli | `[Trait]` sayısı **0** — kategori bazlı hızlı alt küme koşumu mekanizması hiç kurulmamış |
