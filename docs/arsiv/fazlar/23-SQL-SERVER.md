@@ -8,12 +8,18 @@
 
 ---
 
-## Bu Faza Başlarken (Faz 24 için)
-
-1. Bu doküman — özellikle **23.2 Paylaşım modeli**
-2. [`docs/hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) — tuzaklar
-3. `grep -n "K-176\|K-177\|K-180\|K-184" docs/KARARLAR.md`
-4. `src/AgentPrism.Sql.Shared/README.md` — ne buraya girer, ne girmez
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/23-SQL-SERVER.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
@@ -35,174 +41,6 @@ Yani diyalekt farkı SQL metninin içinde kalıyor, C# akışına sızmıyor. Bu
 uygulamalarının da paylaşılabileceği anlamına geldi ve **kapsam genişletildi**
 (K-176, kullanıcı kararı). Aksi hâlde ~4.000 satır depo mantığı ikinci, Faz
 24'te üçüncü kez yazılacaktı.
-
----
-
-## 23.1 — Katman Şeması
-
-```mermaid
-flowchart TD
-    A["AgentPrism.Sql.Shared<br/>(paket DEGIL - paylasilan kaynak)"]
-    A --> A1["Stores/Sql*Store.cs<br/>20 depo, ADO.NET tabani"]
-    A --> A2["SqlQueriesBase<br/>139 sorgunun soyut yuzeyi"]
-    A --> A3["SqlDialect<br/>saglayiciya ozgu tek kapi"]
-    A --> A4["MigrationRunner + checksum"]
-
-    P["AgentPrism.PostgreSql"] -->|Compile Include| A
-    S["AgentPrism.SqlServer"] -->|Compile Include| A
-
-    P --> P1["PostgresQueries<br/>ON CONFLICT ... RETURNING"]
-    P --> P2["PostgresDialect<br/>Npgsql, pg_advisory_lock"]
-    P --> P3["Migrations/0001-0013.sql"]
-
-    S --> S1["SqlServerQueries<br/>UPDATE ... OUTPUT / IF @@ROWCOUNT"]
-    S --> S2["SqlServerDialect<br/>SqlClient, sp_getapplock"]
-    S --> S3["Migrations/0001_initial.sql"]
-```
-
-**Kural:** `AgentPrism.Sql.Shared` altındaki hiçbir dosya `Npgsql` veya
-`Microsoft.Data.SqlClient` ad alanına referans veremez. Depolar yalnız
-`DbDataSource`, `DbCommand`, `DbDataReader` tanır; sağlayıcıya özgü her şey
-`SqlDialect` üzerinden geçer.
-
-`Microsoft.Data.SqlClient` bir `DbDataSource` uygulaması **sunmaz**; ince bir
-uyarlayıcı yazıldı (`SqlServerDataSource`).
-
----
-
-## 23.2 — Paylaşım Modeli (Faz 24'ün kullanacağı sözleşme)
-
-| Nerede | Ne |
-|--------|-----|
-| `AgentPrism.Sql.Shared/Stores/` | 20 depo uygulaması — **sağlayıcı eklerken dokunulmaz** |
-| `AgentPrism.Sql.Shared/Internal/SqlQueriesBase.cs` | 139 sorgunun adı ve XML dokümanı; metin yok |
-| `AgentPrism.Sql.Shared/Internal/SqlDialect.cs` | Parametre tipleme, dizi taşıma, migration kilidi, hata sınıflandırma |
-| `<Saglayici>/Internal/*Queries.cs` | O diyalektin 139 SQL metni |
-| `<Saglayici>/Internal/*Dialect.cs` | `SqlDialect` türevi |
-| `<Saglayici>/Migrations/*.sql` | Gömülü migration seti |
-| `<Saglayici>/AgentPrism*Options.cs` + `*BuilderExtensions.cs` | Public yüzey |
-
-**Yeni bir sağlayıcı eklemek** = 4 dosya + migration seti + test projesi.
-
-> 🚨 `SqlQueriesBase`'e yeni bir sorgu eklendiğinde **her alt sınıfta** karşılığı
-> yazılmalıdır. Yazılmazsa alan `string.Empty` kalır ve hata yalnızca çalışma
-> anında görünür.
-
-### Public yüzey daraldı
-
-Depo sınıfları artık `internal`'dır (`SqlRunStore`, `SqlSessionStore`, …).
-Önceden `AgentPrism.PostgreSql` bunları `public` veriyordu. Gerekçe: tüketici
-depolara arayüz üzerinden erişir, somut sınıfı `new`'lemesi için bir sebep
-yoktur; ayrıca `internal` bir `SqlStoreContext` alan `public` bir kurucu
-`CS0051` verirdi. `MigrationRunner` **public kaldı** — ayrı bir dağıtım adımında
-çalıştırılması dokümante edilmiş bir senaryodur (kurucusu `internal`, DI
-fabrikayla kaydeder). `PublicAPI.Shipped.txt` boş olduğu için bu daralma bedelsizdi.
-
----
-
-## 23.3 — SQL Çeviri Tablosu (uygulanan hâli)
-
-| PostgreSQL | SQL Server | Not |
-|------------|-----------|-----|
-| `uuid` | `uniqueidentifier` | Sıralama bayt sırasına göre değil → K-180 |
-| `jsonb` / `json` | `nvarchar(max)` + `CHECK (ISJSON(c) = 1)` | `audit_log.before/after` hariç: gözlemlenebilirlik işlevselliği bozmaz |
-| `text` (anahtar) | `nvarchar(200)` | `nvarchar(max)` **indekslenemez** |
-| `text` (serbest) | `nvarchar(max)` | |
-| `timestamptz` | `datetimeoffset(7)` | Her zaman UTC yazılır, okunan ofset sıfır |
-| `boolean` | `bit` | SQL'de `= 1` / `= 0` |
-| `bytea` | `varbinary(max)` | Parametre uzunluğu `-1` verilir |
-| `numeric(20,10)` | `decimal(20,10)` | 🚨 Parametrede `Precision`/`Scale` **zorunlu** |
-| `text[]` | `nvarchar(max)` JSON dizi | `OPENJSON` (K-182) |
-| `ON CONFLICT DO UPDATE` | `UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT` + `IF @@ROWCOUNT = 0 INSERT ... OUTPUT` | `MERGE` **kullanılmaz** (K-177) |
-| `RETURNING` | `OUTPUT inserted.*` / `OUTPUT deleted.*` | |
-| `pg_advisory_lock` | `sp_getapplock` | Dönüş değeri negatifse hata verilir |
-| Kısmi indeks (`WHERE`) | Filtrelenmiş indeks (`WHERE`) | Birebir karşılık |
-| `COUNT(*) FILTER (WHERE p)` | `COALESCE(SUM(CASE WHEN p THEN 1 ELSE 0 END), 0)` | 🚨 `COALESCE` zorunlu: boş kümede `SUM` NULL döner |
-| `LEFT JOIN LATERAL ... ON TRUE` | `OUTER APPLY` | |
-| `LEAST` / `GREATEST` | `CASE` zinciri | 2019'da **yok** (2022 ile geldi) |
-| `EXTRACT(EPOCH FROM (a-b))*1000` | `DATEDIFF_BIG(millisecond, b, a)` | |
-| `generate_series` | Özyinelemeli CTE + `OPTION (MAXRECURSION 0)` | |
-| `date_trunc(@unit, x)` | `CASE` + `DATEADD/DATEDIFF` | Parametrik `DATEPART` yazılamaz; 2019 uyumu için `DATETRUNC` kullanılmaz |
-| `UNNEST(@a, @b) WITH ORDINALITY` | `OPENJSON(@a) JOIN OPENJSON(@b) ON [key]` | `[key]` 0 tabanlı |
-| `= ANY(dizi)` | `EXISTS (SELECT 1 FROM OPENJSON(c) WHERE value = @p)` | Tam eşleşme |
-| `FOR UPDATE SKIP LOCKED` | `WITH (UPDLOCK, READPAST, ROWLOCK)` | CTE üzerinden `UPDATE` |
-| `OFFSET @s LIMIT @t` | `OFFSET @s ROWS FETCH NEXT @t ROWS ONLY` | 🚨 `@t = 0` **hata verir** |
-| Veri değiştiren CTE | `DECLARE @t TABLE` + `OUTPUT ... INTO` | T-SQL'de yok |
-
-### İki NULL tuzağı ters yönde çalışır (K-184)
-
-PostgreSQL'de NULL hiçbir NULL'a eşit değildir → `COALESCE`'li ifade indeksi
-gerekiyordu. SQL Server NULL'ları **eşit** sayar → düz `UNIQUE` yeter. Ama aynı
-kural `jobs (schedule_id, scheduled_for)` kısıtında **ters** tarafa düşer:
-PostgreSQL zamanlamasız işleri ayırt ederken SQL Server ikinci bir zamanlamasız
-işi engellerdi. Orada kısıt `WHERE schedule_id IS NOT NULL` filtreli benzersiz
-indekstir.
-
-### K-027 burada geçerli değildir
-
-`sessions.state` ve `conversation_items.item` sütunlarının neden `json` (jsonb
-değil) olduğunu anlatan karar SQL Server'da uygulanamaz: `nvarchar(max)` zaten
-anahtar sırasını korur. **Bu, kararın yanlış olduğu anlamına gelmez** —
-PostgreSQL'de hâlâ geçerlidir. `SqlServerDialectTests.Polimorfik_json_bozulmadan_gidip_gelir`
-bunu kanıtlamak için yazıldı.
-
----
-
-## 23.4 — Migration Seti
-
-SQL Server tek bir `0001_initial.sql` taşır: PostgreSQL'in 0001–0013
-**birikmiş** sonucu. Yükseltilecek bir kurulum yoktur; geçmişi oynatmak yalnız
-okunması zor bir dosya üretirdi (K-178). Bundan sonraki değişiklikler `0002`,
-`0003` … olarak eklenir.
-
-Numaralandırma PostgreSQL ile **eşleşmez ve eşleşmesi gerekmez**. `__migrations`
-sözleşmesi ve checksum hesabı (satır sonu normalleştirmesi dâhil) aynıdır.
-
-Kilit: `sp_getapplock @Resource = 'AgentPrism.Migrations', @LockMode = 'Exclusive',
-@LockOwner = 'Session', @LockTimeout = 30000`. Dönüş değeri negatifse
-`AgentPrismException` fırlatılır — sessizce devam etmek iki replikanın aynı
-migration'ı aynı anda uygulamasına izin verirdi.
-
----
-
-## 23.5 — Paket ve Kayıt
-
-```csharp
-builder.AddAgentPrism()
-       .UseSqlServer(connectionString, o =>
-       {
-           o.SchemaName = "agentprism";
-           o.CommandTimeoutSeconds = 30;
-       });
-```
-
-- `UseSqlServer` **`Replace`** kullanır (K-025 birebir geçerli). `SqlStoreContext`
-  ve `MigrationRunner` de `Replace` ile kaydedilir: `TryAdd` olsaydı ikinci bir
-  sağlayıcıda depolar yeni sağlayıcıya, bağlam eskisine bakar ve ikisi sessizce
-  ayrışırdı.
-- İki sağlayıcı aynı anda kaydedilirse **son kayıt kazanır** ve açılışta uyarı
-  loglanır (K-183). Engellenmez.
-- `AgentPrism` meta paketi SQL Server'ı **içermez** (K-185).
-- Desteklenen: **SQL Server 2019+** ve **Azure SQL** (Azure SQL CI'da test edilmez).
-
----
-
-## 23.6 — Testler
-
-`tests/Shared/` altındaki 16 soyut sözleşme sınıfı ve `TestData` artık **iki**
-entegrasyon test projesine birden derlenir. `AgentPrism.SqlServer.IntegrationTests`
-yeni bir sözleşme testi **yazmadı** — fazın sınavı buydu ve geçildi.
-
-| Test | Nerede |
-|------|--------|
-| 16 store sözleşmesi (189 test) | `tests/Shared/Contracts/` → iki sağlayıcıda koşar |
-| Migration idempotency, checksum, geçersiz şema | `MigrationRunnerTests` |
-| Beş eşzamanlı migration (`sp_getapplock`) | `MigrationRunnerTests` |
-| Ondalık kesme, zaman dilimi, polimorfik JSON | `SqlServerDialectTests` |
-| Kümelenmiş indeks stratejisi (`sys.indexes`) | `SqlServerDialectTests` |
-| Dizi tam eşleşmesi (`OPENJSON`) | `SqlServerDialectTests` |
-
-CI: SQL Server container'ı ~2 GB bellek ister.
 
 ---
 

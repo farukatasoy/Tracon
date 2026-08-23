@@ -7,17 +7,18 @@
 
 ---
 
-## Bu Faza Başlarken
-
-Önce şunları bu sırayla okuyun:
-
-1. [`MIMARI.md`](../../MIMARI.md) — bölüm 4 (MAF genişleme noktaları), bölüm 6 (çalıştırma yolu), bölüm 7 (güvenlik)
-2. [`KARARLAR.md`](../../KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın
-3. [`03-SAGLAYICI-VE-DERLEYICI.md`](03-SAGLAYICI-VE-DERLEYICI.md) — "Gerçekleşen Public API" ve "Faz 4'e Devreden Notlar"
-4. [`../MEMORY.md`](../../../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
-5. Bu doküman
-
-Skill'ler: `.agents/skills/maf-api-kesfi/` (MAF imzalarını doğrulama), `.agents/skills/faz-tamamlama/` (faz sonu protokolü).
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/04-HTTP-API.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
@@ -98,9 +99,7 @@ System.InvalidOperationException: Only ConversationId or ChatHistoryProvider may
 
 ## Amaç
 
-Arayüzün ve dış istemcilerin konuşacağı yüzeyi kurmak. Tek giriş noktası: `app.MapAgentPrism()`.
-
----
+Arayüzün ve dış istemcilerin konuşacağı yüzeyi kurmak. Tek giriş noktası: `app.MapAgentPrism()`. ---
 
 ## Giriş Noktası
 
@@ -283,53 +282,6 @@ sequenceDiagram
 
 ---
 
-## Gerçekleşen Dosya Listesi
-
-```
-src/AgentPrism.AspNetCore/
-├── AgentPrismEndpointRouteBuilderExtensions.cs   MapAgentPrism — tek giris noktasi
-├── AgentPrismEndpointOptions.cs                  erisim + akis ayarlari
-├── Security/AgentPrismEndpointFilter.cs          loopback + bearer, sirayla
-├── Security/LoopbackGuard.cs                     IPv4/IPv6/eslenmis adres karari
-├── Security/BearerTokenValidator.cs              SHA-256 + FixedTimeEquals
-├── Sessions/AgentPrismAgentSessionStore.cs       MAF AgentSessionStore koprusu
-├── Streaming/SseWriter.cs                        SSE cerceveleme + Last-Event-ID
-├── Endpoints/MetaEndpoints.cs                    /api/meta  (kimlik dogrulamasi YOK)
-├── Endpoints/AgentEndpoints.cs                   /api/agents/*  (CRUD + surum + run)
-├── Endpoints/SessionEndpoints.cs                 /api/sessions/*
-├── Endpoints/RunEndpoints.cs                     /api/runs/*  (SSE)
-├── Endpoints/CatalogEndpoints.cs                 /api/tools · /api/models · /api/stats
-├── OpenAICompat/OpenAIResponsesEndpoints.cs      /v1/responses
-├── OpenAICompat/OpenAIChatCompletionsEndpoints.cs /v1/chat/completions
-├── OpenAICompat/OpenAIConversationsEndpoints.cs  /v1/conversations · /items
-├── OpenAICompat/OpenAICompatSupport.cs           agent secimi, OpenAI hata bicimi, sahiplik
-├── Internal/ChatHistoryReader.cs                 gecmis okuma — /api/sessions ve /v1/.../items paylasir
-└── Contracts/                                    AgentPrismMetaResponse · AgentContracts · SessionDetailResponse
-```
-
-Plandaki `Endpoints/ToolEndpoints.cs`, `ModelEndpoints.cs` ve `StatsEndpoints.cs` tek bir
-`CatalogEndpoints.cs` içinde toplandı — üçü de tek satırlık salt okunur defter uçlarıdır.
-
-`src/AgentPrism.PostgreSql/Stores/PostgresConversationStorage.cs`,
-`PostgresAgentConversationIndex.cs` ve `PostgresResponsesService.cs`
-**yazılmadı** — MAF'ın internal arayüzleri implemente edilemez (S1). Conversations
-uçları bunun yerine `ISessionStore` üzerine kuruldu (S10).
-
-Diğer paketlerde yapılan değişiklikler:
-
-| Dosya | Değişiklik |
-|-------|-----------|
-| `Abstractions/Runs/RunStatistics.cs` | **yeni** — `RunStatistics`, `RunAgentStatistics`, `RunStatisticsQuery` |
-| `Abstractions/Runs/IRunStore.cs` | `GetStatisticsAsync` eklendi |
-| `Abstractions/Runs/RunStatus.cs`, `RunEventType.cs`, `Agents/AgentDefinitionOrigin.cs` | `[JsonConverter(typeof(JsonStringEnumConverter<T>))]` |
-| `Core/Storage/InMemoryRunStore.cs` | `GetStatisticsAsync` |
-| `Core/AgentPrismServiceCollectionExtensions.cs` | `ChatHistoryProvider` → `InMemoryChatHistoryProvider` açık kaydı |
-| `PostgreSql/Stores/PostgresRunStore.cs`, `Internal/SqlQueries.cs` | `SelectRunStatistics` (iki sonuç kümesi) |
-| `Directory.Build.targets`, `src/Directory.Build.props` | `IsAotCompatible` türetmesi taşındı (sapma S6) |
-| `Directory.Packages.props` | `Microsoft.AspNetCore.TestHost`, `Microsoft.AspNetCore.OpenApi`, `Microsoft.OpenApi` (CVE) |
-
----
-
 ## Plandan Sapmalar
 
 ### 🚨 S1 — MAF'ın depolama arayüzleri `internal`; plan uygulanamadı *(kullanıcı kararı)*
@@ -445,88 +397,6 @@ oluşur. `AgentPrism.AspNetCore` nuspec'i **3 doğrudan bağımlılık** taşıy
 
 ---
 
-## Gerçekleşen Public API
-
-```csharp
-// AgentPrism.AspNetCore
-public static class AgentPrismEndpointRouteBuilderExtensions
-{
-    public const string DefaultPrefix = "/agentprism";
-
-    // Donen olusturucu YALNIZCA korumali grubu temsil eder; /api/meta kilitlenmez.
-    public static IEndpointConventionBuilder MapAgentPrism(
-        this IEndpointRouteBuilder endpoints,
-        string prefix = DefaultPrefix,
-        Action<AgentPrismEndpointOptions>? configure = null);
-}
-
-public sealed class AgentPrismEndpointOptions        // record DEGIL (K-035)
-{
-    public bool AllowRemoteAccess { get; set; }            // false
-    public string? AuthToken { get; set; }                 // null
-    public string? AuthorizationPolicy { get; private set; }
-    public TimeSpan RunEventPollInterval { get; set; }     // 250 ms
-    public void RequireAuthorization(string policyName);
-}
-
-// MAF AgentSessionStore -> AgentSessionManager koprusu (K-026).
-// Tuketici kendi AgentSessionStore'unu kaydederse onunki kazanir (K4).
-public sealed class AgentPrismAgentSessionStore : Microsoft.Agents.AI.Hosting.AgentSessionStore
-{
-    public AgentPrismAgentSessionStore(AgentSessionManager sessions);
-}
-
-// Sozlesmeler
-public sealed record AgentPrismMetaResponse       { Version · Prefix · Authentication · Storage }
-public sealed record AgentPrismAuthenticationMeta { AllowRemoteAccess · RequiresBearerToken · RequiresAuthorizationPolicy }
-public sealed record AgentPrismStorageMeta        { Persistent · AgentDefinitionStore · RunStore · SessionStore }
-public sealed record AgentDefinitionRequest       { Name · DisplayName · Description · Instructions · Model · ToolNames · Harness · ToDefinition() }
-public sealed record AgentDetailResponse          { Descriptor · Definition? · IsEditable }
-public sealed record AgentRollbackRequest         { Version }
-public sealed record AgentRunRequest              { Message · SessionId? }
-public sealed record SessionDetailResponse        { Id · AgentName · TenantId? · CreatedAt · UpdatedAt · Messages? · State }
-
-// AgentPrism.Abstractions — bu fazda eklendi
-public interface IRunStore
-{
-    ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken ct = default);
-}
-
-public sealed record RunStatisticsQuery  { AgentName? · TenantId? · StartedAfter? · MaxAgents = 20 }
-public sealed record RunStatistics       { TotalRuns · CompletedRuns · FailedRuns · CanceledRuns · RunningRuns
-                                           · InputTokens · OutputTokens · TotalTokens · ByAgent · ErrorRate? }
-public sealed record RunAgentStatistics  { AgentName · TotalRuns · FailedRuns · TotalTokens }
-```
-
-`ErrorRate` paydası **sonuçlanmış** çalıştırmalardır; devam eden bir çalıştırma oranı
-yapay olarak düşürürdü. Hiç sonuçlanmış çalıştırma yoksa `null` döner.
-
----
-
-## Testler
-
-`tests/AgentPrism.AspNetCore.FunctionalTests` — **88 test**, `Microsoft.AspNetCore.TestHost`.
-
-| Test sınıfı | Adet | Neyi doğrular |
-|-------------|------|---------------|
-| `SecurityTests` | 16 | Üç katman ayrı ayrı: loopback (IPv4/IPv6/eşlenmiş), bearer (eşit uzunlukta yanlış token dahil), policy. `/api/meta` üçünden de muaf |
-| `AgentCrudTests` | 13 | CRUD, versiyonlama, geri alma, kod agent'ının 409 ile korunması, ad/gövde uyuşmazlığı |
-| `OpenAICompatTests` | 13 | `model` ve `metadata.entity_id` ile agent seçimi, `previous_response_id` zinciri, sabit `conversation`, SSE olay adları, `[DONE]`, chat completions durumsuzluğu |
-| `OpenAIConversationsTests` | 10 | SDK'nın belgelenmiş akışı (create → responses), öğe listeleme ve `input_text`/`output_text` ayrımı, limit, kullanılmamış konuşma, silme, konuşma ↔ oturum aynılığı |
-| `StreamingTests` | 10 | Deneme çalıştırması SSE, `X-Accel-Buffering`, oturumlu geçmiş, olay sırası, **`Last-Event-ID` ile devam**, `/api/stats` |
-| `SessionEndpointTests` | 7 | Sohbet geçmişi okuma, opak durum, filtreleme, silme, agent kalkarsa üstverinin yine dönmesi |
-| `MetaEndpointTests` | 5 | Sürüm/prefix/kimlik yöntemi, depo tipleri, tüketicinin deposunun kazanması, sır ve policy adı sızmaması |
-| `SecretLeakTests` | 5 | Token; ayar `ToString`'i, `/api/meta`, hata yanıtları, oturum/çalıştırma çıktıları ve günlükler |
-| `ProblemDetailsTests` | 4 | `/api/*` → `application/problem+json`; `/v1/*` → OpenAI biçimi |
-| `OpenApiDocumentTests` | 3 | Belge üretimi, özet/etiket/`operationId` üstverisi, özel prefix |
-
-`RunStoreContract` içine **8 yeni test** eklendi (özet sorgusu); hem `InMemoryRunStore`
-hem `PostgresRunStore` üzerinde koşar.
-
-Çözüm geneli: **302 test** — 62 Core + 48 OpenAI + 88 AspNetCore + 104 PostgreSQL.
-
----
-
 ## Bitiş Ölçütleri (DoD)
 
 | Ölçüt | Durum | Kanıt |
@@ -633,16 +503,6 @@ event: message.delta
 
 Tool çalıştıran bir kayıtta olay adları:
 `run.started · tool.invoking · tool.invoked · message.delta · message.completed · run.completed`
-
----
-
-## Riskler — kapanış durumu
-
-| Risk | Sonuç |
-|------|-------|
-| `TryAdd` sırası bozulursa kalıcılık sessizce devre dışı kalır | **Konu değişti.** Arayüzler internal olduğu için o yol hiç kullanılmadı (S1). Kalıcılık artık AgentPrism'in kendi deposundan geçiyor; `/api/meta` aktif depoyu bildiriyor |
-| `Hosting.OpenAI` alpha API'si değişebilir | **Açık.** Kullanım iki dosyada toplandı: `OpenAIResponsesEndpoints` (yalnız `OpenAIResponses` yardımcısı) ve `AgentPrismAgentSessionStore` |
-| SSE arkasında ters vekil arabelleği | **Kapandı.** `X-Accel-Buffering: no` + `IHttpResponseBodyFeature.DisableBuffering()`; test ile korunuyor |
 
 ---
 

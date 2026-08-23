@@ -8,159 +8,24 @@
 
 ---
 
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 7f1833e:docs/arsiv/fazlar/27-AZURE-FOUNDRY.md
+> ```
+>
+> Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
+
+---
+
 ## Amaç ve Sonuç
 
-Kurumsal .NET dünyasının varsayılan yolu Azure'dur. Planda **iki ayrı** yetenek vardı:
-
-| Yetenek | Ne | Durum |
-|---------|-----|-------|
-| **Azure OpenAI** | Aynı modeller, Azure uç noktası ve kimliği | ✅ Yapıldı — bir `IModelProvider` |
-| **Azure AI Foundry Agents** | Azure'da **barındırılan** agent'lar | ⏸️ **Ertelendi** — gerekçe ölçümle, K-212 |
-
-**Sonuç:** `AgentPrism.Azure` paketi üretiliyor. Altı sağlayıcı (`openai`,
-`openai-responses`, `openrouter`, `anthropic`, `google`, `azure-openai`) aynı
-uygulamada çalışıyor. Azure yolunda gerçek çalıştırma, tool çağrısı, akışlı token
-sayımı ve sağlık denetimi doğrulandı.
-
----
-
-## 27.0 — Ölçüm: sonuç planı iki yerde değiştirdi
-
-Fazın maliyeti iki soruya bağlıydı. İkisinin de cevabı planın beklediğinden farklı çıktı.
-
-### Ölçüm 1 — Foundry'nin sorunu sürüm uyumu değil, **ağırlık**
-
-Plan "`Microsoft.Agents.AI.Foundry` 1.5.0 ile MAF 1.16.0 uyuşmayabilir, o zaman
-yapılmaz" diyordu. Ölçüldü (2026-08-05):
-
-| Ölçüm | Sonuç |
-|---|---|
-| En son Foundry sürümü | **1.5.0** (MAF çekirdeği 1.16.0) |
-| MAF 1.16.0 ile birlikte restore | ✅ sorunsuz — sürüm düşürme hatası yok |
-| Derleme ve **tip yükleme** | ✅ `Microsoft.Agents.AI.Foundry, Version=1.5.0.0` yüklendi, tüm public tipler yansımayla listelendi |
-| 🚨 Geçişli bağımlılık | **37 paket** — `Azure.AI.Projects`, `Azure.Storage.Blobs`, `Azure.Identity`, `Microsoft.Identity.Client`, `Google.Protobuf`, `Microsoft.ML.Tokenizers`, `System.Numerics.Tensors`, `Microsoft.Extensions.AI.Evaluation` |
-
-Karşılaştırma: K-205'te "ağır" sayılıp uzun uzun tartışılan `Google.GenAI` **11**
-geçişli bağımlılık taşıyor. Foundry bunun üç katı. Kararı bu ölçüm belirledi (K-212).
-
-### Ölçüm 2 — 🚨 `Azure.AI.OpenAI` 2.1.0'ın Azure'a özgü uzantıları **çalışma anında kırık**
-
-Bu, fazın en pahalı bulgusudur ve Faz 26'nın "ölç, varsayma" dersinin birebir tekrarıdır.
-
-`Azure.AI.OpenAI` 2.1.0, `OpenAI` **2.1.0**'a karşı derlendi. AgentPrism `OpenAI`
-**2.12.0** kullanıyor (`AgentPrism.OpenAI`'ın ihtiyacı; merkezî paket yönetimi tek
-sürüm zorlar). NuGet çakışmayı sessizce 2.12.0'a çözer, **derleme sıfır uyarı verir**,
-ama:
-
-```
-KIRIK   SetNewMaxCompletionTokensPropertyEnabled -> MissingMethodException:
-        'OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData()' bulunamadi
-KIRIK   GetDataSources                           -> ayni istisna
-KIRIK   AddDataSource                            -> ayni istisna
-```
-
-`AzureChatExtensions`'ın **istek tarafı metotlarının tamamı** kırık.
-
-**Temel sohbet yolu ise tam çalışıyor.** Sahte bir Azure ucuyla uçtan uca ölçüldü:
-
-```
-ISTEK : POST /openai/deployments/uretim-gpt/chat/completions?api-version=2024-10-21
-BASLIK: api-key=SAHTE-AZURE-ANAHTARI-xyz789
-GOVDE : {"temperature":0.3,"messages":[…],"model":"uretim-gpt","max_completion_tokens":64}
-YANIT : 'merhaba'   token: giris=11 cikis=3
-```
-
-Sonuç: paket temel yolu kullanır, uzantıların hiçbirine dokunmaz ve bu yüzden
-**hiçbir `ProviderSettings` anahtarı sunmaz** (K-211). `max_completion_tokens`
-zaten doğru gidiyor — OpenAI SDK'sı bu adı kendisi kullanır, Azure uzantısına
-gerek yoktur (ölçüldü).
-
-### Bağımlılık ölçümü (Azure OpenAI yolu — hafif)
-
-```
-AgentPrism.Azure paketi -> 4 dogrudan bagimlilik
-  AgentPrism.Core · Azure.AI.OpenAI 2.1.0 · Azure.Core 1.61.0 · Microsoft.Extensions.AI.OpenAI 10.8.3
-```
-
-`Azure.AI.OpenAI`'ın getirdiği tek **yeni** aile `Azure.Core`'dur; `OpenAI`,
-`System.ClientModel`, `System.Memory.Data` ve `Microsoft.Bcl.AsyncInterfaces`
-zaten grafikte vardı. Paket `IsAotCompatible=true` altında **sıfır uyarı** derledi.
-
----
-
-## Gerçekleşen Public API
-
-Plandaki taslak imzalar değil, **koddaki gerçek imzalar**.
-
-```csharp
-public static class AzureOpenAIProviderNames
-{
-    public const string AzureOpenAI    = "azure-openai";   // KARARLI: veritabaninda saklanir
-    public const string SettingsPrefix = "azure-openai";
-
-    // BOS. Azure'un ek alan yazma yolu kirik (K-211).
-    public static IReadOnlyList<string> SupportedSettings { get; }
-}
-
-public sealed class AzureOpenAIProviderOptions
-{
-    public const string SectionName = "AgentPrism:Providers:AzureOpenAI";
-
-    public Uri?                  Endpoint          { get; set; }   // ZORUNLU
-    public string?               ApiKey            { get; set; }   // SIR
-    public Func<TokenCredential>? CredentialFactory { get; set; }  // Azure.Core — Azure.Identity DEGIL
-    public string?               DefaultDeployment { get; set; }   // model DEGIL, DEPLOYMENT
-    public string?               Audience          { get; set; }   // egemen bulut token kapsami
-    public TimeSpan?             Timeout           { get; set; }
-    public IList<ModelDescriptor> Models           { get; }        // Name = DEPLOYMENT adi
-}
-
-public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<AzureOpenAIProviderOptions>;
-
-public sealed class AzureOpenAIChatClientFactory
-{
-    public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null);
-    public AzureOpenAIChatClientFactory(AzureOpenAIClient client, string? defaultDeployment = null,
-                                        ILoggerFactory? loggerFactory = null);
-
-    public IChatClient CreateChatClient(ModelBinding binding);
-    public static AzureOpenAIClient CreateClient(AzureOpenAIProviderOptions options);
-}
-
-public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck
-{
-    public AzureOpenAIModelProvider(string name, AzureOpenAIChatClientFactory chatClientFactory,
-                                    IReadOnlyList<ModelDescriptor> models,
-                                    ILogger<AzureOpenAIModelProvider>? logger = null,
-                                    AzureOpenAIProviderOptions? healthCheckOptions = null);
-}
-
-public static class AzureOpenAIModelCatalog { public static IReadOnlyList<ModelDescriptor> Build(AzureOpenAIProviderOptions options); }
-
-public static class AzureOpenAIProviderExtensions
-{
-    public static IAgentPrismBuilder UseAzureOpenAI(this IAgentPrismBuilder b, Uri endpoint, string apiKey,
-                                                    Action<AzureOpenAIProviderOptions>? configure = null);
-    public static IAgentPrismBuilder UseAzureOpenAI(this IAgentPrismBuilder b, IConfiguration configurationSection,
-                                                    Action<AzureOpenAIProviderOptions>? configure = null);
-    public static IAgentPrismBuilder UseAzureOpenAI(this IAgentPrismBuilder b, Action<AzureOpenAIProviderOptions> configure);
-}
-
-// internal
-internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
-{
-    internal const string ApiVersion       = "2024-10-21";
-    internal const string DefaultAudience  = "https://cognitiveservices.azure.com/.default";
-    internal static Uri BuildModelsEndpoint(Uri baseEndpoint);
-    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(HttpResponseMessage response, CancellationToken ct);
-}
-```
-
-`AgentPrism.Abstractions` ve `AgentPrism.Core` **değişmedi**. Faz 26'nın devrettiği
-`ModelProviderSettings`, `ContentFilterDetectingChatClient` ve devre kesici olduğu
-gibi çalıştı — devir notu doğru çıktı.
-
----
+Kurumsal .NET dünyasının varsayılan yolu Azure'dur.
 
 ## Plandan Sapmalar
 
@@ -256,75 +121,6 @@ konuşlandırılmış olabilir. Bu yüzden yanlış bir ad "model bulunamadı" d
 Katalogdaki `Name` alanları da deployment adıdır. Katalog yine bir doğrulama
 listesi **değildir** (K-032): Azure'da yeni bir deployment açmak AgentPrism
 yapılandırmasının güncellenmesini beklememelidir.
-
----
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.Azure/                          YENI PAKET
-├── AgentPrism.Azure.csproj
-├── AzureOpenAIProviderNames.cs                SupportedSettings BOS (K-211)
-├── AzureOpenAIProviderOptions.cs              class (K-035)
-├── AzureOpenAIProviderOptionsValidator.cs
-├── AzureOpenAIModelCatalog.cs
-├── AzureOpenAIChatClientFactory.cs
-├── AzureOpenAIModelProvider.cs
-├── AzureOpenAIProviderHealthCheck.cs          internal — GET {endpoint}/openai/models
-├── AzureOpenAIProviderExtensions.cs
-├── README.md
-└── PublicAPI.{Shipped,Unshipped}.txt
-
-tests/AgentPrism.Azure.UnitTests/              YENI PROJE (48 test)
-├── AgentPrism.Azure.UnitTests.csproj
-├── AzureOpenAIProviderExtensionsTests.cs
-├── AzureOpenAIChatClientFactoryTests.cs
-├── AzureOpenAIModelCatalogTests.cs
-├── AzureOpenAIProviderHealthCheckTests.cs
-├── SecretLeakTests.cs
-└── Infrastructure/{TestData,RecordingLoggerProvider}.cs
-
-tests/AgentPrism.Core.UnitTests/
-└── Architecture/DependencyDirectionTests.cs   AgentPrism.Azure eklendi
-
-tests/AgentPrism.AspNetCore.FunctionalTests/
-├── MultiProviderTests.cs                      +1 test, 4 test guncellendi
-└── *.csproj                                   Azure referansi
-
-samples/AgentPrism.Api/
-├── Program.cs                                 UseAzureOpenAI + "azure-destek" agent'i
-├── appsettings.json                           AzureOpenAI semasi
-└── AgentPrism.Api.csproj                      ProjectReference
-
-AgentPrism.slnx, Directory.Packages.props      paket + test projesi + iki SDK surumu
-```
-
-**Dekoratör dosyası yoktur** — diğer iki sağlayıcı paketinden tek yapısal fark budur.
-
----
-
-## Testler
-
-**1700 test geçiyor** (+49). Karşılaştırma tabanı Faz 26'nın 1651'idir.
-SQL Server'ın 213 testi bu makinede koşmuyor ve bu sayıya **dâhil değildir** —
-bkz. DoD notu.
-
-| Proje | Sayı | Faz 27'de eklenen |
-|-------|------|-------------------|
-| `AgentPrism.Azure.UnitTests` | 48 | tamamı yeni |
-| `AgentPrism.AspNetCore.FunctionalTests` | 261 | +1 |
-| diğerleri | değişmedi | — |
-
-| Test sınıfı | Neyi doğrular |
-|-------------|---------------|
-| `AzureOpenAIProviderExtensionsTests` | Tek sağlayıcı kaydı, ikinci çağrı çoğaltmaz, tek fabrika paylaşımı, yapılandırmadan okuma, yapılandırma sonrası kimlik fabrikası verilebilmesi, adressiz/kimliksiz kayıt başlangıçta hata, anahtarsız ama kimlikli kaydın geçerli olması |
-| `AzureOpenAIChatClientFactoryTests` | Boru hattı üyeleri, deployment→üstveri eşlemesi, varsayılan deployment, **hata mesajının DEPLOYMENT dediği**, kimlik fabrikasının bir kez çağrılması, kimliğin anahtarı ezmesi, `null` kimlik, egemen bulut kapsamı, **her ayarın reddedilmesi**, yanlış öneğin ayrı mesaj vermesi |
-| `AzureOpenAIModelCatalogTests` | Yerleşik liste **yoktur**, sıralama, ad çakışması, adsız girdi, katalogda olmayan deployment reddedilmez |
-| `AzureOpenAIProviderHealthCheckTests` | `openai/models?api-version=` birleştirmesi, `{"data":[…]}` ayrıştırma, bağlanamayan uçta **ne anahtar ne adres** sızmaz, adressiz denetim ağa çıkmaz, genel/egemen bulut kapsamı, kimlik nesnesinin denetimler arası paylaşılması |
-| `SecretLeakTests` | Anahtar 8 farklı çıktıda görünmüyor; **doğrulama mesajı adres de taşımıyor**; ayar sınıfı kendi `ToString`'ini tanımlamıyor (K-035) |
-| `MultiProviderTests` | Altı sağlayıcı aynı anda, katalog ayrımı (Azure'da deployment adı), sağlık ucu, anahtar sızmaz, Azure'un hiçbir ayar kabul etmediğini söylemesi |
-
-**Gerçek model çağrısı yapan test yoktur** (Faz 3'ten beri geçerli karar).
 
 ---
 
@@ -458,19 +254,6 @@ Karar defterine yazıldı (`docs/KARARLAR.md`, **K-210 – K-213**):
 2. **K-211** — Azure sağlayıcısı hiçbir `ProviderSettings` anahtarı sunmaz; `AzureChatExtensions` çalışma anında kırık.
 3. **K-212** — Azure AI Foundry ertelendi; gerekçe sürüm uyumu değil, 37 geçişli paket ve doğrulanamazlık.
 4. **K-213** — Azure'ın Responses yüzeyi desteklenmiyor; SDK Azure'a özgü bir `ResponsesClient` sunmuyor.
-
----
-
-## Riskler — kapanış durumu
-
-| Risk | Sonuç |
-|------|-------|
-| `Microsoft.Agents.AI.Foundry` sürüm uyumsuzluğu | **Gerçekleşmedi.** 1.5.0 + MAF 1.16.0 sorunsuz yüklendi. Yerine ağırlık sorunu çıktı (K-212) |
-| `Azure.Identity` bağımlılık şişmesi | **Ortadan kalktı.** Kimlik fabrikası tüketiciden; paket yalnız `Azure.Core`'a bağlı |
-| Foundry ile garantiler sessizce kaybolur | **Gerçekleşmedi** — iş yapılmadı; ödünleşme tablosu aşağıda korundu |
-| Gerçek Azure olmadan test edilemez | **Kısmen gerçekleşti.** Sözleşme taklit uçla uçtan uca doğrulandı; kalan tek belirsizlik sağlık denetiminin liste biçimi |
-| Deployment adı karışıklığı | README + ayar adı + hata mesajı + test ile üç yerden kapatıldı |
-| 🆕 SDK sürüm kayması | **Gerçekleşti ve ölçüldü.** `AzureChatExtensions` çalışma anında kırık; paket o yüzeye hiç dokunmaz (K-211) |
 
 ---
 
