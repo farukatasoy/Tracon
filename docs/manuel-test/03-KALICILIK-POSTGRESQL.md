@@ -1980,3 +1980,58 @@ değişikliği olmadan geçmelidir.
 **Gerçek koşum kanıtı (2026-08-19, kapanış)**: `AgentPrism.SqlServer.IntegrationTests`
 540/540, `AgentPrism.Sqlite.IntegrationTests` 554/554 (ledger yükseltme testi
 dahil) — ikisi de gerçek konteynerlere karşı yeşil.
+
+---
+
+### MT-PG-067 — SQL tek kaynak: 117 sorgunun taşınması üretilen SQL'i değiştirmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 94 |
+| **İlgili karar** | K-483 |
+
+`SqlQueriesBase` artık üç dialektte özdeş olan 115 sorguyu (plan 117 diyordu;
+çözümlenmiş SQL metnine göre ölçüldüğünde 4'ü SQL Server'a özgü hizalama
+boşluğu yüzünden aslında farklıydı, 2'si ise fazladan özdeş çıktı — bkz. faz
+dokümanının "Plandan Sapmalar" bölümü) tek yerde kurar; maliyet/token toplama
+ifadeleri `CostTotal`/`TreeSum` ile üretilir. Kapı: `SqlTextSnapshotTests`
+(`tests/AgentPrism.Sql.Shared.UnitTests`) faz başında alınan taban çizgisiyle
+üç dialektin ÇÖZÜMLENMİŞ (şema adı yerleşmiş) SQL metnini birebir karşılaştırır
+— Docker gerekmez.
+
+**Adımlar**
+1. `dotnet test tests/AgentPrism.Sql.Shared.UnitTests -c Release` çalıştır.
+2. `SqlQueriesBase.CostAddends`'e sahte bir dördüncü terim ekle, aynı komutu
+   tekrar çalıştır, sonra geri al.
+3. `AgentPrism.PostgreSql.IntegrationTests`, `AgentPrism.SqlServer.IntegrationTests`
+   ve `AgentPrism.Sqlite.IntegrationTests` sözleşme setlerinin tamamını gerçek
+   sunuculara karşı çalıştır.
+
+**Beklenen sonuç**
+- Adım 1: sekiz test de yeşil (üç dialektin metin/boşluk-kapısı + `RunOrdinals`
+  ve `CostAddends` çapraz doğrulamaları).
+- Adım 2: `CostAddendsCrossCheckTests` düşer (`RunCost.Total()`'ın karşılığı
+  yok) — geri alınca yeniden yeşil.
+- Adım 3: davranış AYNI kalır; hiçbir maliyet/token/kimlik alanı değişmez.
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `AgentPrism.Sql.Shared.UnitTests`
+8/8; `AgentPrism.PostgreSql.IntegrationTests` 638/638;
+`AgentPrism.SqlServer.IntegrationTests` 574/574;
+`AgentPrism.Sqlite.IntegrationTests` 592/592 — dördü de gerçek sunuculara/dosyaya
+karşı, refactor öncesi ve sonrası aynı sayılarla yeşil. Ayrıca `samples/AgentPrism.Api`
+gerçek `ap-pg` konteynerine (taze `agentprism_p94` şeması, 37 migration) karşı
+çalıştırıldı: `phase94-echo` adlı bir agent tanımı oluşturuldu (maliyetsiz
+`echo` sağlayıcısı — gerçek bir para harcayan sağlayıcıya dokunulmadı), bir
+`run` yapıldı, `GET /agentprism/api/runs/{id}` çağrıldı — kayıt `RunOrdinals`
+üzerinden doğru okundu (`status: Completed`, `eventCount: 11`, akış yanıtı
+tam metniyle geldi). `usage`/`cost` bu koşumda `null` döndü çünkü örnek
+uygulamanın `EchoModelProvider`'ı yalnız AKIŞLI yolda kullanım bildirmiyor —
+bu bir Faz 94 kusuru değil, örnek uygulamanın bilinen sınırıdır; DOLU
+usage/cost yolu zaten `RunStoreContract`'ın 382 test'iyle üç gerçek
+veritabanına karşı kanıtlanmıştır. `GET /agentprism/api/stats?agentName=phase94-echo`
+de çağrıldı — `SelectRunStatistics` (`CostTotal`/`CountWhereAnyNotNull`
+kullanan sorgu) gerçek PostgreSQL'e karşı çalıştı ve `totalCost: null` (doğru
+— hiçbir koşumun maliyeti yok) döndürdü. Doğrulama şeması temizlendi
+(`DROP SCHEMA agentprism_p94 CASCADE`).

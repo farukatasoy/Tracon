@@ -28,6 +28,162 @@ namespace AgentPrism;
 /// </remarks>
 internal abstract class SqlQueriesBase
 {
+    /// <summary>Creates a new query set for the given schema/prefix and builds the shared queries.</summary>
+    /// <param name="schemaName">The schema name (SQL Server, PostgreSQL) or table prefix (SQLite) to validate.</param>
+    /// <exception cref="AgentPrismException">The name is not a valid identifier.</exception>
+    /// <remarks>
+    /// <see cref="Schema"/> is assigned before the shared queries are built, since
+    /// building them calls the (possibly overridden) <see cref="Table"/>, which
+    /// reads <see cref="Schema"/>. A derived constructor must not assign
+    /// <see cref="Schema"/> again; it is set here once.
+    /// </remarks>
+    protected SqlQueriesBase(string schemaName)
+    {
+        Schema = SqlIdentifier.RequireSchemaName(schemaName);
+        BuildSharedQueries();
+    }
+
+    /// <summary>Qualifies a bare table name for this provider.</summary>
+    /// <param name="name">The table name without schema or prefix.</param>
+    /// <returns>The qualified name, ready to embed into runnable SQL.</returns>
+    /// <remarks>
+    /// PostgreSQL and SQL Server join with a dot; SQLite concatenates the prefix
+    /// directly, since its object names share a single namespace across the
+    /// database. The SQLite query set overrides this.
+    /// </remarks>
+    protected virtual string Table(string name) => $"{Schema}.{name}";
+
+    /// <summary>Qualifies a bare table name for this provider.</summary>
+    /// <param name="tableName">The table name without schema or prefix (for example <c>"sessions"</c>).</param>
+    /// <returns>The qualified name, ready to embed into runnable SQL.</returns>
+    /// <remarks>
+    /// The public gateway <see cref="SqlDialect.QualifyTable"/> uses this for the
+    /// provider-independent SQL text built outside this class (for example
+    /// <see cref="RetentionTargetRegistry"/>).
+    /// </remarks>
+    public string QualifyTable(string tableName) => Table(tableName);
+
+    /// <summary>
+    /// The addends of a cost total, in order. A new cost term is added HERE and
+    /// nowhere else: a cost total that reaches the SQL text but not the addend
+    /// list here silently under-reports. <c>RunCost.Total()</c>, in
+    /// <c>AgentPrism.Core</c>, is the C# twin of this list.
+    /// </summary>
+    protected static readonly string[] CostAddends = ["input_cost", "output_cost", "cached_input_cost"];
+
+    /// <summary>Builds the null-preserving sum of <see cref="CostAddends"/> over the current aggregate.</summary>
+    /// <param name="alias">The table alias to qualify each addend with, or <see langword="null"/> for none.</param>
+    /// <returns>The sum expression, without the surrounding <c>CASE WHEN ... END</c> null guard.</returns>
+    protected static string CostTotal(string? alias = null)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+
+        return string.Join(" + ", CostAddends.Select(addend => $"COALESCE(SUM({prefix}{addend}), 0)"));
+    }
+
+    /// <summary>Counts the rows in which any of <paramref name="columns"/> is not null.</summary>
+    /// <param name="columns">The columns to test.</param>
+    /// <param name="alias">The table alias to qualify each column with, or <see langword="null"/> for none.</param>
+    /// <returns>A scalar aggregate expression, for the <see cref="CostTotal"/> null guard.</returns>
+    /// <remarks>SQL Server has no <c>FILTER</c> clause and overrides this.</remarks>
+    protected virtual string CountWhereAnyNotNull(IReadOnlyList<string> columns, string? alias)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+        var condition = string.Join(" OR ", columns.Select(column => $"{prefix}{column} IS NOT NULL"));
+
+        return $"COUNT(*) FILTER (WHERE {condition})";
+    }
+
+    /// <summary>Builds the sum of a single token-tree column.</summary>
+    /// <param name="column">The column to sum.</param>
+    /// <param name="alias">The table alias to qualify the column with, or <see langword="null"/> for none.</param>
+    /// <param name="coalesceToZero">
+    /// Whether an empty group reads as <c>0</c>. <see langword="false"/> for a column whose
+    /// zero and "not reported" states must stay distinguishable — a descendant tree in which
+    /// nobody reported cache usage must read as "not measured", not "measured zero".
+    /// </param>
+    /// <returns>The sum expression.</returns>
+    protected static string TreeSum(string column, string? alias, bool coalesceToZero)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+        var sum = $"SUM({prefix}{column})";
+
+        return coalesceToZero ? $"COALESCE({sum}, 0)" : sum;
+    }
+
+    /// <summary>
+    /// The <c>runs</c> reader columns, in ordinal order. A new column is APPENDED,
+    /// never inserted: <c>SqlRunStore</c> reads the <c>SelectRun</c>/<c>SelectRuns</c>
+    /// result by ordinal, through the named constants in <c>RunOrdinals</c>, and a
+    /// test cross-checks that every ordinal from <c>0</c> to <c>Length - 1</c> is
+    /// named exactly once. Each entry names the value and where it comes from
+    /// (<see cref="RunColumnSource.Own"/> — the run's own row, or
+    /// <see cref="RunColumnSource.Tree"/> — an aggregate over its descendant tree).
+    /// This list is the single record of the ordinal SEQUENCE; it does not generate
+    /// the SQL text — each dialect still writes its own <c>runColumns</c>, because a
+    /// <c>Tree</c> entry resolves through a join on PostgreSQL/SQL Server and through
+    /// a correlated subquery on SQLite (no <c>treeJoin</c> there). Appending a
+    /// column therefore still means updating four places (the three <c>runColumns</c>
+    /// texts and this list); the difference is only that a mismatch is a build-time
+    /// test failure instead of a run-time "wrong value" that reaches the API surface.
+    /// </summary>
+    protected static readonly RunColumn[] RunColumnOrder =
+    [
+        new("id", RunColumnSource.Own),
+        new("tenant_id", RunColumnSource.Own),
+        new("agent_name", RunColumnSource.Own),
+        new("session_id", RunColumnSource.Own),
+        new("status", RunColumnSource.Own),
+        new("started_at", RunColumnSource.Own),
+        new("completed_at", RunColumnSource.Own),
+        new("is_streaming", RunColumnSource.Own),
+        new("input_tokens", RunColumnSource.Own),
+        new("output_tokens", RunColumnSource.Own),
+        new("total_tokens", RunColumnSource.Own),
+        new("event_count", RunColumnSource.Own),
+        new("error_type", RunColumnSource.Own),
+        new("error_message", RunColumnSource.Own),
+        new("model_id", RunColumnSource.Own),
+        new("parent_run_id", RunColumnSource.Own),
+        new("root_run_id", RunColumnSource.Own),
+        new("depth", RunColumnSource.Own),
+        new("child_count", RunColumnSource.Tree),
+        new("input_tokens", RunColumnSource.Tree),
+        new("output_tokens", RunColumnSource.Tree),
+        new("total_tokens", RunColumnSource.Tree),
+        new("usage_rows", RunColumnSource.Tree),
+        new("kind", RunColumnSource.Own),
+        new("workflow_name", RunColumnSource.Own),
+        new("agent_version", RunColumnSource.Own),
+        new("experiment_id", RunColumnSource.Own),
+        new("variant", RunColumnSource.Own),
+        new("input_cost", RunColumnSource.Own),
+        new("output_cost", RunColumnSource.Own),
+        new("cost_currency", RunColumnSource.Own),
+        new("pricing_source", RunColumnSource.Own),
+        new("cost_input", RunColumnSource.Tree),
+        new("cost_output", RunColumnSource.Tree),
+        new("cost_currency", RunColumnSource.Tree),
+        new("unknown_pricing_rows", RunColumnSource.Tree),
+        new("pricing_rows", RunColumnSource.Tree),
+        new("error_class", RunColumnSource.Own),
+        new("error_fingerprint", RunColumnSource.Own),
+        new("replay_of_run_id", RunColumnSource.Own),
+        new("user_id", RunColumnSource.Own),
+        new("labels", RunColumnSource.Own),
+        new("cached_input_tokens", RunColumnSource.Own),
+        new("reasoning_tokens", RunColumnSource.Own),
+        new("audio_input_tokens", RunColumnSource.Own),
+        new("audio_output_tokens", RunColumnSource.Own),
+        new("cached_input_cost", RunColumnSource.Own),
+        new("cached_input_tokens", RunColumnSource.Tree),
+        new("reasoning_tokens", RunColumnSource.Tree),
+        new("audio_input_tokens", RunColumnSource.Tree),
+        new("audio_output_tokens", RunColumnSource.Tree),
+        new("cost_cached_input", RunColumnSource.Tree),
+        new("continued_from_run_id", RunColumnSource.Own),
+    ];
+
     /// <summary>Gets the query that inserts a tool invocation record.</summary>
     public string InsertToolInvocation { get; protected set; } = string.Empty;
 
@@ -261,7 +417,7 @@ internal abstract class SqlQueriesBase
     public string ReportJobItem { get; protected set; } = string.Empty;
 
     /// <summary>Gets the validated schema name.</summary>
-    public string Schema { get; protected set; } = string.Empty;
+    public string Schema { get; private set; } = string.Empty;
 
     /// <summary>Gets the statement that creates the schema.</summary>
     public string CreateSchema { get; protected set; } = string.Empty;
@@ -714,4 +870,814 @@ internal abstract class SqlQueriesBase
 
     /// <summary>The marker that stands in for the schema name in the embedded SQL files.</summary>
     public const string SchemaPlaceholder = "{schema}";
+
+    // --- Shared column lists (phase 94): identical text across all three
+    //     providers, used by both the queries built here and the dialect's own.
+    protected const string McpServerColumns = """
+            id, tenant_id, name, description, endpoint, transport,
+            authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
+            oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode
+            """;
+
+    protected const string ScheduleColumns = """
+            id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
+            next_run_at, last_run_at, created_by, created_at, updated_at
+            """;
+
+    protected const string InboundTriggerColumns = """
+            id, tenant_id, name, target_kind, target_name, signing_secret_configuration_name,
+            payload_mode, payload_path, enabled, created_at, updated_at
+            """;
+
+    protected const string JobColumns = """
+            id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
+            failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
+            error_message, created_at, max_attempts
+            """;
+
+    protected const string SuiteColumns = """
+            id, tenant_id, name, description, agent_name, checks, created_at, updated_at
+            """;
+
+    protected const string EvalCaseColumns = """
+            id, suite_id, seq, query, expected_output, expected_tools, context,
+            source_run_id, source_kind, promoted_at, parameters
+            """;
+
+    protected const string EvalRunColumns = """
+            id, tenant_id, suite_id, job_id, agent_version, model_id, status, total, passed, failed,
+            input_tokens, output_tokens, started_at, completed_at
+            """;
+
+    protected const string QuotaColumns = """
+            id, tenant_id, agent_name, period, max_runs, max_tokens, max_cost, enabled,
+            created_at, updated_at
+            """;
+
+    protected const string WebhookSubscriptionColumns = """
+            id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
+            consecutive_failures, created_at, updated_at
+            """;
+
+    protected const string WebhookDeliveryColumns = """
+            id, subscription_id, tenant_id, event_type, payload, status, attempt, response_code,
+            error, created_at, delivered_at
+            """;
+
+    protected const string ApiKeyColumns = """
+            id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
+            last_used_at, created_at
+            """;
+
+    protected const string RetentionPolicyColumns =
+         "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
+
+    protected const string RetentionRunColumns =
+         "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
+
+    protected const string RunScoreColumns =
+         "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
+
+    protected const string TenantProviderBindingColumns =
+         "tenant_id, provider_name, api_key_configuration_name, endpoint, updated_at";
+
+    /// <summary>
+    /// Builds the queries whose resolved text is identical across all three
+    /// providers once the schema qualifier is abstracted through
+    /// <see cref="Table"/>. The queries that genuinely differ (including a few
+    /// that look identical in source but differ only in whitespace once
+    /// resolved) stay in the provider's own constructor, unchanged.
+    /// </summary>
+    private void BuildSharedQueries()
+    {
+        SelectAppliedMigrations = $"SELECT set_name, id, name, checksum FROM {Table("__migrations")} ORDER BY set_name, id;";
+
+        InsertMigration = $"""
+            INSERT INTO {Table("__migrations")} (set_name, id, name, checksum, applied_at)
+            VALUES (@set_name, @id, @name, @checksum, @applied_at);
+            """;
+
+        InsertAgentDefinitionVersion = $"""
+            INSERT INTO {Table("agent_definition_versions")} (id, agent_id, version, definition, created_by, created_at)
+            VALUES (@id, @agent_id, @version, @definition, @created_by, @created_at);
+            """;
+
+        SelectAgentDefinition = $"""
+            SELECT definition, version, updated_at
+            FROM {Table("agent_definitions")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectAgentDefinitions = $"""
+            SELECT name, definition, version, updated_at
+            FROM {Table("agent_definitions")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteAgentDefinition = $"DELETE FROM {Table("agent_definitions")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        SelectAgentDefinitionVersions = $"""
+            SELECT v.definition, v.version, v.created_at
+            FROM {Table("agent_definition_versions")} v
+            JOIN {Table("agent_definitions")} d ON d.id = v.agent_id
+            WHERE d.tenant_id = @tenant_id AND d.name = @name
+            ORDER BY v.version DESC;
+            """;
+
+        SelectAgentDefinitionVersion = $"""
+            SELECT v.definition, v.created_at
+            FROM {Table("agent_definition_versions")} v
+            JOIN {Table("agent_definitions")} d ON d.id = v.agent_id
+            WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
+            """;
+
+        DeleteAgentSkill = $"DELETE FROM {Table("agent_skills")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        DeleteAgentSkillResources = $"DELETE FROM {Table("agent_skill_resources")} WHERE skill_id = @skill_id;";
+
+        InsertAgentSkillResource = $"""
+            INSERT INTO {Table("agent_skill_resources")}
+                (id, skill_id, name, description, media_type, content, created_at)
+            VALUES
+                (@id, @skill_id, @name, @description, @media_type, @content, @created_at);
+            """;
+
+        SelectAgentSkillResources = $"""
+            SELECT name, description, media_type, content
+            FROM {Table("agent_skill_resources")}
+            WHERE skill_id = @skill_id
+            ORDER BY name;
+            """;
+
+        DeleteAgentSkillScripts = $"DELETE FROM {Table("agent_skill_scripts")} WHERE skill_id = @skill_id;";
+
+        InsertAgentSkillScript = $"""
+            INSERT INTO {Table("agent_skill_scripts")}
+                (id, skill_id, name, description, extension, content, parameters_schema, created_at)
+            VALUES
+                (@id, @skill_id, @name, @description, @extension, @content, @parameters_schema, @created_at);
+            """;
+
+        SelectAgentSkillScripts = $"""
+            SELECT name, description, extension, content, parameters_schema
+            FROM {Table("agent_skill_scripts")}
+            WHERE skill_id = @skill_id
+            ORDER BY name;
+            """;
+
+        InsertSession = $"""
+            INSERT INTO {Table("sessions")} (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
+            """;
+
+        SelectSession = $"""
+            SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id
+            FROM {Table("sessions")}
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectSessionOwner = $"SELECT tenant_id FROM {Table("sessions")} WHERE id = @id;";
+
+        DeleteSession = $"DELETE FROM {Table("sessions")} WHERE id = @id AND tenant_id = @tenant_id;";
+
+        // RunEventWriter no longer exists in that process; the reconciler
+        // writes the event. The sequence number is the current maximum plus
+        // one -- there is no race risk because the run was just closed
+        // (SingletonGuard already guarantees a single reconciler).
+        InsertOrphanRunEvent = $"""
+            INSERT INTO {Table("run_events")} (run_id, seq, type, text, created_at)
+            VALUES (@run_id,
+                    COALESCE((SELECT MAX(seq) FROM {Table("run_events")} WHERE run_id = @run_id), -1) + 1,
+                    @type, @text, @created_at);
+            """;
+
+        // 🚨 SELECT ... WHERE EXISTS, not VALUES: the write applies only if
+        // the target run belongs to the EXPECTED tenant (K-355). No check is
+        // made when @tenant_id is NULL. The subquery is a primary-key lookup;
+        // its added cost on the hot write path is a single index read.
+        InsertRunEvent = $"""
+            INSERT INTO {Table("run_events")} (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
+            SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
+            WHERE EXISTS (
+                SELECT 1 FROM {Table("runs")} r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
+            """;
+
+        SelectRunEvents = $"""
+            SELECT e.run_id, e.seq, e.type, e.text, e.tool_name, e.tool_call_id, e.payload, e.created_at
+            FROM {Table("run_events")} e
+            JOIN {Table("runs")} r ON r.id = e.run_id
+            WHERE e.run_id = @run_id AND e.seq >= @from_sequence AND r.tenant_id = @tenant_id
+            ORDER BY e.seq;
+            """;
+
+        SelectNextConversationSequence = $"""
+            SELECT COALESCE(MAX(seq), -1) + 1
+            FROM {Table("conversation_items")}
+            WHERE conversation_id = @conversation_id;
+            """;
+
+        InsertConversationItem = $"""
+            INSERT INTO {Table("conversation_items")} (id, conversation_id, seq, item, created_at)
+            VALUES (@id, @conversation_id, @seq, @item, @created_at);
+            """;
+
+        SelectConversationItems = $"""
+            SELECT i.item
+            FROM {Table("conversation_items")} i
+            JOIN {Table("conversations")} c ON c.id = i.conversation_id
+            WHERE i.conversation_id = @conversation_id AND c.tenant_id = @tenant_id
+            ORDER BY i.seq;
+            """;
+
+        SelectConversationBranchPoint = $"""
+            SELECT COALESCE(MAX(seq), -1), COUNT(*)
+            FROM {Table("conversation_items")}
+            WHERE conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
+            """;
+
+        // Metadata (agent_name, metadata) is COPIED from the source: a branch
+        // is a conversation of the same agent. The tenant filter is on the
+        // SELECT side; for another tenant's conversation no row is written
+        // and the caller sees 0 affected rows.
+        InsertBranchConversation = $"""
+            INSERT INTO {Table("conversations")}
+                (id, tenant_id, agent_name, metadata, created_at, updated_at,
+                 parent_conversation_id, branch_from_seq)
+            SELECT @id, c.tenant_id, c.agent_name, c.metadata, @now, @now,
+                   c.id, @branch_from_seq
+            FROM {Table("conversations")} c
+            WHERE c.id = @parent_conversation_id AND c.tenant_id = @tenant_id;
+            """;
+
+        SelectConversationItemsForBranch = $"""
+            SELECT i.seq, i.item, i.created_at
+            FROM {Table("conversation_items")} i
+            WHERE i.conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR i.seq <= @up_to_sequence)
+            ORDER BY i.seq;
+            """;
+
+        SelectRunInput = $"""
+            SELECT messages, created_at
+            FROM {Table("run_inputs")}
+            WHERE run_id = @run_id AND tenant_id = @tenant_id;
+            """;
+
+        // Same tenant guard as InsertRunEvent (K-355).
+        InsertToolInvocation = $"""
+            INSERT INTO {Table("tool_invocations")}
+                (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
+                 usage_unit, usage_quantity, usage_estimated, cost, cost_currency,
+                 authorization_denied, timed_out)
+            SELECT @id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
+                   @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency,
+                   @authorization_denied, @timed_out
+            WHERE EXISTS (
+                SELECT 1 FROM {Table("runs")} r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
+            """;
+
+        // 🚨 New columns are ALWAYS appended at the end; existing fixed-index
+        // readers (ReadToolInvocation) are never renumbered. Lesson from
+        // Phase 20.
+        SelectToolInvocations = $"""
+            SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
+                   t.duration_ms, t.error, t.created_at,
+                   t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency,
+                   t.authorization_denied, t.timed_out
+            FROM {Table("tool_invocations")} t
+            JOIN {Table("runs")} r ON r.id = t.run_id
+            WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id
+            ORDER BY t.created_at, t.id;
+            """;
+
+        DeleteExperiment = $"""
+            DELETE FROM {Table("experiments")}
+            WHERE tenant_id = @tenant_id AND name = @name AND status <> 1;
+            """;
+
+        SelectTraceByRun = $"""
+            SELECT id, trace_id, run_id, tenant_id, started_at, ended_at
+            FROM {Table("traces")}
+            WHERE run_id = @run_id AND tenant_id = @tenant_id;
+            """;
+
+        SelectSpans = $"""
+            SELECT id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status
+            FROM {Table("spans")}
+            WHERE trace_id = @trace_id
+            ORDER BY started_at, id;
+            """;
+
+        // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
+        // reads argument_conditions by fixed ordinal 7 (docs/hafiza/postgresql.md).
+        SelectToolApprovalRules = $"""
+            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
+            FROM {Table("tool_approval_rules")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY created_at DESC;
+            """;
+
+        DeleteToolApprovalRule = $"""
+            DELETE FROM {Table("tool_approval_rules")}
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectMcpServers = $"""
+            SELECT {McpServerColumns}
+            FROM {Table("mcp_servers")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectMcpServer = $"""
+            SELECT {McpServerColumns}
+            FROM {Table("mcp_servers")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        DeleteMcpServer = $"DELETE FROM {Table("mcp_servers")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        SelectTenants = $"""
+            SELECT id, slug, display_name, created_at
+            FROM {Table("tenants")}
+            ORDER BY slug;
+            """;
+
+        DeleteTenant = $"DELETE FROM {Table("tenants")} WHERE slug = @slug;";
+
+        InsertAttachment = $"""
+            INSERT INTO {Table("attachments")}
+                (id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256,
+                 content, external_uri, created_by, created_at)
+            VALUES
+                (@id, @tenant_id, @session_id, @run_id, @file_name, @media_type, @byte_size, @sha256,
+                 @content, @external_uri, @created_by, @created_at);
+            """;
+
+        SelectAttachment = $"""
+            SELECT id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
+            FROM {Table("attachments")}
+            WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        // content is read only when requested (docs/arsiv/fazlar/14-COK-MODLULUK.md, section 14.2).
+        SelectAttachmentContent = $"""
+            SELECT content, external_uri, media_type
+            FROM {Table("attachments")}
+            WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        SelectAgentFile = $"""
+            SELECT content
+            FROM {Table("agent_files")}
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+            """;
+
+        DeleteAgentFile = $"""
+            DELETE FROM {Table("agent_files")}
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+            """;
+
+        SelectWorkflow = $"""
+            SELECT definition, version, updated_at
+            FROM {Table("workflows")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectWorkflows = $"""
+            SELECT definition, version, updated_at, name
+            FROM {Table("workflows")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteWorkflow = $"DELETE FROM {Table("workflows")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // AgentPrism generates the checkpoint id; a conflict means only that
+        // the same id was written twice, and that is an error -- it is not
+        // silently skipped, so there is NO ON CONFLICT clause.
+        InsertWorkflowCheckpoint = $"""
+            INSERT INTO {Table("workflow_checkpoints")}
+                (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, created_at)
+            VALUES (@id, @tenant_id, @session_id, @checkpoint_id, @parent_id, @run_id, @state, @created_at);
+            """;
+
+        SelectWorkflowCheckpoint = $"""
+            SELECT state
+            FROM {Table("workflow_checkpoints")}
+            WHERE tenant_id = @tenant_id AND session_id = @session_id AND checkpoint_id = @checkpoint_id;
+            """;
+
+        // The state payload is DELIBERATELY not selected: this is a list of
+        // metadata, and carrying kilobytes of opaque JSON next to every row
+        // would make the UI's checkpoint list unopenable.
+        SelectWorkflowCheckpoints = $"""
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            FROM {Table("workflow_checkpoints")}
+            WHERE tenant_id = @tenant_id AND session_id = @session_id
+            ORDER BY created_at, checkpoint_id;
+            """;
+
+        SelectWorkflowCheckpointsByRun = $"""
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            FROM {Table("workflow_checkpoints")}
+            WHERE tenant_id = @tenant_id AND run_id = @run_id
+            ORDER BY created_at, checkpoint_id;
+            """;
+
+        DeleteWorkflowCheckpoints = $"""
+            DELETE FROM {Table("workflow_checkpoints")}
+            WHERE tenant_id = @tenant_id AND session_id = @session_id;
+            """;
+
+        InsertAuditEntry = $"""
+            INSERT INTO {Table("audit_log")} (id, tenant_id, actor, action, entity, before, after, created_at, prev_hash, hash)
+            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at, @prev_hash, @hash);
+            """;
+
+        SelectJobSchedule = $"""
+            SELECT {ScheduleColumns}
+            FROM {Table("job_schedules")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectJobSchedules = $"""
+            SELECT {ScheduleColumns}
+            FROM {Table("job_schedules")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteJobSchedule = $"DELETE FROM {Table("job_schedules")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // CAS (compare-and-swap): advances only if the expected `next_run_at`
+        // is still current. If another app instance already advanced the same
+        // schedule concurrently, the match fails and the affected row count
+        // is zero.
+        TryClaimJobScheduleNextRun = $"""
+            UPDATE {Table("job_schedules")}
+               SET next_run_at = @new_next_run_at, last_run_at = @ran_at
+             WHERE id = @id AND next_run_at = @expected_next_run_at;
+            """;
+
+        SelectInboundTrigger = $"""
+            SELECT {InboundTriggerColumns}
+            FROM {Table("inbound_triggers")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectInboundTriggers = $"""
+            SELECT {InboundTriggerColumns}
+            FROM {Table("inbound_triggers")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteInboundTrigger = $"DELETE FROM {Table("inbound_triggers")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        InsertJob = $"""
+            INSERT INTO {Table("jobs")}
+                (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
+                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts)
+            VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
+                    0, 0, 0, @scheduled_for, @created_at, @max_attempts);
+            """;
+
+        RenewJobLease = $"""
+            UPDATE {Table("jobs")} SET lease_until = @lease_until WHERE id = @id AND lease_owner = @owner;
+            """;
+
+        MarkJobRunning = $"""
+            UPDATE {Table("jobs")} SET status = 2 WHERE id = @id AND lease_owner = @owner AND status = 1;
+            """;
+
+        CompleteJob = $"""
+            UPDATE {Table("jobs")}
+               SET status = @status, completed_at = @completed_at, error_message = @error_message,
+                   lease_owner = NULL, lease_until = NULL
+             WHERE id = @id;
+            """;
+
+        // If @retry_at is NULL, scheduled_for is left untouched (the old
+        // behavior: the job can be re-leased immediately). If it is given,
+        // backoff is applied; this makes writing a second queue for webhook
+        // delivery unnecessary (K-160).
+        ReleaseJobForRetry = $"""
+            UPDATE {Table("jobs")}
+               SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
+                   scheduled_for = COALESCE(@retry_at, scheduled_for)
+             WHERE id = @id;
+            """;
+
+        CancelJob = $"""
+            UPDATE {Table("jobs")}
+               SET status = 5, completed_at = @completed_at, lease_owner = NULL, lease_until = NULL
+             WHERE id = @id AND tenant_id = @tenant_id AND status IN (0, 1, 2);
+            """;
+
+        SelectJob = $"""
+            SELECT {JobColumns}
+            FROM {Table("jobs")}
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectJobItems = $"""
+            SELECT id, job_id, seq, input, run_id, status, error
+            FROM {Table("job_items")}
+            WHERE job_id = @job_id
+            ORDER BY seq;
+            """;
+
+        SelectEvalSuites = $"""
+            SELECT {SuiteColumns}
+            FROM {Table("eval_suites")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectEvalSuite = $"""
+            SELECT {SuiteColumns}
+            FROM {Table("eval_suites")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        DeleteEvalSuite = $"DELETE FROM {Table("eval_suites")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        SelectEvalCases = $"""
+            SELECT {EvalCaseColumns}
+            FROM {Table("eval_cases")}
+            WHERE suite_id = @suite_id
+            ORDER BY seq;
+            """;
+
+        DeleteEvalCases = $"DELETE FROM {Table("eval_cases")} WHERE suite_id = @suite_id;";
+
+        InsertEvalCase = $"""
+            INSERT INTO {Table("eval_cases")}
+                (id, suite_id, seq, query, expected_output, expected_tools, context, parameters)
+            VALUES
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context, @parameters);
+            """;
+
+        SelectEvalCaseBySourceRun = $"""
+            SELECT {EvalCaseColumns}
+            FROM {Table("eval_cases")}
+            WHERE suite_id = @suite_id AND source_run_id = @source_run_id;
+            """;
+
+        MarkEvalRunRunning = $"""
+            UPDATE {Table("eval_runs")}
+               SET status = 1, agent_version = @agent_version, model_id = @model_id
+             WHERE id = @id;
+            """;
+
+        CompleteEvalRun = $"""
+            UPDATE {Table("eval_runs")}
+               SET status = @status, completed_at = @completed_at, total = @total,
+                   passed = @passed, failed = @failed, input_tokens = @input_tokens,
+                   output_tokens = @output_tokens
+             WHERE id = @id;
+            """;
+
+        SelectEvalRun = $"""
+            SELECT {EvalRunColumns}
+            FROM {Table("eval_runs")}
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectEvalRunByJobId = $"""
+            SELECT {EvalRunColumns}
+            FROM {Table("eval_runs")}
+            WHERE tenant_id = @tenant_id AND job_id = @job_id;
+            """;
+
+        InsertEvalCaseResult = $"""
+            INSERT INTO {Table("eval_case_results")}
+                (id, eval_run_id, case_id, run_id, passed, output, scores, failure_reason)
+            VALUES
+                (@id, @eval_run_id, @case_id, @run_id, @passed, @output, @scores, @failure_reason);
+            """;
+
+        SelectEvalCaseResults = $"""
+            SELECT ecr.id, ecr.eval_run_id, ecr.case_id, ecr.run_id, ecr.passed, ecr.output,
+                   ecr.scores, ecr.failure_reason
+            FROM {Table("eval_case_results")} ecr
+            JOIN {Table("eval_runs")} er ON er.id = ecr.eval_run_id
+            WHERE er.tenant_id = @tenant_id AND ecr.eval_run_id = @eval_run_id
+            ORDER BY ecr.id;
+            """;
+
+        SelectQuota = $"""
+            SELECT {QuotaColumns}
+            FROM {Table("quotas")}
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        DeleteQuota = $"""
+            DELETE FROM {Table("quotas")} WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectQuotaUsage = $"""
+            SELECT tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at
+            FROM {Table("quota_usage")}
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@period     IS NULL OR period     = @period)
+            ORDER BY agent_name, period, period_start DESC;
+            """;
+
+        SelectWebhookSubscriptions = $"""
+            SELECT {WebhookSubscriptionColumns}
+            FROM {Table("webhook_subscriptions")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectWebhookSubscription = $"""
+            SELECT {WebhookSubscriptionColumns}
+            FROM {Table("webhook_subscriptions")}
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        DeleteWebhookSubscription = $"""
+            DELETE FROM {Table("webhook_subscriptions")} WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        InsertWebhookDelivery = $"""
+            INSERT INTO {Table("webhook_deliveries")}
+                ({WebhookDeliveryColumns})
+            VALUES
+                (@id, @subscription_id, @tenant_id, @event_type, @payload, @status, @attempt,
+                 @response_code, @error, @created_at, @delivered_at);
+            """;
+
+        SelectWebhookDelivery = $"""
+            SELECT {WebhookDeliveryColumns}
+            FROM {Table("webhook_deliveries")}
+            WHERE id = @id;
+            """;
+
+        UpdateWebhookDeliveryResult = $"""
+            UPDATE {Table("webhook_deliveries")}
+               SET status        = @status,
+                   attempt       = @attempt,
+                   response_code = @response_code,
+                   error         = @error,
+                   delivered_at  = CASE WHEN @status = 1 THEN @recorded_at ELSE delivered_at END
+             WHERE id = @id;
+            """;
+
+        SelectApiKeys = $"""
+            SELECT {ApiKeyColumns}
+            FROM {Table("api_keys")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY created_at;
+            """;
+
+        // The tenant filter is DELIBERATELY absent (section 53.5): the tenant
+        // is the output of this query, not its input.
+        SelectApiKeyByHash = $"""
+            SELECT {ApiKeyColumns}
+            FROM {Table("api_keys")}
+            WHERE key_hash = @key_hash;
+            """;
+
+        RevokeApiKey = $"""
+            UPDATE {Table("api_keys")}
+               SET revoked_at = @revoked_at
+             WHERE tenant_id = @tenant_id AND id = @id AND revoked_at IS NULL;
+            """;
+
+        TouchApiKeyLastUsed = $"""
+            UPDATE {Table("api_keys")}
+               SET last_used_at = @last_used_at
+             WHERE id = @id;
+            """;
+
+        SelectRetentionPolicies = $"""
+            SELECT {RetentionPolicyColumns}
+            FROM {Table("retention_policies")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY target;
+            """;
+
+        SelectRetentionPolicy = $"""
+            SELECT {RetentionPolicyColumns}
+            FROM {Table("retention_policies")}
+            WHERE tenant_id = @tenant_id
+              AND target    = @target;
+            """;
+
+        DeleteRetentionPolicy = $"""
+            DELETE FROM {Table("retention_policies")}
+             WHERE tenant_id = @tenant_id
+               AND target    = @target;
+            """;
+
+        InsertRetentionRun = $"""
+            INSERT INTO {Table("retention_runs")}
+                ({RetentionRunColumns})
+            VALUES
+                (@id, @tenant_id, @target, 0, 0, @started_at, NULL, NULL);
+            """;
+
+        UpdateRetentionRunProgress = $"""
+            UPDATE {Table("retention_runs")}
+               SET deleted_rows  = deleted_rows + @deleted_delta,
+                   archived_rows = archived_rows + @archived_delta
+             WHERE id = @id;
+            """;
+
+        CompleteRetentionRun = $"""
+            UPDATE {Table("retention_runs")}
+               SET completed_at = @completed_at,
+                   error        = @error
+             WHERE id = @id;
+            """;
+
+        SelectRunScores = $"""
+            SELECT {RunScoreColumns}
+            FROM {Table("run_scores")}
+            WHERE tenant_id = @tenant_id AND run_id = @run_id;
+            """;
+
+        DeleteRunScore = $"""
+            DELETE FROM {Table("run_scores")} WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        RenewSingletonLease = $"""
+            UPDATE {Table("singleton_leases")}
+               SET expires_at = @expires_at, updated_at = @now
+             WHERE name = @name AND owner_id = @owner_id;
+            """;
+
+        ReleaseSingletonLease = $"""
+            DELETE FROM {Table("singleton_leases")} WHERE name = @name AND owner_id = @owner_id;
+            """;
+
+        InsertPendingApproval = $"""
+            INSERT INTO {Table("pending_approvals")}
+                (id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                 decided_by, decided_at, expires_at, created_at)
+            VALUES
+                (@id, @tenant_id, @run_id, @session_id, @request_id, @tool_name, @arguments, @status,
+                 @decided_by, @decided_at, @expires_at, @created_at);
+            """;
+
+        SelectPendingApprovals = $"""
+            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                   decided_by, decided_at, expires_at, created_at
+              FROM {Table("pending_approvals")}
+             WHERE tenant_id = @tenant_id AND status = @status
+             ORDER BY created_at ASC;
+            """;
+
+        SelectPendingApproval = $"""
+            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                   decided_by, decided_at, expires_at, created_at
+              FROM {Table("pending_approvals")}
+             WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // WHERE status = @status_pending: a second decision affects 0 rows,
+        // DecideAsync interprets that as false.
+        DecidePendingApproval = $"""
+            UPDATE {Table("pending_approvals")}
+               SET status = @status, decided_by = @decided_by, decided_at = @decided_at
+             WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
+            """;
+
+        SelectTenantProviderBinding = $"""
+            SELECT {TenantProviderBindingColumns}
+            FROM {Table("tenant_provider_bindings")}
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        SelectTenantProviderBindings = $"""
+            SELECT {TenantProviderBindingColumns}
+            FROM {Table("tenant_provider_bindings")}
+            WHERE tenant_id = @tenant_id
+            ORDER BY provider_name;
+            """;
+
+        DeleteTenantProviderBinding = $"""
+            DELETE FROM {Table("tenant_provider_bindings")}
+            WHERE tenant_id = @tenant_id AND provider_name = @provider_name;
+            """;
+
+        SelectTenantEgressPolicy = $"""
+            SELECT tenant_id, allowed_providers, updated_at
+            FROM {Table("tenant_egress_policies")}
+            WHERE tenant_id = @tenant_id;
+            """;
+
+        DeleteTenantEgressPolicy = $"""
+            DELETE FROM {Table("tenant_egress_policies")}
+            WHERE tenant_id = @tenant_id;
+            """;
+    }
 }

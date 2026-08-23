@@ -35,6 +35,7 @@
       "tests/AgentPrism.Azure.UnitTests/AgentPrism.Azure.UnitTests.csproj",
       "tests/AgentPrism.Voice.UnitTests/AgentPrism.Voice.UnitTests.csproj",
       "tests/AgentPrism.Sqlite.IntegrationTests/AgentPrism.Sqlite.IntegrationTests.csproj",
+      "tests/AgentPrism.Sql.Shared.UnitTests/AgentPrism.Sql.Shared.UnitTests.csproj",
       "tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj",
       "tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj",
       "tests/AgentPrism.Templates.Tests/AgentPrism.Templates.Tests.csproj",
