@@ -2,30 +2,18 @@
 
 > Microsoft Agent Framework tipleri, harness, context provider, skill.
 >
+> Oturum/gecmis saglayicisi AYRI dosyadadir: [`maf-oturum.md`](maf-oturum.md).
+>
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
 
-- **MAF `Hosting.OpenAI` depolaması `TryAddSingleton`** (2026-08-01): bellek içi `IConversationStorage`/`IAgentConversationIndex`/`IResponsesService` kayıtları `TryAdd`'dir. Kendi implementasyonumuzu `AddOpenAIResponses()` çağrısından **önce** kaydedersek bizimki kazanır; sıra bozulursa kalıcılık sessizce devre dışı kalır (`StorageOverrideTests` korur).
-- **`AgentSessionStore` soyut sınıf** (2026-08-01): `SaveSessionAsync` / `GetSessionAsync` / `DeleteSessionAsync`.
-- **`ChatHistoryProvider` örneği tüm oturumlarda paylaşılır** (2026-08-01): oturuma özgü hiçbir durum alan olarak tutulamaz. Veritabanı anahtarı `ProviderSessionState<T>` ile `AgentSession` içinde saklanır. MAF dokümanının açık uyarısı.
-- **Çok kiracılılık için MAF'ta hazır yapı var** (2026-08-01): `IsolationKeyScopedAgentSessionStore` + `SessionIsolationKeyProvider`. Sıfırdan yazmaya gerek yok.
 - **Tool çağrıları içeriklerden okunur** (2026-08-02): MAF ayrı bir kanca sunmaz. `FunctionCallContent` ve `FunctionResultContent` (Microsoft.Extensions.AI) hem `AgentResponse.Messages[*].Contents` hem `AgentResponseUpdate.Contents` içinde gelir. `RunRecordingAgent.WriteContentsAsync` bunu kullanır.
 - **Token kullanımı akışta `UsageContent` ile gelir** (2026-08-02): akışlı çalıştırmada `AgentResponse.Usage` yoktur; güncellemelerin içeriklerinden `UsageContent.Details` toplanır.
-- **`ChatHistoryProvider`'ın parametresiz ctor'u yok** (2026-08-02): `protected ChatHistoryProvider(Func<...>?, Func<...>?, Func<...>?)`. Üç filtreyi de (`null` geçerek) vermek gerekir.
-- **`ChatClientAgentOptions` ve `HarnessAgentOptions` ikisinde de `ChatHistoryProvider` var** (2026-08-02): derleyici ikisine de aynı örneği koyar. `agent.GetService<ChatHistoryProvider>()` ile geri okunamaz — bağlandığını doğrulamak için gerçek bir çalıştırma yapıp veritabanına bak.
-- **`AgentSessionStateBag`, `SerializeSessionAsync` çıktısına dahildir** (2026-08-02): oturuma yazılan her şey (kimlik damgası, konuşma kimliği) oturumla birlikte kalıcılaşır. Doğrulandı: `/sessions` çıktısında `stateBag` altında görünüyor.
-- **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `AgentPrismCoreJsonContext` bunun için var.
 - **Chat Completions yolu AOT'ta tamamen temiz** (2026-08-02): `GetChatClient(model).AsIChatClient().AsBuilder().UseFunctionInvocation().UseOpenTelemetry().Build()` → `IsAotCompatible=true` ile **0 uyarı**. Sorun çıkaran tek yol Responses (deneysel API tanısı, AOT tanısı değil).
 - **🚨 `AIFunctionArguments.Services` bu repoda BOŞTUR — eski "örnek tool'ları için var" notu 2026-08-05'te ÖLÇÜLEREK çürütüldü** (K-218): MAF `EmptyServiceProvider` geçirir; tool bağımlılıkları kurulum anında alınır. Ayrıntı: `docs/hafiza/cekirdek-calistirma.md`.
 - **`IChatClient.GetService(typeof(X))` boru hattında gezinir** (2026-08-02): testler `FunctionInvokingChatClient`, `OpenTelemetryChatClient` ve `ChatClientMetadata` varlığını böyle doğruluyor. `ChatClientMetadata.ProviderUri` yapılandırılan `Endpoint`'i yansıtır — `OpenAIClient.Endpoint` `OPENAI001` işaretli olduğu için doğrulama bu yoldan yapılır.
-- **`OpenAIResponses` public ve tam yolu veriyor** (2026-08-02): `ToAgentRunRequest` / `GetSessionStoreId` / `CreateResponseId` / `WriteResponse` / `WriteResponseStreamAsync`. Sonuncusu **hazır SSE çerçeveleri** üretir (`event:` + `data:` + boş satır) — yeniden çerçeveleme bozar, `SseWriter.WriteRawAsync` ile olduğu gibi yazılır.
-- **`GetSessionStoreId` = `conversation ?? previous_response_id ?? null`** (2026-08-02): ölçüldü. `OpenAIResponsesRunRequest` agent adı **taşımaz**; gövdeden kendimiz okuruz.
-- **`ChatHistoryProvider.InvokingAsync` public** (2026-08-02): `InvokingContext` kurucusu da public (`MAAI001` işaretli). Oturum geçmişini okumanın tek public yolu; sağlayıcı bu çağrıda yalnız okur. `ProvideChatHistoryAsync` protected olduğu için kullanılamaz.
-- **`InMemoryChatHistoryProvider` durumu oturumda tutar** (2026-08-02): `GetMessages(AgentSession)` imzası bunu gösteriyor. Tek örneğin tüm oturumlarca paylaşılması güvenli; `AddAgentPrism()` bu yüzden açıkça kaydediyor (K-037).
 - **MAF tip adları tahmin edilemez** (2026-08-02): plan `AgentRunResponse` varsaydı; gerçek ad **`AgentResponse`**. Aynı şekilde `AgentResponseUpdate`. MAF'ın .NET dokümanı çoğu sayfada "Coming Soon" diyor. Yeni tip kullanmadan önce `.agents/skills/maf-api-kesfi/scripts/dump-api.sh` çalıştır.
 - **`MAAI001` derlemeyi kırar** (2026-08-02): `HarnessAgentOptions` üyeleri "evaluation purposes only" işaretli. `TreatWarningsAsErrors` ile hata olur. Bastırma gerekçeyle ve tek dosyada yapılır.
-- **🚨 Responses API + `ChatHistoryProvider` = calisma ani hatasi** (K-030): `AsIChatClient(ResponsesClient, model)` sunucu tarafi `storage`'i acik birakir, `ChatClientAgent` `Only ConversationId or ChatHistoryProvider...` atar. **Yalniz `UsePostgreSql()` acikken** gorulur. Cozum `AsIChatClientWithStoredOutputDisabled(model)`.
-- **🚨 MAF'in OpenAI `storage` arayuzleri `internal`** (2026-08-02): `IConversationStorage`, `IAgentConversationStore` vb. disaridan uygulanamaz — kendi kalicilik katmanini MAF'in depolama noktasina takamazsin. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`Microsoft.Agents.AI.Mcp` diye bir paket YOK** (2026-08-02): NuGet'te arandı, yayınlanmamış. MCP yolu resmî `ModelContextProtocol.Core` 2.0.0'dır; `McpClientTool` doğrudan `AIFunction` türetir. Tam `ModelContextProtocol` paketi sunucu barındırma bağımlılıkları da çeker — `.Core` seçilmeli (K-057).
 - **Harness'ta shell diye bir üye yok** (2026-08-02): reflection ile ölçüldü. `HarnessAgentOptions`'ta sunucuda yüzey açan üyeler `FileAccessStore` ve `BackgroundAgents`'tır; ikisi de yalnız değer atandığında etkinleşir, atanmazsa kapalıdır (K-062).
 - **MCP tool adında nokta kullanılamaz** (2026-08-02): OpenAI ve uyumlu sağlayıcılar fonksiyon adlarında yalnız `[a-zA-Z0-9_-]` kabul eder; `sunucu.tool` çağrı anında reddedilir. Biçim `{sunucu}_{tool}`.
