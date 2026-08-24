@@ -266,7 +266,7 @@ faz bir aileyi kapatır ve manuel setten siler. Öncelik sırası: kiracı/güve
 
 ### 10. Yeşil test gerçek davranışı kanıtlamıyor · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../95-GERCEK-TUKETICI-KAPISI.md).
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md).
 >
 > 🚨 **Plan anında bu maddenin kanıtı KISMEN YANLIŞLANDI.** "Paket olarak
 > tüketilebiliyor mu" sorusu zaten kapılıdır: `AgentPrism.Templates.Tests`
@@ -449,7 +449,7 @@ iddiasındaki dosya bozuk çıktı üretiyor.
 
 ### 22. Bağımlılık kirliliği kuralı kendi istisnasını taşıyor · ⚡ Tek oturum
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../95-GERCEK-TUKETICI-KAPISI.md)
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md)
 > bölüm 95.3. Faz 95'in tüketici fikstürü zaten kuruluydu; kalem oraya bindi.
 > Plan iki eksen alır: geçişli kapanışı bir taban çizgisine bağlayan kapı, ve
 > `docs-site/packages.md`'deki beyan. Ölçüldü: `packages.md`'nin
@@ -518,7 +518,7 @@ tarafından sabitlendi.
 
 | Sıra | Adım | Skill |
 |---:|---|---|
-| 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 2 | **Faz 96 yazma** — public yüzey küçültme (madde 7) | `faz-planlama` |
 | 3 | **Faz 96 uygulama** | zincir |
 | 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) | `faz-planlama` |
