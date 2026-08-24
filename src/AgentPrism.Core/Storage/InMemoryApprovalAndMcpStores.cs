@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// restarts, "do not ask again" rules are lost and approval is requested again.
 /// This is the safe behavior. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
-public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
+internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 {
     private readonly ConcurrentDictionary<Guid, ToolApprovalRule> _rules = new();
 
@@ -118,7 +118,7 @@ public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 /// A store that keeps MCP server definitions in process memory.
 /// </summary>
 /// <remarks>Use <c>AgentPrism.PostgreSql</c> in production.</remarks>
-public sealed class InMemoryMcpServerStore : IMcpServerStore
+internal sealed class InMemoryMcpServerStore : IMcpServerStore
 {
     private readonly ConcurrentDictionary<string, McpServerDefinition> _servers = new(StringComparer.Ordinal);
 
@@ -194,7 +194,7 @@ public sealed class InMemoryMcpServerStore : IMcpServerStore
 /// A store that keeps tenant records in process memory.
 /// </summary>
 /// <remarks>Uretimde <c>AgentPrism.PostgreSql</c> kullanin.</remarks>
-public sealed class InMemoryTenantStore : ITenantStore
+internal sealed class InMemoryTenantStore : ITenantStore
 {
     private readonly ConcurrentDictionary<string, TenantDescriptor> _tenants = new(StringComparer.Ordinal);
 

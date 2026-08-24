@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
 /// and produces <c>IL2026</c>.
 /// </remarks>
-public sealed class SingletonExecutionOptionsValidator : IValidateOptions<SingletonExecutionOptions>
+internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<SingletonExecutionOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, SingletonExecutionOptions options)

@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// enforcing the "an agent can only refer to a registered tool" rule in <c>ToolRegistry</c>:
 /// the store is the one gateway for <strong>every</strong> write path to an agent definition.
 /// </remarks>
-public sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAuditDecorated
+internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAuditDecorated
 {
     private readonly IAgentDefinitionStore _inner;
     private readonly IAuditLog _auditLog;

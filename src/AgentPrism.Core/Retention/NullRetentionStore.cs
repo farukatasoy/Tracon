@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// Without this class, <c>RetentionExecutor</c> would throw when <c>IRetentionStore</c>
 /// is unregistered. It instead silently uses the "nothing to delete" behavior.
 /// </remarks>
-public sealed class NullRetentionStore : IRetentionStore
+internal sealed class NullRetentionStore : IRetentionStore
 {
     /// <inheritdoc />
     public ValueTask<long> CountOlderThanAsync(

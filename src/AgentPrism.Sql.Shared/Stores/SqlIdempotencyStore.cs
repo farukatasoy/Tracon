@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// <summary>Stores idempotency records in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// The behavior contract is identical to <see cref="InMemoryIdempotencyStore"/>
+/// The behavior contract is identical to <c>InMemoryIdempotencyStore</c>
 /// and is guarded by the shared contract tests.
 /// </para>
 /// <para>

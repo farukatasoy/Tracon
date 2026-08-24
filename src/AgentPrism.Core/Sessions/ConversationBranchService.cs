@@ -23,7 +23,7 @@ namespace AgentPrism;
 /// identity. This is why the endpoint is the session, not the conversation.
 /// </para>
 /// </remarks>
-public sealed class ConversationBranchService
+internal sealed class ConversationBranchService
 {
     private readonly ISessionStore _sessions;
     private readonly IAgentCatalog _catalog;

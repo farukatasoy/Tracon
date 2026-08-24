@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// from <see cref="ITenantContext"/>.
 /// </para>
 /// </remarks>
-public sealed class InMemorySessionStore : ISessionStore
+internal sealed class InMemorySessionStore : ISessionStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string Id), SessionRecord> _sessions = new();
     private readonly ITenantContext _tenantContext;

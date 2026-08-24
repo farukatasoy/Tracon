@@ -52,7 +52,7 @@ public sealed record VoiceConversationRequest
 /// because a <see cref="WebSocket"/> supports only one send at a time.
 /// </para>
 /// </remarks>
-public sealed class VoiceConversationDriver
+internal sealed class VoiceConversationDriver
 {
     private const int ReceiveBufferSize = 16 * 1024;
 

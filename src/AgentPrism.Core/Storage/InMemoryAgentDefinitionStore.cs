@@ -21,7 +21,7 @@ namespace AgentPrism;
 /// across nodes. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
-public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
+internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string Name), List<AgentDefinition>> _versions = new();
     private readonly ITenantContext _tenantContext;

@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// model across providers are a known, accepted limitation; it
 /// cannot be resolved without adding a provider column to <c>runs</c>.
 /// </remarks>
-public sealed class RunPricingResolver : IRunPricingResolver
+internal sealed class RunPricingResolver : IRunPricingResolver
 {
     private readonly IModelProviderRegistry _registry;
     private readonly IOptions<AgentPrismOptions> _options;

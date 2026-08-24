@@ -5,7 +5,7 @@ namespace AgentPrism;
 
 /// <summary>Stores schedule definitions in the SQL database.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryJobScheduleStore"/>
+/// The behavior contract is identical to <c>InMemoryJobScheduleStore</c>
 /// and is guarded by the shared contract tests.
 /// </remarks>
 internal sealed class SqlJobScheduleStore : IJobScheduleStore

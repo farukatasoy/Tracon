@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <strong>Limits:</strong> process lifetime and a single node. Use
 /// <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
-public sealed class InMemoryEvalStore : IEvalStore
+internal sealed class InMemoryEvalStore : IEvalStore
 {
     private readonly ConcurrentDictionary<SuiteKey, EvalSuite> _suites = new();
     private readonly ConcurrentDictionary<Guid, List<EvalCase>> _cases = new();

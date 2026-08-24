@@ -13,7 +13,7 @@ namespace AgentPrism;
 /// while saying the key is wrong would hand the secret to whoever sees the error.
 /// </para>
 /// </remarks>
-public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
+internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, VoiceOptions options)

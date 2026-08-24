@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>Stores inbound trigger definitions in the SQL database.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryInboundTriggerStore"/>
+/// The behavior contract is identical to <c>InMemoryInboundTriggerStore</c>
 /// and is guarded by the shared contract tests.
 /// </remarks>
 internal sealed class SqlInboundTriggerStore : IInboundTriggerStore

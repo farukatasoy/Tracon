@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <summary>Stores run inputs in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// The behavior contract is identical to <see cref="InMemoryRunInputStore"/>
+/// The behavior contract is identical to <c>InMemoryRunInputStore</c>
 /// and is guarded by the shared contract tests.
 /// </para>
 /// <para>

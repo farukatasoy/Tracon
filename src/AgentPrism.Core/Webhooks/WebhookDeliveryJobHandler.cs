@@ -23,7 +23,7 @@ namespace AgentPrism;
 /// delivery time (DNS rebinding).
 /// </para>
 /// </remarks>
-public sealed class WebhookDeliveryJobHandler(
+internal sealed class WebhookDeliveryJobHandler(
     IWebhookStore store,
     WebhookHttpClient httpClient,
     IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor,

@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
-public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;

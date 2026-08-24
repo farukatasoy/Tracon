@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// <c>runs</c> row is opened and no token is spent.
 /// </para>
 /// </remarks>
-public sealed class AgentDefinitionValidator
+internal sealed class AgentDefinitionValidator
 {
     private readonly IModelProviderRegistry _models;
     private readonly IToolRegistry _tools;

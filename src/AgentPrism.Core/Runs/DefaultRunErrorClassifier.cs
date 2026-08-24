@@ -25,7 +25,7 @@ namespace AgentPrism;
 /// as not to allocate on the hot path.
 /// </para>
 /// </remarks>
-public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
+internal sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
 {
     private static readonly Dictionary<string, RunErrorClass> StableIdentities = new(StringComparer.Ordinal)
     {

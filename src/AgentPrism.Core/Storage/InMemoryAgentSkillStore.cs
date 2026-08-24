@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>A store that keeps skill definitions in process memory.</summary>
-public sealed class InMemoryAgentSkillStore : IAgentSkillStore
+internal sealed class InMemoryAgentSkillStore : IAgentSkillStore
 {
     private readonly ConcurrentDictionary<SkillKey, AgentSkillDefinition> _skills = new();
 

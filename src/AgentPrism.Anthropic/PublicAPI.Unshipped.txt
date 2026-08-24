@@ -3,12 +3,6 @@ AgentPrism.AnthropicChatClientFactory
 AgentPrism.AnthropicChatClientFactory.AnthropicChatClientFactory(AgentPrism.AnthropicProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
 AgentPrism.AnthropicChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.AnthropicModelCatalog
-AgentPrism.AnthropicModelProvider
-AgentPrism.AnthropicModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.AnthropicModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
-AgentPrism.AnthropicModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
-AgentPrism.AnthropicModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
-AgentPrism.AnthropicModelProvider.Name.get -> string!
 AgentPrism.AnthropicProviderExtensions
 AgentPrism.AnthropicProviderNames
 AgentPrism.AnthropicProviderOptions
@@ -26,9 +20,6 @@ AgentPrism.AnthropicProviderOptions.MaxRetries.set -> void
 AgentPrism.AnthropicProviderOptions.Models.get -> System.Collections.Generic.IList<AgentPrism.ModelDescriptor!>!
 AgentPrism.AnthropicProviderOptions.Timeout.get -> System.TimeSpan?
 AgentPrism.AnthropicProviderOptions.Timeout.set -> void
-AgentPrism.AnthropicProviderOptionsValidator
-AgentPrism.AnthropicProviderOptionsValidator.AnthropicProviderOptionsValidator() -> void
-AgentPrism.AnthropicProviderOptionsValidator.Validate(string? name, AgentPrism.AnthropicProviderOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 const AgentPrism.AnthropicProviderNames.Anthropic = "anthropic" -> string!
 const AgentPrism.AnthropicProviderNames.PromptCachingSetting = "anthropic.promptCaching" -> string!
 const AgentPrism.AnthropicProviderNames.SettingsPrefix = "anthropic" -> string!
@@ -40,5 +31,4 @@ static AgentPrism.AnthropicProviderExtensions.UseAnthropic(this AgentPrism.IAgen
 static AgentPrism.AnthropicProviderExtensions.UseAnthropic(this AgentPrism.IAgentPrismBuilder! builder, string! apiKey, System.Action<AgentPrism.AnthropicProviderOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AnthropicProviderExtensions.UseAnthropic(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.AnthropicProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AnthropicProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
-AgentPrism.AnthropicModelProvider.AnthropicModelProvider(string! name, AgentPrism.AnthropicChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.AnthropicModelProvider!>? logger = null, AgentPrism.AnthropicProviderOptions? healthCheckOptions = null, AgentPrism.EgressSocketGuard? egressGuard = null) -> void
 static AgentPrism.AnthropicChatClientFactory.CreateClient(AgentPrism.AnthropicProviderOptions! options, AgentPrism.EgressSocketGuard? egressGuard = null) -> Anthropic.AnthropicClient!

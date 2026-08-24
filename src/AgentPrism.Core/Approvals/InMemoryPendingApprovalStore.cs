@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <strong>Limits:</strong> process lifetime and a single node. In production, use
 /// <c>AgentPrism.PostgreSql</c> or <c>AgentPrism.SqlServer</c>/<c>AgentPrism.Sqlite</c>.
 /// </remarks>
-public sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
+internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
 {
     private readonly ConcurrentDictionary<Guid, PendingApproval> _approvals = new();
     private readonly ITenantContext _tenantContext;

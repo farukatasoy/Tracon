@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// For single-process deployments and tests. <c>UsePostgreSql()</c> replaces it
 /// with <c>PostgresWebhookStore</c>.
 /// </remarks>
-public sealed class InMemoryWebhookStore : IWebhookStore
+internal sealed class InMemoryWebhookStore : IWebhookStore
 {
     private readonly ConcurrentDictionary<Guid, WebhookSubscription> _subscriptions = new();
     private readonly ConcurrentDictionary<Guid, WebhookDelivery> _deliveries = new();

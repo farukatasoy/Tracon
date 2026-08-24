@@ -20,7 +20,7 @@ namespace AgentPrism;
 /// and produce duplicate spans for each model call.
 /// </para>
 /// </remarks>
-public sealed class OpenTelemetryAgentDecorator : IAgentDecorator
+internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator
 {
     private readonly IOptions<AgentPrismOptions> _options;
 

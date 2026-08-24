@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// For single-process deployments and tests. <c>UsePostgreSql()</c>, or the
 /// SQL Server or SQLite equivalent, replaces it with <c>SqlApiKeyStore</c>.
 /// </remarks>
-public sealed class InMemoryApiKeyStore : IApiKeyStore
+internal sealed class InMemoryApiKeyStore : IApiKeyStore
 {
     private readonly ConcurrentDictionary<Guid, StoredApiKey> _keys = new();
     private readonly TimeProvider _timeProvider;

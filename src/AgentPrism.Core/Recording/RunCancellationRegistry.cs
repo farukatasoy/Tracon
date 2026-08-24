@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>An in-memory implementation of <see cref="IRunCancellationRegistry"/>.</summary>
-public sealed class RunCancellationRegistry : IRunCancellationRegistry
+internal sealed class RunCancellationRegistry : IRunCancellationRegistry
 {
     private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
 

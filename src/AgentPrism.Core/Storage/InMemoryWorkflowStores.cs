@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// Its behavior contract matches <c>PostgresWorkflowDefinitionStore</c> and is
 /// protected by shared contract tests.
 /// </remarks>
-public sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
+internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
 {
     private readonly ConcurrentDictionary<WorkflowKey, WorkflowDefinition> _workflows = new();
 

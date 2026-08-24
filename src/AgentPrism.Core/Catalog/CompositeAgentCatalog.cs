@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// the higher-priority source with the lower number wins. The losing source is omitted
 /// from the list and the catalog logs a warning.
 /// </remarks>
-public sealed class CompositeAgentCatalog : IAgentCatalog
+internal sealed class CompositeAgentCatalog : IAgentCatalog
 {
     private readonly IAgentSource[] _sources;
     private readonly IAgentDecorator[] _decorators;

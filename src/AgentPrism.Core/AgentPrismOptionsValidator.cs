@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// DataAnnotations validation uses reflection and produces <c>IL2026</c>.
 /// <c>AgentPrism.Core</c> must remain AOT-compatible.
 /// </remarks>
-public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOptions>
+internal sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismOptions options)
