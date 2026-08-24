@@ -4759,3 +4759,21 @@ AgentPrism.RunEventType.ToolOutputTruncated = 26 -> AgentPrism.RunEventType
 AgentPrism.AgentPrismToolRegistration.MaxOutputBytes.get -> int?
 AgentPrism.ToolDescriptor.MaxOutputBytes.get -> int?
 AgentPrism.ToolDescriptor.MaxOutputBytes.init -> void
+AgentPrism.ApiKeyGenerator
+AgentPrism.GeneratedApiKey
+AgentPrism.GeneratedApiKey.<Clone>$() -> AgentPrism.GeneratedApiKey!
+AgentPrism.GeneratedApiKey.Equals(AgentPrism.GeneratedApiKey? other) -> bool
+AgentPrism.GeneratedApiKey.GeneratedApiKey() -> void
+AgentPrism.GeneratedApiKey.KeyHash.get -> byte[]!
+AgentPrism.GeneratedApiKey.KeyHash.init -> void
+AgentPrism.GeneratedApiKey.KeyPrefix.get -> string!
+AgentPrism.GeneratedApiKey.KeyPrefix.init -> void
+AgentPrism.GeneratedApiKey.PlaintextKey.get -> string!
+AgentPrism.GeneratedApiKey.PlaintextKey.init -> void
+override AgentPrism.GeneratedApiKey.Equals(object? obj) -> bool
+override AgentPrism.GeneratedApiKey.GetHashCode() -> int
+override AgentPrism.GeneratedApiKey.ToString() -> string!
+static AgentPrism.ApiKeyGenerator.ComputeHash(string! plaintextKey) -> byte[]!
+static AgentPrism.ApiKeyGenerator.Generate(string! tenantId) -> AgentPrism.GeneratedApiKey!
+static AgentPrism.GeneratedApiKey.operator !=(AgentPrism.GeneratedApiKey? left, AgentPrism.GeneratedApiKey? right) -> bool
+static AgentPrism.GeneratedApiKey.operator ==(AgentPrism.GeneratedApiKey? left, AgentPrism.GeneratedApiKey? right) -> bool

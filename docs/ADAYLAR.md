@@ -166,6 +166,24 @@ kayıttır. Tam metin:
 
 - **F-141** Kesilen işin devamı — agent turu ve workflow düğümü için tek sözleşme → [Faz 87](arsiv/fazlar/87-KESILEN-ISIN-DEVAMI.md) 📋 (2026-08-21)
 
+### F-148 · `AppendEventAsync`'in yinelenen-`Sequence` reddi bellek içi ve dosya tabanlı store'larda doğrusal tarama yapıyor
+
+> Faz 98'in bağımsız denetim koşumundan (2026-08-24). `InMemoryRunStore.AppendEventAsync`
+> ve örnek `JsonFileRunStore.AppendEventAsync`, yeni bir olay eklemeden önce
+> aynı `run`'ın olay günlüğünü `foreach` ile baştan sona tarayarak yinelenen
+> `Sequence` arıyor (`InMemoryRunStore.cs`, `FileRunStore.cs`) — O(n). Üç SQL
+> sağlayıcısı bunu birincil anahtar ihlaliyle O(log n)/O(1) yapıyor.
+
+**Sorun:** Çok uzun ömürlü bir `run` (binlerce olay biriktiren bir workflow gibi)
+bellek içi store'da her `AppendEventAsync` çağrısında gitgide yavaşlayan bir
+doğrusal tarama yapar.
+**Kapsam:** Ölçüm önce — kaç olaylık bir `run`'da fark edilir hâle geliyor.
+Gerekirse `HashSet<long>` tabanlı bir ikincil indeks eklenir.
+**Değer:** Ölçülmedi; bellek içi store zaten üretim ölçeği için tasarlanmadı
+(dokümanı bunu açıkça söylüyor), örnek store bir öğretim materyali. Gerçek bir
+performans sorunu olduğu kanıtlanmadan öncelik verilmez.
+**Mercek:** A (çekirdek çalıştırma yolu).
+
 ## B. Model yüzeyi ve yönlendirme
 
 > **Bu bölümde seçilmemiş kalem kalmadı (2026-08-21).** F-45 ve F-134 birlikte

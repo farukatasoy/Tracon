@@ -1,4 +1,4 @@
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 namespace AgentPrism.Core.UnitTests.Contracts;
 
 /// <summary>

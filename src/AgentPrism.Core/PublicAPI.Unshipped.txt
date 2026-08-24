@@ -361,7 +361,6 @@ AgentPrism.AgentSessionManager.GetOrCreateSessionAsync(Microsoft.Agents.AI.AIAge
 AgentPrism.AgentSessionManager.QuerySessionsAsync(AgentPrism.SessionQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<AgentPrism.SessionRecord!>!>
 AgentPrism.AgentSessionManager.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 AgentPrism.AgentSkillCatalog
-AgentPrism.ApiKeyGenerator
 AgentPrism.AttachmentTypeGuard
 AgentPrism.AttachmentTypeGuard.AttachmentTypeGuard(Microsoft.Extensions.Options.IOptions<AgentPrism.AgentPrismOptions!>! options) -> void
 AgentPrism.AttachmentTypeGuard.MaxBytes.get -> long
@@ -437,16 +436,6 @@ AgentPrism.DefaultRunAttributionContext.UserId.get -> string?
 AgentPrism.FixedTenantContext
 AgentPrism.FixedTenantContext.FixedTenantContext(string! tenantId) -> void
 AgentPrism.FixedTenantContext.TenantId.get -> string!
-AgentPrism.GeneratedApiKey
-AgentPrism.GeneratedApiKey.<Clone>$() -> AgentPrism.GeneratedApiKey!
-AgentPrism.GeneratedApiKey.Equals(AgentPrism.GeneratedApiKey? other) -> bool
-AgentPrism.GeneratedApiKey.GeneratedApiKey() -> void
-AgentPrism.GeneratedApiKey.KeyHash.get -> byte[]!
-AgentPrism.GeneratedApiKey.KeyHash.init -> void
-AgentPrism.GeneratedApiKey.KeyPrefix.get -> string!
-AgentPrism.GeneratedApiKey.KeyPrefix.init -> void
-AgentPrism.GeneratedApiKey.PlaintextKey.get -> string!
-AgentPrism.GeneratedApiKey.PlaintextKey.init -> void
 AgentPrism.IAgentPrismBuilder
 AgentPrism.IAgentPrismBuilder.AddAgent(AgentPrism.AgentDefinition! definition) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgent(string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory, string? description = null) -> AgentPrism.IAgentPrismBuilder!
@@ -964,9 +953,6 @@ override AgentPrism.AgentRunScope.ToString() -> string!
 override AgentPrism.CallableAgentInfo.GetHashCode() -> int
 override AgentPrism.ChildAgentInvoker.Description.get -> string?
 override AgentPrism.ChildAgentInvoker.Name.get -> string!
-override AgentPrism.GeneratedApiKey.Equals(object? obj) -> bool
-override AgentPrism.GeneratedApiKey.GetHashCode() -> int
-override AgentPrism.GeneratedApiKey.ToString() -> string!
 override AgentPrism.InboundTriggerDispatchResult.Equals(object? obj) -> bool
 override AgentPrism.InboundTriggerDispatchResult.GetHashCode() -> int
 override AgentPrism.InboundTriggerDispatchResult.ToString() -> string!
@@ -1030,8 +1016,6 @@ static AgentPrism.AgentRunScope.operator !=(AgentPrism.AgentRunScope? left, Agen
 static AgentPrism.AgentRunScope.operator ==(AgentPrism.AgentRunScope? left, AgentPrism.AgentRunScope? right) -> bool
 static AgentPrism.AgentSessionIdentity.GetId(Microsoft.Agents.AI.AgentSession! session) -> string?
 static AgentPrism.AgentSessionIdentity.SetId(Microsoft.Agents.AI.AgentSession! session, string! sessionId) -> void
-static AgentPrism.ApiKeyGenerator.ComputeHash(string! plaintextKey) -> byte[]!
-static AgentPrism.ApiKeyGenerator.Generate(string! tenantId) -> AgentPrism.GeneratedApiKey!
 static AgentPrism.AttachmentUriReference.Create(string! prefix, System.Guid attachmentId) -> System.Uri!
 static AgentPrism.AttachmentUriReference.TryParse(System.Uri! uri, out System.Guid attachmentId) -> bool
 static AgentPrism.AttachmentValidationResult.Invalid(string! error) -> AgentPrism.AttachmentValidationResult
@@ -1056,8 +1040,6 @@ static AgentPrism.CompiledAgentCache.CombineFingerprints(string! first, string! 
 static AgentPrism.CronExpression.Parse(string! expression) -> AgentPrism.CronExpression!
 static AgentPrism.CronExpression.TryParse(string! expression, out AgentPrism.CronExpression? result) -> bool
 static AgentPrism.FixedTenantContext.Default.get -> AgentPrism.FixedTenantContext!
-static AgentPrism.GeneratedApiKey.operator !=(AgentPrism.GeneratedApiKey? left, AgentPrism.GeneratedApiKey? right) -> bool
-static AgentPrism.GeneratedApiKey.operator ==(AgentPrism.GeneratedApiKey? left, AgentPrism.GeneratedApiKey? right) -> bool
 static AgentPrism.InboundTriggerDispatchResult.operator !=(AgentPrism.InboundTriggerDispatchResult? left, AgentPrism.InboundTriggerDispatchResult? right) -> bool
 static AgentPrism.InboundTriggerDispatchResult.operator ==(AgentPrism.InboundTriggerDispatchResult? left, AgentPrism.InboundTriggerDispatchResult? right) -> bool
 static AgentPrism.InboundTriggerValidatedRequest.operator !=(AgentPrism.InboundTriggerValidatedRequest? left, AgentPrism.InboundTriggerValidatedRequest? right) -> bool

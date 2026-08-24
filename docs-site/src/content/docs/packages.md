@@ -1,10 +1,10 @@
 ---
 title: Choosing packages
-description: What each of the 19 packages does, which come with the meta package, and what enters your dependency graph.
+description: What each of the 20 packages does, which come with the meta package, and what enters your dependency graph.
 slug: packages
 ---
 
-Nineteen packages. Take the meta package for the common set, or pick individually
+Twenty packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## The meta package
@@ -40,6 +40,7 @@ Add these when you need them.
 | `AgentPrism.Azure` | You call Azure OpenAI deployments |
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
+| `AgentPrism.Testing.Contracts.Xunit` | You write your own `IRunStore` (or another store interface) and want the same behavior tests the four shipped stores run |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
 `AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
@@ -77,7 +78,7 @@ Same OpenAPI document, same version number as every package above — `@agentpri
 and `AgentPrism.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
-a .NET one, and it is not part of the eight AOT-compatible packages or the nineteen
+a .NET one, and it is not part of the eight AOT-compatible packages or the twenty
 NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
 for setup, the error model, and what it deliberately does not cover.
 
@@ -150,6 +151,7 @@ Eight runtime packages make the trimming and Native AOT compatibility promise:
 | `AgentPrism.Mcp` | MCP schema and serialization paths use runtime reflection |
 | `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
 | `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
+| `AgentPrism.Testing.Contracts.Xunit` | The build-time contract-coverage check reflects over the consumer's test assembly |
 | `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
 | `AgentPrism.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
 

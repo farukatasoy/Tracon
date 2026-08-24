@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 
 namespace AgentPrism.PostgreSql.IntegrationTests;
 

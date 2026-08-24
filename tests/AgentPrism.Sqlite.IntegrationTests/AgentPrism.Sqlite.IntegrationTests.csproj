@@ -2,6 +2,15 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+    <!--
+      Store contract suite (Phase 23/24; packaged in Phase 98 as
+      AgentPrism.Testing.Contracts.Xunit). The SAME abstract classes also run
+      in AgentPrism.PostgreSql.IntegrationTests and
+      AgentPrism.SqlServer.IntegrationTests. The third provider (SQL Server)
+      passed this test: writing a new contract test was NOT REQUIRED. SQLite
+      is the fourth test.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
   <!--
@@ -9,15 +18,5 @@
     (docs/arsiv/fazlar/24-SQLITE.md, 24.5). This shortens CI time compared to the
     PostgreSQL/SQL Server contract runs.
   -->
-
-  <!--
-    Shared contract tests (Phase 23/24). The SAME abstract classes also run in
-    AgentPrism.PostgreSql.IntegrationTests and AgentPrism.SqlServer.IntegrationTests.
-    The third provider (SQL Server) passed this test: writing a new contract
-    test was NOT REQUIRED. SQLite is the fourth test.
-  -->
-  <ItemGroup Label="Shared contract tests (Phase 23/24)">
-    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
-  </ItemGroup>
 
 </Project>

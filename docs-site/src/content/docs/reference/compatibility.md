@@ -21,7 +21,7 @@ The packages are still pre-release. Install them with an explicit preview versio
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
 
-## The 19 packages
+## The 20 packages
 
 “Meta” shows whether `dotnet add package AgentPrism` brings the package into the
 dependency graph. `AOT` states the promise made by the package itself.
@@ -44,6 +44,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `AgentPrism.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
 | `AgentPrism.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `AgentPrism.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
+| `AgentPrism.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for `IRunStore` and 32 other store interfaces, as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `AgentPrism.Templates` | No | net10 output | N/A | `dotnet new agentprism-api` content package |
 | `AgentPrism.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `AgentPrism.Cli` | No | net10 (`DotnetTool`) | No | The `agentprism` global tool; wraps `AgentPrism.Client` and ships as IL, not native code |

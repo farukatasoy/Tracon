@@ -1,5 +1,5 @@
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;

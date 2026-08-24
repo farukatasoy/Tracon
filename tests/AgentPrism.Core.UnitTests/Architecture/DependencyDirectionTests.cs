@@ -14,6 +14,7 @@ namespace AgentPrism.Core.UnitTests.Architecture;
 ///                       |         |            |
 ///                       |         |     AgentPrism (meta)
 ///                       +----- Testing (test helper; NOT referenced by the meta package)
+///     Abstractions -- Testing.Contracts.Xunit (store contract suite; NOT referenced by the meta package)
 ///
 /// Adding a ProjectReference that breaks this graph is forbidden.
 /// Rationale: docs/MIMARI.md, section 2.
@@ -68,6 +69,13 @@ public sealed class DependencyDirectionTests
         // consumers ask for most is an in-memory host fixture, which requires
         // the package that wires up the endpoints.
         ["AgentPrism.Testing"] = ["AgentPrism.Core", "AgentPrism.AspNetCore"],
+        // The behavior-contract suite for the store interfaces (Phase 98): it
+        // depends on Abstractions ONLY, for the interfaces and record types
+        // themselves. It is NOT referenced by the meta package (same reason
+        // as Testing, section 39.1) and NOT referenced by AgentPrism.Testing
+        // (the two test packages are independent; one binds no test
+        // framework, the other binds xunit.v3 on purpose).
+        ["AgentPrism.Testing.Contracts.Xunit"] = ["AgentPrism.Abstractions"],
         ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI", "AgentPrism.Workflows"],
         // Client is the CALLING side of the control plane, not the hosting
         // side: it takes NO AgentPrism reference at all. Its DTOs are

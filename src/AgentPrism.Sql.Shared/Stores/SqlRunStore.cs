@@ -106,10 +106,36 @@ internal sealed class SqlRunStore : IRunStore
         // value and never comes close to the short limit in any deployment.
         DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
 
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        // The UPSERT's OUTPUT/RETURNING clause reports the COALESCED user_id
+        // and labels actually persisted, not the raw values `record` was
+        // built from -- on a second StartRunAsync of a queued run, `record`
+        // carries whatever this call's own info gave it (often null
+        // attribution), while the row itself preserved the FIRST call's
+        // attribution. The return value must match what GetRunAsync would
+        // report immediately after.
+        var coalesced = await DbHelpers.ReadSingleAsync(command, ReadCoalescedAttribution, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (coalesced is not null)
+        {
+            record = record with
+            {
+                UserId = coalesced.UserId,
+                Labels = coalesced.Labels,
+            };
+        }
 
         return record;
     }
+
+    /// <summary>Maps the <c>user_id</c>/<c>labels</c> row returned by the <c>StartRunAsync</c> UPSERT.</summary>
+    private static CoalescedAttribution ReadCoalescedAttribution(DbDataReader reader)
+        => new(
+            DbHelpers.GetNullableString(reader, 0),
+            JsonStringMapCodec.Deserialize(DbHelpers.GetNullableString(reader, 1)));
+
+    /// <summary>The attribution fields the <c>StartRunAsync</c> UPSERT reports back after its own COALESCE.</summary>
+    private sealed record CoalescedAttribution(string? UserId, IReadOnlyDictionary<string, string>? Labels);
 
     /// <inheritdoc />
     public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
@@ -144,6 +170,19 @@ internal sealed class SqlRunStore : IRunStore
             throw new AgentPrismException(
                 $"Run with id '{runEvent.RunId}' was not found. " +
                 "StartRunAsync must be called before adding an event.",
+                ex);
+        }
+        catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
+        {
+            // run_events' only unique constraint is (run_id, seq): a
+            // duplicate here always means a caller reused a sequence
+            // number RunEventWriter had already assigned. That is a
+            // caller error, not a legitimate retry -- rejecting it (rather
+            // than silently ignoring or overwriting) keeps the append-only
+            // sequence gap-free and matches the in-memory store.
+            throw new AgentPrismException(
+                $"Run '{runEvent.RunId}' already has an event with sequence '{runEvent.Sequence}'. " +
+                "The event was not written.",
                 ex);
         }
 

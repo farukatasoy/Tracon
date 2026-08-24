@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!--
+    xunit.v3 runs on the Microsoft Testing Platform (MTP), not VSTest; a test
+    project is a self-contained executable. Same setup as
+    tests/Directory.Build.props; this project does not inherit it (it lives
+    under samples/, not tests/).
+  -->
+  <PropertyGroup Label="Microsoft Testing Platform">
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The sample store, by ProjectReference: it is this repo's own sample
+      code, not a published package. AgentPrism.Testing.Contracts.Xunit, by
+      contrast, is a PackageReference resolved from the local feed
+      (../NuGet.config): the contract suite itself is never project-referenced,
+      only the sample store under test is.
+    -->
+    <ProjectReference Include="../AgentPrism.Samples.FileRunStore/AgentPrism.Samples.FileRunStore.csproj" />
+    <!-- VersionOverride, not Version: see the sample store's own csproj for why. -->
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

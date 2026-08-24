@@ -39,6 +39,10 @@ working references.
 | `IWebhookStore` / `IApiKeyStore` | Subscriptions and hashed API keys |
 | `IVectorSearchStore` | Knowledge chunks and their embeddings |
 
+Writing a third implementation of one of these? `AgentPrism.Testing.Contracts.Xunit`
+packages the same behavior tests the shipped implementations run — see
+[Write your own store](https://agentprism.doayen.web.tr/guides/write-your-own-store/).
+
 ### Extension points
 
 | Interface | Called when |

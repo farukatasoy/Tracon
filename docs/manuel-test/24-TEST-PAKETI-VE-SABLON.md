@@ -1,13 +1,17 @@
 # 24 — Test Paketi ve Proje Şablonu (`TEST`)
 
 > **Alan kodu:** `TEST` · **Faz:** 37 (`dotnet new` şablonu), 39 (`AgentPrism.Testing`),
-> 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi)
+> 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi),
+> 98 (depolama sözleşmesi paketi ve örnek store)
 > **Kaynak:** `src/AgentPrism.Templates/` (tümü — `content/AgentPrism.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/AgentPrism.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
 > `AgentPrismTestHost.cs`, `AgentPrismTestHostOptions.cs`, `RunAssertions.cs`,
 > `AgentPrismAssertionException.cs`, `Internal/FakeChatClient.cs`,
 > `Internal/FakeModelScript.cs`) ·
+> `src/AgentPrism.Testing.Contracts.Xunit/` (tümü — 32 sözleşme sınıfı,
+> `TestData.cs`, `ContractCoverage.cs`) ·
+> `samples/AgentPrism.Samples.FileRunStore/` ve `.Tests/` ·
 > çapraz doğrulama için `tests/AgentPrism.Package.Tests/`,
 > `tests/AgentPrism.Testing.UnitTests/`, `src/AgentPrism/AgentPrism.csproj`
 > (meta paket referans listesi), `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
@@ -2081,5 +2085,229 @@ rm /tmp/Directory.Packages.props.orig /tmp/Google.csproj.orig
 - Hata mesajı `Added: [Humanizer.Core]` yazar — hangi paketin hangi şekilde
   belirdiğini adıyla söyler.
 - Geri alma sonrası (`git diff` **temiz**), test tekrar yeşil döner.
+
+---
+
+### MT-TEST-073 — `AgentPrism.Testing.Contracts.Xunit` yalnız `AgentPrism.Abstractions`'ı geçişli olarak indirir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 98 |
+| **İlgili karar** | K-007 |
+
+Kabul kriteri 98.1'in ölçümü — sözleşme paketinin `AgentPrism.Core`'a **hiç**
+dokunmadığının kanıtı.
+
+**Ön koşul**
+- Yerel NuGet feed hazır (`00-INDEKS.md` §2.3), `$SURUM` çözülmüş.
+
+**Adımlar**
+1. Boş bir test projesi aç, yalnız `AgentPrism.Testing.Contracts.Xunit` referansı ver.
+2. Geçişli paket listesini oku.
+
+**Girilecek veri**
+```bash
+TMP=$(mktemp -d)
+cd "$TMP"
+dotnet new console -n Probe -o .
+cat > NuGet.config << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+    <add key="agentprism-local" value="/Users/farukatasoy/Desktop/projects/AgentPrism/artifacts/package/release" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+    <packageSource key="agentprism-local"><package pattern="AgentPrism*" /></packageSource>
+  </packageSourceMapping>
+</configuration>
+EOF
+dotnet add package AgentPrism.Testing.Contracts.Xunit --version "$SURUM"
+dotnet list package --include-transitive | grep -i AgentPrism
+```
+
+**Gerçek sonuç (2026-08-24)**
+```
+   > AgentPrism.Testing.Contracts.Xunit      *-*         0.0.0-preview.0.360
+   > AgentPrism.Abstractions                                    0.0.0-preview.0.360
+```
+
+**Beklenen sonuç**
+- Yalnız iki `AgentPrism.*` satırı görünür: `AgentPrism.Testing.Contracts.Xunit`
+  ve `AgentPrism.Abstractions`. `AgentPrism.Core` **hiç** listede yer almaz.
+
+---
+
+### MT-TEST-074 — 15 metodu `NotSupportedException` fırlatan bir `IRunStore`, `RunStoreContract`'ı türetir; derlenir, suite koşar ve KIRMIZI olur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 98 |
+| **İlgili karar** | — |
+
+Sözleşmenin **dışarıdan tüketilebilir** olduğunun kanıtı: derleme hatası değil,
+çalışma anı hatası.
+
+**Ön koşul**
+- MT-TEST-073'ün test projesi hazır (`AgentPrism.Testing.Contracts.Xunit` eklenmiş).
+
+**Adımlar**
+1. `IRunStore`'un 15 metodunun hepsini `throw new NotSupportedException()` ile
+   uygulayan bir sınıf yaz.
+2. `RunStoreContract`'ı türeten bir test sınıfı yaz, `CreateStoreAsync` bu
+   sınıfı döndürsün.
+3. `dotnet build` ile derle.
+4. `dotnet run` (MTP) ile suite'i koştur.
+
+**Girilecek veri**
+```csharp
+// NotImplementedRunStoreTests.cs — bkz. faz dokümanının "Gerçekleşen Public API" bölümü
+public sealed class NotImplementedRunStoreTests : RunStoreContract
+{
+    protected override ValueTask<IRunStore> CreateStoreAsync()
+        => new(new NotImplementedRunStore());
+}
+// NotImplementedRunStore : IRunStore — her metot throw new NotSupportedException();
+```
+
+```bash
+dotnet build -c Release   # derleme hatası BEKLENMEZ
+./bin/Release/net10.0/Probe
+```
+
+**Gerçek sonuç (2026-08-24)**
+```
+Build succeeded. 0 Error(s)
+...
+Test run summary: Failed! 
+  total: 88
+  failed: 88
+  succeeded: 0
+```
+
+**Beklenen sonuç**
+- `dotnet build` **sıfır hata** ile biter — sözleşme normal bir NuGet
+  tüketicisinden derlenebilir.
+- Suite koşar ve **kırmızıdır** (88/88 başarısız), her biri
+  `System.NotSupportedException` ile — derleme zamanı değil çalışma zamanı hatası.
+
+---
+
+### MT-TEST-075 — Örnek store (`AgentPrism.Samples.FileRunStore`) yalnız NuGet paketleriyle restore edilir ve sözleşme suite'i yeşildir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 98 |
+| **İlgili karar** | — |
+
+Kabul kriteri 5 — "en zor seam dışarıdan yazılabiliyor mu"nun tam kanıtı: hem
+örnek store'un kendisi hem test projesi `AgentPrism.*`'ı `PackageReference`
+(`VersionOverride`) ile alır, `ProjectReference` **yalnız** örnek store'un
+kendi test projesine (kendi kodu) verilir — `samples/NuGet.config` yerel
+feed'e yönlendirir.
+
+**Ön koşul**
+- Yerel NuGet feed hazır (`dotnet pack AgentPrism.src.slnf -c Release` veya
+  `python3 scripts/kapi.py yayin --kuru`).
+
+**Adımlar**
+1. `samples/AgentPrism.Samples.FileRunStore.Tests`'i derle.
+2. Suite'i koştur.
+
+**Girilecek veri**
+```bash
+cd /Users/farukatasoy/Desktop/projects/AgentPrism
+dotnet build samples/AgentPrism.Samples.FileRunStore.Tests -c Release
+./artifacts/bin/AgentPrism.Samples.FileRunStore.Tests/release/AgentPrism.Samples.FileRunStore.Tests
+```
+
+**Gerçek sonuç (2026-08-24)**
+```
+Build succeeded. 0 Warning(s), 0 Error(s)
+Test run summary: Passed!
+  total: 88
+  failed: 0
+  succeeded: 88
+```
+
+**Beklenen sonuç**
+- Derleme sıfır uyarı/hata ile biter.
+- Suite'in tamamı (88/88) yeşildir — `RunStoreContract`'ın idempotency,
+  tenant izolasyonu, olay sırası, yinelenen `Sequence` reddi, istatistik
+  toplama ve deney sonuçları dahil her senaryosu dosya tabanlı örnek store'da
+  doğru çalışır.
+
+---
+
+### MT-TEST-076 — Yayın provası **20** paket görür; `AgentPrism.Testing.Contracts.Xunit` kimlik kümesindedir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 98 |
+| **İlgili karar** | K-602 |
+
+**Ön koşul**
+- Temiz depo.
+
+**Adımlar**
+1. Yayın provasını kuru modda çalıştır.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py yayin --kuru
+```
+
+**Gerçek sonuç (2026-08-24)**
+```
+✅ 20 paket, sürüm '0.0.0-preview.0.360':
+...
+  AgentPrism.Testing.Contracts.Xunit  0.0.0-preview.0.360
+...
+```
+
+**Beklenen sonuç**
+- Çıktıda tam **20** paket görünür (Faz 97'nin 19'una karşı +1).
+- `AgentPrism.Testing.Contracts.Xunit` kimlik kümesinde, tek sürüm hattında
+  (`0.0.0-preview.0.N` — diğer 19 paketle aynı sürüm) ve `icon.png` ile birlikte listelenir.
+
+---
+
+### MT-TEST-077 👤 — "Kendi store'unu yaz" rehber sayfası doğru ve eksiksiz
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 98 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Site derlenmiş ve yayınlanmış (`faz-tamamlama` Adım 10).
+
+**Adımlar**
+1. Yayınlanan site üzerinde yeni rehber sayfasını taraycıda aç.
+2. Kod örneğinin gerçek imzalarla eşleştiğini gözle doğrula.
+
+**Girilecek veri**
+```
+https://agentprism.doayen.web.tr/guides/write-your-own-store/
+```
+
+**Beklenen sonuç**
+- Sayfa `AgentPrism.Testing.Contracts.Xunit` paketinin kurulumunu,
+  `RunStoreContract`'ı türetme örneğini ve `IRunStore`'un altı davranış
+  ekseninin (idempotency, üç kiracı modu, thread safety, null/bulunamadı,
+  olay sırası, yinelenen `Sequence`) her birini anlatır.
+- Kod örneği derlenebilir gerçek imzalar kullanır — uydurma metot adı yok.
 
 ---

@@ -2406,6 +2406,9 @@ Durable rows are also what
 
 - [Securing the endpoints](/getting-started/security/) — required reading
 before this leaves your machine.
+- [Write your own store](/guides/write-your-own-store/) — implement `IRunStore`
+  (or another store interface) against a persistence engine none of the three
+  built-in providers cover.
 
 ---
 
@@ -7583,6 +7586,125 @@ answer.
 
 ---
 
+# Write your own store
+
+The three built-in providers (`AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
+most deployments. When none of them fit — a document database, an existing
+event-sourced system, a managed table service — `IRunStore` and the 32 other store
+interfaces in `AgentPrism.Abstractions` are the extension point. This guide covers the
+largest and most-documented one, `IRunStore`, using its behavior contract to verify
+the result.
+
+```bash
+dotnet add package AgentPrism.Testing.Contracts.Xunit --prerelease
+```
+
+Add it to your **test** project only. It brings in `AgentPrism.Abstractions` and
+nothing else from AgentPrism — no `AgentPrism.Core`, no SQL package, no ASP.NET Core.
+xunit.v3 and Shouldly are ordinary dependencies: your test project's own xunit.v3
+runner discovers the `[Fact]` methods the inherited contract class declares.
+
+## Implement the interface
+
+```csharp
+public sealed class MyRunStore : IRunStore
+{
+    public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken ct = default) { /* ... */ }
+    public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken ct = default) { /* ... */ }
+    public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken ct = default) { /* ... */ }
+    public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken ct = default) { /* ... */ }
+    public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
+    public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId = null, CancellationToken ct = default) { /* ... */ }
+    public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken ct = default) { /* ... */ }
+}
+```
+
+Fifteen methods, and six behavior axes the contract suite checks that a compiler
+cannot:
+
+| Axis | Rule |
+|---|---|
+| Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId` and `Labels` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments |
+| Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
+| Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
+| Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `AgentPrismException` |
+| Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
+| Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `AgentPrismException`, do not silently accept or silently drop it |
+
+The full text lives on `IRunStore`'s own XML documentation — see [the API
+reference](/api/agentprism.irunstore/) for the exact wording each method carries.
+
+## Prove it with the contract suite
+
+```csharp
+using AgentPrism.Testing.Contracts.Storage;
+
+public sealed class MyRunStoreTests : RunStoreContract
+{
+    protected override ValueTask<IRunStore> CreateStoreAsync()
+        => new(new MyRunStore(/* your dependencies */));
+}
+```
+
+`dotnet test` now runs every scenario `RunStoreContract` defines: the idempotency and
+duplicate-`Sequence` rules above, two-directional tenant isolation (a tenant reads its
+own runs and never another tenant's), statistics aggregation computed *inside* the
+store rather than by fetching rows into memory, tree totals across parent/child runs,
+and error-cluster grouping. A method your store has not implemented yet makes the
+inherited test **fail** with whatever exception that method throws — it does not fail
+to compile, so an incomplete store is still a normal, greppable red build.
+
+```mermaid
+flowchart TD
+    accTitle: How the contract suite verifies a custom store
+    accDescr: A test class derives RunStoreContract and supplies a store instance. The base class runs idempotency, tenant isolation, event ordering, and statistics scenarios against it. A scenario that fails names the exact behavior axis that is wrong.
+    IMPL["Your IRunStore implementation"] --> DERIVE["Test class : RunStoreContract<br/>CreateStoreAsync() returns it"]
+    DERIVE --> RUN["dotnet test"]
+    RUN --> IDEMP["Idempotency + duplicate Sequence"]
+    RUN --> TENANT["Tenant isolation, both directions"]
+    RUN --> STATS["Statistics computed in the store"]
+    RUN --> TREE["Tree totals across parent/child runs"]
+```
+
+## What the suite does not check
+
+The same three things every store contract leaves to you, regardless of interface:
+
+- **Performance at scale.** The suite proves correctness on a handful of records; it
+  is not a load test.
+- **Your own persistence engine's guarantees.** If your backing store does not offer
+  atomic upserts, `StartRunAsync`'s idempotency requirement is your problem to solve,
+  not something the contract can verify for you.
+- **Wiring into `AddAgentPrism()`.** The contract suite exercises the store directly.
+  Registering it (`services.AddSingleton<IRunStore, MyRunStore>()`, called before or
+  after `AddAgentPrism()` — `TryAdd*` means your registration always wins) is a
+  separate, ordinary DI step.
+
+## Other store interfaces
+
+`IRunStore` is the largest and most heavily documented seam, but the same package
+ships a contract class for every other store interface in `AgentPrism.Abstractions` —
+sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
+the same shape: derive the matching `*Contract` class, supply a store instance, run
+`dotnet test`.
+
+## Read next
+
+- [Persistence](/getting-started/persistence/) — the three shipped providers, for
+  comparison
+- [Runs and recording](/concepts/runs/) — what `IRunStore` records and why
+- [Reference: every public type](/api/) — generated from the shipped XML documentation
+
+---
+
 # HTTP API
 
 162 operations across 125 paths. This page is the shape they all share; the groups in
@@ -7715,7 +7837,7 @@ The paths, schemas, and descriptions are the same.
 
 # Choosing packages
 
-Nineteen packages. Take the meta package for the common set, or pick individually
+Twenty packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## The meta package
@@ -7751,6 +7873,7 @@ Add these when you need them.
 | `AgentPrism.Azure` | You call Azure OpenAI deployments |
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
+| `AgentPrism.Testing.Contracts.Xunit` | You write your own `IRunStore` (or another store interface) and want the same behavior tests the four shipped stores run |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
 `AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
@@ -7788,7 +7911,7 @@ Same OpenAPI document, same version number as every package above — `@agentpri
 and `AgentPrism.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
-a .NET one, and it is not part of the eight AOT-compatible packages or the nineteen
+a .NET one, and it is not part of the eight AOT-compatible packages or the twenty
 NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
 for setup, the error model, and what it deliberately does not cover.
 
@@ -7861,6 +7984,7 @@ Eight runtime packages make the trimming and Native AOT compatibility promise:
 | `AgentPrism.Mcp` | MCP schema and serialization paths use runtime reflection |
 | `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
 | `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
+| `AgentPrism.Testing.Contracts.Xunit` | The build-time contract-coverage check reflects over the consumer's test assembly |
 | `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
 | `AgentPrism.Client` | The generated client's JSON calls are hand-wired to a source-generated `JsonSerializerContext` (no runtime reflection), but the code generator hardcodes generic `JsonSerializer` overloads the trim/AOT analyzer flags regardless — the promise is withheld rather than guessed |
 
@@ -7950,7 +8074,7 @@ The packages are still pre-release. Install them with an explicit preview versio
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
 
-## The 19 packages
+## The 20 packages
 
 “Meta” shows whether `dotnet add package AgentPrism` brings the package into the
 dependency graph. `AOT` states the promise made by the package itself.
@@ -7973,6 +8097,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `AgentPrism.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
 | `AgentPrism.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `AgentPrism.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
+| `AgentPrism.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for `IRunStore` and 32 other store interfaces, as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `AgentPrism.Templates` | No | net10 output | N/A | `dotnet new agentprism-api` content package |
 | `AgentPrism.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `AgentPrism.Cli` | No | net10 (`DotnetTool`) | No | The `agentprism` global tool; wraps `AgentPrism.Client` and ships as IL, not native code |
