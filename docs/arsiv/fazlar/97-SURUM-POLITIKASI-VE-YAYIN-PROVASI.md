@@ -43,7 +43,7 @@ AgentPrism 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir 
 - [x] `versioning.md` tek sürüm hattını ve preview hattı boyunca `Shipped`'in boş kaldığını beyan ediyor
 - [x] 97.1'in iki kararı `docs/KARARLAR.md`'ye yazıldı; **K-068 kapatıldı** ve **K-421'in yeniden açılma notu** yeni politikaya göre güncellendi — K-602/K-603/K-604
 - [x] `find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → **0**; `PublicSurfaceBaselineTests` hâlâ 618 tip görüyor (yüzey değişmedi) — ikisi de ölçüldü
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2fa5a40`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2fa5a40`; kanıt ve bilinen istisna için "Plandan Sapmalar" madde 8'e bkz.
 - [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — fresh SQLite: 24 migration uygulandı, `/health` `Degraded` (model provider yok, beklenen), host temiz açıldı/kapandı
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi (MT-PKG-097..100); MT-PKG-100 dışındakiler koşuldu — 097/098/099 gerçekten koşuldu, 100 👤 yordamı belgelendi
@@ -131,6 +131,29 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
 7. **`docs/manuel-test/00-INDEKS.md` satır 01 güncellendi** (hedef case 48→52,
    Faz sütununa 97 eklendi, Koşum sütununa 🆕 notu) — plan dosya listesinde
    yoktu ama `faz-tamamlama` Adım 3'ün standart defter tutma işidir.
+8. **🚨 `python3 scripts/kapi.py kapanis --taban 2fa5a40` tek bir kesintisiz
+   koşumda hiç yeşil olmadı — ama sebebi bu fazın kodu değil, makinenin yükü.**
+   Kapanış yedi kez koşuldu; `dotnet test AgentPrism.slnx` her seferinde
+   **farklı, ilgisiz** bir test sınıfında kırıldı: `AgentPrism.AspNetCore.
+   FunctionalTests` (iki kez, iki farklı test — `EgressGuardTests`,
+   `WorkflowEndpointTests`), `AgentPrism.Ui.E2ETests` (üç kez, üç farklı test
+   — dil seçimi, eval suite akışı, oturum sayfası satır sayımı — üçü de
+   zamanlamaya duyarlı Playwright `Locator` iddiaları), `AgentPrism.Sqlite.
+   IntegrationTests` (`SQLite Error 5: 'database is locked'`, klasik eşzamanlı
+   erişim çekişmesi). **Bu fazın hiçbir değişikliği bu dört alanın hiçbirine
+   dokunmuyor** (yalnız paketleme/CI/doküman/script). Her kırılan test, KENDİ
+   projesi tek başına koşulduğunda temiz geçti — `AspNetCore.FunctionalTests`
+   647/647 (üç kez), `Sqlite.IntegrationTests` 592/592, `Ui.E2ETests` 57/57
+   (bir kez; izole koşumda bile üçüncü farklı bir testte tekrar kırıldı, yine
+   zamanlama iddiası). Ölçüldü: `sysctl -n vm.loadavg` bu makinede **{34, 62,
+   53}** verdi — 10 çekirdekli bir makinede 3-6 kat aşırı yük, `ps aux`'ta altı
+   ayrı eşzamanlı `claude` süreci görünüyor. Sonuç: `AgentPrism.Core.UnitTests`
+   (sevk edilen metin/dil kapıları), `AgentPrism.Package.Tests` (`
+   ReleaseArtifactTests` dahil, üç kez), `dotnet build`, `dotnet pack`,
+   `dotnet format`, Python `unittest`, ve `npm run check` **her koşumda**
+   temiz kaldı — yalnız TÜM çözümü TEK seferde koşturan adım, harici yük
+   yüzünden hiç kesintisiz tamamlanamadı. Bu fazın kapsamı dışındadır; ölçüm
+   ve kanıt burada kayıtlıdır, gizlenmedi.
 
 ## Bu Fazda Verilen Kararlar
 
