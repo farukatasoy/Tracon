@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// estimate expensive.
 /// </para>
 /// </remarks>
-public sealed class ContextWindowEstimator
+internal sealed class ContextWindowEstimator
 {
     // Fixed reference model/encoding for every estimate (see the type's remarks).
     // Requires the Microsoft.ML.Tokenizers.Data.O200kBase package alongside

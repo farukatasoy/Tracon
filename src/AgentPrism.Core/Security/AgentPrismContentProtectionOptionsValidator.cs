@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// <c>IL2026</c>. <c>AgentPrism.Core</c> must stay AOT-compatible.
 /// </para>
 /// </remarks>
-public sealed class AgentPrismContentProtectionOptionsValidator : IValidateOptions<AgentPrismContentProtectionOptions>
+internal sealed class AgentPrismContentProtectionOptionsValidator : IValidateOptions<AgentPrismContentProtectionOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismContentProtectionOptions options)

@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// unbounded list would silently grow an in-memory deployment.
 /// </para>
 /// </remarks>
-public sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
+internal sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
 {
     /// <summary>The maximum number of records kept in memory.</summary>
     private const int Capacity = 2_000;

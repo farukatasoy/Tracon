@@ -2318,3 +2318,124 @@ dotnet run -c Release --no-build
 - Derleme sıfır uyarıyla biter.
 - Çalıştırma `Consumer probe OK: AgentPrism.AnthropicChatClientFactory` yazdırır.
 - Ölçüldü (2026-08-16): birebir bu çıktı üretildi, sürüm `0.0.0-preview.0.251`.
+
+---
+
+### MT-PKG-094 — `internal`'a çekilmiş bir tip paketlenmiş tüketicide görünmez, arayüzü görünür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 96 |
+| **İlgili karar** | — |
+
+Faz 96'nın 96 tipi `internal`'a çekmesinin gerçek tüketicide de tuttuğunun
+kanıtı — `ConsumerSurfaceTests` bunu otomatik koşar, bu case elle tekrarı için.
+
+**Ön koşul**
+- Repo temiz, `dotnet pack "AgentPrism.src.slnf" -c Release` yapılmış, yerel besleme hazır.
+- `~/.nuget/packages/agentprism*` global paket önbelleğinden silinmiş (aynı sürüm sayısı tekrar
+  paketlenirse NuGet eski çıkarılmış kopyayı kullanır — ölçüldü, bu fazda yaşandı).
+
+**Adımlar**
+1. Scratch bir konsol projesi aç, yerel besleme ile `AgentPrism`'i ekle.
+2. `Program.cs`'e `var store = new AgentPrism.InMemoryRunStore();` yaz, derle.
+3. Satırı `AgentPrism.IRunStore? store = null;` ile değiştir, tekrar derle.
+
+**Girilecek veri**
+```bash
+mkdir -p ~/agentprism-manuel/surface-probe && cd ~/agentprism-manuel/surface-probe
+dotnet new console -n SurfaceProbe --force
+cd SurfaceProbe
+cat > NuGet.config <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="local" value="<repo>/artifacts/package/release" />
+    <add key="nuget" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+</configuration>
+EOF
+dotnet add package AgentPrism --version <surum>
+# Program.cs adim 2:
+echo 'var store = new AgentPrism.InMemoryRunStore();' > Program.cs
+dotnet build -c Release
+# Program.cs adim 3:
+echo 'AgentPrism.IRunStore? store = null;' > Program.cs
+dotnet build -c Release
+```
+
+**Beklenen sonuç**
+- Adım 2'nin derlemesi **CS0122** ile kırılır (`'InMemoryRunStore' is inaccessible
+  due to its protection level`) — tip artık tüketiciye görünmüyor.
+- Adım 3'ün derlemesi sıfır uyarıyla biter — arayüz görünür kalıyor.
+
+---
+
+### MT-PKG-095 — Public yüzey taban çizgisi paket başına tip sayısını yakalar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 96 |
+| **İlgili karar** | — |
+
+`PublicSurfaceBaselineTests`'in gerçekten kırdığının kanıtı — sessizce
+büyüyen bir yüzey bu kapı olmadan fark edilmeden ilerler.
+
+**Ön koşul**
+- `tests/AgentPrism.Core.UnitTests/Architecture/public-surface-baseline.txt` kodda.
+
+**Adımlar**
+1. Baseline dosyasında bir paketin sayısını elle 1 azalt.
+2. `PublicSurfaceBaselineTests` sınıfını koş.
+3. Satırı geri al.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+  --filter-method "*PublicSurfaceBaseline*"
+```
+
+**Beklenen sonuç**
+- Test **kırılır** ve hangi paketin taban çizgiyi aştığını adıyla, sayısıyla mesajda gösterir.
+
+---
+
+### MT-PKG-096 — Takipsiz packable paket beyan kapısında yakalanır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 96 |
+| **İlgili karar** | K-424 |
+
+`PublicApiTrackingDeclarationTests`'in gerçekten kırdığının kanıtı — takip
+dosyası eklenmeyi unutulan bir paket bu kapı olmadan sessizce izlenmez kalır.
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. `src/AgentPrism.Core/PublicAPI.Shipped.txt` ve `PublicAPI.Unshipped.txt`'i geçici olarak başka
+   bir isme taşı (dosyaları "kaybet").
+2. `PublicApiTrackingDeclarationTests` sınıfını koş.
+3. Dosyaları geri taşı.
+
+**Girilecek veri**
+```bash
+mv src/AgentPrism.Core/PublicAPI.Shipped.txt /tmp/Shipped.txt.bak
+mv src/AgentPrism.Core/PublicAPI.Unshipped.txt /tmp/Unshipped.txt.bak
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests \
+  --filter-method "*PublicApiTrackingDeclaration*"
+mv /tmp/Shipped.txt.bak src/AgentPrism.Core/PublicAPI.Shipped.txt
+mv /tmp/Unshipped.txt.bak src/AgentPrism.Core/PublicAPI.Unshipped.txt
+```
+
+**Beklenen sonuç**
+- Test **kırılır** ve `AgentPrism.Core`'un iki seçeneğini (izleme dosyalarını ekle / açıkça
+  `AgentPrismPublicApiTrackingEnabled=false` yaz) mesajında gösterir.

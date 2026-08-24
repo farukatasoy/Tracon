@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// expose it.
 /// </para>
 /// </remarks>
-public sealed class AnthropicProviderOptionsValidator : IValidateOptions<AnthropicProviderOptions>
+internal sealed class AnthropicProviderOptionsValidator : IValidateOptions<AnthropicProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AnthropicProviderOptions options)

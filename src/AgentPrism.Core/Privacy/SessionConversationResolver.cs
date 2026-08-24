@@ -36,7 +36,7 @@ namespace AgentPrism;
 /// other session in the same request.
 /// </para>
 /// </remarks>
-public sealed class SessionConversationResolver
+internal sealed class SessionConversationResolver
 {
     private readonly ISessionStore _sessions;
     private readonly IAgentCatalog _catalog;

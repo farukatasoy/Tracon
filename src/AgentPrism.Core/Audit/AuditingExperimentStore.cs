@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// affects live traffic. It has the same rationale as <see cref="AuditingAgentDefinitionStore"/>
 /// and is not an execution byproduct such as <c>IJobStore</c> or <c>IEvalStore</c>.
 /// </remarks>
-public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
+internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
 {
     private readonly IExperimentStore _inner;
     private readonly IAuditLog _auditLog;

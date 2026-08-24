@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// Session saves occur on every turn. Auditing them would make the audit trail the
 /// highest-volume table. Only deletion, an irreversible operation, is audited.
 /// </remarks>
-public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
+internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
 {
     private readonly ISessionStore _inner;
     private readonly IAuditLog _auditLog;

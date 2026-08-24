@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// <summary>Stores workflow definitions in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// The behavior contract is identical to <see cref="InMemoryWorkflowDefinitionStore"/>
+/// The behavior contract is identical to <c>InMemoryWorkflowDefinitionStore</c>
 /// and is protected by shared contract tests.
 /// </para>
 /// <para>

@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// reflection and produces <c>IL2026</c>. <c>AgentPrism.PostgreSql</c> must stay
 /// AOT-compatible.
 /// </remarks>
-public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<AgentPrismPostgreSqlOptions>
+internal sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<AgentPrismPostgreSqlOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismPostgreSqlOptions options)

@@ -31,7 +31,7 @@ namespace AgentPrism;
 /// not be implemented.
 /// </para>
 /// </remarks>
-public sealed class SingletonGuard
+internal sealed class SingletonGuard
 {
     private readonly ISingletonLeaseStore _store;
     private readonly IOptionsMonitor<SingletonExecutionOptions> _optionsMonitor;

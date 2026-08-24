@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// pricing to history as-is. Since the provider is not stored on historical
 /// rows, resolution is done by model name alone.
 /// </remarks>
-public sealed class RunCostRecalculationService
+internal sealed class RunCostRecalculationService
 {
     private const int PageSize = 200;
 

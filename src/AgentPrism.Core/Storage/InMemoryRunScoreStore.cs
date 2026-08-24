@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// <c>SqlRunScoreStore</c>, and shared contract tests protect it. Use
 /// <c>AgentPrism.PostgreSql</c>, SQL Server, or SQLite in production.
 /// </remarks>
-public sealed class InMemoryRunScoreStore : IRunScoreStore
+internal sealed class InMemoryRunScoreStore : IRunScoreStore
 {
     private readonly ConcurrentDictionary<Guid, RunScore> _scores = new();
 

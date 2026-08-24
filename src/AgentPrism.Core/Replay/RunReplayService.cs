@@ -24,7 +24,7 @@ namespace AgentPrism;
 /// the beginning, use branching (<see cref="IConversationBranchStore"/>).
 /// </para>
 /// </remarks>
-public sealed class RunReplayService
+internal sealed class RunReplayService
 {
     private readonly IRunStore _runs;
     private readonly IRunInputStore _inputs;

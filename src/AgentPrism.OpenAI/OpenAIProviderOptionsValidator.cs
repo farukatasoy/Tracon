@@ -26,7 +26,7 @@ namespace AgentPrism;
 /// left empty, the request would silently go to the official OpenAI address.
 /// </para>
 /// </remarks>
-public sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProviderOptions>
+internal sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, OpenAIProviderOptions options)

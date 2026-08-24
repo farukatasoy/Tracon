@@ -12,9 +12,6 @@ AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.get -> bool
 AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.set -> void
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.get -> string!
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.set -> void
-AgentPrism.AgentPrismPostgreSqlOptionsValidator
-AgentPrism.AgentPrismPostgreSqlOptionsValidator.AgentPrismPostgreSqlOptionsValidator() -> void
-AgentPrism.AgentPrismPostgreSqlOptionsValidator.Validate(string? name, AgentPrism.AgentPrismPostgreSqlOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 AgentPrism.MigrationRunner
 AgentPrism.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 AgentPrism.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.SqlPersistenceDiagnosticsSnapshot!>

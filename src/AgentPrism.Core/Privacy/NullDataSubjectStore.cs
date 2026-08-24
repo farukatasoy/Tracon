@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// meaningful only once a SQL provider is enabled — the same precedent as
 /// <c>NullRetentionStore</c>.
 /// </summary>
-public sealed class NullDataSubjectStore : IDataSubjectStore
+internal sealed class NullDataSubjectStore : IDataSubjectStore
 {
     private static readonly IReadOnlyDictionary<string, int> Empty =
         new Dictionary<string, int>(StringComparer.Ordinal);
