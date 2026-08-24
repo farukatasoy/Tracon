@@ -1,6 +1,6 @@
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// The name given with <c>-n</c> must replace "AgentPrism.Starter" in every file

@@ -196,6 +196,16 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 - No `Azure.Identity` unless you use managed identity — the Azure package binds to the
   `Azure.Core` abstraction and lets you choose the credential
 
+## What enters your graph if you opt in
+
+Choosing a provider package pulls its official SDK. One of them brings extra
+transitive weight beyond the SDK itself, worth naming up front:
+
+- `AgentPrism.Google` — Google's official Gemini SDK (`Google.GenAI`) carries
+  `Newtonsoft.Json`, `System.Management`, and `System.CodeDom` through
+  `Google.Apis.Auth`. A consumer who does not reference `AgentPrism.Google`
+  gets none of it.
+
 ## Reference
 
 [Every public type](/api/), generated from the shipped assemblies and their

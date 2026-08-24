@@ -18,7 +18,7 @@ iddia repo üzerinde **ölçüldü**. Ölçüm tutmayan iddialar bölüm 5'e al�
 |---|---|
 | Kod | `src/` 139.425 satır C# · `tests/` 80.438 satır · 2.897 test metodu |
 | Doküman | `docs/` 143.671 satır Markdown · 222 dosya · `arsiv/` 4,3 MB |
-| Public API | 6.301 girdi · tamamı `Unshipped` · `Shipped.txt` dosyalarının hepsi boş |
+| Public API | 6.301 girdi · tamamı `Unshipped` · `Shipped.txt` dosyalarının hepsi boş — 🚨 **2026-08-24'te yeniden ölçüldü: 8.063 girdi · 716 public tip**; 6.301 sayısı yanlıştı |
 | Sürüm | 0 git etiketi · 337 commit · NuGet yayını yok |
 | Faz | 90 kayıt · 89'u kapalı · Faz 7 (yayın) ⏸ beklemede |
 | Aday | [`ADAYLAR.md`](../ADAYLAR.md) 16 başlık · 8'i gerçekten açık |
@@ -71,7 +71,7 @@ Tip: **📋 Faz** = plan dokümanı ister · **⚡ Tek oturum** = bir oturumda k
 ### 1. 1.0 yok; public API'nin tamamı `Unshipped` · 📋 Faz
 
 **Ölçüm:** `git tag` boş (0 etiket). Her `PublicAPI.Shipped.txt` 1 satır (boş).
-6.301 API girdisinin tamamı `Unshipped`. [Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
+6.301 API girdisinin tamamı `Unshipped`. 🚨 **Yeniden ölçüm (2026-08-24): 8.063 girdi**, arkasında **716 public tip**. Dolum listesi tahmin edilenden büyüktür. [Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
 2026-08-02'den beri ⏸ beklemede (K-068).
 
 **Neden P0:** Bu bir NuGet paket ailesidir. API tasarımı hiçbir gerçek tüketiciyle
@@ -210,6 +210,12 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 ([`AgentPrism.Abstractions`](../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt)).
 68 interface, 76 `Options` sınıfı, 1.502 property.
 
+> 🚨 **Yeniden ölçüm (2026-08-24):** toplam **8.063** girdi. Asıl hedef girdi
+> değil **tiptir: 716 public tip**, 339'u `Abstractions`'ta. Kalan girdinin
+> büyük kısmı `Options` erişimcisidir — yalnız `Abstractions`'ta 1.250 `get`
+> + 1.170 `set/init`. Bunlar tip kaldırılmadan küçülmez. Yüzey küçültme
+> fazının gözden geçireceği liste 716 satırdır, 8.063 değil.
+
 **Neden P1:** Yüzeyi küçültmenin bedeli bugün sıfır, yayından sonra kırıcı
 değişikliktir. Kalem 1'den **önce** koşmalıdır: `internal`'a çekilebilecek her
 tip, dolum listesini kalıcı olarak küçültür.
@@ -259,6 +265,19 @@ faz bir aileyi kapatır ve manuel setten siler. Öncelik sırası: kiracı/güve
 ---
 
 ### 10. Yeşil test gerçek davranışı kanıtlamıyor · 📋 Faz
+
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../95-GERCEK-TUKETICI-KAPISI.md).
+>
+> 🚨 **Plan anında bu maddenin kanıtı KISMEN YANLIŞLANDI.** "Paket olarak
+> tüketilebiliyor mu" sorusu zaten kapılıdır: `AgentPrism.Templates.Tests`
+> çözümü `pack` eder, `artifacts/package/release`'i yerel feed yapar, global
+> paket önbelleğini temizler ve `PackageReference` ile beslenen bir proje
+> üretir. Üstünde 10 case koşuyor — derleme sıfır uyarı, uygulama ayağa
+> kalkıyor, `buildTransitive/` hedefleri paket üzerinden akıyor. Hepsi CI'da,
+> `Skip` yok. **Gerçek boşluk tek cümleye indi:** paket tüketicisi üzerinden
+> hiçbir **gerçek `run`** koşulmuyor — `TemplateRunTests` yalnız katalog ucunu
+> çağırıyor, `POST .../run` hiçbir yerde geçmiyor (ölçüldü, sıfır sonuç).
+> Faz 95 yalnız o boşluğu kapatır.
 
 **Ölçüm:** [`MEMORY.md`](../../MEMORY.md) — "sekiz fazda gerçek hatalar **yalnız**
 örnek uygulamada çıktı; hepsi testlerden geçmişti" (K-166, K-167). Test dağılımı
@@ -430,6 +449,13 @@ iddiasındaki dosya bozuk çıktı üretiyor.
 
 ### 22. Bağımlılık kirliliği kuralı kendi istisnasını taşıyor · ⚡ Tek oturum
 
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../95-GERCEK-TUKETICI-KAPISI.md)
+> bölüm 95.3. Faz 95'in tüketici fikstürü zaten kuruluydu; kalem oraya bindi.
+> Plan iki eksen alır: geçişli kapanışı bir taban çizgisine bağlayan kapı, ve
+> `docs-site/packages.md`'deki beyan. Ölçüldü: `packages.md`'nin
+> `## What does not enter your graph` bölümü yalnız **girmeyeni** sayıyor;
+> `Google.GenAI` üzerinden geleni hiç yazmıyor.
+
 [`Directory.Packages.props:100`](../../Directory.Packages.props) — `Google.GenAI`
 üzerinden `Newtonsoft.Json`, `System.Management` ve `System.CodeDom` geçişli
 geliyor. Yorum "bilerek kabul edildi" diyor. Kural ("tüketicinin bağımlılık
@@ -470,21 +496,121 @@ tekrar önerilmesinler.
 
 ---
 
-## 7. Önerilen sıra
+## 7. Sıra ve devir notu — karara bağlandı (2026-08-24) 👤
 
-Bu bir öneridir; seçim kullanıcınındır.
+Bu bölüm bir **öneri değil, kayıttır**. Kararlar kullanıcı tarafından verildi.
+Sonraki oturumlar bu bölümü tek başına okuyup çalışabilmelidir; bölüm 1–6 arka
+plandır, buraya bakmadan bir kalem seçilmez.
 
-1. **Aynı oturumda kapanabilecek altı kalem** — 4 (kopya kapısı), 5 (`secret`
-   taraması), 6 (CI matrix), 13 (InMemory conformance konumu), 21 (üreteç kusuru),
-   11 (AOT beyanı). Hepsi kapı veya doğruluk düzeltmesidir; toplam risk düşük,
-   kazanç kalıcı.
-2. **Yayın ekseni** — 7 (yüzey küçültme) → 2 (sürüm politikası kararı) → 1 (Faz 7).
-   Sırası önemlidir: yüzey küçültme yayından **önce** bedava.
-3. **Kusur sınıfı kapatma** — 3 (analyzer kuralları), sonra 8 (SQL tek kaynak).
-4. **Doğrulama derinleştirme** — 10 (smoke-run kapısı), 16 (benchmark), 9 (manuel
-   set devri, aile aile).
-5. **Kalanlar** yayından sonra veya paralel.
+### 7.1 Verilen kararlar
 
-**Kalem 24 bir ön koşuldur:** yeni faz üretmeye devam edilecek mi, yoksa bu
-envanter bir sonraki dalganın kapsamı mı olacak? Bu cevap verilmeden 2–4
-sıralaması anlamsızdır.
+| # | Karar | Gerekçe |
+|---|---|---|
+| 1 | **Sürüm hattı:** paketlenen **19** projenin hepsi tek hatta `1.0.0-preview.N` | Stabil paket ön sürüm bağımlılığı taşıyamaz (madde 2). Ayrık hat (20 stabil + 1 preview) `Abstractions` ve `Core`'u anında dondurur ve madde 7'yi acil + pahalı yapar. Preview hattında yüzey küçültme kırıcı değişiklik sayılmaz |
+| 2 | **Sıra:** tüketici kapısı → yüzey küçültme → yayın | Yüzey küçültme, gerçek tüketiciyi kırmaya en yatkın değişikliktir; onu koruyacak dedektör **önce** kurulur |
+| 3 | **Kapsam:** ilk yayına kadar yeni yetenek üretimi **durur** (madde 24) | 94 faz, 0 yayınlanmış sürüm. Her yeni faz public yüzeye ekliyor ve dolum listesini büyütüyor. `ADAYLAR.md`'deki 8 açık kalem yayından sonra değerlendirilir |
+| 4 | **Madde 4:** smoke-run yayın kapısına; benchmark ve manuel set devri yayından sonraya | Ölçüldü: benchmark projesi yok, CI'da `sample`/`smoke` geçen sıfır satır var, `docs/manuel-test/` 2,3 MB duruyor |
+
+### 7.2 Uygulama sırası — bağlayıcı 👤
+
+Her adım **ayrı bir oturumda** yapılır. Adım atlanmaz; sıra kullanıcı
+tarafından sabitlendi.
+
+| Sıra | Adım | Skill |
+|---:|---|---|
+| 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 2 | **Faz 96 yazma** — public yüzey küçültme (madde 7) | `faz-planlama` |
+| 3 | **Faz 96 uygulama** | zincir |
+| 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) | `faz-planlama` |
+| 5 | **Faz 97 uygulama** | zincir |
+| 6 | **Blok B** — madde 12 · 15 · 23 (üçü de tek oturumluk) | — |
+| 7 | **Blok C** — yayından sonra veya paralel | — |
+
+### 7.3 Faz 96 yazacak oturuma — ölçülmüş zemin
+
+**Kapsam:** madde 7. Public yüzeyi yayından **önce** küçültmek. Bugün bedeli
+sıfırdır; yayından sonra bir sürüm kararıdır.
+
+Ölçüldü (2026-08-24):
+
+- **8.063** `Unshipped` girdi, **716** public tip. `Shipped.txt` dosyalarının
+  hepsi boştur (yalnız `#nullable enable`).
+- Tip dağılımı: **339** tip `AgentPrism.Abstractions`'ta.
+- 🚨 **Hedef girdi değil tiptir.** `Abstractions`'ın 4.760 girdisinin
+  **1.250'si `get`**, **1.170'i `set/init`** erişimcisidir. Bunlar tip
+  kaldırılmadan küçülmez. Gözden geçirilecek liste **716 satırdır**, 8.063 değil:
+  ```bash
+  find src -name PublicAPI.Unshipped.txt -exec cat {} + | grep -vE '^\s*$|^#' | grep -vE ' -> |\(' | sort
+  ```
+- `EnablePublicApiTracking` açıktır (K-421) ve yayın kararından bağımsızdır.
+
+**Bağlayıcı sıra kısıtı:** Faz 96, Faz 95'in tüketici kapısı **kurulduktan
+sonra** koşar. Sebep: bir tipi `internal`'a çekmek gerçek tüketiciyi kırabilir
+ve bunu yalnız `PackageReference` ile derlenen bir proje ölçer. `ProjectReference`
+taşıyan sample'lar bu kusuru **göremez**.
+
+**Planlama turunda cevaplanacak açık soru:** ölçüt ne olacak? Aday: `src/`
+dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testing`,
+`Client` ve `Cli` paketlerinin `Core`/`Abstractions` kullanımını da saymalıdır
+— yoksa kendi paket ailesini kırar.
+
+### 7.4 Faz 97 yazacak oturuma — ölçülmüş zemin
+
+**Kapsam:** madde 2 (sürüm politikası) + madde 1 (Faz 7 dolumu ve yayın).
+[Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) 2026-08-02'den beri
+⏸ beklemededir (K-068).
+
+Ölçüldü (2026-08-24):
+
+- **Sürüm MinVer ile git etiketinden türer** (K-017). Etiket yokken
+  `0.0.0-preview.0`. Depoda tek etiket vardır: `docs/damitma-oncesi-2026-08` —
+  eğik çizgili adı **bilinçlidir**, MinVer'in SemVer ayrıştırıcısına takılmaz
+  (K-598). Yani bugün hâlâ **sürüm etiketi yoktur**.
+- 🚨 **Yayın `v*` etiketiyle tetiklenir ve kuru koşumu yoktur.**
+  [`ci.yml:6`](../../.github/workflows/ci.yml) `tags: ['v*']` dinler;
+  `publish` (satır 211) ve npm yayını (satır 245) `startsWith(github.ref,
+  'refs/tags/v')` koşuluyla açılır. İkisi de GitHub `environment` kapısı
+  arkasındadır (`nuget`, `npm`) — onay gerektirecek biçimde yapılandırılabilir.
+  **İlk `v1.0.0-preview.1` etiketi hem NuGet hem npm yayınını başlatır.**
+  Fazın kendi DoD'si bu tetiği ve geri alınamazlığını ele almalıdır.
+- Ön sürüm MAF bağımlılıkları [`Directory.Packages.props:37-51`](../../Directory.Packages.props)
+  içindedir ve K-008 gereği yalnız `AgentPrism.AspNetCore`'a girer.
+- Paketlenen proje sayısı **19**'dur (`src/` altındaki 20 projeden
+  `AgentPrism.Generators` `IsPackable=false`; `AgentPrism.Sql.Shared` bir
+  `.csproj` DEĞİLDİR — üç sağlayıcıya derlenen paylaşılan kaynak dizinidir).
+
+**Kapsama giren doküman doğruluğu kalemi:**
+[`reference/compatibility.md:24`](../../docs-site/src/content/docs/reference/compatibility.md)
+başlığı **"The 17 packages"** diyor ve 17 satır listeliyor; depo **19** paket
+üretiyor. `AgentPrism.Client` ve `AgentPrism.Cli` o tabloda yoktur
+(`packages.md` ikisini de kapsıyor — eksik olan yalnız bu sayfa).
+
+### 7.5 🚨 Bu turun yöntem dersi — atlanmaması gereken
+
+**Bu envanterin iddiaları bayattır ve seçilen her kalem yeniden ölçülmelidir.**
+2026-08-24'te iki iddia düştü:
+
+| İddia | Gerçek |
+|---|---|
+| "Public API 6.301 girdi" | **8.063** girdi · 716 tip. Sayı %28 küçük yazılmıştı |
+| Madde 10: "sample'lar CI'da çalıştırılmıyor" → genel tüketim boşluğu | `pack → yerel feed → PackageReference → derle → ayağa kalk` zinciri **zaten kurulu ve CI'da**. Gerçek boşluk yalnız **gerçek `run`**'dı. Faz 95'in kapsamı bu yüzden envanterin tarif ettiğinin çok altındadır |
+
+Ders: `faz-planlama` Adım 1 (kanıtı yeniden doğrula) bu dosyadan gelen her
+kalem için **zorunludur**. Doğrulanmadan plana yazılan bir kanıt, var olmayan
+bir deliği kapatan bir faz üretir.
+
+### 7.6 Blok B — yayınla birlikte, tek oturumluk
+
+| Kalem | İş | Neden yayına yakın |
+|---|---|---|
+| 12 | `Production` ortamında InMemory store için teşhis uyarısı | Davranış değişikliğidir; yayından sonra eklemek tüketiciyi şaşırtır |
+| 15 | NSwag üretimi client için ayrı analyzer profili | 25.128 satır, 14 `#pragma` — en çok tüketilen yüzeylerden biri analyzer kör noktası |
+| 23 | `CONTRIBUTING.md` + İngilizce mimari özeti | Depo yayında görünür olur; bugün giriş rampası yok |
+
+### 7.7 Blok C — yayından sonra veya paralel
+
+16 (benchmark · F-67) · 9 (manuel set devri, aile aile) · 14 (RLS kararı +
+dağıtık hız sınırı) · 17 (dev dosyalar) · 18 (frontend monolit) · 19 (frontend
+test kapsamı) · 20 (doküman yükü).
+
+Hiçbiri yayın maliyetini değiştirmez — sonra yapılırsa bir şey kırılmaz.

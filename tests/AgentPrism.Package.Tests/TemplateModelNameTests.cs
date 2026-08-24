@@ -1,6 +1,6 @@
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// K-032: the model catalog comes from configuration, never a list built into

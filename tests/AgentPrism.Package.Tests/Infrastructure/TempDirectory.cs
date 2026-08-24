@@ -1,4 +1,4 @@
-namespace AgentPrism.Templates.Tests.Infrastructure;
+namespace AgentPrism.Package.Tests.Infrastructure;
 
 /// <summary>A temporary directory that lives for the test and deletes itself when done.</summary>
 internal sealed class TempDirectory : IDisposable

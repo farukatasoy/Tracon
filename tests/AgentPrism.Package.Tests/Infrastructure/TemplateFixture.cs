@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace AgentPrism.Templates.Tests.Infrastructure;
+namespace AgentPrism.Package.Tests.Infrastructure;
 
 /// <summary>
 /// The one-time setup shared by all template tests: packs the solution

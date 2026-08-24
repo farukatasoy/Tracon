@@ -1,13 +1,14 @@
 # 24 — Test Paketi ve Proje Şablonu (`TEST`)
 
-> **Alan kodu:** `TEST` · **Faz:** 37 (`dotnet new` şablonu), 39 (`AgentPrism.Testing`)
+> **Alan kodu:** `TEST` · **Faz:** 37 (`dotnet new` şablonu), 39 (`AgentPrism.Testing`),
+> 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi)
 > **Kaynak:** `src/AgentPrism.Templates/` (tümü — `content/AgentPrism.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/AgentPrism.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
 > `AgentPrismTestHost.cs`, `AgentPrismTestHostOptions.cs`, `RunAssertions.cs`,
 > `AgentPrismAssertionException.cs`, `Internal/FakeChatClient.cs`,
 > `Internal/FakeModelScript.cs`) ·
-> çapraz doğrulama için `tests/AgentPrism.Templates.Tests/`,
+> çapraz doğrulama için `tests/AgentPrism.Package.Tests/`,
 > `tests/AgentPrism.Testing.UnitTests/`, `src/AgentPrism/AgentPrism.csproj`
 > (meta paket referans listesi), `src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs`
 > (K-032 katalog denetimi).
@@ -1945,5 +1946,140 @@ dotnet run -c Release
   `FakeModelProvider` ağa hiç çıkmaz.
 - Bu, Faz 39'un kapanışta ölçtüğü gerçek çıktıyla (`docs/arsiv/fazlar/39-TEST-PAKETI.md`,
   "Depo dışı tüketici senaryosu") **aynı sonucu** üretir.
+
+---
+
+### MT-TEST-070 — Meta paket tüketicisi gerçek bir `run` koşturur; üretilmiş tool çalışır (Faz 95, madde 10)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 95 |
+| **İlgili karar** | — |
+
+MT-TEST-064'ten farkı: o case yalnız `AgentPrism.Testing`i sınar, bu case
+**meta paketi** (`AgentPrism`) de alır ve `[AgentPrismTool]` işaretli bir
+tool'un **paketten** akan analyzer ile derlendiğini ve gerçekten
+**yürütüldüğünü** kanıtlar. `ConsumerRunTests`in birebir elle tekrarıdır.
+
+**Ön koşul**
+- Yerel NuGet feed hazır (`dotnet pack AgentPrism.src.slnf -c Release`).
+
+**Adımlar**
+1. `python3 scripts/kapi.py test --proje AgentPrism.Package.Tests --sinif ConsumerRunTests` çalıştır.
+
+**Girilecek veri**
+```bash
+cd /Users/farukatasoy/Desktop/projects/AgentPrism
+python3 scripts/kapi.py test --proje AgentPrism.Package.Tests --sinif ConsumerRunTests
+```
+
+**Beklenen sonuç**
+- Test **yeşil** biter.
+- Alt sürecin `stdout`'u `OK run=<guid> events=<n> tools=1` satırını taşır,
+  `n > 0`.
+
+---
+
+### MT-TEST-071 — Analyzer paketleme hedefi devre dışı bırakılırsa kapı KIRILIR (Faz 95, sahte kusur enjeksiyonu)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 95 |
+| **İlgili karar** | — |
+
+Kapının GERÇEKTEN bir kusuru yakaladığının kanıtı — DoD'nin zorunlu tuttuğu
+sahte kusur enjeksiyonu. `docs/hafiza/test-kosum-tuzaklari.md`'deki `sed -i.bak`
+tuzağı burada da geçerlidir: dosyayı geri alırken `touch` şart.
+
+**Ön koşul**
+- Temiz depo. Yerel NuGet feed hazır.
+
+**Adımlar**
+1. `src/AgentPrism.Core/AgentPrism.Core.csproj`'daki `AgentPrismPackGeneratorAssembly`
+   hedefinin `Condition`'ını asla doğru olmayacak bir değere değiştir
+   (`'net10.0' == 'net99.0'`).
+2. `ConsumerRunTests`i koş.
+3. Dosyayı geri al ve `touch` et.
+
+**Girilecek veri**
+```bash
+cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cp src/AgentPrism.Core/AgentPrism.Core.csproj /tmp/Core.csproj.orig
+sed -i '' "s/Condition=\"'\$(TargetFramework)' == 'net10.0'\"/Condition=\"'\$(TargetFramework)' == 'net99.0'\"/" \
+  src/AgentPrism.Core/AgentPrism.Core.csproj
+
+python3 scripts/kapi.py test --proje AgentPrism.Package.Tests --sinif ConsumerRunTests
+
+# geri al -- touch SART, aksi halde mtime yuzunden bir onceki (sahte kusurlu)
+# derleme sessizce yeniden kullanilir (docs/hafiza/test-kosum-tuzaklari.md)
+cp /tmp/Core.csproj.orig src/AgentPrism.Core/AgentPrism.Core.csproj
+touch src/AgentPrism.Core/AgentPrism.Core.csproj
+rm /tmp/Core.csproj.orig
+```
+
+**Beklenen sonuç**
+- Adım 2'de test **kırılır**: alt sürecin derleme çıktısı `CS1061` verir —
+  `IAgentPrismBuilder` içinde `AddGeneratedTools` bulunamaz, çünkü analyzer
+  DLL'i artık paketin `analyzers/dotnet/cs/` klasörüne girmemiştir.
+- Geri alma sonrası (`git diff` **temiz**), test tekrar yeşil döner.
+
+---
+
+### MT-TEST-072 — Grafiğe yeni bir geçişli paket girerse `TransitiveDependencyTests` KIRILIR (Faz 95, madde 22)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 95 |
+| **İlgili karar** | K-205 |
+
+**Ön koşul**
+- Temiz depo. Yerel NuGet feed hazır.
+
+**Adımlar**
+1. `Directory.Packages.props`'a yeni bir `PackageVersion` girdisi ekle.
+2. `src/AgentPrism.Google/AgentPrism.Google.csproj`'a o paket için bir
+   `PackageReference` ekle (`AgentPrism.Google`'ın kapanışı bu şekilde büyür).
+3. `TransitiveDependencyTests`i koş.
+4. Her iki dosyayı geri al ve `touch` et.
+
+**Girilecek veri**
+```bash
+cd /Users/farukatasoy/Desktop/projects/AgentPrism
+cp Directory.Packages.props /tmp/Directory.Packages.props.orig
+cp src/AgentPrism.Google/AgentPrism.Google.csproj /tmp/Google.csproj.orig
+
+python3 -c "
+p = 'Directory.Packages.props'
+s = open(p).read()
+s = s.replace(
+  '<PackageVersion Include=\"Anthropic\" Version=\"12.39.0\" />',
+  '<PackageVersion Include=\"Anthropic\" Version=\"12.39.0\" />\n    <PackageVersion Include=\"Humanizer.Core\" Version=\"2.14.1\" />'
+)
+open(p, 'w').write(s)
+"
+sed -i '' 's#<PackageReference Include="Google.GenAI" />#<PackageReference Include="Google.GenAI" />\n    <PackageReference Include="Humanizer.Core" />#' \
+  src/AgentPrism.Google/AgentPrism.Google.csproj
+
+python3 scripts/kapi.py test --proje AgentPrism.Package.Tests --sinif TransitiveDependencyTests
+
+cp /tmp/Directory.Packages.props.orig Directory.Packages.props
+cp /tmp/Google.csproj.orig src/AgentPrism.Google/AgentPrism.Google.csproj
+touch Directory.Packages.props src/AgentPrism.Google/AgentPrism.Google.csproj
+rm /tmp/Directory.Packages.props.orig /tmp/Google.csproj.orig
+```
+
+**Beklenen sonuç**
+- Adım 3'te yalnız `AgentPrism.Google` şekli **kırılır**; `AgentPrism` ve
+  `AgentPrism.Core` şekilleri yeşil kalır (paket ekleme yalnız Google'ın
+  kapanışını etkiler).
+- Hata mesajı `Added: [Humanizer.Core]` yazar — hangi paketin hangi şekilde
+  belirdiğini adıyla söyler.
+- Geri alma sonrası (`git diff` **temiz**), test tekrar yeşil döner.
 
 ---

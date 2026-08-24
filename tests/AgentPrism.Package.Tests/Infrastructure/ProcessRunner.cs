@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace AgentPrism.Templates.Tests.Infrastructure;
+namespace AgentPrism.Package.Tests.Infrastructure;
 
 /// <summary>Runs a CLI command as a subprocess and collects its output.</summary>
 /// <remarks>

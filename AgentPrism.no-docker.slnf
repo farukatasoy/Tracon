@@ -38,7 +38,7 @@
       "tests/AgentPrism.Sql.Shared.UnitTests/AgentPrism.Sql.Shared.UnitTests.csproj",
       "tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj",
       "tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj",
-      "tests/AgentPrism.Templates.Tests/AgentPrism.Templates.Tests.csproj",
+      "tests/AgentPrism.Package.Tests/AgentPrism.Package.Tests.csproj",
       "tests/AgentPrism.Testing.UnitTests/AgentPrism.Testing.UnitTests.csproj",
       "tests/AgentPrism.Client.UnitTests/AgentPrism.Client.UnitTests.csproj",
       "tests/AgentPrism.Cli.FunctionalTests/AgentPrism.Cli.FunctionalTests.csproj"

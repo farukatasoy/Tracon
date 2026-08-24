@@ -148,7 +148,7 @@ Ucuzdan pahalıya sıralıdır. Bir tanesi kırmızıysa sonrakini koşma, önce
 # 1 — Sevk edilen metin kapıları (.NET, ölçüldü: 15 test / ~2 sn)
 python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests \
   --sinif "*ShippedDocumentationSelfContainmentTests*" "*CapabilityExampleTests*" "*SourceLanguageTests*"
-python3 scripts/kapi.py test --proje AgentPrism.Templates.Tests \
+python3 scripts/kapi.py test --proje AgentPrism.Package.Tests \
   --sinif "*LocalReferenceTests*"
 
 # 2 — Sevk edilen agent haritası ve llms dosyaları bayat mı

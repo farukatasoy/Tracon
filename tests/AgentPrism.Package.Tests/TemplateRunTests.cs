@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// The default (in-memory) combination must start up without any setup, and the
