@@ -142,7 +142,7 @@
       GHSA-2m69-gcr7-jv3q). K-007 deseniyle ayni: gecisli surum bilincli tek
       bir PackageVersion ile zorlanir.
     -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
@@ -213,7 +213,7 @@
       noktasi derlemesi ister ve AgentPrism bir kutuphanedir. TestHost, minimal
       API uclarini kendi barindiricisinda ayaga kaldirmaya yeter.
     -->
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
     <!--
       Only for testing an actual application ENTRY POINT (samples/AgentPrism.Embedded),
       not the library: WebApplicationFactory<T> needs one, and AgentPrism.* itself
@@ -221,7 +221,7 @@
       Same 10.0.10 ASP.NET Core line as TestHost/OpenApi above.
     -->
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <!--
       CVE zorlamasi. Microsoft.AspNetCore.OpenApi 10.0.10, Microsoft.OpenApi 2.0.0
       cekiyor; o surumde yuksek onem dereceli bir acik var (NU1903,

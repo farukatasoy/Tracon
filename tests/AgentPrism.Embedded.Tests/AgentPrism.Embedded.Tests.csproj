@@ -10,6 +10,7 @@
       instead.
     -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <ProjectReference Include="../../samples/AgentPrism.Embedded/AgentPrism.Embedded.csproj" />
   </ItemGroup>
 
