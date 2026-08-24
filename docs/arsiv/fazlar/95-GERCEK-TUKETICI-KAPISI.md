@@ -1,13 +1,13 @@
 # Faz 95 — Gerçek Tüketici Kapısı
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 10** (yeşil test gerçek davranışı kanıtlamıyor) + **madde 22** (bağımlılık kirliliği kuralı kendi istisnasını taşıyor). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur.
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 10** (yeşil test gerçek davranışı kanıtlamıyor) + **madde 22** (bağımlılık kirliliği kuralı kendi istisnasını taşıyor). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur.
 > **Önkoşul:** Yok
 > **Paketler:** `src/` **değişmiyor**. İş `tests/AgentPrism.Package.Tests` (bugünkü `AgentPrism.Templates.Tests`) içindedir.
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — `src/*/PublicAPI.Unshipped.txt` dosyalarına satır eklenmez.
 > **Tüketici yüzeyi:** site: `docs-site/src/content/docs/packages.md` → `## What does not enter your graph` bölümü geçişli **beyanı** kazanır (madde 22) · sevk edilen: Yok
-> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md)
+> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 
 ---
 
@@ -27,7 +27,7 @@
    geçişli ağırlığı bilerek kabul edildi — madde 22'nin kararı), **K-262**
    (`IncludeSymbols=false`), **K-421** (public API takibi açık, `Shipped.txt`
    boş).
-3. [`arsiv/fazlar/94-SQL-TEK-KAYNAK.md`](arsiv/fazlar/94-SQL-TEK-KAYNAK.md) —
+3. [`arsiv/fazlar/94-SQL-TEK-KAYNAK.md`](94-SQL-TEK-KAYNAK.md) —
    yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/94-SQL-TEK-KAYNAK.md
@@ -35,12 +35,12 @@
    İçindeki `sed -i.bak` + `mv` mtime tuzağı bu fazda da geçerlidir: kapının
    gerçekten bir kusuru yakaladığını sahte kusur enjekte ederek doğrulayacaksın.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (pack
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (pack
    tuzakları, `AgentPrism.src.slnf` gerekçesi, tüketiciye giden MSBuild) ·
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (**"Alt
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) (**"Alt
    surec ve MSBuild"** bölümü — `MSBUILDDISABLENODEREUSE=1` olmadan fikstür
    asılır).
-5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)
+5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md)
 
 ---
 
@@ -70,16 +70,16 @@ tamamı DEĞİL, ölçümle geriye kalan kısmıdır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`TemplateFixture.cs:29-56`](../tests/AgentPrism.Package.Tests/Infrastructure/TemplateFixture.cs) | Fikstür `dotnet pack AgentPrism.src.slnf` koşar, `artifacts/package/release`'i yerel feed yapar, global paket önbelleğini temizler ve şablonu kurar. **Bu altyapı vardır.** |
-| [`TemplateFixture.cs:104-118`](../tests/AgentPrism.Package.Tests/Infrastructure/TemplateFixture.cs) | `WriteLocalNuGetConfigAsync` `public static`'tir — şablondan bağımsız bir tüketici projesi için doğrudan kullanılabilir |
-| [`TemplateRunTests.cs:16-77`](../tests/AgentPrism.Package.Tests/TemplateRunTests.cs) | Tek `run` testi uygulamayı ayağa kaldırır ve **yalnız** `GET /agentprism/api/agents` `200` mü diye bakar. `POST .../run` **hiç çağrılmaz** |
+| [`TemplateFixture.cs:29-56`](../../../tests/AgentPrism.Package.Tests/Infrastructure/TemplateFixture.cs) | Fikstür `dotnet pack AgentPrism.src.slnf` koşar, `artifacts/package/release`'i yerel feed yapar, global paket önbelleğini temizler ve şablonu kurar. **Bu altyapı vardır.** |
+| [`TemplateFixture.cs:104-118`](../../../tests/AgentPrism.Package.Tests/Infrastructure/TemplateFixture.cs) | `WriteLocalNuGetConfigAsync` `public static`'tir — şablondan bağımsız bir tüketici projesi için doğrudan kullanılabilir |
+| [`TemplateRunTests.cs:16-77`](../../../tests/AgentPrism.Package.Tests/TemplateRunTests.cs) | Tek `run` testi uygulamayı ayağa kaldırır ve **yalnız** `GET /agentprism/api/agents` `200` mü diye bakar. `POST .../run` **hiç çağrılmaz** |
 | `grep -rn "api/agents/.*run" tests/AgentPrism.Templates.Tests/` (o zaman `tests/AgentPrism.Package.Tests/`) | **Sıfır sonuç.** Paket tüketicisi üzerinden hiçbir `run` koşmuyor |
-| [`samples/AgentPrism.Api.csproj:17`](../samples/AgentPrism.Api/AgentPrism.Api.csproj) · [`AgentPrism.Embedded.csproj:8`](../samples/AgentPrism.Embedded/AgentPrism.Embedded.csproj) | İki sample da `ProjectReference` taşır. Kendi yorumları söylüyor: *"a real external consumer only takes AgentPrism.Core via PackageReference"* |
+| [`samples/AgentPrism.Api.csproj:17`](../../../samples/AgentPrism.Api/AgentPrism.Api.csproj) · [`AgentPrism.Embedded.csproj:8`](../../../samples/AgentPrism.Embedded/AgentPrism.Embedded.csproj) | İki sample da `ProjectReference` taşır. Kendi yorumları söylüyor: *"a real external consumer only takes AgentPrism.Core via PackageReference"* |
 | `grep -niE "sample\|smoke" .github/workflows/ci.yml` | **Sıfır satır.** Sample'lar CI'da yalnız derlenir |
-| [`AgentPrism.Core.csproj:33-45`](../src/AgentPrism.Core/AgentPrism.Core.csproj) | Paketleme katmanının **ölçülmüş** sessiz kusur sınıfı: `analyzers/dotnet/cs/` bir kez BOŞ çıktı ve dört preview paketinden düştü |
-| [`AgentPrism.Core.csproj:74-81`](../src/AgentPrism.Core/AgentPrism.Core.csproj) | İkinci ölçülmüş sessiz kusur: `<None Update>` çapraz-hedefli projede hiçbir uyarı vermeden dosya düşürdü |
-| [`packages.md:189-197`](../docs-site/src/content/docs/packages.md) | `## What does not enter your graph` yalnız **girmeyeni** sayar. `Google.GenAI` üzerinden gelen `Newtonsoft.Json` / `System.Management` / `System.CodeDom` site'ta **hiç beyan edilmemiş** |
-| [`Directory.Packages.props:99-102`](../Directory.Packages.props) | Beyan yalnız bir csproj yorumundadır ve K-205'e atıf yapar |
+| [`AgentPrism.Core.csproj:33-45`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj) | Paketleme katmanının **ölçülmüş** sessiz kusur sınıfı: `analyzers/dotnet/cs/` bir kez BOŞ çıktı ve dört preview paketinden düştü |
+| [`AgentPrism.Core.csproj:74-81`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj) | İkinci ölçülmüş sessiz kusur: `<None Update>` çapraz-hedefli projede hiçbir uyarı vermeden dosya düşürdü |
+| [`packages.md:189-197`](../../../docs-site/src/content/docs/packages.md) | `## What does not enter your graph` yalnız **girmeyeni** sayar. `Google.GenAI` üzerinden gelen `Newtonsoft.Json` / `System.Management` / `System.CodeDom` site'ta **hiç beyan edilmemiş** |
+| [`Directory.Packages.props:99-102`](../../../Directory.Packages.props) | Beyan yalnız bir csproj yorumundadır ve K-205'e atıf yapar |
 
 > Kanıtlar 2026-08-24 tarihinde doğrulandı.
 
@@ -118,7 +118,7 @@ bağımsız olarak meta paketin kendisini sınar.
 **Proje şekli** (geçici dizine yazılır):
 
 - SDK: `Microsoft.NET.Sdk.Web` — `AgentPrismTestHost` `WebApplication.CreateSlimBuilder()`
-  ve `UseTestServer()` kullanır ([`AgentPrismTestHost.cs:63-64`](../src/AgentPrism.Testing/AgentPrismTestHost.cs)),
+  ve `UseTestServer()` kullanır ([`AgentPrismTestHost.cs:63-64`](../../../src/AgentPrism.Testing/AgentPrismTestHost.cs)),
   bu yüzden ASP.NET Core paylaşılan framework'ü gerekir. Uygulama bir port
   **dinlemez**; `TestServer` bellek içidir, yani davranış olarak konsol
   uygulamasıdır.
@@ -237,7 +237,7 @@ kayar. Ad dar kalırsa sonraki oturum testleri yanlış yerde arar.
 | `.agents/skills/tuketici-dokuman-senkronu/SKILL.md` · `docs/hafiza/paketleme-ve-dagitim.md` · `docs/hafiza/test-kosum-tuzaklari.md` · `docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md` | düz metin geçişleri |
 
 🚨 **`docs/arsiv/` altındaki geçişler DEĞİŞMEZ.** Arşiv tarihsel kayıttır; o
-gün proje o addaydı. Ölçüldü: `docs/` ve `.agents/` altında `](...)` biçiminde
+gün proje o addaydı. Ölçüldü: `docs/` ve `.agents/` altında `](../../...)` biçiminde
 **hiçbir** bağlantı yoktur — rename bir bağlantı kırmaz.
 
 🚨 `TemplateFixture` adı **korunur**: fikstür hâlâ şablonu kuruyor. Yeni tüketici
@@ -281,7 +281,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · **paket**) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -301,7 +301,7 @@ docs-site/src/content/docs/
 |---|---|
 | İptal | Kapsam dışı: tüketici projesi tek bir `run` koşar ve çıkar. `run` iptali `AgentPrism.AspNetCore.FunctionalTests` içinde kapılıdır |
 | Eşzamanlılık | Kapsam dışı: tek `run`. Eşzamanlı `run` davranışı Faz 81'de kapılandı |
-| Boş/aşırı girdi | `RunAsync` boş `agentName`'i `ArgumentException` ile reddeder ([`AgentPrismTestHost.cs:95`](../src/AgentPrism.Testing/AgentPrismTestHost.cs)); tüketici testi bunu **sınamaz**, sevk edilen davranıştır |
+| Boş/aşırı girdi | `RunAsync` boş `agentName`'i `ArgumentException` ile reddeder ([`AgentPrismTestHost.cs:95`](../../../src/AgentPrism.Testing/AgentPrismTestHost.cs)); tüketici testi bunu **sınamaz**, sevk edilen davranıştır |
 | Başka kiracının kaydı | Kapsam dışı: tüketici projesi tek kiracıdır. Kiracı yalıtımı `TenantIsolationContract` ile dört koşumda kapılıdır |
 | Alt sistem hatası | `dotnet restore` yerel feed'i çözemezse test **kırılır** ve `ProcessResult.Combined` hata metnini taşır — sessiz geçiş yoktur |
 
@@ -309,7 +309,7 @@ docs-site/src/content/docs/
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md)
+> Kapanışta [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 > içine eklenecek case'lerin taslağı. Üçü de otomatikleştirilebilir; kapanışta koşulur.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
