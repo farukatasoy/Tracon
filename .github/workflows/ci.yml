@@ -203,10 +203,63 @@ jobs:
             artifacts/package/release/*.snupkg
           if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # Yayın provası (docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
+  #
+  # `pack` isinden BAGIMSIZ calisir - kendi `dotnet pack`'ini kosar (kapi.py'nin
+  # `yayin` komutunun kendisi bunu yapar, K-008 sinirini ve paket icerik
+  # sozlesmesini o ciktidan olcer). Boylece `pack` ve bu is PARALEL kosar; ikisi
+  # de yalniz `build`e bagimlidir.
+  #
+  # `--surum` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
+  # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
+  # yerelde kostugu provada anlamlidir (MT-PKG-097). Bir GERCEK `v*` etiketinde
+  # MinVer'in kendi hesapladigi surum zaten hedeftir - zorlamaya gerek yoktur.
+  # ---------------------------------------------------------------------------
+  release-dryrun:
+    name: Yayin provasi (kapi.py yayin --kuru)
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: .NET SDK kur
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Arayuz varliklari pack sirasinda gerekir (AGENTPRISM0003).
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            src/AgentPrism.UI/frontend/package-lock.json
+            packages/agentprism-client/package-lock.json
+
+      # `npm publish --dry-run`'in kendi `prepublishOnly` -> `npm run build`
+      # adimi icin gerekir; kapi.py'nin npm adimi bu dizinde kosar.
+      - name: TypeScript istemcisi bagimliliklari
+        working-directory: packages/agentprism-client
+        run: npm ci
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Yayin provasi
+        run: python3 scripts/kapi.py yayin --kuru
+
   publish:
     name: NuGet.org'a yayinla
     runs-on: ubuntu-latest
-    needs: pack
+    needs: [pack, release-dryrun]
     # Yalnizca 'v' ile baslayan etiketlerde calisir. Ornek: v1.0.0-preview.1
     if: startsWith(github.ref, 'refs/tags/v')
     environment: nuget
@@ -241,7 +294,7 @@ jobs:
   npm-publish:
     name: npm.org'a yayinla
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, release-dryrun]
     if: startsWith(github.ref, 'refs/tags/v')
     environment: npm
 
