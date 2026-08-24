@@ -1,6 +1,6 @@
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// The consumer-facing half of Phase 73: the <c>buildTransitive</c> target that

@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// The template side of K-059/K-009: no generated file should contain a

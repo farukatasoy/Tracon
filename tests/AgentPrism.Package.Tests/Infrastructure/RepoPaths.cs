@@ -1,4 +1,4 @@
-namespace AgentPrism.Templates.Tests.Infrastructure;
+namespace AgentPrism.Package.Tests.Infrastructure;
 
 /// <summary>Resolves important paths relative to the repository root.</summary>
 internal static class RepoPaths
