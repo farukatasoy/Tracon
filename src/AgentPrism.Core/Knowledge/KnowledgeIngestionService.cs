@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// empty result.
 /// </para>
 /// </remarks>
-public sealed partial class KnowledgeIngestionService
+internal sealed partial class KnowledgeIngestionService
 {
     private readonly ITenantContext _tenantContext;
     private readonly AgentPrismKnowledgeOptions _options;

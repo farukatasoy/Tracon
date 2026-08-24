@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
-public sealed class InMemoryJobStore : IJobStore
+internal sealed class InMemoryJobStore : IJobStore
 {
     private readonly ConcurrentDictionary<Guid, JobRecord> _jobs = new();
     private readonly ConcurrentDictionary<Guid, List<JobItemRecord>> _items = new();

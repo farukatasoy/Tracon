@@ -16,9 +16,6 @@ AgentPrism.AgentPrismMcpOptions.OAuthCallbackBaseUri.get -> System.Uri?
 AgentPrism.AgentPrismMcpOptions.OAuthCallbackBaseUri.set -> void
 AgentPrism.AgentPrismMcpOptions.RefreshInterval.get -> System.TimeSpan
 AgentPrism.AgentPrismMcpOptions.RefreshInterval.set -> void
-AgentPrism.McpToolRegistry
-AgentPrism.McpToolRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ToolDescriptor!>!
-AgentPrism.McpToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunctionDeclaration? tool) -> bool
 const AgentPrism.AgentPrismMcpOptions.SectionName = "AgentPrism:Mcp" -> string!
 static AgentPrism.AgentPrismMcpBuilderExtensions.UseMcp(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismMcpBuilderExtensions.UseMcp(this AgentPrism.IAgentPrismBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<AgentPrism.AgentPrismMcpOptions!>? configure) -> AgentPrism.IAgentPrismBuilder!

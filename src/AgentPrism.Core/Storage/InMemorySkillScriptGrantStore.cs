@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// This implementation is for development and tests. Grants are lost when the
 /// process restarts, so <strong>no script runs by default</strong>.
 /// </remarks>
-public sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
+internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
 {
     private readonly ConcurrentDictionary<GrantKey, SkillScriptGrant> _grants = new();
 

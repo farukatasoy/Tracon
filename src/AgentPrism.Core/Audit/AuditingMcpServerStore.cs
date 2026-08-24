@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// write to this store must enter the audit trail. <see cref="McpServerDefinition"/>
 /// never carries a secret, but the secret filter still applies.
 /// </remarks>
-public sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
+internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
 {
     private readonly IMcpServerStore _inner;
     private readonly IAuditLog _auditLog;

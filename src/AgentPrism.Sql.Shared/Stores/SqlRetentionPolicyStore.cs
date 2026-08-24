@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>Persists retention policies and run history.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryRetentionPolicyStore"/>.
+/// The behavior contract is identical to <c>InMemoryRetentionPolicyStore</c>.
 /// For the data plane (the actual deletion), see <see cref="SqlRetentionStore"/>.
 /// </remarks>
 internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore

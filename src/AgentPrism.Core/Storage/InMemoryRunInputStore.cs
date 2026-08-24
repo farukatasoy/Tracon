@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// implementation, so polymorphic content is never lost on the in-memory path.
 /// </para>
 /// </remarks>
-public sealed class InMemoryRunInputStore : IRunInputStore
+internal sealed class InMemoryRunInputStore : IRunInputStore
 {
     private readonly ConcurrentDictionary<Guid, RunInputRecord> _inputs = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>Validates <see cref="AgentPrismDrainOptions"/>.</summary>
-public sealed class AgentPrismDrainOptionsValidator : IValidateOptions<AgentPrismDrainOptions>
+internal sealed class AgentPrismDrainOptionsValidator : IValidateOptions<AgentPrismDrainOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismDrainOptions options)

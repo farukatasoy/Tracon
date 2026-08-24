@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
 /// and produces <c>IL2026</c>.
 /// </remarks>
-public sealed class OnlineEvaluationOptionsValidator : IValidateOptions<OnlineEvaluationOptions>
+internal sealed class OnlineEvaluationOptionsValidator : IValidateOptions<OnlineEvaluationOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, OnlineEvaluationOptions options)

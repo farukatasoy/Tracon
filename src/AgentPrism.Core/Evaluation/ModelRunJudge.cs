@@ -29,7 +29,7 @@ namespace AgentPrism;
 /// of <c>AgentPrism.Core</c>.
 /// </para>
 /// </remarks>
-public sealed class ModelRunJudge(
+internal sealed class ModelRunJudge(
     IModelProviderRegistry modelProviders,
     IOptionsMonitor<ModelRunJudgeOptions> optionsMonitor,
     IRunStore runStore,

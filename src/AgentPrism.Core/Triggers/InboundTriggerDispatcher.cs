@@ -107,7 +107,7 @@ public sealed record InboundTriggerDispatchResult
 /// idempotency-key contract, which intentionally replays the original response).
 /// </para>
 /// </remarks>
-public sealed class InboundTriggerDispatcher
+internal sealed class InboundTriggerDispatcher
 {
     private readonly IInboundTriggerStore _triggerStore;
     private readonly InboundTriggerSecretResolver _secretResolver;

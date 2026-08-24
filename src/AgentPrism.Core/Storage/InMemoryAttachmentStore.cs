@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// This implementation is for development and tests. All attachments are lost
 /// when the process restarts.
 /// </remarks>
-public sealed class InMemoryAttachmentStore : IAttachmentStore
+internal sealed class InMemoryAttachmentStore : IAttachmentStore
 {
     private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
     private readonly IAttachmentStorage? _storage;

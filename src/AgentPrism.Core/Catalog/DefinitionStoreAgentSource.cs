@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// A source that exposes definitions from <see cref="IAgentDefinitionStore"/> in the catalog.
 /// Agents created through the UI come from this source.
 /// </summary>
-public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
+internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
 {
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;

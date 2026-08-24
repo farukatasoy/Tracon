@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// installation that registers nothing keeps today's behavior exactly). A
 /// consumer replaces the registration to enforce its own rule.
 /// </remarks>
-public sealed class AllowAllToolAuthorizationHandler : IToolAuthorizationHandler
+internal sealed class AllowAllToolAuthorizationHandler : IToolAuthorizationHandler
 {
     /// <inheritdoc />
     public ValueTask<ToolAuthorizationResult> AuthorizeAsync(

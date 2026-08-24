@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>In-memory <see cref="ITenantProviderBindingStore"/> implementation.</summary>
-public sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindingStore
+internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindingStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string ProviderName), TenantProviderBinding> _bindings = new();
     private readonly TimeProvider _timeProvider;

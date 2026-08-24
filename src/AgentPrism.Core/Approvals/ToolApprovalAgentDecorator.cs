@@ -21,7 +21,7 @@ namespace AgentPrism;
 /// applies <em>automatic approval</em> rules.
 /// </para>
 /// </remarks>
-public sealed class ToolApprovalAgentDecorator : IAgentDecorator
+internal sealed class ToolApprovalAgentDecorator : IAgentDecorator
 {
     private readonly ToolApprovalRuleEvaluator _evaluator;
 

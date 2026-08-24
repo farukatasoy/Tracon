@@ -24,9 +24,6 @@ AgentPrism.VoiceOptions.Timeout.set -> void
 AgentPrism.VoiceOptions.TranscriptionModelId.get -> string?
 AgentPrism.VoiceOptions.TranscriptionModelId.set -> void
 AgentPrism.VoiceOptions.VoiceOptions() -> void
-AgentPrism.VoiceOptionsValidator
-AgentPrism.VoiceOptionsValidator.Validate(string? name, AgentPrism.VoiceOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
-AgentPrism.VoiceOptionsValidator.VoiceOptionsValidator() -> void
 AgentPrism.VoiceProviderNames
 const AgentPrism.VoiceOptions.DefaultOutputFormat = "mp3_44100_128" -> string!
 const AgentPrism.VoiceOptions.SectionName = "AgentPrism:Voice" -> string!

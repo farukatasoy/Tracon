@@ -16,7 +16,7 @@ namespace AgentPrism;
 /// <c>RunTraceCollector.RunSpanBuffer</c> uses.
 /// </para>
 /// </remarks>
-public sealed class InMemoryAuditLog : IAuditLog
+internal sealed class InMemoryAuditLog : IAuditLog
 {
     private readonly ConcurrentDictionary<string, List<AuditEntry>> _byTenant = new(StringComparer.Ordinal);
 

@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <para>
 /// <see cref="LeaseAsync"/> uses <c>FOR UPDATE SKIP LOCKED</c>: even when
 /// multiple workers connect to the same database, a job is picked up by only
-/// one worker. The behavior contract is identical to <see cref="InMemoryJobStore"/>
+/// one worker. The behavior contract is identical to <c>InMemoryJobStore</c>
 /// and is protected by shared contract tests (including concurrency).
 /// </para>
 /// </remarks>

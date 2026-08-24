@@ -10,7 +10,7 @@ namespace AgentPrism;
 /// For single-process deployments and tests. <c>UsePostgreSql()</c>,
 /// <c>UseSqlServer()</c>, or <c>UseSqlite()</c> replaces it with a SQL implementation.
 /// </remarks>
-public sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
+internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
 {
     private readonly ConcurrentDictionary<Guid, RetentionPolicy> _policies = new();
     private readonly ConcurrentDictionary<Guid, RetentionRun> _runs = new();

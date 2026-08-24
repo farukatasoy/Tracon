@@ -206,7 +206,18 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 
 ### 7. Public yüzey yayın kararından önce şişti · 📋 Faz
 
-**Ölçüm:** 6.301 API girdisi; 4.761'i tek pakette
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 96](../96-PUBLIC-YUZEY-KUCULTME.md).
+>
+> 🚨 **Plan anında bölüm 7.3'ün önerdiği ölçüt YANLIŞLANDI.** "`src/` dışından
+> referans almayan tip `internal`'a çekilir" mekanik olarak uygulanamaz: ad
+> araması üç yanlış pozitif sınıfı üretir — uzatma metodu sınıfı (çağrı yerinde
+> adı yazılmaz; hiçbir yerde geçmeyen 57 tipin **22'si** `*Extensions`),
+> öznitelik tipi (`[AgentPrismTool]` yazılır, `AgentPrismToolAttribute` değil) ve
+> `<see cref>` yorumu (kullanım değildir ama `internal` olunca CS1574 üretir).
+> Faz 96 bunun yerine **erişilebilirlik** ölçütünü kullanır: başka bir public
+> üye imzasında geçmeyen tip yapraktır. Ölçüldü: 714 tipin **129'u** yaprak,
+> 23'ü `interface` (genişleme noktası), kalan **106** aday havuzu. Elle
+> doğrulamayla kapsama giren aday sayısı **96**'dır. 6.301 API girdisi; 4.761'i tek pakette
 ([`AgentPrism.Abstractions`](../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt)).
 68 interface, 76 `Options` sınıfı, 1.502 property.
 
@@ -519,9 +530,9 @@ tarafından sabitlendi.
 | Sıra | Adım | Skill |
 |---:|---|---|
 | 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 2 | **Faz 96 yazma** — public yüzey küçültme (madde 7) | `faz-planlama` |
-| 3 | **Faz 96 uygulama** | zincir |
-| 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) | `faz-planlama` |
+| 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
+| 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) ← **sıradaki adım** | `faz-planlama` |
 | 5 | **Faz 97 uygulama** | zincir |
 | 6 | **Blok B** — madde 12 · 15 · 23 (üçü de tek oturumluk) | — |
 | 7 | **Blok C** — yayından sonra veya paralel | — |
@@ -594,6 +605,9 @@ başlığı **"The 17 packages"** diyor ve 17 satır listeliyor; depo **19** pak
 |---|---|
 | "Public API 6.301 girdi" | **8.063** girdi · 716 tip. Sayı %28 küçük yazılmıştı |
 | Madde 10: "sample'lar CI'da çalıştırılmıyor" → genel tüketim boşluğu | `pack → yerel feed → PackageReference → derle → ayağa kalk` zinciri **zaten kurulu ve CI'da**. Gerçek boşluk yalnız **gerçek `run`**'dı. Faz 95'in kapsamı bu yüzden envanterin tarif ettiğinin çok altındadır |
+| Bölüm 7.3'ün ölçütü: "`src/` dışından referans almayan tip `internal`'a çekilir" | **Uygulanamaz.** Ad araması uzatma metodu sınıfını, öznitelik tipini ve `<see cref>` bağını göremez. Körü körüne uygulansaydı her paketin `Add*` giriş noktası kapanırdı (22 vaka ölçüldü) |
+| Bölüm 7.3'ün alt önerisi: `Abstractions`'ın tek tüketicili 30 tipi `Core`'a taşınır | **Mekanik olarak imkânsız + kazancı sıfır.** 30 tipin 24'ü yine `Abstractions`'ın kendi public imzalarında geçiyor; `Core`, `Abstractions`'a bağımlı olduğu için taşınamazlar. Taşınabilen 6 tipin hepsi genişleme noktası ve public kalmak zorunda. Net yüzey azalması: **0 tip** |
+| "`AgentPrism.Client` 302 public tipi takipsiz — sessiz boşluk" *(bu planlama turunda üretilen iddia)* | **Bilinçli karar.** `src/Directory.Build.props:66-77` dört projeyi `AgentPrismPublicApiTrackingEnabled=false` ile hariç tutuyor (K-424), gerekçesi yazılı ve drift kapısı gerçekten var (`ClientDescriptionBaselineTests`, Faz 83). Faz 96 istisnalara dokunmaz; yalnız "yeni packable paket beyansız eklenemez" kapısını kurar |
 
 Ders: `faz-planlama` Adım 1 (kanıtı yeniden doğrula) bu dosyadan gelen her
 kalem için **zorunludur**. Doğrulanmadan plana yazılan bir kanıt, var olmayan

@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// produces the same bucket. A random assignment would change the
 /// instructions mid-conversation.
 /// </remarks>
-public sealed class ExperimentAssignmentResolver
+internal sealed class ExperimentAssignmentResolver
 {
     private readonly IExperimentStore _store;
 

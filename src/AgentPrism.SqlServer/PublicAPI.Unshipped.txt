@@ -10,9 +10,6 @@ AgentPrism.AgentPrismSqlServerOptions.ConnectionString.get -> string?
 AgentPrism.AgentPrismSqlServerOptions.ConnectionString.set -> void
 AgentPrism.AgentPrismSqlServerOptions.SchemaName.get -> string!
 AgentPrism.AgentPrismSqlServerOptions.SchemaName.set -> void
-AgentPrism.AgentPrismSqlServerOptionsValidator
-AgentPrism.AgentPrismSqlServerOptionsValidator.AgentPrismSqlServerOptionsValidator() -> void
-AgentPrism.AgentPrismSqlServerOptionsValidator.Validate(string? name, AgentPrism.AgentPrismSqlServerOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 AgentPrism.MigrationRunner
 AgentPrism.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 AgentPrism.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.SqlPersistenceDiagnosticsSnapshot!>

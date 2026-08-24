@@ -33,7 +33,7 @@ namespace AgentPrism;
 /// goal.
 /// </para>
 /// </remarks>
-public sealed class QuotaUsageObserver : IHostedService, IDisposable
+internal sealed class QuotaUsageObserver : IHostedService, IDisposable
 {
     private readonly IQuotaStore _quotaStore;
     private readonly ITenantStore _tenantStore;

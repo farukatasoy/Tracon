@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// behavior because prior-turn context is missing. which forbids silent context loss.
 /// </para>
 /// </remarks>
-public sealed class RunToCasePromoter
+internal sealed class RunToCasePromoter
 {
     private readonly IRunStore _runs;
     private readonly IRunScoreStore _scores;

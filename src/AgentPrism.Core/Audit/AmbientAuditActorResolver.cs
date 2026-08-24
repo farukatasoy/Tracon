@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// otherwise <see cref="ClaimTypes.NameIdentifier"/> → <see cref="ClaimTypes.Name"/> →
 /// <c>sub</c> → <see langword="null"/>.
 /// </remarks>
-public sealed class AmbientAuditActorResolver : IAuditActorResolver
+internal sealed class AmbientAuditActorResolver : IAuditActorResolver
 {
     private readonly IOptions<AgentPrismOptions> _options;
 

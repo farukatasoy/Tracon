@@ -5,7 +5,7 @@ namespace AgentPrism;
 /// <summary>Stores quota rules and consumption counters in the SQL database.</summary>
 /// <remarks>
 /// <para>
-/// The behavior contract is identical to <see cref="InMemoryQuotaStore"/> and
+/// The behavior contract is identical to <c>InMemoryQuotaStore</c> and
 /// is guarded by the shared contract tests.
 /// </para>
 /// <para>

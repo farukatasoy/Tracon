@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;

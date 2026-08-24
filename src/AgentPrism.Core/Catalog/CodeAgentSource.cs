@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// Its priority is 0, the highest. If a database definition has the same name,
 /// code wins because it is validated at build time while the database definition is run-time data.
 /// </remarks>
-public sealed class CodeAgentSource : IAgentSource
+internal sealed class CodeAgentSource : IAgentSource
 {
     private readonly Dictionary<string, CodeAgentRegistration> _registrations;
     private readonly AgentDefinitionCompiler _compiler;

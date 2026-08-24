@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Validation is written manually; <c>ValidateDataAnnotations()</c> relies on reflection.
 /// </remarks>
-public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPrismSqliteOptions>
+internal sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPrismSqliteOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismSqliteOptions options)

@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>Persists the summary record of voice conversations.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryVoiceSessionStore"/>;
+/// The behavior contract is identical to <c>InMemoryVoiceSessionStore</c>;
 /// the only difference is that the in-memory implementation caps the record count.
 /// </remarks>
 internal sealed class SqlVoiceSessionStore : IVoiceSessionStore

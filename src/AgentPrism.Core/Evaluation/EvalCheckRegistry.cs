@@ -24,7 +24,7 @@ namespace AgentPrism;
 /// needed for a full argument match.
 /// </para>
 /// </remarks>
-public sealed class EvalCheckRegistry
+internal sealed class EvalCheckRegistry
 {
     private readonly Dictionary<string, EvalCheck> _custom;
 

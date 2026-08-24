@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// </para>
 /// <para><strong>Limits:</strong> process lifetime and a single node.</para>
 /// </remarks>
-public sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
+internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
 {
     private readonly ConcurrentDictionary<string, Lease> _leases = new(StringComparer.Ordinal);
     private readonly TimeProvider _clock;

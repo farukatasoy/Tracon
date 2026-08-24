@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// from one request. The <c>workflow.save</c> and <c>workflow.delete</c> actions
 /// therefore always enter the audit trail.
 /// </remarks>
-public sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, IAuditDecorated
+internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, IAuditDecorated
 {
     private readonly IWorkflowDefinitionStore _inner;
     private readonly IAuditLog _auditLog;

@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// A multi-instance deployment needs a SQL provider because each instance keeps
 /// its own set of entries.
 /// </remarks>
-public sealed class InMemoryIdempotencyStore : IIdempotencyStore
+internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string Key), Entry> _entries = new();
 

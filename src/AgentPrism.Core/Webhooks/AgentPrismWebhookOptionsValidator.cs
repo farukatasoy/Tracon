@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
 /// and produces <c>IL2026</c>.
 /// </remarks>
-public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPrismWebhookOptions>
+internal sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPrismWebhookOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismWebhookOptions options)

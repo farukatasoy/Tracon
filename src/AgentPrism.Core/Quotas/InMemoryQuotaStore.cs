@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// PostgreSQL implementation, so no increment is lost.
 /// </para>
 /// </remarks>
-public sealed class InMemoryQuotaStore : IQuotaStore
+internal sealed class InMemoryQuotaStore : IQuotaStore
 {
     private readonly ConcurrentDictionary<Guid, QuotaDefinition> _definitions = new();
     private readonly ConcurrentDictionary<UsageKey, QuotaUsageRecord> _usage = new();

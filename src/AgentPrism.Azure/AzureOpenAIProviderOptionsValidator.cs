@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// exception.
 /// </para>
 /// </remarks>
-public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<AzureOpenAIProviderOptions>
+internal sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<AzureOpenAIProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AzureOpenAIProviderOptions options)

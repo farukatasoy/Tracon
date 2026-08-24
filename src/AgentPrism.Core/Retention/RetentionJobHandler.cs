@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// value or <c>"*"</c>, which processes all active policies. The job has one item.
 /// It reports the item when the entire run succeeds or fails.
 /// </remarks>
-public sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHandler
+internal sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHandler
 {
     /// <inheritdoc />
     public JobKind Kind => JobKind.Retention;

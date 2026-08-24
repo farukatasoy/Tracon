@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>Stores pending approval requests in the SQL database.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryPendingApprovalStore"/>
+/// The behavior contract is identical to <c>InMemoryPendingApprovalStore</c>
 /// and is guarded by the shared contract tests. <see cref="ListPendingAsync"/>,
 /// <see cref="GetAsync"/>, and <see cref="DecideAsync"/> are scoped to the
 /// caller's tenant (<see cref="ITenantContext"/>) — <see cref="ExpireAsync"/> is

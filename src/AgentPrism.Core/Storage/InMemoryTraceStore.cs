@@ -17,7 +17,7 @@ namespace AgentPrism;
 /// same rule as the SQL implementation.
 /// </para>
 /// </remarks>
-public sealed class InMemoryTraceStore : ITraceStore
+internal sealed class InMemoryTraceStore : ITraceStore
 {
     private readonly ConcurrentDictionary<string, RunTrace> _byTraceId = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Guid, string> _traceIdByRun = new();

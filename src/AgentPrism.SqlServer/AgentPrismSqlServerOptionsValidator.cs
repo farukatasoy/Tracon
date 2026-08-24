@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// <remarks>
 /// Validation is hand-written; <c>ValidateDataAnnotations()</c> relies on reflection.
 /// </remarks>
-public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<AgentPrismSqlServerOptions>
+internal sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<AgentPrismSqlServerOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AgentPrismSqlServerOptions options)

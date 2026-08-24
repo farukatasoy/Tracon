@@ -11,7 +11,7 @@ namespace AgentPrism;
 /// <see cref="Order"/> is 0, so run recording is the outermost wrapper and
 /// also measures the time spent by inner wrappers.
 /// </remarks>
-public sealed class RunRecordingAgentDecorator : IAgentDecorator
+internal sealed class RunRecordingAgentDecorator : IAgentDecorator
 {
     private readonly IRunStore _runStore;
     private readonly ITenantContext _tenantContext;

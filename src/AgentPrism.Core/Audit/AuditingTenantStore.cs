@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>Wraps <see cref="ITenantStore"/> in a decorator that writes an audit trail.</summary>
-public sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
+internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
 {
     private readonly ITenantStore _inner;
     private readonly IAuditLog _auditLog;

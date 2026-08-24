@@ -26,7 +26,7 @@ namespace AgentPrism;
 /// for as long as any row still carries its id.
 /// </para>
 /// </remarks>
-public sealed class AesGcmContentProtector : IContentProtector
+internal sealed class AesGcmContentProtector : IContentProtector
 {
     private readonly IOptionsMonitor<AgentPrismContentProtectionOptions> _options;
     private readonly IConfiguration? _configuration;

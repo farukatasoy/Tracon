@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// <strong>Limits:</strong> process lifetime and a single node. Use
 /// <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
-public sealed class InMemoryJobScheduleStore : IJobScheduleStore
+internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
 {
     private readonly ConcurrentDictionary<Guid, JobSchedule> _schedules = new();
 

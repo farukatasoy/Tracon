@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// provider in production. Its behavior contract matches
 /// <c>SqlInboundTriggerStore</c> exactly and shared contract tests protect it.
 /// </remarks>
-public sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
+internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
 {
     private readonly ConcurrentDictionary<Guid, InboundTrigger> _triggers = new();
 

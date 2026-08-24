@@ -4,7 +4,7 @@ namespace AgentPrism;
 
 /// <summary>Persists run and message scores.</summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryRunScoreStore"/>;
+/// The behavior contract is identical to <c>InMemoryRunScoreStore</c>;
 /// it is guarded by the shared contract tests.
 /// </remarks>
 internal sealed class SqlRunScoreStore : IRunScoreStore

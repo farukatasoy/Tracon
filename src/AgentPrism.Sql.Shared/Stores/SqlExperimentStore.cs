@@ -7,7 +7,7 @@ namespace AgentPrism;
 /// Stores A/B experiments in the SQL database.
 /// </summary>
 /// <remarks>
-/// The behavior contract is identical to <see cref="InMemoryExperimentStore"/> and is
+/// The behavior contract is identical to <c>InMemoryExperimentStore</c> and is
 /// protected by shared contract tests. All operations are bounded by
 /// <see cref="ITenantContext.TenantId"/>. The "single Running experiment per agent"
 /// rule is also enforced in the database with a partial unique index

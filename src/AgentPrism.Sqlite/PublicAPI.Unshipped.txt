@@ -10,9 +10,6 @@ AgentPrism.AgentPrismSqliteOptions.ConnectionString.get -> string?
 AgentPrism.AgentPrismSqliteOptions.ConnectionString.set -> void
 AgentPrism.AgentPrismSqliteOptions.TablePrefix.get -> string!
 AgentPrism.AgentPrismSqliteOptions.TablePrefix.set -> void
-AgentPrism.AgentPrismSqliteOptionsValidator
-AgentPrism.AgentPrismSqliteOptionsValidator.AgentPrismSqliteOptionsValidator() -> void
-AgentPrism.AgentPrismSqliteOptionsValidator.Validate(string? name, AgentPrism.AgentPrismSqliteOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 AgentPrism.MigrationRunner
 AgentPrism.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 AgentPrism.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.SqlPersistenceDiagnosticsSnapshot!>

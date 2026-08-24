@@ -5,12 +5,6 @@ AgentPrism.GoogleChatClientFactory.CreateChatClient(AgentPrism.ModelBinding! bin
 AgentPrism.GoogleChatClientFactory.Dispose() -> void
 AgentPrism.GoogleChatClientFactory.GoogleChatClientFactory(AgentPrism.GoogleProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
 AgentPrism.GoogleModelCatalog
-AgentPrism.GoogleModelProvider
-AgentPrism.GoogleModelProvider.CheckHealthAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.ModelProviderHealth!>
-AgentPrism.GoogleModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
-AgentPrism.GoogleModelProvider.GetConfigurationDiagnostic() -> AgentPrism.ConfigurationDiagnostic?
-AgentPrism.GoogleModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
-AgentPrism.GoogleModelProvider.Name.get -> string!
 AgentPrism.GoogleProviderExtensions
 AgentPrism.GoogleProviderNames
 AgentPrism.GoogleProviderOptions
@@ -26,9 +20,6 @@ AgentPrism.GoogleProviderOptions.GoogleProviderOptions() -> void
 AgentPrism.GoogleProviderOptions.Models.get -> System.Collections.Generic.IList<AgentPrism.ModelDescriptor!>!
 AgentPrism.GoogleProviderOptions.Timeout.get -> System.TimeSpan?
 AgentPrism.GoogleProviderOptions.Timeout.set -> void
-AgentPrism.GoogleProviderOptionsValidator
-AgentPrism.GoogleProviderOptionsValidator.GoogleProviderOptionsValidator() -> void
-AgentPrism.GoogleProviderOptionsValidator.Validate(string? name, AgentPrism.GoogleProviderOptions! options) -> Microsoft.Extensions.Options.ValidateOptionsResult!
 const AgentPrism.GoogleProviderNames.Google = "google" -> string!
 const AgentPrism.GoogleProviderNames.SafetyCivicIntegritySetting = "google.safety.civicIntegrity" -> string!
 const AgentPrism.GoogleProviderNames.SafetyDangerousContentSetting = "google.safety.dangerousContent" -> string!
@@ -46,5 +37,4 @@ static AgentPrism.GoogleProviderExtensions.UseGoogle(this AgentPrism.IAgentPrism
 static AgentPrism.GoogleProviderExtensions.UseGoogle(this AgentPrism.IAgentPrismBuilder! builder, string! apiKey, System.Action<AgentPrism.GoogleProviderOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.GoogleProviderExtensions.UseGoogle(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.GoogleProviderOptions!>! configure) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.GoogleProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
-AgentPrism.GoogleModelProvider.GoogleModelProvider(string! name, AgentPrism.GoogleChatClientFactory! chatClientFactory, System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>! models, Microsoft.Extensions.Logging.ILogger<AgentPrism.GoogleModelProvider!>? logger = null, AgentPrism.GoogleProviderOptions? healthCheckOptions = null, AgentPrism.EgressSocketGuard? egressGuard = null) -> void
 static AgentPrism.GoogleChatClientFactory.CreateClient(AgentPrism.GoogleProviderOptions! options, AgentPrism.EgressSocketGuard? egressGuard = null) -> Google.GenAI.Client!

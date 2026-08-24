@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// The same limits as <see cref="InMemoryAgentDefinitionStore"/> apply. Data is
 /// limited to the process lifetime. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
-public sealed class InMemoryExperimentStore : IExperimentStore
+internal sealed class InMemoryExperimentStore : IExperimentStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string Name), Experiment> _experiments = new();
 

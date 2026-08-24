@@ -115,6 +115,13 @@ function main() {
 function runDocfx() {
   console.log('Running docfx metadata (assembly + XML mode, no MSBuild)…');
 
+  // docfx metadata is incremental: a type that stops being public leaves its
+  // old .md file behind under api-md instead of removing it (measured, Phase
+  // 96 - a package's public surface shrank but the stale page for the
+  // now-internal type kept surviving into src/content/docs/api). Wiping the
+  // directory first forces every run to reflect only the CURRENT surface.
+  rmSync(metadataDirectory, { recursive: true, force: true });
+
   execFileSync('dotnet', ['docfx', 'metadata', 'docfx.json'], {
     cwd: docfxDirectory,
     stdio: 'inherit',

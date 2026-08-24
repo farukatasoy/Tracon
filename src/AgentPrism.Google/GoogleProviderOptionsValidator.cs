@@ -15,7 +15,7 @@ namespace AgentPrism;
 /// <strong>Error messages never include the API key.</strong>
 /// </para>
 /// </remarks>
-public sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProviderOptions>
+internal sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProviderOptions>
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, GoogleProviderOptions options)

@@ -28,7 +28,7 @@ internal sealed partial class WebhookJobPayloadJsonContext : JsonSerializerConte
 /// the error is logged, and the method returns <c>0</c>.
 /// </para>
 /// </remarks>
-public sealed class WebhookPublisher(
+internal sealed class WebhookPublisher(
     IWebhookStore store,
     IJobStore jobStore,
     IOptionsMonitor<AgentPrismWebhookOptions> optionsMonitor,

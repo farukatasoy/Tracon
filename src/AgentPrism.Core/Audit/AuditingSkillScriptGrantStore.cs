@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// The <c>script.grant</c> and <c>script.revoke</c> actions therefore always enter
 /// the audit trail.
 /// </remarks>
-public sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IAuditDecorated
+internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IAuditDecorated
 {
     private readonly ISkillScriptGrantStore _inner;
     private readonly IAuditLog _auditLog;

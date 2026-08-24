@@ -12,3 +12,24 @@ using System.Runtime.CompilerServices;
 // built from the raw registrations, so an enabled `generate_image` tool
 // never appeared once MCP was also configured (measured 2026-08-23).
 [assembly: InternalsVisibleTo("AgentPrism.Mcp")]
+
+// Auditing* stores and InMemoryRunStore are used by the three SQL provider
+// packages in real code (Sql.Shared is a linked-source, not its own
+// assembly - K-176), so visibility is granted per provider package.
+[assembly: InternalsVisibleTo("AgentPrism.PostgreSql")]
+[assembly: InternalsVisibleTo("AgentPrism.SqlServer")]
+[assembly: InternalsVisibleTo("AgentPrism.Sqlite")]
+
+// Phase 96: the default $(MSBuildProjectName).UnitTests/.IntegrationTests
+// pattern only covers a test project that shares Core's own project name
+// prefix. These six test projects exercise Core in-memory stores through a
+// sibling package's wiring (MCP discovery/tenant tools, workflow test
+// fixtures, an ASP.NET Core functional test, SQL content-protection
+// integration) and were left with real dependencies on now-internal types
+// when those types were narrowed.
+[assembly: InternalsVisibleTo("AgentPrism.Mcp.UnitTests")]
+[assembly: InternalsVisibleTo("AgentPrism.Workflows.UnitTests")]
+[assembly: InternalsVisibleTo("AgentPrism.AspNetCore.FunctionalTests")]
+[assembly: InternalsVisibleTo("AgentPrism.PostgreSql.IntegrationTests")]
+[assembly: InternalsVisibleTo("AgentPrism.SqlServer.IntegrationTests")]
+[assembly: InternalsVisibleTo("AgentPrism.Sqlite.IntegrationTests")]

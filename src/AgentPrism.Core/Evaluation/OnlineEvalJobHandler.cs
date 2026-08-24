@@ -27,7 +27,7 @@ namespace AgentPrism;
 /// <see cref="RunRecord"/> the caller has already resolved.
 /// </para>
 /// </remarks>
-public sealed class OnlineEvalJobHandler(
+internal sealed class OnlineEvalJobHandler(
     IRunStore runStore,
     IRunInputStore runInputStore,
     IRunScoreStore scoreStore,

@@ -34,7 +34,7 @@ namespace AgentPrism;
 /// is returned on the first line.
 /// </para>
 /// </remarks>
-public sealed partial class PatternContentGuard : IContentGuard
+internal sealed partial class PatternContentGuard : IContentGuard
 {
     private readonly IOptionsMonitor<PatternContentGuardOptions> _options;
 

@@ -19,7 +19,7 @@ namespace AgentPrism;
 /// Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
-public sealed class InMemoryRunStore : IRunStore
+internal sealed class InMemoryRunStore : IRunStore
 {
     private readonly ConcurrentDictionary<Guid, RunRecord> _runs = new();
     private readonly ConcurrentDictionary<Guid, List<RunEvent>> _events = new();
