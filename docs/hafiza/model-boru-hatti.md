@@ -36,3 +36,25 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 - **🚨 Onbelleklenen bir yanit KENDI kullanim/maliyet bilgisini tasir; isabet onu OLDUGU GIBI geri verirse `run` faturalanmamis token'i IKINCI kez sayar** (2026-08-22, Faz 81, gercek `samples/AgentPrism.Api` kosumunda olculdu — otomatik testler sahte saglayicinin varsayilan olarak kullanim bilgisi URETMEMESI yuzunden yakalamadi). `DistributedCachingChatClient`'in `store`'a yazdigi `ChatResponse`, orijinal cagrinin `Usage` ozelligini VE her mesajin `UsageContent`'ini AYNEN tasir. Bir onbellek dekoratoru yazarken "isabet maliyet yazmaz" iddiasi bir `chat` span'inin EKSIKLIGINE guvenemez — donen nesnenin kendisinden KULLANIM BILGISI SIYRILMALIDIR (`AgentPrismResponseCachingChatClient.StripUsage` deseni: `Usage = null` + mesaj/`update` icindeki `UsageContent` ogelerini filtrele). Sadece DONDURULEN nesnede yapilir, `store`'a yazilan bayt dizisi degismez.
 - **🚨 MEAI 10.9.0 kendi yedek zincirini getirdi; bizimki Faz 62'dendir ve DAHA GENISTIR.** Yukseltme olcumu (2026-08-21): `RoutingChatClient` (soyut) · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` eklendi. AgentPrism'inki yalniz "sirayla dene" degildir — devre kesici, on ucus denetimi, hata siniflandirmasi ve atif kaydiyla birlesiktir. **Onun uzerine gecmek bir KARAR isidir, bir yukseltme isi degil**; oneriden once `ModelBinding.Fallbacks`'in sozlesmesini ve K-320'nin halka sirasini oku.
 
+
+## Dispose sahipligi ve cift sarmalamanin OLCULEN hasari (Faz 99)
+
+- **AgentPrism `IModelProvider.CreateChatClient`'in donusunu hicbir zaman dispose
+  etmez.** Calisma anı probuyla olculdu: derlenmis agent
+  `Microsoft.Agents.AI.ChatClientAgent`'tir ve ne `IDisposable` ne
+  `IAsyncDisposable` uygular; bir `run` sonrasi ham istemcinin dispose sayisi
+  **0**; `CompiledAgentCache.Evict` yalniz `TryRemove` yapar. Boru hattinin
+  tepesi ELLE dispose edilirse zincir ham istemciye iner (sayi 1) — ama eden
+  yoktur. Saglayici donen nesnenin omrunu sahiplenir ve o nesne hic dispose
+  edilmemeye dayanikli olmalidir (K-609).
+- **🚨 Bir saglayici kendi `UseFunctionInvocation()` dongusunu kurarsa hasar
+  yanit metninde de tool cagri sayisinda da GORUNMEZ.** Olculdu (tek tool'lu bir
+  `run`, sayac tutan bir `IContentGuard` ile):
+  ham istemci → guard 4 denetim: `Input:hi`, `Input:hi`, **`Input:42`**, `Output:done`;
+  saglayici sarmalarsa → 3 denetim: `Input:hi`, `Output:42`, `Output:done`.
+  Yanit ikisinde de `done`, tool ikisinde de bir kez calisti. Tek fark: dogru
+  kurulumda tool sonucu modele **girerken** denetlenir; yanlis kurulumda ic
+  dongu onu guard'in ALTINDAN modele besler — K-320'nin kapattigi
+  prompt-injection yolu tam olarak budur. Regresyon:
+  `tests/AgentPrism.Core.UnitTests/Models/PipelineOwnershipTests.cs` — iddia
+  guard'in gordugu YONDUR, boru hattindaki tip sayisi degil.

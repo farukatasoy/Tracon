@@ -1,4 +1,33 @@
 #nullable enable
+AgentPrism.Testing.Contracts.ContractCoverage
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.A_client_that_is_never_disposed_does_not_stop_the_provider() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.A_model_the_catalog_does_not_list_is_not_rejected() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Binding(string? model = null, string? providerName = null) -> AgentPrism.ModelBinding!
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Catalog_model_names_are_unique_and_not_empty() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Concurrent_create_chat_client_calls_all_return_a_client() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_accepts_a_binding_whose_provider_name_differs_in_case() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_returns_a_client_for_the_setup_time_credential() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Create_chat_client_returns_a_raw_client_that_builds_no_tool_call_loop() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.ModelProviderContract() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Provider.get -> AgentPrism.IModelProvider!
+AgentPrism.Testing.Contracts.Providers.ModelProviderContract.Provider_name_is_not_empty() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.A_tenant_credential_is_applied_to_the_returned_client() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.A_tenant_credential_produces_a_different_client_than_the_setup_time_one() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.An_endpoint_override_on_a_tenant_credential_is_accepted() -> void
+abstract AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.AssertCredentialIsApplied(Microsoft.Extensions.AI.IChatClient! client, AgentPrism.ModelProviderCredential! credential) -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.Concurrent_resolution_of_one_credential_stays_stable() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.Create_chat_client_with_a_tenant_credential_returns_a_client() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.ModelProviderCredentialContract() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.Two_different_credentials_do_not_share_one_client() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract
+AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_provider_setting_is_accepted() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_setting_is_matched_regardless_of_key_casing() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.An_unsupported_provider_setting_is_rejected() -> void
+AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.ModelProviderSettingsContract() -> void
 AgentPrism.Testing.Contracts.Storage.AgentDefinitionStoreContract
 AgentPrism.Testing.Contracts.Storage.AgentDefinitionStoreContract.AgentDefinitionStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_removes_all_versions() -> System.Threading.Tasks.Task!
@@ -287,8 +316,10 @@ AgentPrism.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_user() ->
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Query_session_filter_with_includeChildren_also_returns_child_runs() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Query_sorts_newest_first() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.RecordToolInvocationAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.Reusing_a_sequence_number_is_rejected() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.RunStoreContract() -> void
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Run_record_is_stamped_with_the_current_tenant() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_carries_the_coalesced_attribution() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_upserts_when_called_twice_with_the_same_id() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Statistics_break_down_by_label_and_the_rows_do_not_partition_the_runs() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.RunStoreContract.Statistics_break_down_by_user() -> System.Threading.Tasks.Task!
@@ -468,6 +499,9 @@ AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_s
 AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_independent_across_tenants() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void
+abstract AgentPrism.Testing.Contracts.Providers.ModelProviderContract.CreateProviderAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IModelProvider!>
+abstract AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.Credential.get -> AgentPrism.ModelProviderCredential!
+abstract AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.SupportedSetting.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>
 abstract AgentPrism.Testing.Contracts.Storage.AgentFileStoreContract.EnterRunScope() -> void
 abstract AgentPrism.Testing.Contracts.Storage.AgentFileStoreContract.ExitRunScope() -> void
 abstract AgentPrism.Testing.Contracts.Storage.IdempotencyStoreContract.CreateStoreAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IIdempotencyStore!>
@@ -480,6 +514,8 @@ abstract AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Cr
 abstract AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 abstract AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
 abstract AgentPrism.Testing.Contracts.Storage.TraceStoreContract.SeedRunAsync(System.Guid runId) -> System.Threading.Tasks.ValueTask
+const AgentPrism.Testing.Contracts.ContractCoverage.ProviderContracts = "AgentPrism.Testing.Contracts.Providers" -> string!
+const AgentPrism.Testing.Contracts.ContractCoverage.StorageContracts = "AgentPrism.Testing.Contracts.Storage" -> string!
 const AgentPrism.Testing.Contracts.Storage.RetentionStoreContract.TenantA = "tenant-a" -> string!
 const AgentPrism.Testing.Contracts.Storage.RetentionStoreContract.TenantB = "tenant-b" -> string!
 const AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantA = "tenant-a" -> string!
@@ -593,6 +629,8 @@ override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Co
 override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.SeedAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<object!>
 override AgentPrism.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+static AgentPrism.Testing.Contracts.ContractCoverage.ContractTypes(string! namespaceScope) -> System.Collections.Generic.IReadOnlyList<System.Type!>!
+static AgentPrism.Testing.Contracts.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, string! namespaceScope, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!
 static AgentPrism.Testing.Contracts.Storage.TestData.Definition(string! name) -> AgentPrism.AgentDefinition!
 static AgentPrism.Testing.Contracts.Storage.TestData.EvalCase(System.Guid suiteId, string! query = "question") -> AgentPrism.EvalCase!
 static AgentPrism.Testing.Contracts.Storage.TestData.EvalCaseDraft(System.Guid? sourceRunId = null, string! query = "question") -> AgentPrism.EvalCaseDraft!
@@ -604,6 +642,10 @@ static AgentPrism.Testing.Contracts.Storage.TestData.Run(System.Guid runId, stri
 static AgentPrism.Testing.Contracts.Storage.TestData.Schedule(string! tenantId = "default", string! name = "night-report") -> AgentPrism.JobSchedule!
 static AgentPrism.Testing.Contracts.Storage.TestData.Session(string! sessionId, System.Text.Json.JsonElement? state = null) -> AgentPrism.SessionRecord!
 static AgentPrism.Testing.Contracts.Storage.TestData.State(string! json) -> System.Text.Json.JsonElement
+virtual AgentPrism.Testing.Contracts.Providers.ModelProviderContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
+virtual AgentPrism.Testing.Contracts.Providers.ModelProviderContract.UnknownModelName.get -> string!
+virtual AgentPrism.Testing.Contracts.Providers.ModelProviderCredentialContract.OtherCredential.get -> AgentPrism.ModelProviderCredential!
+virtual AgentPrism.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.FormatIdForRawSql(System.Guid id) -> string!
 virtual AgentPrism.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable.get -> string!
@@ -617,8 +659,3 @@ virtual AgentPrism.Testing.Contracts.Storage.SingletonLeaseStoreContract.OnDispo
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
-AgentPrism.Testing.Contracts.Storage.RunStoreContract.StartRunAsync_return_value_carries_the_coalesced_attribution() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.RunStoreContract.Reusing_a_sequence_number_is_rejected() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.Storage.ContractCoverage
-static AgentPrism.Testing.Contracts.Storage.ContractCoverage.ContractTypes() -> System.Collections.Generic.IReadOnlyList<System.Type!>!
-static AgentPrism.Testing.Contracts.Storage.ContractCoverage.MissingDerivedTypes(System.Reflection.Assembly! consumerAssembly, System.Collections.Generic.IReadOnlyCollection<string!>? except = null) -> System.Collections.Generic.IReadOnlyList<string!>!

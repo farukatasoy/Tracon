@@ -211,3 +211,14 @@ ve referans bilgilerini arar. `dotnet build ... -c Release` çalıştırılmış
 ("tip bulunamadı") üretir — proje aslında derlenir, yalnız bu iki aracın
 okuduğu `obj/` klasörü boştur. Çözüm: yeni bir proje eklerken kapanış
 kapılarından ÖNCE hem `-c Release` hem `-c Debug` ile bir kez derle.
+
+## Sevk edilen XML dokumani kendi kapisina takilir (Faz 99)
+
+`ShippedDocumentationSelfContainmentTests` yalniz `docs/` yollarini ve faz/karar
+numaralarini degil, **sesi** de denetler: alarm emojisi (🚨), `Rationale:`
+acilisi ve `Measured (…)` bloklari sevk edilen `///` XML'inde YASAKTIR (site
+ureticileri bunlari zaten kirpiyor; paket kirpilmamis metni sevk ettigi icin
+kural kaynakta zorlanir). Faz 99'da `IModelProvider`'in yeni `<remarks>`'ina
+konan tek bir 🚨 kapiyi kirmiziya dondurdu. Implementation yorumu (`//`) kapsam
+DISINDADIR — maintainer icin "K-320 bu konumu olctu" yazmak serbesttir, ayni
+cumle `<summary>` icinde degildir.

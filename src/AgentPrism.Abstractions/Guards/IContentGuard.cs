@@ -20,10 +20,14 @@ namespace AgentPrism;
 /// must not change based on order.
 /// </para>
 /// <para>
-/// A guard runs at the <strong>OUTERMOST</strong> edge of the model
-/// pipeline: a blocked request never reaches the network (no money is spent),
-/// and blocking does not trip the circuit breaker (repeatedly blocked
-/// requests do not shut down the provider).
+/// A guard runs directly above the provider's own chat client, which places
+/// it <strong>inside</strong> the tool-call loop: a blocked request never
+/// reaches the network (no money is spent), blocking does not trip the
+/// circuit breaker (repeatedly blocked requests do not shut down the
+/// provider), and — the reason for this exact position — <em>every</em> turn
+/// of the loop is inspected. A tool result re-enters the model on the second
+/// turn, and that is the most common path for prompt injection; a guard
+/// placed outside the loop would never see it.
 /// </para>
 /// <para>
 /// A guard is <em>a control, not an observability tool.</em> The
