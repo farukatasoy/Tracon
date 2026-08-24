@@ -224,7 +224,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 -- right. Attribution never legitimately goes from set back to
                 -- unset for the same run, so preserving is always correct.
                 user_id       = COALESCE(EXCLUDED.user_id, {Schema}.runs.user_id),
-                labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels);
+                labels        = COALESCE(EXCLUDED.labels, {Schema}.runs.labels)
+            RETURNING user_id, labels;
             """;
 
         UpdateRunCompletion = $"""

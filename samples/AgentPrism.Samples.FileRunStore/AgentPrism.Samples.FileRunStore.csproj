@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AgentPrism.Samples.FileRunStore</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      PackageReference, not ProjectReference: this is the whole point of the
+      sample, proving that IRunStore is implementable from the published
+      AgentPrism.Abstractions package alone. VersionOverride (not Version):
+      Central Package Management pins every OTHER AgentPrism.* dependency in
+      this repo to an exact ProjectReference-implied version; this one
+      package instead floats to whatever prerelease the local feed holds
+      (K-265's convention) - see ../NuGet.config, which points AgentPrism.*
+      resolution at the local feed `dotnet pack` produces
+      (artifacts/package/release) instead of nuget.org, where a preview
+      build is never published.
+    -->
+    <PackageReference Include="AgentPrism.Abstractions" VersionOverride="*-*" />
+  </ItemGroup>
+
+</Project>

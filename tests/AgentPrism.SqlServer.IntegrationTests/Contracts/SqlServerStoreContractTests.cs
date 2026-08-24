@@ -1,5 +1,5 @@
 using AgentPrism.SqlServer.IntegrationTests.Infrastructure;
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 
 namespace AgentPrism.SqlServer.IntegrationTests.Contracts;
 
@@ -422,6 +422,18 @@ public sealed class SqlServerAgentFileStoreContractTests(SqlServerSchemaFixture 
         await schema.ResetAsync();
         return schema.Context.AgentFiles;
     }
+
+    /// <inheritdoc />
+    protected override void EnterRunScope()
+        => AgentPrismRunContext.SetCurrent(new AgentRunScope
+        {
+            RunId = Guid.NewGuid(),
+            RootRunId = Guid.NewGuid(),
+            AgentName = "isolation-agent",
+        });
+
+    /// <inheritdoc />
+    protected override void ExitRunScope() => AgentPrismRunContext.SetCurrent(null);
 }
 #pragma warning restore MAAI001
 

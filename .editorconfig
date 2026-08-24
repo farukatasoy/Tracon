@@ -191,6 +191,21 @@ dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.MA0016.severity = none
 dotnet_diagnostic.CA1861.severity = none
 
+# ---------------------------------------------------------------------------
+# AgentPrism.Testing.Contracts.Xunit - test fixtures shipped as a src/
+# package (Phase 98). The [Fact]/[Theory] methods inside it are test code
+# (same snake_case convention as tests/**), even though the project itself
+# lives under src/ because it is a published NuGet package - the [tests/**]
+# section above does not match its path.
+# ---------------------------------------------------------------------------
+[src/AgentPrism.Testing.Contracts.Xunit/**/*.cs]
+dotnet_diagnostic.xUnit1051.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.MA0016.severity = none
+dotnet_diagnostic.CA1861.severity = none
+
 [samples/**/*.cs]
 dotnet_diagnostic.CA1848.severity = none
 # CA2007 / MA0004: ConfigureAwait(false). Bu kurallar KUTUPHANE kodu icindir.

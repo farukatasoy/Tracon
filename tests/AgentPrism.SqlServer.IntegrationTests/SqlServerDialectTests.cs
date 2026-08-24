@@ -1,6 +1,6 @@
 using System.Text.Json;
 using AgentPrism.SqlServer.IntegrationTests.Infrastructure;
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 using Microsoft.Data.SqlClient;
 
 namespace AgentPrism.SqlServer.IntegrationTests;

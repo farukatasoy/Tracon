@@ -256,6 +256,17 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!--
+      AgentPrism.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
+      [Fact]/[Theory] fixtures, not a runnable test project: the plain
+      "xunit.v3" package's buildTransitive props force
+      <OutputType>Exe</OutputType> (Microsoft Testing Platform's entry point)
+      and fail the build of a non-executable project. This sub-package ships
+      the SAME xunit.v3.core.dll without that requirement: "test authors
+      should include xunit.v3 instead" (its own description); this is not a
+      test author, it is the library the test author's project references.
+    -->
+    <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
+    <!--
       Faz 79. AgentPrism.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
       (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik
       bilgisi tipi tuketiciye birakilir. Sevk edilen `<example>` yine de
