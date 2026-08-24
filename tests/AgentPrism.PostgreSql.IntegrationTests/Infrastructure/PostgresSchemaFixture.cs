@@ -1,4 +1,4 @@
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 
 namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 

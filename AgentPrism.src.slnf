@@ -20,6 +20,7 @@
       "src/AgentPrism/AgentPrism.csproj",
       "src/AgentPrism.Templates/AgentPrism.Templates.csproj",
       "src/AgentPrism.Testing/AgentPrism.Testing.csproj",
+      "src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj",
       "src/AgentPrism.Client/AgentPrism.Client.csproj",
       "src/AgentPrism.Cli/AgentPrism.Cli.csproj"
     ]

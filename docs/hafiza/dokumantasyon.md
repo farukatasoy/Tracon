@@ -183,3 +183,31 @@ eklenince map bunu "Rule:" olarak bastı, gerçek kural cümlesi (tablo sonrası
 hiç görünmedi — hiçbir kapı bunu yakalamadı çünkü üreteç GEÇERLİ bir metin
 üretti, yalnız yanlış cümleyi seçti. Var olan HER bölüm heading→table→(yalnız)
 kural paragrafı sırasını izler; yeni bölüm de bunu izlemeli.
+
+## 🚨 `docfx.json`'ın `references` globu (`*/release/*.dll`) yeni bir tek-TFM proje eklendiğinde CS1704 ile çöker (Faz 98)
+
+`docfx metadata` iki liste okur: `src` (elle seçilmiş 18 paket DLL'i, API
+sayfaları bundan üretilir) ve `references` (`artifacts/bin/*/release{,_net10.0}/*.dll`
+globu — tip çözümlemesi için TÜM eşleşen DLL'leri aynı bağlama yükler). Bir
+proje `AgentPrism.Abstractions`'a `ProjectReference` veya paket referansı
+verirse, o bağımlılığın DLL'i KENDİ `bin/<proje>/release/` klasörüne de
+kopyalanır — bu zaten 20+ test/örnek projesinde oluyordu ve dokunulmadı. Yeni
+bir **tek-TFM** proje (`samples/AgentPrism.Samples.FileRunStore.Tests` gibi;
+çıktısı `release/` altında, `release_net10.0/` DEĞİL) eklenince Roslyn'in
+metadata yükleyicisi "aynı basit adlı derleme zaten içe aktarıldı" (`CS1704`)
+hatası verdi — TEMİZ bir `artifacts/bin` ile bile. Kök neden izole edilmedi
+(mevcut 20+ kopya neden aynı hatayı vermiyor, belirsiz); ölçülen ve çalışan
+çözüm `docfx/docfx.json`'ın `references.exclude` dizisine ilgili proje
+dizinini (`"AgentPrism.Samples.*/**"`) eklemekti. **Yeni bir örnek/test
+projesi bu hatayı verirse önce `references.exclude`'a proje adını ekle,
+globu yeniden tasarlama.**
+
+## 🚨 `dotnet format --verify-no-changes` ve `docfx metadata`, DEBUG yapılandırmasının `obj/` çıktısını okur — yalnız Release derlemesi yeterli DEĞİL (Faz 98)
+
+Her iki araç da MSBuildWorkspace/Roslyn analiz motorunu kullanır ve varsayılan
+olarak **Debug** yapılandırmasının `GeneratedMSBuildEditorConfig.editorconfig`
+ve referans bilgilerini arar. `dotnet build ... -c Release` çalıştırılmış ama
+`-c Debug` hiç çalıştırılmamış YENİ bir proje için bu iki araç `CS0246`
+("tip bulunamadı") üretir — proje aslında derlenir, yalnız bu iki aracın
+okuduğu `obj/` klasörü boştur. Çözüm: yeni bir proje eklerken kapanış
+kapılarından ÖNCE hem `-c Release` hem `-c Debug` ile bir kez derle.

@@ -194,3 +194,6 @@ Durable rows are also what
 
 - [Securing the endpoints](/getting-started/security/) — required reading
 before this leaves your machine.
+- [Write your own store](/guides/write-your-own-store/) — implement `IRunStore`
+  (or another store interface) against a persistence engine none of the three
+  built-in providers cover.

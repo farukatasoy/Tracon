@@ -321,12 +321,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    -- unset for the same run, so preserving is always correct.
                    user_id       = COALESCE(@user_id, user_id),
                    labels        = COALESCE(@labels, labels)
+            OUTPUT inserted.user_id, inserted.labels
              WHERE id = @id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
                                        replay_of_run_id, user_id, labels, continued_from_run_id)
+            OUTPUT inserted.user_id, inserted.labels
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
                     @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
                     @replay_of_run_id, @user_id, @labels, @continued_from_run_id);

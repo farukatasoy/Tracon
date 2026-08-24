@@ -134,6 +134,22 @@ internal sealed class InMemoryRunStore : IRunStore
 
         lock (log)
         {
+            // A duplicate Sequence is a caller error (RunEventWriter assigns
+            // it once, per run), not a legitimate retry -- rejecting it here
+            // matches the SQL stores, which reject the same case as a
+            // primary-key violation on (run_id, seq). Silently accepting it
+            // a second time would leave an invisible gap in the append-only
+            // stream.
+            foreach (var existing in log)
+            {
+                if (existing.Sequence == runEvent.Sequence)
+                {
+                    throw new AgentPrismException(
+                        $"Run '{runEvent.RunId}' already has an event with sequence '{runEvent.Sequence}'. " +
+                        "The event was not written.");
+                }
+            }
+
             log.Add(runEvent);
         }
 

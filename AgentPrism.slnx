@@ -19,6 +19,7 @@
     <Project Path="src/AgentPrism/AgentPrism.csproj" />
     <Project Path="src/AgentPrism.Templates/AgentPrism.Templates.csproj" />
     <Project Path="src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
+    <Project Path="src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
     <Project Path="src/AgentPrism.Client/AgentPrism.Client.csproj" />
     <Project Path="src/AgentPrism.Cli/AgentPrism.Cli.csproj" />
   </Folder>
@@ -26,6 +27,8 @@
   <Folder Name="/samples/">
     <Project Path="samples/AgentPrism.Api/AgentPrism.Api.csproj" />
     <Project Path="samples/AgentPrism.Embedded/AgentPrism.Embedded.csproj" />
+    <Project Path="samples/AgentPrism.Samples.FileRunStore/AgentPrism.Samples.FileRunStore.csproj" />
+    <Project Path="samples/AgentPrism.Samples.FileRunStore.Tests/AgentPrism.Samples.FileRunStore.Tests.csproj" />
   </Folder>
 
   <Folder Name="/tests/">

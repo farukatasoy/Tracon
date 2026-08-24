@@ -20,6 +20,7 @@
             "AgentPrism.Sqlite/release_net10.0/AgentPrism.Sqlite.dll",
             "AgentPrism.Templates/release/AgentPrism.Templates.dll",
             "AgentPrism.Testing/release_net10.0/AgentPrism.Testing.dll",
+            "AgentPrism.Testing.Contracts.Xunit/release_net10.0/AgentPrism.Testing.Contracts.Xunit.dll",
             "AgentPrism.UI/release_net10.0/AgentPrism.UI.dll",
             "AgentPrism.Voice/release_net10.0/AgentPrism.Voice.dll",
             "AgentPrism.Workflows/release_net10.0/AgentPrism.Workflows.dll"
@@ -35,7 +36,8 @@
           ],
           "exclude": [
             "**/* [0-9].dll",
-            "**/* [0-9][0-9].dll"
+            "**/* [0-9][0-9].dll",
+            "AgentPrism.Samples.*/**"
           ]
         }
       ],

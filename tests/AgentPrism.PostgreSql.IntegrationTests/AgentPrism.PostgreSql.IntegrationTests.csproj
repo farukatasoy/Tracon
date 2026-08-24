@@ -4,22 +4,20 @@
     <ProjectReference Include="../../src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <!-- Fake model provider (FakeModelProvider): Phase 39, rationale in K-007 section 39.1. -->
     <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
+    <!--
+      Store contract suite (Phase 23; packaged in Phase 98 as
+      AgentPrism.Testing.Contracts.Xunit). The same abstract classes run in
+      both this project and AgentPrism.SqlServer.IntegrationTests; the
+      "adding a new store should not require writing a new contract test"
+      rule only holds if the source lives in one place.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!-- Pins to the patched version for GHSA-q939-rpr3-3284 (SSH.NET, a transitive dependency of Testcontainers). -->
     <PackageReference Include="SSH.NET" />
-  </ItemGroup>
-
-  <!--
-    Shared contract tests (Phase 23). The same abstract classes run in both this
-    project and AgentPrism.SqlServer.IntegrationTests; the "adding a new store
-    should not require writing a new contract test" rule only holds if the
-    source lives in one place.
-  -->
-  <ItemGroup Label="Shared contract tests (Phase 23)">
-    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>

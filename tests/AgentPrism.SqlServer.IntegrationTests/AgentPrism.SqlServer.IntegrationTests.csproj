@@ -2,6 +2,14 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
+    <!--
+      Store contract suite (Phase 23; packaged in Phase 98 as
+      AgentPrism.Testing.Contracts.Xunit). The SAME abstract classes also run
+      in AgentPrism.PostgreSql.IntegrationTests. This phase's exact test was
+      that: adding a third persistence implementation should NOT REQUIRE
+      writing a new contract test.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -11,13 +19,12 @@
   </ItemGroup>
 
   <!--
-    Shared contract tests (Phase 23). The SAME abstract classes also run in
-    AgentPrism.PostgreSql.IntegrationTests. This phase's exact test was that:
-    adding a third persistence implementation should NOT REQUIRE writing a new
-    contract test.
+    TenantCoverageTests.cs (Phase 41) lives directly in this project, not
+    under the contract package: it reflects over AgentPrism.Sql.Shared's
+    linked-source internal types (SqlRunStore and the rest), which are only
+    reachable from a provider assembly, never from a published package
+    (K-247 — a linked-source internal type's identity is not stable across
+    assemblies).
   -->
-  <ItemGroup Label="Shared contract tests (Phase 23)">
-    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
-  </ItemGroup>
 
 </Project>

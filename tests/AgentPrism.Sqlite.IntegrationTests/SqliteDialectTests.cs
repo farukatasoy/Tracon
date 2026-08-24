@@ -1,6 +1,6 @@
 using System.Text.Json;
 using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
-using AgentPrism.StoreContracts;
+using AgentPrism.Testing.Contracts.Storage;
 using Microsoft.Data.Sqlite;
 
 namespace AgentPrism.Sqlite.IntegrationTests;

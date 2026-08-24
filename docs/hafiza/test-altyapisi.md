@@ -53,6 +53,23 @@
   (`dotnet test tests/<Paket>`) her zaman temiz. Ayirt etme aynidir: izole
   kostur, gecerse kaynak cekismesi.
 
+## Sevk edilen xunit.v3 test taban sınıfları: `xunit.v3` DEĞİL `xunit.v3.extensibility.core` (Faz 98)
+
+Bir paket `[Fact]`/`[Theory]` taşıyan ABSTRACT taban sınıflar sevk ediyorsa
+(kendisi çalıştırılabilir bir test PROJESİ değil, tüketicinin test projesinin
+referans vereceği bir KÜTÜPHANE) `xunit.v3` paketi YANLIŞ seçimdir: onun
+`buildTransitive` özellikleri `<OutputType>Exe</OutputType>` dayatır (MTP'nin
+giriş noktası) ve kütüphane derlemesini kırar. `xunit.v3.extensibility.core`
+AYNI `xunit.v3.core.dll`'i, bu zorunluluk olmadan verir — paketin kendi
+açıklaması "test yazarları xunit.v3'ü kullanmalı" der, ama bu paket bir test
+yazarı değil, test yazarının projesinin referans vereceği kütüphanedir.
+`Shouldly` normal PackageReference kalır (private değil) — tüketicinin
+kalıtılan `[Fact]` gövdeleri Shouldly çağırır. Ayrıca: bu paket `src/`
+altındaysa `tests/Directory.Build.props`'un `<Using Include="Xunit"/>` /
+`<Using Include="Shouldly"/>` satırlarını MİRAS ALMAZ — kendi csproj'unda
+tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
+çizgi serbestliği gibi) de kapsamaz; proje yoluna özel yeni bir bölüm gerekir.
+
 ## `Barrier` ile eszamanlilik testi: senkron govde sessizce SIRALI calisir (Faz 81)
 
 - **🚨 `AllowConcurrentInvocation = true` + senkron (`Func<string>`) bir tool

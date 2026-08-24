@@ -284,7 +284,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 -- right. Attribution never legitimately goes from set back to
                 -- unset for the same run, so preserving is always correct.
                 user_id       = COALESCE(excluded.user_id, user_id),
-                labels        = COALESCE(excluded.labels, labels);
+                labels        = COALESCE(excluded.labels, labels)
+            RETURNING user_id, labels;
             """;
 
         UpdateRunCompletion = $"""
