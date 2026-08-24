@@ -85,3 +85,36 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   boyutu da DENIED/atlanan cagrilari SAYMAZ — bir cagri yetkilendirme
   reddiyle govdesine hic girmiyorsa `Barrier` katilimci sayisi o cagriyi
   DISLAR, aksi halde kalan govdeler suresiz bekler (zaman asimina kadar).
+
+## Sevk edilen sozlesme paketi (Faz 98 · 99)
+
+- **🚨 `ContractCoverage` gibi bir "hepsini bul" reflection kapisi, YENI bir
+  sozlesme ailesi eklenince TUM mevcut tuketicileri kirar.** Faz 98'in
+  `ContractTypes()`'i derlemedeki adi `Contract` ile biten her public abstract
+  tipi donduruyordu; Faz 99 sagalayici ailesini ekleyince dort depolama kapsam
+  testi (bellek ici + uc SQL) birden kirmiziya dondu — kendilerine ait olmayan
+  sozlesmeleri turetmedikleri icin. Ders: boyle bir kapi **ilk gunden** bir
+  aile/kapsam parametresi almalidir, ve kapsamsiz asiri yukleme BIRAKILMAMALIDIR
+  (birakmak tuzagi birakmaktir). Eslesme uretmeyen bir kapsam `ArgumentException`
+  atmalidir — aksi halde yazim hatasi "hicbir sozlesme yok, demek ki hepsi
+  kapsanmis" diyen yesil bir kapi uretir (K-610).
+- **🚨 `xunit.v3.extensibility.core` `Assert` TASIMAZ.** `Assert.Skip` /
+  `Assert.SkipWhen` `xunit.v3.assert` paketindedir ve o paket sevk edilen
+  sozlesme paketinin cozulmus grafiginde YOKTUR (olculdu, `project.assets.json`).
+  Kosullu atlama icin xunit v3'un `[Fact(SkipUnless = nameof(X))]` alternatifi
+  de ise yaramaz: `X` **public static** olmali, dolayisiyla ornek duzeyinde
+  sanal bir uyeyi (turetilmis sinifin `override` ettigi bir ozelligi) OKUYAMAZ.
+  Cozum atlamak degil, **ayri bir opt-in sozlesme sinifi** yazmaktir; turetmek
+  niyet beyanidir ve sessizce gecen senaryo kalmaz (K-611).
+- **Bir sozlesme senaryosunun disi var mi — ihlali KASTEN uretip kirmiziyi gor.**
+  Faz 99'da ham-istemci kurali icin bu yapildi: ihlal once **derlenmedi bile**
+  (yalniz `AgentPrism.Abstractions`'a bagli bir saglayici `AsBuilder()`'a
+  erisemez — o tip `Microsoft.Extensions.AI`'dedir). Bu kendi basina bir
+  bulgudur: en olasi hatayi yapmak yapisal olarak zordur. Paket bilerek
+  eklendiginde senaryo uc turetilmis sinifta birden dustu.
+- **Yeni bir `samples/*.Tests` projesi `tests/**` gevsemelerini ALMAZ.**
+  `.editorconfig`'in `[tests/**/*.cs]` bolumu path'e bakar; `samples/` altindaki
+  bir test projesi CA1707 (snake_case test adi) ve xUnit1051'e takilir.
+  `[samples/*.Tests/**/*.cs]` glob'u **eslesmedi** (denendi); bastirmayi projenin
+  kendi `<NoWarn>`'una gerekcesiyle yazmak hem calisiyor hem de yanindaki ornek
+  UYGULAMALARI gevsetmiyor.

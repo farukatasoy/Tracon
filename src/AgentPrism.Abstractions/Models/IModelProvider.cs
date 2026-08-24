@@ -7,8 +7,105 @@ namespace AgentPrism;
 /// example, <c>AgentPrism.OpenAI</c>) and registered with DI.
 /// </summary>
 /// <remarks>
+/// <para>
 /// This abstraction ensures that adding a new provider is <em>not a breaking
 /// change</em>. This is the main rationale for the modular packaging decision.
+/// </para>
+/// <para>
+/// A provider outside the shipped packages is registered with
+/// <c>AddModelProvider()</c>. The runtime contract below is what the registry
+/// and the compile path actually rely on; an implementation that breaks any
+/// of it compiles and passes its own unit tests, then misbehaves only under a
+/// real deployment. The
+/// <c>AgentPrism.Testing.Contracts.Xunit</c> package ships
+/// <c>ModelProviderContract</c>, which asserts the parts of this contract that
+/// can be checked from outside; deriving it is the cheapest way to prove an
+/// implementation honors them.
+/// </para>
+///
+/// <para><strong>Lifetime and threading</strong></para>
+/// <para>
+/// An implementation is used as a <strong>singleton</strong>.
+/// <c>AddModelProvider()</c> registers it with
+/// <c>AddSingleton</c>, and <c>ModelProviderRegistry</c> copies the registered
+/// providers into a lookup <em>once</em>, when it is constructed. Two
+/// consequences follow. A provider must not capture a scoped service — it
+/// would be captured by a singleton and outlive its scope. And the set of
+/// providers is fixed at startup: a provider cannot be added after the
+/// container is built.
+/// </para>
+/// <para>
+/// <see cref="CreateChatClient"/> is called <strong>concurrently</strong> on
+/// the same instance and must be thread-safe. Any per-credential client cache
+/// an implementation keeps is therefore a concurrent one; note that
+/// <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey, TValue}.GetOrAdd(TKey, System.Func{TKey, TValue})"/>
+/// may run its factory <strong>more than once</strong> for the same key when
+/// two threads race, and discard the extra results. A factory that builds a
+/// client must therefore be side-effect free and idempotent: building it twice
+/// must be harmless.
+/// </para>
+///
+/// <para><strong>Naming</strong></para>
+/// <para>
+/// <see cref="Name"/> is matched against <see cref="ModelBinding.Provider"/>
+/// with <see cref="StringComparer.OrdinalIgnoreCase"/>. Registering two
+/// providers under the same name is not last-one-wins: the registry throws
+/// <see cref="AgentPrismException"/> while it is being constructed, so the
+/// host fails at startup rather than silently routing to one of them.
+/// </para>
+///
+/// <para><strong>The model catalog is metadata, not an allow list</strong></para>
+/// <para>
+/// <see cref="Models"/> drives the console's model picker, capability hints,
+/// and cost reporting. It does <strong>not</strong> gate which models may be
+/// used: an implementation is not required to reject a
+/// <see cref="ModelBinding.Model"/> that is absent from the catalog, and the
+/// shipped providers do not — they log at most an informational message, so a
+/// newly published model works without a new AgentPrism release. An empty
+/// catalog is a normal, supported state.
+/// </para>
+/// <para>
+/// The flags on <see cref="ModelDescriptor"/> do not carry equal weight.
+/// <see cref="ModelDescriptor.SupportsStructuredOutput"/> is a real gate:
+/// compilation of an agent that requests JSON output fails when the model is
+/// <em>found</em> in the catalog and the flag is explicitly
+/// <see langword="false"/> (a model absent from the catalog is not checked).
+/// <see cref="ModelDescriptor.SupportsTools"/>,
+/// <see cref="ModelDescriptor.SupportsStreaming"/> and
+/// <see cref="ModelDescriptor.SupportsReasoning"/> are advisory metadata that
+/// nothing enforces at run time.
+/// </para>
+///
+/// <para><strong>Failures</strong></para>
+/// <para>
+/// There is no required exception type. AgentPrism classifies a model-call
+/// failure by the exception's type <em>name</em> and message <em>text</em>
+/// across the whole exception graph, because <c>AgentPrism.Core</c> holds no
+/// compile-time reference to any provider SDK's exception types. What that
+/// means for an implementation: a failure whose message carries
+/// <c>HTTP 429</c>, <c>too many requests</c>, <c>rate limit</c> or
+/// <c>HTTP 5xx</c> lets <see cref="ModelBinding.Fallbacks"/> move to the next
+/// link; <c>HTTP 401</c> and <c>HTTP 403</c> deliberately do not (switching
+/// providers would hide a configuration mistake); an
+/// <see cref="OperationCanceledException"/> anywhere in the graph never
+/// retries; and an <strong>unrecognized</strong> failure does not retry
+/// either, because the retry set is closed and positive.
+/// </para>
+/// <para>
+/// A response the provider filtered for safety is <strong>not</strong> an
+/// exception at this layer. The correct signal is an ordinary
+/// <see cref="Microsoft.Extensions.AI.ChatResponse"/> carrying
+/// <see cref="Microsoft.Extensions.AI.ChatFinishReason.ContentFilter"/>; the
+/// registry's outermost ring turns that into
+/// <c>AgentPrismContentFilteredException</c>. Throwing instead makes the
+/// circuit breaker count a healthy provider as failing.
+/// </para>
+/// <para>
+/// An <see cref="AgentPrismException"/> thrown from
+/// <see cref="CreateChatClient"/> is wrapped as a compilation error naming the
+/// agent; every other exception propagates raw. Use it for a configuration or
+/// binding problem the host author can act on.
+/// </para>
 /// </remarks>
 public interface IModelProvider
 {
@@ -19,6 +116,12 @@ public interface IModelProvider
     string Name { get; }
 
     /// <summary>The models this provider offers.</summary>
+    /// <remarks>
+    /// Metadata, not an allow list — see the remarks on
+    /// <see cref="IModelProvider"/>. This is read on the compile path and may
+    /// be read concurrently; return a stable, immutable collection rather than
+    /// one that is mutated after construction.
+    /// </remarks>
     IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <summary>
@@ -32,7 +135,11 @@ public interface IModelProvider
     /// When given, the provider builds (or reuses a cached) client using
     /// <see cref="ModelProviderCredential.ApiKey"/> and, if present,
     /// <see cref="ModelProviderCredential.Endpoint"/>, instead of its
-    /// setup-time credential.
+    /// setup-time credential. The key itself must never fall back to the
+    /// setup-time key: a tenant that supplied a credential is billed on it or
+    /// the call fails. An endpoint may fall back, so that a globally
+    /// configured base address still applies when a tenant overrides only the
+    /// key.
     /// </param>
     /// <returns>
     /// The provider-specific client. Decorators <em>specific</em> to the
@@ -42,7 +149,9 @@ public interface IModelProvider
     /// <para>
     /// <strong>Do not build the common pipeline here.</strong>
     /// <c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content
-    /// guard, the circuit breaker, and extra resolution are added by
+    /// guard, the circuit breaker, the per-provider concurrency limiter,
+    /// attachment resolution, response caching, the fallback chain and
+    /// content-filter detection are all added by
     /// <c>ModelProviderRegistry.CreateChatClient</c>. Before that shared pipeline, every
     /// provider package built the tool-call loop inside itself; the result
     /// was that no ring the registry wraps around could see the loop's turns
@@ -51,8 +160,40 @@ public interface IModelProvider
     /// <para>
     /// If the loop is also built here, two nested <c>FunctionInvokingChatClient</c>
     /// instances form: the inner one resolves tools, the outer one never sees
-    /// any call. The damage is not functional but measurable (double
-    /// wrapping, a misleading span tree).
+    /// any call. This is <strong>not</strong> merely cosmetic. The registry
+    /// places the content guard directly above the client this method returns,
+    /// so that every turn of the tool-call loop is inspected. With an inner
+    /// loop, the turn that carries a tool result back into the model runs
+    /// <em>beneath</em> the guard: measured on a single-tool run, the guard
+    /// sees the tool result only on its way out
+    /// (<c>ContentGuardDirection.Output</c>) and never on its way in
+    /// (<c>ContentGuardDirection.Input</c>) — which is the exact path prompt
+    /// injection takes. The reply text and the tool-call count are unchanged,
+    /// so nothing else reveals the mistake.
+    /// </para>
+    /// <para>
+    /// <strong>Lifetime of the returned client.</strong> AgentPrism does
+    /// <strong>not</strong> dispose it. The client is built once per compiled
+    /// agent and stored in it; the compiled agent
+    /// (<c>Microsoft.Agents.AI.ChatClientAgent</c>) implements neither
+    /// <see cref="IDisposable"/> nor <see cref="IAsyncDisposable"/>, and
+    /// evicting an agent from the compile cache drops the reference without
+    /// disposing. An implementation therefore owns the lifetime of whatever it
+    /// returns, and what it returns must tolerate never being disposed. This
+    /// is why the shipped providers return clients backed by a long-lived,
+    /// shared SDK client rather than a per-call one: returning a client that
+    /// holds a resource needing release would leak it.
+    /// </para>
+    /// <para>
+    /// <strong>Tenant credentials and the compile cache.</strong> A compiled
+    /// agent's chat client is a fixed pipeline object: once a tenant's
+    /// credential is baked into it, changing or deleting that tenant's binding
+    /// no longer affects it. A cache keyed only by definition identity must
+    /// therefore never hold an agent built with a tenant-specific credential.
+    /// Callers decide that with
+    /// <see cref="IModelProviderRegistry.HasTenantProviderOverrideAsync"/>;
+    /// an implementation only has to honor <paramref name="credential"/>
+    /// faithfully for that to hold.
     /// </para>
     /// </remarks>
     IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null);

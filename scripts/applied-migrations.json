@@ -1,0 +1,7 @@
+{
+  "baselineCommit": "c4e3189",
+  "sourceCommits": {
+    "src/AgentPrism.PostgreSql/Migrations/0032_tenant_provider_bindings.sql": "f261cda36431a876ed5e59bb13ba2a3893014dd5",
+    "src/AgentPrism.PostgreSql/Migrations/0037_run_continuation.sql": "8cf727ac4efc060b8610db96c37d40cb53fdab9a"
+  }
+}

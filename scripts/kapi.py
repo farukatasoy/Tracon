@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 import zipfile
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
@@ -32,6 +32,8 @@ RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
 PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^>]*/>')
 K008_EXEMPT_PACKAGE = "AgentPrism.AspNetCore"
+APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
+GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 
 SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
 SCAN_EXCLUDED_DIRS = {
@@ -165,10 +167,11 @@ def find_secrets(root: pathlib.Path = ROOT) -> list[str]:
 
 
 def scan(root: pathlib.Path = ROOT) -> int:
-    """Run the synchronization-copy and secret scans."""
+    """Run the synchronization-copy, secret, and migration-integrity scans."""
     copies = find_sync_copies(root)
     secrets = find_secrets(root)
-    if not copies and not secrets:
+    migrations = migration_integrity_violations(root)
+    if not copies and not secrets and not migrations:
         print("Tarama: ✅ temiz")
         return 0
 
@@ -182,6 +185,10 @@ def scan(root: pathlib.Path = ROOT) -> int:
             print(f"  {match}")
         if len(secrets) > 20:
             print(f"  … +{len(secrets) - 20}")
+    if migrations:
+        print("Tarama: ❌ uygulanmış migration değişikliği")
+        for violation in migrations:
+            print(f"  {violation}")
     return 1
 
 
@@ -193,6 +200,73 @@ def _git(*args: str) -> list[str] | None:
     if result.returncode:
         return None
     return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def migration_integrity_violations(
+    root: pathlib.Path = ROOT,
+    *,
+    baseline_commit: str | None = None,
+    source_commits: Mapping[str, str] | None = None,
+    source_reader: Callable[[str, str], bytes | None] | None = None,
+) -> list[str]:
+    """Find changes to migrations that already belong to the release line.
+
+    The manifest anchors each migration to immutable Git content. Its base
+    commit freezes the release line; an explicit per-file source commit covers
+    a known repair whose safe content predates that base. Updating the manifest
+    alone can therefore never approve a changed migration byte.
+    """
+    if baseline_commit is None or source_commits is None:
+        manifest = root / APPLIED_MIGRATION_MANIFEST
+        try:
+            loaded = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exception:
+            return [f"{APPLIED_MIGRATION_MANIFEST}: applied migration manifest okunamadı: {exception}"]
+        if not isinstance(loaded, dict):
+            return [f"{APPLIED_MIGRATION_MANIFEST}: git tabanı geçersiz"]
+
+        baseline_commit = loaded.get("baselineCommit")
+        source_commits = loaded.get("sourceCommits", {})
+
+    if not isinstance(baseline_commit, str) or not GIT_COMMIT.fullmatch(baseline_commit):
+        return [f"{APPLIED_MIGRATION_MANIFEST}: baselineCommit geçersiz"]
+    if not isinstance(source_commits, Mapping) or not all(
+        isinstance(path, str) and isinstance(commit, str) and GIT_COMMIT.fullmatch(commit)
+        for path, commit in source_commits.items()
+    ):
+        return [f"{APPLIED_MIGRATION_MANIFEST}: sourceCommits eşlemesi geçersiz"]
+
+    if source_reader is None:
+        def source_reader(commit: str, relative: str) -> bytes | None:
+            try:
+                result = subprocess.run(
+                    ["git", "show", f"{commit}:{relative}"],
+                    cwd=root,
+                    capture_output=True,
+                    check=False,
+                )
+            except OSError:
+                return None
+            return result.stdout if result.returncode == 0 else None
+
+    migrations = sorted(
+        [*root.glob("src/*/Migrations/*.sql"), *root.glob("src/*/MigrationsKnowledge/*.sql")])
+    found = {migration.relative_to(root).as_posix(): migration for migration in migrations}
+    violations: list[str] = []
+
+    for relative, migration in found.items():
+        source_commit = source_commits.get(relative, baseline_commit)
+        source = source_reader(source_commit, relative)
+        if source is None:
+            violations.append(f"{relative}: git tabanı {source_commit[:12]} dosyayı içermiyor")
+            continue
+        if migration.read_bytes() != source:
+            violations.append(f"{relative}: applied migration içeriği git tabanı {source_commit[:12]} ile farklı")
+
+    for relative in sorted(set(source_commits).difference(found)):
+        violations.append(f"{relative}: sourceCommits içinde var ama migration dosyası yok")
+
+    return violations
 
 
 def changed_paths() -> list[str] | None:

@@ -184,15 +184,99 @@ Gerekirse `HashSet<long>` tabanlı bir ikincil indeks eklenir.
 performans sorunu olduğu kanıtlanmadan öncelik verilmez.
 **Mercek:** A (çekirdek çalıştırma yolu).
 
+### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — süreç çöküyor — ✅ KAPATILDI (2026-08-25)
+
+**Nereden geldi:** Faz 99 kapanış kapısının izole koşumu (2026-08-25).
+**Temel commit'te doğrulandı** (`c4e3189`, `git worktree` ile) — Faz 99'un ürünü
+DEĞİL, mevcut bir kusurdur.
+
+**Kapanış:** Worker uçuştaki her işi başlatmadan önce kaydeder; `ExecuteAsync`,
+slot `SemaphoreSlim`'ini dispose etmeden önce bu görevlerin tamamlanmasını
+bekler. `JobWorkerBackgroundServiceTests` `StopAsync`'in iş slotu bırakılmadan
+dönmediğini doğrudan kanıtlar. Ateşle-unut çağrılarının sınıf taramasında kalan
+iki yol (`McpOAuthAuthorizationCoordinator`, lease renewal) sahiplenilen slot
+taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunmadı.
+
+> `JobWorkerBackgroundService.ExecuteAsync` semaforu `using var slots = new
+> SemaphoreSlim(...)` ile sahiplenir (`JobWorkerBackgroundService.cs:62`), ama
+> işleri **ateşle-unut** başlatır: `_ = RunJobAsync(job, slots, stoppingToken)`
+> (satır 129). `RunJobAsync`'in `finally` bloğu `slots.Release()` çağırır
+> (satır 148). Host, uçuştaki bir iş varken kapanırsa `ExecuteAsync` döner,
+> `using` semaforu dispose eder ve gecikmiş `Release()`
+> `ObjectDisposedException` atar.
+
+**Belirti:** Görev `await` edilmediği için exception gözlemlenmez ve
+**işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
+koşmak (`AgentPrism.AspNetCore.FunctionalTests --filter-method
+"*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
+çökertir; aynı çökme `c4e3189` üzerinde birebir tekrarlanır.
+
+**Neden bugüne kadar görünmedi:** Tam çözüm koşumunda süit uzun sürer ve host
+kapanışı uçuştaki işle çakışmaz; çökme yalnız hızlı kapanışta (tek test
+filtresi) ortaya çıkar. Üretimde karşılığı **hızlı yeniden başlatma** veya
+`SIGTERM` sonrası kısa drain penceresidir.
+
+**Kapsam:** Yalnız bu vakayı kapatmak yetmez, **sınıf taraması** ister: bu bir
+"ateşle-unut görev, sahiplenilen kaynağı kapsam dışında serbest bırakıyor"
+kusur sınıfıdır. `grep -rn "_ = [A-Za-z]*Async(" src/` ile taranmalı; her
+bulunan yerde (a) görevin izlenip kapanışta beklenip beklenmediği, (b)
+yakaladığı kaynağın ömrü sorgulanmalı. Olası düzeltme: uçuştaki görevleri bir
+listede tut ve `ExecuteAsync` dönmeden önce `Task.WhenAll` ile bekle; ya da
+semaforu `using` yerine servis ömrüne bağla.
+
+**Değer:** Yüksek — işlenmemiş exception süreci öldürür ve bu, gözlemlenebilirlik
+değil **kullanılabilirlik** sorunudur. Ayrıca `AgentPrism.Core`
+`AgentPrismDrainService` ile zarif kapanış vaat eder; bu kusur o vaadi deler.
+
+**Mercek:** A (çekirdek çalıştırma yolu).
+
 ## B. Model yüzeyi ve yönlendirme
 
-> **Bu bölümde seçilmemiş kalem kalmadı (2026-08-21).** F-45 ve F-134 birlikte
+> **2026-08-25: bölüm F-149 ile yeniden açıldı** (Faz 99 planlamasının
+> ölçümünden). F-45 ve F-134 birlikte
 > [Faz 81](arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md)'e dönüştü — Dalga 13 Küme B.
-> Aşağıdaki satırlar yalnız **iz**dir; gövdeler arşivdedir.
+> Aşağıdaki iz satırlarının gövdeleri arşivdedir.
 
 - **F-45** Yanıt önbelleği → [Faz 81](arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 - **F-134** Eşzamanlı tool çağrısını açığa çıkar → [Faz 81](arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
 - **F-112** Cache ve reasoning token kırılımı → [Faz 68](arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md) 📋 · gövdesi: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)
+
+### F-149 · Sağlayıcı hata sınıflandırması exception tip ADI ve mesaj METNİ üzerinden yapılıyor
+
+**Nereden geldi:** Faz 99 planlamasının kanıt doğrulaması (2026-08-25).
+
+> `FallbackRetryClassifier.IsRetryable` ve `DefaultRunErrorClassifier` bir
+> sağlayıcı hatasının yeniden denenebilir olup olmadığına, exception'ın tip
+> **adına** ve mesaj **metnine** `Regex` uygulayarak karar veriyor
+> (`FallbackChatClient.cs:436-458`: `\bHTTP\s+40[13]\b`, `\b429\b`,
+> `httprequestexception|socketexception|...`). Gerekçe geçerlidir ve kayıtlıdır:
+> `AgentPrism.Core` sağlayıcı SDK'larının exception tiplerine derleme-zamanı
+> referans vermez, bu yüzden tipli `catch` yazılamaz.
+
+**Sorun:** Sonuç kırılgandır ve **sözleşme yüzeyinde görünmez**. Üçüncü taraf bir
+sağlayıcının hata mesajı `HTTP 429` metnini taşımıyorsa fallback zinciri sessizce
+tetiklenmez; sağlayıcı yazarı bunu ancak Faz 99'un belgelediği listeden öğrenir.
+Aynı biçimde, bir SDK'nın mesaj metnini değiştirmesi AgentPrism'in
+sınıflandırmasını haber vermeden bozar.
+
+**Kapsam:** Metin eşlemeyi yapısal bir sözleşmeyle değiştir. Değerlendirilecek
+seçenekler:
+- `IProviderFailureClassifier` — kayıtlı, tüketicinin `TryAdd*` ile değiştirebildiği
+  bir sınıflandırıcı. Metin eşleme varsayılan implementasyon olarak kalır.
+- Sağlayıcı düzeyinde sınıflandırma kancası — `IModelProvider`'a **opsiyonel ikinci
+  arayüz** (`IModelProviderHealthCheck` deseninin tekrarı: uygulamamak hata değil).
+  Sağlayıcı kendi SDK'sının tiplerini bildiği için tipli `catch` yazabilir.
+- AgentPrism'e ait tipli sağlayıcı hatası soyutlaması — sağlayıcı ham exception'ı
+  sarmalar. En temiz sözleşme, ama dört sağlayıcı paketini de değiştirir.
+
+**Değer:** Ölçülmedi. Bugün dört yerleşik sağlayıcının mesaj biçimleri Faz 62'de
+gerçek SDK'lara karşı ölçüldü ve eşleşiyor; sorun **üçüncü taraf** yüzeyinde ve
+SDK sürüm yükseltmelerinde ortaya çıkar.
+
+**Zamanlama:** 🚨 `1.0` API dondurmasından **önce** karara bağlanmalıdır. Üç
+seçenekten ikisi public yüzey ekler; sonradan eklemek kırıcıdır.
+
+**Mercek:** B (model yüzeyi ve yönlendirme).
 
 ### F-146 · Sürüm-sabitli MAF imza kayıtları damıtmada düşüyor
 
@@ -233,6 +317,56 @@ doğrulamak ister; ayrı, dar kapsamlı bir iş.
 **İş:** `runColumns`'daki 3 ağaç maliyet sütununu (üç dialektte de) `{TreeSum("input_cost", "sub", false)}` gibi çağrılara çevir; `SqlTextSnapshotTests` sıfır fark vermeli. Ölçüm: 3 sütun × 3 dialekt = 9 yer.
 
 ---
+
+### F-151 · Uygulanmış iki PostgreSQL migration dosyası sonradan düzenlendi — mevcut kurulumlar yükseltmede BAŞLAMAZ — ✅ KAPATILDI (2026-08-25)
+
+**Nereden geldi:** Faz 99 kapanışının örnek uygulama koşumu (2026-08-25).
+Yerel geliştirme veritabanı `AgentPrismException` ile açılışı durdurdu.
+
+**Kapanış:** `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
+ilk uygulanmış baytlarına döndü. `scripts/kapi.py tarama`,
+`scripts/applied-migrations.json` içindeki Git kaynak commit'lerinden baytları
+okuyarak bütünlüğü doğrular; manifestte checksum değiştirerek migration değişikliği
+onaylanamaz. Örnek API gerçek PostgreSQL veritabanıyla yeniden başladı ve
+`/health` 200 döndü. `dokuman-bakim.py` arşivleme kodu yalnız Markdown dosyalarını
+değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürütüldü.
+
+> `MigrationRunner` uygulanmış her migration'ın checksum'ını saklar ve dosya
+> içeriği değişmişse **açılışı durdurur** — doğru davranıştır, mesajı da
+> doğrudur: "An applied migration is never edited; add a new migration file
+> for the change."
+>
+> Ama commit `9c32242` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
+> yaptı: `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
+> dosyalarındaki **yorum satırlarında** doküman yolunu güncelledi
+> (`docs/65-...md` → `docs/arsiv/fazlar/65-...md`). SQL'in kendisi değişmedi;
+> checksum değişti.
+
+**Etki:** Bu iki migration'ı `9c32242` ÖNCESİNDE uygulamış **her** kurulum,
+yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
+ölçüldü — `samples/AgentPrism.Api` başlamıyor:
+`Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
+Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
+
+**Başlangıçtaki kök neden varsayımı yanlıştı:** Ölçüm, Faz 90 arşivleme yolunun
+yalnız `*.md` dosyalarına dokunduğunu gösterdi. `9c32242` değişikliği başka bir
+toplu düzenleme ile geldi. Yeni kapı aracı değil baytı korur; bu nedenle aynı
+etki hangi düzenleme yolundan gelirse gelsin kırmızıya döner.
+
+**Uygulanan kapsam:**
+1. İki dosyanın **baytları geri alındı** (`git show f261cda:<yol>` ve
+   `git show 8cf727a:<yol>`). Uygulanmış migration değişmez; içindeki bayat
+   doküman bağlantısı checksum'dan daha ucuz bir sorundur.
+2. Arşivleme kodunda SQL hariç tutma yapılmadı; ölçülen kök neden o kod değildir.
+3. **Kapı eklendi:** uygulanmış migration, değiştirilemeyen Git kaynak baytıyla
+   eşleşmezse `kapi.py tarama` kırmızı döner. Bu yol mevcut veritabanına gerek
+   duymaz.
+
+**Değer:** Yüksek ve acil — `preview.1` öncesi kapanmalıdır. Aksi hâlde ilk
+yükseltme yapan tüketici açılışta çöker ve mesaj onu "yeni migration ekle"
+diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
+
+**Mercek:** C (güvenlik, yönetişim ve uyum — veri düzlemi bütünlüğü).
 
 ## C. Güvenlik, yönetişim ve uyum
 

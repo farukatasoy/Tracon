@@ -1,4 +1,5 @@
 using System.Reflection;
+using AgentPrism.Testing.Contracts;
 using AgentPrism.Testing.Contracts.Storage;
 
 namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
@@ -13,5 +14,6 @@ public sealed class StoreContractCoverageTests
 {
     [Fact]
     public void Every_contract_class_has_a_derived_test_in_this_project()
-        => ContractCoverage.MissingDerivedTypes(Assembly.GetExecutingAssembly()).ShouldBeEmpty();
+        => ContractCoverage.MissingDerivedTypes(
+            Assembly.GetExecutingAssembly(), ContractCoverage.StorageContracts).ShouldBeEmpty();
 }

@@ -22,7 +22,7 @@ using System.Runtime.CompilerServices;
 
 // Phase 96: the default $(MSBuildProjectName).UnitTests/.IntegrationTests
 // pattern only covers a test project that shares Core's own project name
-// prefix. These six test projects exercise Core in-memory stores through a
+// prefix. These seven test projects exercise Core in-memory stores through a
 // sibling package's wiring (MCP discovery/tenant tools, workflow test
 // fixtures, an ASP.NET Core functional test, SQL content-protection
 // integration) and were left with real dependencies on now-internal types
@@ -33,3 +33,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("AgentPrism.PostgreSql.IntegrationTests")]
 [assembly: InternalsVisibleTo("AgentPrism.SqlServer.IntegrationTests")]
 [assembly: InternalsVisibleTo("AgentPrism.Sqlite.IntegrationTests")]
+[assembly: InternalsVisibleTo("AgentPrism.Core.UnitTests")]

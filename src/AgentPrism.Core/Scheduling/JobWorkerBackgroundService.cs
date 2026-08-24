@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -34,6 +35,7 @@ internal sealed class JobWorkerBackgroundService(
 {
     private readonly string _ownerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -71,6 +73,13 @@ internal sealed class JobWorkerBackgroundService(
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // Normal shutdown.
+        }
+        finally
+        {
+            // TickAsync leases jobs as concurrent work. The semaphore must stay
+            // alive until every leased job has released its slot, including when
+            // the host stops before the work itself has observed cancellation.
+            await WaitForRunningJobsAsync().ConfigureAwait(false);
         }
     }
 
@@ -126,11 +135,29 @@ internal sealed class JobWorkerBackgroundService(
                 break;
             }
 
-            _ = RunJobAsync(job, slots, stoppingToken);
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            if (!_runningJobs.TryAdd(job.Id, completion.Task))
+            {
+                slots.Release();
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning("Job {JobId} is already executing on this worker.", job.Id);
+                }
+
+                continue;
+            }
+
+            _ = RunJobAsync(job, slots, completion, stoppingToken);
         }
     }
 
-    private async Task RunJobAsync(JobRecord job, SemaphoreSlim slots, CancellationToken stoppingToken)
+    private async Task RunJobAsync(
+        JobRecord job,
+        SemaphoreSlim slots,
+        TaskCompletionSource completion,
+        CancellationToken stoppingToken)
     {
         try
         {
@@ -146,6 +173,16 @@ internal sealed class JobWorkerBackgroundService(
         finally
         {
             slots.Release();
+            _runningJobs.TryRemove(job.Id, out _);
+            completion.TrySetResult();
+        }
+    }
+
+    private async Task WaitForRunningJobsAsync()
+    {
+        while (!_runningJobs.IsEmpty)
+        {
+            await Task.WhenAll(_runningJobs.Values).ConfigureAwait(false);
         }
     }
 

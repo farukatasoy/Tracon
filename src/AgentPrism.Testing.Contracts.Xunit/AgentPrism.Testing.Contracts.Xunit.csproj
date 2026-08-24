@@ -35,6 +35,17 @@
       direct reference; K-008's preview restriction does not apply.
     -->
     <PackageReference Include="Microsoft.Agents.AI" />
+    <!--
+      ModelProviderContract asserts that IModelProvider.CreateChatClient
+      returns a RAW client, using Microsoft.Extensions.AI's own GetService
+      discovery protocol to look for a FunctionInvokingChatClient. That type
+      lives in "Microsoft.Extensions.AI" (GA), not in the .Abstractions
+      package AgentPrism.Abstractions carries. This reference adds NO new
+      package: Microsoft.Agents.AI above already pulls it transitively
+      (measured on the resolved graph); making it explicit only states the
+      dependency this assembly compiles against.
+    -->
+    <PackageReference Include="Microsoft.Extensions.AI" />
   </ItemGroup>
 
   <ItemGroup>

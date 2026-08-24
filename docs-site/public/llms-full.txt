@@ -5032,19 +5032,95 @@ public sealed class ContosoModelProvider(HttpClient httpClient) : IModelProvider
         => new ContosoChatClient(httpClient, binding.Model, credential?.ApiKey);
 }
 
+services.AddHttpClient();
+
 agentPrism.AddModelProvider(services =>
     new ContosoModelProvider(services.GetRequiredService<HttpClient>()));
 ```
 
-`credential` carries a resolved per-tenant key when the host and the requesting
-tenant both opt into BYOK (see [Per-tenant credentials](#per-tenant-credentials-byok)
-above); it is `null` for every call that does not, and a provider that ignores the
-parameter keeps working exactly as before — it simply never honors a tenant's own key.
+A complete, runnable version of this provider — including per-tenant credentials
+and provider-settings validation — lives in the repository at
+`samples/AgentPrism.Samples.CustomModelProvider`. It takes AgentPrism by
+`PackageReference` only, which is what makes it a proof rather than an
+illustration.
 
-`ModelProviderRegistry` wraps every provider — built-in or custom — with the same
-pipeline: function invocation, OpenTelemetry, the content guard, and the circuit
-breaker. Do not build that ring inside `CreateChatClient`; a second, nested
-function-invocation loop hides tool calls from the outer one.
+### The runtime contract
+
+The rules below are what the registry and the compile path actually rely on. An
+implementation that breaks one still compiles and still passes its own unit
+tests; it misbehaves under a real deployment. Verify them by deriving
+`ModelProviderContract` from the
+[`AgentPrism.Testing.Contracts.Xunit`](/packages/) package rather than by reading carefully.
+If your provider supports BYOK, derive its opt-in
+`ModelProviderCredentialContract` too. Its required assertion must inspect the
+provider request boundary (for example a recording transport), not merely a
+different client object; otherwise a new wrapper can still send the setup-time
+key and bill the wrong tenant.
+
+**Lifetime and threading.** Your provider is a **singleton**. It must not capture
+a scoped service, and the provider set is fixed once the container is built.
+`CreateChatClient` is called **concurrently** and must be thread-safe. If you
+cache a client per credential in a `ConcurrentDictionary`, remember that
+`GetOrAdd` may run its factory more than once for the same key under a race and
+discard the extras — so building a client must be side-effect free.
+
+**Return a raw client.** `UseFunctionInvocation()`, OpenTelemetry, the content
+guard, the circuit breaker, the concurrency limiter, attachment resolution,
+response caching, the fallback chain and content-filter detection are all added
+by `ModelProviderRegistry` around whatever you return. Building any of them
+yourself is not merely redundant: the registry places the content guard directly
+above your client so that *every* turn of the tool-call loop is inspected. With
+your own inner loop, the turn that carries a tool result back into the model runs
+beneath the guard — the exact path prompt injection takes — while the reply text
+and the tool-call count stay identical, so nothing else reveals it.
+
+**AgentPrism never disposes the client you return.** It is built once per
+compiled agent and held by it; the compiled agent implements neither
+`IDisposable` nor `IAsyncDisposable`, and evicting one from the compile cache
+drops the reference without disposing. You own the lifetime of what you return,
+and it must tolerate never being disposed — which is why the shipped providers
+return clients backed by a long-lived, shared SDK client.
+
+**Naming.** `Name` is matched against `ModelBinding.Provider` case-insensitively.
+Registering two providers under one name is not last-one-wins: the host fails at
+startup.
+
+**The catalog is not an allow list.** See [the next
+section](#model-catalog-is-metadata-not-permission).
+
+**Credentials.** `credential` carries a resolved per-tenant key when the host and
+the requesting tenant both opt into BYOK (see [Per-tenant
+credentials](#per-tenant-credentials-byok) above); it is `null` for every call
+that does not, and a provider that ignores the parameter keeps working — it
+simply never honors a tenant's own key. If you do honor it, the key must never
+fall back to your setup-time key: a tenant that supplied a credential is billed
+on it, or the call fails. An endpoint may fall back, so a globally configured
+base address still applies when a tenant overrides only its key.
+
+### How failures are classified
+
+AgentPrism decides whether to move to the next `Fallbacks` link by reading the
+exception's type **name** and message **text** across the whole exception graph,
+because the core holds no compile-time reference to any provider SDK's exception
+types. What that means when you write a provider:
+
+| Failure | Next fallback link is tried |
+|---|---|
+| `OperationCanceledException` anywhere in the graph | No |
+| Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
+| Message carries `429`, `too many requests`, or `rate limit` | Yes |
+| Message carries `HTTP 5xx` | Yes |
+| A transport/SDK-client type with no HTTP status in the message | Yes — treated as a connection failure |
+| Anything else | No — the retry set is closed and positive |
+
+Two consequences are worth stating plainly. A provider-side safety filter is
+**not** an exception here: return an ordinary `ChatResponse` with
+`ChatFinishReason.ContentFilter` and AgentPrism raises
+`AgentPrismContentFilteredException` itself. Throwing instead makes the circuit
+breaker count a healthy provider as failing. And an `AgentPrismException` thrown
+from `CreateChatClient` is wrapped as a compilation error naming the agent, while
+every other exception propagates raw — so use it for configuration or binding
+problems the host author can act on.
 
 ## Model catalog is metadata, not permission
 
@@ -5052,10 +5128,18 @@ Every provider options type has a `Models` collection. It drives the console mod
 picker, capability hints, and cost calculation. It is not an allow list. A definition
 can use a model that is absent from the catalog.
 
-This also means the catalog must be accurate. If a listed model leaves
-`SupportsStructuredOutput` at its default `false`, an agent that requests JSON or JSON
-Schema output fails compilation. See
-[Structured output](/guides/structured-output/).
+The four capability flags do not carry equal weight, and only one of them is a
+gate:
+
+| Flag | What it does |
+|---|---|
+| `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
+| `SupportsTools` | Advisory metadata — nothing enforces it at run time |
+| `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |
+| `SupportsReasoning` | Advisory metadata — nothing enforces it at run time |
+
+The advisory flags still drive the console's picker and capability hints, so an
+inaccurate catalog misleads a human even where it cannot fail a run.
 
 ## Response caching
 
@@ -7873,7 +7957,7 @@ Add these when you need them.
 | `AgentPrism.Azure` | You call Azure OpenAI deployments |
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
-| `AgentPrism.Testing.Contracts.Xunit` | You write your own `IRunStore` (or another store interface) and want the same behavior tests the four shipped stores run |
+| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another) or your own `IModelProvider`, and want the behavior contract the shipped implementations run |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
 `AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional

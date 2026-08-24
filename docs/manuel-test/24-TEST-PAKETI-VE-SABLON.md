@@ -2,7 +2,8 @@
 
 > **Alan kodu:** `TEST` · **Faz:** 37 (`dotnet new` şablonu), 39 (`AgentPrism.Testing`),
 > 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi),
-> 98 (depolama sözleşmesi paketi ve örnek store)
+> 98 (depolama sözleşmesi paketi ve örnek store),
+> 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı)
 > **Kaynak:** `src/AgentPrism.Templates/` (tümü — `content/AgentPrism.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/AgentPrism.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
@@ -2309,5 +2310,255 @@ https://agentprism.doayen.web.tr/guides/write-your-own-store/
   ekseninin (idempotency, üç kiracı modu, thread safety, null/bulunamadı,
   olay sırası, yinelenen `Sequence`) her birini anlatır.
 - Kod örneği derlenebilir gerçek imzalar kullanır — uydurma metot adı yok.
+
+---
+
+### MT-TEST-078 — Örnek sağlayıcı yalnız NuGet paketleriyle derlenir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | K-265 |
+
+**Ön koşul**
+- Temiz klon. `dotnet pack AgentPrism.src.slnf -c Release` koşuldu (yerel besleme dolu).
+
+**Adımlar**
+1. Örnek sağlayıcı kütüphanesinin proje referansı taşımadığını doğrula.
+2. Derle.
+
+**Girilecek veri**
+```bash
+grep -c ProjectReference samples/AgentPrism.Samples.CustomModelProvider/*.csproj
+dotnet build samples/AgentPrism.Samples.CustomModelProvider -c Release
+```
+
+**Beklenen sonuç**
+- İlk komut `0` yazar — yalnız `PackageReference`.
+- Derleme başarılıdır. `IModelProvider` yalnız `AgentPrism.Abstractions`
+  paketiyle uygulanabilir; çalışma anı paketi (`AgentPrism.Core`) gerekmez.
+
+---
+
+### MT-TEST-079 — `ModelProviderContract` örnek sağlayıcıya karşı yeşil geçer, hiçbir senaryo atlanmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-TEST-078` geçti.
+
+**Adımlar**
+1. Örnek sağlayıcının test projesini koş.
+
+**Girilecek veri**
+```bash
+dotnet test samples/AgentPrism.Samples.CustomModelProvider.Tests -c Release
+```
+
+**Beklenen sonuç**
+- Tüm testler geçer ve `skipped: 0`'dır. İsteğe bağlı davranış atlanan bir
+  senaryo değil, **türetilmeyen bir sınıftır** — bu yüzden sessizce geçen
+  senaryo yoktur.
+- Türetilen sınıflar: `ModelProviderContract`,
+  `ModelProviderCredentialContract`, `ModelProviderSettingsContract`.
+- `ProviderContractCoverageTests` yeşildir: paketin sağlayıcı ailesindeki her
+  sözleşme sınıfının türevi vardır.
+
+---
+
+### MT-TEST-080 — Ham istemci kuralı ihlal edilince suite KIRMIZI olur ve nedenini söyler
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | K-320 |
+
+**Ön koşul**
+- `MT-TEST-079` geçti.
+
+**Adımlar**
+1. `ContosoModelProvider.CreateChatClient`'ın dönüş satırını kasten sarmala:
+   `.AsBuilder().UseFunctionInvocation().Build()`.
+2. Testleri koş.
+3. Geri al, tekrar koş.
+
+**Girilecek veri**
+```bash
+dotnet test samples/AgentPrism.Samples.CustomModelProvider.Tests -c Release
+```
+
+**Beklenen sonuç**
+- Adım 1 önce **derlenmez**: yalnız `AgentPrism.Abstractions`'a bağlı bir
+  sağlayıcı `AsBuilder()`'a erişemez. Bu kendi başına bir bulgudur — ihlali
+  yapmak için `Microsoft.Extensions.AI` referansını bilerek eklemek gerekir.
+- Referans eklendikten sonra adım 2'de
+  `Create_chat_client_returns_a_raw_client_that_builds_no_tool_call_loop`
+  **her üç** türetilmiş sınıfta düşer.
+- Hata mesajı ortak boru hattının `ModelProviderRegistry`'ye ait olduğunu ve
+  iç içe döngünün tool sonucu turunu content guard'dan **gizlediğini** söyler.
+- Adım 3'ten sonra hepsi yeniden yeşildir.
+
+---
+
+### MT-TEST-081 — Yeni sözleşme ailesi depolama kapsam kapılarını kırmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. Bellek içi ve SQLite kapsam testlerini koş.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*ContractCoverage*"
+./artifacts/bin/AgentPrism.Sqlite.IntegrationTests/release/AgentPrism.Sqlite.IntegrationTests --filter-method "*ContractCoverage*"
+```
+
+**Beklenen sonuç**
+- İkisi de geçer (PostgreSQL ve SQL Server aynı kod yolunu koşar, container ister).
+- `ContractCoverage.MissingDerivedTypes` her çağrıda bir **aile adı** alır;
+  aile adı almayan aşırı yükleme yoktur. Bir depolama tüketicisi, AgentPrism
+  sağlayıcı sözleşmesi yayınladı diye kırılamaz.
+
+---
+
+### MT-TEST-082 — Boru hattı sahipliği regresyonu davranış üzerinden ölçer, tip adı saymaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | K-320 |
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. Regresyon testini koş.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-method "*PipelineOwnership*"
+```
+
+**Beklenen sonuç**
+- Üç test geçer.
+- İddia "kaç `FunctionInvokingChatClient` var" **değildir**; guard'ın tool
+  sonucunu `ContentGuardDirection.Input` yönünde görüp görmediğidir.
+- Test, ihlal edilen kurulumda yanıt metninin ve tool çağrı sayısının **aynı**
+  kaldığını da doğrular — hasarın başka hiçbir yerden görünmediğini kanıtlar.
+
+---
+
+### MT-TEST-083 👤 — Sağlayıcı sözleşmesinin sekiz maddesi yalnız kaynak kodda yaşamıyor
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 99 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Site derlenmiş veya yayında.
+
+**Adımlar**
+1. Yalnız iki yüzeyi oku: `IModelProvider` API referans sayfası ve
+   `guides/model-providers/` sayfasının "A provider without a package" bölümü.
+2. Sekiz maddenin her birinin açıkça yazılı olduğunu doğrula.
+
+**Girilecek veri**
+```
+https://agentprism.doayen.web.tr/api/agentprism.imodelprovider/
+https://agentprism.doayen.web.tr/guides/model-providers/
+```
+
+**Beklenen sonuç**
+Sekizi de bulunur; hiçbiri için `ModelProviderRegistry.cs` okumak gerekmez:
+singleton ömrü · eşzamanlı çağrı ve thread safety · ham istemci · ortak
+halkaların registry'ye aitliği ve ihlalin guard'a etkisi · dispose sahipliği ·
+credential fabrikasının yan etkisiz olması · `OrdinalIgnoreCase` ad
+karşılaştırması ve yinelenen kaydın kurulumda hata vermesi · kataloğun izin
+listesi olmaması.
+
+Ayrıca yetenek bayraklarından yalnız `SupportsStructuredOutput`'un zorlandığı
+ve yalnız model katalogda **bulunuyorsa** zorlandığı; diğer üçünün tavsiye
+niteliğinde olduğu yazılıdır.
+
+---
+
+### MT-TEST-084 — Worker kapanışı uçuştaki job slotunu bırakmadan dönmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 99 / F-150 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. Worker kapanış yarış testi koşulur.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py test --proje AgentPrism.Core.UnitTests --sinif '*JobWorkerBackgroundServiceTests*'
+```
+
+**Beklenen sonuç**
+- Bir test geçer.
+- `StopAsync`, çalışan handler serbest bırakılana kadar tamamlanmaz.
+- Handler tamamlanınca worker slotu serbest bırakır; dispose edilmiş
+  `SemaphoreSlim` için `ObjectDisposedException` veya süreç çöküşü oluşmaz.
+
+---
+
+### MT-TEST-085 — Uygulanmış PostgreSQL migration Git tabanındaki baytla aynıdır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 99 / F-151 |
+| **İlgili karar** | K-612 |
+
+**Ön koşul**
+- Git geçmişi sığ klon değildir; manifestteki kaynak commit'ler çözülebilir.
+
+**Adımlar**
+1. Migration bütünlük kapısını koş.
+2. Kapı birim testlerini koş.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py tarama
+python3 -m unittest scripts.kapi_test -v
+```
+
+**Beklenen sonuç**
+- Tarama temiz biter.
+- `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`, ilk
+  uygulanmış kaynak commit'lerindeki baytlarıyla eşleşir.
+- Manifestte checksum değeri değiştirilse bile migration dosyasını değiştirmek
+  kabul edilmez; birim testleri bu bypass denemesini kırmızıya çevirir.
 
 ---
