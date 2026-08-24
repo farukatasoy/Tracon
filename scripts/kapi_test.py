@@ -109,6 +109,53 @@ class KapiTestleri(unittest.TestCase):
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
             self.assertIsNone(kapi.changed_paths())
 
+    def test_uygulanmis_migration_git_tabanıyla_ayni_olmalidir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            migration = root / "src" / "Example" / "Migrations" / "0001_initial.sql"
+            migration.parent.mkdir(parents=True)
+            original = b"CREATE TABLE example ();\n"
+            migration.write_bytes(original)
+            source = lambda commit, relative: original if (commit, relative) == ("abcdef1", migration.relative_to(root).as_posix()) else None
+
+            self.assertEqual(
+                kapi.migration_integrity_violations(
+                    root,
+                    baseline_commit="abcdef1",
+                    source_commits={},
+                    source_reader=source),
+                [])
+
+            migration.write_text("CREATE TABLE changed_example ();\n", encoding="utf-8")
+
+            violations = kapi.migration_integrity_violations(
+                root,
+                baseline_commit="abcdef1",
+                source_commits={},
+                source_reader=source)
+
+        self.assertEqual(len(violations), 1)
+        self.assertIn("0001_initial.sql", violations[0])
+        self.assertIn("git tabanı", violations[0])
+
+    def test_manifesti_değiştirmek_uygulanmis_migration_değişikliğini_onaylayamaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            migration = root / "src" / "Example" / "Migrations" / "0001_initial.sql"
+            migration.parent.mkdir(parents=True)
+            original = b"CREATE TABLE example ();\n"
+            migration.write_text("CREATE TABLE changed_example ();\n", encoding="utf-8")
+            source = lambda commit, relative: original if (commit, relative) == ("abcdef1", migration.relative_to(root).as_posix()) else None
+
+            violations = kapi.migration_integrity_violations(
+                root,
+                baseline_commit="abcdef1",
+                source_commits={},
+                source_reader=source)
+
+        self.assertEqual(len(violations), 1)
+        self.assertIn("git tabanı", violations[0])
+
 
 class YayinTestleri(unittest.TestCase):
     """`scripts/kapi.py yayin` (Faz 97, 97.2) - saf Python mantığı. `dotnet

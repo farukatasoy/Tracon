@@ -6,7 +6,7 @@
 -- THE END, no foreign key (the source run can be deleted by the retention
 -- policy without affecting the continuation).
 --
--- Rationale: docs/arsiv/fazlar/87-KESILEN-ISIN-DEVAMI.md
+-- Rationale: docs/87-KESILEN-ISIN-DEVAMI.md
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE {schema}.runs

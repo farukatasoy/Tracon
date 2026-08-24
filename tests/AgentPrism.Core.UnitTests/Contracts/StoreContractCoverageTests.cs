@@ -1,4 +1,5 @@
 using System.Reflection;
+using AgentPrism.Testing.Contracts;
 using AgentPrism.Testing.Contracts.Storage;
 
 namespace AgentPrism.Core.UnitTests.Contracts;
@@ -28,5 +29,6 @@ public sealed class StoreContractCoverageTests
 
     [Fact]
     public void Every_contract_class_has_a_derived_test_or_a_documented_exemption()
-        => ContractCoverage.MissingDerivedTypes(Assembly.GetExecutingAssembly(), Exemptions).ShouldBeEmpty();
+        => ContractCoverage.MissingDerivedTypes(
+            Assembly.GetExecutingAssembly(), ContractCoverage.StorageContracts, Exemptions).ShouldBeEmpty();
 }
