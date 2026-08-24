@@ -1,13 +1,13 @@
 # Faz 97 — Sürüm Politikası ve Yayın Provası
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 2** (stabil sürüm MAF ön sürümüne yapısal olarak bağlı) + **madde 1** (1.0 yok; public API'nin tamamı `Unshipped`). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 4).
-> **Önkoşul:** [Faz 96](arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) — yüzey küçültme yayından **önce** bitmeliydi; bitti (618 tip). Yayın anından sonra aynı iş bir sürüm kararı olurdu.
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 2** (stabil sürüm MAF ön sürümüne yapısal olarak bağlı) + **madde 1** (1.0 yok; public API'nin tamamı `Unshipped`). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 4).
+> **Önkoşul:** [Faz 96](96-PUBLIC-YUZEY-KUCULTME.md) — yüzey küçültme yayından **önce** bitmeliydi; bitti (618 tip). Yayın anından sonra aynı iş bir sürüm kararı olurdu.
 > **Paketler:** `src/` altındaki **19** paketin hepsi. Kod değişmez; `src/Directory.Build.props`, 19 `.csproj` ve CI değişir.
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Değişmiyor.** `PublicAPI.Unshipped.txt` dosyalarına satır eklenmez, silinmez. `Shipped.txt` dosyaları **boş kalır** — bkz. 97.1, karar 2.
 > **Tüketici yüzeyi:** site: `docs-site/src/content/docs/reference/compatibility.md` (başlık ve tablo **17 → 19**; `AgentPrism.Client` ve `AgentPrism.Cli` satırları eklenir) · `reference/versioning.md` (tek sürüm hattı ve `Shipped` politikası beyanı) · sevk edilen: **19 `.nupkg`'nin hepsi `icon.png` kazanır** — nuget.org paket kartında ikon görünür; paket `README.md`'leri değişmez
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) — alan kodu `PKG`, sıradaki case **MT-PKG-097**
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) — alan kodu `PKG`, sıradaki case **MT-PKG-097**
 
 ---
 
@@ -22,7 +22,7 @@
    grep -n "K-006\|K-007\|K-008\|K-017\|K-068\|K-265\|K-421\|K-424" docs/KARARLAR.md
    ```
    **K-006** (trim/AOT varsayılan açık) · **K-007** (geçişli sabitleme kapalı; yeni paket gerekçe ister) · **K-008** (ön sürüm MAF bağımlılığı yalnız `AgentPrism.AspNetCore`) · **K-017** (sürüm MinVer ile git etiketinden) · **K-068** (Faz 7 sıradan çıkarıldı; **bu faz onu kapatır**) · **K-265** (şablon paket sürümü kayan `*-*`) · **K-421** (public API takibi yayından bağımsız açıldı) · **K-424** (dört proje public API takibi dışında).
-3. [Faz 96](arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) — yalnız devir notu:
+3. [Faz 96](96-PUBLIC-YUZEY-KUCULTME.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md
    ```
@@ -30,9 +30,9 @@
    `PublicApiTrackingDeclarationTests` (her yeni packable paket beyan ister).
    İkisi de bu fazda **korunur**; bu faz yeni paket eklemez.
 4. Alan hafızası — bu faz **iki** alana dokunuyor:
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (🚨 `<None Update=...>`
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (🚨 `<None Update=...>`
    çapraz-hedefli projede sessizce hiçbir şey yapmaz — `icon.png` bu tuzağın tam
-   içindedir) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (site kapıları,
+   içindedir) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (site kapıları,
    `docs/` ile `docs-site/` ayrımı).
 5. Keşif turunun ölçülmüş zemini — yalnız **bölüm 7.4**:
    ```bash
@@ -70,13 +70,13 @@ olur.**
 | `unzip -p AgentPrism.Core...nupkg AgentPrism.Core.nuspec` | `README.md`, `license`, `repository` + `commit` ve üç TFM için `.xml` doküman var. **`<icon>` yok** — hiçbir pakette `PackageIcon` tanımlı değil. |
 | `grep -rn "PackageValidation" src/ Directory.Build.props` | Çıktı boş. Paket doğrulama **kapalı**; net8/9/10 arasındaki API farkı hiçbir kapıda ölçülmüyor. |
 | 19 `.nuspec`'in ön sürüm bağımlılık taraması | **Yalnız `AgentPrism.AspNetCore`** ön sürüm bağımlılığı beyan ediyor (`A2A.AspNetCore 1.0.0-preview2`, dört `Microsoft.Agents.AI.Hosting*`). K-008 bugün **tutuyor** ama bunu koruyan bir kapı yok. |
-| [`.github/workflows/ci.yml:6`](../.github/workflows/ci.yml) · `:211` · `:245` | Tetik `tags: ['v*']`. `publish` ve `npm-publish` `startsWith(github.ref, 'refs/tags/v')` ile açılır. **Kuru koşum yolu yoktur**; ilk `v*` etiketi doğrudan iki kanala birden yazar. |
-| [`ci.yml:209`](../.github/workflows/ci.yml) | `publish: needs: pack`. Yayın işinin önünde paket **içeriğini** doğrulayan hiçbir iş yok. |
-| [`docs-site/.../reference/compatibility.md:24`](../docs-site/src/content/docs/reference/compatibility.md) | Başlık **"The 17 packages"**, tablo 17 satır. Depo **19** paket üretiyor; `AgentPrism.Client` ve `AgentPrism.Cli` tabloda yok. |
-| [`docs-site/scripts/check-content.mjs:92-115`](../docs-site/scripts/check-content.mjs) | `packageCount` doğru sayılıyor (19) ama **yalnız açılış sayfası** metriğiyle karşılaştırılıyor. `compatibility.md` bu yüzden sessizce saptı. |
+| [`.github/workflows/ci.yml:6`](../../../.github/workflows/ci.yml) · `:211` · `:245` | Tetik `tags: ['v*']`. `publish` ve `npm-publish` `startsWith(github.ref, 'refs/tags/v')` ile açılır. **Kuru koşum yolu yoktur**; ilk `v*` etiketi doğrudan iki kanala birden yazar. |
+| [`ci.yml:209`](../../../.github/workflows/ci.yml) | `publish: needs: pack`. Yayın işinin önünde paket **içeriğini** doğrulayan hiçbir iş yok. |
+| [`docs-site/.../reference/compatibility.md:24`](../../../docs-site/src/content/docs/reference/compatibility.md) | Başlık **"The 17 packages"**, tablo 17 satır. Depo **19** paket üretiyor; `AgentPrism.Client` ve `AgentPrism.Cli` tabloda yok. |
+| [`docs-site/scripts/check-content.mjs:92-115`](../../../docs-site/scripts/check-content.mjs) | `packageCount` doğru sayılıyor (19) ama **yalnız açılış sayfası** metriğiyle karşılaştırılıyor. `compatibility.md` bu yüzden sessizce saptı. |
 | `find src -name PublicAPI.Shipped.txt` | 16 dosya, hepsi boş (yalnız `#nullable enable`). `Unshipped`: **7.532** girdi · **618** tip. |
 | `curl` → nuget.org · npm registry | `agentprism`, `agentprism.core` ve `@agentprism/client` kimliklerinin **üçü de boşta** (HTTP 404). `AgentPrism.*` prefix'i rezerve **değil**. |
-| [`docs-site/public/favicon.svg`](../docs-site/public/favicon.svg) | Faz 76 görsel kimliği burada, SVG olarak. **nuget.org SVG kabul etmez**; PNG türetilmelidir. `sharp` zaten `docs-site/package.json:24` bağımlılığıdır. |
+| [`docs-site/public/favicon.svg`](../../../docs-site/public/favicon.svg) | Faz 76 görsel kimliği burada, SVG olarak. **nuget.org SVG kabul etmez**; PNG türetilmelidir. `sharp` zaten `docs-site/package.json:24` bağımlılığıdır. |
 
 > Kanıtlar **2026-08-24** tarihinde ölçüldü. Envanterin (2026-08-23) "8.063 girdi ·
 > 716 tip" değeri Faz 96 ile düşmüştür; yukarıdaki sayılar günceldir.
@@ -161,7 +161,7 @@ flowchart LR
   yalnız yayın gününde değil, sürekli koşar.
 - `publish` ve `npm-publish` işlerinin `needs:` satırı `release-dryrun`'ı içerir.
   Bugün `publish: needs: pack` ve `npm-publish: needs: build`
-  ([`ci.yml:209`](../.github/workflows/ci.yml), `:244`) — **ikisi de değişir.**
+  ([`ci.yml:209`](../../../.github/workflows/ci.yml), `:244`) — **ikisi de değişir.**
   Bu, geri dönüşü olmayan adımın önüne bir kapı koyan tek satırdır.
 
 ---
@@ -227,7 +227,7 @@ atamaz.
 
 İki iş, ayrılmaz:
 
-**(a) Düzeltme.** [`reference/compatibility.md:24`](../docs-site/src/content/docs/reference/compatibility.md)
+**(a) Düzeltme.** [`reference/compatibility.md:24`](../../../docs-site/src/content/docs/reference/compatibility.md)
 başlığı **"The 19 packages"** olur ve tabloya iki satır girer:
 
 | Package | Meta | Frameworks | Native AOT | Purpose or limit |
@@ -271,9 +271,9 @@ Adım 3'ün geri alınamazlığı belgede **açıkça** yazılır:
 - nuget.org'a giden bir paket **silinemez**, yalnız listeden düşürülür (unlisted);
   aynı kimlik + sürüm ikinci kez yayınlanamaz. Düzeltme yolu `preview.2`'dir.
 - `npm publish` aynı sürümü ikinci kez reddeder; CI bunu önceden yoklar ve adımı
-  atlar ([`ci.yml:283-293`](../.github/workflows/ci.yml)), yani **iş kırılmaz**.
+  atlar ([`ci.yml:283-293`](../../../.github/workflows/ci.yml)), yani **iş kırılmaz**.
 - `dotnet nuget push --skip-duplicate` kısmi başarıdan sonra tekrar koşmayı
-  güvenli kılar ([`ci.yml:228`](../.github/workflows/ci.yml)).
+  güvenli kılar ([`ci.yml:228`](../../../.github/workflows/ci.yml)).
 - Her iki yayın işi de GitHub `environment` kapısı arkasındadır (`nuget`, `npm`);
   onay gerektirecek biçimde yapılandırılabilir. **Yapılandırıldığı doğrulanmalı** —
   bugün yalnız `environment:` satırı ölçüldü, kapının kendisi ölçülmedi.
@@ -337,7 +337,7 @@ docs/manuel-test/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetildi. Seviyeyi plan seçer.
 > Bu fazın her davranışı **paket sınırını** geçer; birim testi hiçbirini
-> kanıtlayamaz ([`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)).
+> kanıtlayamaz ([`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md)).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
