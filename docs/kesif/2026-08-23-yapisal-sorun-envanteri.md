@@ -206,7 +206,7 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 
 ### 7. Public yüzey yayın kararından önce şişti · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 96](../96-PUBLIC-YUZEY-KUCULTME.md).
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 96](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md).
 >
 > 🚨 **Plan anında bölüm 7.3'ün önerdiği ölçüt YANLIŞLANDI.** "`src/` dışından
 > referans almayan tip `internal`'a çekilir" mekanik olarak uygulanamaz: ad
@@ -530,8 +530,8 @@ tarafından sabitlendi.
 | Sıra | Adım | Skill |
 |---:|---|---|
 | 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
-| 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
+| 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) ← **sıradaki adım** | `faz-planlama` |
 | 5 | **Faz 97 uygulama** | zincir |
 | 6 | **Blok B** — madde 12 · 15 · 23 (üçü de tek oturumluk) | — |
