@@ -1,13 +1,13 @@
 # Faz 98 — Depolama Sözleşmesinin Yayını
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** Kullanıcı kalemi (2026-08-24) — `ADAYLAR.md`'de değildir, F numarası yoktur. [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) **madde 23** (bus factor = 1; topluluk giriş rampası yok) ile aynı ekseni **kısmen** kapatır — bu faz **teknik** giriş rampasını kurar; `CONTRIBUTING.md` ve İngilizce mimari özeti madde 23'te **açık kalır**.
-> **Önkoşul:** [Faz 97](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — `dotnet pack` provası ve `ReleaseArtifactTests` altyapısı bu fazın 98.5 kabul kanıtında yeniden kullanıldı.
+> **Kaynak:** Kullanıcı kalemi (2026-08-24) — `ADAYLAR.md`'de değildir, F numarası yoktur. [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) **madde 23** (bus factor = 1; topluluk giriş rampası yok) ile aynı ekseni **kısmen** kapatır — bu faz **teknik** giriş rampasını kurar; `CONTRIBUTING.md` ve İngilizce mimari özeti madde 23'te **açık kalır**.
+> **Önkoşul:** [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — `dotnet pack` provası ve `ReleaseArtifactTests` altyapısı bu fazın 98.5 kabul kanıtında yeniden kullanıldı.
 > **Paketler:** `AgentPrism.Abstractions` (`IRunStore` XML doküman + `ApiKeyGenerator`/`GeneratedApiKey` taşındı) · `AgentPrism.Core` (`ApiKeyGenerator` çıktı) · `AgentPrism.Sql.Shared` · `AgentPrism.PostgreSql` · `AgentPrism.SqlServer` · `AgentPrism.Sqlite`
 > **Yeni paket:** **Evet — `AgentPrism.Testing.Contracts.Xunit`** (planın taslak adı `AgentPrism.Testing.Contracts` değil — kullanıcı kararı, 98-E). K-007 gerekçesi 98.1'dedir; geçişli ağırlık ölçüldü: `AgentPrism.Abstractions` + `Microsoft.Agents.AI` (GA, `AgentFileStoreContract` için) + `xunit.v3.extensibility.core` 3.2.2 + `Shouldly` 4.3.0 — `AgentPrism.Core` **inmiyor** (bkz. Plandan Sapmalar 1, 2). Yalnız tüketicinin test projesine iner · **Migration:** Yok
 > **Public API:** **Büyüdü** — yeni paketin tamamı yeni yüzey (36 tip). `AgentPrism.Abstractions` da büyüdü (+2: `ApiKeyGenerator`, `GeneratedApiKey`, K-606 ile taşındı); `AgentPrism.Core` aynı miktarda küçüldü. `PublicAPI.Shipped.txt` dosyalarının hepsi hâlâ boştur (K-421 · K-603), dolum ucuz kaldı.
 > **Tüketici yüzeyi:** site: `docs-site/src/content/docs/guides/write-your-own-store.md` (yeni sayfa) · `packages.md` (yeni paket satırı, 3 yerde 19→20/nineteen→twenty) · `index.mdx` (19→20) · `reference/compatibility.md` (**19 → 20**, yeni satır) · sevk edilen: `src/AgentPrism.Testing.Contracts.Xunit/README.md` (yeni) · `src/AgentPrism.Abstractions/README.md` (Storage seams bölümüne yönlendirme satırı) · `IRunStore` XML `<remarks>` (altı eksen)
-> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md) — alan kodu `TEST`, MT-TEST-073..077 eklendi
+> **Manuel test alanı:** [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md) — alan kodu `TEST`, MT-TEST-073..077 eklendi
 
 ---
 
@@ -26,16 +26,16 @@
    **K-270** (`AgentPrism.Testing` yalnız `net10.0`; **yeni paket bu kısıtı MİRAS ALMAZ**, gerekçesi `TestHost`'tur ve yeni paket onu almaz),
    **K-355** (çalıştırmanın alt yazmaları BEKLENEN kiracıyı taşır — 98.3'ün kiracı tablosunun kaynağı),
    **K-421** (public API takibi açık ama `Shipped.txt` boş)
-3. [Faz 97](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — yalnız devir notu:
+3. [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md
    ```
    `dotnet pack` provası ve `ReleaseArtifactTests` sözleşmesi devralınır; 98.5 bunun üstüne kurulur.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (sözleşme testi altyapısı) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yeni paket kontrol listesi) ·
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (98.4'ün üç dialect'i)
-5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (sözleşme testi altyapısı) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (yeni paket kontrol listesi) ·
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (98.4'ün üç dialect'i)
+5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md)
 
 ---
 
@@ -57,13 +57,13 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`tests/Shared/`](../tests/Shared/) — `.csproj` **yok** | Sözleşme suite'i linked source'tur; dört test projesi `<Compile Include="../Shared/**/*.cs" …>` ile bağlar ([`AgentPrism.Core.UnitTests.csproj:28`](../tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj)). Hiçbir `.nupkg` içine girmez |
-| [`src/AgentPrism.Testing/AgentPrism.Testing.csproj`](../src/AgentPrism.Testing/AgentPrism.Testing.csproj) son yorum | Paket **hiçbir** test çerçevesi paketi almaz (Faz 39 kararı, arşiv satır 67). Suite'i buraya taşımak o sözleşmeyi kırar |
-| [`src/AgentPrism.Abstractions/Runs/IRunStore.cs`](../src/AgentPrism.Abstractions/Runs/IRunStore.cs) — `StartRunAsync` XML'i | Yalnız "Opens a new run record" der. Metot gerçekte bir **UPSERT**'tür ve kuyruklu `run` için aynı id ile **iki kez** çağrılır |
-| [`src/AgentPrism.Core/Storage/InMemoryRunStore.cs:71`](../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) · [`src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs:218`](../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs) | `UserId` ve `Labels` **COALESCE** edilmelidir; düz overwrite ilk yazımın attribution'ını siler. Kural yalnız bu iki yorumda yazılı |
-| `InMemoryRunStore.cs` dönüş · [`src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs:111`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) | İkinci `StartRunAsync` çağrısında bellek içi store **birleştirilmiş** kaydı, SQL store **ham** `record`'u (`UserId` `null` olabilir) döndürür. Hiçbir sözleşme testi dönüş değerini denetlemiyor — doğrulama `GetRunAsync` üzerinden |
-| [`src/AgentPrism.PostgreSql/Migrations/0001_initial.sql:180`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) — `PRIMARY KEY (run_id, seq)` | Yinelenen `seq` SQL'de `DbException` fırlatır ve [`SqlRunStore.cs:142`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) yalnız **foreign key** ihlalini `AgentPrismException`'a çevirir — PK ihlali ham sürücü istisnası olarak sızar. Bellek içi store aynı `seq`'i **sessizce** ikinci kez ekler. Sözleşme testi yok |
-| [`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:543`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `IRunStore` **Singleton** kaydedilir. Thread-safe olma zorunluluğu ne interface'te ne README'de yazılı |
+| [`tests/Shared/`](../../../tests/Shared) — `.csproj` **yok** | Sözleşme suite'i linked source'tur; dört test projesi `<Compile Include="../Shared/**/*.cs" …>` ile bağlar ([`AgentPrism.Core.UnitTests.csproj:28`](../../../tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj)). Hiçbir `.nupkg` içine girmez |
+| [`src/AgentPrism.Testing/AgentPrism.Testing.csproj`](../../../src/AgentPrism.Testing/AgentPrism.Testing.csproj) son yorum | Paket **hiçbir** test çerçevesi paketi almaz (Faz 39 kararı, arşiv satır 67). Suite'i buraya taşımak o sözleşmeyi kırar |
+| [`src/AgentPrism.Abstractions/Runs/IRunStore.cs`](../../../src/AgentPrism.Abstractions/Runs/IRunStore.cs) — `StartRunAsync` XML'i | Yalnız "Opens a new run record" der. Metot gerçekte bir **UPSERT**'tür ve kuyruklu `run` için aynı id ile **iki kez** çağrılır |
+| [`src/AgentPrism.Core/Storage/InMemoryRunStore.cs:71`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) · [`src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs:218`](../../../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs) | `UserId` ve `Labels` **COALESCE** edilmelidir; düz overwrite ilk yazımın attribution'ını siler. Kural yalnız bu iki yorumda yazılı |
+| `InMemoryRunStore.cs` dönüş · [`src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs:111`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) | İkinci `StartRunAsync` çağrısında bellek içi store **birleştirilmiş** kaydı, SQL store **ham** `record`'u (`UserId` `null` olabilir) döndürür. Hiçbir sözleşme testi dönüş değerini denetlemiyor — doğrulama `GetRunAsync` üzerinden |
+| [`src/AgentPrism.PostgreSql/Migrations/0001_initial.sql:180`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) — `PRIMARY KEY (run_id, seq)` | Yinelenen `seq` SQL'de `DbException` fırlatır ve [`SqlRunStore.cs:142`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) yalnız **foreign key** ihlalini `AgentPrismException`'a çevirir — PK ihlali ham sürücü istisnası olarak sızar. Bellek içi store aynı `seq`'i **sessizce** ikinci kez ekler. Sözleşme testi yok |
+| [`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:543`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `IRunStore` **Singleton** kaydedilir. Thread-safe olma zorunluluğu ne interface'te ne README'de yazılı |
 | `grep -c ValueTask src/AgentPrism.Abstractions/Runs/IRunStore.cs` → **15** | Kısmi implementasyon için tanımlı yol yok; desteklenmeyen metot konvansiyonu (`NotSupportedException`) belgeli değil |
 
 **Zaten sağlanan — yeni iş değil:** dört sağlayıcı bugün de **aynı** `RunStoreContract` sınıfını miras alıyor (`InMemoryRunStoreContractTests`, `PostgresRunStoreContractTests`, `SqlServerRunStoreContractTests`, `SqliteRunStoreContractTests`). Kabul kriteri 3 bu fazda bir **regresyon kapısıdır**, maliyeti sıfırdır.
@@ -82,7 +82,7 @@
 | Suite'i çerçeve bağımsız yeniden yaz | 8.636 satırın tamamına dokunmak demek: **1.098** Shouldly çağrısı `AgentPrismAssertionException`'a, **382** `[Fact]`/`[Theory]` kendi runner'ına çevrilir. Kalıcı bakım yükü: kendi test runner'ımız |
 | **Ayrı paket** ✅ | `AgentPrism.Testing`'in çerçeve bağımsızlığı korunur; suite neredeyse olduğu gibi taşınır |
 
-**Taşıma maliyeti ölçüldü ve düşük.** Sözleşme sınıfları zaten `public`, zaten `AgentPrism.StoreContracts` ad alanında ve zaten XML dokümanlı. Somut tip bağımlılığı taranmıştır: `tests/Shared/` altında `Sql*Store` veya `InMemory*` geçen **tek dosya** [`TenantCoverageTests.cs`](../tests/AgentPrism.SqlServer.IntegrationTests/TenantCoverageTests.cs)'tir (`typeof(SqlRunStore)` ile SQL'e sabitli) ve o dosya **repo'da kalır** — Core.UnitTests onu bugün de `Exclude` ediyor.
+**Taşıma maliyeti ölçüldü ve düşük.** Sözleşme sınıfları zaten `public`, zaten `AgentPrism.StoreContracts` ad alanında ve zaten XML dokümanlı. Somut tip bağımlılığı taranmıştır: `tests/Shared/` altında `Sql*Store` veya `InMemory*` geçen **tek dosya** [`TenantCoverageTests.cs`](../../../tests/AgentPrism.SqlServer.IntegrationTests/TenantCoverageTests.cs)'tir (`typeof(SqlRunStore)` ile SQL'e sabitli) ve o dosya **repo'da kalır** — Core.UnitTests onu bugün de `Exclude` ediyor.
 
 **K-007 gerekçesi — geçişli ağırlık.** Yeni paketin doğrudan bağımlılığı üçtür:
 
@@ -100,7 +100,7 @@
 
 Suite `tests/Shared/` altından `src/AgentPrism.Testing.Contracts/` altına **taşınır**. Kopya bırakılmaz.
 
-Gerekçe bu repo'nun kendi kusur geçmişidir: senkronizasyon kopyası sınıfı beş kez tekrarladı ([`kusur-giderme`](../.agents/skills/kusur-giderme/SKILL.md) SINIF TARAMASI bölümü). İki kaynak tutmak altıncısını üretir.
+Gerekçe bu repo'nun kendi kusur geçmişidir: senkronizasyon kopyası sınıfı beş kez tekrarladı ([`kusur-giderme`](../../../.agents/skills/kusur-giderme/SKILL.md) SINIF TARAMASI bölümü). İki kaynak tutmak altıncısını üretir.
 
 ```mermaid
 graph LR
@@ -259,7 +259,7 @@ AgentPrism.slnx
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · **paket**) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -281,7 +281,7 @@ Sözleşme testi `src/AgentPrism.Testing.Contracts/Contracts/` altına yazılır
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md) içine eklenecek case'lerin taslağı. Sıradaki numara **MT-TEST-073**.
+> Kapanışta [`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md) içine eklenecek case'lerin taslağı. Sıradaki numara **MT-TEST-073**.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
