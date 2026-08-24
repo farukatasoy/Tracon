@@ -532,8 +532,8 @@ tarafından sabitlendi.
 | 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
 | 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 4 | **Faz 97 yazma** — sürüm politikası ve ilk yayın (madde 2 + madde 1) ← **sıradaki adım** | `faz-planlama` |
-| 5 | **Faz 97 uygulama** | zincir |
+| 4 | ~~**Faz 97 yazma**~~ ✅ 2026-08-24 — plan hazır: [`97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](../97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) | `faz-planlama` |
+| 5 | **Faz 97 uygulama** ← **sıradaki adım** | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 6 | **Blok B** — madde 12 · 15 · 23 (üçü de tek oturumluk) | — |
 | 7 | **Blok C** — yayından sonra veya paralel | — |
 
@@ -566,6 +566,9 @@ dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testin
 — yoksa kendi paket ailesini kırar.
 
 ### 7.4 Faz 97 yazacak oturuma — ölçülmüş zemin
+
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 97](../97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md). Kapsam plan turunda **daraldı**: faz yayını kendisi yapmaz. `v1.0.0-preview.1` etiketi geri alınamaz olduğu için kullanıcının elinde kalır (👤); faz sürüm politikasını, yayın provası kapısını, paket ikonunu ve `PackageValidation`'ı kapatır. 🚨 `Shipped.txt` dolumu **GA'ya ertelendi** — bu, aşağıdaki zemin notunun ve Faz 7'nin özgün DoD'sinin bilinçli olarak değiştirilmesidir.
+> Plan turunda yeniden ölçüldü: Faz 96 sonrası **7.532** girdi · **618** tip (bölüm 7.3'ün 8.063/716 değeri artık bayattır); `dotnet pack` **19** paket üretiyor ve ön sürüm bağımlılığı beyan eden **tek** paket `AgentPrism.AspNetCore` (K-008 tutuyor); `agentprism`, `agentprism.core` ve `@agentprism/client` kimliklerinin üçü de **boşta**.
 
 **Kapsam:** madde 2 (sürüm politikası) + madde 1 (Faz 7 dolumu ve yayın).
 [Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) 2026-08-02'den beri

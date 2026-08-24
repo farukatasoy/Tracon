@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import pathlib
 import sys
 import tempfile
@@ -107,6 +108,100 @@ class KapiTestleri(unittest.TestCase):
         yakalamıyordu; git PATH'te yoksa `changed_paths()` traceback ile çöküyordu."""
         with mock.patch("subprocess.run", side_effect=FileNotFoundError("git")):
             self.assertIsNone(kapi.changed_paths())
+
+
+class YayinTestleri(unittest.TestCase):
+    """`scripts/kapi.py yayin` (Faz 97, 97.2) - saf Python mantığı. `dotnet
+    pack`'e ihtiyaç duyan uçtan uca davranış `ReleaseArtifactTests.cs`'te ve bu
+    fazın manuel kabul case'lerinde (MT-PKG-097..100)."""
+
+    def _write_csproj(self, root: pathlib.Path, project_id: str, body: str = "") -> None:
+        directory = root / "src" / project_id
+        directory.mkdir(parents=True)
+        (directory / f"{project_id}.csproj").write_text(
+            f'<Project Sdk="Microsoft.NET.Sdk">\n{body}\n</Project>\n', encoding="utf-8")
+
+    def test_paketlenebilir_proje_kimlikleri_isPackable_false_olani_disler(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_csproj(root, "AgentPrism.Core")
+            self._write_csproj(root, "AgentPrism.Generators", "<PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>")
+
+            self.assertEqual(kapi.packable_project_ids(root), ["AgentPrism.Core"])
+
+    def test_paket_profili_arac_icerik_meta_ve_kutuphaneyi_ayirir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_csproj(root, "AgentPrism.Cli", "<PropertyGroup><PackAsTool>true</PackAsTool></PropertyGroup>")
+            self._write_csproj(
+                root, "AgentPrism.Templates",
+                "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput><PackageType>Template</PackageType></PropertyGroup>")
+            self._write_csproj(root, "AgentPrism", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
+            self._write_csproj(root, "AgentPrism.Core")
+
+            self.assertEqual(kapi._package_profile(root, "AgentPrism.Cli"), "tool")
+            self.assertEqual(kapi._package_profile(root, "AgentPrism.Templates"), "content")
+            self.assertEqual(kapi._package_profile(root, "AgentPrism"), "meta")
+            self.assertEqual(kapi._package_profile(root, "AgentPrism.Core"), "library")
+
+    def test_kendi_surumunu_adlandirma_baska_paketi_karistirmiyor(self):
+        """'AgentPrism.' önekiyle başlayan başka bir paketin dosyasını
+        ("AgentPrism.Core...") kendi paketiymiş gibi almamalı."""
+        self.assertTrue(kapi._names_own_version("AgentPrism", "AgentPrism.1.0.0-preview.1.nupkg"))
+        self.assertFalse(kapi._names_own_version("AgentPrism", "AgentPrism.Core.1.0.0-preview.1.nupkg"))
+        self.assertTrue(kapi._names_own_version("AgentPrism.Core", "AgentPrism.Core.1.0.0-preview.1.nupkg"))
+
+    def test_surum_istenmisse_tam_dosya_adi_aranir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release_dir = pathlib.Path(directory)
+            (release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg").write_bytes(b"")
+
+            found = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", "1.0.0-preview.1")
+            missing = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", "1.0.0-preview.2")
+
+        self.assertIsNotNone(found)
+        self.assertIsNone(missing)
+
+    def test_surum_istenmemisse_en_son_yazilan_kendi_dosyasi_secilir(self):
+        """Faz 97 denetimi: eski bir 'en son yazılan' seçimi, ÖNCEKİ bir
+        --surum koşumundan kalan bayat dosyayı seçebiliyordu, çünkü artımlı
+        `dotnet pack` değişmeyen bir projenin çıktısını yeniden üretmeyebilir.
+        `_clean_stale_packages` bu testin varsaydığı ön koşulu sağlar; burada
+        yalnız kalan iki adaydan DOĞRU (en yeni) olanın seçildiği ölçülüyor."""
+        with tempfile.TemporaryDirectory() as directory:
+            release_dir = pathlib.Path(directory)
+            old = release_dir / "AgentPrism.Core.1.0.0-preview.1.nupkg"
+            new = release_dir / "AgentPrism.Core.0.0.0-preview.0.400.nupkg"
+            old.write_bytes(b"")
+            new.write_bytes(b"")
+            os.utime(old, (1, 1))
+            os.utime(new, (2, 2))
+
+            found = kapi._resolve_nupkg(release_dir, "AgentPrism.Core", None)
+
+        self.assertEqual(found, new)
+
+    def test_hedef_frameworkler_tekil_override_okur(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_csproj(root, "AgentPrism.Testing", "<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>")
+            self._write_csproj(root, "AgentPrism.Core")
+
+            self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Testing"), ("net10.0",))
+            self.assertEqual(kapi._target_frameworks(root, "AgentPrism.Core"), ("net8.0", "net9.0", "net10.0"))
+
+    def test_bayat_paketler_yalniz_kendi_kimligi_icin_temizlenir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release_dir = pathlib.Path(directory)
+            (release_dir / "AgentPrism.Core.0.0.0-preview.0.1.nupkg").write_bytes(b"")
+            (release_dir / "AgentPrism.Core.0.0.0-preview.0.1.snupkg").write_bytes(b"")
+            (release_dir / "AgentPrism.Abstractions.0.0.0-preview.0.1.nupkg").write_bytes(b"")
+
+            kapi._clean_stale_packages(release_dir, ["AgentPrism.Core"])
+
+            remaining = {path.name for path in release_dir.iterdir()}
+
+        self.assertEqual(remaining, {"AgentPrism.Abstractions.0.0.0-preview.0.1.nupkg"})
 
 
 if __name__ == "__main__":

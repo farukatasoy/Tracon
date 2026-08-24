@@ -2439,3 +2439,143 @@ mv /tmp/Unshipped.txt.bak src/AgentPrism.Core/PublicAPI.Unshipped.txt
 **Beklenen sonuç**
 - Test **kırılır** ve `AgentPrism.Core`'un iki seçeneğini (izleme dosyalarını ekle / açıkça
   `AgentPrismPublicApiTrackingEnabled=false` yaz) mesajında gösterir.
+
+---
+
+### MT-PKG-097 — Yayın provası bir tag'e hiçbir şey yazmadan yeşil olur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 97 |
+| **İlgili karar** | — |
+
+Gerçek `v1.0.0-preview.1` etiketi atılmadan önce yayının neye üreteceğinin
+provasıdır — depoya hiçbir şey yazmaz, ağa hiçbir şey göndermez.
+
+**Ön koşul**
+- `main` temiz, `git tag` yalnız `docs/damitma-oncesi-2026-08` taşıyor.
+
+**Adımlar**
+1. Provayı koş.
+2. Çıktıdaki paket kimliği/sürüm listesini say.
+3. `git tag` çıktısını tekrar al.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+git tag
+```
+
+**Beklenen sonuç**
+- Komut yeşil (çıkış `0`); çıktı 19 paket kimliğini ve `1.0.0-preview.1` sürümünü listeler.
+- `npm publish --dry-run` adımı da yeşil biter (`✅ npm publish --dry-run`).
+- İkinci `git tag` çıktısı **birinciyle aynı tek etiketi** gösterir — prova depoya
+  hiçbir etiket bırakmadı.
+
+---
+
+### MT-PKG-098 — icon.png 19 paketin hepsinde tam olarak var
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 97 |
+| **İlgili karar** | — |
+
+`<None Update=...>` yerine `<None Include=...>` kullanmanın kanıtı — çapraz
+hedefli bir projede `Update` sessizce hiçbir şey paketlemez ve hiçbir uyarı
+çıkmaz (`docs/hafiza/paketleme-ve-dagitim.md`).
+
+**Ön koşul**
+- MT-PKG-097 bir kez koşmuş (`artifacts/package/release/*.1.0.0-preview.1.nupkg` dolu).
+
+**Adımlar**
+1. 19 paketin her birinde `icon.png` girdisini say.
+2. Sıfır çıkan varsa adını yazdır.
+
+**Girilecek veri**
+```bash
+for f in artifacts/package/release/*.1.0.0-preview.1.nupkg; do
+  n=$(unzip -l "$f" | grep -c icon.png)
+  [ "$n" = "1" ] || echo "IKON YOK ($n): $f"
+done
+echo "toplam paket: $(ls artifacts/package/release/*.1.0.0-preview.1.nupkg | wc -l)"
+```
+
+**Beklenen sonuç**
+- Hiçbir "IKON YOK" satırı basılmaz.
+- Toplam paket sayısı **19**.
+
+---
+
+### MT-PKG-099 — Paket tablosu repo'dan sapınca kapı kırılır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 97 |
+| **İlgili karar** | — |
+
+`check-content.mjs`'in yeni iddiasının gerçekten kırdığının kanıtı —
+`compatibility.md`'nin paket tablosu `packageCount`'tan sapınca (Faz 96'da
+17/19 sapması sessizce üç hafta durdu) artık bu kapı yakalar.
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. `compatibility.md`'deki "The 19 packages" tablosundan bir satır sil.
+2. İçerik kapısını koş.
+3. Satırı geri al, kapıyı tekrar koş.
+
+**Girilecek veri**
+```bash
+cd docs-site
+# Örn. AgentPrism.Cli satırını geçici sil, sonra:
+node scripts/check-content.mjs
+git checkout -- src/content/docs/reference/compatibility.md
+node scripts/check-content.mjs
+```
+
+**Beklenen sonuç**
+- Silme sonrası kapı **kırılır**: `compatibility.md package table has 18 row(s), expected 19`.
+- Geri alma sonrası kapı **yeşile döner**.
+
+---
+
+### MT-PKG-100 — Prova kapısı gerçekten yayının önündedir
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 97 |
+| **İlgili karar** | — |
+
+`publish` ve `npm-publish` işlerinin `needs:` satırından `release-dryrun`
+çıkarılırsa, prova kırık olsa bile yayının koşacağını **gözle** doğrular —
+yayın işi yalnız gerçek bir `v*` etiketinde tetiklendiği için CI'da simüle
+edilemez, iş grafiği elle okunur.
+
+**Ön koşul**
+- Yok.
+
+**Adımlar**
+1. `.github/workflows/ci.yml`'de `publish` ve `npm-publish` işlerinin `needs:` satırını oku.
+2. `release-dryrun` işinin ikisinde de listeli olduğunu doğrula.
+3. (Yalnız gözle) `needs:` satırından `release-dryrun`'ı elle çıkar, iş grafiğinin artık
+   `publish`'i prova beklemeden çalıştırdığını gör, değişikliği geri al.
+
+**Girilecek veri**
+```bash
+grep -n -A2 "^  publish:\|^  npm-publish:\|^  release-dryrun:" .github/workflows/ci.yml
+```
+
+**Beklenen sonuç**
+- `publish` ve `npm-publish` işlerinin `needs:` satırı `release-dryrun`'ı içerir.
+- Satır elle çıkarıldığında iş grafiği `publish`'i `pack` bittiği an başlatır — prova
+  artık yolun üzerinde değildir; bu gözlem geri alma kararını doğrular.

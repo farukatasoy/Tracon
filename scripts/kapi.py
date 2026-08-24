@@ -15,14 +15,23 @@ import os
 import pathlib
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from collections.abc import Callable, Iterable, Sequence
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
 MEASUREMENTS = ARTIFACTS / "kapi-olcum.jsonl"
+PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
+PACKABLE_SOLUTION_FILTER = ROOT / "AgentPrism.src.slnf"
+NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "agentprism-client"
+RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
+PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
+REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^>]*/>')
+K008_EXEMPT_PACKAGE = "AgentPrism.AspNetCore"
 
 SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
 SCAN_EXCLUDED_DIRS = {
@@ -286,6 +295,252 @@ def test_command(project: str, patterns: Sequence[str]) -> Command:
     return Command((str(executable), "--filter-class", *patterns))
 
 
+# -----------------------------------------------------------------------------
+# `yayin` - release rehearsal (docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
+#
+# Writes nothing to a network. It packs the solution (forcing a version via the
+# MinVerVersionOverride environment variable when --surum is given - no git tag
+# is created), then reads back exactly what `dotnet pack` produced and checks it
+# against the packaging contract every published package must satisfy.
+# -----------------------------------------------------------------------------
+
+
+def packable_project_ids(root: pathlib.Path = ROOT) -> list[str]:
+    """Package identities the rehearsal must account for - derived from
+    src/*/*.csproj, never hand-written, so a new packable project enters this
+    list on its own."""
+    ids = []
+    for csproj in sorted((root / "src").glob("*/*.csproj")):
+        if "<IsPackable>false</IsPackable>" in csproj.read_text(encoding="utf-8"):
+            continue
+        ids.append(csproj.stem)
+    return ids
+
+
+def _package_profile(root: pathlib.Path, project_id: str) -> str:
+    text = (root / "src" / project_id / f"{project_id}.csproj").read_text(encoding="utf-8")
+    if "<PackAsTool>true</PackAsTool>" in text:
+        return "tool"
+    if "<IncludeBuildOutput>false</IncludeBuildOutput>" in text:
+        return "content" if "<PackageType>Template</PackageType>" in text else "meta"
+    return "library"
+
+
+TARGET_FRAMEWORKS_PATTERN = re.compile(r"<TargetFrameworks>([^<]+)</TargetFrameworks>")
+
+DEFAULT_TARGET_FRAMEWORKS = ("net8.0", "net9.0", "net10.0")
+
+
+def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
+    """Most packages inherit net8.0;net9.0;net10.0 from src/Directory.Build.props;
+    a project that pins a single framework (e.g. AgentPrism.Testing) overrides
+    TargetFrameworks (plural) explicitly."""
+    text = (root / "src" / project_id / f"{project_id}.csproj").read_text(encoding="utf-8")
+    match = TARGET_FRAMEWORKS_PATTERN.search(text)
+    if match and match.group(1).strip():
+        return tuple(part.strip() for part in match.group(1).split(";") if part.strip())
+    return DEFAULT_TARGET_FRAMEWORKS
+
+
+def _names_own_version(project_id: str, file_name: str) -> bool:
+    """True if `file_name` is `<project_id>.<version>.<ext>` for THIS project,
+    not a different package that merely starts with the same prefix (e.g.
+    "AgentPrism." also prefixes "AgentPrism.Core...."). A version always
+    starts with a digit right after the id, which no package name does."""
+    prefix = f"{project_id}."
+    return file_name.startswith(prefix) and file_name[len(prefix) : len(prefix) + 1].isdigit()
+
+
+def _clean_stale_packages(release_dir: pathlib.Path, project_ids: Iterable[str]) -> None:
+    if not release_dir.exists():
+        return
+    for project_id in project_ids:
+        for path in release_dir.glob(f"{project_id}.*"):
+            if path.suffix in (".nupkg", ".snupkg") and _names_own_version(project_id, path.name):
+                path.unlink()
+
+
+def _resolve_nupkg(release_dir: pathlib.Path, project_id: str, requested_version: str | None) -> pathlib.Path | None:
+    if requested_version:
+        candidate = release_dir / f"{project_id}.{requested_version}.nupkg"
+        return candidate if candidate.exists() else None
+
+    # No requested version: pick the package this project produced MOST
+    # RECENTLY. _clean_stale_packages already removed every earlier artifact
+    # of THIS project before packing, so any survivor here is from the run
+    # that just completed; "most recent" is only a tie-breaker between a
+    # project's own multiple TFM-driven writes, not a defense against
+    # cross-run staleness.
+    candidates = [path for path in release_dir.glob(f"{project_id}.*.nupkg") if _names_own_version(project_id, path.name)]
+    return max(candidates, key=lambda path: path.stat().st_mtime) if candidates else None
+
+
+def _nupkg_version(project_id: str, nupkg: pathlib.Path) -> str:
+    return nupkg.name[len(project_id) + 1 : -len(".nupkg")]
+
+
+def _read_nuspec(nupkg: pathlib.Path, project_id: str) -> str:
+    with zipfile.ZipFile(nupkg) as archive:
+        return archive.read(f"{project_id}.nuspec").decode("utf-8")
+
+
+def _entry_names(nupkg: pathlib.Path) -> set[str]:
+    with zipfile.ZipFile(nupkg) as archive:
+        return set(archive.namelist())
+
+
+def release_rehearsal(
+    requested_version: str | None,
+    *,
+    root: pathlib.Path = ROOT,
+    release_dir: pathlib.Path | None = None,
+) -> int:
+    release_dir = release_dir or PACKAGE_RELEASE_DIR
+    project_ids = packable_project_ids(root)
+
+    # 🚨 MEASURED: without this, a stale .nupkg from an EARLIER invocation (e.g.
+    # a prior --surum run) can outlive an incremental `dotnet pack` that decides
+    # a project's inputs are unchanged and skips re-creating its output. The
+    # "most recently written" resolution below would then silently pick that
+    # stale file over the one this run actually produced - two packages ending
+    # up on a different version than the rest, exactly what the "single line"
+    # assertion below exists to catch. Removing each tracked project's own
+    # previous artifacts first forces a real rebuild for every one of them.
+    _clean_stale_packages(release_dir, project_ids)
+
+    environment = os.environ.copy()
+    environment["MSBUILDDISABLENODEREUSE"] = "1"
+    if requested_version:
+        environment["MinVerVersionOverride"] = requested_version
+
+    pack_command = Command(("dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release"))
+    print(f"$ {pack_command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
+    pack_result = subprocess.run(list(pack_command.args), cwd=root, env=environment, check=False)
+    if pack_result.returncode:
+        print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
+        return pack_result.returncode
+
+    resolved: dict[str, pathlib.Path] = {}
+    missing: list[str] = []
+    for project_id in project_ids:
+        nupkg = _resolve_nupkg(release_dir, project_id, requested_version)
+        if nupkg is None:
+            missing.append(project_id)
+        else:
+            resolved[project_id] = nupkg
+
+    if missing:
+        print(f"❌ Paket üretilmedi: {', '.join(missing)}")
+        return 1
+
+    versions = {project_id: _nupkg_version(project_id, nupkg) for project_id, nupkg in resolved.items()}
+    distinct_versions = sorted(set(versions.values()))
+    if len(distinct_versions) != 1:
+        print("❌ Paketler tek bir sürüm hattında değil:")
+        for project_id in sorted(versions):
+            print(f"  {project_id}: {versions[project_id]}")
+        return 1
+
+    resolved_version = distinct_versions[0]
+    if requested_version and resolved_version != requested_version:
+        print(f"❌ İstenen sürüm '{requested_version}' üretilmedi; üretilen: '{resolved_version}'")
+        return 1
+    if not RELEASE_VERSION_PATTERN.fullmatch(resolved_version):
+        print(
+            f"⚠️ Sürüm '1.0.0-preview.N' desenine uymuyor: '{resolved_version}' "
+            "(etiketlenmemiş bir koşumda beklenir; --surum ile zorlanmadıysa bu bir hata değildir)"
+        )
+
+    # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
+    # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
+    # gelmesi. `resolved` yalnız `project_ids` üstünden dolduğu için kendi
+    # başına bunu göremez; dizindeki `resolved_version`'a ait GERÇEK `.nupkg`
+    # kümesi ayrıca taranır.
+    produced_ids = {
+        path.name[: -len(f".{resolved_version}.nupkg")]
+        for path in release_dir.glob(f"*.{resolved_version}.nupkg")
+    }
+    unexpected = sorted(produced_ids - set(project_ids))
+    if unexpected:
+        print(f"❌ Beklenmeyen paket üretildi: {', '.join(unexpected)}")
+        return 1
+
+    errors: list[str] = []
+    for project_id in sorted(resolved):
+        nupkg = resolved[project_id]
+        entries = _entry_names(nupkg)
+        nuspec = _read_nuspec(nupkg, project_id)
+        profile = _package_profile(root, project_id)
+
+        if "icon.png" not in entries:
+            errors.append(f"{project_id}: icon.png eksik")
+        if "README.md" not in entries:
+            errors.append(f"{project_id}: README.md eksik")
+        if '<license type="expression">MIT</license>' not in nuspec:
+            errors.append(f"{project_id}: MIT license expression eksik")
+        if not REPOSITORY_COMMIT_PATTERN.search(nuspec):
+            errors.append(f"{project_id}: repository/commit metaverisi eksik")
+
+        snupkg_exists = nupkg.with_suffix(".snupkg").exists()
+        if profile == "content":
+            if snupkg_exists:
+                errors.append(f"{project_id}: içerik paketi .snupkg TAŞIMAMALI")
+        elif not snupkg_exists:
+            errors.append(f"{project_id}: .snupkg eksik")
+
+        if profile in ("library", "tool"):
+            expected_xml_count = len(_target_frameworks(root, project_id)) if profile == "library" else 1
+            xml_count = sum(1 for name in entries if name.endswith(f"/{project_id}.xml"))
+            if xml_count != expected_xml_count:
+                errors.append(f"{project_id}: {expected_xml_count} XML doküman dosyası bekleniyordu, {xml_count} bulundu")
+
+        if project_id != K008_EXEMPT_PACKAGE:
+            offenders = sorted({
+                match.group("id")
+                for match in PRERELEASE_DEPENDENCY_PATTERN.finditer(nuspec)
+                if not match.group("id").startswith("AgentPrism")
+            })
+            if offenders:
+                errors.append(f"{project_id}: K-008 sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
+
+    if errors:
+        print("❌ Metaveri/K-008 sözleşmesi ihlal edildi:")
+        for error in errors:
+            print(f"  {error}")
+        return 1
+
+    print(f"✅ {len(resolved)} paket, sürüm '{resolved_version}':")
+    for project_id in sorted(resolved):
+        print(f"  {project_id}  {versions[project_id]}")
+
+    return _npm_dry_run()
+
+
+def _npm_dry_run() -> int:
+    if shutil.which("npm") is None:
+        print("⚠️ npm bulunamadı; 'npm publish --dry-run' ATLANDI")
+        return 0
+
+    print(f"$ (cd {NPM_CLIENT_PACKAGE_DIR.relative_to(ROOT)} && npm publish --dry-run)", flush=True)
+    try:
+        result = subprocess.run(
+            ["npm", "publish", "--dry-run"],
+            cwd=NPM_CLIENT_PACKAGE_DIR,
+            check=False,
+            timeout=180,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exception:
+        print(f"⚠️ 'npm publish --dry-run' çalıştırılamadı (ağ erişimi olmayabilir) - ATLANDI: {exception}")
+        return 0
+
+    if result.returncode:
+        print(f"❌ 'npm publish --dry-run' çıkış {result.returncode}")
+        return result.returncode
+
+    print("✅ npm publish --dry-run")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
@@ -299,6 +554,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
     test.add_argument("--sinif", nargs="+", required=True, help="sınıf desenleri")
     test.add_argument("--proje", default="AgentPrism.Core.UnitTests", help="test proje adı")
+    yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
+    yayin.add_argument(
+        "--kuru", action="store_true", required=True,
+        help="zorunlu: bu faz yalnız kuru koşumu destekler, canlı yayın yolu yok",
+    )
+    yayin.add_argument("--surum", help="zorlanacak sürüm (MinVerVersionOverride); verilmezse MinVer'in bugünkü değeri kullanılır")
 
     args = parser.parse_args(argv)
     if args.stage == "tarama":
@@ -317,10 +578,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.stage == "test":
         return run_commands("test", [test_command(args.proje, args.sinif)], dry_run=args.komutlari_bas)
+    if args.stage == "yayin":
+        if args.komutlari_bas:
+            print("$ dotnet pack ...  (bkz. release_rehearsal)")
+            return 0
+        return release_rehearsal(args.surum)
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>"), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis veya test")
+    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, test veya yayin")
     return 2
 
 

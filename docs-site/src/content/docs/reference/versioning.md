@@ -6,6 +6,12 @@ description: Understand which AgentPrism release these docs describe, pin previe
 AgentPrism is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
+All 19 packages, the npm client included, are cut from the same `v*` tag and share
+one version line: there is no split between a stable subset and a preview subset.
+The public surface carries no compatibility promise for as long as that line stays
+pre-1.0 - a narrowing or a reshaped type is not treated as a breaking change until
+the family reaches `1.0.0`.
+
 ## Which version do these docs describe?
 
 This site is built from the repository's `main` branch. The .NET reference is generated
