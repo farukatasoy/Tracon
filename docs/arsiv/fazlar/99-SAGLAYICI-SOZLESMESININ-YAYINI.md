@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-08-25) — bağımsız `faz-denetim` bulguları kapatıldı, kapanış kapıları temiz ve site yayınlandı.
 > **Kaynak:** Doğrudan kullanıcı isteği (2026-08-25). Aday listesinden gelmedi;
 > `preview.1` öncesi genişleme noktası olgunlaştırma işidir.
-> **Önkoşul:** [Faz 98](arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md) —
+> **Önkoşul:** [Faz 98](98-DEPOLAMA-SOZLESMESININ-YAYINI.md) —
 > `AgentPrism.Testing.Contracts.Xunit` paketini, `ContractCoverage` kapısını ve
 > yalnız-NuGet sample emsalini (`AgentPrism.Samples.FileRunStore`) bu faz devralır.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Testing.Contracts.Xunit`,
@@ -37,7 +37,7 @@
    `VersionOverride="*-*"` kullanımının gerekçesi.
    **K-421** (`EnablePublicApiTracking` açık). **K-008** (ön sürüm MAF yalnız
    `AgentPrism.AspNetCore`'da) — sözleşme paketi bunu ihlal etmemelidir.
-3. [Faz 98](arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
+3. [Faz 98](98-DEPOLAMA-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md
    ```
@@ -45,14 +45,14 @@
    `ContractCoverage.MissingDerivedTypes` imzasını ve `xunit.v3.extensibility.core`
    tuzağını oradan devralıyorsun.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (halka sırası ve
-   K-320'nin vakası) · [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md)
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (halka sırası ve
+   K-320'nin vakası) · [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md)
    (sözleşme sınıfı yazımı, MTP) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yerel besleme,
-   sample'ın paket çözümü) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (yerel besleme,
+   sample'ın paket çözümü) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (`docfx` referans globu — yeni proje eklemek `CS1704` verebilir)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — model çağrı yolu bölümü
+   [`MIMARI.md`](../../MIMARI.md) — model çağrı yolu bölümü
 
 ---
 
@@ -79,14 +79,14 @@ olan davranışı sözleşmeye çevirerek.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IModelProvider.cs`](../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | XML dokümanı yalnız "ham istemci" ve "ortak boru hattını kurma" kurallarını yazar. Singleton ömrü, thread-safety, dispose sahipliği, ad karşılaştırması ve katalog semantiği **yazmaz** |
-| [`AgentPrismBuilder.cs:92-106`](../src/AgentPrism.Core/AgentPrismBuilder.cs#L92-L106) | İki aşırı yükleme de `Services.AddSingleton` çağırır. Ömür sevk edilen hiçbir dokümanda geçmez |
-| [`ModelProviderRegistry.cs:120-127`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L120-L127) | Yinelenen ad `AgentPrismException` atar; sözlük `OrdinalIgnoreCase`. İkisi de belgesiz |
-| [`ProviderCredentialClientCache.cs:52-58`](../src/AgentPrism.Core/Models/ProviderCredentialClientCache.cs#L52-L58) | `ConcurrentDictionary.GetOrAdd` — `build` yarışta birden çok kez koşabilir. "Yan etkisiz olmalı" beklentisi hiçbir yerde yazmaz |
-| [`AgentDefinitionCompiler.cs:583-598`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L583-L598) | Yalnız `AgentPrismException` sarmalanır; başka her exception ham geçer. Belgesiz |
-| [`FallbackChatClient.cs:436-458`](../src/AgentPrism.Core/Models/FallbackChatClient.cs#L436-L458) | Fallback kararı exception'ın **mesaj metnine** ve **tip adına** bakar. Üçüncü taraf bunu bilmeden mesaj yazarsa fallback sessizce tetiklenmez |
-| [`IContentGuard.cs:23-26`](../src/AgentPrism.Abstractions/Guards/IContentGuard.cs#L23-L26) | 🚨 XML dokümanı guard'ın "**OUTERMOST**" (en dışta) koştuğunu yazar. Kod K-320'den beri onu tool-call döngüsünün **İÇİNE** koyuyor. Doküman koda göre yanlıştır |
-| [`ContractCoverage.cs:26-31`](../src/AgentPrism.Testing.Contracts.Xunit/ContractCoverage.cs#L26-L31) | Adı `Contract` ile biten **her** public abstract tipi döndürür; dört test derlemesi bunu kapı olarak koşar. Yeni bir sözleşme ailesi eklemek dördünü birden kırar |
+| [`IModelProvider.cs`](../../../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | XML dokümanı yalnız "ham istemci" ve "ortak boru hattını kurma" kurallarını yazar. Singleton ömrü, thread-safety, dispose sahipliği, ad karşılaştırması ve katalog semantiği **yazmaz** |
+| [`AgentPrismBuilder.cs:92-106`](../../../src/AgentPrism.Core/AgentPrismBuilder.cs#L92-L106) | İki aşırı yükleme de `Services.AddSingleton` çağırır. Ömür sevk edilen hiçbir dokümanda geçmez |
+| [`ModelProviderRegistry.cs:120-127`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs#L120-L127) | Yinelenen ad `AgentPrismException` atar; sözlük `OrdinalIgnoreCase`. İkisi de belgesiz |
+| [`ProviderCredentialClientCache.cs:52-58`](../../../src/AgentPrism.Core/Models/ProviderCredentialClientCache.cs#L52-L58) | `ConcurrentDictionary.GetOrAdd` — `build` yarışta birden çok kez koşabilir. "Yan etkisiz olmalı" beklentisi hiçbir yerde yazmaz |
+| [`AgentDefinitionCompiler.cs:583-598`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs#L583-L598) | Yalnız `AgentPrismException` sarmalanır; başka her exception ham geçer. Belgesiz |
+| [`FallbackChatClient.cs:436-458`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs#L436-L458) | Fallback kararı exception'ın **mesaj metnine** ve **tip adına** bakar. Üçüncü taraf bunu bilmeden mesaj yazarsa fallback sessizce tetiklenmez |
+| [`IContentGuard.cs:23-26`](../../../src/AgentPrism.Abstractions/Guards/IContentGuard.cs#L23-L26) | 🚨 XML dokümanı guard'ın "**OUTERMOST**" (en dışta) koştuğunu yazar. Kod K-320'den beri onu tool-call döngüsünün **İÇİNE** koyuyor. Doküman koda göre yanlıştır |
+| [`ContractCoverage.cs:26-31`](../../../src/AgentPrism.Testing.Contracts.Xunit/ContractCoverage.cs#L26-L31) | Adı `Contract` ile biten **her** public abstract tipi döndürür; dört test derlemesi bunu kapı olarak koşar. Yeni bir sözleşme ailesi eklemek dördünü birden kırar |
 | `src/AgentPrism.Testing.Contracts.Xunit/Contracts/` | 32 sözleşme sınıfı, hepsi depolama. `IModelProvider` için **hiçbiri yok** |
 | `samples/` | `AgentPrism.Samples.FileRunStore` (+`.Tests`) yalnız-NuGet emsali. Sağlayıcı karşılığı **yok** |
 
