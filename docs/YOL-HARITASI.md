@@ -108,6 +108,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [93](arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md) | Kusur Sınıfı Kapıları | ✅ Tamamlandı |
 | [94](arsiv/fazlar/94-SQL-TEK-KAYNAK.md) | SQL Tek Kaynak | ✅ Tamamlandı |
 | [95](arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | Gerçek Tüketici Kapısı | ✅ Tamamlandı |
-| [96](96-PUBLIC-YUZEY-KUCULTME.md) | Public Yüzey Küçültme | ✅ Tamamlandı |
+| [96](arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | Public Yüzey Küçültme | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

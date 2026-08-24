@@ -1,13 +1,13 @@
 # Faz 96 — Public Yüzey Küçültme
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 7** (public yüzey yayın kararından önce şişti). Kalem `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 2).
-> **Önkoşul:** [Faz 95](arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) — bir tipi `internal`'a çekmek gerçek tüketiciyi kırabilir; bunu yalnız `PackageReference` ile derlenen bir proje ölçer. Faz 95'in `ConsumerRunTests`'i o dedektördür ve **kurulmuştur**.
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 7** (public yüzey yayın kararından önce şişti). Kalem `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 2).
+> **Önkoşul:** [Faz 95](95-GERCEK-TUKETICI-KAPISI.md) — bir tipi `internal`'a çekmek gerçek tüketiciyi kırabilir; bunu yalnız `PackageReference` ile derlenen bir proje ölçer. Faz 95'in `ConsumerRunTests`'i o dedektördür ve **kurulmuştur**.
 > **Paketler:** `AgentPrism.Core`, `.Abstractions`, `.AspNetCore`, `.Mcp`, `.OpenAI`, `.Anthropic`, `.Azure`, `.Google`, `.Voice`, `.PostgreSql`, `.SqlServer`, `.Sqlite`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor.** `PublicAPI.Unshipped.txt` dosyalarından satır **silinir**. `Shipped.txt` dosyalarının hepsi boştur (ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 16 dosya × 1 satır) — bugün silmek bedavadır, Faz 97'den sonra bir sürüm kararıdır.
 > **Tüketici yüzeyi:** site: `docs-site/src/content/docs/api/` **üretilir** ve küçülür (bugün 732 dosya); elle yazılmış sayfalarda tip adı geçerse düzeltilir · sevk edilen: `internal`'a çekilen tipin XML dokümanı artık paketle sevk edilmez — `<see cref>` bağı kıran her yer düzeltilir
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) — alan kodu `PKG`, sıradaki case `MT-PKG-094`
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) — alan kodu `PKG`, sıradaki case `MT-PKG-094`
 
 ---
 
@@ -27,16 +27,16 @@
    **K-176** (`Sql.Shared` bir csproj değildir; kaynağı üç sağlayıcıya derlenir) ·
    **K-247** (Core, `Sql.Shared`'ı referans edemez) ·
    **K-068** (Faz 7 yayın beklemede)
-3. [`arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md`](arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md`](95-GERCEK-TUKETICI-KAPISI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md
    ```
    `ConsumerProject.WriteAsync` ve `TransitiveDependencyBaseline` sözleşmeleri devralınır; bu faz `ConsumerProject`'i **genişletir**.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (`RS0016`/`RS0017` davranışı, `dotnet format analyzers` turu) ·
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (paket sınırı, `IsPackable`)
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (`RS0016`/`RS0017` davranışı, `dotnet format analyzers` turu) ·
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (paket sınırı, `IsPackable`)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — katman bölümü (`Abstractions` → `Core` → `AspNetCore` yönü)
+   [`MIMARI.md`](../../MIMARI.md) — katman bölümü (`Abstractions` → `Core` → `AspNetCore` yönü)
 
 ---
 
@@ -63,10 +63,10 @@ bunlar tip kaldırılmadan küçülmez.
 | `find src -name PublicAPI.Unshipped.txt -exec cat {} + \| grep -vE '^\s*$\|^#' \| wc -l` | **8.063** girdi |
 | aynı komut + `grep -vE ' -> \|\('` | **716** public tip · 339'u `AgentPrism.Abstractions`'ta |
 | `wc -l src/*/PublicAPI.Shipped.txt` | 16 dosya, her biri **1 satır** (`#nullable enable`) — hiçbir tip sevk edilmiş sayılmıyor |
-| [`src/AgentPrism.Core/Properties/AssemblyInfo.cs:6,14`](../src/AgentPrism.Core/Properties/AssemblyInfo.cs) | `InternalsVisibleTo` **`AgentPrism.AspNetCore`** ve **`AgentPrism.Mcp`** için zaten var (Faz 88'de eklendi) |
-| [`src/Directory.Build.props:85-89`](../src/Directory.Build.props) | Test görünürlüğü `$(MSBuildProjectName).UnitTests/.IntegrationTests/.FunctionalTests` desenine bağlı |
-| [`src/AgentPrism.Core/AgentPrismImageOptions.cs:36`](../src/AgentPrism.Core/AgentPrismImageOptions.cs) | `AgentPrismImageOptionsValidator` **zaten `internal`** — sınıfın internalleştirilebilirliği repo'da kanıtlı |
-| [`Directory.Build.targets:35-39`](../Directory.Build.targets) | `AdditionalFiles` yalnız `Exists('PublicAPI.Unshipped.txt')` iken eklenir; dosya yoksa analyzer sessizce hiçbir şey izlemez |
+| [`src/AgentPrism.Core/Properties/AssemblyInfo.cs:6,14`](../../../src/AgentPrism.Core/Properties/AssemblyInfo.cs) | `InternalsVisibleTo` **`AgentPrism.AspNetCore`** ve **`AgentPrism.Mcp`** için zaten var (Faz 88'de eklendi) |
+| [`src/Directory.Build.props:85-89`](../../../src/Directory.Build.props) | Test görünürlüğü `$(MSBuildProjectName).UnitTests/.IntegrationTests/.FunctionalTests` desenine bağlı |
+| [`src/AgentPrism.Core/AgentPrismImageOptions.cs:36`](../../../src/AgentPrism.Core/AgentPrismImageOptions.cs) | `AgentPrismImageOptionsValidator` **zaten `internal`** — sınıfın internalleştirilebilirliği repo'da kanıtlı |
+| [`Directory.Build.targets:35-39`](../../../Directory.Build.targets) | `AdditionalFiles` yalnız `Exists('PublicAPI.Unshipped.txt')` iken eklenir; dosya yoksa analyzer sessizce hiçbir şey izlemez |
 
 > Kanıtlar 2026-08-24 tarihinde doğrulandı.
 
@@ -83,7 +83,7 @@ Ad araması üç yanlış pozitif sınıfı üretir:
 | Sınıf | Neden görünmez | Ölçülen vaka |
 |---|---|---|
 | **Uzatma metodu sınıfı** | Çağrı yerinde sınıf adı **yazılmaz** — `AddAgentPrismSqlite(...)` yazılır, `AgentPrismSqliteBuilderExtensions` değil | Hiçbir yerde adı geçmeyen 57 tipin **22'si** `*Extensions`; `AgentPrismUiBuilderExtensions`, `VoiceBuilderExtensions`, `AgentPrismWorkflowsBuilderExtensions` dahil |
-| **Öznitelik tipi** | C# `Attribute` sonekini düşürür — `[AgentPrismTool]` yazılır, `AgentPrismToolAttribute` değil | `AgentPrismToolAttribute` "yalnız Core+Generators kullanıyor" göründü; oysa Faz 95'in tüketici projesi onu **kullanıyor** ([`ConsumerProject.cs`](../tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs)) |
+| **Öznitelik tipi** | C# `Attribute` sonekini düşürür — `[AgentPrismTool]` yazılır, `AgentPrismToolAttribute` değil | `AgentPrismToolAttribute` "yalnız Core+Generators kullanıyor" göründü; oysa Faz 95'in tüketici projesi onu **kullanıyor** ([`ConsumerProject.cs`](../../../tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs)) |
 | **Yorum referansı** | `<see cref="X"/>` bir kullanım değildir, ama `internal` olunca **CS1574 üretir** ve `TreatWarningsAsErrors` build'i kırar | Kova E'nin 49 tipinin **19'unda** çapraz-paket referansı yalnız yorumdadır |
 
 **Bu fazın ölçütü bunun yerine erişilebilirliktir:**
@@ -146,7 +146,7 @@ başka bir public imzada geçmez. Repo'da zaten `internal` bir örneği vardır
 
 > 🚨 **Bir istisna ölçüldü.** `OpenAIProviderOptionsValidator` `AgentPrism.Azure`
 > tarafından **gerçek kodda** kullanılır
-> ([`src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs`](../src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs)).
+> ([`src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs`](../../../src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs)).
 > `AgentPrism.OpenAI` → `AgentPrism.Azure` için bir `InternalsVisibleTo` gerekir
 > ya da tip public kalır. Açık Soru 2.
 
@@ -228,12 +228,12 @@ ve düştü — bu iş plana girmez.** Gerekçe kayda geçiriliyor ki tekrar
 
 ## 96.4 — Beyan kapısı: takipsiz paket sessizce eklenemesin
 
-[`Directory.Build.targets:35-39`](../Directory.Build.targets) `AdditionalFiles`'ı
+[`Directory.Build.targets:35-39`](../../../Directory.Build.targets) `AdditionalFiles`'ı
 yalnız dosya **varsa** ekler. `src/Directory.Build.props:66-77` ise dört projeyi
 `AgentPrismPublicApiTrackingEnabled=false` ile **bilerek** hariç tutar (K-424):
 `Generators`, `Templates` (tüketiciye dönük API yüzeyi yok) ve `Client`, `Cli`
 (yüzeyleri OpenAPI belgesinden üretilir ve kendi drift kapıları vardır —
-[`ClientDescriptionBaselineTests.cs`](../tests/AgentPrism.Client.UnitTests/ClientDescriptionBaselineTests.cs)).
+[`ClientDescriptionBaselineTests.cs`](../../../tests/AgentPrism.Client.UnitTests/ClientDescriptionBaselineTests.cs)).
 
 **Bu dört istisnaya dokunulmaz.** Kapanmayan sınıf şudur: yarın eklenen
 packable bir paket her iki dosyayı da unutursa, `AgentPrismPublicApiTrackingEnabled`
@@ -275,7 +275,7 @@ Tazeleme yolu diğer mandallarla aynıdır:
 
 ## 96.6 — Tüketici probunu genişletme
 
-Faz 95'in [`ConsumerProject.cs`](../tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs)
+Faz 95'in [`ConsumerProject.cs`](../../../tests/AgentPrism.Package.Tests/Infrastructure/ConsumerProject.cs)
 projesi bugün yalnız sekiz tip adlandırıyor: `AgentDefinition`, `ModelBinding`,
 `AgentPrismToolAttribute`, `AgentPrismTestHost`, `FakeModelProvider` ve üç
 doğrulama yardımcısı. Bu, 96 tipin `internal` yapılmasını **kanıtlamaz** —
@@ -347,7 +347,7 @@ docs-site/src/content/docs/              (elle yazilmis sayfalarda tip adi
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -374,7 +374,7 @@ Sözleşme testi gerekmez — bu faz depo davranışına dokunmaz.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md)
+> Kapanışta [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md)
 > içine eklenecek. Alan kodu `PKG`, İzlek A (temiz tüketici). Sıradaki numara
 > `MT-PKG-094`.
 
