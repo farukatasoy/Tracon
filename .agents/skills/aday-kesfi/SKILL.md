@@ -68,7 +68,7 @@ aşağıdaki bölümleri oku.
 | `docs/manuel-test/00-INDEKS.md` | Gerçek koşumların düşürdüğü notlar |
 
 ```bash
-ls docs/[0-9][0-9]-*.md | tail -3                       # son fazlar
+ls docs/[0-9][0-9]*-*.md | tail -3                       # son fazlar
 grep -n "Sonraki Faza Devir Notu" -A 15 docs/6[0-9]-*.md
 grep -rho "F-[0-9]\{2,3\}" docs/ | sort -t- -k2 -n -u | tail -1   # en büyük F-NN
 ```

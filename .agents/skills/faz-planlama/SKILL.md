@@ -29,7 +29,7 @@ Kullanıcıdan üç şey gelmeli. Gelmediyse **sor**, varsayma:
 | Ne | Neden gerekir |
 |---|---|
 | Hangi F-NN kalem(ler)i? | Bir faz bir veya iki kalemi kapsar. Üç kalem bir faz değil, bir turdur |
-| Faz numarası | Sıradaki boş numara. `ls docs/[0-9][0-9]-*.md \| tail -1` |
+| Faz numarası | Sıradaki boş numara. `ls docs/[0-9][0-9]*-*.md \| tail -1` |
 | Bu tur bir yol haritasına mı bağlanacak? | Bağlanacaksa yol haritası dosyası da güncellenir |
 
 İki kalem tek fazda ancak **aynı altyapıyı** paylaşıyorsa birleşir. Faz 21

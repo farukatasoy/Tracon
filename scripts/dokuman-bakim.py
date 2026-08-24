@@ -34,6 +34,19 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+
+# Faz 100'den itibaren faz numarasi UC basamaklidir. `[0-9][0-9]-*.md`
+# deseni `100-*.md` dosyasini SESSIZCE dusuruyordu: yol haritasi fazi hic
+# listelemedi ve kok yasam dongusu denetimi onu gormedi. Desen artik iki VEYA
+# daha fazla basamak kabul eder; siralama `_faz_no` ile SAYISALDIR -- ad
+# siralamasi "100-" degerini "11-" oncesine koyar.
+FAZ_DESEN = "[0-9][0-9]*-*.md"
+
+
+def _faz_no(p: pathlib.Path) -> int:
+    return int(p.name.split("-", 1)[0])
+
+
 # Doküman erişim katmanları. Başlangıç bağlamı her oturumda okunur. Sorgu
 # bağlamı yalnız ilgili alana girildiğinde, ledger ise yalnız tarihçe/karar
 # aranırken okunur. Bayt bütçesi ~2.4 bayt/token varsayımıyla seçildi.
@@ -480,14 +493,14 @@ def yol_haritasi_uret() -> str:
     # haritasi IKI konumu da tarar; baglanti dosyanin GERCEK yerini gosterir,
     # yoksa 60 faz sessizce listeden duserdi.
     kaynaklar = sorted(
-        (ROOT / "docs").glob("[0-9][0-9]-*.md"),
-        key=lambda q: q.name,
+        (ROOT / "docs").glob(FAZ_DESEN),
+        key=_faz_no,
     ) + sorted(
-        (ROOT / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md"),
-        key=lambda q: q.name,
+        (ROOT / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN),
+        key=_faz_no,
     )
     satirlar = []
-    for p in sorted(kaynaklar, key=lambda q: q.name):
+    for p in sorted(kaynaklar, key=_faz_no):
         metin = p.read_text(encoding="utf-8")
         mb = re.search(r"^#\s+(.*)$", metin, re.M)
         md = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
@@ -499,7 +512,7 @@ def yol_haritasi_uret() -> str:
         ham = ham.replace("*", "").replace("✅", "").replace("⏸", "").replace("📋", "").strip()
         durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham or "?")
 
-        no = p.name[:2].lstrip("0") or "0"
+        no = str(_faz_no(p))
         yol = p.relative_to(ROOT / "docs").as_posix()
         satirlar.append(f"| [{no}]({yol}) | {baslik} | {durum} |")
 
@@ -552,7 +565,7 @@ def kapanmis_faz_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     """
     bulgular = []
     docs = kok / "docs"
-    for p in sorted(docs.glob("[0-9][0-9]-*.md")):
+    for p in sorted(docs.glob(FAZ_DESEN)):
         metin = p.read_text(encoding="utf-8")
         durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
         if durum and _durum_tamamlandi_mi(durum.group(1)):
@@ -570,7 +583,7 @@ def tamamlanmis_faz_isaretsiz_kutular(kok: pathlib.Path = ROOT) -> list[str]:
     that the historical work was completed.
     """
     bulgular: list[str] = []
-    for path in sorted((kok / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md")):
+    for path in sorted((kok / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN)):
         metin = path.read_text(encoding="utf-8")
         durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
         if not durum or not _durum_tamamlandi_mi(durum.group(1)):
@@ -1216,10 +1229,11 @@ def _izlenen_degisiklik_var_mi() -> str | None:
 
 def _faz_dosyalari(secim: list[str]) -> list[pathlib.Path]:
     kaynak = ROOT / "docs" / "arsiv" / "fazlar"
-    hepsi = sorted(kaynak.glob("[0-9][0-9]-*.md"))
+    hepsi = sorted(kaynak.glob(FAZ_DESEN), key=_faz_no)
     if not secim:
         return hepsi
-    return [p for p in hepsi if p.name.split("-", 1)[0] in {f"{int(x):02d}" for x in secim}]
+    istenen = {int(x) for x in secim}
+    return [p for p in hepsi if _faz_no(p) in istenen]
 
 
 def komut_faz_damit(a: argparse.Namespace) -> int:
@@ -1570,8 +1584,8 @@ def _gelen_baglantilari_cevir(kok: pathlib.Path, eski: str, yeni: str) -> int:
 def komut_faz_arsivle(a: argparse.Namespace) -> int:
     """`docs/NN-*.md` -> `docs/arsiv/fazlar/NN-*.md`, bağlantılarıyla birlikte."""
     onek = f"{int(a.faz):02d}-"
-    adaylar = [p2 for p2 in sorted((ROOT / "docs").glob("[0-9][0-9]-*.md"))
-               if p2.name.startswith(onek)]
+    adaylar = [p2 for p2 in sorted((ROOT / "docs").glob(FAZ_DESEN), key=_faz_no)
+               if _faz_no(p2) == int(a.faz)]
     if len(adaylar) != 1:
         print(f"❌ `docs/{onek}*.md` için {len(adaylar)} eşleşme; tam olarak 1 olmalı.")
         return 1
@@ -1752,7 +1766,7 @@ def denetle() -> int:
         dar += int(not asti and _dar_mi(len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI))
 
     print(f"\nCanlı geliştirme dokümanları (hariç: {', '.join(HARIC)})")
-    kayitlar = sorted((ROOT / "docs" / "arsiv" / "fazlar").glob("[0-9][0-9]-*.md"))
+    kayitlar = sorted((ROOT / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN))
     if kayitlar:
         asan = [(p2.name, len(p2.read_bytes())) for p2 in kayitlar
                 if len(p2.read_bytes()) > DAMITILMIS_FAZ_BUTCESI]
