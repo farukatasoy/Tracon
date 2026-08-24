@@ -904,7 +904,7 @@ class DizinButcesiTestleri(unittest.TestCase):
 
     def test_damitilmis_faz_kayitlari_butcede(self):
         import pathlib as _p
-        for f in (_p.Path("docs/arsiv/fazlar")).glob("[0-9][0-9]-*.md"):
+        for f in (_p.Path("docs/arsiv/fazlar")).glob("[0-9][0-9]*-*.md"):
             self.assertLessEqual(len(f.read_bytes()),
                                  dokuman_bakim.DAMITILMIS_FAZ_BUTCESI, f.name)
 
