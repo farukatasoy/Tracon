@@ -45,7 +45,7 @@
     <Project Path="tests/AgentPrism.Sql.Shared.UnitTests/AgentPrism.Sql.Shared.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
-    <Project Path="tests/AgentPrism.Templates.Tests/AgentPrism.Templates.Tests.csproj" />
+    <Project Path="tests/AgentPrism.Package.Tests/AgentPrism.Package.Tests.csproj" />
     <Project Path="tests/AgentPrism.Testing.UnitTests/AgentPrism.Testing.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Client.UnitTests/AgentPrism.Client.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Cli.FunctionalTests/AgentPrism.Cli.FunctionalTests.csproj" />

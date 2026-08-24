@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using AgentPrism.Templates.Tests.Infrastructure;
+using AgentPrism.Package.Tests.Infrastructure;
 
-namespace AgentPrism.Templates.Tests;
+namespace AgentPrism.Package.Tests;
 
 /// <summary>
 /// Verifies that the template actually compiles at at least two endpoints: the

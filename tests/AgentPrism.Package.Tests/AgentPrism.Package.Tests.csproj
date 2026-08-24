@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    This project is NOT linked to AgentPrism.Templates/AgentPrism.Testing as
+    code: the template package's IncludeBuildOutput=false, there is no build
+    output to link against, and AgentPrism.Testing is built in this same
+    solution - a PackageReference back to it would form a cycle. Tests run
+    the `dotnet` CLI as a subprocess (pack, new install, new/write, build,
+    restore, list package, and running the generated app).
+  -->
+
+  <ItemGroup>
+    <None Include="Baselines/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

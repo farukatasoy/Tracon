@@ -12,7 +12,7 @@
 
 ## Alt surec ve MSBuild
 
-- **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test AgentPrism.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `AgentPrism.Templates.Tests` fikstürüdür: `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
+- **🚨 Yonlendirilmis bir alt surecte MSBuild DUGUM YENIDEN KULLANIMI `WaitForExitAsync`'i ~15 DAKIKA bloke eder** (2026-08-07, Faz 47): `dotnet test AgentPrism.slnx` hicbir test kosmadan on dakikalarca asili kaldi. Kok sebep `AgentPrism.Package.Tests` fikstürüdür (Faz 95'e kadar `AgentPrism.Templates.Tests` adını taşıyordu): `ProcessRunner` `dotnet pack`/`build`'i `RedirectStandardOutput`/`Error` ile calistirir; `dotnet pack` MSBuild isci dugumlerini `nodeReuse:true` ile baslatir ve o dugumler komut bittikten sonra da yasar (varsayilan ~15 dk). Dugumler ebeveynin yonlendirilmis boru taniticilarini MIRAS ALIR, boru hicbir zaman EOF gormez ve .NET'in `Process.WaitForExitAsync` cagrisi cikis kodunu degil **asenkron okuyucularin bitmesini** de bekledigi icin alt surec saniyeler once cikmis olsa bile bloke kalir. **Belirti**: `ps` ciktisinda tek bir `dotnet pack` sureci yoktur, yalnizca oksuz (`ppid = 1`) `MSBuild.dll … /nodeReuse:true` dugumleri durur; dugumler `pkill` ile oldurulunce fikstür ANINDA devam eder (olculdu). **Cozum**: `ProcessRunner` her alt surece `MSBUILDDISABLENODEREUSE=1` verir. Komut satiri anahtari (`-nodeReuse:false`) yetmez — `dotnet new` gibi MSBuild'i DOLAYLI cagiran komutlar onu tasiyamaz. Olcum: 8 dk+ (asili) → **18,5 sn**. **Kural**: MSBuild cagiran her alt sureci yonlendirirken bu degisken verilir.
 
 ## 🚨 `sed -i.bak` + `mv .bak dosya` ESKI mtime'i geri getirir, `dotnet build` DERLEMEZ (Faz 94)
 
@@ -60,6 +60,12 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   basina gecti, ikinci tam kosumda **870/870** yesil geldi. Yuk altinda
   kirilgan bir test; degisiklikle ilgisi yoktu. Aday listesine **F-102** olarak
   yazildi — sessiz birakilmadi.
+  **Ikinci vaka (2026-08-24, Faz 95 kapanisi):** `AgentPrism.Workflows.UnitTests.WorkflowHumanInTheLoopTests.A_rejection_response_also_flows_through_execution`
+  tam kosumda dustu (`Sequence contains no matching element`), tek basina VE
+  proje tek basina (102/102) gecti. Faz 95 `src/AgentPrism.Workflows`'a hic
+  dokunmadi — nedensellik dislaniyor. Ucuncu tam kosum 20/20 proje yesil
+  donuncu dogrulandi. F-102'nin sinifi `Ui.E2ETests`'e ozgu degil, tam
+  cozum kosumunda HERHANGI bir projede gorulebilir.
 - **🚨 `Templates.Tests` GLOBAL `~/.templateengine/packages.json` dosyasina
   yazar — paralel kosumda birbirini kilitler** (2026-08-16, Faz 58). Belirti:
   `Most_minimal_combination_compiles_with_zero_warnings` `ExitCode 70` ile
@@ -69,7 +75,7 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   by another process"* + `Sequence contains no matching element`. Bu bir URUN
   KUSURU DEGILDIR: `dotnet new` sablon deposu kullanici genelindedir, test
   basina yalitilmaz. **Ayirt etme**: tek basina kostur —
-  `dotnet test tests/AgentPrism.Templates.Tests -c Release --no-build`; 10/10
+  `dotnet test tests/AgentPrism.Package.Tests -c Release --no-build`; 10/10
   gecerse kilit cakismasidir. Ayni kosumda iki kez ust uste duserse gercek
   kusurdur. Faz 58'de tam paket bir kez 3695/3695 yesil, ikinci kez bu tek
   testte dustu, izole kosumda 10/10 gecti.
