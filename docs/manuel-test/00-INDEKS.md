@@ -284,7 +284,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
-| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` | **48** | ✅ | ✅ 48/48 |
+| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` · `scripts/kapi.py` (`yayin`) | **52** | ✅ | ✅ 48/48 · 4 🆕 (Faz 97: MT-PKG-097..099 koşuldu, MT-PKG-100 👤 gerekir) |
 | 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **54** | ✅ | ✅ 42/42 (2026-08-13) · MT-CORE-075..080 Faz 72 kapanışında koşuldu, 081 👤 gerekir · MT-CORE-082/086 Faz 86 kapanışında `samples/AgentPrism.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı) · MT-CORE-083/084/085 henüz koşulmadı |
 | 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ 36/36 |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **40** | ✅ | ✅ 37/40 · 3 ⏭ |

@@ -14,7 +14,8 @@
     "check": "npm run check:content && npm run build && npm run check:links && npm run check:weight",
     "dev": "astro dev",
     "preview": "astro preview",
-    "check:weight": "node scripts/check-weight.mjs"
+    "check:weight": "node scripts/check-weight.mjs",
+    "build:icon": "node scripts/build-package-icon.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.7",

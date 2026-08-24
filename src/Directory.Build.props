@@ -38,6 +38,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Authors>Faruk Atasoy</Authors>
@@ -49,6 +50,15 @@
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!--
+      TFM-vs-TFM API compatibility, checked on every `dotnet pack` (net8.0 vs
+      net9.0 vs net10.0 assemblies of the SAME package). A baseline against the
+      previous PUBLISHED version is deliberately not set here - AgentPrism has
+      not shipped yet, so there is no previous version to compare against; a
+      future phase adds PackageValidationBaselineVersion after the first
+      release. Rationale: docs/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.4.
+    -->
+    <EnablePackageValidation>true</EnablePackageValidation>
     <!-- Shared tags; projects use $(CommonPackageTags) inside PackageTags. -->
     <CommonPackageTags>agentprism;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
   </PropertyGroup>
@@ -59,8 +69,17 @@
     <MinVerDefaultPreReleaseIdentifiers>preview.0</MinVerDefaultPreReleaseIdentifiers>
   </PropertyGroup>
 
+  <!--
+    🚨 <None Update=...> is a silent no-op in a cross-targeted project: the
+    SDK's default None glob applies only in the INNER (TFM-specific) builds,
+    while `dotnet pack` collects package files in the OUTER cross-targeting
+    build. Include is the working form - this is why README.md is packed the
+    same way. Verify with: unzip -l <nupkg> | grep icon.png (all 19 packages).
+    Rationale: docs/hafiza/paketleme-ve-dagitim.md.
+  -->
   <ItemGroup Label="Package files">
     <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
+    <None Include="$(RepositoryRootPath)assets/icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!--
