@@ -1,4 +1,18 @@
 #nullable enable
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Concurrent_calls_complete() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Judge.get -> AgentPrism.IRunJudge!
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Judgment_score_is_null_or_in_range() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Name_is_a_stable_valid_identifier() -> void
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Repeated_calls_with_the_same_context_complete() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.RunJudgeContract() -> void
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.A_pre_cancelled_token_does_not_produce_an_unrelated_exception() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Judges.RunJudgeContract.Whitespace_output_and_empty_tools_do_not_throw() -> System.Threading.Tasks.Task!
+abstract AgentPrism.Testing.Contracts.Judges.RunJudgeContract.CreateJudgeAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IRunJudge!>
+const AgentPrism.Testing.Contracts.ContractCoverage.JudgeContracts = "AgentPrism.Testing.Contracts.Judges" -> string!
+virtual AgentPrism.Testing.Contracts.Judges.RunJudgeContract.CreateContext() -> AgentPrism.RunJudgeContext!
 AgentPrism.Testing.Contracts.ContractCoverage
 AgentPrism.Testing.Contracts.Providers.ModelProviderContract
 AgentPrism.Testing.Contracts.Providers.ModelProviderContract.A_client_that_is_never_disposed_does_not_stop_the_provider() -> void

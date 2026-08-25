@@ -20,6 +20,9 @@ public sealed class OnlineEvaluationOptions
     /// <summary>Configuration section name.</summary>
     public const string SectionName = "AgentPrism:OnlineEvaluation";
 
+    /// <summary>The greatest supported per-judge timeout.</summary>
+    internal static readonly TimeSpan MaxJudgeTimeout = TimeSpan.FromMinutes(5);
+
     /// <summary>Whether online evaluation is enabled. Default <see langword="false"/>.</summary>
     public bool Enabled { get; set; }
 
@@ -59,6 +62,13 @@ public sealed class OnlineEvaluationOptions
     /// on-call engineer to start ignoring notifications.
     /// </remarks>
     public int MinSampleSize { get; set; } = 20;
+
+    /// <summary>Maximum time allocated to one judge call.</summary>
+    /// <remarks>
+    /// The timeout applies to each registered judge independently. With N judges,
+    /// one online evaluation can take up to N times this value before retries.
+    /// </remarks>
+    public TimeSpan JudgeTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>Window for the average calculation.</summary>
     public TimeSpan EvaluationWindow { get; set; } = TimeSpan.FromHours(1);

@@ -66,6 +66,7 @@ namespace AgentPrism.Client.Generated;
 [JsonSerializable(typeof(JobSchedule))]
 [JsonSerializable(typeof(JobScheduleSaveRequest))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(JudgeRunResponse))]
 [JsonSerializable(typeof(McpOAuthStartResponse))]
 [JsonSerializable(typeof(McpPromptContent))]
 [JsonSerializable(typeof(McpRefreshResponse))]

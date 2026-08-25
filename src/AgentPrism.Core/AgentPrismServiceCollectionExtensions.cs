@@ -686,6 +686,8 @@ public static class AgentPrismServiceCollectionExtensions
         // way to turn on the built-in judge is the AddModelRunJudge() call.
         services.TryAddSingleton<RunSampler>();
         services.TryAddSingleton<OnlineEvalSummaryService>();
+        services.TryAddSingleton<RunJudgeSet>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RunJudgeValidationService>());
 
         // 🚨 The concrete type is ALSO registered: the POST
         // /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler by its
@@ -2614,6 +2616,14 @@ public static class AgentPrismServiceCollectionExtensions
                 out var evaluationWindow))
         {
             options.EvaluationWindow = evaluationWindow;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(OnlineEvaluationOptions.JudgeTimeout)],
+                CultureInfo.InvariantCulture,
+                out var judgeTimeout))
+        {
+            options.JudgeTimeout = judgeTimeout;
         }
     }
 

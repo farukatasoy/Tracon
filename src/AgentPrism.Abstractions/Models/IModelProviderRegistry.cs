@@ -24,7 +24,7 @@ public interface IModelProviderRegistry
     /// an async store lookup, which this synchronous method cannot perform.
     /// Callers that must honor a tenant's own credential and egress policy —
     /// this includes the real agent-run compile path — use
-    /// <see cref="CreateChatClientAsync"/> instead.
+    /// <see cref="CreateChatClientAsync(ModelBinding, CancellationToken)"/> instead.
     /// </remarks>
     IChatClient CreateChatClient(ModelBinding binding);
 
@@ -48,6 +48,16 @@ public interface IModelProviderRegistry
     ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Produces a chat client after applying the current tenant's egress policy.
+    /// </summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The chat client.</returns>
+    ValueTask<IChatClient> CreateSetupChatClientAsync(
+        ModelBinding binding,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Reports whether the current tenant has its own provider binding for
     /// <paramref name="binding"/>'s primary provider or any of its
     /// <see cref="ModelBinding.Fallbacks"/> (BYOK).
@@ -56,7 +66,7 @@ public interface IModelProviderRegistry
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// <see langword="true"/> if a tenant-specific credential would be baked
-    /// into the chat client <see cref="CreateChatClientAsync"/> produces for
+    /// into the chat client <see cref="CreateChatClientAsync(ModelBinding, CancellationToken)"/> produces for
     /// this binding.
     /// </returns>
     /// <remarks>

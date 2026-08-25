@@ -158,6 +158,18 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         var provider = ResolveProvider(binding);
         var credential = await ResolveTenantCredentialAsync(binding, cancellationToken).ConfigureAwait(false);
+        return BuildPipeline(binding, provider, credential, resolveFallback: CreateChatClientAsync);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IChatClient> CreateSetupChatClientAsync(
+        ModelBinding binding,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+
+        var provider = ResolveProvider(binding);
+        var credential = await ResolveSetupCredentialAsync(binding, cancellationToken).ConfigureAwait(false);
 
         // 🚨 The resolver a fallback link uses to build ITS OWN client matters
         // (independent audit, phase 65): a fallback binding carries its own
@@ -166,7 +178,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // a fallback would silently use the global credential and bypass the
         // tenant's egress policy. CreateChatClientAsync is passed here, so a
         // triggered fallback recurses back into this exact method.
-        return BuildPipeline(binding, provider, credential, resolveFallback: CreateChatClientAsync);
+        return BuildPipeline(
+            binding,
+            provider,
+            credential,
+            resolveFallback: CreateSetupChatClientAsync);
     }
 
     private ValueTask<IChatClient> SyncFallbackResolver(ModelBinding binding, CancellationToken cancellationToken)
@@ -292,6 +308,50 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 $"'{tenantBinding.ApiKeyConfigurationName}', but that key has no value. Set it with " +
                 $"`dotnet user-secrets set \"{tenantBinding.ApiKeyConfigurationName}\" \"<key>\"` " +
                 "or through your configuration provider — the call does NOT fall back to the global key.");
+    }
+
+    private async ValueTask<ModelProviderCredential?> ResolveSetupCredentialAsync(
+        ModelBinding binding,
+        CancellationToken cancellationToken)
+    {
+        if (_tenantContext is null)
+        {
+            return null;
+        }
+
+        var tenantId = _tenantContext.TenantId;
+
+        if (_tenantEgressPolicies is null)
+        {
+            return null;
+        }
+
+        var policy = await _tenantEgressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
+        if (policy is null)
+        {
+            return null;
+        }
+
+        if (!policy.AllowedProviders.Contains(binding.Provider, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new AgentPrismException(
+                $"Tenant '{tenantId}' is not allowed to call model provider '{binding.Provider}'. " +
+                $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
+        }
+
+        foreach (var fallback in binding.Fallbacks)
+        {
+            if (!policy.AllowedProviders.Contains(fallback.Provider, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new AgentPrismException(
+                    $"Tenant '{tenantId}' is not allowed to call model provider '{fallback.Provider}' " +
+                    $"(used as a fallback for '{binding.Provider}'). " +
+                    $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
+            }
+        }
+
+        return null;
     }
 
     private ContentFilterDetectingChatClient BuildPipeline(

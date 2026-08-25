@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AgentPrism.Samples.CustomRunJudge</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AgentPrism.Abstractions" VersionOverride="*-*" />
+  </ItemGroup>
+
+</Project>
