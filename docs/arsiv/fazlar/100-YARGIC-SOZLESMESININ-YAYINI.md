@@ -47,32 +47,32 @@
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `IRunJudge` · `RunJudgeContext` · `RunJudgment` XML dokümanı 100.1'deki **on maddenin hepsini** taşır
-- [ ] `RunJudgment.JudgeUsage` kaldırıldı; `grep -rn "JudgeUsage" src/ tests/` boş döner
-- [ ] Aynı adlı iki `IRunJudge` kaydı host başlarken `AgentPrismException` üretir; karşılaştırma `OrdinalIgnoreCase`
-- [ ] Boş/geçersiz `Name` host başlarken reddedilir
-- [ ] Aralık dışı skor kalıcılaşmaz, `judge_contract` üretir ve **yeniden kuyruklanmaz**
-- [ ] Yargıcın keyfi `OperationCanceledException`'ı job'ı `Running` bırakmaz; gerçek host iptali hâlâ yayılır (iki test birlikte)
-- [ ] `OnlineEvaluationOptions.JudgeTimeout` varsayılanı 60 s; `<= TimeSpan.Zero` ve `Infinite` validator tarafından reddedilir
-- [ ] Zaman aşımı **çağrı başına** uygulanır; iki yargıçlı bir koşumda ölçüldü
-- [ ] `502` gövdesi ve job `error_message`'ı ham üçüncü taraf metni taşımaz; yalnız `{ad} ({kod})` biçimi
-- [ ] Kısmi başarısızlık yanıt gövdesinde görünür
-- [ ] 🚨 Yargıcın `JudgeAsync` içinde başlattığı `run` **örneklenmez**; döngü testi yeşil
-- [ ] `ModelRunJudge` `CreateChatClientAsync(..., ModelCredentialSource.Setup, ...)` kullanır; egress policy uygulanır, BYOK anahtarı **kullanılmaz** (iki ayrı test)
-- [ ] `Reason` 4000 karakterde kırpılır ve kırpma işaretlenir; skor yazılır
-- [ ] `RunJudgeContract` `AgentPrism.Testing.Contracts.Judges` ad alanında yayınlandı; paketin bağımlılık grafiğine `AgentPrism.Core` **inmez** (`project.assets.json` ölçümü)
-- [ ] Sözleşme paketinin public yüzeyine `Shouldly` tipi sızmaz
-- [ ] `samples/AgentPrism.Samples.CustomRunJudge` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
-- [ ] Sample'ın test projesi `RunJudgeContract`'ı türetir, kapsam kapısını koşar **ve** uçtan uca bir skor kalıcılaştırır; hepsi yeşil
-- [ ] Mevcut `StoreContractCoverageTests` (dört koşum) ve sağlayıcı kapsam testi yeşil kaldı
-- [ ] `OnlineEvalJobHandler`'ın yanlış retry yorumu düzeltildi ve bir test davranışı kanıtlıyor
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; sample yargıç kaydedilip skor üretildi, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/write-your-own-judge.md` dahil); `npm run build` + `check-links.mjs` temiz
-- [ ] Açık Soru 3'ün aday kalemi `docs/ADAYLAR.md`'ye yazıldı
+- [x] `IRunJudge` · `RunJudgeContext` · `RunJudgment` XML dokümanı 100.1'deki **on maddenin hepsini** taşır
+- [x] `RunJudgment.JudgeUsage` kaldırıldı; `grep -rn "JudgeUsage" src/ tests/` boş döner
+- [x] Aynı adlı iki `IRunJudge` kaydı host başlarken `AgentPrismException` üretir; karşılaştırma `OrdinalIgnoreCase`
+- [x] Boş/geçersiz `Name` host başlarken reddedilir
+- [x] Aralık dışı skor kalıcılaşmaz, `judge_contract` üretir ve **yeniden kuyruklanmaz**
+- [x] Yargıcın keyfi `OperationCanceledException`'ı job'ı `Running` bırakmaz; gerçek host iptali hâlâ yayılır (iki test birlikte)
+- [x] `OnlineEvaluationOptions.JudgeTimeout` varsayılanı 60 s; `<= TimeSpan.Zero` ve `Infinite` validator tarafından reddedilir
+- [x] Zaman aşımı **çağrı başına** uygulanır; iki yargıçlı bir koşumda ölçüldü
+- [x] `502` gövdesi ve job `error_message`'ı ham üçüncü taraf metni taşımaz; yalnız `{ad} ({kod})` biçimi
+- [x] Kısmi başarısızlık yanıt gövdesinde görünür
+- [x] 🚨 Yargıcın `JudgeAsync` içinde başlattığı `run` **örneklenmez**; döngü testi yeşil
+- [x] `ModelRunJudge` `CreateChatClientAsync(..., ModelCredentialSource.Setup, ...)` kullanır; egress policy uygulanır, BYOK anahtarı **kullanılmaz** (iki ayrı test)
+- [x] `Reason` 4000 karakterde kırpılır ve kırpma işaretlenir; skor yazılır
+- [x] `RunJudgeContract` `AgentPrism.Testing.Contracts.Judges` ad alanında yayınlandı; paketin bağımlılık grafiğine `AgentPrism.Core` **inmez** (`project.assets.json` ölçümü)
+- [x] Sözleşme paketinin public yüzeyine `Shouldly` tipi sızmaz
+- [x] `samples/AgentPrism.Samples.CustomRunJudge` yalnız `PackageReference` kullanır; `grep -c ProjectReference` → `0`
+- [x] Sample'ın test projesi `RunJudgeContract`'ı türetir, kapsam kapısını koşar **ve** uçtan uca bir skor kalıcılaştırır; hepsi yeşil
+- [x] Mevcut `StoreContractCoverageTests` (dört koşum) ve sağlayıcı kapsam testi yeşil kaldı
+- [x] `OnlineEvalJobHandler`'ın yanlış retry yorumu düzeltildi ve bir test davranışı kanıtlıyor
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı; sample yargıç kaydedilip skor üretildi, çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `docs-site/` güncellendi (`guides/write-your-own-judge.md` dahil); `npm run build` + `check-links.mjs` temiz
+- [x] Açık Soru 3'ün aday kalemi `docs/ADAYLAR.md`'ye yazıldı
 
 ### Doğrulama komutları
 
