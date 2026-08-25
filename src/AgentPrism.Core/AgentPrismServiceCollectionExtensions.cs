@@ -909,6 +909,24 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentSourceValidationService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ToolRegistrationValidationService>());
 
+        // Reports non-persistent storage in the Production environment. It reads
+        // no database, so it is independent of migration order; it only looks at
+        // which store implementations the container resolved.
+        //
+        // The explicit factory is REQUIRED, not a style choice: IHostEnvironment
+        // is registered by the host, and AddAgentPrism() is also valid on a bare
+        // service collection with no host behind it. With constructor resolution
+        // the container treats the missing dependency as an error even though the
+        // parameter is nullable, and enumerating IHostedService then throws for
+        // every consumer - measured in phase 104.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, NonPersistentStorageWarningService>(
+            static provider => new NonPersistentStorageWarningService(
+                provider.GetService<IHostEnvironment>(),
+                provider.GetRequiredService<IAgentDefinitionStore>(),
+                provider.GetRequiredService<IRunStore>(),
+                provider.GetRequiredService<ISessionStore>(),
+                provider.GetRequiredService<ILogger<NonPersistentStorageWarningService>>())));
+
         // Wrappers. Application order is determined by Order:
         // run recording (0) → telemetry (10) → tool approval (20) → agent.
         //

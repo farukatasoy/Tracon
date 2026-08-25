@@ -16,6 +16,17 @@ namespace AgentPrism;
 /// the day/month scale is done with <see cref="AgentPrismQuotaOptions"/> and
 /// counted in the database.
 /// </para>
+/// <para>
+/// The counter lives in the memory of a single process: AgentPrism ships no
+/// distributed rate limiter. In a multi-instance deployment the limit therefore
+/// applies <strong>per instance</strong> — two instances with a
+/// <see cref="PermitLimit"/> of 100 together admit 200 requests per window, and
+/// <see cref="RateLimitPartitionKind.Tenant"/> partitions that per-instance
+/// window per tenant rather than across the deployment.
+/// <see cref="InboundTriggerRateLimiter"/> has the same scope. A ceiling that
+/// must hold for the deployment as a whole is a total-consumption question, so
+/// it belongs to <see cref="AgentPrismQuotaOptions"/>.
+/// </para>
 /// </remarks>
 public sealed class AgentPrismRateLimitOptions
 {

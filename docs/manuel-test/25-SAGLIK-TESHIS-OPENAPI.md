@@ -1396,3 +1396,115 @@ jq -r '.extensionPoints[] | .contract, .implementation' /tmp/embedded-diag.json 
   KENDİSİ hiçbir yapılandırma değeri taşımaz (K-059).
 
 ---
+### MT-DIAG-052 — `Production` + kalıcı olmayan store başlangıçta TAM BİR uyarı düşürür — Faz 104
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 104 |
+| **İlgili karar** | K-624 |
+
+**Ön koşul**
+- Örnek uygulama derlendi. Hiçbir SQL bağlantı dizesi yapılandırılmamış olmalı
+  (`user-secrets` bir bağlantı dizesi taşıyorsa aşağıdaki boş ortam değişkenleri
+  onu ezer).
+
+**Adımlar**
+1. Örnek uygulamayı `Production` ortamında, kalıcı olmayan store ile başlat.
+2. Kalkış log'unda uyarıyı say.
+3. `/api/meta`'nın aynı yargıyı verdiğini doğrula.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Production \
+AgentPrism__PostgreSql__ConnectionString= \
+AgentPrism__SqlServer__ConnectionString= \
+AgentPrism__Sqlite__ConnectionString= \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz104-prod.log 2>&1 &
+sleep 14
+grep -ci "storage that is not persistent" /tmp/faz104-prod.log        # beklenen: 1
+grep -B1 "storage that is not persistent" /tmp/faz104-prod.log | head -1
+curl -s http://localhost:5099/agentprism/api/meta | grep -o '"persistent":[a-z]*'
+```
+
+**Beklenen sonuç**
+- Uyarı **tam bir kez** düşer; satır `warn:` seviyesindedir ve kaynağı
+  `AgentPrism.NonPersistentStorageWarningService`'tir.
+- Mesaj üç şeyi adlandırır: hangi store'ların kalıcı olmadığı
+  (`agent definitions, runs, sessions`), verinin süreç ömrüyle sınırlı olduğu,
+  ve kalıcılığa geçiş çağrısı (`UsePostgreSql(...)`).
+- `/api/meta` `"persistent":false` döner — log ile uç **aynı** yargıyı verir.
+- Uygulama ayağa kalkar; uyarı bir hata değildir.
+
+---
+
+### MT-DIAG-053 — Aynı kurulum `Development`'ta SESSİZDİR — Faz 104
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 104 |
+| **İlgili karar** | K-624 |
+
+**Ön koşul**
+- MT-DIAG-052 koşuldu ve süreç durduruldu (`pkill -f AgentPrism.Api`).
+
+**Adımlar**
+1. **Aynı** store kurulumuyla, yalnız ortamı değiştirerek başlat.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Development \
+AgentPrism__PostgreSql__ConnectionString= \
+AgentPrism__SqlServer__ConnectionString= \
+AgentPrism__Sqlite__ConnectionString= \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz104-dev.log 2>&1 &
+sleep 14
+grep -c "Application started" /tmp/faz104-dev.log                     # beklenen: 1
+grep -ci "storage that is not persistent" /tmp/faz104-dev.log         # beklenen: 0
+```
+
+**Beklenen sonuç**
+- Uygulama kalkar ve **hiç uyarı düşmez**. Store kurulumu MT-DIAG-052 ile
+  birebir aynı olduğu için tek değişken ortamdır — bu, kontrolün gerçekten
+  `IHostEnvironment.IsProduction()` üzerinden çalıştığını kanıtlar.
+
+---
+
+### MT-DIAG-054 — `Production` + kalıcı store SESSİZDİR (yanlış pozitif yok) — Faz 104
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 104 |
+| **İlgili karar** | K-624 |
+
+**Ön koşul**
+- Önceki süreç durduruldu.
+
+**Adımlar**
+1. `Production` ortamında, SQLite kalıcılığı ile başlat.
+
+**Girilecek veri**
+```bash
+ASPNETCORE_ENVIRONMENT=Production \
+AgentPrism__PostgreSql__ConnectionString= \
+AgentPrism__SqlServer__ConnectionString= \
+AgentPrism__Sqlite__ConnectionString="Data Source=/tmp/faz104.db" \
+dotnet run --project samples/AgentPrism.Api --no-launch-profile --urls http://localhost:5099 \
+  > /tmp/faz104-sqlite.log 2>&1 &
+sleep 16
+grep -ci "storage that is not persistent" /tmp/faz104-sqlite.log      # beklenen: 0
+curl -s http://localhost:5099/agentprism/api/meta | grep -o '"runStore":"[A-Za-z]*"'
+```
+
+**Beklenen sonuç**
+- Uyarı düşmez ve `/api/meta` `"runStore":"SqlRunStore"` ile
+  `"persistent":true` döner. Kalıcı bir kurulum uyarı görmez.
+
+---

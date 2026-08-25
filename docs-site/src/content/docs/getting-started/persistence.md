@@ -9,6 +9,16 @@ Without a database every store is in memory and everything ends with the process
 That is deliberate — it makes the first agent work with no infrastructure — but it is
 not where you stop.
 
+:::caution[In production, AgentPrism says so out loud]
+Start a host in the `Production` environment while storage is still in memory and
+AgentPrism writes one warning at startup, naming the stores that do not survive a
+restart. In-memory storage stays a supported mode — the warning never fails
+startup and there is no switch to silence it, because a production installation
+losing its runs on the next deployment should not be a quiet fact. The same
+judgement is what `GET /api/meta` reports as `storage.persistent`, and what the
+console's settings screen shows.
+:::
+
 ## Pick one
 
 ```csharp

@@ -192,6 +192,16 @@ A cancel request routed to another instance, or sent after the owner restarts, r
 cross-node cancellation is a requirement. Queued-run cancellation is durable because
 it uses the shared job store.
 
+Rate limits are per process for the same reason. The endpoint limiter
+(`AgentPrism:RateLimit`) and the inbound trigger limiter both count in the memory
+of one instance; AgentPrism ships no distributed counter. Two instances with a
+`PermitLimit` of 100 admit 200 requests per window between them, and a `Tenant`
+partition splits each instance's own window rather than a window shared across
+the deployment. Size the limit per instance, or put a shared limiter in the
+ingress in front of them. A ceiling that must hold for the deployment as a whole
+is a quota instead: quotas count in the database, so the instance count does not
+change them.
+
 ## Add readiness, liveness, and diagnostics
 
 Use the AgentPrism check for readiness. It is `Unhealthy` when SQL is unreachable or

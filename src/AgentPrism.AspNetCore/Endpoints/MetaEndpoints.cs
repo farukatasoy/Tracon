@@ -34,13 +34,16 @@ internal static class MetaEndpoints
                 // Audit trail decorators (Auditing*Store) are transparent here: which
                 // storage implementation is registered is reported using the name of the
                 // real implementation it wraps, not the decorator.
-                var definitionsInner = Unwrap(definitions);
-                var sessionsInner = Unwrap(sessions);
+                //
+                // Both the unwrapping and the persistence judgement come from
+                // StorePersistence, the same source the startup warning
+                // (NonPersistentStorageWarningService) reads. A fourth in-memory store
+                // added later cannot make this endpoint and that warning disagree.
+                var definitionsInner = StorePersistence.Unwrap(definitions);
+                var runsInner = StorePersistence.Unwrap(runs);
+                var sessionsInner = StorePersistence.Unwrap(sessions);
 
-                var persistent =
-                    definitionsInner is not InMemoryAgentDefinitionStore &&
-                    runs is not InMemoryRunStore &&
-                    sessionsInner is not InMemorySessionStore;
+                var persistent = StorePersistence.IsPersistent(definitions, runs, sessions);
 
                 var schedulingOptions = scheduling.CurrentValue;
 
@@ -58,7 +61,7 @@ internal static class MetaEndpoints
                     {
                         Persistent = persistent,
                         AgentDefinitionStore = definitionsInner.GetType().Name,
-                        RunStore = runs.GetType().Name,
+                        RunStore = runsInner.GetType().Name,
                         SessionStore = sessionsInner.GetType().Name,
                         JobStore = jobs.GetType().Name,
                         JobWorkerEnabled = schedulingOptions.Enabled && schedulingOptions.RunWorker,
@@ -117,9 +120,6 @@ internal static class MetaEndpoints
         var result = await authorizationService.AuthorizeAsync(user, policyName).ConfigureAwait(false);
         return result.Succeeded;
     }
-
-    /// <summary>If the store is an audit trail decorator, returns the real store it wraps.</summary>
-    private static object Unwrap(object store) => store is IAuditDecorated decorated ? decorated.AuditedInner : store;
 
     /// <summary>
     /// The running assembly's version. MinVer writes this as

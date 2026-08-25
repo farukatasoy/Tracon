@@ -326,6 +326,12 @@ beyan etmek. Kod değişmez.
 
 ### 12. Varsayılan yol kalıcı değil ve çalışma anında uyarmıyor · ⚡ Tek oturum
 
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam **yalnız uyarı log'udur**
+> (👤 karar); hata fırlatılmaz, seçenek eklenmez — kalıcı olmayan store
+> desteklenen bir moddur. 🚨 Yeniden ölçüldü 2026-08-25: arayüz zaten dürüst
+> (`settings.tsx:129`, `settings.inMemoryNotice`). Eksik olan **sunucu tarafı**
+> sinyalidir; `IsProduction` kontrolü kodda hiç yoktur.
+
 **Ölçüm:** [`AgentPrismServiceCollectionExtensions.cs:514-605`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L514-L605)
 **27** InMemory store kaydeder (toplam 5.382 satır). Uyarı yalnız bir XML
 yorumunda: "Use `AgentPrism.PostgreSql` in production". Diagnostics
@@ -368,6 +374,18 @@ CI ayrıştırmasıyla birlikte koşulmalı.
 
 ### 14. Çok kiracılı üretim sığ · 📋 Faz
 
+> **Durum:** 📋 KISMEN planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Blok C'den **öne
+> çekildi** (👤 karar). Faza giren: RLS **kararı** (uygulama katmanı tek hat
+> kalır) ve hız sınırının kapsam beyanı. Faza girmeyen: RLS uygulaması, dağıtık
+> hız sınırı.
+> 🚨 Yeniden ölçüldü 2026-08-25 ve **iddianın yarısı düştü**: hız sınırının tek
+> süreç oluşu zaten beyan edilmiştir — `InboundTriggerRateLimiter.cs:8-13` "PER
+> INSTANCE" yazar ve `guides/inbound-triggers.md:156-160` bir `caution` bloğu
+> taşır. Gerçek boşluk ikidir: `AgentPrismRateLimitOptions` XML'i ("lives in
+> memory" der, çok örnekli kapsamı yazmaz) ve `guides/production.md` (hiç
+> geçmez). RLS kararı ise hiçbir yerde kayıtlı değildi — `KARARLAR.md`,
+> `MIMARI-GUVENLIK.md` ve `docs-site/` taramaları **0** döndü.
+
 **Ölçüm:** `ROW LEVEL SECURITY` taraması `src/` altında **0** sonuç — kiracı
 yalıtımı tümüyle uygulama katmanındadır (`ITenantContext` + `TenantIsolationTests`).
 [`InboundTriggerRateLimiter`](../../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs)
@@ -383,6 +401,13 @@ uygulama katmanı tek hat mı kalacak?
 ---
 
 ### 15. NSwag üretimi client komple susturulmuş · ⚡ Tek oturum
+
+> **Durum:** ❌ Kapsam dışı (2026-08-25, 👤 karar). Yeniden ölçüldü ve kalem
+> zayıf çıktı: 14 `#pragma` **NSwag'ın kendi standart başlığıdır** ve hepsi CS
+> **derleyici** uyarısıdır (CS0108/114/472/1591/8603…), analyzer kuralı değil.
+> Üretilen istemcinin drift'i zaten üç kapıyla korunuyor: OpenAPI snapshot ·
+> `ClientCoverageTests` · `ClientDescriptionBaselineTests` (Faz 83, K-424).
+> Kazanç düşük, iş orta — kalem kapandı.
 
 **Ölçüm:** [`AgentPrismApiClient.g.cs`](../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)
 25.128 satır, **14** `#pragma warning disable` (10'u ilk 20 satırda, nullability dahil).
@@ -475,6 +500,12 @@ beyan edilmeli.
 
 ### 23. Bus factor = 1 · 📋 Faz
 
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam: kökte **İngilizce**
+> `CONTRIBUTING.md` ve `ARCHITECTURE.md` (👤 karar). Kalemin kendisi ("bus
+> factor = 1") bir doküman fazıyla çözülmez; faz yalnız **giriş rampasını**
+> kurar. 🚨 Dil kapısı bugün kök dosyaları görmüyor (`SourceLanguageTests.cs:53`
+> yalnız `src|packages/*/README.md` tarar); faz regex'i genişletir.
+
 Tüm mimari bilgi Türkçe `docs/` ağacına ve tek bir kişinin oturum akışına kilitli.
 Süreç insan katkıcıya değil AI oturumuna optimize. [`COMMERCIAL.md`](../../COMMERCIAL.md)
 36 satır — lisans/ticari model var, topluluk katkısı alacak giriş rampası
@@ -533,9 +564,16 @@ tarafından sabitlendi.
 | 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
 | 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 4 | ~~**Faz 97 yazma**~~ ✅ 2026-08-24 — plan hazır: [`97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](../arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) | `faz-planlama` |
-| 5 | **Faz 97 uygulama** ← **sıradaki adım** | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 6 | **Blok B** — madde 12 · 15 · 23 (üçü de tek oturumluk) | — |
-| 7 | **Blok C** — yayından sonra veya paralel | — |
+| 5 | ~~**Faz 97 uygulama**~~ ✅ 2026-08-24 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
+| 7 | **Faz 104 uygulama** ← **sıradaki adım** — madde 14 (karar + beyan yarısı) · 12 · 23 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 8 | **Blok C** — yayından sonra veya paralel. Madde 14'ün karar yarısı buradan **çıktı** | — |
+
+> 🚨 **Bu tablo yayını kapsamıyor.** 2026-08-24'ten sonra bu turun dışında altı
+> faz daha koşuldu ve kapandı (Faz 98–103, sözleşme yayını turu — bkz.
+> [`YOL-HARITASI.md`](../YOL-HARITASI.md)). Sürüm etiketi 2026-08-25 itibarıyla
+> **hâlâ yoktur** (`git tag` yalnız `docs/damitma-oncesi-2026-08` döndürür);
+> yayın kullanıcının elindedir (👤) ve yakın planda değildir.
 
 ### 7.3 Faz 96 yazacak oturuma — ölçülmüş zemin
 
@@ -620,14 +658,24 @@ bir deliği kapatan bir faz üretir.
 
 | Kalem | İş | Neden yayına yakın |
 |---|---|---|
-| 12 | `Production` ortamında InMemory store için teşhis uyarısı | Davranış değişikliğidir; yayından sonra eklemek tüketiciyi şaşırtır |
-| 15 | NSwag üretimi client için ayrı analyzer profili | 25.128 satır, 14 `#pragma` — en çok tüketilen yüzeylerden biri analyzer kör noktası |
-| 23 | `CONTRIBUTING.md` + İngilizce mimari özeti | Depo yayında görünür olur; bugün giriş rampası yok |
+| 12 | `Production` ortamında InMemory store için teşhis uyarısı | Davranış değişikliğidir; yayından sonra eklemek tüketiciyi şaşırtır → **Faz 104** |
+| 15 | ~~NSwag üretimi client için ayrı analyzer profili~~ | ❌ Kapsam dışı (2026-08-25): pragmalar NSwag'ın standart CS başlığı, drift zaten üç kapıda. Gerekçe kalem 15'in kendi bölümünde |
+| 23 | `CONTRIBUTING.md` + İngilizce mimari özeti | Depo yayında görünür olur; bugün giriş rampası yok → **Faz 104** |
 
 ### 7.7 Blok C — yayından sonra veya paralel
 
-16 (benchmark · F-67) · 9 (manuel set devri, aile aile) · 14 (RLS kararı +
-dağıtık hız sınırı) · 17 (dev dosyalar) · 18 (frontend monolit) · 19 (frontend
-test kapsamı) · 20 (doküman yükü).
+16 (benchmark · F-67) · 9 (manuel set devri, aile aile) · **14'ün uygulama
+yarısı** (RLS uygulaması + dağıtık hız sınırı) · 17 (dev dosyalar) · 18
+(frontend monolit) · 19 (frontend test kapsamı) · 20 (doküman yükü).
 
 Hiçbiri yayın maliyetini değiştirmez — sonra yapılırsa bir şey kırılmaz.
+
+**2026-08-25 ayrıştırması (👤).** Blok C yeniden yargılandı ve yalnız **madde
+14'ün karar yarısı** öne çekildi: gerekçe, RLS'in kalıcı veri kararı olması ve
+hiçbir yerde kayıtlı olmamasıdır. Geri kalan altı kalem yerinde kaldı; ikisinin
+gerekçesi değişti:
+
+| Kalem | 2026-08-25 yargısı |
+|---|---|
+| 17 | Şimdi yapmak **daha risklidir**. 2.644 satırlık DI dosyasını bölmek taze regresyon riskini yayına en yakın ana koyar; public üyeler yerinde kaldıkça maliyeti sonra da sıfırdır |
+| 20 | **Başlık iddiası düştü.** Ölçüm: `docs/` 106.805 satır, `src/` 149.862 satır — damıtma işe yaradı (envanterde 143.671 / 139.425 yazıyordu). Kalan kısım bakım aparatıdır, tüketiciye etkisi yok |

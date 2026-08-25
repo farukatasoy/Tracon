@@ -369,6 +369,7 @@ site — `docs/` is the journal, `docs-site/` is the product documentation.
 | [docs/](docs/) `NN-*.md` · [arsiv/fazlar/](docs/arsiv/fazlar/) · [YOL-HARITASI.md](docs/YOL-HARITASI.md) · [ADAYLAR.md](docs/ADAYLAR.md) | Phase documents — open ones in `docs/`, closed ones (00–89) archived · phase status (generated) · unselected candidates |
 | [docs/manuel-test/](docs/manuel-test/) | The manual acceptance-test specification; the `manuel-test-kosumu` skill drives a run |
 | [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Area-specific traps · closed record (phase narrative, run rounds) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) | **English** — how to build, which gate to run, which test level a change needs · a short architecture map for people changing the code |
 | [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent instructions, memory routing, workflow skills (`CLAUDE.md` is a symlink to `AGENTS.md`) |
 | [docs-site/](docs-site/) · [docfx/](docfx/) | **The product site** (English, Astro Starlight) and the API reference generator. A separate publishing pipeline; not attached to `dotnet build`. Needs Node 22.12+ |
 | [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Generates the decision index and checks the documentation budgets |

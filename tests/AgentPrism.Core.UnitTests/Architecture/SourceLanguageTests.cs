@@ -54,6 +54,15 @@ public sealed class SourceLanguageTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
+    /// <summary>
+    /// Root files that face outward: the repository's own front page and the two
+    /// files a contributor reads first. They are English for the same reason a
+    /// package README is, and nothing under <see cref="ScanRoots"/> covers them.
+    /// Markdown is otherwise out of scope, so only these are matched.
+    /// </summary>
+    private static readonly string[] ScannedRootFiles =
+        ["README.md", "CONTRIBUTING.md", "ARCHITECTURE.md"];
+
     private static readonly string[] SkippedDirectorySegments =
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
 
@@ -234,6 +243,23 @@ public sealed class SourceLanguageTests
                 {
                     results[relative] = count;
                 }
+            }
+        }
+
+        foreach (var name in ScannedRootFiles)
+        {
+            var file = Path.Combine(RepositoryRoot, name);
+
+            if (!File.Exists(file))
+            {
+                continue;
+            }
+
+            var count = CountOffendingLines(file);
+
+            if (count > 0)
+            {
+                results[name] = count;
             }
         }
 

@@ -76,6 +76,9 @@ Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koş
 | 27 | `MT-DDG-027` | Aynı | `troubleshooting.md`'den `### A tool name is invalid (APG0002)` bölümü silinir, testler koşulur | Aynı test düşer; `The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists` etkilenmez (silinen kod hâlâ descriptor'da var) |
 | 28 | `MT-DDG-028` | Aynı | `troubleshooting.md`'ye var olmayan bir `APG0008` metni eklenir (descriptor eklenmeden), testler koşulur | `The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists` düşer — ölü referans |
 | 29 | `MT-DDG-029` | Aynı | `src/*/**.cs` altındaki tüm `<example>` blokları geçici olarak silinir, `dotnet test tests/AgentPrism.Generators.UnitTests -c Release --filter-class "*ExampleCompilationTests*"` | `Every_example_tag_is_extracted_as_a_block` düşer: "No <example> block was found" |
+| 30 | `MT-DDG-030` | Temiz ağaç (Faz 104) | `CONTRIBUTING.md`'ye Türkçe bir cümle eklenir, `dotnet test tests/AgentPrism.Core.UnitTests -c Release --filter-method "*Source_tree_carries_no_Turkish*"` | `SourceLanguageTests` **düşer** ve satırı `+ CONTRIBUTING.md: 1 offending lines` diye adlandırır. Aynısı `ARCHITECTURE.md` ve kök `README.md` için de geçerlidir — kapı Faz 104'te bu üç kök dosyayı kapsayacak şekilde genişledi |
+| 31 | `MT-DDG-031` | Aynı (Faz 104) | Hız sınırının kapsam beyanı üç yüzeyde birden aranır: `AgentPrismRateLimitOptions` XML'i, `guides/production.md` ve `concepts/governance.md` | Üçü de sınırın **örnek başına** olduğunu söyler ve toplam tüketim sınırı olarak kotayı gösterir. Kardeş tip `InboundTriggerRateLimiter` ile çelişki yoktur |
+| 32 | `MT-DDG-032` | Aynı (Faz 104) | Kiracı yalıtımının hangi katmanda durduğu `concepts/governance.md` ve `MIMARI-GUVENLIK.md` §Çok kiracılılık'ta okunur; `KARARLAR.md`'de K-623 aranır | Üçü de aynı şeyi söyler: yalıtım uygulama katmanındadır, veritabanı RLS'i **bilinçli olarak** yoktur, ve karar yeniden açılma koşuluyla birlikte kayıtlıdır |
 
 ---
 
@@ -98,6 +101,15 @@ grep -rl "agentprism.doayen.web.tr" src/*/README.md | wc -l              # bekle
 
 # 9 - harita
 grep -c "^- Rule:" docs-site/public/llms.txt                             # beklenen: 11
+
+# 30 - dil kapisi kok dosyalari da tarar (Faz 104)
+grep -n "ScannedRootFiles" tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs
+
+# 31, 32 - beyan uc yuzeyde birden
+grep -c "per instance" src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs   # beklenen: >=1
+grep -c "per process" docs-site/src/content/docs/guides/production.md            # beklenen: >=1
+grep -c "row level security" docs-site/src/content/docs/concepts/governance.md   # beklenen: >=1
+grep -c "K-623" docs/MIMARI-GUVENLIK.md docs/KARARLAR.md                         # beklenen: >=1 her ikisinde
 
 # 5-7, 10-15, 20 - kapilar
 dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build

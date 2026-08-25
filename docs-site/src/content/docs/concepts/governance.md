@@ -48,6 +48,21 @@ Isolation is enforced by contract tests that check it in both directions, across
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.
 
+Isolation lives in the application layer, and that is a deliberate choice. Every
+query carries the resolved tenant; AgentPrism does not create database row level
+security policies, and it does not assume your database has them. Two reasons: the
+coverage gate above already makes an untested store method a build failure, and
+SQLite has no row level security at all, so adding it would make the three
+providers behave differently. You are free to add such policies in your own
+database. If you do, keep the tenant that AgentPrism resolves and the tenant your
+policy binds to the connection in agreement — they are two separate mechanisms.
+
+Rate limits are not an isolation boundary. `AgentPrism:RateLimit` and the inbound
+trigger limit count in the memory of one process, so a `Tenant` partition splits
+that instance's own window per tenant rather than a window shared across the
+deployment. What binds a tenant's total consumption is a quota, and quotas are
+counted in the database.
+
 ### Attributing spend below the tenant
 
 The tenant answers "whose data is this". Two further questions — which **user**
