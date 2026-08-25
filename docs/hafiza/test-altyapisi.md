@@ -13,14 +13,6 @@
 > butce yuzunden [`../arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md)'ye
 > tasindi (Faz 76). Kurallar hala gecerli — bir tuzak ararken oraya da grep at.
 
-- **🚨 Chromium'un sahte ses cihazi HIC SUSMAZ** (2026-08-05, Faz 29): `--use-fake-device-for-media-stream` surekli bir ton uretir. Sessizlik tespitine (VAD) dayanan bir E2E testi bu yuzden hicbir zaman tetiklenmez ve 30 sn'de zaman asimina ugrar — olculdu. Cozum bir test hilesi degil, urunun kendi ihtiyaciydi: elle kapatma dugmesi (bas-konus / gurultulu ortam) eklendi ve test onu tiklar. Mikrofon ayrica GUVENLI BAGLAM ister; `http://127.0.0.1:<port>` Chromium'da guvenilir sayilir, uzak bir HTTP adresi sayilmaz.
-- **Sahte model saglayicisi artik `AgentPrism.Testing.FakeModelProvider`'dir — yeni bir test projesi kendi `IModelProvider` taklidini YAZMAZ** (2026-08-06, Faz 39): Bes ayri dosyaya kopyalanmis (`EchoModelProvider` ×2, `ScriptedModelProvider`, `RoutingModelProvider`, `Fakes/FakeModelProvider`) 523 satir birlestirildi. Her modelin KENDI sirali yanit kuyrugu vardir (`ForModel(id, cfg => cfg.CallsTool(...).RespondsWith(...))`); kuyruk BIR KEZ tuketilir, tukendikten sonra `EchoesUserMessage()`/`EchoesLastToolResult()` fallback'i devreye girer — mesaj gecmisi taranarak "hangi tool zaten cagrildi" ASLA cikarilmaz (eski Routing/ScriptedModelProvider'in yaptigi gibi). Ayni saglayicinin FARKLI modelleri (ornek: bir yonlendirici + devrettigi alt agent) BAGIMSIZ kuyruk ister — ayni model id'sini paylasmak testler arasi durum sizdirir. `AgentPrismTestHost` (paket) ile FunctionalTests'in KENDI ic `AgentPrismTestHost`'u (TestServer tabanli, `Infrastructure/` altinda) AYNI ada sahiptir — ayni dosyada ikisi de `using` edilirse `CS0104` (belirsiz referans) verir; `using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;` tipi takma adla almak `using AgentPrism.Testing;` yerine cakismayi onler. Karar K-269.
-- **`RunAssertions.ShouldHaveOutputContaining` akisli/akissiz ayrimina dikkat etmeli** (2026-08-06, Faz 39): bkz. `docs/hafiza/cekirdek-calistirma.md` — `MessageCompleted` yalniz akissiz `agent.RunAsync()` yolunda vardir, HTTP `/run` (SSE) yalniz `MessageDelta` uretir. Bu, depo ICI testlerin hicbirinde yakalanmadi (hepsi ya akissiz cagirdi ya da bu iddiayi hic kullanmadi) — yalniz depo DISINDAN paketlenmis nupkg'i kullanan gercek bir tuketici senaryosu yakaladi. **Ders**: yeni bir test paketi yayimlamadan once GERCEKTEN paketlenmis halini disaridan (ayri bir scratch projede, `NuGet.config` ile yerel beslemeye isaret ederek) dene — `ProjectReference` ile calisan bir ic test asla bu sinifta bir bosluk gormez.
-- **Depo sozlesmeleri artik `TenantIsolationContract<TStore>`'tan turer** (2026-08-07, Faz 41): taban sinif hem ortak yasam dongusu tesisatini (`Store`, `CreateStoreAsync`, `InitializeAsync`/`DisposeAsync`, `OnDisposeAsync`) hem bes kiraci yalitimi testini tasir. Yeni bir sozlesme yazarken **kosum sinifi eklemek gerekmez**: var olan dort kosum (bellek ici + uc SQL) yalitim testlerini kendiliginden alir. Dort kanca yazilir: `SeedAsync`, `ExistsAsync`, `CountAsync` (zorunlu) ve `TryDeleteAsync` (silme sunmayan depoda `null` doner).
-- **🚨 Kiraciyi PARAMETRE olarak almayan depolar icin iki depo ornegi KURULAMAZ** (2026-08-07, Faz 41, K-282): bellek ici depolar durumu ornek icinde tasir; iki ornek ayni arka uca bakmaz. Cozum `MutableTenantContext`: tek depo ornegi, cagrilar arasinda degisen kiraci. Sozlesme kancasinin ilk satiri `AmbientTenant.TenantId = tenantId;` olur.
-- **🚨 Bellek ici depoyu kuran testte kiraci baglamini da ver** (2026-08-07, Faz 41): `new InMemoryRunStore()` varsayilan olarak `"default"` kiracisina baglanir. `RunRecordingAgent`'i baska bir `ITenantContext` ile kurup depoyu parametresiz olusturursan `QueryRunsAsync` BOS doner ve hata "test yanlis kurulmus" gibi degil "kayit yazilmamis" gibi gorunur. Faz 41'de 23 test bu sekilde kirildi; duzeltme `new InMemoryRunStore(tenantContext: ...)`.
-
-
 ## Circir testi ve uretilen dosya okuma (Faz 74)
 
 - **🚨 Statik ozellik baslaticilari BEYAN SIRASINDA kosar** (2026-08-19, olculdu): `CapabilityEntryPoints`'te `RepositoryRoot` toplayicilardan SONRA beyan edilmisti; toplayicilar kostugunda deger hala `null`'di ve `TypeInitializationException` verdi. Bir toplayicinin ihtiyac duydugu deger ya EN BASTA beyan edilir ya da `Lazy<T>` ile ertelenir — `Lazy` alani da consumers'tan **once** beyan edilmelidir, cunku alan baslaticisi da sirayla kosar.
@@ -157,3 +149,16 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
   koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
   NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.
+- **🚨 `ImplementationFactory.Method.Name`/`DeclaringType` derleyici-üretimi
+  closure adı, PARTIAL CLASS genelinde numaralanır — dosya değil, hatta metot
+  bile değil** (2026-08-26, Faz 105): `TryAddSingleton(static provider => ...)`
+  kayıtlarını bir DI kayıt anlık görüntü testinde ayırt etmek için lambda'nın
+  `Method.Name`'ini (`<RegisterCoreInfrastructure>b__48_0` gibi) kullanmak
+  cazip görünür. Ölçüldü: sınıfa TAMAMEN ilgisiz bir private metot
+  (`BindCoreFields`) eklemek bile sonraki HER closure'ın numarasını kaydırdı
+  (`b__48_0` → `b__49_0`) — gerçek bir DI davranış değişikliği olmadan test
+  kırıldı. Aynı `ServiceType`+`Lifetime` çiftini paylaşan birden fazla factory'yi
+  ayırt etmek gerekiyorsa (`ServiceRegistrationSnapshotTests`'in vazgeçtiği
+  kullanım), bunun yerine ya `ServiceProvider` kurup gerçek `.GetType()`'ı
+  resolve et ya da farkı basitçe kabul edip testin XML dokümanına yaz — kırılgan
+  bir ayrım, kapattığı boşluktan daha pahalıdır.
