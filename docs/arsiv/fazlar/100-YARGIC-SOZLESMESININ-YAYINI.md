@@ -4,7 +4,7 @@
 > **Kaynak:** Doğrudan kullanıcı isteği (2026-08-25) — `IRunJudge` üçüncü taraf
 > uygulanabilirlik incelemesi. Aday listesinden gelmedi; Faz 98 · 99 ile aynı
 > damardır: `preview.1` öncesi genişleme noktası olgunlaştırma.
-> **Önkoşul:** [Faz 99](arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md) —
+> **Önkoşul:** [Faz 99](99-SAGLAYICI-SOZLESMESININ-YAYINI.md) —
 > `ContractCoverage`'ın aile mekanizmasını (K-610), opt-in sözleşme sınıfı
 > kuralını (K-611) ve yalnız-NuGet sample emsalini bu faz devralır.
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`,
@@ -22,7 +22,7 @@
 > `reference/configuration.md` · sevk edilen: `IRunJudge` · `RunJudgeContext` ·
 > `RunJudgment` · `IModelProviderRegistry` XML dokümanı,
 > `src/AgentPrism.Testing.Contracts.Xunit/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](manuel-test/17-EVAL-VE-DENEYLER.md) (`EVAL` öneki, bugün 69 case)
+> **Manuel test alanı:** [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md) (`EVAL` öneki, bugün 69 case)
 
 ---
 
@@ -43,20 +43,20 @@
    **K-333** (`OnlineEvalJobHandler` DI'da iki kayıtlıdır) · **K-160** (job
    kuyruğu ve geri adımlı bekleme) · **K-609 · K-610 · K-611** (Faz 99'un
    sözleşme paketi kuralları).
-3. [Faz 99](arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
+3. [Faz 99](99-SAGLAYICI-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md
    ```
    Sözleşme ailesi ekleme yordamı, `xunit.v3.extensibility.core` tuzağı, sevk
    edilen XML'de emoji yasağı ve `samples/*.Tests` analyzer kuralı oradadır.
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`AsyncLocal`
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`AsyncLocal`
    tuzağı — 100.7 buna dayanır) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (sözleşme sınıfı yazımı) ·
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (`TryAdd` sırası, yaşam döngüsü) ·
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (sevk edilen metin kapıları)
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (sözleşme sınıfı yazımı) ·
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (`TryAdd` sırası, yaşam döngüsü) ·
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (sevk edilen metin kapıları)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — değerlendirme katmanı
+   [`MIMARI.md`](../../MIMARI.md) — değerlendirme katmanı
 
 ---
 
@@ -82,20 +82,20 @@ süresince `Running` bırakmak · job slot'unu sınırsız tutmak.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IRunJudge.cs`](../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs) tamamı | Ömür, thread-safety, idempotency, ad kuralı, iptal ve zaman aşımı **hiç yazmıyor**. Yalnız `null` skor semantiği belgeli |
-| [`AgentPrismOnlineEvaluationBuilderExtensions.cs:58`](../src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs) | `TryAddEnumerable(Singleton<IRunJudge, ModelRunJudge>)` — ömür singleton, arayüzde yazmıyor |
-| [`AgentPrismSchedulingOptions.cs:25`](../src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs) | `MaxConcurrentJobs = 2` → iki `OnlineEval` job'u aynı singleton yargıcı paralel çağırır |
-| [`OnlineEvalJobHandler.cs:192-196`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Yargıcın döndürdüğü skor **doğrulanmadan** `RunScore.Value`'ya yazılır; `Source`/`Author` = `judge:{Name}` |
-| [`OnlineEvalJobHandler.cs:163`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `catch … when (exception is not OperationCanceledException)` — yargıcın **kendi** OCE'si yakalanmaz |
-| [`JobWorkerBackgroundService.cs:254, 161`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | İki üst katman da OCE'yi filtreler → job `Running` kalır, yalnız lease bitince kurtulur |
-| [`OnlineEvalJobHandler.cs:140`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Retry `judgeList`'in **tamamını** baştan koşar; sınıf yorumu "yalnız başarısız yargıçlar" der — yorum yanlış |
-| [`ModelRunJudge.cs:155`](../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs) + `grep -rn JudgeUsage src/` | `JudgeUsage` **yalnız yazılır**; hiçbir tüketici okumaz. XML'i "cost report'a dahil" der — yanlış bilgi |
-| [`ModelRunJudge.cs:76`](../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs) | Senkron `CreateChatClient` — [`IModelProviderRegistry.cs:21-28`](../src/AgentPrism.Abstractions/Models/IModelProviderRegistry.cs)'e göre BYOK **ve** egress policy uygulanmaz |
-| [`RunSampler.cs:52`](../src/AgentPrism.Core/Evaluation/RunSampler.cs) | Döngü yalnız `RunKind.Eval` işaretiyle kırılır. Üçüncü taraf yargıç işaretlemezse **kendi run'ı örneklenir ve yeniden yargılanır** |
-| [`OnlineEvalSummaryService.cs:125`](../src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs) | Yargıç maliyeti `AgentName.StartsWith("judge:", Ordinal)` ile bulunur — belgesiz ikinci ad kuralı |
-| [`0017_run_scores.sql:44`](../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql) | `(tenant_id, run_id, COALESCE(message_id,''), author)` benzersiz — aynı `Name`'li iki yargıç birbirini **ezer** |
+| [`IRunJudge.cs`](../../../src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs) tamamı | Ömür, thread-safety, idempotency, ad kuralı, iptal ve zaman aşımı **hiç yazmıyor**. Yalnız `null` skor semantiği belgeli |
+| [`AgentPrismOnlineEvaluationBuilderExtensions.cs:58`](../../../src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs) | `TryAddEnumerable(Singleton<IRunJudge, ModelRunJudge>)` — ömür singleton, arayüzde yazmıyor |
+| [`AgentPrismSchedulingOptions.cs:25`](../../../src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs) | `MaxConcurrentJobs = 2` → iki `OnlineEval` job'u aynı singleton yargıcı paralel çağırır |
+| [`OnlineEvalJobHandler.cs:192-196`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Yargıcın döndürdüğü skor **doğrulanmadan** `RunScore.Value`'ya yazılır; `Source`/`Author` = `judge:{Name}` |
+| [`OnlineEvalJobHandler.cs:163`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `catch … when (exception is not OperationCanceledException)` — yargıcın **kendi** OCE'si yakalanmaz |
+| [`JobWorkerBackgroundService.cs:254, 161`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | İki üst katman da OCE'yi filtreler → job `Running` kalır, yalnız lease bitince kurtulur |
+| [`OnlineEvalJobHandler.cs:140`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Retry `judgeList`'in **tamamını** baştan koşar; sınıf yorumu "yalnız başarısız yargıçlar" der — yorum yanlış |
+| [`ModelRunJudge.cs:155`](../../../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs) + `grep -rn JudgeUsage src/` | `JudgeUsage` **yalnız yazılır**; hiçbir tüketici okumaz. XML'i "cost report'a dahil" der — yanlış bilgi |
+| [`ModelRunJudge.cs:76`](../../../src/AgentPrism.Core/Evaluation/ModelRunJudge.cs) | Senkron `CreateChatClient` — [`IModelProviderRegistry.cs:21-28`](../../../src/AgentPrism.Abstractions/Models/IModelProviderRegistry.cs)'e göre BYOK **ve** egress policy uygulanmaz |
+| [`RunSampler.cs:52`](../../../src/AgentPrism.Core/Evaluation/RunSampler.cs) | Döngü yalnız `RunKind.Eval` işaretiyle kırılır. Üçüncü taraf yargıç işaretlemezse **kendi run'ı örneklenir ve yeniden yargılanır** |
+| [`OnlineEvalSummaryService.cs:125`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs) | Yargıç maliyeti `AgentName.StartsWith("judge:", Ordinal)` ile bulunur — belgesiz ikinci ad kuralı |
+| [`0017_run_scores.sql:44`](../../../src/AgentPrism.PostgreSql/Migrations/0017_run_scores.sql) | `(tenant_id, run_id, COALESCE(message_id,''), author)` benzersiz — aynı `Name`'li iki yargıç birbirini **ezer** |
 | `0005_run_scores.sql` (üç sağlayıcı) | `comment` sütunu `text` / `nvarchar(max)` / `TEXT` — `Reason` için hiçbir sınır yok |
-| [`EvalEndpoints.cs:608-614`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | Ham `exception.Message` `502` gövdesine girer; kısmi başarısızlıkta `200` döner ve `failures` düşer |
+| [`EvalEndpoints.cs:608-614`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | Ham `exception.Message` `502` gövdesine girer; kısmi başarısızlıkta `200` döner ve `failures` düşer |
 | `ls src/AgentPrism.Testing.Contracts.Xunit/Contracts/` | İki aile var (`Storage`, `Providers`); yargıç ailesi yok |
 | `ls samples/` | `CustomModelProvider`, `FileRunStore` var; yargıç sample'ı yok |
 
@@ -674,7 +674,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -711,7 +711,7 @@ girdi** (boş `Name`, 1 MB `Reason`, yalnız boşluk `Output`) · **başka kirac
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](manuel-test/17-EVAL-VE-DENEYLER.md)
+> Kapanışta [`docs/manuel-test/17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md)
 > içine `EVAL` önekiyle eklenecek case taslakları.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
