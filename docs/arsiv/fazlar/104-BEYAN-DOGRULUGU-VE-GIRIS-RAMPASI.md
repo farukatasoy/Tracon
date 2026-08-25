@@ -108,7 +108,7 @@ düştü. Çözüm `AgentPrismDrainService`'in emsalidir: opsiyonel bağımlıl�
 açık fabrika. Bu, `docs/hafiza/aspnetcore-di.md`'deki kayıtlı tuzağın aynısıdır.
 
 **5. Faz dışı iki düzeltme yapıldı.**
-[`ModelRunJudgeTests.cs`](../../../arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
+[`ModelRunJudgeTests.cs`](103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
 `using System.Reflection;`'ı son sıraya koyuyordu ve `dotnet format` kapısı
 **Faz 103'ün commit'inden (`1d9b9bd`) beri kırmızıydı**. Tek satırlık import
 sırası düzeltildi. İkincisi: `MetaEndpoints`'ten `Unwrap` kaldırılınca öksüz
