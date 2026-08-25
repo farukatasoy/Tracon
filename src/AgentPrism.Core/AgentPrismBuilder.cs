@@ -25,26 +25,33 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
-    public IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval)
+    public IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions>? configure)
     {
         ArgumentNullException.ThrowIfNull(tool);
 
-        Services.AddSingleton(new AgentPrismToolRegistration(tool, requiresApproval));
+        var options = new ToolRegistrationOptions();
+        configure?.Invoke(options);
+        Services.AddSingleton(new AgentPrismToolRegistration(
+            tool,
+            options.RequiresApproval,
+            options.Source,
+            options.Effect,
+            options.RequiredPermission,
+            options.Timeout,
+            options.SafeToRepeat,
+            options.MaxOutputBytes));
         return this;
     }
 
+    public IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval)
+        => AddTool(tool, options => options.RequiresApproval = requiresApproval);
+
     [RequiresUnreferencedCode("Creating a tool from a method uses reflection; method metadata can be removed from trimmed applications.")]
     [RequiresDynamicCode("Creating a tool from a method can require run-time code generation.")]
-    public IAgentPrismBuilder AddTool(
-        Delegate method,
-        string? name = null,
-        string? description = null,
-        bool requiresApproval = false)
+    public IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false)
     {
         ArgumentNullException.ThrowIfNull(method);
-
-        var tool = AIFunctionFactory.Create(method, name, description);
-        return AddTool(tool, requiresApproval);
+        return AddTool(AIFunctionFactory.Create(method, name, description), options => options.RequiresApproval = requiresApproval);
     }
 
     [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]

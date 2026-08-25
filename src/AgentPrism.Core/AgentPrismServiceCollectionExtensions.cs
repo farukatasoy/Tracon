@@ -907,6 +907,7 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentSourceValidationService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ToolRegistrationValidationService>());
 
         // Wrappers. Application order is determined by Order:
         // run recording (0) → telemetry (10) → tool approval (20) → agent.
@@ -1107,6 +1108,11 @@ public static class AgentPrismServiceCollectionExtensions
                 out var defaultMaxOutputBytes))
         {
             options.DefaultMaxOutputBytes = defaultMaxOutputBytes;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismToolOptions.AllowUnverifiedToolRegistry)], out var allowUnverifiedToolRegistry))
+        {
+            options.AllowUnverifiedToolRegistry = allowUnverifiedToolRegistry;
         }
     }
 

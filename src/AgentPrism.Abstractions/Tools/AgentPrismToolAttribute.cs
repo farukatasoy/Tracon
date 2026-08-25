@@ -91,4 +91,13 @@ public sealed class AgentPrismToolAttribute : Attribute
 
     /// <summary>See <see cref="AgentPrismToolRegistration.SafeToRepeat"/>. Defaults to <see langword="false"/>.</summary>
     public bool SafeToRepeat { get; init; }
+
+    /// <summary>
+    /// The maximum UTF-8 byte count for this tool result. Zero uses the installation default.
+    /// </summary>
+    /// <remarks>
+    /// This limit does not apply to <see cref="Microsoft.Extensions.AI.AIContent"/> attachments. They use
+    /// the existing attachment contract instead of an inline text result.
+    /// </remarks>
+    public int MaxOutputBytes { get; init; }
 }

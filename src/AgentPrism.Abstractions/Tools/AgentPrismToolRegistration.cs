@@ -58,6 +58,11 @@ public sealed class AgentPrismToolRegistration
     {
         ArgumentNullException.ThrowIfNull(function);
 
+        if (!ToolNameRules.IsValid(function.Name))
+        {
+            throw new AgentPrismException($"Tool name '{function.Name}' is invalid. {ToolNameRules.Description}");
+        }
+
         Function = function;
         RequiresApproval = requiresApproval;
         Source = source;

@@ -125,9 +125,9 @@ internal sealed class ToolInvocationTracker
             ToolCallId = result.CallId,
             Source = source,
             Arguments = arguments,
-            Result = result.Exception is null ? result.Result?.ToString() : null,
+            Result = result.Exception is null && ToolResultText.TryGetText(result.Result, out var text) ? text : null,
             Duration = duration,
-            Error = result.Exception?.Message,
+            Error = ToolFailureText.Get(result.Exception),
             CreatedAt = _timeProvider.GetUtcNow(),
 
             // The tool may have reported its own metric under the call

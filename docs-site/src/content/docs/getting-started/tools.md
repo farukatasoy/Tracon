@@ -109,6 +109,9 @@ public static string IssueRefund(string orderId) => /* … */;
 agentPrism.AddTool(IssueRefund, requiresApproval: true);
 ```
 
+For the full singleton, scoped-dependency, timeout, and output contract, see
+[Write your own tool](/guides/write-your-own-tool/).
+
 The tool is wrapped in the registry — the single place where "an agent may only point
 at a registered tool" is enforced, so there is no code path that skips the wrapper.
 When the model calls it, the run pauses and an approval request appears in the

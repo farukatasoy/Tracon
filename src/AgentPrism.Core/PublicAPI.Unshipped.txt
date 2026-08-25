@@ -455,6 +455,9 @@ AgentPrism.IAgentPrismBuilder.AddEvalCheck(string! kind, Microsoft.Agents.AI.Eva
 AgentPrism.IAgentPrismBuilder.AddModelProvider(AgentPrism.IModelProvider! provider) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider(System.Func<System.IServiceProvider!, AgentPrism.IModelProvider!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddSkill(AgentPrism.AgentSkillDefinition! skill) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.get -> bool
+AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.set -> void
+AgentPrism.IAgentPrismBuilder.AddTool(Microsoft.Extensions.AI.AIFunction! tool, System.Action<AgentPrism.ToolRegistrationOptions!>? configure) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddTool(Microsoft.Extensions.AI.AIFunction! tool, bool requiresApproval) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddTool(System.Delegate! method, string? name = null, string? description = null, bool requiresApproval = false) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddToolsFrom(System.Type! type) -> AgentPrism.IAgentPrismBuilder!

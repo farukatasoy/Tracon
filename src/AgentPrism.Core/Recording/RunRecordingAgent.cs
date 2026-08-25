@@ -1155,8 +1155,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             {
                 ToolName = record.ToolName,
                 ToolCallId = result.CallId,
-                Text = result.Exception?.Message,
-                Payload = result.Result?.ToString(),
+                Text = ToolFailureText.Get(result.Exception),
+                Payload = ToolResultText.TryGetText(result.Result, out var text) ? text : null,
             },
             cancellationToken).ConfigureAwait(false);
 
