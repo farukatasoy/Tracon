@@ -1,6 +1,6 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100
 > **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
 > `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
@@ -2070,3 +2070,31 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 - Replay: `HTTP: 403` — `replay` ucu `RunsWrite` gerektirir ve bu anahtar
   onu taşımaz; bu KONTRAST, aynı dosyada `RequireApiKeyScope`'un bazı
   uçlara eklenip bazılarına eklenmediğini kanıtlar.
+
+---
+
+### EVAL-102 — Geçersiz judge skoru terminal hata üretir
+
+**Ön koşul**
+- `Score = 101` döndüren bir `IRunJudge` kayıtlıdır.
+
+**Adımlar**
+1. Tamamlanmış bir run için `POST /api/runs/{runId}/judge` çağrısı yap.
+
+**Beklenen sonuç**
+- Skor satırı yazılmaz. Yanıt `judge_contract` kodlu failure taşır; job retry edilmez.
+
+**Alan kodu:** `EVAL`
+
+### EVAL-103 — Judge timeout ham hata metnini sızdırmaz
+
+**Ön koşul**
+- Bir judge gecikir ve `JudgeTimeout` 5 saniyedir.
+
+**Adımlar**
+1. Run'ı örnekle veya manuel judge çağrısını başlat.
+
+**Beklenen sonuç**
+- Çağrı yaklaşık 5 saniyede `judge_timeout` ile kapanır. HTTP gövdesi ve job hata kaydı judge'ın ham exception mesajını içermez.
+
+**Alan kodu:** `EVAL`

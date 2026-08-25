@@ -49,7 +49,7 @@ public sealed class RunSampler(
         // and stop the infinite loop here. Failed runs belong to error classification;
         // a judge cannot score an error. Child runs do not reach here because the
         // caller, RunRecordingAgent, checks Depth == 0.
-        if (request.Kind == RunKind.Eval || request.Status != RunStatus.Completed)
+        if (AmbientSamplingSuppressionScope.IsSuppressed || request.Kind == RunKind.Eval || request.Status != RunStatus.Completed)
         {
             return false;
         }

@@ -33,6 +33,9 @@ public static class ContractCoverage
     /// <summary>The namespace holding the model-provider contracts.</summary>
     public const string ProviderContracts = "AgentPrism.Testing.Contracts.Providers";
 
+    /// <summary>The namespace holding run judge contracts.</summary>
+    public const string JudgeContracts = "AgentPrism.Testing.Contracts.Judges";
+
     /// <summary>
     /// The contract classes this package ships for one family: every
     /// non-generic <see langword="public abstract"/> type in

@@ -73,7 +73,9 @@ internal sealed class ModelRunJudge(
 
         var judgeAgentId = $"judge:{Name}";
 
-        var chatClient = modelProviders.CreateChatClient(options.Model);
+        var chatClient = await modelProviders
+            .CreateSetupChatClientAsync(options.Model, cancellationToken)
+            .ConfigureAwait(false);
 
         var innerAgent = chatClient.AsAIAgent(
             new ChatClientAgentOptions
@@ -152,7 +154,7 @@ internal sealed class ModelRunJudge(
 
         var (score, reason) = ParseJudgment(response.Text);
 
-        return new RunJudgment { Score = score, Reason = reason, JudgeUsage = usage };
+        return new RunJudgment { Score = score, Reason = reason };
     }
 
     private static string BuildInstructions(ModelRunJudgeOptions options)

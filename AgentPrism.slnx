@@ -31,6 +31,7 @@
     <Project Path="samples/AgentPrism.Samples.FileRunStore.Tests/AgentPrism.Samples.FileRunStore.Tests.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomModelProvider/AgentPrism.Samples.CustomModelProvider.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomModelProvider.Tests/AgentPrism.Samples.CustomModelProvider.Tests.csproj" />
+    <Project Path="samples/AgentPrism.Samples.CustomRunJudge/AgentPrism.Samples.CustomRunJudge.csproj" />
   </Folder>
 
   <Folder Name="/tests/">

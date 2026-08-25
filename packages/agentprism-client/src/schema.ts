@@ -2036,6 +2036,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/images/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generates images and saves them as attachments.
+         * @description This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead.
+         */
+        post: operations["AgentPrismGenerateImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{runId}/trace": {
         parameters: {
             query?: never;
@@ -4224,6 +4244,27 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        /** @description The request body for an operator image-generation action. */
+        ImageGenerationOperatorRequest: {
+            /** @description Gets the image prompt. */
+            prompt?: null | string;
+            /**
+             * Format: int32
+             * @description Gets the number of images to generate. Defaults to one.
+             */
+            count?: null | number | string;
+            /** @description Gets the optional image size in WIDTHxHEIGHT form. */
+            size?: null | string;
+            /** @description Gets the session to which generated attachments belong. */
+            sessionId?: null | string;
+        };
+        /** @description The result of an operator image-generation action. */
+        ImageGenerationOperatorResponse: {
+            /** @description Gets the generated image attachments. */
+            attachments: components["schemas"]["AttachmentDescriptor"][];
+            /** @description Gets the observed generation quantity and configured cost. */
+            usage: components["schemas"]["ToolCallUsage"];
+        };
         /** @description Refreshes the tool list of remote MCP servers on demand. */
         IMcpToolRefresher: Record<string, never>;
         /** @description The response for a successfully accepted inbound trigger event. */
@@ -4524,6 +4565,22 @@ export interface components {
             payload?: null | components["schemas"]["JsonElement"];
         };
         JsonElement: unknown;
+        /** @description A normalized judge failure returned by manual scoring. */
+        JudgeFailure: {
+            /** @description The judge that failed. */
+            judgeName: string;
+            /** @description The stable failure code. */
+            errorType: string;
+            /** @description Whether retrying the job can help. */
+            isRetryable: boolean;
+        };
+        /** @description The result of manually scoring a run. */
+        JudgeRunResponse: {
+            /** @description The score rows that were written. */
+            scores?: components["schemas"]["RunScore"][];
+            /** @description The normalized failures reported by judges. */
+            failures?: components["schemas"]["JudgeFailure"][];
+        };
         /**
          * @description The MCP OAuth authorization flow.
          * @enum {unknown}
@@ -6543,6 +6600,13 @@ export interface components {
              *     continued. See `AgentPrismToolRegistration.SafeToRepeat`.
              */
             safeToRepeat?: boolean;
+            /**
+             * Format: int32
+             * @description The most bytes (UTF-8) this tool's result may carry, or
+             *     `null` to use the installation default
+             *     (`AgentPrismOptions.Tools.DefaultMaxOutputBytes`).
+             */
+            maxOutputBytes?: null | number | string;
         };
         /**
          * @description Classifies the blast radius of a tool call.
@@ -7371,6 +7435,8 @@ export type ExperimentVariantResult = components['schemas']['ExperimentVariantRe
 export type ExtensionPointDiagnostic = components['schemas']['ExtensionPointDiagnostic'];
 export type HarnessSettings = components['schemas']['HarnessSettings'];
 export type IFormFile = components['schemas']['IFormFile'];
+export type ImageGenerationOperatorRequest = components['schemas']['ImageGenerationOperatorRequest'];
+export type ImageGenerationOperatorResponse = components['schemas']['ImageGenerationOperatorResponse'];
 export type IMcpToolRefresher = components['schemas']['IMcpToolRefresher'];
 export type InboundTriggerAcceptedResponse = components['schemas']['InboundTriggerAcceptedResponse'];
 export type InboundTriggerPayloadMode = components['schemas']['InboundTriggerPayloadMode'];
@@ -7390,6 +7456,8 @@ export type JobScheduleSaveRequest = components['schemas']['JobScheduleSaveReque
 export type JobStatus = components['schemas']['JobStatus'];
 export type JobTriggerRequest = components['schemas']['JobTriggerRequest'];
 export type JsonElement = components['schemas']['JsonElement'];
+export type JudgeFailure = components['schemas']['JudgeFailure'];
+export type JudgeRunResponse = components['schemas']['JudgeRunResponse'];
 export type McpOAuthAuthorizationMode = components['schemas']['McpOAuthAuthorizationMode'];
 export type McpOAuthStartResponse = components['schemas']['McpOAuthStartResponse'];
 export type McpPromptArgumentsRequest = components['schemas']['McpPromptArgumentsRequest'];
@@ -9414,7 +9482,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunScore"][];
+                    "application/json": components["schemas"]["JudgeRunResponse"];
                 };
             };
         };
@@ -10765,6 +10833,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakResponse"];
+                };
+            };
+        };
+    };
+    AgentPrismGenerateImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageGenerationOperatorRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageGenerationOperatorResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

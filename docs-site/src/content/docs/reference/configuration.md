@@ -331,6 +331,7 @@ queue. `AddAgentPrism()` already registers the core job contracts.
 | `OnlineEvaluation:AgentNames` | Empty; all agents are eligible |
 | `OnlineEvaluation:LowScoreThreshold` | `60` |
 | `OnlineEvaluation:MinSampleSize` | `20` |
+| `OnlineEvaluation:JudgeTimeout` | 60 seconds per judge call |
 | `OnlineEvaluation:EvaluationWindow` | 1 hour |
 | `Canary:AutoRollbackEnabled` | `false` |
 | `Canary:ScanInterval` | 5 minutes |

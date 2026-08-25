@@ -583,7 +583,7 @@ internal static class EvalEndpoints
         return TypedResults.Ok(summary);
     }
 
-    private static async Task<Results<Ok<IReadOnlyList<RunScore>>, ProblemHttpResult>> JudgeRunAsync(
+    private static async Task<Results<Ok<JudgeRunResponse>, ProblemHttpResult>> JudgeRunAsync(
         Guid runId,
         [FromServices] IRunStore runs,
         [FromServices] OnlineEvalJobHandler jobHandler,
@@ -609,7 +609,7 @@ internal static class EvalEndpoints
         {
             return TypedResults.Problem(
                 title: "Manual scoring failed",
-                detail: string.Join("; ", failures),
+                detail: string.Join("; ", failures.Select(static failure => $"{failure.JudgeName} ({failure.ErrorType})")),
                 statusCode: StatusCodes.Status502BadGateway);
         }
 
@@ -628,7 +628,7 @@ internal static class EvalEndpoints
             }),
             cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Ok<IReadOnlyList<RunScore>>(scores);
+        return TypedResults.Ok(new JudgeRunResponse { Scores = scores, Failures = failures });
     }
 
     private static JsonElement BuildRunPayload(string suiteName, string? modelId, int? numRepetitions, int? agentVersion)

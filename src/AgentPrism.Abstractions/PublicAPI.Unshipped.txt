@@ -1,4 +1,41 @@
 #nullable enable
+AgentPrism.AgentPrismJudgeException
+AgentPrism.AgentPrismJudgeException.AgentPrismJudgeException(string! judgeName, string! errorType, string! message, System.Exception? innerException = null) -> void
+AgentPrism.AgentPrismJudgeException.JudgeName.get -> string!
+AgentPrism.IModelProviderRegistry.CreateSetupChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
+AgentPrism.JudgeFailure
+AgentPrism.JudgeFailure.<Clone>$() -> AgentPrism.JudgeFailure!
+AgentPrism.JudgeFailure.Equals(AgentPrism.JudgeFailure? other) -> bool
+AgentPrism.JudgeFailure.ErrorType.get -> string!
+AgentPrism.JudgeFailure.ErrorType.init -> void
+AgentPrism.JudgeFailure.IsRetryable.get -> bool
+AgentPrism.JudgeFailure.IsRetryable.init -> void
+AgentPrism.JudgeFailure.JudgeFailure() -> void
+AgentPrism.JudgeFailure.JudgeName.get -> string!
+AgentPrism.JudgeFailure.JudgeName.init -> void
+AgentPrism.JudgeRunResponse
+AgentPrism.JudgeRunResponse.<Clone>$() -> AgentPrism.JudgeRunResponse!
+AgentPrism.JudgeRunResponse.Equals(AgentPrism.JudgeRunResponse? other) -> bool
+AgentPrism.JudgeRunResponse.Failures.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.JudgeFailure!>!
+AgentPrism.JudgeRunResponse.Failures.init -> void
+AgentPrism.JudgeRunResponse.JudgeRunResponse() -> void
+AgentPrism.JudgeRunResponse.Scores.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScore!>!
+AgentPrism.JudgeRunResponse.Scores.init -> void
+const AgentPrism.AgentPrismJudgeException.JudgeContractErrorType = "judge_contract" -> string!
+const AgentPrism.AgentPrismJudgeException.JudgeFailedErrorType = "judge_failed" -> string!
+const AgentPrism.AgentPrismJudgeException.JudgeTimeoutErrorType = "judge_timeout" -> string!
+const AgentPrism.RunJudgment.MaxReasonLength = 4000 -> int
+override AgentPrism.AgentPrismJudgeException.ErrorType.get -> string!
+override AgentPrism.JudgeFailure.Equals(object? obj) -> bool
+override AgentPrism.JudgeFailure.GetHashCode() -> int
+override AgentPrism.JudgeFailure.ToString() -> string!
+override AgentPrism.JudgeRunResponse.Equals(object? obj) -> bool
+override AgentPrism.JudgeRunResponse.GetHashCode() -> int
+override AgentPrism.JudgeRunResponse.ToString() -> string!
+static AgentPrism.JudgeFailure.operator !=(AgentPrism.JudgeFailure? left, AgentPrism.JudgeFailure? right) -> bool
+static AgentPrism.JudgeFailure.operator ==(AgentPrism.JudgeFailure? left, AgentPrism.JudgeFailure? right) -> bool
+static AgentPrism.JudgeRunResponse.operator !=(AgentPrism.JudgeRunResponse? left, AgentPrism.JudgeRunResponse? right) -> bool
+static AgentPrism.JudgeRunResponse.operator ==(AgentPrism.JudgeRunResponse? left, AgentPrism.JudgeRunResponse? right) -> bool
 AgentPrism.AgentDefinition
 AgentPrism.AgentDefinition.<Clone>$() -> AgentPrism.AgentDefinition!
 AgentPrism.AgentDefinition.AgentDefinition() -> void
@@ -2235,8 +2272,6 @@ AgentPrism.RunJudgeContext.ToolNames.init -> void
 AgentPrism.RunJudgment
 AgentPrism.RunJudgment.<Clone>$() -> AgentPrism.RunJudgment!
 AgentPrism.RunJudgment.Equals(AgentPrism.RunJudgment? other) -> bool
-AgentPrism.RunJudgment.JudgeUsage.get -> AgentPrism.RunUsage?
-AgentPrism.RunJudgment.JudgeUsage.init -> void
 AgentPrism.RunJudgment.Reason.get -> string?
 AgentPrism.RunJudgment.Reason.init -> void
 AgentPrism.RunJudgment.RunJudgment() -> void
