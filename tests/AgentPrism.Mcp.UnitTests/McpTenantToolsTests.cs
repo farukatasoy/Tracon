@@ -147,7 +147,7 @@ public sealed class McpTenantToolsTests
 
         tools.TryGet("remote_report", out var tool).ShouldBeTrue();
 
-        ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeNull();
+        ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeOfType<TruncatingAIFunction>();
     }
 
     private sealed class DenyingHandler(string reason) : IToolAuthorizationHandler

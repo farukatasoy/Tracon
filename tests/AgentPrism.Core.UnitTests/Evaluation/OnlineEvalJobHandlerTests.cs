@@ -217,6 +217,49 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
+    public async Task Judge_timeout_cuts_off_the_wait_when_the_judge_ignores_cancellation()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var scores = new InMemoryRunScoreStore();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new AsyncJudge("ignores-cancellation", async (_, _) =>
+            {
+                started.SetResult();
+                await release.Task;
+                return new RunJudgment { Score = 91 };
+            })],
+            new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(20) });
+        var run = await runs.GetRunAsync(runId);
+
+        var judging = handler.JudgeRunAsync(run!).AsTask();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            var winner = await Task.WhenAny(judging, Task.Delay(TimeSpan.FromSeconds(1)));
+
+            winner.ShouldBe(judging);
+            var result = await judging;
+            result.Scores.ShouldBeEmpty();
+            result.Failures.ShouldHaveSingleItem().ErrorType.ShouldBe("judge_timeout");
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+
+        await release.Task;
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Caller_cancellation_is_propagated_without_normalizing_it_as_a_judge_failure()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));

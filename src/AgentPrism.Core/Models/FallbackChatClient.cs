@@ -289,8 +289,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         }
 
         return new AgentPrismProviderUnavailableException(
-            $"All providers in the fallback chain failed (tried: {string.Join(", ", triedProviders)}). " +
-            $"First failure on '{_primaryBinding.Provider}': {firstFailure.Message}",
+            $"All providers in the fallback chain failed (tried: {string.Join(", ", triedProviders)}).",
             firstFailure)
         {
             ProviderName = _primaryBinding.Provider,

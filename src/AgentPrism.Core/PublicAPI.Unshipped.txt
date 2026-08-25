@@ -90,6 +90,9 @@ const AgentPrism.AgentPrismDiagnostics.Tags.AgentSourceOperation = "agentprism.a
 AgentPrism.IAgentPrismBuilder.AddAgentSource(AgentPrism.IAgentSource! source) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgentSource(System.Func<System.IServiceProvider!, AgentPrism.IAgentSource!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgentSource<TSource>() -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddRunJudge(AgentPrism.IRunJudge! judge) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddRunJudge(System.Func<System.IServiceProvider!, AgentPrism.IRunJudge!>! factory) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddRunJudge<TJudge>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.AgentPrismEvalCheckRegistration.<Clone>$() -> AgentPrism.AgentPrismEvalCheckRegistration!
 AgentPrism.AgentPrismEvalCheckRegistration.AgentPrismEvalCheckRegistration(string! Kind, Microsoft.Agents.AI.EvalCheck! Check) -> void
 AgentPrism.AgentPrismEvalCheckRegistration.Check.get -> Microsoft.Agents.AI.EvalCheck!

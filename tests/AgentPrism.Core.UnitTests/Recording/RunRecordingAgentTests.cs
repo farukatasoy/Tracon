@@ -141,13 +141,15 @@ public sealed class RunRecordingAgentTests
         var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
         var agent = CreateAgent(store, client);
 
-        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("hello"));
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () => await agent.RunAsync("hello"));
+
+        exception.ErrorType.ShouldBe("upstream_error");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
-        run.Error!.Message.ShouldBe("model crashed");
-        run.Error.Type.ShouldBe("System.InvalidOperationException");
+        run.Error!.Message.ShouldBe("The model provider request failed.");
+        run.Error.Type.ShouldBe("upstream_error");
     }
 
     [Fact]
@@ -172,7 +174,9 @@ public sealed class RunRecordingAgentTests
         var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
         var agent = CreateAgent(store, client, spy);
 
-        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("hello"));
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () => await agent.RunAsync("hello"));
+
+        exception.ErrorType.ShouldBe("upstream_error");
 
         spy.CallCount.ShouldBe(1);
 

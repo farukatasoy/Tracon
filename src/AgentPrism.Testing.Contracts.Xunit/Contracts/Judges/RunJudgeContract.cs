@@ -11,6 +11,11 @@ public abstract class RunJudgeContract : IAsyncLifetime
     /// <summary>Creates the judge under test.</summary>
     protected abstract ValueTask<IRunJudge> CreateJudgeAsync();
 
+    /// <summary>
+    /// Gets the number of calls used by the deterministic concurrency probe.
+    /// </summary>
+    protected virtual int ConcurrentCallCount => 8;
+
     /// <summary>Creates a normal completed-run context.</summary>
     protected virtual RunJudgeContext CreateContext() => new()
     {
@@ -32,12 +37,16 @@ public abstract class RunJudgeContract : IAsyncLifetime
     }
 
     [Fact]
-    public void Name_is_a_stable_valid_identifier()
+    public async Task Name_is_a_stable_valid_identifier_across_calls()
     {
-        Judge.Name.ShouldNotBeNullOrWhiteSpace();
-        Judge.Name.Length.ShouldBeLessThanOrEqualTo(64);
-        Judge.Name.All(static character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.').ShouldBeTrue();
-        Judge.Name.ShouldBe(Judge.Name);
+        var before = Judge.Name;
+        await Judge.JudgeAsync(CreateContext()).ConfigureAwait(false);
+        var after = Judge.Name;
+
+        before.ShouldNotBeNullOrWhiteSpace();
+        before.Length.ShouldBeLessThanOrEqualTo(64);
+        before.All(static character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.').ShouldBeTrue();
+        after.ShouldBe(before);
     }
 
     [Fact]
@@ -56,9 +65,15 @@ public abstract class RunJudgeContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Concurrent_calls_complete()
+    public async Task Concurrent_calls_start_together_and_complete()
     {
-        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Judge.JudgeAsync(CreateContext()).AsTask())).ConfigureAwait(false);
+        using var start = new Barrier(ConcurrentCallCount);
+        var results = await Task.WhenAll(Enumerable.Range(0, ConcurrentCallCount).Select(_ => Task.Run(async () =>
+        {
+            start.SignalAndWait();
+            return await Judge.JudgeAsync(CreateContext()).ConfigureAwait(false);
+        }))).ConfigureAwait(false);
+
         results.All(static result => result.Score is null || (result.Score >= 0 && result.Score <= 100)).ShouldBeTrue();
     }
 
@@ -74,21 +89,12 @@ public abstract class RunJudgeContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_pre_cancelled_token_does_not_produce_an_unrelated_exception()
+    public async Task A_pre_cancelled_token_is_honored()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
-        await Should.NotThrowAsync(async () =>
-        {
-            try
-            {
-                _ = await Judge.JudgeAsync(CreateContext(), cancellation.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // A deterministic judge may ignore cancellation. A remote judge may honor it.
-            }
-        });
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Judge.JudgeAsync(CreateContext(), cancellation.Token).ConfigureAwait(false));
     }
 }

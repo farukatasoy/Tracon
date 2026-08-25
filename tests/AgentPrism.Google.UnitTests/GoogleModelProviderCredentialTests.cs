@@ -30,7 +30,7 @@ public sealed class GoogleModelProviderCredentialTests
     [Fact]
     public void Null_credential_produces_a_working_client()
     {
-        using var chatClient = CreateProvider().CreateChatClient(TestData.Binding(), credential: null);
+        using var chatClient = CreateProvider().CreateChatClient(TestData.Binding());
 
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
 

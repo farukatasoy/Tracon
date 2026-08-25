@@ -1,7 +1,10 @@
 using AgentPrism.Core.UnitTests.Fakes;
+using AgentPrism.Testing.Contracts;
+using AgentPrism.Testing.Contracts.Judges;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Reflection;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
@@ -142,4 +145,94 @@ public sealed class ModelRunJudgeTests
         public ValueTask<bool> HasTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(false);
     }
+}
+
+/// <summary>Runs the published judge contract against AgentPrism's built-in judge.</summary>
+public sealed class ModelRunJudgeContractTests : RunJudgeContract
+{
+    protected override ValueTask<IRunJudge> CreateJudgeAsync()
+    {
+        var chatClient = new ContractChatClient();
+        var tenantContext = new ContractTenantContext();
+        var options = new ModelRunJudgeOptions
+        {
+            Model = new ModelBinding { Provider = "test", Model = "contract-model" },
+        };
+
+        IRunJudge judge = new ModelRunJudge(
+            new ContractModelProviderRegistry(chatClient),
+            new StaticOptionsMonitor<ModelRunJudgeOptions>(options),
+            new InMemoryRunStore(tenantContext: tenantContext),
+            tenantContext,
+            Options.Create(new AgentPrismOptions()),
+            NullLoggerFactory.Instance);
+
+        return ValueTask.FromResult(judge);
+    }
+
+    private sealed class ContractTenantContext : ITenantContext
+    {
+        public string TenantId => "contract-tenant";
+    }
+
+    private sealed class ContractModelProviderRegistry(IChatClient client) : IModelProviderRegistry
+    {
+        public IReadOnlyList<ModelProviderDescriptor> List() => [];
+
+        public IChatClient CreateChatClient(ModelBinding binding) => client;
+
+        public ValueTask<IChatClient> CreateChatClientAsync(
+            ModelBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(client);
+        }
+
+        public ValueTask<IChatClient> CreateSetupChatClientAsync(
+            ModelBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(client);
+        }
+
+        public ValueTask<bool> HasTenantProviderOverrideAsync(
+            ModelBinding binding,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(false);
+    }
+
+    private sealed class ContractChatClient : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new ChatResponse(
+                new ChatMessage(ChatRole.Assistant, """{"score":80,"reason":"contract"}""")));
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => AsyncEnumerable.Empty<ChatResponseUpdate>();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+        }
+    }
+}
+
+public sealed class JudgeContractCoverageTests
+{
+    [Fact]
+    public void Every_judge_contract_has_a_derived_test()
+        => ContractCoverage.MissingDerivedTypes(
+            Assembly.GetExecutingAssembly(), ContractCoverage.JudgeContracts).ShouldBeEmpty();
 }

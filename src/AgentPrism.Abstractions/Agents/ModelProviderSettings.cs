@@ -4,6 +4,15 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
+/// Thrown by <see cref="ModelProviderSettings.Validate"/>. Internal and
+/// unforgeable from outside this assembly: the model-call normalization
+/// boundary in <c>AgentPrism.Core</c> trusts this exact type to carry a safe,
+/// secret-free message, something a foreign or malicious <see cref="IModelProvider"/>
+/// could not fake by throwing the public base <see cref="AgentPrismException"/> directly.
+/// </summary>
+internal sealed class ProviderSettingsValidationException(string message) : AgentPrismException(message);
+
+/// <summary>
 /// Helpers that read and validate the <see cref="ModelBinding.ProviderSettings"/>
 /// dictionary.
 /// </summary>
@@ -102,7 +111,7 @@ public static class ModelProviderSettings
             problems.Add($"these keys are not recognized: {string.Join(", ", unknownKeys)}");
         }
 
-        throw new AgentPrismException(
+        throw new ProviderSettingsValidationException(
             $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} is invalid: " +
             $"{string.Join("; and ", problems)}. {supported}.");
     }

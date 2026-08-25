@@ -74,11 +74,10 @@ public sealed class ToolRegistryWrapperOrderTests
     }
 
     [Fact]
-    public void No_output_limit_anywhere_means_no_truncating_layer_is_installed()
+    public void No_output_limit_still_installs_the_canonical_result_boundary()
     {
-        // K1: unlimited is the default. The wrapper must not even be present
-        // when neither the registration nor the installation sets a limit —
-        // not merely a no-op pass-through.
+        // Unlimited remains the default for size, but canonicalization and
+        // fail-closed unsupported-result handling are unconditional.
         var registration = new AgentPrismToolRegistration(
             AIFunctionFactory.Create(() => new string('a', 10_000), "big_report"));
 
@@ -92,7 +91,7 @@ public sealed class ToolRegistryWrapperOrderTests
 
         registry.TryGet("big_report", out var tool).ShouldBeTrue();
 
-        ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeNull();
+        ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeOfType<TruncatingAIFunction>();
     }
 
     [Fact]

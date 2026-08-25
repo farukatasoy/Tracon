@@ -354,14 +354,35 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         return null;
     }
 
-    private ContentFilterDetectingChatClient BuildPipeline(
+    private ProviderFailureNormalizingChatClient BuildPipeline(
         ModelBinding binding,
         IModelProvider provider,
         ModelProviderCredential? credential,
         Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> resolveFallback)
     {
         // The provider returns the RAW client; the entire pipeline is assembled here.
-        IChatClient chatClient = provider.CreateChatClient(binding, credential);
+        IChatClient chatClient;
+
+        try
+        {
+            chatClient = credential switch
+            {
+                null => provider.CreateChatClient(binding),
+                _ when provider is ITenantCredentialModelProvider tenantCredentialProvider
+                    => tenantCredentialProvider.CreateChatClient(binding, credential),
+                _ => throw ProviderInvocationException.CredentialUnsupported(binding.Provider),
+            };
+        }
+        catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
+        {
+            ProviderFailureNormalizer.Log(_loggerFactory, binding, exception, "construction");
+            throw ProviderInvocationException.UpstreamFailure(exception);
+        }
+
+        // Mark only exceptions that originate in the raw SDK client. The
+        // outer normalizer can then mask provider failures without hiding a
+        // bug thrown by an AgentPrism guard, cache, or attachment wrapper.
+        chatClient = new ProviderFailureTaggingChatClient(chatClient);
 
         // The concurrency limiter sits closest to the wire: it must see every
         // REAL network call, including every turn of the tool-call loop, not
@@ -476,6 +497,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // exception it throws would increase the consecutive-failure counter
         // and a handful of content-filtered requests in a row would close the
         // circuit on the provider.
-        return new ContentFilterDetectingChatClient(binding.Provider, chatClient);
+        chatClient = new ContentFilterDetectingChatClient(binding.Provider, chatClient);
+
+        // The normalization boundary is the outermost model-call ring. Retry,
+        // fallback, circuit, guard, and content-filter decisions must see the
+        // original exception graph before a public-safe error replaces it.
+        return new ProviderFailureNormalizingChatClient(binding, chatClient, _loggerFactory);
     }
 }

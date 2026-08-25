@@ -20,7 +20,7 @@
       (artifacts/package/release) instead of nuget.org, where a preview build is
       never published.
     -->
-    <PackageReference Include="AgentPrism.Core" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Core" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
 </Project>

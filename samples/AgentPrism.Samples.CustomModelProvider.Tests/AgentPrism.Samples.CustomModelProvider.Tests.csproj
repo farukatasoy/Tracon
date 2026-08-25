@@ -46,14 +46,14 @@
     -->
     <ProjectReference Include="../AgentPrism.Samples.CustomModelProvider/AgentPrism.Samples.CustomModelProvider.csproj" />
     <!-- VersionOverride, not Version: see the sample provider's own csproj for why. -->
-    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="$(AgentPrismSamplePackageVersion)" />
     <!--
       The meta package, because the end-to-end test compiles and runs a real
       agent: that needs the runtime (AddAgentPrism, AddModelProvider, the
       agent catalog), not just the abstractions the provider was written
       against. It is also the line a real consumer writes.
     -->
-    <PackageReference Include="AgentPrism" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

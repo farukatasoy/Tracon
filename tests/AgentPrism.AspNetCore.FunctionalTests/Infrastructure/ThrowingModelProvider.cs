@@ -13,27 +13,27 @@ namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 internal sealed class FakeUpstreamOutageException(string message) : Exception(message);
 
 /// <summary>A model provider that throws <see cref="FakeUpstreamOutageException"/> on every call.</summary>
-internal sealed class ThrowingModelProvider(string name = "kirik") : IModelProvider
+internal sealed class ThrowingModelProvider(string name = "kirik", string message = "The provider failed to resolve DNS.") : IModelProvider
 {
     public string Name { get; } = name;
 
     public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = "kirik-1" }];
 
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => new ThrowingChatClient();
+    public IChatClient CreateChatClient(ModelBinding binding) => new ThrowingChatClient(message);
 
-    private sealed class ThrowingChatClient : IChatClient
+    private sealed class ThrowingChatClient(string message) : IChatClient
     {
         public Task<ChatResponse> GetResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => throw new FakeUpstreamOutageException("The provider failed to resolve DNS.");
+            => throw new FakeUpstreamOutageException(message);
 
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => throw new FakeUpstreamOutageException("The provider failed to resolve DNS.");
+            => throw new FakeUpstreamOutageException(message);
 
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
 

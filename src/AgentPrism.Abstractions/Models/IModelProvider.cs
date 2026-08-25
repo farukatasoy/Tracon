@@ -128,19 +128,6 @@ public interface IModelProvider
     /// Produces a <strong>raw</strong> chat client for the given binding.
     /// </summary>
     /// <param name="binding">The model binding.</param>
-    /// <param name="credential">
-    /// A resolved per-tenant credential (BYOK). When
-    /// <see langword="null"/>, the provider's own setup-time credential is
-    /// used and behavior is <strong>identical</strong> to a setup without per-tenant credentials.
-    /// When given, the provider builds (or reuses a cached) client using
-    /// <see cref="ModelProviderCredential.ApiKey"/> and, if present,
-    /// <see cref="ModelProviderCredential.Endpoint"/>, instead of its
-    /// setup-time credential. The key itself must never fall back to the
-    /// setup-time key: a tenant that supplied a credential is billed on it or
-    /// the call fails. An endpoint may fall back, so that a globally
-    /// configured base address still applies when a tenant overrides only the
-    /// key.
-    /// </param>
     /// <returns>
     /// The provider-specific client. Decorators <em>specific</em> to the
     /// provider (example: Anthropic's settings decorator) may be added here.
@@ -184,17 +171,39 @@ public interface IModelProvider
     /// shared SDK client rather than a per-call one: returning a client that
     /// holds a resource needing release would leak it.
     /// </para>
-    /// <para>
-    /// <strong>Tenant credentials and the compile cache.</strong> A compiled
-    /// agent's chat client is a fixed pipeline object: once a tenant's
-    /// credential is baked into it, changing or deleting that tenant's binding
-    /// no longer affects it. A cache keyed only by definition identity must
-    /// therefore never hold an agent built with a tenant-specific credential.
-    /// Callers decide that with
-    /// <see cref="IModelProviderRegistry.HasTenantProviderOverrideAsync"/>;
-    /// an implementation only has to honor <paramref name="credential"/>
-    /// faithfully for that to hold.
-    /// </para>
     /// </remarks>
-    IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null);
+    IChatClient CreateChatClient(ModelBinding binding);
+}
+
+/// <summary>
+/// A model provider that can build clients from resolved per-tenant credentials.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Implement this interface only when the provider supports tenant-provided
+/// credentials. A provider that implements only <see cref="IModelProvider"/>
+/// continues to use its setup-time credential. If a tenant binding exists for
+/// such a provider, AgentPrism fails before invoking the provider and never
+/// falls back to the setup-time credential.
+/// </para>
+/// <para>
+/// A compiled agent's chat client is a fixed pipeline object. A client built
+/// with a tenant credential is therefore never stored in the shared compile
+/// cache. The registry enforces this through
+/// <see cref="IModelProviderRegistry.HasTenantProviderOverrideAsync"/>.
+/// </para>
+/// </remarks>
+public interface ITenantCredentialModelProvider : IModelProvider
+{
+    /// <summary>Produces a raw chat client using a resolved tenant credential.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="credential">The non-null tenant credential.</param>
+    /// <returns>The provider-specific raw chat client.</returns>
+    /// <remarks>
+    /// The implementation uses <see cref="ModelProviderCredential.ApiKey"/>
+    /// and, when present, <see cref="ModelProviderCredential.Endpoint"/>.
+    /// The API key must never fall back to the setup-time key. An endpoint may
+    /// fall back to a setup-time endpoint when only the key is overridden.
+    /// </remarks>
+    IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential);
 }

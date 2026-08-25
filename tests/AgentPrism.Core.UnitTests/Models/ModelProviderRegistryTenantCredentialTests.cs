@@ -68,6 +68,36 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     }
 
     [Fact]
+    public async Task Tenant_binding_for_provider_without_credential_capability_fails_closed_before_provider_invocation()
+    {
+        var provider = new SetupOnlyModelProvider("on-premise");
+        var bindings = new InMemoryTenantProviderBindingStore();
+
+        await bindings.UpsertAsync(new TenantProviderBinding
+        {
+            TenantId = Tenant,
+            ProviderName = provider.Name,
+            ApiKeyConfigurationName = "AgentPrism:ProviderKeys:Acme:OnPremise",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var registry = new ModelProviderRegistry(
+            [provider],
+            tenantContext: new FixedTenantContext(Tenant),
+            tenantProviderBindings: bindings,
+            tenantEgressPolicies: new InMemoryTenantEgressPolicyStore(),
+            credentialResolver: CreateResolver(
+                BuildConfiguration(("AgentPrism:ProviderKeys:Acme:OnPremise", "tenant-private-value"))));
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(
+            async () => await registry.CreateChatClientAsync(TestData.Binding(provider: provider.Name)));
+
+        exception.ErrorType.ShouldBe("provider_credential_unsupported");
+        exception.Message.ShouldNotContain("tenant-private-value");
+        provider.InvocationCount.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_binding_that_exists_but_resolves_to_no_value_does_not_fall_back_silently()
     {
         var provider = new FakeModelProvider(name: "openai");
@@ -313,6 +343,24 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     private sealed class FixedTenantContext(string tenantId) : ITenantContext
     {
         public string TenantId => tenantId;
+    }
+
+    private sealed class SetupOnlyModelProvider(string name) : IModelProvider
+    {
+        public string Name { get; } = name;
+
+        public IReadOnlyList<ModelDescriptor> Models { get; } =
+        [
+            new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 },
+        ];
+
+        public int InvocationCount { get; private set; }
+
+        public IChatClient CreateChatClient(ModelBinding binding)
+        {
+            InvocationCount++;
+            return new FakeChatClient();
+        }
     }
 
     private sealed class ThrowingTenantProviderBindingStore : ITenantProviderBindingStore

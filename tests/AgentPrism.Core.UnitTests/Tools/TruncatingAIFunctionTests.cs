@@ -40,14 +40,14 @@ public sealed class TruncatingAIFunctionTests
     }
 
     [Fact]
-    public async Task Null_result_passes_through_unchanged()
+    public async Task Null_result_uses_the_explicit_canonical_representation()
     {
         var inner = new RawResultFunction("silent_tool", result: null);
         var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: TruncatingAIFunction.MinimumEnvelopeBytes);
 
         var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
 
-        result.ShouldBeNull();
+        result.ShouldBe("null");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class TruncatingAIFunctionTests
     }
 
     [Fact]
-    public async Task A_raw_non_string_non_JsonElement_result_always_passes_through_untouched()
+    public async Task An_unsupported_raw_clr_result_fails_closed_without_using_ToString()
     {
         // A tool source generator's emitted wrapper returns a raw CLR object
         // directly; the default Object.ToString() would return a bare type
@@ -125,7 +125,8 @@ public sealed class TruncatingAIFunctionTests
 
         var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
 
-        result.ShouldBeSameAs(payload);
+        result.ShouldBe(ToolResultText.UnsupportedResultText);
+        result.ShouldNotBe(payload.ToString());
     }
 
     [Fact]
@@ -149,14 +150,14 @@ public sealed class TruncatingAIFunctionTests
     }
 
     [Fact]
-    public async Task A_non_string_result_within_the_limit_keeps_its_own_type()
+    public async Task A_non_string_result_within_the_limit_uses_its_canonical_text()
     {
         var inner = new RawResultFunction("counting_tool", 42);
         var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 1024);
 
         var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
 
-        result.ShouldBe(42);
+        result.ShouldBe("42");
     }
 
     [Fact]
