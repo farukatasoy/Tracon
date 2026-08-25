@@ -101,6 +101,10 @@ Yedi dalganın faz eşlemesi kapanmış bir yönlendirme kaydıdır; faz durumu
 [`YOL-HARITASI.md`](YOL-HARITASI.md)'de yaşar (K-413). Tablolar:
 [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) § *Dalga 6–12 eşleme tabloları*.
 
+### Preview.1 yayın öncesi → Faz 103 (2026-08-25)
+
+- **F-153** Extension sözleşmelerinin yayın öncesi sertleştirilmesi → [Faz 103](103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) 📋
+
 ## Bu Turda Neyin Değiştiği
 
 **2026-08-21 · ikinci tüketici gömme turu.** Dört yeni kalem (**F-140** · **F-141**
@@ -646,6 +650,81 @@ ancak pahalı veya yan etkili üçüncü taraf yargıçlar için yargıç-başı
 checkpoint gerekir. Önce job item modelinin tek run kimliği sözleşmesini ve SQL
 store migration maliyetini ölç; yalnız başarılı yargıçların atlanması doğruysa
 ayrı bir kalıcı sonuç modeli tasarla. Kaynak: Faz 100 Açık Soru 3.
+
+### F-154 · Extension ad ve kimlik kurallarını seam'ler arasında standardize et
+
+Faz 103 planlama ölçümü provider, judge, source, tool ve agent adlarının aynı
+karakter, uzunluk ve case-sensitivity sözleşmesini kullanmadığını doğruladı.
+Bugünkü farklar preview.1 güvenlik veya paketleme kusuru üretmiyor. Bunları Faz
+103'e sıkıştırmak mevcut isimleri kırabilir ve bütün registry'leri birlikte
+yeniden tasarlamayı gerektirir. 1.0 API freeze öncesi, metric tag olan adlarda
+low-cardinality kuralıyla birlikte ölçülmelidir.
+
+### F-155 · Extension seam'leri için ortak exception taxonomy
+
+Faz 103 yalnız doğrulanmış provider raw-message sızıntısını ortak model-pipeline
+boundary'sinde kapatır ve kullanılmayan judge exception tipini kaldırır. Storage,
+provider, judge, agent source ve tool için tek public exception hierarchy kurmak
+preview.1 blocker değildir. F-149'un provider failure classification çalışmasıyla
+çakışma ölçülmeden yeni public hata tipleri eklenmemelidir.
+
+### F-156 · Singleton registration disposal ownership modeli
+
+Instance, factory ve generic singleton kayıtlarında DI'ın dispose sahipliği farklı
+olabilir. Faz 103 gerekli guide/XML açıklamasını düzeltir; beş seam'i tek public
+registration ownership modeline taşımak genel bir API yeniden tasarımıdır. 1.0
+öncesi gerçek `ServiceProvider` dispose problarıyla ölçülmelidir.
+
+### F-157 · Definition-source compiler/cache public facade tasarımı
+
+Agent source ile definition compiler/cache sınırındaki yardımcı yüzeyler genel
+olarak yeniden tasarlanmayacaktır. Faz 103 yalnız preview.1 blocker olan contract
+ve sample kanıtlarını kapatır. Public facade ihtiyacı ayrı tüketici senaryosu ve
+cache/BYOK doğruluk ölçümüyle ele alınmalıdır.
+
+### F-158 · Public wrapper/helper yüzeyinin genel küçültülmesi
+
+`AuthorizingAIFunction`, `TimeoutAIFunction` ve `TruncatingAIFunction` bugün Core
+ile MCP paketleri arasındaki composition sınırında kullanılır. Faz 103 bu tiplerin
+gerçek tüketici beklentisini yeniden sorgular, fakat blocker işi gerektirmiyorsa
+genel internalization/refactor yapmaz. 1.0 freeze öncesi package-boundary
+alternatifleri ayrıca ölçülmelidir.
+
+### F-159 · Tenant-aware provider/source yük ve performans sözleşmeleri
+
+Faz 103 tenant credential unsupported yolunu fail-closed yapar ve mevcut tenant
+yalıtım testlerini korur. Provider credential cache'i ile tenant-aware source için
+yük, cache büyümesi ve contention testleri preview.1 doğruluk blocker'ı değildir.
+Ölçülebilir eşikler belirlenmeden contract suite'e performans iddiası eklenmemelidir.
+
+### F-160 · NUnit ve MSTest contract paketleri
+
+Bugünkü public contract paketi adında ve bağımlılık grafiğinde xunit.v3'ü açıkça
+taşır. NUnit/MSTest karşılıkları üçüncü taraf benimseme işidir; mevcut xunit
+suite'inin doğruluğunu veya preview.1 runtime güvenliğini engellemez. Gerçek
+tüketici talebi ve paylaşılacak framework-neutral fixture maliyeti ölçülmelidir.
+
+### F-161 · Storage için fluent registration katmanı
+
+Storage contract suite ve packed-package tüketicisi çalışır durumdadır. Storage
+provider kayıtlarını yeni bir ortak fluent API'ye taşımak preview.1 blocker
+değildir ve provider/judge/source registration düzeltmesine dahil edilmeyecektir.
+1.0 öncesi mevcut provider paketlerinin `Use*` desenleriyle birlikte ölçülmelidir.
+
+### F-162 · `GET /api/agents` pagination
+
+Agent catalog liste ucunda pagination olmaması extension contract
+sertleştirmesinden bağımsız bir HTTP ölçeklenebilirlik işidir. Faz 103 kapsamına
+alınmaz. Tenant-aware source sayısı ve katalog büyüklüğüyle gerçek eşik ölçülmeden
+public request/response şekli değiştirilmemelidir.
+
+### F-163 · Contract suite load/performance ailesi
+
+Faz 103 concurrency ve cancellation testlerini deterministic davranış kanıtına
+çevirir. Uzun süreli load, throughput veya allocation testi correctness
+contract'ıyla karıştırılmaz. F-67 performans regresyon kapısıyla olası birleşme
+ölçülmeli; framework ve CI gürültü eşiği belirlenmeden yeni public test family
+eklenmemelidir.
 
 ## Ekosistem Boşluk Tablosu
 
