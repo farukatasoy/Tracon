@@ -2,13 +2,13 @@
 
 > **Durum:** ✅ Tamamlandı (2026-08-25)
 > **Kaynak:** Doğrudan kullanıcı isteği — aday listesinden gelmedi, aday listesine kalem eklemez (Faz 101 ile aynı yol)
-> **Önkoşul:** [Faz 101](arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md) — sözleşme yayını deseni (contract suite + sample + XML) buradan devralınır
+> **Önkoşul:** [Faz 101](101-KAYNAK-SOZLESMESININ-YAYINI.md) — sözleşme yayını deseni (contract suite + sample + XML) buradan devralınır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Generators`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `PublicAPI.Shipped.txt` **boştur** (`wc -l src/*/PublicAPI.Shipped.txt` → tümü `0`), bu yüzden bugün eklemek ve kırmak **bedavadır**; preview.1'den sonra ikisi de sürüm kararıdır
 > **Tüketici yüzeyi:** site: `getting-started/tools.md`, `concepts/tools.md`, **yeni** `guides/write-your-own-tool.md`, `capabilities.md`
 > · sevk edilen: `AgentPrismToolRegistration` / `AgentPrismToolAttribute` / `IToolRegistry` / `TimeoutAIFunction` / `TruncatingAIFunction` XML'leri, `src/AgentPrism.Testing.Contracts.Xunit/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
 
@@ -28,7 +28,7 @@
    **K-435** (istemci tool'u `AIFunction` değildir, `toolTransform` onu atlar) ·
    **K-610** (her `ContractCoverage` çağrısı bir aile adı alır) ·
    **K-611** (isteğe bağlı davranış atlanan senaryo değil, ayrı opt-in sınıf)
-3. [`101-KAYNAK-SOZLESMESININ-YAYINI.md`](arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
+3. [`101-KAYNAK-SOZLESMESININ-YAYINI.md`](101-KAYNAK-SOZLESMESININ-YAYINI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md
    ```
@@ -36,11 +36,11 @@
    `artifacts/package/release` birikimi, `docfx` `CS1704` fırtınası, `dotnet format --no-restore`)
    bu fazda **birebir tekrarlanacaktır** — bu faz da samples ekliyor ve public API'yi büyütüyor.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (tool çağrı yolu, `AsyncLocal`) ·
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (AOT kaçış merdiveni, generator) ·
-   [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) (sözleşme suite'i koşumu)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (tool çağrı yolu, `AsyncLocal`) ·
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (AOT kaçış merdiveni, generator) ·
+   [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) (sözleşme suite'i koşumu)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — tool yetkilendirme ve içerik denetimi bölümleri
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — tool yetkilendirme ve içerik denetimi bölümleri
 
 ---
 
@@ -86,25 +86,25 @@ AgentPrismToolRegistration               ← ham DI kaydı
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ToolRegistry.cs:116-131`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Dört wrapper (`Truncating` → `ApprovalRequired` → `Timeout` → `Authorizing`) **yalnız** registry constructor'ında kurulur. Başka kurulum yeri yok |
-| [`AgentPrismServiceCollectionExtensions.cs:305`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `TryAddSingleton<IToolRegistry>` — tüketici kendi implementation'ını koyabilir ve dört wrapper'ı **sessizce** kaybeder |
-| [`AgentPrismMcpBuilderExtensions.cs:149`](../src/AgentPrism.Mcp/AgentPrismMcpBuilderExtensions.cs) | `.UseMcp()` seam'i `services.Replace` ile ele geçirir — K4 (`TryAdd`) ile çelişir |
+| [`ToolRegistry.cs:116-131`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Dört wrapper (`Truncating` → `ApprovalRequired` → `Timeout` → `Authorizing`) **yalnız** registry constructor'ında kurulur. Başka kurulum yeri yok |
+| [`AgentPrismServiceCollectionExtensions.cs:305`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `TryAddSingleton<IToolRegistry>` — tüketici kendi implementation'ını koyabilir ve dört wrapper'ı **sessizce** kaybeder |
+| [`AgentPrismMcpBuilderExtensions.cs:149`](../../../src/AgentPrism.Mcp/AgentPrismMcpBuilderExtensions.cs) | `.UseMcp()` seam'i `services.Replace` ile ele geçirir — K4 (`TryAdd`) ile çelişir |
 | `PublicAPI.Unshipped.txt:18`, `:81` (Core) | `AgentDefinitionCompiler` ve `AgentPrismDiagnosticsCollector`'ın **public ctor'ları** `IToolRegistry` alır → interface internal **yapılamaz** |
-| [`ToolCandidate.cs:30-41`](../src/AgentPrism.Generators/ToolCandidate.cs) | `ToolEmitModel`'de `SafeToRepeat` alanı **yok**; `grep -n SafeToRepeat src/AgentPrism.Generators/*.cs` **boş** döner |
-| [`ToolMethodScanner.cs:64`](../src/AgentPrism.Core/Tools/ToolMethodScanner.cs) | Reflection yolu `safeToRepeat: attribute.SafeToRepeat` okur → **iki yol farklı metadata üretir** |
-| [`RunReconciliationService.cs:232`](../src/AgentPrism.Core/Recording/RunReconciliationService.cs) | `Destructive`/`External` + `!SafeToRepeat` → devam reddedilir. Generator yolundaki tool bu yüzden **yanlış** reddedilir |
-| [`AgentPrismToolAttribute.cs:53-93`](../src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs) | Attribute'ta `MaxOutputBytes` **hiç yok** → o knob ne generator ne reflection yolundan erişilebilir |
-| [`IAgentPrismBuilder.cs:62,80`](../src/AgentPrism.Core/IAgentPrismBuilder.cs) | `AddTool` yalnız `requiresApproval` alır. `effect`/`requiredPermission`/`timeout`/`safeToRepeat`/`maxOutputBytes` builder'dan **erişilemez** |
-| [`TruncatingAIFunction.cs:80-86`](../src/AgentPrism.Core/Tools/TruncatingAIFunction.cs) | Yalnız `string` ve `JsonElement` ölçülür; `_ => null` → başka her CLR tipi limiti **atlar** |
-| [`ContentGuardMessageMasker.cs:163-164`](../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `Result: { } result => result.ToString()` → complex object guard'a **tip adı** olarak görünür, model ise gerçek JSON'u görür |
-| [`SourceWriter.cs:71-80`](../src/AgentPrism.Generators/SourceWriter.cs) | Generated wrapper `(object?)result` döndürür → **ham CLR object**. Yukarıdaki iki deliğin ortak kökü budur |
+| [`ToolCandidate.cs:30-41`](../../../src/AgentPrism.Generators/ToolCandidate.cs) | `ToolEmitModel`'de `SafeToRepeat` alanı **yok**; `grep -n SafeToRepeat src/AgentPrism.Generators/*.cs` **boş** döner |
+| [`ToolMethodScanner.cs:64`](../../../src/AgentPrism.Core/Tools/ToolMethodScanner.cs) | Reflection yolu `safeToRepeat: attribute.SafeToRepeat` okur → **iki yol farklı metadata üretir** |
+| [`RunReconciliationService.cs:232`](../../../src/AgentPrism.Core/Recording/RunReconciliationService.cs) | `Destructive`/`External` + `!SafeToRepeat` → devam reddedilir. Generator yolundaki tool bu yüzden **yanlış** reddedilir |
+| [`AgentPrismToolAttribute.cs:53-93`](../../../src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs) | Attribute'ta `MaxOutputBytes` **hiç yok** → o knob ne generator ne reflection yolundan erişilebilir |
+| [`IAgentPrismBuilder.cs:62,80`](../../../src/AgentPrism.Core/IAgentPrismBuilder.cs) | `AddTool` yalnız `requiresApproval` alır. `effect`/`requiredPermission`/`timeout`/`safeToRepeat`/`maxOutputBytes` builder'dan **erişilemez** |
+| [`TruncatingAIFunction.cs:80-86`](../../../src/AgentPrism.Core/Tools/TruncatingAIFunction.cs) | Yalnız `string` ve `JsonElement` ölçülür; `_ => null` → başka her CLR tipi limiti **atlar** |
+| [`ContentGuardMessageMasker.cs:163-164`](../../../src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs) | `Result: { } result => result.ToString()` → complex object guard'a **tip adı** olarak görünür, model ise gerçek JSON'u görür |
+| [`SourceWriter.cs:71-80`](../../../src/AgentPrism.Generators/SourceWriter.cs) | Generated wrapper `(object?)result` döndürür → **ham CLR object**. Yukarıdaki iki deliğin ortak kökü budur |
 | `grep -n "ThrowIfNullOrWhiteSpace\|IsValid" AgentPrismToolRegistration.cs` | **Boş** — runtime kayıt yollarında tool adı doğrulaması yok. `[A-Za-z0-9_-]{1,64}` kuralı yalnız APG0002'dedir |
-| [`ToolRegistry.cs:146`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Duplicate ad doğru şekilde `AgentPrismException` atar, ama registry **lazy** kurulur → host ayağa kalkar, ilk istekte patlar |
-| [`ToolInvocationTracker.cs:130`](../src/AgentPrism.Core/Recording/ToolInvocationTracker.cs) · [`RunRecordingAgent.cs:1158`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `Error = result.Exception?.Message` — ham istisna mesajı store'a **ve** `tool.failed` SSE olayına gider |
-| [`ToolRegistry.cs:87-88`](../src/AgentPrism.Core/Tools/ToolRegistry.cs) | `optionsMonitor.CurrentValue` constructor'da bir kez okunur → `DefaultTimeout`/`DefaultMaxOutputBytes` reload'u mevcut registry'yi **etkilemez** |
+| [`ToolRegistry.cs:146`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | Duplicate ad doğru şekilde `AgentPrismException` atar, ama registry **lazy** kurulur → host ayağa kalkar, ilk istekte patlar |
+| [`ToolInvocationTracker.cs:130`](../../../src/AgentPrism.Core/Recording/ToolInvocationTracker.cs) · [`RunRecordingAgent.cs:1158`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | `Error = result.Exception?.Message` — ham istisna mesajı store'a **ve** `tool.failed` SSE olayına gider |
+| [`ToolRegistry.cs:87-88`](../../../src/AgentPrism.Core/Tools/ToolRegistry.cs) | `optionsMonitor.CurrentValue` constructor'da bir kez okunur → `DefaultTimeout`/`DefaultMaxOutputBytes` reload'u mevcut registry'yi **etkilemez** |
 | `src/AgentPrism.Testing.Contracts.Xunit/Contracts/` | 35 dosya, **Tools ailesi yok**. `ToolInvocationContract.cs` bir `IRunStore` **depo** sözleşmesidir |
 | `samples/` · `docs-site/src/content/docs/guides/` | `write-your-own-{agent-source,judge,store}` + dört sample var; **tool için ikisi de yok** |
-| [`AgentPrismOptions.cs:82`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `AgentPrismToolOptions` adı **dolu** — yeni registration options tipi başka ad almalı |
+| [`AgentPrismOptions.cs:82`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `AgentPrismToolOptions` adı **dolu** — yeni registration options tipi başka ad almalı |
 
 > Kanıtların tamamı **2026-08-25** tarihinde yeniden ölçüldü. Bir önceki
 > ölçüm turunda doğru olan hiçbir iddia düşmedi; iki iddia **büyüdü**:
@@ -631,7 +631,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -671,7 +671,7 @@ Beş soru, her yeni kod yolu için:
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> Kapanışta [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -879,7 +879,7 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
   bir değiştirme olarak yeniden yazıldı (bağımsız denetimin kapanışta bulduğu
   ve kapattığı 🔴 — bkz. Denetim Bulguları).
 
-Tam gerekçe her dördü için [`docs/KARARLAR.md`](KARARLAR.md)'dedir.
+Tam gerekçe her dördü için [`docs/KARARLAR.md`](../../KARARLAR.md)'dedir.
 
 ## Gerçekleşen Public API
 
