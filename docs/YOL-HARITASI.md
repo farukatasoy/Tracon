@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (105 kalem)
+## Fazlar (110 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -117,5 +117,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [102](arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) | Tool Sözleşmesi ve Sonuç Sınırı | ✅ Tamamlandı |
 | [103](arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) | Extension Sözleşmelerinin Yayın Öncesi Sertleştirilmesi | ✅ Tamamlandı |
 | [104](arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md) | Beyan Doğruluğu ve Giriş Rampası | ✅ Tamamlandı |
+| [105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) | DI Bileşen Kökü Ayrıştırma | 📋 Planlandı |
+| [106](106-AGENT-DERLEYICI-AYRISTIRMA.md) | Agent Derleyici Ayrıştırma | 📋 Planlandı |
+| [107](107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | 📋 Planlandı |
+| [108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | 📋 Planlandı |
+| [109](109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

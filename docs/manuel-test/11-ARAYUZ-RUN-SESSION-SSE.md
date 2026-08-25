@@ -105,7 +105,7 @@ Sınır durumu — hiç çalıştırma yokken.
 |---|---|
 | **İzlek** | B |
 | **Önem** | Düşük |
-| **İlgili faz** | Faz 5 |
+| **İlgili faz** | Faz 5 · F-122 onarımı (2026-08-26) |
 | **İlgili karar** | — |
 
 **Ön koşul**
@@ -1334,6 +1334,7 @@ SQL/bellek-içi seçimiyle DOĞRUDAN bağlı değil. `Beklenen sonuç` KOSUM-PLA
   sayısını gösterir (`runs.data.length`, `plural()` ile).
 - Adım 2: `runs?sessionId=<id>` adresine gider; "Çalıştırmalar" ekranı
   yalnız o oturuma ait satırları listeler.
+- Liste, ağ yanıtı gecikse bile geçici boş tabloyu son sonuç olarak kabul etmez.
 
 ### MT-UIRUN-042 — Bir mesajda "Dallandır": o noktaya kadar birebir kopya, SONRASI olmayan yeni bir oturum açılır
 
