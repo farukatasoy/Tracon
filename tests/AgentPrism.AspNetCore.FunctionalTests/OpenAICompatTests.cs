@@ -183,7 +183,7 @@ public sealed class OpenAICompatTests
                 (Func<string, string>)(orderId => $"{orderId} canceled."),
                 name: "cancel_order",
                 description: "Cancels an order.",
-                requiresApproval: true)
+                configure: options => options.RequiresApproval = true)
             .AddAgent(new AgentDefinition
             {
                 Name = "approval-agent",

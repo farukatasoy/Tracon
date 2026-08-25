@@ -76,8 +76,7 @@ public sealed class ToolGovernanceEndpointTests
                     .EchoesLastToolResult())
                 .AddTool(
                     (Func<string, string>)(orderId => $"{orderId} canceled."),
-                    name: "cancel_order",
-                    requiresApproval: false)
+                    name: "cancel_order")
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,

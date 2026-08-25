@@ -13,6 +13,15 @@ public sealed class CustomToolContractTests : CustomToolContract
             effect: ToolEffect.Read));
 }
 
+public sealed class RepeatableToolContractTests : RepeatableToolContract
+{
+    protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
+        => new(new AgentPrismToolRegistration(
+            AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_retry", "Returns a retry-safe status."),
+            effect: ToolEffect.External,
+            safeToRepeat: true));
+}
+
 public sealed class ToolContractCoverageTests
 {
     [Fact]

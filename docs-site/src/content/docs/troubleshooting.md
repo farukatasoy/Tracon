@@ -528,7 +528,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0007` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
+| `APG0001`–`APG0008` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
 | `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
@@ -594,6 +594,32 @@ description:
 [AgentPrismTool("get_order_status", "Returns an order's current shipping status.")]
 public static string GetOrderStatus(string orderId) => "shipped";
 ```
+
+### A complex tool result has no JSON context (APG0008)
+
+Generated tools return complex results as canonical JSON. Declare a
+source-generated `JsonSerializerContext` in your own source and give its type
+to the tool attribute. A context emitted by the AgentPrism generator itself is
+too late for the JSON generator to process.
+
+```csharp
+[JsonSerializable(typeof(OrderPreview))]
+internal partial class ToolJsonContext : JsonSerializerContext;
+
+[AgentPrismTool(
+    "preview_order",
+    "Returns an order preview.",
+    JsonSerializerContext = typeof(ToolJsonContext))]
+public static OrderPreview PreviewOrder(string orderId) => new(orderId, "ready");
+```
+
+### An instance method is marked as a tool (APG0007)
+
+Generated tools must be static. Microsoft Agent Framework invokes an
+`AIFunction` with an empty service provider, so an instance method cannot rely
+on constructor dependencies. Make the generated method static, or create the
+object during registration and expose a hand-built `AIFunction` that creates a
+scope for each invocation.
 
 ### APG0101 or APG0102 fires although the registration exists
 

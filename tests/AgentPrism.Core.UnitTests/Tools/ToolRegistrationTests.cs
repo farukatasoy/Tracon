@@ -150,6 +150,44 @@ public sealed class ToolRegistrationTests
     }
 
     [Fact]
+    public void Direct_delegate_and_scanned_registration_paths_preserve_all_metadata()
+    {
+        var expectedTimeout = TimeSpan.FromSeconds(45);
+        var services = new ServiceCollection();
+        var builder = services.AddAgentPrism();
+
+        builder.AddTool(
+            Microsoft.Extensions.AI.AIFunctionFactory.Create((Func<string>)(() => "direct"), "direct_tool"),
+            options => ConfigureAllMetadata(options, expectedTimeout));
+        builder.AddTool(
+            (Func<string>)(() => "delegate"),
+            name: "delegate_tool",
+            configure: options => ConfigureAllMetadata(options, expectedTimeout));
+        builder.AddToolsFrom(typeof(AllMetadataTool));
+
+        using var provider = services.BuildServiceProvider();
+        var registrations = provider.GetServices<AgentPrismToolRegistration>().ToArray();
+
+        registrations.ShouldContain(registration => registration.Function.Name == "direct_tool");
+        registrations.ShouldContain(registration => registration.Function.Name == "delegate_tool");
+        registrations.ShouldContain(registration => registration.Function.Name == "scanned_tool");
+
+        foreach (var registration in registrations.Where(static value => value.Function.Name.EndsWith("_tool", StringComparison.Ordinal)))
+        {
+            registration.RequiresApproval.ShouldBeTrue();
+            registration.Effect.ShouldBe(ToolEffect.External);
+            registration.RequiredPermission.ShouldBe("orders.submit");
+            registration.Timeout.ShouldBe(expectedTimeout);
+            registration.SafeToRepeat.ShouldBeTrue();
+            registration.MaxOutputBytes.ShouldBe(768);
+        }
+
+        registrations.Single(static value => string.Equals(value.Function.Name, "direct_tool", StringComparison.Ordinal)).Source.ShouldBe("fulfillment");
+        registrations.Single(static value => string.Equals(value.Function.Name, "delegate_tool", StringComparison.Ordinal)).Source.ShouldBe("fulfillment");
+        registrations.Single(static value => string.Equals(value.Function.Name, "scanned_tool", StringComparison.Ordinal)).Source.ShouldBeNull();
+    }
+
+    [Fact]
     public void AddToolsFrom_uses_the_method_name_when_no_name_is_given()
     {
         var registry = BuildRegistry(builder => builder.AddToolsFrom(typeof(SampleToolClass)));
@@ -198,6 +236,17 @@ public sealed class ToolRegistrationTests
 
     private sealed record GreetingSettings(string Prefix);
 
+    private static void ConfigureAllMetadata(ToolRegistrationOptions options, TimeSpan timeout)
+    {
+        options.RequiresApproval = true;
+        options.Effect = ToolEffect.External;
+        options.RequiredPermission = "orders.submit";
+        options.Timeout = timeout;
+        options.SafeToRepeat = true;
+        options.MaxOutputBytes = 768;
+        options.Source = "fulfillment";
+    }
+
     private static class SampleToolClass
     {
         [AgentPrismTool]
@@ -212,6 +261,20 @@ public sealed class ToolRegistrationTests
     private static class UnmarkedClass
     {
         public static string Nothing() => "not registered";
+    }
+
+    private static class AllMetadataTool
+    {
+        [AgentPrismTool(
+            "scanned_tool",
+            "Returns a submission status.",
+            RequiresApproval = true,
+            Effect = ToolEffect.External,
+            RequiredPermission = "orders.submit",
+            TimeoutSeconds = 45,
+            SafeToRepeat = true,
+            MaxOutputBytes = 768)]
+        public static string Submit() => "scanned";
     }
 
     private sealed class SampleClassWithMethod(GreetingSettings settings)

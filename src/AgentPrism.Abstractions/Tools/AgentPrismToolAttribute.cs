@@ -100,4 +100,16 @@ public sealed class AgentPrismToolAttribute : Attribute
     /// the existing attachment contract instead of an inline text result.
     /// </remarks>
     public int MaxOutputBytes { get; init; }
+
+    /// <summary>
+    /// The source-generated JSON context for a complex tool result, or
+    /// <see langword="null"/> when the result needs no JSON serialization.
+    /// </summary>
+    /// <remarks>
+    /// Set this to a <see cref="System.Text.Json.Serialization.JsonSerializerContext"/>
+    /// type that declares <c>[JsonSerializable(typeof(TResult))]</c>. The JSON
+    /// source generator only sees source written by the tool owner; a context
+    /// emitted by another source generator arrives too late for it to process.
+    /// </remarks>
+    public Type? JsonSerializerContext { get; init; }
 }
