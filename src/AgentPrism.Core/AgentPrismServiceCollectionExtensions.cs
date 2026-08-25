@@ -410,6 +410,7 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetServices<ISqlPersistenceDiagnostics>(),
             provider.GetServices<SqlPersistenceRegistrationMarker>(),
             provider.GetRequiredService<IAgentCatalog>(),
+            provider.GetServices<IAgentSource>(),
             provider.GetRequiredService<IToolRegistry>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IRunAttributionContext>(),
@@ -905,6 +906,7 @@ public static class AgentPrismServiceCollectionExtensions
         // Catalog sources. TryAddEnumerable prevents the same type from being added twice.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AgentSourceValidationService>());
 
         // Wrappers. Application order is determined by Order:
         // run recording (0) → telemetry (10) → tool approval (20) → agent.
@@ -953,7 +955,11 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
 
-        services.TryAddSingleton<IAgentCatalog, CompositeAgentCatalog>();
+        services.TryAddSingleton<IAgentCatalog>(static provider => new CompositeAgentCatalog(
+            provider.GetServices<IAgentSource>(),
+            provider.GetServices<IAgentDecorator>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompositeAgentCatalog>>(),
+            provider.GetRequiredService<AgentPrismMetrics>()));
 
         // Graceful-shutdown drain (Phase 87). Registered LAST among
         // IHostedService implementations: the generic host stops hosted

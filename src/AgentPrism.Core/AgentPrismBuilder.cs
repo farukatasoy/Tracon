@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
@@ -86,6 +87,29 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         ArgumentNullException.ThrowIfNull(factory);
 
         Services.AddSingleton(CodeAgentRegistration.FromFactory(name, factory, description));
+        return this;
+    }
+
+    public IAgentPrismBuilder AddAgentSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSource>()
+        where TSource : class, IAgentSource
+    {
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, TSource>());
+        return this;
+    }
+
+    public IAgentPrismBuilder AddAgentSource(IAgentSource source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        Services.AddSingleton(source);
+        return this;
+    }
+
+    public IAgentPrismBuilder AddAgentSource(Func<IServiceProvider, IAgentSource> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        Services.AddSingleton(factory);
         return this;
     }
 

@@ -17,16 +17,19 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
     private readonly IAgentSource[] _sources;
     private readonly IAgentDecorator[] _decorators;
     private readonly ILogger<CompositeAgentCatalog> _logger;
+    private readonly AgentPrismMetrics? _metrics;
 
     /// <summary>Initializes a new composite catalog.</summary>
     /// <param name="sources">The agent sources.</param>
     /// <param name="decorators">The decorators applied to resolved agents.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The source-failure metrics recorder.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public CompositeAgentCatalog(
         IEnumerable<IAgentSource> sources,
         IEnumerable<IAgentDecorator> decorators,
-        ILogger<CompositeAgentCatalog> logger)
+        ILogger<CompositeAgentCatalog> logger,
+        AgentPrismMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(sources);
         ArgumentNullException.ThrowIfNull(decorators);
@@ -35,6 +38,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         _sources = [.. sources.OrderBy(static source => source.Priority)];
         _decorators = [.. decorators.OrderByDescending(static decorator => decorator.Order)];
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -44,9 +48,30 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
         foreach (var source in _sources)
         {
-            var descriptors = await source.ListAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<AgentDescriptor> descriptors;
 
-            foreach (var descriptor in descriptors)
+            try
+            {
+                descriptors = await source.ListAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                RecordSourceFailure(source, "list", exception, LogLevel.Error);
+                continue;
+            }
+
+            var frozenDescriptors = FreezeAndValidate(source, descriptors);
+
+            if (frozenDescriptors is null)
+            {
+                continue;
+            }
+
+            foreach (var descriptor in frozenDescriptors)
             {
                 if (byName.TryGetValue(descriptor.Name, out var winner))
                 {
@@ -78,14 +103,40 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
         foreach (var source in _sources)
         {
-            var agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
+            AIAgent? agent;
+
+            try
+            {
+                agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw CreateSourceException(source, "resolve", exception);
+            }
 
             if (agent is null)
             {
                 continue;
             }
 
-            var descriptor = await FindDescriptorAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+            AgentDescriptor descriptor;
+
+            try
+            {
+                descriptor = await FindDescriptorAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw CreateSourceException(source, "resolve", exception);
+            }
 
             foreach (var decorator in _decorators)
             {
@@ -116,12 +167,27 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         {
             // If this source does not define the agent, continue with the next source.
             // Priority order matches ListAsync and ResolveAsync: lower Priority runs first.
-            var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+            AgentDescriptor? descriptor;
+
+            try
+            {
+                descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw CreateSourceException(source, "resolve", exception);
+            }
 
             if (descriptor is null)
             {
                 continue;
             }
+
+            descriptor = Freeze(descriptor);
 
             if (source is not IVersionedAgentSource versioned)
             {
@@ -130,8 +196,25 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                     "(code source). Runs or experiments against a specific version are not supported for this agent.");
             }
 
-            var agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
-                ?? throw new AgentPrismException($"Version {version.Value} of agent '{agentName}' was not found.");
+            AIAgent agent;
+
+            try
+            {
+                agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
+                    ?? throw new AgentPrismException($"Version {version.Value} of agent '{agentName}' was not found.");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (AgentPrismException) when (source is DefinitionStoreAgentSource)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw CreateSourceException(source, "resolve", exception);
+            }
 
             foreach (var decorator in _decorators)
             {
@@ -144,19 +227,24 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
-    private static async ValueTask<AgentDescriptor> FindDescriptorAsync(
+    private async ValueTask<AgentDescriptor> FindDescriptorAsync(
         IAgentSource source,
         string agentName,
         CancellationToken cancellationToken)
     {
         var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
 
-        // The source resolved the agent but does not list it. Build a summary with
-        // the minimum information needed for decorators to run.
-        return descriptor ?? new AgentDescriptor
+        if (descriptor is not null)
+        {
+            return Freeze(descriptor);
+        }
+
+        RecordContractViolation(source, "consistency", $"resolved '{agentName}' but did not list it.", LogLevel.Warning);
+
+        return new AgentDescriptor
         {
             Name = agentName,
-            Origin = AgentDefinitionOrigin.Code,
+            Origin = AgentDefinitionOrigin.Custom,
             SourceName = source.Name,
         };
     }
@@ -178,4 +266,75 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
         return null;
     }
+
+    private AgentPrismAgentSourceException CreateSourceException(IAgentSource source, string operation, Exception exception)
+    {
+        if (exception is AgentPrismAgentSourceException normalized)
+        {
+            RecordSourceFailure(source, operation, normalized, LogLevel.Error);
+            return normalized;
+        }
+
+        RecordSourceFailure(source, operation, exception, LogLevel.Error);
+        return new AgentPrismAgentSourceException(
+            source.Name,
+            AgentPrismAgentSourceException.SourceFailedErrorType,
+            $"Agent source '{source.Name}' failed during {operation} ({AgentPrismAgentSourceException.SourceFailedErrorType}).",
+            exception);
+    }
+
+    private void RecordContractViolation(IAgentSource source, string operation, string detail, LogLevel level = LogLevel.Error)
+    {
+        var exception = new AgentPrismAgentSourceException(
+            source.Name,
+            AgentPrismAgentSourceException.SourceContractErrorType,
+            $"Agent source '{source.Name}' violated its contract during {operation}: {detail}");
+        RecordSourceFailure(source, operation, exception, level);
+    }
+
+    private void RecordSourceFailure(IAgentSource source, string operation, Exception exception, LogLevel level)
+    {
+        _metrics?.RecordAgentSourceFailure(source.Name, operation);
+        _logger.Log(level, exception, "Agent source '{SourceName}' failed during {Operation}.", source.Name, operation);
+    }
+
+    private List<AgentDescriptor>? FreezeAndValidate(IAgentSource source, IReadOnlyList<AgentDescriptor> descriptors)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var frozen = new List<AgentDescriptor>(descriptors.Count);
+
+        foreach (var descriptor in descriptors)
+        {
+            if (string.IsNullOrWhiteSpace(descriptor.Name))
+            {
+                RecordContractViolation(source, "list", "returned a descriptor with an empty name.");
+                return null;
+            }
+
+            if (!names.Add(descriptor.Name))
+            {
+                RecordContractViolation(source, "list", $"returned '{descriptor.Name}' more than once.");
+                return null;
+            }
+
+            frozen.Add(Freeze(descriptor));
+        }
+
+        return frozen;
+    }
+
+    private static AgentDescriptor Freeze(AgentDescriptor descriptor)
+        => descriptor with
+        {
+            Model = descriptor.Model is null
+                ? null
+                : descriptor.Model with
+                {
+                    ProviderSettings = new Dictionary<string, System.Text.Json.JsonElement>(descriptor.Model.ProviderSettings, StringComparer.OrdinalIgnoreCase),
+                    Fallbacks = [.. descriptor.Model.Fallbacks],
+                },
+            ToolNames = [.. descriptor.ToolNames],
+            SkillNames = [.. descriptor.SkillNames],
+            CallableAgentNames = [.. descriptor.CallableAgentNames],
+        };
 }

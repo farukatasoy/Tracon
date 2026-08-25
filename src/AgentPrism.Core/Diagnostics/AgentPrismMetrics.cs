@@ -86,6 +86,11 @@ public sealed class AgentPrismMetrics : IDisposable
             AgentPrismDiagnostics.ModelCacheLookupCounterName,
             unit: "{lookup}",
             description: "Response-cache lookups, tagged hit or miss.");
+
+        AgentSourceFailures = _meter.CreateCounter<long>(
+            AgentPrismDiagnostics.AgentSourceFailureCounterName,
+            unit: "{failure}",
+            description: "Agent-source failures, tagged by source and operation.");
     }
 
     /// <summary>Run counter. Tags: agent, status, tenant.</summary>
@@ -114,6 +119,9 @@ public sealed class AgentPrismMetrics : IDisposable
 
     /// <summary>Response-cache lookup counter. Tags: provider, tenant, result (hit/miss).</summary>
     public Counter<long> ModelCacheLookups { get; }
+
+    /// <summary>Agent-source failure counter. Tags: source, operation.</summary>
+    public Counter<long> AgentSourceFailures { get; }
 
     /// <summary>Records the result of a run.</summary>
     /// <param name="agentName">Agent name.</param>
@@ -264,6 +272,18 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.Provider, provider },
                 { AgentPrismDiagnostics.Tags.TenantId, tenantId },
                 { AgentPrismDiagnostics.Tags.CacheResult, hit ? "hit" : "miss" },
+            });
+
+    /// <summary>Records an agent-source failure or contract violation.</summary>
+    /// <param name="sourceName">The source name.</param>
+    /// <param name="operation">The operation: list, resolve, or consistency.</param>
+    public void RecordAgentSourceFailure(string sourceName, string operation)
+        => AgentSourceFailures.Add(
+            1,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.AgentSourceName, sourceName },
+                { AgentPrismDiagnostics.Tags.AgentSourceOperation, operation },
             });
 
     /// <inheritdoc />

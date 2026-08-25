@@ -191,6 +191,26 @@ public interface IAgentPrismBuilder
     /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddAgent(string name, Func<IServiceProvider, AIAgent> factory, string? description = null);
 
+    /// <summary>Registers a custom agent source as a singleton.</summary>
+    /// <typeparam name="TSource">The source implementation type.</typeparam>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Calling this method more than once for the same source type has no effect.
+    /// The source can serve global or tenant-aware agents. It must be thread-safe
+    /// because the catalog calls its methods concurrently.
+    /// </remarks>
+    IAgentPrismBuilder AddAgentSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSource>() where TSource : class, IAgentSource;
+
+    /// <summary>Registers a configured custom agent source as a singleton.</summary>
+    /// <param name="source">The source instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    IAgentPrismBuilder AddAgentSource(IAgentSource source);
+
+    /// <summary>Registers a custom agent-source factory as a singleton.</summary>
+    /// <param name="factory">The factory that creates the source.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    IAgentPrismBuilder AddAgentSource(Func<IServiceProvider, IAgentSource> factory);
+
     /// <summary>Registers a model provider.</summary>
     /// <param name="provider">The provider.</param>
     /// <returns>The chain, for further configuration.</returns>

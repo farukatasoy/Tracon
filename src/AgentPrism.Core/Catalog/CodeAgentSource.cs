@@ -63,7 +63,7 @@ internal sealed class CodeAgentSource : IAgentSource
     public string Name => "code";
 
     /// <inheritdoc />
-    public int Priority => 0;
+    public int Priority => AgentSourcePriority.Code;
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
@@ -105,29 +105,8 @@ internal sealed class CodeAgentSource : IAgentSource
             return registration.Factory!(_services);
         }
 
-        var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
-        var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
-        var shared = await _compiler.ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
-
-        // 🚨 A tenant-specific provider credential (phase 65, BYOK) gets baked
-        // into the compiled agent's chat client; caching it would let a
-        // rotated or deleted binding keep working silently. Bypass
-        // CompiledAgentCache entirely in that case — independent audit finding.
-        if (await _compiler.UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
-        {
-            return await _compiler.CompileAsync(definition, callable, culture, cancellationToken).ConfigureAwait(false);
-        }
-
-        var agent = await _cache.GetOrAddAsync(
-            _tenantContext.TenantId,
-            definition.Name,
-            definition.Version,
-            CompiledAgentCache.CombineFingerprints(
-                CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-                shared.Fingerprint),
-            culture ?? string.Empty,
-            () => _compiler.CompileAsync(definition, callable, culture, cancellationToken)).ConfigureAwait(false);
-
-        return agent;
+        return await _compiler
+            .CompileCachedAsync(definition, _cache, _tenantContext.TenantId, culture, cancellationToken)
+            .ConfigureAwait(false);
     }
 }

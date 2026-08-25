@@ -673,3 +673,35 @@ virtual AgentPrism.Testing.Contracts.Storage.SingletonLeaseStoreContract.OnDispo
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.AgentSourceContract() -> void
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.A_pre_cancelled_token_does_not_hang() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.A_returned_list_does_not_change_a_later_listing() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Every_resolved_listed_agent_is_listed() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Known_agent_resolves() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listed_descriptors_name_the_source() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listed_names_are_unique_and_valid() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listing_is_repeatable() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listing_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Name_is_not_empty() -> void
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Priority_is_stable() -> void
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Resolution_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Source.get -> AgentPrism.IAgentSource!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Unknown_agent_returns_null() -> System.Threading.Tasks.Task!
+abstract AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.CreateSourceAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IAgentSource!>
+abstract AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.KnownAgentName.get -> string!
+virtual AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.UnknownAgentName.get -> string!
+AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract
+AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.TenantAwareAgentSourceContract() -> void
+AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.Tenant_lists_do_not_leak_between_tenants() -> System.Threading.Tasks.Task!
+abstract AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract.UseTenantAsync(string! tenantId) -> System.Threading.Tasks.ValueTask<string!>
+AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract
+AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.VersionedAgentSourceContract() -> void
+AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.Known_version_resolves() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.Unknown_version_returns_null() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.VersionedSource.get -> AgentPrism.IVersionedAgentSource!
+abstract AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.KnownVersion.get -> int
+virtual AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.UnknownVersion.get -> int
+const AgentPrism.Testing.Contracts.ContractCoverage.AgentSourceContracts = "AgentPrism.Testing.Contracts.AgentSources" -> string!
