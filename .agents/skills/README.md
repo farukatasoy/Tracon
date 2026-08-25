@@ -35,13 +35,16 @@ sanmaz, çünkü `SKILL.md`/frontmatter taşımaz.
 ```mermaid
 flowchart LR
     accTitle: Skill zinciri ve zincir disi skiller
-    accDescr: Aday kesfi aday listesi uretir; faz planlama onu faz dokumanina cevirir; baslangic, uygulama, denetim ve tamamlama sirayla kosar; tamamlama tuketici dokuman senkronunu cagirir. Uc skill zincirin disindadir ve kesikli ok ile baglanir.
+    accDescr: Aday kesfi aday listesi uretir; faz planlama onu faz dokumanina cevirir; baslangic, uygulama, denetim ve tamamlama sirayla kosar; tamamlama tuketici dokuman senkronunu cagirir. Dort skill zincirin disindadir ve kesikli ok ile baglanir; nuget-danismani zincirin ustunde durur ve bulgularini planlama ile kusur gidermeye geri besler.
     A["aday-kesfi<br/>aday listesi F-NN"] --> B["faz-planlama<br/>docs/NN-*.md"]
     B --> C["faz-baslangic"] --> D["faz-uygulama"] --> E["faz-denetim"] --> F["faz-tamamlama"]
     F --> G["tuketici-dokuman-senkronu<br/>site · sevk edilen metin · yerel referans"]
     M["maf-api-kesfi"] -.->|"MAF tipini ilk kez kullanmadan once"| D
     K["kusur-giderme"] -.->|"bir kusur bulundugunda, her an"| D
     T["manuel-test-kosumu"] -.->|"surum oncesi tam set kosumu"| F
+    R["nuget-danismani<br/>zincirin USTUNDE"] -.->|"yayin karari - birikmis urunu olcer"| F
+    R -.->|"is uretti"| B
+    R -.->|"kusur buldu"| K
 ```
 
 | Skill | Ne zaman |
@@ -56,3 +59,4 @@ flowchart LR
 | `maf-api-kesfi` | Bir MAF tipini ilk kez kullanmadan önce |
 | `kusur-giderme` | Bir kusur bulunduğunda — her an |
 | `manuel-test-kosumu` | `docs/manuel-test/` setinin **tamamı** koşulurken ve kusurları kapatılırken |
+| `nuget-danismani` | Yayın kararı verilirken ve yayın sonrası olayda — zincirin üstünde, tek faza bağlı değil |
