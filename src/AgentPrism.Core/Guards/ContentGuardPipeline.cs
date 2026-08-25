@@ -236,10 +236,9 @@ public sealed class ContentGuardPipeline
 
     /// <summary>
     /// Records that a tool result could not be normalized into inspectable
-    /// text and was unconditionally replaced (Open Question 1, option A of
-    /// Phase 102). This is AgentPrism's own fail-closed decision, not a
-    /// registered <see cref="IContentGuard"/>'s, so it carries a synthetic
-    /// guard identity instead of a real one.
+    /// text and was unconditionally replaced. This is AgentPrism's own
+    /// fail-closed decision, not a registered <see cref="IContentGuard"/>'s,
+    /// so it carries a synthetic guard identity instead of a real one.
     /// </summary>
     /// <remarks>
     /// Called only from the real decision path (<c>ContentGuardMessageMasker.MaskAsync</c>),
