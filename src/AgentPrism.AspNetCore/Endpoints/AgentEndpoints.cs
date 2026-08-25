@@ -455,11 +455,15 @@ internal static class AgentEndpoints
         {
             return TypedResults.Problem(
                 title: "Agent name in use",
-                detail: existing.Origin == AgentDefinitionOrigin.Code
-                    ? $"'{request.Name}' is an agent defined in code and cannot be changed from the " +
-                      "management API. Code wins name conflicts, so a definition written with the same " +
-                      "name would never resolve."
-                    : $"A definition named '{request.Name}' already exists. Use PUT to update it.",
+                detail: existing.Origin switch
+                {
+                    AgentDefinitionOrigin.Code => $"'{request.Name}' is an agent defined in code and cannot be changed from the " +
+                                                  "management API. Code wins name conflicts, so a definition written with the same " +
+                                                  "name would never resolve.",
+                    AgentDefinitionOrigin.Custom => $"'{request.Name}' belongs to the '{existing.SourceName}' agent source and cannot " +
+                                                    "be changed from the management API.",
+                    _ => $"A definition named '{request.Name}' already exists. Use PUT to update it.",
+                },
                 statusCode: StatusCodes.Status409Conflict);
         }
 
@@ -1438,13 +1442,19 @@ internal static class AgentEndpoints
     {
         var descriptor = await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false);
 
-        return descriptor?.Origin == AgentDefinitionOrigin.Code
-            ? TypedResults.Problem(
+        return descriptor?.Origin switch
+        {
+            AgentDefinitionOrigin.Code => TypedResults.Problem(
                 title: "Code-defined agent cannot be modified",
                 detail: $"'{name}' is defined in code. Code definitions are validated at compile time " +
                         "and cannot be changed from the management API; update the application code to change it.",
-                statusCode: StatusCodes.Status409Conflict)
-            : null;
+                statusCode: StatusCodes.Status409Conflict),
+            AgentDefinitionOrigin.Custom => TypedResults.Problem(
+                title: "Custom-source agent cannot be modified",
+                detail: $"'{name}' belongs to the '{descriptor.SourceName}' agent source and cannot be changed from the management API.",
+                statusCode: StatusCodes.Status409Conflict),
+            _ => null,
+        };
     }
 
     private static ProblemHttpResult? Validate(AgentDefinitionRequest request)

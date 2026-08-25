@@ -3,17 +3,20 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// A source the catalog collects agents from. AgentPrism joins several sources into
-/// one catalog: the ones declared in code, the ones stored in the database and (from
-/// onwards) Microsoft Agent Framework hosting registrations.
+/// A source the catalog collects agents from. AgentPrism joins sources declared in
+/// code, stored in the database, and registered by the application.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This abstraction keeps <c>AgentPrism.Core</c> from depending on the prerelease
-/// <c>Microsoft.Agents.AI.Hosting</c> package. The bridge that shows MAF hosting
-/// registrations in the catalog implements this interface inside
-/// <c>AgentPrism.AspNetCore</c>.
-/// </para>
+/// <para>Sources are singleton instances. Calls can run concurrently, so an implementation
+/// must be thread-safe and must not keep request or run state in instance fields. Do not
+/// capture scoped services; create a scope from <see cref="IServiceProvider"/> when needed.</para>
+/// <para><see cref="ListAsync"/> is on the run path. It can run repeatedly and must be
+/// side-effect free. The catalog does not cache a global snapshot, retry calls, or apply a
+/// timeout. A source that needs caching, retries, or a timeout owns that policy.</para>
+/// <para><see cref="ListAsync"/> and <see cref="ResolveAsync"/> describe the same agent set.
+/// Returned descriptors and their nested collections must not change after they return.</para>
+/// <para>A source may be global or tenant-aware. Reading <see cref="ITenantContext"/> is valid.
+/// Startup and background calls use the default tenant when no tenant scope is present.</para>
 /// </remarks>
 public interface IAgentSource
 {
@@ -25,8 +28,8 @@ public interface IAgentSource
     /// a name, the source with priority wins.
     /// </summary>
     /// <remarks>
-    /// The values in use: 0 for the code source, 10 for the MAF hosting source, 100 for
-    /// the database source.
+    /// <see cref="AgentSourcePriority.Code"/> and <see cref="AgentSourcePriority.Database"/>
+    /// are reserved for built-in sources. Equal priorities preserve DI registration order.
     /// </remarks>
     int Priority { get; }
 

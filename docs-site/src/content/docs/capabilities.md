@@ -38,6 +38,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `IAgentPrismBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
 | Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies AgentPrism decorators when it resolves the agent |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapAgentPrism()` | Code-defined agents are visible but read-only |
+| Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider |

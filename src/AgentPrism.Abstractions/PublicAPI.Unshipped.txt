@@ -79,6 +79,33 @@ AgentPrism.AgentDefinition.Version.init -> void
 AgentPrism.AgentDefinitionOrigin
 AgentPrism.AgentDefinitionOrigin.Code = 0 -> AgentPrism.AgentDefinitionOrigin
 AgentPrism.AgentDefinitionOrigin.Database = 1 -> AgentPrism.AgentDefinitionOrigin
+AgentPrism.AgentDefinitionOrigin.Custom = 2 -> AgentPrism.AgentDefinitionOrigin
+AgentPrism.AgentPrismAgentSourceException
+AgentPrism.AgentPrismAgentSourceException.AgentPrismAgentSourceException(string! sourceName, string! errorType, string! message, System.Exception? innerException = null) -> void
+AgentPrism.AgentPrismAgentSourceException.SourceName.get -> string!
+const AgentPrism.AgentPrismAgentSourceException.SourceContractErrorType = "agent_source_contract" -> string!
+const AgentPrism.AgentPrismAgentSourceException.SourceFailedErrorType = "agent_source_failed" -> string!
+override AgentPrism.AgentPrismAgentSourceException.ErrorType.get -> string!
+AgentPrism.AgentSourceDiagnostic
+AgentPrism.AgentSourceDiagnostic.<Clone>$() -> AgentPrism.AgentSourceDiagnostic!
+AgentPrism.AgentSourceDiagnostic.AgentSourceDiagnostic() -> void
+AgentPrism.AgentSourceDiagnostic.Equals(AgentPrism.AgentSourceDiagnostic? other) -> bool
+AgentPrism.AgentSourceDiagnostic.Implementation.get -> string!
+AgentPrism.AgentSourceDiagnostic.Implementation.init -> void
+AgentPrism.AgentSourceDiagnostic.Name.get -> string!
+AgentPrism.AgentSourceDiagnostic.Name.init -> void
+AgentPrism.AgentSourceDiagnostic.Priority.get -> int
+AgentPrism.AgentSourceDiagnostic.Priority.init -> void
+static AgentPrism.AgentSourceDiagnostic.operator !=(AgentPrism.AgentSourceDiagnostic? left, AgentPrism.AgentSourceDiagnostic? right) -> bool
+static AgentPrism.AgentSourceDiagnostic.operator ==(AgentPrism.AgentSourceDiagnostic? left, AgentPrism.AgentSourceDiagnostic? right) -> bool
+override AgentPrism.AgentSourceDiagnostic.Equals(object? obj) -> bool
+override AgentPrism.AgentSourceDiagnostic.GetHashCode() -> int
+override AgentPrism.AgentSourceDiagnostic.ToString() -> string!
+AgentPrism.AgentSourcePriority
+const AgentPrism.AgentSourcePriority.Code = 0 -> int
+const AgentPrism.AgentSourcePriority.Database = 100 -> int
+AgentPrism.AgentPrismDiagnosticsReport.AgentSources.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.AgentSourceDiagnostic!>!
+AgentPrism.AgentPrismDiagnosticsReport.AgentSources.init -> void
 AgentPrism.AgentDescriptor
 AgentPrism.AgentDescriptor.<Clone>$() -> AgentPrism.AgentDescriptor!
 AgentPrism.AgentDescriptor.AgentDescriptor() -> void

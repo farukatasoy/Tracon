@@ -69,6 +69,9 @@ public static class AgentPrismDiagnostics
     /// <summary>Gets the response-cache lookup counter name.</summary>
     public const string ModelCacheLookupCounterName = "agentprism.model.cache";
 
+    /// <summary>Gets the counter name for agent-source failures.</summary>
+    public const string AgentSourceFailureCounterName = "agentprism.agent_source.failures";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -146,5 +149,11 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Gets the response-cache lookup result tag name: <c>hit</c> or <c>miss</c>.</summary>
         public const string CacheResult = "agentprism.model.cache.result";
+
+        /// <summary>Gets the agent-source name tag.</summary>
+        public const string AgentSourceName = "agentprism.agent_source.name";
+
+        /// <summary>Gets the agent-source operation tag.</summary>
+        public const string AgentSourceOperation = "agentprism.agent_source.operation";
     }
 }

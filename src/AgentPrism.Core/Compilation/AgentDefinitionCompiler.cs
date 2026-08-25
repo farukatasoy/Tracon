@@ -387,6 +387,64 @@ public sealed class AgentDefinitionCompiler
     public ValueTask<bool> UsesTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
         => _models.HasTenantProviderOverrideAsync(binding, cancellationToken);
 
+    /// <summary>Resolves the dependencies that determine a definition's compilation cache key.</summary>
+    /// <param name="definition">The definition to inspect.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The callable agents, cache fingerprint, and cache-bypass decision.</returns>
+    public async ValueTask<AgentCompilationDependencies> ResolveDependenciesAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var skills = await ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var callable = await ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var shared = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        return new AgentCompilationDependencies
+        {
+            CallableAgents = callable,
+            CacheFingerprint = CompiledAgentCache.CombineFingerprints(
+                CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+                shared.Fingerprint),
+            BypassCache = await UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false),
+        };
+    }
+
+    /// <summary>Compiles a definition and stores it in the supplied cache when it is safe to do so.</summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="cache">The cache that owns compiled agents for this source.</param>
+    /// <param name="tenantId">The tenant whose compilation cache is used.</param>
+    /// <param name="culture">The requested instruction culture.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The executable agent.</returns>
+    public async ValueTask<AIAgent> CompileCachedAsync(
+        AgentDefinition definition,
+        CompiledAgentCache cache,
+        string tenantId,
+        string? culture = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+
+        var dependencies = await ResolveDependenciesAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        if (dependencies.BypassCache)
+        {
+            return await CompileAsync(definition, dependencies.CallableAgents, culture, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await cache.GetOrAddAsync(
+            tenantId,
+            definition.Name,
+            definition.Version,
+            dependencies.CacheFingerprint,
+            culture ?? string.Empty,
+            () => CompileAsync(definition, dependencies.CallableAgents, culture, cancellationToken)).ConfigureAwait(false);
+    }
+
     private AIAgent BuildAgent(
         AgentDefinition definition,
         ResolvedCallableAgents callableAgents,

@@ -2,7 +2,8 @@ namespace AgentPrism;
 
 /// <summary>
 /// A summary view of an agent listed in the catalog. It carries everything the user
-/// interface needs to draw the agent list, without having to build the agent.
+/// interface needs to draw the agent list, without having to build the agent. A source
+/// must not mutate a descriptor or its nested collections after returning it.
 /// </summary>
 public sealed record AgentDescriptor
 {

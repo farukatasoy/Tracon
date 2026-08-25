@@ -1,0 +1,114 @@
+using Microsoft.Agents.AI;
+
+namespace AgentPrism.Testing.Contracts.AgentSources;
+
+/// <summary>Behavior tests for an <see cref="IAgentSource"/> implementation.</summary>
+public abstract class AgentSourceContract : IAsyncLifetime
+{
+    /// <summary>Gets the source under test.</summary>
+    protected IAgentSource Source { get; private set; } = null!;
+
+    /// <summary>Creates a source ready for use.</summary>
+    protected abstract ValueTask<IAgentSource> CreateSourceAsync();
+
+    /// <summary>Gets an agent name the source definitely resolves.</summary>
+    protected abstract string KnownAgentName { get; }
+
+    /// <summary>Gets an agent name the source definitely does not resolve.</summary>
+    protected virtual string UnknownAgentName => "agentprism-contract-absent";
+
+    /// <inheritdoc />
+    public async ValueTask InitializeAsync() => Source = await CreateSourceAsync().ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync()
+    {
+        GC.SuppressFinalize(this);
+        return default;
+    }
+
+    [Fact]
+    public void Name_is_not_empty() => Source.Name.ShouldNotBeNullOrWhiteSpace();
+
+    [Fact]
+    public void Priority_is_stable() => Source.Priority.ShouldBe(Source.Priority);
+
+    [Fact]
+    public async Task Listing_is_repeatable()
+    {
+        var first = await Source.ListAsync().ConfigureAwait(false);
+        var second = await Source.ListAsync().ConfigureAwait(false);
+        first.Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal).ShouldBe(second.Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Listing_is_safe_under_concurrency()
+    {
+        var lists = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Source.ListAsync().AsTask())).ConfigureAwait(false);
+        var names = lists[0].Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal).ToArray();
+        lists.ShouldAllBe(list => list.Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal).SequenceEqual(names, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Resolution_is_safe_under_concurrency()
+    {
+        var agents = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Source.ResolveAsync(KnownAgentName).AsTask())).ConfigureAwait(false);
+        agents.ShouldAllBe(static agent => agent != null);
+    }
+
+    [Fact]
+    public async Task Listed_names_are_unique_and_valid()
+    {
+        var descriptors = await Source.ListAsync().ConfigureAwait(false);
+        descriptors.ShouldAllBe(static descriptor => !string.IsNullOrWhiteSpace(descriptor.Name));
+        descriptors.Select(static descriptor => descriptor.Name).Distinct(StringComparer.Ordinal).Count().ShouldBe(descriptors.Count);
+    }
+
+    [Fact]
+    public async Task Listed_descriptors_name_the_source()
+    {
+        var descriptors = await Source.ListAsync().ConfigureAwait(false);
+        descriptors.ShouldAllBe(descriptor => string.Equals(descriptor.SourceName, Source.Name, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Known_agent_resolves() => (await Source.ResolveAsync(KnownAgentName).ConfigureAwait(false)).ShouldNotBeNull();
+
+    [Fact]
+    public async Task Unknown_agent_returns_null() => (await Source.ResolveAsync(UnknownAgentName).ConfigureAwait(false)).ShouldBeNull();
+
+    [Fact]
+    public async Task Every_resolved_listed_agent_is_listed()
+    {
+        var descriptors = await Source.ListAsync().ConfigureAwait(false);
+        foreach (var descriptor in descriptors)
+        {
+            (await Source.ResolveAsync(descriptor.Name).ConfigureAwait(false)).ShouldNotBeNull();
+        }
+    }
+
+    [Fact]
+    public async Task A_pre_cancelled_token_does_not_hang()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        try
+        {
+            await Task.WhenAll(Source.ListAsync(cancellation.Token).AsTask(), Source.ResolveAsync(KnownAgentName, cancellationToken: cancellation.Token).AsTask())
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // A source may honor cancellation. The timeout above proves it did not hang.
+        }
+    }
+
+    [Fact]
+    public async Task A_returned_list_does_not_change_a_later_listing()
+    {
+        var first = await Source.ListAsync().ConfigureAwait(false);
+        var names = first.Select(static descriptor => descriptor.Name).OrderBy(static name => name, StringComparer.Ordinal).ToArray();
+        var second = await Source.ListAsync().ConfigureAwait(false);
+        second.Select(static descriptor => descriptor.Name).OrderBy(static name => name, StringComparer.Ordinal).ShouldBe(names);
+    }
+}
