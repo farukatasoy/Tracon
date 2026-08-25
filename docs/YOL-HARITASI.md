@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (101 kalem)
+## Fazlar (102 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -113,5 +113,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [98](arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md) | Depolama Sözleşmesinin Yayını | ✅ Tamamlandı |
 | [99](arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md) | Sağlayıcı Sözleşmesinin Yayını | ✅ Tamamlandı |
 | [100](arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md) | Yargıç Sözleşmesinin Yayını | ✅ Tamamlandı |
+| [101](101-KAYNAK-SOZLESMESININ-YAYINI.md) | Kaynak Sözleşmesinin Yayını | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

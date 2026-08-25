@@ -103,6 +103,8 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
 
 ## 🚨 Paralel test SINIFLARI migration deadlock'u uretir (Faz 76)
 
+- **🚨 Full solution test run'inda test PROJELERI sinirsiz paralel kosmaz** (2026-08-25, Faz 100 sonrasi): `dotnet test AgentPrism.slnx` 24 test executable'i ayni anda baslatinca Docker container'lari, Playwright, functional host'lar ve `AgentPrism.Package.Tests` icindeki `dotnet pack` ayni CPU/RAM butcesine saldirir. Belirti urun hatasi degildir: `SourceLanguageTests` 5 sn Regex timeout'u ve CLI'nin 10 sn HTTP timeout'u yalniz tam run'da duser; ikisi de izolasyonda saniyeler icinde gecer. **Uc** worker bile Package build, PostgreSQL ve functional host'lari birlikte dakikalara iterdi. Cozum: gate ve CI tam run'lari **`-maxcpucount:1`** ile kosar. Bu, toplam wall-clock suresini artirir; ancak Docker ve package testi ayni anda makineyi doyurmadigi icin kaynak cekismesinden uzayan tekil testleri ve sahte timeout'lari kaldirir.
+
 Olculdu: tam surunun dort kosumunun **ikisinde** SQL Server entegrasyon testleri
 20–32 test dusurdu — hepsi `SqlServerSchemaFixture.InitializeAsync` icinde
 `0017_approval_conditions` deadlock'u. Hata bir migration adi soyler, yarisi degil.
