@@ -30,6 +30,9 @@ namespace AgentPrism;
 /// </remarks>
 public sealed class ContentGuardPipeline
 {
+    private const string UninspectableGuardName = "AgentPrism.ContentGuard";
+    private const string UninspectableRuleName = "tool-result-not-inspectable";
+
     private readonly IContentGuard[] _guards;
     private readonly IOptionsMonitor<AgentPrismContentGuardOptions> _options;
     private readonly IAuditLog _auditLog;
@@ -229,6 +232,41 @@ public sealed class ContentGuardPipeline
         }
 
         return changed ? current : null;
+    }
+
+    /// <summary>
+    /// Records that a tool result could not be normalized into inspectable
+    /// text and was unconditionally replaced (Open Question 1, option A of
+    /// Phase 102). This is AgentPrism's own fail-closed decision, not a
+    /// registered <see cref="IContentGuard"/>'s, so it carries a synthetic
+    /// guard identity instead of a real one.
+    /// </summary>
+    /// <remarks>
+    /// Called only from the real decision path (<c>ContentGuardMessageMasker.MaskAsync</c>),
+    /// never from the preview path — same rationale as <see cref="RecordAsync"/>:
+    /// before the <c>runs</c> row exists, writing an event permanently disables
+    /// the writer for the whole run.
+    /// </remarks>
+    internal static async ValueTask RecordUninspectableToolResultAsync(
+        ContentGuardDirection direction,
+        CancellationToken cancellationToken)
+    {
+        if (AgentPrismRunContext.Current?.Writer is not { } writer)
+        {
+            return;
+        }
+
+        await writer.AppendAsync(
+            new RunEventDraft(RunEventType.ContentMasked)
+            {
+                Text = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{UninspectableGuardName}/{UninspectableRuleName} ({direction})"),
+                Payload = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{{\"guard\":\"{UninspectableGuardName}\",\"rule\":\"{UninspectableRuleName}\",\"direction\":\"{direction}\",\"action\":\"Mask\"}}"),
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

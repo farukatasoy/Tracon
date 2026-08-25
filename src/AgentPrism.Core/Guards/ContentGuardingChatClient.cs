@@ -188,24 +188,19 @@ internal sealed class ContentGuardingChatClient(
 
         for (var index = 0; index < message.Contents.Count; index++)
         {
-            var content = message.Contents[index];
-
-            if (ContentGuardMessageMasker.ReadText(content) is not { Length: > 0 } text)
-            {
-                continue;
-            }
-
-            var masked = await pipeline
-                .InspectAsync(ContentGuardDirection.Output, text, modelId, cancellationToken)
+            var replacement = await ContentGuardMessageMasker
+                .RewriteContentAsync(
+                    message.Contents[index], pipeline, ContentGuardDirection.Output, modelId,
+                    recordDecision: true, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (masked is null)
+            if (replacement is null)
             {
                 continue;
             }
 
             contents ??= [.. message.Contents];
-            contents[index] = ContentGuardMessageMasker.WriteText(content, masked);
+            contents[index] = replacement;
         }
 
         if (contents is null)
@@ -232,24 +227,19 @@ internal sealed class ContentGuardingChatClient(
 
         for (var index = 0; index < update.Contents.Count; index++)
         {
-            var content = update.Contents[index];
-
-            if (ContentGuardMessageMasker.ReadText(content) is not { Length: > 0 } text)
-            {
-                continue;
-            }
-
-            var masked = await pipeline
-                .InspectAsync(ContentGuardDirection.Output, text, modelId, cancellationToken)
+            var replacement = await ContentGuardMessageMasker
+                .RewriteContentAsync(
+                    update.Contents[index], pipeline, ContentGuardDirection.Output, modelId,
+                    recordDecision: true, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (masked is null)
+            if (replacement is null)
             {
                 continue;
             }
 
             contents ??= [.. update.Contents];
-            contents[index] = ContentGuardMessageMasker.WriteText(content, masked);
+            contents[index] = replacement;
         }
 
         if (contents is null)
