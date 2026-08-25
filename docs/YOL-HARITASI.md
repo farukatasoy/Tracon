@@ -113,6 +113,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [98](arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md) | Depolama Sözleşmesinin Yayını | ✅ Tamamlandı |
 | [99](arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md) | Sağlayıcı Sözleşmesinin Yayını | ✅ Tamamlandı |
 | [100](arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md) | Yargıç Sözleşmesinin Yayını | ✅ Tamamlandı |
-| [101](101-KAYNAK-SOZLESMESININ-YAYINI.md) | Kaynak Sözleşmesinin Yayını | ✅ Tamamlandı |
+| [101](arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md) | Kaynak Sözleşmesinin Yayını | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

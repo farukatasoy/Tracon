@@ -4,7 +4,7 @@
 > **Kaynak:** Doğrudan kullanıcı isteği (2026-08-25) — `IAgentSource` üçüncü
 > taraf uygulanabilirlik incelemesi. Aday listesinden gelmedi; Faz 98 · 99 · 100
 > ile aynı damardır: `preview.1` öncesi genişleme noktası olgunlaştırma.
-> **Önkoşul:** [Faz 100](arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md) — bu faz
+> **Önkoşul:** [Faz 100](100-YARGIC-SOZLESMESININ-YAYINI.md) — bu faz
 > ondan dört şey devralır: `ContractCoverage` aile mekanizması (K-610), opt-in
 > sözleşme sınıfı kuralı (K-611), `AgentPrismJudgeException` hata normalizasyon
 > deseni ve yalnız-NuGet sample emsali (test projesi kısıtı dahil, bkz. Risk R4).
@@ -22,7 +22,7 @@
 > `capabilities.md` · sevk edilen: `IAgentSource` · `IVersionedAgentSource` ·
 > `AgentDescriptor` · `AgentDefinitionOrigin` XML dokümanı,
 > `src/AgentPrism.Testing.Contracts.Xunit/README.md`
-> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Manuel test alanı:** [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 > (`CORE` öneki, bugün 55 case)
 
 ---
@@ -43,7 +43,7 @@
    aynı deseni tekrarlar), **K-611** (satır 657 — isteğe bağlı davranış ayrı
    opt-in sınıftır, atlanan senaryo değildir), **K-603** (satır 649 —
    `PublicAPI.Shipped.txt` boştur, yüzey bugün bedava değişir).
-3. [`arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md`](arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md)
+3. [`arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md`](100-YARGIC-SOZLESMESININ-YAYINI.md)
    — yalnız devir notu ve sapmalar:
    ```bash
    awk '/## Plandan Sapmalar/,0' docs/arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md
@@ -51,11 +51,11 @@
    Neden: sample test projesinin neden eklenemediğini (yayınlanmamış sözleşme
    paketi) ve `AgentPrismJudgeException`'ın şeklini oradan devralıyorsun.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (katalog ve
-   derleyici tuzakları) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (katalog ve
+   derleyici tuzakları) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (site ile `docs/` sınırı, üretilen `api/` sayfaları)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — katalog katmanı (`IAgentCatalog ◄ IAgentSource[]`
+   [`MIMARI.md`](../../MIMARI.md) — katalog katmanı (`IAgentCatalog ◄ IAgentSource[]`
    satırı, 62. satır civarı)
 
 ---
@@ -80,23 +80,23 @@ tutan **runtime davranışını** — bugün tutmuyor, (3) sözleşmeyi kanıtla
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IAgentSource.cs:28`](../src/AgentPrism.Abstractions/Agents/IAgentSource.cs) | `Priority` remark'ı "10 for the MAF hosting source" der. `grep -rln IAgentSource --include=*.cs src/` altı dosya döner; **MAF hosting kaynağı yoktur**. K-019 onu Faz 4'e planlamıştı, gelmedi. Yanlış metin `docs-site/src/content/docs/api/AgentPrism.IAgentSource.md` içinde **yayındadır** |
-| [`IAgentSource.cs:8-10`](../src/AgentPrism.Abstractions/Agents/IAgentSource.cs) | Cümle kırık: "the ones stored in the database and (from onwards) …". Faz numarası düşmüş; sevk edilen metinde iç faz referansının kalıntısı |
-| [`AgentDefinitionOrigin.cs:22-25`](../src/AgentPrism.Abstractions/Agents/AgentDefinitionOrigin.cs) | Yalnız `Code = 0` ve `Database = 1`. Üçüncü taraf kaynağın doğru bir origin değeri **yok** |
-| [`AgentEndpoints.cs:419`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `IsEditable = descriptor.Origin == AgentDefinitionOrigin.Database`. `Database` seçen üçüncü taraf kaynağın agent'ı için konsol düzenleme formu açar; `PUT` ise `definitions.GetAsync(name)` null döndüğü için `404` verir |
-| [`CompositeAgentCatalog.cs`](../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | Dosyada `try`/`catch` sayısı **sıfır**. Bir kaynağın exception'ı bütün katalogu düşürür |
-| [`ExternalSurfaceGuard.cs:69`](../src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs) | Katalog hatası A2A/MCP yüzeyinde **sınırsız** retry'a girer; yalnız `ApplicationStopping` durdurur |
-| [`AgentPrismA2AExtensions.cs:94`](../src/AgentPrism.AspNetCore/A2A/AgentPrismA2AExtensions.cs) | Startup'ta `catalog.ListAsync().AsTask().GetAwaiter().GetResult()` — sync-over-async, token'sız, geniş `catch` ile yutulur |
-| [`CompositeAgentCatalog.cs:147-161`](../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | Kaynak listelemediği bir adı resolve ederse katalog descriptor **uydurur**: `Origin = Code`, `Model = null`. Yalan atıf üretir |
-| [`RunRecordingAgentDecorator.cs:129-138`](../src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs) | Descriptor'ın `Model.Model`, `Model.Provider`, `Version` alanları **run kaydına yazılır**. Uydurulan descriptor bu üçünü boş bırakır |
-| [`CompositeAgentCatalog.cs:41-70`](../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | `ListAsync` yeni bir liste üretir ama descriptor nesnelerini **kopyalamaz**. `ToolNames`/`SkillNames`/`CallableAgentNames` alanları `IReadOnlyList<string>`'tir; arkasındaki `List<string>` sonradan değiştirilebilir |
-| [`ModelBinding.cs:70`](../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | `ProviderSettings` `IReadOnlyDictionary<string, JsonElement>`'tır — aynı mutation yüzeyi. `Fallbacks` (satır 108) `IReadOnlyList<ModelFallback>` |
-| [`AgentSkillCatalog.cs:129`](../src/AgentPrism.Core/Skills/AgentSkillCatalog.cs) | `ResolvedAgentSkills` **`internal`**. `AgentDefinitionCompiler.ResolveSkillsAsync` (satır 558) ve `ResolveSharedInstructionsAsync` (satır 452) de `internal` |
-| [`IAgentPrismBuilder.cs`](../src/AgentPrism.Core/IAgentPrismBuilder.cs) | On kayıt metodu var (`AddTool`, `AddAgent`, `AddSkill`, `AddModelProvider`, `AddEvalCheck`…). `AddAgentSource` **yok** — üçüncü taraf `TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, T>())` yazmak zorunda |
-| [`ContractCoverage.cs:31-37`](../src/AgentPrism.Testing.Contracts.Xunit/ContractCoverage.cs) | Üç aile sabiti: `StorageContracts`, `ProviderContracts`, `JudgeContracts`. Kaynak ailesi yok; `Contracts/` altında 38 dosya, hiçbiri agent source değil |
-| [`concepts/agents.md:110`](../docs-site/src/content/docs/concepts/agents.md) | "The catalog merges **two** sources" — kümeyi kapalı gösterir. `IAgentSource` sitede bir genişleme noktası olarak **hiç** geçmez |
+| [`IAgentSource.cs:28`](../../../src/AgentPrism.Abstractions/Agents/IAgentSource.cs) | `Priority` remark'ı "10 for the MAF hosting source" der. `grep -rln IAgentSource --include=*.cs src/` altı dosya döner; **MAF hosting kaynağı yoktur**. K-019 onu Faz 4'e planlamıştı, gelmedi. Yanlış metin `docs-site/src/content/docs/api/AgentPrism.IAgentSource.md` içinde **yayındadır** |
+| [`IAgentSource.cs:8-10`](../../../src/AgentPrism.Abstractions/Agents/IAgentSource.cs) | Cümle kırık: "the ones stored in the database and (from onwards) …". Faz numarası düşmüş; sevk edilen metinde iç faz referansının kalıntısı |
+| [`AgentDefinitionOrigin.cs:22-25`](../../../src/AgentPrism.Abstractions/Agents/AgentDefinitionOrigin.cs) | Yalnız `Code = 0` ve `Database = 1`. Üçüncü taraf kaynağın doğru bir origin değeri **yok** |
+| [`AgentEndpoints.cs:419`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | `IsEditable = descriptor.Origin == AgentDefinitionOrigin.Database`. `Database` seçen üçüncü taraf kaynağın agent'ı için konsol düzenleme formu açar; `PUT` ise `definitions.GetAsync(name)` null döndüğü için `404` verir |
+| [`CompositeAgentCatalog.cs`](../../../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | Dosyada `try`/`catch` sayısı **sıfır**. Bir kaynağın exception'ı bütün katalogu düşürür |
+| [`ExternalSurfaceGuard.cs:69`](../../../src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs) | Katalog hatası A2A/MCP yüzeyinde **sınırsız** retry'a girer; yalnız `ApplicationStopping` durdurur |
+| [`AgentPrismA2AExtensions.cs:94`](../../../src/AgentPrism.AspNetCore/A2A/AgentPrismA2AExtensions.cs) | Startup'ta `catalog.ListAsync().AsTask().GetAwaiter().GetResult()` — sync-over-async, token'sız, geniş `catch` ile yutulur |
+| [`CompositeAgentCatalog.cs:147-161`](../../../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | Kaynak listelemediği bir adı resolve ederse katalog descriptor **uydurur**: `Origin = Code`, `Model = null`. Yalan atıf üretir |
+| [`RunRecordingAgentDecorator.cs:129-138`](../../../src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs) | Descriptor'ın `Model.Model`, `Model.Provider`, `Version` alanları **run kaydına yazılır**. Uydurulan descriptor bu üçünü boş bırakır |
+| [`CompositeAgentCatalog.cs:41-70`](../../../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) | `ListAsync` yeni bir liste üretir ama descriptor nesnelerini **kopyalamaz**. `ToolNames`/`SkillNames`/`CallableAgentNames` alanları `IReadOnlyList<string>`'tir; arkasındaki `List<string>` sonradan değiştirilebilir |
+| [`ModelBinding.cs:70`](../../../src/AgentPrism.Abstractions/Agents/ModelBinding.cs) | `ProviderSettings` `IReadOnlyDictionary<string, JsonElement>`'tır — aynı mutation yüzeyi. `Fallbacks` (satır 108) `IReadOnlyList<ModelFallback>` |
+| [`AgentSkillCatalog.cs:129`](../../../src/AgentPrism.Core/Skills/AgentSkillCatalog.cs) | `ResolvedAgentSkills` **`internal`**. `AgentDefinitionCompiler.ResolveSkillsAsync` (satır 558) ve `ResolveSharedInstructionsAsync` (satır 452) de `internal` |
+| [`IAgentPrismBuilder.cs`](../../../src/AgentPrism.Core/IAgentPrismBuilder.cs) | On kayıt metodu var (`AddTool`, `AddAgent`, `AddSkill`, `AddModelProvider`, `AddEvalCheck`…). `AddAgentSource` **yok** — üçüncü taraf `TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, T>())` yazmak zorunda |
+| [`ContractCoverage.cs:31-37`](../../../src/AgentPrism.Testing.Contracts.Xunit/ContractCoverage.cs) | Üç aile sabiti: `StorageContracts`, `ProviderContracts`, `JudgeContracts`. Kaynak ailesi yok; `Contracts/` altında 38 dosya, hiçbiri agent source değil |
+| [`concepts/agents.md:110`](../../../docs-site/src/content/docs/concepts/agents.md) | "The catalog merges **two** sources" — kümeyi kapalı gösterir. `IAgentSource` sitede bir genişleme noktası olarak **hiç** geçmez |
 | `samples/` | `CustomModelProvider`, `CustomRunJudge`, `FileRunStore` var. `CustomAgentSource` **yok** |
-| [`AgentPrismServiceCollectionExtensions.cs:690`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `RunJudgeValidationService` yargıç seam'i için startup fail-fast yapar. Kaynak seam'inde karşılığı yok: aynı adlı iki kod agent'ı hatası (`CodeAgentSource.cs:56`) singleton lazy olduğu için **ilk HTTP isteğinde** çıkar |
+| [`AgentPrismServiceCollectionExtensions.cs:690`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `RunJudgeValidationService` yargıç seam'i için startup fail-fast yapar. Kaynak seam'inde karşılığı yok: aynı adlı iki kod agent'ı hatası (`CodeAgentSource.cs:56`) singleton lazy olduğu için **ilk HTTP isteğinde** çıkar |
 
 > Kanıtların tamamı 2026-08-25 tarihinde, `88669f6` commit'i üzerinde doğrulandı.
 
@@ -106,7 +106,7 @@ Plan bunları **taşımaz**; kayda geçirilir ki uygulayan oturum aramasın:
 
 - **"Üçüncü taraf kaynağın agent'ı `PUT` ile gölge bir veritabanı kaydına
   yazılabilir."** Yanlış. `UpdateAgentAsync` `definitions.GetAsync(name)` null
-  dönerse `404` verir ([`AgentEndpoints.cs:555`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs)).
+  dönerse `404` verir ([`AgentEndpoints.cs:555`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs)).
   Gölge yazma yoktur; sorun yalnız yanlış `IsEditable` ve boşuna açılan formdur.
 - **"`AgentDescriptor` bir `metadata` alanı taşır."** Yanlış. `metadata`
   `AgentDefinition`'dadır (satır 125); `AgentDescriptor`'da **yoktur**. Kaynak
@@ -777,7 +777,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -814,7 +814,7 @@ sistem hatası** (izolasyon testleri).
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> Kapanışta [`docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 > içine `CORE` önekiyle eklenecek case taslakları.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
