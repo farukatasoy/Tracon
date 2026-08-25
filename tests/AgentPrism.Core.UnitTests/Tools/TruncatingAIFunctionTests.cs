@@ -15,12 +15,16 @@ namespace AgentPrism.Core.UnitTests.Tools;
 /// </summary>
 /// <remarks>
 /// <see cref="RawResultFunction"/> returns the raw CLR value from
-/// <c>InvokeCoreAsync</c> directly, the same way the tool source generator's
-/// emitted wrapper does — <em>not</em> <see cref="AIFunctionFactory"/>, whose
-/// default result marshaling boxes every return value (including a plain
-/// <see langword="string"/> or <see langword="null"/>) into a
-/// <see cref="JsonElement"/>. Using the raw form here keeps each test's
-/// assertion about the exact CLR value under test.
+/// <c>InvokeCoreAsync</c> directly — a reflection-registered tool
+/// (<c>AddToolsFrom</c>/<c>AddTool(AIFunction)</c>) built through
+/// <see cref="AIFunctionFactory"/>, whose default result marshaling boxes
+/// every return value (including a plain <see langword="string"/> or
+/// <see langword="null"/>) into a <see cref="JsonElement"/>. The generator's
+/// own emitted wrapper (Phase 102) matches this raw form only for
+/// <see langword="string"/>/primitive returns; a complex return type is
+/// emitted as a <see cref="JsonElement"/> too, via the caller's own
+/// <c>JsonSerializerContext</c> (<c>APG0008</c>). Using the raw form here
+/// keeps each test's assertion about the exact CLR value under test.
 /// </remarks>
 public sealed class TruncatingAIFunctionTests
 {

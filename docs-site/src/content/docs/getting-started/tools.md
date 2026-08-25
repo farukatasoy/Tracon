@@ -84,7 +84,7 @@ var repository = app.Services.GetRequiredService<IOrderRepository>();
 agentPrism.AddTool(AIFunctionFactory.Create(
     (string orderId) => repository.Find(orderId).Status,
     "get_order_status",
-    "Returns the shipping status of an order."), requiresApproval: false);
+    "Returns the shipping status of an order."));
 ```
 
 `[AgentPrismTool]` catches the same mistake earlier: the source generator does not
@@ -106,7 +106,7 @@ Some tools should not run unattended:
 public static string IssueRefund(string orderId) => /* … */;
 
 // or, for a tool registered from a delegate:
-agentPrism.AddTool(IssueRefund, requiresApproval: true);
+agentPrism.AddTool(IssueRefund, configure: options => options.RequiresApproval = true);
 ```
 
 For the full singleton, scoped-dependency, timeout, and output contract, see
