@@ -735,13 +735,23 @@ public sealed class UiTests(BrowserFixture browsers)
         var label = await runsButton.TextContentAsync();
         var expectedCount = int.Parse(label!.Split(' ')[0], CultureInfo.InvariantCulture);
 
+        // Keep the screen's loading state observable. The heading renders before
+        // the filtered runs request completes, so an assertion that reads the
+        // table immediately after navigation races the network response.
+        await session.Page.RouteAsync("**/api/runs**", async route =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(750));
+            await route.ContinueAsync();
+        });
+
         await runsButton.ClickAsync();
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs" })
             .WaitForAsync(new() { Timeout = 15_000 });
         (await session.Page.GetByText("Page not found").CountAsync()).ShouldBe(0);
 
-        (await session.Page.Locator("tbody tr").CountAsync()).ShouldBe(expectedCount);
+        await Assertions.Expect(session.Page.Locator("tbody tr"))
+            .ToHaveCountAsync(expectedCount, new() { Timeout = 10_000 });
     }
 
     [Fact]
