@@ -148,11 +148,11 @@ jobs:
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
         # `--` sonrasi gelen argumanlar dogrudan test uygulamasina gecer.
         # TRX ciktisi test ikilisinin yanindaki TestResults klasorune yazilir.
-        run: dotnet test AgentPrism.slnx -c Release --no-build -- --report-trx
+        run: dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
 
       - name: Test et (Docker gerektirmeyenler)
         if: matrix.os == 'windows-latest'
-        run: dotnet test AgentPrism.no-docker.slnf -c Release --no-build -- --report-trx
+        run: dotnet test AgentPrism.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
 
       - name: Test sonuclarini yukle
         if: always()

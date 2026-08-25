@@ -72,9 +72,17 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn("dotnet build AgentPrism.slnx -c Release", rendered)
-        self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build", rendered)
+        self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1", rendered)
         self.assertIn("dotnet pack AgentPrism.slnx -c Release --no-build", rendered)
         self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes --no-restore", rendered)
+
+    def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
+        commands = kapi.closing_commands("abc123", site=False)
+        rendered = [command.display for command in commands]
+
+        self.assertIn(
+            "dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1",
+            rendered)
 
     def test_dry_run_komut_calistirmaz(self):
         runner = mock.Mock()

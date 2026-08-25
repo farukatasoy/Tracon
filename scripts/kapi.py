@@ -34,6 +34,7 @@ REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^
 K008_EXEMPT_PACKAGE = "AgentPrism.AspNetCore"
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+TEST_MAX_CPU_COUNT = 1
 
 SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
 SCAN_EXCLUDED_DIRS = {
@@ -337,13 +338,28 @@ def _dotnet_test_project(project: str) -> Command:
     return Command(("dotnet", "test", f"tests/{project}/{project}.csproj", "-c", "Release", "--no-build"))
 
 
+def full_solution_test_command() -> Command:
+    """Run test projects with enough isolation for Docker and package tests.
+
+    A solution test run otherwise starts every test executable at once. The
+    concurrent Docker containers, Playwright browser, functional hosts, and
+    package fixture can starve each other and turn healthy short deadlines into
+    timeouts. The resource-heavy test projects must run one at a time because
+    each of them can start additional processes and exhaust the local Docker
+    memory budget.
+    """
+    return Command((
+        "dotnet", "test", "AgentPrism.slnx", "-c", "Release", "--no-build",
+        f"-maxcpucount:{TEST_MAX_CPU_COUNT}"))
+
+
 def inner_loop_commands(paths: list[str]) -> list[Command]:
     frontend_flag = () if frontend_changed(paths) else ("-p:AgentPrismFrontendEnabled=false",)
     commands = [Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release", *frontend_flag))]
     projects, needs_full = affected_test_projects(paths)
     if needs_full:
         print("⚠️ Etkilenen proje haritası eksik; test seçimi tam koşuma genişletildi.")
-        return commands + [Command(("dotnet", "test", "AgentPrism.slnx", "-c", "Release", "--no-build"))]
+        return commands + [full_solution_test_command()]
     return commands + [_dotnet_test_project(project) for project in projects]
 
 
@@ -355,7 +371,7 @@ def closing_commands(base: str, *, site: bool = True) -> list[Command]:
         Command(("node", "docs-site/scripts/build-agent-map.mjs", "--check")),
         Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
         Command(("dotnet", "build", "AgentPrism.slnx", "-c", "Release")),
-        Command(("dotnet", "test", "AgentPrism.slnx", "-c", "Release", "--no-build")),
+        full_solution_test_command(),
         Command(("dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build")),
         Command(("dotnet", "format", "AgentPrism.slnx", "--verify-no-changes", "--no-restore")),
     ]
