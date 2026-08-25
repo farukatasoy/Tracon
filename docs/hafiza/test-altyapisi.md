@@ -129,4 +129,16 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   Şüphe: binlerce testin aynı anda paylaştığı port/dosya/thread-pool kaynağı —
   hiçbiri fazın kendi değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan
   biri kırmızı çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek
-  regresyondur.
+  regresyondur. **Beşinci vaka (Faz 104):**
+  `UiTests.Runs_button_on_session_page_navigates_to_filtered_list` — `tbody tr`
+  sayısı 1 yerine 0 geldi. İzole koşumda geçti ve `AgentPrism.Ui.E2ETests`
+  projesinin tamamı tek başına 57/57 yeşil koştu; fazın değişikliği yalnız bir
+  kalkış log satırı ve `/api/meta`'nın okuduğu kaynaktı, çalıştırma listesine
+  dokunmadı. Desen artık beş farklı testte, iki farklı projede tekrarlandı —
+  kalan şüphe tek bir testte değil, **tam koşumun paylaşılan kaynağında**.
+  🚨 Bu vaka ayrıca desenin **kanıtını** verdi: aynı test, `git stash` ile fazın
+  tüm değişiklikleri geri alınıp taban kaynağı derlendiğinde de tam koşumda
+  düştü (2026-08-25, iki taban koşumundan birinde). Bir kapı koşumunda bu sınıf
+  şüpheli olduğunda ölçüm yolu budur — `git stash push -u` → tam koşum →
+  `git stash pop`; worktree denemesi işe YARAMAZ, çünkü extension sample'ları
+  yerel NuGet feed'i ister ve `artifacts/package/release` worktree'de yoktur.

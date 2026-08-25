@@ -126,6 +126,23 @@ içi + üç SQL); `TenantCoverageTests` her public depo metodunun ya sınandığ
 ya `[TenantAgnostic]` ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar:
 K-277, K-278, K-279.
 
+**Yalıtım hangi katmandadır (K-623, Faz 104).** Yalıtım **uygulama
+katmanındadır**: kiracı `ITenantContext` ile çözülür, filtre sorgu katmanında
+uygulanır ve yukarıdaki kapı bunu zorlar. Veritabanı RLS'i **yoktur ve bilinçli
+olarak yoktur** — `grep -rn "ROW LEVEL SECURITY" src/` sıfır döner. Gerekçenin
+tamamı K-623'tedir; özeti üç maddedir: kapı zaten `TenantCoverageTests`'tir,
+SQLite'ta RLS karşılığı yoktur (üç sağlayıcının davranışı ayrışır) ve SQL Server
+tarafı gerçek container üzerinde doğrulanamıyor (K-186, K-317). Bu bir savunma
+derinliği reddi değil, bir sıralama kararıdır. Tüketiciye dönük karşılığı
+`docs-site/src/content/docs/concepts/governance.md`'dedir.
+
+**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).**
+`AgentPrismRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde
+sayar; `Partition = Tenant` her örneğin **kendi** penceresini kiracıya böler,
+dağıtım genelinde paylaşılan bir pencereyi değil. Bir kiracının toplam
+tüketimini bağlayan şey kotadır — o veritabanında sayılır ve örnek sayısından
+etkilenmez.
+
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
 **kapalıdır**: kiracı `store`'larından biri bile kayıtlı değilse veya
 tenant context yoksa `ModelProviderRegistry.CreateChatClientAsync` sync

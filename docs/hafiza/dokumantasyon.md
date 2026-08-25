@@ -202,6 +202,28 @@ dizinini (`"AgentPrism.Samples.*/**"`) eklemekti. **Yeni bir örnek/test
 projesi bu hatayı verirse önce `references.exclude`'a proje adını ekle,
 globu yeniden tasarlama.**
 
+🚨 **Faz 104: aynı hata KAYNAK DEĞİŞİKLİĞİNDEN BAĞIMSIZ olarak da çıkıyor ve
+tetikleyicisi hâlâ izole edilmedi.** Ölçülenler (2026-08-25, tek oturum):
+
+- `docfx metadata` bir koşumda **360** `CS1704` verdi. `git stash push -u` ile
+  fazın tüm değişiklikleri geri alındığında **birebir aynı 360 hata** çıktı —
+  yani hata çalışma ağacındaki kaynağa bağlı değildir.
+- `references.exclude`'a önce test çıktısı dizinleri (`*.UnitTests/**` vb.),
+  sonra örnek host dizinleri (`AgentPrism.Api/**`, `AgentPrism.Embedded/**`)
+  eklendi. **Sayı 360'ta kaldı**, yalnız hata mesajında adı geçen derleme
+  değişti. Yani exclude bu vakada işe yaramıyor; Faz 98'in reçetesi
+  (dizini exclude'a ekle) burada **çözüm değildir**.
+- Aynı oturumda `docfx metadata` **iki kez de 0 hatayla** koştu: bir kez
+  `-c Debug` tam derlemeden sonra, bir kez `rm -rf artifacts/bin` +
+  `dotnet build -c Release -p:AgentPrismFrontendEnabled=false` sonrası. Ama
+  temizlik **tekrarlanabilir bir çözüm değildir**: aynı temizlik+derleme
+  sonrası `pack`/`format` koşup site kapısına gelindiğinde hata geri geldi.
+
+Bugünkü dürüst özet: kapı bu makinede **kırılgandır**, ne tetiklediği
+bilinmiyor, ve `docfx.json`'a dokunmak (denenmiş) düzeltmiyor. Bir sonraki
+oturum bunu bir kusur kalemi olarak ele almalı — önce `docfx metadata`'nın
+gerçekten hangi dosya listesini yüklediğini (`--logLevel verbose`) dökmeli.
+
 ## 🚨 `dotnet format --verify-no-changes` ve `docfx metadata`, DEBUG yapılandırmasının `obj/` çıktısını okur — yalnız Release derlemesi yeterli DEĞİL (Faz 98)
 
 Her iki araç da MSBuildWorkspace/Roslyn analiz motorunu kullanır ve varsayılan

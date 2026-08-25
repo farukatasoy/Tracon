@@ -107,6 +107,13 @@ SORGU_BUTCESI = {
     # Sinir ILK KEZ konuyor -> olculene %15 bosluk eklendi (58.4 kalibrasyonu).
     "docs/hafiza/00-INDEKS.md": 4_100,  # olculen 3_424
     "README.md": 20_000,
+    # Faz 104: depoya disaridan gelen kisinin okudugu iki kok dosya. Ingilizce
+    # (dil kapisi SourceLanguageTests onlari da tarar) ve BASLANGIC degil SORGU
+    # baglami: hicbir oturum onlari acilista okumaz. Sinir ILK KEZ konuyor, bu
+    # yuzden sinir, dosyanin olculen boyutunun %15 BOSLUK birakacagi deger
+    # olarak secildi (58.4 kalibrasyonu) -- dosya DAR dogmasin diye.
+    "CONTRIBUTING.md": 7_800,   # olculen 6_624 (denetim bulgusu 4 ve 8 sonrasi)
+    "ARCHITECTURE.md": 8_900,   # olculen 7_484 (denetim bulgusu 1 ve 2 sonrasi)
 }
 
 YONETIM_BUTCESI = {
