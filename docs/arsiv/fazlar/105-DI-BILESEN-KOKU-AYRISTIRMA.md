@@ -1,13 +1,13 @@
 # Faz 105 — DI Bileşen Kökü Ayrıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Mevcut iki `AddAgentPrism` ve `UseScheduling` imzası değişmez. `EnablePublicApiTracking` açıktır (K-421); `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza, XML metni, HTTP ucu, ekran ve sevk edilen yapılandırma anahtarı değişmez
-> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
 
@@ -19,8 +19,8 @@
    grep -n "K-021\|K-421" docs/KARARLAR.md
    ```
    K-021 yapılandırmayı yansımasız ve elle bağlar. K-421 public API takibini açık tutar.
-3. Alan hafızası: [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) ve [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md)
-4. Mimari: [`MIMARI.md`](MIMARI.md) — yalnız `AgentPrism.Core` ve DI kayıt akışı
+3. Alan hafızası: [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) ve [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md)
+4. Mimari: [`MIMARI.md`](../../MIMARI.md) — yalnız `AgentPrism.Core` ve DI kayıt akışı
 
 ---
 
@@ -32,9 +32,9 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismServiceCollectionExtensions.cs:13`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | Tek `public static class`, **2.662 satırdır**. Public girişler, servis kayıtları ve bütün elle bağlayıcılar aynı gövdededir. |
-| [`AgentPrismServiceCollectionExtensions.cs:58`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `AddAgentPrism(IServiceCollection, IConfiguration?)` yaklaşık bin satırlık composition root'u tek gövdede taşır. |
-| [`AgentPrismServiceCollectionExtensions.cs:1070`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | Elle options binding zinciri dosyanın kalan yaklaşık 1.600 satırını taşır. K-021 gereği genel `Bind()` ile değiştirilemez. |
+| [`AgentPrismServiceCollectionExtensions.cs:13`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | Tek `public static class`, **2.662 satırdır**. Public girişler, servis kayıtları ve bütün elle bağlayıcılar aynı gövdededir. |
+| [`AgentPrismServiceCollectionExtensions.cs:58`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | `AddAgentPrism(IServiceCollection, IConfiguration?)` yaklaşık bin satırlık composition root'u tek gövdede taşır. |
+| [`AgentPrismServiceCollectionExtensions.cs:1070`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs) | Elle options binding zinciri dosyanın kalan yaklaşık 1.600 satırını taşır. K-021 gereği genel `Bind()` ile değiştirilemez. |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
