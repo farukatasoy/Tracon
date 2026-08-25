@@ -98,19 +98,19 @@ public sealed class ConcurrentToolInvocationTests
                     barrier.SignalAndWait(TimeSpan.FromSeconds(10));
                     AgentPrismToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 1 });
                     return "result_a";
-                })), name: "tool_a", requiresApproval: false)
+                })), name: "tool_a")
                 .AddTool((Func<Task<string>>)(() => Task.Run(() =>
                 {
                     barrier.SignalAndWait(TimeSpan.FromSeconds(10));
                     AgentPrismToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 2 });
                     return "result_b";
-                })), name: "tool_b", requiresApproval: false)
+                })), name: "tool_b")
                 .AddTool((Func<Task<string>>)(() => Task.Run(() =>
                 {
                     barrier.SignalAndWait(TimeSpan.FromSeconds(10));
                     AgentPrismToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 3 });
                     return "result_c";
-                })), name: "tool_c", requiresApproval: false)
+                })), name: "tool_c")
                 .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true)),
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
@@ -127,7 +127,15 @@ public sealed class ConcurrentToolInvocationTests
         invocations.ShouldNotBeNull();
         invocations!.Count.ShouldBe(3);
 
-        foreach (var (name, result, quantity) in new[] { ("tool_a", "result_a", 1m), ("tool_b", "result_b", 2m), ("tool_c", "result_c", 3m) })
+        // 🚨 MEAI wraps every AIFunctionFactory (delegate) result in a JsonElement
+        // (measured: Microsoft.Extensions.AI.OpenAIChatClient.ToOpenAIChatMessages
+        // uses `Result as string` verbatim, but falls back to
+        // `JsonSerializer.Serialize(Result, ...)` for anything else, and a JsonElement's
+        // own converter round-trips its raw text) - so a delegate tool returning a bare
+        // `string` reaches the model JSON-quoted, unlike a source-generated tool
+        // returning `string` directly. `ToolInvocationRecord.Result` mirrors the wire
+        // bytes exactly (Phase 102 / K-615), so the expectation here carries the quotes.
+        foreach (var (name, result, quantity) in new[] { ("tool_a", "\"result_a\"", 1m), ("tool_b", "\"result_b\"", 2m), ("tool_c", "\"result_c\"", 3m) })
         {
             var record = invocations.Where(item => string.Equals(item.ToolName, name, StringComparison.Ordinal)).ShouldHaveSingleItem();
             record.Result.ShouldBe(result);
@@ -155,9 +163,9 @@ public sealed class ConcurrentToolInvocationTests
                 .AddModelProvider(new FakeModelProvider("concurrent-model")
                     .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                     .RespondsWith("all done"))
-                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_a"; })), name: "tool_a", requiresApproval: false)
-                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_b"; })), name: "tool_b", requiresApproval: false)
-                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_c"; })), name: "tool_c", requiresApproval: false)
+                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_a"; })), name: "tool_a")
+                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_b"; })), name: "tool_b")
+                .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_c"; })), name: "tool_c")
                 .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true)),
             configureServices: static services =>
             {
@@ -202,8 +210,8 @@ public sealed class ConcurrentToolInvocationTests
                     .AddModelProvider(new FakeModelProvider("concurrent-model")
                         .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                         .RespondsWith("all done"))
-                    .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_a"; })), name: "tool_a", requiresApproval: false)
-                    .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_c"; })), name: "tool_c", requiresApproval: false)
+                    .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_a"; })), name: "tool_a")
+                    .AddTool((Func<Task<string>>)(() => Task.Run(() => { barrier.SignalAndWait(TimeSpan.FromSeconds(10)); return "result_c"; })), name: "tool_c")
                     .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: true));
 
                 // tool_b's body waits at the SAME barrier as its siblings, then
@@ -274,9 +282,9 @@ public sealed class ConcurrentToolInvocationTests
                 .AddModelProvider(new FakeModelProvider("concurrent-model")
                     .CallsTools(("tool_a", null), ("tool_b", null), ("tool_c", null))
                     .RespondsWith("all done"))
-                .AddTool((Func<string>)(() => RunExclusively("result_a")), name: "tool_a", requiresApproval: false)
-                .AddTool((Func<string>)(() => RunExclusively("result_b")), name: "tool_b", requiresApproval: false)
-                .AddTool((Func<string>)(() => RunExclusively("result_c")), name: "tool_c", requiresApproval: false)
+                .AddTool((Func<string>)(() => RunExclusively("result_a")), name: "tool_a")
+                .AddTool((Func<string>)(() => RunExclusively("result_b")), name: "tool_b")
+                .AddTool((Func<string>)(() => RunExclusively("result_c")), name: "tool_c")
                 .AddAgent(ConcurrentAgent(allowConcurrentToolCalls: false)),
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
