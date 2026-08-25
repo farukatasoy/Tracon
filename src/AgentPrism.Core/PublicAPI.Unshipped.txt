@@ -81,23 +81,7 @@ AgentPrism.AgentPrismDiagnosticsCollector
 AgentPrism.AgentPrismDiagnosticsCollector.AgentPrismDiagnosticsCollector(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderHealthCache! healthCache, System.Collections.Generic.IEnumerable<AgentPrism.ISqlPersistenceDiagnostics!>! sqlDiagnostics, System.Collections.Generic.IEnumerable<AgentPrism.SqlPersistenceRegistrationMarker!>! sqlMarkers, AgentPrism.IAgentCatalog! agentCatalog, System.Collections.Generic.IEnumerable<AgentPrism.IAgentSource!>! agentSources, AgentPrism.IToolRegistry! toolRegistry, AgentPrism.ITenantContext! tenantContext, AgentPrism.IRunAttributionContext! runAttributionContext, AgentPrism.IToolAuthorizationHandler! toolAuthorizationHandler, System.Collections.Generic.IEnumerable<AgentPrism.IRunEventSink!>! runEventSinks, AgentPrism.IAttachmentStorage? attachmentStorage = null, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, Microsoft.Extensions.Logging.ILogger<AgentPrism.AgentPrismDiagnosticsCollector!>? logger = null) -> void
 AgentPrism.AgentPrismDiagnosticsCollector.CollectAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentPrismDiagnosticsReport!>
 AgentPrism.AgentPrismEvalCheckRegistration
-AgentPrism.AgentCompilationDependencies
-AgentPrism.AgentCompilationDependencies.<Clone>$() -> AgentPrism.AgentCompilationDependencies!
-AgentPrism.AgentCompilationDependencies.AgentCompilationDependencies() -> void
-AgentPrism.AgentCompilationDependencies.BypassCache.get -> bool
-AgentPrism.AgentCompilationDependencies.BypassCache.init -> void
-AgentPrism.AgentCompilationDependencies.CacheFingerprint.get -> string!
-AgentPrism.AgentCompilationDependencies.CacheFingerprint.init -> void
-AgentPrism.AgentCompilationDependencies.CallableAgents.get -> AgentPrism.ResolvedCallableAgents
-AgentPrism.AgentCompilationDependencies.CallableAgents.init -> void
-AgentPrism.AgentCompilationDependencies.Equals(AgentPrism.AgentCompilationDependencies? other) -> bool
-override AgentPrism.AgentCompilationDependencies.Equals(object? obj) -> bool
-override AgentPrism.AgentCompilationDependencies.GetHashCode() -> int
-override AgentPrism.AgentCompilationDependencies.ToString() -> string!
-static AgentPrism.AgentCompilationDependencies.operator !=(AgentPrism.AgentCompilationDependencies? left, AgentPrism.AgentCompilationDependencies? right) -> bool
-static AgentPrism.AgentCompilationDependencies.operator ==(AgentPrism.AgentCompilationDependencies? left, AgentPrism.AgentCompilationDependencies? right) -> bool
 AgentPrism.AgentDefinitionCompiler.CompileCachedAsync(AgentPrism.AgentDefinition! definition, AgentPrism.CompiledAgentCache! cache, string! tenantId, string? culture = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
-AgentPrism.AgentDefinitionCompiler.ResolveDependenciesAsync(AgentPrism.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.AgentCompilationDependencies!>
 AgentPrism.AgentPrismMetrics.AgentSourceFailures.get -> System.Diagnostics.Metrics.Counter<long>!
 AgentPrism.AgentPrismMetrics.RecordAgentSourceFailure(string! sourceName, string! operation) -> void
 const AgentPrism.AgentPrismDiagnostics.AgentSourceFailureCounterName = "agentprism.agent_source.failures" -> string!

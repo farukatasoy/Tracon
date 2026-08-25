@@ -6643,7 +6643,8 @@
       "AgentDefinitionOrigin": {
         "enum": [
           "Code",
-          "Database"
+          "Database",
+          "Custom"
         ],
         "description": "Tells where an agent definition came from."
       },
@@ -6852,7 +6853,7 @@
             "format": "date-time"
           }
         },
-        "description": "A summary view of an agent listed in the catalog. It carries everything the user\ninterface needs to draw the agent list, without having to build the agent."
+        "description": "A summary view of an agent listed in the catalog. It carries everything the user\ninterface needs to draw the agent list, without having to build the agent. A source\nmust not mutate a descriptor or its nested collections after returning it."
       },
       "AgentDetailResponse": {
         "required": [
@@ -6962,6 +6963,7 @@
           "uiEmbedded",
           "toolCount",
           "agentCount",
+          "agentSources",
           "extensionPoints"
         ],
         "type": "object",
@@ -7030,6 +7032,13 @@
             ],
             "description": "Gets the number of registered agents. Returns \u0060null\u0060 when the catalog cannot be read.",
             "format": "int32"
+          },
+          "agentSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentSourceDiagnostic"
+            },
+            "description": "Gets the agent sources registered in priority order."
           },
           "extensionPoints": {
             "type": "array",
@@ -7509,6 +7518,34 @@
           }
         },
         "description": "A server-executable script stored together with an AgentSkillDefinition."
+      },
+      "AgentSourceDiagnostic": {
+        "required": [
+          "name",
+          "priority",
+          "implementation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the source name."
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the source priority.",
+            "format": "int32"
+          },
+          "implementation": {
+            "type": "string",
+            "description": "Gets the implementation type name."
+          }
+        },
+        "description": "Describes one agent source registered in the catalog."
       },
       "AgentValidationReport": {
         "required": [

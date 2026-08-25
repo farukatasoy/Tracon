@@ -77,6 +77,7 @@ export const sidebar = [
       { label: 'Persistence', slug: 'getting-started/persistence' },
       { label: 'Write your own store', slug: 'guides/write-your-own-store' },
       { label: 'Write your own judge', slug: 'guides/write-your-own-judge' },
+      { label: 'Write your own agent source', slug: 'guides/write-your-own-agent-source' },
       { label: 'Security', slug: 'getting-started/security' },
       { label: 'Runs and recording', slug: 'concepts/runs' },
       { label: 'Reliable runs', slug: 'guides/reliability' },

@@ -8,10 +8,30 @@ live in the management database, or when an agent is backed by another runtime.
 Register it through `AddAgentSource()`; the catalog keeps the normal decorator chain,
 so recording, telemetry, and approval behavior still apply.
 
+A complete, buildable definition source lives in
+`samples/AgentPrism.Samples.CustomAgentSource` — it reads `AgentDefinition` JSON files
+from a directory, uses only published packages (`PackageReference`, not a
+project-internal type), and its test project runs the official contract suite plus a
+real agent run. Read its source alongside this guide.
+
+`AddAgentSource` has three overloads. The generic one resolves the source's own
+constructor dependencies (including its own settings, registered separately) through DI:
+
 ```csharp
+builder.Services.AddSingleton(new GitAgentSourceOptions { RepositoryUrl = url });
 builder.AddAgentPrism()
        .AddAgentSource<GitAgentSource>();
 ```
+
+Pass a ready instance, or a factory, when the source needs something that does not
+belong in the container as its own singleton:
+
+```csharp
+builder.AddAgentPrism().AddAgentSource(sp => new GitAgentSource(repositoryPath, sp.GetRequiredService<AgentDefinitionCompiler>()));
+```
+
+All three register the source as a **singleton**; calling the generic overload twice
+for the same type registers it once.
 
 ## Choose the source shape
 
@@ -40,16 +60,29 @@ fields, and do not capture scoped services. `ListAsync()` is on the run path: it
 be repeatable and side-effect free. AgentPrism does not add a global snapshot, timeout,
 retry, or circuit breaker for a source.
 
-`ListAsync()` and `ResolveAsync()` must describe the same agent set. Return stable
-descriptors and immutable nested collections. A source can be global or tenant-aware;
-when it reads `ITenantContext`, any local cache must include the tenant identity.
+`ListAsync()` and `ResolveAsync()` must describe the same agent set: a name
+`ResolveAsync()` resolves has to appear in `ListAsync()`, and vice versa. Return stable
+descriptors and never mutate one — or its nested collections — after returning it. The
+catalog defensively copies each descriptor at its own boundary too, but that is
+belt-and-suspenders, not a license to violate the contract; a source that shares a
+mutable list with the catalog is still a bug the copy merely contains.
+
+Honor the `CancellationToken` you are given — AgentPrism adds no timeout of its own, so
+an uncancellable source blocks its caller indefinitely. A genuine
+`OperationCanceledException` must propagate; do not catch and convert it into anything
+else.
+
+A source can be global or tenant-aware; when it reads `ITenantContext`, any local cache
+must include the tenant identity. Startup and background calls see the default tenant.
 
 ## Priority and management API
 
 Smaller priority values win a name collision. `AgentSourcePriority.Code` (`0`) and
-`AgentSourcePriority.Database` (`100`) are reserved. Choose `1` through `99` to run
+`AgentSourcePriority.Database` (`100`) are the values AgentPrism's own built-in sources
+use, not values a custom source is barred from choosing. Pick `1` through `99` to run
 between code and database definitions, or `101` or greater to run after the database.
-Equal values preserve DI registration order.
+Choosing `0` or `100` ties with the matching built-in source instead, and DI
+registration order breaks the tie — the same rule as any other equal-priority pair.
 
 Set custom descriptors to `AgentDefinitionOrigin.Custom`. They appear in the console
 but are read-only: the management API cannot update or delete a definition that your

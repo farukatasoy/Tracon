@@ -391,7 +391,11 @@ public sealed class AgentDefinitionCompiler
     /// <param name="definition">The definition to inspect.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The callable agents, cache fingerprint, and cache-bypass decision.</returns>
-    public async ValueTask<AgentCompilationDependencies> ResolveDependenciesAsync(
+    /// <remarks>
+    /// Internal: see <see cref="AgentCompilationDependencies"/>'s remarks for why this is
+    /// not (yet) part of the public surface.
+    /// </remarks>
+    internal async ValueTask<AgentCompilationDependencies> ResolveDependenciesAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken = default)
     {

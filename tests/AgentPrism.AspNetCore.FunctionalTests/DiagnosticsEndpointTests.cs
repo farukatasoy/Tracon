@@ -81,6 +81,37 @@ public sealed class DiagnosticsEndpointTests
         public string TenantId => "host-tenant";
     }
 
+    /// <summary>101.3: registered agent sources — built-in and custom — appear in priority order.</summary>
+    [Fact]
+    public async Task Registered_agent_sources_are_reported_in_priority_order()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureAgentPrism: static builder => builder.AddAgentSource(new StubAgentSource("git", 200)),
+            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(await host.Client.GetAsync(Diagnostics));
+
+        var sources = body.GetProperty("agentSources").EnumerateArray().ToArray();
+
+        sources.Select(static s => s.GetProperty("name").GetString()).ShouldBe(["code", "database", "git"]);
+        sources.Select(static s => s.GetProperty("priority").GetInt32()).ShouldBe([0, 100, 200]);
+        sources.Single(static s => string.Equals(s.GetProperty("name").GetString(), "git", StringComparison.Ordinal))
+            .GetProperty("implementation").GetString()!.ShouldContain(nameof(StubAgentSource));
+    }
+
+    private sealed class StubAgentSource(string name, int priority) : IAgentSource
+    {
+        public string Name { get; } = name;
+
+        public int Priority { get; } = priority;
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)[]);
+
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
+            => new((Microsoft.Agents.AI.AIAgent?)null);
+    }
+
     [Fact]
     public async Task Gets_403_when_the_Admin_policy_fails()
     {

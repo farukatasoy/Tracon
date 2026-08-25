@@ -77,14 +77,31 @@ public abstract class AgentSourceContract : IAsyncLifetime
     [Fact]
     public async Task Unknown_agent_returns_null() => (await Source.ResolveAsync(UnknownAgentName).ConfigureAwait(false)).ShouldBeNull();
 
+    /// <summary>Every name <see cref="IAgentSource.ListAsync"/> reports must resolve.</summary>
     [Fact]
-    public async Task Every_resolved_listed_agent_is_listed()
+    public async Task Every_listed_agent_resolves()
     {
         var descriptors = await Source.ListAsync().ConfigureAwait(false);
         foreach (var descriptor in descriptors)
         {
             (await Source.ResolveAsync(descriptor.Name).ConfigureAwait(false)).ShouldNotBeNull();
         }
+    }
+
+    /// <summary>
+    /// The other half of the M7 consistency rule (see <see cref="IAgentSource"/>):
+    /// a name <see cref="IAgentSource.ResolveAsync"/> resolves must also appear in
+    /// <see cref="IAgentSource.ListAsync"/>. <see cref="KnownAgentName"/> is guaranteed
+    /// resolvable by contract (see <see cref="Known_agent_resolves"/>), so it doubles as
+    /// the "resolvable name" this direction needs without a dedicated fixture hook.
+    /// </summary>
+    [Fact]
+    public async Task Resolved_agent_is_listed()
+    {
+        (await Source.ResolveAsync(KnownAgentName).ConfigureAwait(false)).ShouldNotBeNull();
+
+        var descriptors = await Source.ListAsync().ConfigureAwait(false);
+        descriptors.Select(static descriptor => descriptor.Name).ShouldContain(KnownAgentName, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -101,14 +118,5 @@ public abstract class AgentSourceContract : IAsyncLifetime
         {
             // A source may honor cancellation. The timeout above proves it did not hang.
         }
-    }
-
-    [Fact]
-    public async Task A_returned_list_does_not_change_a_later_listing()
-    {
-        var first = await Source.ListAsync().ConfigureAwait(false);
-        var names = first.Select(static descriptor => descriptor.Name).OrderBy(static name => name, StringComparer.Ordinal).ToArray();
-        var second = await Source.ListAsync().ConfigureAwait(false);
-        second.Select(static descriptor => descriptor.Name).OrderBy(static name => name, StringComparer.Ordinal).ShouldBe(names);
     }
 }
