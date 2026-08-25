@@ -1021,6 +1021,10 @@ _FAZ_DUS = {
     # olculen takma adlar (Faz 90, 91 dosya tarandi)
     "Riskler — kapanış durumu", "Oluşturulan / Değişen Dosyalar",
     "Planlanan Dosya Listesi (gerçekleşen)", "Dosya Listesi (gerçekleşen)",
+    # Faz 101: kalem basina preview.1/1.0/dokuman/erteleme siniflandirmasi --
+    # plan-zamani onceliklendirme, faz kapandiktan sonra "Denetim Bulgulari"
+    # ve "Sonraki Faza Devir Notu" onun yerini alir.
+    "Kalemlerin Sınıflandırması",
 }
 _FAZ_KAL = {
     "Plandan Sapmalar", "🚨 Plandan Sapmalar", "Bu Fazda Verilen Kararlar",
