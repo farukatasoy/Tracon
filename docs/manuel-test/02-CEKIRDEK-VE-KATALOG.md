@@ -2679,3 +2679,62 @@ dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release --no-b
   (`AddAgentSource(factory)`) kayıt yollarıyla yaptığı iki gerçek `run`, ve
   kapsam testi. `TryAddEnumerable` sample kodunda hiç geçmez
   (`grep -c TryAddEnumerable samples/AgentPrism.Samples.CustomAgentSource*/*.cs` → `0`).
+
+---
+
+### MT-CORE-097 — Complex tool sonucu canonical JSON ve output limiti taşır (Faz 102)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+
+**Ön koşul**
+- `samples/AgentPrism.Samples.CustomTool.Tests` local feed ile restore edilir.
+
+**Adımlar**
+1. Sample testlerini çalıştır.
+
+**Girilecek veri**
+```bash
+dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
+```
+
+**Beklenen sonuç**
+- `preview_order` generated tool'u `OrderPreview` record'unu JSON olarak modele geçirir.
+- `OrderId` ve `Status` alanları cevapta görünür; CLR tip adı görünmez.
+- Registration `MaxOutputBytes = 768` taşır.
+
+---
+
+### MT-CORE-098 — Doğrulanmamış tool registry startup'ta reddedilir (Faz 102)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+
+**Adımlar**
+1. Kendi `IToolRegistry` implementation'ını kaydet ve host'u başlat.
+2. Aynı kurulumu `Tools:AllowUnverifiedToolRegistry=true` ile tekrar başlat.
+
+**Beklenen sonuç**
+- Varsayılan kurulum `AgentPrismException` ile başlangıçta durur.
+- Opt-in kurulum başlar ve warning yazar; bu yalnız geçiş yolu içindir.
+
+---
+
+### MT-CORE-099 — Tool hatası foreign exception ayrıntısını sızdırmaz (Faz 102)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. Tool gövdesinden bağlantı dizesi taşıyan yabancı bir exception at.
+2. Run kaydını ve SSE hata olayını incele.
+
+**Beklenen sonuç**
+- İki yüzeyde de yalnız `Tool failed with <ExceptionType>.` görünür.
+- Bağlantı dizesi veya özgün exception mesajı görünmez.

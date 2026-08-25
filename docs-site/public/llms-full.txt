@@ -1587,6 +1587,42 @@ Wrapping for approval happens in the **registry**, not at the call site. The reg
 is the single place where "an agent may only point at a registered tool" is enforced,
 so no other code path can skip the wrapper.
 
+### Who owns what
+
+Six concerns belong to the registry and its pipeline, never to a tool body:
+
+| Concern | Owned by |
+|---|---|
+| Authorization (can this caller call this tool at all) | `IToolAuthorizationHandler` in the pipeline |
+| Approval (does a person need to say yes this time) | The registry's approval wrapper |
+| Timeout | The registry's timeout wrapper |
+| Output truncation | The registry's truncation wrapper |
+| Tenant scoping | `AgentPrismRunContext.Current` |
+| Audit (what ran, with what result) | Run recording, driven from the registry |
+
+A tool body reads `AgentPrismRunContext.Current` when it needs the tenant, run, or
+session — it never re-implements any of the other five; they already ran before the
+body was ever invoked.
+
+### Lifecycle and concurrency
+
+The registry is a **startup snapshot**. It is built once, from every `AddTool*` call
+made during startup, and never mutates afterward — there is no runtime `AddTool`. MCP
+tools are the one deliberate exception: they are discovered from a remote server and
+can appear or disappear as that server's own catalog changes, which is why MCP has its
+own, separate dynamic model instead of sharing the code registry's snapshot guarantee.
+
+Every tool instance is a **singleton**, shared by every tenant, every run, and every
+thread that happens to call it. Keep no per-call state in an instance field — read
+[the empty service provider rule](/getting-started/tools/#the-rule-that-trips-people-up)
+for the related mistake of resolving a scoped dependency the same way.
+
+Because a tool is shared, the same tool can already run **concurrently across
+different runs** today, whether or not `AllowConcurrentToolCalls` is set —
+that setting only governs whether one run's own turn calls its several tools
+one after another or at the same time. A tool body that keeps no mutable
+instance state handles both cases for free.
+
 ### Authorization and timeout
 
 Two more wrappers apply next to approval, in a fixed order: **authorization** (outermost),
@@ -1631,15 +1667,50 @@ public static string CancelOrder(string orderId) => ...;
 `Effect` (`Read`/`Write`/`Destructive`/`External`) is information, not a gate — the
 console shows it as a badge, and the audit trail records it. A call that outlives its
 timeout does not fail the run either: the model sees a tool error and continues, the same
-as a denial. `CancellationToken` is cooperative, so a tool body that never reads its own
-token is not forcibly stopped — only the *wait* is cut short; the timeout applies to
-execution only, never to a pending approval, which can wait indefinitely.
+as a denial. Timeout is **not cooperative**: it never forcibly stops the body, and it
+never hands the body a linked, timeout-aware token either — the body only ever sees the
+*caller's own* `CancellationToken`. A tool that never reads that token keeps running to
+completion, possibly with a real side effect, after the model has already moved on; only
+the *wait* is cut short. The timeout applies to execution only, never to a pending
+approval, which can wait indefinitely.
+
+A tool body can also run **more than once for the same logical call**, on two different
+timelines that are easy to conflate:
+
+- **Within one turn:** Microsoft Agent Framework retries a throwing tool call up to
+  `MaximumConsecutiveErrorsPerRequest` (3 by default) times before giving up and
+  re-throwing to the caller. A tool that is not safe to call twice in a row needs its
+  own idempotency guard, regardless of any AgentPrism setting.
+- **Across an interrupted run:** `SafeToRepeat` (only read for `Destructive`/`External`
+  tools) tells AgentPrism whether resuming a run that was cut off mid-call may repeat
+  that call. It says nothing about the in-turn retries above.
+
+### Result representation and persistence
+
+Whatever a tool returns, AgentPrism turns it into one **canonical text form** before
+anything else — a content guard, the output limit — inspects it: a `string` result is
+used as-is, and any other result is its exact serialized JSON. This closes a real gap:
+inspecting a type name or a placeholder instead of the actual data would let a guard
+approve content it never really looked at.
+
+That same canonical text is what gets **persisted**: a tool's arguments and result are
+written into the run's permanent record and streamed to the console over SSE. Neither
+one is written into a telemetry span. A tool that would otherwise return a secret —
+a connection string, an access token — must redact it before returning, because both
+of those surfaces keep it in full. A tool exception is treated more carefully: only
+AgentPrism's own exception types keep their message; everything else is replaced with
+a generic `Tool failed with <ExceptionType>.` before it reaches the record or the
+stream, and the original message goes only to your log.
 
 ### Output size limit
 
 A tool's result is unbounded by default and goes straight into the model's context. Set
 a byte limit — per tool, or once for every tool that does not set its own — and a
-result over it is trimmed before the model ever sees it:
+result over it is trimmed before the model ever sees it. The limit is measured against
+the same canonical text form described above, for every result type it applies to —
+a large complex object is bounded exactly like a large string, not skipped because it
+is not one. The one exception is `AIContent` (an attachment, such as the id
+`generate_image` returns): it is never inline output and is never subject to this limit.
 
 ```csharp
 services.AddSingleton(new AgentPrismToolRegistration(
@@ -2780,7 +2851,7 @@ var repository = app.Services.GetRequiredService<IOrderRepository>();
 agentPrism.AddTool(AIFunctionFactory.Create(
     (string orderId) => repository.Find(orderId).Status,
     "get_order_status",
-    "Returns the shipping status of an order."), requiresApproval: false);
+    "Returns the shipping status of an order."));
 ```
 
 `[AgentPrismTool]` catches the same mistake earlier: the source generator does not
@@ -2802,7 +2873,7 @@ Some tools should not run unattended:
 public static string IssueRefund(string orderId) => /* … */;
 
 // or, for a tool registered from a delegate:
-agentPrism.AddTool(IssueRefund, requiresApproval: true);
+agentPrism.AddTool(IssueRefund, configure: options => options.RequiresApproval = true);
 ```
 
 For the full singleton, scoped-dependency, timeout, and output contract, see
@@ -3543,7 +3614,7 @@ agent reliably reads.
 | `APG0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
 | `APG0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
 
-A separate family, `APG0001`–`APG0007`, validates tool registration itself and comes
+A separate family, `APG0001`–`APG0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
 [capability map](/capabilities/).
 
@@ -8023,25 +8094,38 @@ path. Tool instances are singletons and can run concurrently for different tenan
 runs. Keep no mutable run state in fields.
 
 ```csharp
-[AgentPrismTool(
-    "submit_order",
-    "Submits an order to the fulfillment system.",
-    Effect = ToolEffect.External,
-    RequiredPermission = "orders.submit",
-    RequiresApproval = true,
-    SafeToRepeat = true,
-    TimeoutSeconds = 30,
-    MaxOutputBytes = 4096)]
-public static async Task<OrderReceipt> SubmitOrderAsync(
-    string orderId,
-    CancellationToken cancellationToken)
-    => await Orders.SubmitAsync(orderId, cancellationToken);
+using System.Text.Json.Serialization;
+
+[JsonSerializable(typeof(OrderReceipt))]
+internal partial class OrderToolJsonContext : JsonSerializerContext;
+
+public sealed record OrderReceipt(string OrderId, string Status);
+
+public static class OrderTools
+{
+    [AgentPrismTool(
+        "submit_order",
+        "Submits an order to the fulfillment system.",
+        Effect = ToolEffect.External,
+        RequiredPermission = "orders.submit",
+        RequiresApproval = true,
+        SafeToRepeat = true,
+        TimeoutSeconds = 30,
+        MaxOutputBytes = 4096,
+        JsonSerializerContext = typeof(OrderToolJsonContext))]
+    public static Task<OrderReceipt> SubmitOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken)
+        => Task.FromResult(new OrderReceipt(orderId, "submitted"));
+}
 ```
 
-The source generator preserves all this metadata. Complex results are emitted as JSON,
-so content guards, the output limit, run records, and the model inspect the same data.
-Return `AIContent` only for the existing attachment contract; attachments are not
-inline output and are not subject to `MaxOutputBytes`.
+The source generator preserves all this metadata. For a complex result, declare its
+`JsonSerializerContext` in your own source as shown above; Roslyn does not let one
+source generator feed a context to another in the same compilation. The context makes
+the result canonical JSON, so content guards, the output limit, run records, and the
+model inspect the same data. Return `AIContent` only for the existing attachment
+contract; attachments are not inline output and are not subject to `MaxOutputBytes`.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
 provider. Resolve singleton dependencies when you register an `AIFunction`. For scoped
@@ -8049,17 +8133,24 @@ work, inject `IServiceScopeFactory` into that registration and create a scope in
 invocation.
 
 ```csharp
-var scopes = services.GetRequiredService<IServiceScopeFactory>();
-agentPrism.AddTool(AIFunctionFactory.Create(async (string orderId) =>
+agentPrism.Services.AddSingleton<AgentPrismToolRegistration>(provider =>
 {
-    await using var scope = scopes.CreateAsyncScope();
-    return await scope.ServiceProvider.GetRequiredService<IOrderWriter>().SubmitAsync(orderId);
-}, "submit_order", "Submits an order."), options =>
-{
-    options.Effect = ToolEffect.External;
-    options.RequiredPermission = "orders.submit";
-    options.RequiresApproval = true;
-    options.MaxOutputBytes = 4096;
+    var scopes = provider.GetRequiredService<IServiceScopeFactory>();
+    var function = AIFunctionFactory.Create(async (string orderId) =>
+    {
+        using var scope = scopes.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<IOrderWriter>()
+            .SubmitAsync(orderId);
+    }, "submit_order", "Submits an order.");
+
+    return new AgentPrismToolRegistration(
+        function,
+        requiresApproval: true,
+        effect: ToolEffect.External,
+        requiredPermission: "orders.submit",
+        timeout: TimeSpan.FromSeconds(30),
+        safeToRepeat: true,
+        maxOutputBytes: 4096);
 });
 ```
 
@@ -10163,7 +10254,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 
 | Ids | Category | What it reports |
 |---|---|---|
-| `APG0001`–`APG0007` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
+| `APG0001`–`APG0008` | `AgentPrism.Tools` | A method marked `[AgentPrismTool]` cannot be generated. Errors: fix the method. |
 | `APG0101`, `APG0102` | `AgentPrism.Usage` | A registration this compilation never makes. The application fails at run time. |
 | `APG0201` | `AgentPrism.Usage` | A definition carries a literal secret instead of the name of a configuration key. |
 | `APG0301`, `APG0302` | `AgentPrism.Usage` | Code written by hand for behaviour the package already ships. |
@@ -10229,6 +10320,32 @@ description:
 [AgentPrismTool("get_order_status", "Returns an order's current shipping status.")]
 public static string GetOrderStatus(string orderId) => "shipped";
 ```
+
+### A complex tool result has no JSON context (APG0008)
+
+Generated tools return complex results as canonical JSON. Declare a
+source-generated `JsonSerializerContext` in your own source and give its type
+to the tool attribute. A context emitted by the AgentPrism generator itself is
+too late for the JSON generator to process.
+
+```csharp
+[JsonSerializable(typeof(OrderPreview))]
+internal partial class ToolJsonContext : JsonSerializerContext;
+
+[AgentPrismTool(
+    "preview_order",
+    "Returns an order preview.",
+    JsonSerializerContext = typeof(ToolJsonContext))]
+public static OrderPreview PreviewOrder(string orderId) => new(orderId, "ready");
+```
+
+### An instance method is marked as a tool (APG0007)
+
+Generated tools must be static. Microsoft Agent Framework invokes an
+`AIFunction` with an empty service provider, so an instance method cannot rely
+on constructor dependencies. Make the generated method static, or create the
+object during registration and expose a hand-built `AIFunction` that creates a
+scope for each invocation.
 
 ### APG0101 or APG0102 fires although the registration exists
 
