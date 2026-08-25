@@ -92,7 +92,10 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunReconciliationService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            async () => (await store.GetRunAsync(runId))?.Status == RunStatus.Failed,
+            "the orphaned run to close",
+            TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var record = await store.GetRunAsync(runId);
@@ -140,7 +143,14 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunReconciliationService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            async () =>
+            {
+                var current = await store.QueryRunsAsync(new RunQuery { SessionId = "session-x", OnlyRootRuns = false });
+                return current.Count == 2 && current.All(static record => record.Status == RunStatus.Failed);
+            },
+            "the source run and failed continuation placeholder to close",
+            TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         // The pass did not crash (StopAsync returned normally, above). The
@@ -201,10 +211,21 @@ public sealed class RunReconciliationTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            () => Task.FromResult(storeA.ClaimCalls > 0 ^ storeB.ClaimCalls > 0),
+            "exactly one reconciler to acquire the singleton lease",
+            TestContext.Current.CancellationToken);
 
-        await serviceA.StopAsync(TestContext.Current.CancellationToken);
-        await serviceB.StopAsync(TestContext.Current.CancellationToken);
+        if (storeA.ClaimCalls > 0)
+        {
+            await serviceB.StopAsync(TestContext.Current.CancellationToken);
+            await serviceA.StopAsync(TestContext.Current.CancellationToken);
+        }
+        else
+        {
+            await serviceA.StopAsync(TestContext.Current.CancellationToken);
+            await serviceB.StopAsync(TestContext.Current.CancellationToken);
+        }
 
         (storeA.ClaimCalls > 0 ^ storeB.ClaimCalls > 0).ShouldBeTrue(
             $"storeA.ClaimCalls={storeA.ClaimCalls}, storeB.ClaimCalls={storeB.ClaimCalls}");
@@ -253,7 +274,15 @@ public sealed class RunReconciliationTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            async () =>
+            {
+                var jobs = await jobStore.QueryAsync(new JobQuery { Kind = JobKind.RunContinuation });
+                var runs = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-race", OnlyRootRuns = false });
+                return jobs.Count == 1 && runs.Count == 2;
+            },
+            "one continuation to be enqueued",
+            TestContext.Current.CancellationToken);
 
         await serviceA.StopAsync(TestContext.Current.CancellationToken);
         await serviceB.StopAsync(TestContext.Current.CancellationToken);
@@ -268,7 +297,7 @@ public sealed class RunReconciliationTests
     [Fact]
     public async Task Heartbeat_writer_only_marks_runs_active_in_this_process()
     {
-        var store = new InMemoryRunStore();
+        var store = new CountingRunStore(new InMemoryRunStore());
         var registry = new RunCancellationRegistry();
 
         var runId = AgentPrismId.NewId();
@@ -293,7 +322,10 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunHeartbeatWriter>.Instance);
 
         await writer.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            () => Task.FromResult(store.TouchCalls > 0),
+            "the active run heartbeat to be written",
+            TestContext.Current.CancellationToken);
         await writer.StopAsync(TestContext.Current.CancellationToken);
 
         // Even though the threshold has passed AFTER the record leaves the
@@ -307,6 +339,24 @@ public sealed class RunReconciliationTests
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
+
+    private static async Task WaitUntilAsync(
+        Func<Task<bool>> condition,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+
+        while (!await condition())
+        {
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                throw new TimeoutException($"Timed out waiting for {description}.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
+        }
+    }
 
     /// <summary>Fake <see cref="IToolRegistry"/> carrying no tools.</summary>
     private sealed class EmptyToolRegistry : IToolRegistry
@@ -378,9 +428,12 @@ public sealed class RunReconciliationTests
     /// </summary>
     private sealed class CountingRunStore(IRunStore inner) : IRunStore
     {
-        public int ClaimCalls { get; private set; }
+        private int _claimCalls;
+        private int _touchCalls;
 
-        public int TouchCalls { get; private set; }
+        public int ClaimCalls => Volatile.Read(ref _claimCalls);
+
+        public int TouchCalls => Volatile.Read(ref _touchCalls);
 
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
             => inner.StartRunAsync(info, cancellationToken);
@@ -425,22 +478,23 @@ public sealed class RunReconciliationTests
             CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
-        public ValueTask TouchHeartbeatAsync(
+        public async ValueTask TouchHeartbeatAsync(
             IReadOnlyCollection<Guid> runIds,
             DateTimeOffset at,
             CancellationToken cancellationToken = default)
         {
-            TouchCalls++;
-            return inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
+            await inner.TouchHeartbeatAsync(runIds, at, cancellationToken).ConfigureAwait(false);
+            Interlocked.Increment(ref _touchCalls);
         }
 
-        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+        public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
             DateTimeOffset staleBefore,
             int max,
             CancellationToken cancellationToken = default)
         {
-            ClaimCalls++;
-            return inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+            var claimed = await inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken).ConfigureAwait(false);
+            Interlocked.Increment(ref _claimCalls);
+            return claimed;
         }
     }
 }

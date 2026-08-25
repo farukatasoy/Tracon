@@ -3,6 +3,9 @@
 > **Alan kodu:** `GDK` · **Faz:** 91, 92
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/*_test.py` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets`
+> · `docfx/docfx.json` · `tests/AgentPrism.Core.UnitTests/Architecture/DocfxConfigurationTests.cs`
+> · `tests/AgentPrism.Core.UnitTests/Experiments/CanaryEvaluationServiceTests.cs`
+> · `tests/AgentPrism.Core.UnitTests/Recording/RunReconciliationTests.cs`
 > · `.agents/ortak/` (Faz 92)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
@@ -29,6 +32,8 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 14 | `MT-GDK-014` | Temiz ağaç | `dotnet test tests/AgentPrism.Core.UnitTests -c Release --filter-class "*AmbientWriteSiteTests*\|*PlaywrightLocatorTests*"` (veya `./artifacts/bin/AgentPrism.Core.UnitTests/release/AgentPrism.Core.UnitTests --filter-class "*AmbientWriteSiteTests*"` + `*PlaywrightLocatorTests*` ayrı ayrı) | Her iki sınıf da yeşil; `AmbientWriteSiteTests` 11 `<yol>:<metot>` girdisini taban çizgisiyle eşleştirir, `PlaywrightLocatorTests` `tests/AgentPrism.Ui.E2ETests/UiTests.cs` için taban çizgideki sayıyı dondurur |
 | 15 | `MT-GDK-015` | Temiz ağaç | `src/` altında `async IAsyncEnumerable` döndüren bir metoda `AgentPrismRunContext.SetCurrent(null);` ekle (Faz 93 kapısı), testi koştur, sonra geri al | `AmbientWriteSiteTests` **düşer**; hata mesajı eklenen `<dosya>:<metot>` yerini adıyla yazar |
 | 16 | `MT-GDK-016` | Temiz ağaç | `tests/AgentPrism.Ui.E2ETests/` altında bir E2E dosyasına `Exact`/`.First`/`.Nth` taşımayan bir `GetByText("x")` çağrısı ekle (Faz 93 kapısı), testi koştur, sonra geri al | `PlaywrightLocatorTests` **düşer**; hata mesajı dosyayı ve yeni risk sayısını adıyla yazar |
+| 17 | `MT-GDK-017` | Release assembly'leri üretildi | `cd docfx && dotnet docfx metadata docfx.json --logLevel warning`; sonra metadata girdisine geçici bir `"references": []` alanı ekleyip `DocfxConfigurationTests`'i koş ve değişikliği geri al | Metadata aynı birikmiş artifacts ağacında 0 warning/0 error ile biter; mutation testi düşer ve `artifacts/bin` globunun duplicate assembly yüklediğini açıklar |
+| 18 | `MT-GDK-018` | Core unit test assembly'si üretildi | Canary ramp ve run heartbeat testlerindeki sonuç beklemelerini ayrı ayrı 1 ms sabit `Task.Delay` ile değiştir; sonra geri alıp `CanaryEvaluationServiceTests` ve `RunReconciliationTests` sınıflarını 10'ar kez koş | İki mutation kendi davranış iddiasında düşer; koşul tabanlı sürümler 50/50 ve 70/70 geçer. Sonuç yerine geçen sabit bekleme kalmaz |
 
 ## Otomatik doğrulama
 

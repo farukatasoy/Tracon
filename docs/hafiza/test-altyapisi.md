@@ -129,16 +129,31 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   Şüphe: binlerce testin aynı anda paylaştığı port/dosya/thread-pool kaynağı —
   hiçbiri fazın kendi değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan
   biri kırmızı çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek
-  regresyondur. **Beşinci vaka (Faz 104):**
-  `UiTests.Runs_button_on_session_page_navigates_to_filtered_list` — `tbody tr`
-  sayısı 1 yerine 0 geldi. İzole koşumda geçti ve `AgentPrism.Ui.E2ETests`
-  projesinin tamamı tek başına 57/57 yeşil koştu; fazın değişikliği yalnız bir
-  kalkış log satırı ve `/api/meta`'nın okuduğu kaynaktı, çalıştırma listesine
-  dokunmadı. Desen artık beş farklı testte, iki farklı projede tekrarlandı —
-  kalan şüphe tek bir testte değil, **tam koşumun paylaşılan kaynağında**.
-  🚨 Bu vaka ayrıca desenin **kanıtını** verdi: aynı test, `git stash` ile fazın
-  tüm değişiklikleri geri alınıp taban kaynağı derlendiğinde de tam koşumda
-  düştü (2026-08-25, iki taban koşumundan birinde). Bir kapı koşumunda bu sınıf
-  şüpheli olduğunda ölçüm yolu budur — `git stash push -u` → tam koşum →
-  `git stash pop`; worktree denemesi işe YARAMAZ, çünkü extension sample'ları
-  yerel NuGet feed'i ister ve `artifacts/package/release` worktree'de yoktur.
+  regresyondur.
+- **F-122 kapandı (2026-08-26): E2E liste testi ağ yanıtını beklemiyordu.**
+  `UiTests.Runs_button_on_session_page_navigates_to_filtered_list`, yönlendirme
+  sonrası yalnız başlığı bekledi. Ardından `tbody tr` sayısını tek seferde
+  okudu. `/api/runs` yanıtına `RouteAsync` ile 750 ms gecikme eklenince test
+  her koşumda 1 yerine 0 görerek düştü. Düzeltme satır sayısını Playwright
+  `ToHaveCountAsync` ile 10 saniyeye kadar bekler. Gecikme regression baskısı
+  olarak testte kaldı; düzeltilmiş test aynı gecikmeyle 5/5 geçti. Bu kök neden
+  yukarıdaki dört .NET kırılganını veya F-130/F-137/F-139'u açıklamaz.
+- **Canary background-service testleri süre değil sonuç bekler (onarım
+  2026-08-26).** Tam koşumda
+  `Gradual_ramp_advances_weight_by_one_step_and_keeps_existing_assignments`
+  25 yerine başlangıç değeri 5'i gördü. Test service'i başlattı, 200 ms uyudu ve
+  sonucu okudu. Beklemeyi 1 ms'ye indirmek aynı hatayı deterministik üretti.
+  `CanaryEvaluationServiceTests` sınıfındaki beş sabit uyku tarandı: pozitif
+  yollar store/audit/lease sonucunu en çok 5 saniye poll eder; disabled yol
+  tamamlanan service task'ını kullanır. Sayaçlar `Interlocked`/`Volatile` oldu.
+  İki-instance testi non-holder'ı önce durdurur; böylece ardışık iki lease
+  sahibini eşzamanlı sahiplik sanmaz. Sınıf 10 ardışık koşumda 50/50 geçti.
+  Sonraki tam koşum aynı sınıfı `RunReconciliationTests` içinde de gösterdi:
+  heartbeat yazılmadan orphan claim koştu. 1 ms mutation aynı hatayı deterministik
+  üretti. Sınıftaki reconciliation, continuation, singleton ve heartbeat
+  senaryoları da sonuç bekler; sayaçlar thread-safe'tir. Sınıf 10 turda 70/70
+  geçti.
+- **Kaynak nedenselliğini ölçme yolu değişmedi.** Bir tam koşum kırılması faz
+  değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
+  koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
+  NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.

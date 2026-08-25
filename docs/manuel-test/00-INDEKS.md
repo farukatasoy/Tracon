@@ -319,7 +319,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80, 90 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` | **15** | ✅ | ⬜ henüz koşulmadı |
 | 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83 | `src/AgentPrism.Client` · `src/AgentPrism.Cli` · `nswag.json` · `scripts/nswag-*.py` | **12** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 12 👤 koşulmadı |
 | 35 | [`35-TYPESCRIPT-ISTEMCISI.md`](35-TYPESCRIPT-ISTEMCISI.md) | `TSC` | 84 | `packages/agentprism-client` · `src/AgentPrism.UI/frontend/src/lib/{api.ts,server-types.ts}` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` · `.github/workflows/ci.yml` | **11** | ✅ | ✅ 8/11 otomasyonla veya elle koşuldu (Faz 84 kapanışı); 5 elle koşulmadı (E2E boşluğu, F-145); 8-9 👤 koşulmadı |
-| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91 | `scripts/kapi.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` | **8** | ✅ | ✅ otomatik kapılar koşuldu; UI Playwright 57/57, browser connector görsel koşumu ayrıca insan gerekir |
+| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91 | `scripts/kapi.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets` · `docfx/docfx.json` · `DocfxConfigurationTests.cs` · `CanaryEvaluationServiceTests.cs` · `RunReconciliationTests.cs` | **18** | ✅ | ✅ otomatik kapılar koşuldu; UI Playwright 57/57, browser connector görsel koşumu ayrıca insan gerekir |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 

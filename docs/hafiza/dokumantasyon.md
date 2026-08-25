@@ -195,45 +195,27 @@ kullanmış. Kural: `faz-arsivle` koştuktan sonra `dokuman-bakim.py --denetle`
 çıktısındaki **Kırık bağlantı** satırını oku; sıfır değilse elle düzelt.
 Aynı ağaçtaki kardeş faza verilen bağlantılar en riskli olanlardır.
 
-## 🚨 `docfx.json`'ın `references` globu (`*/release/*.dll`) yeni bir tek-TFM proje eklendiğinde CS1704 ile çöker (Faz 98)
+## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98 · onarım 2026-08-26)
 
-`docfx metadata` iki liste okur: `src` (elle seçilmiş 18 paket DLL'i, API
-sayfaları bundan üretilir) ve `references` (`artifacts/bin/*/release{,_net10.0}/*.dll`
-globu — tip çözümlemesi için TÜM eşleşen DLL'leri aynı bağlama yükler). Bir
-proje `AgentPrism.Abstractions`'a `ProjectReference` veya paket referansı
-verirse, o bağımlılığın DLL'i KENDİ `bin/<proje>/release/` klasörüne de
-kopyalanır — bu zaten 20+ test/örnek projesinde oluyordu ve dokunulmadı. Yeni
-bir **tek-TFM** proje (`samples/AgentPrism.Samples.FileRunStore.Tests` gibi;
-çıktısı `release/` altında, `release_net10.0/` DEĞİL) eklenince Roslyn'in
-metadata yükleyicisi "aynı basit adlı derleme zaten içe aktarıldı" (`CS1704`)
-hatası verdi — TEMİZ bir `artifacts/bin` ile bile. Kök neden izole edilmedi
-(mevcut 20+ kopya neden aynı hatayı vermiyor, belirsiz); ölçülen ve çalışan
-çözüm `docfx/docfx.json`'ın `references.exclude` dizisine ilgili proje
-dizinini (`"AgentPrism.Samples.*/**"`) eklemekti. **Yeni bir örnek/test
-projesi bu hatayı verirse önce `references.exclude`'a proje adını ekle,
-globu yeniden tasarlama.**
+`docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek
+18 assembly'yi açıkça seçiyordu. `references` ise `artifacts/bin` altındaki test,
+örnek ve paket çıktılarının tüm DLL'lerini yüklüyordu. Bu dizinler aynı
+AgentPrism assembly'sinin çok sayıda kopyasını taşır. Roslyn aynı basit adlı
+assembly'leri birlikte görünce **360 `CS1704`** üretti. Hatanın çalışma ağacı
+tabanında da görülmesinin nedeni birikmiş çıktı ağacıydı.
 
-🚨 **Faz 104: aynı hata KAYNAK DEĞİŞİKLİĞİNDEN BAĞIMSIZ olarak da çıkıyor ve
-tetikleyicisi hâlâ izole edilmedi.** Ölçülenler (2026-08-25, tek oturum):
+`references.exclude` kök çözüm değildir. Denemelerde hata sayısı değişmedi;
+yalnız çakışma mesajında adı geçen assembly değişti. Explicit `src` assembly'leri
+bağımlılıklarını kendi `.deps.json` dosyalarından ve NuGet cache'inden çözer.
+Bu nedenle `docfx.json` içindeki `references` girdisi tamamen kaldırıldı. Aynı
+birikmiş `artifacts/bin` ağacında metadata üretimi 0 warning ve 0 error ile
+bitti; 678 API Markdown dosyası üretildi.
 
-- `docfx metadata` bir koşumda **360** `CS1704` verdi. `git stash push -u` ile
-  fazın tüm değişiklikleri geri alındığında **birebir aynı 360 hata** çıktı —
-  yani hata çalışma ağacındaki kaynağa bağlı değildir.
-- `references.exclude`'a önce test çıktısı dizinleri (`*.UnitTests/**` vb.),
-  sonra örnek host dizinleri (`AgentPrism.Api/**`, `AgentPrism.Embedded/**`)
-  eklendi. **Sayı 360'ta kaldı**, yalnız hata mesajında adı geçen derleme
-  değişti. Yani exclude bu vakada işe yaramıyor; Faz 98'in reçetesi
-  (dizini exclude'a ekle) burada **çözüm değildir**.
-- Aynı oturumda `docfx metadata` **iki kez de 0 hatayla** koştu: bir kez
-  `-c Debug` tam derlemeden sonra, bir kez `rm -rf artifacts/bin` +
-  `dotnet build -c Release -p:AgentPrismFrontendEnabled=false` sonrası. Ama
-  temizlik **tekrarlanabilir bir çözüm değildir**: aynı temizlik+derleme
-  sonrası `pack`/`format` koşup site kapısına gelindiğinde hata geri geldi.
-
-Bugünkü dürüst özet: kapı bu makinede **kırılgandır**, ne tetiklediği
-bilinmiyor, ve `docfx.json`'a dokunmak (denenmiş) düzeltmiyor. Bir sonraki
-oturum bunu bir kusur kalemi olarak ele almalı — önce `docfx metadata`'nın
-gerçekten hangi dosya listesini yüklediğini (`--logLevel verbose`) dökmeli.
+`DocfxConfigurationTests`, assembly metadata girdisine yeniden `references`
+eklenmesini yasaklar. Mutation koşumunda yalnız boş bir `references` dizisi
+eklemek bile testi düşürdü. Yeni bir proje için bağımlılık çözümleme sorunu
+çıkarsa önce explicit `src` girdisini ve assembly'nin `.deps.json` dosyasını
+incele; geniş bir artifacts globu ekleme.
 
 ## 🚨 `dotnet format --verify-no-changes` ve `docfx metadata`, DEBUG yapılandırmasının `obj/` çıktısını okur — yalnız Release derlemesi yeterli DEĞİL (Faz 98)
 

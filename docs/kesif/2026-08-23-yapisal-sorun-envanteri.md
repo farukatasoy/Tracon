@@ -55,9 +55,9 @@ Tip: **📋 Faz** = plan dokümanı ister · **⚡ Tek oturum** = bir oturumda k
 | 14 | Çok kiracılı üretim sığ (RLS yok, hız sınırı bellekte) | P1 | 📋 Faz |
 | 15 | NSwag üretimi client komple susturulmuş | P1 | ⚡ Tek oturum |
 | 16 | Performans korunmuyor; benchmark projesi yok | P1 | 📋 Faz (F-67) |
-| 17 | Karmaşıklık birkaç dev dosyada yoğunlaşmış | P2 | 📋 Faz |
-| 18 | Frontend ekranları ve sözlükler monolitleşiyor | P2 | 📋 Faz |
-| 19 | Frontend test kapsamı ince | P2 | 📋 Faz |
+| 17 | Karmaşıklık birkaç dev dosyada yoğunlaşmış | P2 | 📋 Faz 105–108 |
+| 18 | Frontend ekranları ve sözlükler monolitleşiyor | P2 | 📋 Faz 109 |
+| 19 | Frontend test kapsamı ince | P2 | 📋 Faz 109 |
 | 20 | Doküman yükü kodu geçti | P2 | 🔁 Zincir |
 | 21 | Yol haritası üretecinde görünür kusur | P2 | ⚡ Tek oturum |
 | 22 | Bağımlılık kirliliği kuralı kendi istisnasını taşıyor | P2 | ⚡ Tek oturum |
@@ -438,10 +438,12 @@ sürüm sonrası fark edilir.
 
 ### 17. Karmaşıklık birkaç dev dosyada yoğunlaşmış · 📋 Faz
 
+> **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
+
 [`AgentPrismServiceCollectionExtensions.cs`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
-2.622 satır / 49 metot · [`AgentDefinitionCompiler.cs`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
-1.555 satır · [`RunRecordingAgent.cs`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
-1.331 satır · [`InMemoryRunStore.cs`](../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) 1.416 satır.
+2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
+1.617 satır · [`RunRecordingAgent.cs`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
+1.331 satır · [`InMemoryRunStore.cs`](../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) 1.432 satır.
 
 Her yeni yetenek DI dosyasına dokunuyor; `TryAdd*` sırası gözden kaçma riski
 dosyayla birlikte büyüyor. Faz 20'de 1.068 testin kaçırdığı imza–gövde kusuru tam
@@ -450,14 +452,18 @@ bu tür dosyalarda doğdu. Faz 89'un devir notu "tool wrapper zinciri dört halk
 
 ### 18. Frontend ekranları ve sözlükler monolitleşiyor · 📋 Faz
 
+> **Durum:** 📋 [Faz 109](../109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 19 ile birleşti (2026-08-26). Screen ve catalogue modül sınırları component-test harness'inin doğal test sınırıdır.
+
 `agent-editor.tsx` 1.243 · `en.ts` 1.222 · `tr.ts` 1.213 · `playground.tsx` 944
 satır. `Messages` tipi eksik anahtarı derleme anında yakalıyor (güçlü yan), ama
 ekran başına bileşen ayrışması yapılmadıkça her yeni özellik bu dosyaları büyütür.
 
 ### 19. Frontend test kapsamı ince · 📋 Faz
 
-24.011 satır TypeScript · 29 screen · 23 component. Buna karşılık 14 test dosyası,
-173 Vitest case'i ve 57 E2E testi. Ekranların çoğunun otomatik testi yok; güvence
+> **Durum:** 📋 [Faz 109](../109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 18 ile birleşti (2026-08-26). Güncel ölçüm: 24.011 TypeScript satırı · 28 screen · 23 component · 14 Vitest dosyası · gerçek build'de 172 case · 57 E2E.
+
+24.011 satır TypeScript · 28 screen · 23 component. Buna karşılık 14 test dosyası,
+172 Vitest case'i ve 57 E2E testi. Ekranların çoğunun otomatik testi yok; güvence
 manuel sete dayanıyor (bkz. kalem 9).
 
 ### 20. Doküman yükü kodu geçti · 🔁 Zincir
@@ -567,7 +573,7 @@ tarafından sabitlendi.
 | 5 | ~~**Faz 97 uygulama**~~ ✅ 2026-08-24 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
 | 7 | **Faz 104 uygulama** ← **sıradaki adım** — madde 14 (karar + beyan yarısı) · 12 · 23 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 8 | **Blok C** — yayından sonra veya paralel. Madde 14'ün karar yarısı buradan **çıktı** | — |
+| 8 | **Blok C / yapısal refactor** — Faz 105 → 106 → 107 → 108 → 109 planlandı (2026-08-26): madde 17 dört bağımsız Core fazı; madde 18+19 ortak frontend fazı | Her faz kendi zinciriyle: `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 
 > 🚨 **Bu tablo yayını kapsamıyor.** 2026-08-24'ten sonra bu turun dışında altı
 > faz daha koşuldu ve kapandı (Faz 98–103, sözleşme yayını turu — bkz.

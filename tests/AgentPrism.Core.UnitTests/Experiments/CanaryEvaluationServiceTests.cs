@@ -26,7 +26,6 @@ public sealed class CanaryEvaluationServiceTests
         var service = CreateService(experiments, runs, auditLog, new InMemorySingletonLeaseStore(), autoRollbackEnabled: false, scanInterval: TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         experiments.ListCalls.ShouldBe(0);
@@ -50,7 +49,10 @@ public sealed class CanaryEvaluationServiceTests
         var service = CreateService(experiments, runs, auditLog, new InMemorySingletonLeaseStore(), autoRollbackEnabled: true, scanInterval: TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            async () => (await experiments.GetAsync(TenantId, experiment.Name))?.Status == ExperimentStatus.Stopped,
+            "the unhealthy canary to roll back",
+            TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var rolledBack = await experiments.GetAsync(TenantId, experiment.Name);
@@ -78,7 +80,10 @@ public sealed class CanaryEvaluationServiceTests
         var service = CreateService(experiments, runs, auditLog, new InMemorySingletonLeaseStore(), autoRollbackEnabled: true, scanInterval: TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            () => Task.FromResult(auditLog.WriteCalls > 0),
+            "the failed audit write",
+            TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var stillRunning = await experiments.GetAsync(TenantId, experiment.Name);
@@ -133,7 +138,15 @@ public sealed class CanaryEvaluationServiceTests
             rampInterval: TimeSpan.Zero);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            async () =>
+            {
+                var current = await experiments.GetAsync(TenantId, experiment.Name);
+                return current is not null && current.Variants.Single(static variant =>
+                    string.Equals(variant.Name, "canary", StringComparison.Ordinal)).Weight == rampedCanaryWeight;
+            },
+            "the healthy canary to advance",
+            TestContext.Current.CancellationToken);
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var advanced = await experiments.GetAsync(TenantId, experiment.Name);
@@ -169,10 +182,24 @@ public sealed class CanaryEvaluationServiceTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitUntilAsync(
+            () => Task.FromResult(storeA.ListCalls > 0 ^ storeB.ListCalls > 0),
+            "exactly one evaluator to acquire the singleton lease",
+            TestContext.Current.CancellationToken);
 
-        await serviceA.StopAsync(TestContext.Current.CancellationToken);
-        await serviceB.StopAsync(TestContext.Current.CancellationToken);
+        // Stop the non-holder first. Otherwise it can acquire the lease while
+        // the original holder is stopping and make this concurrency assertion
+        // observe two sequential owners as if they had run concurrently.
+        if (storeA.ListCalls > 0)
+        {
+            await serviceB.StopAsync(TestContext.Current.CancellationToken);
+            await serviceA.StopAsync(TestContext.Current.CancellationToken);
+        }
+        else
+        {
+            await serviceA.StopAsync(TestContext.Current.CancellationToken);
+            await serviceB.StopAsync(TestContext.Current.CancellationToken);
+        }
 
         (storeA.ListCalls > 0 ^ storeB.ListCalls > 0).ShouldBeTrue(
             $"storeA.ListCalls={storeA.ListCalls}, storeB.ListCalls={storeB.ListCalls}");
@@ -308,6 +335,24 @@ public sealed class CanaryEvaluationServiceTests
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
 
+    private static async Task WaitUntilAsync(
+        Func<Task<bool>> condition,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+
+        while (!await condition())
+        {
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                throw new TimeoutException($"Timed out waiting for {description}.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
+        }
+    }
+
     /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
         where T : class
@@ -321,8 +366,15 @@ public sealed class CanaryEvaluationServiceTests
 
     private sealed class ThrowingAuditLog : IAuditLog
     {
+        private int _writeCalls;
+
+        public int WriteCalls => Volatile.Read(ref _writeCalls);
+
         public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("could not reach audit log store");
+        {
+            Interlocked.Increment(ref _writeCalls);
+            throw new InvalidOperationException("could not reach audit log store");
+        }
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => new(Array.Empty<AuditEntry>());
@@ -337,9 +389,12 @@ public sealed class CanaryEvaluationServiceTests
     /// </summary>
     private sealed class CountingExperimentStore(IExperimentStore inner) : IExperimentStore
     {
-        public int ListCalls { get; private set; }
+        private int _listCalls;
+        private int _rollbackCalls;
 
-        public int RollbackCalls { get; private set; }
+        public int ListCalls => Volatile.Read(ref _listCalls);
+
+        public int RollbackCalls => Volatile.Read(ref _rollbackCalls);
 
         public ValueTask<IReadOnlyList<Experiment>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
             => inner.ListAsync(tenantId, cancellationToken);
@@ -364,7 +419,7 @@ public sealed class CanaryEvaluationServiceTests
 
         public ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
         {
-            ListCalls++;
+            Interlocked.Increment(ref _listCalls);
             return inner.ListRunningWithCanaryAsync(cancellationToken);
         }
 
@@ -389,7 +444,7 @@ public sealed class CanaryEvaluationServiceTests
             string reason,
             CancellationToken cancellationToken = default)
         {
-            RollbackCalls++;
+            Interlocked.Increment(ref _rollbackCalls);
             return inner.RollbackCanaryAsync(tenantId, name, variants, reason, cancellationToken);
         }
     }
