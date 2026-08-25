@@ -39,6 +39,9 @@ public static class ContractCoverage
     /// <summary>The namespace holding agent-source contracts.</summary>
     public const string AgentSourceContracts = "AgentPrism.Testing.Contracts.AgentSources";
 
+    /// <summary>The namespace holding custom tool contracts.</summary>
+    public const string ToolContracts = "AgentPrism.Testing.Contracts.Tools";
+
     /// <summary>
     /// The contract classes this package ships for one family: every
     /// non-generic <see langword="public abstract"/> type in
