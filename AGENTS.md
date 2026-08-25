@@ -152,7 +152,9 @@ donduktan sonra **kulvarlı** koşar — denetim ve örnek uygulama koşumu para
 sonra doküman senkronu ve site senkronu paralel; sıra `faz-tamamlama`'nın
 kendi kulvar şemasındadır, Faz 92). Zincir dışı: `maf-api-kesfi` (MAF tipini
 ilk kez kullanmadan önce) · `kusur-giderme` (kusur bulunduğunda) ·
-`manuel-test-kosumu` (kabul setinin tamamında).
+`manuel-test-kosumu` (kabul setinin tamamında) · `nuget-danismani`
+(yayın kararı ve yayın sonrası olay — zincirin **üstünde**, tek fazı değil
+yayınlanacak ürünü yargılar).
 Ortak sözleşme (kapı koşumu, test seviyeleri): `.agents/ortak/`. Konvansiyon:
 [`.agents/skills/README.md`](.agents/skills/README.md).
 
