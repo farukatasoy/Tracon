@@ -67,7 +67,8 @@ internal static class SourceWriter
                 break;
             case ReturnKind.Value:
                 sb.Append("        var result = ").Append(invocation).Append(";\n");
-                sb.Append("        return new global::System.Threading.Tasks.ValueTask<object?>((object?)result);\n");
+                sb.Append("        return new global::System.Threading.Tasks.ValueTask<object?>(")
+                  .Append(WriteResult(model, "result")).Append(");\n");
                 break;
             case ReturnKind.AsyncNone:
                 sb.Append("        await ").Append(invocation).Append(".ConfigureAwait(false);\n");
@@ -75,11 +76,19 @@ internal static class SourceWriter
                 break;
             case ReturnKind.AsyncValue:
                 sb.Append("        var result = await ").Append(invocation).Append(".ConfigureAwait(false);\n");
-                sb.Append("        return (object?)result;\n");
+                sb.Append("        return ").Append(WriteResult(model, "result")).Append(";\n");
                 break;
         }
 
         sb.Append("    }\n}\n");
+
+        if (model.SerializedResultTypeDisplay is { } resultType)
+        {
+            sb.Append("\n[global::System.Text.Json.Serialization.JsonSerializable(typeof(")
+              .Append(resultType).Append("))]\n")
+              .Append("[global::System.Text.Json.Serialization.JsonSourceGenerationOptions(GenerationMode = global::System.Text.Json.Serialization.JsonSourceGenerationMode.Metadata)]\n")
+              .Append("internal partial class ").Append(model.GeneratedClassName).Append("JsonContext : global::System.Text.Json.Serialization.JsonSerializerContext\n{\n}\n");
+        }
 
         return sb.ToString();
     }
@@ -136,6 +145,11 @@ internal static class SourceWriter
     }
 
     private static bool RequiresAwait(ReturnKind kind) => kind is ReturnKind.AsyncNone or ReturnKind.AsyncValue;
+
+    private static string WriteResult(ToolEmitModel model, string value)
+        => model.SerializedResultTypeDisplay is { } resultType
+            ? $"global::System.Text.Json.JsonSerializer.SerializeToElement({value}, {model.GeneratedClassName}JsonContext.Default.GetTypeInfo(typeof({resultType}))!)"
+            : $"(object?){value}";
 
     private static string WriteBinding(ParameterModel parameter)
     {
