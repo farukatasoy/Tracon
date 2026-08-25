@@ -61,6 +61,29 @@ started an external side effect. Make external calls idempotent. AgentPrism reco
 streams controlled error text, but arguments and successful results can be persisted;
 never return a secret.
 
+## Prove the registration
+
+The `AgentPrism.Testing.Contracts.Xunit` package ships `CustomToolContract`.
+Derive it in your test project to check the registration name, metadata, and concurrent
+server-side invocation.
+
+```csharp
+using AgentPrism.Testing.Contracts;
+using AgentPrism.Testing.Contracts.Tools;
+
+public sealed class OrderToolTests : CustomToolContract
+{
+    protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
+        => new(new AgentPrismToolRegistration(MyOrderTool));
+}
+
+[Fact]
+public void All_tool_contracts_are_covered()
+    => ContractCoverage.MissingDerivedTypes(
+        typeof(OrderToolTests).Assembly,
+        ContractCoverage.ToolContracts).ShouldBeEmpty();
+```
+
 ## Read next
 
 - [Tools, skills, and MCP](/concepts/tools/) — the governance model
