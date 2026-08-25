@@ -58,3 +58,23 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   prompt-injection yolu tam olarak budur. Regresyon:
   `tests/AgentPrism.Core.UnitTests/Models/PipelineOwnershipTests.cs` — iddia
   guard'in gordugu YONDUR, boru hattindaki tip sayisi degil.
+
+## `ContentGuard`'in "fail-closed" sozu: yer tutucu METIN dondurmek koşulsuz DEGISTIRMEK degildir (Faz 102, bagimsiz denetim bulgusu)
+
+- **🚨 Incelenemeyen icerik icin sabit bir yer tutucu metin dondurmek, o metni
+  guard'in PATTERN eslesmesine sokarsan hicbir sey cozmez.**
+  `ContentGuardMessageMasker.ReadText` normalize edilemeyen bir
+  `FunctionResultContent` icin `"[Tool result could not be inspected]"`
+  donduruyordu, ama cagiran bu metni `pipeline.InspectAsync`'e (desen
+  eslestirmeye) veriyordu. Desen (neredeyse hic) eslesmedigi icin `null`
+  donuyor, cagiran "degisiklik yok" saniyor ve **orijinal, ham** icerik
+  dokunulmadan modele/kalici kayda gidiyordu — `ContentGuardPipeline`'in
+  kendi XML sozuyle ("content that cannot be inspected is not let through")
+  dogrudan celisen bir guvenlik acigiydi (K-617).
+- **Kural: bir guard/mask tasarimi "incelenemeyen icerik icin guvenli
+  varsayilan" ONERIYORSA, o varsayimin PATTERN eslesmesinden TAMAMEN bagimsiz,
+  KOŞULSUZ uygulandigini satir satir izle.** "Yer tutucu metin uret" ile
+  "yer tutucuyla KOŞULSUZ DEGISTIR" kodda cok benzer gorunur; ikisi arasindaki
+  fark tek bir `if (rewritten is null) continue;` satirinin neyi kontrol
+  ettigidir. Duzeltme + red→green kaniti:
+  `ContentGuardMaskTests.Tool_result_that_cannot_be_normalized_is_masked_even_when_no_guard_pattern_matches`.
