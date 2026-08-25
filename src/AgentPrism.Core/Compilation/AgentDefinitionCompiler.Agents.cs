@@ -1,0 +1,282 @@
+using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Compaction;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+
+namespace AgentPrism;
+
+/// <summary>
+/// Chat agent, child agent (sub-agent), and harness agent production.
+/// </summary>
+public sealed partial class AgentDefinitionCompiler
+{
+    private ChatClientAgent CompileChatAgent(
+        AgentDefinition definition,
+        IChatClient chatClient,
+        ChatOptions chatOptions,
+        ResolvedCallableAgents callableAgents)
+    {
+        var options = new ChatClientAgentOptions
+        {
+            Id = definition.Name,
+            Name = definition.Name,
+            Description = definition.Description,
+            ChatOptions = chatOptions,
+            ChatHistoryProvider = _chatHistoryProvider,
+        };
+
+        var providers = new List<AIContextProvider>(2);
+
+        if (definition.SkillNames.Count > 0)
+        {
+            providers.Add(CreateSkillsProvider(definition));
+        }
+
+        if (CreateBackgroundAgentsProvider(definition, callableAgents) is { } backgroundAgents)
+        {
+            providers.Add(backgroundAgents);
+        }
+
+        if (BuildCompactionStrategy(definition) is { } compactionStrategy)
+        {
+            // MAAI001: CompactionProvider is marked "evaluation purposes only" -
+            // the rationale is the same as the block above BuildCompactionStrategy.
+#pragma warning disable MAAI001
+            providers.Add(new CompactionProvider(compactionStrategy, stateKey: null, _loggerFactory));
+#pragma warning restore MAAI001
+        }
+
+        providers.AddRange(CreateMemoryProviders(definition));
+
+        if (CreateMcpResourceProvider(definition) is { } mcpResources)
+        {
+            providers.Add(mcpResources);
+        }
+
+        if (providers.Count > 0)
+        {
+            options.AIContextProviders = providers;
+        }
+
+        return chatClient.AsAIAgent(options, _loggerFactory, _services);
+    }
+
+    /// <summary>
+    /// Builds the context provider for <see cref="AgentDefinition.McpResourceUris"/> (Mode A).
+    /// </summary>
+    /// <exception cref="AgentPrismCompilationException">
+    /// The definition wants an MCP resource, but the <c>AgentPrism.Mcp</c> package is not registered.
+    /// </exception>
+    private AIContextProvider? CreateMcpResourceProvider(AgentDefinition definition)
+    {
+        if (definition.McpResourceUris.Count == 0)
+        {
+            return null;
+        }
+
+        if (_mcpResources is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' uses an MCP resource, but the AgentPrism.Mcp package " +
+                "is not registered (UseMcp() was not called).")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var tenantId = _tenantContext?.TenantId ?? definition.TenantId
+            ?? throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' uses an MCP resource, but the tenant could not be resolved.")
+            {
+                AgentName = definition.Name,
+            };
+
+        return _mcpResources.Create(definition.McpResourceUris, tenantId);
+    }
+
+    /// <summary>
+    /// Builds the context provider that enables sub-agent calls.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Microsoft Agent Framework's <see cref="BackgroundAgentsProvider"/> type
+    /// is an <see cref="AIContextProvider"/>; it does not require a harness.
+    /// The plain agent path therefore has first-class support for this - the
+    /// harness defect recorded earlier would have hit this feature too.
+    /// </para>
+    /// <para>
+    /// Every sub-agent is wrapped with <see cref="ChildAgentInvoker"/>. The
+    /// provider calls the sub-agent with <c>options = null</c> (measured);
+    /// tree information can only be added by the wrapper.
+    /// </para>
+    /// </remarks>
+    // MAAI001: BackgroundAgentsProvider is marked "evaluation purposes only".
+    // The suppression is a deliberate decision resting on the same rationale
+    // as K-020: sub-agent setup is kept in a single method, only this file is
+    // updated if MAF changes this API. Rationale: docs/KARARLAR.md, decision K-097.
+#pragma warning disable MAAI001
+    private BackgroundAgentsProvider? CreateBackgroundAgentsProvider(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents)
+        => CreateChildAgents(definition, callableAgents) is { } children
+            ? new BackgroundAgentsProvider(children, new BackgroundAgentsProviderOptions())
+            : null;
+#pragma warning restore MAAI001
+
+    /// <summary>Builds callable sub-agents together with their wrappers.</summary>
+    /// <returns>The wrapped sub-agents; <see langword="null"/> when the definition calls no sub-agent.</returns>
+    private List<AIAgent>? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
+    {
+        if (callableAgents.Agents.Count == 0)
+        {
+            return null;
+        }
+
+        if (_callableAgents is null || _tenantContext is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' wants to call other agents, but the sub-agent " +
+                "resolver is not registered.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var logger = _loggerFactory?.CreateLogger<ChildAgentInvoker>()
+            ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger<ChildAgentInvoker>.Instance;
+
+        var children = new List<AIAgent>(callableAgents.Agents.Count);
+
+        foreach (var info in callableAgents.Agents)
+        {
+            children.Add(new ChildAgentInvoker(_callableAgents, _tenantContext, logger, definition.Name, info));
+        }
+
+        return children;
+    }
+
+    private HarnessAgent CompileHarnessAgent(
+        AgentDefinition definition,
+        IChatClient chatClient,
+        ChatOptions chatOptions,
+        ResolvedCallableAgents callableAgents)
+    {
+        var harness = definition.Harness!;
+
+        // MAAI001: Microsoft Agent Framework's harness options are marked
+        // "evaluation purposes only" and may change in the future. The
+        // suppression is a deliberate decision: harness usage is kept in a
+        // single file, so only this file is updated if MAF changes this API.
+        // Rationale: docs/KARARLAR.md, decision K-020.
+#pragma warning disable MAAI001
+        var options = new HarnessAgentOptions
+        {
+            Id = definition.Name,
+            Name = definition.Name,
+            Description = definition.Description,
+            ChatOptions = chatOptions,
+            ChatHistoryProvider = _chatHistoryProvider,
+            HarnessInstructions = harness.HarnessInstructions,
+            MaxContextWindowTokens = harness.MaxContextWindowTokens,
+            MaxOutputTokens = harness.MaxOutputTokens,
+            MaximumIterationsPerRequest = harness.MaximumIterationsPerRequest,
+            DisableCompaction = harness.DisableCompaction,
+            DisableTodoProvider = harness.DisableTodoProvider,
+            DisableFileMemory = harness.DisableFileMemory,
+            DisableWebSearch = harness.DisableWebSearch,
+            DisableToolAutoApproval = harness.DisableToolAutoApproval,
+            DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider,
+            DisableAgentModeProvider = harness.DisableAgentModeProvider,
+
+            // The harness produces its own internal spans. Without a source
+            // name, these go to MAF's own source and AgentPrism's span store
+            // never sees them; harness steps would be missing from the
+            // waterfall view.
+            OpenTelemetrySourceName = AgentPrismDiagnostics.ActivitySourceName,
+
+            // FileAccessStore is INTENTIONALLY left unassigned: it activates
+            // only when a value is assigned; leaving it unassigned means file
+            // access is disabled. Rationale: docs/KARARLAR.md, decision K-062.
+            //
+            // BackgroundAgents was opened in Phase 12 and follows the same
+            // rule: no value is assigned when the definition carries no agent
+            // name, and the feature is off.
+        };
+
+        if (definition.SkillNames.Count > 0)
+        {
+            options.AgentSkillsSource = CreateSkillsSource(definition);
+        }
+
+        if (CreateChildAgents(definition, callableAgents) is { } children)
+        {
+            options.BackgroundAgents = children;
+        }
+
+        // Conflict check: if the user has both requested compaction/memory and
+        // disabled the same capability in the harness, which one wins must not
+        // silently stay ambiguous (K1 zero surprise).
+        if (definition.Compaction is { Strategy: not CompactionStrategyKind.None })
+        {
+            if (harness.DisableCompaction)
+            {
+                throw new AgentPrismCompilationException(
+                    $"Agent '{definition.Name}' wants compaction, but " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableCompaction)} is turned off.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            options.CompactionStrategy = BuildCompactionStrategy(definition);
+        }
+
+        if (definition.Memory is { EnableFileMemory: true })
+        {
+            if (harness.DisableFileMemory)
+            {
+                throw new AgentPrismCompilationException(
+                    $"Agent '{definition.Name}' wants file memory, but " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableFileMemory)} is turned off.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            options.FileMemoryStore = RequireFileStore(definition);
+        }
+
+        if (definition.Memory is { EnableTodo: true } && harness.DisableTodoProvider)
+        {
+            throw new AgentPrismCompilationException(
+                $"Agent '{definition.Name}' wants todo tracking, but " +
+                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableTodoProvider)} is turned off.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        // When EnableTodo == true and DisableTodoProvider == false, nothing
+        // extra is DONE: the harness already keeps todo tracking on by default.
+
+        var harnessProviders = new List<AIContextProvider>(2);
+
+        if (CreateTextSearchProvider(definition) is { } textSearch)
+        {
+            harnessProviders.Add(textSearch);
+        }
+
+        if (CreateMcpResourceProvider(definition) is { } mcpResources)
+        {
+            harnessProviders.Add(mcpResources);
+        }
+
+        if (harnessProviders.Count > 0)
+        {
+            options.AIContextProviders = harnessProviders;
+        }
+
+        return chatClient.AsHarnessAgent(options, _loggerFactory, _services);
+#pragma warning restore MAAI001
+    }
+}
