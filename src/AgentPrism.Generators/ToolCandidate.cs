@@ -40,7 +40,8 @@ internal sealed record ToolEmitModel(
     string? RequiredPermission,
     int TimeoutSeconds,
     bool SafeToRepeat,
-    int MaxOutputBytes);
+    int MaxOutputBytes,
+    string? SerializedResultTypeDisplay);
 
 /// <summary>The analysis result for a single method marked with <c>[AgentPrismTool]</c>.</summary>
 /// <remarks>
@@ -127,7 +128,8 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             requiredPermission,
             timeoutSeconds,
             safeToRepeat,
-            maxOutputBytes);
+            maxOutputBytes,
+            SerializedResultTypeDisplay(method.ReturnType));
 
         return new ToolCandidate(SourceLocation.From(location), diagnostics.ToImmutable(), emit);
     }
@@ -240,5 +242,31 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             TaskOfTMetadataName or ValueTaskOfTMetadataName => ReturnKind.AsyncValue,
             _ => ReturnKind.Value,
         };
+    }
+
+    private static string? SerializedResultTypeDisplay(ITypeSymbol returnType)
+    {
+        var valueType = returnType is INamedTypeSymbol { IsGenericType: true, TypeArguments.Length: 1 } named &&
+            ($"{named.ContainingNamespace}.{named.MetadataName}" is TaskOfTMetadataName or ValueTaskOfTMetadataName)
+            ? named.TypeArguments[0]
+            : returnType;
+
+        if (valueType.SpecialType is SpecialType.System_Void or SpecialType.System_String or
+            SpecialType.System_Boolean or SpecialType.System_Byte or SpecialType.System_SByte or
+            SpecialType.System_Int16 or SpecialType.System_UInt16 or SpecialType.System_Int32 or
+            SpecialType.System_UInt32 or SpecialType.System_Int64 or SpecialType.System_UInt64 or
+            SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal ||
+            valueType.TypeKind == TypeKind.Enum)
+        {
+            return null;
+        }
+
+        var display = valueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        return display is "global::System.Guid" or "global::System.DateTime" or
+            "global::System.DateTimeOffset" or "global::System.Text.Json.JsonElement" ||
+            display.StartsWith("global::Microsoft.Extensions.AI.AIContent", StringComparison.Ordinal)
+            ? null
+            : display;
     }
 }
