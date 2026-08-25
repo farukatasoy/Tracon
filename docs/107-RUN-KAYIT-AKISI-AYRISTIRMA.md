@@ -44,6 +44,14 @@
 
 🚨 `Activity` ve `AgentPrismRunContext` başlangıcı async helper'a çıkarılmaz. Streaming döngüsündeki ambient yazım her `MoveNextAsync` öncesinde kalır. `AmbientWriteSiteTests` taban çizgisi yalnız dosya taşıması nedeniyle güncellenir; yazım yeri sayısı artmaz.
 
+> **Faz 106'dan devir:** aynı `partial` ayrıştırma deseni orada denendi ve
+> işe yaradı — önce hiç `using`/pragma eklemeden metotları hedef dosyaya taşı,
+> sonra `dotnet build` çalıştır. `TreatWarningsAsErrors=true` eksik `using`'i
+> `CS0246`, gereksiz pragma'yı `IDE0079` olarak geri verir; ikisi de tahmin
+> etmekten daha hızlı ve kesin. `RunRecordingAgent.cs` bugün hiç `MAAI001`
+> taşımıyor (kontrol edildi), o yüzden bu fazda pragma sınırı sorunu
+> çıkması beklenmez — ama teknik yine de geçerlidir.
+
 ## 107.2 — Yaşam döngüsü ve kalıcılık
 
 Private gövdeler şu dosyalara ayrılır:
