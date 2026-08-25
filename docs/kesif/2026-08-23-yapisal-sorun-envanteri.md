@@ -326,7 +326,7 @@ beyan etmek. Kod değişmez.
 
 ### 12. Varsayılan yol kalıcı değil ve çalışma anında uyarmıyor · ⚡ Tek oturum
 
-> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam **yalnız uyarı log'udur**
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam **yalnız uyarı log'udur**
 > (👤 karar); hata fırlatılmaz, seçenek eklenmez — kalıcı olmayan store
 > desteklenen bir moddur. 🚨 Yeniden ölçüldü 2026-08-25: arayüz zaten dürüst
 > (`settings.tsx:129`, `settings.inMemoryNotice`). Eksik olan **sunucu tarafı**
@@ -374,7 +374,7 @@ CI ayrıştırmasıyla birlikte koşulmalı.
 
 ### 14. Çok kiracılı üretim sığ · 📋 Faz
 
-> **Durum:** 📋 KISMEN planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Blok C'den **öne
+> **Durum:** 📋 KISMEN planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Blok C'den **öne
 > çekildi** (👤 karar). Faza giren: RLS **kararı** (uygulama katmanı tek hat
 > kalır) ve hız sınırının kapsam beyanı. Faza girmeyen: RLS uygulaması, dağıtık
 > hız sınırı.
@@ -500,7 +500,7 @@ beyan edilmeli.
 
 ### 23. Bus factor = 1 · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam: kökte **İngilizce**
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam: kökte **İngilizce**
 > `CONTRIBUTING.md` ve `ARCHITECTURE.md` (👤 karar). Kalemin kendisi ("bus
 > factor = 1") bir doküman fazıyla çözülmez; faz yalnız **giriş rampasını**
 > kurar. 🚨 Dil kapısı bugün kök dosyaları görmüyor (`SourceLanguageTests.cs:53`
@@ -565,7 +565,7 @@ tarafından sabitlendi.
 | 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 4 | ~~**Faz 97 yazma**~~ ✅ 2026-08-24 — plan hazır: [`97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](../arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) | `faz-planlama` |
 | 5 | ~~**Faz 97 uygulama**~~ ✅ 2026-08-24 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
+| 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
 | 7 | **Faz 104 uygulama** ← **sıradaki adım** — madde 14 (karar + beyan yarısı) · 12 · 23 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 8 | **Blok C** — yayından sonra veya paralel. Madde 14'ün karar yarısı buradan **çıktı** | — |
 
