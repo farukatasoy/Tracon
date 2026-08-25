@@ -116,6 +116,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [101](arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md) | Kaynak Sözleşmesinin Yayını | ✅ Tamamlandı |
 | [102](arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) | Tool Sözleşmesi ve Sonuç Sınırı | ✅ Tamamlandı |
 | [103](arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) | Extension Sözleşmelerinin Yayın Öncesi Sertleştirilmesi | ✅ Tamamlandı |
-| [104](104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md) | Beyan Doğruluğu ve Giriş Rampası | ✅ Tamamlandı |
+| [104](arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md) | Beyan Doğruluğu ve Giriş Rampası | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -1,13 +1,13 @@
 # Faz 104 — Beyan Doğruluğu ve Giriş Rampası
 
 > **Durum:** ✅ Tamamlandı (2026-08-25)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 14** (Blok C'den öne çekildi, kullanıcı kararı 👤) · **kalem 12** ve **kalem 23** (Blok B). `ADAYLAR.md`'de F-NN karşılığı yoktur; bu kalemler keşif turundan gelir
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 14** (Blok C'den öne çekildi, kullanıcı kararı 👤) · **kalem 12** ve **kalem 23** (Blok B). `ADAYLAR.md`'de F-NN karşılığı yoktur; bu kalemler keşif turundan gelir
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Core` (uyarı servisi + kalıcılık yargısının tek kaynağı) · `AgentPrism.AspNetCore` (yalnız `/api/meta` o tek kaynağa bağlanır)
-> **Yeni paket:** Yok — `Microsoft.Extensions.Hosting.Abstractions` `Core`'un mevcut bağımlılığıdır ([`AgentPrism.Core.csproj:93`](../src/AgentPrism.Core/AgentPrism.Core.csproj)) · **Migration:** Yok
+> **Yeni paket:** Yok — `Microsoft.Extensions.Hosting.Abstractions` `Core`'un mevcut bağımlılığıdır ([`AgentPrism.Core.csproj:93`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj)) · **Migration:** Yok
 > **Public API:** **Büyümüyor.** Uyarı servisi `internal`, kalıcılık yardımcısı `internal`. Değişen tek şey mevcut bir tipin XML doküman metnidir. `EnablePublicApiTracking` açıktır (K-421) ve `PublicAPI.Shipped.txt` dosyalarının hepsi boştur — uygulayan oturum bunu `wc -l src/*/PublicAPI.Shipped.txt` ile ölçüp doğrular
-> **Tüketici yüzeyi:** site — [`guides/production.md`](../docs-site/src/content/docs/guides/production.md) (ölçekleme bölümüne hız sınırı kapsamı), [`concepts/governance.md`](../docs-site/src/content/docs/concepts/governance.md) (kiracı yalıtımının nerede zorlandığı), `api/AgentPrism.AgentPrismRateLimitOptions.md` (**üretilir** — iş XML dokümanındadır) · sevk edilen — `AgentPrismRateLimitOptions` XML dokümanı. Kök `CONTRIBUTING.md` ve `ARCHITECTURE.md` **pakete girmez**, depoya gelen katkıcıya dönüktür
-> **Manuel test alanı:** [`manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) (§104.3 uyarısı) · [`manuel-test/31-DOKUMAN-DOGRULUGU.md`](manuel-test/31-DOKUMAN-DOGRULUGU.md) (§104.1 · §104.2 · §104.4 beyanları)
+> **Tüketici yüzeyi:** site — [`guides/production.md`](../../../docs-site/src/content/docs/guides/production.md) (ölçekleme bölümüne hız sınırı kapsamı), [`concepts/governance.md`](../../../docs-site/src/content/docs/concepts/governance.md) (kiracı yalıtımının nerede zorlandığı), `api/AgentPrism.AgentPrismRateLimitOptions.md` (**üretilir** — iş XML dokümanındadır) · sevk edilen — `AgentPrismRateLimitOptions` XML dokümanı. Kök `CONTRIBUTING.md` ve `ARCHITECTURE.md` **pakete girmez**, depoya gelen katkıcıya dönüktür
+> **Manuel test alanı:** [`manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md) (§104.3 uyarısı) · [`manuel-test/31-DOKUMAN-DOGRULUGU.md`](../../manuel-test/31-DOKUMAN-DOGRULUGU.md) (§104.1 · §104.2 · §104.4 beyanları)
 
 ---
 
@@ -26,7 +26,7 @@
    sebebi budur) · **K-186** ve **K-317** (gerçek `mssql/server` yerelde hâlâ
    koşturulamadı — §104.1'in RLS gerekçesinde geçer) · **K-176** (`Sql.Shared`
    ayrı bir assembly değildir)
-3. [`arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md`](arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
+3. [`arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md`](103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
    — yalnız devir notunun **🚨 tuzaklar** bölümü:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/103-*.md
@@ -34,11 +34,11 @@
    Bu faz yeni bir sözleşme devralmaz. Gereken şey iki koşum tuzağıdır: merkezi
    `ArtifactsPath` ve tam solution koşumundaki flaky test çifti.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (`IHostedService` kaydı ve
-   `TryAdd*` sırası) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (`IHostedService` kaydı ve
+   `TryAdd*` sırası) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (`docs/` ile `docs-site/` sınırı, dil kapısının kapsamı, site yayın hattı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) **§Çok kiracılılık ve tool onayı**
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) **§Çok kiracılılık ve tool onayı**
    (satır 72) — §104.1 buraya yazacaktır
 
 ---
@@ -71,19 +71,19 @@ riski yoktur.
 |---|---|
 | `grep -rn "ROW LEVEL SECURITY" src/` → **0** | Kiracı yalıtımı tümüyle uygulama katmanındadır |
 | `grep -rni "rls\|row level" docs/KARARLAR.md docs/MIMARI-GUVENLIK.md docs-site/` → **0** | Karar hiçbir yerde **kayıtlı değil**. Kalem 14'ün asıl boşluğu budur |
-| [`TenantCoverageTests.cs:30-45`](../tests/AgentPrism.SqlServer.IntegrationTests/TenantCoverageTests.cs) | Kapı **vardır** (Faz 41): paylaşılan store katmanının her public metodu ya kiracı sözleşmesiyle test edilir ya gerekçeli muaftır; bayat girdi de hatadır |
-| [`AgentPrismRateLimitOptions.cs:14-17`](../src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs) | "lives in memory" der; **çok örnekli** kurulumdaki kapsamı yazmaz |
-| [`InboundTriggerRateLimiter.cs:8-13`](../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs) | Kardeş tip "PER INSTANCE" diye **açıkça yazar**. Beyan tutarsızdır, eksik olan taraf `AgentPrismRateLimitOptions`'tır |
+| [`TenantCoverageTests.cs:30-45`](../../../tests/AgentPrism.SqlServer.IntegrationTests/TenantCoverageTests.cs) | Kapı **vardır** (Faz 41): paylaşılan store katmanının her public metodu ya kiracı sözleşmesiyle test edilir ya gerekçeli muaftır; bayat girdi de hatadır |
+| [`AgentPrismRateLimitOptions.cs:14-17`](../../../src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs) | "lives in memory" der; **çok örnekli** kurulumdaki kapsamı yazmaz |
+| [`InboundTriggerRateLimiter.cs:8-13`](../../../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs) | Kardeş tip "PER INSTANCE" diye **açıkça yazar**. Beyan tutarsızdır, eksik olan taraf `AgentPrismRateLimitOptions`'tır |
 | `grep -in "rate limit" docs-site/.../guides/production.md` → **0** | Üretim rehberi ölçeklemeyi anlatır, hız sınırının örnek başına olduğunu söylemez |
-| [`guides/inbound-triggers.md:156-160`](../docs-site/src/content/docs/guides/inbound-triggers.md) | Site tetik limitini **zaten** doğru beyan ediyor — bu iş yeniden yapılmaz |
+| [`guides/inbound-triggers.md:156-160`](../../../docs-site/src/content/docs/guides/inbound-triggers.md) | Site tetik limitini **zaten** doğru beyan ediyor — bu iş yeniden yapılmaz |
 | `grep -rn "IsProduction" src/` → yalnız `JsonBindingProblemMiddleware` yorumu | Kalıcılık için ortam kontrolü **hiç yoktur** |
-| [`MetaEndpoints.cs:40-43`](../src/AgentPrism.AspNetCore/Endpoints/MetaEndpoints.cs) | Kalıcılık yargısı (üç tip kontrolü + `Unwrap`) **tek yerdedir ve `AspNetCore`'dadır**; `Core` onu göremez |
-| [`settings.tsx:129`](../src/AgentPrism.UI/frontend/src/screens/settings.tsx) · `settings.inMemoryNotice` | Arayüz zaten dürüsttür. Eksik olan **sunucu tarafı** sinyalidir |
-| [`ToolRegistrationValidationService.cs`](../src/AgentPrism.Core/Tools/ToolRegistrationValidationService.cs) | Başlangıç doğrulaması için hazır desen: `Core` içinde `IHostedService`, `LogWarning` ve `AgentPrismException` birlikte kullanılır |
+| [`MetaEndpoints.cs:40-43`](../../../src/AgentPrism.AspNetCore/Endpoints/MetaEndpoints.cs) | Kalıcılık yargısı (üç tip kontrolü + `Unwrap`) **tek yerdedir ve `AspNetCore`'dadır**; `Core` onu göremez |
+| [`settings.tsx:129`](../../../src/AgentPrism.UI/frontend/src/screens/settings.tsx) · `settings.inMemoryNotice` | Arayüz zaten dürüsttür. Eksik olan **sunucu tarafı** sinyalidir |
+| [`ToolRegistrationValidationService.cs`](../../../src/AgentPrism.Core/Tools/ToolRegistrationValidationService.cs) | Başlangıç doğrulaması için hazır desen: `Core` içinde `IHostedService`, `LogWarning` ve `AgentPrismException` birlikte kullanılır |
 | `InMemoryRunStore` · `InMemorySessionStore` · `InMemoryAgentDefinitionStore` | Üçü de **`internal`** (Faz 96). `AspNetCore` onları `InternalsVisibleTo` ile görür |
 | `ls CONTRIBUTING.md` → yok | Depo yayında görünür olacak; giriş rampası sıfırdır |
-| [`SourceLanguageTests.cs:53`](../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs) | Dil kapısı yalnız `^(?:src\|packages)/[^/]+/README\.md$` tarar — **kök dosyalar kapsam dışıdır** |
-| [`scripts/dokuman-bakim.py:109`](../scripts/dokuman-bakim.py) | Kök `README.md` bütçelidir (20 KB); yeni kök dosyaların bütçe girdisi yoktur |
+| [`SourceLanguageTests.cs:53`](../../../tests/AgentPrism.Core.UnitTests/Architecture/SourceLanguageTests.cs) | Dil kapısı yalnız `^(?:src\|packages)/[^/]+/README\.md$` tarar — **kök dosyalar kapsam dışıdır** |
+| [`scripts/dokuman-bakim.py:109`](../../../scripts/dokuman-bakim.py) | Kök `README.md` bütçelidir (20 KB); yeni kök dosyaların bütçe girdisi yoktur |
 
 > Kanıtlar 2026-08-25 tarihinde doğrulandı.
 
@@ -116,8 +116,8 @@ hepsinde gerçek container üzerinde doğrulanabilir bir zeminin oluşmasıdır.
 | Yer | Ne yazılır |
 |---|---|
 | `docs/KARARLAR.md` | `K-*` kaydı: karar, üç maddelik gerekçe, yeniden açılma koşulu |
-| [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) §Çok kiracılılık | Yalıtımın **hangi katmanda** durduğu ve kapısının adı; karara link |
-| [`concepts/governance.md`](../docs-site/src/content/docs/concepts/governance.md) | Bugün satır 47 "contract tests" diyor. Cümle, yalıtımın uygulama katmanında zorlandığını ve veritabanı RLS'ine **dayanmadığını** okurun anlayacağı biçimde tamamlar |
+| [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) §Çok kiracılılık | Yalıtımın **hangi katmanda** durduğu ve kapısının adı; karara link |
+| [`concepts/governance.md`](../../../docs-site/src/content/docs/concepts/governance.md) | Bugün satır 47 "contract tests" diyor. Cümle, yalıtımın uygulama katmanında zorlandığını ve veritabanı RLS'ine **dayanmadığını** okurun anlayacağı biçimde tamamlar |
 
 Site metni bir mazeret değil, bir kapsam beyanıdır: tüketici kendi
 veritabanında RLS kurmak isterse bunun AgentPrism'in varsaydığı bir şey
@@ -148,7 +148,7 @@ eder.
 ### 🚨 Tek kaynak kuralı — bu fazın asıl riski
 
 Bugün "bu kurulum kalıcı mı" yargısı **tek yerde** yaşıyor:
-[`MetaEndpoints.cs:40-43`](../src/AgentPrism.AspNetCore/Endpoints/MetaEndpoints.cs)
+[`MetaEndpoints.cs:40-43`](../../../src/AgentPrism.AspNetCore/Endpoints/MetaEndpoints.cs)
 — üç tip kontrolü artı denetim dekoratörünü soyan `Unwrap`. Uyarı servisi
 `Core`'da yaşayacağı için bu ifadeyi **kopyalamak** en kolay yoldur ve tam
 olarak K-483'ün kusur sınıfıdır: dördüncü bir kalıcı olmayan store eklendiğinde
@@ -421,7 +421,7 @@ düştü. Çözüm `AgentPrismDrainService`'in emsalidir: opsiyonel bağımlıl�
 açık fabrika. Bu, `docs/hafiza/aspnetcore-di.md`'deki kayıtlı tuzağın aynısıdır.
 
 **5. Faz dışı iki düzeltme yapıldı.**
-[`ModelRunJudgeTests.cs`](../arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
+[`ModelRunJudgeTests.cs`](../../../arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
 `using System.Reflection;`'ı son sıraya koyuyordu ve `dotnet format` kapısı
 **Faz 103'ün commit'inden (`1d9b9bd`) beri kırmızıydı**. Tek satırlık import
 sırası düzeltildi. İkincisi: `MetaEndpoints`'ten `Unwrap` kaldırılınca öksüz
@@ -563,5 +563,5 @@ Denetçi: bağımsız `general-purpose` agent, taze bağlam, yalnız DoD + diff.
 yayının geri alınamazlığı sebebiyle kullanıcıya bırakıldı (👤).
 
 **Sıradaki adım:** Faz yok. Keşif turunun sıra tablosu
-([`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) §7.2)
+([`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) §7.2)
 Blok C'yi yayından sonraya koyuyor; yayın kararı kullanıcınındır.
