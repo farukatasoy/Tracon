@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Evaluation;
 
@@ -175,6 +176,68 @@ public sealed class OnlineEvalJobHandlerTests
         (await scores.ListAsync(Tenant, runId)).Count.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Invalid_score_is_a_terminal_contract_failure_and_is_not_persisted()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("invalid", static _ => new RunJudgment { Score = 101 })]);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(ExecutionContext(runId, reported));
+
+        reported.Single().Status.ShouldBe(JobItemStatus.Failed);
+        reported.Single().Error.ShouldBe("invalid (judge_contract)");
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Judge_timeout_is_retryable_and_does_not_write_a_score()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new AsyncJudge("slow", static async (_, token) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return new RunJudgment();
+            })],
+            new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(10) });
+
+        await Should.ThrowAsync<JobRetryException>(() => handler.ExecuteAsync(ExecutionContext(runId, [])).AsTask());
+
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_is_propagated_without_normalizing_it_as_a_judge_failure()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            new InMemoryRunScoreStore(),
+            [new AsyncJudge("slow", static async (_, token) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return new RunJudgment();
+            })]);
+        var run = await runs.GetRunAsync(runId);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => handler.JudgeRunAsync(run!, cancellation.Token).AsTask());
+    }
+
     private static async Task<Guid> SeedRunAsync(
         InMemoryRunStore runs,
         bool withOutput,
@@ -255,8 +318,15 @@ public sealed class OnlineEvalJobHandlerTests
         InMemoryRunStore runs,
         InMemoryRunInputStore inputs,
         InMemoryRunScoreStore scores,
-        IReadOnlyList<IRunJudge> judges)
-        => new(runs, inputs, scores, judges, new FixedTenantContext(Tenant));
+        IReadOnlyList<IRunJudge> judges,
+        OnlineEvaluationOptions? options = null)
+        => new(
+            runs,
+            inputs,
+            scores,
+            judges,
+            new FixedTenantContext(Tenant),
+            optionsMonitor: options is null ? null : new FixedOptionsMonitor(options));
 
     private sealed class FixedTenantContext(string tenantId) : ITenantContext
     {
@@ -269,5 +339,22 @@ public sealed class OnlineEvalJobHandlerTests
 
         public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default)
             => new(respond(context));
+    }
+
+    private sealed class AsyncJudge(string name, Func<RunJudgeContext, CancellationToken, ValueTask<RunJudgment>> respond) : IRunJudge
+    {
+        public string Name => name;
+
+        public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default)
+            => respond(context, cancellationToken);
+    }
+
+    private sealed class FixedOptionsMonitor(OnlineEvaluationOptions value) : IOptionsMonitor<OnlineEvaluationOptions>
+    {
+        public OnlineEvaluationOptions CurrentValue => value;
+
+        public OnlineEvaluationOptions Get(string? name) => value;
+
+        public IDisposable? OnChange(Action<OnlineEvaluationOptions, string?> listener) => null;
     }
 }

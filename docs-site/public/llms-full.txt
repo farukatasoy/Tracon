@@ -109,7 +109,7 @@ claim to provide an operating-system sandbox.
 | Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
-| Compare and score | HTTP API and console | Compare two runs and attach human or automatic scores |
+| Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |
@@ -614,6 +614,9 @@ decision — for calibration and debugging.
 The built-in judge is configured with `ModelRunJudgeOptions`: `Criteria` states the
 standard to score against, and `Instructions` replaces the judge prompt when the
 default wording does not fit your domain.
+
+For lifecycle, concurrency, timeout, tenant, and retry requirements of a custom
+judge, see [Write your own judge](/guides/write-your-own-judge/).
 
 ## Human feedback
 
@@ -7670,6 +7673,95 @@ answer.
 
 ---
 
+# Write your own judge
+
+`IRunJudge` scores a completed production run. A judge can be deterministic or
+model-backed. It is registered as a singleton and can receive concurrent calls, so
+keep per-run state local to `JudgeAsync`.
+
+```csharp
+public sealed class ResponseQualityJudge : IRunJudge
+{
+    public string Name => "response-quality";
+
+    public ValueTask<RunJudgment> JudgeAsync(
+        RunJudgeContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var score = context.Output.Length >= 40 ? 90 : 45;
+        return new(new RunJudgment { Score = score, Reason = "Output-length rule." });
+    }
+}
+```
+
+Register it before or after `AddAgentPrism()`:
+
+```csharp
+services.AddSingleton<IRunJudge, ResponseQualityJudge>();
+```
+
+## Runtime contract
+
+`Name` must be stable, unique without case sensitivity, at most 64 characters,
+and contain only letters, digits, `.`, `_`, or `-`. AgentPrism uses it in metric
+tags and writes scores with `judge:{Name}` as the source and author.
+
+A judge can be called again for the same run when a different judge makes the
+online-evaluation job retry. Make side effects idempotent. Return a score from 0
+to 100, or `null` when no decision is possible. Do not return `0` for an unknown
+result. Scores outside that range are rejected and do not retry. `Reason` is
+optional and is stored at a maximum of 4000 characters.
+
+The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
+each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do
+not throw `OperationCanceledException` for your own timeout.
+
+`RunJudgeContext.TenantId` is the authoritative tenant. The context contains the
+run input, non-empty output, and distinct tool names. It does not include tool
+arguments or results, intermediate steps, run errors, message identifiers, or
+session history.
+
+## Starting a run or model call
+
+If a judge starts an AgentPrism run, set `AgentPrismRunOptions.Kind` to
+`RunKind.Eval`. This keeps synthetic traffic out of sampling and cost statistics.
+AgentPrism also suppresses sampling while `JudgeAsync` runs, but that scope does
+not cover work that outlives the call.
+
+A model-backed judge must use `IModelProviderRegistry.CreateSetupChatClientAsync`.
+That path applies the tenant's egress policy but uses the setup credential, so a
+tenant BYOK credential is never charged for control-plane evaluation.
+
+## Verify your implementation
+
+Add the contract package to your test project:
+
+```bash
+dotnet add package AgentPrism.Testing.Contracts.Xunit --prerelease
+```
+
+```csharp
+using AgentPrism.Testing.Contracts.Judges;
+
+public sealed class ResponseQualityJudgeTests : RunJudgeContract
+{
+    protected override ValueTask<IRunJudge> CreateJudgeAsync()
+        => new(new ResponseQualityJudge());
+}
+```
+
+The inherited tests verify identifier validity, score bounds, blank-output
+handling, and concurrent calls. They do not test pipeline behavior such as retries,
+timeouts, persistence, or HTTP responses.
+
+## Read next
+
+- [Evaluation](/concepts/evaluation/) — online sampling and manual scoring
+- [Configuration](/reference/configuration/) — `JudgeTimeout` and sampling gates
+- [Testing](/guides/testing/) — test package guidance
+
+---
+
 # Write your own store
 
 The three built-in providers (`AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
@@ -7957,7 +8049,7 @@ Add these when you need them.
 | `AgentPrism.Azure` | You call Azure OpenAI deployments |
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
-| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another) or your own `IModelProvider`, and want the behavior contract the shipped implementations run |
+| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, or `IRunJudge`, and want the behavior contract the shipped implementations run |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
 `AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
@@ -8647,6 +8739,7 @@ queue. `AddAgentPrism()` already registers the core job contracts.
 | `OnlineEvaluation:AgentNames` | Empty; all agents are eligible |
 | `OnlineEvaluation:LowScoreThreshold` | `60` |
 | `OnlineEvaluation:MinSampleSize` | `20` |
+| `OnlineEvaluation:JudgeTimeout` | 60 seconds per judge call |
 | `OnlineEvaluation:EvaluationWindow` | 1 hour |
 | `Canary:AutoRollbackEnabled` | `false` |
 | `Canary:ScanInterval` | 5 minutes |
@@ -9135,7 +9228,7 @@ each term means inside AgentPrism.
   be promoted into a case.
 
 **Judge.** An `IRunJudge` that assigns named scores to a completed run. It can be deterministic
-  or model-backed.
+  or model-backed. A judge is a singleton and can receive concurrent calls.
 
 **Online evaluation.** Bounded background scoring of a configured sample of live runs. It is off until a
   judge, enable flag, and positive sample rate all exist.

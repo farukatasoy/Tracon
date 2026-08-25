@@ -102,6 +102,9 @@ The built-in judge is configured with `ModelRunJudgeOptions`: `Criteria` states 
 standard to score against, and `Instructions` replaces the judge prompt when the
 default wording does not fit your domain.
 
+For lifecycle, concurrency, timeout, tenant, and retry requirements of a custom
+judge, see [Write your own judge](/guides/write-your-own-judge/).
+
 ## Human feedback
 
 Scores can be attached to a run, or to a single message in it. Human scores and judge

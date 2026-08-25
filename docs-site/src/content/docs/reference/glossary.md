@@ -163,7 +163,7 @@ each term means inside AgentPrism.
   be promoted into a case.
 
 **Judge.** An `IRunJudge` that assigns named scores to a completed run. It can be deterministic
-  or model-backed.
+  or model-backed. A judge is a singleton and can receive concurrent calls.
 
 **Online evaluation.** Bounded background scoring of a configured sample of live runs. It is off until a
   judge, enable flag, and positive sample rate all exist.

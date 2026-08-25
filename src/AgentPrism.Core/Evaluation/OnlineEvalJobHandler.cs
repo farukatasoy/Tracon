@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -36,7 +37,8 @@ internal sealed class OnlineEvalJobHandler(
     AgentPrismMetrics? metrics = null,
     OnlineEvalSummaryService? summaryService = null,
     TimeProvider? timeProvider = null,
-    ILogger<OnlineEvalJobHandler>? logger = null) : IJobHandler
+    ILogger<OnlineEvalJobHandler>? logger = null,
+    IOptionsMonitor<OnlineEvaluationOptions>? optionsMonitor = null) : IJobHandler
 {
     /// <inheritdoc />
     public JobKind Kind => JobKind.OnlineEval;
@@ -57,28 +59,34 @@ internal sealed class OnlineEvalJobHandler(
         // belongs to another tenant: not an error, completes silently.
         if (run is null || !string.Equals(run.TenantId, context.Job.TenantId, StringComparison.Ordinal))
         {
-            await CompleteItemAsync(context, cancellationToken).ConfigureAwait(false);
+            await CompleteItemAsync(context, JobItemStatus.Completed, error: null, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var (_, failures) = await JudgeRunAsync(run, cancellationToken).ConfigureAwait(false);
 
-        if (failures.Count > 0)
+        var retryableFailures = failures.Where(static failure => failure.IsRetryable).ToArray();
+
+        if (retryableFailures.Length > 0)
         {
-            // Successful judges' scores are already written (inside
-            // JudgeRunAsync, the upsert is idempotent); only the job for the
-            // FAILED judges is re-queued with backoff so it retries on the
-            // next attempt (K-160).
+            // The next attempt evaluates the complete judge list. Score upserts
+            // are idempotent, but implementations must make their own effects safe.
             var delay = BackoffFor(context.Job.Attempt);
 
             throw new JobRetryException(
-                $"{failures.Count} judge(s) failed for run '{runId}': {string.Join("; ", failures)}")
+                $"{retryableFailures.Length} judge(s) failed for run '{runId}': {FormatFailures(retryableFailures)}")
             {
                 RetryAfter = delay,
             };
         }
 
-        await CompleteItemAsync(context, cancellationToken).ConfigureAwait(false);
+        if (failures.Count > 0)
+        {
+            await CompleteItemAsync(context, JobItemStatus.Failed, FormatFailures(failures), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await CompleteItemAsync(context, JobItemStatus.Completed, error: null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -91,7 +99,7 @@ internal sealed class OnlineEvalJobHandler(
     /// Both are empty (not an error) when there is no <c>run_inputs</c> record,
     /// no registered judge, or the output cannot be read.
     /// </returns>
-    public async ValueTask<(IReadOnlyList<RunScore> Scores, IReadOnlyList<string> Failures)> JudgeRunAsync(
+    public async ValueTask<(IReadOnlyList<RunScore> Scores, IReadOnlyList<JudgeFailure> Failures)> JudgeRunAsync(
         RunRecord run,
         CancellationToken cancellationToken = default)
     {
@@ -135,7 +143,7 @@ internal sealed class OnlineEvalJobHandler(
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         var scores = new List<RunScore>();
-        var failures = new List<string>();
+        var failures = new List<JudgeFailure>();
 
         foreach (var judge in judgeList)
         {
@@ -151,28 +159,35 @@ internal sealed class OnlineEvalJobHandler(
         RunRecord run,
         DateTimeOffset now,
         List<RunScore> scores,
-        List<string> failures,
+        List<JudgeFailure> failures,
         CancellationToken cancellationToken)
     {
         RunJudgment judgment;
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(optionsMonitor?.CurrentValue.JudgeTimeout ?? TimeSpan.FromSeconds(60));
 
         try
         {
-            judgment = await judge.JudgeAsync(judgeContext, cancellationToken).ConfigureAwait(false);
+            using var samplingSuppression = AmbientSamplingSuppressionScope.Begin();
+            judgment = await judge.JudgeAsync(judgeContext, budget.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException exception)
+        {
+            var timeout = budget.IsCancellationRequested;
+            failures.Add(Failure(judge.Name, timeout
+                ? AgentPrismJudgeException.JudgeTimeoutErrorType
+                : AgentPrismJudgeException.JudgeFailedErrorType, retryable: true));
+            LogFailure(judge, judgeContext, exception);
+            return;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            failures.Add($"{judge.Name}: {exception.Message}");
-
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
-            {
-                logger.LogWarning(
-                    exception,
-                    "Judge '{Judge}' failed for run {RunId}.",
-                    judge.Name,
-                    judgeContext.RunId);
-            }
-
+            failures.Add(Failure(judge.Name, AgentPrismJudgeException.JudgeFailedErrorType, retryable: true));
+            LogFailure(judge, judgeContext, exception);
             return;
         }
 
@@ -183,6 +198,15 @@ internal sealed class OnlineEvalJobHandler(
             return;
         }
 
+        if (score is < 0 or > 100)
+        {
+            failures.Add(Failure(judge.Name, AgentPrismJudgeException.JudgeContractErrorType, retryable: false));
+            logger?.LogWarning("Judge '{Judge}' returned an out-of-range score for run {RunId}.", judge.Name, judgeContext.RunId);
+            return;
+        }
+
+        var reason = NormalizeReason(judgment.Reason);
+
         var saved = await scoreStore.UpsertAsync(
             new RunScore
             {
@@ -190,7 +214,7 @@ internal sealed class OnlineEvalJobHandler(
                 RunId = judgeContext.RunId,
                 Kind = RunScoreKind.Numeric,
                 Value = score,
-                Comment = judgment.Reason,
+                Comment = reason,
                 Source = $"judge:{judge.Name}",
                 Author = $"judge:{judge.Name}",
                 CreatedAt = now,
@@ -207,15 +231,47 @@ internal sealed class OnlineEvalJobHandler(
         }
     }
 
-    private static async ValueTask CompleteItemAsync(JobContext context, CancellationToken cancellationToken)
+    private static async ValueTask CompleteItemAsync(
+        JobContext context,
+        JobItemStatus status,
+        string? error,
+        CancellationToken cancellationToken)
         => await context.ReportItemAsync(
             new JobItemResult
             {
                 JobId = context.Job.Id,
                 Seq = context.Items[0].Seq,
-                Status = JobItemStatus.Completed,
+                Status = status,
+                Error = error,
             },
             cancellationToken).ConfigureAwait(false);
+
+    private static JudgeFailure Failure(string judgeName, string errorType, bool retryable)
+        => new() { JudgeName = judgeName, ErrorType = errorType, IsRetryable = retryable };
+
+    private static string FormatFailures(IEnumerable<JudgeFailure> failures)
+        => string.Join("; ", failures.Select(static failure => $"{failure.JudgeName} ({failure.ErrorType})"));
+
+    private static string? NormalizeReason(string? reason)
+    {
+        if (string.IsNullOrEmpty(reason))
+        {
+            return null;
+        }
+
+        const string truncation = "… [truncated]";
+        return reason.Length <= RunJudgment.MaxReasonLength
+            ? reason
+            : string.Concat(reason.AsSpan(0, RunJudgment.MaxReasonLength - truncation.Length), truncation);
+    }
+
+    private void LogFailure(IRunJudge judge, RunJudgeContext context, Exception exception)
+    {
+        if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(exception, "Judge '{Judge}' failed for run {RunId}.", judge.Name, context.RunId);
+        }
+    }
 
     private static TimeSpan BackoffFor(int attempt)
     {

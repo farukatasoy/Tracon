@@ -53,6 +53,15 @@ internal sealed class OnlineEvaluationOptionsValidator : IValidateOptions<Online
                 $"must be greater than zero. Actual value: {options.EvaluationWindow}.");
         }
 
+        if (options.JudgeTimeout <= TimeSpan.Zero ||
+            options.JudgeTimeout == Timeout.InfiniteTimeSpan ||
+            options.JudgeTimeout > OnlineEvaluationOptions.MaxJudgeTimeout)
+        {
+            (failures ??= []).Add(
+                $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.JudgeTimeout)} " +
+                $"must be greater than zero and no greater than {OnlineEvaluationOptions.MaxJudgeTimeout}.");
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

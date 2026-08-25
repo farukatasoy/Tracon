@@ -10,7 +10,7 @@ package. If you write your own store (a fifth SQL dialect, a document
 database, a hand-rolled adapter over an existing system), derive one
 contract class per interface you implement and inherit the same scenarios.
 
-The same applies to a model provider AgentPrism ships no package for. Most
+The same applies to a model provider or run judge AgentPrism ships no package for. Most
 of what `IModelProvider` requires cannot be checked by a compiler — returning
 an already-wrapped chat client, capturing a scoped service, rejecting a model
 the catalog does not list — so deriving `ModelProviderContract` is how you
@@ -98,6 +98,23 @@ scenario in this package silently skips:
 assertion observe the provider request boundary, such as a recording transport
 or SDK request factory. A different client object is not enough proof: it can
 still send the setup-time key and bill the wrong tenant.
+
+### Run judges — `AgentPrism.Testing.Contracts.Judges`
+
+Derive `RunJudgeContract` for a judge that scores completed runs. It checks the
+stable metric-safe name, the 0–100 score boundary, large `Reason` values,
+repeat calls, concurrent calls, and a pre-cancelled token. The suite does not
+require a judge to use cancellation because deterministic judges need no I/O.
+
+```csharp
+using AgentPrism.Testing.Contracts.Judges;
+
+public sealed class ResponseQualityJudgeTests : RunJudgeContract
+{
+    protected override ValueTask<IRunJudge> CreateJudgeAsync()
+        => new(new ResponseQualityJudge());
+}
+```
 
 ### Checking you derived them all
 

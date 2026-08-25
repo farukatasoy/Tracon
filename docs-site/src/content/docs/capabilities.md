@@ -105,7 +105,7 @@ claim to provide an operating-system sandbox.
 | Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
 | Replay | Recorded run input and replay service | Re-run against the current or selected definition, with tool replay modes and mismatch protection |
-| Compare and score | HTTP API and console | Compare two runs and attach human or automatic scores |
+| Compare and score | HTTP API, console, or a custom `IRunJudge` | Compare two runs, attach human scores, or score completed runs automatically; an online judge uses its provider setup credential and still obeys tenant egress policy |
 | Sessions | `AgentSessionManager` and session endpoints | Durable conversation identity and readable history when the store supports it |
 | Branching | Session branch API | Fork a durable conversation from an addressable item; SQL storage is required |
 | Attachments | Attachment API and message references | Image, audio, PDF, and text uploads use size limits and magic-byte validation |

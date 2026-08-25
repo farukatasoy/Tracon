@@ -81,6 +81,23 @@ public sealed class RunSamplerTests
     }
 
     [Fact]
+    public async Task A_run_started_inside_a_judge_scope_is_not_sampled()
+    {
+        var (sampler, jobs) = Build(options =>
+        {
+            options.Enabled = true;
+            options.SampleRate = 1.0;
+        });
+
+        using (AmbientSamplingSuppressionScope.Begin())
+        {
+            (await sampler.SampleAsync(Completed(Guid.NewGuid()))).ShouldBeFalse();
+        }
+
+        (await jobs.QueryAsync(new JobQuery { TenantId = Tenant })).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task A_failed_run_is_not_sampled()
     {
         var (sampler, jobs) = Build(options =>

@@ -2,27 +2,33 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>
-/// The extension point that scores a completed production run.
-/// </summary>
+/// <summary>The extension point that scores a completed production run.</summary>
 /// <remarks>
 /// <para>
-/// This interface does NOT wrap MAF's <c>AIJudgeLoopEvaluator</c>.
-/// Measured (MAF 1.18.0): <c>LoopEvaluation</c> does not return a SCORE (only
-/// <c>ShouldReinvoke</c> and <c>Feedback</c>), and <c>LoopContext</c> requires
-/// a live <c>AIAgent</c> + <c>AgentSession</c>. It is not suited to scoring a
-/// finished run —
+/// Implementations are singleton services. The same instance can receive
+/// concurrent calls, so it must be thread-safe and must not keep per-run state
+/// in instance fields.
 /// </para>
-/// <para>Registered with <c>TryAddEnumerable</c>; multiple judges may score the same run.</para>
 /// <para>
-/// If more than one <see cref="IRunJudge"/> is registered in a setup, the
-/// online evaluation job runs all of them; each writes its own
-/// <see cref="RunScore"/> row with <c>Source = judge:{Name}</c>.
+/// A call can be repeated for the same run when another judge causes a retry.
+/// Implementations must make side effects idempotent. <see cref="Name"/> is a
+/// stable low-cardinality identifier. It must match <c>[A-Za-z0-9._-]{1,64}</c>
+/// and is used in metric tags and score fields.
+/// </para>
+/// <para>
+/// The supplied cancellation token is the call budget. Do not throw an
+/// <see cref="OperationCanceledException"/> for an implementation-owned timeout.
+/// AgentPrism applies its own timeout to each call.
+/// </para>
+/// <para>
+/// <see cref="RunJudgeContext.TenantId"/> is authoritative. A judge that starts
+/// an AgentPrism run must set its run kind to <see cref="RunKind.Eval"/>. A
+/// model-backed judge uses <see cref="IModelProviderRegistry.CreateSetupChatClientAsync(ModelBinding, CancellationToken)"/>.
 /// </para>
 /// </remarks>
 public interface IRunJudge
 {
-    /// <summary>The judge's name. Written into the <see cref="RunScore.Source"/> field as <c>judge:{Name}</c>.</summary>
+    /// <summary>The stable judge name, written as <c>judge:{Name}</c> in score fields.</summary>
     string Name { get; }
 
     /// <summary>Scores the run.</summary>
@@ -34,7 +40,11 @@ public interface IRunJudge
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>The context the judge sees.</summary>
+/// <summary>The limited context supplied to a judge.</summary>
+/// <remarks>
+/// <para>The output is non-empty but can contain only whitespace. Tool names are distinct.</para>
+/// <para>This type does not include tool arguments or results, intermediate steps, run status, duration, errors, message identifiers, or session history.</para>
+/// </remarks>
 public sealed record RunJudgeContext
 {
     /// <summary>The identifier of the run being scored.</summary>
@@ -58,13 +68,15 @@ public sealed record RunJudgeContext
     /// <summary>The run's output text.</summary>
     public required string Output { get; init; }
 
-    /// <summary>The tool names called. Some metrics require this.</summary>
+    /// <summary>The distinct tool names called by the run.</summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 }
 
 /// <summary>The judge's verdict.</summary>
 public sealed record RunJudgment
 {
+    /// <summary>The greatest stored reason length.</summary>
+    public const int MaxReasonLength = 4000;
     /// <summary>The score, 0-100. <see langword="null"/> if the judge could not decide.</summary>
     /// <remarks>
     /// When no decision can be made, <see langword="null"/> is returned,
@@ -72,9 +84,29 @@ public sealed record RunJudgment
     /// </remarks>
     public int? Score { get; init; }
 
-    /// <summary>A short rationale. Written into the <see cref="RunScore.Comment"/> field.</summary>
+    /// <summary>A rationale written into the <see cref="RunScore.Comment"/> field.</summary>
     public string? Reason { get; init; }
+}
 
-    /// <summary>The judge's own model usage. Included in the cost report.</summary>
-    public RunUsage? JudgeUsage { get; init; }
+/// <summary>A normalized judge failure returned by manual scoring.</summary>
+public sealed record JudgeFailure
+{
+    /// <summary>The judge that failed.</summary>
+    public required string JudgeName { get; init; }
+
+    /// <summary>The stable failure code.</summary>
+    public required string ErrorType { get; init; }
+
+    /// <summary>Whether retrying the job can help.</summary>
+    public required bool IsRetryable { get; init; }
+}
+
+/// <summary>The result of manually scoring a run.</summary>
+public sealed record JudgeRunResponse
+{
+    /// <summary>The score rows that were written.</summary>
+    public IReadOnlyList<RunScore> Scores { get; init; } = [];
+
+    /// <summary>The normalized failures reported by judges.</summary>
+    public IReadOnlyList<JudgeFailure> Failures { get; init; } = [];
 }

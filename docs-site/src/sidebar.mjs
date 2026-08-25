@@ -76,6 +76,7 @@ export const sidebar = [
     items: [
       { label: 'Persistence', slug: 'getting-started/persistence' },
       { label: 'Write your own store', slug: 'guides/write-your-own-store' },
+      { label: 'Write your own judge', slug: 'guides/write-your-own-judge' },
       { label: 'Security', slug: 'getting-started/security' },
       { label: 'Runs and recording', slug: 'concepts/runs' },
       { label: 'Reliable runs', slug: 'guides/reliability' },

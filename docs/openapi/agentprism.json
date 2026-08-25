@@ -2943,10 +2943,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RunScore"
-                  }
+                  "$ref": "#/components/schemas/JudgeRunResponse"
                 }
               }
             }
@@ -11178,6 +11175,49 @@
         "description": "Request to trigger a schedule immediately."
       },
       "JsonElement": {},
+      "JudgeFailure": {
+        "required": [
+          "judgeName",
+          "errorType",
+          "isRetryable"
+        ],
+        "type": "object",
+        "properties": {
+          "judgeName": {
+            "type": "string",
+            "description": "The judge that failed."
+          },
+          "errorType": {
+            "type": "string",
+            "description": "The stable failure code."
+          },
+          "isRetryable": {
+            "type": "boolean",
+            "description": "Whether retrying the job can help."
+          }
+        },
+        "description": "A normalized judge failure returned by manual scoring."
+      },
+      "JudgeRunResponse": {
+        "type": "object",
+        "properties": {
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScore"
+            },
+            "description": "The score rows that were written."
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JudgeFailure"
+            },
+            "description": "The normalized failures reported by judges."
+          }
+        },
+        "description": "The result of manually scoring a run."
+      },
       "McpOAuthAuthorizationMode": {
         "enum": [
           "AuthorizationCode"

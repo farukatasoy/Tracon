@@ -136,6 +136,9 @@ public sealed class ModelRunJudgeTests
         public ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(chatClient);
 
+        public ValueTask<IChatClient> CreateSetupChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(chatClient);
+
         public ValueTask<bool> HasTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(false);
     }

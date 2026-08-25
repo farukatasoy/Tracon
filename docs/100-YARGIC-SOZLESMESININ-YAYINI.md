@@ -1,6 +1,6 @@
 # Faz 100 — Yargıç Sözleşmesinin Yayını
 
-> **Durum:** 📋 Planlandı (2026-08-25)
+> **Durum:** ✅ Tamamlandı (2026-08-25)
 > **Kaynak:** Doğrudan kullanıcı isteği (2026-08-25) — `IRunJudge` üçüncü taraf
 > uygulanabilirlik incelemesi. Aday listesinden gelmedi; Faz 98 · 99 ile aynı
 > damardır: `preview.1` öncesi genişleme noktası olgunlaştırma.
@@ -844,28 +844,50 @@ MSBUILDDISABLENODEREUSE=1 dotnet test samples/AgentPrism.Samples.CustomRunJudge.
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- Planlanan `ModelCredentialSource` overload'ı, mevcut optional
+  `CancellationToken` overload'ı nedeniyle `RS0027` ile derlenmedi. Kaynak
+  uyumluluğunu koruyan `CreateSetupChatClientAsync` seçildi; gerekçe K-613'tedir.
+- Sample kendi başına yalnız NuGet `PackageReference` taşır. Yayınlanmamış
+  sözleşme paketini nuget.org'dan çözmek yeni `RunJudgeContract` tipini vermez;
+  bu nedenle sample test projesi eklenmedi. HTTP kalıcılık yolu fonksiyonel
+  testte, sample sınıfının davranışı ise yayın sonrası package testinde koşulacak.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+- K-613 — setup credential yolu ayrı `CreateSetupChatClientAsync` üyesidir.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+- `RunJudgment` artık yalnız `Score`, `Reason` ve `MaxReasonLength` taşır.
+- `JudgeFailure`, `JudgeRunResponse` ve `AgentPrismJudgeException` yayınlandı.
+- `IModelProviderRegistry.CreateSetupChatClientAsync` setup credential'ı ve
+  tenant egress policy'sini birlikte uygular.
+- `OnlineEvaluationOptions.JudgeTimeout` varsayılan 60 saniyedir; üst sınır 5 dakikadır.
+- `AgentPrism.Testing.Contracts.Judges.RunJudgeContract` üçüncü sözleşme ailesidir.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+- `Abstractions`: yargıç XML sözleşmesi, güvenli hata/HTTP kayıtları, model registry üyesi.
+- `Core`: startup name doğrulaması, çağrı-başına timeout, failure normalizasyonu,
+  sampling bastırma ve setup model yolu.
+- `AspNetCore` + OpenAPI + iki generated client: judge yanıt zarfı.
+- `Testing.Contracts.Xunit` + sample + unit/functional testler: yargıç sözleşmesi ve kritik hata yolları.
+- `docs-site`, manuel case'ler ve F-152: tüketici ve devir yüzeyi.
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+- 🔴 API overload'ı · K-613 ile gerekçelendirildi; analyzer zorunluluğu ölçüldü.
+- 🔴 timeout üst sınırı · düzeltildi, 5 dakika validator sınırı eklendi.
+- 🔴 kritik failure yolları · timeout, host iptali, terminal skor ve sampling bastırma testleri eklendi.
+- 🔴 yargıç-başına retry checkpoint · F-152 olarak devredildi.
+- 🟡 sözleşme tekrar/iptal · `RunJudgeContract` senaryolarına eklendi.
+- 🟡 tüketici yüzeyi · README, capabilities, packages ve yeni guide güncellendi.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+🚨 `IRunJudge` singleton'dır; çağrıları paralel gelir ve `JudgeAsync` başlattığı
+run'larda `AmbientSamplingSuppressionScope` akmalıdır. Model tabanlı yargıç
+`CreateSetupChatClientAsync` kullanır: tenant BYOK değeri okunmaz, fakat egress
+policy her primary/fallback sağlayıcı için uygulanır. Retry şu anda bütün yargıç
+listesini tekrar koşar; durable yargıç checkpoint'i F-152'dir. Yeni faz seçimi
+`docs/YOL-HARITASI.md` üretildikten sonra yapılır.

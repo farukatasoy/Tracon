@@ -638,6 +638,15 @@ zaten var.
 
 ### F-140 · Gömme ekseni: bağlanacak sözleşmeler sevk edilen yüzeyde görünmüyor → [Faz 85](arsiv/fazlar/85-GOMME-EKSENI.md) 📋 (2026-08-21). Gövde plana taşındı.
 
+### F-152 · Yargıç başına checkpoint ve retry
+
+Faz 100, bir `OnlineEval` job'ı yeniden denendiğinde kayıtlı tüm yargıçları
+tekrar çalıştırır. `RunScore` upsert'i tekrarları görünür satıra dönüştürmez,
+ancak pahalı veya yan etkili üçüncü taraf yargıçlar için yargıç-başına durable
+checkpoint gerekir. Önce job item modelinin tek run kimliği sözleşmesini ve SQL
+store migration maliyetini ölç; yalnız başarılı yargıçların atlanması doğruysa
+ayrı bir kalıcı sonuç modeli tasarla. Kaynak: Faz 100 Açık Soru 3.
+
 ## Ekosistem Boşluk Tablosu
 
 "X'te standart, .NET'te yok." AgentPrism'in yankı uyandırma ihtimali en çok

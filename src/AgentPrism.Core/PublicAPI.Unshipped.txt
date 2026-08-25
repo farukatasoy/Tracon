@@ -1,4 +1,7 @@
 #nullable enable
+AgentPrism.ModelProviderRegistry.CreateSetupChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
+AgentPrism.OnlineEvaluationOptions.JudgeTimeout.get -> System.TimeSpan
+AgentPrism.OnlineEvaluationOptions.JudgeTimeout.set -> void
 AgentPrism.AgentCallGraph
 AgentPrism.AgentCallGraphProblem
 AgentPrism.AgentCallGraphProblem.AgentCallGraphProblem() -> void
