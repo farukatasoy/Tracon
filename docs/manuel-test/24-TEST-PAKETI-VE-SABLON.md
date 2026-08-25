@@ -2558,6 +2558,23 @@ python3 -m unittest scripts.kapi_test -v
 - Tarama temiz biter.
 - `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`, ilk
   uygulanmış kaynak commit'lerindeki baytlarıyla eşleşir.
+
+### MT-TEST-086 — Beş sözleşme ailesi (Storage/Providers/Judges/AgentSources/Tools) gerçek çıkarımı zorunlu kılar (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. `dotnet list src/AgentPrism.Testing.Contracts.Xunit package --include-transitive` koş.
+2. `AgentPrism.Core.UnitTests` ve beş `samples/AgentPrism.Samples.*.Tests` projesini koş.
+
+**Beklenen sonuç**
+- Paket grafiğinde `AgentPrism.Core` görünmez.
+- `ContractCoverage` beş aile için sıfır eksik türetme raporlar (`Skip` sayısı `0`).
+- Her aile en az bir built-in ve bir sample consumer'a sahiptir (Judges: `ModelRunJudgeTests` + `ResponseQualityJudgeContractTests`).
+
 - Manifestte checksum değeri değiştirilse bile migration dosyasını değiştirmek
   kabul edilmez; birim testleri bu bypass denemesini kırmızıya çevirir.
 

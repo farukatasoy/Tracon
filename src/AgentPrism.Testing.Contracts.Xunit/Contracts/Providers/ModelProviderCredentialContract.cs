@@ -7,13 +7,11 @@ namespace AgentPrism.Testing.Contracts.Providers;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Honoring <see cref="ModelProviderCredential"/> is <strong>optional</strong>:
-/// a provider that ignores the parameter keeps working and simply never uses a
-/// tenant's own key. Deriving this class is therefore the statement that the
-/// provider does honor it — which is why these scenarios live here rather than
-/// skipping inside <see cref="ModelProviderContract"/>. A provider that does
-/// not offer BYOK does not derive this class and records that as a
-/// <c>ContractCoverage</c> exemption.
+/// Honoring <see cref="ModelProviderCredential"/> is <strong>optional</strong>.
+/// A provider that offers it implements
+/// <see cref="ITenantCredentialModelProvider"/>. Deriving this class verifies
+/// that explicit capability. A provider that does not offer BYOK does not
+/// derive this class and records that as a <c>ContractCoverage</c> exemption.
 /// </para>
 /// <para>
 /// Like <see cref="ModelProviderContract"/>, nothing here performs a model
@@ -23,6 +21,9 @@ namespace AgentPrism.Testing.Contracts.Providers;
 /// </remarks>
 public abstract class ModelProviderCredentialContract : ModelProviderContract
 {
+    private ITenantCredentialModelProvider CredentialProvider
+        => Provider.ShouldBeAssignableTo<ITenantCredentialModelProvider>();
+
     /// <summary>
     /// A credential this provider can build a client from. It is never used
     /// against a real endpoint, so any syntactically valid key works.
@@ -52,13 +53,17 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     protected abstract void AssertCredentialIsApplied(IChatClient client, ModelProviderCredential credential);
 
     [Fact]
+    public void Provider_declares_the_tenant_credential_capability()
+        => CredentialProvider.ShouldNotBeNull();
+
+    [Fact]
     public void Create_chat_client_with_a_tenant_credential_returns_a_client()
-        => Provider.CreateChatClient(Binding(), Credential).ShouldNotBeNull();
+        => CredentialProvider.CreateChatClient(Binding(), Credential).ShouldNotBeNull();
 
     [Fact]
     public void A_tenant_credential_is_applied_to_the_returned_client()
     {
-        var client = Provider.CreateChatClient(Binding(), Credential);
+        var client = CredentialProvider.CreateChatClient(Binding(), Credential);
 
         AssertCredentialIsApplied(client, Credential);
     }
@@ -73,7 +78,7 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     public void A_tenant_credential_produces_a_different_client_than_the_setup_time_one()
     {
         var setupTime = Provider.CreateChatClient(Binding());
-        var tenant = Provider.CreateChatClient(Binding(), Credential);
+        var tenant = CredentialProvider.CreateChatClient(Binding(), Credential);
 
         tenant.ShouldNotBeSameAs(setupTime);
     }
@@ -86,8 +91,8 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     [Fact]
     public void Two_different_credentials_do_not_share_one_client()
     {
-        var first = Provider.CreateChatClient(Binding(), Credential);
-        var second = Provider.CreateChatClient(Binding(), OtherCredential);
+        var first = CredentialProvider.CreateChatClient(Binding(), Credential);
+        var second = CredentialProvider.CreateChatClient(Binding(), OtherCredential);
 
         second.ShouldNotBeSameAs(first);
     }
@@ -104,12 +109,18 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     public async Task Concurrent_resolution_of_one_credential_stays_stable()
     {
         var binding = Binding();
+        using var start = new Barrier(32);
 
         var clients = await Task.WhenAll(
-            Enumerable.Range(0, 32).Select(_ => Task.Run(() => Provider.CreateChatClient(binding, Credential))));
+            Enumerable.Range(0, 32).Select(_ => Task.Run(() =>
+            {
+                start.SignalAndWait();
+                return CredentialProvider.CreateChatClient(binding, Credential);
+            })));
 
         clients.ShouldAllBe(static client => client != null);
-        Provider.CreateChatClient(binding, Credential).ShouldNotBeNull();
+        var resolvedAgain = CredentialProvider.CreateChatClient(binding, Credential);
+        clients.ShouldAllBe(client => ReferenceEquals(client, resolvedAgain));
     }
 
     /// <remarks>
@@ -123,6 +134,6 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     {
         var withEndpoint = Credential with { Endpoint = "https://contract.example.invalid/v1" };
 
-        Provider.CreateChatClient(Binding(), withEndpoint).ShouldNotBeNull();
+        CredentialProvider.CreateChatClient(Binding(), withEndpoint).ShouldNotBeNull();
     }
 }

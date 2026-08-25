@@ -12,9 +12,9 @@
   <ItemGroup>
     <!-- The sample is local; every AgentPrism dependency is consumed as a package. -->
     <ProjectReference Include="../AgentPrism.Samples.CustomTool/AgentPrism.Samples.CustomTool.csproj" />
-    <PackageReference Include="AgentPrism" VersionOverride="*-*" />
-    <PackageReference Include="AgentPrism.Testing" VersionOverride="*-*" />
-    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism" VersionOverride="$(AgentPrismSamplePackageVersion)" />
+    <PackageReference Include="AgentPrism.Testing" VersionOverride="$(AgentPrismSamplePackageVersion)" />
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -31,7 +31,12 @@ public abstract class AgentSourceContract : IAsyncLifetime
     public void Name_is_not_empty() => Source.Name.ShouldNotBeNullOrWhiteSpace();
 
     [Fact]
-    public void Priority_is_stable() => Source.Priority.ShouldBe(Source.Priority);
+    public async Task Priority_is_stable_across_calls()
+    {
+        var before = Source.Priority;
+        await Source.ListAsync().ConfigureAwait(false);
+        Source.Priority.ShouldBe(before);
+    }
 
     [Fact]
     public async Task Listing_is_repeatable()
@@ -44,7 +49,12 @@ public abstract class AgentSourceContract : IAsyncLifetime
     [Fact]
     public async Task Listing_is_safe_under_concurrency()
     {
-        var lists = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Source.ListAsync().AsTask())).ConfigureAwait(false);
+        using var start = new Barrier(8);
+        var lists = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+        {
+            start.SignalAndWait();
+            return await Source.ListAsync().ConfigureAwait(false);
+        }))).ConfigureAwait(false);
         var names = lists[0].Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal).ToArray();
         lists.ShouldAllBe(list => list.Select(static item => item.Name).OrderBy(static name => name, StringComparer.Ordinal).SequenceEqual(names, StringComparer.Ordinal));
     }
@@ -52,7 +62,12 @@ public abstract class AgentSourceContract : IAsyncLifetime
     [Fact]
     public async Task Resolution_is_safe_under_concurrency()
     {
-        var agents = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Source.ResolveAsync(KnownAgentName).AsTask())).ConfigureAwait(false);
+        using var start = new Barrier(8);
+        var agents = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+        {
+            start.SignalAndWait();
+            return await Source.ResolveAsync(KnownAgentName).ConfigureAwait(false);
+        }))).ConfigureAwait(false);
         agents.ShouldAllBe(static agent => agent != null);
     }
 
@@ -105,18 +120,14 @@ public abstract class AgentSourceContract : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_pre_cancelled_token_does_not_hang()
+    public async Task A_pre_cancelled_token_is_honored()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        try
-        {
-            await Task.WhenAll(Source.ListAsync(cancellation.Token).AsTask(), Source.ResolveAsync(KnownAgentName, cancellationToken: cancellation.Token).AsTask())
-                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // A source may honor cancellation. The timeout above proves it did not hang.
-        }
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Source.ListAsync(cancellation.Token).ConfigureAwait(false));
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Source.ResolveAsync(KnownAgentName, cancellationToken: cancellation.Token).ConfigureAwait(false));
     }
 }

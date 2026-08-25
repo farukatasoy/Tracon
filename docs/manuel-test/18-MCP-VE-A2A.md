@@ -1481,6 +1481,22 @@ kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 
 ### MT-MCP-059 — 🚨 👤 MCP tool'undan gelen büyük çıktı da kurulum varsayılanıyla kırpılır
 
+### MT-MCP-060 — MCP agent-tool sonucu provider hatasının ham metnini sızdırmaz (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. Secret-like mesajla başarısız olan bir provider'a bağlı agent'ı MCP tool olarak aç.
+2. `tools/call` ile çağır.
+
+**Beklenen sonuç**
+- Sonuç generic, safe bir hata metni taşır; secret-like metin görünmez.
+- Otomatikleştirildi: `ProviderOutageErrorHandlingTests.Mcp_tool_call_never_exposes_a_secret_like_provider_message`.
+
+
 | | |
 |---|---|
 | **İzlek** | A (izole — insan gerekir, `tester-tedarikli` MCP sunucusu) |

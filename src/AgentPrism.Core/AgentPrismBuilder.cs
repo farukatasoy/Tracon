@@ -130,6 +130,29 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
+    public IAgentPrismBuilder AddRunJudge<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJudge>()
+        where TJudge : class, IRunJudge
+    {
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunJudge, TJudge>());
+        return this;
+    }
+
+    public IAgentPrismBuilder AddRunJudge(IRunJudge judge)
+    {
+        ArgumentNullException.ThrowIfNull(judge);
+
+        Services.AddSingleton(judge);
+        return this;
+    }
+
+    public IAgentPrismBuilder AddRunJudge(Func<IServiceProvider, IRunJudge> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        Services.AddSingleton(factory);
+        return this;
+    }
+
     public IAgentPrismBuilder AddModelProvider(IModelProvider provider)
     {
         ArgumentNullException.ThrowIfNull(provider);

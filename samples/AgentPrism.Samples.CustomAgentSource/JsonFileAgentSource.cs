@@ -93,6 +93,7 @@ public sealed class JsonFileAgentSource : IAgentSource
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var descriptors = new List<AgentDescriptor>();
 
         await foreach (var definition in ReadAllAsync(cancellationToken).ConfigureAwait(false))
@@ -108,6 +109,7 @@ public sealed class JsonFileAgentSource : IAgentSource
     public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var definition = await FindDefinitionAsync(agentName, cancellationToken).ConfigureAwait(false);
 

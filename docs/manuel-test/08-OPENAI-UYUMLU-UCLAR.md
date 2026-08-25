@@ -1896,6 +1896,21 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" \
 
 ### MT-COMPAT-049 — Yanlış bearer token `401`
 
+### MT-COMPAT-050 — Provider hatası Responses/Chat Completions'ta ham metin sızdırmaz (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. `https://tenant-private.example; Authorization=Bearer sk-secret-preview1; account=acct-42` gibi secret-like bir mesajla başarısız olan bir provider kaydet.
+2. `/v1/responses` ve `/v1/chat/completions`'ı hem `stream: false` hem `stream: true` ile çağır.
+
+**Beklenen sonuç**
+- Dördü de `502`/`upstream_error`; gövdede secret-like metin **hiç** görünmez.
+- Otomatikleştirildi: `ProviderOutageErrorHandlingTests` (`*_never_exposes_a_secret_like_provider_message`, 4 test).
+
 Negatif senaryo.
 
 | | |

@@ -2738,3 +2738,50 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 **Beklenen sonuç**
 - İki yüzeyde de yalnız `Tool failed with <ExceptionType>.` görünür.
 - Bağlantı dizesi veya özgün exception mesajı görünmez.
+
+### MT-CORE-100 — BYOK desteklemeyen provider'da tenant credential fail-closed'tır (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. Yalnız `IModelProvider` uygulayan (BYOK yok) bir provider kaydet.
+2. Bu provider'a bağlı bir agent'ı tenant credential ile çalıştır.
+
+**Beklenen sonuç**
+- Provider/setup client çağrısı **0** kez yapılır.
+- Stable `provider_credential_unsupported` hatası döner; setup/global credential ile sessizce çalışmaz.
+- Credential değeri hiçbir response veya log metninde yer almaz.
+
+### MT-CORE-101 — `AddRunJudge` üç overload'ı AgentSource deseniyle aynı idempotency'i taşır (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+
+**Adımlar**
+1. `AddRunJudge<TJudge>()`'ı aynı tip için iki kez çağır.
+2. `AddRunJudge(instance)` ve `AddRunJudge(factory)`'i farklı yapılandırılmış örneklerle çağır.
+
+**Beklenen sonuç**
+- Generic aşırı yükleme tekrar kaydı yok sayar (tek singleton).
+- Instance/factory aşırı yüklemeleri farklı yapılandırılmış sonuçları korur.
+- Aynı `Name` case-insensitive çakışırsa startup `RunJudgeSet` hata verir.
+
+### MT-CORE-102 — `JudgeTimeout` token'ı yok sayan judge için gerçek wait cutoff'tur (Faz 103)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. Cancellation token'ını yok sayan, gecikmeli bir custom judge kaydet; `JudgeTimeout`'u kısa tut.
+2. Manuel judge ucunu çağır.
+
+**Beklenen sonuç**
+- Çağrı `JudgeTimeout` civarında `judge_timeout` ile döner; judge gövdesi arkada devam eder.
+- Gövde sonradan başarı veya hata ile bitse de skor yazılmaz; `TaskScheduler.UnobservedTaskException` üretilmez.

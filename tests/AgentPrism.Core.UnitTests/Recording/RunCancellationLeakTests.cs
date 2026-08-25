@@ -29,7 +29,9 @@ public sealed class RunCancellationLeakTests
         var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
         var agent = CreateAgent(new InMemoryRunStore(tenantContext: new FixedTenantContext()), client, registry);
 
-        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("hello"));
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () => await agent.RunAsync("hello"));
+
+        exception.ErrorType.ShouldBe("upstream_error");
 
         registry.ActiveCount.ShouldBe(0);
     }

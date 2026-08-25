@@ -169,7 +169,7 @@ public sealed class PipelineOwnershipTests
 
         public IReadOnlyList<ModelDescriptor> Models { get; } = [new ModelDescriptor { Name = ModelName }];
 
-        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+        public IChatClient CreateChatClient(ModelBinding binding)
             => buildsItsOwnLoop
                 ? inner.AsBuilder().UseFunctionInvocation().Build()
                 : inner;

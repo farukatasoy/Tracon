@@ -86,9 +86,9 @@ internal sealed class McpTenantTools
             {
                 var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
 
-                AIFunction wrapped = effectiveMaxOutputBytes is { } maxOutputBytes
-                    ? new TruncatingAIFunction(invocable, maxOutputBytes)
-                    : invocable;
+                AIFunction wrapped = new TruncatingAIFunction(
+                    invocable,
+                    effectiveMaxOutputBytes ?? int.MaxValue);
 
                 wrapped = registration.RequiresApproval
                     ? new ApprovalRequiredAIFunction(wrapped)

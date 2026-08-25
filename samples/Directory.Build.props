@@ -9,6 +9,10 @@
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Release verification MUST override this with the exact version packed
+         by the current rehearsal. The floating default keeps local sample
+         development convenient without making the release path ambiguous. -->
+    <AgentPrismSamplePackageVersion Condition="'$(AgentPrismSamplePackageVersion)' == ''">*-*</AgentPrismSamplePackageVersion>
   </PropertyGroup>
 
 </Project>

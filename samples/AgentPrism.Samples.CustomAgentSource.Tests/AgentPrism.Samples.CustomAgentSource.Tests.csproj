@@ -32,19 +32,19 @@
     -->
     <ProjectReference Include="../AgentPrism.Samples.CustomAgentSource/AgentPrism.Samples.CustomAgentSource.csproj" />
     <!-- VersionOverride, not Version: see the sample source's own csproj for why. -->
-    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="$(AgentPrismSamplePackageVersion)" />
     <!--
       AgentPrism.Testing supplies FakeModelProvider - a published, non-networked
       IModelProvider meant exactly for a consumer's own tests.
     -->
-    <PackageReference Include="AgentPrism.Testing" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Testing" VersionOverride="$(AgentPrismSamplePackageVersion)" />
     <!--
       The meta package, because the run test compiles and runs a real agent through the
       full AddAgentPrism() pipeline: that needs the runtime (AddAgentPrism,
       AddAgentSource, the agent catalog), not just the abstractions the source was
       written against. It is also the line a real consumer writes.
     -->
-    <PackageReference Include="AgentPrism" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>
