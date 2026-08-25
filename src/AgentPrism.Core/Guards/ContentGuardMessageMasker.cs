@@ -20,10 +20,10 @@ internal static class ContentGuardMessageMasker
 {
     /// <summary>
     /// The fixed replacement for a tool result that cannot be normalized into
-    /// inspectable text (Open Question 1, option A). This text is the final
-    /// replacement itself — it is never handed to a guard's pattern match,
-    /// because there is no real text to match a pattern against; the whole
-    /// point is that AgentPrism could not read the content it is protecting.
+    /// inspectable text. This text is the final replacement itself — it is
+    /// never handed to a guard's pattern match, because there is no real
+    /// text to match a pattern against; the whole point is that AgentPrism
+    /// could not read the content it is protecting.
     /// </summary>
     internal const string UninspectableToolResultText = "[Tool result could not be inspected]";
 
