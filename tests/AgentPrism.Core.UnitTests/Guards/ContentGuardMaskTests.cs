@@ -115,6 +115,33 @@ public sealed class ContentGuardMaskTests
         result.Result.ShouldBe("key [redacted]");
     }
 
+    [Fact]
+    public async Task Tool_result_that_cannot_be_normalized_is_masked_even_when_no_guard_pattern_matches()
+    {
+        // 🚨 Fail-closed (Open Question 1, option A, Phase 102): a tool result
+        // ToolResultText cannot normalize into text must NEVER be routed through
+        // a guard's pattern match — there is no real text to match, and a guard
+        // whose pattern does not happen to match the fixed placeholder would
+        // otherwise let the real, unexamined content through completely unmasked.
+        var inner = new FakeChatClient();
+
+        using var chatClient = Guarded(inner, StubContentGuard.Masking("never-matches-anything", "***"));
+
+        var secret = new Dictionary<string, string>(StringComparer.Ordinal) { ["apiKey"] = "sk-live-should-never-leak" };
+
+        await chatClient.GetResponseAsync(
+            [
+                new ChatMessage(ChatRole.User, "summarize the result"),
+                new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", secret)]),
+            ],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var result = inner.LastRequest[1].Contents.Single().ShouldBeOfType<FunctionResultContent>();
+        result.CallId.ShouldBe("call-1");
+        result.Result.ShouldBe(ContentGuardMessageMasker.UninspectableToolResultText);
+        result.Result.ShouldNotBe(secret);
+    }
+
     private static IChatClient Guarded(FakeChatClient inner, params IContentGuard[] guards)
         => TestData
             .Providers(TestData.ContentGuards(guards: guards), new FakeModelProvider(inner))
