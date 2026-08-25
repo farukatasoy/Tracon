@@ -118,3 +118,12 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   `[samples/*.Tests/**/*.cs]` glob'u **eslesmedi** (denendi); bastirmayi projenin
   kendi `<NoWarn>`'una gerekcesiyle yazmak hem calisiyor hem de yanindaki ornek
   UYGULAMALARI gevsetmiyor.
+- **🚨 Tam `dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`
+  koşumu ara sıra flaky kırılır — izole koşumda hep geçer (Faz 103).** Üç ayrı
+  koşumda üç FARKLI test kırıldı: `ImageAttachmentWriterTests` (port çakışması,
+  "Address already in use"), `SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
+  (`ON CONFLICT` unique constraint hatası), `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`.
+  Üçü de kendi projesinde tek başına 100% geçti. Şüphe: onlarca test projesinin
+  aynı anda paylaştığı port/dosya/zamanlama kaynağı — hiçbiri fazın kendi
+  değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan biri kırmızı
+  çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek regresyondur.
