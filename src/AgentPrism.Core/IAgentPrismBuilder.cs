@@ -59,23 +59,26 @@ public interface IAgentPrismBuilder
     /// </code>
     /// </example>
     /// </remarks>
-    IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions>? configure);
+    IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions> configure);
 
-    /// <summary>Registers a tool with an approval requirement.</summary>
+    /// <summary>Registers a tool with default metadata.</summary>
     /// <param name="tool">The tool to register.</param>
-    /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
     /// <returns>The chain, for further configuration.</returns>
-    IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval);
+    IAgentPrismBuilder AddTool(AIFunction tool);
 
     /// <summary>Builds and registers a tool from a method.</summary>
     /// <param name="method">The method to expose as a tool.</param>
     /// <param name="name">The tool name.</param>
     /// <param name="description">The tool description.</param>
-    /// <param name="requiresApproval">Whether explicit approval is required.</param>
+    /// <param name="configure">Configures the tool metadata.</param>
     /// <returns>The chain, for further configuration.</returns>
     [RequiresUnreferencedCode("Building a tool from a method uses reflection; type information may be lost in trimmed applications.")]
     [RequiresDynamicCode("Building a tool from a method may require code generation at runtime.")]
-    IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false);
+    IAgentPrismBuilder AddTool(
+        Delegate method,
+        string? name = null,
+        string? description = null,
+        Action<ToolRegistrationOptions>? configure = null);
 
     /// <summary>
     /// Registers, as tools, the methods on a type that are marked with

@@ -715,3 +715,6 @@ AgentPrism.Testing.Contracts.Tools.CustomToolContract.Metadata_is_self_consisten
 AgentPrism.Testing.Contracts.Tools.CustomToolContract.Name_is_stable_and_valid() -> void
 AgentPrism.Testing.Contracts.Tools.CustomToolContract.Registration.get -> AgentPrism.AgentPrismToolRegistration!
 abstract AgentPrism.Testing.Contracts.Tools.CustomToolContract.CreateRegistrationAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.AgentPrismToolRegistration!>
+AgentPrism.Testing.Contracts.Tools.RepeatableToolContract
+AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.RepeatableToolContract() -> void
+AgentPrism.Testing.Contracts.Tools.RepeatableToolContract.Registration_is_marked_safe_to_repeat() -> void

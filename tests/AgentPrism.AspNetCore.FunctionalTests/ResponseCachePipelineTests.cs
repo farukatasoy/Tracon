@@ -81,7 +81,7 @@ public sealed class ResponseCachePipelineTests
                 // change the SECOND turn's message list and therefore its
                 // cache key too - callCount only counts invocations, it is
                 // never part of what the tool returns.
-                .AddTool((Func<string>)(() => { callCount++; return "10:00 AM"; }), name: "get_time", requiresApproval: false)
+                .AddTool((Func<string>)(() => { callCount++; return "10:00 AM"; }), name: "get_time")
                 .AddAgent(new AgentDefinition
                 {
                     Name = AgentName,

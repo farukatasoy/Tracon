@@ -25,12 +25,13 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
-    public IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions>? configure)
+    public IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(tool);
+        ArgumentNullException.ThrowIfNull(configure);
 
         var options = new ToolRegistrationOptions();
-        configure?.Invoke(options);
+        configure(options);
         Services.AddSingleton(new AgentPrismToolRegistration(
             tool,
             options.RequiresApproval,
@@ -43,15 +44,24 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
-    public IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval)
-        => AddTool(tool, options => options.RequiresApproval = requiresApproval);
+    public IAgentPrismBuilder AddTool(AIFunction tool)
+    {
+        ArgumentNullException.ThrowIfNull(tool);
+        return AddTool(tool, static _ => { });
+    }
 
     [RequiresUnreferencedCode("Creating a tool from a method uses reflection; method metadata can be removed from trimmed applications.")]
     [RequiresDynamicCode("Creating a tool from a method can require run-time code generation.")]
-    public IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false)
+    public IAgentPrismBuilder AddTool(
+        Delegate method,
+        string? name = null,
+        string? description = null,
+        Action<ToolRegistrationOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(method);
-        return AddTool(AIFunctionFactory.Create(method, name, description), options => options.RequiresApproval = requiresApproval);
+        return configure is null
+            ? AddTool(AIFunctionFactory.Create(method, name, description))
+            : AddTool(AIFunctionFactory.Create(method, name, description), configure);
     }
 
     [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]

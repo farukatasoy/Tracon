@@ -8,25 +8,38 @@ path. Tool instances are singletons and can run concurrently for different tenan
 runs. Keep no mutable run state in fields.
 
 ```csharp
-[AgentPrismTool(
-    "submit_order",
-    "Submits an order to the fulfillment system.",
-    Effect = ToolEffect.External,
-    RequiredPermission = "orders.submit",
-    RequiresApproval = true,
-    SafeToRepeat = true,
-    TimeoutSeconds = 30,
-    MaxOutputBytes = 4096)]
-public static async Task<OrderReceipt> SubmitOrderAsync(
-    string orderId,
-    CancellationToken cancellationToken)
-    => await Orders.SubmitAsync(orderId, cancellationToken);
+using System.Text.Json.Serialization;
+
+[JsonSerializable(typeof(OrderReceipt))]
+internal partial class OrderToolJsonContext : JsonSerializerContext;
+
+public sealed record OrderReceipt(string OrderId, string Status);
+
+public static class OrderTools
+{
+    [AgentPrismTool(
+        "submit_order",
+        "Submits an order to the fulfillment system.",
+        Effect = ToolEffect.External,
+        RequiredPermission = "orders.submit",
+        RequiresApproval = true,
+        SafeToRepeat = true,
+        TimeoutSeconds = 30,
+        MaxOutputBytes = 4096,
+        JsonSerializerContext = typeof(OrderToolJsonContext))]
+    public static Task<OrderReceipt> SubmitOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken)
+        => Task.FromResult(new OrderReceipt(orderId, "submitted"));
+}
 ```
 
-The source generator preserves all this metadata. Complex results are emitted as JSON,
-so content guards, the output limit, run records, and the model inspect the same data.
-Return `AIContent` only for the existing attachment contract; attachments are not
-inline output and are not subject to `MaxOutputBytes`.
+The source generator preserves all this metadata. For a complex result, declare its
+`JsonSerializerContext` in your own source as shown above; Roslyn does not let one
+source generator feed a context to another in the same compilation. The context makes
+the result canonical JSON, so content guards, the output limit, run records, and the
+model inspect the same data. Return `AIContent` only for the existing attachment
+contract; attachments are not inline output and are not subject to `MaxOutputBytes`.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
 provider. Resolve singleton dependencies when you register an `AIFunction`. For scoped
@@ -34,17 +47,24 @@ work, inject `IServiceScopeFactory` into that registration and create a scope in
 invocation.
 
 ```csharp
-var scopes = services.GetRequiredService<IServiceScopeFactory>();
-agentPrism.AddTool(AIFunctionFactory.Create(async (string orderId) =>
+agentPrism.Services.AddSingleton<AgentPrismToolRegistration>(provider =>
 {
-    await using var scope = scopes.CreateAsyncScope();
-    return await scope.ServiceProvider.GetRequiredService<IOrderWriter>().SubmitAsync(orderId);
-}, "submit_order", "Submits an order."), options =>
-{
-    options.Effect = ToolEffect.External;
-    options.RequiredPermission = "orders.submit";
-    options.RequiresApproval = true;
-    options.MaxOutputBytes = 4096;
+    var scopes = provider.GetRequiredService<IServiceScopeFactory>();
+    var function = AIFunctionFactory.Create(async (string orderId) =>
+    {
+        using var scope = scopes.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<IOrderWriter>()
+            .SubmitAsync(orderId);
+    }, "submit_order", "Submits an order.");
+
+    return new AgentPrismToolRegistration(
+        function,
+        requiresApproval: true,
+        effect: ToolEffect.External,
+        requiredPermission: "orders.submit",
+        timeout: TimeSpan.FromSeconds(30),
+        safeToRepeat: true,
+        maxOutputBytes: 4096);
 });
 ```
 

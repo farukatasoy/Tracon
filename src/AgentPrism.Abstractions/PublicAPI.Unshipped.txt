@@ -4841,6 +4841,8 @@ static AgentPrism.GeneratedApiKey.operator !=(AgentPrism.GeneratedApiKey? left, 
 static AgentPrism.GeneratedApiKey.operator ==(AgentPrism.GeneratedApiKey? left, AgentPrism.GeneratedApiKey? right) -> bool
 AgentPrism.AgentPrismToolAttribute.MaxOutputBytes.get -> int
 AgentPrism.AgentPrismToolAttribute.MaxOutputBytes.init -> void
+AgentPrism.AgentPrismToolAttribute.JsonSerializerContext.get -> System.Type?
+AgentPrism.AgentPrismToolAttribute.JsonSerializerContext.init -> void
 AgentPrism.ToolRegistrationOptions
 AgentPrism.ToolRegistrationOptions.ToolRegistrationOptions() -> void
 AgentPrism.ToolRegistrationOptions.Effect.get -> AgentPrism.ToolEffect

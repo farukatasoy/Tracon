@@ -82,14 +82,6 @@ internal static class SourceWriter
 
         sb.Append("    }\n}\n");
 
-        if (model.SerializedResultTypeDisplay is { } resultType)
-        {
-            sb.Append("\n[global::System.Text.Json.Serialization.JsonSerializable(typeof(")
-              .Append(resultType).Append("))]\n")
-              .Append("[global::System.Text.Json.Serialization.JsonSourceGenerationOptions(GenerationMode = global::System.Text.Json.Serialization.JsonSourceGenerationMode.Metadata)]\n")
-              .Append("internal partial class ").Append(model.GeneratedClassName).Append("JsonContext : global::System.Text.Json.Serialization.JsonSerializerContext\n{\n}\n");
-        }
-
         return sb.ToString();
     }
 
@@ -148,7 +140,7 @@ internal static class SourceWriter
 
     private static string WriteResult(ToolEmitModel model, string value)
         => model.SerializedResultTypeDisplay is { } resultType
-            ? $"global::System.Text.Json.JsonSerializer.SerializeToElement({value}, {model.GeneratedClassName}JsonContext.Default.GetTypeInfo(typeof({resultType}))!)"
+            ? $"global::System.Text.Json.JsonSerializer.SerializeToElement({value}, {model.JsonSerializerContextTypeDisplay}.Default.GetTypeInfo(typeof({resultType}))!)"
             : $"(object?){value}";
 
     private static string WriteBinding(ParameterModel parameter)

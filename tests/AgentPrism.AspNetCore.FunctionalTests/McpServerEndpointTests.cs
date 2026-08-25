@@ -104,7 +104,7 @@ public sealed class McpServerEndpointTests
                     (Func<string, string>)CancelOrder,
                     name: "cancel_order",
                     description: "Cancels an order.",
-                    requiresApproval: true)
+                    configure: options => options.RequiresApproval = true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
             configureAfterMap: app => app.MapAgentPrismMcpServer());

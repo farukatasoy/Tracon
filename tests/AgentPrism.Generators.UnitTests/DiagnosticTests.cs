@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>Verifies each of the APG0001-APG0007 diagnostics individually.</summary>
+/// <summary>Verifies each of the APG0001-APG0008 diagnostics individually.</summary>
 public sealed class DiagnosticTests
 {
     [Fact]
@@ -160,6 +160,29 @@ public sealed class DiagnosticTests
 
         // The warning does NOT block generation - the wrapper file is still created.
         result.GeneratedFiles().Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void APG0008_requires_a_source_generated_context_for_a_complex_result()
+    {
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal sealed record OrderResult(string Id);
+
+            internal static class Tools
+            {
+                [AgentPrismTool("get_order", "Gets an order.")]
+                public static OrderResult GetOrder(string id) => new(id);
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        result.DiagnosticsWithId("APG0008").ShouldHaveSingleItem();
+        result.GeneratedFiles().ShouldBeEmpty();
     }
 
     [Fact]
