@@ -184,6 +184,17 @@ hiç görünmedi — hiçbir kapı bunu yakalamadı çünkü üreteç GEÇERLİ 
 üretti, yalnız yanlış cümleyi seçti. Var olan HER bölüm heading→table→(yalnız)
 kural paragrafı sırasını izler; yeni bölüm de bunu izlemeli.
 
+## 🚨 `faz-arsivle` kendi bağlantı onarımını kaçırabilir — koştuktan SONRA denetle (Faz 104)
+
+Skill "tek bir yeni kırık bağlantı üretirse taşımayı geri alır" diyor. Faz
+104'te geri **almadı**: fazın kendi gövdesindeki `../arsiv/fazlar/103-*.md`
+bağlantısı `../../../arsiv/fazlar/103-*.md` olarak yeniden yazıldı — dosya
+zaten `docs/arsiv/fazlar/` içine taşındığı için doğru yol yalnız
+`103-*.md`'dir. Onarım, dosyanın **yeni** konumunu değil eski derinliğini
+kullanmış. Kural: `faz-arsivle` koştuktan sonra `dokuman-bakim.py --denetle`
+çıktısındaki **Kırık bağlantı** satırını oku; sıfır değilse elle düzelt.
+Aynı ağaçtaki kardeş faza verilen bağlantılar en riskli olanlardır.
+
 ## 🚨 `docfx.json`'ın `references` globu (`*/release/*.dll`) yeni bir tek-TFM proje eklendiğinde CS1704 ile çöker (Faz 98)
 
 `docfx metadata` iki liste okur: `src` (elle seçilmiş 18 paket DLL'i, API
