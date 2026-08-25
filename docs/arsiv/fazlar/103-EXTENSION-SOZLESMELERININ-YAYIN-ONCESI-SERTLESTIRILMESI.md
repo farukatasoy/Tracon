@@ -1,14 +1,14 @@
 # Faz 103 — Extension Sözleşmelerinin Yayın Öncesi Sertleştirilmesi
 
 > **Durum:** ✅ Tamamlandı (2026-08-25)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-153**
-> **Önkoşul:** [Faz 98](arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md) — Storage contract ve packed-package sample deseni · [Faz 99](arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md) — provider contract, BYOK ve package graph · [Faz 100](arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md) — judge runtime ve contract family · [Faz 101](arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md) — üç overload'lı singleton registration ve sample deseni · [Faz 102](arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) — tool contract, canonical result ve AOT sınırı
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-153**
+> **Önkoşul:** [Faz 98](98-DEPOLAMA-SOZLESMESININ-YAYINI.md) — Storage contract ve packed-package sample deseni · [Faz 99](99-SAGLAYICI-SOZLESMESININ-YAYINI.md) — provider contract, BYOK ve package graph · [Faz 100](100-YARGIC-SOZLESMESININ-YAYINI.md) — judge runtime ve contract family · [Faz 101](101-KAYNAK-SOZLESMESININ-YAYINI.md) — üç overload'lı singleton registration ve sample deseni · [Faz 102](102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) — tool contract, canonical result ve AOT sınırı
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.Mcp`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.Testing`, `.Testing.Contracts.Xunit`, `AgentPrism` meta package
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Değişiyor — `IModelProvider` BYOK capability'si ayrılır, `IAgentPrismBuilder.AddRunJudge(...)` eklenir, kullanılmayan `AgentPrismJudgeException` kaldırılır; `PublicAPI.Shipped.txt` dosyalarında K-603 gereği public symbol baseline'ı yoktur, yalnız `#nullable enable` vardır
 > **Tüketici yüzeyi:** site: `guides/model-providers.md`, `guides/write-your-own-judge.md`, `guides/write-your-own-agent-source.md`, `guides/write-your-own-tool.md`, `concepts/evaluation.md`, `concepts/tools.md`, `packages.md`, `capabilities.md`, `reference/configuration.md`, `reference/compatibility.md`, `reference/versioning.md`
 > · sevk edilen: extension XML'leri, `src/AgentPrism.Testing.Contracts.Xunit/README.md`, package description'ları, beş extension sample'ı
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) · [`08-OPENAI-UYUMLU-UCLAR.md`](manuel-test/08-OPENAI-UYUMLU-UCLAR.md) · [`17-EVAL-VE-DENEYLER.md`](manuel-test/17-EVAL-VE-DENEYLER.md) · [`18-MCP-VE-A2A.md`](manuel-test/18-MCP-VE-A2A.md) · [`24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md)
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) · [`02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) · [`08-OPENAI-UYUMLU-UCLAR.md`](../../manuel-test/08-OPENAI-UYUMLU-UCLAR.md) · [`17-EVAL-VE-DENEYLER.md`](../../manuel-test/17-EVAL-VE-DENEYLER.md) · [`18-MCP-VE-A2A.md`](../../manuel-test/18-MCP-VE-A2A.md) · [`24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md)
 
 ---
 
@@ -44,12 +44,12 @@
    stale package cache tuzağını ve Faz 102'nin generated complex-result/AOT
    kararını devral.
 4. Alan hafızası:
-   - [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) — provider wrapper/fallback sırası.
-   - [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) — streaming, cancellation ve `AsyncLocal` tuzakları.
-   - [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) — builder/DI lifetime desenleri.
-   - [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) — local feed, package graph ve cache.
-   - [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) — AOT ve PublicAPI kapıları.
-   - [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — site ve sevk edilen doküman kapıları.
+   - [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) — provider wrapper/fallback sırası.
+   - [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) — streaming, cancellation ve `AsyncLocal` tuzakları.
+   - [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) — builder/DI lifetime desenleri.
+   - [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) — local feed, package graph ve cache.
+   - [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) — AOT ve PublicAPI kapıları.
+   - [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — site ve sevk edilen doküman kapıları.
 5. MAF/MEAI imzasına dokunmadan önce `maf-api-kesfi` skill'ini kullan. Planlama
    ölçümü pinlenmiş sürümde şunları doğruladı: `AIFunction.InvokeAsync(...)`,
    `DelegatingAIFunction.InvokeCoreAsync(...)`, `FunctionResultContent.Result`
@@ -92,32 +92,32 @@ kapısı olarak koşulur; simetri için yeniden yazılmaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`IModelProvider.cs:131`](../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | Base interface nullable `credential` alır ve tenant key geldiğinde setup key'e düşmeme sözü verir. |
-| [`ModelProviderCredentialContract.cs:10`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderCredentialContract.cs) | Aynı davranış optional opt-in diye belgelenir; provider parametreyi yok sayıp çalışabilir denir. |
-| [`ModelProviderRegistry.cs:160`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Registry tenant credential'ı çözer ve capability negotiation olmadan `CreateChatClient`'a verir. |
-| [`ModelProviderRegistry.cs:364`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Provider çağrısı nullable credential ile doğrudan yapılır; unsupported BYOK fail-closed sınırı yoktur. |
-| [`FallbackChatClient.cs:282`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Fallback exhaustion mesajı `firstFailure.Message` değerini stable AgentPrism exception mesajına kopyalar. |
-| [`AgentEndpoints.cs:1135`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Agent SSE error frame `ex.Message` yayımlar; buffered yollar da aynı metni `ProblemDetails.detail` içine koyar. |
-| [`OpenAIResponsesEndpoints.cs:237`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs) | OpenAI Responses buffered/streaming upstream error gövdeleri raw exception mesajını kullanır. |
-| [`OpenAIChatCompletionsEndpoints.cs:163`](../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | Chat Completions buffered/streaming yolları raw mesajı `upstream_error` olarak yayımlar. |
-| [`CatalogToolCallHandler.cs:86`](../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs) | MCP agent tool sonucu raw `ex.Message` içerir. |
-| [`RunRecordingAgent.cs:1293`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Foreign exception mesajı `RunError.Message` içine yazılır; sonradan run API üzerinden de görülebilir. |
-| [`OnlineEvalJobHandler.cs:166`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `CancelAfter` linked token'ı iptal eder, fakat `JudgeAsync` doğrudan await edilir; token'ı yok sayan judge handler'ı tutar. |
-| [`RunJudgeContract.cs:40`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Judges/RunJudgeContract.cs) | `Judge.Name.ShouldBe(Judge.Name)` test tiyatrosudur. Concurrency yalnız `Task.WhenAll`; cancellation token'ı yok saymak kabul edilir. |
-| [`AgentSourceContract.cs:34`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/AgentSources/AgentSourceContract.cs) | `Priority.ShouldBe(Priority)` test tiyatrosudur; cancellation testi beş saniyede hang olmamayı contract sayar. |
-| [`ModelProviderContract.cs:168`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderContract.cs) | Provider concurrency testi başlangıç/overlap gate'i kurmadan yalnız 32 `Task.Run` sonucunu sayar. |
-| [`CustomToolContract.cs:49`](../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/CustomToolContract.cs) | Tool concurrency testi declaration-only tool'u test etmeden döner ve gerçek overlap'ı kendisi kurmaz. |
-| [`TruncatingAIFunction.cs:80`](../src/AgentPrism.Core/Tools/TruncatingAIFunction.cs) | `ToolResultText` normalize edemediği raw CLR sonucu budget uygulamadan aynen geçirir. |
-| [`TruncatingAIFunctionTests.cs:115`](../tests/AgentPrism.Core.UnitTests/Tools/TruncatingAIFunctionTests.cs) | Mevcut test bu pass-through davranışını bilinçli olarak yeşile kilitler. |
-| [`concepts/tools.md:131`](../docs-site/src/content/docs/concepts/tools.md) | Site, her tool sonucunun tek canonical text formuna dönüştüğünü söyler; runtime bu kadar güçlü değildir. |
+| [`IModelProvider.cs:131`](../../../src/AgentPrism.Abstractions/Models/IModelProvider.cs) | Base interface nullable `credential` alır ve tenant key geldiğinde setup key'e düşmeme sözü verir. |
+| [`ModelProviderCredentialContract.cs:10`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderCredentialContract.cs) | Aynı davranış optional opt-in diye belgelenir; provider parametreyi yok sayıp çalışabilir denir. |
+| [`ModelProviderRegistry.cs:160`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Registry tenant credential'ı çözer ve capability negotiation olmadan `CreateChatClient`'a verir. |
+| [`ModelProviderRegistry.cs:364`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs) | Provider çağrısı nullable credential ile doğrudan yapılır; unsupported BYOK fail-closed sınırı yoktur. |
+| [`FallbackChatClient.cs:282`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Fallback exhaustion mesajı `firstFailure.Message` değerini stable AgentPrism exception mesajına kopyalar. |
+| [`AgentEndpoints.cs:1135`](../../../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs) | Agent SSE error frame `ex.Message` yayımlar; buffered yollar da aynı metni `ProblemDetails.detail` içine koyar. |
+| [`OpenAIResponsesEndpoints.cs:237`](../../../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs) | OpenAI Responses buffered/streaming upstream error gövdeleri raw exception mesajını kullanır. |
+| [`OpenAIChatCompletionsEndpoints.cs:163`](../../../src/AgentPrism.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | Chat Completions buffered/streaming yolları raw mesajı `upstream_error` olarak yayımlar. |
+| [`CatalogToolCallHandler.cs:86`](../../../src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs) | MCP agent tool sonucu raw `ex.Message` içerir. |
+| [`RunRecordingAgent.cs:1293`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Foreign exception mesajı `RunError.Message` içine yazılır; sonradan run API üzerinden de görülebilir. |
+| [`OnlineEvalJobHandler.cs:166`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `CancelAfter` linked token'ı iptal eder, fakat `JudgeAsync` doğrudan await edilir; token'ı yok sayan judge handler'ı tutar. |
+| [`RunJudgeContract.cs:40`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Judges/RunJudgeContract.cs) | `Judge.Name.ShouldBe(Judge.Name)` test tiyatrosudur. Concurrency yalnız `Task.WhenAll`; cancellation token'ı yok saymak kabul edilir. |
+| [`AgentSourceContract.cs:34`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/AgentSources/AgentSourceContract.cs) | `Priority.ShouldBe(Priority)` test tiyatrosudur; cancellation testi beş saniyede hang olmamayı contract sayar. |
+| [`ModelProviderContract.cs:168`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderContract.cs) | Provider concurrency testi başlangıç/overlap gate'i kurmadan yalnız 32 `Task.Run` sonucunu sayar. |
+| [`CustomToolContract.cs:49`](../../../src/AgentPrism.Testing.Contracts.Xunit/Contracts/Tools/CustomToolContract.cs) | Tool concurrency testi declaration-only tool'u test etmeden döner ve gerçek overlap'ı kendisi kurmaz. |
+| [`TruncatingAIFunction.cs:80`](../../../src/AgentPrism.Core/Tools/TruncatingAIFunction.cs) | `ToolResultText` normalize edemediği raw CLR sonucu budget uygulamadan aynen geçirir. |
+| [`TruncatingAIFunctionTests.cs:115`](../../../tests/AgentPrism.Core.UnitTests/Tools/TruncatingAIFunctionTests.cs) | Mevcut test bu pass-through davranışını bilinçli olarak yeşile kilitler. |
+| [`concepts/tools.md:131`](../../../docs-site/src/content/docs/concepts/tools.md) | Site, her tool sonucunun tek canonical text formuna dönüştüğünü söyler; runtime bu kadar güçlü değildir. |
 | `AgentPrismJudgeException.cs:4` (bu fazda kaldırıldı; `git show 3d447743:src/AgentPrism.Abstractions/Exceptions/AgentPrismJudgeException.cs`) | Public exception ve dört public üye vardır; repo genelinde sıfır constructor çağrısı ölçüldü. Runtime yalnız sabitleri kullanır. |
-| [`AgentPrismOnlineEvaluationBuilderExtensions.cs:51`](../src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs) | Yalnız built-in `AddModelRunJudge` vardır. Custom judge guide ham `IServiceCollection.AddSingleton` kullanmak zorundadır. |
-| [`AgentPrism.Samples.CustomRunJudge.csproj:8`](../samples/AgentPrism.Samples.CustomRunJudge/AgentPrism.Samples.CustomRunJudge.csproj) | Judge sample yalnız source project'tir; test project, contract consumer ve real score persistence kanıtı yoktur. |
-| [`AgentPrism.Samples.CustomModelProvider.csproj:21`](../samples/AgentPrism.Samples.CustomModelProvider/AgentPrism.Samples.CustomModelProvider.csproj) | Extension sample'ları `VersionOverride="*-*"` kullanır; feed ve global cache birden fazla preview içerirse seçim deterministik değildir. |
-| [`kapi.py:389`](../scripts/kapi.py) | `yayin` stale package output'u temizleyip exact pack version üretir, fakat beş extension sample'ını isolated package cache ile build/test etmez. |
-| [`AgentPrism.Testing.Contracts.Xunit.csproj:4`](../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj) | Package description yalnız 33 storage contract'ını anlatır. |
-| [`versioning.md:9`](../docs-site/src/content/docs/reference/versioning.md) | Site “19 packages” der; güncel pack çıktısı ve compatibility tablosu 20 package'tır. |
-| [`PublicAPI.Unshipped.txt:2`](../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt) | `AgentPrismJudgeException` bugün hâlâ ücretsiz kaldırılabilir yüzeydedir; `Shipped` baseline yalnız `#nullable enable` taşır. |
+| [`AgentPrismOnlineEvaluationBuilderExtensions.cs:51`](../../../src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs) | Yalnız built-in `AddModelRunJudge` vardır. Custom judge guide ham `IServiceCollection.AddSingleton` kullanmak zorundadır. |
+| [`AgentPrism.Samples.CustomRunJudge.csproj:8`](../../../samples/AgentPrism.Samples.CustomRunJudge/AgentPrism.Samples.CustomRunJudge.csproj) | Judge sample yalnız source project'tir; test project, contract consumer ve real score persistence kanıtı yoktur. |
+| [`AgentPrism.Samples.CustomModelProvider.csproj:21`](../../../samples/AgentPrism.Samples.CustomModelProvider/AgentPrism.Samples.CustomModelProvider.csproj) | Extension sample'ları `VersionOverride="*-*"` kullanır; feed ve global cache birden fazla preview içerirse seçim deterministik değildir. |
+| [`kapi.py:389`](../../../scripts/kapi.py) | `yayin` stale package output'u temizleyip exact pack version üretir, fakat beş extension sample'ını isolated package cache ile build/test etmez. |
+| [`AgentPrism.Testing.Contracts.Xunit.csproj:4`](../../../src/AgentPrism.Testing.Contracts.Xunit/AgentPrism.Testing.Contracts.Xunit.csproj) | Package description yalnız 33 storage contract'ını anlatır. |
+| [`versioning.md:9`](../../../docs-site/src/content/docs/reference/versioning.md) | Site “19 packages” der; güncel pack çıktısı ve compatibility tablosu 20 package'tır. |
+| [`PublicAPI.Unshipped.txt:2`](../../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt) | `AgentPrismJudgeException` bugün hâlâ ücretsiz kaldırılabilir yüzeydedir; `Shipped` baseline yalnız `#nullable enable` taşır. |
 
 > Kanıtlar 2026-08-25 tarihinde kaynak, test gövdesi ve packed-artifact
 > probuyla yeniden doğrulandı.

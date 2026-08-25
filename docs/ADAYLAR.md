@@ -103,7 +103,7 @@ Yedi dalganın faz eşlemesi kapanmış bir yönlendirme kaydıdır; faz durumu
 
 ### Preview.1 yayın öncesi → Faz 103 (2026-08-25)
 
-- **F-153** Extension sözleşmelerinin yayın öncesi sertleştirilmesi → [Faz 103](103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) 📋
+- **F-153** Extension sözleşmelerinin yayın öncesi sertleştirilmesi → [Faz 103](arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) 📋
 
 ## Bu Turda Neyin Değiştiği
 
