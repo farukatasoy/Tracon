@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-26)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 106](106-AGENT-DERLEYICI-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur compiler'dan runtime wrapper'a ilerler
+> **Önkoşul:** [Faz 106](arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur compiler'dan runtime wrapper'a ilerler
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `RunRecordingAgent` constructor ve davranışı değişmez; `PublicAPI.Shipped.txt` girdisi bugün **0**

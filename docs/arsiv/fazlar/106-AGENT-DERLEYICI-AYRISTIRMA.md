@@ -1,13 +1,13 @@
 # Faz 106 — Agent Derleyici Ayrıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 105](arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur sırası composition root'tan compiler'a ilerler
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** [Faz 105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur sırası composition root'tan compiler'a ilerler
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `AgentDefinitionCompiler` imzaları ve davranışı değişmez; `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza ve XML metni değişmez; üretilen API reference aynı kalır
-> **Manuel test alanı:** [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md)
+> **Manuel test alanı:** [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md)
 
 ---
 
@@ -18,8 +18,8 @@
    ```bash
    grep -n "K-320\|K-421\|K-581" docs/KARARLAR.md
    ```
-3. Alan hafızası: [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) ve [`hafiza/maf-api.md`](hafiza/maf-api.md)
-4. Mimari: [`MIMARI.md`](MIMARI.md) — yalnız `AgentDefinitionCompiler.Compile` akışı ve decorator pipeline
+3. Alan hafızası: [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) ve [`hafiza/maf-api.md`](../../hafiza/maf-api.md)
+4. Mimari: [`MIMARI.md`](../../MIMARI.md) — yalnız `AgentDefinitionCompiler.Compile` akışı ve decorator pipeline
 
 ---
 
@@ -31,10 +31,10 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinitionCompiler.cs:35`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Public compiler sınıfı **1.617 satırdır** ve 39 metot taşır. |
-| [`AgentDefinitionCompiler.cs:398`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Async dependency resolution ve cache fingerprint aynı dosyadadır. |
-| [`AgentDefinitionCompiler.cs:924`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Compaction, memory, text/vector search ve file-store kurulumları compiler orchestration ile iç içedir. |
-| [`AgentDefinitionCompiler.cs:1407`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Harness compilation ve experimental API bastırması aynı büyük gövdede yaşar. |
+| [`AgentDefinitionCompiler.cs:35`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Public compiler sınıfı **1.617 satırdır** ve 39 metot taşır. |
+| [`AgentDefinitionCompiler.cs:398`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Async dependency resolution ve cache fingerprint aynı dosyadadır. |
+| [`AgentDefinitionCompiler.cs:924`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Compaction, memory, text/vector search ve file-store kurulumları compiler orchestration ile iç içedir. |
+| [`AgentDefinitionCompiler.cs:1407`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | Harness compilation ve experimental API bastırması aynı büyük gövdede yaşar. |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
