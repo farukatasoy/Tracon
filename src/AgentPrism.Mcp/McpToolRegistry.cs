@@ -20,7 +20,7 @@ namespace AgentPrism;
 /// visible to another tenant.
 /// </para>
 /// </remarks>
-internal sealed class McpToolRegistry : IToolRegistry
+internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry
 {
     private readonly IToolRegistry _codeTools;
     private readonly McpToolCatalog _catalog;

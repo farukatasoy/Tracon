@@ -81,6 +81,10 @@ public sealed class AgentPrismOptions
 /// <summary>Defines tool execution options.</summary>
 public sealed class AgentPrismToolOptions
 {
+    /// <summary>Gets or sets whether a consumer-provided registry may bypass AgentPrism's tool pipeline.</summary>
+    /// <remarks>The default is <see langword="false"/>.</remarks>
+    public bool AllowUnverifiedToolRegistry { get; set; }
+
     /// <summary>
     /// Gets or sets the longest duration one tool call may run when its own
     /// registration does not set <see cref="ToolDescriptor.Timeout"/>.

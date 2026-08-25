@@ -38,7 +38,9 @@ internal sealed record ToolEmitModel(
     string GeneratedClassName,
     int Effect,
     string? RequiredPermission,
-    int TimeoutSeconds);
+    int TimeoutSeconds,
+    bool SafeToRepeat,
+    int MaxOutputBytes);
 
 /// <summary>The analysis result for a single method marked with <c>[AgentPrismTool]</c>.</summary>
 /// <remarks>
@@ -72,7 +74,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             blocking = true;
         }
 
-        var (explicitName, description, requiresApproval, effect, requiredPermission, timeoutSeconds) = ReadAttribute(attribute);
+        var (explicitName, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes) = ReadAttribute(attribute);
         var toolName = explicitName ?? method.Name;
 
         if (!ToolNameValidator.IsValid(toolName))
@@ -123,7 +125,9 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
             GeneratedClassName(method),
             effect,
             requiredPermission,
-            timeoutSeconds);
+            timeoutSeconds,
+            safeToRepeat,
+            maxOutputBytes);
 
         return new ToolCandidate(SourceLocation.From(location), diagnostics.ToImmutable(), emit);
     }
@@ -164,7 +168,7 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         return hash;
     }
 
-    private static (string? Name, string? Description, bool RequiresApproval, int Effect, string? RequiredPermission, int TimeoutSeconds) ReadAttribute(AttributeData attribute)
+    private static (string? Name, string? Description, bool RequiresApproval, int Effect, string? RequiredPermission, int TimeoutSeconds, bool SafeToRepeat, int MaxOutputBytes) ReadAttribute(AttributeData attribute)
     {
         string? name = null;
         string? description = null;
@@ -185,6 +189,8 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
         var effect = 0;
         string? requiredPermission = null;
         var timeoutSeconds = 0;
+        var safeToRepeat = false;
+        var maxOutputBytes = 0;
 
         foreach (var named in attribute.NamedArguments)
         {
@@ -205,10 +211,16 @@ internal sealed record ToolCandidate(SourceLocation Location, EquatableArray<Dia
                 case "TimeoutSeconds" when named.Value.Value is int timeoutValue:
                     timeoutSeconds = timeoutValue;
                     break;
+                case "SafeToRepeat" when named.Value.Value is bool value:
+                    safeToRepeat = value;
+                    break;
+                case "MaxOutputBytes" when named.Value.Value is int value:
+                    maxOutputBytes = value;
+                    break;
             }
         }
 
-        return (name, description, requiresApproval, effect, requiredPermission, timeoutSeconds);
+        return (name, description, requiresApproval, effect, requiredPermission, timeoutSeconds, safeToRepeat, maxOutputBytes);
     }
 
     private static ReturnKind ClassifyReturn(ITypeSymbol returnType)

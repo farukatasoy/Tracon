@@ -77,13 +77,10 @@ public sealed class TruncatingAIFunction : DelegatingAIFunction
         // Such a result passes through untouched, same as null/empty — this
         // is the documented boundary of the field's promise (see the type's
         // remarks): bounding inside the tool's own body is always better.
-        var text = result switch
+        if (!ToolResultText.TryGetText(result, out var text))
         {
-            null => null,
-            string s => s,
-            JsonElement element => element.GetRawText(),
-            _ => null,
-        };
+            return result;
+        }
 
         if (string.IsNullOrEmpty(text) || Encoding.UTF8.GetByteCount(text) <= _maxOutputBytes)
         {
