@@ -47,7 +47,7 @@ public interface IAgentPrismBuilder
 
     /// <summary>Registers a tool.</summary>
     /// <param name="tool">The tool to register.</param>
-    /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
+    /// <param name="configure">Configures the tool metadata.</param>
     /// <returns>The chain, for further configuration.</returns>
     /// <remarks>
     /// The AOT-safe overload: the caller supplies the built
@@ -55,26 +55,24 @@ public interface IAgentPrismBuilder
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
-    ///        .AddTool(refundTool, requiresApproval: true);
+    ///        .AddTool(refundTool, options => options.RequiresApproval = true);
     /// </code>
     /// </example>
     /// </remarks>
-    IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval);
+    IAgentPrismBuilder AddTool(AIFunction tool, Action<ToolRegistrationOptions>? configure);
 
-    /// <summary>
-    /// Builds a tool from a method and registers it.
-    /// </summary>
-    /// <param name="method">The method to expose as a tool.</param>
-    /// <param name="name">The tool name. If left empty, the method name is used.</param>
-    /// <param name="description">A description that tells the model when to call the tool.</param>
+    /// <summary>Registers a tool with an approval requirement.</summary>
+    /// <param name="tool">The tool to register.</param>
     /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
     /// <returns>The chain, for further configuration.</returns>
-    /// <remarks>
-    /// This overload uses reflection through <c>AIFunctionFactory</c> and is
-    /// therefore not safe under trimming or native AOT scenarios. Applications
-    /// targeting AOT should use the <see cref="AddTool(AIFunction, bool)"/>
-    /// overload instead.
-    /// </remarks>
+    IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval);
+
+    /// <summary>Builds and registers a tool from a method.</summary>
+    /// <param name="method">The method to expose as a tool.</param>
+    /// <param name="name">The tool name.</param>
+    /// <param name="description">The tool description.</param>
+    /// <param name="requiresApproval">Whether explicit approval is required.</param>
+    /// <returns>The chain, for further configuration.</returns>
     [RequiresUnreferencedCode("Building a tool from a method uses reflection; type information may be lost in trimmed applications.")]
     [RequiresDynamicCode("Building a tool from a method may require code generation at runtime.")]
     IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false);
@@ -104,7 +102,7 @@ public interface IAgentPrismBuilder
     /// <para>
     /// This method uses reflection and is not safe under trimming or native AOT
     /// scenarios. Applications targeting AOT should use the
-    /// <see cref="AddTool(AIFunction, bool)"/> overload instead.
+    /// <see cref="AddTool(AIFunction, Action{ToolRegistrationOptions})"/> overload instead.
     /// </para>
     /// <example>
     /// <code>

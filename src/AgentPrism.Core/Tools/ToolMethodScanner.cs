@@ -14,7 +14,7 @@ namespace AgentPrism;
 /// <see cref="RequiresUnreferencedCodeAttribute"/> and
 /// <see cref="RequiresDynamicCodeAttribute"/>; warnings are propagated rather
 /// than suppressed. Applications targeting AOT should use
-/// <see cref="IAgentPrismBuilder.AddTool(AIFunction, bool)"/>.
+/// <see cref="IAgentPrismBuilder.AddTool(AIFunction, Action{ToolRegistrationOptions})"/>.
 /// </para>
 /// <para>
 /// Only <strong>static</strong> methods are supported. MAF supplies
@@ -61,7 +61,8 @@ internal static class ToolMethodScanner
                 effect: attribute.Effect,
                 requiredPermission: attribute.RequiredPermission,
                 timeout: attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null,
-                safeToRepeat: attribute.SafeToRepeat));
+                safeToRepeat: attribute.SafeToRepeat,
+                maxOutputBytes: attribute.MaxOutputBytes > 0 ? attribute.MaxOutputBytes : null));
         }
 
         if (registrations.Count == 0)

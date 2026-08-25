@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <summary>
 /// The tool registry created from <see cref="AgentPrismToolRegistration"/> entries.
 /// </summary>
-internal sealed class ToolRegistry : IToolRegistry
+internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
 {
     private readonly Dictionary<string, AIFunctionDeclaration> _tools;
     private readonly List<ToolDescriptor> _descriptors;

@@ -109,6 +109,8 @@ internal static class SourceWriter
               .Append(", timeout: ").Append(model.TimeoutSeconds > 0
                   ? $"global::System.TimeSpan.FromSeconds({model.TimeoutSeconds})"
                   : "null")
+              .Append(", safeToRepeat: ").Append(model.SafeToRepeat ? "true" : "false")
+              .Append(", maxOutputBytes: ").Append(model.MaxOutputBytes > 0 ? model.MaxOutputBytes.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null")
               .Append("),\n");
         }
 

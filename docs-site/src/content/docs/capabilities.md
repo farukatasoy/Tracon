@@ -78,7 +78,7 @@ prices.
 | Capability | Registration or source | What is enforced |
 |---|---|---|
 | Generated tools | `[AgentPrismTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code |
-| Direct tools | `AddTool(AIFunction, requiresApproval)` | Exact tool instance and approval policy |
+| Direct tools | `AddTool(AIFunction, configure)` | Exact tool instance and its approval, effect, permission, timeout, repeatability, and output policy |
 | Delegate tools | `AddTool(delegate, ...)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |

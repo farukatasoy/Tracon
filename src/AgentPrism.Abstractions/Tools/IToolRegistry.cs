@@ -7,10 +7,10 @@ namespace AgentPrism;
 /// The registry of tools registered in code.
 /// </summary>
 /// <remarks>
-/// This registry is one of AgentPrism's <strong>security boundaries</strong>.
-/// An agent definition can only point to a registered tool by name. Tool
-/// <em>code</em> cannot be written from the UI; only a selection is made from
-/// registered tools. This keeps anyone with UI access from running code on the server.
+/// AgentPrism's implementation and its invocation pipeline are a security boundary.
+/// Do not implement or replace this service. Replacing it removes authorization,
+/// timeout, approval, and output-truncation wrappers. Register a tool through an
+/// <c>AddTool*</c> API instead. The registry is an immutable startup snapshot.
 /// </remarks>
 public interface IToolRegistry
 {

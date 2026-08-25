@@ -160,8 +160,8 @@ internal static class ContentGuardMessageMasker
     public static string? ReadText(AIContent content) => content switch
     {
         TextContent text => text.Text,
-        FunctionResultContent { Result: string result } => result,
-        FunctionResultContent { Result: { } result } => result.ToString(),
+        FunctionResultContent { Result: var result } when ToolResultText.TryGetText(result, out var text) => text,
+        FunctionResultContent => "[Tool result could not be inspected]",
         _ => null,
     };
 
