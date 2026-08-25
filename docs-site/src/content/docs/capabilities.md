@@ -150,7 +150,7 @@ production behavior.
 | Eval suites and cases | API, console, or stores | Repeatable inputs, expected properties, checks, and run history |
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
-| Run judges | `IRunJudge` or `AddModelRunJudge()` | Manual or automatic scores with named criteria |
+| Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
 | Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |

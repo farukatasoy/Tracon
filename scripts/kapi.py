@@ -603,7 +603,17 @@ def release_rehearsal(
     for project_id in sorted(resolved):
         print(f"  {project_id}  {versions[project_id]}")
 
-    return _npm_dry_run()
+    npm_result = _npm_dry_run()
+    if npm_result:
+        return npm_result
+
+    # Beş extension sample'ı ve AOT smoke, tek exact-version bu koşumun
+    # ürettiği paketlere karşı izole bir NUGET_PACKAGES cache'iyle çalışır
+    # (Faz 103, §103.8). `dotnet pack`/npm gibi ağa hiçbir şey yazmaz.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import release_extension_samples
+
+    return release_extension_samples.verify(root, release_dir, resolved_version)
 
 
 def _npm_dry_run() -> int:

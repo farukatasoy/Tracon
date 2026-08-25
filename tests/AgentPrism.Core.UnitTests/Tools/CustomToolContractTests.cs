@@ -7,6 +7,8 @@ namespace AgentPrism.Core.UnitTests.Tools;
 
 public sealed class CustomToolContractTests : CustomToolContract
 {
+    protected override string ExpectedResultText => "ok";
+
     protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
         => new(new AgentPrismToolRegistration(
             AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_status", "Returns a status."),
@@ -15,6 +17,8 @@ public sealed class CustomToolContractTests : CustomToolContract
 
 public sealed class RepeatableToolContractTests : RepeatableToolContract
 {
+    protected override string ExpectedResultText => "ok";
+
     protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
         => new(new AgentPrismToolRegistration(
             AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_retry", "Returns a retry-safe status."),

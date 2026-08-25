@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AgentPrism.Abstractions" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Core" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
 </Project>

@@ -65,29 +65,29 @@ public sealed class TruncatingAIFunction : DelegatingAIFunction
     {
         var result = await base.InvokeCoreAsync(arguments, cancellationToken).ConfigureAwait(false);
 
-        // Only a form this class can read WITHOUT reflection is measured: a
-        // plain string, or a JsonElement (the shape AIFunctionFactory boxes
-        // every non-AIContent return value into — GetRawText() is exact, the
-        // same bytes a provider serializes to the wire). A raw CLR object
-        // returned directly by the tool source generator's emitted wrapper
-        // has no text form here that is not a guess: the default
-        // Object.ToString() returns a bare type name, not the JSON a
-        // provider actually sends, so measuring it would either wrongly skip
-        // a huge result or wrap a meaningless type name in the envelope.
-        // Such a result passes through untouched, same as null/empty — this
-        // is the documented boundary of the field's promise (see the type's
-        // remarks): bounding inside the tool's own body is always better.
+        // AIContent is a protocol-level result. It keeps its runtime shape and
+        // is handled by the provider adapter rather than the inline canonical
+        // text contract.
+        if (result is AIContent)
+        {
+            return result;
+        }
+
+        // A raw CLR object without generated type information cannot be
+        // serialized safely in an AOT-compatible library. Never call
+        // Object.ToString(): it can expose data and it is not the JSON a
+        // provider sends. Replace it with one stable, secret-free result.
         if (!ToolResultText.TryGetText(result, out var text))
         {
-            return result;
+            return ToolResultText.UnsupportedResultText;
         }
 
-        if (string.IsNullOrEmpty(text) || Encoding.UTF8.GetByteCount(text) <= _maxOutputBytes)
+        if (Encoding.UTF8.GetByteCount(text!) <= _maxOutputBytes)
         {
-            return result;
+            return text;
         }
 
-        var (envelope, omittedBytes) = ToolOutputEnvelope.Build(text, _maxOutputBytes);
+        var (envelope, omittedBytes) = ToolOutputEnvelope.Build(text!, _maxOutputBytes);
 
         await RecordTruncationAsync(omittedBytes).ConfigureAwait(false);
 

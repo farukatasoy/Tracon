@@ -7,11 +7,13 @@ namespace AgentPrism;
 /// <summary>Produces the canonical, inspectable text form of a tool result.</summary>
 internal static class ToolResultText
 {
+    internal const string UnsupportedResultText = "{\"error\":\"tool_result_unsupported\"}";
+
     internal static bool TryGetText(object? result, out string? text)
     {
         switch (result)
         {
-            case null: text = null; return true;
+            case null: text = "null"; return true;
             case string value: text = value; return true;
             case JsonElement value: text = value.GetRawText(); return true;
             case bool value: text = value ? "true" : "false"; return true;

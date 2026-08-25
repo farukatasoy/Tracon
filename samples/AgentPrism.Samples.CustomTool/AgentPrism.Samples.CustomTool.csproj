@@ -11,7 +11,7 @@
       its analyzer folder, so this one reference supports both a hand-built
       AIFunction and [AgentPrismTool] source generation.
     -->
-    <PackageReference Include="AgentPrism.Core" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Core" VersionOverride="$(AgentPrismSamplePackageVersion)" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 

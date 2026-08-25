@@ -112,9 +112,14 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             {
                 var effectiveMaxOutputBytes = registration.MaxOutputBytes ?? defaultMaxOutputBytes;
 
-                AIFunction wrapped = effectiveMaxOutputBytes is { } maxOutputBytes
-                    ? new TruncatingAIFunction(invocable, maxOutputBytes)
-                    : invocable;
+                // This wrapper also canonicalizes every inline result and
+                // fails closed for a raw CLR object without generated type
+                // information. It is therefore present even when no explicit
+                // output budget is configured; int.MaxValue means no practical
+                // trimming limit while retaining the canonicalization boundary.
+                AIFunction wrapped = new TruncatingAIFunction(
+                    invocable,
+                    effectiveMaxOutputBytes ?? int.MaxValue);
 
                 wrapped = registration.RequiresApproval
                     ? new ApprovalRequiredAIFunction(wrapped)

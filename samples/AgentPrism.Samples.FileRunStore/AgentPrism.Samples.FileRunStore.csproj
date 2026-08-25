@@ -17,7 +17,7 @@
       (artifacts/package/release) instead of nuget.org, where a preview
       build is never published.
     -->
-    <PackageReference Include="AgentPrism.Abstractions" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Abstractions" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
 </Project>

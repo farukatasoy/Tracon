@@ -103,9 +103,11 @@ public sealed class FallbackChatClientTests
 
         using var chatClient = RegistryWithFallback(primaryClient, fallbackClient);
 
-        await Should.ThrowAsync<AggregateException>(
+        var exception = await Should.ThrowAsync<AgentPrismException>(
             () => chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken));
 
+        exception.ErrorType.ShouldBe("upstream_error");
+        exception.InnerException.ShouldBeSameAs(authFailure);
         fallbackClient.CallCount.ShouldBe(0);
     }
 
@@ -119,10 +121,12 @@ public sealed class FallbackChatClientTests
 
         using var chatClient = RegistryWithFallback(primaryClient, fallbackClient);
 
-        var exception = await Should.ThrowAsync<InvalidOperationException>(
+        var exception = await Should.ThrowAsync<AgentPrismException>(
             () => chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken));
 
-        exception.Message.ShouldBe(message);
+        exception.ErrorType.ShouldBe("upstream_error");
+        exception.Message.ShouldNotContain(message);
+        exception.InnerException!.Message.ShouldBe(message);
         fallbackClient.CallCount.ShouldBe(0);
     }
 
@@ -177,7 +181,7 @@ public sealed class FallbackChatClientTests
         exception.InnerException!.Message.ShouldBe("HTTP 500 (primary down)");
         exception.Message.ShouldContain("primary");
         exception.Message.ShouldContain("fallback");
-        exception.Message.ShouldContain("HTTP 500 (primary down)");
+        exception.Message.ShouldNotContain("HTTP 500 (primary down)");
     }
 
     [Fact]
@@ -251,13 +255,15 @@ public sealed class FallbackChatClientTests
         using var chatClient = new ModelProviderRegistry([primary, fallback]).CreateChatClient(
             Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model"));
 
-        await Should.ThrowAsync<InvalidOperationException>(async () =>
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
         {
             await foreach (var _ in chatClient.GetStreamingResponseAsync(
                 Messages, cancellationToken: TestContext.Current.CancellationToken))
             {
             }
         });
+
+        exception.ErrorType.ShouldBe("upstream_error");
     }
 
     private static ThrowingStreamChatClient FailingStreamClient(Exception exception) => new(exception, sawUpdateFirst: false);

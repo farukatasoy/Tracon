@@ -68,6 +68,7 @@ internal sealed class CodeAgentSource : IAgentSource
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var descriptors = new List<AgentDescriptor>(_registrations.Count);
 
         foreach (var registration in _registrations.Values)
@@ -94,6 +95,7 @@ internal sealed class CodeAgentSource : IAgentSource
     public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_registrations.TryGetValue(agentName, out var registration))
         {

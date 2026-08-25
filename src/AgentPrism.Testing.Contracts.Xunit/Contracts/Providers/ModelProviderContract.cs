@@ -168,9 +168,14 @@ public abstract class ModelProviderContract : IAsyncLifetime
     public async Task Concurrent_create_chat_client_calls_all_return_a_client()
     {
         var binding = Binding();
+        using var start = new Barrier(32);
 
         var clients = await Task.WhenAll(
-            Enumerable.Range(0, 32).Select(_ => Task.Run(() => Provider.CreateChatClient(binding))));
+            Enumerable.Range(0, 32).Select(_ => Task.Run(() =>
+            {
+                start.SignalAndWait();
+                return Provider.CreateChatClient(binding);
+            })));
 
         clients.ShouldAllBe(static client => client != null);
     }

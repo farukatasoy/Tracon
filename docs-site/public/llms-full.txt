@@ -154,7 +154,7 @@ production behavior.
 | Eval suites and cases | API, console, or stores | Repeatable inputs, expected properties, checks, and run history |
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
-| Run judges | `IRunJudge` or `AddModelRunJudge()` | Manual or automatic scores with named criteria |
+| Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Experiments | Experiment API and console | Stable traffic assignment compares agent versions and reports each arm separately |
 | Canary rollback | Explicit canary policy | A background scan can stop or roll back a canary when its configured rule fails |
@@ -1688,10 +1688,21 @@ timelines that are easy to conflate:
 ### Result representation and persistence
 
 Whatever a tool returns, AgentPrism turns it into one **canonical text form** before
-anything else — a content guard, the output limit — inspects it: a `string` result is
-used as-is, and any other result is its exact serialized JSON. This closes a real gap:
-inspecting a type name or a placeholder instead of the actual data would let a guard
-approve content it never really looked at.
+anything else — a content guard, the output limit — inspects it. `null`, `string`, and
+`JsonElement` each have one stable text form; a primitive, `Guid`, or date value is
+serialized the same, culture-independent way every time. A collection, record, or class
+result is only canonicalized when the tool's generated declaration carries a consumer
+`JsonSerializerContext` for it — code-defined tools using the `[AgentPrismTool]`
+attribute (see [Write your own tool](/guides/write-your-own-tool/)) require one for
+any result type beyond a plain string or primitive. That context, not reflection, is
+what turns it into JSON, which is also what keeps the guard AOT-safe. A raw CLR object
+returned directly from a hand-written `AIFunction` with no such context attached is
+**not** serialized by guessing: it is
+treated as an unsupported result and replaced with a generic, secret-free failure text
+rather than passed through unguarded or serialized with reflection. This closes a real
+gap: inspecting a type name or a placeholder instead of the actual data would let a
+guard approve content it never really looked at, and silently trusting an unknown
+object would let it bypass the guard and the output limit entirely.
 
 That same canonical text is what gets **persisted**: a tool's arguments and result are
 written into the run's permanent record and streamed to the console over SSE. Neither
@@ -5060,6 +5071,15 @@ By default every tenant shares the credential a `Use...()` call registered at st
 A multi-tenant host can instead let each tenant bring its own key — its usage and its
 bill stay separate from every other tenant's.
 
+BYOK is an **optional** provider capability, not a universal contract. A provider
+opts in by implementing `ITenantCredentialModelProvider` in addition to
+`IModelProvider`; the four built-in providers (OpenAI, Anthropic, Google, Azure
+OpenAI) all do. A provider that does not implement it simply never sees a tenant
+credential, and AgentPrism never falls back to the setup-time key on its behalf: a
+tenant binding saved against a provider that does not support BYOK fails **every**
+run with a stable `provider_credential_unsupported` error instead of silently
+billing the tenant's traffic to the host's own account.
+
 A tenant's binding stores only the **name** of a configuration key, never the value:
 
 ```bash
@@ -5102,26 +5122,38 @@ credential value, only a configuration key name and an optional endpoint overrid
 
 `AddModelProvider()` registers a provider AgentPrism does not ship a package for.
 Implement `IModelProvider` — a stable `Name`, a `Models` catalog, and
-`CreateChatClient(ModelBinding, ModelProviderCredential?)` returning a raw `IChatClient`
-— and register it:
+`CreateChatClient(ModelBinding)` returning a raw `IChatClient` — and register it. If
+the provider should also accept a per-tenant credential (see [Per-tenant
+credentials](#per-tenant-credentials-byok) above), additionally implement
+`ITenantCredentialModelProvider`, whose `CreateChatClient(ModelBinding,
+ModelProviderCredential)` takes a non-null credential; a provider that does not
+implement it is never called with one — AgentPrism fails the run instead of
+falling back to the setup-time key on its behalf:
 
 ```csharp
-public sealed class ContosoModelProvider(HttpClient httpClient) : IModelProvider
+public sealed class ContosoModelProvider(HttpClient httpClient, string setupApiKey)
+    : ITenantCredentialModelProvider
 {
     public string Name => "contoso";
 
     public IReadOnlyList<ModelDescriptor> Models { get; } =
         [new ModelDescriptor { Name = "contoso-large", SupportsTools = true }];
 
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
-        => new ContosoChatClient(httpClient, binding.Model, credential?.ApiKey);
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => new ContosoChatClient(httpClient, binding.Model, setupApiKey);
+
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => new ContosoChatClient(httpClient, binding.Model, credential.ApiKey);
 }
 
 services.AddHttpClient();
 
 agentPrism.AddModelProvider(services =>
-    new ContosoModelProvider(services.GetRequiredService<HttpClient>()));
+    new ContosoModelProvider(services.GetRequiredService<HttpClient>(), setupApiKey));
 ```
+
+A provider that never wants to support BYOK simply implements only `IModelProvider`
+and stops there — it still works with the setup-time credential for every tenant.
 
 A complete, runnable version of this provider — including per-tenant credentials
 and provider-settings validation — lives in the repository at
@@ -5173,14 +5205,16 @@ startup.
 **The catalog is not an allow list.** See [the next
 section](#model-catalog-is-metadata-not-permission).
 
-**Credentials.** `credential` carries a resolved per-tenant key when the host and
-the requesting tenant both opt into BYOK (see [Per-tenant
-credentials](#per-tenant-credentials-byok) above); it is `null` for every call
-that does not, and a provider that ignores the parameter keeps working — it
-simply never honors a tenant's own key. If you do honor it, the key must never
-fall back to your setup-time key: a tenant that supplied a credential is billed
-on it, or the call fails. An endpoint may fall back, so a globally configured
-base address still applies when a tenant overrides only its key.
+**Credentials.** `CreateChatClient(ModelBinding, ModelProviderCredential)` — the
+`ITenantCredentialModelProvider` overload — is called only when a tenant supplies a
+credential **and** your provider implements that interface; without it, AgentPrism
+never calls your provider with a tenant credential at all, and it does not fall back
+to calling the plain `CreateChatClient(ModelBinding)` overload with the tenant's
+request either — the run fails closed with `provider_credential_unsupported`
+instead. If you do implement the interface, the key must never fall back to your
+setup-time key: a tenant that supplied a credential is billed on it, or the call
+fails. An endpoint may fall back, so a globally configured base address still
+applies when a tenant overrides only its key.
 
 ### How failures are classified
 
@@ -7900,11 +7934,22 @@ public sealed class ResponseQualityJudge : IRunJudge
 }
 ```
 
-Register it before or after `AddAgentPrism()`:
+Register it on the same chain `AddAgentPrism()` returns:
 
 ```csharp
-services.AddSingleton<IRunJudge, ResponseQualityJudge>();
+agentPrism.AddRunJudge<ResponseQualityJudge>();
 ```
+
+Repeating `AddRunJudge<TJudge>()` for the same implementation type has no effect
+— the container creates and owns one singleton. Two other overloads exist for a
+judge that needs constructor arguments or per-instance configuration:
+`AddRunJudge(IRunJudge judge)` registers a configured instance you own, and
+`AddRunJudge(Func<IServiceProvider, IRunJudge> factory)` registers a
+container-owned factory result; unlike the generic overload, different configured
+instances or factories are all preserved side by side — only their `Name` values
+must stay unique. All three are singletons: the judge must be thread-safe because
+evaluations can overlap, including when a timed-out call finishes after a retry
+has already started.
 
 ## Runtime contract
 
@@ -7921,6 +7966,14 @@ optional and is stored at a maximum of 4000 characters.
 The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do
 not throw `OperationCanceledException` for your own timeout.
+
+`JudgeTimeout` is a **real wait cutoff**, not only a cooperative cancellation
+request: if a judge ignores its token and keeps running past the deadline,
+AgentPrism still returns a `judge_timeout` failure at that point instead of
+waiting indefinitely. The judge body itself is not killed — it can keep running
+in the background and complete later with a success or a fault — but a late
+result is discarded: it writes no score, no summary, and no metric, and a late
+fault is only logged, never left as an unobserved task exception.
 
 `RunJudgeContext.TenantId` is the authoritative tenant. The context contains the
 run input, non-empty output, and distinct tool names. It does not include tool
@@ -8365,7 +8418,7 @@ Add these when you need them.
 | `AgentPrism.Azure` | You call Azure OpenAI deployments |
 | `AgentPrism.Voice` | You need speech synthesis, transcription, or live conversation |
 | `AgentPrism.Testing` | You write tests against agents — fakes, not mocks |
-| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, or `IAgentSource`, and want the behavior contract the shipped implementations run |
+| `AgentPrism.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, or a custom tool, and want the behavior contract the shipped implementations run |
 | `AgentPrism.Templates` | `dotnet new agentprism-api` |
 
 `AgentPrism.OpenAI`, `AgentPrism.Azure`, and `AgentPrism.Google` also expose optional
@@ -8589,7 +8642,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `AgentPrism.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
 | `AgentPrism.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `AgentPrism.Testing` | No | net10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `AgentPrism.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for `IRunStore` and 32 other store interfaces, as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `AgentPrism.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for five extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `AgentPrism.Templates` | No | net10 output | N/A | `dotnet new agentprism-api` content package |
 | `AgentPrism.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `AgentPrism.Cli` | No | net10 (`DotnetTool`) | No | The `agentprism` global tool; wraps `AgentPrism.Client` and ships as IL, not native code |
@@ -9614,11 +9667,11 @@ each term means inside AgentPrism.
 AgentPrism is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-All 19 packages, the npm client included, are cut from the same `v*` tag and share
-one version line: there is no split between a stable subset and a preview subset.
-The public surface carries no compatibility promise for as long as that line stays
-pre-1.0 - a narrowing or a reshaped type is not treated as a breaking change until
-the family reaches `1.0.0`.
+AgentPrism ships 20 NuGet packages and one npm package (`@agentprism/client`), all
+cut from the same `v*` tag and sharing one version line: there is no split between
+a stable subset and a preview subset. The public surface carries no compatibility
+promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
+not treated as a breaking change until the family reaches `1.0.0`.
 
 ## Which version do these docs describe?
 

@@ -218,6 +218,43 @@ public interface IAgentPrismBuilder
     /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddAgentSource(Func<IServiceProvider, IAgentSource> factory);
 
+    /// <summary>Registers a custom run judge as a singleton.</summary>
+    /// <typeparam name="TJudge">The judge implementation type.</typeparam>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Repeating this overload for the same implementation type has no effect.
+    /// The container creates and owns the singleton. The judge must be
+    /// thread-safe because evaluations can overlap, including when a timed-out
+    /// call finishes after a retry starts.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddRunJudge&lt;ResponseQualityJudge&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    IAgentPrismBuilder AddRunJudge<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJudge>() where TJudge : class, IRunJudge;
+
+    /// <summary>Registers a configured run-judge instance as a singleton.</summary>
+    /// <param name="judge">The judge instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// The caller owns the instance and any resources it holds. Different
+    /// configured instances of the same CLR type are preserved. Their
+    /// <see cref="IRunJudge.Name"/> values must still be unique.
+    /// </remarks>
+    IAgentPrismBuilder AddRunJudge(IRunJudge judge);
+
+    /// <summary>Registers a run-judge factory as a singleton.</summary>
+    /// <param name="factory">The factory that creates the judge.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// The container owns the produced singleton. The factory must not capture
+    /// a scoped dependency because the result outlives that scope. Different
+    /// factories and configured results are preserved.
+    /// </remarks>
+    IAgentPrismBuilder AddRunJudge(Func<IServiceProvider, IRunJudge> factory);
+
     /// <summary>Registers a model provider.</summary>
     /// <param name="provider">The provider.</param>
     /// <returns>The chain, for further configuration.</returns>

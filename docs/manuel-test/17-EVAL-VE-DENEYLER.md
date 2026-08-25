@@ -2098,3 +2098,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 - Çağrı yaklaşık 5 saniyede `judge_timeout` ile kapanır. HTTP gövdesi ve job hata kaydı judge'ın ham exception mesajını içermez.
 
 **Alan kodu:** `EVAL`
+
+### EVAL-104 — CustomRunJudge sample paketten gerçek run/skor üretir (Faz 103)
+
+**Ön koşul**
+- `samples/AgentPrism.Samples.CustomRunJudge.Tests` yalnız local-feed exact-version paket referansı kullanıyor.
+
+**Adımlar**
+1. `dotnet test samples/AgentPrism.Samples.CustomRunJudge.Tests` koş.
+
+**Beklenen sonuç**
+- Contract, registration ve gerçek run/evaluation testleri geçer.
+- `IRunScoreStore` üzerinden `judge:response-quality` score satırı, value/comment/tenant/run kimliğiyle doğrulanır.
+
+**Alan kodu:** `EVAL`
+

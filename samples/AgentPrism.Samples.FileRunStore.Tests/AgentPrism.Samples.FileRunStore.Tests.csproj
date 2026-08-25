@@ -27,7 +27,7 @@
     -->
     <ProjectReference Include="../AgentPrism.Samples.FileRunStore/AgentPrism.Samples.FileRunStore.csproj" />
     <!-- VersionOverride, not Version: see the sample store's own csproj for why. -->
-    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="$(AgentPrismSamplePackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

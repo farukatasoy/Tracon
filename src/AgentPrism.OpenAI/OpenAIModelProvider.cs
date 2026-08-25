@@ -22,7 +22,7 @@ namespace AgentPrism;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
@@ -103,7 +103,14 @@ internal sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealth
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding, credential: null);
+
+    /// <inheritdoc />
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding, credential);
+
+    private IChatClient CreateChatClientCore(ModelBinding binding, ModelProviderCredential? credential)
     {
         ArgumentNullException.ThrowIfNull(binding);
 

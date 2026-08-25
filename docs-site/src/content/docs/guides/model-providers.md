@@ -234,6 +234,15 @@ By default every tenant shares the credential a `Use...()` call registered at st
 A multi-tenant host can instead let each tenant bring its own key — its usage and its
 bill stay separate from every other tenant's.
 
+BYOK is an **optional** provider capability, not a universal contract. A provider
+opts in by implementing `ITenantCredentialModelProvider` in addition to
+`IModelProvider`; the four built-in providers (OpenAI, Anthropic, Google, Azure
+OpenAI) all do. A provider that does not implement it simply never sees a tenant
+credential, and AgentPrism never falls back to the setup-time key on its behalf: a
+tenant binding saved against a provider that does not support BYOK fails **every**
+run with a stable `provider_credential_unsupported` error instead of silently
+billing the tenant's traffic to the host's own account.
+
 A tenant's binding stores only the **name** of a configuration key, never the value:
 
 ```bash
@@ -276,26 +285,38 @@ credential value, only a configuration key name and an optional endpoint overrid
 
 `AddModelProvider()` registers a provider AgentPrism does not ship a package for.
 Implement `IModelProvider` — a stable `Name`, a `Models` catalog, and
-`CreateChatClient(ModelBinding, ModelProviderCredential?)` returning a raw `IChatClient`
-— and register it:
+`CreateChatClient(ModelBinding)` returning a raw `IChatClient` — and register it. If
+the provider should also accept a per-tenant credential (see [Per-tenant
+credentials](#per-tenant-credentials-byok) above), additionally implement
+`ITenantCredentialModelProvider`, whose `CreateChatClient(ModelBinding,
+ModelProviderCredential)` takes a non-null credential; a provider that does not
+implement it is never called with one — AgentPrism fails the run instead of
+falling back to the setup-time key on its behalf:
 
 ```csharp
-public sealed class ContosoModelProvider(HttpClient httpClient) : IModelProvider
+public sealed class ContosoModelProvider(HttpClient httpClient, string setupApiKey)
+    : ITenantCredentialModelProvider
 {
     public string Name => "contoso";
 
     public IReadOnlyList<ModelDescriptor> Models { get; } =
         [new ModelDescriptor { Name = "contoso-large", SupportsTools = true }];
 
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
-        => new ContosoChatClient(httpClient, binding.Model, credential?.ApiKey);
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => new ContosoChatClient(httpClient, binding.Model, setupApiKey);
+
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => new ContosoChatClient(httpClient, binding.Model, credential.ApiKey);
 }
 
 services.AddHttpClient();
 
 agentPrism.AddModelProvider(services =>
-    new ContosoModelProvider(services.GetRequiredService<HttpClient>()));
+    new ContosoModelProvider(services.GetRequiredService<HttpClient>(), setupApiKey));
 ```
+
+A provider that never wants to support BYOK simply implements only `IModelProvider`
+and stops there — it still works with the setup-time credential for every tenant.
 
 A complete, runnable version of this provider — including per-tenant credentials
 and provider-settings validation — lives in the repository at
@@ -347,14 +368,16 @@ startup.
 **The catalog is not an allow list.** See [the next
 section](#model-catalog-is-metadata-not-permission).
 
-**Credentials.** `credential` carries a resolved per-tenant key when the host and
-the requesting tenant both opt into BYOK (see [Per-tenant
-credentials](#per-tenant-credentials-byok) above); it is `null` for every call
-that does not, and a provider that ignores the parameter keeps working — it
-simply never honors a tenant's own key. If you do honor it, the key must never
-fall back to your setup-time key: a tenant that supplied a credential is billed
-on it, or the call fails. An endpoint may fall back, so a globally configured
-base address still applies when a tenant overrides only its key.
+**Credentials.** `CreateChatClient(ModelBinding, ModelProviderCredential)` — the
+`ITenantCredentialModelProvider` overload — is called only when a tenant supplies a
+credential **and** your provider implements that interface; without it, AgentPrism
+never calls your provider with a tenant credential at all, and it does not fall back
+to calling the plain `CreateChatClient(ModelBinding)` overload with the tenant's
+request either — the run fails closed with `provider_credential_unsupported`
+instead. If you do implement the interface, the key must never fall back to your
+setup-time key: a tenant that supplied a credential is billed on it, or the call
+fails. An endpoint may fall back, so a globally configured base address still
+applies when a tenant overrides only its key.
 
 ### How failures are classified
 

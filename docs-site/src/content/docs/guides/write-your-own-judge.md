@@ -22,11 +22,22 @@ public sealed class ResponseQualityJudge : IRunJudge
 }
 ```
 
-Register it before or after `AddAgentPrism()`:
+Register it on the same chain `AddAgentPrism()` returns:
 
 ```csharp
-services.AddSingleton<IRunJudge, ResponseQualityJudge>();
+agentPrism.AddRunJudge<ResponseQualityJudge>();
 ```
+
+Repeating `AddRunJudge<TJudge>()` for the same implementation type has no effect
+— the container creates and owns one singleton. Two other overloads exist for a
+judge that needs constructor arguments or per-instance configuration:
+`AddRunJudge(IRunJudge judge)` registers a configured instance you own, and
+`AddRunJudge(Func<IServiceProvider, IRunJudge> factory)` registers a
+container-owned factory result; unlike the generic overload, different configured
+instances or factories are all preserved side by side — only their `Name` values
+must stay unique. All three are singletons: the judge must be thread-safe because
+evaluations can overlap, including when a timed-out call finishes after a retry
+has already started.
 
 ## Runtime contract
 
@@ -43,6 +54,14 @@ optional and is stored at a maximum of 4000 characters.
 The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do
 not throw `OperationCanceledException` for your own timeout.
+
+`JudgeTimeout` is a **real wait cutoff**, not only a cooperative cancellation
+request: if a judge ignores its token and keeps running past the deadline,
+AgentPrism still returns a `judge_timeout` failure at that point instead of
+waiting indefinitely. The judge body itself is not killed — it can keep running
+in the background and complete later with a success or a fault — but a late
+result is discarded: it writes no score, no summary, and no metric, and a late
+fault is only logged, never left as an unobserved task exception.
 
 `RunJudgeContext.TenantId` is the authoritative tenant. The context contains the
 run input, non-empty output, and distinct tool names. It does not include tool

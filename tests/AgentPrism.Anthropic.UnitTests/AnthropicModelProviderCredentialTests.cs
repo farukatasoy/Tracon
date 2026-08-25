@@ -21,7 +21,7 @@ public sealed class AnthropicModelProviderCredentialTests
     [Fact]
     public void Null_credential_uses_the_global_setup_time_client()
     {
-        using var chatClient = CreateProvider().CreateChatClient(TestData.Binding(), credential: null);
+        using var chatClient = CreateProvider().CreateChatClient(TestData.Binding());
 
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
 

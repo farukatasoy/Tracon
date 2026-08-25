@@ -55,6 +55,7 @@ internal sealed class ModelRunJudge(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var options = optionsMonitor.CurrentValue;
 

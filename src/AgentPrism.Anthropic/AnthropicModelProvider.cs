@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly AnthropicChatClientFactory _chatClientFactory;
     private readonly ILogger<AnthropicModelProvider>? _logger;
@@ -79,7 +79,14 @@ internal sealed class AnthropicModelProvider : IModelProvider, IModelProviderHea
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding, credential: null);
+
+    /// <inheritdoc />
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding, credential);
+
+    private IChatClient CreateChatClientCore(ModelBinding binding, ModelProviderCredential? credential)
     {
         ArgumentNullException.ThrowIfNull(binding);
 

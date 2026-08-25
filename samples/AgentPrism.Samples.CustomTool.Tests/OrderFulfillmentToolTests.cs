@@ -11,6 +11,8 @@ namespace AgentPrism.Samples.CustomTool.Tests;
 /// <summary>Runs the published custom-tool contracts against the sample.</summary>
 public sealed class OrderFulfillmentToolContractTests : RepeatableToolContract
 {
+    protected override string ExpectedResultText => "ready";
+
     protected override ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync()
         => new(new AgentPrismToolRegistration(
             AIFunctionFactory.Create((Func<string>)(() => "ready"), "submit_order", "Submits an order to fulfillment."),

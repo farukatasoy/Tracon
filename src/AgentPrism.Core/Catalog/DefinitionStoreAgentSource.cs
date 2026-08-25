@@ -48,6 +48,7 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var definitions = await _store.ListAsync(cancellationToken).ConfigureAwait(false);
         var descriptors = new List<AgentDescriptor>(definitions.Count);
 
@@ -77,6 +78,7 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
     public async ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var definition = await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
 
@@ -98,6 +100,7 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var definition = await _store.GetVersionAsync(agentName, version, cancellationToken).ConfigureAwait(false);
 

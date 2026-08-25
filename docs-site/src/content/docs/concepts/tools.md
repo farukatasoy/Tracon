@@ -129,10 +129,21 @@ timelines that are easy to conflate:
 ### Result representation and persistence
 
 Whatever a tool returns, AgentPrism turns it into one **canonical text form** before
-anything else — a content guard, the output limit — inspects it: a `string` result is
-used as-is, and any other result is its exact serialized JSON. This closes a real gap:
-inspecting a type name or a placeholder instead of the actual data would let a guard
-approve content it never really looked at.
+anything else — a content guard, the output limit — inspects it. `null`, `string`, and
+`JsonElement` each have one stable text form; a primitive, `Guid`, or date value is
+serialized the same, culture-independent way every time. A collection, record, or class
+result is only canonicalized when the tool's generated declaration carries a consumer
+`JsonSerializerContext` for it — code-defined tools using the `[AgentPrismTool]`
+attribute (see [Write your own tool](/guides/write-your-own-tool/)) require one for
+any result type beyond a plain string or primitive. That context, not reflection, is
+what turns it into JSON, which is also what keeps the guard AOT-safe. A raw CLR object
+returned directly from a hand-written `AIFunction` with no such context attached is
+**not** serialized by guessing: it is
+treated as an unsupported result and replaced with a generic, secret-free failure text
+rather than passed through unguarded or serialized with reflection. This closes a real
+gap: inspecting a type name or a placeholder instead of the actual data would let a
+guard approve content it never really looked at, and silently trusting an unknown
+object would let it bypass the guard and the output limit entirely.
 
 That same canonical text is what gets **persisted**: a tool's arguments and result are
 written into the run's permanent record and streamed to the console over SSE. Neither

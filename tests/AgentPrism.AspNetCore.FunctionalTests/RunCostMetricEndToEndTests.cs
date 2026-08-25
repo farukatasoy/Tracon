@@ -79,7 +79,7 @@ public sealed class RunCostMetricEndToEndTests
             },
         ];
 
-        public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => _client;
+        public IChatClient CreateChatClient(ModelBinding binding) => _client;
 
         public void Dispose() => _client.Dispose();
 

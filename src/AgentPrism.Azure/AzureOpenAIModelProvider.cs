@@ -20,7 +20,7 @@ namespace AgentPrism;
 /// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
@@ -82,7 +82,14 @@ internal sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderH
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding, credential: null);
+
+    /// <inheritdoc />
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding, credential);
+
+    private IChatClient CreateChatClientCore(ModelBinding binding, ModelProviderCredential? credential)
     {
         ArgumentNullException.ThrowIfNull(binding);
 

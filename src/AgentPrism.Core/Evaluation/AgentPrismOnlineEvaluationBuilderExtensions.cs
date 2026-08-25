@@ -55,7 +55,7 @@ public static class AgentPrismOnlineEvaluationBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunJudge, ModelRunJudge>());
+        builder.AddRunJudge<ModelRunJudge>();
         builder.Services.Configure(configure);
 
         return builder;

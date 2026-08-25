@@ -29,7 +29,7 @@ namespace AgentPrism.Testing;
 /// EchoesUserMessage();
 /// </code>
 /// </example>
-public sealed class FakeModelProvider : IModelProvider, IDisposable
+public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposable
 {
     private readonly Dictionary<string, FakeModelScript> _scripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModelDescriptor> _models = [];
@@ -236,7 +236,14 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
     }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding);
+
+    /// <inheritdoc />
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding);
+
+    private FakeChatClient CreateChatClientCore(ModelBinding binding)
     {
         ArgumentNullException.ThrowIfNull(binding);
 

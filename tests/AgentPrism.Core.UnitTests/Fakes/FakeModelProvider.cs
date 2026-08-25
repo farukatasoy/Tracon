@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Core.UnitTests.Fakes;
 
 /// <summary>A fake single-model provider used in tests.</summary>
-internal sealed class FakeModelProvider : IModelProvider
+internal sealed class FakeModelProvider : ITenantCredentialModelProvider
 {
     private readonly IChatClient _client;
 
@@ -27,7 +27,13 @@ internal sealed class FakeModelProvider : IModelProvider
     /// <summary>The last credential passed in (phase 65, BYOK). Tests verify tenant resolution through this.</summary>
     public ModelProviderCredential? LastCredential { get; private set; }
 
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding, credential: null);
+
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding, credential);
+
+    private IChatClient CreateChatClientCore(ModelBinding binding, ModelProviderCredential? credential)
     {
         LastBinding = binding;
         LastCredential = credential;

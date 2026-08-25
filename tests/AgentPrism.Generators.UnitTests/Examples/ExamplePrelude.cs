@@ -19,8 +19,8 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// <para>
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
-/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>): "a
-/// provider/tool/service/handler/source you wrote yourself". Those get a
+/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>, <c>ResponseQualityJudge</c>): "a
+/// provider/tool/service/handler/source/judge you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
 /// </para>
@@ -87,7 +87,7 @@ internal static class ExamplePrelude
 
             public IReadOnlyList<ModelDescriptor> Models { get; } = [];
 
-            public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null) => null!;
+            public IChatClient CreateChatClient(ModelBinding binding) => null!;
         }
 
         // Stands in for "your own DI service", named in one <example> only.
@@ -122,6 +122,14 @@ internal static class ExamplePrelude
             public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default) => default;
 
             public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default) => default;
+        }
+
+        // Stands in for "your own run judge", named in one <example> only.
+        internal sealed class ResponseQualityJudge : IRunJudge
+        {
+            public string Name => "response-quality";
+
+            public ValueTask<RunJudgment> JudgeAsync(RunJudgeContext context, CancellationToken cancellationToken = default) => default;
         }
         """;
 

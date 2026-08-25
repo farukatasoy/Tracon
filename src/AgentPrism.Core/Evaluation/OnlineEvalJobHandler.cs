@@ -163,13 +163,30 @@ internal sealed class OnlineEvalJobHandler(
         CancellationToken cancellationToken)
     {
         RunJudgment judgment;
+        Task<RunJudgment> invocation;
+        var timeout = optionsMonitor?.CurrentValue.JudgeTimeout ?? TimeSpan.FromSeconds(60);
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        budget.CancelAfter(optionsMonitor?.CurrentValue.JudgeTimeout ?? TimeSpan.FromSeconds(60));
+        budget.CancelAfter(timeout);
 
         try
         {
             using var samplingSuppression = AmbientSamplingSuppressionScope.Begin();
-            judgment = await judge.JudgeAsync(judgeContext, budget.Token).ConfigureAwait(false);
+            invocation = judge.JudgeAsync(judgeContext, budget.Token).AsTask();
+
+            var timeoutTask = Task.Delay(timeout, timeProvider ?? TimeProvider.System, CancellationToken.None);
+            var callerCancellation = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            var winner = await Task.WhenAny(invocation, timeoutTask, callerCancellation).ConfigureAwait(false);
+
+            if (winner != invocation)
+            {
+                ObserveLateJudge(invocation, judge, judgeContext);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                failures.Add(Failure(judge.Name, JudgeFailureTypes.Timeout, retryable: true));
+                return;
+            }
+
+            judgment = await invocation.ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -177,16 +194,16 @@ internal sealed class OnlineEvalJobHandler(
         }
         catch (OperationCanceledException exception)
         {
-            var timeout = budget.IsCancellationRequested;
-            failures.Add(Failure(judge.Name, timeout
-                ? AgentPrismJudgeException.JudgeTimeoutErrorType
-                : AgentPrismJudgeException.JudgeFailedErrorType, retryable: true));
+            var timedOut = budget.IsCancellationRequested;
+            failures.Add(Failure(judge.Name, timedOut
+                ? JudgeFailureTypes.Timeout
+                : JudgeFailureTypes.Failed, retryable: true));
             LogFailure(judge, judgeContext, exception);
             return;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            failures.Add(Failure(judge.Name, AgentPrismJudgeException.JudgeFailedErrorType, retryable: true));
+            failures.Add(Failure(judge.Name, JudgeFailureTypes.Failed, retryable: true));
             LogFailure(judge, judgeContext, exception);
             return;
         }
@@ -200,7 +217,7 @@ internal sealed class OnlineEvalJobHandler(
 
         if (score is < 0 or > 100)
         {
-            failures.Add(Failure(judge.Name, AgentPrismJudgeException.JudgeContractErrorType, retryable: false));
+            failures.Add(Failure(judge.Name, JudgeFailureTypes.Contract, retryable: false));
             logger?.LogWarning("Judge '{Judge}' returned an out-of-range score for run {RunId}.", judge.Name, judgeContext.RunId);
             return;
         }
@@ -273,10 +290,43 @@ internal sealed class OnlineEvalJobHandler(
         }
     }
 
+    private void ObserveLateJudge(Task<RunJudgment> invocation, IRunJudge judge, RunJudgeContext context)
+    {
+        _ = invocation.ContinueWith(
+            task =>
+            {
+                if (task.IsFaulted)
+                {
+                    logger?.LogWarning(
+                        task.Exception,
+                        "Judge '{Judge}' faulted after its timeout was reported for run {RunId}.",
+                        judge.Name,
+                        context.RunId);
+                }
+                else
+                {
+                    logger?.LogDebug(
+                        "Judge '{Judge}' finished after its timeout was reported for run {RunId}.",
+                        judge.Name,
+                        context.RunId);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
     private static TimeSpan BackoffFor(int attempt)
     {
         var seconds = Math.Min(30 * Math.Pow(2, Math.Max(attempt - 1, 0)), 600);
         return TimeSpan.FromSeconds(seconds);
+    }
+
+    private static class JudgeFailureTypes
+    {
+        internal const string Failed = "judge_failed";
+        internal const string Timeout = "judge_timeout";
+        internal const string Contract = "judge_contract";
     }
 
     private async ValueTask<List<RunEvent>> ReadEventsAsync(Guid runId, CancellationToken cancellationToken)

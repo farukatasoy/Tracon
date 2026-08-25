@@ -1,7 +1,4 @@
 #nullable enable
-AgentPrism.AgentPrismJudgeException
-AgentPrism.AgentPrismJudgeException.AgentPrismJudgeException(string! judgeName, string! errorType, string! message, System.Exception? innerException = null) -> void
-AgentPrism.AgentPrismJudgeException.JudgeName.get -> string!
 AgentPrism.IModelProviderRegistry.CreateSetupChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
 AgentPrism.JudgeFailure
 AgentPrism.JudgeFailure.<Clone>$() -> AgentPrism.JudgeFailure!
@@ -21,11 +18,7 @@ AgentPrism.JudgeRunResponse.Failures.init -> void
 AgentPrism.JudgeRunResponse.JudgeRunResponse() -> void
 AgentPrism.JudgeRunResponse.Scores.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.RunScore!>!
 AgentPrism.JudgeRunResponse.Scores.init -> void
-const AgentPrism.AgentPrismJudgeException.JudgeContractErrorType = "judge_contract" -> string!
-const AgentPrism.AgentPrismJudgeException.JudgeFailedErrorType = "judge_failed" -> string!
-const AgentPrism.AgentPrismJudgeException.JudgeTimeoutErrorType = "judge_timeout" -> string!
 const AgentPrism.RunJudgment.MaxReasonLength = 4000 -> int
-override AgentPrism.AgentPrismJudgeException.ErrorType.get -> string!
 override AgentPrism.JudgeFailure.Equals(object? obj) -> bool
 override AgentPrism.JudgeFailure.GetHashCode() -> int
 override AgentPrism.JudgeFailure.ToString() -> string!
@@ -1186,7 +1179,7 @@ AgentPrism.IMcpServerStore.SaveAsync(AgentPrism.McpServerDefinition! server, Sys
 AgentPrism.IMcpToolRefresher
 AgentPrism.IMcpToolRefresher.RefreshAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AgentPrism.McpRefreshOutcome>
 AgentPrism.IModelProvider
-AgentPrism.IModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential? credential = null) -> Microsoft.Extensions.AI.IChatClient!
+AgentPrism.IModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.IModelProvider.Models.get -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelDescriptor!>!
 AgentPrism.IModelProvider.Name.get -> string!
 AgentPrism.IModelProviderConfigurationDiagnostics
@@ -1198,6 +1191,8 @@ AgentPrism.IModelProviderRegistry.CreateChatClient(AgentPrism.ModelBinding! bind
 AgentPrism.IModelProviderRegistry.CreateChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
 AgentPrism.IModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.IModelProviderRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelProviderDescriptor!>!
+AgentPrism.ITenantCredentialModelProvider
+AgentPrism.ITenantCredentialModelProvider.CreateChatClient(AgentPrism.ModelBinding! binding, AgentPrism.ModelProviderCredential! credential) -> Microsoft.Extensions.AI.IChatClient!
 AgentPrism.IPendingApprovalStore
 AgentPrism.IPendingApprovalStore.CreateAsync(AgentPrism.PendingApproval! approval, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AgentPrism.IPendingApprovalStore.DecideAsync(System.Guid id, bool approved, string! decidedBy, System.DateTimeOffset decidedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>

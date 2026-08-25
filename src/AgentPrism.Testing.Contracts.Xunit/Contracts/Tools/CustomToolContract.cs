@@ -11,6 +11,9 @@ public abstract class CustomToolContract : IAsyncLifetime
     /// <summary>Creates the custom tool registration under test.</summary>
     protected abstract ValueTask<AgentPrismToolRegistration> CreateRegistrationAsync();
 
+    /// <summary>Gets the semantic result text expected from an argument-free invocation.</summary>
+    protected abstract string ExpectedResultText { get; }
+
     /// <inheritdoc />
     public async ValueTask InitializeAsync() => Registration = await CreateRegistrationAsync().ConfigureAwait(false);
 
@@ -48,10 +51,8 @@ public abstract class CustomToolContract : IAsyncLifetime
     [Fact]
     public async Task Concurrent_server_calls_complete()
     {
-        if (Registration.Function is not AIFunction function)
-        {
-            return;
-        }
+        var function = Registration.Function.ShouldBeAssignableTo<AIFunction>(
+            "CustomToolContract verifies an invocable server tool. Declaration-only registrations need a separate contract.");
 
         var calls = new Task<object?>[8];
 
@@ -63,6 +64,10 @@ public abstract class CustomToolContract : IAsyncLifetime
         await Task.WhenAll(calls).ConfigureAwait(false);
 
         calls.ShouldAllBe(static call => call.Status == TaskStatus.RanToCompletion);
+        calls.ShouldAllBe(call => string.Equals(
+            call.Result == null ? null : call.Result.ToString(),
+            ExpectedResultText,
+            StringComparison.Ordinal));
     }
 
     [Fact]

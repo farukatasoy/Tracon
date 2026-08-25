@@ -18,7 +18,7 @@ namespace AgentPrism;
 /// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
-internal sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
@@ -82,7 +82,14 @@ internal sealed class GoogleModelProvider : IModelProvider, IModelProviderHealth
     public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <inheritdoc />
-    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential? credential = null)
+    public IChatClient CreateChatClient(ModelBinding binding)
+        => CreateChatClientCore(binding, credential: null);
+
+    /// <inheritdoc />
+    public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
+        => CreateChatClientCore(binding, credential);
+
+    private IChatClient CreateChatClientCore(ModelBinding binding, ModelProviderCredential? credential)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
