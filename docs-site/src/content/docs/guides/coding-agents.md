@@ -160,7 +160,7 @@ agent reliably reads.
 | `APG0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
 | `APG0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
 
-A separate family, `APG0001`–`APG0007`, validates tool registration itself and comes
+A separate family, `APG0001`–`APG0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
 [capability map](/capabilities/).
 

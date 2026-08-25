@@ -90,7 +90,9 @@ public sealed class GeneratedOutputTests
                     RequiresApproval = true,
                     Effect = ToolEffect.Destructive,
                     RequiredPermission = "orders.cancel",
-                    TimeoutSeconds = 5)]
+                    TimeoutSeconds = 5,
+                    SafeToRepeat = true,
+                    MaxOutputBytes = 768)]
                 public static void CancelOrder(string orderId) { }
             }
             """;
@@ -104,6 +106,41 @@ public sealed class GeneratedOutputTests
         aggregate.ShouldContain("effect: (global::AgentPrism.ToolEffect)2");
         aggregate.ShouldContain("requiredPermission: \"orders.cancel\"");
         aggregate.ShouldContain("timeout: global::System.TimeSpan.FromSeconds(5)");
+        aggregate.ShouldContain("safeToRepeat: true");
+        aggregate.ShouldContain("maxOutputBytes: 768");
+    }
+
+    [Fact]
+    public void A_complex_result_uses_the_tool_owned_source_generated_context()
+    {
+        const string Source = """
+            using AgentPrism;
+            using System.Text.Json.Serialization;
+
+            namespace MyApp;
+
+            internal sealed record OrderResult(string Id);
+
+            [JsonSerializable(typeof(OrderResult))]
+            internal partial class ToolJsonContext : JsonSerializerContext;
+
+            internal static class Tools
+            {
+                [AgentPrismTool(
+                    "get_order",
+                    "Gets an order.",
+                    JsonSerializerContext = typeof(ToolJsonContext))]
+                public static OrderResult GetOrder(string id) => new(id);
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        result.Diagnostics.ShouldBeEmpty();
+
+        var wrapper = result.SingleWrapperFile();
+        wrapper.ShouldContain("ToolJsonContext.Default.GetTypeInfo(typeof(global::MyApp.OrderResult))");
+        wrapper.ShouldNotContain("JsonSerializable(typeof(");
     }
 
     [Fact]

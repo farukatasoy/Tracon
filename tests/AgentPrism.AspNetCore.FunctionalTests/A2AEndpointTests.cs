@@ -110,7 +110,7 @@ public sealed class A2AEndpointTests
                     (Func<string, string>)CancelOrder,
                     name: "cancel_order",
                     description: "Cancels an order.",
-                    requiresApproval: true)
+                    configure: options => options.RequiresApproval = true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
             configureAfterMap: app => app.MapAgentPrismA2A());

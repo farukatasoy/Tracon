@@ -32,6 +32,8 @@
     <Project Path="samples/AgentPrism.Samples.CustomModelProvider/AgentPrism.Samples.CustomModelProvider.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomModelProvider.Tests/AgentPrism.Samples.CustomModelProvider.Tests.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomRunJudge/AgentPrism.Samples.CustomRunJudge.csproj" />
+    <Project Path="samples/AgentPrism.Samples.CustomTool/AgentPrism.Samples.CustomTool.csproj" />
+    <Project Path="samples/AgentPrism.Samples.CustomTool.Tests/AgentPrism.Samples.CustomTool.Tests.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomAgentSource/AgentPrism.Samples.CustomAgentSource.csproj" />
     <Project Path="samples/AgentPrism.Samples.CustomAgentSource.Tests/AgentPrism.Samples.CustomAgentSource.Tests.csproj" />
   </Folder>

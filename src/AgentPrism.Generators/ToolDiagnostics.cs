@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace AgentPrism.Generators;
 
-/// <summary>Definitions for all diagnostics produced by the generator (APG0001-APG0007).</summary>
+/// <summary>Definitions for all diagnostics produced by the generator.</summary>
 internal static class ToolDiagnostics
 {
     private const string Category = "AgentPrism.Tools";
@@ -72,6 +72,15 @@ internal static class ToolDiagnostics
         "APG0007",
         "An instance method cannot be a tool",
         "'{0}' is an instance method and cannot be a tool. MAF passes an empty provider as AIFunctionArguments.Services (decision K-218). Make the method 'static', or instantiate the tool at setup time and register it with 'AddTool(AIFunctionFactory.Create(...))'.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLink);
+
+    public static readonly DiagnosticDescriptor MissingJsonSerializerContext = new(
+        "APG0008",
+        "Complex tool result needs a JSON context",
+        "Tool method '{0}' returns complex type '{1}'. Set AgentPrismTool.JsonSerializerContext to a JsonSerializerContext that declares [JsonSerializable(typeof({1}))].",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
