@@ -438,7 +438,7 @@ sürüm sonrası fark edilir.
 
 ### 17. Karmaşıklık birkaç dev dosyada yoğunlaşmış · 📋 Faz
 
-> **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
+> **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
 
 [`AgentPrismServiceCollectionExtensions.cs`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
 2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
