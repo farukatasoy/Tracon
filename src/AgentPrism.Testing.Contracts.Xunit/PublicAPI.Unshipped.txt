@@ -705,3 +705,13 @@ AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.Versioned
 abstract AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.KnownVersion.get -> int
 virtual AgentPrism.Testing.Contracts.AgentSources.VersionedAgentSourceContract.UnknownVersion.get -> int
 const AgentPrism.Testing.Contracts.ContractCoverage.AgentSourceContracts = "AgentPrism.Testing.Contracts.AgentSources" -> string!
+const AgentPrism.Testing.Contracts.ContractCoverage.ToolContracts = "AgentPrism.Testing.Contracts.Tools" -> string!
+AgentPrism.Testing.Contracts.Tools.CustomToolContract
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.CustomToolContract() -> void
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.Concurrent_server_calls_complete() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.Metadata_is_self_consistent() -> void
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.Name_is_stable_and_valid() -> void
+AgentPrism.Testing.Contracts.Tools.CustomToolContract.Registration.get -> AgentPrism.AgentPrismToolRegistration!
+abstract AgentPrism.Testing.Contracts.Tools.CustomToolContract.CreateRegistrationAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.AgentPrismToolRegistration!>
