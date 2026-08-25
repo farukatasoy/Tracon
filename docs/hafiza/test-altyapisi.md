@@ -119,11 +119,14 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   kendi `<NoWarn>`'una gerekcesiyle yazmak hem calisiyor hem de yanindaki ornek
   UYGULAMALARI gevsetmiyor.
 - **🚨 Tam `dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1`
-  koşumu ara sıra flaky kırılır — izole koşumda hep geçer (Faz 103).** Üç ayrı
-  koşumda üç FARKLI test kırıldı: `ImageAttachmentWriterTests` (port çakışması,
+  koşumu ara sıra flaky kırılır — izole koşumda hep geçer (Faz 103).** Dört ayrı
+  koşumda dört FARKLI test kırıldı: `ImageAttachmentWriterTests` (port çakışması,
   "Address already in use"), `SqliteDialectTests.Polymorphic_JSON_round_trips_intact`
-  (`ON CONFLICT` unique constraint hatası), `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`.
-  Üçü de kendi projesinde tek başına 100% geçti. Şüphe: onlarca test projesinin
-  aynı anda paylaştığı port/dosya/zamanlama kaynağı — hiçbiri fazın kendi
-  değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan biri kırmızı
-  çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek regresyondur.
+  (`ON CONFLICT` unique constraint hatası), `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance`,
+  `OnlineEvalJobHandlerTests.Judge_timeout_cuts_off_the_wait_when_the_judge_ignores_cancellation`
+  (20ms iç timeout'a karşı 1s dış test sınırı — thread-pool starvation altında
+  50x marj bile tükeniyor). Dördü de kendi projesinde tek başına 100% geçti.
+  Şüphe: binlerce testin aynı anda paylaştığı port/dosya/thread-pool kaynağı —
+  hiçbiri fazın kendi değişikliğiyle ilgili değildi. Bir kapı koşumunda bunlardan
+  biri kırmızı çıkarsa önce İZOLE tekrar et; yalnız izole de kırmızıysa gerçek
+  regresyondur.
