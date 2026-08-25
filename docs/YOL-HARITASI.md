@@ -117,7 +117,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [102](arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md) | Tool Sözleşmesi ve Sonuç Sınırı | ✅ Tamamlandı |
 | [103](arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md) | Extension Sözleşmelerinin Yayın Öncesi Sertleştirilmesi | ✅ Tamamlandı |
 | [104](arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md) | Beyan Doğruluğu ve Giriş Rampası | ✅ Tamamlandı |
-| [105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) | DI Bileşen Kökü Ayrıştırma | 📋 Planlandı |
+| [105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) | DI Bileşen Kökü Ayrıştırma | ✅ Tamamlandı |
 | [106](106-AGENT-DERLEYICI-AYRISTIRMA.md) | Agent Derleyici Ayrıştırma | 📋 Planlandı |
 | [107](107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | 📋 Planlandı |
 | [108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | 📋 Planlandı |
