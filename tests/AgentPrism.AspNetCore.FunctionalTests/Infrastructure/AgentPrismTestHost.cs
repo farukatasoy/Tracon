@@ -70,6 +70,11 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
     /// (example: <c>app.MapAgentPrismMcpServer()</c> — it must be called AFTER
     /// <c>MapAgentPrism</c> to inherit the shared access settings from it).
     /// </param>
+    /// <param name="environment">
+    /// The host environment name. <see langword="null"/> keeps whatever the test
+    /// process provides; a test that asserts environment-dependent behavior
+    /// (the non-persistent storage warning) sets it explicitly.
+    /// </param>
     /// <returns>The running host.</returns>
     public static async Task<AgentPrismTestHost> StartAsync(
         Action<IAgentPrismBuilder>? configureAgentPrism = null,
@@ -78,11 +83,14 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         string prefix = "/agentprism",
         bool withOpenApi = false,
         Action<WebApplication>? configureApp = null,
-        Action<WebApplication>? configureAfterMap = null)
+        Action<WebApplication>? configureAfterMap = null,
+        string? environment = null)
     {
         var logs = new RecordingLoggerProvider();
 
-        var builder = WebApplication.CreateSlimBuilder();
+        var builder = environment is null
+            ? WebApplication.CreateSlimBuilder()
+            : WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Logging.AddProvider(logs);

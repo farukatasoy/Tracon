@@ -725,6 +725,21 @@ Isolation is enforced by contract tests that check it in both directions, across
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.
 
+Isolation lives in the application layer, and that is a deliberate choice. Every
+query carries the resolved tenant; AgentPrism does not create database row level
+security policies, and it does not assume your database has them. Two reasons: the
+coverage gate above already makes an untested store method a build failure, and
+SQLite has no row level security at all, so adding it would make the three
+providers behave differently. You are free to add such policies in your own
+database. If you do, keep the tenant that AgentPrism resolves and the tenant your
+policy binds to the connection in agreement — they are two separate mechanisms.
+
+Rate limits are not an isolation boundary. `AgentPrism:RateLimit` and the inbound
+trigger limit count in the memory of one process, so a `Tenant` partition splits
+that instance's own window per tenant rather than a window shared across the
+deployment. What binds a tenant's total consumption is a quota, and quotas are
+counted in the database.
+
 ### Attributing spend below the tenant
 
 The tenant answers "whose data is this". Two further questions — which **user**
@@ -2313,6 +2328,16 @@ in about five minutes.
 Without a database every store is in memory and everything ends with the process.
 That is deliberate — it makes the first agent work with no infrastructure — but it is
 not where you stop.
+
+:::caution[In production, AgentPrism says so out loud]
+Start a host in the `Production` environment while storage is still in memory and
+AgentPrism writes one warning at startup, naming the stores that do not survive a
+restart. In-memory storage stays a supported mode — the warning never fails
+startup and there is no switch to silence it, because a production installation
+losing its runs on the next deployment should not be a quiet fact. The same
+judgement is what `GET /api/meta` reports as `storage.persistent`, and what the
+console's settings screen shows.
+:::
 
 ## Pick one
 
@@ -6413,6 +6438,16 @@ A cancel request routed to another instance, or sent after the owner restarts, r
 `409`. Use sticky routing or provide a distributed `IRunCancellationRegistry` when
 cross-node cancellation is a requirement. Queued-run cancellation is durable because
 it uses the shared job store.
+
+Rate limits are per process for the same reason. The endpoint limiter
+(`AgentPrism:RateLimit`) and the inbound trigger limiter both count in the memory
+of one instance; AgentPrism ships no distributed counter. Two instances with a
+`PermitLimit` of 100 admit 200 requests per window between them, and a `Tenant`
+partition splits each instance's own window rather than a window shared across
+the deployment. Size the limit per instance, or put a shared limiter in the
+ingress in front of them. A ceiling that must hold for the deployment as a whole
+is a quota instead: quotas count in the database, so the instance count does not
+change them.
 
 ## Add readiness, liveness, and diagnostics
 
