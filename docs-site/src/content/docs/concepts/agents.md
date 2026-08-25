@@ -107,20 +107,27 @@ cycle-detecting walk.
 
 ## Where agents come from
 
-The catalog merges two sources, in priority order:
+The catalog merges registered sources, in priority order:
 
 ```mermaid
 flowchart LR
     accTitle: Agent catalog sources
-    accDescr: Code registrations and database definitions merge into one catalog, with code definitions winning name collisions.
+    accDescr: Code registrations, database definitions, and custom sources merge into one catalog, with lower priority values winning name collisions.
     C["Code<br/>AddAgent(definition) or AddAgent(name, factory)"] --> CAT["IAgentCatalog"]
     D["Database<br/>definitions written through the API"] --> CAT
+    X["Custom<br/>IAgentSource registration"] --> CAT
     CAT --> R["ResolveAsync(name)"]
 ```
 
 `AddAgent(name, factory)` is a code registration too — the factory returns a MAF
 `AIAgent` directly, built however you want, and the catalog still applies AgentPrism's
 decorators (recording, telemetry, approval) when it resolves the agent.
+
+An application can add an `IAgentSource` for definitions stored outside AgentPrism or
+for agents owned by another runtime. Custom-source agents are visible in the console
+but remain read-only in the management API. See [write your own agent
+source](/guides/write-your-own-agent-source/) for the lifecycle, priority, tenancy,
+and contract-test rules.
 
 On a name clash the higher-priority source wins and the other is dropped from the
 list. **Code wins.** That is why the API refuses to store a definition under a name a

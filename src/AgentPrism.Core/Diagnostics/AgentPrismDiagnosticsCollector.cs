@@ -25,6 +25,7 @@ public sealed class AgentPrismDiagnosticsCollector
     private readonly IEnumerable<ISqlPersistenceDiagnostics> _sqlDiagnostics;
     private readonly IEnumerable<SqlPersistenceRegistrationMarker> _sqlMarkers;
     private readonly IAgentCatalog _agentCatalog;
+    private readonly IEnumerable<IAgentSource> _agentSources;
     private readonly IToolRegistry _toolRegistry;
     private readonly ITenantContext _tenantContext;
     private readonly IRunAttributionContext _runAttributionContext;
@@ -39,6 +40,7 @@ public sealed class AgentPrismDiagnosticsCollector
     /// <param name="sqlDiagnostics">The active SQL provider diagnostics contract, with zero or one instance.</param>
     /// <param name="sqlMarkers">The registered SQL provider markers, counted to detect more than one active provider.</param>
     /// <param name="agentCatalog">The agent catalog.</param>
+    /// <param name="agentSources">The registered agent sources.</param>
     /// <param name="toolRegistry">The tool registry.</param>
     /// <param name="tenantContext">The bound tenant context, reported as an embedding point.</param>
     /// <param name="runAttributionContext">The bound run attribution context, reported as an embedding point.</param>
@@ -57,6 +59,7 @@ public sealed class AgentPrismDiagnosticsCollector
         IEnumerable<ISqlPersistenceDiagnostics> sqlDiagnostics,
         IEnumerable<SqlPersistenceRegistrationMarker> sqlMarkers,
         IAgentCatalog agentCatalog,
+        IEnumerable<IAgentSource> agentSources,
         IToolRegistry toolRegistry,
         ITenantContext tenantContext,
         IRunAttributionContext runAttributionContext,
@@ -71,6 +74,7 @@ public sealed class AgentPrismDiagnosticsCollector
         ArgumentNullException.ThrowIfNull(sqlDiagnostics);
         ArgumentNullException.ThrowIfNull(sqlMarkers);
         ArgumentNullException.ThrowIfNull(agentCatalog);
+        ArgumentNullException.ThrowIfNull(agentSources);
         ArgumentNullException.ThrowIfNull(toolRegistry);
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(runAttributionContext);
@@ -82,6 +86,7 @@ public sealed class AgentPrismDiagnosticsCollector
         _sqlDiagnostics = sqlDiagnostics;
         _sqlMarkers = sqlMarkers;
         _agentCatalog = agentCatalog;
+        _agentSources = agentSources;
         _toolRegistry = toolRegistry;
         _tenantContext = tenantContext;
         _runAttributionContext = runAttributionContext;
@@ -185,6 +190,14 @@ public sealed class AgentPrismDiagnosticsCollector
             UiEmbedded = false,
             ToolCount = _toolRegistry.List().Count,
             AgentCount = agentCount,
+            AgentSources = [.. _agentSources
+                .OrderBy(static source => source.Priority)
+                .Select(static source => new AgentSourceDiagnostic
+                {
+                    Name = source.Name,
+                    Priority = source.Priority,
+                    Implementation = source.GetType().FullName ?? source.GetType().Name,
+                })],
             ExtensionPoints = CollectExtensionPoints(),
         };
     }

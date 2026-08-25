@@ -23,4 +23,10 @@ public enum AgentDefinitionOrigin
 
     /// <summary>The definition is stored in the database and built at run time.</summary>
     Database = 1,
+
+    /// <summary>
+    /// The definition comes from a custom <see cref="IAgentSource"/>. The
+    /// management API does not edit definitions from this origin.
+    /// </summary>
+    Custom = 2,
 }

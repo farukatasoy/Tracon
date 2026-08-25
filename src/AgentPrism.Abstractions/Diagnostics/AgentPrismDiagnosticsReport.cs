@@ -62,6 +62,9 @@ public sealed record AgentPrismDiagnosticsReport
     /// </remarks>
     public required int? AgentCount { get; init; }
 
+    /// <summary>Gets the agent sources registered in priority order.</summary>
+    public required IReadOnlyList<AgentSourceDiagnostic> AgentSources { get; init; }
+
     /// <summary>
     /// Gets the embedding points a host application binds to attach AgentPrism
     /// to its own tenancy, identity, authorization, eventing, and storage.

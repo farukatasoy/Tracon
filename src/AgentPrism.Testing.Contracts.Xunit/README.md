@@ -116,6 +116,14 @@ public sealed class ResponseQualityJudgeTests : RunJudgeContract
 }
 ```
 
+### Agent sources — `AgentPrism.Testing.Contracts.AgentSources`
+
+Derive `AgentSourceContract` for an `IAgentSource`. It checks stable source metadata,
+repeat and concurrent list/resolve behavior, listed-name consistency, and cancellation.
+Derive `VersionedAgentSourceContract` only when the source implements
+`IVersionedAgentSource`. Derive `TenantAwareAgentSourceContract` only when it changes
+its list for the ambient tenant.
+
 ### Checking you derived them all
 
 `ContractCoverage` reports contract classes your test assembly has no derived
