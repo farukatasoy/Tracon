@@ -19,9 +19,10 @@ namespace AgentPrism.Generators.UnitTests.Examples;
 /// <para>
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
-/// <c>NightlyReportJobHandler</c>): "a provider/tool/service/handler you wrote
-/// yourself". Those get a minimal stub here for the same reason - a real
-/// consumer would have written one, and the doc text stays untouched.
+/// <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>): "a
+/// provider/tool/service/handler/source you wrote yourself". Those get a
+/// minimal stub here for the same reason - a real consumer would have written
+/// one, and the doc text stays untouched.
 /// </para>
 /// <para>
 /// One block IS a type declaration (a worked <c>[AgentPrismTool]</c> class), not
@@ -109,6 +110,18 @@ internal static class ExamplePrelude
 
             public ValueTask<ContentGuardResult> InspectAsync(ContentGuardContext context, CancellationToken cancellationToken = default)
                 => ValueTask.FromResult(ContentGuardResult.Allow);
+        }
+
+        // Stands in for "your own agent source", named in one <example> only.
+        internal sealed class GitAgentSource : IAgentSource
+        {
+            public string Name => "git";
+
+            public int Priority => 0;
+
+            public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default) => default;
+
+            public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture = null, CancellationToken cancellationToken = default) => default;
         }
         """;
 

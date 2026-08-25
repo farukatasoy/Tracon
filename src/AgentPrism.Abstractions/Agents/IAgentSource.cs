@@ -10,9 +10,12 @@ namespace AgentPrism;
 /// <para>Sources are singleton instances. Calls can run concurrently, so an implementation
 /// must be thread-safe and must not keep request or run state in instance fields. Do not
 /// capture scoped services; create a scope from <see cref="IServiceProvider"/> when needed.</para>
-/// <para><see cref="ListAsync"/> is on the run path. It can run repeatedly and must be
-/// side-effect free. The catalog does not cache a global snapshot, retry calls, or apply a
-/// timeout. A source that needs caching, retries, or a timeout owns that policy.</para>
+/// <para><see cref="ListAsync"/> is on the run path, not a startup snapshot API: every
+/// successful <see cref="ResolveAsync"/> triggers one, and resolving a specific definition
+/// version calls it on each source in priority order until the owner is found. It can run
+/// repeatedly and must be side-effect free. The catalog does not cache a global snapshot,
+/// retry calls, or apply a timeout. A source that needs caching, retries, or a timeout
+/// owns that policy — including invalidating its own cache.</para>
 /// <para><see cref="ListAsync"/> and <see cref="ResolveAsync"/> describe the same agent set.
 /// Returned descriptors and their nested collections must not change after they return.</para>
 /// <para>A source may be global or tenant-aware. Reading <see cref="ITenantContext"/> is valid.
@@ -29,7 +32,10 @@ public interface IAgentSource
     /// </summary>
     /// <remarks>
     /// <see cref="AgentSourcePriority.Code"/> and <see cref="AgentSourcePriority.Database"/>
-    /// are reserved for built-in sources. Equal priorities preserve DI registration order.
+    /// are the values AgentPrism's built-in sources use, not reserved values a custom
+    /// source is barred from choosing. A source that shares one of them simply ties
+    /// with that built-in source, and DI registration order breaks the tie — the same
+    /// rule as any other equal-priority pair.
     /// </remarks>
     int Priority { get; }
 
