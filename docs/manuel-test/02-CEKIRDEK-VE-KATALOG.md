@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106
 > **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
 >
@@ -2785,3 +2785,53 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 **Beklenen sonuç**
 - Çağrı `JudgeTimeout` civarında `judge_timeout` ile döner; judge gövdesi arkada devam eder.
 - Gövde sonradan başarı veya hata ile bitse de skor yazılmaz; `TaskScheduler.UnobservedTaskException` üretilmez.
+
+### MT-CORE-103 — `AgentDefinitionCompiler` ayrıştırmasından sonra `support` agent aynı şekilde çalışır (Faz 106)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. `samples/AgentPrism.Api`'yi PostgreSQL ile ayağa kaldır (`ap-pg` container).
+2. `POST /agentprism/api/agents/support/run` ile gerçek bir mesaj gönder.
+3. `GET /agentprism/api/runs?agentName=support&limit=1` ile sonucu doğrula.
+
+**Beklenen sonuç**
+- SSE akışı `event: update` (metin + usage) ve `event: done` ile biter.
+- `/api/runs` listesinde `status: "Completed"`, gerçek `usage` (input/output token) ile yeni bir kayıt görünür.
+- **Koşuldu (2026-08-26):** run `01a03b4f-e7c2-7177-a572-596ad682c0fd`, `usage.inputTokens: 234, outputTokens: 40`, `status: "Completed"`.
+
+### MT-CORE-104 — Culture taşıyan tanım en yakın culture talimatını çözer (Faz 106)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+
+**Adımlar**
+1. `InstructionsByCulture` içinde `"tr"` girdisi taşıyan bir tanım derle.
+2. `culture: "tr"` ile `Compile`/`CompileAsync` çağır.
+
+**Beklenen sonuç**
+- `ChatOptions.Instructions` `"tr"` girdisinin metnini taşır, varsayılan `Instructions`'ı değil.
+- Otomatik koşuldu: `AgentDefinitionCompilerPathTests.Sync_full_overload_resolves_the_requested_culture`,
+  `Async_CompileAsync_resolves_the_requested_culture`.
+
+### MT-CORE-105 — Shared instructions kullanan tanım sync yolda açık hata verir, async yolda çözülür (Faz 106)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+
+**Adımlar**
+1. `SharedInstructionsName` taşıyan bir tanım için sync `Compile()` çağır.
+2. Aynı tanım için async `CompileAsync()` çağır.
+
+**Beklenen sonuç**
+- Sync yol `AgentPrismCompilationException` fırlatır ("does not resolve shared instructions blocks. Use CompileAsync()").
+- Async yol bloğun metnini kendi talimatının önüne ekler.
+- Otomatik koşuldu: `SharedInstructionsTests.Synchronous_Compile_refuses_a_definition_that_references_a_block`,
+  `SharedInstructionsTests.Blocks_text_is_prepended_to_the_agents_own_instructions`.
