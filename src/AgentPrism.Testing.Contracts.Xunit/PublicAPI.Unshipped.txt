@@ -676,9 +676,8 @@ virtual AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Try
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.AgentSourceContract() -> void
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.A_pre_cancelled_token_does_not_hang() -> System.Threading.Tasks.Task!
-AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.A_returned_list_does_not_change_a_later_listing() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
-AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Every_resolved_listed_agent_is_listed() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Every_listed_agent_resolves() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Known_agent_resolves() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listed_descriptors_name_the_source() -> System.Threading.Tasks.Task!
@@ -688,6 +687,7 @@ AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Listing_is_safe_un
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Name_is_not_empty() -> void
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Priority_is_stable() -> void
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Resolution_is_safe_under_concurrency() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Resolved_agent_is_listed() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Source.get -> AgentPrism.IAgentSource!
 AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.Unknown_agent_returns_null() -> System.Threading.Tasks.Task!
 abstract AgentPrism.Testing.Contracts.AgentSources.AgentSourceContract.CreateSourceAsync() -> System.Threading.Tasks.ValueTask<AgentPrism.IAgentSource!>

@@ -202,7 +202,7 @@ static AgentPrism.ExtensionPointDiagnostic.operator ==(AgentPrism.ExtensionPoint
 AgentPrism.AgentPrismException
 AgentPrism.AgentPrismException.AgentPrismException() -> void
 AgentPrism.AgentPrismException.AgentPrismException(string! message) -> void
-AgentPrism.AgentPrismException.AgentPrismException(string! message, System.Exception! innerException) -> void
+AgentPrism.AgentPrismException.AgentPrismException(string! message, System.Exception? innerException) -> void
 AgentPrism.AgentPrismExternalCallException
 AgentPrism.AgentPrismExternalCallException.AgentName.get -> string!
 AgentPrism.AgentPrismExternalCallException.AgentName.init -> void

@@ -198,6 +198,12 @@ public interface IAgentPrismBuilder
     /// Calling this method more than once for the same source type has no effect.
     /// The source can serve global or tenant-aware agents. It must be thread-safe
     /// because the catalog calls its methods concurrently.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddAgentSource&lt;GitAgentSource&gt;();
+    /// </code>
+    /// </example>
     /// </remarks>
     IAgentPrismBuilder AddAgentSource<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSource>() where TSource : class, IAgentSource;
 

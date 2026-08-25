@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!--
+    xunit.v3 runs on the Microsoft Testing Platform (MTP), not VSTest; a test
+    project is a self-contained executable. Same setup as
+    tests/Directory.Build.props; this project does not inherit it (it lives
+    under samples/, not tests/).
+  -->
+  <PropertyGroup Label="Microsoft Testing Platform">
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Same relaxations as the sibling CustomModelProvider.Tests project: see its own csproj. -->
+    <NoWarn>$(NoWarn);CA1707;xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The sample source, by ProjectReference: it is this repo's own sample code, not a
+      published package. Everything AgentPrism, by contrast, is a PackageReference
+      resolved from the local feed (../NuGet.config) - the contract suite, the testing
+      helpers, and the runtime are never project-referenced, which is what makes this
+      sample a real third-party consumer.
+    -->
+    <ProjectReference Include="../AgentPrism.Samples.CustomAgentSource/AgentPrism.Samples.CustomAgentSource.csproj" />
+    <!-- VersionOverride, not Version: see the sample source's own csproj for why. -->
+    <PackageReference Include="AgentPrism.Testing.Contracts.Xunit" VersionOverride="*-*" />
+    <!--
+      AgentPrism.Testing supplies FakeModelProvider - a published, non-networked
+      IModelProvider meant exactly for a consumer's own tests.
+    -->
+    <PackageReference Include="AgentPrism.Testing" VersionOverride="*-*" />
+    <!--
+      The meta package, because the run test compiles and runs a real agent through the
+      full AddAgentPrism() pipeline: that needs the runtime (AddAgentPrism,
+      AddAgentSource, the agent catalog), not just the abstractions the source was
+      written against. It is also the line a real consumer writes.
+    -->
+    <PackageReference Include="AgentPrism" VersionOverride="*-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Shouldly" />
+  </ItemGroup>
+
+</Project>

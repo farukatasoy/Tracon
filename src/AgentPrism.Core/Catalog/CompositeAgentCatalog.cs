@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
 
@@ -115,7 +116,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception)
             {
-                throw CreateSourceException(source, "resolve", exception);
+                throw HandleSourceFailure(source, "resolve", exception);
             }
 
             if (agent is null)
@@ -135,7 +136,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception)
             {
-                throw CreateSourceException(source, "resolve", exception);
+                throw HandleSourceFailure(source, "resolve", exception);
             }
 
             foreach (var decorator in _decorators)
@@ -179,7 +180,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             }
             catch (Exception exception)
             {
-                throw CreateSourceException(source, "resolve", exception);
+                throw HandleSourceFailure(source, "resolve", exception);
             }
 
             if (descriptor is null)
@@ -207,13 +208,9 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             {
                 throw;
             }
-            catch (AgentPrismException) when (source is DefinitionStoreAgentSource)
-            {
-                throw;
-            }
             catch (Exception exception)
             {
-                throw CreateSourceException(source, "resolve", exception);
+                throw HandleSourceFailure(source, "resolve", exception);
             }
 
             foreach (var decorator in _decorators)
@@ -267,15 +264,35 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
-    private AgentPrismAgentSourceException CreateSourceException(IAgentSource source, string operation, Exception exception)
+    /// <summary>
+    /// Records a source failure and re-throws it — normalized, unless it was already a
+    /// normalized or otherwise-AgentPrism error.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AgentPrismException"/> (any subtype — <see cref="AgentPrismAgentSourceException"/>
+    /// itself, or a compilation error such as <c>AgentPrismCompilationException</c> that
+    /// <c>AgentDefinitionCompiler.CompileCachedAsync</c> raised while the source built the
+    /// agent) is already a safe, normalized AgentPrism error: it carries no raw
+    /// third-party text, and a caller further up may be matching its SPECIFIC type (the
+    /// run endpoint's <c>400</c>/<c>502</c> split reads <see cref="AgentPrismException.ErrorType"/>).
+    /// Re-wrapping it here would both lose that type and misreport an ordinary
+    /// compilation problem as an "agent source failure" it is not. Only a genuinely raw,
+    /// unexpected exception — the actual case 101.3 exists to contain — gets wrapped.
+    /// </remarks>
+    private AgentPrismAgentSourceException HandleSourceFailure(IAgentSource source, string operation, Exception exception)
     {
-        if (exception is AgentPrismAgentSourceException normalized)
+        RecordSourceFailure(source, operation, exception, LogLevel.Error);
+
+        if (exception is AgentPrismException)
         {
-            RecordSourceFailure(source, operation, normalized, LogLevel.Error);
-            return normalized;
+            // Always throws; the exception this method appears to return is never
+            // actually reached in that case. Callers still write `throw
+            // HandleSourceFailure(...)` — a return type of Exception, not void, is what
+            // lets the compiler see the "always throws" invariant `agent`/`descriptor`
+            // definite-assignment checks further down each caller need.
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
-        RecordSourceFailure(source, operation, exception, LogLevel.Error);
         return new AgentPrismAgentSourceException(
             source.Name,
             AgentPrismAgentSourceException.SourceFailedErrorType,

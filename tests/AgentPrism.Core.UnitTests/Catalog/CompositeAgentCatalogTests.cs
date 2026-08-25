@@ -30,6 +30,23 @@ public sealed class CompositeAgentCatalogTests
         descriptor.SourceName.ShouldBe("code");
     }
 
+    /// <summary>
+    /// 101.9: <c>Enumerable.OrderBy</c> is a documented STABLE sort, so two sources sharing
+    /// a priority tie-break on the order they were registered in DI — the order they were
+    /// passed to the catalog here.
+    /// </summary>
+    [Fact]
+    public async Task Equal_priority_ties_break_on_registration_order()
+    {
+        var catalog = CreateCatalog(
+            new StubSource("first-registered", priority: 50, "shared"),
+            new StubSource("second-registered", priority: 50, "shared"));
+
+        var descriptor = (await catalog.ListAsync()).ShouldHaveSingleItem();
+
+        descriptor.SourceName.ShouldBe("first-registered");
+    }
+
     [Fact]
     public async Task Resolution_follows_priority_order()
     {

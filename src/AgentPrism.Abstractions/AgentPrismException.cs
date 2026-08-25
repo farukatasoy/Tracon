@@ -17,8 +17,10 @@ public class AgentPrismException : Exception
 
     /// <summary>Creates a new error.</summary>
     /// <param name="message">The error message.</param>
-    /// <param name="innerException">The underlying error.</param>
-    public AgentPrismException(string message, Exception innerException)
+    /// <param name="innerException">
+    /// The underlying error, or <see langword="null"/> when there is none to carry.
+    /// </param>
+    public AgentPrismException(string message, Exception? innerException)
         : base(message, innerException)
     {
     }

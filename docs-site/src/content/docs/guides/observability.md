@@ -71,6 +71,7 @@ activity source and meter are both named `AgentPrism`. The root run span is
 | `agentprism.judge.cost` | Cost reported for evaluation judges |
 | `agentprism.judge.score` | Judge score distribution |
 | `agentprism.model.cache` | Response-cache lookups, tagged hit or miss |
+| `agentprism.agent_source.failures` | Agent-source failure and contract-violation count |
 
 ### The attribute names
 
@@ -96,6 +97,8 @@ metric names above.
 | `agentprism.skill.name` | Skill signals | The loaded skill |
 | `agentprism.script.name` · `agentprism.script.exit_code` · `agentprism.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
 | `agentprism.compaction.input_tokens` · `agentprism.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
+| `agentprism.agent_source.name` | `agentprism.agent_source.failures` | The failing `IAgentSource`'s name |
+| `agentprism.agent_source.operation` | `agentprism.agent_source.failures` | `list`, `resolve`, or `consistency` |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AgentPrism.Samples.CustomAgentSource</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      A NuGet PackageReference, not a project-to-project reference: this sample proves
+      a definition-backed IAgentSource is implementable from published packages alone.
+      Unlike IModelProvider or IRunStore (AgentPrism.Abstractions is enough for those),
+      compiling a definition into a runnable agent needs AgentDefinitionCompiler and
+      CompiledAgentCache, both in AgentPrism.Core - so this reference is Core, not
+      Abstractions (101.7 measured this before adding the dependency).
+      VersionOverride (not Version): Central Package Management pins every OTHER
+      AgentPrism.* dependency in this repo to an exact source-linkage-implied
+      version; this one package instead floats to whatever prerelease the local
+      feed holds (K-265's convention) - see ../NuGet.config, which points
+      AgentPrism.* resolution at the local feed `dotnet pack` produces
+      (artifacts/package/release) instead of nuget.org, where a preview build is
+      never published.
+    -->
+    <PackageReference Include="AgentPrism.Core" VersionOverride="*-*" />
+  </ItemGroup>
+
+</Project>

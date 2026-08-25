@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101
 > **Kaynak:** `src/AgentPrism.Abstractions` · `src/AgentPrism.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `AgentPrismOptions*`)
 >
@@ -2376,3 +2376,306 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
   length."` ve `tooLongParameters: ["musteri"]`. Koşu başlamaz, model
   çağrılmaz. 2026-08-22'de `samples/AgentPrism.Api`'ye karşı canlı doğrulandı
   (bkz. `docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").
+
+---
+
+### MT-CORE-087 — Özel `IAgentSource` ajanı `Custom` origin ile listelenir, düzenleme formu açılmaz (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs`'e geçici olarak
+  `builder.AddAgentPrism().Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = "<dizin>" })`
+  ve `.AddAgentSource<JsonFileAgentSource>()` eklenmiş, `<dizin>` altında
+  `{"name":"greeter","instructions":"Reply briefly.","model":{"provider":"echo","model":"echo-1"}}`
+  içerikli bir `greeter.json` dosyası bulunan bir `samples/AgentPrism.Api` koşumu.
+  (`samples/AgentPrism.Samples.CustomAgentSource`'un `PackageReference`'ı
+  local feed'den çözülür — bkz. `samples/NuGet.config`.)
+
+**Adımlar**
+1. `GET /agentprism/api/agents` çağır; `greeter` adlı agent'ı bul.
+2. Konsolda agent listesini aç, `greeter`'ı tıkla.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/agents" -H "$APB" | python3 -m json.tool | grep -A 3 '"name": "greeter"'
+```
+
+**Beklenen sonuç**
+- Adım 1: `origin: "Custom"`, `sourceName: "json-file"`, `isEditable: false`.
+- Adım 2: rozet kaynağın adını gösterir; agent açılınca düzenleme formu **yok**
+  (kod agent'ıyla aynı salt-okunur görünüm).
+
+---
+
+### MT-CORE-088 — `Custom` kaynağa ait ada `PUT`/`POST` çakışması `409` döner ve kaynağı adlandırır (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-087'deki kurulum (`greeter` agent'ı `json-file` kaynağında).
+
+**Adımlar**
+1. `PUT /api/agents/greeter` dene.
+2. Aynı adla `POST /api/agents` dene.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/agents/greeter" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"greeter","instructions":"x","model":{"provider":"echo","model":"echo-1"}}'
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"greeter","instructions":"x","model":{"provider":"echo","model":"echo-1"}}'
+```
+
+**Beklenen sonuç**
+- İkisi de `409`; gövdedeki `detail` alanı `'greeter' belongs to the
+  'json-file' agent source` metnini içerir — kaynağın adı görünür, `404`
+  (var olmayan kayıt) yerine doğru çakışma anlatılır.
+
+---
+
+### MT-CORE-089 — `Custom` kaynaktaki agent gerçek bir `run` tamamlar; kayıt model/sağlayıcı alanlarını dolu taşır (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-087'deki kurulum.
+
+**Adımlar**
+1. `greeter` ile bir `run` başlat.
+2. `run` kaydını (`/api/runs/{id}`) incele.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"selam"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Koşu tamamlanır. `run` kaydında `model` ve `provider` alanları **boş
+  değildir** — kaynağın kendi `ListAsync`'inden gelen dondurulmuş descriptor
+  doğru atıf taşır (uydurma `Origin=Code`/`Model=null` yok).
+
+---
+
+### MT-CORE-090 — Bozuk bir kaynak varken `GET /api/agents` sağlıklı kalır (Faz 101, fail-open)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Ön koşul MT-CORE-087'deki gibi, ama `JsonFileAgentSourceOptions.Directory`
+  var olmayan/okunamaz bir yola işaret ediyor (kaynağın `ListAsync`'i her
+  çağrıda istisna fırlatsın diye).
+
+**Adımlar**
+1. `GET /agentprism/api/agents` çağır.
+
+**Girilecek veri**
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/agents" -H "$APB"
+```
+
+**Beklenen sonuç**
+- `200`. Yerleşik `code`/`database` kaynaklarının agent'ları listede görünür;
+  bozuk kaynağınkiler yoktur. Sunucu logunda kaynak adını taşıyan bir
+  `LogError` satırı vardır.
+
+---
+
+### MT-CORE-091 — Bozuk kaynağa ait adla `run` denemesi ham hata metnini sızdırmaz (Faz 101, fail-closed)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-090'daki bozuk kaynak kurulumu; kaynağın adı bilinsin (örn. `json-file`).
+
+**Adımlar**
+1. Bozuk kaynağa ait olduğu bilinen bir adla `run` dene (`greeter`).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: application/json" \
+  -d '{"message":"selam"}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- `400`; `detail` alanı yalnız `Agent source 'json-file' failed during
+  resolve (agent_source_failed).` biçimindedir — dosya sistemi hata metni,
+  yol adı veya .NET exception stack'i **görünmez**.
+
+---
+
+### MT-CORE-092 — `GET /api/diagnostics` kayıtlı kaynakları önceliğe göre listeler (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-CORE-087'deki kurulum; `EnableDiagnosticsEndpoint=true`.
+
+**Adımlar**
+1. `GET /agentprism/api/diagnostics` çağır.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep -A 15 agentSources
+```
+
+**Beklenen sonuç**
+- `agentSources` dizisi `[{"name":"code","priority":0,...},
+  {"name":"database","priority":100,...},
+  {"name":"json-file","priority":200,...}]` sırasıyla üç girdi taşır.
+
+---
+
+### MT-CORE-093 — Aynı `Name`'e sahip iki kaynak host'u başlatmaz (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api/Program.cs`'e aynı `Name`'i döndüren iki
+  `IAgentSource` (örn. `AddAgentSource<JsonFileAgentSource>()` iki farklı
+  dizinle, ikisi de `json-file` adını taşıyacak şekilde) geçici eklenmiş.
+
+**Adımlar**
+1. Uygulamayı başlat.
+
+**Girilecek veri**
+```bash
+dotnet run --no-build -c Release --urls http://localhost:5081
+```
+
+**Beklenen sonuç**
+- Uygulama **başlamaz**; konsolda `AgentPrismAgentSourceException` ve iki
+  kaynağın adını taşıyan bir hata mesajı görünür. `curl` bağlantı
+  reddedilir (`http://localhost:5081` açılmaz).
+
+---
+
+### MT-CORE-094 — Yavaş bir kaynak başlangıcı geciktirmez (Faz 101, startup doğrulaması I/O yapmaz)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `ListAsync`'i çağrıldığında 3 saniye bekleyen bir test `IAgentSource`
+  geçici eklenmiş `samples/AgentPrism.Api` koşumu.
+
+**Adımlar**
+1. Uygulamayı başlat; ilk `200` yanıtına kadar geçen süreyi ölç.
+
+**Girilecek veri**
+```bash
+time (until curl -s -o /dev/null "$APU/api/agents" -H "$APB"; do sleep 0.2; done)
+```
+
+**Beklenen sonuç**
+- Başlangıç **gecikmez** (birkaç saniye içinde, tipik soğuk başlangıç
+  süresiyle aynı mertebede) — startup doğrulaması `ListAsync`'i hiç çağırmaz,
+  yalnız `Name`/`Priority` alanlarını okur.
+
+---
+
+### MT-CORE-095 — Kiracıya duyarlı özel kaynak: kiracı A'nın listesi kiracı B'nin agent'ını içermez (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Çok kiracılı bir kurulum ve `ITenantContext`'i okuyan, kiracıya göre
+  filtreleyen özel bir `IAgentSource` (bu depoda hazır örneği yok — bu case
+  `TenantAwareAgentSourceContract`'ı sağlayan bir kaynak yazıldığında koşulur;
+  `AgentPrism.Testing.Contracts.AgentSources.TenantAwareAgentSourceContract`
+  otomatik sözleşme testinin insan gözüyle tekrarıdır).
+
+**Adımlar**
+1. Kiracı A kimliğiyle `GET /api/agents` çağır.
+2. Kiracı B kimliğiyle `GET /api/agents` çağır.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/agents" -H "X-Tenant-Id: tenant-a" -H "$APB"
+curl -s "$APU/api/agents" -H "X-Tenant-Id: tenant-b" -H "$APB"
+```
+
+**Beklenen sonuç**
+- Listeler ayrışır; kiracı B'nin listesi kiracı A'ya özel agent'ı içermez.
+
+> 👤 **İnsan gerekir** — bu depoda kiracıya duyarlı bir örnek `IAgentSource`
+> yok; case yalnız böyle bir kaynak eklendiğinde koşulabilir. Otomatik
+> karşılığı `TenantAwareAgentSourceContract` sözleşme suite'idir
+> (`tests/AgentPrism.Core.UnitTests/Catalog/BuiltInAgentSourceContractTests.cs`,
+> `DefinitionStoreTenantAwareAgentSourceContractTests`).
+
+---
+
+### MT-CORE-096 — `AddAgentSource` kayıt yüzeyi: generic ve factory aşırı yüklemeleri tek instance üretir (Faz 101)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 101 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Samples.CustomAgentSource.Tests` projesi local feed'den
+  restore edilebilir durumda (`dotnet pack AgentPrism.src.slnf -c Release`
+  önceden koşulmuş).
+
+**Adımlar**
+1. `dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release` çalıştır.
+
+**Girilecek veri**
+```bash
+dotnet test samples/AgentPrism.Samples.CustomAgentSource.Tests -c Release --no-build
+```
+
+**Beklenen sonuç**
+- 15/15 test geçer: `AgentSourceContract` ailesinin 12 senaryosu,
+  `JsonFileAgentSourceRunTests`'in generic (`AddAgentSource<T>()`) ve factory
+  (`AddAgentSource(factory)`) kayıt yollarıyla yaptığı iki gerçek `run`, ve
+  kapsam testi. `TryAddEnumerable` sample kodunda hiç geçmez
+  (`grep -c TryAddEnumerable samples/AgentPrism.Samples.CustomAgentSource*/*.cs` → `0`).
