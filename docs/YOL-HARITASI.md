@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (110 kalem)
+## Fazlar (112 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -122,5 +122,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [107](arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | ✅ Tamamlandı |
 | [108](arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | ✅ Tamamlandı |
 | [109](arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | ✅ Tamamlandı |
+| [110](110-TUKETICI-BAGLANTI-DUZLEMI.md) | Tüketici Bağlantı Düzlemi | 📋 Planlandı |
+| [111](111-OKUMA-SOZLESMESI-GORUNUMLERI.md) | Okuma Sözleşmesi Görünümleri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
