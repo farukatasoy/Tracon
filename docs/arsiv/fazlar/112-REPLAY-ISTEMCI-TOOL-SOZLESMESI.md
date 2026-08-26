@@ -1,7 +1,7 @@
 # Faz 112 — Replay'in İstemci Tool Sözleşmesi
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-109**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-109**
 > **Önkoşul:** Faz 61 (istemci tool'ları, K-435) ve Faz 47 (replay, K-315) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `AgentPrism.Core` (`Replay/`), `AgentPrism.AspNetCore` (`Endpoints/RunEndpoints.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -29,9 +29,9 @@
    **K-586** (skill/alt-agent taşıyan agent devam ettirilemez — aynı sınıf sınır),
    **K-603** (`PublicAPI.Shipped.txt` boş; yüzey büyütmek bugün ucuz).
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri, tool kaydı) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (problem details, durum kodu eşlemesi)
-4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](MIMARI.md) — çalıştırma yolu
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri, tool kaydı) ·
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (problem details, durum kodu eşlemesi)
+4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu
 
 ---
 
@@ -54,12 +54,12 @@ Bu faz o boşluğu bir **açık sözleşme** ile kapatır: replay bu run türün
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentDefinitionCompiler.cs:465-478`](../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | `toolTransform` yalnız `tools[index] is AIFunction` olanlara uygulanır. İstemci tool'u `AIFunctionDeclaration`'dır; **bilerek** atlanır — sarmalanacak sunucu gövdesi yoktur |
-| [`RunReplayService.cs:137-140`](../src/AgentPrism.Core/Replay/RunReplayService.cs) | `ReplayTools` modunda `playback.Wrap` `toolTransform` olarak geçirilir. İstemci tool'u sarmalanmadığı için oynatma defterine **hiç bakılmaz** |
-| [`RunReplayService.cs:159-163`](../src/AgentPrism.Core/Replay/RunReplayService.cs) | `ReplayMismatchGuard` yalnız `playback` çağrıldığında tetiklenir. İstemci tool'unda `playback` hiç çağrılmaz → **muhafız da susar** |
+| [`AgentDefinitionCompiler.cs:465-478`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs) | `toolTransform` yalnız `tools[index] is AIFunction` olanlara uygulanır. İstemci tool'u `AIFunctionDeclaration`'dır; **bilerek** atlanır — sarmalanacak sunucu gövdesi yoktur |
+| [`RunReplayService.cs:137-140`](../../../src/AgentPrism.Core/Replay/RunReplayService.cs) | `ReplayTools` modunda `playback.Wrap` `toolTransform` olarak geçirilir. İstemci tool'u sarmalanmadığı için oynatma defterine **hiç bakılmaz** |
+| [`RunReplayService.cs:159-163`](../../../src/AgentPrism.Core/Replay/RunReplayService.cs) | `ReplayMismatchGuard` yalnız `playback` çağrıldığında tetiklenir. İstemci tool'unda `playback` hiç çağrılmaz → **muhafız da susar** |
 | `grep -rn "ClientTool" src/AgentPrism.Core/Replay/` | **Sıfır isabet.** Replay yolunda istemci tool'u için ne kontrol, ne ret, ne uyarı var |
-| [`RunRecordingAgent.Completion.cs:57`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | Cevaplanmamış çağrı `DrainUnfinished("The run ended before the tool result arrived.")` ile kapatılır. Replay run'ı **`Completed` biter**, bir tool kaydı da hatalı görünür |
-| [`RunReplayResponse`](../src/AgentPrism.AspNetCore/Contracts/ReplayContracts.cs) | Yanıtta bekleyen tool çağrısı taşıyan **hiçbir alan yok**. Çağıran `200 OK` ve boş `Output` alır; nedenini öğrenemez |
+| [`RunRecordingAgent.Completion.cs:57`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | Cevaplanmamış çağrı `DrainUnfinished("The run ended before the tool result arrived.")` ile kapatılır. Replay run'ı **`Completed` biter**, bir tool kaydı da hatalı görünür |
+| [`RunReplayResponse`](../../../src/AgentPrism.AspNetCore/Contracts/ReplayContracts.cs) | Yanıtta bekleyen tool çağrısı taşıyan **hiçbir alan yok**. Çağıran `200 OK` ve boş `Output` alır; nedenini öğrenemez |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -71,9 +71,9 @@ oynatmak **veya** bu run türünü reddetmek"* diye iki seçenekli yazmıştı.
 
 | Ölçüm | Sonuç |
 |---|---|
-| [`ToolInvocationTracker.cs:161-190`](../src/AgentPrism.Core/Recording/ToolInvocationTracker.cs) `DrainUnfinished` | İstemci tool'u için yazılan kayıt `Result = null`, `Error = "The run ended before the tool result arrived."` taşır. **Sonuç metni kayıtta yoktur** |
-| [`RunRecordingAgent.Persistence.cs:188-194`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Persistence.cs) | `OnCall`/`OnResult` yalnız **yanıt** içeriği üzerinde döner. İstemcinin geri gönderdiği sonuç bir sonraki turun **girdisidir**; hiçbir `ToolInvocationRecord` üretmez |
-| [`ClientToolResultResolver.cs:110-145`](../src/AgentPrism.AspNetCore/Internal/ClientToolResultResolver.cs) | Sonuç `ChatMessage(ChatRole.Tool, …)` olarak **oturum geçmişine** yazılır — tek yaşadığı yer orasıdır |
+| [`ToolInvocationTracker.cs:161-190`](../../../src/AgentPrism.Core/Recording/ToolInvocationTracker.cs) `DrainUnfinished` | İstemci tool'u için yazılan kayıt `Result = null`, `Error = "The run ended before the tool result arrived."` taşır. **Sonuç metni kayıtta yoktur** |
+| [`RunRecordingAgent.Persistence.cs:188-194`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Persistence.cs) | `OnCall`/`OnResult` yalnız **yanıt** içeriği üzerinde döner. İstemcinin geri gönderdiği sonuç bir sonraki turun **girdisidir**; hiçbir `ToolInvocationRecord` üretmez |
+| [`ClientToolResultResolver.cs:110-145`](../../../src/AgentPrism.AspNetCore/Internal/ClientToolResultResolver.cs) | Sonuç `ChatMessage(ChatRole.Tool, …)` olarak **oturum geçmişine** yazılır — tek yaşadığı yer orasıdır |
 | K-315 | Replay **oturumsuzdur**; oturum geçmişi replay'e taşınmaz |
 
 ∴ Oynatma seçeneği yeni bir kalıcılık yolu (istemci sonucunu tool defterine
@@ -137,14 +137,14 @@ bu faz o çizgiyi sürdürür, yeni bir felsefe açmaz.
 
 ## 112.3 — `FindClientTool` — `FindApprovalTool`'un aynadaki eşi
 
-Mevcut yardımcı ([`RunReplayService.cs:288-305`](../src/AgentPrism.Core/Replay/RunReplayService.cs))
+Mevcut yardımcı ([`RunReplayService.cs:288-305`](../../../src/AgentPrism.Core/Replay/RunReplayService.cs))
 birebir kopyalanır; tek fark yüklemdir:
 
 | Mevcut | Yeni |
 |---|---|
 | `descriptor.RequiresApproval` | `descriptor.RunsOnClient` |
 
-`ToolDescriptor.RunsOnClient` ([`ToolDescriptor.cs:50`](../src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs))
+`ToolDescriptor.RunsOnClient` ([`ToolDescriptor.cs:50`](../../../src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs))
 zaten vardır ve `ToolRegistry.cs:166` onu `registration.Function is not AIFunction`
 ile doldurur. **Yeni bir tespit mekanizması yazılmaz.**
 
@@ -205,7 +205,7 @@ Yeni uç yok. Mevcut ucun bir sonucu eklenir:
 |---|---|---|---|
 | `POST` | `/api/runs/{runId:guid}/replay` | Operator (`LiveTools` için Admin) | İstemci tool'u taşıyan agent için **`409 Conflict`** döner |
 
-`409` seçimi `ApprovalRequired`'ın eşidir ([`RunEndpoints.cs:509-512`](../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs)):
+`409` seçimi `ApprovalRequired`'ın eşidir ([`RunEndpoints.cs:509-512`](../../../src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs)):
 istek biçimsel olarak geçerlidir, agent'ın şekli çakışır.
 
 🚨 **`switch` ifadesinin `_ =>` kolu bu değişikliği yutar.** Yeni üye için arm
@@ -242,7 +242,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
