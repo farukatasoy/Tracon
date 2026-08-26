@@ -40,7 +40,7 @@ import type { AgentPrismMetaResponse as Meta } from '@agentprism/client';
  * Order matters: a literal segment must come before the dynamic pattern that
  * would also match it, so `agents/new` is registered above `agents/:name`.
  */
-const routes = (meta: Meta): RouteDefinition[] => [
+export const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: '', render: () => <DashboardScreen meta={meta} /> },
   { pattern: 'dashboard', render: () => <DashboardScreen meta={meta} /> },
   { pattern: 'agents', render: () => <AgentsScreen meta={meta} /> },

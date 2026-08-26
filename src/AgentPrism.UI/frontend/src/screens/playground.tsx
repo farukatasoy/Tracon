@@ -1,19 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { client, openStream, unwrap } from '../lib/api';
-import { readSse } from '../lib/sse';
-import { emptyTranscript, foldMessages, foldUpdate, type TranscriptState } from '../lib/transcript';
-import { Link, useNavigate, useSearchParams } from '../lib/router';
-import { count, shortId } from '../lib/format';
+import { useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
+import { useNavigate } from '../lib/router';
 import { useT } from '../lib/i18n';
-import type { ChatMessage, SessionDetailResponse } from '@agentprism/client';
-import type {
-  AgentDescriptor,
-  AgentDetailResponse,
-  AttachmentDescriptor,
-  ConversationResource,
-  SpeakResponse,
-} from '../lib/server-types';
+import { Link } from '../lib/router';
 import {
   Badge,
   Button,
@@ -26,29 +14,16 @@ import {
   Panel,
   Select,
   TextInput,
-  cx,
 } from '../components/ui';
-import { CrossIcon, MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
+import { MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
 import { VoicePanel } from '../components/voice-panel';
 import { BranchButton } from '../components/branch-button';
-
-interface Turn {
-  id: string;
-  /** Null for a turn that only carries an approval decision. */
-  prompt: string | null;
-  attachments: AttachmentDescriptor[];
-  runId: string | null;
-  transcript: TranscriptState;
-  status: 'streaming' | 'done' | 'failed';
-  error: string | null;
-}
-
-interface Decision {
-  requestId: string;
-  approved: boolean;
-  remember: boolean;
-}
+import { shortId } from '../lib/format';
+import { AttachmentChip } from './playground/attachment-chip';
+import { TurnView } from './playground/turn-view';
+import { useAttachments } from './playground/use-attachments';
+import { usePlaygroundRun } from './playground/use-playground-run';
 
 /**
  * Streaming chat against a single agent.
@@ -56,377 +31,28 @@ interface Decision {
  * The stream comes from `POST api/agents/{name}/run` as Server-Sent Events. The
  * first frame is `run` and carries the run id, so the turn can link straight to
  * its recorded run while the answer is still arriving.
+ *
+ * This screen is a route facade only: `usePlaygroundRun` owns the run/session
+ * lifecycle and `useAttachments` owns the pending-upload lifecycle. Everything
+ * below composes their state into markup.
  */
 export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const t = useT();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const agents = useQuery({
-    queryKey: ['agents'],
-    queryFn: () => unwrap(client.GET('/api/agents')) as Promise<AgentDescriptor[]>,
-  });
-  const urlSessionId = useSearchParams().get('sessionId');
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [history, setHistory] = useState<{ message: ChatMessage; folded: TranscriptState }[] | null>(null);
-  const [prompt, setPrompt] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [pendingAttachments, setPendingAttachments] = useState<AttachmentDescriptor[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<unknown>(null);
-  const [conversation, setConversation] = useState(false);
+  const attachments = useAttachments(sessionId);
+  const play = usePlaygroundRun(name, sessionId, setSessionId, attachments);
 
-  const bottom = useRef<HTMLDivElement>(null);
-  const abort = useRef<AbortController | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  const selected = name ?? agents.data?.[0]?.name ?? '';
-
-  // The list endpoint (AgentDescriptor) carries no parameter schema; only the
-  // detail endpoint's AgentDefinition does. Fetched separately so agents
-  // without a schema (the overwhelming majority) pay no extra cost beyond
-  // this one cheap, per-name-cached lookup.
-  const agentDetail = useQuery({
-    queryKey: ['agent-detail', selected],
-    queryFn: () =>
-      unwrap(client.GET('/api/agents/{name}', { params: { path: { name: selected } } })) as Promise<AgentDetailResponse>,
-    enabled: selected.length > 0,
-  });
-  const parameterSchema = agentDetail.data?.definition?.parameters ?? [];
-
-  const [paramValues, setParamValues] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [turns]);
-
-  useEffect(() => () => abort.current?.abort(), []);
-
-  /**
-   * Loads an existing session named by `?sessionId=` in the address bar.
-   *
-   * HATA-S4-018: the screen used to ignore this parameter entirely and always
-   * reserved a brand-new conversation on the first send, so there was no way
-   * to resume a session from the UI (not from a link, not by pasting the URL
-   * back). `sessionId` is set to the SAME identity the server already knows —
-   * the next `run()` call appends to it instead of branching a new one. Prior
-   * turns are not replayable as live `Turn`s (no `runId` per historical turn,
-   * no clean way to regroup messages into turns without guessing) — they are
-   * rendered as a read-only preface instead, the same fold `session-detail.tsx`
-   * already uses for the same messages.
-   */
-  useEffect(() => {
-    if (urlSessionId === null || urlSessionId === sessionId) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (
-      unwrap(
-        client.GET('/api/sessions/{sessionId}', { params: { path: { sessionId: urlSessionId } } }),
-      ) as Promise<SessionDetailResponse>
-    )
-      .then((detail) => {
-        if (cancelled) {
-          return;
-        }
-
-        setSessionId(detail.id);
-
-        const messages = (detail.messages as ChatMessage[] | null) ?? [];
-        const folds = foldMessages(messages);
-
-        setHistory(messages.map((message, index) => ({ message, folded: folds[index] ?? emptyTranscript })));
-      })
-      .catch((caught) => {
-        if (!cancelled) {
-          setError(caught);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [urlSessionId, sessionId]);
-
-  const reset = useCallback(() => {
-    abort.current?.abort();
-    setSessionId(null);
-    setTurns([]);
-    setHistory(null);
-    setError(null);
-    setBusy(false);
-    setPendingAttachments([]);
-    setUploadError(null);
-    setConversation(false);
-    setParamValues({});
-
-    // Otherwise a stale '?sessionId=' still in the address bar would re-hydrate
-    // the very session 'new chat' just left, right back through the effect above.
-    if (urlSessionId !== null) {
-      navigate(`playground/${encodeURIComponent(selected)}`, { replace: true });
-    }
-  }, [urlSessionId, navigate, selected]);
-
-  /**
-   * Uploads one or more files ahead of the next message.
-   *
-   * Uploaded before the message is sent, not bundled with it: the endpoint is
-   * a plain multipart POST, independent from the SSE run request. A file is
-   * usable in the *next* `run` call as soon as its descriptor comes back.
-   */
-  const uploadFiles = useCallback(
-    async (files: FileList | File[]) => {
-      setUploadError(null);
-      setUploading(true);
-
-      try {
-        for (const file of Array.from(files)) {
-          const form = new FormData();
-
-          form.append('file', file, file.name);
-
-          const descriptor = (await unwrap(
-            client.POST('/api/attachments', {
-              params: { query: { sessionId: sessionId ?? undefined } },
-              body: form as unknown as { file: string },
-            }),
-          )) as AttachmentDescriptor;
-
-          setPendingAttachments((current) => [...current, descriptor]);
-        }
-      } catch (caught) {
-        setUploadError(caught);
-      } finally {
-        setUploading(false);
-      }
-    },
-    [sessionId],
-  );
-
-  const removePendingAttachment = useCallback((id: string) => {
-    setPendingAttachments((current) => current.filter((attachment) => attachment.id !== id));
-    void client
-      .DELETE('/api/attachments/{id}', { params: { path: { id } } })
-      .catch(() => {
-        // Best effort: the reference is already gone from the next message
-        // either way, and the row is orderless clutter at worst.
-      });
-  }, []);
-
-  const run = useCallback(
-    async (message: string | null, decision: Decision | null, attachments: AttachmentDescriptor[]) => {
-    if ((message === null && decision === null) || selected.length === 0 || busy) {
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-
-    const turnId = `turn-${Date.now()}`;
-
-    setTurns((current) => [
-      ...current,
-      { id: turnId, prompt: message, attachments, runId: null, transcript: emptyTranscript, status: 'streaming', error: null },
-    ]);
-
-    const update = (change: (turn: Turn) => Turn): void =>
-      setTurns((current) => current.map((turn) => (turn.id === turnId ? change(turn) : turn)));
-
-    try {
-      // A conversation identifier is reserved on the server; conversation and
-      // session are the same identity space (decision K-043), so this is also
-      // the session the run will be recorded against.
-      let conversation = sessionId;
-
-      if (conversation === null) {
-        const created = (await unwrap(
-          client.POST('/v1/conversations'),
-        )) as ConversationResource;
-
-        conversation = created.id;
-        setSessionId(conversation);
-      }
-
-      const controller = new AbortController();
-
-      abort.current = controller;
-
-      const response = await openStream(`api/agents/${encodeURIComponent(selected)}/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          sessionId: conversation,
-          attachmentIds: attachments.map((attachment) => attachment.id),
-          // Sent only when the agent declares a schema at all — omitting the
-          // field entirely for the overwhelming majority of agents is the
-          // exact same request shape as before this feature existed.
-          parameters: parameterSchema.length > 0 ? paramValues : undefined,
-          // An approval is the input of the next turn, not a resume signal:
-          // Microsoft Agent Framework ends the run when a tool needs a decision
-          // and expects the answer in the following request.
-          approvals:
-            decision === null
-              ? []
-              : [
-                  {
-                    requestId: decision.requestId,
-                    approved: decision.approved,
-                    remember: decision.remember,
-                  },
-                ],
-        }),
-        signal: controller.signal,
-      });
-
-      for await (const frame of readSse(response)) {
-        if (frame.event === 'run') {
-          const payload = JSON.parse(frame.data) as { runId: string };
-
-          update((turn) => ({ ...turn, runId: payload.runId }));
-
-          continue;
-        }
-
-        if (frame.event === 'update') {
-          const payload = JSON.parse(frame.data) as { contents?: [] };
-
-          update((turn) => ({ ...turn, transcript: foldUpdate(turn.transcript, payload) }));
-
-          continue;
-        }
-
-        if (frame.event === 'error') {
-          const payload = JSON.parse(frame.data) as { type: string; message: string };
-
-          update((turn) => ({ ...turn, status: 'failed', error: `${payload.type}: ${payload.message}` }));
-
-          continue;
-        }
-
-        if (frame.event === 'done') {
-          update((turn) => (turn.status === 'failed' ? turn : { ...turn, status: 'done' }));
-        }
-      }
-
-      update((turn) => (turn.status === 'streaming' ? { ...turn, status: 'done' } : turn));
-
-      await queryClient.invalidateQueries({ queryKey: ['runs'] });
-      await queryClient.invalidateQueries({ queryKey: ['sessions'] });
-
-      if (decision?.remember === true) {
-        await queryClient.invalidateQueries({ queryKey: ['approval-rules'] });
-      }
-    } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
-        update((turn) => ({ ...turn, status: 'done' }));
-      } else {
-        setError(caught);
-        update((turn) => ({
-          ...turn,
-          status: 'failed',
-          error: caught instanceof Error ? caught.message : String(caught),
-        }));
-      }
-    } finally {
-      abort.current = null;
-      setBusy(false);
-    }
-  },
-    [selected, busy, sessionId, queryClient, parameterSchema, paramValues],
-  );
-
-  // A run with a value missing for a required AgentParameter never starts on
-  // the server either (AgentParameterGate); blocked here too so the person
-  // running the agent sees why before spending a round trip on it.
-  const missingRequiredParameter = parameterSchema.some(
-    (parameter) =>
-      parameter.required &&
-      (paramValues[parameter.name] ?? '').trim().length === 0 &&
-      (parameter.defaultValue ?? '').length === 0,
-  );
-
-  const send = useCallback(() => {
-    const message = prompt.trim();
-
-    if ((message.length === 0 && pendingAttachments.length === 0) || missingRequiredParameter) {
-      return;
-    }
-
-    setPrompt('');
-    setPendingAttachments([]);
-    void run(message.length > 0 ? message : null, null, pendingAttachments);
-  }, [prompt, pendingAttachments, run, missingRequiredParameter]);
-
-  /**
-   * Answers a pending approval.
-   *
-   * The card is marked immediately so the same request cannot be answered
-   * twice, then a new turn is started carrying the decision.
-   */
-  const decide = useCallback(
-    (requestId: string, approved: boolean, remember: boolean) => {
-      setTurns((current) =>
-        current.map((turn) => ({
-          ...turn,
-          transcript: {
-            ...turn.transcript,
-            items: turn.transcript.items.map((item) =>
-              item.kind === 'approval' && item.requestId === requestId
-                ? { ...item, decided: approved ? ('approved' as const) : ('rejected' as const) }
-                : item,
-            ),
-          },
-        })),
-      );
-
-      void run(null, { requestId, approved, remember }, []);
-    },
-    [run],
-  );
-
-  /**
-   * Turns conversation mode on.
-   *
-   * A session identifier is reserved first: the conversation socket runs
-   * against ONE session for its whole life (the tenant and the session are
-   * fixed at handshake time), so it cannot be opened before one exists.
-   */
-  const openConversation = useCallback(async () => {
-    if (conversation) {
-      setConversation(false);
-      return;
-    }
-
-    try {
-      if (sessionId === null) {
-        const created = (await unwrap(
-          client.POST('/v1/conversations'),
-        )) as ConversationResource;
-
-        setSessionId(created.id);
-      }
-
-      setConversation(true);
-    } catch (caught) {
-      setError(caught);
-    }
-  }, [conversation, sessionId]);
-
-  if (agents.isPending) {
+  if (play.agents.isPending) {
     return <Loading />;
   }
 
-  if (agents.isError) {
-    return <ErrorNote error={agents.error} />;
+  if (play.agents.isError) {
+    return <ErrorNote error={play.agents.error} />;
   }
 
-  if (agents.data.length === 0) {
+  if (play.agents.data.length === 0) {
     return (
       <>
         <PageHeader title={t('nav.playground')} />
@@ -451,19 +77,19 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         actions={
           <>
             <Select
-              value={selected}
+              value={play.selected}
               onChange={(value) => {
-                reset();
+                play.reset();
                 navigate(`playground/${encodeURIComponent(value)}`);
               }}
             >
-              {agents.data.map((agent) => (
+              {play.agents.data.map((agent) => (
                 <option key={agent.name} value={agent.name}>
                   {agent.displayName ?? agent.name}
                 </option>
               ))}
             </Select>
-            <Button onClick={reset} disabled={turns.length === 0 && sessionId === null}>
+            <Button onClick={play.reset} disabled={play.turns.length === 0 && play.sessionId === null}>
               <PlusIcon className="size-3.5" />
               {t('playground.newChat')}
             </Button>
@@ -471,11 +97,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         }
       />
 
-      {sessionId !== null && (
+      {play.sessionId !== null && (
         <p className="mb-3 text-[12px] text-subtle">
           {t('common.session')}{' '}
-          <Link to={`sessions/${encodeURIComponent(sessionId)}`} className="text-accent underline">
-            <Mono>{shortId(sessionId, 14, 6)}</Mono>
+          <Link to={`sessions/${encodeURIComponent(play.sessionId)}`} className="text-accent underline">
+            <Mono>{shortId(play.sessionId, 14, 6)}</Mono>
           </Link>{' '}
           — {t('playground.historyCarried')}
           {/*
@@ -485,27 +111,25 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             screen, where the history arrives in sequence order.
           */}
           <span className="ml-2 inline-block align-middle">
-            <BranchButton sessionId={sessionId} />
+            <BranchButton sessionId={play.sessionId} />
           </span>
         </p>
       )}
 
-      {error !== null && <div className="mb-3"><ErrorNote error={error} /></div>}
+      {play.error !== null && <div className="mb-3"><ErrorNote error={play.error} /></div>}
 
       <Panel className="flex min-h-[26rem] flex-col">
         <div className="flex-1 overflow-y-auto p-4">
-          {history !== null && history.length > 0 && (
+          {play.history !== null && play.history.length > 0 && (
             <div className="mb-6 flex flex-col divide-y divide-line border-b border-line pb-4">
               <p className="pb-2 text-[11px] font-medium text-subtle uppercase">{t('playground.priorMessages')}</p>
-              {history.map(({ message, folded }, index) => {
+              {play.history.map(({ message, folded }, index) => {
                 const role = ((message.role as string | undefined) ?? 'unknown').toLowerCase();
 
                 return (
                   <div key={message.messageId ?? index} className="pt-3">
                     <div className="mb-1.5 flex items-center gap-2">
-                      <Badge tone={role === 'user' ? 'accent' : role === 'system' ? 'warn' : 'neutral'}>
-                        {role}
-                      </Badge>
+                      <Badge tone={role === 'user' ? 'accent' : role === 'system' ? 'warn' : 'neutral'}>{role}</Badge>
                       {message.authorName != null && (
                         <span className="text-[11px] text-subtle">{message.authorName}</span>
                       )}
@@ -521,54 +145,49 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             </div>
           )}
 
-          {turns.length === 0 ? (
-            (history === null || history.length === 0) && (
+          {play.turns.length === 0 ? (
+            (play.history === null || play.history.length === 0) && (
               <Empty title={t('playground.empty.title')}>{t('playground.empty.body')}</Empty>
             )
           ) : (
             <div className="flex flex-col gap-6">
-              {turns.map((turn) => (
-                <TurnView key={turn.id} turn={turn} onDecide={decide} sessionId={sessionId} />
+              {play.turns.map((turn) => (
+                <TurnView key={turn.id} turn={turn} onDecide={play.decide} sessionId={play.sessionId} />
               ))}
             </div>
           )}
-          <div ref={bottom} />
+          <div ref={play.bottomRef} />
         </div>
 
         <form
           className="flex flex-col gap-2 border-t border-line p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            send();
+            play.send();
           }}
           onDragOver={(event: DragEvent<HTMLFormElement>) => event.preventDefault()}
           onDrop={(event: DragEvent<HTMLFormElement>) => {
             event.preventDefault();
 
             if (event.dataTransfer.files.length > 0) {
-              void uploadFiles(event.dataTransfer.files);
+              void attachments.upload(event.dataTransfer.files);
             }
           }}
         >
-          {uploadError !== null && <ErrorNote error={uploadError} />}
+          {attachments.error !== null && <ErrorNote error={attachments.error} />}
 
-          {parameterSchema.length > 0 && (
+          {play.parameterSchema.length > 0 && (
             <div data-testid="playground-parameters" className="flex flex-col gap-2">
               <p className="text-[11px] font-medium text-subtle uppercase">{t('playground.parameters')}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {parameterSchema.map((parameter) => (
-                  <Field
-                    key={parameter.name}
-                    label={parameter.name}
-                    required={parameter.required}
-                    hint={parameter.description}
-                  >
+                {play.parameterSchema.map((parameter) => (
+                  <Field key={parameter.name} label={parameter.name} required={parameter.required} hint={parameter.description}>
                     {parameter.kind === 'Boolean' ? (
                       <input
                         type="checkbox"
-                        checked={(paramValues[parameter.name] ?? parameter.defaultValue ?? 'false') === 'true'}
+                        checked={(play.paramValues[parameter.name] ?? parameter.defaultValue ?? 'false') === 'true'}
                         onChange={(event) =>
-                          setParamValues((current) => ({
+                          play.setParamValues((current) => ({
                             ...current,
                             [parameter.name]: event.target.checked ? 'true' : 'false',
                           }))
@@ -578,10 +197,10 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                     ) : (
                       <TextInput
                         type={parameter.kind === 'Number' ? 'number' : 'text'}
-                        value={paramValues[parameter.name] ?? parameter.defaultValue ?? ''}
+                        value={play.paramValues[parameter.name] ?? parameter.defaultValue ?? ''}
                         placeholder={parameter.defaultValue ?? undefined}
                         onChange={(event) =>
-                          setParamValues((current) => ({ ...current, [parameter.name]: event.target.value }))
+                          play.setParamValues((current) => ({ ...current, [parameter.name]: event.target.value }))
                         }
                       />
                     )}
@@ -591,13 +210,13 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             </div>
           )}
 
-          {pendingAttachments.length > 0 && (
+          {attachments.pending.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {pendingAttachments.map((attachment) => (
+              {attachments.pending.map((attachment) => (
                 <AttachmentChip
                   key={attachment.id}
                   attachment={attachment}
-                  onRemove={() => removePendingAttachment(attachment.id)}
+                  onRemove={() => attachments.remove(attachment.id)}
                 />
               ))}
             </div>
@@ -605,14 +224,14 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
           <div className="flex items-end gap-2">
             <input
-              ref={fileInput}
+              ref={attachments.fileInputRef}
               type="file"
               multiple
               data-testid="attachment-input"
               className="hidden"
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 if (event.target.files !== null && event.target.files.length > 0) {
-                  void uploadFiles(event.target.files);
+                  void attachments.upload(event.target.files);
                 }
 
                 event.target.value = '';
@@ -621,20 +240,20 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             <Button
               type="button"
               tone="default"
-              disabled={busy || uploading}
-              onClick={() => fileInput.current?.click()}
+              disabled={play.busy || attachments.uploading}
+              onClick={() => attachments.fileInputRef.current?.click()}
               title={t('playground.attachFile')}
             >
-              {uploading ? <SpinnerIcon className="size-3.5" /> : <PaperclipIcon className="size-3.5" />}
+              {attachments.uploading ? <SpinnerIcon className="size-3.5" /> : <PaperclipIcon className="size-3.5" />}
             </Button>
             <textarea
               rows={1}
-              value={prompt}
-              disabled={busy}
+              value={play.prompt}
+              disabled={play.busy}
               data-testid="playground-input"
               placeholder={t('playground.placeholder')}
               className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
-              onChange={(event) => setPrompt(event.target.value)}
+              onChange={(event) => play.setPrompt(event.target.value)}
               onKeyDown={(event) => {
                 // Enter sends, Shift+Enter adds a line. Ctrl/Cmd+Enter sends too,
                 // so the habit from every other console works here as well. The
@@ -642,22 +261,22 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 // form that holds the caret, not to a global handler.
                 if (event.key === 'Enter' && (!event.shiftKey || event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
-                  send();
+                  play.send();
                 }
               }}
             />
             <Button
               type="button"
-              tone={conversation ? 'primary' : 'default'}
-              disabled={busy}
+              tone={play.conversation ? 'primary' : 'default'}
+              disabled={play.busy}
               testId="voice-mode"
               title={t('playground.conversationMode')}
-              onClick={() => void openConversation()}
+              onClick={() => void play.openConversation()}
             >
               <MicIcon className="size-3.5" />
             </Button>
-            {busy ? (
-              <Button tone="default" onClick={() => abort.current?.abort()}>
+            {play.busy ? (
+              <Button tone="default" onClick={play.abortRun}>
                 {t('workflowDetail.stop')}
               </Button>
             ) : (
@@ -665,7 +284,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 type="submit"
                 tone="primary"
                 testId="playground-send"
-                disabled={(prompt.trim().length === 0 && pendingAttachments.length === 0) || missingRequiredParameter}
+                disabled={(play.prompt.trim().length === 0 && attachments.pending.length === 0) || play.missingRequiredParameter}
               >
                 <SendIcon className="size-3.5" />
                 {t('playground.send')}
@@ -674,271 +293,8 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           </div>
         </form>
 
-        {conversation && sessionId !== null && <VoicePanel agent={selected} sessionId={sessionId} />}
+        {play.conversation && play.sessionId !== null && <VoicePanel agent={play.selected} sessionId={play.sessionId} />}
       </Panel>
     </>
-  );
-}
-
-function TurnView({
-  turn,
-  onDecide,
-  sessionId,
-}: {
-  turn: Turn;
-  onDecide: (requestId: string, approved: boolean, remember: boolean) => void;
-  sessionId: string | null;
-}): ReactNode {
-  const t = useT();
-  const usage = turn.transcript.usage;
-
-  /** The assistant's plain text, which is what "speak" would read out. */
-  const spokenText = turn.transcript.items
-    .filter((item) => item.kind === 'text')
-    .map((item) => item.text)
-    .join('\n')
-    .trim();
-
-  return (
-    <div data-testid="playground-turn">
-      {turn.attachments.length > 0 && (
-        <div className="mb-2 flex flex-wrap justify-end gap-1.5">
-          {turn.attachments.map((attachment) => (
-            <AttachmentChip key={attachment.id} attachment={attachment} />
-          ))}
-        </div>
-      )}
-
-      {turn.prompt !== null ? (
-        <div className="mb-2.5 flex justify-end">
-          <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-[13px] whitespace-pre-wrap text-fg">
-            {turn.prompt}
-          </p>
-        </div>
-      ) : (
-        <p className="mb-2.5 text-right text-[11px] text-subtle">{t('playground.approvalSent')}</p>
-      )}
-
-      <div className="flex items-center gap-2 pb-1.5 text-[11px] text-subtle">
-        {turn.status === 'streaming' && <SpinnerIcon className="size-3" />}
-        <span>{t('playground.assistant')}</span>
-        {turn.runId !== null && (
-          <Link
-            to={`runs/${encodeURIComponent(turn.runId)}`}
-            className="text-accent underline"
-            title={t('workflowDetail.inspectRun')}
-          >
-            {t('workflowDetail.runId', { id: shortId(turn.runId, 8, 4) })}
-          </Link>
-        )}
-        {usage?.totalTokens != null && (
-          <span>{t('settings.modelTokens', { tokens: count(usage.totalTokens) })}</span>
-        )}
-      </div>
-
-      {/* The reply arrives token by token over SSE. `polite` lets a screen
-          reader finish the current sentence before announcing the update. */}
-      <div
-        aria-live="polite"
-        aria-busy={turn.status === 'streaming'}
-        className={cx(turn.status === 'failed' && 'opacity-90')}
-      >
-        <TranscriptView
-          items={turn.transcript.items}
-          streaming={turn.status === 'streaming'}
-          onDecide={turn.status === 'done' ? onDecide : undefined}
-        />
-
-        {turn.transcript.items.length === 0 && turn.status === 'streaming' && (
-          <p className="text-[13px] text-subtle">…</p>
-        )}
-
-        {turn.error !== null && (
-          <div className="mt-2 rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger">
-            {turn.error}
-          </div>
-        )}
-
-        {turn.status === 'failed' && turn.error === null && (
-          <Badge tone="danger">{t('runs.status.failed')}</Badge>
-        )}
-
-        {turn.status === 'done' && spokenText.length > 0 && (
-          <SpeakButton text={spokenText} sessionId={sessionId} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Speaks an assistant reply and plays it inline.
- *
- * The audio element is fed an object URL, not the attachment endpoint: browsers
- * do not attach the bearer token to resource loads, so a plain
- * `<audio src="api/attachments/{id}">` answers 401 whenever token auth is on.
- * Same reason as the image preview above.
- *
- * This is an operator action and runs outside an agent run, so its cost is not
- * written to `tool_invocations`; the endpoint returns the measured characters
- * and it is shown next to the player.
- */
-function SpeakButton({ text, sessionId }: { text: string; sessionId: string | null }): ReactNode {
-  const t = useT();
-  const [state, setState] = useState<'idle' | 'working' | 'ready' | 'failed'>('idle');
-  const [url, setUrl] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-
-  // The object URL owns memory until it is revoked.
-  useEffect(() => () => {
-    if (url !== null) {
-      URL.revokeObjectURL(url);
-    }
-  }, [url]);
-
-  const speak = useCallback(async () => {
-    setState('working');
-    setNote(null);
-
-    try {
-      const result = (await unwrap(
-        client.POST('/api/voice/speak', { body: { text, sessionId } }),
-      )) as SpeakResponse;
-      const blob = (await unwrap(
-        client.GET('/api/attachments/{id}', {
-          params: { path: { id: result.attachment.id } },
-          parseAs: 'blob',
-        }),
-      )) as Blob;
-
-      setUrl(URL.createObjectURL(blob));
-      setState('ready');
-      setNote(
-        result.cost != null
-          ? t('playground.speechCost', {
-              characters: count(result.characters),
-              cost: result.cost.toFixed(4),
-              currency: result.currency ?? '',
-            }).trim()
-          : t(result.isEstimated ? 'playground.speechCharsEstimated' : 'playground.speechChars', {
-              characters: count(result.characters),
-            }),
-      );
-    } catch (error) {
-      setState('failed');
-      setNote(error instanceof Error ? error.message : t('playground.speechFailed'));
-    }
-  }, [sessionId, t, text]);
-
-  if (state === 'ready' && url !== null) {
-    return (
-      <span className="flex items-center gap-2">
-        <audio data-testid="playground-audio" src={url} controls className="h-7 max-w-[16rem]" />
-        {note !== null && <span className="text-[11px] text-subtle">{note}</span>}
-      </span>
-    );
-  }
-
-  return (
-    <span className="flex items-center gap-2">
-      <button
-        type="button"
-        data-testid="playground-speak"
-        onClick={() => void speak()}
-        disabled={state === 'working'}
-        title={t('playground.speakTitle')}
-        className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[11px] text-subtle hover:text-fg disabled:opacity-50"
-      >
-        {state === 'working' ? <SpinnerIcon className="size-3" /> : <SpeakerIcon className="size-3" />}
-        {t('playground.speak')}
-      </button>
-      {state === 'failed' && note !== null && (
-        <span className="text-[11px] text-danger">{note}</span>
-      )}
-    </span>
-  );
-}
-
-/**
- * Fetches an image attachment's bytes once and hands back an object URL.
- *
- * A plain `<img src="api/attachments/{id}">` cannot carry the bearer token
- * (browsers do not attach custom headers to resource loads), so the preview
- * has to go through `client.GET(..., { parseAs: 'blob' })` and wrap the result.
- */
-function useAttachmentPreview(id: string, enabled: boolean): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    let objectUrl: string | null = null;
-    let cancelled = false;
-
-    void (
-      unwrap(
-        client.GET('/api/attachments/{id}', { params: { path: { id } }, parseAs: 'blob' }),
-      ) as Promise<Blob>
-    )
-      .then((blob) => {
-        if (!cancelled) {
-          objectUrl = URL.createObjectURL(blob);
-          setUrl(objectUrl);
-        }
-      })
-      .catch(() => {
-        // Preview is best-effort; the chip below falls back to a plain icon.
-      });
-
-    return () => {
-      cancelled = true;
-
-      if (objectUrl !== null) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [id, enabled]);
-
-  return url;
-}
-
-/** A small pill showing one attached file, with an image thumbnail when possible. */
-function AttachmentChip({
-  attachment,
-  onRemove,
-}: {
-  attachment: AttachmentDescriptor;
-  onRemove?: () => void;
-}): ReactNode {
-  const t = useT();
-  const isImage = attachment.mediaType.startsWith('image/');
-  const previewUrl = useAttachmentPreview(attachment.id, isImage);
-
-  return (
-    <span
-      data-testid="attachment-chip"
-      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel py-1 pr-2 pl-1 text-[11px]"
-    >
-      {previewUrl !== null ? (
-        <img src={previewUrl} alt="" className="size-5 rounded object-cover" />
-      ) : (
-        <PaperclipIcon className="size-3.5 text-subtle" />
-      )}
-      <span className="max-w-[10rem] truncate" title={attachment.fileName}>
-        {attachment.fileName}
-      </span>
-      {onRemove !== undefined && (
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-subtle hover:text-fg"
-          aria-label={t('playground.removeAttachment', { name: attachment.fileName })}
-        >
-          <CrossIcon className="size-3" />
-        </button>
-      )}
-    </span>
   );
 }
