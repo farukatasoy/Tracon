@@ -277,6 +277,7 @@ same question with everything else attached.
 - [Compatibility](https://agentprism.doayen.web.tr/reference/compatibility/) — A verified compatibility matrix for target frameworks, packages, AOT, storage engines, model providers, UI ownership, and API-key scopes.
 - [Configuration](https://agentprism.doayen.web.tr/reference/configuration/) — Verified configuration sections and defaults for AgentPrism core services, providers, persistence, operations, security, and optional surfaces.
 - [Glossary](https://agentprism.doayen.web.tr/reference/glossary/) — Precise definitions for the AgentPrism terms used across agent design, execution, storage, security, evaluation, and operations.
+- [Read contract views](https://agentprism.doayen.web.tr/reference/read-views/) — Query AgentPrism's run data directly with your own SQL or an EF Core keyless entity, through a versioned, read-only view instead of the internal tables.
 - [Versions and upgrades](https://agentprism.doayen.web.tr/reference/versioning/) — Understand which AgentPrism release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
 - [Troubleshooting](https://agentprism.doayen.web.tr/troubleshooting/) — Symptom-first fixes for installation, providers, tools, storage, security, streaming, background work, MCP, voice, and the console.
 - [The console](https://agentprism.doayen.web.tr/ui/) — Tour the embedded AgentPrism console by task, understand its security model, and know which features remain code or HTTP only.

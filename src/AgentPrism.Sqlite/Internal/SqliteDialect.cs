@@ -107,6 +107,19 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// The "views" set is opt-in for the same reason as PostgreSQL's
+    /// "knowledge" set — a published view is a permanent data contract, and a
+    /// consumer who never opts in should see no surprise object in their
+    /// database.
+    /// </remarks>
+    public override IReadOnlyDictionary<string, string> OptionalMigrationResourcePrefixes { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["views"] = "AgentPrism.Sqlite.MigrationsViews.",
+        };
+
+    /// <inheritdoc />
+    /// <remarks>
     /// Opens a lock file next to the SQLite file (<see cref="FileShare.None"/>); a second
     /// process cannot open the same file and waits, polling, for up to
     /// <paramref name="commandTimeout"/> seconds. Skipped for <c>:memory:</c> databases

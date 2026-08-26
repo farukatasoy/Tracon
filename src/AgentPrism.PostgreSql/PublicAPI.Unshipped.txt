@@ -12,6 +12,8 @@ AgentPrism.AgentPrismPostgreSqlOptions.DataSource.get -> System.Data.Common.DbDa
 AgentPrism.AgentPrismPostgreSqlOptions.DataSource.set -> void
 AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.get -> bool
 AgentPrism.AgentPrismPostgreSqlOptions.EnableKnowledge.set -> void
+AgentPrism.AgentPrismPostgreSqlOptions.EnableReadViews.get -> bool
+AgentPrism.AgentPrismPostgreSqlOptions.EnableReadViews.set -> void
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.get -> string!
 AgentPrism.AgentPrismPostgreSqlOptions.SchemaName.set -> void
 AgentPrism.MigrationRunner

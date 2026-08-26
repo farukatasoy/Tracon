@@ -88,6 +88,15 @@ You need PostgreSQL with `pgvector` available. Without it the extension cannot b
 created and that migration fails; if you do not need knowledge search, the other
 providers do everything else.
 
+## Read contract view
+
+Set `EnableReadViews = true` to publish `{schema}.runs_v1`, a narrow, versioned,
+read-only view over run data — query it with your own SQL or map it as an EF Core
+keyless entity, without depending on the internal `runs` table shape. Off by
+default; a deployment that never turns it on never sees the object. See
+[Read contract views](https://agentprism.doayen.web.tr/reference/read-views/) for
+the column list and the compatibility rule.
+
 ## Choosing a provider
 
 | Package | Use it when |

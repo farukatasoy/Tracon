@@ -69,4 +69,15 @@ public sealed class AgentPrismSqliteOptions
 
     /// <summary>Upper time limit for a single SQL command (seconds). 0 means unlimited.</summary>
     public int CommandTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// Whether the "views" migration set is applied. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// Creates <c>{prefix}runs_v1</c>, a versioned, read-only, narrow view a
+    /// consumer can query directly (for example from an EF Core keyless
+    /// entity) without depending on the internal <c>runs</c> table shape.
+    /// Off by default: a consumer that never opts in pays nothing for it.
+    /// </remarks>
+    public bool EnableReadViews { get; set; }
 }

@@ -97,6 +97,11 @@ public static class AgentPrismSqliteBuilderExtensions
                 Dialect = new SqliteDialect(options.TablePrefix),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
+                // Phase 111: the "views" set publishes runs_v1 and is opt-in --
+                // a published view is a permanent data contract (K1).
+                EnabledMigrationSets = options.EnableReadViews
+                    ? new HashSet<string>(StringComparer.Ordinal) { "views" }
+                    : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
                 ProviderName = "SQLite",
                 ContentProtector = contentProtector,
                 // Phase 82: empty unless the protector is actually enabled -
@@ -303,6 +308,11 @@ public static class AgentPrismSqliteBuilderExtensions
                 out var commandTimeout))
         {
             options.CommandTimeoutSeconds = commandTimeout;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismSqliteOptions.EnableReadViews)], out var enableReadViews))
+        {
+            options.EnableReadViews = enableReadViews;
         }
     }
 }

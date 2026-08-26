@@ -60,6 +60,7 @@ internal sealed class PostgresDialect : SqlDialect
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["knowledge"] = "AgentPrism.PostgreSql.MigrationsKnowledge.",
+            ["views"] = "AgentPrism.PostgreSql.MigrationsViews.",
         };
 
     /// <inheritdoc />

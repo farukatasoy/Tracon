@@ -68,6 +68,7 @@ tests. The registration and provider-specific configuration still change.
 | Object isolation | Process | Schema, default `agentprism` | Schema, default `agentprism` | Table prefix, default `agentprism_` |
 | Migration lock | None | PostgreSQL advisory lock | `sp_getapplock` | Sidecar file lock scoped to the database file and table prefix |
 | Auto-apply migrations | N/A | On by default | On by default | On by default |
+| Read contract view (`runs_v1`) | No | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) | Yes, opt-in (`EnableReadViews`) |
 | ORM | None | None | None | None |
 | AOT promise | Yes through Core | Yes | No promise | No |
 

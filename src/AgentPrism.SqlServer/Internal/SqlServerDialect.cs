@@ -86,6 +86,19 @@ internal sealed class SqlServerDialect : SqlDialect
 
     /// <inheritdoc />
     /// <remarks>
+    /// The "views" set needs no extra permission; it is opt-in for the same
+    /// reason as PostgreSQL's "knowledge" set — a published view is a
+    /// permanent data contract, and a consumer who never opts in should see
+    /// no surprise object in their database.
+    /// </remarks>
+    public override IReadOnlyDictionary<string, string> OptionalMigrationResourcePrefixes { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["views"] = "AgentPrism.SqlServer.MigrationsViews.",
+        };
+
+    /// <inheritdoc />
+    /// <remarks>
     /// <c>sp_getapplock</c> is taken at session scope. A negative return value
     /// means the lock was not acquired; silently continuing would let two
     /// replicas apply the same migration at the same time.

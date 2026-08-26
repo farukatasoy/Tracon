@@ -138,9 +138,9 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                     ["dimension"] = knowledgeOptions.Dimensions.ToString(CultureInfo.InvariantCulture),
                 },
                 // Phase 67: the "knowledge" set needs pgvector and is opt-in.
-                EnabledMigrationSets = options.EnableKnowledge
-                    ? new HashSet<string>(StringComparer.Ordinal) { "knowledge" }
-                    : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
+                // Phase 111: the "views" set publishes runs_v1 and is opt-in for
+                // the same K1 reason -- a published view is a permanent contract.
+                EnabledMigrationSets = BuildEnabledMigrationSets(options),
             };
         }));
 
@@ -387,6 +387,26 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         return builder;
     }
 
+    /// <summary>Collects the optional migration sets this options instance turns on.</summary>
+    /// <param name="options">The provider's settings.</param>
+    /// <returns>The set names <see cref="MigrationRunner"/> applies in addition to the core set.</returns>
+    private static HashSet<string> BuildEnabledMigrationSets(AgentPrismPostgreSqlOptions options)
+    {
+        var sets = new HashSet<string>(StringComparer.Ordinal);
+
+        if (options.EnableKnowledge)
+        {
+            sets.Add("knowledge");
+        }
+
+        if (options.EnableReadViews)
+        {
+            sets.Add("views");
+        }
+
+        return sets;
+    }
+
     /// <summary>
     /// Binds the configuration section to the settings object by hand.
     /// </summary>
@@ -423,6 +443,11 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         if (bool.TryParse(section[nameof(AgentPrismPostgreSqlOptions.EnableKnowledge)], out var enableKnowledge))
         {
             options.EnableKnowledge = enableKnowledge;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismPostgreSqlOptions.EnableReadViews)], out var enableReadViews))
+        {
+            options.EnableReadViews = enableReadViews;
         }
     }
 }

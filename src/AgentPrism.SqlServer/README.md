@@ -73,6 +73,15 @@ options.AutoApplyMigrations = false;
 Migration numbers are **per provider**; they do not align with
 `AgentPrism.PostgreSql` and are not meant to.
 
+## Read contract view
+
+Set `EnableReadViews = true` to publish `{schema}.runs_v1`, a narrow, versioned,
+read-only view over run data — query it with your own SQL or map it as an EF Core
+keyless entity, without depending on the internal `runs` table shape. Off by
+default; a deployment that never turns it on never sees the object. See
+[Read contract views](https://agentprism.doayen.web.tr/reference/read-views/) for
+the column list and the compatibility rule.
+
 ## AOT
 
 This package is **not AOT-compatible**: `Microsoft.Data.SqlClient` is not marked

@@ -10,6 +10,8 @@ AgentPrism.AgentPrismSqliteOptions.ConnectionString.get -> string?
 AgentPrism.AgentPrismSqliteOptions.ConnectionString.set -> void
 AgentPrism.AgentPrismSqliteOptions.DataSource.get -> System.Data.Common.DbDataSource?
 AgentPrism.AgentPrismSqliteOptions.DataSource.set -> void
+AgentPrism.AgentPrismSqliteOptions.EnableReadViews.get -> bool
+AgentPrism.AgentPrismSqliteOptions.EnableReadViews.set -> void
 AgentPrism.AgentPrismSqliteOptions.TablePrefix.get -> string!
 AgentPrism.AgentPrismSqliteOptions.TablePrefix.set -> void
 AgentPrism.MigrationRunner

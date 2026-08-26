@@ -108,6 +108,11 @@ public static class AgentPrismSqlServerBuilderExtensions
                 Dialect = new SqlServerDialect(options.SchemaName),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
+                // Phase 111: the "views" set publishes runs_v1 and is opt-in --
+                // a published view is a permanent data contract (K1).
+                EnabledMigrationSets = options.EnableReadViews
+                    ? new HashSet<string>(StringComparer.Ordinal) { "views" }
+                    : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
                 ProviderName = "SQL Server",
                 ContentProtector = contentProtector,
                 // Phase 82: empty unless the protector is actually enabled -
@@ -358,6 +363,11 @@ public static class AgentPrismSqlServerBuilderExtensions
                 out var commandTimeout))
         {
             options.CommandTimeoutSeconds = commandTimeout;
+        }
+
+        if (bool.TryParse(section[nameof(AgentPrismSqlServerOptions.EnableReadViews)], out var enableReadViews))
+        {
+            options.EnableReadViews = enableReadViews;
         }
     }
 }

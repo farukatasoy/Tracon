@@ -94,6 +94,10 @@ and production topology are not identical.
 | `AgentPrism.SqlServer` | no | Knowledge endpoints answer `501` |
 | `AgentPrism.Sqlite` | no | Ships a native library, so not AOT-compatible |
 
+All three also offer an opt-in `runs_v1` read-only view (`EnableReadViews`) for
+querying run data with your own SQL or an EF Core keyless entity — see
+[Read contract views](/reference/read-views/).
+
 ## Picking a model provider
 
 Several can be registered at once, and an agent chooses by provider name.

@@ -88,4 +88,15 @@ public sealed class AgentPrismPostgreSqlOptions
     /// time.
     /// </remarks>
     public bool EnableKnowledge { get; set; }
+
+    /// <summary>
+    /// Whether the "views" migration set is applied. Default <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// Creates <c>{schema}.runs_v1</c>, a versioned, read-only, narrow view a
+    /// consumer can query directly (for example from an EF Core keyless
+    /// entity) without depending on the internal <c>runs</c> table shape.
+    /// Off by default: a consumer that never opts in pays nothing for it.
+    /// </remarks>
+    public bool EnableReadViews { get; set; }
 }
