@@ -1,13 +1,13 @@
 # Faz 108 — Bellek İçi Run Store Ayrıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 107](arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) — runtime writer sabitlendikten sonra onun varsayılan store'u ayrıştırılır
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** [Faz 107](107-RUN-KAYIT-AKISI-AYRISTIRMA.md) — runtime writer sabitlendikten sonra onun varsayılan store'u ayrıştırılır
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `InMemoryRunStore` internal kalır; `IRunStore` sözleşmesi değişmez
 > **Tüketici yüzeyi:** Yok. Store davranışı ve public sözleşme değişmez
-> **Manuel test alanı:** [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](manuel-test/02-CEKIRDEK-VE-KATALOG.md) · [`manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](manuel-test/23-SAKLAMA-ARSIV-KOTA.md)
+> **Manuel test alanı:** [`manuel-test/02-CEKIRDEK-VE-KATALOG.md`](../../manuel-test/02-CEKIRDEK-VE-KATALOG.md) · [`manuel-test/23-SAKLAMA-ARSIV-KOTA.md`](../../manuel-test/23-SAKLAMA-ARSIV-KOTA.md)
 
 ---
 
@@ -19,8 +19,8 @@
    grep -n "K-282\|K-283\|K-421" docs/KARARLAR.md
    ```
 3. Aday sınırı: `grep -n "F-148" docs/ADAYLAR.md` — duplicate-sequence performans işi bu refactor'a karıştırılmaz
-4. Alan hafızası: [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) ve [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
-5. Mimari: [`MIMARI.md`](MIMARI.md) — yalnız `IRunStore` ve in-memory store haritası
+4. Alan hafızası: [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) ve [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
+5. Mimari: [`MIMARI.md`](../../MIMARI.md) — yalnız `IRunStore` ve in-memory store haritası
 
 ---
 
@@ -32,10 +32,10 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`InMemoryRunStore.cs:22`](../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Tek internal sınıf **1.432 satırdır** ve 21 davranış metodu taşır. |
-| [`InMemoryRunStore.cs:58`](../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Run yaşam döngüsü ve event append aynı dosyada başlar. |
-| [`InMemoryRunStore.cs:374`](../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Query, tenant süzme ve tree toplamları lifecycle state'iyle iç içedir. |
-| [`InMemoryRunStore.cs:641`](../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Statistics, experiment, time series ve tool analytics dosyanın yarısından fazlasını oluşturur. |
+| [`InMemoryRunStore.cs:22`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Tek internal sınıf **1.432 satırdır** ve 21 davranış metodu taşır. |
+| [`InMemoryRunStore.cs:58`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Run yaşam döngüsü ve event append aynı dosyada başlar. |
+| [`InMemoryRunStore.cs:374`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Query, tenant süzme ve tree toplamları lifecycle state'iyle iç içedir. |
+| [`InMemoryRunStore.cs:641`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) | Statistics, experiment, time series ve tool analytics dosyanın yarısından fazlasını oluşturur. |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 

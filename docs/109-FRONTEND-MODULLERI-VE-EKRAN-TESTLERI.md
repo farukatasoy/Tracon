@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-26)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 18** ve **kalem 19**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal turun Core bölümü bittikten sonra frontend'e geçilir
+> **Önkoşul:** [Faz 108](arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal turun Core bölümü bittikten sonra frontend'e geçilir
 > **Paketler:** `AgentPrism.UI` — yalnız frontend source ve test altyapısı
 > **Yeni paket:** NuGet yok · npm runtime dependency yok · dört dev dependency: `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom` · **Migration:** Yok
 > **Public API:** Büyümüyor. C# ve HTTP contract değişmez
