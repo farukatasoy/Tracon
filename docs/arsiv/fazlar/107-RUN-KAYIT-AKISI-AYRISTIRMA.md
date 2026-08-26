@@ -1,13 +1,13 @@
 # Faz 107 — Run Kayıt Akışı Ayrıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 106](arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur compiler'dan runtime wrapper'a ilerler
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** [Faz 106](106-AGENT-DERLEYICI-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur compiler'dan runtime wrapper'a ilerler
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `RunRecordingAgent` constructor ve davranışı değişmez; `PublicAPI.Shipped.txt` girdisi bugün **0**
 > **Tüketici yüzeyi:** Yok. Public imza, XML metni ve observable contract değişmez
-> **Manuel test alanı:** [`manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) · [`manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> **Manuel test alanı:** [`manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md`](../../manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md) · [`manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
 
@@ -18,8 +18,8 @@
    ```bash
    grep -n "K-154\|K-157\|K-243\|K-421" docs/KARARLAR.md
    ```
-3. Alan hafızası: [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md), [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) ve [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md)
-4. Mimari: [`MIMARI.md`](MIMARI.md) — yalnız run sequence ve `RunRecordingAgent` notları
+3. Alan hafızası: [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md), [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) ve [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md)
+4. Mimari: [`MIMARI.md`](../../MIMARI.md) — yalnız run sequence ve `RunRecordingAgent` notları
 
 ---
 
@@ -31,10 +31,10 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunRecordingAgent.cs:31`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Public wrapper **1.331 satırdır** ve 22 davranış metodu taşır. |
-| [`RunRecordingAgent.cs:188`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Akışsız giriş gövdesi scope, span, cancellation ve completion sırasını aynı yerde kurar. |
-| [`RunRecordingAgent.cs:297`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Streaming gövde her `MoveNextAsync` öncesi ambient scope'u yeniden yazar; bu yapısal zorunluluktur. |
-| [`RunRecordingAgent.cs:945`](../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Completion tek gövdede store, usage, cost, metrics, quota, webhook ve eval işlerini birleştirir. |
+| [`RunRecordingAgent.cs:31`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Public wrapper **1.331 satırdır** ve 22 davranış metodu taşır. |
+| [`RunRecordingAgent.cs:188`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Akışsız giriş gövdesi scope, span, cancellation ve completion sırasını aynı yerde kurar. |
+| [`RunRecordingAgent.cs:297`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Streaming gövde her `MoveNextAsync` öncesi ambient scope'u yeniden yazar; bu yapısal zorunluluktur. |
+| [`RunRecordingAgent.cs:945`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs) | Completion tek gövdede store, usage, cost, metrics, quota, webhook ve eval işlerini birleştirir. |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
