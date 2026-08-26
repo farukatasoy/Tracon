@@ -118,6 +118,28 @@ jobs:
       - name: Derle
         run: dotnet build AgentPrism.slnx -c Release --no-restore
 
+      # Faz 116: tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
+      # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
+      # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
+      # tabanını hesaplar (PR'de taban dal, push'ta önceki commit).
+      - name: Performans kapisi sicak yolu degisti mi?
+        if: matrix.os == 'ubuntu-latest'
+        id: perf-trigger
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            echo "triggered=true" >> "$GITHUB_OUTPUT"
+          else
+            TRIGGERED=$(python3 -c "import sys; sys.path.insert(0, 'scripts'); import kapi; print('true' if kapi.performance_gate_triggered(kapi.changed_paths('$BASE') or []) else 'false')")
+            echo "triggered=$TRIGGERED" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Yalnız TEK isletim sisteminde kosar: tahsis deterministiktir (116.1),
+      # ucunu de kosmak ayni uc sayiyi uc kez dogrulayip suresini uctler.
+      - name: Performans kapisi (tahsis)
+        if: matrix.os == 'ubuntu-latest' && steps.perf-trigger.outputs.triggered == 'true'
+        run: python3 scripts/kapi.py performans
+
       # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
       # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
       # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.

@@ -1,12 +1,12 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/*_test.py` · `src/AgentPrism.UI/AgentPrism.UI.Frontend.targets`
 > · `docfx/docfx.json` · `tests/AgentPrism.Core.UnitTests/Architecture/DocfxConfigurationTests.cs`
 > · `tests/AgentPrism.Core.UnitTests/Experiments/CanaryEvaluationServiceTests.cs`
 > · `tests/AgentPrism.Core.UnitTests/Recording/RunReconciliationTests.cs`
-> · `.agents/ortak/` (Faz 92)
+> · `.agents/ortak/` (Faz 92) · `bench/AgentPrism.Benchmarks/` (Faz 116)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -34,6 +34,13 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 16 | `MT-GDK-016` | Temiz ağaç | `tests/AgentPrism.Ui.E2ETests/` altında bir E2E dosyasına `Exact`/`.First`/`.Nth` taşımayan bir `GetByText("x")` çağrısı ekle (Faz 93 kapısı), testi koştur, sonra geri al | `PlaywrightLocatorTests` **düşer**; hata mesajı dosyayı ve yeni risk sayısını adıyla yazar |
 | 17 | `MT-GDK-017` | Release assembly'leri üretildi | `cd docfx && dotnet docfx metadata docfx.json --logLevel warning`; sonra metadata girdisine geçici bir `"references": []` alanı ekleyip `DocfxConfigurationTests`'i koş ve değişikliği geri al | Metadata aynı birikmiş artifacts ağacında 0 warning/0 error ile biter; mutation testi düşer ve `artifacts/bin` globunun duplicate assembly yüklediğini açıklar |
 | 18 | `MT-GDK-018` | Core unit test assembly'si üretildi | Canary ramp ve run heartbeat testlerindeki sonuç beklemelerini ayrı ayrı 1 ms sabit `Task.Delay` ile değiştir; sonra geri alıp `CanaryEvaluationServiceTests` ve `RunReconciliationTests` sınıflarını 10'ar kez koş | İki mutation kendi davranış iddiasında düşer; koşul tabanlı sürümler 50/50 ve 70/70 geçer. Sonuç yerine geçen sabit bekleme kalmaz |
+| 19 | `MT-GDK-019` | Temiz ağaç | `python3 scripts/kapi.py performans` | Çıkış `0`; çıktı üç benchmark'ın (yazıcı, cache, `store` sorgusu) tahsis sayısını `bench/baseline.json`'a karşı ✅ olarak yazar |
+| 20 | `MT-GDK-020` | `RunEventWriter.AppendAsync` içine kasıtlı bir `new List<int> { 1, 2, 3 }` eklendi | Aynı komut | Çıkış `1`; yalnız o benchmark ❌, hangi metot ve kaç bayt arttığı (`+72 B` gibi) adıyla yazılır; diğer iki benchmark ✅ kalır |
+| 21 | `MT-GDK-021` | Bir benchmarkta tahsis kasıtlı azaltıldı (ör. gereksiz bir alan kaldırıldı) | Aynı komut | Çıkış `0`; o satır ❌ değil ⚠️'dır ve "taban çizgisi güncellenmeli" mesajını `--guncelle` bayrağıyla birlikte yazar |
+| 22 | `MT-GDK-022` | `bench/baseline.json` silindi veya bozuldu (`{ geçersiz`) | Aynı komut | Çıkış `1`; anlaşılır bir `BaselineError` mesajı yazılır, ham Python traceback'i **görünmez** |
+| 23 | `MT-GDK-023` | Sıcak yol dosyalarından (`RunEventWriter.cs`, `CompiledAgentCache.cs`, `SqlRunStore.cs`, `bench/`) hiçbiri `--taban` ile değişmedi | `python3 scripts/kapi.py kapanis --taban <sha>` | Performans adımı listede **hiç görünmez**; kapanış süresi artmaz |
+| 24 | `MT-GDK-024` | 👤 insan gerekir — aynı commit iki farklı işletim sisteminde (ör. macOS ve Linux CI) | Her ikisinde `python3 scripts/kapi.py performans --guncelle` çalıştırıp `bench/baseline.json`'ı karşılaştır | Üç benchmark'ın `allocatedBytes` alanı **birebir aynı** — fazın "tahsis makineden bağımsızdır" temel varsayımı |
+| 25 | `MT-GDK-025` | Temiz ağaç | `dotnet pack AgentPrism.slnx -c Release --no-build` | `AgentPrism.Benchmarks` için **hiçbir uyarı** yazılmaz (`IsPackable=false` + `WarnOnPackingNonPackableProject=false`); hiçbir `.nupkg` üretmez |
 
 ## Otomatik doğrulama
 
