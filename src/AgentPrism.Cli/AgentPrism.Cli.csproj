@@ -10,8 +10,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <TargetFrameworks></TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <Description>The `agentprism` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`) and reads the health endpoint through AgentPrism.Client (`health`).</Description>
-    <PackageTags>$(CommonPackageTags);cli;tool;migrate</PackageTags>
+    <Description>The `agentprism` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`), reads the health endpoint through AgentPrism.Client (`health`), and runs an eval suite as a CI quality gate (`eval`).</Description>
+    <PackageTags>$(CommonPackageTags);cli;tool;migrate;eval</PackageTags>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>agentprism</ToolCommandName>
     <!-- A dotnet tool ships an executable, not a library API - no public surface to track. -->

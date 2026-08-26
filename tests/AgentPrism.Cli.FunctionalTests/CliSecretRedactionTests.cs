@@ -53,4 +53,16 @@ public sealed class CliSecretRedactionTests
             Environment.SetEnvironmentVariable("AGENTPRISM_CONNECTION", null);
         }
     }
+
+    [Fact]
+    public async Task An_invalid_token_never_appears_in_eval_output()
+    {
+        await using var host = await RealHttpHost.StartAsync();
+
+        var result = await CliRunner.RunAsync(
+            "eval", "--url", host.BaseAddress.ToString(), "--suite", "any-suite", "--token", SecretMarker);
+
+        result.ExitCode.ShouldNotBe(0);
+        result.Combined.ShouldNotContain(SecretMarker);
+    }
 }

@@ -13,6 +13,8 @@
     -->
     <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+    <!-- FakeModelProvider: an eval suite needs a real (non-networked) agent to measure. -->
+    <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
   </ItemGroup>
 
 </Project>

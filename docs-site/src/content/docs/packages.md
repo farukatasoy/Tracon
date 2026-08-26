@@ -56,7 +56,7 @@ AgentPrism instance, from a separate application or from a terminal.
 | Package | What it does |
 |---|---|
 | `AgentPrism.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Takes no AgentPrism package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `health` reads model provider health over HTTP through `AgentPrism.Client` |
+| `AgentPrism.Cli` | The `agentprism` global tool (`dotnet tool install -g AgentPrism.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `health` reads model provider health over HTTP through `AgentPrism.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 

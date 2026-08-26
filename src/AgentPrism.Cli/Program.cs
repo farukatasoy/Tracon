@@ -29,6 +29,8 @@ internal static class Program
                     await MigrateCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 "health" =>
                     await HealthCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
+                "eval" =>
+                    await EvalCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 _ => PrintUnknownCommand(args[0]),
             };
         }
@@ -55,6 +57,11 @@ internal static class Program
               agentprism migrate --provider <postgres|sqlserver|sqlite> --connection <connection-string>
               agentprism migrate status --provider <postgres|sqlserver|sqlite> --connection <connection-string>
               agentprism health --url <base-url> [--token <token>] [--json]
+              agentprism eval --url <base-url> --suite <name>
+                              [--token <token>] [--agent-version <n>]
+                              [--min-pass-rate <0..1>] [--max-failures <n>]
+                              [--timeout <seconds>] [--poll-interval <seconds>]
+                              [--json]
 
             The connection string and the bearer token can also come from the
             AGENTPRISM_CONNECTION and AGENTPRISM_TOKEN environment variables
@@ -63,6 +70,15 @@ internal static class Program
 
             --url is the application root PLUS the MapAgentPrism prefix, for
             example http://localhost:5080/agentprism for the default prefix.
+
+            eval triggers a suite, polls it to completion (default timeout 30
+            minutes, poll interval 5 seconds), and applies an optional quality
+            gate. With neither --min-pass-rate nor --max-failures, there is no
+            gate: exit 0 once the run finishes. With one or both given, ALL
+            given thresholds must hold or the command exits 3. Exit codes:
+            0 = ran and passed the gate (or no gate given), 1 = argument
+            error, 2 = could not run (transport, server, timeout, or the eval
+            itself ended Failed/Cancelled), 3 = ran but missed the gate.
             """);
     }
 }

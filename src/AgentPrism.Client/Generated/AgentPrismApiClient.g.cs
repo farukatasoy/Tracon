@@ -13259,7 +13259,7 @@ namespace AgentPrism.Client.Generated
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="AgentPrismApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<JsonElement> AgentPrismOpenAIResponsesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Text.Json.JsonElement> AgentPrismOpenAIResponsesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -13301,11 +13301,7 @@ namespace AgentPrism.Client.Generated
                         var status_ = (int)response_.StatusCode;
                         if (status_ == 200)
                         {
-                            var objectResponse_ = await ReadObjectResponseAsync<JsonElement>(response_, headers_, cancellationToken).ConfigureAwait(false);
-                            if (objectResponse_.Object == null)
-                            {
-                                throw new AgentPrismApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
-                            }
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Text.Json.JsonElement>(response_, headers_, cancellationToken).ConfigureAwait(false);
                             return objectResponse_.Object;
                         }
                         else
@@ -14917,7 +14913,7 @@ namespace AgentPrism.Client.Generated
         public AgentResponseFormatKind Kind { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("schema")]
-        public JsonElement? Schema { get; set; } = default!;
+        public System.Text.Json.JsonElement? Schema { get; set; } = default!;
 
         /// <summary>
         /// Gets the name of the schema. The provider can pass it on to the model.
@@ -16664,7 +16660,7 @@ namespace AgentPrism.Client.Generated
         public System.DateTimeOffset? CreatedAt { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("role")]
-        public ChatRole Role { get; set; } = default!;
+        public string Role { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("contents")]
         public System.Collections.Generic.ICollection<AIContent>? Contents { get; set; } = default!;
@@ -16686,21 +16682,6 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("content")]
         public string? Content { get; set; } = default!;
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class ChatRole
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
 
     }
 
@@ -17198,7 +17179,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scores")]
-        public JsonElement Scores { get; set; } = default!;
+        public System.Text.Json.JsonElement Scores { get; set; } = default!;
 
         /// <summary>
         /// The failure reason. Populated only when `Passed` is `false`.
@@ -17459,7 +17440,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("checks")]
-        public JsonElement Checks { get; set; } = default!;
+        public System.Text.Json.JsonElement Checks { get; set; } = default!;
 
         /// <summary>
         /// The creation time (UTC).
@@ -17502,7 +17483,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("checks")]
-        public JsonElement Checks { get; set; } = default!;
+        public System.Text.Json.JsonElement Checks { get; set; } = default!;
 
     }
 
@@ -18468,7 +18449,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public JsonElement Payload { get; set; } = default!;
+        public System.Text.Json.JsonElement Payload { get; set; } = default!;
 
         /// <summary>
         /// The total number of items.
@@ -18618,7 +18599,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public JsonElement Payload { get; set; } = default!;
+        public System.Text.Json.JsonElement Payload { get; set; } = default!;
 
         /// <summary>
         /// Whether the schedule is enabled. If disabled, it is not triggered automatically.
@@ -18704,7 +18685,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public JsonElement Payload { get; set; } = default!;
+        public System.Text.Json.JsonElement Payload { get; set; } = default!;
 
         /// <summary>
         /// Whether the schedule is enabled.
@@ -18751,22 +18732,7 @@ namespace AgentPrism.Client.Generated
     {
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
-        public JsonElement? Payload { get; set; } = default!;
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class JsonElement
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
+        public System.Text.Json.JsonElement? Payload { get; set; } = default!;
 
     }
 
@@ -22064,14 +22030,14 @@ namespace AgentPrism.Client.Generated
         public System.DateTimeOffset UpdatedAt { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("messages")]
-        public JsonElement? Messages { get; set; } = default!;
+        public System.Text.Json.JsonElement? Messages { get; set; } = default!;
 
         /// <summary>
         /// Serialized session state.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("state")]
-        public JsonElement State { get; set; } = default!;
+        public System.Text.Json.JsonElement State { get; set; } = default!;
 
     }
 
@@ -22101,7 +22067,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("state")]
-        public JsonElement State { get; set; } = default!;
+        public System.Text.Json.JsonElement State { get; set; } = default!;
 
         /// <summary>
         /// The creation time (UTC).
@@ -22743,7 +22709,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("value")]
-        public JsonElement Value { get; set; } = default!;
+        public System.Text.Json.JsonElement Value { get; set; } = default!;
 
     }
 
@@ -24056,7 +24022,7 @@ namespace AgentPrism.Client.Generated
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("state")]
-        public JsonElement State { get; set; } = default!;
+        public System.Text.Json.JsonElement State { get; set; } = default!;
 
     }
 
@@ -24603,7 +24569,7 @@ namespace AgentPrism.Client.Generated
         public string? Text { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("data")]
-        public JsonElement? Data { get; set; } = default!;
+        public System.Text.Json.JsonElement? Data { get; set; } = default!;
 
         /// <summary>
         /// Identifier of the checkpoint to resume. If left empty, the run's most
