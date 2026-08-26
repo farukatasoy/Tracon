@@ -3973,6 +3973,114 @@ PostgreSQL.
 
 ---
 
+# Two connection planes — EF Core and AgentPrism
+
+AgentPrism does not use Entity Framework Core internally, and does not ship an EF
+Core package. Its store layer talks to the database through raw ADO.NET
+(`DbDataSource`, `DbCommand`) on purpose — that keeps `AgentPrism.PostgreSql` AOT
+compatible and keeps the store contract at the same abstraction level EF Core
+itself sits at, so there is nothing an EF integration would add. If your
+application already uses EF Core for its own schema, this page is about the
+connection plane the two share, not about making AgentPrism use EF Core.
+
+## One data source, two consumers
+
+Give both sides the exact same `NpgsqlDataSource` instance and they share one real
+connection pool — building two data sources from an identical connection string
+does **not** do this; see
+[Two data planes, one connection pool or two](/guides/embedding/#two-data-planes-one-connection-pool-or-two)
+for the measurement:
+
+```csharp
+var dataSource = new NpgsqlDataSourceBuilder(connectionString)
+    // Token refresh, client certificates, custom type mappings: anything not
+    // expressible in a connection string now applies to AgentPrism's traffic too.
+    .Build();
+
+builder.Services.AddDbContext<YourDbContext>(o => o.UseNpgsql(dataSource));
+
+builder.AddAgentPrism()
+       .UsePostgreSql(o => o.DataSource = dataSource);
+```
+
+`AgentPrismPostgreSqlOptions.ConnectionString` is not required when `DataSource` is
+set — giving both at once is a startup error, not a silent preference. AgentPrism
+never disposes an instance it did not build: ownership stays with whoever created
+it (your host, in this example), and it keeps working after AgentPrism's own
+`ServiceProvider` shuts down.
+
+The same seam exists on `AgentPrismSqlServerOptions.DataSource` and
+`AgentPrismSqliteOptions.DataSource`, for symmetry. Neither
+`Microsoft.Data.SqlClient` nor `Microsoft.Data.Sqlite` ships a `DbDataSource`
+implementation of its own today (measured against `Microsoft.Data.SqlClient
+7.0.2`), so there is no equivalent "give EF Core's data source to AgentPrism" call
+for those two providers yet — the field is ready for the day the ecosystem catches
+up, or for a `DbDataSource` adapter you write yourself.
+
+## There is no shared transaction
+
+`YourDbContext.SaveChangesAsync()` and an AgentPrism run write through two
+independent connections, even when they share one pool. A run's recording never
+becomes atomic with your own schema's writes, and this is deliberate: AgentPrism's
+stores are singletons that outlive any one request, and "observability must never
+block the run" is a standing rule — a run's own stores never wait on your
+transaction to commit, and yours never waits on AgentPrism's.
+
+## Reference a run by `RunId`, not by copying its data
+
+Point your own entity at the run instead of duplicating what AgentPrism already
+recorded:
+
+```csharp
+public sealed class SupportTicket
+{
+    public Guid Id { get; set; }
+    public required string RunId { get; set; }   // reference, not a copy
+    // ... your own domain fields
+}
+```
+
+Read the run's own data back through `IRunStore`/`GET /api/runs/{id}` when you need
+it; do not copy fields across at write time — the two writes are not atomic (above),
+so a copy can drift the moment either side fails after the other commits. If your
+own write can retry, protect it with `Idempotency-Key`
+(see [Make supported HTTP submissions idempotent](/guides/reliability/#make-supported-http-submissions-idempotent))
+the same way any other retryable write in front of AgentPrism would be.
+
+## Two migration steps, one order that matters less than you think
+
+Your own `dotnet ef database update` and AgentPrism's `agentprism migrate` apply to
+two schemas with no foreign key between them (`agentprism` versus yours), so the
+order they run in does not matter. What does matter is running both with
+automatic migration off, so exactly one mechanism touches the database at deploy
+time:
+
+```bash
+dotnet ef database update
+agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+See [Choose a migration strategy](/guides/production/#choose-a-migration-strategy)
+for `AutoApplyMigrations` and the rest of the deployment-pipeline shape.
+
+## What you do not get
+
+- **No EF Core global query filter** reaches AgentPrism's rows — its own tenant
+  isolation runs through its own `tenant_id` column and `ITenantContext`, a
+  separate mechanism from EF Core's.
+- **`dotnet ef migrations` never sees AgentPrism's schema.** It is not an EF model;
+  there is no `DbSet` to scaffold it from, and none should be added.
+- **No `DbContext` owns an AgentPrism table.** The `agentprism` schema is written
+  only by AgentPrism's own store layer, from either connection plane.
+
+## Read next
+
+- [Embedding into a host application](/guides/embedding/) — the two data planes and connection pool sharing measurement
+- [Production deployment](/guides/production/) — the migration strategy this page's CI snippet belongs to
+- [Persistence](/getting-started/persistence/) — choosing PostgreSQL, SQL Server, or SQLite
+
+---
+
 # Embedding into a host application
 
 `AddAgentPrism()` plus `MapAgentPrism()` is a complete, working setup on its own —
@@ -4126,21 +4234,43 @@ AgentPrism injects for it. `AgentRunScope` also carries `RootRunId` (the top of 
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
 tree).
 
-## Two data planes, one connection string or two
+## Two data planes, one connection pool or two
 
 Your application's own schema and AgentPrism's tables can live in the same
 PostgreSQL database. AgentPrism writes only inside its own schema (`SchemaName`,
 default `agentprism`; see
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy)) and
-never reads or writes yours. Point `AgentPrism:PostgreSql:ConnectionString` at the
-same connection string your application already uses and the two planes share one
-Npgsql connection pool.
+never reads or writes yours.
 
-Give AgentPrism a **separate** connection string — same server, different
-database, or a fully different server — when you want its connection ceiling,
-credentials, or failure blast radius kept independent of your application's own
-database traffic. Nothing in AgentPrism requires this; it is purely an operational
-choice, and it can be changed later since only the connection string moves.
+**Giving both sides the same connection string does not share a pool.** Npgsql
+pools a `NpgsqlDataSource` **instance**, not a connection string — two separate
+`NpgsqlDataSource` objects built from an identical string open two separate
+pools (measured: with 5 concurrent commands held open on each of two data
+sources built from the same string, the server showed 10 simultaneous
+backends, not 5). If your application uses Entity Framework Core (or any other
+Npgsql consumer) and you want AgentPrism sharing its actual pool, build **one**
+`NpgsqlDataSource` and give the same instance to both sides:
+
+```csharp
+var dataSource = new NpgsqlDataSourceBuilder(connectionString).Build();
+builder.Services.AddDbContext<YourDbContext>(o => o.UseNpgsql(dataSource));
+builder.AddAgentPrism()
+       .UsePostgreSql(o => o.DataSource = dataSource);
+```
+
+See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for the
+full pattern, including startup/shutdown ownership. Without a shared
+`DataSource`, pointing `AgentPrism:PostgreSql:ConnectionString` at the same
+string your application uses is still fine — the two sides simply keep
+independent pools against the same database, exactly as if they pointed at two
+different databases.
+
+Give AgentPrism a **separate** connection string (or data source) — same
+server, different database, or a fully different server — when you want its
+connection ceiling, credentials, or failure blast radius kept independent of
+your application's own database traffic. Nothing in AgentPrism requires this;
+it is purely an operational choice, and it can be changed later since only the
+connection string moves.
 
 `AutoApplyMigrations` (default `true`) applies to AgentPrism's own schema only. In
 an embedded setup where your application already owns a controlled migration step
@@ -6383,6 +6513,21 @@ unhealthy.
 
 Never edit an applied embedded migration. A checksum mismatch is an integrity error,
 not a warning to bypass.
+
+### Alongside your own EF Core migrations
+
+The two schemas are not connected by a foreign key and apply in either order — but
+run them with `AutoApplyMigrations` set to `false`, so exactly one mechanism ever
+touches the database at deploy time instead of two racing at every instance's
+startup:
+
+```bash
+dotnet ef database update            # your application's own schema
+agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for sharing a
+connection pool with an EF Core `DbContext` in the same process.
 
 ### Storage defaults and limits
 
