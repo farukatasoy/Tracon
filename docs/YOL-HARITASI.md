@@ -119,7 +119,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [104](arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md) | Beyan Doğruluğu ve Giriş Rampası | ✅ Tamamlandı |
 | [105](arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) | DI Bileşen Kökü Ayrıştırma | ✅ Tamamlandı |
 | [106](arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) | Agent Derleyici Ayrıştırma | ✅ Tamamlandı |
-| [107](107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | ✅ Tamamlandı |
+| [107](arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | ✅ Tamamlandı |
 | [108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | 📋 Planlandı |
 | [109](109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | 📋 Planlandı |
 

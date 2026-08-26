@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-26)
 > **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 107](107-RUN-KAYIT-AKISI-AYRISTIRMA.md) — runtime writer sabitlendikten sonra onun varsayılan store'u ayrıştırılır
+> **Önkoşul:** [Faz 107](arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) — runtime writer sabitlendikten sonra onun varsayılan store'u ayrıştırılır
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `InMemoryRunStore` internal kalır; `IRunStore` sözleşmesi değişmez
