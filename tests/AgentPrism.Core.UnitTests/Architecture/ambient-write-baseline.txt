@@ -6,7 +6,7 @@
 src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs:GetResponseAsync | Not an async iterator; a single non-streaming span opened in the method's own synchronous-continuation body (Faz 93 measured)
 src/AgentPrism.Core/Recording/AgentPrismRunContext.cs:SetCurrent | This IS the wrapper's own definition, a synchronous setter, not an ambient-write call site itself
 src/AgentPrism.Core/Recording/RunReconciliationService.cs:TryContinueAsync | Background reconciliation loop; scope opened with using(...) around one continuation attempt, not a streaming path
-src/AgentPrism.Core/Recording/RunRecordingAgent.cs:PrepareRun | Synchronous method (not async); attribution and span resolved here on purpose so the AsyncLocal write stays in the caller's own body
+src/AgentPrism.Core/Recording/RunRecordingAgent.Lifecycle.cs:PrepareRun | Synchronous method (not async); attribution and span resolved here on purpose so the AsyncLocal write stays in the caller's own body
 src/AgentPrism.Core/Recording/RunRecordingAgent.cs:RunCoreAsync | Non-streaming path; SetCurrent is called in this async method's own body, the documented correct pattern (Faz 6/11)
 src/AgentPrism.Core/Recording/RunRecordingAgent.cs:RunCoreStreamingAsync | Streaming iterator; the write repeats immediately before every MoveNextAsync inside the loop (Faz 12 fix)
 src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs:ExecuteJobAsync | using var tenantScope opens and restores the ambient tenant for exactly one job execution, not a streaming loop

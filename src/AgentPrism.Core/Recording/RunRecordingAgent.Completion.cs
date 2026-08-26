@@ -1,0 +1,250 @@
+using System.Diagnostics;
+using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
+
+namespace AgentPrism;
+
+/// <summary>
+/// Run completion: usage/cost merging, error mapping, and the terminal store
+/// write. <see cref="CompleteAsync"/> fans out to the root-only notifications
+/// in <c>RunRecordingAgent.Notifications.cs</c>, but owns the outcome itself.
+/// </summary>
+public sealed partial class RunRecordingAgent
+{
+    private static RunError ApprovalError(string toolNames)
+        => new()
+        {
+            Type = nameof(AgentPrismException),
+            Message = $"The child run requested user approval for the '{toolNames}' tool. " +
+                      "A child agent cannot request approval: approval is the input of the next " +
+                      "turn and cannot be awaited in the middle of the call tree. Define an " +
+                      "automatic approval rule for this tool, or limit the child agent to tools " +
+                      "that need no approval.",
+        };
+
+    /// <summary>
+    /// Lets the caller finish its own bookkeeping before the terminal
+    /// <see cref="RunStatus.AwaitingApproval"/> status is published.
+    /// </summary>
+    private static async ValueTask InvokeBeforePendingApprovalAsync(
+        AgentRunOptions? options,
+        IEnumerable<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        if (options is AgentPrismRunOptions { BeforePendingApprovalIsPublished: { } hook })
+        {
+            await hook(messages, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async ValueTask CompleteAsync(
+        RunScope scope,
+        RunStatus status,
+        RunUsage? usage,
+        RunError? error,
+        CancellationToken cancellationToken)
+    {
+        // 🚨 The classifier is called ONLY when there is an error: on a successful run
+        // (error is null) it never fires on the hot path.
+        if (error is not null && _errorClassifier is not null)
+        {
+            var classification = _errorClassifier.Classify(error);
+            error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
+        }
+
+        // Calls that end before a result arrives are closed explicitly; otherwise a tool
+        // card that looks "started but not finished" would stay in the user interface.
+        foreach (var unfinished in scope.Tools.DrainUnfinished("The run ended before the tool result arrived."))
+        {
+            await scope.Writer.RecordToolInvocationAsync(unfinished, cancellationToken).ConfigureAwait(false);
+            _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
+        }
+
+        // The tokens that context compaction (summarization) produces come from a
+        // side-channel call that is completely separate from the AgentResponse of the agent;
+        // if they are not added to the final usage here, the cost report and the tree budget
+        // stay incomplete.
+        usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
+
+        // 🚨 A ModelBinding.Fallbacks link may have answered instead of the
+        // primary binding (phase 62). scope.FallbackAttribution is written by
+        // FallbackChatClient through the ambient AgentPrismRunContext, the
+        // same pattern AgentRunScope.ToolUsage uses (phase 28) — the model
+        // that actually ran is not known until the call already happened,
+        // long after this instance's own _modelId/_modelProvider were fixed
+        // at agent-compile time. Every downstream consumer of "the model"
+        // below uses this override so cost, metrics, and runs.model_id all
+        // agree with what really ran, not with the primary binding.
+        var fallbackUsed = scope.FallbackAttribution?.Current;
+        var modelProvider = fallbackUsed?.Provider ?? _modelProvider;
+        var modelId = fallbackUsed?.Model ?? _modelId;
+
+        // The cost is calculated HERE, from the final (merged) usage — the price is a
+        // snapshot (see docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
+        // list changes later, the cost of this run does not change.
+        var cost = _pricingResolver?.Resolve(modelProvider, modelId, usage);
+
+        await scope.Writer.CompleteAsync(
+            status,
+            usage,
+            error,
+            cost,
+
+            // null unless a fallback link answered: leaves runs.model_id at
+            // the value WriteRunStartAsync already wrote (the overwhelmingly
+            // common case), never a redundant write of the same value.
+            modelId: fallbackUsed?.Model,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        // The budget is a single object that is shared across the tree; both the root and
+        // the child runs feed the same counter. Otherwise the answer to the question "what
+        // did the tree spend?" would cover only the child calls.
+        scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0);
+
+        var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
+
+        // 🚨 Quota accounting and event publication run ONLY on a root run. A child run is
+        // part of the same user request; if it were counted separately, an agent tree would
+        // consume the quota as fast as its depth, and a separate run.completed event would
+        // be emitted for every node.
+        if (scope.Depth == 0)
+        {
+            await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
+            await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
+            await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
+        }
+
+        _metrics?.RecordRun(
+            scope.AgentName,
+            status,
+            scope.TenantId,
+            modelId,
+            elapsed,
+            usage,
+            agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
+
+        // When the price is undefined (Source == Unknown), nothing is emitted: emitting an
+        // unknown cost as zero would make the real spend look smaller. The cost is emitted
+        // on cancellation and on failure as well (Open Question 4): the money for the
+        // consumed tokens is already spent.
+        if (cost is { Source: not PricingSource.Unknown } knownCost)
+        {
+            _metrics?.RecordCost(
+                scope.AgentName,
+                modelId,
+                scope.TenantId,
+                knownCost.Total() ?? 0m,
+                knownCost.Currency ?? "unknown");
+        }
+
+        if (scope.Activity is null)
+        {
+            return;
+        }
+
+        scope.Activity.SetTag(AgentPrismDiagnostics.Tags.Status, status.ToString());
+
+        // A fallback link answering instead of the primary binding updates the
+        // root span's model tag too — not just the run record — so a trace
+        // viewer shows the model that actually ran without cross-referencing
+        // the run's events (phase 62).
+        if (fallbackUsed is not null)
+        {
+            scope.Activity.SetTag(AgentPrismDiagnostics.Tags.ModelId, fallbackUsed.Value.Model);
+        }
+
+        if (error is not null)
+        {
+            scope.Activity.SetStatus(ActivityStatusCode.Error, error.Message);
+        }
+
+        // The span is stopped BEFORE it is handed to the collector: stopping triggers the
+        // ActivityStopped event, and the root span itself also enters the buffer.
+        scope.Activity.Stop();
+
+        // 🚨 ONLY the root run owns the trace buffer. Every run in the tree shares the same
+        // W3C trace identifier (child spans settle under the root span) and the buffer is
+        // keyed by that identifier. If a child run closed the buffer too -- and it finishes
+        // FIRST -- the spans of the whole tree would attach to the child run and the root
+        // run would stay empty. Measured (phase 12): on a real call the /trace endpoint of
+        // the root returned 404 while the one of the child run was full.
+        if (_traceCollector is not null && scope.OwnsTrace)
+        {
+            await _traceCollector.CompleteRunAsync(
+                scope.Activity.TraceId.ToString(),
+                scope.Activity.SpanId.ToString(),
+                scope.Writer.RunId,
+                scope.TenantId,
+                status,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        scope.Activity.Dispose();
+    }
+
+    private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
+    {
+        if (extra is null)
+        {
+            return primary;
+        }
+
+        if (primary is null)
+        {
+            return extra;
+        }
+
+        return new RunUsage
+        {
+            InputTokens = (primary.InputTokens ?? 0) + (extra.InputTokens ?? 0),
+            OutputTokens = (primary.OutputTokens ?? 0) + (extra.OutputTokens ?? 0),
+            TotalTokens = (primary.TotalTokens ?? 0) + (extra.TotalTokens ?? 0),
+
+            // 🚨 The breakdown fields use a NULL-PRESERVING sum, unlike the three
+            // totals above. `(a ?? 0) + (b ?? 0)` would turn "neither side
+            // measured this" into the claim "measured, and it was zero"; on a run
+            // whose provider never reports cache usage that would report a 0%
+            // cache hit rate as if it had been observed.
+            CachedInputTokens = AddOrNull(primary.CachedInputTokens, extra.CachedInputTokens),
+            ReasoningTokens = AddOrNull(primary.ReasoningTokens, extra.ReasoningTokens),
+            AudioInputTokens = AddOrNull(primary.AudioInputTokens, extra.AudioInputTokens),
+            AudioOutputTokens = AddOrNull(primary.AudioOutputTokens, extra.AudioOutputTokens),
+        };
+    }
+
+    /// <summary>Adds two optional counters, staying <see langword="null"/> when NEITHER side reported one.</summary>
+    private static long? AddOrNull(long? left, long? right)
+        => left is null && right is null ? null : (left ?? 0) + (right ?? 0);
+
+    private static RunUsage? ToRunUsage(UsageDetails? usage)
+        => usage is null
+            ? null
+            : new RunUsage
+            {
+                InputTokens = usage.InputTokenCount,
+                OutputTokens = usage.OutputTokenCount,
+                TotalTokens = usage.TotalTokenCount,
+
+                // 🚨 These four are counted INSIDE the three totals above (the
+                // Microsoft.Extensions.AI contract), so they are recorded beside
+                // them, never added to them. A provider that does not report one
+                // leaves it null; writing zero would claim a measurement that was
+                // never made.
+                CachedInputTokens = UsageBreakdown.CachedInputTokens(usage),
+                ReasoningTokens = UsageBreakdown.ReasoningTokens(usage),
+                AudioInputTokens = UsageBreakdown.AudioInputTokens(usage),
+                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(usage),
+            };
+
+    // AgentPrism exceptions can carry their own stable error type name (for example
+    // content_filtered). The default value is still the full name of the type, so the shape
+    // of the existing records does not change.
+    private static RunError ToRunError(Exception exception)
+        => new()
+        {
+            Type = exception is AgentPrismException prismException
+                ? prismException.ErrorType
+                : exception.GetType().FullName ?? exception.GetType().Name,
+            Message = exception.Message,
+        };
+}
