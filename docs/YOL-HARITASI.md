@@ -124,7 +124,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [109](arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | ✅ Tamamlandı |
 | [110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) | Tüketici Bağlantı Düzlemi | ✅ Tamamlandı |
 | [111](arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md) | Okuma Sözleşmesi Görünümleri | ✅ Tamamlandı |
-| [112](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) | Replay'in İstemci Tool Sözleşmesi | 📋 Planlandı |
+| [112](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) | Replay'in İstemci Tool Sözleşmesi | ✅ Tamamlandı |
 | [113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | 📋 Planlandı |
 | [114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) | Çalıştırma-İçi Bütçe Tavanı | 📋 Planlandı |
 | [115](115-EVALIN-BASSIZ-KOSUCUSU.md) | Eval'in Başsız Koşucusu | 📋 Planlandı |

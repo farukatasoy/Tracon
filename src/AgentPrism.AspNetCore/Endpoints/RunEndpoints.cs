@@ -280,7 +280,9 @@ internal static class RunEndpoints
                 "'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — " +
                 "recorded results are replayed. Replaying a call with no recorded result STOPS the " +
                 "replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, " +
-                "requires the Admin role, and returns 409 if a tool requires approval. " +
+                "requires the Admin role, and returns 409 if a tool requires approval. An agent carrying " +
+                "a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns " +
+                "409 — its body runs in the caller's browser and no call to it was recorded. " +
                 "Replay is sessionless: if the source run belongs to a session, only that TURN's " +
                 "input is replayed; the conversation history is not carried over.")
             .Produces<RunReplayResponse>(StatusCodes.Status200OK)
@@ -507,6 +509,10 @@ internal static class RunEndpoints
                     statusCode: StatusCodes.Status404NotFound),
                 RunReplayOutcome.ApprovalRequired => Results.Problem(
                     title: "A tool requiring approval cannot run live",
+                    detail: preparation.Detail,
+                    statusCode: StatusCodes.Status409Conflict),
+                RunReplayOutcome.ClientToolNotReplayable => Results.Problem(
+                    title: "A client-side tool cannot be replayed",
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status409Conflict),
                 _ => Results.Problem(

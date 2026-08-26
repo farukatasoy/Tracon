@@ -595,7 +595,7 @@ export interface paths {
         put?: never;
         /**
          * Starts a new run with recorded input.
-         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over.
+         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over.
          */
         post: operations["AgentPrismReplayRun"];
         delete?: never;

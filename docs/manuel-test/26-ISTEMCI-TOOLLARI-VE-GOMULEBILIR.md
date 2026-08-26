@@ -1,6 +1,6 @@
 # 26 — İstemci Tool'ları ve Gömülebilir Sohbet (`IST`)
 
-> **Alan kodu:** `IST` · **Faz:** 61
+> **Alan kodu:** `IST` · **Faz:** 61, 112
 > **Kaynak:** `src/AgentPrism.Core/Tools/AgentPrismClientToolExtensions.cs` ·
 > `src/AgentPrism.Core/Tools/ToolRegistry.cs` ·
 > `src/AgentPrism.AspNetCore/Internal/ClientToolResultResolver.cs` ·
@@ -8,7 +8,8 @@
 > `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs` (`toolResults`
 > handling) · `src/AgentPrism.AspNetCore/AgentPrismEndpointOptions.cs`
 > (`AllowedOrigins`) · `src/AgentPrism.UI/frontend/src/embed/` (widget) ·
-> `samples/AgentPrism.Api/Program.cs` (`read_shopping_cart`).
+> `samples/AgentPrism.Api/Program.cs` (`read_shopping_cart`) ·
+> `src/AgentPrism.Core/Replay/RunReplayService.cs` (`FindClientTool`, Faz 112).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -278,7 +279,88 @@ curl -s -D - -o /dev/null "$APU/api/meta" -H "Origin: https://baska-site.example
 
 ---
 
+### MT-IST-014 — Persistent bir agent'ın istemci tool'u REPLAY'İ HER ÜÇ MOD'DA reddeder (Faz 112)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 112 |
+
+**Ön koşul**
+- Yalnız `read_shopping_cart`'ı taşıyan, veritabanı tanımlı (persistent) bir agent oluşturulur:
+  ```bash
+  curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+    -d '{"name":"manuel-ist-replay","model":{"provider":"echo","model":"echo-1"},"toolNames":["read_shopping_cart"]}'
+  ```
+- O agent ile bir run tamamlanır ve girdisi kaydedilir:
+  ```bash
+  curl -s -X POST "$APU/api/agents/manuel-ist-replay/run" -H "$APB" -H "content-type: application/json" \
+    -H 'Idempotency-Key: mt-ist-014' -d '{"message":"merhaba"}' | jq '.runId'
+  ```
+  Yukarıdaki `runId`'yi `<RUN_ID>` yerine koy.
+
+**Adımlar**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "$APB" \
+     -H "content-type: application/json" -d '{"toolMode":"ReplayTools"}'
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "$APB" \
+     -H "content-type: application/json" -d '{"toolMode":"LiveTools"}'
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "$APB" \
+     -H "content-type: application/json" -d '{"toolMode":"NoTools"}'
+```
+
+**Beklenen sonuç**
+- Üç isteğin **hepsi** `HTTP: 409` döner.
+- Her yanıtın `detail` alanı `read_shopping_cart` adını ve "cannot be replayed in any tool mode" ibaresini taşır.
+- `NoTools` da reddedilir: o modda hiçbir tool bağlanmaz, ama istemci tool'u agent'ın **tanımının** bir parçası olduğu için sonuç yine de karşılaştırılamaz kabul edilir (bkz. plan §112.2, Açık Soru 1).
+
+---
+
+### MT-IST-015 — Kod tanımlı (`support`) agent'ta da replay 409 döner (katalog kolu, Faz 112)
+
+`support` agent'ı hem `cancel_order`'ı (onay gerektirir) hem `read_shopping_cart`'ı
+(istemci tool'u) taşır; bu case katalog kolunun (kod tanımlı agent) hiçbir
+şekilde delikte kalmadığını doğrular — hangi guard'ın önce tetiklendiği bu
+case açısından önemli değildir. `read_shopping_cart`'ın kendi mesajının
+izole gösterimi `ReplayClientToolEndpointTests.A_code_defined_agent_carrying_a_client_side_tool_is_also_rejected`
+otomatik testinde (yalnız istemci tool'u taşıyan ayrı bir agent ile) kanıtlanır.
+
+**Ön koşul:** `support` agent'ından tamamlanmış bir run (ör. MT-IST-001'in `runId`'si).
+
+**Adımlar**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "$APB" \
+     -H "content-type: application/json" -d '{"toolMode":"LiveTools"}'
+```
+
+**Beklenen sonuç:** `HTTP: 409`. `detail` `cancel_order` veya `read_shopping_cart` adını taşır (hangisi olduğu guard sırasına bağlıdır); ikisi de kabul edilir sonuçtur.
+
+---
+
+### MT-IST-016 — Konsolun run detayı "Replay" düğmesi 409'u okunabilir gösterir 👤
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 112 |
+
+**Ön koşul:** MT-IST-014'ün `manuel-ist-replay` run'ı hâlâ var.
+
+**Adımlar**
+1. `$APU`'yu tarayıcıda aç → Runs → MT-IST-014'ün run'ını bul → run detayına gir.
+2. "Replay" düğmesine tıkla, varsayılan modla (`ReplayTools`) onayla.
+
+**Beklenen sonuç**
+- Ekran sunucunun `detail` metnini (tool adını içeren) bir hata olarak gösterir.
+- Ekran **boş kalmaz** ve sonsuz "yükleniyor" durumunda takılmaz.
+- 👤 **İnsan gerekir** — hata metninin gerçek bir tarayıcıda okunabilir
+  biçimde render edildiğini doğrulamak otomatikleştirilmedi.
+
+---
+
 ## Bitiş ölçütü
 
-- [ ] MT-IST-001 … MT-IST-013 çalıştırıldı, sonuç `kosumlar/<tarih>/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'ye yazıldı.
+- [ ] MT-IST-001 … MT-IST-016 çalıştırıldı, sonuç `kosumlar/<tarih>/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'ye yazıldı.
 - [ ] `Kaldı` işaretlenen her case için `00-INDEKS.md` §6 şablonuyla bir `HATA-NNN` açıldı.

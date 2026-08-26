@@ -33,6 +33,31 @@ public sealed class McpTenantToolsTests
     }
 
     [Fact]
+    public void An_mcp_tool_is_never_marked_RunsOnClient()
+    {
+        // Replay (phase 112) rejects a definition that carries a
+        // RunsOnClient=true tool; a real MCP-discovered tool is always an
+        // invocable AIFunction (McpClientTool : AIFunction — the "is not
+        // AIFunction" branch below only ever fires for a misconfigured
+        // direct AgentPrismToolRegistration), so it must NEVER be
+        // misclassified as client-side and wrongly block a replay.
+        var registration = new AgentPrismToolRegistration(
+            AIFunctionFactory.Create(() => "ok", "remote_tool"),
+            source: "github-mcp");
+
+        var tools = McpTenantTools.Create(
+            [registration],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance);
+
+        tools.Descriptors.ShouldHaveSingleItem().RunsOnClient.ShouldBeFalse();
+    }
+
+    [Fact]
     public void An_mcp_tool_with_an_explicitly_declared_effect_keeps_it()
     {
         var registration = new AgentPrismToolRegistration(
