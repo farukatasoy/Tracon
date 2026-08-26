@@ -549,7 +549,15 @@ AgentPrism.ModelProviderRegistry.CreateChatClient(AgentPrism.ModelBinding! bindi
 AgentPrism.ModelProviderRegistry.CreateChatClientAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Extensions.AI.IChatClient!>
 AgentPrism.ModelProviderRegistry.HasTenantProviderOverrideAsync(AgentPrism.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 AgentPrism.ModelProviderRegistry.List() -> System.Collections.Generic.IReadOnlyList<AgentPrism.ModelProviderDescriptor!>!
-AgentPrism.ModelProviderRegistry.ModelProviderRegistry(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, AgentPrism.IAttachmentStore? attachmentStore = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ContentGuardPipeline? contentGuards = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, AgentPrism.ProviderConcurrencyLimiter? concurrencyLimiter = null, AgentPrism.ITenantProviderBindingStore? tenantProviderBindings = null, AgentPrism.ITenantEgressPolicyStore? tenantEgressPolicies = null, AgentPrism.TenantProviderCredentialResolver? credentialResolver = null, Microsoft.Extensions.Caching.Distributed.IDistributedCache? distributedCache = null, AgentPrism.AgentPrismMetrics? metrics = null) -> void
+AgentPrism.ModelProviderRegistry.ModelProviderRegistry(System.Collections.Generic.IEnumerable<AgentPrism.IModelProvider!>! providers, AgentPrism.ModelProviderCircuitBreaker? circuitBreaker = null, AgentPrism.IAttachmentStore? attachmentStore = null, AgentPrism.ITenantContext? tenantContext = null, AgentPrism.ContentGuardPipeline? contentGuards = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null, AgentPrism.ProviderConcurrencyLimiter? concurrencyLimiter = null, AgentPrism.ITenantProviderBindingStore? tenantProviderBindings = null, AgentPrism.ITenantEgressPolicyStore? tenantEgressPolicies = null, AgentPrism.TenantProviderCredentialResolver? credentialResolver = null, Microsoft.Extensions.Caching.Distributed.IDistributedCache? distributedCache = null, AgentPrism.AgentPrismMetrics? metrics = null, AgentPrism.IProviderRetryClassifier? retryClassifier = null) -> void
+AgentPrism.DefaultProviderRetryClassifier
+AgentPrism.DefaultProviderRetryClassifier.Classify(System.Exception! exception) -> AgentPrism.ProviderRetryDecision
+AgentPrism.DefaultProviderRetryClassifier.DefaultProviderRetryClassifier() -> void
+AgentPrism.DefaultRunErrorClassifier
+AgentPrism.DefaultRunErrorClassifier.Classify(AgentPrism.RunError! runError) -> AgentPrism.RunErrorClassification!
+AgentPrism.DefaultRunErrorClassifier.DefaultRunErrorClassifier() -> void
+AgentPrism.RunErrorFingerprint
+static AgentPrism.RunErrorFingerprint.Compute(string? message) -> string!
 AgentPrism.ModelRunJudgeOptions
 AgentPrism.ModelRunJudgeOptions.Criteria.get -> System.Collections.Generic.IList<string!>!
 AgentPrism.ModelRunJudgeOptions.Instructions.get -> string?

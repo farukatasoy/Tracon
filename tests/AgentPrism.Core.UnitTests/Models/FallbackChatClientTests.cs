@@ -49,6 +49,33 @@ public sealed class FallbackChatClientTests
         fallbackClient.CallCount.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Fallback_link_is_called_with_its_own_ModelId_not_the_primarys()
+    {
+        // 🚨 Regression (found live, samples/AgentPrism.Api, a real OpenAI
+        // 404 "model_not_found"): AgentDefinitionCompiler.BuildChatOptions
+        // bakes ChatOptions.ModelId = primaryBinding.Model ONCE at compile
+        // time, and that SAME ChatOptions instance is reused across every
+        // fallback attempt. If the fallback link's Model differs from the
+        // primary's (the whole point of ModelFallback.Model per this class's
+        // own remarks), the request must not carry the primary's model name.
+        var primaryClient = new FakeChatClient(
+            _ => throw new AgentPrismProviderUnavailableException("circuit open"));
+        var fallbackClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer")));
+
+        using var chatClient = RegistryWithFallback(primaryClient, fallbackClient);
+        var options = new ChatOptions { ModelId = "primary-model" };
+
+        await chatClient.GetResponseAsync(Messages, options, cancellationToken: TestContext.Current.CancellationToken);
+
+        fallbackClient.LastOptions.ShouldNotBeNull();
+        fallbackClient.LastOptions!.ModelId.ShouldBe("fallback-model");
+
+        // The ORIGINAL options instance (and therefore the primary's next
+        // call, should this client be reused) must be untouched.
+        options.ModelId.ShouldBe("primary-model");
+    }
+
     [Theory]
     [InlineData("HTTP 500 (internal_server_error)")]
     [InlineData("HTTP 503 (service_unavailable)")]
@@ -240,6 +267,32 @@ public sealed class FallbackChatClientTests
         }
 
         chunks.ShouldBe(["fallback chunk"]);
+    }
+
+    [Fact]
+    public async Task Streaming_fallback_link_is_called_with_its_own_ModelId_not_the_primarys()
+    {
+        // Same regression as the non-streaming GetResponseAsync test, on the
+        // GetStreamingResponseAsync path: OptionsForLink must be applied
+        // there too, not only in the request/response method.
+        var primary = new FakeModelProvider(
+            FailingStreamClient(new AgentPrismProviderUnavailableException("circuit open")),
+            name: "primary");
+        var fallbackClient = new FakeChatClient(streamingUpdates: [new ChatResponseUpdate(ChatRole.Assistant, "fallback chunk")]);
+        var fallback = new FakeModelProvider(fallbackClient, name: "fallback");
+
+        using var chatClient = new ModelProviderRegistry([primary, fallback]).CreateChatClient(
+            Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model"));
+        var options = new ChatOptions { ModelId = "primary-model" };
+
+        await foreach (var _ in chatClient.GetStreamingResponseAsync(
+            Messages, options, cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+
+        fallbackClient.LastOptions.ShouldNotBeNull();
+        fallbackClient.LastOptions!.ModelId.ShouldBe("fallback-model");
+        options.ModelId.ShouldBe("primary-model");
     }
 
     [Fact]

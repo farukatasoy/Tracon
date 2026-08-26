@@ -73,6 +73,11 @@ console and pricing; it is not an allowlist. Health checks are cached. A shared
 circuit breaker protects provider calls. AgentPrism does not invent model names or
 prices.
 
+`ModelBinding.Fallbacks` decides whether a failure moves to the next provider link,
+and `runs.error_class` decides how a failed run is classified afterward. Both
+decisions can be overridden or composed with your own rules — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
+
 ## Tools, skills, and context
 
 | Capability | Registration or source | What is enforced |

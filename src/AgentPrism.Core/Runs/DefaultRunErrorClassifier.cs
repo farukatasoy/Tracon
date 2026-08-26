@@ -24,9 +24,20 @@ namespace AgentPrism;
 /// patterns are written with the source generator (<c>GeneratedRegex</c>) so
 /// as not to allocate on the hot path.
 /// </para>
+/// <para>
+/// Public, and safe to construct directly: it carries no dependencies, so a
+/// consumer's own <see cref="IRunErrorClassifier"/> can compose it — try an
+/// SDK-specific rule first, then fall back to
+/// <c>builtIn.Classify(runError)</c> — without going through DI.
+/// </para>
 /// </remarks>
-internal sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
+public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
 {
+    /// <summary>Creates a new instance of AgentPrism's built-in error classifier.</summary>
+    public DefaultRunErrorClassifier()
+    {
+    }
+
     private static readonly Dictionary<string, RunErrorClass> StableIdentities = new(StringComparer.Ordinal)
     {
         [AgentPrismContentFilteredException.ContentFilteredErrorType] = RunErrorClass.ContentFiltered,

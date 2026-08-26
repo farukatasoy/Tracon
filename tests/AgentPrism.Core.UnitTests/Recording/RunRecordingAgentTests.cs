@@ -186,6 +186,35 @@ public sealed class RunRecordingAgentTests
         run.Error.Fingerprint.ShouldBe("spy");
     }
 
+    /// <summary>
+    /// Phase 113 (F-149): a registered <see cref="IRunErrorClassifier"/> is a
+    /// consumer extension point running on an already-failing run's
+    /// completion path - a bug in it must not stop the run from reaching its
+    /// terminal state. Falls back to AgentPrism's built-in classification.
+    /// </summary>
+    [Fact]
+    public async Task A_throwing_error_classifier_falls_back_to_the_built_in_classifier_and_the_run_still_completes()
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var client = new FakeChatClient(_ => throw new InvalidOperationException("model crashed"));
+        var agent = CreateAgent(store, client, new ThrowingRunErrorClassifier());
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () => await agent.RunAsync("hello"));
+
+        exception.ErrorType.ShouldBe("upstream_error");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull();
+
+        // The built-in classifier's answer for this exact error, computed
+        // independently - proves the fallback landed on the SAME class the
+        // registered (broken) classifier would have replaced.
+        var expected = new DefaultRunErrorClassifier().Classify(run.Error! with { Class = null, Fingerprint = null });
+        run.Error.Class.ShouldBe(expected.Class);
+        run.Error.Fingerprint.ShouldBe(expected.Fingerprint);
+    }
+
     [Fact]
     public async Task Content_filtered_empty_response_is_recorded_as_content_filtered()
     {

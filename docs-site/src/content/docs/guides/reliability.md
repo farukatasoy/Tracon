@@ -122,6 +122,10 @@ misconfigured key behind a silent provider switch costs more than the switch
 saves. A provider's own content/safety filter is not a fallback trigger either;
 that decision is made once, after whichever link actually answered.
 
+Registering an `IProviderRetryClassifier` overrides this decision for a
+specific SDK exception without replacing the built-in rules above — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
+
 A fallback switch is never silent. The run record gets a `ModelFallbackUsed`
 event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary

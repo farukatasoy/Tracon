@@ -1,6 +1,6 @@
 # 27 — Model Yedek Zinciri ve Ön Uçuş Denetimi (`MYU`)
 
-> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı)
+> **Alan kodu:** `MYU` · **Faz:** 62 tam kapsam · 81 (§ yanıt önbelleği ve eşzamanlı tool çağrısı) · 113 (§ `IProviderRetryClassifier` genişleme noktası)
 >
 > **Kaynak:**
 > `src/AgentPrism.Abstractions/Agents/ModelBinding.cs` (`Fallbacks`, `ResponseCache`,
@@ -598,6 +598,65 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: applicati
 
 ---
 
+### MT-MYU-015 — 🚨 `IProviderRetryClassifier` kayıtlı değilken (veya `Unknown` dönerken) yedek zincir bugünküyle birebir aynıdır — ve yedek GERÇEKTEN doğru modeli çağırır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 113 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- Birincili sürekli bağlantı reddiyle düşen (`http://localhost:1/v1`), modeli
+  birincilden **FARKLI** bir gerçek `openai` modeline düşen geçici bir agent
+  (`Fallbacks` alanında `ModelFallback.Model` birincininkinden farklı).
+- Hiçbir `IProviderRetryClassifier` kayıtlı DEĞİL (varsayılan) VEYA kayıtlı
+  olan her zaman `Unknown` dönüyor.
+
+**Adımlar**
+1. Agent'a bir mesaj gönder.
+2. `GET /api/runs/{runId}` ile yanıtı ve `modelId`'yi doğrula.
+
+**Beklenen sonuç (2026-08-26'da ölçüldü — gerçek OpenAI çağrısıyla, `samples/AgentPrism.Api`)**
+- Bağlantı hatası (`Connection refused`) yedek zincire düşürür; yanıt
+  **gerçek** yedek modelden gelir (`"Hi"`), birincinin yer tutucu modelinden DEĞİL.
+- 🚨 Bu case bir regresyonu YAKALADI ve düzeltmeyi doğruladı: yedek çağrısı
+  **kendi** `ModelFallback.Model` adını taşımalıdır — birincinin `ChatOptions.ModelId`'sini
+  DEĞİL. Düzeltmeden önce ölçüldü: yedek gerçek `openai`'a **birincinin** yer
+  tutucu model adıyla gitti ve sunucu `HTTP 404 (model_not_found)` döndürdü,
+  zincir TAMAMEN tükendi ("All providers in the fallback chain failed").
+  Kök sebep ve düzeltme: `docs/hafiza/model-boru-hatti.md` §
+  "`ChatOptions.ModelId` yedek bağlıya sızar". Regresyon:
+  `FallbackChatClientTests.Fallback_link_is_called_with_its_own_ModelId_not_the_primarys`.
+
+---
+
+### MT-MYU-016 — `IProviderRetryClassifier` `DoNotRetry` dönerse yedek zincire HİÇ geçilmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 113 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- MT-MYU-015'in AYNI kurulumu (birincili sürekli bağlantı reddiyle düşen agent).
+- Kayıtlı bir `IProviderRetryClassifier`, bağlantı reddi hatalarında
+  `ProviderRetryDecision.DoNotRetry` döndürüyor.
+
+**Adımlar**
+1. Aynı agent'a bir mesaj gönder.
+
+**Beklenen sonuç (2026-08-26'da ölçüldü)**
+- Hata **ANINDA** yüzeye çıkar (`errorType: upstream_error`,
+  `"The model provider request failed."`); yedek bağ HİÇ denenmez — yerleşik
+  kuralın "bağlantı hatası retry'a girer" kararı tüketicinin `DoNotRetry`
+  kararıyla geçersiz kılınır.
+
+---
+
 ## Koşumdan sonra
 
 1. `dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"`
@@ -608,4 +667,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H 'content-type: applicati
 4. MT-MYU-011'in geçici `cached-support-notools` agent'ı geri alınır.
    `cached-support` ve `AddDistributedMemoryCache()` KALICIDIR, geri alınmaz.
 5. MT-MYU-013'ün yorumladığı `AddDistributedMemoryCache()` satırı geri açılır.
+6. MT-MYU-015/016'nın geçici `IProviderRetryClassifier` kaydı, `retry-seam-demo`
+   agent'ı ve `flaky-113` sağlayıcı kaydı `samples/AgentPrism.Api/Program.cs`'ten
+   geri alınır; `dotnet user-secrets remove "AgentPrism:Demo:RetryClassifierBlocksConnectionFailures"`.
 6. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı tekrar uygulanır.

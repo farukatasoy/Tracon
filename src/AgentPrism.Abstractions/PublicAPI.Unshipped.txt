@@ -4853,3 +4853,9 @@ AgentPrism.ToolRegistrationOptions.Source.get -> string?
 AgentPrism.ToolRegistrationOptions.Source.set -> void
 AgentPrism.ToolRegistrationOptions.Timeout.get -> System.TimeSpan?
 AgentPrism.ToolRegistrationOptions.Timeout.set -> void
+AgentPrism.IProviderRetryClassifier
+AgentPrism.IProviderRetryClassifier.Classify(System.Exception! exception) -> AgentPrism.ProviderRetryDecision
+AgentPrism.ProviderRetryDecision
+AgentPrism.ProviderRetryDecision.DoNotRetry = 2 -> AgentPrism.ProviderRetryDecision
+AgentPrism.ProviderRetryDecision.Retry = 1 -> AgentPrism.ProviderRetryDecision
+AgentPrism.ProviderRetryDecision.Unknown = 0 -> AgentPrism.ProviderRetryDecision

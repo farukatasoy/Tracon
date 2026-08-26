@@ -37,6 +37,33 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 - **🚨 MEAI 10.9.0 kendi yedek zincirini getirdi; bizimki Faz 62'dendir ve DAHA GENISTIR.** Yukseltme olcumu (2026-08-21): `RoutingChatClient` (soyut) · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` eklendi. AgentPrism'inki yalniz "sirayla dene" degildir — devre kesici, on ucus denetimi, hata siniflandirmasi ve atif kaydiyla birlesiktir. **Onun uzerine gecmek bir KARAR isidir, bir yukseltme isi degil**; oneriden once `ModelBinding.Fallbacks`'in sozlesmesini ve K-320'nin halka sirasini oku.
 
 
+## `ChatOptions.ModelId` yedek bagliya SIZAR (Faz 113, canli kosumda bulundu)
+
+- **🚨 `AgentDefinitionCompiler.BuildChatOptions`, `ChatOptions.ModelId`'yi
+  BIRINCIL binding'in modeliyle DERLEME ANINDA sabitler ve o TEK nesne her
+  yeniden deneme cagrisinda TEKRAR kullanilir.** `FallbackChatClient` bir
+  yedek bagliya gecerken bu AYNI `options` nesnesini degistirmeden geciriyordu
+  — yedegin KENDI `ModelFallback.Model` adi (bilerek birincilden FARKLI
+  olabilir, bu tipin butun amaci budur) hic devreye girmiyordu. Gercek OpenAI
+  anahtariyla `samples/AgentPrism.Api`'de olculdu: birincili olu bir porta
+  isaret eden, modeli `flaky-model` olan bir agent, modeli `gpt-5.4-mini` olan
+  gercek `openai` yedegine dustu ama giden istek yine `flaky-model` adini
+  tasidi — sunucu `HTTP 404 (model_not_found)` dondurdu ve zincir TAMAMEN
+  tuketildi (`FallbackRetryClassifier` gorunusunun disinda, MAF'in OpenAI
+  adaptoru `ChatOptions.ModelId`'yi istemcinin KENDI SDK yapilandirmasi
+  yerine giden HTTP govdesine yazar). Birim testleri bunu YAKALAMIYORDU:
+  `FakeChatClient` `ChatOptions`'i tamamen yok sayiyor, yalniz `responder`
+  fonksiyonuna bakiyordu — farkli `primaryModel`/`fallbackModel` adlariyla
+  yazilmis testler bile gercek bir SDK'nin `ModelId` okumasini hic olcmuyordu.
+  Duzeltme: `FallbackChatClient.OptionsForLink` her yedek cagrisi icin
+  `options.Clone()` alip `ModelId`'yi o baglinin KENDI modeliyle degistirir;
+  birincil cagri (`index == 0`) `options`'i degistirmeden kullanmaya devam
+  eder. Regresyon: `FallbackChatClientTests.Fallback_link_is_called_with_its_own_ModelId_not_the_primarys`
+  (`FakeChatClient.LastOptions.ModelId` gercek SDK yerine dogrudan olcer).
+  **Kural: birden fazla FARKLI binding'e ait istemciyi cagiran her yeni kod
+  yolu, o binding'e ozgu her alani (ModelId dahil) YENIDEN insa etmelidir —
+  paylasilan bir `ChatOptions`/istek nesnesi taşımaz.**
+
 ## Dispose sahipligi ve cift sarmalamanin OLCULEN hasari (Faz 99)
 
 - **AgentPrism `IModelProvider.CreateChatClient`'in donusunu hicbir zaman dispose
