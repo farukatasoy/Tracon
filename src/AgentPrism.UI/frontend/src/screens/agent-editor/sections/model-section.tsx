@@ -23,7 +23,7 @@ export function ModelSection({
     <Panel title={t('common.model')}>
       <div className="grid gap-4 p-4 sm:grid-cols-2">
         <Field label={t('common.provider')} required>
-          <Select value={form.provider} onChange={(value) => setForm({ ...form, provider: value })}>
+          <Select testId="agent-provider" value={form.provider} onChange={(value) => setForm({ ...form, provider: value })}>
             <option value="">{t('agentEditor.select')}</option>
             {providers.map((provider) => (
               <option key={provider.name} value={provider.name}>

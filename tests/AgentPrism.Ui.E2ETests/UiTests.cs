@@ -594,7 +594,11 @@ public sealed class UiTests(BrowserFixture browsers)
             .WaitForAsync(new() { Timeout = 15_000 });
 
         await session.Page.GetByLabel("Token").FillAsync("secret-token");
+        var authenticated = session.Page.WaitForResponseAsync(response =>
+            response.Url.Contains("/api/agents", StringComparison.Ordinal) &&
+            response.Status == StatusCodes.Status200OK);
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
+        await authenticated;
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })
             .WaitForAsync(new() { Timeout = 15_000 });
@@ -1165,8 +1169,9 @@ public sealed class UiTests(BrowserFixture browsers)
             .WaitForAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add case" }).ClickAsync();
-        await session.Page.GetByPlaceholder("What is your return policy?")
-            .FillAsync("Where is my order, can you help?");
+        var query = session.Page.GetByPlaceholder("What is your return policy?");
+        await Assertions.Expect(query).ToBeEditableAsync();
+        await query.FillAsync("Where is my order, can you help?");
 
         var casesSaved = session.Page.WaitForResponseAsync(response =>
             response.Url.Contains("/api/evals/e2e-eval-suite/cases", StringComparison.Ordinal) &&
@@ -1688,16 +1693,22 @@ public sealed class UiTests(BrowserFixture browsers)
         string secondInstructions)
     {
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await Assertions.Expect(session.Page.GetByTestId("agent-provider"))
+            .ToHaveValueAsync(ScriptedModels.ProviderName);
         await session.Page.GetByTestId("agent-name").FillAsync(name);
         await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
-        await session.Page.GetByTestId("agent-save").ClickAsync();
+        var save = session.Page.GetByTestId("agent-save");
+        await Assertions.Expect(save).ToBeEnabledAsync();
+        await save.ClickAsync();
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
         await session.Page.GetByTestId("agent-instructions").FillAsync(secondInstructions);
-        await session.Page.GetByTestId("agent-save").ClickAsync();
+        save = session.Page.GetByTestId("agent-save");
+        await Assertions.Expect(save).ToBeEnabledAsync();
+        await save.ClickAsync();
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
     }

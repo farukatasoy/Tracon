@@ -210,18 +210,23 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
             <CaseEditor
               key={index}
               evalCase={item}
-              onChange={(value) => setCases(cases.map((current, i) => (i === index ? value : current)))}
-              onRemove={() => setCases(cases.filter((_, i) => i !== index))}
+              onChange={(value) => setCases((current) => current.map((item, i) => (i === index ? value : item)))}
+              onRemove={() => setCases((current) => current.filter((_, i) => i !== index))}
             />
           ))}
 
           {meta.roles.canAdminister && (
             <div className="flex items-center gap-2 border-t border-line pt-3">
-              <Button onClick={() => setCases([...cases, emptyCase()])}>{t('evals.addCase')}</Button>
+              <Button
+                disabled={existingCases.isPending}
+                onClick={() => setCases((current) => [...current, emptyCase()])}
+              >
+                {t('evals.addCase')}
+              </Button>
               <Button
                 tone="primary"
                 busy={saveCases.isPending}
-                disabled={cases.some((item) => item.query.trim().length === 0)}
+                disabled={existingCases.isPending || cases.some((item) => item.query.trim().length === 0)}
                 onClick={() => saveCases.mutate()}
               >
                 {t('evals.saveCases')}
