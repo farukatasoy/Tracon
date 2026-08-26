@@ -17,7 +17,16 @@ import re
 import sys
 
 READ_RESPONSE_RE = re.compile(r"ReadObjectResponseAsync<(.+?)>\(")
-BODY_PARAM_RE = re.compile(r"([\w.]+(?:<[^<>]*>)?)\s+body[,)]")
+# 🚨 An OPTIONAL request body reads "Type? body = null" in the generated
+# client - the "?" (nullable annotation) sits directly after the type name
+# with no space, and a default value sits between "body" and the closing
+# delimiter. Both are optional here so a REQUIRED body ("Type body,") still
+# matches. Missing either piece silently dropped 9 root types (measured,
+# 2026-08-26): every method with an optional body (EvalRunTriggerRequest,
+# JobTriggerRequest, CanaryPolicy, ...) then threw NotSupportedException on
+# EVERY call, body given or not - JsonSerializer.SerializeToUtf8Bytes<TValue>
+# resolves TValue from the parameter's STATIC type, not the runtime null-ness.
+BODY_PARAM_RE = re.compile(r"([\w.]+(?:<[^<>]*>)?)\??\s+body(?:\s*=\s*\w+)?[,)]")
 VALID_ROOT_RE = re.compile(r"^[A-Za-z_][\w.]*(?:<[A-Za-z_][\w.]*>)?$")
 
 # Primitive / BCL types the source generator already knows about via its own

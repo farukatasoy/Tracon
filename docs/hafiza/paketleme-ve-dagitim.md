@@ -136,3 +136,29 @@
   `git status` temiz gorunur ve yalniz frontend `tsc` sikayet eder — sozluk anahtari
   `t(\`dashboard.errorClass.${entry.class}\`)` gibi sema tipinden TUREYEN her yerde
   hata bayat `dist`'i degil sanki sozlugu isaret eder.
+
+- **🚨 Kendi `[JsonConverter]`'i olan bir deger tipi (System.Text.Json.JsonElement,
+  Microsoft.Extensions.AI.ChatRole) ASP.NET Core OpenApi ureticisinde BOS `{}`
+  sema uretir; NSwag bu semayi TIPIN KISA ADIYLA ("JsonElement", "ChatRole")
+  gercek bir POCO sinifina cevirir ve bu sinif AYNI ad-alaninda GERCEK tipi
+  GOLGELER** (2026-08-26, olculdu, Faz 115 sirasinda kesfedildi — eval CLI
+  komutu ilk kez `EvalCaseResult.Scores`'u gercek veriyle deserialize etti).
+  `anyType: "object"` yalnizca NSwag'in INLINE ettigi semalara uygulanir;
+  `inlineNamedAny: false` NAMED bir semayi INLINE ETMEZ, kendi sinifini uretir.
+  Sonuc: 16 `JsonElement`-tipli alanin TUMU (`EvalCaseResult.Scores`,
+  `EvalSuite.Checks`, `JobTriggerRequest.Payload`, ...) bos-`[JsonExtensionData]`
+  sinifina karsi deserialize ediliyordu — tel uzerindeki deger bir JSON NESNESI
+  DEGILSE (ör. `Scores` bir dizi) her cagri `JsonException` firlatiyordu, HICBIR
+  test bunu yakalamamisti (`AgentPrismTestHost`'un in-memory `TestServer`'i
+  `AgentPrismApiClient` degil dogrudan `HttpClient` kullaniyor). Ayrica
+  `System.Text.Json.JsonElement` bir STRUCT oldugu icin gercek tipe gecince
+  NJsonSchema'nin ROOT response null-check'i (`if (objectResponse_.Object ==
+  null)`) `CS0019` verir — bu da ayrica silinmeli. Cozum
+  `scripts/nswag-postprocess-client.py`'daki `COLLIDING_ANY_TYPES` tablosu:
+  bogus sinifi siler, her referansi GERCEK tipe (`System.Text.Json.JsonElement`)
+  ya da — `AgentPrism.Client`'in bilerek referans ETMEDIGI bir paketin tipiyse
+  (`Microsoft.Extensions.AI.ChatRole`) — o tipin GERCEK tel bicimine (`string`,
+  kendi converter'i zaten oyle serialize ediyor) nitelendirir. Yeni bir
+  cakisma tespiti: `python3 -c "import json; s=json.load(open('docs/openapi/agentprism.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"`
+  — cikan her ad `COLLIDING_ANY_TYPES`'a eklenir. `scripts/nswag_postprocess_client_test.py`
+  regresyonu kapatir.
