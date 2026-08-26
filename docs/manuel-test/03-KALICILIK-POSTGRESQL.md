@@ -2164,3 +2164,119 @@ karşı) — ölçülen backend sayısı tam **10** (`concurrentConnectionsPerSo
 Sapmalar" bölümüne yazıldı. 👤 adımı otomatik test `pg_stat_activity`'yi
 doğrudan sorgulayarak yürüttüğü için insan koşumu bu kapanışta atlandı;
 istenirse aynı sorgu elle tekrarlanabilir.
+
+## İsteğe bağlı `views` migration seti (Faz 111)
+
+`{schema}.runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü. Yalnız
+`AgentPrism:PostgreSql:EnableReadViews = true` iken kurulur (varsayılan
+kapalı). Aşağıdaki case'ler faz dokümanının
+([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+manuel kabul tablosunun karşılığıdır; tamamı kapanışta **gerçek** bir
+PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
+
+### MT-PG-072 — `runs_v1` görünümü 111.2 sütun tablosunu birebir karşılar; korunan sütun taşımaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- PostgreSQL, `EnableReadViews = true` ile migrate edildi.
+
+**Adımlar**
+1. `SELECT * FROM agentprism.runs_v1 LIMIT 5;`
+2. `\d+ agentprism.runs_v1` ile sütun listesini kontrol et.
+
+**Beklenen sonuç**
+- Sütunlar 111.2 tablosuyla birebir: `run_id`, `tenant_id`, `agent_name`,
+  `session_id`, `status`, `status_name`, `started_at`, `completed_at`,
+  `is_streaming`, beş token sütunu, üç ham maliyet sütunu, `total_cost`,
+  `cost_currency`, `error_type`.
+- Hiçbir içerik sütunu (`state`, `item`, `messages`, `text`, `payload`,
+  `arguments`, `result`, `content`) yoktur.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewColumnSetTests`
+(`AgentPrism.Sql.Shared.UnitTests`, veritabanı açmadan, gömülü SQL metni
+üzerinden, üç sağlayıcıda) — sütun kümesi kapısı ve korunan sütun kapısı 6/6
+yeşil. Canlı doğrulama: `ReadViewContractTests` (`AgentPrism.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL konteynerine karşı) 4/4.
+
+### MT-PG-073 — `total_cost` store'un raporladığı toplamla birebir eşleşir; tanımsız fiyat `NULL` kalır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Maliyetli bir `run` ve fiyatı tanımsız bir `run` koşuldu.
+
+**Adımlar**
+1. Maliyetli koşu için görünümdeki `total_cost` ile
+   `IRunStore.GetStatisticsAsync` toplamını karşılaştır.
+2. Fiyatı tanımsız koşu için `total_cost`'u oku.
+
+**Beklenen sonuç**
+- Adım 1: iki değer birebir aynı.
+- Adım 2: `total_cost` **`NULL`**, `0` değil.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests
+.Total_cost_in_the_view_matches_the_stores_own_statistics` ve
+`.Total_cost_is_null_not_zero_when_pricing_is_undefined`
+(`AgentPrism.PostgreSql.IntegrationTests`, gerçek konteyner) — ikisi de yeşil.
+Toplam terim kapısı (`ReadViewCostTermTests`, bağlantısız): `runs`'un üç
+`*_cost` sütunu da `total_cost` ifadesinde bulunuyor; K-483 sınıfının
+otomatik taraması.
+
+### MT-PG-074 — Görünüm kiracı filtrelemez; iki kiracının satırı da görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- İki farklı kiracının birer koşusu var.
+
+**Adımlar**
+1. Görünümü `tenant_id` filtresi **vermeden** sorgula.
+
+**Beklenen sonuç**
+- İki kiracının satırı da döner — bu **beklenen** davranıştır (111.1); görünüm
+  bir güvenlik sınırı değildir, uyarı `reference/read-views.md`'de yazılıdır.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests
+.View_carries_every_tenants_rows_unfiltered` (gerçek konteyner) — iki
+kiracının satırı da filtresiz sorguda döndü.
+
+### MT-PG-075 — `EnableReadViews` varsayılan kapalı; açık değilken görünüm hiç kurulmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `EnableReadViews` verilmez (varsayılan `false`).
+
+**Adımlar**
+1. Uygulamayı başlat, migration'ları uygula.
+2. `SELECT to_regclass('agentprism.runs_v1');` çalıştır.
+
+**Beklenen sonuç**
+- Sonuç `NULL` — görünüm hiç kurulmadı. `__migrations`'ta `set_name='views'`
+  satırı yoktur.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: repodaki ~40 paylaşılan
+sözleşme test sınıfı `enableReadViews` parametresini varsayılan `false` ile
+kullanır (`PostgresTestContext.Create`) ve tamamı yeşil kaldı — açık istek
+olmadan `views` seti hiçbir zaman devreye girmedi.

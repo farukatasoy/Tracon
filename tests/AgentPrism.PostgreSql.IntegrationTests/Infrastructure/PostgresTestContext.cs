@@ -39,7 +39,8 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         AgentPrismPostgreSqlOptions options,
         ITenantContext tenantContext,
         int vectorDimensions,
-        bool enableKnowledge)
+        bool enableKnowledge,
+        bool enableReadViews)
     {
         DataSource = dataSource;
         Options = options;
@@ -62,9 +63,11 @@ internal sealed class PostgresTestContext : IAsyncDisposable
             // — default TRUE here keeps ~40 unrelated contract test classes
             // unchanged. Tests that specifically exercise phase 67's K1
             // default pass enableKnowledge: false explicitly.
-            EnabledMigrationSets = enableKnowledge
-                ? new HashSet<string>(StringComparer.Ordinal) { "knowledge" }
-                : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
+            // Phase 111: the "views" set is opt-in in production for the same
+            // reason as "knowledge" (K1) -- unlike knowledge, it defaults to
+            // FALSE here too, since only ReadViewContractTests needs it and
+            // the other ~40 contract test classes should not pay for it.
+            EnabledMigrationSets = BuildEnabledMigrationSets(enableKnowledge, enableReadViews),
         };
 
         StoreContext = wrapped;
@@ -252,8 +255,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         string tenantId = "default",
         bool applyMigrations = true,
         int vectorDimensions = DefaultVectorDimensions,
-        bool enableKnowledge = true)
-        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions, enableKnowledge);
+        bool enableKnowledge = true,
+        bool enableReadViews = false)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions, enableKnowledge, enableReadViews);
 
     /// <summary>
     /// Setup with the tenant context supplied externally. The tenant
@@ -269,11 +273,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         ITenantContext tenantContext,
         bool applyMigrations = true,
         int vectorDimensions = DefaultVectorDimensions,
-        bool enableKnowledge = true)
+        bool enableKnowledge = true,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantContext, vectorDimensions, enableKnowledge);
+        var context = Create(fixture, NewSchemaName(), tenantContext, vectorDimensions, enableKnowledge, enableReadViews);
 
         if (applyMigrations)
         {
@@ -305,8 +310,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         string schemaName,
         string tenantId = "default",
         int vectorDimensions = DefaultVectorDimensions,
-        bool enableKnowledge = true)
-        => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions, enableKnowledge);
+        bool enableKnowledge = true,
+        bool enableReadViews = false)
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions, enableKnowledge, enableReadViews);
 
     /// <summary>Setup with the tenant context supplied externally.</summary>
     /// <param name="fixture">The running PostgreSQL container.</param>
@@ -314,13 +320,15 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <param name="tenantContext">The tenant context the stores will read.</param>
     /// <param name="vectorDimensions">The embedding dimension to apply to the knowledge set's 0001_vector migration (Phase 51).</param>
     /// <param name="enableKnowledge">Whether the "knowledge" migration set applies (Phase 67). Default <see langword="true"/> to keep existing contract tests unchanged.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A new context pointing at the same backend.</returns>
     public static PostgresTestContext Create(
         PostgresFixture fixture,
         string schemaName,
         ITenantContext tenantContext,
         int vectorDimensions = DefaultVectorDimensions,
-        bool enableKnowledge = true)
+        bool enableKnowledge = true,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -331,11 +339,30 @@ internal sealed class PostgresTestContext : IAsyncDisposable
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
             EnableKnowledge = enableKnowledge,
+            EnableReadViews = enableReadViews,
         };
 
         var dataSource = new NpgsqlDataSourceBuilder(options.ConnectionString).Build();
 
-        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions, enableKnowledge);
+        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions, enableKnowledge, enableReadViews);
+    }
+
+    /// <summary>Collects the optional migration sets the given flags turn on.</summary>
+    private static HashSet<string> BuildEnabledMigrationSets(bool enableKnowledge, bool enableReadViews)
+    {
+        var sets = new HashSet<string>(StringComparer.Ordinal);
+
+        if (enableKnowledge)
+        {
+            sets.Add("knowledge");
+        }
+
+        if (enableReadViews)
+        {
+            sets.Add("views");
+        }
+
+        return sets;
     }
 
     /// <summary>Generates a new, unique test schema name.</summary>

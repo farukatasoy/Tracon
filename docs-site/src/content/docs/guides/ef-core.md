@@ -91,6 +91,33 @@ agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
 See [Choose a migration strategy](/guides/production/#choose-a-migration-strategy)
 for `AutoApplyMigrations` and the rest of the deployment-pipeline shape.
 
+## Reading through a keyless entity instead
+
+The two connection planes above are about your own writes. When you only need to
+**read** run data next to your own entity — a cost column in your own report, a
+status filter in your own dashboard — a third, narrower option exists: `runs_v1`,
+a versioned, read-only SQL view opt in with `EnableReadViews`. Map it as a keyless
+entity and query it with LINQ, without giving AgentPrism's internal `runs` table
+shape a dependency on your code:
+
+```csharp
+builder.AddAgentPrism()
+       .UsePostgreSql(o =>
+       {
+           o.ConnectionString = connectionString;
+           o.EnableReadViews = true;
+       });
+```
+
+```csharp
+modelBuilder.Entity<AgentPrismRun>()
+    .HasNoKey()
+    .ToView("runs_v1", "agentprism");
+```
+
+See [Read contract views](/reference/read-views/) for the full column list, the
+`total_cost` null-preserving rule, and why the view is not a tenant boundary.
+
 ## What you do not get
 
 - **No EF Core global query filter** reaches AgentPrism's rows — its own tenant
@@ -103,6 +130,6 @@ for `AutoApplyMigrations` and the rest of the deployment-pipeline shape.
 
 ## Read next
 
+- [Read contract views](/reference/read-views/) — the full `runs_v1` column list and compatibility rule
 - [Embedding into a host application](/guides/embedding/) — the two data planes and connection pool sharing measurement
 - [Production deployment](/guides/production/) — the migration strategy this page's CI snippet belongs to
-- [Persistence](/getting-started/persistence/) — choosing PostgreSQL, SQL Server, or SQLite

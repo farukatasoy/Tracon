@@ -1739,3 +1739,80 @@ gerçekten uygulandı, `__migrations` satır sayısı > 0 — ·
 `Own_data_source_is_marked_as_owned`). `AgentPrism.Sqlite.IntegrationTests
 .ExternalDataSourceTests` 4/4, aynı dört senaryo, gerçek dosya veritabanına
 karşı.
+
+## İsteğe bağlı `views` migration seti (Faz 111)
+
+`runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü, `EnableReadViews`
+ile isteğe bağlı. Faz dokümanının
+([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+manuel kabul tablosunun SQL Server/SQLite karşılığı; kapanışta gerçek bir SQL
+Server konteynerine ve gerçek bir SQLite dosyasına karşı otomatik koştu.
+
+### MT-SQL-077 — SQL Server: `runs_v1` içindeki toplam maliyet store'un raporladığıyla eşleşir; `CREATE OR ALTER VIEW` ledger INSERT'i ile aynı toplu işte çakışmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- SQL Server, `EnableReadViews = true` ile migrate edildi.
+
+**Adımlar**
+1. Maliyetli bir `run` koş; `{schema}.runs_v1`'deki `total_cost`'u
+   `IRunStore.GetStatisticsAsync` ile karşılaştır.
+2. Fiyatı tanımsız bir `run` koş; `total_cost`'un `NULL` kaldığını doğrula.
+3. `SELECT status_name FROM {schema}.runs_v1 WHERE run_id = ...` ile
+   `Failed` bir koşunun adını oku.
+
+**Beklenen sonuç**
+- Adım 1: iki değer birebir aynı.
+- Adım 2: `NULL`, `0` değil.
+- Adım 3: `"Failed"`.
+- Migration hatasız uygulanır — `CREATE OR ALTER VIEW`'in tek başına bir
+  toplu iş olması gerektiği (T-SQL kısıtı) `EXEC(N'...')` sarmalamasıyla
+  çözülür; `__migrations` INSERT'i ile aynı komut metninde gönderilse de
+  çakışmaz.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
+(`AgentPrism.SqlServer.IntegrationTests`, gerçek SQL Server konteynerine
+karşı) 4/4 — toplam maliyet eşleşmesi, `NULL` koruması, `status_name`
+eşlemesi ve kiracı filtresizliği. Ayrıca tam paket koşumu (586/586) migration
+uygulamasının hiçbir yan etki bırakmadığını doğruladı.
+
+### MT-SQL-078 — SQLite: `{prefix}runs_v1` nokta olmadan kurulur; karışık afinite açık `CAST` ile doğru toplanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | **Kritik** |
+| **İlgili faz** | Faz 111 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- SQLite, `EnableReadViews = true` ile migrate edildi.
+
+**Adımlar**
+1. `SELECT total_cost FROM {prefix}runs_v1 WHERE run_id = ...;` — nokta
+   YOKTUR, tablo öneki doğrudan bitişiktir (K-190).
+2. `input_cost`/`output_cost` (`TEXT` afinite) ile `cached_input_cost`
+   (`NUMERIC` afinite) karışık bir koşuda toplamı doğrula.
+3. Fiyatı tanımsız bir koşuda `total_cost`'un `NULL` kaldığını doğrula.
+
+**Beklenen sonuç**
+- Adım 1: sorgu tablo/görünüm adını bulur — önek + ad bitişiktir, nokta yok.
+- Adım 2: toplam doğru — açık `CAST(... AS REAL)` olmadan sessizce yanlış
+  (afinite karışımı `0` sayabilirdi) sonuç çıkardı, görünüm bunu önler.
+- Adım 3: `NULL`, `0` değil.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
+(`AgentPrism.Sqlite.IntegrationTests`, gerçek dosya veritabanına karşı) 4/4.
+Ayrı bir kusur bu case'in geliştirilmesi sırasında bulundu ve düzeltildi:
+`SqliteTestContext.DisposeAsync()` yalnız tabloları siliyordu, `runs_v1`
+görünümünü SİLMİYORDU — sarkan görünüm bir SONRAKİ, ilgisiz testin
+`ALTER TABLE ... RENAME` migration'ını "no such table" ile düşürüyordu (ölçüldü:
+art arda 4 bağlam oluşturan sıralı bir döngü ikinci bağlamda her seferinde
+patlıyordu). Düzeltme sonrası tam paket koşumu (600/600) ve üç ardışık koşu
+yeşil kaldı. Ayrıntı: `docs/hafiza/sqlite.md`.

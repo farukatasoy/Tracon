@@ -57,7 +57,8 @@ Binding from configuration is the usual shape:
       "SchemaName": "agentprism",
       "AutoApplyMigrations": true,
       "CommandTimeoutSeconds": 30,
-      "EnableKnowledge": false
+      "EnableKnowledge": false,
+      "EnableReadViews": false
     }
   }
 }
@@ -94,6 +95,13 @@ compilation with a clear error instead of a database error at run time. Embeddin
 `Dimensions` become part of the column type: changing embedding models later needs a
 schema migration and a re-embed of existing documents. See
 [Knowledge](/guides/knowledge/).
+:::
+
+:::note[Read views are opt-in on all three providers]
+`EnableReadViews` publishes `runs_v1`, a versioned, read-only SQL view over run
+data — off by default, so a deployment that never turns it on never sees the
+object. Query it with your own SQL or map it as an EF Core keyless entity. See
+[Read contract views](/reference/read-views/).
 :::
 
 ## Migrations run at startup
