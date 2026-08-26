@@ -120,7 +120,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [105](arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) | DI Bileşen Kökü Ayrıştırma | ✅ Tamamlandı |
 | [106](arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) | Agent Derleyici Ayrıştırma | ✅ Tamamlandı |
 | [107](arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) | Run Kayıt Akışı Ayrıştırma | ✅ Tamamlandı |
-| [108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | 📋 Planlandı |
+| [108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) | Bellek İçi Run Store Ayrıştırma | ✅ Tamamlandı |
 | [109](109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
