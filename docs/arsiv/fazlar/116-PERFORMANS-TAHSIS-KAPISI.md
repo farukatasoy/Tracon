@@ -1,8 +1,8 @@
 # Faz 116 — Performans Tahsis Kapısı
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-67** (F-163 bu fazın ölçümüne kapanır)
-> **Önkoşul:** 🚨 [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) — **taban çizgisi 114'ten sonra alınır**; gerekçe § 116.7
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-67** (F-163 bu fazın ölçümüne kapanır)
+> **Önkoşul:** 🚨 [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) — **taban çizgisi 114'ten sonra alınır**; gerekçe § 116.7
 > **Paketler:** Yeni bir **ölçüm projesi** (`bench/`); sevk edilen hiçbir pakete dokunulmaz
 > **Yeni paket:** **BenchmarkDotNet 0.15.8** — K-007 gerekçesi ve geçişli ağırlık § 116.5'te **rakamla** · **Migration:** Yok
 > **Public API:** Büyümüyor. Ölçüm projesi `IsPackable=false`'tır ve hiçbir sevk edilen paket ona referans vermez
@@ -23,12 +23,12 @@
    ```
    **K-007** (yeni NuGet paketi gerekçe ister), **K-212** (Faz 27'de 37 paketlik
    geçişli ağırlık kalemi erteletti — bu fazın karşılaştırma noktası).
-3. Ortak sözleşme: [`.agents/ortak/kapilar.md`](../.agents/ortak/kapilar.md)
+3. Ortak sözleşme: [`.agents/ortak/kapilar.md`](../../../.agents/ortak/kapilar.md)
    — **tamamı**. Bu faz kapı yüzeyine dokunuyor; dört kapının neden dört
    olduğunu bilmeden beşincisi tartışılamaz.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) (proje düzeni, analyzer, AOT kaçış merdiveni) ·
-   [`hafiza/test-kosum-olcumleri.md`](hafiza/test-kosum-olcumleri.md) (koşum süreleri — beşinci kapının maliyeti buraya yazılır)
+   [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) (proje düzeni, analyzer, AOT kaçış merdiveni) ·
+   [`hafiza/test-kosum-olcumleri.md`](../../hafiza/test-kosum-olcumleri.md) (koşum süreleri — beşinci kapının maliyeti buraya yazılır)
 
 ---
 
@@ -52,8 +52,8 @@ süre ölçülür ve raporlanır ama kapı değildir.
 |---|---|
 | `find . -iname "*bench*"` (repo ağacı, `node_modules` hariç) | **Sıfır .NET projesi.** Tüm isabetler `node_modules` gürültüsü |
 | `grep -in benchmark Directory.Packages.props` | **Sıfır isabet** — ölçüm aracı kayıtlı değil |
-| [`scripts/kapi.py:366-380`](../scripts/kapi.py) `closing_commands` | Dokuz komut: tarama, doküman, script testleri, agent haritası, denetim paketi, build, test, pack, format. **Performans yok** |
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Derleme, biçim, doküman, test adımları var. **Performans adımı yok** |
+| [`scripts/kapi.py:366-380`](../../../scripts/kapi.py) `closing_commands` | Dokuz komut: tarama, doküman, script testleri, agent haritası, denetim paketi, build, test, pack, format. **Performans yok** |
+| [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) | Derleme, biçim, doküman, test adımları var. **Performans adımı yok** |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -86,9 +86,9 @@ Adayın adlandırdığı üç yol korunur. Her biri için ölçüm hedefi **tahs
 
 | # | Yol | Giriş noktası | Neden sıcak |
 |---:|---|---|---|
-| 1 | `run` olayı yazımı | [`RunEventWriter.cs`](../src/AgentPrism.Core/Recording/RunEventWriter.cs) | Her `run`'da onlarca olay; akışlı yolda her delta bir olay |
-| 2 | Tanım derleyici cache'i | [`CompiledAgentCache.cs`](../src/AgentPrism.Core/Compilation/CompiledAgentCache.cs) | Her `run` başında; cache **isabetinin** tahsis etmemesi gerekir |
-| 3 | Seçilmiş `store` sorgusu | [`SqlRunStore.cs`](../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) | Liste uçları ve uzlaştırma taraması bunu döner |
+| 1 | `run` olayı yazımı | [`RunEventWriter.cs`](../../../src/AgentPrism.Core/Recording/RunEventWriter.cs) | Her `run`'da onlarca olay; akışlı yolda her delta bir olay |
+| 2 | Tanım derleyici cache'i | [`CompiledAgentCache.cs`](../../../src/AgentPrism.Core/Compilation/CompiledAgentCache.cs) | Her `run` başında; cache **isabetinin** tahsis etmemesi gerekir |
+| 3 | Seçilmiş `store` sorgusu | [`SqlRunStore.cs`](../../../src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs) | Liste uçları ve uzlaştırma taraması bunu döner |
 
 🚨 **Üçüncü yol Docker istemez.** SQLite `AgentPrism.no-docker.slnf` içindedir
 (ölçüldü), yani `store` tahsisi SQLite üzerinde ölçülür. Tahsis çoğunlukla
@@ -103,16 +103,16 @@ Bu bir tercih değil, ölçülmüş bir kısıttır:
 
 | Ölçüm | Sonuç |
 |---|---|
-| [`tests/Directory.Build.props:11`](../tests/Directory.Build.props) `IsTestProject=true` | `tests/` altındaki her proje `dotnet test` tarafından **koşturulmaya çalışılır**. BenchmarkDotNet projesi bir test projesi değildir |
-| [`tests/Directory.Build.props:31-36`](../tests/Directory.Build.props) | Her projeye `xunit.v3`, `NSubstitute`, `Shouldly` ve `Using` girdileri **zorla** eklenir |
-| [`scripts/kapi.py:398`](../scripts/kapi.py) `packable_project_ids` | Paketlenebilir kimlikler `src/*/*.csproj`'ten türer. `bench/` yayın provasına **girmez** |
+| [`tests/Directory.Build.props:11`](../../../tests/Directory.Build.props) `IsTestProject=true` | `tests/` altındaki her proje `dotnet test` tarafından **koşturulmaya çalışılır**. BenchmarkDotNet projesi bir test projesi değildir |
+| [`tests/Directory.Build.props:31-36`](../../../tests/Directory.Build.props) | Her projeye `xunit.v3`, `NSubstitute`, `Shouldly` ve `Using` girdileri **zorla** eklenir |
+| [`scripts/kapi.py:398`](../../../scripts/kapi.py) `packable_project_ids` | Paketlenebilir kimlikler `src/*/*.csproj`'ten türer. `bench/` yayın provasına **girmez** |
 
 Proje kendi `bench/Directory.Build.props`'unu taşır ve şunları ilan eder:
 `IsPackable=false`, `WarnOnPackingNonPackableProject=false`, `IsTestProject`
 **yok**, `OutputType=Exe`.
 
 🚨 `closing_commands` tüm `slnx`'i **Release derler ve pack'ler**
-([`kapi.py:373-375`](../scripts/kapi.py)). `slnx`'e girecek bir proje her faz
+([`kapi.py:373-375`](../../../scripts/kapi.py)). `slnx`'e girecek bir proje her faz
 kapanışında derlenir; `WarnOnPackingNonPackableProject` kapatılmazsa `pack`
 uyarı verir ve **dört kapının biri kırmızı olur**.
 
@@ -122,8 +122,8 @@ Beşinci bir doğrulama kapısı açmak `AGENTS.md`'nin *"Dördü de sıfır uya
 vermelidir"* cümlesini değiştirir. Bu bir karardır ve **Açık Soru 1**'dedir.
 
 Önerilen biçim, deponun kendi desenini izler: `kapi.py` zaten değişen yollara
-göre iş seçiyor ([`changed_paths`](../scripts/kapi.py) ·
-[`affected_test_projects`](../scripts/kapi.py)). Performans kapısı da **yol
+göre iş seçiyor ([`changed_paths`](../../../scripts/kapi.py) ·
+[`affected_test_projects`](../../../scripts/kapi.py)). Performans kapısı da **yol
 tetiklemeli** olur:
 
 ```mermaid
@@ -152,7 +152,7 @@ nuget.org):**
 | Paket | `BenchmarkDotNet` **0.15.8** (en son yayımlanan; hat 1.0'a **hiç çıkmadı**) |
 | Geçişli paket sayısı | **22** (üst düzey dahil 23) |
 | Dikkat çekenler | `Microsoft.CodeAnalysis.CSharp 4.14.0` + `.Common` (Roslyn) · `Gee.External.Capstone 2.3.0` · `Iced 1.21.0` · `Microsoft.Diagnostics.Runtime` · `Microsoft.Diagnostics.Tracing.TraceEvent` · `System.Management` |
-| Sürüm çakışması adayı | `Microsoft.Extensions.{DependencyInjection,Logging,Options,Primitives} 6.0.0` çekiliyor; repo **10.0.11**'de ([`Directory.Packages.props:25`](../Directory.Packages.props)) ve `CentralPackageTransitivePinningEnabled=false` ([`Directory.Build.props:49`](../Directory.Build.props)) |
+| Sürüm çakışması adayı | `Microsoft.Extensions.{DependencyInjection,Logging,Options,Primitives} 6.0.0` çekiliyor; repo **10.0.11**'de ([`Directory.Packages.props:25`](../../../Directory.Packages.props)) ve `CentralPackageTransitivePinningEnabled=false` ([`Directory.Build.props:49`](../../../Directory.Build.props)) |
 
 **K-007 gerekçesi:** 22 paket, K-212'nin kalemi erteleten 37 paketinden azdır,
 fakat asıl fark sayı değil **yön**dür: K-212'nin kaygısı **tüketicinin
@@ -163,7 +163,7 @@ hiç ulaşmaz**. Yük yalnız geliştirme ve CI tarafındadır.
 🚨 **Yük yine de bedava değil.** 22 paket restore süresine, önbellek boyutuna
 ve **güvenlik açığı yüzeyine** eklenir. Deponun bu konuda kayıtlı bir vakası
 var: `Testcontainers` geçişli `SSH.NET`'i bir CVE ile getirdi ve `NU1903`
-restore'u kırdı ([`Directory.Packages.props:255-266`](../Directory.Packages.props)).
+restore'u kırdı ([`Directory.Packages.props:255-266`](../../../Directory.Packages.props)).
 Aynı denetim bu paket için de koşulur.
 
 ## 116.6 — Süre nasıl raporlanır
@@ -175,7 +175,7 @@ kaybolmaz, fakat kırmızı üretmez.
 
 ## 116.7 — 🚨 Taban çizgisi Faz 114'ten **sonra** alınır
 
-[Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) model çağrısı halkasına yeni bir
+[Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) model çağrısı halkasına yeni bir
 `DelegatingChatClient` (`RunBudgetChatClient`) ekler ve
 `RunRecordingAgent.Completion.cs`'i değiştirir.
 
@@ -347,7 +347,7 @@ dotnet pack AgentPrism.slnx -c Release --no-build 2>&1 | grep -i "warn" || echo 
 | 🚨 Tahsisin makineden bağımsız olduğu varsayımı yanlışsa fazın **temeli** düşer | İki işletim sisteminde aynı sayı, kapı yazılmadan **önce** doğrulanır; DoD'de ayrı satır |
 | Tolerans verilir ve kapı körelir | Açık Soru 2: sapma varsa pay verilmeden **kaynağı** bulunur |
 | Kapı her kapanışta koşar ve döngüyü yavaşlatır | Yol tetikleme (Açık Soru 1); süre ölçülüp hafızaya yazılır |
-| 22 geçişli paket bir CVE getirir ve restore'u kırar | `NU1903` denetimi DoD'de; `SSH.NET` vakasının deseni ([`Directory.Packages.props:255`](../Directory.Packages.props)) hazır |
+| 22 geçişli paket bir CVE getirir ve restore'u kırar | `NU1903` denetimi DoD'de; `SSH.NET` vakasının deseni ([`Directory.Packages.props:255`](../../../Directory.Packages.props)) hazır |
 | Geçişli `Microsoft.Extensions 6.0.0` repo sürümünü aşağı çeker | Sürüm iddiası DoD'de |
 | Geçişli Roslyn `AgentPrism.Generators`'ın Roslyn hattıyla çakışır | Açık Soru 6 kod yazmadan ölçülür |
 | Bench projesi `slnx`'e girer ve `pack` uyarısı dört kapıdan birini kırar | `WarnOnPackingNonPackableProject=false`; DoD'de ayrı satır |
@@ -369,8 +369,8 @@ dotnet pack AgentPrism.slnx -c Release --no-build 2>&1 | grep -i "warn" || echo 
 
 ## Bu Fazda Verilen Kararlar
 
-- [K-634](KARARLAR.md) — Performans tahsis kapısı yalnız tahsis edilen baytı karşılaştırır (sıfır tolerans), beşinci bağımsız bir kapı değil, `kapanis`'in koşullu bir adımıdır *(kullanıcı kararı)*
-- [K-635](KARARLAR.md) — BenchmarkDotNet 0.15.8 yalnız `bench/` için eklendi; K-007 barı ölçümle karşılandı (22 geçişli paket, tüketiciye ulaşmıyor)
+- [K-634](../../KARARLAR.md) — Performans tahsis kapısı yalnız tahsis edilen baytı karşılaştırır (sıfır tolerans), beşinci bağımsız bir kapı değil, `kapanis`'in koşullu bir adımıdır *(kullanıcı kararı)*
+- [K-635](../../KARARLAR.md) — BenchmarkDotNet 0.15.8 yalnız `bench/` için eklendi; K-007 barı ölçümle karşılandı (22 geçişli paket, tüketiciye ulaşmıyor)
 
 `CompiledAgentCache` düzeltmesi yeni bir K-* kaydı **almadı** — yerel bir
 implementasyon düzeltmesidir (public API/uyumluluk/güvenlik/kiracı/migration
