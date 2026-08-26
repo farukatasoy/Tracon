@@ -978,3 +978,107 @@ kendi oturumudur.
 | **F-137** | `Shell_opens_and_asks_for_token_when_required` (`AgentPrism.Ui.E2ETests`) **çalışma kopyasına göre** düşüyor | [Faz 78](fazlar/78-YETENEK-HARITASI-ERISIMI.md) kapanış koşumu (2026-08-21) | 🚨 **Ölçüldü ve Faz 78'in DEĞİŞİKLİĞİ DEĞİL** — `git stash` ile temiz `HEAD`'de, aynı çalışma kopyasında **yine düşüyor**. Belirti: token girildikten sonra `GetByRole(Heading, "Dashboard")` 15 sn içinde görünmüyor (`UiTests.cs:599`). Ölçüm matrisi: **(a)** `AgentPrism.Ui.E2ETests` tek başına, `/Users/.../Desktop/projects/AgentPrism` → **5/5 düştü**; **(b)** tek test izole, aynı kopya → **1/1 geçti**; **(c)** `/private/tmp` altındaki `git worktree`, aynı `HEAD`, tam set → **2/2 geçti**; **(d)** `dotnet test AgentPrism.slnx` içinde → 1 düştü, 1 geçti. Yani **deterministik değil ama tek başına koşan sette yola bağlı olarak neredeyse her zaman düşüyor**. F-122/F-130'dan farklı sınıf: onlar kaynak çekişmesi altında araya giren kırılganlıktı, bu **yol/ortam** bağımlı. Kök sebep aranmalı: aynı kaynak ağacının iki kopyasının farklı davranması kalıcı tarayıcı profiline, `localStorage`'a veya yol izinlerine/uzunluğuna işaret eder. **Kusurdur, yeni yetenek değil** — `kusur-giderme` protokolü uygulanmalıdır |
 | **F-138** | `Respond_does_not_rerun_the_entry_node_when_it_is_an_agent` (`AgentPrism.Workflows.UnitTests`) kırılgan | Kanal 2 kusur koşumu (2026-08-21) | 🚨 **Ölçüldü:** dört tam koşumun yalnız birinde düştü; **izolasyonda 5/5 geçti**. Belirti: `resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput)` eşleşme bulamıyor (`WorkflowAgentEntryRespondTests.cs:55`) — yani `RespondStreamingAsync` devam eden akışta çıktı olayını üretmemiş. F-122/F-130 sınıfı (kaynak çekişmesi) OLABİLİR ama kanıtlanmadı: o ikisi tarayıcı/`Docker` çekişmesiydi, bu saf bir birim testidir ve dış kaynağa dokunmaz. **Bu yüzden gerçek bir çıktı-olayı kaybı ihtimali elenemedi**; ilk adım yük altında tekrar üretmektir. 🚨 **İKİNCİ VAKA ölçüldü (2026-08-21, K-545 koşumu):** `WorkflowHumanInTheLoopTests.Once_a_response_is_given_the_run_completes` (`WorkflowHumanInTheLoopTests.cs:88`) **birebir aynı** iddiada düştü — `resumed.Single(e => e.Type == RunEventType.WorkflowOutput)` eşleşme bulamadı. Aynı ölçüm profili: tam çözüm koşumunda düştü, izolasyonda **5/5**, kendi projesinin tam koşumunda **3/3** geçti. İki farklı test, tek belirti → "kaynak çekişmesi" açıklaması **zayıfladı**; `RespondStreamingAsync`'in devam eden akışında `WorkflowOutput` olayının kaybolması artık iki bağımsız kanıt taşıyor ve kalem bir **ürün kusuru** gibi ele alınmalıdır |
 | **F-139** | `Version_diff_compares_two_versions` (`AgentPrism.Ui.E2ETests`) kırılgan | K-545 koşumu (2026-08-21) | **Ölçüldü, F-122/F-130'un aynısı.** Tam çözüm koşumunda `33 sn` sonra düştü; **izolasyonda 1/1 geçti**. Aynı sınıf: tarayıcı + `Docker` kaynak çekişmesi altında bir zamanlama yarışı, ürün kusuru değil. Kalem sessiz bırakılmadı ama tek başına faz değildir — üç E2E kırılganı (F-122, F-130, F-139) ve F-137 **birlikte** ele alınmalıdır: ortak kök tam koşumun paralelliğidir, tek tek beklemeler değil |
+
+---
+
+## Kapatılan kusur kalemlerinin gövdeleri (ADAYLAR.md'den taşındı, 2026-08-26)
+
+> İkisi de **kapalıdır**; `ADAYLAR.md`'de yalnız tek satırlık işaretçi kaldı
+> (F-104/F-105 deseni). Taşımanın sebebi bütçedir: F-165 eklenince
+> `ADAYLAR.md` 80.000 B sınırını aştı. **İçerik silinmedi.**
+
+### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — süreç çöküyor — ✅ KAPATILDI (2026-08-25)
+
+**Nereden geldi:** Faz 99 kapanış kapısının izole koşumu (2026-08-25).
+**Temel commit'te doğrulandı** (`c4e3189`, `git worktree` ile) — Faz 99'un ürünü
+DEĞİL, mevcut bir kusurdur.
+
+**Kapanış:** Worker uçuştaki her işi başlatmadan önce kaydeder; `ExecuteAsync`,
+slot `SemaphoreSlim`'ini dispose etmeden önce bu görevlerin tamamlanmasını
+bekler. `JobWorkerBackgroundServiceTests` `StopAsync`'in iş slotu bırakılmadan
+dönmediğini doğrudan kanıtlar. Ateşle-unut çağrılarının sınıf taramasında kalan
+iki yol (`McpOAuthAuthorizationCoordinator`, lease renewal) sahiplenilen slot
+taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunmadı.
+
+> `JobWorkerBackgroundService.ExecuteAsync` semaforu `using var slots = new
+> SemaphoreSlim(...)` ile sahiplenir (`JobWorkerBackgroundService.cs:62`), ama
+> işleri **ateşle-unut** başlatır: `_ = RunJobAsync(job, slots, stoppingToken)`
+> (satır 129). `RunJobAsync`'in `finally` bloğu `slots.Release()` çağırır
+> (satır 148). Host, uçuştaki bir iş varken kapanırsa `ExecuteAsync` döner,
+> `using` semaforu dispose eder ve gecikmiş `Release()`
+> `ObjectDisposedException` atar.
+
+**Belirti:** Görev `await` edilmediği için exception gözlemlenmez ve
+**işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
+koşmak (`AgentPrism.AspNetCore.FunctionalTests --filter-method
+"*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
+çökertir; aynı çökme `c4e3189` üzerinde birebir tekrarlanır.
+
+**Neden bugüne kadar görünmedi:** Tam çözüm koşumunda süit uzun sürer ve host
+kapanışı uçuştaki işle çakışmaz; çökme yalnız hızlı kapanışta (tek test
+filtresi) ortaya çıkar. Üretimde karşılığı **hızlı yeniden başlatma** veya
+`SIGTERM` sonrası kısa drain penceresidir.
+
+**Kapsam:** Yalnız bu vakayı kapatmak yetmez, **sınıf taraması** ister: bu bir
+"ateşle-unut görev, sahiplenilen kaynağı kapsam dışında serbest bırakıyor"
+kusur sınıfıdır. `grep -rn "_ = [A-Za-z]*Async(" src/` ile taranmalı; her
+bulunan yerde (a) görevin izlenip kapanışta beklenip beklenmediği, (b)
+yakaladığı kaynağın ömrü sorgulanmalı. Olası düzeltme: uçuştaki görevleri bir
+listede tut ve `ExecuteAsync` dönmeden önce `Task.WhenAll` ile bekle; ya da
+semaforu `using` yerine servis ömrüne bağla.
+
+**Değer:** Yüksek — işlenmemiş exception süreci öldürür ve bu, gözlemlenebilirlik
+değil **kullanılabilirlik** sorunudur. Ayrıca `AgentPrism.Core`
+`AgentPrismDrainService` ile zarif kapanış vaat eder; bu kusur o vaadi deler.
+
+**Mercek:** A (çekirdek çalıştırma yolu).
+
+### F-151 · Uygulanmış iki PostgreSQL migration dosyası sonradan düzenlendi — mevcut kurulumlar yükseltmede BAŞLAMAZ — ✅ KAPATILDI (2026-08-25)
+
+**Nereden geldi:** Faz 99 kapanışının örnek uygulama koşumu (2026-08-25).
+Yerel geliştirme veritabanı `AgentPrismException` ile açılışı durdurdu.
+
+**Kapanış:** `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
+ilk uygulanmış baytlarına döndü. `scripts/kapi.py tarama`,
+`scripts/applied-migrations.json` içindeki Git kaynak commit'lerinden baytları
+okuyarak bütünlüğü doğrular; manifestte checksum değiştirerek migration değişikliği
+onaylanamaz. Örnek API gerçek PostgreSQL veritabanıyla yeniden başladı ve
+`/health` 200 döndü. `dokuman-bakim.py` arşivleme kodu yalnız Markdown dosyalarını
+değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürütüldü.
+
+> `MigrationRunner` uygulanmış her migration'ın checksum'ını saklar ve dosya
+> içeriği değişmişse **açılışı durdurur** — doğru davranıştır, mesajı da
+> doğrudur: "An applied migration is never edited; add a new migration file
+> for the change."
+>
+> Ama commit `9c32242` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
+> yaptı: `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
+> dosyalarındaki **yorum satırlarında** doküman yolunu güncelledi
+> (`docs/65-...md` → `docs/arsiv/fazlar/65-...md`). SQL'in kendisi değişmedi;
+> checksum değişti.
+
+**Etki:** Bu iki migration'ı `9c32242` ÖNCESİNDE uygulamış **her** kurulum,
+yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
+ölçüldü — `samples/AgentPrism.Api` başlamıyor:
+`Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
+Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
+
+**Başlangıçtaki kök neden varsayımı yanlıştı:** Ölçüm, Faz 90 arşivleme yolunun
+yalnız `*.md` dosyalarına dokunduğunu gösterdi. `9c32242` değişikliği başka bir
+toplu düzenleme ile geldi. Yeni kapı aracı değil baytı korur; bu nedenle aynı
+etki hangi düzenleme yolundan gelirse gelsin kırmızıya döner.
+
+**Uygulanan kapsam:**
+1. İki dosyanın **baytları geri alındı** (`git show f261cda:<yol>` ve
+   `git show 8cf727a:<yol>`). Uygulanmış migration değişmez; içindeki bayat
+   doküman bağlantısı checksum'dan daha ucuz bir sorundur.
+2. Arşivleme kodunda SQL hariç tutma yapılmadı; ölçülen kök neden o kod değildir.
+3. **Kapı eklendi:** uygulanmış migration, değiştirilemeyen Git kaynak baytıyla
+   eşleşmezse `kapi.py tarama` kırmızı döner. Bu yol mevcut veritabanına gerek
+   duymaz.
+
+**Değer:** Yüksek ve acil — `preview.1` öncesi kapanmalıdır. Aksi hâlde ilk
+yükseltme yapan tüketici açılışta çöker ve mesaj onu "yeni migration ekle"
+diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
+
+**Mercek:** C (güvenlik, yönetişim ve uyum — veri düzlemi bütünlüğü).

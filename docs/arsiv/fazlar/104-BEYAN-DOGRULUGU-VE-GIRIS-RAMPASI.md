@@ -1,7 +1,7 @@
 # Faz 104 — Beyan Doğruluğu ve Giriş Rampası
 
 > **Durum:** ✅ Tamamlandı (2026-08-25)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 14** (Blok C'den öne çekildi, kullanıcı kararı 👤) · **kalem 12** ve **kalem 23** (Blok B). `ADAYLAR.md`'de F-NN karşılığı yoktur; bu kalemler keşif turundan gelir
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 14** (Blok C'den öne çekildi, kullanıcı kararı 👤) · **kalem 12** ve **kalem 23** (Blok B). `ADAYLAR.md`'de F-NN karşılığı yoktur; bu kalemler keşif turundan gelir
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Core` (uyarı servisi + kalıcılık yargısının tek kaynağı) · `AgentPrism.AspNetCore` (yalnız `/api/meta` o tek kaynağa bağlanır)
 > **Yeni paket:** Yok — `Microsoft.Extensions.Hosting.Abstractions` `Core`'un mevcut bağımlılığıdır ([`AgentPrism.Core.csproj:93`](../../../src/AgentPrism.Core/AgentPrism.Core.csproj)) · **Migration:** Yok
@@ -189,5 +189,5 @@ Denetçi: bağımsız `general-purpose` agent, taze bağlam, yalnız DoD + diff.
 yayının geri alınamazlığı sebebiyle kullanıcıya bırakıldı (👤).
 
 **Sıradaki adım:** Faz yok. Keşif turunun sıra tablosu
-([`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) §7.2)
+([`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) §7.2)
 Blok C'yi yayından sonraya koyuyor; yayın kararı kullanıcınındır.

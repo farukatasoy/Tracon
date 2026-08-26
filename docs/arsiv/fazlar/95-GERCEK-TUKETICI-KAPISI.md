@@ -1,7 +1,7 @@
 # Faz 95 — Gerçek Tüketici Kapısı
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 10** (yeşil test gerçek davranışı kanıtlamıyor) + **madde 22** (bağımlılık kirliliği kuralı kendi istisnasını taşıyor). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur.
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 10** (yeşil test gerçek davranışı kanıtlamıyor) + **madde 22** (bağımlılık kirliliği kuralı kendi istisnasını taşıyor). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur.
 > **Önkoşul:** Yok
 > **Paketler:** `src/` **değişmiyor**. İş `tests/AgentPrism.Package.Tests` (bugünkü `AgentPrism.Templates.Tests`) içindedir.
 > **Yeni paket:** Yok · **Migration:** Yok

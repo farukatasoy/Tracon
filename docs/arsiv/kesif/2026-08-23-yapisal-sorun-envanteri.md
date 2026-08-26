@@ -1,8 +1,21 @@
 # Keşif Turu — 2026-08-23 · Yapısal Sorun Envanteri
 
-> Bu bir **koşum kaydıdır**, spec değildir. Kalemler kullanıcı tarafından
-> seçilmediği için [`ADAYLAR.md`](../ADAYLAR.md) dosyasına F numarası eklenmedi.
-> Bir kalem seçilirse `faz-planlama` onu faz dokümanına çevirir.
+> 🗄️ **ARŞİVLENDİ (2026-08-26) — tur tükendi.** Yirmi dört kalemin **yirmisi
+> kapandı**, biri (madde 20) ölçümle **düştü**, biri (madde 15) kapsam dışı
+> bırakıldı. Kalan iş [`ADAYLAR.md`](../../ADAYLAR.md)'ye taşındı:
+> madde 16 → **F-67** · madde 9 → **F-165**. Bağlanmayan üç kalem:
+> madde 1 (`Shipped.txt` dolumu) yayın kararına bağlıdır ve GA'ya ertelenmiştir
+> (Faz 97); madde 14'ün uygulama yarısı (dağıtık hız sınırı) beyan edilmiştir
+> ve gerçek bir çok örnekli tüketici talebi ölçülmeden kalemleşmez; madde 24 bir
+> kullanıcı kararıdır ve yayın tarihi belirlenene kadar askıdadır.
+> **Aşağıdaki metne artık bir iş listesi olarak bakılmaz** — bölüm 7.2'nin
+> "sıradaki adım" satırı dahil her durum alanı bayattır. Yalnız `grep` hedefidir:
+> bir iddianın nasıl ölçüldüğü ve neden reddedildiği burada durur. Faz durumunun
+> tek kaynağı [`YOL-HARITASI.md`](../../YOL-HARITASI.md)'dir.
+>
+> Bu bir **koşum kaydıdır**, spec değildir. Kalemler tur sırasında kullanıcı
+> tarafından seçilmediği için [`ADAYLAR.md`](../../ADAYLAR.md) dosyasına F
+> numarası eklenmemişti; kapanışta iki kalem eklendi (yukarıya bakın).
 
 **Tetikleyen:** Kullanıcının dört ayrı sorun listesini (bir oturum + üç ek
 liste) tek envanterde birleştirme isteği.
@@ -21,9 +34,9 @@ iddia repo üzerinde **ölçüldü**. Ölçüm tutmayan iddialar bölüm 5'e al�
 | Public API | 6.301 girdi · tamamı `Unshipped` · `Shipped.txt` dosyalarının hepsi boş — 🚨 **2026-08-24'te yeniden ölçüldü: 8.063 girdi · 716 public tip**; 6.301 sayısı yanlıştı |
 | Sürüm | 0 git etiketi · 337 commit · NuGet yayını yok |
 | Faz | 90 kayıt · 89'u kapalı · Faz 7 (yayın) ⏸ beklemede |
-| Aday | [`ADAYLAR.md`](../ADAYLAR.md) 16 başlık · 8'i gerçekten açık |
+| Aday | [`ADAYLAR.md`](../../ADAYLAR.md) 16 başlık · 8'i gerçekten açık |
 | Manuel test | 1.315 case · 2,6 MB |
-| Karar | [`KARARLAR.md`](../KARARLAR.md) 657 satır · 596 `K-*` referansı |
+| Karar | [`KARARLAR.md`](../../KARARLAR.md) 657 satır · 596 `K-*` referansı |
 
 **Sorunların çoğu kod satırında değil.** Uyarı bastırma gerekçeli (49 `#pragma`),
 `ConfigureAwait(false)` yaygın, `async void` yok, `Skip=` yalnız 3 yerde,
@@ -71,7 +84,7 @@ Tip: **📋 Faz** = plan dokümanı ister · **⚡ Tek oturum** = bir oturumda k
 ### 1. 1.0 yok; public API'nin tamamı `Unshipped` · 📋 Faz
 
 **Ölçüm:** `git tag` boş (0 etiket). Her `PublicAPI.Shipped.txt` 1 satır (boş).
-6.301 API girdisinin tamamı `Unshipped`. 🚨 **Yeniden ölçüm (2026-08-24): 8.063 girdi**, arkasında **716 public tip**. Dolum listesi tahmin edilenden büyüktür. [Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
+6.301 API girdisinin tamamı `Unshipped`. 🚨 **Yeniden ölçüm (2026-08-24): 8.063 girdi**, arkasında **716 public tip**. Dolum listesi tahmin edilenden büyüktür. [Faz 7](../fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md)
 2026-08-02'den beri ⏸ beklemede (K-068).
 
 **Neden P0:** Bu bir NuGet paket ailesidir. API tasarımı hiçbir gerçek tüketiciyle
@@ -86,7 +99,7 @@ Her faz dokümanının "Gerçekleşen Public API" bölümü kaynaktır. Sürüm 
 
 ### 2. Stabil sürüm MAF ön sürümüne yapısal olarak bağlı · 📋 Faz (Faz 7 içinde)
 
-**Ölçüm:** [`Directory.Packages.props:37-51`](../../Directory.Packages.props) —
+**Ölçüm:** [`Directory.Packages.props:37-51`](../../../Directory.Packages.props) —
 `Microsoft.Agents.AI.Hosting` **1.18.0-preview**, `.Hosting.OpenAI` **1.18.0-alpha**,
 `.Hosting.A2A` / `.Hosting.AspNetCore` preview, `A2A.AspNetCore` preview2.
 `README.md` bunu doğru beyan ediyor: "AgentPrism publishes as `1.0.0-preview.N`
@@ -106,8 +119,8 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 ### 3. Tekrarlayan kusur sınıfları yalnız dokümanla korunuyor · 📋 Faz
 
 > **Durum:** 📋 Planlandı (2026-08-23) — script ile yakalanabilen kalemler
-> [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi; kalanı
-> [Faz 93](../arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md)'tür.
+> [Faz 91](../fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'e girdi; kalanı
+> [Faz 93](../fazlar/93-KUSUR-SINIFI-KAPILARI.md)'tür.
 >
 > **Plan anında ölçülen düzeltme:** (a) kuralı **sevk edilen bir analyzer kuralı
 > olarak yazılamaz** — "async metotta ambient yazımı" bugünkü kodda altı kez öter
@@ -116,12 +129,12 @@ içinde tutuyor. Diğer 20 paket GA bağımlılıklıdır ve **ayrı** stabil s�
 > (ambient kapsamın `IDisposable`'ı atıldı) sevk edilir; yardımcı-metot vakası
 > taban çizgili bir repo kapısı olur. (b) kuralının C# tarafı **zaten kapalıdır**
 > (`RunCost.Total()`, `CostTotals.Total()`); canlı 18 vakası SQL metnindedir ve
-> [Faz 94](../arsiv/fazlar/94-SQL-TEK-KAYNAK.md)'e gitti. Playwright locator sınıfı (3 tekrar)
+> [Faz 94](../fazlar/94-SQL-TEK-KAYNAK.md)'e gitti. Playwright locator sınıfı (3 tekrar)
 > Faz 93'e eklendi.
 
-**Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:18`](../hafiza/cekirdek-calistirma.md)
+**Ölçüm:** [`docs/hafiza/cekirdek-calistirma.md:18`](../../hafiza/cekirdek-calistirma.md)
 `AsyncLocal` / `Activity.Current` kusurunun **üç vakasını** kaydediyor (Faz 6, 11, 12);
-[`MEMORY.md`](../../MEMORY.md) senkronizasyon kopyasını **beş kez** yaşandı diye
+[`MEMORY.md`](../../../MEMORY.md) senkronizasyon kopyasını **beş kez** yaşandı diye
 yazıyor. K-483: elle tekrarlanan `InputCost + OutputCost` ifadesine üçüncü terim
 eklenince yalnız SQL düzeltildi ve bir kiracı maliyet tavanını aşabilirdi —
 4.241 test yakalamadı, bağımsız denetim buldu.
@@ -130,7 +143,7 @@ eklenince yalnız SQL düzeltildi ve bir kiracı maliyet tavanını aşabilirdi 
 şartına bağlı. Bu bir kapı değil, bir umuttur. Kanıtlanmış kusur sınıfı bu şekilde
 kapanmaz.
 
-**Neden faz:** [`AgentPrism.Generators`](../../src/AgentPrism.Generators/) zaten
+**Neden faz:** [`AgentPrism.Generators`](../../../src/AgentPrism.Generators) zaten
 analyzer taşıyor (`APG*`). Kural yazımı, tanı kodu, test ve `.editorconfig`
 severity kaydı gerektirir. En az üç kural adayı var: (a) `async` metotta
 `AsyncLocal`/`Activity` yazımı, (b) toplama alan `record`'da elle yazılmış toplam
@@ -161,7 +174,7 @@ bulgu varsa job kırılır. Bir pre-commit hook ikinci savunma hattıdır.
 > `.github/workflows/ci.yml` "Secret taraması" adımı eklendi;
 > `faz-tamamlama`'daki elle koşulan desenin birebir aynısı.
 
-**Ölçüm:** [`ci.yml`](../../.github/workflows/ci.yml) içinde `gitleaks`,
+**Ölçüm:** [`ci.yml`](../../../.github/workflows/ci.yml) içinde `gitleaks`,
 `trufflehog` veya `secret-scan` geçen **sıfır** satır. `secret` taraması yalnız
 `faz-tamamlama` protokolünde, elle.
 
@@ -178,13 +191,13 @@ baseline dosyası + bir kabul case'i.
 ### 6. CI matrix'i Docker gerçeğiyle uyuşmuyor · ⚡ Tek oturum
 
 > **Durum:** ✅ Kapandı (2026-08-23, aynı oturumda) — yeni
-> [`AgentPrism.no-docker.slnf`](../../AgentPrism.no-docker.slnf) (K-268
+> [`AgentPrism.no-docker.slnf`](../../../AgentPrism.no-docker.slnf) (K-268
 > desenini izler) `AgentPrism.PostgreSql.IntegrationTests` ve
 > `AgentPrism.SqlServer.IntegrationTests`'i dışlar; `windows-latest` job'u
 > artık `dotnet test AgentPrism.slnx` yerine bu filtreyi koşar. Kalem 13'ün
 > taşıması sayesinde InMemory sözleşme testleri bu filtrede de yaşıyor.
 
-**Ölçüm:** [`ci.yml`](../../.github/workflows/ci.yml) `dotnet test AgentPrism.slnx`
+**Ölçüm:** [`ci.yml`](../../../.github/workflows/ci.yml) `dotnet test AgentPrism.slnx`
 komutunu `ubuntu-latest` **ve** `windows-latest` üzerinde koşuyor. Integration
 projeleri Testcontainers ile Linux image başlatıyor (`pgvector/pgvector:pg18`).
 Testlerde tek bir OS/Docker guard yok — `OSPlatform` / `IsWindows` taraması
@@ -206,7 +219,7 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 
 ### 7. Public yüzey yayın kararından önce şişti · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 96](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md).
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 96](../fazlar/96-PUBLIC-YUZEY-KUCULTME.md).
 >
 > 🚨 **Plan anında bölüm 7.3'ün önerdiği ölçüt YANLIŞLANDI.** "`src/` dışından
 > referans almayan tip `internal`'a çekilir" mekanik olarak uygulanamaz: ad
@@ -218,7 +231,7 @@ kısaltır — bugün Docker isteyen 4 proje **her** koşuda hatta.
 > üye imzasında geçmeyen tip yapraktır. Ölçüldü: 714 tipin **129'u** yaprak,
 > 23'ü `interface` (genişleme noktası), kalan **106** aday havuzu. Elle
 > doğrulamayla kapsama giren aday sayısı **96**'dır. 6.301 API girdisi; 4.761'i tek pakette
-([`AgentPrism.Abstractions`](../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt)).
+([`AgentPrism.Abstractions`](../../../src/AgentPrism.Abstractions/PublicAPI.Unshipped.txt)).
 68 interface, 76 `Options` sınıfı, 1.502 property.
 
 > 🚨 **Yeniden ölçüm (2026-08-24):** toplam **8.063** girdi. Asıl hedef girdi
@@ -235,7 +248,7 @@ tip, dolum listesini kalıcı olarak küçültür.
 
 ### 8. Üç SQL dialect'inde ~7.000 satır elle yazılmış sorgu · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-23) — [Faz 94](../arsiv/fazlar/94-SQL-TEK-KAYNAK.md).
+> **Durum:** 📋 Planlandı (2026-08-23) — [Faz 94](../fazlar/94-SQL-TEK-KAYNAK.md).
 >
 > **Plan anında yapılan ölçüm** ("ölçüm ve karar ister" maddesinin cevabı):
 > 199 ortak sorgunun **117'si** (%59) üç dialect'te özdeştir — ama şema
@@ -246,9 +259,9 @@ tip, dolum listesini kalıcı olarak küçültür.
 > Asıl kazanç satır değil kusur sınıfıdır: maliyet toplama ifadesi **18 yerde**
 > elle yazılıdır. Faz 94 iki ekseni birden alır.
 
-**Ölçüm:** [`SqlServerQueries.cs`](../../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs)
-2.477 + [`PostgresQueries.cs`](../../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs)
-2.282 + [`SqliteQueries.cs`](../../src/AgentPrism.Sqlite/Internal/SqliteQueries.cs)
+**Ölçüm:** [`SqlServerQueries.cs`](../../../src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs)
+2.477 + [`PostgresQueries.cs`](../../../src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs)
+2.282 + [`SqliteQueries.cs`](../../../src/AgentPrism.Sqlite/Internal/SqliteQueries.cs)
 2.241 satır. Query adları ve döndürülen sütun sırası özdeş; yalnız metin farklı.
 
 **Neden P1:** K-483'ün doğduğu yapı budur. Dördüncü sağlayıcı borcu %33 büyütür.
@@ -277,7 +290,7 @@ faz bir aileyi kapatır ve manuel setten siler. Öncelik sırası: kiracı/güve
 
 ### 10. Yeşil test gerçek davranışı kanıtlamıyor · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md).
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../fazlar/95-GERCEK-TUKETICI-KAPISI.md).
 >
 > 🚨 **Plan anında bu maddenin kanıtı KISMEN YANLIŞLANDI.** "Paket olarak
 > tüketilebiliyor mu" sorusu zaten kapılıdır: `AgentPrism.Templates.Tests`
@@ -290,7 +303,7 @@ faz bir aileyi kapatır ve manuel setten siler. Öncelik sırası: kiracı/güve
 > çağırıyor, `POST .../run` hiçbir yerde geçmiyor (ölçüldü, sıfır sonuç).
 > Faz 95 yalnız o boşluğu kapatır.
 
-**Ölçüm:** [`MEMORY.md`](../../MEMORY.md) — "sekiz fazda gerçek hatalar **yalnız**
+**Ölçüm:** [`MEMORY.md`](../../../MEMORY.md) — "sekiz fazda gerçek hatalar **yalnız**
 örnek uygulamada çıktı; hepsi testlerden geçmişti" (K-166, K-167). Test dağılımı
 ters piramit: 1.109 unit, 622 functional, 199 integration (Postgres 104 · Sqlite 55 ·
 SqlServer 40), 57 E2E.
@@ -326,13 +339,13 @@ beyan etmek. Kod değişmez.
 
 ### 12. Varsayılan yol kalıcı değil ve çalışma anında uyarmıyor · ⚡ Tek oturum
 
-> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam **yalnız uyarı log'udur**
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam **yalnız uyarı log'udur**
 > (👤 karar); hata fırlatılmaz, seçenek eklenmez — kalıcı olmayan store
 > desteklenen bir moddur. 🚨 Yeniden ölçüldü 2026-08-25: arayüz zaten dürüst
 > (`settings.tsx:129`, `settings.inMemoryNotice`). Eksik olan **sunucu tarafı**
 > sinyalidir; `IsProduction` kontrolü kodda hiç yoktur.
 
-**Ölçüm:** [`AgentPrismServiceCollectionExtensions.cs:514-605`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L514-L605)
+**Ölçüm:** [`AgentPrismServiceCollectionExtensions.cs:514-605`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs#L514-L605)
 **27** InMemory store kaydeder (toplam 5.382 satır). Uyarı yalnız bir XML
 yorumunda: "Use `AgentPrism.PostgreSql` in production". Diagnostics
 `persistenceProvider = "InMemory"` raporluyor ama bunu bir teşhis uyarısına
@@ -342,7 +355,7 @@ yorumunda: "Use `AgentPrism.PostgreSql` in production". Diagnostics
 belleğinde çalışır: restart'ta veri kaybı, tek instance, sınırsız bellek büyümesi.
 
 **Neden tek oturum:** Sağlık/teşhis yüzeyi zaten var
-([`AgentPrismDiagnosticsCollector.cs:108`](../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs#L108)).
+([`AgentPrismDiagnosticsCollector.cs:108`](../../../src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs#L108)).
 `Production` ortamında InMemory tespit edilirse bir `Warning` tanısı üretmek yeterli.
 
 ---
@@ -358,7 +371,7 @@ projesindeydi ve o assembly `[assembly: AssemblyFixture(typeof(PostgresFixture))
 taşıyordu.
 
 **Çözüm:** Dosya
-[`tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`](../../tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs)'a
+[`tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`](../../../tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs)'a
 taşındı; `AgentPrism.Core.UnitTests.csproj` paylaşılan sözleşme testlerini
 (`TenantCoverageTests.cs` hariç — o `typeof(SqlRunStore)` ile SQL'e sabitli)
 bağladı. 1.801 test, Docker olmadan yeşil.
@@ -374,7 +387,7 @@ CI ayrıştırmasıyla birlikte koşulmalı.
 
 ### 14. Çok kiracılı üretim sığ · 📋 Faz
 
-> **Durum:** 📋 KISMEN planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Blok C'den **öne
+> **Durum:** 📋 KISMEN planlandı (2026-08-25) — [Faz 104](../fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Blok C'den **öne
 > çekildi** (👤 karar). Faza giren: RLS **kararı** (uygulama katmanı tek hat
 > kalır) ve hız sınırının kapsam beyanı. Faza girmeyen: RLS uygulaması, dağıtık
 > hız sınırı.
@@ -388,7 +401,7 @@ CI ayrıştırmasıyla birlikte koşulmalı.
 
 **Ölçüm:** `ROW LEVEL SECURITY` taraması `src/` altında **0** sonuç — kiracı
 yalıtımı tümüyle uygulama katmanındadır (`ITenantContext` + `TenantIsolationTests`).
-[`InboundTriggerRateLimiter`](../../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs)
+[`InboundTriggerRateLimiter`](../../../src/AgentPrism.Core/Triggers/InboundTriggerRateLimiter.cs)
 process belleğindedir. SQL Server gerçek `mssql/server` üzerinde doğrulanmadı (K-186).
 
 **Neden P1:** Çok örnekli kurulumda kota ve kilit davranışı tek süreç varsayımına
@@ -409,7 +422,7 @@ uygulama katmanı tek hat mı kalacak?
 > `ClientCoverageTests` · `ClientDescriptionBaselineTests` (Faz 83, K-424).
 > Kazanç düşük, iş orta — kalem kapandı.
 
-**Ölçüm:** [`AgentPrismApiClient.g.cs`](../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)
+**Ölçüm:** [`AgentPrismApiClient.g.cs`](../../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)
 25.128 satır, **14** `#pragma warning disable` (10'u ilk 20 satırda, nullability dahil).
 
 **Neden P1:** `TreatWarningsAsErrors` tüm repoda geçerliyken en çok tüketilen
@@ -438,12 +451,12 @@ sürüm sonrası fark edilir.
 
 ### 17. Karmaşıklık birkaç dev dosyada yoğunlaşmış · 📋 Faz
 
-> **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
+> **Durum:** 📋 Dört faza ayrıldı (2026-08-26) — [Faz 105](../fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md) DI composition root · [Faz 106](../fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md) compiler · [Faz 107](../fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md) run recording · [Faz 108](../fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) in-memory run store. Tek mega refactor reddedildi; dört dosya farklı sözleşme ve test sınırı taşır.
 
-[`AgentPrismServiceCollectionExtensions.cs`](../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
-2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
-1.617 satır · [`RunRecordingAgent.cs`](../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
-1.331 satır · [`InMemoryRunStore.cs`](../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) 1.432 satır.
+[`AgentPrismServiceCollectionExtensions.cs`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs)
+2.662 satır / 47 metot · [`AgentDefinitionCompiler.cs`](../../../src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs)
+1.617 satır · [`RunRecordingAgent.cs`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.cs)
+1.331 satır · [`InMemoryRunStore.cs`](../../../src/AgentPrism.Core/Storage/InMemoryRunStore.cs) 1.432 satır.
 
 Her yeni yetenek DI dosyasına dokunuyor; `TryAdd*` sırası gözden kaçma riski
 dosyayla birlikte büyüyor. Faz 20'de 1.068 testin kaçırdığı imza–gövde kusuru tam
@@ -452,7 +465,7 @@ bu tür dosyalarda doğdu. Faz 89'un devir notu "tool wrapper zinciri dört halk
 
 ### 18. Frontend ekranları ve sözlükler monolitleşiyor · 📋 Faz
 
-> **Durum:** 📋 [Faz 109](../arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 19 ile birleşti (2026-08-26). Screen ve catalogue modül sınırları component-test harness'inin doğal test sınırıdır.
+> **Durum:** 📋 [Faz 109](../fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 19 ile birleşti (2026-08-26). Screen ve catalogue modül sınırları component-test harness'inin doğal test sınırıdır.
 
 `agent-editor.tsx` 1.243 · `en.ts` 1.222 · `tr.ts` 1.213 · `playground.tsx` 944
 satır. `Messages` tipi eksik anahtarı derleme anında yakalıyor (güçlü yan), ama
@@ -460,7 +473,7 @@ ekran başına bileşen ayrışması yapılmadıkça her yeni özellik bu dosyal
 
 ### 19. Frontend test kapsamı ince · 📋 Faz
 
-> **Durum:** 📋 [Faz 109](../arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 18 ile birleşti (2026-08-26). Güncel ölçüm: 24.011 TypeScript satırı · 28 screen · 23 component · 14 Vitest dosyası · gerçek build'de 172 case · 57 E2E.
+> **Durum:** 📋 [Faz 109](../fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 18 ile birleşti (2026-08-26). Güncel ölçüm: 24.011 TypeScript satırı · 28 screen · 23 component · 14 Vitest dosyası · gerçek build'de 172 case · 57 E2E.
 
 24.011 satır TypeScript · 28 screen · 23 component. Buna karşılık 14 test dosyası,
 172 Vitest case'i ve 57 E2E testi. Ekranların çoğunun otomatik testi yok; güvence
@@ -469,8 +482,8 @@ manuel sete dayanıyor (bkz. kalem 9).
 ### 20. Doküman yükü kodu geçti · 🔁 Zincir
 
 > **Durum:** 📋 KISMEN planlandı (2026-08-23) — kopyalanan komut ve
-> regex'lerin tek kaynağa inmesi [Faz 91](../arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
-> skill metinlerinin konsolidasyonu [Faz 92](../arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
+> regex'lerin tek kaynağa inmesi [Faz 91](../fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md)'de;
+> skill metinlerinin konsolidasyonu [Faz 92](../fazlar/92-ZINCIR-KONSOLIDASYONU.md)'ye ayrıldı.
 
 `docs/` 143.671 satır Markdown; `src/` 139.425 satır C#. `KARARLAR.md` 657 satır /
 596 `K-*` · `ADAYLAR.md` 793 satır · `arsiv/` 4,3 MB. Bunu yönetmek için özel bir
@@ -482,23 +495,23 @@ bakım isteyen bir sistemdir.
 > **Durum:** ✅ Kapandı (2026-08-23, aynı oturumda) — `ham[:40]` kırpması
 > kaldırıldı, `YOL-HARITASI.md` yeniden üretildi.
 
-[`YOL-HARITASI.md:39`](../YOL-HARITASI.md) Faz 24 satırı kesik:
+[`YOL-HARITASI.md:39`](../../YOL-HARITASI.md) Faz 24 satırı kesik:
 `Kod tamam · 205/205 sözleşme+diyalekt te`. Kaynak dosya
 `✅ Kod tamam · 205/205 sözleşme+diyalekt testi yeşil · AOT ölçülmedi` diyor.
-Sebep: [`dokuman-bakim.py:456`](../../scripts/dokuman-bakim.py#L456) — kısaltma
+Sebep: [`dokuman-bakim.py:456`](../../../scripts/dokuman-bakim.py#L456) — kısaltma
 sözlüğüyle eşleşmeyen durum `ham[:40]` ile kesiliyor. "Tek kaynak, elle yazılmaz"
 iddiasındaki dosya bozuk çıktı üretiyor.
 
 ### 22. Bağımlılık kirliliği kuralı kendi istisnasını taşıyor · ⚡ Tek oturum
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md)
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 95](../fazlar/95-GERCEK-TUKETICI-KAPISI.md)
 > bölüm 95.3. Faz 95'in tüketici fikstürü zaten kuruluydu; kalem oraya bindi.
 > Plan iki eksen alır: geçişli kapanışı bir taban çizgisine bağlayan kapı, ve
 > `docs-site/packages.md`'deki beyan. Ölçüldü: `packages.md`'nin
 > `## What does not enter your graph` bölümü yalnız **girmeyeni** sayıyor;
 > `Google.GenAI` üzerinden geleni hiç yazmıyor.
 
-[`Directory.Packages.props:100`](../../Directory.Packages.props) — `Google.GenAI`
+[`Directory.Packages.props:100`](../../../Directory.Packages.props) — `Google.GenAI`
 üzerinden `Newtonsoft.Json`, `System.Management` ve `System.CodeDom` geçişli
 geliyor. Yorum "bilerek kabul edildi" diyor. Kural ("tüketicinin bağımlılık
 grafiğini kirletme") ile pratik çelişiyor; en azından `docs-site`'ta paket başına
@@ -506,21 +519,21 @@ beyan edilmeli.
 
 ### 23. Bus factor = 1 · 📋 Faz
 
-> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam: kökte **İngilizce**
+> **Durum:** 📋 Planlandı (2026-08-25) — [Faz 104](../fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md). Kapsam: kökte **İngilizce**
 > `CONTRIBUTING.md` ve `ARCHITECTURE.md` (👤 karar). Kalemin kendisi ("bus
 > factor = 1") bir doküman fazıyla çözülmez; faz yalnız **giriş rampasını**
 > kurar. 🚨 Dil kapısı bugün kök dosyaları görmüyor (`SourceLanguageTests.cs:53`
 > yalnız `src|packages/*/README.md` tarar); faz regex'i genişletir.
 
 Tüm mimari bilgi Türkçe `docs/` ağacına ve tek bir kişinin oturum akışına kilitli.
-Süreç insan katkıcıya değil AI oturumuna optimize. [`COMMERCIAL.md`](../../COMMERCIAL.md)
+Süreç insan katkıcıya değil AI oturumuna optimize. [`COMMERCIAL.md`](../../../COMMERCIAL.md)
 36 satır — lisans/ticari model var, topluluk katkısı alacak giriş rampası
 (`CONTRIBUTING.md`, İngilizce mimari özeti, "good first issue") yok.
 
 ### 24. Kapsam genişliyor, konsolidasyon ertelenmiyor · (karar)
 
 90 faz + 8 açık aday + 2026-08-23'te üretilmiş
-[10 yeni fikir](2026-08-23-yeni-feature-fikirleri.md). Aynı anda: 0 sürüm,
+[10 yeni fikir](../../kesif/2026-08-23-yeni-feature-fikirleri.md). Aynı anda: 0 sürüm,
 2 sample, 12 paket AOT-dışı, 1.315 manuel case. Yeni özellik üretimi
 konsolidasyondan hızlı. Bu bir kod sorunu değil, bir **öncelik kararıdır** ve
 yalnız kullanıcı verebilir.
@@ -566,18 +579,18 @@ tarafından sabitlendi.
 
 | Sıra | Adım | Skill |
 |---:|---|---|
-| 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
-| 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 4 | ~~**Faz 97 yazma**~~ ✅ 2026-08-24 — plan hazır: [`97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](../arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) | `faz-planlama` |
+| 1 | **Faz 95 uygulama** — plan hazır: [`95-GERCEK-TUKETICI-KAPISI.md`](../fazlar/95-GERCEK-TUKETICI-KAPISI.md) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 2 | ~~**Faz 96 yazma**~~ ✅ 2026-08-24 — plan hazır: [`96-PUBLIC-YUZEY-KUCULTME.md`](../fazlar/96-PUBLIC-YUZEY-KUCULTME.md) | `faz-planlama` |
+| 3 | ~~**Faz 96 uygulama**~~ ✅ 2026-08-24 — [`96-PUBLIC-YUZEY-KUCULTME.md`](../fazlar/96-PUBLIC-YUZEY-KUCULTME.md) (arşivlenecek) | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
+| 4 | ~~**Faz 97 yazma**~~ ✅ 2026-08-24 — plan hazır: [`97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md`](../fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) | `faz-planlama` |
 | 5 | ~~**Faz 97 uygulama**~~ ✅ 2026-08-24 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
-| 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
+| 6 | ~~**Blok B**~~ 2026-08-25'te ayrıştı: madde **12** ve **23** [Faz 104](../fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md)'e girdi, madde **15** kapsam dışı bırakıldı (👤) | — |
 | 7 | **Faz 104 uygulama** ← **sıradaki adım** — madde 14 (karar + beyan yarısı) · 12 · 23 | `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 | 8 | **Blok C / yapısal refactor** — Faz 105 → 106 → 107 → 108 → 109 planlandı (2026-08-26): madde 17 dört bağımsız Core fazı; madde 18+19 ortak frontend fazı | Her faz kendi zinciriyle: `faz-baslangic` → `faz-uygulama` → `faz-denetim` → `faz-tamamlama` |
 
 > 🚨 **Bu tablo yayını kapsamıyor.** 2026-08-24'ten sonra bu turun dışında altı
 > faz daha koşuldu ve kapandı (Faz 98–103, sözleşme yayını turu — bkz.
-> [`YOL-HARITASI.md`](../YOL-HARITASI.md)). Sürüm etiketi 2026-08-25 itibarıyla
+> [`YOL-HARITASI.md`](../../YOL-HARITASI.md)). Sürüm etiketi 2026-08-25 itibarıyla
 > **hâlâ yoktur** (`git tag` yalnız `docs/damitma-oncesi-2026-08` döndürür);
 > yayın kullanıcının elindedir (👤) ve yakın planda değildir.
 
@@ -611,11 +624,11 @@ dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testin
 
 ### 7.4 Faz 97 yazacak oturuma — ölçülmüş zemin
 
-> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 97](../arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md). Kapsam plan turunda **daraldı**: faz yayını kendisi yapmaz. `v1.0.0-preview.1` etiketi geri alınamaz olduğu için kullanıcının elinde kalır (👤); faz sürüm politikasını, yayın provası kapısını, paket ikonunu ve `PackageValidation`'ı kapatır. 🚨 `Shipped.txt` dolumu **GA'ya ertelendi** — bu, aşağıdaki zemin notunun ve Faz 7'nin özgün DoD'sinin bilinçli olarak değiştirilmesidir.
+> **Durum:** 📋 Planlandı (2026-08-24) — [Faz 97](../fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md). Kapsam plan turunda **daraldı**: faz yayını kendisi yapmaz. `v1.0.0-preview.1` etiketi geri alınamaz olduğu için kullanıcının elinde kalır (👤); faz sürüm politikasını, yayın provası kapısını, paket ikonunu ve `PackageValidation`'ı kapatır. 🚨 `Shipped.txt` dolumu **GA'ya ertelendi** — bu, aşağıdaki zemin notunun ve Faz 7'nin özgün DoD'sinin bilinçli olarak değiştirilmesidir.
 > Plan turunda yeniden ölçüldü: Faz 96 sonrası **7.532** girdi · **618** tip (bölüm 7.3'ün 8.063/716 değeri artık bayattır); `dotnet pack` **19** paket üretiyor ve ön sürüm bağımlılığı beyan eden **tek** paket `AgentPrism.AspNetCore` (K-008 tutuyor); `agentprism`, `agentprism.core` ve `@agentprism/client` kimliklerinin üçü de **boşta**.
 
 **Kapsam:** madde 2 (sürüm politikası) + madde 1 (Faz 7 dolumu ve yayın).
-[Faz 7](../arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) 2026-08-02'den beri
+[Faz 7](../fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md) 2026-08-02'den beri
 ⏸ beklemededir (K-068).
 
 Ölçüldü (2026-08-24):
@@ -625,20 +638,20 @@ dışından hiç referans almayan tip `internal`'a çekilir. Bu ölçüt `Testin
   eğik çizgili adı **bilinçlidir**, MinVer'in SemVer ayrıştırıcısına takılmaz
   (K-598). Yani bugün hâlâ **sürüm etiketi yoktur**.
 - 🚨 **Yayın `v*` etiketiyle tetiklenir ve kuru koşumu yoktur.**
-  [`ci.yml:6`](../../.github/workflows/ci.yml) `tags: ['v*']` dinler;
+  [`ci.yml:6`](../../../.github/workflows/ci.yml) `tags: ['v*']` dinler;
   `publish` (satır 211) ve npm yayını (satır 245) `startsWith(github.ref,
   'refs/tags/v')` koşuluyla açılır. İkisi de GitHub `environment` kapısı
   arkasındadır (`nuget`, `npm`) — onay gerektirecek biçimde yapılandırılabilir.
   **İlk `v1.0.0-preview.1` etiketi hem NuGet hem npm yayınını başlatır.**
   Fazın kendi DoD'si bu tetiği ve geri alınamazlığını ele almalıdır.
-- Ön sürüm MAF bağımlılıkları [`Directory.Packages.props:37-51`](../../Directory.Packages.props)
+- Ön sürüm MAF bağımlılıkları [`Directory.Packages.props:37-51`](../../../Directory.Packages.props)
   içindedir ve K-008 gereği yalnız `AgentPrism.AspNetCore`'a girer.
 - Paketlenen proje sayısı **19**'dur (`src/` altındaki 20 projeden
   `AgentPrism.Generators` `IsPackable=false`; `AgentPrism.Sql.Shared` bir
   `.csproj` DEĞİLDİR — üç sağlayıcıya derlenen paylaşılan kaynak dizinidir).
 
 **Kapsama giren doküman doğruluğu kalemi:**
-[`reference/compatibility.md:24`](../../docs-site/src/content/docs/reference/compatibility.md)
+[`reference/compatibility.md:24`](../../../docs-site/src/content/docs/reference/compatibility.md)
 başlığı **"The 17 packages"** diyor ve 17 satır listeliyor; depo **19** paket
 üretiyor. `AgentPrism.Client` ve `AgentPrism.Cli` o tabloda yoktur
 (`packages.md` ikisini de kapsıyor — eksik olan yalnız bu sayfa).

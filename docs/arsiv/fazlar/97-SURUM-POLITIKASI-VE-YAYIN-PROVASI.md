@@ -1,7 +1,7 @@
 # Faz 97 — Sürüm Politikası ve Yayın Provası
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 2** (stabil sürüm MAF ön sürümüne yapısal olarak bağlı) + **madde 1** (1.0 yok; public API'nin tamamı `Unshipped`). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 4).
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 2** (stabil sürüm MAF ön sürümüne yapısal olarak bağlı) + **madde 1** (1.0 yok; public API'nin tamamı `Unshipped`). Kalemler `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 4).
 > **Önkoşul:** [Faz 96](96-PUBLIC-YUZEY-KUCULTME.md) — yüzey küçültme yayından **önce** bitmeliydi; bitti (618 tip). Yayın anından sonra aynı iş bir sürüm kararı olurdu.
 > **Paketler:** `src/` altındaki **19** paketin hepsi. Kod değişmez; `src/Directory.Build.props`, 19 `.csproj` ve CI değişir.
 > **Yeni paket:** Yok · **Migration:** Yok

@@ -1,7 +1,7 @@
 # Faz 90 — Doküman Damıtma Politikası
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 20** (F numarası yok; kullanıcı doğrudan seçti)
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 20** (F numarası yok; kullanıcı doğrudan seçti)
 > **Önkoşul:** Yok
 > **Paketler:** Yok — bu faz `scripts/`, `docs/` ve `.agents/skills/` üzerinde çalışır
 > **Yeni paket:** Yok · **Migration:** Yok
