@@ -1436,7 +1436,8 @@ anyone reports it.
 - `POST /api/runs/{runId}/replay` — create a sessionless, single-turn replay. The
   default `ReplayTools` mode reuses recorded tool results; `NoTools` produces only
   the model response; `LiveTools` can repeat real side effects and therefore
-  requires Admin
+  requires Admin. An agent carrying a [client-side tool](/guides/client-side-tools/)
+  cannot be replayed in any mode — its call was never recorded on the server
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
@@ -8586,7 +8587,7 @@ shows server text as it is.
 | `401` | Missing or invalid credentials |
 | `403` | Authenticated, but not allowed — including the loopback restriction |
 | `404` | Not found, or not yours |
-| `409` | Conflicting state — a name in use, a running experiment, a code-defined agent |
+| `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |

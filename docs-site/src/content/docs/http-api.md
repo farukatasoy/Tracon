@@ -98,7 +98,7 @@ shows server text as it is.
 | `401` | Missing or invalid credentials |
 | `403` | Authenticated, but not allowed — including the loopback restriction |
 | `404` | Not found, or not yours |
-| `409` | Conflicting state — a name in use, a running experiment, a code-defined agent |
+| `409` | Conflicting state — a name in use, a running experiment, a code-defined agent, a client-side tool that cannot be replayed |
 | `422` | A content guard blocked the content |
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |

@@ -248,7 +248,8 @@ anyone reports it.
 - `POST /api/runs/{runId}/replay` — create a sessionless, single-turn replay. The
   default `ReplayTools` mode reuses recorded tool results; `NoTools` produces only
   the model response; `LiveTools` can repeat real side effects and therefore
-  requires Admin
+  requires Admin. An agent carrying a [client-side tool](/guides/client-side-tools/)
+  cannot be replayed in any mode — its call was never recorded on the server
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
