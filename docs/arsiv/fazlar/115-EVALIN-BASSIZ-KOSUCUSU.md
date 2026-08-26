@@ -1,11 +1,11 @@
 # Faz 115 — Eval'in Başsız Koşucusu
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-168**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-168**
 > **Önkoşul:** Faz 18 (eval altyapısı) ve Faz 83 (tipli istemci ve CLI) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `AgentPrism.Cli` (tek paket)
 > **Yeni paket:** Yok — `AgentPrism.Client` referansı **zaten var** · **Migration:** Yok
-> **Public API:** `PublicAPI.*.txt` **değişmiyor** (`AgentPrismPublicApiTrackingEnabled=false`, [Cli.csproj:18](../src/AgentPrism.Cli/AgentPrism.Cli.csproj)). Fakat komut adı, bayraklar ve **exit code'lar sevk edilen bir sözleşmedir** ve sonradan ucuz değişmez
+> **Public API:** `PublicAPI.*.txt` **değişmiyor** (`AgentPrismPublicApiTrackingEnabled=false`, [Cli.csproj:18](../../../src/AgentPrism.Cli/AgentPrism.Cli.csproj)). Fakat komut adı, bayraklar ve **exit code'lar sevk edilen bir sözleşmedir** ve sonradan ucuz değişmez
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/cli.md`, `capabilities.md`
 > · sevk edilen: `src/AgentPrism.Cli/README.md`, `Program.cs`'in `PrintHelp()` metni, `Cli.csproj` `<Description>`
 > **Manuel test alanı:** `docs/manuel-test/34-ISTEMCI-VE-CLI.md` · `docs/manuel-test/17-EVAL-VE-DENEYLER.md`
@@ -27,8 +27,8 @@
    zaten uyguluyor ve yeni komut da uyacak), **K-232** (sunucu yanıtı çevrilmez),
    **K-263** (`PackAsTool` tek TFM ister — yeni komut bunu değiştirmez).
 3. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (global tool paketleme, `dotnet tool` yüzeyi)
-4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](MIMARI.md) — iş kuyruğu bölümü (eval kuyrukla koşar)
+   [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (global tool paketleme, `dotnet tool` yüzeyi)
+4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](../../MIMARI.md) — iş kuyruğu bölümü (eval kuyrukla koşar)
 
 ---
 
@@ -45,10 +45,10 @@ bitene kadar yoklar, tüketicinin verdiği eşiğe göre exit code üretir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`Program.cs:24-32`](../src/AgentPrism.Cli/Program.cs) | CLI **üç** komut tanır: `migrate`, `migrate status`, `health`. Eval yok |
+| [`Program.cs:24-32`](../../../src/AgentPrism.Cli/Program.cs) | CLI **üç** komut tanır: `migrate`, `migrate status`, `health`. Eval yok |
 | `ls src/AgentPrism.Core/Evaluation/` | On beş dosya — `EvalJobHandler`, `RunToCasePromoter`, `ModelRunJudge`, `RunJudgeSet` tam |
-| [`EvalEndpoints.cs:123`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | `POST /api/evals/{name}/run` vardır; `Operator` rolü ve `ApiKeyScope.RunsWrite` ister |
-| [`EvalEndpoints.cs:147`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | `GET /api/evals/runs/{id}` vardır; `Reader` rolü ve `ApiKeyScope.EvalsRead` ister |
+| [`EvalEndpoints.cs:123`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | `POST /api/evals/{name}/run` vardır; `Operator` rolü ve `ApiKeyScope.RunsWrite` ister |
+| [`EvalEndpoints.cs:147`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs) | `GET /api/evals/runs/{id}` vardır; `Reader` rolü ve `ApiKeyScope.EvalsRead` ister |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -59,9 +59,9 @@ olduğunu buldu:
 
 | Hazır olan | Kanıt |
 |---|---|
-| İki HTTP çağrısı da **üretilmiş istemcide var** | `AgentPrismTriggerEvalRunAsync` ([AgentPrismApiClient.g.cs:5813](../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)) · `AgentPrismGetEvalRunAsync` ([:5991](../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)) |
-| Eşik için gereken **üç sayı** sözleşmede var | [`EvalRun.cs:39-46`](../src/AgentPrism.Abstractions/Evaluation/EvalRun.cs) — `Total`, `Passed`, `Failed` |
-| Test koşum altyapısı var | [`tests/AgentPrism.Cli.FunctionalTests/Infrastructure/`](../tests/AgentPrism.Cli.FunctionalTests/Infrastructure/) — `RealHttpHost` (gerçek Kestrel portu) ve `CliRunner` |
+| İki HTTP çağrısı da **üretilmiş istemcide var** | `AgentPrismTriggerEvalRunAsync` ([AgentPrismApiClient.g.cs:5813](../../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)) · `AgentPrismGetEvalRunAsync` ([:5991](../../../src/AgentPrism.Client/Generated/AgentPrismApiClient.g.cs)) |
+| Eşik için gereken **üç sayı** sözleşmede var | [`EvalRun.cs:39-46`](../../../src/AgentPrism.Abstractions/Evaluation/EvalRun.cs) — `Total`, `Passed`, `Failed` |
+| Test koşum altyapısı var | [`tests/AgentPrism.Cli.FunctionalTests/Infrastructure/`](../../../tests/AgentPrism.Cli.FunctionalTests/Infrastructure) — `RealHttpHost` (gerçek Kestrel portu) ve `CliRunner` |
 
 ∴ **Sunucu değişmez.** Yeni HTTP ucu yok, OpenAPI belgesi yeniden üretilmez,
 TypeScript şeması ve NSwag zinciri koşmaz, `AgentPrism.Client` `dist`'i
@@ -72,7 +72,7 @@ derlenmez. Faz tek pakete ve tek komuta iner. Eşik hesabı istemci tarafındad�
 ## 115.1 — Eval kuyrukludur: komut yoklamak zorundadır
 
 Bu, komutun şeklini belirleyen tek gerçektir.
-[`EvalEndpoints.cs:154-156`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs)
+[`EvalEndpoints.cs:154-156`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs)
 şunu yazar: *"the eval run is queued and processed in the background, and its
 results fill in as cases complete."*
 
@@ -113,7 +113,7 @@ agentprism eval --url <base-url> --suite <name>
 
 `--url` ve `--token` `health` komutuyla **birebir aynı** anlamı taşır; `--token`
 `AGENTPRISM_TOKEN` ortam değişkeninden de okunur (K-059). Ayrıştırma
-[`CliArgs`](../src/AgentPrism.Cli/CliArgs.cs) ile yapılır — üç komut için tam
+[`CliArgs`](../../../src/AgentPrism.Cli/CliArgs.cs) ile yapılır — üç komut için tam
 bir parser kütüphanesi getirilmedi, dördüncüsü için de getirilmez.
 
 ## 115.3 — Eşik: iki bağımsız bayrak
@@ -143,8 +143,8 @@ bölmedir ve "hiç case yok" sessizce "%100 geçti" olarak okunabilir. Boş suit
 | Kod | Anlam | Bugünkü kaynağı |
 |---:|---|---|
 | `0` | Koştu ve eşiği geçti (ya da eşik verilmedi) | mevcut |
-| `1` | Argüman hatası | [`Program.cs:37`](../src/AgentPrism.Cli/Program.cs) — `CliArgumentException` |
-| `2` | Koşamadı: taşıma, sunucu, timeout, `Failed`/`Cancelled` eval | [`HealthCommand.cs:56`](../src/AgentPrism.Cli/Commands/HealthCommand.cs) |
+| `1` | Argüman hatası | [`Program.cs:37`](../../../src/AgentPrism.Cli/Program.cs) — `CliArgumentException` |
+| `2` | Koşamadı: taşıma, sunucu, timeout, `Failed`/`Cancelled` eval | [`HealthCommand.cs:56`](../../../src/AgentPrism.Cli/Commands/HealthCommand.cs) |
 | **`3`** | **Koştu, kalite eşiğin altında** | **yeni** |
 
 Ayrımın değeri işletimseldir: `2` bir altyapı sorunudur ve **yeniden denenir**;
@@ -157,7 +157,7 @@ sıkıştırılırsa CI'ın yeniden deneme mantığı yanlış karar verir.
 
 Varsayılan çıktı insan içindir: suite adı, `Passed/Total`, süre ve
 **başarısız case adları**. `EvalRunDetailResponse` per-case sonuçları zaten
-taşır ([`EvaluationContracts.cs:72-79`](../src/AgentPrism.AspNetCore/Contracts/EvaluationContracts.cs)),
+taşır ([`EvaluationContracts.cs:72-79`](../../../src/AgentPrism.AspNetCore/Contracts/EvaluationContracts.cs)),
 yani ikinci bir çağrı gerekmez.
 
 `--json` makine içindir ve `health --json` emsalini izler. Sunucu metni
@@ -165,7 +165,7 @@ yani ikinci bir çağrı gerekmez.
 
 🚨 CLI çıktısı hiçbir sunucu `secret`'ı taşımaz. `HealthCommand` bunu
 `AgentPrismApiException`'ın gövdesini **yazmayarak** çözdü
-([`HealthCommand.cs:53-57`](../src/AgentPrism.Cli/Commands/HealthCommand.cs));
+([`HealthCommand.cs:53-57`](../../../src/AgentPrism.Cli/Commands/HealthCommand.cs));
 eval komutu aynısını yapar ve `CliSecretRedactionTests` bunu kapsayacak biçimde
 genişletilir.
 
@@ -177,7 +177,7 @@ genişletilir.
 | Eval suite'i CLI'dan **oluşturmak/düzenlemek** | Kapı koşmak ile içerik yönetmek ayrı işler; `agentprism eval` yalnız koşar |
 | İki eval koşumunu karşılaştıran `diff` komutu | Ayrı bir aday olur; kapı için gerekli değil |
 | Varsayılan bir kalite eşiği | AgentPrism kalite barı dayatmaz |
-| Performans kapısı | [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md) — **ayrı** faz, ayrı eşik felsefesi |
+| Performans kapısı | [Faz 116](../../116-PERFORMANS-TAHSIS-KAPISI.md) — **ayrı** faz, ayrı eşik felsefesi |
 
 ---
 
@@ -239,7 +239,7 @@ tests/AgentPrism.Cli.FunctionalTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 Bu fazın **tamamı** HTTP sınırını geçer; birim testi hiçbirini kanıtlamaz.
 Koşum `RealHttpHost` (gerçek Kestrel portu) üzerinde yapılır.
@@ -298,7 +298,7 @@ belirler; sunucu `404` verir, komut `2` döner · **alt sistem hatası** → sun
 | 1 | `--timeout` varsayılanı ne olsun? | A: 30 dakika · B: varsayılan yok, zorunlu bayrak · C: sonsuz | **A.** `health`'in 10 sn'si burada anlamsız; eval dakikalar sürer. Sonsuz varsayılan CI işini asar. Zorunlu bayrak en basit kullanımı ağırlaştırır |
 | 2 | `--poll-interval` varsayılanı? | A: 5 sn · B: artan aralık (2→30 sn) | **A.** Sabit aralık öngörülebilir ve test edilebilir; artan aralık ölçülmüş bir sorunu çözmüyor |
 | 3 | Boş suite (`Total == 0`) ne dönsün? | A: `--min-pass-rate` verilmişse `3` · B: her zaman `0` | **A.** Boş bir suite kalite kanıtı **değildir**; sessizce yeşil dönmek kapının amacını bozar |
-| 4 | `--agent-version` verilmezse hangi sürüm ölçülür? | — | **Ölçülmeli.** `TriggerRunAsync` `request?.AgentVersion` okuyor ([EvalEndpoints.cs:455](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs)); `null` davranışı doğrulanmadan yardım metnine yazılmaz |
+| 4 | `--agent-version` verilmezse hangi sürüm ölçülür? | — | **Ölçülmeli.** `TriggerRunAsync` `request?.AgentVersion` okuyor ([EvalEndpoints.cs:455](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs)); `null` davranışı doğrulanmadan yardım metnine yazılmaz |
 | 5 | Komut adı `eval` mi `evals` mi? | A: `eval` · B: `evals` | **A.** HTTP yolu `/api/evals` çoğul, fakat komut tek bir suite koşar. `migrate`/`health` de tekil |
 
 ---
@@ -311,16 +311,45 @@ belirler; sunucu `404` verir, komut `2` döner · **alt sistem hatası** → sun
 - [x] `Failed`/`Cancelled` biten eval → exit `2` (asla `3` değil)
 - [x] `--timeout` dolduğunda komut çıkar → exit `2`; asılı kalmaz
 - [x] Boş suite tetiklenemez (`400`, hiç run oluşmaz) → exit `2`; `--min-pass-rate`'in kendi `Total == 0` koruması yine de kodda kalır (bkz. Plandan Sapmalar)
-- [ ] Yalnız `EvalsRead` scope'lu anahtarda hata metni **`RunsWrite`**'ı adıyla söyler
-- [ ] Sunucu hata gövdesi hiçbir çıktıya sızmaz (`CliSecretRedactionTests` eval komutunu kapsar)
-- [ ] Üç mevcut komutun `0`/`1`/`2` anlamı **değişmedi**
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/34-ISTEMCI-VE-CLI.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/guides/cli.md` yeni komutu ve **exit code tablosunu** yazar; `npm run build` + `check-links.mjs` temiz
-- [ ] `src/AgentPrism.Cli/README.md`, `PrintHelp()` ve `<Description>` üçü de tutarlı
+- [x] Yalnız `EvalsRead` scope'lu anahtarda hata metni **`RunsWrite`**'ı adıyla söyler
+- [x] Sunucu hata gövdesi hiçbir çıktıya sızmaz (`CliSecretRedactionTests` eval komutunu kapsar)
+- [x] Üç mevcut komutun `0`/`1`/`2` anlamı **değişmedi**
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis` — tam koşum, tüm projeler yeşil)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama` → `✅ temiz`)
+- [x] Manuel kabul case'leri `docs/manuel-test/34-ISTEMCI-VE-CLI.md` içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (ikisi de düzeltildi — bkz. Denetim Bulguları)
+- [x] `docs-site/guides/cli.md` yeni komutu ve **exit code tablosunu** yazar; `npm run build` + `check-links.mjs` temiz
+- [x] `src/AgentPrism.Cli/README.md`, `PrintHelp()` ve `<Description>` üçü de tutarlı
+
+### Gerçek `run` kanıtı — `samples/AgentPrism.Api`'ye karşı
+
+Sunucu gerçekten çalıştırıldı (`support` agent'ı, gerçek OpenAI çağrısı —
+`dotnet user-secrets`'ta bu makineye özgü bir manuel-test token'ı ve
+sağlayıcı anahtarı zaten kuruluydu). Bir suite/case oluşturuldu, sonra CLI
+gerçek HTTP üzerinden koşturuldu:
+
+```
+$ agentprism eval --url http://localhost:5081/agentprism --suite demo-suite \
+    --token <token> --min-pass-rate 1.0 --poll-interval 2 --timeout 60
+Completed: 1/1 passed in 8,1 s.
+exit=0
+```
+
+`--json` ile aynı koşum (gerçek model kimliği ve token sayıları görülür —
+`secret` içermez):
+
+```json
+{
+  "run": {
+    "status": "Completed", "total": 1, "passed": 1, "failed": 0,
+    "agentVersion": 1, "modelId": "gpt-5.4-mini",
+    "inputTokens": 234, "outputTokens": 38
+  },
+  "results": [{ "passed": true, "scores": [{"name": "non_empty", "passed": true}] }]
+}
+exit=0
+```
 
 ### Doğrulama komutları
 
@@ -359,7 +388,7 @@ echo "exit=$?"   # beklenen: 0
 1. **Boş suite `--min-pass-rate` ile `3` DÖNEMEZ; `2` döner.** Planın Açık
    Soru 3'ü ve DoD satırı, `Total == 0` olan bir **run**'ın var olacağını
    varsayıyordu. Gerçek sunucu davranışı ölçüldüğünde
-   ([`EvalEndpoints.cs:479-484`](../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs))
+   ([`EvalEndpoints.cs:479-484`](../../../src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs))
    `POST /api/evals/{name}/run` sıfır case'li bir suite'i `400 "has no
    cases"` ile **trigger anında** reddediyor — hiçbir run kaydı hiç
    oluşmuyor. Dolayısıyla `Total == 0` bir `Completed` run bugünkü kod
