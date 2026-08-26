@@ -29,13 +29,33 @@ internal sealed class RealHttpHost : IAsyncDisposable
     /// <summary>The application root PLUS the <c>MapAgentPrism</c> prefix, with a trailing slash.</summary>
     public Uri BaseAddress { get; }
 
-    public static async Task<RealHttpHost> StartAsync(string prefix = "agentprism")
+    /// <summary>The application's service provider — for seeding stores directly (bypassing HTTP).</summary>
+    public IServiceProvider Services => _app.Services;
+
+    /// <param name="prefix">The path prefix.</param>
+    /// <param name="configureServices">
+    /// Registers additional services BEFORE <c>AddAgentPrism()</c> runs, for
+    /// example <c>services.UseScheduling(...)</c> to speed up or pause the
+    /// background job worker.
+    /// </param>
+    /// <param name="configureAgentPrism">
+    /// Changes the AgentPrism chain, for example to register a model
+    /// provider or a code-defined agent (an eval suite needs a real agent to
+    /// measure).
+    /// </param>
+    public static async Task<RealHttpHost> StartAsync(
+        string prefix = "agentprism",
+        Action<IServiceCollection>? configureServices = null,
+        Action<IAgentPrismBuilder>? configureAgentPrism = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
 
-        builder.Services.AddAgentPrism();
+        configureServices?.Invoke(builder.Services);
+
+        var agentPrism = builder.Services.AddAgentPrism();
+        configureAgentPrism?.Invoke(agentPrism);
 
         var app = builder.Build();
         app.MapAgentPrism('/' + prefix.Trim('/'));
