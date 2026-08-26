@@ -1,7 +1,7 @@
 # Faz 113 — Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-149**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-149**
 > **Önkoşul:** Faz 44 (hata sınıflandırma) ve Faz 62 (model yedek zinciri) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `AgentPrism.Abstractions` (yeni sözleşme), `AgentPrism.Core` (`Models/`, `Runs/`)
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -26,10 +26,10 @@
    **K-627** (üreticisi olmayan beyan kaldırıldı — bu faz **tersini** yapar:
    var olan davranışa sözleşme verir, olmayan davranışa beyan **eklemez**).
 3. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (`IChatClient` dekoratör halkaları, devre kesici — bu fazın ana alanı) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri; sınıflandırıcı yalnız hata yolunda çağrılır)
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (`IChatClient` dekoratör halkaları, devre kesici — bu fazın ana alanı) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri; sınıflandırıcı yalnız hata yolunda çağrılır)
 4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) (`DelegatingChatClient` halkası)
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) (`DelegatingChatClient` halkası)
 
 ---
 
@@ -51,11 +51,11 @@ Bu faz o iki kararı **değiştirilebilir** kılar; varsayılan davranışı kor
 
 | Kanıt | Gözlem |
 |---|---|
-| [`FallbackChatClient.cs:350`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | `FallbackRetryClassifier` **`internal static partial class`**. Ne kaydı, ne türevi, ne parametresi var — değiştirilemez |
-| [`FallbackChatClient.cs:122`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) · [`:191`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Çağrılar `catch (Exception ex) when (!FallbackRetryClassifier.IsRetryable(ex))` biçiminde **statik** ve sabit |
-| [`FallbackChatClient.cs:386-410`](../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Karar dört regex ve bir tip-adı deseniyle verilir: `AuthenticationStatusPattern`, `RateLimitPattern`, `RetryableHttpStatusPattern`, `TransportExceptionTypePattern` |
-| [`DefaultRunErrorClassifier.cs:29`](../src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs) | **`internal sealed partial class`** — `IRunErrorClassifier`'ı devralan tüketici yerleşik kuralları çağıramaz, hepsini sıfırdan yazmak zorundadır |
-| [`ErrorFingerprint.cs:26`](../src/AgentPrism.Core/Runs/ErrorFingerprint.cs) | **`internal static partial class`** — `RunErrorClassification.Fingerprint` zorunlu bir alandır, fakat tüketici yerleşikle **uyumlu** bir parmak izi üretemez |
+| [`FallbackChatClient.cs:350`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | `FallbackRetryClassifier` **`internal static partial class`**. Ne kaydı, ne türevi, ne parametresi var — değiştirilemez |
+| [`FallbackChatClient.cs:122`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) · [`:191`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Çağrılar `catch (Exception ex) when (!FallbackRetryClassifier.IsRetryable(ex))` biçiminde **statik** ve sabit |
+| [`FallbackChatClient.cs:386-410`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs) | Karar dört regex ve bir tip-adı deseniyle verilir: `AuthenticationStatusPattern`, `RateLimitPattern`, `RetryableHttpStatusPattern`, `TransportExceptionTypePattern` |
+| [`DefaultRunErrorClassifier.cs:29`](../../../src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs) | **`internal sealed partial class`** — `IRunErrorClassifier`'ı devralan tüketici yerleşik kuralları çağıramaz, hepsini sıfırdan yazmak zorundadır |
+| [`ErrorFingerprint.cs:26`](../../../src/AgentPrism.Core/Runs/ErrorFingerprint.cs) | **`internal static partial class`** — `RunErrorClassification.Fingerprint` zorunlu bir alandır, fakat tüketici yerleşikle **uyumlu** bir parmak izi üretemez |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -125,7 +125,7 @@ uygulama olarak kalır. Değişen tek şey, kararın bir sözleşme üzerinden
 sorulmasıdır.
 
 🚨 **Karar üç durumludur, `bool` değildir.** Gerekçe koddadır
-([`FallbackChatClient.cs:344-348`](../src/AgentPrism.Core/Models/FallbackChatClient.cs)):
+([`FallbackChatClient.cs:344-348`](../../../src/AgentPrism.Core/Models/FallbackChatClient.cs)):
 
 > *"The list is a closed, positive set: an unrecognized failure does **not**
 > retry by default. A silent provider switch on an error nobody anticipated is
@@ -223,7 +223,7 @@ public static class RunErrorFingerprint
 
 `ModelProviderRegistry`'nin kurucusuna sona bir isteğe bağlı parametre eklenir
 (`IProviderRetryClassifier? retryClassifier = null`) — tipin bugünkü on iki
-isteğe bağlı parametreli deseni ([`ModelProviderRegistry.cs:93-105`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs))
+isteğe bağlı parametreli deseni ([`ModelProviderRegistry.cs:93-105`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs))
 korunur.
 
 ### HTTP `endpoint`'leri
@@ -272,7 +272,7 @@ tests/AgentPrism.Core.UnitTests/Models/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
