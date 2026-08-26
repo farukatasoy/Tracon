@@ -10,6 +10,8 @@ AgentPrism.AgentPrismSqlServerOptions.ConnectionString.get -> string?
 AgentPrism.AgentPrismSqlServerOptions.ConnectionString.set -> void
 AgentPrism.AgentPrismSqlServerOptions.DataSource.get -> System.Data.Common.DbDataSource?
 AgentPrism.AgentPrismSqlServerOptions.DataSource.set -> void
+AgentPrism.AgentPrismSqlServerOptions.EnableReadViews.get -> bool
+AgentPrism.AgentPrismSqlServerOptions.EnableReadViews.set -> void
 AgentPrism.AgentPrismSqlServerOptions.SchemaName.get -> string!
 AgentPrism.AgentPrismSqlServerOptions.SchemaName.set -> void
 AgentPrism.MigrationRunner

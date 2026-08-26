@@ -42,6 +42,11 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             DataSource = dataSource,
             Dialect = new SqlServerDialect(options.SchemaName),
             CommandTimeoutSeconds = options.CommandTimeoutSeconds,
+            // Phase 111: the "views" set is opt-in in production (K1); default
+            // FALSE here too -- only ReadViewContractTests needs it.
+            EnabledMigrationSets = options.EnableReadViews
+                ? new HashSet<string>(StringComparer.Ordinal) { "views" }
+                : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
             ProviderName = "SQL Server",
         };
 
@@ -218,8 +223,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     public static ValueTask<SqlServerTestContext> CreateAsync(
         SqlServerFixture fixture,
         string tenantId = "default",
-        bool applyMigrations = true)
-        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+        bool applyMigrations = true,
+        bool enableReadViews = false)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, enableReadViews);
 
     /// <summary>
     /// Setup with the tenant context supplied externally. The tenant
@@ -229,15 +235,17 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <param name="fixture">The running SQL Server container.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
     /// <param name="applyMigrations">Whether to apply migrations immediately.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A ready-to-use context.</returns>
     public static async ValueTask<SqlServerTestContext> CreateAsync(
         SqlServerFixture fixture,
         ITenantContext tenantContext,
-        bool applyMigrations = true)
+        bool applyMigrations = true,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantContext);
+        var context = Create(fixture, NewSchemaName(), tenantContext, enableReadViews);
 
         if (applyMigrations)
         {
@@ -264,15 +272,24 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <param name="schemaName">The schema name to use.</param>
     /// <param name="tenantId">The tenant ID.</param>
     /// <returns>A new context pointing at the same schema.</returns>
-    public static SqlServerTestContext Create(SqlServerFixture fixture, string schemaName, string tenantId = "default")
-        => Create(fixture, schemaName, new FixedTenantContext(tenantId));
+    public static SqlServerTestContext Create(
+        SqlServerFixture fixture,
+        string schemaName,
+        string tenantId = "default",
+        bool enableReadViews = false)
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId), enableReadViews);
 
     /// <summary>Setup with the tenant context supplied externally.</summary>
     /// <param name="fixture">The running SQL Server container.</param>
     /// <param name="schemaName">The schema name to use.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A new context pointing at the same backend.</returns>
-    public static SqlServerTestContext Create(SqlServerFixture fixture, string schemaName, ITenantContext tenantContext)
+    public static SqlServerTestContext Create(
+        SqlServerFixture fixture,
+        string schemaName,
+        ITenantContext tenantContext,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -282,6 +299,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             SchemaName = schemaName,
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
+            EnableReadViews = enableReadViews,
         };
 
         var dataSource = new SqlServerDataSource(options.ConnectionString!);
@@ -539,6 +557,18 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
             IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'{SchemaName}')
             BEGIN
                 DECLARE @sql NVARCHAR(MAX) = N'';
+
+                -- Phase 111: runs_v1 (the "views" optional set). A view is
+                -- dropped BEFORE the table it reads from, and before the
+                -- schema drop below -- SQL Server refuses to drop a schema
+                -- that still contains any object, view included.
+                SELECT @sql += N'DROP VIEW {SchemaName}.' + QUOTENAME(v.name) + N';'
+                FROM sys.views AS v
+                JOIN sys.schemas AS s ON v.schema_id = s.schema_id
+                WHERE s.name = N'{SchemaName}';
+
+                EXEC sp_executesql @sql;
+                SET @sql = N'';
 
                 SELECT @sql += N'ALTER TABLE {SchemaName}.' + QUOTENAME(t.name)
                     + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';'

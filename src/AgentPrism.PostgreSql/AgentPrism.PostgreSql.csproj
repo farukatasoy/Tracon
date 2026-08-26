@@ -28,6 +28,15 @@
   </ItemGroup>
 
   <!--
+    Optional migration set (Phase 111): applied only when EnableReadViews is
+    turned on. A published view is a permanent data contract, so it is opt-in
+    for the same reason as the "knowledge" set above.
+  -->
+  <ItemGroup Label="Optional 'views' migration set (Phase 111)">
+    <EmbeddedResource Include="MigrationsViews/**/*.sql" />
+  </ItemGroup>
+
+  <!--
     Shared source (Phase 23). AgentPrism.Sql.Shared is NOT a package and has no
     csproj file of its own; its files compile directly here and into
     AgentPrism.SqlServer. This way store logic lives in one place without

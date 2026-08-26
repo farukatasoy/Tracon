@@ -39,6 +39,11 @@ internal sealed class SqliteTestContext : IAsyncDisposable
             DataSource = dataSource,
             Dialect = new SqliteDialect(options.TablePrefix),
             CommandTimeoutSeconds = options.CommandTimeoutSeconds,
+            // Phase 111: the "views" set is opt-in in production (K1); default
+            // FALSE here too -- only ReadViewContractTests needs it.
+            EnabledMigrationSets = options.EnableReadViews
+                ? new HashSet<string>(StringComparer.Ordinal) { "views" }
+                : System.Collections.Immutable.ImmutableHashSet<string>.Empty,
             ProviderName = "SQLite",
         };
 
@@ -215,8 +220,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     public static ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
         string tenantId = "default",
-        bool applyMigrations = true)
-        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+        bool applyMigrations = true,
+        bool enableReadViews = false)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, enableReadViews);
 
     /// <summary>
     /// Setup with an externally supplied tenant context. Used because the tenant isolation
@@ -225,15 +231,17 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <param name="fixture">The running SQLite file.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
     /// <param name="applyMigrations">Whether migrations should be applied immediately.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A context ready for use.</returns>
     public static async ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
         ITenantContext tenantContext,
-        bool applyMigrations = true)
+        bool applyMigrations = true,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewTablePrefix(), tenantContext);
+        var context = Create(fixture, NewTablePrefix(), tenantContext, enableReadViews);
 
         if (applyMigrations)
         {
@@ -260,15 +268,24 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <param name="tablePrefix">The table prefix to use.</param>
     /// <param name="tenantId">The tenant identifier.</param>
     /// <returns>A new context pointing at the same prefix.</returns>
-    public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, string tenantId = "default")
-        => Create(fixture, tablePrefix, new FixedTenantContext(tenantId));
+    public static SqliteTestContext Create(
+        SqliteFixture fixture,
+        string tablePrefix,
+        string tenantId = "default",
+        bool enableReadViews = false)
+        => Create(fixture, tablePrefix, new FixedTenantContext(tenantId), enableReadViews);
 
     /// <summary>Setup with an externally supplied tenant context.</summary>
     /// <param name="fixture">The running SQLite file.</param>
     /// <param name="tablePrefix">The table prefix to use.</param>
     /// <param name="tenantContext">The tenant context the stores will read.</param>
+    /// <param name="enableReadViews">Whether the "views" migration set applies (Phase 111). Default <see langword="false"/>: only <c>ReadViewContractTests</c> needs it.</param>
     /// <returns>A new context pointing at the same backend.</returns>
-    public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, ITenantContext tenantContext)
+    public static SqliteTestContext Create(
+        SqliteFixture fixture,
+        string tablePrefix,
+        ITenantContext tenantContext,
+        bool enableReadViews = false)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -278,6 +295,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
             TablePrefix = tablePrefix,
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
+            EnableReadViews = enableReadViews,
         };
 
         var dataSource = new SqliteDataSource(options.ConnectionString!);
@@ -311,15 +329,38 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         return result is T value ? value : default;
     }
 
-    /// <summary>Drops the test tables.</summary>
+    /// <summary>Drops the test tables and views.</summary>
     /// <returns>The completion task.</returns>
     /// <remarks>
-    /// SQLite has no schema concept; each test prefix drops its own set of tables so that
-    /// hundreds of test tables do not accumulate in a single file.
+    /// <para>
+    /// SQLite has no schema concept; each test prefix drops its own set of
+    /// objects so that hundreds of test tables do not accumulate in a single file.
+    /// </para>
+    /// <para>
+    /// 🚨 Phase 111: views are dropped FIRST and separately from tables --
+    /// the "views" optional set (<c>EnableReadViews</c>) creates
+    /// <c>{prefix}runs_v1</c>, which is a VIEW, not a TABLE, so the original
+    /// table-only cleanup left it behind as a DANGLING object once its
+    /// underlying table was dropped. SQLite's <c>ALTER TABLE ... RENAME</c>
+    /// (used by later migrations, e.g. <c>0006_sessions_tenant_key</c>)
+    /// reparses EVERY view in the WHOLE file to fix up name references, for
+    /// EVERY prefix, not just the one being altered -- a single leftover
+    /// dangling view from an EARLIER, already-disposed test then broke a
+    /// LATER, unrelated test's migration with "no such table". Measured: a
+    /// sequential loop of four <c>SqliteTestContext</c> instances failed on
+    /// the second one, every time, until this cleanup order was fixed.
+    /// </para>
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
-        var tableNames = await ReadTableNamesAsync().ConfigureAwait(false);
+        var viewNames = await ReadObjectNamesAsync("view").ConfigureAwait(false);
+
+        foreach (var viewName in viewNames)
+        {
+            await ExecuteAsync($"DROP VIEW IF EXISTS \"{viewName}\";").ConfigureAwait(false);
+        }
+
+        var tableNames = await ReadObjectNamesAsync("table").ConfigureAwait(false);
 
         foreach (var tableName in tableNames)
         {
@@ -329,15 +370,20 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         await DataSource.DisposeAsync().ConfigureAwait(false);
     }
 
-    private async ValueTask<List<string>> ReadTableNamesAsync()
+    private async ValueTask<List<string>> ReadObjectNamesAsync(string type)
     {
         await using var command = DataSource.CreateCommand(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE @prefix ESCAPE '\\';");
+            "SELECT name FROM sqlite_master WHERE type = @type AND name LIKE @prefix ESCAPE '\\';");
 
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = "@prefix";
-        parameter.Value = TablePrefix.Replace("_", "\\_", StringComparison.Ordinal) + "%";
-        command.Parameters.Add(parameter);
+        var typeParameter = command.CreateParameter();
+        typeParameter.ParameterName = "@type";
+        typeParameter.Value = type;
+        command.Parameters.Add(typeParameter);
+
+        var prefixParameter = command.CreateParameter();
+        prefixParameter.ParameterName = "@prefix";
+        prefixParameter.Value = TablePrefix.Replace("_", "\\_", StringComparison.Ordinal) + "%";
+        command.Parameters.Add(prefixParameter);
 
         var names = new List<string>();
 
@@ -359,13 +405,13 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <remarks>
     /// <c>PRAGMA defer_foreign_keys = ON</c> defers FOREIGN KEY checking to the end of the
     /// transaction, so all tables can be emptied in a single transaction regardless of delete
-    /// order. The table list is read from the catalog (<see cref="ReadTableNamesAsync"/>), not
+    /// order. The table list is read from the catalog (<see cref="ReadObjectNamesAsync"/>), not
     /// hardcoded.
     /// </remarks>
     public async ValueTask ResetDataAsync()
     {
         var migrationsTable = $"{TablePrefix}__migrations";
-        var tableNames = (await ReadTableNamesAsync().ConfigureAwait(false))
+        var tableNames = (await ReadObjectNamesAsync("table").ConfigureAwait(false))
             .Where(name => !string.Equals(name, migrationsTable, StringComparison.Ordinal))
             .ToList();
 
