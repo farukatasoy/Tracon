@@ -120,3 +120,19 @@
   ayariyla) her cagriya ONEK olarak eklenir ve `AddAgentPrismClient`'in
   `BaseAddress`'ini GORMEZDEN GELIR — `UseBaseUrl:false` bu alani TAMAMEN
   kaldirir, `HttpClient.BaseAddress` (trailing `/` ile) tek kaynak olur.
+
+- **🚨 Tel uzerinde gorunen bir `enum`'u degistirmek DORT uretilmis yuzeyi birden
+  tazelemeyi ister; ucunu yapip birini atlamak `tsc`'yi kirmizi birakir**
+  (2026-08-26, K-627, olculdu). Sira: (1) `AGENTPRISM_OPENAPI_REFRESH=1 dotnet test
+  tests/AgentPrism.AspNetCore.FunctionalTests -c Release --filter
+  FullyQualifiedName~OpenApiSnapshotTests` → `docs/openapi/agentprism.json`;
+  (2) `packages/agentprism-client` icinde `npm run generate` → `src/schema.ts`;
+  (3) `dotnet tool restore && python3 scripts/nswag-prepare-document.py ... &&
+  dotnet nswag run nswag.json && python3 scripts/nswag-postprocess-client.py ...
+  && python3 scripts/generate-client-json-context.py ...` → `AgentPrismApiClient.g.cs`;
+  (4) **`packages/agentprism-client` icinde `npm run build`**. Dorduncu adim
+  kolayca unutulur: `src/AgentPrism.UI/frontend` tiplerini `@agentprism/client`'tan
+  alir ve o import **`dist/`'i** cozer, `src/`'i degil. `dist/` gitignore'dur, yani
+  `git status` temiz gorunur ve yalniz frontend `tsc` sikayet eder — sozluk anahtari
+  `t(\`dashboard.errorClass.${entry.class}\`)` gibi sema tipinden TUREYEN her yerde
+  hata bayat `dist`'i degil sanki sozlugu isaret eder.
