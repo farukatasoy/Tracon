@@ -125,7 +125,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) | Tüketici Bağlantı Düzlemi | ✅ Tamamlandı |
 | [111](arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md) | Okuma Sözleşmesi Görünümleri | ✅ Tamamlandı |
 | [112](arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) | Replay'in İstemci Tool Sözleşmesi | ✅ Tamamlandı |
-| [113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | 📋 Planlandı |
+| [113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | ✅ Tamamlandı |
 | [114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) | Çalıştırma-İçi Bütçe Tavanı | 📋 Planlandı |
 | [115](115-EVALIN-BASSIZ-KOSUCUSU.md) | Eval'in Başsız Koşucusu | 📋 Planlandı |
 | [116](116-PERFORMANS-TAHSIS-KAPISI.md) | Performans Tahsis Kapısı | 📋 Planlandı |

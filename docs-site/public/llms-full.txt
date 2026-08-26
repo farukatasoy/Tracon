@@ -77,6 +77,11 @@ console and pricing; it is not an allowlist. Health checks are cached. A shared
 circuit breaker protects provider calls. AgentPrism does not invent model names or
 prices.
 
+`ModelBinding.Fallbacks` decides whether a failure moves to the next provider link,
+and `runs.error_class` decides how a failed run is classified afterward. Both
+decisions can be overridden or composed with your own rules — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
+
 ## Tools, skills, and context
 
 | Capability | Registration or source | What is enforced |
@@ -1427,6 +1432,10 @@ a provider setting, the other is your policy.
 
 `GET /api/stats` aggregates the classes, so a rise in one bucket is visible before
 anyone reports it.
+
+Both the class and the clustering fingerprint come from a classifier you can
+replace or compose with your own rules — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
 
 ## Replay and comparison
 
@@ -6945,6 +6954,10 @@ misconfigured key behind a silent provider switch costs more than the switch
 saves. A provider's own content/safety filter is not a fallback trigger either;
 that decision is made once, after whichever link actually answered.
 
+Registering an `IProviderRetryClassifier` overrides this decision for a
+specific SDK exception without replacing the built-in rules above — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
+
 A fallback switch is never silent. The run record gets a `ModelFallbackUsed`
 event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary
@@ -8153,6 +8166,108 @@ isolated; resolution failures stop so a lower-priority agent cannot run by mista
 - [Agents](/concepts/agents/) — the catalog and agent-definition model
 - [Model providers](/guides/model-providers/) — write a custom model provider
 - [Reference: IAgentSource](/api/agentprism.iagentsource/) — full API contract
+
+---
+
+# Write your own error classifier
+
+A provider failure raises two separate questions, answered by two separate
+extension points:
+
+```mermaid
+flowchart TD
+    accTitle: Two questions, two extension points
+    accDescr: A model call fails. First question, should the next fallback link be tried, answered by IProviderRetryClassifier falling back to the built-in rules on Unknown. Then, whatever the outcome, the run is closed and IRunErrorClassifier decides its stored error class and clustering fingerprint, also falling back to the built-in rules.
+    FAIL["A model call throws"] --> RETRY{"IProviderRetryClassifier<br/>should the next fallback link answer?"}
+    RETRY -->|Unknown| BUILTIN1["Built-in rules decide"]
+    RETRY -->|Retry / DoNotRetry| DECIDED["Consumer decision wins"]
+    BUILTIN1 --> OUTCOME["Run closes, with or without a fallback"]
+    DECIDED --> OUTCOME
+    OUTCOME --> CLASSIFY{"IRunErrorClassifier<br/>what class and fingerprint?"}
+    CLASSIFY -->|no rule matches| BUILTIN2["Built-in classifier decides"]
+    CLASSIFY -->|own rule matches| OWN["Consumer's class and fingerprint"]
+```
+
+Both are registered with `TryAddSingleton`, so your own registration
+(`services.AddSingleton<...>()`, called before or after `AddAgentPrism()` —
+`TryAdd*` means your registration always wins) replaces the built-in default.
+Neither one needs the other: register just the one you need.
+
+## Decide whether a failure retries
+
+`IProviderRetryClassifier` runs once per failed attempt, before AgentPrism's
+[fallback chain](/guides/reliability/#fall-back-to-a-secondary-provider) falls
+back to its own rules:
+
+```csharp
+public sealed class AcmeRetryClassifier : IProviderRetryClassifier
+{
+    public ProviderRetryDecision Classify(Exception exception)
+        => exception.Message.Contains("Acme.Sdk.ThrottledException", StringComparison.Ordinal)
+            ? ProviderRetryDecision.Retry
+            : ProviderRetryDecision.Unknown;
+}
+```
+
+```csharp
+services.AddSingleton<IProviderRetryClassifier, AcmeRetryClassifier>();
+```
+
+`ProviderRetryDecision` has three values, not two. Returning `Unknown` for
+every exception you do not recognize matters: AgentPrism's built-in rules are
+a closed, positive set — an unrecognized failure does not retry by default,
+because hiding a configuration error behind a silent provider switch costs
+more than the switch saves. A `bool` contract would force your classifier to
+take a side on every exception, silently breaking that guarantee the moment
+it is registered.
+
+A cancellation is never offered to your classifier, however it is nested
+inside the exception you receive — that check runs before this seam and
+cannot be overridden. If your classifier throws, AgentPrism logs the failure
+and falls back to the built-in rules for that call; a broken classifier does
+not break the model call it decorates.
+
+## Decide how a failed run is classified
+
+`IRunErrorClassifier` runs once, when a run closes with an error, and
+produces the `runs.error_class` value and the clustering fingerprint used to
+group repeated failures. `DefaultRunErrorClassifier` is public and carries no
+dependencies, so composing it needs no dependency injection:
+
+```csharp
+public sealed class AcmeErrorClassifier(DefaultRunErrorClassifier builtIn) : IRunErrorClassifier
+{
+    public RunErrorClassification Classify(RunError runError)
+        => runError.Type.Contains("Acme.Sdk.ThrottledException", StringComparison.Ordinal)
+            ? new RunErrorClassification
+            {
+                Class = RunErrorClass.RateLimited,
+                Fingerprint = RunErrorFingerprint.Compute(runError.Message),
+            }
+            : builtIn.Classify(runError);
+}
+```
+
+```csharp
+services.AddSingleton<IRunErrorClassifier>(
+    _ => new AcmeErrorClassifier(new DefaultRunErrorClassifier()));
+```
+
+Use `RunErrorFingerprint.Compute` for your own rule's fingerprint so it lands
+in the same cluster convention the built-in classifier uses — identifiers,
+numbers, and timestamps normalized out, quoted text kept (a tool name is
+distinguishing). Return `RunErrorClass.Unknown` rather than guessing when
+nothing matches; a high `Unknown` share in `RunStatistics` is a signal that
+your taxonomy is incomplete, not a failure.
+
+If your classifier throws, the run still reaches its terminal state: the
+class comes from the built-in classifier instead, and the failure is logged.
+
+## Read next
+
+- [Reliable runs](/guides/reliability/#fall-back-to-a-secondary-provider) — the fallback chain this seam sits in front of
+- [Observability and cost](/guides/observability/) — where `RunErrorClass` and fingerprints surface in the dashboard
+- [Runs and recording](/concepts/runs/) — the run record `runs.error_class` and `runs.error_fingerprint` belong to
 
 ---
 

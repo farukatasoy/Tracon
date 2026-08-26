@@ -76,6 +76,14 @@ public static partial class AgentPrismServiceCollectionExtensions
             provider.GetService<IConfiguration>(),
             provider.GetRequiredService<IOptionsMonitor<AgentPrismTenantProviderOptions>>()));
 
+        // Provider retry classifier (Phase 113, F-149). Registered BEFORE
+        // IModelProviderRegistry so its constructor can resolve it. The
+        // taxonomy is AgentPrism's opinion; thanks to TryAddSingleton, the
+        // consumer's own classifier wins (K4) - a consumer that registers
+        // nothing gets DefaultProviderRetryClassifier, so FallbackChatClient's
+        // retry decisions stay bit-for-bit identical to before the seam existed.
+        services.TryAddSingleton<IProviderRetryClassifier, DefaultProviderRetryClassifier>();
+
         // Sets up the WHOLE registry pipeline (moved out of the provider
         // packages in Phase 48). An explicit factory is required: the built-in
         // DI container does not fill in constructor parameters that carry a
@@ -95,7 +103,8 @@ public static partial class AgentPrismServiceCollectionExtensions
             // ModelBinding.ResponseCache fails to compile instead of silently
             // running uncached - see ModelProviderRegistry.BuildPipeline.
             provider.GetService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
-            provider.GetService<AgentPrismMetrics>()));
+            provider.GetService<AgentPrismMetrics>(),
+            provider.GetService<IProviderRetryClassifier>()));
 
         // Pre-flight context-window estimator (phase 62, F-59). Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless

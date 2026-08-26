@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -44,6 +45,8 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     private readonly IChatClient _primaryClient;
     private readonly IReadOnlyList<ModelFallback> _fallbacks;
     private readonly Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> _buildClient;
+    private readonly IProviderRetryClassifier? _retryClassifier;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly Dictionary<int, IChatClient> _fallbackClients = [];
 
     /// <summary>Creates a new fallback client.</summary>
@@ -53,6 +56,17 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     /// Builds the full pipeline for a fallback binding. Passed in rather than
     /// called eagerly: a fallback client is built only once per link that is
     /// actually reached, not once per configured link.
+    /// </param>
+    /// <param name="retryClassifier">
+    /// A consumer-supplied retry decision, consulted before AgentPrism's
+    /// built-in rules (<see cref="ProviderRetryDecision.Unknown"/> defers to
+    /// them). If <see langword="null"/>, the built-in rules alone decide —
+    /// today's exact behavior.
+    /// </param>
+    /// <param name="loggerFactory">
+    /// Used only to log when <paramref name="retryClassifier"/> throws; the
+    /// call still falls back to the built-in rules (an observability
+    /// function must not break the model-call path).
     /// </param>
     /// <remarks>
     /// <para>
@@ -76,13 +90,17 @@ internal sealed class FallbackChatClient : DelegatingChatClient
     public FallbackChatClient(
         ModelBinding primaryBinding,
         IChatClient primaryClient,
-        Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> buildClient)
+        Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> buildClient,
+        IProviderRetryClassifier? retryClassifier = null,
+        ILoggerFactory? loggerFactory = null)
         : base(primaryClient)
     {
         _primaryBinding = primaryBinding;
         _primaryClient = primaryClient;
         _fallbacks = primaryBinding.Fallbacks;
         _buildClient = buildClient;
+        _retryClassifier = retryClassifier;
+        _loggerFactory = loggerFactory;
     }
 
     /// <inheritdoc />
@@ -99,10 +117,11 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             var client = index == 0
                 ? _primaryClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
+            var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
 
             try
             {
-                var response = await client.GetResponseAsync(buffer, options, cancellationToken).ConfigureAwait(false);
+                var response = await client.GetResponseAsync(buffer, callOptions, cancellationToken).ConfigureAwait(false);
 
                 if (index > 0)
                 {
@@ -119,7 +138,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             // never masked by trying the next link — whichever link produced
             // it, from K1's "zero surprise": hiding a configuration error
             // behind a provider switch costs more than the switch saves.
-            catch (Exception ex) when (!FallbackRetryClassifier.IsRetryable(ex))
+            catch (Exception ex) when (!IsRetryable(ex))
             {
                 throw;
             }
@@ -154,6 +173,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             var client = index == 0
                 ? _primaryClient
                 : await ResolveFallbackClientAsync(index - 1, cancellationToken).ConfigureAwait(false);
+            var callOptions = index == 0 ? options : OptionsForLink(options, _fallbacks[index - 1].Model);
             var sawUpdate = false;
 
             // 🚨 A stream cannot be retried past its first frame: once a chunk
@@ -162,7 +182,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
             // by hand (instead of `await foreach`) specifically so a failure on
             // the FIRST call — before any `yield return` — can still select the
             // next link, while a failure after that always propagates as-is.
-            var enumerator = client.GetStreamingResponseAsync(buffer, options, cancellationToken)
+            var enumerator = client.GetStreamingResponseAsync(buffer, callOptions, cancellationToken)
                 .GetAsyncEnumerator(cancellationToken);
 
             try
@@ -188,7 +208,7 @@ internal sealed class FallbackChatClient : DelegatingChatClient
                     // is not one this client retries: propagate as-is. See
                     // GetResponseAsync for why a non-retryable failure is
                     // never masked.
-                    catch (Exception ex) when (sawUpdate || !FallbackRetryClassifier.IsRetryable(ex))
+                    catch (Exception ex) when (sawUpdate || !IsRetryable(ex))
                     {
                         throw;
                     }
@@ -229,6 +249,70 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         }
 
         throw ChainExhausted(firstFailure!);
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="exception"/> should try the next
+    /// fallback link, consulting <see cref="_retryClassifier"/> first when one
+    /// is registered.
+    /// </summary>
+    /// <remarks>
+    /// A buried cancellation is checked BEFORE the seam and short-circuits
+    /// unconditionally: a consumer's classifier is never even asked about it —
+    /// the seam cannot be used to leak a cancellation into a retry. If the
+    /// classifier itself throws, the failure is logged and this falls back to
+    /// the built-in rules — an extension point must not
+    /// break the model-call path it decorates.
+    /// </remarks>
+    private bool IsRetryable(Exception exception)
+    {
+        if (FallbackRetryClassifier.IsCancellation(exception))
+        {
+            return false;
+        }
+
+        if (_retryClassifier is not null)
+        {
+            try
+            {
+                var decision = _retryClassifier.Classify(exception);
+
+                if (decision != ProviderRetryDecision.Unknown)
+                {
+                    return decision == ProviderRetryDecision.Retry;
+                }
+            }
+            catch (Exception classifierException)
+            {
+                _loggerFactory?
+                    .CreateLogger("AgentPrism.ModelProvider")
+                    .LogError(
+                        classifierException,
+                        "The registered IProviderRetryClassifier threw; falling back to the built-in retry rules.");
+            }
+        }
+
+        return FallbackRetryClassifier.IsRetryable(exception);
+    }
+
+    /// <summary>
+    /// Builds the <see cref="ChatOptions"/> a fallback link is called with.
+    /// </summary>
+    /// <remarks>
+    /// A fallback link's <see cref="ModelFallback.Model"/> can legitimately
+    /// differ from the primary's — that is the entire point of naming it
+    /// separately. Forwarding the primary's <see cref="ChatOptions.ModelId"/>
+    /// unchanged would send the wrong model name to a provider that has no
+    /// idea what "the primary's model" means. <see cref="ChatOptions.Clone"/>
+    /// keeps every other option (tools, instructions, reasoning, ...) intact;
+    /// the original instance is never mutated, so the primary's own next call
+    /// (if this client instance is reused) is unaffected.
+    /// </remarks>
+    private static ChatOptions? OptionsForLink(ChatOptions? options, string modelId)
+    {
+        var linkOptions = options?.Clone() ?? new ChatOptions();
+        linkOptions.ModelId = modelId;
+        return linkOptions;
     }
 
     private async ValueTask<IChatClient> ResolveFallbackClientAsync(int fallbackIndex, CancellationToken cancellationToken)
@@ -352,15 +436,9 @@ internal static partial class FallbackRetryClassifier
     /// <summary>Determines whether <paramref name="exception"/> should try the next fallback link.</summary>
     public static bool IsRetryable(Exception exception)
     {
-        // A cancellation buried inside an AggregateException (the SDK's own
-        // retry pipeline can wrap one) must still short-circuit — checked
-        // FIRST and across the whole graph, before any status/type match below.
-        foreach (var candidate in Flatten(exception))
+        if (IsCancellation(exception))
         {
-            if (candidate is OperationCanceledException)
-            {
-                return false;
-            }
+            return false;
         }
 
         foreach (var candidate in Flatten(exception))
@@ -402,6 +480,30 @@ internal static partial class FallbackRetryClassifier
         foreach (var candidate in Flatten(exception))
         {
             if (TransportExceptionTypePattern().IsMatch(candidate.GetType().FullName ?? string.Empty))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a cancellation is buried anywhere in
+    /// <paramref name="exception"/>'s graph (the SDK's own retry pipeline can
+    /// wrap one inside an <see cref="AggregateException"/>).
+    /// </summary>
+    /// <remarks>
+    /// Checked BEFORE <see cref="IProviderRetryClassifier"/> is ever
+    /// consulted (<see cref="FallbackChatClient"/>) — a cancellation must
+    /// never be turned into a retry, and a consumer's classifier cannot
+    /// override that.
+    /// </remarks>
+    internal static bool IsCancellation(Exception exception)
+    {
+        foreach (var candidate in Flatten(exception))
+        {
+            if (candidate is OperationCanceledException)
             {
                 return true;
             }

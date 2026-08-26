@@ -3,7 +3,8 @@
 > **Alan kodu:** `OBS` · **Faz:** 6 (iz/span), 20 (maliyet + gösterge paneli),
 > 35 (maliyet/kota metrikleri — OTel enstrümanları),
 > 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı),
-> 88 (görsel üretim ölçümü), 89 (tool çıktısı boyut sınırı)
+> 88 (görsel üretim ölçümü), 89 (tool çıktısı boyut sınırı),
+> 113 (§ `IRunErrorClassifier` kompozisyonu ve `RunErrorFingerprint`)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1490,5 +1491,88 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   gerçek DI + HTTP + SSE + trace endpoint zincirini ve `agentprism.run` span'ini
   doğrular. `SuccessSampleRatio=1` ile sample tekrarında trace endpoint `200`
   dönmelidir.
+
+---
+
+### MT-OBS-051 — Kompozisyonla yazılmış `IRunErrorClassifier`'ın KENDİ kuralı yerleşiği geçersiz kılar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 113 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- Kayıtlı bir `IRunErrorClassifier`: `DefaultRunErrorClassifier`'ı doğrudan
+  `new()` ile kurup (DI gerekmez, sıfır bağımlılıklıdır) kompozisyonla sarar —
+  `RunError.Type == AgentPrismProviderUnavailableException.ProviderUnavailableErrorType`
+  ise kendi kuralını uygular (yerleşiğin `ProviderUnavailable` atadığı sınıfı
+  bilerek başka bir sınıfa çevirir), aksi hâlde `builtIn.Classify(runError)`'a düşer.
+- Birincili VE yedeği İKİSİ de sürekli bağlantı reddiyle düşen bir agent
+  (zincir kesin tükenir → gerçek bir `AgentPrismProviderUnavailableException`).
+
+**Adımlar**
+1. Agent'a bir mesaj gönder (zincir tükenir).
+2. `GET /api/runs/{runId}` ile `error.class`'ı oku.
+
+**Beklenen sonuç (2026-08-26'da ölçüldü)**
+- `run.error.type` = `"provider_unavailable"` (yerleşiğin kendisi bunu
+  `ProviderUnavailable`'a eşlerdi) ama `run.error.class` tüketicinin KENDİ
+  kuralının sonucudur — yerleşik ATLANMIŞTIR. `run.error.fingerprint` DOLUDUR
+  (`RunErrorFingerprint.Compute` ile üretilmiştir).
+
+---
+
+### MT-OBS-052 — Aynı hata iki kez üretilince aynı `fingerprint` altında kümelenir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 113 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-OBS-051'in aynı kurulumu.
+
+**Adımlar**
+1. MT-OBS-051'in AYNI çağrısını tekrar gönder.
+2. İki `run`'ın `error.fingerprint` alanlarını karşılaştır.
+
+**Beklenen sonuç (2026-08-26'da ölçüldü)**
+- İki `run`'ın `fingerprint`'i **birebir aynıdır** (ölçülen değer:
+  `b8e7c79d8be5af55023bbb6ebef993579ac38fca417e4739aedd85c4be541fa4`) —
+  kompozisyonla üretilen parmak izi de yerleşiğin kullandığı
+  `RunErrorFingerprint.Compute`'u çağırdığı için aynı kümeye düşer.
+
+---
+
+### MT-OBS-053 — 🚨 Tüketici sınıflandırıcısı exception atarsa run DURMAZ; sınıf yerleşikten gelir, hata loglanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 113 |
+| **İlgili karar** | K1 |
+
+**Ön koşul**
+- MT-OBS-051'in kurulumu, ama sınıflandırıcı HER çağrıda bilerek
+  `InvalidOperationException` fırlatacak şekilde değiştirilmiş.
+
+**Adımlar**
+1. Agent'a bir mesaj gönder.
+2. `GET /api/runs/{runId}` ile `run.status`'u ve `error.class`'ı oku.
+3. Sunucu loglarını `"registered IRunErrorClassifier threw"` için tara. 👤 insan gerekir (log gözü).
+
+**Beklenen sonuç (2026-08-26'da ölçüldü)**
+- Adım 2: `run.status` = `"Failed"` — run kayıtsız veya asılı KALMAZ, terminal
+  durumuna ulaşır. `error.class`, tüketicinin (bozuk) kuralı değil, YERLEŞİK
+  `DefaultRunErrorClassifier`'ın bu hata için verdiği karardır.
+- Adım 3: `_logger.LogError` çağrısı loglarda görünür:
+  `"The registered IRunErrorClassifier threw while classifying a run error;
+  falling back to the built-in classifier."` ve altında gerçek istisna
+  (`InvalidOperationException`) durur.
 
 ---

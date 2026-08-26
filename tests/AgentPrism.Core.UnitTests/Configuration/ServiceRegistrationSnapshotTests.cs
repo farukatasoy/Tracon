@@ -123,6 +123,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "AgentPrism.ITenantProviderBindingStore | Singleton | AgentPrism.InMemoryTenantProviderBindingStore",
         "AgentPrism.ITenantEgressPolicyStore | Singleton | AgentPrism.InMemoryTenantEgressPolicyStore",
         "AgentPrism.TenantProviderCredentialResolver | Singleton | Factory",
+        "AgentPrism.IProviderRetryClassifier | Singleton | AgentPrism.DefaultProviderRetryClassifier",
         "AgentPrism.IModelProviderRegistry | Singleton | Factory",
         "AgentPrism.ContextWindowEstimator | Singleton | AgentPrism.ContextWindowEstimator",
         "AgentPrism.IRunPricingResolver | Singleton | AgentPrism.RunPricingResolver",
