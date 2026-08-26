@@ -316,11 +316,24 @@ Every root run creates a budget shared by its child-agent tree:
 |---|---:|---|
 | `AgentGraph.MaxDepth` | `3` | Root is depth zero; negative values clamp to zero |
 | `AgentGraph.MaxTotalTokens` | `200,000` | Zero or negative removes the token limit |
+| `AgentGraph.MaxTotalCost` | none | Zero, negative, or unset removes the cost limit |
 | `AgentGraph.MaxTotalRuns` | `25` | Counts child runs only; zero or negative removes the count limit |
 
-A budget prevents a new child run from starting after the boundary is reached. It
-does not interrupt work already in progress. Token usage becomes known after a model
-call, so concurrent children can produce a bounded overshoot. Use stricter per-run
+`MaxDepth` and `MaxTotalRuns` only stop a *new* child run from starting — a run
+already in progress finishes even if the tree is over either limit.
+`MaxTotalTokens` and `MaxTotalCost` are enforced differently: the check runs
+between two model turns, inside the tool-call loop, so a tree that has already
+spent past its limit is cut off before its *next* model call — mid-run, not
+only at the next child call. The run ends `Failed` with `error_class:
+QuotaExceeded` and a message naming which limit was hit and which setting
+raises it. A cost limit falls back to the token limit for a model whose price
+is undefined (`PricingSource.Unknown`) — the cost cannot be measured, so it
+cannot be enforced.
+
+Because several branches of a tree can be mid-turn at the same time, the check
+is not perfectly precise: two concurrent turns can each pass the check before
+either records its spend, so a tree can still overshoot its limit by a bounded
+amount before the next check on each branch catches it. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
 
 ## Wait for in-flight runs before the process stops

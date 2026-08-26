@@ -104,7 +104,15 @@ public static partial class AgentPrismServiceCollectionExtensions
             // running uncached - see ModelProviderRegistry.BuildPipeline.
             provider.GetService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
             provider.GetService<AgentPrismMetrics>(),
-            provider.GetService<IProviderRetryClassifier>()));
+            provider.GetService<IProviderRetryClassifier>(),
+
+            // 🚨 NOT provider.GetService<IRunPricingResolver>() here: RunPricingResolver
+            // depends on IModelProviderRegistry itself (it scans the catalog for a
+            // model's price), so eagerly resolving it in THIS factory is a circular
+            // dependency. `provider` is captured for RunBudgetChatClient to resolve it
+            // lazily at pipeline-build time instead - see ModelProviderRegistry's own
+            // constructor remarks.
+            provider));
 
         // Pre-flight context-window estimator (phase 62, F-59). Registered
         // unconditionally: POST /api/agents/{name}/estimate works regardless

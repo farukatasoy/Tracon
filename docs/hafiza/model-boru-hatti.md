@@ -105,3 +105,24 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   fark tek bir `if (rewritten is null) continue;` satirinin neyi kontrol
   ettigidir. Duzeltme + red→green kaniti:
   `ContentGuardMaskTests.Tool_result_that_cannot_be_normalized_is_masked_even_when_no_guard_pattern_matches`.
+
+## `ModelProviderRegistry` kurucusuna bir servis eklerken DÖNGÜSEL DI riski (Faz 114, kod okunarak ONCEDEN olculdu)
+
+- **🚨 `ModelProviderRegistry`'nin kurucusuna, kendisi `IModelProviderRegistry`'ye
+  BAGIMLI olan bir servisi DOGRUDAN parametre olarak ekleme.** `RunPricingResolver`
+  (fiyat katalogunu taramak icin) `IModelProviderRegistry`'ye bagimlidir; plan
+  `IRunPricingResolver?`'in kurucuya DOGRUDAN eklenmesini varsayiyordu (K-320'nin
+  "on iki istege bagli parametreli deseni" emsal gosterilerek) ama bu, DI
+  konteynerinin cozemeyecegi bir DONGU uretirdi — `ModelProviderRegistry` ister
+  `IRunPricingResolver` → `RunPricingResolver` ister `IModelProviderRegistry` →
+  henuz insa edilmemis AYNI singleton. `faz-uygulama`'nin "planin yapisal iddiasini
+  kabul etmeden olc" kurali burada koda gecmeden ONCE bu dongüyu yakaladi.
+  **Cozum:** kurucu `IServiceProvider? services` alir (`AgentDefinitionCompiler._services`
+  ile ayni desen), bagimliligi `BuildPipeline` icinde — agent DERLEME aninda,
+  DI konteyneri tamamen kurulduktan COK SONRA — GEC (lazy) cozer; o anda
+  `ModelProviderRegistry` singleton'i zaten onbellege alindigi icin dongu kirilir
+  (K-631). **Kural: yeni bir kurucu parametresi eklemeden once, o servisin
+  KENDI bagimlilik grafigini `grep -rn "IModelProviderRegistry" src/AgentPrism.Core/<YeniServis>.cs`
+  ile bir kez tara** — dogrudan parametre DI'nin coz(emey)ecegi bir seyi
+  build zamanina degil calisma zamanina tasir, hata mesaji "circular dependency"
+  gibi acik olabilir ama DAHA COK sessizce StackOverflow'a da donusebilir.

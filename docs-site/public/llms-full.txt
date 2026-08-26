@@ -46,7 +46,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider |
-| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, and total tokens |
+| Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, and total token/cost spend — the token and cost limits cut a run off mid-run, between model turns |
 | Harness mode | Context and iteration limits plus optional todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `AgentPrism:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
@@ -934,6 +934,13 @@ The check happens **before** a run starts; consumption is written **after** it
 finishes. A run already in progress is never cut off mid-flight, so brief overshoot is
 possible by design.
 :::
+
+This is a *different* budget from the one every root run's call tree carries
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`, see [Reliable
+runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
+or agent over a day or month and never interrupts a run in progress; the call-tree
+budget is scoped to one run's tree and is checked between model turns, so it *does*
+cut a long tool loop off mid-run.
 
 ## Retention
 
@@ -6727,11 +6734,13 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it |
 
 ## Upgrading: outbound targets and configuration keys
 
-Two boundaries tightened, and both can refuse something a running setup accepted
-before. Reading is unaffected in each case; only writing and connecting change.
+Three boundaries tightened, and all three can refuse something a running setup
+accepted before. Reading is unaffected in each case; only writing, connecting, and
+long-running calls change.
 
 **Private network targets are refused on all three outbound surfaces.** Webhook
 delivery already behaved this way; MCP server connections and per-tenant provider
@@ -6752,6 +6761,24 @@ The rejection message names that setting, so an operator who hits it can act wit
 reading this page. `AgentPrism:Webhooks:AllowPrivateNetworkTargets` still works and
 still applies to webhook delivery only; either setting being on is enough for a
 webhook target.
+
+**The agent-graph token budget now actually cuts a run off.** The default
+(`AgentGraph.MaxTotalTokens`, 200,000) always existed, but earlier releases only
+checked it before starting a *new* child run — a single agent's own tool loop could
+run past it freely. It is now enforced between model turns for every run, so a tree
+whose tool loop genuinely needs more than 200,000 tokens now ends `Failed` with
+`error_class: QuotaExceeded` where it previously would have finished. Raise the
+setting, or set it to `0` to remove the limit:
+
+```json
+{
+  "AgentPrism": {
+    "AgentGraph": {
+      "MaxTotalTokens": 500000
+    }
+  }
+}
+```
 
 **Configuration key names must sit under an allowed prefix.** MCP server definitions
 and webhook subscriptions join inbound triggers and provider bindings in this rule. A
@@ -7148,11 +7175,24 @@ Every root run creates a budget shared by its child-agent tree:
 |---|---:|---|
 | `AgentGraph.MaxDepth` | `3` | Root is depth zero; negative values clamp to zero |
 | `AgentGraph.MaxTotalTokens` | `200,000` | Zero or negative removes the token limit |
+| `AgentGraph.MaxTotalCost` | none | Zero, negative, or unset removes the cost limit |
 | `AgentGraph.MaxTotalRuns` | `25` | Counts child runs only; zero or negative removes the count limit |
 
-A budget prevents a new child run from starting after the boundary is reached. It
-does not interrupt work already in progress. Token usage becomes known after a model
-call, so concurrent children can produce a bounded overshoot. Use stricter per-run
+`MaxDepth` and `MaxTotalRuns` only stop a *new* child run from starting — a run
+already in progress finishes even if the tree is over either limit.
+`MaxTotalTokens` and `MaxTotalCost` are enforced differently: the check runs
+between two model turns, inside the tool-call loop, so a tree that has already
+spent past its limit is cut off before its *next* model call — mid-run, not
+only at the next child call. The run ends `Failed` with `error_class:
+QuotaExceeded` and a message naming which limit was hit and which setting
+raises it. A cost limit falls back to the token limit for a model whose price
+is undefined (`PricingSource.Unknown`) — the cost cannot be measured, so it
+cannot be enforced.
+
+Because several branches of a tree can be mid-turn at the same time, the check
+is not perfectly precise: two concurrent turns can each pass the check before
+either records its spend, so a tree can still overshoot its limit by a bounded
+amount before the next check on each branch catches it. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
 
 ## Wait for in-flight runs before the process stops
@@ -9235,13 +9275,14 @@ script.
 | `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
-| `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |
+| `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |
+| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree; falls back to the token limit when a model's price is undefined |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 
-Non-positive graph token or run limits remove that limit. See
+Non-positive graph token, cost, or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)
 for the exact runtime interpretation.
 

@@ -47,6 +47,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [AgentPrismProviderUnavailableException.ProviderUnavailableErrorType] = RunErrorClass.ProviderUnavailable,
         ["AgentPrism.AgentPrismProviderUnavailableException"] = RunErrorClass.ProviderUnavailable,
         [AgentPrismToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
+        [AgentPrismRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
     };
 
     /// <inheritdoc />

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
@@ -40,6 +41,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly IDistributedCache? _distributedCache;
     private readonly AgentPrismMetrics? _metrics;
     private readonly IProviderRetryClassifier? _retryClassifier;
+    private readonly IServiceProvider? _services;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -94,6 +96,22 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// <c>FallbackChatClient</c> before AgentPrism's built-in rules. If
     /// <see langword="null"/>, the built-in rules alone decide.
     /// </param>
+    /// <param name="services">
+    /// Resolves <see cref="IRunPricingResolver"/> for <see cref="RunBudgetChatClient"/>
+    /// LAZILY, at pipeline-build time rather than here in the constructor.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// <paramref name="services"/> is deliberately not a direct
+    /// <c>IRunPricingResolver?</c> parameter. The default cost resolver itself
+    /// depends on <see cref="IModelProviderRegistry"/> (it scans the catalog
+    /// for a model's price); resolving it here, while this registry is still
+    /// being constructed, is a circular dependency the container cannot
+    /// satisfy. The pipeline builder resolves it lazily instead, long after
+    /// this constructor returns and the registry singleton is cached, which
+    /// breaks the cycle.
+    /// </para>
+    /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">The same provider name has been registered more than once.</exception>
     public ModelProviderRegistry(
@@ -109,7 +127,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         TenantProviderCredentialResolver? credentialResolver = null,
         IDistributedCache? distributedCache = null,
         AgentPrismMetrics? metrics = null,
-        IProviderRetryClassifier? retryClassifier = null)
+        IProviderRetryClassifier? retryClassifier = null,
+        IServiceProvider? services = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -126,6 +145,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _distributedCache = distributedCache;
         _metrics = metrics;
         _retryClassifier = retryClassifier;
+        _services = services;
 
         foreach (var provider in providers)
         {
@@ -429,6 +449,22 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             .UseFunctionInvocation(
                 _loggerFactory,
                 fic => fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls);
+
+        // 🚨 The budget ring sits in the SAME slot as the response cache ring
+        // below: INSIDE the tool-call loop, OUTSIDE the cache and telemetry
+        // (phase 114). A turn the budget blocks never reaches the cache
+        // lookup or the real provider, so it produces no 'chat' span - the
+        // same as a cache hit today. Unconditional (unlike the cache ring):
+        // every pipeline this method builds, including the one context
+        // compaction's summarization call uses (ResolveSummarizationChatClient
+        // calls this same method), must see it - that is what lets this ring
+        // own 100% of the tree's usage accounting instead of splitting it with
+        // RunRecordingAgent.CompleteAsync.
+        pipelineBuilder = pipelineBuilder.Use(ringInner => new RunBudgetChatClient(
+            ringInner,
+            binding.Provider,
+            binding.Model,
+            _services?.GetService<IRunPricingResolver>()));
 
         // 🚨 The cache ring sits INSIDE the tool-call loop but OUTSIDE
         // telemetry and the content guard (Phase 81, F-45): a cache hit still
