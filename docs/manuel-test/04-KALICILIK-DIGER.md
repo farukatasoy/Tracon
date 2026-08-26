@@ -1744,7 +1744,7 @@ karşı.
 
 `runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü, `EnableReadViews`
 ile isteğe bağlı. Faz dokümanının
-([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
 manuel kabul tablosunun SQL Server/SQLite karşılığı; kapanışta gerçek bir SQL
 Server konteynerine ve gerçek bir SQLite dosyasına karşı otomatik koştu.
 
