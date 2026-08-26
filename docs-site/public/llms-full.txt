@@ -87,7 +87,7 @@ prices.
 | Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
 | Tool output size limit | `AgentPrismToolRegistration.MaxOutputBytes` or `AgentPrismOptions.Tools.DefaultMaxOutputBytes` | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
-| Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults` |
+| Client-side tools | `AddClientTool(name, description, jsonSchema)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
@@ -3442,6 +3442,16 @@ startup with a clear message.
 Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
+
+## Client-side tools cannot be replayed
+
+An agent carrying a client-side tool cannot be [replayed](/concepts/runs/#replay-and-comparison) in any
+tool mode. The tool's body runs in the caller's browser, not on the server, so no
+call to it is ever recorded — there is no result to play back, and no client waiting
+to answer it live. `POST /api/runs/{runId}/replay` rejects the request with `409
+Conflict` before the run starts, naming the tool in the response `detail`. This
+applies even if that particular run never actually called the tool: the check looks
+at what the agent's definition carries, not at what one run happened to use.
 
 ## CORS
 
@@ -10453,6 +10463,15 @@ screen or scheduling API.
 Replay requires `RunRecording:RecordRunInput=true` at the time of the original run.
 Retention can later remove run input. Neither setting can reconstruct input that was
 never stored.
+
+### Replay returns `409` for an agent that carries a client-side tool
+
+An agent registered with [`AddClientTool`](/guides/client-side-tools/) cannot be
+replayed in any tool mode (`ReplayTools`, `LiveTools`, or `NoTools`) — its body runs
+in the caller's browser, not on the server, so no call to it was ever recorded and no
+mode can answer one. This is not a misconfiguration; it applies even if the run being
+replayed never actually called the tool, because the check looks at what the agent's
+definition carries. There is no setting that lifts this limit.
 
 ### Cancellation returns not found or has no effect
 
