@@ -270,10 +270,16 @@ def migration_integrity_violations(
     return violations
 
 
-def changed_paths() -> list[str] | None:
-    """Include committed-range, working-tree, and untracked paths."""
+def changed_paths(base: str = "HEAD") -> list[str] | None:
+    """Include the base..working-tree range plus untracked paths.
+
+    `base` defaults to HEAD (uncommitted changes only, used by `ic-dongu`);
+    `kapanis` passes its own `--taban` so the performance gate's trigger check
+    (see `performance_gate_triggered`) sees the WHOLE phase's changes, not just
+    what happens to be uncommitted at closing time.
+    """
     paths: set[str] = set()
-    for arguments in (("diff", "--name-only", "HEAD"), ("status", "--porcelain")):
+    for arguments in (("diff", "--name-only", base), ("status", "--porcelain")):
         result = _git(*arguments)
         if result is None:
             return None
@@ -286,6 +292,184 @@ def changed_paths() -> list[str] | None:
 
 def frontend_changed(paths: Iterable[str]) -> bool:
     return any(path.startswith("src/AgentPrism.UI/") or path.startswith("packages/agentprism-client/") for path in paths)
+
+
+# -----------------------------------------------------------------------------
+# `performans` - allocation gate (docs/116-PERFORMANS-TAHSIS-KAPISI.md)
+#
+# The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
+# runner, allocation is deterministic (same code -> same byte count) while
+# duration moves with neighboring jobs (116.1). Duration is still recorded in
+# bench/baseline.json, as information only - it never fails the gate.
+# -----------------------------------------------------------------------------
+
+PERFORMANCE_HOT_PATHS = (
+    "src/AgentPrism.Core/Recording/RunEventWriter.cs",
+    "src/AgentPrism.Core/Compilation/CompiledAgentCache.cs",
+    "src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs",
+    "bench/",
+)
+
+BENCHMARK_PROJECT = ROOT / "bench" / "AgentPrism.Benchmarks" / "AgentPrism.Benchmarks.csproj"
+BENCHMARK_BASELINE = ROOT / "bench" / "baseline.json"
+BENCHMARK_REPORT_DIR = ARTIFACTS / "benchmarks" / "results"
+
+
+def performance_gate_triggered(paths: Iterable[str]) -> bool:
+    """Whether any of the three benchmarked hot paths (or the benchmark project
+    itself) changed - the allocation gate only runs when it can move (116.4)."""
+    return any(
+        path == hot_path or (hot_path.endswith("/") and path.startswith(hot_path))
+        for path in paths
+        for hot_path in PERFORMANCE_HOT_PATHS
+    )
+
+
+class BaselineError(Exception):
+    """Raised when bench/baseline.json is missing or malformed - always
+    surfaced as a clear message, never a bare traceback (116, DoD)."""
+
+
+def load_baseline(path: pathlib.Path = BENCHMARK_BASELINE) -> dict:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exception:
+        raise BaselineError(f"{path}: taban çizgisi okunamadı: {exception}") from exception
+
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError as exception:
+        raise BaselineError(f"{path}: taban çizgisi geçersiz JSON: {exception}") from exception
+
+    if not isinstance(document, dict) or not isinstance(document.get("benchmarks"), dict):
+        raise BaselineError(f"{path}: taban çizgisi beklenen 'benchmarks' anahtarını taşımıyor")
+
+    return document
+
+
+def write_baseline(benchmarks: Mapping[str, Mapping[str, float]], path: pathlib.Path = BENCHMARK_BASELINE) -> None:
+    document = {
+        "measuredAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "benchmarks": {name: dict(entry) for name, entry in sorted(benchmarks.items())},
+    }
+    path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def parse_benchmark_report(report: Mapping) -> dict[str, dict[str, float]]:
+    """Extract {full benchmark name: {allocatedBytes, meanNanoseconds}} from a
+    BenchmarkDotNet FULL JSON export (`--exporters json`)."""
+    parsed: dict[str, dict[str, float]] = {}
+    for entry in report.get("Benchmarks", []):
+        name = entry.get("FullName") or f"{entry.get('Type')}.{entry.get('Method')}"
+        memory = entry.get("Memory") or {}
+        statistics = entry.get("Statistics") or {}
+        parsed[name] = {
+            "allocatedBytes": memory.get("BytesAllocatedPerOperation"),
+            "meanNanoseconds": statistics.get("Mean"),
+        }
+    return parsed
+
+
+def compare_allocations(
+    baseline: Mapping[str, Mapping[str, float]],
+    current: Mapping[str, Mapping[str, float]],
+) -> tuple[int, list[str]]:
+    """Compare CURRENT allocation against BASELINE. Zero tolerance: an increase
+    is red; a decrease is a warning (the baseline is now stale), never red -
+    the gate must not silently measure against a loose old number forever."""
+    messages: list[str] = []
+    exit_code = 0
+
+    for name in sorted(set(baseline) | set(current)):
+        if name not in current:
+            messages.append(f"❌ {name}: bu koşumda üretilmedi (baseline'da var - kaldırılmış olabilir)")
+            exit_code = 1
+            continue
+        if name not in baseline:
+            messages.append(f"❌ {name}: taban çizgisinde yok - 'kapi.py performans --guncelle' ile ekleyin")
+            exit_code = 1
+            continue
+
+        baseline_bytes = baseline[name]["allocatedBytes"]
+        current_bytes = current[name]["allocatedBytes"]
+
+        if current_bytes > baseline_bytes:
+            messages.append(
+                f"❌ {name}: tahsis arttı ({baseline_bytes} B → {current_bytes} B, +{current_bytes - baseline_bytes} B)")
+            exit_code = 1
+        elif current_bytes < baseline_bytes:
+            messages.append(
+                f"⚠️ {name}: tahsis azaldı ({baseline_bytes} B → {current_bytes} B) - "
+                "taban çizgisi güncellenmeli: 'python3 scripts/kapi.py performans --guncelle'")
+        else:
+            messages.append(f"✅ {name}: {current_bytes} B")
+
+    return exit_code, messages
+
+
+def _run_benchmark_project(
+    *,
+    runner: Runner = subprocess.run,
+    report_dir: pathlib.Path = BENCHMARK_REPORT_DIR,
+) -> subprocess.CompletedProcess[str]:
+    # BenchmarkDotNet writes ONE *-report-full.json PER BENCHMARK CLASS, not
+    # one combined file for the whole run. A stale file from a renamed or
+    # removed benchmark class must not linger and get merged into `current` -
+    # the whole results directory is cleared before every run.
+    if report_dir.exists():
+        shutil.rmtree(report_dir)
+
+    environment = os.environ.copy()
+    environment["MSBUILDDISABLENODEREUSE"] = "1"
+    return runner(
+        ["dotnet", "run", "-c", "Release", "--project", str(BENCHMARK_PROJECT),
+         "--", "--filter", "*", "--exporters", "json"],
+        cwd=str(ROOT), env=environment, check=False)
+
+
+def _benchmark_report_files(report_dir: pathlib.Path = BENCHMARK_REPORT_DIR) -> list[pathlib.Path]:
+    return sorted(report_dir.glob("*-report-full.json")) if report_dir.exists() else []
+
+
+def performance_gate(
+    *,
+    update: bool = False,
+    runner: Runner = subprocess.run,
+    baseline_path: pathlib.Path = BENCHMARK_BASELINE,
+    report_dir: pathlib.Path = BENCHMARK_REPORT_DIR,
+) -> int:
+    try:
+        baseline_document = {} if update else load_baseline(baseline_path)
+    except BaselineError as exception:
+        print(f"❌ {exception}")
+        return 1
+
+    result = _run_benchmark_project(runner=runner, report_dir=report_dir)
+    if result.returncode:
+        print(f"❌ benchmark koşumu çıkış {result.returncode}")
+        return result.returncode
+
+    report_files = _benchmark_report_files(report_dir)
+    if not report_files:
+        print(f"❌ BenchmarkDotNet JSON raporu bulunamadı ({report_dir})")
+        return 1
+
+    current: dict[str, dict[str, float]] = {}
+    for report_path in report_files:
+        current.update(parse_benchmark_report(json.loads(report_path.read_text(encoding="utf-8"))))
+
+    if update:
+        write_baseline(current, baseline_path)
+        display_path = baseline_path.relative_to(ROOT) if ROOT in baseline_path.parents else baseline_path
+        print(f"✅ taban çizgisi güncellendi: {display_path}")
+        for name, entry in sorted(current.items()):
+            print(f"  {name}: {entry['allocatedBytes']} B")
+        return 0
+
+    exit_code, messages = compare_allocations(baseline_document["benchmarks"], current)
+    for message in messages:
+        print(message)
+    return exit_code
 
 
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
@@ -363,7 +547,7 @@ def inner_loop_commands(paths: list[str]) -> list[Command]:
     return commands + [_dotnet_test_project(project) for project in projects]
 
 
-def closing_commands(base: str, *, site: bool = True) -> list[Command]:
+def closing_commands(base: str, *, site: bool = True, performance: bool = True) -> list[Command]:
     commands = [
         Command(("python3", "scripts/kapi.py", "tarama")),
         Command(("python3", "scripts/dokuman-bakim.py", "--denetle")),
@@ -375,6 +559,13 @@ def closing_commands(base: str, *, site: bool = True) -> list[Command]:
         Command(("dotnet", "pack", "AgentPrism.slnx", "-c", "Release", "--no-build")),
         Command(("dotnet", "format", "AgentPrism.slnx", "--verify-no-changes", "--no-restore")),
     ]
+    # Path-triggered (116.4): a fifth ALWAYS-ON gate would run BenchmarkDotNet
+    # on every phase closing, even when nothing near the three hot paths
+    # changed. `kapi.py performans` stays a normal subcommand; `main()` decides
+    # whether THIS closing run needs it, the same way `affected_test_projects`
+    # already scopes `ic-dongu`.
+    if performance:
+        commands.append(Command(("python3", "scripts/kapi.py", "performans")))
     if site:
         commands.append(Command(("npm", "run", "check"), ROOT / "docs-site"))
     return commands
@@ -651,6 +842,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     closing = subparsers.add_parser("kapanis", help="tam doğrulama kapıları")
     closing.add_argument("--taban", required=True, help="faz öncesi commit SHA")
     closing.add_argument("--site-atla", action="store_true", help="docs-site kapısını atla")
+    performans = subparsers.add_parser("performans", help="tahsis kapısı - üç sıcak yolu ölçer")
+    performans.add_argument(
+        "--guncelle", action="store_true",
+        help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
     test.add_argument("--sinif", nargs="+", required=True, help="sınıf desenleri")
     test.add_argument("--proje", default="AgentPrism.Core.UnitTests", help="test proje adı")
@@ -671,11 +866,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         return run_commands("ic-dongu", inner_loop_commands(paths), dry_run=args.komutlari_bas)
     if args.stage == "kapanis":
+        # The performance gate is path-triggered against the WHOLE phase's
+        # changes (--taban..working tree), not just what is uncommitted right
+        # now - a phase that touched a hot path in an earlier commit and only
+        # has unrelated uncommitted changes left must still measure it (116.4).
+        # A failed git call runs it anyway rather than silently skipping.
+        paths = changed_paths(args.taban)
+        performance = paths is None or performance_gate_triggered(paths)
         return run_commands(
             "kapanis",
-            closing_commands(args.taban, site=not args.site_atla),
+            closing_commands(args.taban, site=not args.site_atla, performance=performance),
             dry_run=args.komutlari_bas,
         )
+    if args.stage == "performans":
+        if args.komutlari_bas:
+            print("$ dotnet run -c Release --project bench/AgentPrism.Benchmarks -- --filter * --exporters json")
+            return 0
+        return performance_gate(update=args.guncelle)
     if args.stage == "test":
         return run_commands("test", [test_command(args.proje, args.sinif)], dry_run=args.komutlari_bas)
     if args.stage == "yayin":
@@ -686,7 +893,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>"), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, test veya yayin")
+    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, performans, test veya yayin")
     return 2
 
 

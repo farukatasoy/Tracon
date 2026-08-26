@@ -5,7 +5,7 @@
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
 
-- **Build yapılandırması üç katmanlı** (2026-08-01): kök `Directory.Build.props` (dil, kalite kapıları) → `src|tests|samples/Directory.Build.props` (katman ayarları). Alt katmanlar kökü `[MSBuild]::GetPathOfFileAbove(...)` ile açıkça import eder — otomatik değil.
+- **Build yapılandırması dört katmanlı** (2026-08-01; `bench` eklendi: Faz 116): kök `Directory.Build.props` (dil, kalite kapıları) → `src|tests|samples|bench/Directory.Build.props` (katman ayarları). Alt katmanlar kökü `[MSBuild]::GetPathOfFileAbove(...)` ile açıkça import eder — otomatik değil.
 - **Paket sürümleri tek yerde** (2026-08-01): `Directory.Packages.props`. Projeler `Version` yazmaz. MAF GA sürümleri `$(MicrosoftAgentsAIVersion)` değişkeninden gelir; `maf-api-kesfi` script'i de bu değişkeni okur.
 - **AOT bayrağı** (2026-08-01): `src/Directory.Build.props` içindeki `AgentPrismAotCompatible`. Paket bazlı kapatmak için csproj'da `<AgentPrismAotCompatible>false</AgentPrismAotCompatible>`.
 - **Public API takip anahtarı** (2026-08-01): kök `Directory.Build.props` içindeki `EnablePublicApiTracking`. `false` iken RS00xx tanıları `NoWarn` ile susturulur. Faz 7'de `true` yapılır.

@@ -95,10 +95,23 @@ public sealed class CompiledAgentCache
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
+        var key = new CacheKey(tenantId, name, version, dependencyFingerprint, culture);
+
+        // 🚨 Checked separately from the GetOrAdd(key, valueFactory) call below:
+        // that overload allocates its `Func<CacheKey, AIAgent>` closure argument
+        // BEFORE it even looks at the dictionary, on every call - including a
+        // cache HIT, which is the overwhelmingly common case once a definition
+        // is compiled once. TryGetValue first keeps the hit path allocation-free,
+        // matching the async overload below, which was already written this way.
+        if (_entries.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
         // GetOrAdd(key, valueFactory) can run the factory more than once for the
         // same key. Agent production is side-effect free, so this is not a
         // problem; any extra-produced instance is discarded.
-        return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint, culture), _ => factory());
+        return _entries.GetOrAdd(key, _ => factory());
     }
 
     /// <summary>

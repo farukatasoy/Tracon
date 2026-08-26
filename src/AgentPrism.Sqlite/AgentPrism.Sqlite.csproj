@@ -60,4 +60,14 @@
     <InternalsVisibleTo Include="AgentPrism.Sql.Shared.UnitTests" />
   </ItemGroup>
 
+  <!--
+    AgentPrism.Benchmarks (Phase 116) constructs SqlRunStore directly, the same
+    way the SQLite integration tests do (SqliteTestContext) - the internal
+    plumbing types (SqlStoreContext, SqliteDialect, SqliteDataSource) have no
+    public DI-free construction path.
+  -->
+  <ItemGroup Label="Internal visibility - allocation benchmarks (phase 116)">
+    <InternalsVisibleTo Include="AgentPrism.Benchmarks" />
+  </ItemGroup>
+
 </Project>

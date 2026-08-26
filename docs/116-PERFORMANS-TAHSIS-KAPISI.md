@@ -1,6 +1,6 @@
 # Faz 116 — Performans Tahsis Kapısı
 
-> **Durum:** 📋 Planlandı (2026-08-26)
+> **Durum:** ✅ Tamamlandı (2026-08-27)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-67** (F-163 bu fazın ölçümüne kapanır)
 > **Önkoşul:** 🚨 [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) — **taban çizgisi 114'ten sonra alınır**; gerekçe § 116.7
 > **Paketler:** Yeni bir **ölçüm projesi** (`bench/`); sevk edilen hiçbir pakete dokunulmaz
@@ -289,22 +289,41 @@ gösteren bir **kasıtlı gerileme** koşumu.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Üç sıcak yol için tahsis taban çizgisi `bench/baseline.json`'da; sayılar **Faz 114 indikten sonra** alındı
-- [ ] Sıcak yola kasıtlı eklenen bir tahsis kapıyı **kırmızı** yapar; çıktı metot adını ve bayt farkını yazar
-- [ ] Eksik veya bozuk `baseline.json` **anlaşılır hata** verir; sessizce geçmez
-- [ ] Sıcak yol dosyası değişmediğinde kapı **atlanır**; kapanış süresi ölçüldü ve `hafiza/test-kosum-olcumleri.md`'ye yazıldı
-- [ ] Aynı commit iki işletim sisteminde **aynı** tahsis sayısını verir (fazın temel varsayımı doğrulandı)
-- [ ] `dotnet pack AgentPrism.slnx -c Release` bench projesi için **uyarı vermez**
-- [ ] `dotnet restore AgentPrism.slnx` temiz — 22 geçişli paketin hiçbiri `NU1903` üretmiyor
-- [ ] `Microsoft.Extensions` çözümlenen sürümü **10.0.11** kaldı (6.0.0'a düşmedi)
-- [ ] Hiçbir sevk edilen paket `bench/` projesine referans vermiyor
-- [ ] `PublicAPI.*.txt` dosyaları değişmedi
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] F-163'ün bu ölçümle **kapandığı** veya **kapsandığı** yazıldı
+- [x] Üç sıcak yol için tahsis taban çizgisi `bench/baseline.json`'da; sayılar **Faz 114 indikten sonra** alındı (Faz 114 zaten `main`'de: `CacheHit` 24 B, `AppendEvent` 104 B, `QueryRuns` 44336 B)
+- [x] Sıcak yola kasıtlı eklenen bir tahsis kapıyı **kırmızı** yapar; çıktı metot adını ve bayt farkını yazar — gerçek koşumla doğrulandı: `RunEventWriter.AppendAsync`'e geçici bir `new List<int>{1,2,3}` eklenip `kapi.py performans` koşuldu, çıktı `❌ ...AppendEvent: tahsis arttı (104 B → 176 B, +72 B)` yazdı, çıkış kodu `1`; sonra geri alındı
+- [x] Eksik veya bozuk `baseline.json` **anlaşılır hata** verir; sessizce geçmez — `bench/baseline.json` gerçekten silinip koşuldu, `BaselineError` mesajı yazıldı, traceback çıkmadı
+- [x] Sıcak yol dosyası değişmediğinde kapı **atlanır**; kapanış süresi ölçüldü ve `hafiza/test-kosum-olcumleri.md`'ye yazıldı
+- [ ] Aynı commit iki işletim sisteminde **aynı** tahsis sayısını verir (fazın temel varsayımı doğrulandı) — **AÇIK KALEM**: bu oturumda yalnız macOS/Apple Silicon vardı, ikinci bir işletim sistemi (Linux CI) ile karşılaştırma yapılamadı. `MT-GDK-024` 👤 insan gerekir olarak işaretli; ilk gerçek CI koşumunda `bench/baseline.json`'ın `allocatedBytes` alanları macOS ölçümüyle karşılaştırılmalı (K-634)
+- [x] `dotnet pack AgentPrism.slnx -c Release` bench projesi için **uyarı vermez**
+- [x] `dotnet restore AgentPrism.slnx` temiz — 22 geçişli paketin hiçbiri `NU1903` üretmiyor
+- [x] `Microsoft.Extensions` çözümlenen sürümü **10.0.11** kaldı (6.0.0'a düşmedi)
+- [x] Hiçbir sevk edilen paket `bench/` projesine referans vermiyor
+- [x] `PublicAPI.*.txt` dosyaları değişmedi
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. § "Örnek Uygulama Koşumu" altında
+- [x] `secret` taraması boş döndü
+- [x] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi; otomatikleştirilebilenler koşuldu (MT-GDK-019, 020, 022, 023, 025 gerçek koşumla doğrulandı; 021 birim testiyle; 024 👤 açık kalem)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] F-163'ün bu ölçümle **kapandığı** veya **kapsandığı** yazıldı — bkz. § "Sonraki Faza Devir Notu"
+
+### Örnek Uygulama Koşumu
+
+`samples/AgentPrism.Api`, kimlik bilgisi olmadan (`EchoModelProvider`, ağ çağrısı
+yok) ayağa kaldırıldı ve gerçek bir `run` yapıldı:
+
+```
+$ curl -X POST http://localhost:5177/agentprism/api/agents/support/run \
+    -H "Content-Type: application/json" \
+    -d '{"message": "Faz 116 canli dogrulama"}'
+```
+
+SSE akışı gerçek kelime kelime yankı üretti (`echo-1` model), `event: done` ile
+kapandı. `GET /agentprism/api/runs?take=3` aynı `run`ı `"status":"Completed"`,
+`"eventCount":7`, `"modelId":"echo-1"` alanlarıyla listeledi. İkinci bir çağrı
+(`CompiledAgentCache` isabetini kanıtlamak için) aynı şekilde tamamlandı — her
+iki koşu da `CompiledAgentCache.GetOrAdd`'ın düzeltilmiş isabet yolunu ve
+`RunEventWriter.AppendAsync`'in her akış parçası için çalıştığını üretim
+koşuluna en yakın yoldan doğruladı.
 
 ### Doğrulama komutları
 
@@ -343,24 +362,86 @@ dotnet pack AgentPrism.slnx -c Release --no-build 2>&1 | grep -i "warn" || echo 
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+- **`CompiledAgentCache.GetOrAdd`'da gerçek bir kusur bulunup düzeltildi** (plan dışı, faz içi): senkron `GetOrAdd(tenantId, name, version, dependencyFingerprint, culture, factory)` overload'ı, sözlükte anahtar ZATEN varken bile (cache HIT — steady state), `_entries.GetOrAdd(key, _ => factory())` çağrısındaki `_ => factory()` closure'ını HER seferinde tahsis ediyordu; C# argümanları çağrılan metottan önce değerlendirir, yani bu tahsis `valueFactory` hiç çalıştırılmasa bile oluşuyordu. `GetOrAddAsync` kardeşi zaten `TryGetValue`-önce desenini kullanıyordu, sync taraf kullanmıyordu. Düzeltme: `TryGetValue` önce denenir, yalnız KAÇIRINCA `GetOrAdd`'a düşülür (miss davranışı — "factory birden fazla çağrılabilir" garantisi — AYNEN korunur). Ölçüldü: isabet başına 88 B → 24 B (bkz. `docs/hafiza/cekirdek-calistirma.md`). Bu, fazın kendi hedefinin ("cache isabetinin tahsis etmemesi gerekir", § 116.2) bir iddia değil bir GERÇEK haline gelmesini sağladı; ilgisiz bir kusur değil, ölçümün bulduğu tam olarak beklenen kusur sınıfıydı.
+- **Benchmark projesi DI üzerinden değil, internal tipler doğrudan kurularak yazıldı**: plan `SqlRunStore` benchmark'ının nasıl kurulacağını belirtmiyordu. `services.AddAgentPrism().UseSqlite(...)` ile tam bir DI zinciri kurmak yerine, SQLite entegrasyon testlerinin `SqliteTestContext`'iyle AYNI desen izlendi (`SqlStoreContext`/`SqliteDialect`/`SqliteDataSource`/`MigrationRunner`/`SqlRunStore` doğrudan `new`'lenir) — daha az DI kurulum maliyeti, daha öngörülebilir [GlobalSetup]. Bunun için `AgentPrism.Sqlite.csproj`'a `AgentPrism.Benchmarks` adına bir `InternalsVisibleTo` eklendi (`.UnitTests`/`.IntegrationTests`/`.FunctionalTests` konvansiyonunun beşinci üyesi).
+- **BenchmarkDotNet'in artifact yolu açıkça sabitlendi**: varsayılan davranış (`dotnet run` ile mi yoksa derlenmiş ikili doğrudan mı çalıştırıldığına göre) farklı bir dizine yazıyordu (gözlemlendi: bir kez repo köküne, bir kez `artifacts/bin/.../release/` altına). `Program.cs`, `[CallerFilePath]` ile bu kaynak dosyanın kendi mutlak yolunu derleme anında alıp `artifacts/benchmarks/` altına sabit bir `WithArtifactsPath(...)` yazar — `scripts/kapi.py`'nin rapor glob'u böylece deterministiktir.
+- **`RunEventWriter`'da kusur bulunmadı** — üç sıcak yoldan ikisi (`RunEventWriter.AppendAsync`, `SqlRunStore.QueryRunsAsync`) planın varsaydığı gibi çalışıyordu; yalnız `CompiledAgentCache` yukarıdaki kusuru taşıyordu.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+- [K-634](KARARLAR.md) — Performans tahsis kapısı yalnız tahsis edilen baytı karşılaştırır (sıfır tolerans), beşinci bağımsız bir kapı değil, `kapanis`'in koşullu bir adımıdır *(kullanıcı kararı)*
+- [K-635](KARARLAR.md) — BenchmarkDotNet 0.15.8 yalnız `bench/` için eklendi; K-007 barı ölçümle karşılandı (22 geçişli paket, tüketiciye ulaşmıyor)
+
+`CompiledAgentCache` düzeltmesi yeni bir K-* kaydı **almadı** — yerel bir
+implementasyon düzeltmesidir (public API/uyumluluk/güvenlik/kiracı/migration
+sınırı geçmiyor); gerekçesi yalnız kod yorumunda ve yukarıdaki "Plandan
+Sapmalar" bölümünde durur (`AGENTS.md`'nin kuralı).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+**Yok.** Planla birebir — `PublicAPI.*.txt` dosyalarında `git diff` sıfır satır
+gösteriyor. `bench/AgentPrism.Benchmarks` `IsPackable=false`'tır ve
+`PublicApiAnalyzers` paketini bile almaz (yalnız `src/Directory.Build.props`
+onu şartlı ekliyor).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+bench/
+├── Directory.Build.props                          (yeni)
+├── baseline.json                                   (yeni — gerçek ölçümle üretildi)
+└── AgentPrism.Benchmarks/
+    ├── AgentPrism.Benchmarks.csproj                (yeni)
+    ├── Program.cs                                  (yeni — ManualConfig + sabit artifacts yolu)
+    ├── NoOpRunStore.cs                              (yeni — RunEventWriter'ı izole eden IRunStore sahtesi)
+    ├── PlaceholderAgent.cs                          (yeni — CompiledAgentCache'in kimlik nesnesi)
+    ├── RunEventWriterBenchmarks.cs                  (yeni)
+    ├── CompiledAgentCacheBenchmarks.cs               (yeni)
+    └── RunStoreQueryBenchmarks.cs                   (yeni — SQLite, 200 satır seed)
+
+scripts/
+├── kapi.py                                         (değişti — `performans` alt komutu + gate mantığı)
+└── kapi_test.py                                    (değişti — 12 yeni test)
+
+src/AgentPrism.Core/Compilation/CompiledAgentCache.cs (değişti — kusur düzeltmesi)
+src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj        (değişti — InternalsVisibleTo)
+Directory.Packages.props                              (değişti — BenchmarkDotNet 0.15.8)
+AgentPrism.slnx                                       (değişti — bench projesi kaydı)
+.github/workflows/ci.yml                              (değişti — yol tetiklemeli adım, ubuntu-latest)
+
+docs/hafiza/cekirdek-calistirma.md                    (değişti — GetOrAdd tuzağı)
+docs/hafiza/test-kosum-olcumleri.md                   (değişti — beşinci kapı süresi)
+docs/hafiza/kod-haritasi.md                           (değişti — dört katmanlı build notu)
+docs/manuel-test/00-INDEKS.md                         (değişti — GDK satırı 18 → 25 case)
+docs/manuel-test/36-GELISTIRME-KAPILARI.md            (değişti — MT-GDK-019..025)
+docs/KARARLAR.md                                      (değişti — K-634, K-635)
+```
+
+Planlanan yapıt yüzeyiyle birebir — tek fark plandaki `RunStoreQueryBenchmarks.cs`
+listesinde ayrıca belirtilmeyen `NoOpRunStore.cs`/`PlaceholderAgent.cs` destek
+tiplerinin eklenmiş olmasıdır (izolasyon için gerekli, § 116.2'nin doğal sonucu).
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı.
+Bağımsız denetim (taze bağlamlı agent, `git diff HEAD` + `bench/` altındaki
+untracked dosyalar üzerinden) **🔴 bulgu bulmadı**. Üç 🟡, iki 🟢:
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | `performance_gate()`/`_run_benchmark_project()` orkestrasyonunun kendisi test edilmiyordu, yalnız saf karşılaştırma mantığı (`compare_allocations` vb.) test ediliyordu | **Düzeltildi** — `runner`, `baseline_path`, `report_dir` üçü de enjekte edilebilir hale getirildi (`run_commands`'ın zaten kullandığı desen); dört yeni test eklendi: `dotnet run` başarısız olursa çıkış kodunu doğru döndürüyor, rapor hiç üretilmezse anlaşılır hata veriyor, sahte bir runner'la uçtan uca karşılaştırma çalışıyor, `--guncelle` gerçekten yazıyor. Toplam Python test sayısı 34 → 38 |
+| 2 | 🟡 | DoD'nin "aynı commit iki işletim sisteminde aynı tahsis sayısı" satırı yalnız macOS/Apple Silicon'da doğrulanabildi | **Gerekçelendi, açık kalem olarak yazıldı** — bu ortamda ikinci bir işletim sistemi yok. DoD'de ve bu bölümde açıkça işaretlendi (bkz. yukarı); `MT-GDK-024` zaten 👤 insan gerekir diyordu. Fazın temelini ÇÖKERTMEZ (varsayım gizlenmiyor, ölçülebilir ve ilk gerçek CI koşumunda doğrulanacak) |
+| 3 | 🟡 | `docs/hafiza/kod-haritasi.md`'nin "build yapılandırması üç katmanlı" notu artık bayat — `bench/` dördüncü bir kardeş katman | **Düzeltildi** — "üç" → "dört", `bench` listeye eklendi |
+| 4 | 🟢 | `parse_benchmark_report`, `Memory.BytesAllocatedPerOperation` alanı eksikse `None` üretir; sonraki karşılaştırma ham `TypeError` fırlatabilir | **Devredilmedi, kabul edildi** — bugün erişilemez (`Program.cs` her benchmark'a `MemoryDiagnoser.Default`'ı zorunlu ekliyor); DoD yalnız `baseline.json` için anlaşılır hata istiyor, BenchmarkDotNet'in kendi JSON'u için değil. Ayrı bir F-NN açmak bu boyuttaki bir gözlem için orantısız görüldü |
+| 5 | 🟢 | BenchmarkDotNet'in kendi sürüm artışı `PERFORMANCE_HOT_PATHS` listesinde değil — araç güncellenirse kapı o PR'de tetiklenmeyebilir | **Devredilmedi, kabul edildi** — planın kapsamı zaten yalnız üç dosya + `bench/`; bugünkü sürüm için gerçek risk yok, yalnız ileride bir BenchmarkDotNet yükseltmesiyle gündeme gelir |
+
+Denetimden sonra dört kapı **yeniden koşuldu** (düzeltmeler yeni kusur
+üretebilir): `dotnet build` (0 uyarı), `python3 -m unittest discover -s
+scripts` (38/38), `python3 scripts/kapi.py performans` (✅ üçü de), `dotnet
+pack` (bench için uyarı yok).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+- **F-163 bu ölçümle KAPANDI** — ayrı bir test ailesi olarak açılmadı; `docs/ADAYLAR.md`'nin "Arşivlendi/birleştirildi" satırı zaten bunu söylüyordu, bu faz onu doğruladı.
+- **Faz 117 (MCP Tasks Uzantısı) bu fazdan hiçbir şey DEVRALMIYOR** — F-67 ile F-167 bağımsız eksenlerdir (`ADAYLAR.md:192`, "Bağımlılık: Yok"). Faz 117'nin kapsamı (`AgentPrism.AspNetCore/McpServer/`) üç sıcak yol dosyasından hiçbirine dokunmuyor, bu yüzden `docs/117-*.md`'ye özel bir not eklenmedi — `kapi.py kapanis` zaten OTOMATİK olarak sıcak yol değişip değişmediğine bakar, hiçbir gelecek fazın kendi dokümanında bunu hatırlaması gerekmez.
+- **🚨 Açık kalem — cross-OS doğrulama**: `bench/baseline.json`'daki sayılar (macOS/Apple Silicon, M1 Pro) henüz Linux'ta doğrulanmadı. İlk gerçek CI koşumunda (`ubuntu-latest`, sıcak yol tetiklenmişse) `kapi.py performans` çalışacak ve baseline'a karşı karşılaştıracak — sayılar UYUŞMAZSA fazın "tahsis makineden bağımsızdır" temel varsayımı (§ 116.1) yeniden değerlendirilmelidir; bu durumda K-634'ün kendisi yeniden açılır. Uyuşursa bu kalem kapanır, ayrı bir faz gerekmez.
+- **Herhangi bir gelecek faz `RunEventWriter.cs`, `CompiledAgentCache.cs` veya `SqlRunStore.cs`'a dokunursa**: `kapi.py kapanis` performans adımını otomatik ekler; sürpriz değildir, yalnız kapanış süresine ~85-90 saniye ekler (bkz. `hafiza/test-kosum-olcumleri.md`). Tahsis gerçekten arttıysa (sıcak yol kasıtlı büyüdüyse) `kapi.py performans --guncelle` ile taban çizgisi güncellenir ve GİT DIFF'İNDE tek satırlık bir değişiklik olarak görünür — gözden geçirilebilir.

@@ -112,3 +112,24 @@ Bu, ürün kusuru değil; tam Playwright suite'inin kaynak/zamanlama çekişmesi
 duyarlı F-130 sınıfının yeni kanıtıdır. İlk tam kapanış koşumu 57/57 ve 19
 proje ile yeşildi. Kapanış raporu tekrarlanabilirliği korumak için son kırmızı
 çıkış kodunu saklamaz; izole koşum ayrıştırma adımıdır.
+
+## Faz 116 — beşinci (yol tetiklemeli) kapı: `kapi.py performans` — 2026-08-27
+
+Apple M1 Pro, macOS. Üç benchmark (`RunEventWriterBenchmarks.AppendEvent`,
+`CompiledAgentCacheBenchmarks.CacheHit`, `RunStoreQueryBenchmarks.QueryRuns`),
+BenchmarkDotNet varsayılan `Job` (pilot + 15 iterasyon).
+
+| Koşum | Süre |
+|---|---:|
+| `dotnet run -c Release --project bench/AgentPrism.Benchmarks -- --filter * --exporters json` (tek başına) | ~83–91 s |
+| `python3 scripts/kapi.py performans` (build + koşum + karşılaştırma) | ~85–92 s |
+
+Sıcak yol dosyası değişmediğinde adım tamamen **atlanır** (116.4); yukarıdaki
+süre yalnız değiştiğinde ödenir. Kapanışın geri kalan dört kapısına (build,
+tam test, pack, format) **eklenen** maliyet budur — Faz 91/91-sonrası
+tablolarındaki toplamlar bu adımı içermez.
+
+Taban çizgisi (`bench/baseline.json`, aynı makine): `CacheHit` 24 B,
+`AppendEvent` 104 B, `QueryRuns` 44336 B (200 satır seed, `Take=50`).
+`CompiledAgentCache.GetOrAdd`'ın kendisi düzeltilmeden önce `CacheHit` 88 B
+ölçülüyordu — bkz. [`cekirdek-calistirma.md`](cekirdek-calistirma.md).

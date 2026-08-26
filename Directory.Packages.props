@@ -288,4 +288,16 @@
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
   </ItemGroup>
 
+  <!--
+    Faz 116: bench/ - a repository discipline, not a shipped capability. The
+    project is IsPackable=false and no shipped package references it, so its
+    22 transitive packages (Roslyn, Iced, Capstone, TraceEvent - BenchmarkDotNet's
+    own disassembly/diagnostics stack) never reach a consumer's dependency
+    graph. Line never reached 1.0; 0.15.8 is the latest published version.
+    Rationale: docs/116-PERFORMANS-TAHSIS-KAPISI.md, 116.5 (K-007).
+  -->
+  <ItemGroup Label="Performans olcumu (bench/, IsPackable=false)">
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+  </ItemGroup>
+
 </Project>

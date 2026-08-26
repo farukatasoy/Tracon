@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (518 kalem)
+## Arşivlenen Kararlar (520 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -527,3 +527,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-516 | 562 | Site üreteçleri artık ONARMAZ, HATA VERİR (Faz 75, F-126) |
 | K-517 | 563 | `<see cref>` paketlenen OpenAPI belgesinde TAM İMZA olarak render edilir; sözleşme tiplerinde `<c>ÜyeAdı</c>` yazılır (Faz 75) |
 | K-518 | 564 | Kök `README.md` İngilizce'dir (Faz 75) 👤 |
+| K-519 | 565 | Doküman sitesinin rengi KAPALI bir token kümesidir ve kontrast derleme anında hesaplanır (Faz 76) |
+| K-520 | 566 | Figürler (ekran görüntüsü ve diyagram) temadan BAĞIMSIZDIR; iki temada da açık plaka üzerinde durur (Faz 76) |

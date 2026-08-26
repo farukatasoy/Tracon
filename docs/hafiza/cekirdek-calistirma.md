@@ -69,3 +69,15 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   yanitla — `grep -rn "RunErrorClass.<Uye>" src/` sifir donuyorsa uye yanlistir.
   Kaldirirken sayisal degeri **bosalt, yeniden numaralandirma**: kayitli run'lar
   ve eski istemciler eski anlami tasir. Kapi: `RunErrorClassContractTests`.
+- **🚨 `ConcurrentDictionary<TKey,TValue>.GetOrAdd(key, valueFactory)` tahsis eder
+  — HER cagrida, CACHE ISABETINDE bile** (2026-08-27, Faz 116, ölçüldü): C#
+  argümanları çağrılan metottan ÖNCE değerlendirir, yani `_ => factory()` gibi bir
+  kapanış her seferinde HEAP'e yeni bir delege olarak yazılır — sözlük anahtarı
+  zaten var olsa da, `valueFactory` hiç ÇAĞRILMASA da. `CompiledAgentCache.GetOrAdd`
+  bunu yapıyordu; `GetOrAddAsync` kardeşi zaten `TryGetValue`-önce desenini
+  kullanıyordu, sync taraf kullanmıyordu. Ölçüldü (BenchmarkDotNet,
+  `bench/AgentPrism.Benchmarks`): düzeltme öncesi isabet başına 88 B, sonrası
+  24 B — kalan 24 B `ConcurrentDictionary<CacheKey,AIAgent>.TryGetValue`'nun
+  kendi maliyeti (izole ölçüldü, kaynağı bulunamadı; her koşumda sabit ve
+  deterministik). Kural: `GetOrAdd(key, _ => ...)` yazarken önce
+  `TryGetValue(key, out var existing)` dene, yalnız KAÇIRINCA `GetOrAdd`'a düş.

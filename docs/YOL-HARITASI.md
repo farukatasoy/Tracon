@@ -128,7 +128,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [113](arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md) | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | ✅ Tamamlandı |
 | [114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) | Çalıştırma-İçi Bütçe Tavanı | ✅ Tamamlandı |
 | [115](arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md) | Eval'in Başsız Koşucusu | ✅ Tamamlandı |
-| [116](116-PERFORMANS-TAHSIS-KAPISI.md) | Performans Tahsis Kapısı | 📋 Planlandı |
+| [116](116-PERFORMANS-TAHSIS-KAPISI.md) | Performans Tahsis Kapısı | ✅ Tamamlandı |
 | [117](117-MCP-TASKS-UZANTISI.md) | MCP Tasks Uzantısı | 📋 Planlandı |
 | [118](118-YARGIC-BASINA-CHECKPOINT.md) | Yargıç Başına Checkpoint | 📋 Planlandı |
 
