@@ -12,6 +12,26 @@
 > aldı — MAF 1.19.0 onu bekleten kancayı gönderdi. Tur kaydı:
 > [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md).
 >
+> **Ek (2026-08-26, üçüncü tur — planlama):** Sıralama kanıt doğrulamasıyla
+> yeniden yargılandı ve **F-109 · F-149 · F-166** plana dönüştü
+> ([Faz 112](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) ·
+> [Faz 113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) ·
+> [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md)); bölümleri bu dosyadan
+> **silindi**. Doğrulama üç aday metnini de düzeltti — düzeltmeler
+> § *Sıralamayı Değiştiren Ölçümler*'dedir.
+>
+> **Ek (2026-08-26, dördüncü tur — planlama):** **F-168 · F-67** plana dönüştü
+> ([Faz 115](115-EVALIN-BASSIZ-KOSUCUSU.md) ·
+> [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md)); bölümleri bu dosyadan silindi.
+> Doğrulama ikisinin de aday metnini düzeltti — § *Sıralamayı Değiştiren
+> Ölçümler*. Sıralamada **iki aday** kaldı.
+>
+> **Ek (2026-08-26, beşinci tur — planlama):** **F-167 · F-152** plana dönüştü
+> ([Faz 117](117-MCP-TASKS-UZANTISI.md) ·
+> [Faz 118](118-YARGIC-BASINA-CHECKPOINT.md)). **Sıralanabilir aday kalmadı.**
+> Kuyrukta iki kalem var ve ikisi de bugün faz değildir: F-95 ölçüm bekler,
+> F-165 tek faza sığmaz. Yeni aday üretmek için `aday-kesfi` koşulur.
+>
 > Faz durumu yalnız üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 > Bir kusur bu dosyaya geri girmez; `kusur-giderme` kanalına gider. Kapatılmış
 > kararın yeniden açılması kullanıcı kararıdır. Ölçüm bekleyen iddia, kanıt
@@ -19,7 +39,17 @@
 
 ## Okuma Sırası
 
-Önce aşağıdaki sıralama tablosunu, sonra seçilecek tek adayın bölümünü oku.
+**Sıralanabilir aday kalmadı** (2026-08-26). Bu dosyaya bakma sebebin
+şunlardan biridir:
+
+| İhtiyaç | Nereye bak |
+|---|---|
+| Sıradaki fazı seçmek | **Buraya değil** — üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'ye. Planlanmış fazlar `docs/` kökündedir |
+| Yeni aday üretmek | `aday-kesfi` skill'ini koş; bu dosya onun çıktısını alır |
+| Bekleyen iki kalemin durumu | § *Bekleyen Kalemler* — ikisi de bugün faz değildir |
+| Bir F-ID nereye gitti | § *Aday Olmayan Açık Kayıtlar* tablosu |
+| Bir sıralama neden değişti | § *Sıralamayı Değiştiren Ölçümler* |
+
 Geçmiş tur anlatıları, kapanmış aday gövdeleri ve elenen kalemler bu dosyada
 tekrarlanmaz; ilgili keşif ve arşiv kayıtlarındadır.
 
@@ -45,131 +75,56 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 | 7 | **Ölçme–iyileştirme** | Üretim verisini geliştirmeye geri besler mi? |
 | 8 | **Maliyet (FinOps)** | Tüketicinin model faturasını düşürür mü? |
 
-## Önerilen Sıralama
+## Sıralama — kuyruk boş
 
-| Sıra | Aday | Neden şimdi | Önce ölçülecek/düşünülecek sınır |
-|---:|---|---|---|
-| 1 | **F-166** Çalıştırma-içi maliyet tavanı | Kota yalnız run öncesi bakılıyor; tek run tavanı aşabilir. | Kesme noktasının tool turu sınırına oturması ve yeni hata sınıfı kararı. |
-| 2 | **F-167** MCP 2026-07-28 hizalanması | Dışa açılan tek protokol yüzeyi; SDK maliyeti zaten ödenmiş. | Tasks extension paketinin geçişli ağırlığı; task kimliğinin kiracı/auth bağlamına bağlanması. |
-| 3 | **F-168** Eval'in başsız koşucusu ve CI kapısı | Eval çekirdeği tam, koşum yolu yok. | CI gürültü eşiği — F-67 ile **aynı** kararı ister; ikisi tek turda verilmeli. |
-| 4 | **F-95** Agent düzeyinde kesinti/devam kancası | MAF 1.19.0 kancayı gönderdi; blocker kalkmış olabilir. | `maf-api-kesfi` ile imza doğrulaması ve experimental API riski. |
-| 5 | **F-149** Sağlayıcı failure classification seam'i | Public extension contract'ı 1.0 öncesi doğru şekillenir. | Varsayılan metin eşleme korunurken yeni seam'in API maliyeti. |
-| 6 | **F-109** İstemci tool'lu run replay'i | Sevk edilmiş client-tool yüzeyinin replay sözü eksiktir. | Replay sonucu oynatma mı, açık ret mi? |
-| 7 | **F-165** Manuel kabul setinin CI'a taşınması | 1.650 case insan zamanına bağlıdır. | İlk dilim tek aile olur; tüm set tek faza sıkıştırılmaz. |
-| 8 | **F-67** Performans regresyon kapısı | Stabil kod için taban çizgisi sonra almaktan ucuzdur. | CI gürültü eşiği ve F-163 kapsamı. |
-| 9 | **F-152** Yargıç başına durable checkpoint/retry | Pahalı yargıç tekrarları kontrol edilemez. | Job-item/run kimliği ve migration maliyeti. |
+2026-08-26 itibarıyla **plana dönüşmeyi bekleyen sıralanabilir aday yoktur.**
+Üç planlama turu dokuz adayın yedisini faza çevirdi:
 
-## Planlanabilir Adaylar
+| Aday | Faz |
+|---|---|
+| F-109 | [112 — Replay'in İstemci Tool Sözleşmesi](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) |
+| F-149 | [113 — Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası](113-ARIZA-SINIFLANDIRMA-SEAMI.md) |
+| F-166 | [114 — Çalıştırma-İçi Bütçe Tavanı](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) |
+| F-168 | [115 — Eval'in Başsız Koşucusu](115-EVALIN-BASSIZ-KOSUCUSU.md) |
+| F-67 | [116 — Performans Tahsis Kapısı](116-PERFORMANS-TAHSIS-KAPISI.md) |
+| F-167 | [117 — MCP Tasks Uzantısı](117-MCP-TASKS-UZANTISI.md) |
+| F-152 | [118 — Yargıç Başına Checkpoint](118-YARGIC-BASINA-CHECKPOINT.md) |
 
-### F-166 · Çalıştırma-içi maliyet tavanı
+Kalan ikisi § *Bekleyen Kalemler*'dedir ve **sıralamaya girmez**.
 
-**Sorun:** Maliyet tavanı yalnız run **öncesi** ve **dönem birikimi** üzerinden
-bakılır. Tek bir uzun run tavanı istediği kadar aşabilir; hiçbir kod yolu onu
-çalışırken durdurmaz.
+### Sıralamayı Değiştiren Ölçümler
 
-**Kapsam:** Run başına bir maliyet/token bütçesi ve onu çalışırken uygulayan bir
-kesme noktası tasarla. Kesme **tool turu sınırında** olur; yarım bir model yanıtı
-kesilmez. Terminal durumun hangi `RunErrorClass` ile raporlanacağı bu fazın
-kararıdır — `QuotaExceeded` yeniden kullanılabilir ya da yeni bir sınıf açılır.
+Üç planlama turu (üçüncü, dördüncü, beşinci) kanıtı yeniden doğruladı
+(`faz-planlama` Adım 1) ve aday metinlerini birikimli olarak düzeltti. Sıra
+numaraları **ikinci turun** tablosuna göredir; plana dönen kalemler o tablodan
+çıktı. Bu kayıt, bir kalem ileride yeniden açılırsa **hangi iddianın ölçümle
+çürüdüğünü** korur.
+Gerekçeler:
 
-**Değer:** Kaçak bir agent döngüsü kiracının faturasını dönem tavanının çok
-üstüne çıkaramaz; nöbetçi mühendisin elinde gerçek bir kesme kolu olur.
+| Değişiklik | Ölçüm |
+|---|---|
+| **F-109 · 6 → 1** ve plana | Listedeki tek "kırık söz" kalemiydi: Faz 61 istemci tool'unu sevk etti, replay onu sessizce yarım bırakıyordu. Sınıf olarak K-627 ile aynıdır. Ayrıca aday metnindeki "kaydedilmiş sonucu oynat" seçeneği **imkânsız** çıktı — istemci tool sonucu `ToolInvocationRecord`'a hiç yazılmıyor. |
+| **F-149 · 5 → 2** ve plana | Aday metni "seam tasarla" diyordu; ölçüm seam'in **yarısının zaten var olduğunu** buldu (`IRunErrorClassifier`, `TryAddSingleton` ile kayıtlı). Gerçek boşluk üç tane ve daha dar: retry'ın hiç seam'i yok, yerleşik sınıflandırıcı devralınamıyor, parmak izi hesabı erişilemez. |
+| **F-166 · 1 → 3** ve plana | Karşı görüş ("ölçülmüş vaka yok") **düştü**: varsayılan kurulum 200 000 token'lık bir ağaç tavanı ilan ediyor ve o tavan tek agent'lı run'da hiçbir şey yapmıyor. Bu bir FinOps konforu değil, bir beyan hatası. Buna karşılık "kaçak döngü" gerekçesi **daraldı**: `HarnessSettings.MaximumIterationsPerRequest` bir iterasyon tavanı zaten veriyor; sayılmayan şey maliyet. |
+| **F-167 · 2 → 3** | "SDK maliyeti zaten ödenmiş" bir talep kanıtı değil, yalnız bir indirimdir. Çalışma anı probu bayatlama korkusunu zaten çürüttü (sunucu bugün stateless). Geriye 1.0 öncesi **yeni bir NuGet paketi** almak kalıyor — burada en pahalı değişiklik türü budur. |
+| **F-168 · 3 → 1** ve plana | Maliyet "Orta" yazılmıştı; ölçüm **küçük** buldu. İki HTTP çağrısı üretilmiş istemcide **zaten var**, eşik için gereken üç sayı (`Total`/`Passed`/`Failed`) sözleşmede var, CLI test altyapısı (`RealHttpHost` · `CliRunner`) hazır. Sunucu hiç değişmiyor; OpenAPI/TS/NSwag zinciri koşmuyor. |
+| **F-67 · 2 → 2** ve plana | Kapsam gürültü ölçümüyle daraldı: CI kapısı **yalnız tahsis edilen bayt** olur (deterministik, sıfır tolerans), süre ölçülür ama kapı değildir. Yeni paketin ağırlığı gerçek restore ile sayıldı: BenchmarkDotNet 0.15.8 → **22 geçişli paket**. K-212'nin 37'sinden az ve — asıl fark — ölçüm projesi `IsPackable=false` olduğu için tüketiciye **hiç ulaşmıyor**. |
+| **F-67 ile F-168 "aynı karar" iddiası zayıfladı** | Aday metni "F-67 ile **aynı** kararı ister" diyordu. Ölçüm bunu çürüttü: F-168 bir eşik **koymaz**, tüketiciden **alır** — AgentPrism kalite barı dayatmaz. F-67 ise bu depo için gerçek bir sayı seçmek zorundadır. Ortak olan yalnız "gürültülü kapı kurma" ilkesi; gürültünün kaynağı bile farklı (model belirsizliği ↔ paylaşılan CI makinesi). Bu yüzden **tek faz değil, iki ayrı faz** yazıldı. |
+| **F-167 · 3 → 1** ve plana | En büyük maliyet iddiası ("Tasks extension'ı **yeni bir NuGet paketidir** ve geçişli ağırlığı sayılmalıdır") gerçek restore ile çürüdü: `ModelContextProtocol.Extensions.Tasks` 2.2.0 `.AspNetCore`'un üstüne **net 1 paket** ekliyor, geçişli ağırlık **sıfır** — on iki geçişli paketin tamamı zaten grafikte. Ayrıca `IMcpTaskStore` AgentPrism'in var olan run kaydı üzerine oturuyor: **yeni tablo ve migration gerekmiyor**. Buna karşılık ölçüm yeni bir risk buldu: SDK sözleşmesinde **kiracı parametresi yok** ve K-103'ün onay kontrolü run kuyruğa taşınınca handler'dan düşüyor. |
+| **F-152 · 2 → 2** ve plana | Maliyet iddiası ("kalıcı model ve **üç SQL sağlayıcı migration'ı** gerekir") çürüdü: `UpsertAsync` **yargıç başına** çağrılıyor ve satır `Author = "judge:{ad}"` taşıyor; `IRunScoreStore.ListAsync` ve `JobRecord.Attempt` de zaten var. **Checkpoint bugün zaten veride duruyor** — eksik olan tek şey döngünün onu okuması. Yeni tablo, migration ve public yüzey **yok**. |
+| **F-95 sıralamadan çıktı** | Dördüncü sıra, sahip olmadığı bir plan hazırlığını ima ediyordu. `Hazırlık` satırı zaten "🚨 İmza doğrulanmadı" diyor. |
 
-**Mercek:** 2, 3, 8.
+## Bekleyen Kalemler
 
-**Hazırlık:** Ölçüldü — `QuotaEnforcer.cs:200` dönem birikimini karşılaştırır,
-`QuotaGate.cs:34-47` bunu tek seferlik ön uçuş olarak çağırır.
-`grep -rn "MaxCost" src/AgentPrism.Core/Recording src/AgentPrism.Core/Compilation`
-sıfır isabet verir.
+İkisi de **bugün faz değildir**. Gövdeleri, koşulları oluştuğunda plana
+dönüşebilmeleri için burada duruyor.
 
-**Maliyet:** Orta; public yüzey büyür, migration gerekmeyebilir.
+| Kalem | Neden faz değil | Koşulu ne zaman oluşur |
+|---|---|---|
+| **F-95** | İmzası doğrulanmadı; ayrıca **experimental** bir MAF sözleşmesine 1.0 öncesi public yüzey bağlamak K-008'in ön sürüm sınırının tersidir | `maf-api-kesfi` imzayı doğrular **ve** F-141 ile karşılaştırma yapılır. Tercihen 1.0 sonrası |
+| **F-165** | 1.650 case tek faza sığmaz; bağımsız faz olarak planlanırsa kuyruğu bitmez | Bağımsız faz olarak **hiç** planlanmaz. Her fazın dokunduğu alanın manuel ailesi o fazda otomatikleştirilir |
 
-**Risk:** Yanlış konumlanan bir kesme yarım yanıt üretir ve tüketici bunu sessiz
-kesme sayar. **🚨 Konum iddiası kabul edilmeden grep'le ölçülür** (K-320 deseni:
-Faz 48'de guard'ın yanlış katmana konması fazın yarısını taşımaya çevirdi).
 
-**Bağımlılık:** Yok. `RunErrorClass.BudgetExceeded` kusuru (2026-08-26) bu adayla
-**aynı iş değildir** — o üye "tree veya context budget"i tarif eder, maliyeti
-değil; ikisi ayrı kanallarda yürür.
-
-**Ekosistem:** 2026-08-26 — dış iddia yok; repo runtime davranışı ölçüldü.
-
-**Karşı görüş:** Dönem tavanı çoğu kurulumda yeterlidir ve tek bir run'ın dönem
-tavanını anlamlı biçimde aştığı **ölçülmüş bir vaka yoktur**. Kanıt üretilmeden
-bu, gerçek olmayan bir senaryoya karşı public yüzey büyütmek olur.
-
-### F-167 · MCP 2026-07-28 sözleşmesine hizalanma
-
-**Sorun:** AgentPrism'in MCP sunucusu 2026-07-28 spesifikasyonunun hiçbir yeni
-yüzeyini taşımaz: Multi Round-Trip Requests, Tasks extension'ı, elicitation ve
-cache'lenebilir list sonuçları yoktur. SDK maliyeti zaten ödenmiştir.
-
-**Kapsam:** Önce hangi yüzeyin gerçek tüketicisi olduğunu ayır. Tasks extension'ı
-uzun süren agent run'ını MCP tarafında poll/result/cancel edilebilir kılar ve
-AgentPrism'in kuyruklu run modeline doğrudan oturur. MRTR/elicitation ayrı bir
-karardır ve mevcut onay/input modeliyle **üçüncü bir state modeli üretmemelidir**.
-
-**Değer:** AgentPrism'i MCP sunucusu olarak tüketen ekip, uzun run'ı bağlantıyı
-açık tutmadan izleyebilir.
-
-**Mercek:** 2, 3, 6.
-
-**Hazırlık:** Ölçüldü — `src/AgentPrism.AspNetCore/McpServer` ve `src/AgentPrism.Mcp`
-içinde `Stateless|MRTR|Tasks|Elicit` sıfır isabet. `Directory.Packages.props:162,172`
-SDK'yı 2.2.0'a sabitler. **Çalışma anı probu (2026-08-26):** kurulu 2.2.0
-paketinde `HttpServerTransportOptions.Stateless = True`, `SessionMode = Stateless`,
-`EnableLegacySse = False`; `AgentPrismMcpServerBuilderExtensions.cs:60`
-`WithHttpTransport()`'u **seçeneksiz** çağırır, yani sunucu bugün zaten
-stateless'tır ve sunucu→istemci isteği desteklemez.
-
-**Maliyet:** Orta–yüksek; Tasks extension'ı **yeni bir NuGet paketidir** ve
-geçişli ağırlığı sayılmalıdır (K-212 emsali).
-
-**Risk:** Task kimliği kiracı ve auth bağlamına sıkı bağlanmazsa çapraz kiracı
-sızıntısı üretir. Public MCP sözleşmesi büyür.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-08-26 — [spec changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog)
-ve [C# SDK v2.0 duyurusu](https://devblogs.microsoft.com/dotnet/announcing-v20-of-the-official-mcp-csharp-sdk/).
-Down-level uyum vardır; 2025-11-25 istemcileri çalışmaya devam eder.
-
-**Karşı görüş:** Spec bir ay önce yayımlandı ve down-level uyum zaten çalışıyor.
-MCP sunucusu loopback + bearer + policy ile korunur ve uzak erişimle birlikte
-açılmaz (`AgentPrismMcpServerExtensions.cs`). Bugün ölçülmüş bir tüketici acısı
-yoktur; bu kalem şu an bir **uyumluluk konforu**, bir ihtiyaç değildir.
-
-### F-168 · Eval'in başsız koşucusu ve CI kapısı
-
-**Sorun:** Eval çekirdeği tamdır (`EvalSuite`, `EvalRun`, `IRunJudge`,
-`EvalJobHandler`, `RunToCasePromoter`), fakat onu CI'da koşup exit code üreten
-bir yol yoktur. Kalite ölçümü arayüzden elle tetiklenmeye bağlıdır.
-
-**Kapsam:** `AgentPrism.Cli`'ye bir eval komutu ekle: suite seç, koş, eşiğe göre
-exit code üret. Eşik **tüketici tarafından** verilir; AgentPrism varsayılan bir
-kalite eşiği dayatmaz.
-
-**Değer:** Agent kalitesi, kod kalitesiyle aynı kapıdan geçer.
-
-**Mercek:** 3, 7.
-
-**Hazırlık:** Ölçüldü — `ls src/AgentPrism.Cli/Commands/` üç komut verir
-(`Health`, `Migrate`, `MigrateStatus`); `ls src/AgentPrism.Core/Evaluation/`
-on beş dosya verir.
-
-**Maliyet:** Orta; yeni paket gerekmez. **CLI yüzeyi de bir uyumluluk
-taahhüdüdür** — komut adı ve exit code sözleşmesi sonradan ucuz değişmez.
-
-**Risk:** Model yanıtı deterministik değildir; yanlış eşik CI'ı gürültüyle kapatır.
-
-**Bağımlılık:** Yok, fakat **F-67 ile aynı kararı ister** (CI gürültü eşiği).
-İkisi ayrı turlarda karara bağlanırsa iki farklı eşik felsefesi doğar.
-
-**Ekosistem:** 2026-08-26 — dış iddia yok; repo yüzeyi ölçüldü.
-
-**Karşı görüş:** Eval zaten HTTP ucundan tetiklenebilir; tüketici kendi CI
-adımını `curl` ile yazabilir. Yeni bir CLI sözleşmesi taşımanın değeri, ölçülmüş
-bir tüketici talebi olmadan kanıtlanmamıştır.
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası (yeniden açıldı)
 
@@ -209,69 +164,7 @@ MAF yüzeyine bağlanmak, çalışan bir alternatifi elde varken net bir gerilem
 olabilir.
 
 
-### F-149 · Sağlayıcı failure classification için extension seam'i
 
-**Sorun:** `FallbackRetryClassifier` ve `DefaultRunErrorClassifier`, sağlayıcı
-failure'ını exception tipi adı ve mesajdaki HTTP metni ile sınıflandırır.
-Üçüncü taraf sağlayıcı bu metni taşımıyorsa retry veya hata sınıfı sessizce
-yanlış olur.
-
-**Kapsam:** Varsayılan metin eşlemeyi koruyan, `TryAdd*` ile değiştirilebilir bir
-failure-classification seam'i tasarla. Sağlayıcı paketinin kendi SDK exception'ını
-tipli ele alabilmesi değerlendirilir; AgentPrism Core'a sağlayıcı SDK bağımlılığı
-eklenmez.
-
-**Değer:** Sağlayıcı yazarı, mesaj biçimini tersine mühendislik etmeden retry ve
-run error davranışını güvenilir kılar.
-
-**Mercek:** 2, 3, 5, 6.
-
-**Hazırlık:** Ölçüldü — `FallbackChatClient.cs:350` ve
-`DefaultRunErrorClassifier.cs:132` regex tabanlı iki bağımsız sınıflandırıcıdır.
-
-**Maliyet:** Orta; public interface veya opsiyonel provider capability'si gerekir.
-
-**Risk:** Fazla genel bir abstraction, dört yerleşik sağlayıcıyı ve tüketici
-uygulamalarını gereksiz karmaşıklaştırabilir.
-
-**Bağımlılık:** Yok. Eski F-155 bu adayın bağımsız bir kopyası değildir; aynı
-tasarım turunda ölçülür.
-
-**Ekosistem:** 2026-08-26 — ekosistem iddiasına dayanmıyor; kod kanıtı yeterli.
-
-**Karşı görüş:** Yerleşik dört sağlayıcının mevcut mesajları ölçülmüş ve çalışır.
-Üçüncü taraf sağlayıcı talebi yoksa yeni public seam erken soyutlama olur.
-
-### F-109 · İstemci tool içeren run'ların replay sözleşmesi
-
-**Sorun:** `AddClientTool` declaration-only bir tool kaydeder. Replay derleyicisi
-yalnız `AIFunction`'ları transform eder; istemci tool sonucu taşıyan eski run,
-sunucunun çalıştıramayacağı çağrıda takılabilir.
-
-**Kapsam:** Replay için iki açık sözleşmeden birini seç: kaydedilmiş istemci tool
-sonucunu tekrar oynatmak veya bu run türünü anlaşılır, erken bir hata ile reddetmek.
-Seçim HTTP, replay kaydı ve UI anlatımı boyunca tutarlı olur.
-
-**Değer:** Replay yüzeyi, sevk edilmiş client-tool özelliği için yanlış bir
-"her run replay edilir" beklentisi yaratmaz.
-
-**Mercek:** 1, 2, 5, 6.
-
-**Hazırlık:** Ölçüldü — `AgentDefinitionCompiler.cs:465` client tool'u
-transform dışı bırakır; `RunReplayService.cs:126`–`280` üç replay modu taşır.
-
-**Maliyet:** Küçük–orta; seçilen sözleşmeye göre persistence veya açık validation.
-
-**Risk:** Kaydedilmiş sonucu oynatmak gerçek yan etkiyi simüle eder; canlı çağrı
-ise no-surprises kuralını ihlal eder.
-
-**Bağımlılık:** Faz 61 client-tool sözleşmesi (K-435).
-
-**Ekosistem:** 2026-08-26 — dış ekosistem iddiası yok; AgentPrism'in mevcut
-public davranış boşluğu ölçüldü.
-
-**Karşı görüş:** Replay isteğe bağlı bir araçtır. İstemci tool kullanan tüketici
-replay ihtiyacı duymuyorsa bu iş bekleyebilir.
 
 ### F-165 · Manuel kabul setinin CI'a kademeli taşınması
 
@@ -303,64 +196,7 @@ Sınır davranışı functional/integration seviyesinde kalmalıdır.
 **Karşı görüş:** Model kalitesi ve görsel değerlendirme otomasyona uygun değildir.
 Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı ayırmayı önerir.
 
-### F-67 · Performans regresyon kapısı
 
-**Sorun:** Mevcut kapanış kapıları doğruluğu korur; repo içinde benchmark projesi
-ve performans taban çizgisi yoktur.
-
-**Kapsam:** Önce üç sıcak yolu ölç: run-event yazımı, definition compiler cache'i
-ve seçilmiş store sorgusu. Sonra yalnız anlamlı metrik için CI veya elle koşulan
-eşik seçilir. F-163 ayrı bir test ailesi olarak açılmaz; bu ölçümün sonucu onu
-ya kapsar ya kapatır.
-
-**Değer:** Sıcak yol veya allocation regresyonu davranış doğruyken görünmez kalmaz.
-
-**Mercek:** 2, 4, 7.
-
-**Hazırlık:** Ölçüldü — 2026-08-26'da repo dosya taraması benchmark/bench projesi
-bulmadı.
-
-**Maliyet:** Orta.
-
-**Risk:** Gürültülü CI eşiği yanlış kırmızı üretir ve kapanış maliyetini büyütür.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-08-26 — dış iddia yok; kendi kapı ve kaynak ağacı ölçüldü.
-
-**Karşı görüş:** Benchmark sonucu kullanıcı davranışını doğrudan kanıtlamaz;
-kararlı ölçüm ortamı yoksa elle koşulan taban çizgisi daha doğru olabilir.
-
-### F-152 · Online evaluation için yargıç-başına durable checkpoint/retry
-
-**Sorun:** Bir `OnlineEval` job'ı yeniden denendiğinde başarılı yargıçlar da
-tekrar çalışır. `RunScore` upsert'i görünür duplicate'i engeller, fakat pahalı
-veya yan etkili üçüncü taraf yargıç çağrısını engellemez.
-
-**Kapsam:** Job item/run kimliği, başarılı yargıç sonucu ve retry sahipliğini
-ölç. Yalnızca doğru idempotency sözleşmesi kurulabiliyorsa kalıcı checkpoint
-modeli ve migration tasarla.
-
-**Değer:** Pahalı yargıçlar tekrar denenirken doğru maliyet ve yan etki sınırı
-korunur.
-
-**Mercek:** 2, 3, 7, 8.
-
-**Hazırlık:** Ölçüldü — `OnlineEvalJobHandler` retryable failure'ları toplar;
-`IRunScoreStore.UpsertAsync` aynı author/run için görünür sonucu birleştirir.
-Faz 100'ün açık sorusu durable sahipliği bırakmıştır.
-
-**Maliyet:** Orta–yüksek; kalıcı model ve üç SQL sağlayıcı migration'ı gerekir.
-
-**Risk:** Yanlış checkpoint, başarısız veya yarım yargıç sonucunu başarı diye
-atlayabilir.
-
-**Bağımlılık:** Faz 100 timeout/retry modeli; K-621'nin gerçek wait-cutoff sınırı.
-
-**Ekosistem:** 2026-08-26 — dış iddia yok; repo runtime davranışı ölçüldü.
-
-**Karşı görüş:** Yerleşik yargıçlar ucuz ve idempotent ise yeni kalıcı modelin
-karmaşıklığı faydasını aşar.
 
 ## Aday Olmayan Açık Kayıtlar
 
@@ -369,10 +205,11 @@ kaydındadır.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
+| **Plana dönüştü** | F-109 → [Faz 112](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) · F-149 → [Faz 113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) · F-166 → [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) · F-168 → [Faz 115](115-EVALIN-BASSIZ-KOSUCUSU.md) · F-67 → [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md) · F-167 → [Faz 117](117-MCP-TASKS-UZANTISI.md) · F-152 → [Faz 118](118-YARGIC-BASINA-CHECKPOINT.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım faz dokümanındadır. Aday listesine geri dönmezler. |
 | **Kapatılan kusur kayıtları** | F-106, F-130, F-137, F-138, F-139 | Kapanış kanıtı keşif kaydındadır; yeniden görülürse yeni kusur kaydı açılır. |
 | **Karar / uyumluluk** | F-72, F-90, F-91, F-92, F-132, **F-169** | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. F-95 2026-08-26'da adaylığa döndü. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9. |
 | **Ölçüm bekliyor** | F-51, F-94, F-96, F-97, F-99, F-101, F-123, F-128, F-154, F-156, F-157, F-159, F-160, F-161, F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. |
-| **Arşivlendi / birleştirildi** | F-48, F-88, F-89, F-98, F-144, F-145, F-146, F-147, F-148, F-155, F-158, F-163 | Plan değeri yok, rutin bakım olarak kalır veya aktif adayla aynı tasarım işidir. |
+| **Arşivlendi / birleştirildi** | F-48, F-88, F-89, F-98, F-144, F-145, F-146, F-147, F-148, F-155, F-158, F-163 | Plan değeri yok, rutin bakım olarak kalır veya aktif adayla aynı tasarım işidir. **F-155** F-149 ile aynı tasarım işiydi; o iş artık [Faz 113](113-ARIZA-SINIFLANDIRMA-SEAMI.md)'tedir. **F-163** F-67'nin ölçümüne bağlıydı; o ölçüm artık [Faz 116](116-PERFORMANS-TAHSIS-KAPISI.md)'dadır ve ayrı test ailesi olarak açılmaz. |
 
 ## Bilerek Önerilmeyenler
 
