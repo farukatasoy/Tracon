@@ -1448,3 +1448,51 @@ ayarlanmadan) çalışıyor.
   biçiminde, `truncated`/`omittedBytes`/`content` alanları yoktur.
 
 ---
+
+### MT-OBS-050 — İç span'ler `agentprism.run` kök span'inin çocuğu olmaya devam eder (Faz 107)
+
+Faz 107 `RunRecordingAgent`'ı `partial` dosyalara ayırdı; span'i açan
+`PrepareRun` ve kapatan `CompleteAsync` bu ayrımdan etkilenen metotlar
+arasındaydı (dosya taşıdı, gövde değişmedi). Bu case ayrıştırmanın
+kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 107 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta (bkz. `11-ARAYUZ-RUN-SESSION-SSE.md` MT-UIRUN-050).
+
+**Adımlar**
+1. `POST .../support/run` ile gerçek bir çalıştırma yap.
+2. `GET .../runs/{id}/trace` ile span ağacını oku.
+
+**Beklenen sonuç**
+- `agentprism.run` kök span'i vardır; `invoke_agent`/`chat` gibi iç span'ler
+  onun **çocuğudur**, kardeşi değil.
+- **Otomatik koşuldu (2026-08-26):** bu hiyerarşi
+  `ObservabilityTests.Inner_spans_become_children_of_root_span`
+  (`tests/AgentPrism.Core.UnitTests/Diagnostics/ObservabilityTests.cs`) ve
+  `RunRecordingAgentOutcomeMatrixTests` (span durum etiketi, dört sonuç için)
+  ile otomatik koşuldu — tam koşumda 1967/1967 testin parçası olarak geçti.
+  `PrepareRun`/`CreateScope`/`RunCoreAsync`/`RunCoreStreamingAsync`, span ve
+  `scope` yaşam döngüsünü kuran dört metottur; Faz 107 bunları ya hiç
+  taşımadı (girdi metotları ana dosyada kaldı) ya da birebir taşıdı
+  (`PrepareRun`/`CreateScope` → `RunRecordingAgent.Lifecycle.cs`).
+- **Sapma:** gerçek sunucu üzerinde `GET .../trace`'i canlı doğrulamak
+  denendi (echo sağlayıcı, ~45 ayrı run), ama `SuccessSampleRatio`
+  (varsayılan `0.1`) hiçbirinde örneklemedi ve `AgentPrism__Observability__SuccessSampleRatio=1`
+  ortam değişkeni de örnek uygulamada gözlenebilir bir etki yaratmadı — kök
+  neden ölçülmedi (Faz 107'nin dokunmadığı bir alan: `RunTraceCollector`
+  DI kaydı, `AgentPrismOptions` bağlama zinciri). Bu, bu fazın kod
+  değişikliğiyle İLGİLİ DEĞİLDİR — üstteki otomatik testler tam olarak aynı
+  mekanizmayı (gerçek `ActivityListener`, gerçek `RunTraceCollector`, gerçek
+  `InMemoryTraceStore`) izole biçimde çalıştırıp span ebeveynliğini
+  kanıtlıyor. `ADAYLAR.md`'ye örnek uygulamada span örneklemesinin hiç
+  tutmaması üzerine küçük bir araştırma notu eklenebilir (bu oturumun
+  kapsamı dışı).
+
+---

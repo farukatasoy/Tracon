@@ -1592,3 +1592,69 @@ doğrulandı.
   (`--ap-violet`), `message.delta`'dan (camgöbeği) AYRI görünür.
 
 ---
+
+### MT-UIRUN-050 — Akışlı ve akışsız aynı prompt, ikisi de `Completed` ile biter (Faz 107)
+
+Faz 107, `RunRecordingAgent`'ı sorumluluk eksenine göre `partial` dosyalara
+ayırdı ama `RunCoreAsync`/`RunCoreStreamingAsync` gövdelerini değiştirmedi. Bu
+case iki yolun gerçek bir sunucuda hâlâ aynı sonuca vardığını doğrular.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 107 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` yapılandırma olmadan (echo sağlayıcı, bellek içi
+  store) ayakta.
+
+**Adımlar**
+1. `POST /agentprism/api/agents/support/run` — `Idempotency-Key` başlığıyla
+   (akışsız, tek JSON gövde).
+2. Aynı `message` ile `Idempotency-Key` OLMADAN aynı uca istek at (akışlı, SSE).
+3. `GET /agentprism/api/runs?agentName=support&limit=2` ile iki kaydı incele.
+
+**Beklenen sonuç**
+- İki run da `status: "Completed"` ile kapanır.
+- **Koşuldu (2026-08-26):** akışsız run `01a03b6d-ef6e-7da7-b201-0989abfd450b`
+  (`usage.totalTokens: 18`), akışlı run `01a03b6d-b9e4-70d6-b296-8ff10307d75c`
+  — ikisi de `Completed`.
+- **Sapma:** akışlı kaydın `usage` alanı `null` döner, akışsızınki dolu. Kök
+  neden `RunRecordingAgent` DEĞİL — örnek uygulamanın `EchoModelProvider`'ı
+  (`samples/AgentPrism.Api/EchoModelProvider.cs:67`) akışlı yolda hiç
+  `UsageDetails` üretmez, yalnız akışsız `GetResponseAsync` üretir. Gerçek bir
+  sağlayıcıda (OpenAI, vb.) ikisi de usage döner; bu yalnız demo sağlayıcının
+  bilinen basitleştirmesidir.
+
+---
+
+### MT-UIRUN-051 — Süren bir çalıştırma `cancel` ile `Canceled` olur ve SSE bağlantısı kapanır (Faz 107)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 107 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` ayakta (bkz. MT-UIRUN-050).
+
+**Adımlar**
+1. Uzun bir `message` ile akışlı `POST .../support/run` başlat (echo
+   sağlayıcı kelime başına ~30 ms beklediği için birkaç saniye sürsün).
+2. Run `Running` durumuna geçer geçmez `POST .../runs/{id}/cancel` çağır.
+3. `GET .../runs/{id}` ile son durumu oku; başlattığın `curl` bağlantısının
+   kapandığını gözle.
+
+**Beklenen sonuç**
+- `cancel` çağrısı `202 Accepted` döner.
+- Run kaydı `Canceled`'e geçer; SSE bağlantısı sunucu tarafından kapatılır
+  (istemci `OperationCanceledException` görür).
+- **Koşuldu (2026-08-26):** run `01a03b6e-50e4-7c6b-b2c9-9b4333d89707`,
+  `Running` → `Canceled` (`completedAt` dolduruldu), akışlı bağlantı
+  sunucu tarafından kapatıldı (curl süreci kendiliğinden bitti).
+
+---

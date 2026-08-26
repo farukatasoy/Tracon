@@ -45,6 +45,19 @@
 
 Bu sınır önemlidir. Ayrı service'ler state'i paylaşmak için yeni concurrency sözleşmesi gerektirir. Kullanıcı yalnız dosya monolitini gidermek istedi; davranış mimarisini değiştirmek kapsam dışıdır.
 
+> **Faz 107'den devir:** aynı `partial` taşıma deseni orada da işe yaradı —
+> önce hiç `using`/pragma eklemeden metotları hedef dosyaya taşı, sonra
+> `dotnet build` çalıştır; `TreatWarningsAsErrors=true` eksik `using`'i
+> `CS0246`, gereksiz pragma'yı `IDE0079` olarak geri verir. Faz 107'de bu
+> teknikle iki eksik `using` (`Microsoft.Agents.AI`, `Microsoft.Extensions.Logging`)
+> ilk denemede yakalandı, tahmin gerekmedi. `InMemoryRunStore.cs` bugün hiç
+> `MAAI001` taşımıyor (varsayım, kontrol edilmedi — Faz 107'de `RunRecordingAgent.cs`
+> için kontrol edilmişti), bu fazda erken doğrulanmalı.
+> Ayrıca: private nested tipler (bu fazda tally/aggregate record'lar) en
+> doğal biçimde onları **üreten** metodun taşındığı dosyada kalır — Faz 107
+> `RunStart`/`RunScope` record'larını `PrepareRun`/`CreateScope` ile birlikte
+> `Lifecycle.cs`'e taşıdı, ayrı bir "types" dosyası açmadı.
+
 ## 108.2 — Sorumluluk dosyaları
 
 Metotlar şu eksenlere ayrılır:
