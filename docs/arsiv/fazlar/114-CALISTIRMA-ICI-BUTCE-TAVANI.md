@@ -1,7 +1,7 @@
 # Faz 114 — Çalıştırma-İçi Bütçe Tavanı
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-166**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-166**
 > **Önkoşul:** Faz 12 (agent çağrı grafiği, `AgentRunBudget`) ve Faz 21 (kota) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `AgentPrism.Abstractions` (`Runs/AgentRunBudget.cs`), `AgentPrism.Core` (`Models/`, `Recording/`)
 > **Yeni paket:** Yok · **Migration:** Yok — tavan yapılandırmadan gelir, veritabanına yazılmaz
@@ -26,10 +26,10 @@
    kaydın "Sonraki adım" sütunu bu fazın hata sınıfı kararını **açıkça
    devretmiştir**), **K-603** (`PublicAPI.Shipped.txt` boş).
 3. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` tuzağı — bu fazın **ana riski**) ·
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (`IChatClient` dekoratör halkaları ve sıraları) ·
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (kota, maliyet, `Bind()`)
-4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](MIMARI.md) — çalıştırma yolu
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (🚨 `AsyncLocal` tuzağı — bu fazın **ana riski**) ·
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (`IChatClient` dekoratör halkaları ve sıraları) ·
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (kota, maliyet, `Bind()`)
+4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](../../MIMARI.md) — çalıştırma yolu
 
 ---
 
@@ -52,14 +52,14 @@ sınırında** uygulanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismOptions.cs:158`](../src/AgentPrism.Core/AgentPrismOptions.cs) | `MaxTotalTokens` varsayılanı **200 000** ve XML dokümanı diyor ki: *"The default intentionally exists. An unlimited installation learns about its first invalid definition from the bill."* |
-| [`RunRecordingAgent.Completion.cs:102`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0)` — sayaç **yalnız run bitiminde** artar. Run sürerken bütçe sıfır görünür |
-| [`ChildAgentInvoker.cs:230`](../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs) | Bütçeye bakılan **tek** yer: yeni bir alt-run başlarken. Tek agent'lı run bu koda hiç girmez |
-| [`AgentRunBudget.cs:20-22`](../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | Tipin kendi XML dokümanı sınırı ilan ediyor: *"The budget blocks **new** child runs; it does not interrupt a run in progress."* |
-| [`QuotaGate.cs:18-20`](../src/AgentPrism.AspNetCore/RateLimiting/QuotaGate.cs) | Kota tarafı da aynısını ilan ediyor: *"An ongoing run is **not cut off** when the quota is exceeded. This gate only stops a *new* run."* |
-| [`QuotaEnforcer.cs`](../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | Tipin yalnız **iki** public metodu var: `CheckAsync` (run öncesi) ve `RecordAsync` (run sonrası). Çalışma anı yüzeyi yok |
+| [`AgentPrismOptions.cs:158`](../../../src/AgentPrism.Core/AgentPrismOptions.cs) | `MaxTotalTokens` varsayılanı **200 000** ve XML dokümanı diyor ki: *"The default intentionally exists. An unlimited installation learns about its first invalid definition from the bill."* |
+| [`RunRecordingAgent.Completion.cs:102`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs) | `scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0)` — sayaç **yalnız run bitiminde** artar. Run sürerken bütçe sıfır görünür |
+| [`ChildAgentInvoker.cs:230`](../../../src/AgentPrism.Core/Graph/ChildAgentInvoker.cs) | Bütçeye bakılan **tek** yer: yeni bir alt-run başlarken. Tek agent'lı run bu koda hiç girmez |
+| [`AgentRunBudget.cs:20-22`](../../../src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs) | Tipin kendi XML dokümanı sınırı ilan ediyor: *"The budget blocks **new** child runs; it does not interrupt a run in progress."* |
+| [`QuotaGate.cs:18-20`](../../../src/AgentPrism.AspNetCore/RateLimiting/QuotaGate.cs) | Kota tarafı da aynısını ilan ediyor: *"An ongoing run is **not cut off** when the quota is exceeded. This gate only stops a *new* run."* |
+| [`QuotaEnforcer.cs`](../../../src/AgentPrism.Core/Quotas/QuotaEnforcer.cs) | Tipin yalnız **iki** public metodu var: `CheckAsync` (run öncesi) ve `RecordAsync` (run sonrası). Çalışma anı yüzeyi yok |
 | `grep -rn "MaxCost\|MaxTokens" src/AgentPrism.Core/Recording src/AgentPrism.Core/Compilation` | **Sıfır isabet** |
-| [`HarnessSettings.cs:21`](../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) | `MaximumIterationsPerRequest` **vardır** — `int?`, opt-in, varsayılanı yok |
+| [`HarnessSettings.cs:21`](../../../src/AgentPrism.Abstractions/Agents/HarnessSettings.cs) | `MaximumIterationsPerRequest` **vardır** — `int?`, opt-in, varsayılanı yok |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -116,7 +116,7 @@ yaşar; zorlama `UseFunctionInvocation` halkasının **içine** konan bir
 `DelegatingChatClient` ile yapılır.
 
 Emsal koddadır: yanıt önbelleği ringi tam olarak bu konumdadır
-([`ModelProviderRegistry.cs:434-452`](../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)) —
+([`ModelProviderRegistry.cs:434-452`](../../../src/AgentPrism.Core/Models/ModelProviderRegistry.cs)) —
 tool döngüsünün **içinde**, telemetrinin **dışında**. Aynı slot kullanılır.
 
 ```mermaid
@@ -145,12 +145,12 @@ Derlenmiş agent **cache'lenir** (`CompiledAgentCache`), bütçe ise run'a
 özeldir. Bu yüzden bütçe boru hattına derleme anında **gömülemez**.
 
 Mekanizma zaten vardır:
-[`AgentPrismRunContext.Current?.Budget`](../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs)
+[`AgentPrismRunContext.Current?.Budget`](../../../src/AgentPrism.Core/Recording/AgentPrismRunContext.cs)
 — `AsyncLocal` ile taşınan run `scope`'u. Dekoratör her çağrıda **kendi
 gövdesinde** onu **okur**.
 
 🚨 **Bu repo'nun en pahalı tuzağı burada.** Kural
-([`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)):
+([`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)):
 `AsyncLocal` **yazımı** çağırana geri akmaz ve async yardımcı metotta
 açılmamalıdır. Bu faz yalnız **okur** — yazmaz. Okuma güvenlidir ve
 `AgentPrismRunContext`'in XML dokümanı akışın aşağı doğru çalıştığını yazar:
@@ -161,7 +161,7 @@ bu bir denetim bulgusudur.
 ## 114.4 — 🚨 Çifte sayım: fazın en sinsi hatası
 
 Dekoratör her turda `RecordUsage` çağırırsa ve
-[`Completion.cs:102`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs)
+[`Completion.cs:102`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Completion.cs)
 run sonunda toplamı **yine** eklerse, her token **iki kez** sayılır. Bütçe
 yarı yarıya küçülür ve kimse fark etmez — testler yeşil kalır, çünkü hiçbiri
 toplamı iddia etmiyor.
@@ -173,7 +173,7 @@ seçilirse seçilsin, **toplamı iddia eden bir test koddan önce yazılır**.
 
 İkisi de. Fakat maliyet fiyatlandırma ister ve fiyat her zaman bilinmez.
 
-Emsal zaten kurulmuştur ([`QuotaTypes.cs:60-66`](../src/AgentPrism.Abstractions/Quotas/QuotaTypes.cs)):
+Emsal zaten kurulmuştur ([`QuotaTypes.cs:60-66`](../../../src/AgentPrism.Abstractions/Quotas/QuotaTypes.cs)):
 *"This limit **cannot be enforced** on a model with undefined pricing: since
 the cost is unknown, the quota falls back to tokens."* Aynı kural burada da
 uygulanır — **yeni bir felsefe icat edilmez.**
@@ -184,7 +184,7 @@ uygulanır — **yeni bir felsefe icat edilmez.**
 | `PricingSource.Unknown` | Maliyet tavanı **zorlanamaz**; token tavanına düşülür |
 | Model bağlı değil (kod agent'ı) | Yalnız token tavanı |
 
-`IRunPricingResolver.Resolve` **senkrondur** ([`IRunPricingResolver.cs:26`](../src/AgentPrism.Abstractions/Runs/IRunPricingResolver.cs)),
+`IRunPricingResolver.Resolve` **senkrondur** ([`IRunPricingResolver.cs:26`](../../../src/AgentPrism.Abstractions/Runs/IRunPricingResolver.cs)),
 yani sıcak yolda `await` eklemez. Tavan tanımlı değilse çözümleyici hiç
 çağrılmaz.
 
@@ -200,7 +200,7 @@ istemciler, `RunErrorStatistics` panelleri ve arıza kümeleme kodu değişmeden
 **Eşleme regex ile yapılmaz.** Bugünkü `QuotaPattern()` mesajda `quota`
 kelimesi arar; kesme mesajının o kelimeyi taşımasına güvenmek tam olarak
 Faz 113'ün düzelttiği kırılganlıktır. Bunun yerine `StableIdentities`
-sözlüğüne ([`DefaultRunErrorClassifier.cs:30-39`](../src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs))
+sözlüğüne ([`DefaultRunErrorClassifier.cs:30-39`](../../../src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs))
 tipli bir kimlik eklenir — `ToolTimeout` ve `ContentFiltered` ile **aynı**
 desen.
 
@@ -320,7 +320,7 @@ tests/AgentPrism.Core.FunctionalTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|

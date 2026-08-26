@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-26)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-67** (F-163 bu fazın ölçümüne kapanır)
-> **Önkoşul:** 🚨 [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) — **taban çizgisi 114'ten sonra alınır**; gerekçe § 116.7
+> **Önkoşul:** 🚨 [Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) — **taban çizgisi 114'ten sonra alınır**; gerekçe § 116.7
 > **Paketler:** Yeni bir **ölçüm projesi** (`bench/`); sevk edilen hiçbir pakete dokunulmaz
 > **Yeni paket:** **BenchmarkDotNet 0.15.8** — K-007 gerekçesi ve geçişli ağırlık § 116.5'te **rakamla** · **Migration:** Yok
 > **Public API:** Büyümüyor. Ölçüm projesi `IsPackable=false`'tır ve hiçbir sevk edilen paket ona referans vermez
@@ -175,7 +175,7 @@ kaybolmaz, fakat kırmızı üretmez.
 
 ## 116.7 — 🚨 Taban çizgisi Faz 114'ten **sonra** alınır
 
-[Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) model çağrısı halkasına yeni bir
+[Faz 114](arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md) model çağrısı halkasına yeni bir
 `DelegatingChatClient` (`RunBudgetChatClient`) ekler ve
 `RunRecordingAgent.Completion.cs`'i değiştirir.
 
