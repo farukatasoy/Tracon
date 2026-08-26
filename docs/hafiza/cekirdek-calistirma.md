@@ -56,3 +56,15 @@ tool'ları boşaltır, compaction usage'ını birleştirir, fallback atfını ç
 maliyeti ve metriği yazar. Doğru dikiş, durum yazılmadan hemen önce koşan bir
 kancadır — `AgentPrismRunOptions.BeforePendingApprovalIsPublished`. Kanca akışlı
 yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamalıdır.
+
+- **🚨 Uretilemeyen bir `enum` uyesi sessiz bir YANLIS BEYANDIR ve tum sevk
+  edilen yuzeye yayilir** (2026-08-26, K-627, olculdu). `RunErrorClass.BudgetExceeded`
+  "tree veya context budget asildi" diye ilan ediliyordu; hicbir kod yolu onu
+  uretemiyordu — `DefaultRunErrorClassifier` hicbir exception'i ona eslemiyor ve
+  tree budget tukendiginde `ChildAgentInvoker` **bilerek** exception atmiyor,
+  modele metin donduruyor (run basarili biter). Uye yine de OpenAPI belgesine,
+  TypeScript semasina, generated istemciye ve **iki dil dosyasina** ulasmisti.
+  Ders: bir hata sinifi/durum uyesi eklerken "kim uretiyor" sorusunu kodla
+  yanitla — `grep -rn "RunErrorClass.<Uye>" src/` sifir donuyorsa uye yanlistir.
+  Kaldirirken sayisal degeri **bosalt, yeniden numaralandirma**: kayitli run'lar
+  ve eski istemciler eski anlami tasir. Kapi: `RunErrorClassContractTests`.

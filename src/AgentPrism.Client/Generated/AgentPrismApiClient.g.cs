@@ -27,7 +27,7 @@ namespace AgentPrism.Client.Generated
     using System = global::System;
 
     [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class AgentPrismApiClient
+    public partial class AgentPrismApiClient 
     {
         private System.Net.Http.HttpClient _httpClient;
         private static System.Lazy<System.Text.Json.JsonSerializerOptions> _settings = new System.Lazy<System.Text.Json.JsonSerializerOptions>(CreateSerializerSettings, true);
@@ -79,7 +79,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/meta"
                     urlBuilder_.Append("api/meta");
 
@@ -156,7 +156,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents"
                     urlBuilder_.Append("api/agents");
 
@@ -240,7 +240,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents"
                     urlBuilder_.Append("api/agents");
 
@@ -330,7 +330,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -418,7 +418,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -508,7 +508,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -588,7 +588,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/validate"
                     urlBuilder_.Append("api/agents/validate");
 
@@ -678,7 +678,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}/versions"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -767,7 +767,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}/rollback"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -855,7 +855,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}/versions/{a}/diff/{b}"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -947,7 +947,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/event-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}/run"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1106,7 +1106,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/agents/{name}/estimate"
                     urlBuilder_.Append("api/agents/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1220,7 +1220,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/attachments"
                     urlBuilder_.Append("api/attachments");
                     urlBuilder_.Append('?');
@@ -1303,7 +1303,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/attachments"
                     urlBuilder_.Append("api/attachments");
                     urlBuilder_.Append('?');
@@ -1397,7 +1397,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/octet-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/attachments/{id}"
                     urlBuilder_.Append("api/attachments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1485,7 +1485,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/attachments/{id}"
                     urlBuilder_.Append("api/attachments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1558,7 +1558,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skills"
                     urlBuilder_.Append("api/skills");
 
@@ -1638,7 +1638,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skills/{name}"
                     urlBuilder_.Append("api/skills/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1726,7 +1726,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skills/{name}"
                     urlBuilder_.Append("api/skills/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1816,7 +1816,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skills/{name}"
                     urlBuilder_.Append("api/skills/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -1889,7 +1889,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skill-script-grants"
                     urlBuilder_.Append("api/skill-script-grants");
 
@@ -1973,7 +1973,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skill-script-grants"
                     urlBuilder_.Append("api/skill-script-grants");
 
@@ -2052,7 +2052,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/skill-script-grants/{skillName}"
                     urlBuilder_.Append("api/skill-script-grants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(skillName, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2131,7 +2131,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/sessions"
                     urlBuilder_.Append("api/sessions");
                     urlBuilder_.Append('?');
@@ -2225,7 +2225,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/sessions/{sessionId}"
                     urlBuilder_.Append("api/sessions/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(sessionId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2305,7 +2305,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/sessions/{sessionId}"
                     urlBuilder_.Append("api/sessions/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(sessionId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2388,7 +2388,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/sessions/{sessionId}/branch"
                     urlBuilder_.Append("api/sessions/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(sessionId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2507,7 +2507,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs"
                     urlBuilder_.Append("api/runs");
                     urlBuilder_.Append('?');
@@ -2641,7 +2641,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/tree"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2723,7 +2723,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2803,7 +2803,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("GET");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/events"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2881,7 +2881,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/cancel"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -2970,7 +2970,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/feedback"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3052,7 +3052,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/feedback"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3136,7 +3136,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/feedback/{scoreId}"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3214,7 +3214,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/input"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3299,7 +3299,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{a}/compare/{b}"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(a, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3389,7 +3389,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/replay"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3528,7 +3528,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows"
                     urlBuilder_.Append("api/workflows");
 
@@ -3605,7 +3605,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/functions"
                     urlBuilder_.Append("api/workflows/functions");
 
@@ -3685,7 +3685,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/{name}"
                     urlBuilder_.Append("api/workflows/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3773,7 +3773,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/{name}"
                     urlBuilder_.Append("api/workflows/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3853,7 +3853,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/{name}"
                     urlBuilder_.Append("api/workflows/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -3929,7 +3929,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/{name}/graph"
                     urlBuilder_.Append("api/workflows/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4015,7 +4015,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/event-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/{name}/run"
                     urlBuilder_.Append("api/workflows/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4127,7 +4127,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/runs/{runId}/checkpoints"
                     urlBuilder_.Append("api/workflows/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4213,7 +4213,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/event-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/runs/{runId}/resume"
                     urlBuilder_.Append("api/workflows/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4305,7 +4305,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/runs/{runId}/requests"
                     urlBuilder_.Append("api/workflows/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4391,7 +4391,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("text/event-stream"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/workflows/runs/{runId}/respond"
                     urlBuilder_.Append("api/workflows/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4490,7 +4490,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/schedules"
                     urlBuilder_.Append("api/schedules");
 
@@ -4570,7 +4570,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/schedules/{name}"
                     urlBuilder_.Append("api/schedules/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4658,7 +4658,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/schedules/{name}"
                     urlBuilder_.Append("api/schedules/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4738,7 +4738,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/schedules/{name}"
                     urlBuilder_.Append("api/schedules/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4818,7 +4818,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/schedules/{name}/trigger"
                     urlBuilder_.Append("api/schedules/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -4897,7 +4897,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/jobs"
                     urlBuilder_.Append("api/jobs");
                     urlBuilder_.Append('?');
@@ -4999,7 +4999,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/jobs/{id}"
                     urlBuilder_.Append("api/jobs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5080,7 +5080,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("POST");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/jobs/{id}/cancel"
                     urlBuilder_.Append("api/jobs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5154,7 +5154,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals"
                     urlBuilder_.Append("api/evals");
 
@@ -5234,7 +5234,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5322,7 +5322,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5402,7 +5402,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5478,7 +5478,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/cases"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5567,7 +5567,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/cases"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5648,7 +5648,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/cases"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5732,7 +5732,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/cases/from-run/{runId}"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5829,7 +5829,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/run"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -5911,7 +5911,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/{name}/runs"
                     urlBuilder_.Append("api/evals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6003,7 +6003,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evals/runs/{id}"
                     urlBuilder_.Append("api/evals/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6081,7 +6081,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/evaluation/online"
                     urlBuilder_.Append("api/evaluation/online");
 
@@ -6162,7 +6162,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/judge"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6241,7 +6241,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments"
                     urlBuilder_.Append("api/experiments");
 
@@ -6321,7 +6321,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6409,7 +6409,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6489,7 +6489,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6566,7 +6566,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}/start"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6649,7 +6649,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}/stop"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6731,7 +6731,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}/results"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6817,7 +6817,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}/canary"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6899,7 +6899,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/experiments/{name}/canary"
                     urlBuilder_.Append("api/experiments/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -6978,7 +6978,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tools"
                     urlBuilder_.Append("api/tools");
 
@@ -7055,7 +7055,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/models"
                     urlBuilder_.Append("api/models");
 
@@ -7132,7 +7132,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/stats"
                     urlBuilder_.Append("api/stats");
                     urlBuilder_.Append('?');
@@ -7231,7 +7231,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/stats/timeseries"
                     urlBuilder_.Append("api/stats/timeseries");
                     urlBuilder_.Append('?');
@@ -7334,7 +7334,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/stats/errors"
                     urlBuilder_.Append("api/stats/errors");
                     urlBuilder_.Append('?');
@@ -7422,7 +7422,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/stats/recalculate-costs"
                     urlBuilder_.Append("api/stats/recalculate-costs");
 
@@ -7499,7 +7499,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/quotas"
                     urlBuilder_.Append("api/quotas");
 
@@ -7583,7 +7583,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/quotas"
                     urlBuilder_.Append("api/quotas");
 
@@ -7662,7 +7662,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/quotas/{id}"
                     urlBuilder_.Append("api/quotas/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -7735,7 +7735,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/quotas/usage"
                     urlBuilder_.Append("api/quotas/usage");
                     urlBuilder_.Append('?');
@@ -7822,7 +7822,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks"
                     urlBuilder_.Append("api/webhooks");
 
@@ -7902,7 +7902,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks/{name}"
                     urlBuilder_.Append("api/webhooks/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -7990,7 +7990,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks/{name}"
                     urlBuilder_.Append("api/webhooks/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8070,7 +8070,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks/{name}"
                     urlBuilder_.Append("api/webhooks/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8147,7 +8147,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks/{name}/test"
                     urlBuilder_.Append("api/webhooks/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8229,7 +8229,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/webhooks/{name}/deliveries"
                     urlBuilder_.Append("api/webhooks/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8322,7 +8322,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/api-keys"
                     urlBuilder_.Append("api/api-keys");
 
@@ -8406,7 +8406,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/api-keys"
                     urlBuilder_.Append("api/api-keys");
 
@@ -8485,7 +8485,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/api-keys/{id}"
                     urlBuilder_.Append("api/api-keys/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8561,7 +8561,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/providers"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8653,7 +8653,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/providers/{provider}"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8738,7 +8738,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/providers/{provider}"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8816,7 +8816,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/egress"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8905,7 +8905,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/egress"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -8986,7 +8986,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{tenantId}/egress"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9060,7 +9060,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/triggers"
                     urlBuilder_.Append("api/triggers");
 
@@ -9140,7 +9140,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/triggers/{name}"
                     urlBuilder_.Append("api/triggers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9228,7 +9228,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/triggers/{name}"
                     urlBuilder_.Append("api/triggers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9308,7 +9308,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/triggers/{name}"
                     urlBuilder_.Append("api/triggers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9381,7 +9381,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/pending"
                     urlBuilder_.Append("api/approvals/pending");
 
@@ -9461,7 +9461,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/{id}"
                     urlBuilder_.Append("api/approvals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9549,7 +9549,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/{id}/decide"
                     urlBuilder_.Append("api/approvals/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -9628,7 +9628,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention"
                     urlBuilder_.Append("api/retention");
 
@@ -9705,7 +9705,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/preview"
                     urlBuilder_.Append("api/retention/preview");
                     urlBuilder_.Append('?');
@@ -9789,7 +9789,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/run"
                     urlBuilder_.Append("api/retention/run");
                     urlBuilder_.Append('?');
@@ -9872,7 +9872,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/history"
                     urlBuilder_.Append("api/retention/history");
                     urlBuilder_.Append('?');
@@ -9966,7 +9966,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/{target}"
                     urlBuilder_.Append("api/retention/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(target, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10054,7 +10054,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/{target}"
                     urlBuilder_.Append("api/retention/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(target, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10134,7 +10134,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/retention/{target}"
                     urlBuilder_.Append("api/retention/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(target, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10217,7 +10217,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/knowledge/{collection}/documents"
                     urlBuilder_.Append("api/knowledge/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(collection, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10319,7 +10319,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/knowledge/{collection}/documents"
                     urlBuilder_.Append("api/knowledge/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(collection, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10413,7 +10413,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/knowledge/{collection}/documents/{sourceId}"
                     urlBuilder_.Append("api/knowledge/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(collection, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10508,7 +10508,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/knowledge/{collection}/search"
                     urlBuilder_.Append("api/knowledge/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(collection, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10597,7 +10597,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/models/health"
                     urlBuilder_.Append("api/models/health");
                     urlBuilder_.Append('?');
@@ -10683,7 +10683,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/models/health/{provider}"
                     urlBuilder_.Append("api/models/health/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(provider, System.Globalization.CultureInfo.InvariantCulture)));
@@ -10767,7 +10767,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/voice/health"
                     urlBuilder_.Append("api/voice/health");
 
@@ -10844,7 +10844,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/voice/voices"
                     urlBuilder_.Append("api/voice/voices");
 
@@ -10921,7 +10921,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/voice/sessions"
                     urlBuilder_.Append("api/voice/sessions");
                     urlBuilder_.Append('?');
@@ -11023,7 +11023,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/voice/speak"
                     urlBuilder_.Append("api/voice/speak");
 
@@ -11107,7 +11107,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/images/generate"
                     urlBuilder_.Append("api/images/generate");
 
@@ -11207,7 +11207,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/trace"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -11289,7 +11289,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/runs/{runId}/tools"
                     urlBuilder_.Append("api/runs/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -11368,7 +11368,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tools/usage"
                     urlBuilder_.Append("api/tools/usage");
                     urlBuilder_.Append('?');
@@ -11455,7 +11455,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/current"
                     urlBuilder_.Append("api/tenants/current");
 
@@ -11532,7 +11532,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants"
                     urlBuilder_.Append("api/tenants");
 
@@ -11619,7 +11619,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{slug}"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(slug, System.Globalization.CultureInfo.InvariantCulture)));
@@ -11699,7 +11699,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/tenants/{slug}"
                     urlBuilder_.Append("api/tenants/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(slug, System.Globalization.CultureInfo.InvariantCulture)));
@@ -11772,7 +11772,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers"
                     urlBuilder_.Append("api/mcp-servers");
 
@@ -11859,7 +11859,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -11939,7 +11939,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12016,7 +12016,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/refresh"
                     urlBuilder_.Append("api/mcp-servers/refresh");
 
@@ -12096,7 +12096,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/prompts"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12185,7 +12185,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/prompts/{prompt}"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12268,7 +12268,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/resources"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12353,7 +12353,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/resources/read"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12439,7 +12439,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/oauth/start"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12518,7 +12518,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/rules"
                     urlBuilder_.Append("api/approvals/rules");
 
@@ -12602,7 +12602,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/rules"
                     urlBuilder_.Append("api/approvals/rules");
 
@@ -12681,7 +12681,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("DELETE");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/approvals/rules/{ruleId}"
                     urlBuilder_.Append("api/approvals/rules/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(ruleId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12754,7 +12754,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/audit"
                     urlBuilder_.Append("api/audit");
                     urlBuilder_.Append('?');
@@ -12860,7 +12860,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/audit/{entity}"
                     urlBuilder_.Append("api/audit/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(entity, System.Globalization.CultureInfo.InvariantCulture)));
@@ -12944,7 +12944,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/audit/verify"
                     urlBuilder_.Append("api/audit/verify");
                     urlBuilder_.Append('?');
@@ -13033,7 +13033,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("GET");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/data-subjects/{id}/export"
                     urlBuilder_.Append("api/data-subjects/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13110,7 +13110,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/data-subjects/{id}"
                     urlBuilder_.Append("api/data-subjects/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13194,7 +13194,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/diagnostics"
                     urlBuilder_.Append("api/diagnostics");
 
@@ -13272,7 +13272,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/responses"
                     urlBuilder_.Append("v1/responses");
 
@@ -13380,7 +13380,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/chat/completions"
                     urlBuilder_.Append("v1/chat/completions");
 
@@ -13488,7 +13488,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/conversations"
                     urlBuilder_.Append("v1/conversations");
 
@@ -13578,7 +13578,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/conversations/{conversationId}"
                     urlBuilder_.Append("v1/conversations/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(conversationId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13669,7 +13669,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/conversations/{conversationId}"
                     urlBuilder_.Append("v1/conversations/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(conversationId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13760,7 +13760,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "v1/conversations/{conversationId}/items"
                     urlBuilder_.Append("v1/conversations/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(conversationId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13857,7 +13857,7 @@ namespace AgentPrism.Client.Generated
                     request_.Method = new System.Net.Http.HttpMethod("GET");
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/mcp-servers/{name}/oauth/callback"
                     urlBuilder_.Append("api/mcp-servers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
@@ -13956,7 +13956,7 @@ namespace AgentPrism.Client.Generated
                     request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
 
                     var urlBuilder_ = new System.Text.StringBuilder();
-
+                
                     // Operation Path: "api/triggers/{tenantId}/{name}"
                     urlBuilder_.Append("api/triggers/");
                     urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(tenantId, System.Globalization.CultureInfo.InvariantCulture)));
@@ -14134,7 +14134,7 @@ namespace AgentPrism.Client.Generated
                     var field = System.Reflection.IntrospectionExtensions.GetTypeInfo(value.GetType()).GetDeclaredField(name);
                     if (field != null)
                     {
-                        var attribute = System.Reflection.CustomAttributeExtensions.GetCustomAttribute(field, typeof(System.Runtime.Serialization.EnumMemberAttribute))
+                        var attribute = System.Reflection.CustomAttributeExtensions.GetCustomAttribute(field, typeof(System.Runtime.Serialization.EnumMemberAttribute)) 
                             as System.Runtime.Serialization.EnumMemberAttribute;
                         if (attribute != null)
                         {
@@ -14146,7 +14146,7 @@ namespace AgentPrism.Client.Generated
                     return converted == null ? string.Empty : converted;
                 }
             }
-            else if (value is bool)
+            else if (value is bool) 
             {
                 return System.Convert.ToString((bool)value, cultureInfo).ToLowerInvariant();
             }
@@ -14371,6 +14371,9 @@ namespace AgentPrism.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"Database")]
         Database = 1,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"Custom")]
+        Custom = 2,
+
     }
 
     /// <summary>
@@ -14470,7 +14473,8 @@ namespace AgentPrism.Client.Generated
 
     /// <summary>
     /// A summary view of an agent listed in the catalog. It carries everything the user
-    /// <br/>interface needs to draw the agent list, without having to build the agent.
+    /// <br/>interface needs to draw the agent list, without having to build the agent. A source
+    /// <br/>must not mutate a descriptor or its nested collections after returning it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class AgentDescriptor
@@ -14755,6 +14759,13 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("agentCount")]
         public int? AgentCount { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the agent sources registered in priority order.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("agentSources")]
+        public System.Collections.Generic.ICollection<AgentSourceDiagnostic> AgentSources { get; set; } = new System.Collections.Generic.List<AgentSourceDiagnostic>();
 
         /// <summary>
         /// Gets the embedding points a host application binds to attach AgentPrism
@@ -15317,6 +15328,35 @@ namespace AgentPrism.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("parametersSchema")]
         public string? ParametersSchema { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Describes one agent source registered in the catalog.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AgentSourceDiagnostic
+    {
+        /// <summary>
+        /// Gets the source name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the source priority.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("priority")]
+        public int Priority { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the implementation type name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("implementation")]
+        public string Implementation { get; set; } = default!;
 
     }
 
@@ -20720,20 +20760,17 @@ namespace AgentPrism.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"CompilationFailed")]
         CompilationFailed = 8,
 
-        [System.Runtime.Serialization.EnumMember(Value = @"BudgetExceeded")]
-        BudgetExceeded = 9,
-
         [System.Runtime.Serialization.EnumMember(Value = @"Canceled")]
-        Canceled = 10,
+        Canceled = 9,
 
         [System.Runtime.Serialization.EnumMember(Value = @"ContentBlocked")]
-        ContentBlocked = 11,
+        ContentBlocked = 10,
 
         [System.Runtime.Serialization.EnumMember(Value = @"Infrastructure")]
-        Infrastructure = 12,
+        Infrastructure = 11,
 
         [System.Runtime.Serialization.EnumMember(Value = @"ToolTimeout")]
-        ToolTimeout = 13,
+        ToolTimeout = 12,
 
     }
 

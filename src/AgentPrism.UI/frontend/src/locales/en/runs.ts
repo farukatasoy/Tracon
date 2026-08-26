@@ -205,7 +205,6 @@ export const enRuns = {
   "dashboard.errorClass.ToolError": 'Tool error',
   "dashboard.errorClass.Timeout": 'Timeout',
   "dashboard.errorClass.CompilationFailed": 'Compilation failed',
-  "dashboard.errorClass.BudgetExceeded": 'Budget exceeded',
   "dashboard.errorClass.Canceled": 'Canceled',
   "dashboard.errorClass.ContentBlocked": 'Content blocked by policy',
   "dashboard.errorClass.ToolTimeout": 'Tool timed out',

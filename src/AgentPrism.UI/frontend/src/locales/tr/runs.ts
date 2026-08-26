@@ -210,7 +210,6 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "dashboard.errorClass.ToolError": 'Tool hatası',
   "dashboard.errorClass.Timeout": 'Süre aşımı',
   "dashboard.errorClass.CompilationFailed": 'Derleme başarısız',
-  "dashboard.errorClass.BudgetExceeded": 'Bütçe aşıldı',
   "dashboard.errorClass.Canceled": 'İptal edildi',
   "dashboard.errorClass.ContentBlocked": 'İçerik politika ile engellendi',
   "dashboard.errorClass.ToolTimeout": "Tool zaman aşımına uğradı",

@@ -2750,7 +2750,7 @@ export interface components {
          * @description Tells where an agent definition came from.
          * @enum {unknown}
          */
-        AgentDefinitionOrigin: "Code" | "Database";
+        AgentDefinitionOrigin: "Code" | "Database" | "Custom";
         /** @description Request to create or update an agent definition. */
         AgentDefinitionRequest: {
             /** @description Agent name. Unique within the catalog. */
@@ -2786,7 +2786,8 @@ export interface components {
         };
         /**
          * @description A summary view of an agent listed in the catalog. It carries everything the user
-         *     interface needs to draw the agent list, without having to build the agent.
+         *     interface needs to draw the agent list, without having to build the agent. A source
+         *     must not mutate a descriptor or its nested collections after returning it.
          */
         AgentDescriptor: {
             /** @description Gets the unique name of the agent. */
@@ -2904,6 +2905,8 @@ export interface components {
              * @description Gets the number of registered agents. Returns `null` when the catalog cannot be read.
              */
             agentCount: null | number | string;
+            /** @description Gets the agent sources registered in priority order. */
+            agentSources: components["schemas"]["AgentSourceDiagnostic"][];
             /**
              * @description Gets the embedding points a host application binds to attach AgentPrism
              *     to its own tenancy, identity, authorization, eventing, and storage.
@@ -3115,6 +3118,18 @@ export interface components {
              *     object; if `null`, the script is called with no arguments.
              */
             parametersSchema?: null | string;
+        };
+        /** @description Describes one agent source registered in the catalog. */
+        AgentSourceDiagnostic: {
+            /** @description Gets the source name. */
+            name: string;
+            /**
+             * Format: int32
+             * @description Gets the source priority.
+             */
+            priority: number | string;
+            /** @description Gets the implementation type name. */
+            implementation: string;
         };
         /**
          * @description The result of a validation that builds an agent definition without saving it and
@@ -5477,7 +5492,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "BudgetExceeded" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | null;
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */
@@ -7354,6 +7369,7 @@ export type AgentSkillDefinition = components['schemas']['AgentSkillDefinition']
 export type AgentSkillRequest = components['schemas']['AgentSkillRequest'];
 export type AgentSkillResourceDefinition = components['schemas']['AgentSkillResourceDefinition'];
 export type AgentSkillScriptDefinition = components['schemas']['AgentSkillScriptDefinition'];
+export type AgentSourceDiagnostic = components['schemas']['AgentSourceDiagnostic'];
 export type AgentValidationReport = components['schemas']['AgentValidationReport'];
 export type AgentVersionDiffResponse = components['schemas']['AgentVersionDiffResponse'];
 export type AiAnnotation = components['schemas']['AIAnnotation'];
