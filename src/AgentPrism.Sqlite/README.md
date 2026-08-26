@@ -37,6 +37,22 @@ builder.AddAgentPrism()
        });
 ```
 
+## Sharing a data source
+
+Give `DataSource` instead of `ConnectionString` when your host already owns a
+`DbDataSource` for the same database file and you want AgentPrism using that same
+instance:
+
+```csharp
+options.DataSource = yourDbDataSource;   // ConnectionString is then not required
+```
+
+AgentPrism never disposes an instance it did not build; the caller keeps
+ownership. `Microsoft.Data.Sqlite` does not itself offer a `DbDataSource`
+implementation, so this is for a `DbDataSource` adapter you write yourself — see
+`AgentPrism.PostgreSql`'s `https://agentprism.doayen.web.tr/guides/ef-core/` for
+the pattern.
+
 ## SQLite's real limits
 
 These are not hidden; they are reported in this README and in the `/api/meta` output.

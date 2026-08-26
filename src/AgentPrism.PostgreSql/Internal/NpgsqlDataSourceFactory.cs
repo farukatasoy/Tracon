@@ -47,4 +47,38 @@ internal static class NpgsqlDataSourceFactory
 
         return builder.Build();
     }
+
+    /// <summary>
+    /// Resolves the data source AgentPrism uses: <see cref="AgentPrismPostgreSqlOptions.DataSource"/>
+    /// when the consumer gave one, or a new one built from
+    /// <see cref="AgentPrismPostgreSqlOptions.ConnectionString"/> otherwise.
+    /// </summary>
+    /// <param name="options">The PostgreSQL settings.</param>
+    /// <param name="loggerFactory">The logger factory Npgsql will use, when AgentPrism builds its own data source.</param>
+    /// <returns>The data source, and whether AgentPrism owns it (and must dispose it).</returns>
+    /// <exception cref="AgentPrismException">
+    /// The connection string is not defined, or <see cref="AgentPrismPostgreSqlOptions.DataSource"/>
+    /// is set but is not an <see cref="NpgsqlDataSource"/>.
+    /// </exception>
+    public static (NpgsqlDataSource DataSource, bool OwnsDataSource) Resolve(
+        AgentPrismPostgreSqlOptions options,
+        ILoggerFactory? loggerFactory)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (options.DataSource is null)
+        {
+            return (Create(options, loggerFactory), true);
+        }
+
+        if (options.DataSource is not NpgsqlDataSource npgsqlDataSource)
+        {
+            throw new AgentPrismException(
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.DataSource)} must be an " +
+                $"{nameof(NpgsqlDataSource)} instance (built with {nameof(NpgsqlDataSourceBuilder)}). " +
+                $"Actual type: '{options.DataSource.GetType()}'.");
+        }
+
+        return (npgsqlDataSource, false);
+    }
 }

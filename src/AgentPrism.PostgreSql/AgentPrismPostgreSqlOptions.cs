@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace AgentPrism;
 
 /// <summary>Settings for AgentPrism's PostgreSQL persistence layer.</summary>
@@ -16,8 +18,38 @@ public sealed class AgentPrismPostgreSqlOptions
     /// <remarks>
     /// <strong>This value is a secret and is never written to a file.</strong> Use
     /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager.
+    /// Not required when <see cref="DataSource"/> is set; giving both is an error.
     /// </remarks>
     public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// The data source AgentPrism uses, instead of building its own from
+    /// <see cref="ConnectionString"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Must be an <c>NpgsqlDataSource</c> (built with <c>NpgsqlDataSourceBuilder</c>)
+    /// — for example, the same instance an EF Core <c>DbContext</c> was configured
+    /// with via <c>UseNpgsql(dataSource)</c>. When set, <see cref="ConnectionString"/>
+    /// is not required, and giving both is a startup error.
+    /// </para>
+    /// <para>
+    /// AgentPrism does <strong>not</strong> take ownership: the instance is never
+    /// disposed. The caller keeps ownership and disposes it when the host shuts
+    /// down.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// var dataSource = new Npgsql.NpgsqlDataSourceBuilder(connectionString).Build();
+    ///
+    /// // Also give the same instance to your own EF Core DbContext
+    /// // (o =&gt; o.UseNpgsql(dataSource)) to share one connection pool.
+    /// builder.AddAgentPrism()
+    ///        .UsePostgreSql(o =&gt; o.DataSource = dataSource);
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public DbDataSource? DataSource { get; set; }
 
     /// <summary>
     /// The schema AgentPrism's tables are created in. The consumer's <c>public</c>

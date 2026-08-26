@@ -18,10 +18,24 @@ namespace AgentPrism;
 /// <c>ActivatorUtilities.CreateInstance</c> calls.
 /// </para>
 /// </remarks>
-internal sealed class SqlStoreContext
+internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
 {
     /// <summary>Gets the data source. The provider driver manages the connection pool.</summary>
     public required DbDataSource DataSource { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether AgentPrism built <see cref="DataSource"/>
+    /// itself (from a connection string) and therefore owns it.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="false"/> when the consumer supplied the data source
+    /// explicitly (<c>AgentPrismPostgreSqlOptions.DataSource</c> and its SQL
+    /// Server/SQLite counterparts): AgentPrism never disposes an instance it
+    /// did not create — doing so would kill the consumer's own <c>DbContext</c>
+    /// at host shutdown. Defaults to <see langword="true"/> so direct
+    /// construction (test fixtures) keeps today's behavior.
+    /// </remarks>
+    public bool OwnsDataSource { get; init; } = true;
 
     /// <summary>Gets the gateway to the provider-specific behaviour.</summary>
     public required SqlDialect Dialect { get; init; }
@@ -116,5 +130,29 @@ internal sealed class SqlStoreContext
         command.Transaction = transaction;
 
         return command;
+    }
+
+    /// <summary>
+    /// Disposes <see cref="DataSource"/>, but only when <see cref="OwnsDataSource"/>
+    /// is <see langword="true"/>.
+    /// </summary>
+    public void Dispose()
+    {
+        if (OwnsDataSource)
+        {
+            DataSource.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Disposes <see cref="DataSource"/> asynchronously, but only when
+    /// <see cref="OwnsDataSource"/> is <see langword="true"/>.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (OwnsDataSource)
+        {
+            await DataSource.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

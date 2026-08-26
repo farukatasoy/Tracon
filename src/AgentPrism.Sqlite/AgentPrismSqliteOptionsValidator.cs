@@ -18,23 +18,34 @@ internal sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentP
 
         List<string>? failures = null;
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        if (options.DataSource is not null && !string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot be empty. " +
-                $"Provide the connection string in the `UseSqlite(...)` call, or " +
-                $"define the '{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
-                "setting in configuration.");
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.DataSource)} and " +
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot " +
+                "both be set. Give exactly one: DataSource for a pool AgentPrism does not own, or ConnectionString " +
+                "for AgentPrism to build and own its own.");
         }
-        else if (IsBareInMemoryConnectionString(options.ConnectionString))
+        else if (options.DataSource is null)
         {
-            (failures ??= []).Add(
-                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot use a bare " +
-                "'Data Source=:memory:': this library opens a new connection for every operation, and a bare " +
-                "':memory:' gives each connection its own isolated database (even with Cache=Shared added). " +
-                "Migrations get applied on one connection, and the next query lands on an empty database. Use the " +
-                "URI form for a shared in-memory database: " +
-                "'Data Source=file:<name>?mode=memory&cache=shared' or 'Data Source=file::memory:?cache=shared'.");
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot be empty. " +
+                    $"Provide the connection string in the `UseSqlite(...)` call, define the " +
+                    $"'{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
+                    $"setting in configuration, or set {nameof(AgentPrismSqliteOptions.DataSource)} instead.");
+            }
+            else if (IsBareInMemoryConnectionString(options.ConnectionString))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot use a bare " +
+                    "'Data Source=:memory:': this library opens a new connection for every operation, and a bare " +
+                    "':memory:' gives each connection its own isolated database (even with Cache=Shared added). " +
+                    "Migrations get applied on one connection, and the next query lands on an empty database. Use the " +
+                    "URI form for a shared in-memory database: " +
+                    "'Data Source=file:<name>?mode=memory&cache=shared' or 'Data Source=file::memory:?cache=shared'.");
+            }
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.TablePrefix))

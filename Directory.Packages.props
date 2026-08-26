@@ -150,6 +150,17 @@
   </ItemGroup>
 
   <!--
+    Faz 110: samples/AgentPrism.Embedded'in isteğe bağlı EF Core boyutu — iki
+    bağlantı düzleminin AYNI NpgsqlDataSource üzerinde buluştuğunu kanıtlar
+    (docs-site/.../guides/ef-core.md). AgentPrism EF Core kullanmaz (L16, L29);
+    bu bağımlılık yalnız samples/ altındadır, sevk edilen hiçbir pakete girmez.
+    Npgsql 10.0.3 ile aynı sürüm serisi.
+  -->
+  <ItemGroup Label="Sample-only: EF Core (Faz 110)">
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <!--
     MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
     Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
     bunlar sunucu barindirma icindir ve AgentPrism yalnizca istemcidir.

@@ -19,4 +19,15 @@
                        OutputItemType="Analyzer" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Phase 110: the host's OWN schema, entirely optional (see Program.cs and
+      docs-site/.../guides/ef-core.md). AgentPrism itself does not use EF Core
+      (L16, L29) and no package it ships depends on this one — it is scoped to
+      this sample only, to run the "one NpgsqlDataSource, two consumers"
+      pattern end to end.
+    -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
 </Project>

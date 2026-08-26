@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace AgentPrism;
 
 /// <summary>Settings for AgentPrism's SQLite persistence layer.</summary>
@@ -27,6 +29,25 @@ public sealed class AgentPrismSqliteOptions
     /// during validation (<see cref="AgentPrismSqliteOptionsValidator"/>).
     /// </remarks>
     public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// The data source AgentPrism uses, instead of building its own from
+    /// <see cref="ConnectionString"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Microsoft.Data.Sqlite</c> does not itself offer a <see cref="DbDataSource"/>
+    /// implementation; give an adapter of your own if you need one. When set,
+    /// <see cref="ConnectionString"/> is not required, and giving both is a
+    /// startup error.
+    /// </para>
+    /// <para>
+    /// AgentPrism does <strong>not</strong> take ownership: the instance is never
+    /// disposed. The caller keeps ownership and disposes it when the host shuts
+    /// down.
+    /// </para>
+    /// </remarks>
+    public DbDataSource? DataSource { get; set; }
 
     /// <summary>
     /// The prefix added to the names of AgentPrism tables. The consumer's own

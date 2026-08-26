@@ -137,6 +137,21 @@ unhealthy.
 Never edit an applied embedded migration. A checksum mismatch is an integrity error,
 not a warning to bypass.
 
+### Alongside your own EF Core migrations
+
+The two schemas are not connected by a foreign key and apply in either order — but
+run them with `AutoApplyMigrations` set to `false`, so exactly one mechanism ever
+touches the database at deploy time instead of two racing at every instance's
+startup:
+
+```bash
+dotnet ef database update            # your application's own schema
+agentprism migrate --provider postgres --connection "$AGENTPRISM_CONNECTION"
+```
+
+See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for sharing a
+connection pool with an EF Core `DbContext` in the same process.
+
 ### Storage defaults and limits
 
 | Setting | Default | Limit or consequence |

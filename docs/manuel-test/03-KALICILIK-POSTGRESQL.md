@@ -2035,3 +2035,132 @@ de çağrıldı — `SelectRunStatistics` (`CostTotal`/`CountWhereAnyNotNull`
 kullanan sorgu) gerçek PostgreSQL'e karşı çalıştı ve `totalCost: null` (doğru
 — hiçbir koşumun maliyeti yok) döndürdü. Doğrulama şeması temizlendi
 (`DROP SCHEMA agentprism_p94 CASCADE`).
+
+---
+
+### MT-PG-068 — Dış `NpgsqlDataSource`: tek havuz, iki tüketici
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 110 |
+| **İlgili karar** | — |
+
+`UsePostgreSql(o => o.DataSource = ...)`: tüketicinin kendi kurduğu bir
+`NpgsqlDataSource`, hem host'un EF Core `DbContext`'ine hem AgentPrism'e
+verilir. `ConnectionString` bu durumda **istenmez**.
+
+**Adımlar**
+1. `samples/AgentPrism.Embedded`'i `AgentPrism:PostgreSql:ConnectionString`
+   ile başlat (örneğin kendi README'sindeki adımlar).
+2. `POST /tickets` ile bir `run` başlat.
+3. Host'un kendi tablosunu (`Tickets`) ve AgentPrism'in `agentprism.runs`
+   tablosunu aynı veritabanında `psql` ile oku.
+
+**Beklenen sonuç**
+- Başlangıç logunda tek satır: `AgentPrism applied N migration(s)`.
+- `Tickets.RunId` == `agentprism.runs.id`.
+- `GET /agentprism/api/runs/{id}` aynı kaydı döndürür.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `samples/AgentPrism.Embedded`
+yerel bir `postgres:18-alpine` konteynerine karşı gerçek connection string ile
+başlatıldı. `POST /tickets` (`tenantId=acme`) bir `run` üretti
+(`01a03dd5-c07f-7dac-a5c3-e76a05cb85a3`); `psql` ile doğrudan sorgulandı:
+`public."Tickets"` satırının `run_id`'si `agentprism.runs.id` ile birebir
+eşleşti, `agentprism.runs` satırı `status=1` (`Completed`), `tenant_id='acme'`.
+`GET /agentprism/api/runs/{id}` (`X-Host-Tenant: acme` ile) aynı kaydı 200
+döndürdü. Konteyner sonda silindi.
+
+### MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 110 |
+| **İlgili karar** | — |
+
+Açık Soru 1'in kararı: sessiz öncelik yok, ikisi birden verilirse
+`OptionsValidationException` — hangi iki alanın çeliştiğini adıyla söyler.
+
+**Adımlar**
+1. `UsePostgreSql(o => { o.DataSource = ds; o.ConnectionString = "..."; })` ile
+   bir `ServiceProvider` kur.
+2. `IOptions<AgentPrismPostgreSqlOptions>.Value`'yu oku.
+
+**Beklenen sonuç**
+- `OptionsValidationException` fırlar; mesaj hem `DataSource` hem
+  `ConnectionString` adını taşır.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
+.DataSource_and_ConnectionString_together_is_rejected` (`AgentPrism.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL konteynerine karşı) — yeşil. Aynı kural
+`AgentPrism.SqlServer.IntegrationTests` ve `AgentPrism.Sqlite
+.IntegrationTests`'in kendi `ExternalDataSourceTests` sınıflarında da
+doğrulandı.
+
+### MT-PG-070 — Dış data source host kapanışında dispose edilmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 110 |
+| **İlgili karar** | — |
+
+AgentPrism'in kurmadığı bir data source'u dispose etmesi, host kapanışında
+tüketicinin kendi `DbContext`'ini sessizce öldürür — bu fazın en somut kusur
+riski.
+
+**Adımlar**
+1. Dış bir `NpgsqlDataSource` ile `UsePostgreSql(o => o.DataSource = ds)`
+   kur, bir `run` yap (migration'lar gerçekten uygulansın).
+2. `ServiceProvider`'ı dispose et.
+3. Aynı `ds` üzerinden yeni bir komut çalıştır.
+
+**Beklenen sonuç**
+- Adım 3'teki komut normal çalışır — `ObjectDisposedException` **yok**.
+- AgentPrism'in **kendi** kurduğu data source (yalnız `ConnectionString`) için
+  ise adım 3 `ObjectDisposedException` fırlatır — sahiplik doğru yönde çalışıyor.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
+.External_data_source_is_not_disposed_when_the_host_stops` ve
+`.Own_data_source_is_disposed_when_the_host_stops` (`AgentPrism.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL) — ikisi de yeşil. Sahiplik mantığının
+kendisi (`SqlStoreContext.Dispose()`/`DisposeAsync()`'in `OwnsDataSource`'a
+koşullu olması) ayrıca bir spy data source ile izole test edildi:
+`SqlStoreContextDisposalTests`, 5/5 yeşil, Docker gerektirmez.
+
+### MT-PG-071 — Havuz paylaşımı ölçümü: aynı connection string, iki `NpgsqlDataSource`, tek havuz DEĞİL
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 110 |
+| **İlgili karar** | — |
+
+110.1'in ölçümü: `embedding.md`'nin eski iddiası ("aynı connection string ile
+iki taraf tek Npgsql havuzunu paylaşır") **yanlıştı**. Npgsql havuzu
+connection string'e değil, `NpgsqlDataSource` **örneğine** aittir.
+
+**Adımlar**
+1. Aynı connection string ile iki ayrı `NpgsqlDataSource` kur.
+2. Her birinden eşzamanlı 5 bağlantı aç, sunucu tarafında `pg_sleep` ile açık
+   tut.
+3. 👤 `psql` ile `pg_stat_activity`'de o `application_name`'e sahip backend
+   sayısını say.
+
+**Beklenen sonuç**
+- Backend sayısı **10**'a yakın (2×5), **5** değil — iki data source havuzu
+  paylaşmıyor.
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ConnectionPoolSharingTests
+.Two_data_sources_built_from_the_same_connection_string_do_not_share_a_pool`
+(`AgentPrism.PostgreSql.IntegrationTests`, gerçek PostgreSQL konteynerine
+karşı) — ölçülen backend sayısı tam **10** (`concurrentConnectionsPerSource ×
+2`), iddia edilen **5** değil. Sonuç `embedding.md`'ye ve fazın "Plandan
+Sapmalar" bölümüne yazıldı. 👤 adımı otomatik test `pg_stat_activity`'yi
+doğrudan sorgulayarak yürüttüğü için insan koşumu bu kapanışta atlandı;
+istenirse aynı sorgu elle tekrarlanabilir.

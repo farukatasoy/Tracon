@@ -1692,3 +1692,50 @@ yapar) TEK belgeli istisnadır.
 **Gerçek koşum kanıtı (2026-08-24, kapanış)**: `UpsertMcpServer`'ı elle
 `string.Empty` yaptım — test `["UpsertMcpServer"]` mesajıyla düştü; geri
 alınınca `AgentPrism.Sql.Shared.UnitTests` 8/8.
+
+---
+
+### MT-SQL-076 — SQL Server ve SQLite'ta dış `DataSource`: simetri, sahiplik ve çakışma
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 110 |
+| **İlgili karar** | — |
+
+`AgentPrismSqlServerOptions.DataSource`/`AgentPrismSqliteOptions.DataSource`:
+PostgreSQL'deki alanın simetriği. `Microsoft.Data.SqlClient` (7.0.2 ölçüldü)
+ve `Microsoft.Data.Sqlite` kendi `DbDataSource` uygulamalarını sunmaz; alan
+tüketicinin kendi yazdığı bir adaptör içindir (AgentPrism'in kendi
+`SqlServerDataSource`/`SqliteDataSource`'u da tam olarak böyle bir adaptördür
+— testler bunu doğrudan kullanır).
+
+**Adımlar**
+1. `UseSqlServer(o => o.DataSource = new SqlServerDataSource(cs))` ile bir
+   `ServiceProvider` kur; `ConnectionString` **verme**.
+2. Aynı çağrıda hem `DataSource` hem `ConnectionString` ver.
+3. `ServiceProvider`'ı dispose et; dış data source hâlâ kullanılabilir olmalı.
+4. 1-3'ü `UseSqlite` için tekrarla.
+
+**Beklenen sonuç**
+- Adım 1: doğrulama geçer, `SqlStoreContext.DataSource` verilen örnekle aynı
+  referans, `OwnsDataSource` `false`.
+- Adım 2: `OptionsValidationException`, her iki alanın adını taşır.
+- Adım 3: `ObjectDisposedException` **yok** — `Microsoft.Data.SqlClient`/
+  `Microsoft.Data.Sqlite` sürücüsünün havuzu bu ince adaptöre değil, sürücünün
+  kendisine ait olduğu için zaten böyle davranırdı; asıl kanıt
+  `SqlStoreContext.OwnsDataSource`'un `false` kalmasıdır (AgentPrism'in
+  KENDİ kurduğu bir data source için aynı senaryoda `OwnsDataSource` `true`
+  olur — dispose mantığının kendisi PostgreSQL tarafında bir spy ile izole
+  kanıtlanmıştır, `MT-PG-070`).
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `AgentPrism.SqlServer
+.IntegrationTests.ExternalDataSourceTests` 4/4 (gerçek SQL Server 2022
+konteynerine karşı: `DataSource_and_ConnectionString_together_is_rejected` ·
+`DataSource_alone_does_not_require_a_connection_string` ·
+`External_data_source_is_not_disposed_when_the_host_stops` — migration'lar
+gerçekten uygulandı, `__migrations` satır sayısı > 0 — ·
+`Own_data_source_is_marked_as_owned`). `AgentPrism.Sqlite.IntegrationTests
+.ExternalDataSourceTests` 4/4, aynı dört senaryo, gerçek dosya veritabanına
+karşı.

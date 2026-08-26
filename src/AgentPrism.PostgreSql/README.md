@@ -35,6 +35,24 @@ Settings can also be bound from configuration, which is the usual shape: the
 connection string is a secret and belongs in `dotnet user-secrets` or the
 environment, never in `appsettings.json`.
 
+## Sharing a connection pool with your own `NpgsqlDataSource`
+
+Give `DataSource` instead of `ConnectionString` when your host already builds its
+own `NpgsqlDataSource` — for an EF Core `DbContext`, for example — and you want
+AgentPrism's traffic on that same pool:
+
+```csharp
+var dataSource = new NpgsqlDataSourceBuilder(connectionString).Build();
+
+.UsePostgreSql(options => options.DataSource = dataSource)
+```
+
+AgentPrism never disposes an instance it did not build; the caller keeps ownership.
+Building two separate `NpgsqlDataSource` instances from an identical connection
+string does **not** share a pool — Npgsql pools per instance, not per string — so
+this is the only way to actually share one. Full pattern, including EF Core:
+<https://agentprism.doayen.web.tr/guides/ef-core/>.
+
 ## Migrations
 
 29 SQL migrations ship embedded in the assembly and are applied at startup by

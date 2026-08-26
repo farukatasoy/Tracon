@@ -19,13 +19,21 @@ internal sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<Ag
 
         List<string>? failures = null;
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        if (options.DataSource is not null && !string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.DataSource)} and " +
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.ConnectionString)} cannot " +
+                "both be set. Give exactly one: DataSource for a pool AgentPrism does not own, or ConnectionString " +
+                "for AgentPrism to build and own its own.");
+        }
+        else if (options.DataSource is null && string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.ConnectionString)} cannot be empty. " +
-                $"Give it in the `UsePostgreSql(...)` call, or " +
-                $"define the '{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
-                "setting in `dotnet user-secrets`.");
+                $"Give it in the `UsePostgreSql(...)` call, define the " +
+                $"'{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
+                $"setting in `dotnet user-secrets`, or set {nameof(AgentPrismPostgreSqlOptions.DataSource)} instead.");
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.SchemaName))

@@ -88,6 +88,7 @@ export const sidebar = [
       { label: 'TypeScript client', slug: 'guides/typescript-client' },
       { label: 'Production deployment', slug: 'guides/production' },
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
+      { label: 'Two connection planes: EF Core and AgentPrism', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },
     ],
   },

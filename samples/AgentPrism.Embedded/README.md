@@ -77,6 +77,39 @@ curl -s http://localhost:5082/jobs/bridge-state
 # {"received": ..., "dropped": ...}
 ```
 
+## Optional: one connection pool shared with your own EF Core `DbContext`
+
+Without a connection string this sample runs fully in memory, as above. Give it
+one and `Persistence/HostDbContext.cs` (the host's own, entirely separate,
+schema) and AgentPrism's own store layer share a single `NpgsqlDataSource` —
+proving the pattern
+[Two connection planes: EF Core and AgentPrism](https://agentprism.doayen.web.tr/guides/ef-core/)
+describes actually runs, not just reads:
+
+```bash
+dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
+  "Host=localhost;Database=agentprism_embedded;Username=postgres;Password=..." \
+  --project samples/AgentPrism.Embedded
+
+dotnet run --project samples/AgentPrism.Embedded
+```
+
+```bash
+curl -s -X POST http://localhost:5082/tickets \
+  -H 'Content-Type: application/json' \
+  -d '{"tenantId":"acme","userId":"user-42","subject":"How do I reset my password?"}'
+
+# {"id": "...", "tenantId": "acme", "subject": "...", "runId": "...", "createdAt": "..."}
+# The ticket carries only the RunId; read the run's own content back through
+# AgentPrism's own store:
+curl -s -H 'X-Host-Tenant: acme' "http://localhost:5082/agentprism/api/runs/<runId>"
+```
+
+`POST /tickets` (`Program.cs`) generates the run's identifier up front
+(`AgentPrismRunOptions.RunId`) so it can save the ticket without waiting for —
+or copying — anything AgentPrism records for that run itself. `/tickets` is
+only mapped when persistence is configured.
+
 ## What this sample deliberately does not add
 
 Neither `InMemoryBufferAttachmentStorage` nor `BoundedChannelRunEventSink` is

@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -28,5 +30,22 @@ internal static class SqlServerDataSourceFactory
         }
 
         return new SqlServerDataSource(options.ConnectionString);
+    }
+
+    /// <summary>
+    /// Resolves the data source AgentPrism uses: <see cref="AgentPrismSqlServerOptions.DataSource"/>
+    /// when the consumer gave one, or a new one built from
+    /// <see cref="AgentPrismSqlServerOptions.ConnectionString"/> otherwise.
+    /// </summary>
+    /// <param name="options">The SQL Server settings.</param>
+    /// <returns>The data source, and whether AgentPrism owns it (and must dispose it).</returns>
+    /// <exception cref="AgentPrismException">The connection string is not defined.</exception>
+    public static (DbDataSource DataSource, bool OwnsDataSource) Resolve(AgentPrismSqlServerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.DataSource is { } dataSource
+            ? (dataSource, false)
+            : (Create(options), true);
     }
 }

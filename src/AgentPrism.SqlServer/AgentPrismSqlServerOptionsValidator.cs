@@ -17,13 +17,21 @@ internal sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<Age
 
         List<string>? failures = null;
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString))
+        if (options.DataSource is not null && !string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.DataSource)} and " +
+                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.ConnectionString)} cannot " +
+                "both be set. Give exactly one: DataSource for a pool AgentPrism does not own, or ConnectionString " +
+                "for AgentPrism to build and own its own.");
+        }
+        else if (options.DataSource is null && string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.ConnectionString)} cannot be empty. " +
-                $"Give it in the `UseSqlServer(...)` call, or " +
-                $"define the '{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
-                "setting in `dotnet user-secrets`.");
+                $"Give it in the `UseSqlServer(...)` call, define the " +
+                $"'{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
+                $"setting in `dotnet user-secrets`, or set {nameof(AgentPrismSqlServerOptions.DataSource)} instead.");
         }
 
         if (!SqlIdentifier.IsValidUnquoted(options.SchemaName))

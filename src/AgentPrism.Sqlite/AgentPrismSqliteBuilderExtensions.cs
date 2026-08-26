@@ -77,20 +77,23 @@ public static class AgentPrismSqliteBuilderExtensions
             IValidateOptions<AgentPrismSqliteOptions>,
             AgentPrismSqliteOptionsValidator>());
 
-        services.TryAddSingleton(static provider => SqliteDataSourceFactory.Create(
-            provider.GetRequiredService<IOptions<AgentPrismSqliteOptions>>().Value));
-
         // The shared store layer's context. Everything provider-specific is
         // collected here; stores never see the Microsoft.Data.Sqlite type (K-176).
+        //
+        // Phase 110: the data source is resolved HERE, not registered as its own
+        // public DI service — see the matching comment in
+        // AgentPrismPostgreSqlBuilderExtensions.UsePostgreSql for the rationale.
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismSqliteOptions>>().Value;
             var contentProtector = provider.GetRequiredService<IContentProtector>();
             var contentProtectionOptions = provider.GetRequiredService<IOptions<AgentPrismContentProtectionOptions>>().Value;
+            var (dataSource, ownsDataSource) = SqliteDataSourceFactory.Resolve(options);
 
             return new SqlStoreContext
             {
-                DataSource = provider.GetRequiredService<SqliteDataSource>(),
+                DataSource = dataSource,
+                OwnsDataSource = ownsDataSource,
                 Dialect = new SqliteDialect(options.TablePrefix),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,

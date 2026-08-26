@@ -33,6 +33,22 @@ builder.AddAgentPrism()
 > **The connection string is a secret and is not written to a file.** Use
 > `dotnet user-secrets`, an environment variable, or a secret manager.
 
+## Sharing a connection pool
+
+Give `DataSource` instead of `ConnectionString` when your host already owns a
+`DbDataSource` for the same database and you want AgentPrism's traffic on that
+same pool:
+
+```csharp
+options.DataSource = yourDbDataSource;   // ConnectionString is then not required
+```
+
+AgentPrism never disposes an instance it did not build; the caller keeps
+ownership. `Microsoft.Data.SqlClient` does not itself offer a `DbDataSource`
+implementation (measured against version 7.0.2), so this is for a `DbDataSource`
+adapter you write yourself — see `AgentPrism.PostgreSql`'s
+`https://agentprism.doayen.web.tr/guides/ef-core/` for the pattern.
+
 ## Supported versions
 
 | Environment | Status |

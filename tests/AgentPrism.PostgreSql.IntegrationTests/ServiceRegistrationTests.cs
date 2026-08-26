@@ -80,6 +80,23 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         provider.GetService<IVectorSearchStore>().ShouldBeOfType<PgVectorSearchStore>();
     }
 
+    /// <summary>
+    /// Phase 110, K-625: the data source AgentPrism builds is no longer a
+    /// public DI service — resolving it under its concrete Npgsql type must
+    /// fail the same way it would for a type nobody ever registered. Before
+    /// this phase, <c>TryAddSingleton&lt;NpgsqlDataSource&gt;</c> meant a
+    /// consumer's own registration could silently win (or lose) depending on
+    /// call order; the only way in now is the explicit
+    /// <see cref="AgentPrismPostgreSqlOptions.DataSource"/> field.
+    /// </summary>
+    [Fact]
+    public void The_data_source_is_not_registered_as_a_public_DI_service()
+    {
+        using var provider = BuildProvider();
+
+        provider.GetService<Npgsql.NpgsqlDataSource>().ShouldBeNull();
+    }
+
     [Fact]
     public void Settings_are_read_from_configuration()
     {

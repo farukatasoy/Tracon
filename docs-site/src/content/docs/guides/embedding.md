@@ -154,21 +154,43 @@ AgentPrism injects for it. `AgentRunScope` also carries `RootRunId` (the top of 
 agent-calls-agent tree) and `Budget` (the shared token/depth/count ceiling for that
 tree).
 
-## Two data planes, one connection string or two
+## Two data planes, one connection pool or two
 
 Your application's own schema and AgentPrism's tables can live in the same
 PostgreSQL database. AgentPrism writes only inside its own schema (`SchemaName`,
 default `agentprism`; see
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy)) and
-never reads or writes yours. Point `AgentPrism:PostgreSql:ConnectionString` at the
-same connection string your application already uses and the two planes share one
-Npgsql connection pool.
+never reads or writes yours.
 
-Give AgentPrism a **separate** connection string — same server, different
-database, or a fully different server — when you want its connection ceiling,
-credentials, or failure blast radius kept independent of your application's own
-database traffic. Nothing in AgentPrism requires this; it is purely an operational
-choice, and it can be changed later since only the connection string moves.
+**Giving both sides the same connection string does not share a pool.** Npgsql
+pools a `NpgsqlDataSource` **instance**, not a connection string — two separate
+`NpgsqlDataSource` objects built from an identical string open two separate
+pools (measured: with 5 concurrent commands held open on each of two data
+sources built from the same string, the server showed 10 simultaneous
+backends, not 5). If your application uses Entity Framework Core (or any other
+Npgsql consumer) and you want AgentPrism sharing its actual pool, build **one**
+`NpgsqlDataSource` and give the same instance to both sides:
+
+```csharp
+var dataSource = new NpgsqlDataSourceBuilder(connectionString).Build();
+builder.Services.AddDbContext<YourDbContext>(o => o.UseNpgsql(dataSource));
+builder.AddAgentPrism()
+       .UsePostgreSql(o => o.DataSource = dataSource);
+```
+
+See [Two connection planes: EF Core and AgentPrism](/guides/ef-core/) for the
+full pattern, including startup/shutdown ownership. Without a shared
+`DataSource`, pointing `AgentPrism:PostgreSql:ConnectionString` at the same
+string your application uses is still fine — the two sides simply keep
+independent pools against the same database, exactly as if they pointed at two
+different databases.
+
+Give AgentPrism a **separate** connection string (or data source) — same
+server, different database, or a fully different server — when you want its
+connection ceiling, credentials, or failure blast radius kept independent of
+your application's own database traffic. Nothing in AgentPrism requires this;
+it is purely an operational choice, and it can be changed later since only the
+connection string moves.
 
 `AutoApplyMigrations` (default `true`) applies to AgentPrism's own schema only. In
 an embedded setup where your application already owns a controlled migration step
