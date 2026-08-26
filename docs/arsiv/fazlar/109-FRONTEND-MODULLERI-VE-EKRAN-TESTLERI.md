@@ -1,13 +1,13 @@
 # Faz 109 — Frontend Modülleri ve Ekran Testleri
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 18** ve **kalem 19**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 108](arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal turun Core bölümü bittikten sonra frontend'e geçilir
+> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 18** ve **kalem 19**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** [Faz 108](108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal turun Core bölümü bittikten sonra frontend'e geçilir
 > **Paketler:** `AgentPrism.UI` — yalnız frontend source ve test altyapısı
 > **Yeni paket:** NuGet yok · npm runtime dependency yok · dört dev dependency: `@testing-library/react`, `@testing-library/dom`, `@testing-library/user-event`, `jsdom` · **Migration:** Yok
 > **Public API:** Büyümüyor. C# ve HTTP contract değişmez
-> **Tüketici yüzeyi:** Var — mevcut management console ekranları. Site: [`docs-site/src/content/docs/ui.md`](../docs-site/src/content/docs/ui.md) ve `docs-site/public/screenshots/`. Sevk edilen: `AgentPrism.UI` içindeki embedded asset'ler. Görsel ve metinsel davranışın değişmemesi hedeflenir
-> **Manuel test alanı:** [`manuel-test/09-ARAYUZ-GENEL.md`](manuel-test/09-ARAYUZ-GENEL.md) · [`manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md`](manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md)
+> **Tüketici yüzeyi:** Var — mevcut management console ekranları. Site: [`docs-site/src/content/docs/ui.md`](../../../docs-site/src/content/docs/ui.md) ve `docs-site/public/screenshots/`. Sevk edilen: `AgentPrism.UI` içindeki embedded asset'ler. Görsel ve metinsel davranışın değişmemesi hedeflenir
+> **Manuel test alanı:** [`manuel-test/09-ARAYUZ-GENEL.md`](../../manuel-test/09-ARAYUZ-GENEL.md) · [`manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md`](../../manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md)
 
 ---
 
@@ -18,8 +18,8 @@
    ```bash
    grep -n "K-228\|K-229\|K-231\|K-233\|K-419" docs/KARARLAR.md
    ```
-3. Alan hafızası: [`hafiza/frontend.md`](hafiza/frontend.md), [`hafiza/frontend-yerellestirme.md`](hafiza/frontend-yerellestirme.md) ve [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md)
-4. Mimari: [`MIMARI.md`](MIMARI.md) — yalnız UI ve dil sınırı
+3. Alan hafızası: [`hafiza/frontend.md`](../../hafiza/frontend.md), [`hafiza/frontend-yerellestirme.md`](../../hafiza/frontend-yerellestirme.md) ve [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md)
+4. Mimari: [`MIMARI.md`](../../MIMARI.md) — yalnız UI ve dil sınırı
 
 ---
 
@@ -31,12 +31,12 @@ Faz iki bağlı sorunu birlikte kapatır. Büyük screen dosyaları state, netwo
 
 | Kanıt | Gözlem |
 |---|---|
-| [`agent-editor.tsx:232`](../src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx) | Dosya **1.243 satırdır**; form modeli, dönüşümler, fetch/mutation state'i ve bütün section JSX'i aynı dosyadadır. |
-| [`playground.tsx:60`](../src/AgentPrism.UI/frontend/src/screens/playground.tsx) | Dosya **944 satırdır**; SSE run state'i, approval, attachment, transcript ve ses öğeleri aynı dosyadadır. |
-| [`locales/en.ts:18`](../src/AgentPrism.UI/frontend/src/locales/en.ts) | İngilizce catalogue **1.222 satırdır**; `Messages` tipi dosyanın sonundaki tek aggregate'tan çıkar. |
-| [`locales/tr.ts:17`](../src/AgentPrism.UI/frontend/src/locales/tr.ts) | Türkçe catalogue **1.213 satırdır**; bütün ekranlar aynı dosyaya dokunur. |
-| [`frontend/src`](../src/AgentPrism.UI/frontend/src) | **24.011** TypeScript satırı, **28** screen ve **23** component vardır. Buna karşılık **14** Vitest dosyası ve gerçek build çıktısında **172** case vardır; screen altında yalnız `agent-editor.test.ts` bulunur. |
-| [`frontend/package.json`](../src/AgentPrism.UI/frontend/package.json) | Vitest vardır, fakat DOM/component-test dependency ve `jsdom` environment yoktur. |
+| [`agent-editor.tsx:232`](../../../src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx) | Dosya **1.243 satırdır**; form modeli, dönüşümler, fetch/mutation state'i ve bütün section JSX'i aynı dosyadadır. |
+| [`playground.tsx:60`](../../../src/AgentPrism.UI/frontend/src/screens/playground.tsx) | Dosya **944 satırdır**; SSE run state'i, approval, attachment, transcript ve ses öğeleri aynı dosyadadır. |
+| [`locales/en.ts:18`](../../../src/AgentPrism.UI/frontend/src/locales/en.ts) | İngilizce catalogue **1.222 satırdır**; `Messages` tipi dosyanın sonundaki tek aggregate'tan çıkar. |
+| [`locales/tr.ts:17`](../../../src/AgentPrism.UI/frontend/src/locales/tr.ts) | Türkçe catalogue **1.213 satırdır**; bütün ekranlar aynı dosyaya dokunur. |
+| [`frontend/src`](../../../src/AgentPrism.UI/frontend/src) | **24.011** TypeScript satırı, **28** screen ve **23** component vardır. Buna karşılık **14** Vitest dosyası ve gerçek build çıktısında **172** case vardır; screen altında yalnız `agent-editor.test.ts` bulunur. |
+| [`frontend/package.json`](../../../src/AgentPrism.UI/frontend/package.json) | Vitest vardır, fakat DOM/component-test dependency ve `jsdom` environment yoktur. |
 
 2026-08-26 gerçek `npm run build` tabanı: console JavaScript **175,5 KB gzip / 250 KB**, embedded çıktı **150,1 KB Brotli**, widget **2,7 KB gzip / 30 KB**. Vite 149 modülü tek 666,78 KB minified JS chunk'ına yazdı.
 

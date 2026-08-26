@@ -452,7 +452,7 @@ bu tür dosyalarda doğdu. Faz 89'un devir notu "tool wrapper zinciri dört halk
 
 ### 18. Frontend ekranları ve sözlükler monolitleşiyor · 📋 Faz
 
-> **Durum:** 📋 [Faz 109](../109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 19 ile birleşti (2026-08-26). Screen ve catalogue modül sınırları component-test harness'inin doğal test sınırıdır.
+> **Durum:** 📋 [Faz 109](../arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 19 ile birleşti (2026-08-26). Screen ve catalogue modül sınırları component-test harness'inin doğal test sınırıdır.
 
 `agent-editor.tsx` 1.243 · `en.ts` 1.222 · `tr.ts` 1.213 · `playground.tsx` 944
 satır. `Messages` tipi eksik anahtarı derleme anında yakalıyor (güçlü yan), ama
@@ -460,7 +460,7 @@ ekran başına bileşen ayrışması yapılmadıkça her yeni özellik bu dosyal
 
 ### 19. Frontend test kapsamı ince · 📋 Faz
 
-> **Durum:** 📋 [Faz 109](../109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 18 ile birleşti (2026-08-26). Güncel ölçüm: 24.011 TypeScript satırı · 28 screen · 23 component · 14 Vitest dosyası · gerçek build'de 172 case · 57 E2E.
+> **Durum:** 📋 [Faz 109](../arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) içinde kalem 18 ile birleşti (2026-08-26). Güncel ölçüm: 24.011 TypeScript satırı · 28 screen · 23 component · 14 Vitest dosyası · gerçek build'de 172 case · 57 E2E.
 
 24.011 satır TypeScript · 28 screen · 23 component. Buna karşılık 14 test dosyası,
 172 Vitest case'i ve 57 E2E testi. Ekranların çoğunun otomatik testi yok; güvence
