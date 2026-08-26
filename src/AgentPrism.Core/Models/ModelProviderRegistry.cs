@@ -39,6 +39,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly TenantProviderCredentialResolver? _credentialResolver;
     private readonly IDistributedCache? _distributedCache;
     private readonly AgentPrismMetrics? _metrics;
+    private readonly IProviderRetryClassifier? _retryClassifier;
 
     /// <summary>Creates a new registry from the registered providers.</summary>
     /// <param name="providers">The model providers.</param>
@@ -88,6 +89,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// Records a response-cache hit/miss counter. If <see langword="null"/>,
     /// no cache metric is emitted.
     /// </param>
+    /// <param name="retryClassifier">
+    /// A consumer-supplied provider retry decision, consulted by
+    /// <c>FallbackChatClient</c> before AgentPrism's built-in rules. If
+    /// <see langword="null"/>, the built-in rules alone decide.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">The same provider name has been registered more than once.</exception>
     public ModelProviderRegistry(
@@ -102,7 +108,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         ITenantEgressPolicyStore? tenantEgressPolicies = null,
         TenantProviderCredentialResolver? credentialResolver = null,
         IDistributedCache? distributedCache = null,
-        AgentPrismMetrics? metrics = null)
+        AgentPrismMetrics? metrics = null,
+        IProviderRetryClassifier? retryClassifier = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
@@ -118,6 +125,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         _credentialResolver = credentialResolver;
         _distributedCache = distributedCache;
         _metrics = metrics;
+        _retryClassifier = retryClassifier;
 
         foreach (var provider in providers)
         {
@@ -489,7 +497,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // nothing, and today's "an open circuit throws" behavior is unchanged.
         if (binding.Fallbacks.Count > 0)
         {
-            chatClient = new FallbackChatClient(binding, chatClient, resolveFallback);
+            chatClient = new FallbackChatClient(binding, chatClient, resolveFallback, _retryClassifier, _loggerFactory);
         }
 
         // Content-filter detection sits OUTERMOST — outside the circuit breaker.

@@ -240,6 +240,10 @@ a provider setting, the other is your policy.
 `GET /api/stats` aggregates the classes, so a rise in one bucket is visible before
 anyone reports it.
 
+Both the class and the clustering fingerprint come from a classifier you can
+replace or compose with your own rules — see
+[Write your own error classifier](/guides/write-your-own-error-classifier/).
+
 ## Replay and comparison
 
 - `GET /api/runs/{runId}/input` — the recorded input, when input recording is on

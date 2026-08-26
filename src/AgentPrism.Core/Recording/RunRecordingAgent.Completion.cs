@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -48,7 +49,7 @@ public sealed partial class RunRecordingAgent
         // (error is null) it never fires on the hot path.
         if (error is not null && _errorClassifier is not null)
         {
-            var classification = _errorClassifier.Classify(error);
+            var classification = ClassifyOrFallback(error);
             error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
         }
 
@@ -180,6 +181,36 @@ public sealed partial class RunRecordingAgent
         }
 
         scope.Activity.Dispose();
+    }
+
+    /// <summary>
+    /// Calls <see cref="_errorClassifier"/>, falling back to AgentPrism's
+    /// built-in classification if it throws.
+    /// </summary>
+    /// <remarks>
+    /// A consumer's <see cref="IRunErrorClassifier"/> is composed into the
+    /// completion path, not just registered - a bug in it must not stop the
+    /// run from reaching its terminal state. Falls back to
+    /// a fresh <see cref="DefaultRunErrorClassifier"/> rather than skipping
+    /// classification: <see cref="RunErrorClassification.Fingerprint"/> is
+    /// required, and <see cref="RunError.Class"/> staying <see langword="null"/>
+    /// would misreport a classified taxonomy as "no classifier ran" to a reader
+    /// of <see cref="RunError"/>'s XML doc.
+    /// </remarks>
+    private RunErrorClassification ClassifyOrFallback(RunError error)
+    {
+        try
+        {
+            return _errorClassifier!.Classify(error);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "The registered IRunErrorClassifier threw while classifying a run error; falling back to the built-in classifier.");
+
+            return new DefaultRunErrorClassifier().Classify(error);
+        }
     }
 
     private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
