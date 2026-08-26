@@ -1,0 +1,17 @@
+{
+  "measuredAt": "2026-08-26T22:16:36Z",
+  "benchmarks": {
+    "AgentPrism.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
+      "allocatedBytes": 24,
+      "meanNanoseconds": 25.623531120164053
+    },
+    "AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
+      "allocatedBytes": 104,
+      "meanNanoseconds": 41.988898566790986
+    },
+    "AgentPrism.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
+      "allocatedBytes": 44336,
+      "meanNanoseconds": 629858.3666015625
+    }
+  }
+}

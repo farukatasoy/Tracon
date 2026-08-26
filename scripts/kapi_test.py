@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import pathlib
 import sys
@@ -75,6 +76,20 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1", rendered)
         self.assertIn("dotnet pack AgentPrism.slnx -c Release --no-build", rendered)
         self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes --no-restore", rendered)
+
+    def test_kapanis_performans_adimini_kosullu_ekler(self):
+        with_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=True)]
+        without_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=False)]
+
+        self.assertIn("python3 scripts/kapi.py performans", with_it)
+        self.assertNotIn("python3 scripts/kapi.py performans", without_it)
+
+    def test_sicak_yol_degisikligi_performans_kapisini_tetikler(self):
+        self.assertTrue(kapi.performance_gate_triggered(["src/AgentPrism.Core/Recording/RunEventWriter.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs"]))
+        self.assertTrue(kapi.performance_gate_triggered(["bench/AgentPrism.Benchmarks/Program.cs"]))
+        self.assertFalse(kapi.performance_gate_triggered(["src/AgentPrism.Core/AgentPrismOptions.cs"]))
+        self.assertFalse(kapi.performance_gate_triggered([]))
 
     def test_tam_test_kosumu_kaynak_cekismesini_sinirlar(self):
         commands = kapi.closing_commands("abc123", site=False)
@@ -163,6 +178,189 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual(len(violations), 1)
         self.assertIn("git tabanı", violations[0])
+
+
+class PerformansKapisiTestleri(unittest.TestCase):
+    """`scripts/kapi.py performans` (Faz 116) - karşılaştırma ve taban çizgisi
+    okuma mantığının SAF Python testleri. `dotnet run` gerektiren gerçek
+    benchmark koşumu ve kasıtlı gerileme koşumu manuel kabul case'lerindedir
+    (docs/manuel-test/36-GELISTIRME-KAPILARI.md)."""
+
+    def test_artan_tahsis_kirmizi_olur_ve_metodu_bayti_adlandirir(self):
+        baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
+        current = {"A": {"allocatedBytes": 132, "meanNanoseconds": 1.0}}
+
+        exit_code, messages = kapi.compare_allocations(baseline, current)
+
+        self.assertEqual(exit_code, 1)
+        self.assertTrue(any("A" in message and "132" in message and "+32" in message for message in messages))
+
+    def test_azalan_tahsis_kirmizi_olmaz_ama_guncelleme_uyarisi_verir(self):
+        baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
+        current = {"A": {"allocatedBytes": 80, "meanNanoseconds": 1.0}}
+
+        exit_code, messages = kapi.compare_allocations(baseline, current)
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(any("güncelle" in message for message in messages))
+
+    def test_ayni_tahsis_gecer(self):
+        baseline = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
+        current = {"A": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}
+
+        exit_code, _messages = kapi.compare_allocations(baseline, current)
+
+        self.assertEqual(exit_code, 0)
+
+    def test_taban_cizgisinde_olmayan_benchmark_kirmizi_olur(self):
+        exit_code, messages = kapi.compare_allocations({}, {"Yeni": {"allocatedBytes": 10, "meanNanoseconds": 1.0}})
+
+        self.assertEqual(exit_code, 1)
+        self.assertTrue(any("Yeni" in message and "taban çizgisinde yok" in message for message in messages))
+
+    def test_bu_kosumda_uretilmeyen_benchmark_kirmizi_olur(self):
+        exit_code, messages = kapi.compare_allocations({"Eski": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
+
+        self.assertEqual(exit_code, 1)
+        self.assertTrue(any("Eski" in message and "üretilmedi" in message for message in messages))
+
+    def test_eksik_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = pathlib.Path(directory) / "does-not-exist.json"
+
+            with self.assertRaises(kapi.BaselineError):
+                kapi.load_baseline(missing)
+
+    def test_bozuk_taban_cizgisi_dosyasi_anlasilir_hata_verir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "baseline.json"
+            path.write_text("{ this is not valid json", encoding="utf-8")
+
+            with self.assertRaises(kapi.BaselineError):
+                kapi.load_baseline(path)
+
+    def test_benchmarks_anahtari_eksik_taban_cizgisi_anlasilir_hata_verir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "baseline.json"
+            path.write_text('{"somethingElse": true}', encoding="utf-8")
+
+            with self.assertRaises(kapi.BaselineError):
+                kapi.load_baseline(path)
+
+    def test_benchmarkdotnet_json_raporundan_tahsis_ve_sure_cikarilir(self):
+        report = {
+            "Benchmarks": [
+                {
+                    "FullName": "AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent",
+                    "Memory": {"BytesAllocatedPerOperation": 176},
+                    "Statistics": {"Mean": 123.4},
+                },
+            ],
+        }
+
+        parsed = kapi.parse_benchmark_report(report)
+
+        self.assertEqual(
+            parsed["AgentPrism.Benchmarks.RunEventWriterBenchmarks.AppendEvent"],
+            {"allocatedBytes": 176, "meanNanoseconds": 123.4})
+
+    def test_birden_fazla_benchmark_sinifinin_raporu_birlesir(self):
+        """BenchmarkDotNet HER benchmark SINIFI için ayrı bir *-report-full.json
+        yazar, tüm koşum için tek dosya değil - ikisi de okunmalı."""
+        with tempfile.TemporaryDirectory() as directory:
+            report_dir = pathlib.Path(directory) / "results"
+            report_dir.mkdir()
+            (report_dir / "A-report-full.json").write_text(json.dumps({
+                "Benchmarks": [{"FullName": "A.M", "Memory": {"BytesAllocatedPerOperation": 1}, "Statistics": {"Mean": 1.0}}],
+            }), encoding="utf-8")
+            (report_dir / "B-report-full.json").write_text(json.dumps({
+                "Benchmarks": [{"FullName": "B.M", "Memory": {"BytesAllocatedPerOperation": 2}, "Statistics": {"Mean": 2.0}}],
+            }), encoding="utf-8")
+
+            found = kapi._benchmark_report_files(report_dir)
+
+        self.assertEqual([path.name for path in found], ["A-report-full.json", "B-report-full.json"])
+
+    def test_taban_cizgisi_yazma_ve_okuma_gidip_gelir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "baseline.json"
+            benchmarks = {"A": {"allocatedBytes": 42, "meanNanoseconds": 3.5}}
+
+            kapi.write_baseline(benchmarks, path)
+            loaded = kapi.load_baseline(path)
+
+        self.assertEqual(loaded["benchmarks"], benchmarks)
+
+    def _write_report(self, report_dir: pathlib.Path, file_name: str, full_name: str, allocated_bytes: int) -> None:
+        report_dir.mkdir(parents=True, exist_ok=True)
+        (report_dir / file_name).write_text(json.dumps({
+            "Benchmarks": [{
+                "FullName": full_name,
+                "Memory": {"BytesAllocatedPerOperation": allocated_bytes},
+                "Statistics": {"Mean": 1.0},
+            }],
+        }), encoding="utf-8")
+
+    def test_performans_kapisi_dotnet_run_basarisiz_olursa_onun_cikis_kodunu_doner(self):
+        """Denetim bulgusu (Faz 116): orkestrasyon fonksiyonunun kendisi hiç
+        test edilmiyordu, yalnız saf karşılaştırma mantığı. `runner` zaten
+        enjekte edilebilir - `run_commands` testlerindeki desenin aynısı."""
+        with tempfile.TemporaryDirectory() as directory:
+            baseline_path = pathlib.Path(directory) / "baseline.json"
+            kapi.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
+            runner = mock.Mock(return_value=mock.Mock(returncode=1))
+
+            exit_code = kapi.performance_gate(
+                runner=runner,
+                baseline_path=baseline_path,
+                report_dir=pathlib.Path(directory) / "results")
+
+        self.assertEqual(exit_code, 1)
+        runner.assert_called_once()
+
+    def test_performans_kapisi_rapor_uretilmezse_anlasilir_hata_verir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            baseline_path = pathlib.Path(directory) / "baseline.json"
+            kapi.write_baseline({"A": {"allocatedBytes": 1, "meanNanoseconds": 1.0}}, baseline_path)
+            runner = mock.Mock(return_value=mock.Mock(returncode=0))
+
+            exit_code = kapi.performance_gate(
+                runner=runner,
+                baseline_path=baseline_path,
+                report_dir=pathlib.Path(directory) / "results")
+
+        self.assertEqual(exit_code, 1)
+
+    def test_performans_kapisi_ucdan_uca_karsilastirir_gercek_dotnet_calistirmadan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            baseline_path = pathlib.Path(directory) / "baseline.json"
+            report_dir = pathlib.Path(directory) / "results"
+            kapi.write_baseline({"A.M": {"allocatedBytes": 100, "meanNanoseconds": 1.0}}, baseline_path)
+
+            def fake_runner(*args, **kwargs):
+                self._write_report(report_dir, "A-report-full.json", "A.M", 132)
+                return mock.Mock(returncode=0)
+
+            exit_code = kapi.performance_gate(
+                runner=fake_runner, baseline_path=baseline_path, report_dir=report_dir)
+
+        self.assertEqual(exit_code, 1)
+
+    def test_performans_kapisi_guncelle_taban_cizgisini_yazar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            baseline_path = pathlib.Path(directory) / "baseline.json"
+            report_dir = pathlib.Path(directory) / "results"
+
+            def fake_runner(*args, **kwargs):
+                self._write_report(report_dir, "A-report-full.json", "A.M", 55)
+                return mock.Mock(returncode=0)
+
+            exit_code = kapi.performance_gate(
+                update=True, runner=fake_runner, baseline_path=baseline_path, report_dir=report_dir)
+            written = kapi.load_baseline(baseline_path)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(written["benchmarks"]["A.M"]["allocatedBytes"], 55)
 
 
 class YayinTestleri(unittest.TestCase):
