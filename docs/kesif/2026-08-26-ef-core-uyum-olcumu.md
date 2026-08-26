@@ -3,7 +3,7 @@
 > **Tur tipi:** kullanıcı sorusu → ölçüm. Soru: *"EF Core entegrasyonu paketi
 > tüketici tarafında daha cazip hale getirir mi?"*
 > **Sonuç:** iki faz — [Faz 110](../arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) ·
-> [Faz 111](../111-OKUMA-SOZLESMESI-GORUNUMLERI.md).
+> [Faz 111](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md).
 
 ---
 

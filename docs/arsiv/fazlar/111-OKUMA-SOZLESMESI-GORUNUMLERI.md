@@ -1,13 +1,13 @@
 # Faz 111 — Okuma Sözleşmesi Görünümleri
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P4**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) — `docs-site/.../guides/ef-core.md` sayfası orada doğar; bu faz ona okuma bölümünü ekler. Kod bağımlılığı yoktur
+> **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](../../kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P4**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** [Faz 110](110-TUKETICI-BAGLANTI-DUZLEMI.md) — `docs-site/.../guides/ef-core.md` sayfası orada doğar; bu faz ona okuma bölümünü ekler. Kod bağımlılığı yoktur
 > **Paketler:** `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite` — yalnız migration setleri
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (PostgreSQL + SQL Server + SQLite). Numaralar sağlayıcı başına bağımsızdır (K-178) ve uygulama anında alınır
 > **Public API:** C# yüzeyi yalnız üç `EnableReadViews` bool alanıyla büyüdü (üç `Options` sınıfına birer tane — bkz. "Gerçekleşen Public API"). Asıl taahhüt **kalıcı bir veri sözleşmesidir**: bir görünüm yayımlandıktan sonra sütun kaybetmez. Bu, `Shipped.txt`'in kapsamadığı bir taahhüttür ve geri alması pahalıdır
 > **Tüketici yüzeyi:** Site — yeni referans sayfası `docs-site/src/content/docs/reference/read-views.md` · değişen: `guides/ef-core.md`, `packages.md` · Sevk edilen: üç sağlayıcı `README.md`'si
-> **Manuel test alanı:** [`manuel-test/03-KALICILIK-POSTGRESQL.md`](manuel-test/03-KALICILIK-POSTGRESQL.md) · [`manuel-test/04-KALICILIK-DIGER.md`](manuel-test/04-KALICILIK-DIGER.md)
+> **Manuel test alanı:** [`manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md) · [`manuel-test/04-KALICILIK-DIGER.md`](../../manuel-test/04-KALICILIK-DIGER.md)
 
 ---
 
@@ -25,18 +25,18 @@
    sağlayıcı başına bağımsız), **K-190** (SQLite'ta şema yerine tablo öneki),
    **K-483** (🚨 elle tekrarlanan toplama ifadesi kusur **sınıfı** üretir — bu
    fazın ana risk kaydı)
-3. [Faz 110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) — yalnız devir notu:
+3. [Faz 110](110-TUKETICI-BAGLANTI-DUZLEMI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/110-TUKETICI-BAGLANTI-DUZLEMI.md
    ```
    Site sayfasının hangi bölümleri doldurulmuş, hangi yer boş bırakılmış
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç dialekt) ·
-   [`hafiza/sqlite.md`](hafiza/sqlite.md) (tip afinitesi tuzakları) ·
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md)
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç dialekt) ·
+   [`hafiza/sqlite.md`](../../hafiza/sqlite.md) (tip afinitesi tuzakları) ·
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md)
    (K-483'ün vaka kaydı — maliyet toplamı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı sınırı bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı sınırı bölümü
 
 ---
 
@@ -50,7 +50,7 @@ sözleşmesi.**
 
 Görünüm yalnız ergonomi değildir. Bir kusur **sınıfını** tüketici için
 imkânsız kılar:
-[`0034_run_attribution.sql:36-40`](../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql)
+[`0034_run_attribution.sql:36-40`](../../../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql)
 `cached_input_cost`'un bir koşu toplamının **üçüncü terimi** olduğunu yazıyor.
 `runs` tablosuna doğrudan bağlanan tüketici `input_cost + output_cost` yazar ve
 **eksik hesaplar**. Aynı kusur K-483'te bizim içimizde doğdu ve 4241 test
@@ -64,10 +64,10 @@ yakalamadı. Görünüm toplamı bir kez, doğru, tek yerde hesaplar.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rli "CREATE VIEW" src/*/Migrations/*.sql` → **boş** | Hiçbir sağlayıcıda görünüm yok. Tüketicinin bağlanabileceği tek şey iç tablolardır |
-| [`0034_run_attribution.sql:36-40`](../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql) | `cached_input_cost` **üçüncü terimdir**; `input_cost`'un alt kümesi değildir. Yorum satırı bunu açıkça uyarıyor |
-| [`0001_initial.sql:163-166`](../src/AgentPrism.Sqlite/Migrations/0001_initial.sql) · [`0021_run_attribution.sql:16`](../src/AgentPrism.Sqlite/Migrations/0021_run_attribution.sql) | 🚨 SQLite'ta `input_cost`/`output_cost` **`TEXT`**, `cached_input_cost` **`NUMERIC`**. Aynı toplamda karışık afinite var |
-| [`ProtectedColumn.cs:9-44`](../src/AgentPrism.Abstractions/Security/ProtectedColumn.cs) | On içerik sütunu at-rest korunuyor. Hiçbiri `runs` tablosunun üstverisinde değil — görünüm sınırı bu listeden türer |
-| [`0001_initial.sql:133-148`](../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `runs` üstverisi (kimlik, kiracı, agent, durum, zaman, token) düz metindir; korunan sütun içermez |
+| [`0034_run_attribution.sql:36-40`](../../../src/AgentPrism.PostgreSql/Migrations/0034_run_attribution.sql) | `cached_input_cost` **üçüncü terimdir**; `input_cost`'un alt kümesi değildir. Yorum satırı bunu açıkça uyarıyor |
+| [`0001_initial.sql:163-166`](../../../src/AgentPrism.Sqlite/Migrations/0001_initial.sql) · [`0021_run_attribution.sql:16`](../../../src/AgentPrism.Sqlite/Migrations/0021_run_attribution.sql) | 🚨 SQLite'ta `input_cost`/`output_cost` **`TEXT`**, `cached_input_cost` **`NUMERIC`**. Aynı toplamda karışık afinite var |
+| [`ProtectedColumn.cs:9-44`](../../../src/AgentPrism.Abstractions/Security/ProtectedColumn.cs) | On içerik sütunu at-rest korunuyor. Hiçbiri `runs` tablosunun üstverisinde değil — görünüm sınırı bu listeden türer |
+| [`0001_initial.sql:133-148`](../../../src/AgentPrism.PostgreSql/Migrations/0001_initial.sql) | `runs` üstverisi (kimlik, kiracı, agent, durum, zaman, token) düz metindir; korunan sütun içermez |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -225,7 +225,7 @@ src/AgentPrism.PostgreSql/README.md · .SqlServer · .Sqlite
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|

@@ -2170,7 +2170,7 @@ istenirse aynı sorgu elle tekrarlanabilir.
 `{schema}.runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü. Yalnız
 `AgentPrism:PostgreSql:EnableReadViews = true` iken kurulur (varsayılan
 kapalı). Aşağıdaki case'ler faz dokümanının
-([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
 manuel kabul tablosunun karşılığıdır; tamamı kapanışta **gerçek** bir
 PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
 
