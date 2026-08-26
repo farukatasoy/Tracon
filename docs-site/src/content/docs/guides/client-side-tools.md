@@ -78,6 +78,16 @@ Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
 
+## Client-side tools cannot be replayed
+
+An agent carrying a client-side tool cannot be [replayed](/concepts/runs/#replay-and-comparison) in any
+tool mode. The tool's body runs in the caller's browser, not on the server, so no
+call to it is ever recorded — there is no result to play back, and no client waiting
+to answer it live. `POST /api/runs/{runId}/replay` rejects the request with `409
+Conflict` before the run starts, naming the tool in the response `detail`. This
+applies even if that particular run never actually called the tool: the check looks
+at what the agent's definition carries, not at what one run happened to use.
+
 ## CORS
 
 A page calling `/run` from its own origin needs a CORS response, and AgentPrism sends

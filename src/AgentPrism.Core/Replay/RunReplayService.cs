@@ -133,6 +133,16 @@ internal sealed class RunReplayService
                 "sub-agents). Use 'ReplayTools' or 'NoTools'.");
         }
 
+        if (FindClientTool(definition.ToolNames) is { } clientTool)
+        {
+            return RunReplayPreparation.Failed(
+                RunReplayOutcome.ClientToolNotReplayable,
+                $"Agent '{definition.Name}' carries the client-side tool '{clientTool}' (AddClientTool). " +
+                "Its body runs in the caller's browser, not on the server, and no call to it was " +
+                "recorded — there is no result to play back and no client waiting to answer it live. " +
+                "This run cannot be replayed in any tool mode.");
+        }
+
         var effective = ApplyOverrides(definition, request);
         var playback = request.ToolMode == ReplayToolMode.ReplayTools
             ? new RecordedToolPlayback(
@@ -238,6 +248,16 @@ internal sealed class RunReplayService
                 "'ReplayTools'/'NoTools' are not available either — this run cannot be replayed.");
         }
 
+        if (descriptor is not null && FindClientTool(descriptor.ToolNames) is { } clientTool)
+        {
+            return RunReplayPreparation.Failed(
+                RunReplayOutcome.ClientToolNotReplayable,
+                $"Agent '{source.AgentName}' carries the client-side tool '{clientTool}' (AddClientTool). " +
+                "Its body runs in the caller's browser, not on the server, and no call to it was " +
+                "recorded — there is no result to play back and no client waiting to answer it live. " +
+                "This run cannot be replayed in any tool mode.");
+        }
+
         // The catalog applies its own wrappers; wrapping a second time would
         // record the run twice.
         return RunReplayPreparation.Ready(agent, input.Messages, source, agentVersion: null, modelId: source.ModelId);
@@ -304,6 +324,33 @@ internal sealed class RunReplayService
         return null;
     }
 
+    /// <summary>
+    /// Finds the first client-side tool (<c>AddClientTool</c>) among the
+    /// given names, or <see langword="null"/> if none carries one.
+    /// </summary>
+    /// <remarks>
+    /// A client-side tool has no server-side body and its result is never
+    /// recorded — no replay mode can answer a call to it.
+    /// </remarks>
+    private string? FindClientTool(IReadOnlyList<string> toolNames)
+    {
+        if (toolNames.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var descriptor in _tools.List())
+        {
+            if (descriptor.RunsOnClient &&
+                toolNames.Contains(descriptor.Name, StringComparer.Ordinal))
+            {
+                return descriptor.Name;
+            }
+        }
+
+        return null;
+    }
+
     private AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
     {
         foreach (var decorator in _decorators)
@@ -349,6 +396,13 @@ public enum RunReplayOutcome
 
     /// <summary>A tool that requires approval cannot run with <see cref="ReplayToolMode.LiveTools"/>.</summary>
     ApprovalRequired = 4,
+
+    /// <summary>
+    /// The agent carries a client-side tool (<c>AddClientTool</c>). The tool
+    /// has no server-side body and no recorded result, so no replay mode can
+    /// answer a call to it.
+    /// </summary>
+    ClientToolNotReplayable = 5,
 }
 
 /// <summary>Represents a prepared replay plan.</summary>

@@ -284,6 +284,15 @@ Replay requires `RunRecording:RecordRunInput=true` at the time of the original r
 Retention can later remove run input. Neither setting can reconstruct input that was
 never stored.
 
+### Replay returns `409` for an agent that carries a client-side tool
+
+An agent registered with [`AddClientTool`](/guides/client-side-tools/) cannot be
+replayed in any tool mode (`ReplayTools`, `LiveTools`, or `NoTools`) — its body runs
+in the caller's browser, not on the server, so no call to it was ever recorded and no
+mode can answer one. This is not a misconfiguration; it applies even if the run being
+replayed never actually called the tool, because the check looks at what the agent's
+definition carries. There is no setting that lifts this limit.
+
 ### Cancellation returns not found or has no effect
 
 Only a currently registered running execution can receive the cancellation signal.
