@@ -1,13 +1,13 @@
 # Faz 110 — Tüketici Bağlantı Düzlemi
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P1 · P2 · P3 · P5 · P6**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** Yok. Teknik zorunluluk yoktur; [Faz 109](arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) kapandıktan sonra sıraya girer
+> **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](../../kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P1 · P2 · P3 · P5 · P6**. Bu faz bir `F-NN` adayından gelmez
+> **Önkoşul:** Yok. Teknik zorunluluk yoktur; [Faz 109](109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) kapandıktan sonra sıraya girer
 > **Paketler:** `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Sql.Shared` · `samples/AgentPrism.Embedded`
 > **Yeni paket:** NuGet paketi **yok**. Sample-only bağımlılık: `Npgsql.EntityFrameworkCore.PostgreSQL` — yalnız `samples/`, sevk edilen hiçbir pakete girmez · **Migration:** Yok
 > **Public API:** **Büyüyor** — üç `Options` tipine birer `DbDataSource?` alanı. Bugün ucuz: `wc -l src/*/PublicAPI.Shipped.txt` = **17 satır** (19 paketin tamamı yalnız başlık taşıyor, K-603). Faz 7 sonrası aynı alanı eklemek kırıcı olurdu
 > **Tüketici yüzeyi:** Site — yeni sayfa `docs-site/src/content/docs/guides/ef-core.md` · değişen: `guides/embedding.md`, `guides/production.md`, `packages.md` · Sevk edilen: `src/AgentPrism.PostgreSql/README.md`, `.SqlServer/README.md`, `.Sqlite/README.md` ve yeni alanın XML `<example>` bloğu
-> **Manuel test alanı:** [`manuel-test/03-KALICILIK-POSTGRESQL.md`](manuel-test/03-KALICILIK-POSTGRESQL.md) · [`manuel-test/04-KALICILIK-DIGER.md`](manuel-test/04-KALICILIK-DIGER.md) — plan `26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'yi işaret ediyordu, o dosya istemci tool'ları/gömülebilir sohbet widget'ına özgü ve bu fazla ilgisiz; SQL Server/SQLite'ın simetrik `DataSource` alanı `04`'e girdi (bkz. "Plandan Sapmalar")
+> **Manuel test alanı:** [`manuel-test/03-KALICILIK-POSTGRESQL.md`](../../manuel-test/03-KALICILIK-POSTGRESQL.md) · [`manuel-test/04-KALICILIK-DIGER.md`](../../manuel-test/04-KALICILIK-DIGER.md) — plan `26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'yi işaret ediyordu, o dosya istemci tool'ları/gömülebilir sohbet widget'ına özgü ve bu fazla ilgisiz; SQL Server/SQLite'ın simetrik `DataSource` alanı `04`'e girdi (bkz. "Plandan Sapmalar")
 
 ---
 
@@ -26,16 +26,16 @@
    `agentprism` şeması; tüketicinin `public` şeması ellenmez), **K-190**
    (SQLite'ta şema yerine tablo öneki), **K-603** (`Shipped.txt` preview
    boyunca boş), **L16/L29** (EF Core reddi — bu faz onu **yeniden açmaz**)
-3. [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](kesif/2026-08-26-ef-core-uyum-olcumu.md)
+3. [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](../../kesif/2026-08-26-ef-core-uyum-olcumu.md)
    — fazın tamamının gerekçesi. Kısa dosyadır, tamamını oku
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (üç sağlayıcıda
-   ortak kurulum katmanı) · [`hafiza/postgresql.md`](hafiza/postgresql.md)
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (üç sağlayıcıda
+   ortak kurulum katmanı) · [`hafiza/postgresql.md`](../../hafiza/postgresql.md)
    (`NpgsqlDataSource` ve migration runner tuzakları) ·
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (site senkronu, `docs/`
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (site senkronu, `docs/`
    ile `docs-site/` sınırı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI.md`](MIMARI.md) — kalıcılık katmanı bölümü
+   [`MIMARI.md`](../../MIMARI.md) — kalıcılık katmanı bölümü
 
 ---
 
@@ -61,12 +61,12 @@ yolunda kalır, ikisi tek bir `DbDataSource` üzerinde buluşur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentPrismPostgreSqlBuilderExtensions.cs:94`](../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs) | `TryAddSingleton<NpgsqlDataSource>`. Tüketici de `NpgsqlDataSource` kaydettiyse **hangi tarafın kazandığı kayıt sırasına bağlıdır** |
-| [`AgentPrismPostgreSqlOptionsValidator.cs:22`](../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs) | `ConnectionString` **koşulsuz** zorunlu — dış data source kazansa bile tüketici çelişebilecek ikinci bir değer yazmak zorunda |
-| [`NpgsqlDataSourceFactory.cs:41`](../src/AgentPrism.PostgreSql/Internal/NpgsqlDataSourceFactory.cs) | Data source connection string'den kurulur. Havuz **data source'a** aittir, connection string'e değil |
-| [`AgentPrismSqlServerBuilderExtensions.cs:91`](../src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs) · [`AgentPrismSqliteBuilderExtensions.cs:80`](../src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs) | İç adaptör tipi (`SqlServerDataSource`, `SqliteDataSource`) kaydedilir. Dış seam **yok** — davranış sağlayıcılar arasında asimetrik |
-| [`SqlStoreContext.cs:24`](../src/AgentPrism.Sql.Shared/Internal/SqlStoreContext.cs) | `DataSource` zaten `DbDataSource` tipinde. Store'lar hiçbir sürücü tipi görmez — **taşıma işi yalnız kurulum katmanındadır** |
-| [`docs-site/.../embedding.md:165`](../docs-site/src/content/docs/guides/embedding.md) | *"the two planes share one Npgsql connection pool"* — [uygulanabilirlik raporu §7.1](kesif/2026-08-21-uygulanabilirlik-raporu.md) *"bağlantı havuzu iki katına çıkar"* diyor. İkisi aynı anda doğru olamaz |
+| [`AgentPrismPostgreSqlBuilderExtensions.cs:94`](../../../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs) | `TryAddSingleton<NpgsqlDataSource>`. Tüketici de `NpgsqlDataSource` kaydettiyse **hangi tarafın kazandığı kayıt sırasına bağlıdır** |
+| [`AgentPrismPostgreSqlOptionsValidator.cs:22`](../../../src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs) | `ConnectionString` **koşulsuz** zorunlu — dış data source kazansa bile tüketici çelişebilecek ikinci bir değer yazmak zorunda |
+| [`NpgsqlDataSourceFactory.cs:41`](../../../src/AgentPrism.PostgreSql/Internal/NpgsqlDataSourceFactory.cs) | Data source connection string'den kurulur. Havuz **data source'a** aittir, connection string'e değil |
+| [`AgentPrismSqlServerBuilderExtensions.cs:91`](../../../src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs) · [`AgentPrismSqliteBuilderExtensions.cs:80`](../../../src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs) | İç adaptör tipi (`SqlServerDataSource`, `SqliteDataSource`) kaydedilir. Dış seam **yok** — davranış sağlayıcılar arasında asimetrik |
+| [`SqlStoreContext.cs:24`](../../../src/AgentPrism.Sql.Shared/Internal/SqlStoreContext.cs) | `DataSource` zaten `DbDataSource` tipinde. Store'lar hiçbir sürücü tipi görmez — **taşıma işi yalnız kurulum katmanındadır** |
+| [`docs-site/.../embedding.md:165`](../../../docs-site/src/content/docs/guides/embedding.md) | *"the two planes share one Npgsql connection pool"* — [uygulanabilirlik raporu §7.1](../../kesif/2026-08-21-uygulanabilirlik-raporu.md) *"bağlantı havuzu iki katına çıkar"* diyor. İkisi aynı anda doğru olamaz |
 | `AgentPrismPostgreSqlOptions` beş alan taşır | Connection string ile ifade edilemeyen ayar (token sağlayıcı geri çağrımı, istemci sertifikası, özel tip eşlemesi) **erişilemez** |
 | `ls samples/AgentPrism.Embedded/` | Gömme örneğinde veritabanı yok, EF yok. `Program.cs:54` hiçbir `Use*` sağlayıcısı çağırmaz — bellek içi store'larla koşar |
 
@@ -144,7 +144,7 @@ Faz 7 sonrası bir sürüm kararı olurdu.
 ### SQL Server ve SQLite için dürüst not
 
 Alan üç sağlayıcıda da vardır, ama ekosistem bugün yalnız Npgsql tarafında bir
-`DbDataSource` **üretiyor**. [`SqlServerDataSource.cs:12`](../src/AgentPrism.SqlServer/Internal/SqlServerDataSource.cs)
+`DbDataSource` **üretiyor**. [`SqlServerDataSource.cs:12`](../../../src/AgentPrism.SqlServer/Internal/SqlServerDataSource.cs)
 `Microsoft.Data.SqlClient`'ın bir `DbDataSource` sunmadığını yazıyor; pinlenen
 sürüm `7.0.2` için bu **yeniden ölçülmelidir**. Ölçüm hangi sonucu verirse
 versin alan eklenir — simetri korunur ve ekosistem yetiştiğinde tüketici hazır
@@ -260,7 +260,7 @@ docs-site/src/content/docs/guides/production.md
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
