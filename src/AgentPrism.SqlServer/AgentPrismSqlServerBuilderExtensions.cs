@@ -87,22 +87,24 @@ public static class AgentPrismSqlServerBuilderExtensions
             IValidateOptions<AgentPrismSqlServerOptions>,
             AgentPrismSqlServerOptionsValidator>());
 
-        // A single data source; SqlClient manages its own connection pool.
-        services.TryAddSingleton(static provider => SqlServerDataSourceFactory.Create(
-            provider.GetRequiredService<IOptions<AgentPrismSqlServerOptions>>().Value));
-
         // The context for the shared store layer. Everything provider-specific
         // is collected here; the stores never see an Npgsql type (Phase 23, K-176).
         // Same rule as the store registrations: the last call wins.
+        //
+        // Phase 110: the data source is resolved HERE, not registered as its own
+        // public DI service — see the matching comment in
+        // AgentPrismPostgreSqlBuilderExtensions.UsePostgreSql for the rationale.
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismSqlServerOptions>>().Value;
             var contentProtector = provider.GetRequiredService<IContentProtector>();
             var contentProtectionOptions = provider.GetRequiredService<IOptions<AgentPrismContentProtectionOptions>>().Value;
+            var (dataSource, ownsDataSource) = SqlServerDataSourceFactory.Resolve(options);
 
             return new SqlStoreContext
             {
-                DataSource = provider.GetRequiredService<SqlServerDataSource>(),
+                DataSource = dataSource,
+                OwnsDataSource = ownsDataSource,
                 Dialect = new SqlServerDialect(options.SchemaName),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,

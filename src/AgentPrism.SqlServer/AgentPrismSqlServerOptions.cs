@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace AgentPrism;
 
 /// <summary>Settings for AgentPrism's SQL Server persistence layer.</summary>
@@ -16,8 +18,29 @@ public sealed class AgentPrismSqlServerOptions
     /// <remarks>
     /// <strong>This value is a secret and is never written to a file.</strong> Use
     /// <c>dotnet user-secrets</c>, an environment variable, or a secret manager.
+    /// Not required when <see cref="DataSource"/> is set; giving both is an error.
     /// </remarks>
     public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// The data source AgentPrism uses, instead of building its own from
+    /// <see cref="ConnectionString"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Microsoft.Data.SqlClient</c> does not itself offer a <see cref="DbDataSource"/>
+    /// implementation (measured against version 7.0.2); give an adapter of your
+    /// own if you need to share a connection pool with another consumer of the
+    /// same database. When set, <see cref="ConnectionString"/> is not required,
+    /// and giving both is a startup error.
+    /// </para>
+    /// <para>
+    /// AgentPrism does <strong>not</strong> take ownership: the instance is never
+    /// disposed. The caller keeps ownership and disposes it when the host shuts
+    /// down.
+    /// </para>
+    /// </remarks>
+    public DbDataSource? DataSource { get; set; }
 
     /// <summary>
     /// The schema AgentPrism's tables are created in. The consumer's <c>dbo</c>

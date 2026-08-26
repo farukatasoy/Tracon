@@ -90,27 +90,34 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             IValidateOptions<AgentPrismPostgreSqlOptions>,
             AgentPrismPostgreSqlOptionsValidator>());
 
-        // A single data source; the Npgsql pool manages itself.
-        services.TryAddSingleton(static provider => NpgsqlDataSourceFactory.Create(
-            provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
-            provider.GetService<ILoggerFactory>()));
-
         // The context for the shared store layer. Everything provider-specific
         // is collected here; the stores never see an Npgsql type (Phase 23, K-176).
         // Same rule as the store registrations: the last call wins. If this were
         // TryAdd, registering a second provider would leave the stores pointing
         // at the new provider while the context still pointed at the old one,
         // and the two would silently diverge.
+        //
+        // Phase 110: the data source is resolved HERE, not registered as its own
+        // public NpgsqlDataSource DI service. Doing so used to be a two-way race:
+        // either the consumer's own NpgsqlDataSource registration silently won
+        // (TryAddSingleton) and AgentPrism's ConnectionString became a dead
+        // setting, or AgentPrism's own instance leaked into the consumer's DI
+        // container under a public Npgsql type. The only way in is now the
+        // explicit AgentPrismPostgreSqlOptions.DataSource field, and ownership
+        // (whether AgentPrism may dispose it) travels with the context itself.
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
             var knowledgeOptions = provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value;
             var contentProtector = provider.GetRequiredService<IContentProtector>();
             var contentProtectionOptions = provider.GetRequiredService<IOptions<AgentPrismContentProtectionOptions>>().Value;
+            var (dataSource, ownsDataSource) = NpgsqlDataSourceFactory.Resolve(
+                options, provider.GetService<ILoggerFactory>());
 
             return new SqlStoreContext
             {
-                DataSource = provider.GetRequiredService<NpgsqlDataSource>(),
+                DataSource = dataSource,
+                OwnsDataSource = ownsDataSource,
                 Dialect = new PostgresDialect(options.SchemaName),
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
@@ -360,12 +367,21 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
 
-            return options.EnableKnowledge
-                ? new PgVectorSearchStore(
-                    provider.GetRequiredService<NpgsqlDataSource>(),
-                    options,
-                    provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value)
-                : null!;
+            if (!options.EnableKnowledge)
+            {
+                return null!;
+            }
+
+            // The shared context's DataSource is always an NpgsqlDataSource for
+            // this provider (NpgsqlDataSourceFactory.Resolve enforces it above);
+            // reusing it here avoids building a second data source (and, when
+            // the consumer supplied one, a second pool) just for this store.
+            var dataSource = (NpgsqlDataSource)provider.GetRequiredService<SqlStoreContext>().DataSource;
+
+            return new PgVectorSearchStore(
+                dataSource,
+                options,
+                provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value);
         });
 
         return builder;

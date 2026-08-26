@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -25,5 +27,22 @@ internal static class SqliteDataSourceFactory
         }
 
         return new SqliteDataSource(options.ConnectionString);
+    }
+
+    /// <summary>
+    /// Resolves the data source AgentPrism uses: <see cref="AgentPrismSqliteOptions.DataSource"/>
+    /// when the consumer gave one, or a new one built from
+    /// <see cref="AgentPrismSqliteOptions.ConnectionString"/> otherwise.
+    /// </summary>
+    /// <param name="options">SQLite settings.</param>
+    /// <returns>The data source, and whether AgentPrism owns it (and must dispose it).</returns>
+    /// <exception cref="AgentPrismException">The connection string is not defined.</exception>
+    public static (DbDataSource DataSource, bool OwnsDataSource) Resolve(AgentPrismSqliteOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.DataSource is { } dataSource
+            ? (dataSource, false)
+            : (Create(options), true);
     }
 }
