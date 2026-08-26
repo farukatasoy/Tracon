@@ -198,7 +198,7 @@ public sealed class RunTraceCollector : IDisposable
     {
         var traceId = activity.TraceId.ToString();
 
-        if (!_buffers.TryGetValue(new TraceBufferKey(traceId, LocalRootSpanId(activity)), out var buffer))
+        if (!TryFindBuffer(activity, traceId, out var buffer) || buffer is null)
         {
             // This trace is not being tracked: either it is a span produced
             // outside a run, or the run has already closed. Either way it is
@@ -301,23 +301,27 @@ public sealed class RunTraceCollector : IDisposable
     // BOTH runs' spans under its own run id and tenant id.
     private readonly record struct TraceBufferKey(string TraceId, string RootSpanId);
 
-    /// <summary>Finds the span that starts this run inside this process.</summary>
+    /// <summary>Finds the nearest tracked run that owns this span.</summary>
     /// <remarks>
-    /// <c>Activity.Parent</c> is only set for an IN-PROCESS parent, so walking it
-    /// stops exactly at the activity a run opened - even when that activity
-    /// itself continues a remote trace. <c>Activity.RootId</c> cannot be used: it
-    /// is the trace id, which is the value being disambiguated.
+    /// A run span can have an in-process HTTP server span above it. Therefore,
+    /// walking to the topmost local parent does not identify the run: in a real
+    /// ASP.NET host it identifies the request. The first ancestor whose
+    /// trace/span pair is present in <see cref="_buffers"/> is the owning run.
+    /// This also preserves nested-agent behavior: a child run has no buffer of
+    /// its own, so the walk continues to the tracked root run.
     /// </remarks>
-    private static string LocalRootSpanId(Activity activity)
+    private bool TryFindBuffer(Activity activity, string traceId, out RunSpanBuffer? buffer)
     {
-        var current = activity;
-
-        while (current.Parent is { } parent)
+        for (var current = activity; current is not null; current = current.Parent)
         {
-            current = parent;
+            if (_buffers.TryGetValue(new TraceBufferKey(traceId, current.SpanId.ToString()), out buffer))
+            {
+                return true;
+            }
         }
 
-        return current.SpanId.ToString();
+        buffer = null;
+        return false;
     }
 
     private static TraceSpanKind ToKind(ActivityKind kind) => kind switch

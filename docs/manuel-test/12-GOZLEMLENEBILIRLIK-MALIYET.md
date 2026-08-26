@@ -1482,17 +1482,13 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   `scope` yaşam döngüsünü kuran dört metottur; Faz 107 bunları ya hiç
   taşımadı (girdi metotları ana dosyada kaldı) ya da birebir taşıdı
   (`PrepareRun`/`CreateScope` → `RunRecordingAgent.Lifecycle.cs`).
-- **Sapma:** gerçek sunucu üzerinde `GET .../trace`'i canlı doğrulamak
-  denendi (echo sağlayıcı, ~45 ayrı run), ama `SuccessSampleRatio`
-  (varsayılan `0.1`) hiçbirinde örneklemedi ve `AgentPrism__Observability__SuccessSampleRatio=1`
-  ortam değişkeni de örnek uygulamada gözlenebilir bir etki yaratmadı — kök
-  neden ölçülmedi (Faz 107'nin dokunmadığı bir alan: `RunTraceCollector`
-  DI kaydı, `AgentPrismOptions` bağlama zinciri). Bu, bu fazın kod
-  değişikliğiyle İLGİLİ DEĞİLDİR — üstteki otomatik testler tam olarak aynı
-  mekanizmayı (gerçek `ActivityListener`, gerçek `RunTraceCollector`, gerçek
-  `InMemoryTraceStore`) izole biçimde çalıştırıp span ebeveynliğini
-  kanıtlıyor. `ADAYLAR.md`'ye örnek uygulamada span örneklemesinin hiç
-  tutmaması üzerine küçük bir araştırma notu eklenebilir (bu oturumun
-  kapsamı dışı).
+- **Kapanış (2026-08-26, F-164):** gerçek kusur kapatıldı. Kök neden config veya
+  DI değildi. `RunTraceCollector`, tamponu `Activity.Parent` zincirinin
+  tepesindeki span ile arıyordu; gerçek ASP.NET yolunda bu span run root değil,
+  HTTP server span'idir. Collector artık zincirde kayıtlı en yakın ancestor
+  tamponunu buluyor. `RunTraceEndToEndTests.Successful_run_is_persisted_when_sample_ratio_is_one`
+  gerçek DI + HTTP + SSE + trace endpoint zincirini ve `agentprism.run` span'ini
+  doğrular. `SuccessSampleRatio=1` ile sample tekrarında trace endpoint `200`
+  dönmelidir.
 
 ---
