@@ -2171,7 +2171,6 @@ AgentPrism.RunError.RunError() -> void
 AgentPrism.RunError.Type.get -> string!
 AgentPrism.RunError.Type.init -> void
 AgentPrism.RunErrorClass
-AgentPrism.RunErrorClass.BudgetExceeded = 9 -> AgentPrism.RunErrorClass
 AgentPrism.RunErrorClass.Canceled = 10 -> AgentPrism.RunErrorClass
 AgentPrism.RunErrorClass.CompilationFailed = 8 -> AgentPrism.RunErrorClass
 AgentPrism.RunErrorClass.ContentBlocked = 11 -> AgentPrism.RunErrorClass

@@ -59,8 +59,15 @@ public enum RunErrorClass
     /// <summary>The agent definition failed to compile.</summary>
     CompilationFailed = 8,
 
-    /// <summary>The tree or context budget was exceeded.</summary>
-    BudgetExceeded = 9,
+    // 🚨 9 is a RETIRED GAP, never a free slot. It held BudgetExceeded ("the
+    // tree or context budget was exceeded"), which no code path could produce:
+    // when the tree budget runs out ChildAgentInvoker returns text to the model
+    // instead of throwing, so the run ends successfully. The member still
+    // reached consumers through the OpenAPI document, the TypeScript schema and
+    // both UI dictionaries, advertising a state that never occurred. It was
+    // removed while PublicAPI.Shipped.txt was still empty (K-603). Reusing 9
+    // would give stored records and older clients a second, conflicting
+    // meaning. RunErrorClassContractTests pins this.
 
     /// <summary>Cancelled.</summary>
     Canceled = 10,

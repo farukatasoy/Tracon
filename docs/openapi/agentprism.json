@@ -13026,7 +13026,6 @@
           "ToolError",
           "Timeout",
           "CompilationFailed",
-          "BudgetExceeded",
           "Canceled",
           "ContentBlocked",
           "Infrastructure",
