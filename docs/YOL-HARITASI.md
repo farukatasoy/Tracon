@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (112 kalem)
+## Fazlar (119 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -124,5 +124,12 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [109](arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md) | Frontend Modülleri ve Ekran Testleri | ✅ Tamamlandı |
 | [110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) | Tüketici Bağlantı Düzlemi | ✅ Tamamlandı |
 | [111](arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md) | Okuma Sözleşmesi Görünümleri | ✅ Tamamlandı |
+| [112](112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md) | Replay'in İstemci Tool Sözleşmesi | 📋 Planlandı |
+| [113](113-ARIZA-SINIFLANDIRMA-SEAMI.md) | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | 📋 Planlandı |
+| [114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) | Çalıştırma-İçi Bütçe Tavanı | 📋 Planlandı |
+| [115](115-EVALIN-BASSIZ-KOSUCUSU.md) | Eval'in Başsız Koşucusu | 📋 Planlandı |
+| [116](116-PERFORMANS-TAHSIS-KAPISI.md) | Performans Tahsis Kapısı | 📋 Planlandı |
+| [117](117-MCP-TASKS-UZANTISI.md) | MCP Tasks Uzantısı | 📋 Planlandı |
+| [118](118-YARGIC-BASINA-CHECKPOINT.md) | Yargıç Başına Checkpoint | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
