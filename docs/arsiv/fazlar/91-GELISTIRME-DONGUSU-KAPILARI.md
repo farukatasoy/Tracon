@@ -1,7 +1,7 @@
 # Faz 91 — Geliştirme Döngüsü Kapıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (kısmi) ve kalem **20** · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu. Bu faz bir `F-NN` adayından gelmez; envanter turunun iki kalemini birleştirir.
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **3** (kısmi) ve kalem **20** · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu. Bu faz bir `F-NN` adayından gelmez; envanter turunun iki kalemini birleştirir.
 > **Önkoşul:** Yok
 > **Paketler:** Yok — iş `scripts/`, `.github/`, `src/AgentPrism.UI/*.targets` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok

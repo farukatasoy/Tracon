@@ -1,7 +1,7 @@
 # Faz 106 — Agent Derleyici Ayrıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-26)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **kalem 17**. Bu faz bir `F-NN` adayından gelmez
 > **Önkoşul:** [Faz 105](105-DI-BILESEN-KOKU-AYRISTIRMA.md) — teknik zorunluluk yoktur; yapısal tur sırası composition root'tan compiler'a ilerler
 > **Paketler:** `AgentPrism.Core`
 > **Yeni paket:** Yok · **Migration:** Yok

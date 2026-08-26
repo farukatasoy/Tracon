@@ -1,7 +1,7 @@
 # Faz 96 — Public Yüzey Küçültme
 
 > **Durum:** ✅ Tamamlandı (2026-08-24)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 7** (public yüzey yayın kararından önce şişti). Kalem `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 2).
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) — **madde 7** (public yüzey yayın kararından önce şişti). Kalem `ADAYLAR.md`'de değildir; F numarası yoktur. Sıra bölüm 7.2'de kullanıcı tarafından sabitlendi (sıra 2).
 > **Önkoşul:** [Faz 95](95-GERCEK-TUKETICI-KAPISI.md) — bir tipi `internal`'a çekmek gerçek tüketiciyi kırabilir; bunu yalnız `PackageReference` ile derlenen bir proje ölçer. Faz 95'in `ConsumerRunTests`'i o dedektördür ve **kurulmuştur**.
 > **Paketler:** `AgentPrism.Core`, `.Abstractions`, `.AspNetCore`, `.Mcp`, `.OpenAI`, `.Anthropic`, `.Azure`, `.Google`, `.Voice`, `.PostgreSql`, `.SqlServer`, `.Sqlite`
 > **Yeni paket:** Yok · **Migration:** Yok

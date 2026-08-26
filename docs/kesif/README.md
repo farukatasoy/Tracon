@@ -11,6 +11,7 @@ okumaz; yalnız "bu fikir daha önce konuşulmuş muydu" sorusu için `grep`'len
 | Turun tamamı — ham liste, eleme, kanıt, ret gerekçeleri | **burada** |
 | Onaylanan kalemin tam metni (F-NN) | [`../ADAYLAR.md`](../ADAYLAR.md) |
 | Kalemin uygulanabilir planı | `docs/NN-*.md` — `faz-planlama` yazar |
+| Kalemleri tükenmiş turlar | [`../arsiv/kesif/INDEKS.md`](../arsiv/kesif/INDEKS.md) |
 
 Dizin, doküman dizin bütçesinden **hariç** tutulur (K-426; K-412 deseni):
 bir koşumun kaydıdır, oturum maliyeti değildir. Bu yüzden birikebilir.

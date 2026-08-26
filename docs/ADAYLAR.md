@@ -69,6 +69,16 @@
 > pinlenmiş 2.0.0'da bile var, ama saf `client_credentials` sağlamıyor (belge
 > düzeltmesi). Tam koşum kaydı: [`kesif/2026-08-20-maf-ekosistem-taramasi.md`](kesif/2026-08-20-maf-ekosistem-taramasi.md).
 >
+> 🚨 **2026-08-26: yapısal sorun envanterinin açık kalan iki kalemi listeye
+> alındı.** [Faz 109](arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md)
+> ile birlikte envanterin yirmi dört kaleminden yirmisi kapandı, biri düştü.
+> Kalan iş: madde 16 → **F-67** (zaten listedeydi; ölçümü tazelendi) ve madde 9
+> → **F-165** (yeni). Envanterin madde 1'i (`Shipped.txt` dolumu) yayın kararına
+> bağlıdır ve aday değildir; madde 14'ün uygulama yarısı (dağıtık hız sınırı)
+> gerçek bir çok örnekli tüketici talebi ölçülmeden kalemleşmez; madde 24 bir
+> kullanıcı kararıdır. Tur kaydı arşive taşındı:
+> [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md).
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -188,51 +198,7 @@ Gerekirse `HashSet<long>` tabanlı bir ikincil indeks eklenir.
 performans sorunu olduğu kanıtlanmadan öncelik verilmez.
 **Mercek:** A (çekirdek çalıştırma yolu).
 
-### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — süreç çöküyor — ✅ KAPATILDI (2026-08-25)
-
-**Nereden geldi:** Faz 99 kapanış kapısının izole koşumu (2026-08-25).
-**Temel commit'te doğrulandı** (`c4e3189`, `git worktree` ile) — Faz 99'un ürünü
-DEĞİL, mevcut bir kusurdur.
-
-**Kapanış:** Worker uçuştaki her işi başlatmadan önce kaydeder; `ExecuteAsync`,
-slot `SemaphoreSlim`'ini dispose etmeden önce bu görevlerin tamamlanmasını
-bekler. `JobWorkerBackgroundServiceTests` `StopAsync`'in iş slotu bırakılmadan
-dönmediğini doğrudan kanıtlar. Ateşle-unut çağrılarının sınıf taramasında kalan
-iki yol (`McpOAuthAuthorizationCoordinator`, lease renewal) sahiplenilen slot
-taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunmadı.
-
-> `JobWorkerBackgroundService.ExecuteAsync` semaforu `using var slots = new
-> SemaphoreSlim(...)` ile sahiplenir (`JobWorkerBackgroundService.cs:62`), ama
-> işleri **ateşle-unut** başlatır: `_ = RunJobAsync(job, slots, stoppingToken)`
-> (satır 129). `RunJobAsync`'in `finally` bloğu `slots.Release()` çağırır
-> (satır 148). Host, uçuştaki bir iş varken kapanırsa `ExecuteAsync` döner,
-> `using` semaforu dispose eder ve gecikmiş `Release()`
-> `ObjectDisposedException` atar.
-
-**Belirti:** Görev `await` edilmediği için exception gözlemlenmez ve
-**işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
-koşmak (`AgentPrism.AspNetCore.FunctionalTests --filter-method
-"*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
-çökertir; aynı çökme `c4e3189` üzerinde birebir tekrarlanır.
-
-**Neden bugüne kadar görünmedi:** Tam çözüm koşumunda süit uzun sürer ve host
-kapanışı uçuştaki işle çakışmaz; çökme yalnız hızlı kapanışta (tek test
-filtresi) ortaya çıkar. Üretimde karşılığı **hızlı yeniden başlatma** veya
-`SIGTERM` sonrası kısa drain penceresidir.
-
-**Kapsam:** Yalnız bu vakayı kapatmak yetmez, **sınıf taraması** ister: bu bir
-"ateşle-unut görev, sahiplenilen kaynağı kapsam dışında serbest bırakıyor"
-kusur sınıfıdır. `grep -rn "_ = [A-Za-z]*Async(" src/` ile taranmalı; her
-bulunan yerde (a) görevin izlenip kapanışta beklenip beklenmediği, (b)
-yakaladığı kaynağın ömrü sorgulanmalı. Olası düzeltme: uçuştaki görevleri bir
-listede tut ve `ExecuteAsync` dönmeden önce `Task.WhenAll` ile bekle; ya da
-semaforu `using` yerine servis ömrüne bağla.
-
-**Değer:** Yüksek — işlenmemiş exception süreci öldürür ve bu, gözlemlenebilirlik
-değil **kullanılabilirlik** sorunudur. Ayrıca `AgentPrism.Core`
-`AgentPrismDrainService` ile zarif kapanış vaat eder; bu kusur o vaadi deler.
-
-**Mercek:** A (çekirdek çalıştırma yolu).
+### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — ✅ KAPATILDI (2026-08-25). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## B. Model yüzeyi ve yönlendirme
 
@@ -322,55 +288,7 @@ doğrulamak ister; ayrı, dar kapsamlı bir iş.
 
 ---
 
-### F-151 · Uygulanmış iki PostgreSQL migration dosyası sonradan düzenlendi — mevcut kurulumlar yükseltmede BAŞLAMAZ — ✅ KAPATILDI (2026-08-25)
-
-**Nereden geldi:** Faz 99 kapanışının örnek uygulama koşumu (2026-08-25).
-Yerel geliştirme veritabanı `AgentPrismException` ile açılışı durdurdu.
-
-**Kapanış:** `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
-ilk uygulanmış baytlarına döndü. `scripts/kapi.py tarama`,
-`scripts/applied-migrations.json` içindeki Git kaynak commit'lerinden baytları
-okuyarak bütünlüğü doğrular; manifestte checksum değiştirerek migration değişikliği
-onaylanamaz. Örnek API gerçek PostgreSQL veritabanıyla yeniden başladı ve
-`/health` 200 döndü. `dokuman-bakim.py` arşivleme kodu yalnız Markdown dosyalarını
-değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürütüldü.
-
-> `MigrationRunner` uygulanmış her migration'ın checksum'ını saklar ve dosya
-> içeriği değişmişse **açılışı durdurur** — doğru davranıştır, mesajı da
-> doğrudur: "An applied migration is never edited; add a new migration file
-> for the change."
->
-> Ama commit `9c32242` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
-> yaptı: `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
-> dosyalarındaki **yorum satırlarında** doküman yolunu güncelledi
-> (`docs/65-...md` → `docs/arsiv/fazlar/65-...md`). SQL'in kendisi değişmedi;
-> checksum değişti.
-
-**Etki:** Bu iki migration'ı `9c32242` ÖNCESİNDE uygulamış **her** kurulum,
-yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
-ölçüldü — `samples/AgentPrism.Api` başlamıyor:
-`Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
-Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
-
-**Başlangıçtaki kök neden varsayımı yanlıştı:** Ölçüm, Faz 90 arşivleme yolunun
-yalnız `*.md` dosyalarına dokunduğunu gösterdi. `9c32242` değişikliği başka bir
-toplu düzenleme ile geldi. Yeni kapı aracı değil baytı korur; bu nedenle aynı
-etki hangi düzenleme yolundan gelirse gelsin kırmızıya döner.
-
-**Uygulanan kapsam:**
-1. İki dosyanın **baytları geri alındı** (`git show f261cda:<yol>` ve
-   `git show 8cf727a:<yol>`). Uygulanmış migration değişmez; içindeki bayat
-   doküman bağlantısı checksum'dan daha ucuz bir sorundur.
-2. Arşivleme kodunda SQL hariç tutma yapılmadı; ölçülen kök neden o kod değildir.
-3. **Kapı eklendi:** uygulanmış migration, değiştirilemeyen Git kaynak baytıyla
-   eşleşmezse `kapi.py tarama` kırmızı döner. Bu yol mevcut veritabanına gerek
-   duymaz.
-
-**Değer:** Yüksek ve acil — `preview.1` öncesi kapanmalıdır. Aksi hâlde ilk
-yükseltme yapan tüketici açılışta çöker ve mesaj onu "yeni migration ekle"
-diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
-
-**Mercek:** C (güvenlik, yönetişim ve uyum — veri düzlemi bütünlüğü).
+### F-151 · Uygulanmış iki PostgreSQL migration dosyası sonradan düzenlendi — ✅ KAPATILDI (2026-08-25). Gövde: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ## C. Güvenlik, yönetişim ve uyum
 
@@ -629,6 +547,40 @@ koşulmalıdır. Beşinci bir kapı her fazı yavaşlatır — bu bir karardır.
 **Bağımlılık:** Yok.
 **Ekosistem:** Bu depoya **kültürel olarak uygundur**; dört kapı disiplini
 zaten var.
+
+> 🚨 **Yeniden ölçüldü (2026-08-26): iddia ayakta.** `find . -iname "*benchmark*"`
+> hâlâ **0 dosya** döndürüyor; dört kapı yalnız doğruluğu koruyor. Kalem, yapısal
+> sorun envanterinin madde 16'sıdır
+> ([tur kaydı](arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md)) ve yayından
+> bağımsızdır — taban çizgisini bugün almak sonra almaktan ucuzdur, çünkü ölçülecek
+> kod Faz 105–108 ayrıştırmasından sonra stabildir. **F-163** (contract suite
+> load/performance ailesi) ile birleşme ihtimali plan turunda ölçülmelidir; iki
+> kalem de aynı gürültü eşiği sorusunu taşır.
+
+### F-165 · Manuel kabul seti CI'da koşmuyor — regresyon güvencesi insan zamanına bağlı
+
+**Sorun:** `docs/manuel-test/` **36 aile dosyası · ~1.376 case · 2,4 MB** taşır ve
+hiçbiri otomatik koşmaz. Koşum kendi skill'ini gerektiriyor
+(`manuel-test-kosumu`, 335 satır) ve tek kişinin oturum zamanına kilitli. Bir
+kütüphanenin regresyon güvencesi CI'da koşmalıdır; insan zamanı isteyen bir set
+baskı altında ilk atlanan şeydir.
+**Kapsam:** Aile aile devir. Her faz bir aileyi otomatik teste çevirir ve manuel
+setten **siler** — iki yerde tutmak kayma üretir. Önerilen sıra: kiracı/güvenlik
+(`13-KIRACI-VE-GUVENLIK.md`), çekirdek (`02-CEKIRDEK-VE-KATALOG.md`), kalıcılık
+(`03`/`04`). Her ailenin devri kendi test seviyesini seçer
+([`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)).
+**Değer:** Kapı sayısı değişmeden güvence CI'a taşınır; bus factor baskısı düşer.
+**Mercek:** 4, 6.
+**Hazırlık:** Fake model provider (`AgentPrism.Testing`) ve gerçek tüketici
+fikstürü (Faz 95) hazır; Docker isteyen aileler için `AgentPrism.no-docker.slnf`
+ayrımı zaten kurulu.
+**Maliyet:** Yüksek — **tek fazda kapanmaz**, zincir işidir.
+**Risk:** Her case otomatikleşmez. Görsel/etkileşim doğrulaması Playwright'a
+taşınır, insan yargısı isteyen case (metin kalitesi, model çıktısının makullüğü)
+manuel kalır. Devir planı **hangi case'in manuel kalacağını** önce ayırmalıdır;
+yoksa tur yarıda kalır ve set iki yerde yaşamaya başlar.
+**Bağımlılık:** Yok. F-67 ile paralel gider.
+**Ekosistem:** Karşılığı yok — bu bir depo disiplini kalemidir.
 
 ---
 

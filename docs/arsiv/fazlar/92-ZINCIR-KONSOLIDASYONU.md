@@ -1,7 +1,7 @@
 # Faz 92 — Zincir Konsolidasyonu
 
 > **Durum:** ✅ Tamamlandı (2026-08-23)
-> **Kaynak:** [`kesif/2026-08-23-yapisal-sorun-envanteri.md`](../../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **20** (skill metni ayağı) · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu
+> **Kaynak:** [`arsiv/kesif/2026-08-23-yapisal-sorun-envanteri.md`](../kesif/2026-08-23-yapisal-sorun-envanteri.md) kalem **20** (skill metni ayağı) · kullanıcı isteği: geliştirme sürecinin uçtan uca optimizasyonu
 > **Önkoşul:** 🚨 [Faz 91](91-GELISTIRME-DONGUSU-KAPILARI.md) — **kesin bağımlılık.** Politika "önce kapı, sonra kısaltma"; bu faz ancak 91'in hangi tuzağı kapıya çevirdiğini bilerek metin düşürebilir. 91 kapanmadan başlatılamaz
 > **Paketler:** Yok — iş `.agents/` ve `AGENTS.md` üzerindedir
 > **Yeni paket:** Yok · **Migration:** Yok
