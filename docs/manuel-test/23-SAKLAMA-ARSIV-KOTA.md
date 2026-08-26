@@ -1199,3 +1199,35 @@ dotnet run -c Release
 - `CountOlderThanAsync: 0` — istisna atılmaz.
 - `FindRowLimitCutoffAsync: null` — istisna atılmaz.
 - Hiçbir veritabanı bağlantısı denenmez.
+
+---
+
+### MT-RET-044 — `InMemoryRunStore.MaxRuns` aşılınca en eski `run` ile birlikte event/tool/heartbeat kaydı da düşer (Faz 108)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 108 |
+| **İlgili karar** | — |
+
+`MaxRuns` `IRetentionStore`'un SQL politikasından ayrı, bellek içi store'a
+özgü bir hacim sınırıdır (`config` anahtarı yoktur, yalnız kurucu parametresi
+— MT-RET-014'ün "yalnız açık DB politikası" kuralının bellek içi karşılığı).
+Sınır aşılınca yalnız `runs` satırı değil, o `run`'ın event log'u, tool
+invocation log'u ve heartbeat kaydı da düşmelidir; aksi hâlde bellekte
+sahipsiz veri birikir.
+
+> 👤 **İnsan gerekir** — `MaxRuns` `AddAgentPrism()` üzerinden `config`'ten
+> ayarlanamaz, yalnız `new InMemoryRunStore { MaxRuns = N }` ile kod
+> düzeyinde verilir; standart bir `curl` senaryosu yoktur.
+
+**Otomatik karşılığı** (koşuldu, 2026-08-26):
+- `InMemoryRunStoreTests.When_the_upper_limit_is_exceeded_the_oldest_run_is_dropped`
+  (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryStoreTests.cs`) — en eski
+  `run` satırının düştüğünü kanıtlar.
+- `InMemoryRunStoreStructureTests.Trim_drops_the_dropped_runs_events_and_tool_invocations_too`
+  (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`) —
+  aynı trim'in event log'unu ve tool invocation log'unu da sildiğini kanıtlar
+  (Faz 108'in `partial` ayrıştırmasından önce bu ikinci iddia için ayrı bir
+  test yoktu).

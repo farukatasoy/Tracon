@@ -2835,3 +2835,59 @@ dotnet test samples/AgentPrism.Samples.CustomTool.Tests -c Release --no-build
 - Async yol bloğun metnini kendi talimatının önüne ekler.
 - Otomatik koşuldu: `SharedInstructionsTests.Synchronous_Compile_refuses_a_definition_that_references_a_block`,
   `SharedInstructionsTests.Blocks_text_is_prepended_to_the_agents_own_instructions`.
+
+---
+
+### MT-CORE-106 — `InMemoryRunStore` ayrıştırması sonrası ağaç toplamları ve kiracı yalıtımı doğru kalır (Faz 108)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 108 |
+| **İlgili karar** | — |
+
+`InMemoryRunStore` beş sorumluluk dosyasına (`Lifecycle`/`Events`/`Queries`/
+`Statistics`/`Analytics`) bölündü; state tek dosyada kaldı. Bu case bölünmenin
+davranışı bozmadığını gerçek bir `run` ile kanıtlar.
+
+**Ön koşul**
+- Bağlantı dizesi verilmez — `samples/AgentPrism.Embedded` varsayılan olarak
+  bellek içi kalıcılık kullanır (`GET /agentprism/api/diagnostics` →
+  `"persistenceProvider": "InMemory"`).
+
+**Adımlar**
+1. `dotnet run --project samples/AgentPrism.Embedded --urls http://localhost:5082`
+2. İki farklı kiracı için arka plan iş kuyruğu üzerinden birer `run` üret.
+3. Her kiracının kendi kimliğiyle `run` listesini ve istatistik özetini oku.
+
+**Girilecek veri**
+```bash
+curl -s -X POST http://localhost:5082/jobs -H 'Content-Type: application/json' \
+  -d '{"tenantId":"acme","userId":"user-42","message":"What is my account balance?"}'
+curl -s -X POST http://localhost:5082/jobs -H 'Content-Type: application/json' \
+  -d '{"tenantId":"globex","userId":"user-7","message":"Summarize last invoice"}'
+
+curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/runs
+curl -s -H 'X-Host-Tenant: globex' http://localhost:5082/agentprism/api/runs
+curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/agentprism/api/stats
+```
+
+**Beklenen sonuç**
+- Her `run` `Completed` durumunda döner, `usage` ve `treeUsage` doludur
+  (`InMemoryRunStore.Queries.cs`'teki `WithTreeTotals`).
+- Kiracı A'nın `run` listesi yalnız kendi `run`'ını içerir, kiracı B'ninkini
+  içermez (`QueryRunsAsync`'in kiracı süzgeci).
+- `GET /agentprism/api/stats` `totalRuns: 1`, `byAgent`/`byModel`/`byUser`
+  kırılımlarını doğru sayar (`GetStatisticsAsync`, `InMemoryRunStore.Statistics.cs`).
+- Koşuldu (2026-08-26): iki kiracı, iki `run`, beklenen sonuçların tamamı
+  gözlendi.
+
+> **Otomatik karşılığı:** `InMemoryRunStoreContractTests`/`InMemoryToolInvocationContractTests`
+> (`tests/AgentPrism.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`) —
+> aynı sözleşme paketi bellek içi, PostgreSQL, SQL Server ve SQLite
+> uygulamalarının tümünde koşar. Trim'in event/tool invocation kayıtlarını da
+> sildiğini ve bir `IRunScoreStore` hatasının `GetStatisticsAsync`'i sessizce
+> yutmadığını `InMemoryRunStoreStructureTests`
+> (`tests/AgentPrism.Core.UnitTests/Storage/InMemoryRunStoreStructureTests.cs`)
+> doğrular.
