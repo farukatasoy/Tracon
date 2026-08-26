@@ -726,6 +726,18 @@ contract'ıyla karıştırılmaz. F-67 performans regresyon kapısıyla olası b
 ölçülmeli; framework ve CI gürültü eşiği belirlenmeden yeni public test family
 eklenmemelidir.
 
+### F-164 · `samples/AgentPrism.Api`'de span örneklemesi hiç tutmuyor
+
+Faz 107'nin manuel kabul koşumunda (2026-08-26, `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`
+MT-OBS-050) ölçüldü: `GET /api/runs/{id}/trace` ~45 ayrı gerçek run'da hep `404`
+döndü — `AgentPrism__Observability__SuccessSampleRatio=1` ortam değişkeni bile
+etkisizdi. `RunTraceCollector`'ı izole çalıştıran otomatik testler
+(`ObservabilityTests`) aynı mekanizmayı doğru çalıştırıyor; sorun yalnız
+`samples/AgentPrism.Api`'nin DI kaydında veya config bağlamasında. Faz 107'nin
+kod değişikliğiyle ilgisizdi (span açan/kapatan metotlar dokunulmadı) — kapsam
+dışı bırakıldı. Kök neden ölçülmeden bir sonraki tur `RunTraceCollector.IsCollecting`'i
+örnek uygulamada doğrudan gözlemlemeli.
+
 ## Ekosistem Boşluk Tablosu
 
 "X'te standart, .NET'te yok." AgentPrism'in yankı uyandırma ihtimali en çok
