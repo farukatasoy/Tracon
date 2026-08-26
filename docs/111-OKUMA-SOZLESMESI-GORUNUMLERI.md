@@ -2,7 +2,7 @@
 
 > **Durum:** 📋 Planlandı (2026-08-26)
 > **Kaynak:** [`kesif/2026-08-26-ef-core-uyum-olcumu.md`](kesif/2026-08-26-ef-core-uyum-olcumu.md) — kalem **P4**. Bu faz bir `F-NN` adayından gelmez
-> **Önkoşul:** [Faz 110](110-TUKETICI-BAGLANTI-DUZLEMI.md) — `docs-site/.../guides/ef-core.md` sayfası orada doğar; bu faz ona okuma bölümünü ekler. Kod bağımlılığı yoktur
+> **Önkoşul:** [Faz 110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) — `docs-site/.../guides/ef-core.md` sayfası orada doğar; bu faz ona okuma bölümünü ekler. Kod bağımlılığı yoktur
 > **Paketler:** `AgentPrism.PostgreSql`, `.SqlServer`, `.Sqlite` — yalnız migration setleri
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (PostgreSQL + SQL Server + SQLite). Numaralar sağlayıcı başına bağımsızdır (K-178) ve uygulama anında alınır
 > **Public API:** C# yüzeyi **büyümüyor**. Ama **kalıcı bir veri sözleşmesi** doğuyor: bir görünüm yayımlandıktan sonra sütun kaybetmez. Bu, `Shipped.txt`'in kapsamadığı bir taahhüttür ve geri alması pahalıdır
@@ -25,7 +25,7 @@
    sağlayıcı başına bağımsız), **K-190** (SQLite'ta şema yerine tablo öneki),
    **K-483** (🚨 elle tekrarlanan toplama ifadesi kusur **sınıfı** üretir — bu
    fazın ana risk kaydı)
-3. [Faz 110](110-TUKETICI-BAGLANTI-DUZLEMI.md) — yalnız devir notu:
+3. [Faz 110](arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/110-TUKETICI-BAGLANTI-DUZLEMI.md
    ```
