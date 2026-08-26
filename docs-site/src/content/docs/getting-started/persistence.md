@@ -156,6 +156,23 @@ Running it again applies nothing (`0 applied`) and exits `0`; `agentprism migrat
 status` lists pending migration names without writing. See the [typed client and
 CLI guide](/guides/cli/) for setup and the rest of the commands.
 
+## Giving your own data source instead of a connection string
+
+Each provider's `Options.DataSource` field accepts a `DbDataSource` you built
+yourself instead of `ConnectionString` — most useful when your host already owns
+one, for example an EF Core `DbContext` configured with an `NpgsqlDataSource`:
+
+```csharp
+.UsePostgreSql(options => options.DataSource = yourDataSource)
+```
+
+AgentPrism never disposes an instance it did not build; ownership stays with
+whoever created it. Building two separate data sources from the identical
+connection string does **not** share a connection pool — see
+[Two data planes, one connection pool or two](/guides/embedding/#two-data-planes-one-connection-pool-or-two)
+and, for the full EF Core pattern,
+[Two connection planes: EF Core and AgentPrism](/guides/ef-core/).
+
 ## What changes once it is durable
 
 Runs, events, and tool calls survive restarts, so the console shows real history
