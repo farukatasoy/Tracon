@@ -16,14 +16,35 @@ namespace AgentPrism;
 /// blocking, so the same budget is read and written from multiple threads.
 /// </para>
 /// <para>
-/// The budget blocks <strong>new</strong> child runs; it does not interrupt a
-/// run in progress. A child run cut off midway would leave the model with an
-/// incomplete context and would also corrupt the root run.
+/// <see cref="TryReserveRun"/> (the count and depth dimensions) only blocks a
+/// <strong>new</strong> child run from starting; it never interrupts a child
+/// run already in progress — cutting one off midway would leave the model
+/// with an incomplete context and would also corrupt the root run.
+/// </para>
+/// <para>
+/// The token and cost dimensions are enforced differently, by a decorator
+/// installed inside the tool-call loop (<c>RunBudgetChatClient</c>, internal
+/// to <c>AgentPrism.Core</c>): once <see cref="IsExhausted"/> is
+/// <see langword="true"/>, that decorator refuses the tree's <strong>next</strong>
+/// model call, so a long-running tool loop is cut off mid-run rather than
+/// only at its next child call. The cutoff always lands between two model
+/// turns, never inside one — the decorator only ever refuses a call it has
+/// not yet made.
 /// </para>
 /// </remarks>
 public sealed class AgentRunBudget
 {
+    // Cost is tracked as a fixed-point integer (nano-units: 1/1_000_000_000 of
+    // the currency unit) because Interlocked has no decimal overload. Token
+    // pricing runs to small fractions of a cent per token (example: $0.15 per
+    // million tokens = $0.00000015/token); six decimal digits of precision
+    // would round a single-turn charge to zero. Nine digits keeps that from
+    // happening while a long still holds a total spend up to ~9.2 billion
+    // currency units before overflow.
+    private const decimal CostScale = 1_000_000_000m;
+
     private long _consumedTokens;
+    private long _consumedCostNanoUnits;
     private int _startedRuns;
 
     /// <summary>
@@ -31,6 +52,17 @@ public sealed class AgentRunBudget
     /// there is no token limit.
     /// </summary>
     public long? MaxTotalTokens { get; init; }
+
+    /// <summary>
+    /// The maximum amount spendable across the tree. If <see langword="null"/>,
+    /// there is no cost limit.
+    /// </summary>
+    /// <remarks>
+    /// Cannot be enforced when a model call's pricing is undefined
+    /// (<see cref="PricingSource.Unknown"/>); the token limit applies instead,
+    /// the same fallback <see cref="QuotaDefinition.MaxCost"/> uses.
+    /// </remarks>
+    public decimal? MaxTotalCost { get; init; }
 
     /// <summary>
     /// The maximum number of <em>child</em> runs that may start. The root run
@@ -48,6 +80,9 @@ public sealed class AgentRunBudget
     /// <summary>The tokens spent across the tree so far.</summary>
     public long ConsumedTokens => Interlocked.Read(ref _consumedTokens);
 
+    /// <summary>The amount spent across the tree so far.</summary>
+    public decimal ConsumedCost => Interlocked.Read(ref _consumedCostNanoUnits) / CostScale;
+
     /// <summary>The number of child runs started so far.</summary>
     public int StartedRuns => Volatile.Read(ref _startedRuns);
 
@@ -55,12 +90,25 @@ public sealed class AgentRunBudget
     public bool IsTokenBudgetExhausted
         => MaxTotalTokens is { } max && ConsumedTokens >= max;
 
+    /// <summary>Whether the cost limit has been exceeded.</summary>
+    public bool IsCostBudgetExhausted
+        => MaxTotalCost is { } max && ConsumedCost >= max;
+
+    /// <summary>
+    /// Whether the tree has spent past its token or cost limit. Does
+    /// <strong>not</strong> reflect <see cref="MaxTotalRuns"/>: the run-count
+    /// limit only blocks starting a <em>new</em> child run
+    /// (<see cref="TryReserveRun"/>), it says nothing about whether the
+    /// current run may keep calling its model.
+    /// </summary>
+    public bool IsExhausted => IsTokenBudgetExhausted || IsCostBudgetExhausted;
+
     /// <summary>
     /// Reserves budget room for a new child run.
     /// </summary>
     /// <returns>
     /// <see langword="true"/> if room was reserved; <see langword="false"/> if
-    /// the token or count limit has been exceeded.
+    /// the token, cost, or count limit has been exceeded.
     /// </returns>
     /// <remarks>
     /// The counter increments only when room is reserved. If a failed attempt
@@ -70,7 +118,7 @@ public sealed class AgentRunBudget
     /// </remarks>
     public bool TryReserveRun()
     {
-        if (IsTokenBudgetExhausted)
+        if (IsExhausted)
         {
             return false;
         }
@@ -102,14 +150,27 @@ public sealed class AgentRunBudget
 
     /// <summary>Records the number of tokens spent into the budget.</summary>
     /// <param name="tokens">The number of tokens to add. A negative value is ignored.</param>
-    public void RecordUsage(long tokens)
+    public void RecordUsage(long tokens) => RecordUsage(tokens, cost: null);
+
+    /// <summary>Records the tokens and cost spent in one model turn into the budget.</summary>
+    /// <param name="tokens">The number of tokens to add. A negative value is ignored.</param>
+    /// <param name="cost">
+    /// The cost to add, or <see langword="null"/> when the turn's price is
+    /// undefined (<see cref="PricingSource.Unknown"/>) — nothing is added to
+    /// <see cref="ConsumedCost"/> in that case, so an installation with an
+    /// unpriced model never trips a cost limit it cannot actually measure.
+    /// </param>
+    public void RecordUsage(long tokens, decimal? cost)
     {
-        if (tokens <= 0)
+        if (tokens > 0)
         {
-            return;
+            Interlocked.Add(ref _consumedTokens, tokens);
         }
 
-        Interlocked.Add(ref _consumedTokens, tokens);
+        if (cost is { } value && value > 0)
+        {
+            Interlocked.Add(ref _consumedCostNanoUnits, (long)Math.Round(value * CostScale, MidpointRounding.AwayFromZero));
+        }
     }
 
     /// <summary>Produces a user-facing text describing the limit that was exceeded.</summary>
@@ -120,9 +181,34 @@ public sealed class AgentRunBudget
     /// cannot see which setting to raise.
     /// </remarks>
     public string DescribeExhaustion()
-        => IsTokenBudgetExhausted
-            ? $"The run tree's token budget is exhausted ({ConsumedTokens}/{MaxTotalTokens}). " +
-              "A new child run cannot be started."
-            : $"The run tree's child-run limit is reached ({StartedRuns}/{MaxTotalRuns}). " +
-              "A new child run cannot be started.";
+        => $"{DescribeExceededLimit()} A new child run cannot be started.";
+
+    /// <summary>
+    /// Produces a user-facing text describing the token or cost limit that cut
+    /// a model call short mid-run.
+    /// </summary>
+    /// <remarks>
+    /// Only called once <see cref="IsExhausted"/> is <see langword="true"/>;
+    /// the run-count limit does not apply here (see <see cref="IsExhausted"/>).
+    /// </remarks>
+    public string DescribeModelCallExhaustion()
+        => $"{DescribeExceededLimit()} No further model calls can be made in this run tree.";
+
+    private string DescribeExceededLimit()
+    {
+        if (IsTokenBudgetExhausted)
+        {
+            return $"The run tree's token budget is exhausted ({ConsumedTokens}/{MaxTotalTokens}). " +
+                   "Raise AgentPrism:AgentGraph:MaxTotalTokens to allow more.";
+        }
+
+        if (IsCostBudgetExhausted)
+        {
+            return $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). " +
+                   "Raise AgentPrism:AgentGraph:MaxTotalCost to allow more.";
+        }
+
+        return $"The run tree's child-run limit is reached ({StartedRuns}/{MaxTotalRuns}). " +
+               "Raise AgentPrism:AgentGraph:MaxTotalRuns to allow more.";
+    }
 }

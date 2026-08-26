@@ -278,11 +278,13 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
+| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it |
 
 ## Upgrading: outbound targets and configuration keys
 
-Two boundaries tightened, and both can refuse something a running setup accepted
-before. Reading is unaffected in each case; only writing and connecting change.
+Three boundaries tightened, and all three can refuse something a running setup
+accepted before. Reading is unaffected in each case; only writing, connecting, and
+long-running calls change.
 
 **Private network targets are refused on all three outbound surfaces.** Webhook
 delivery already behaved this way; MCP server connections and per-tenant provider
@@ -303,6 +305,24 @@ The rejection message names that setting, so an operator who hits it can act wit
 reading this page. `AgentPrism:Webhooks:AllowPrivateNetworkTargets` still works and
 still applies to webhook delivery only; either setting being on is enough for a
 webhook target.
+
+**The agent-graph token budget now actually cuts a run off.** The default
+(`AgentGraph.MaxTotalTokens`, 200,000) always existed, but earlier releases only
+checked it before starting a *new* child run — a single agent's own tool loop could
+run past it freely. It is now enforced between model turns for every run, so a tree
+whose tool loop genuinely needs more than 200,000 tokens now ends `Failed` with
+`error_class: QuotaExceeded` where it previously would have finished. Raise the
+setting, or set it to `0` to remove the limit:
+
+```json
+{
+  "AgentPrism": {
+    "AgentGraph": {
+      "MaxTotalTokens": 500000
+    }
+  }
+}
+```
 
 **Configuration key names must sit under an allowed prefix.** MCP server definitions
 and webhook subscriptions join inbound triggers and provider bindings in this rule. A

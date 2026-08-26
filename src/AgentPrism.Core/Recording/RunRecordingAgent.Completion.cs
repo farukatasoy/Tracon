@@ -97,11 +97,14 @@ public sealed partial class RunRecordingAgent
             modelId: fallbackUsed?.Model,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        // The budget is a single object that is shared across the tree; both the root and
-        // the child runs feed the same counter. Otherwise the answer to the question "what
-        // did the tree spend?" would cover only the child calls.
-        scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0);
-
+        // 🚨 The budget is NOT recorded here (phase 114, was: `scope.Budget?.RecordUsage(...)`).
+        // RunBudgetChatClient records every real model call the moment it
+        // happens, from INSIDE the tool-call loop - including the calls that
+        // make up `usage` above AND the compaction side-channel merged into
+        // it, because both are built through the same
+        // IModelProviderRegistry.CreateChatClient(binding) pipeline that ring
+        // sits in. Recording the merged total here a second time would double
+        // every tree's spend.
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
         // 🚨 Quota accounting and event publication run ONLY on a root run. A child run is

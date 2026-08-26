@@ -272,6 +272,11 @@ public static partial class AgentPrismServiceCollectionExtensions
             options.MaxTotalTokens = maxTokens;
         }
 
+        if (ReadDecimal(section, nameof(AgentPrismAgentGraphOptions.MaxTotalCost)) is { } maxCost)
+        {
+            options.MaxTotalCost = maxCost;
+        }
+
         if (int.TryParse(
                 section[nameof(AgentPrismAgentGraphOptions.MaxTotalRuns)],
                 NumberStyles.Integer,

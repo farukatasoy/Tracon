@@ -35,7 +35,10 @@ public enum RunErrorClass
     /// <summary>The provider returned 429.</summary>
     RateLimited = 3,
 
-    /// <summary>An AgentPrism quota was exhausted.</summary>
+    /// <summary>
+    /// An AgentPrism quota was exhausted, or a run tree's token/cost budget ran
+    /// out mid-run (<see cref="AgentPrismRunBudgetExceededException"/>).
+    /// </summary>
     QuotaExceeded = 4,
 
     /// <summary>

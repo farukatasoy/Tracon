@@ -157,6 +157,17 @@ public sealed class AgentPrismAgentGraphOptions
     public long MaxTotalTokens { get; set; } = 200_000;
 
     /// <summary>
+    /// Gets or sets the largest amount a tree can spend. Zero or a negative
+    /// value removes the limit.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="MaxTotalTokens"/>, this has no default: pricing is not
+    /// always known (<see cref="PricingSource.Unknown"/>), so a cost cap must
+    /// be an explicit opt-in, not a value every installation is silently held to.
+    /// </remarks>
+    public decimal MaxTotalCost { get; set; }
+
+    /// <summary>
     /// Gets or sets the largest number of <em>child</em> runs a tree can start.
     /// The root run does not count. Zero or a negative value removes the limit.
     /// </summary>
@@ -169,6 +180,7 @@ public sealed class AgentPrismAgentGraphOptions
         {
             MaxDepth = Math.Max(MaxDepth, 0),
             MaxTotalTokens = MaxTotalTokens > 0 ? MaxTotalTokens : null,
+            MaxTotalCost = MaxTotalCost > 0 ? MaxTotalCost : null,
             MaxTotalRuns = MaxTotalRuns > 0 ? MaxTotalRuns : null,
         };
 }

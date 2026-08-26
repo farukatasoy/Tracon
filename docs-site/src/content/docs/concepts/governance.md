@@ -253,6 +253,13 @@ finishes. A run already in progress is never cut off mid-flight, so brief oversh
 possible by design.
 :::
 
+This is a *different* budget from the one every root run's call tree carries
+(`AgentGraph.MaxTotalTokens`/`MaxTotalCost`, see [Reliable
+runs](/guides/reliability/#bound-multi-agent-trees)): a quota is scoped to a tenant
+or agent over a day or month and never interrupts a run in progress; the call-tree
+budget is scoped to one run's tree and is checked between model turns, so it *does*
+cut a long tool loop off mid-run.
+
 ## Retention
 
 Recorded runs accumulate. A retention policy sets an age or row limit per target — run

@@ -1,6 +1,6 @@
-# 23 — Saklama, Arşiv ve Kota (`RET`)
+# 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114
 > **Kaynak:** `src/AgentPrism.Abstractions/Retention/` (tümü) ·
 > `src/AgentPrism.Core/Retention/` (tümü) ·
 > `src/AgentPrism.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -10,12 +10,20 @@
 > (`QuotaEnforcer`, `QuotaPeriodCalculator`, `InMemoryQuotaStore`) ·
 > `src/AgentPrism.AspNetCore/Endpoints/QuotaEndpoints.cs` ·
 > `src/AgentPrism.Core/Recording/RunRecordingAgent.cs`
-> (`RecordQuotaAsync`, kök-çalıştırma kapısı).
+> (`RecordQuotaAsync`, kök-çalıştırma kapısı) ·
+> `src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs` ·
+> `src/AgentPrism.Core/Models/RunBudgetChatClient.cs` (Faz 114).
 >
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
 > (`AgentPrismRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
 > `IWebhookPublisher`) **hiçbir manuel test dosyasına atanmamıştır** — bkz.
 > dosyanın sonundaki "Sınır" tablosu ve `00-INDEKS.md` §8'deki not.
+>
+> 🚨 **§5'in bütçesi (Faz 114) `§4`'ün kotasıyla KARIŞTIRILMAZ.** Kota
+> (`§4`) kiracı/agent × gün/ay ölçeğindedir ve devam eden çalıştırmayı asla
+> kesmez (MT-RET-032). Faz 114'ün ağaç bütçesi (`AgentGraph.MaxTotalTokens`/
+> `MaxTotalCost`) tek bir çalıştırma ağacına özeldir ve model turları
+> ARASINDA denetlenir — devam eden bir tool döngüsünü ortasında keser.
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -81,8 +89,9 @@ flowchart TD
 4. Arşiv case'leri (`§2`) için `AgentPrism:Retention:ArchivePath` **varsayılan
    olarak boştur** — bu bilinçlidir, MT-RET-012'nin ön koşuludur.
 
-> **Gerçek para uyarısı.** Yalnız §4 (kota) gerçek OpenAI çağrısı yapar (küçük
-> ölçekte). §1–§3 hiçbir model çağırmaz — saf veri düzlemi/SQL testleridir.
+> **Gerçek para uyarısı.** §4 (kota) ve §5 (çalıştırma-içi bütçe) gerçek
+> OpenAI çağrısı yapar (küçük ölçekte). §1–§3 hiçbir model çağırmaz — saf
+> veri düzlemi/SQL testleridir.
 
 ---
 
@@ -1231,3 +1240,262 @@ sahipsiz veri birikir.
   aynı trim'in event log'unu ve tool invocation log'unu da sildiğini kanıtlar
   (Faz 108'in `partial` ayrıştırmasından önce bu ikinci iddia için ayrı bir
   test yoktu).
+
+---
+
+# 5 — Çalıştırma-içi bütçe tavanı (Faz 114)
+
+`support` agent'ı sipariş sorularında **her zaman** bir tool çağırır
+(`get_order_status`) — bu, gerçek bir iki turlu tool döngüsü üretir: (1) model
+tool'u çağırır, (2) tool sonucu modele döner ve model yanıtı üretir.
+`AgentGraph.MaxTotalTokens` çok düşük ayarlanırsa birinci tur tavanı tek
+başına aşar; ikinci tur **gerçek sağlayıcıya hiç ulaşmadan** kesilir.
+
+**Ön koşul (tüm case'ler için ortak)**
+- Örnek uygulama, düşürülmüş bir tavanla başlatılır:
+  ```bash
+  export AgentPrism__AgentGraph__MaxTotalTokens=50
+  cd samples/AgentPrism.Api && dotnet run
+  ```
+
+### MT-RET-050 — Düşük token tavanı, uzun tool döngülü bir `run`'ı KESER
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | K-627 |
+
+**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı, `samples/AgentPrism.Api`):**
+başarısız bir `POST /api/agents/{name}/run`'ın gövdesi bir `run` kaydı
+DEĞİL, bir `ProblemDetails`'tir (`runId` alanı taşımaz) — bu yüzden
+`RUN_ID` POST yanıtından değil, `GET /api/runs`'tan okunur.
+
+**Adımlar**
+1. `support` agent'ına bir sipariş sorusu sor (tool çağrısını tetikler).
+2. `POST` `502` döner; `run` kaydını `GET /api/runs`'tan oku.
+
+**Girilecek veri**
+```bash
+export AgentPrism__AgentGraph__MaxTotalTokens=150   # örnek uygulamayı bu env ile başlat
+
+curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq '{status, detail}'
+
+RUN_ID=$(curl -s "$APU/api/runs" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class, errorType: .error.type, errorMessage: .error.message}'
+```
+
+**Beklenen sonuç (2026-08-26'da bu adımlarla ölçüldü)**
+- `POST` yanıtı `502` — `title: "Agent run failed"`.
+- `status: "Failed"`.
+- `errorType: "run_budget_exceeded"`.
+- `errorClass: "QuotaExceeded"` — **yeni bir hata sınıfı değil**, K-627'nin
+  emekliye ayırdığı `9` yeniden kullanılmaz; bu tavan kesmesi mevcut
+  `QuotaExceeded` (`4`) altında raporlanır.
+- `errorMessage` hangi tavanın (`token`) dolduğunu ve hangi ayarın
+  (`AgentPrism:AgentGraph:MaxTotalTokens`) yükseltileceğini adıyla yazar —
+  ölçülen tam metin: *"The run tree's token budget is exhausted (254/150).
+  Raise AgentPrism:AgentGraph:MaxTotalTokens to allow more. No further model
+  calls can be made in this run tree."*
+
+---
+
+### MT-RET-051 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | — |
+
+**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı).** Beklenen ilk varsayım
+"son olay tam bir `ToolInvoked`/`MessageCompleted` taşır" idi — ölçüm bunu
+DÜZELTTİ: Microsoft Agent Framework'ün `FunctionInvokingChatClient`'ı bir
+`exception` fırlattığında (bkz. MT-RET-050, ikinci model turu bütçe
+tarafından reddedilir) o ana kadarki KISMİ ilerlemeyi (turnu 1'in
+`FunctionCallContent`'i, tool'un GERÇEKTEN çalıştırılmış sonucu) hiç geri
+döndürmez — `RunRecordingAgent`'ın `catch` bloğu bu yüzden tool
+olaylarını hiç GÖRMEZ. Gerçek ölçülen olay akışı yalnız `RunStarted` →
+`RunFailed`'tir; ARADA hiçbir `ToolInvoking`/`ToolInvoked`/`MessageDelta`
+olayı YOKTUR. Bu, "yarım bir mesaj sızdırmama" iddiasını DAHA GÜÇLÜ
+şekilde sağlar: yarım bir mesaj değil, **hiçbir** ara ilerleme sızmaz.
+
+> 🚨 Sipariş `get_order_status` tool'u bu senaryoda GERÇEKTEN çağrılmıştır
+> (yerel fonksiyon çalıştırması bütçe halkasının DIŞINDadır — yalnız
+> modele giden İKİNCİ çağrı engellenir) ama sonucu hiçbir yere yazılmaz;
+> bu bir veri kaybı değildir çünkü tool zaten yan etkisiz bir okumadır.
+
+**Ön koşul**
+- MT-RET-050 çalıştırılmış, aynı `RUN_ID` elde tutuluyor.
+
+**Adımlar**
+1. Kesilen `run`'ın olay akışını oku (`events` ucu bir JSON dizisi DEĞİL,
+   SSE akışıdır).
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB"
+```
+
+**Beklenen sonuç (2026-08-26'da ölçüldü)**
+- Akış tam olarak iki olay taşır: `event: run.started` ardından
+  `event: run.failed`.
+- `run.failed`'in `data.text` alanı MT-RET-050'deki tam hata metnini taşır.
+- Aralarında **hiçbir** `run.tool_invoking`/`run.tool_invoked`/
+  `run.message_delta` olayı yoktur — ne yarım ne tam bir ara olay sızar.
+
+---
+
+### MT-RET-052 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama, tavan **olmadan** yeniden başlatılır:
+  ```bash
+  unset AgentPrism__AgentGraph__MaxTotalTokens
+  cd samples/AgentPrism.Api && dotnet run
+  ```
+
+**Adımlar**
+1. Aynı sipariş sorusunu sor.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq -r '.runId')
+
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '.status'
+```
+
+**Beklenen sonuç**
+- `"Completed"` — varsayılan `200000` tavanı bu kısa `run`'ı hiç
+  zorlamaz; MT-RET-050'nin kesmesi yalnız DÜŞÜRÜLMÜŞ tavanın sonucudur.
+- (Not: başarılı bir `POST` yanıtının gövdesi bir `run` kaydı değil,
+  `{runId, response}` biçimindedir — `status` doğrudan POST yanıtında
+  DEĞİL, `GET /api/runs/{id}`'de okunur; bkz. MT-RET-050'nin ölçüm notu.)
+
+---
+
+### MT-RET-053 — Maliyet tavanı tanımlıyken, fiyatı BİLİNMEYEN modelde tavan UYGULANMAZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | — |
+
+`115.5`'in kuralı: maliyet fiyatlandırma ister; fiyat bilinmiyorsa
+(`PricingSource.Unknown`) maliyet tavanı **zorlanamaz** ve token tavanına
+düşülür — `QuotaDefinition.MaxCost`'un zaten uyguladığı kuralın aynısı.
+
+**Ön koşul**
+- Örnek uygulamanın modeli fiyat kataloğunda/`AgentPrism:Pricing`
+  yapılandırmasında **tanımlı değil** (varsayılan kurulumda genelde böyledir
+  — `MT-RET-034`'ün önkoşuluyla aynı).
+- Örnek uygulama düşük bir MALİYET tavanıyla, YÜKSEK bir token tavanıyla
+  başlatılır:
+  ```bash
+  export AgentPrism__AgentGraph__MaxTotalCost=0.000001
+  export AgentPrism__AgentGraph__MaxTotalTokens=200000
+  cd samples/AgentPrism.Api && dotnet run
+  ```
+
+**Adımlar**
+1. `support` agent'ını çalıştır.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq -r '.runId')
+
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '.status'
+```
+
+**Beklenen sonuç**
+- `"Completed"` — maliyet tavanı fiyatsız model yüzünden hiç
+  uygulanmaz; token tavanı da (200000, yüksek) bu kısa `run`'ı kesmez.
+
+---
+
+### MT-RET-054 — Ağaçtaki TÜM dallar aynı bütçeyi görür (alt-agent çağrısı)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | — |
+
+`router` agent'ı `support`'u alt-agent olarak çağırır (bkz. `AgentCallGraphTests`
+ailesi). Bütçe kök ile alt çalıştırma arasında **aynı** `AgentRunBudget`
+nesnesidir (`ChildAgentInvoker.CreateChildOptions`); alt çalıştırmanın
+harcaması da toplam tavanı besler.
+
+**Ön koşul**
+- MT-RET-050'deki gibi düşük token tavanıyla başlatılmış örnek uygulama.
+
+**Adımlar**
+1. `router` agent'ını, `support`'u tetikleyecek bir sipariş sorusuyla çalıştır.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents/router/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Where is my order 42?"}' | jq '{status, detail}'
+
+RUN_ID=$(curl -s "$APU/api/runs" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class}'
+```
+
+**Beklenen sonuç**
+- `POST` yanıtı `502`.
+- Kök `run` `Failed` biter, `errorClass: "QuotaExceeded"` — kesme alt
+  çalıştırmanın (`support`) tool döngüsünde olsa bile kök bunu miras alır,
+  çünkü ikisi **aynı** bütçe nesnesini paylaşır.
+
+---
+
+### MT-RET-055 — `202 Accepted` ile arka planda koşan `run` da aynı şekilde kesilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 114 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-RET-050'deki gibi düşük token tavanıyla başlatılmış örnek uygulama.
+
+**Adımlar**
+1. `Prefer: respond-async` başlığıyla aynı sorguyu gönder (dayanıklı
+   çalıştırma, Faz 46).
+2. Kayıt tamamlanana kadar `run` kaydını poll et.
+
+**Girilecek veri**
+```bash
+RUN_ID=$(curl -s -X POST "$APU/api/agents/support/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -H "Prefer: respond-async" \
+  -d '{"message":"Where is my order 42?"}' | jq -r '.id // .runId')
+
+sleep 3
+curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.class}'
+```
+
+**Beklenen sonuç**
+- `status: "Failed"`, `errorClass: "QuotaExceeded"` — arka plan yolu
+  senkron yolla **aynı** kesme davranışını üretir; 👤 arayüzde hata görünür.

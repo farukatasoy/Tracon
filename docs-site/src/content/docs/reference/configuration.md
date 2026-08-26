@@ -91,13 +91,14 @@ script.
 | `MaxParameterValueLength` | `4096` bytes | Largest UTF-8 size for one `AgentParameter` value in a run request or eval case |
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
-| `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree |
+| `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |
+| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree; falls back to the token limit when a model's price is undefined |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 
-Non-positive graph token or run limits remove that limit. See
+Non-positive graph token, cost, or run limits remove that limit. See
 [`AgentPrismAgentGraphOptions`](/api/agentprism.agentprismagentgraphoptions/)
 for the exact runtime interpretation.
 

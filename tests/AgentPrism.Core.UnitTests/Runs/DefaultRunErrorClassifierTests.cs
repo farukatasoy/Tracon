@@ -30,6 +30,10 @@ public sealed class DefaultRunErrorClassifierTests
     // user cancellation at the exception-type level) nor into the run-level
     // Timeout class (that one means the WHOLE run exceeded its limit).
     [InlineData("tool_timeout", "Tool 'slow_tool' did not complete within 1s.", RunErrorClass.ToolTimeout)]
+    // Phase 114: mapped by STABLE IDENTITY, not the "quota" keyword pattern —
+    // the message below deliberately carries neither "quota" nor "kota" to
+    // prove the mapping does not depend on the regex.
+    [InlineData("run_budget_exceeded", "The run tree's token budget is exhausted (200000/200000). No further model calls can be made in this run tree.", RunErrorClass.QuotaExceeded)]
     public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });
