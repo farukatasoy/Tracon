@@ -190,7 +190,11 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 
 ## What does not enter your graph
 
-- No ORM, and no Entity Framework
+- No ORM, and no Entity Framework. Each SQL provider's `Options.DataSource` field
+  accepts a `DbDataSource` you built yourself — for example to share a connection
+  pool with your own EF Core `DbContext` — but the field's type is the framework's
+  own `System.Data.Common.DbDataSource`, not an ORM type; see
+  [Two connection planes: EF Core and AgentPrism](/guides/ef-core/)
 - No OpenAPI package — route metadata only, so your own `AddOpenApi()` produces the
   document
 - No JavaScript build. The console ships pre-built and Brotli-compressed inside the
