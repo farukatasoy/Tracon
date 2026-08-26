@@ -1639,3 +1639,30 @@ Negatif senaryo.
 **Ön koşulu geri al**
 - Case bitince `AgentPrism:Voice:ApiKey`'i TEKRAR ayarla, uygulamayı yeniden
   başlat — sonraki dosyaların koşumu bu anahtara ihtiyaç duyabilir.
+
+### MT-UIAG-052 — Dar ekranda (375px) agent editor ve playground yatay taşma yapmaz
+
+Sınır durumu. `09-ARAYUZ-GENEL.md`'deki `MT-UI-043` genel ekranları kapsar;
+Faz 109 bu iki ekranı çok sayıda alt modüle böldüğü için ikisi burada ayrıca
+ölçülür.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 5, 109 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Kabuk açık.
+
+**Adımlar**
+1. DevTools → Device toolbar → genişliği 375px yap.
+2. `agents/new` (kimlik, model, tool/skill/callable-agent, harness, context,
+   önizleme section'larının tamamını aşağı kaydırarak) gez.
+3. `playground/support`'u aç; bir mesaj gönder, bir dosya ekle.
+
+**Beklenen sonuç**
+- Sayfanın kendisi yatay kaymaz. Önizleme paneli (agent editor) ve ek
+  çipleri/parametre alanları (playground) dar genişlikte sarar, taşmaz.
+- Gönder/Onayla/Reddet düğmeleri hâlâ dokunulabilir boyuttadır.

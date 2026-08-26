@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyForm, withDefaultProvider } from './agent-editor';
+import { emptyForm, withDefaultProvider } from './model';
 
 describe('withDefaultProvider', () => {
   it('defaults to the first catalog provider when the form has none', () => {

@@ -77,6 +77,15 @@ public sealed class SourceLanguageTests
         // Carries the defect-id prefix, which is also a Turkish word.
         "tests/AgentPrism.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs",
         "src/AgentPrism.UI/frontend/src/locales/tr.ts",
+        // Phase 109 split the monolithic tr.ts into domain fragments — same
+        // K-228 status, still an aggregate-only file with no dictionary text
+        // of its own once split. Each fragment carries the exemption instead.
+        "src/AgentPrism.UI/frontend/src/locales/tr/common.ts",
+        "src/AgentPrism.UI/frontend/src/locales/tr/agents.ts",
+        "src/AgentPrism.UI/frontend/src/locales/tr/runs.ts",
+        "src/AgentPrism.UI/frontend/src/locales/tr/workflows.ts",
+        "src/AgentPrism.UI/frontend/src/locales/tr/operations.ts",
+        "src/AgentPrism.UI/frontend/src/locales/tr/settings.ts",
         // The embeddable widget's own small dictionary (Phase 61) is deliberately
         // separate from the console's locales/ — same K-228 status, split into
         // its own file (not embed/locale.ts, which also carries English) so this
