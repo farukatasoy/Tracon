@@ -133,6 +133,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [118](arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md) | Yargıç Başına Checkpoint | ✅ Tamamlandı |
 | [119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) | Hata Metni Sızıntısının Kapatılması | ✅ Tamamlandı |
 | [120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) | `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir | ✅ Tamamlandı |
-| [121](121-SEAM-SOZLESME-DOKUMANI.md) | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ Tamamlandı |
+| [121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
