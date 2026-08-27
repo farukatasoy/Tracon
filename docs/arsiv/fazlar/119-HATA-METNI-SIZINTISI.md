@@ -1,7 +1,7 @@
 # Faz 119 — Hata Metni Sızıntısının Kapatılması
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) §16 — BL-027 · BL-037 (yayın denetimi bulgusu, aday listesinden değil)
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §16 — BL-027 · BL-037 (yayın denetimi bulgusu, aday listesinden değil)
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Mcp`
 > **Yeni paket:** Yok · **Migration:** **Yok** — korelasyon kimliği mevcut metin alanına gömülür (bkz. 119.3)
@@ -24,17 +24,17 @@
    **K-059** (`secret` veritabanına da yazılmaz — bu fazın gerekçesinin kökü),
    **K-639** (aynı yayın denetiminin ilk kapatılan kusuru; sessiz güvenlik
    düşüşünün nasıl ele alındığına dair taze emsal)
-3. [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) — yalnız §16:
+3. [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) — yalnız §16:
    ```bash
    awk '/## 16. Sınıf taraması/,0' docs/YAYIN-HAZIRLIK.md
    ```
    21 vakanın tamamı, `dosya:satır` ile orada. Bu fazın iş listesi odur.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`RunRecording`
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`RunRecording`
    zinciri, olay yazımı) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (SSE ve hata gövdesi)
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (SSE ve hata gövdesi)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — denetim izi ve `secret` bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — denetim izi ve `secret` bölümü
 
 ---
 
@@ -57,17 +57,17 @@ kapatılmış, ama yalnız o tek yolda kapatılmıştır.
 ### Bugün ne çalışmıyor — doğrulanmış kanıt
 
 Aşağıdaki satırlar **2026-08-27'de bu oturumda tek tek okunarak** doğrulandı;
-tamamı ve kalan 15 vaka [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §16'dadır.
+tamamı ve kalan 15 vaka [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §16'dadır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`Scheduling/JobWorkerBackgroundService.cs:269`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `ErrorMessage = exception.Message` → `jobs.error_message`. **Her** job türünün (AgentRun · Eval · Webhook · Workflow) tek hunisi |
-| [`Scheduling/JobWorkerBackgroundService.cs:280`](../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `ReleaseForRetryAsync(job.Id, exception.Message, …)` — aynı metin retry yolunda da yazılıyor |
-| [`Recording/RunRecordingAgent.Notifications.cs:138`](../src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs) | `Error = error?.Message` → webhook payload'ı → **kiracının tanımladığı dış URL'ye POST edilir.** Ham provider metninin kutudan çıktığı tek yol |
-| [`Webhooks/WebhookDeliveryJobHandler.cs:327`](../src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs) | `$"HTTP {statusCode}: {body}"` — **uzak hedefin ham gövdesi** kalıcılaşıyor; tamamen üçüncü taraf kontrolünde |
-| [`Webhooks/WebhookDeliveryJobHandler.cs:335`](../src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs) | `HttpRequestException.Message` — `host:port` taşır |
-| [`Endpoints/GovernanceEndpoints.cs:84`](../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | `DescribeOAuthFailure` → `result.Error` aynen HTML sayfasına. Uç **bearer token'dan muaf** (satır 40'ın XML dokümanı bunu açıkça söylüyor; loopback+policy ile sınırlı) |
-| [`McpOAuthAuthorizationCoordinator.cs:253`](../src/AgentPrism.Mcp/McpOAuthAuthorizationCoordinator.cs) | O `Error`'ın kaynağı: `TrySetResult((false, ex.Message))` — OAuth token-exchange bacağının ham exception'ı |
+| [`Scheduling/JobWorkerBackgroundService.cs:269`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `ErrorMessage = exception.Message` → `jobs.error_message`. **Her** job türünün (AgentRun · Eval · Webhook · Workflow) tek hunisi |
+| [`Scheduling/JobWorkerBackgroundService.cs:280`](../../../src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs) | `ReleaseForRetryAsync(job.Id, exception.Message, …)` — aynı metin retry yolunda da yazılıyor |
+| [`Recording/RunRecordingAgent.Notifications.cs:138`](../../../src/AgentPrism.Core/Recording/RunRecordingAgent.Notifications.cs) | `Error = error?.Message` → webhook payload'ı → **kiracının tanımladığı dış URL'ye POST edilir.** Ham provider metninin kutudan çıktığı tek yol |
+| [`Webhooks/WebhookDeliveryJobHandler.cs:327`](../../../src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs) | `$"HTTP {statusCode}: {body}"` — **uzak hedefin ham gövdesi** kalıcılaşıyor; tamamen üçüncü taraf kontrolünde |
+| [`Webhooks/WebhookDeliveryJobHandler.cs:335`](../../../src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs) | `HttpRequestException.Message` — `host:port` taşır |
+| [`Endpoints/GovernanceEndpoints.cs:84`](../../../src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs) | `DescribeOAuthFailure` → `result.Error` aynen HTML sayfasına. Uç **bearer token'dan muaf** (satır 40'ın XML dokümanı bunu açıkça söylüyor; loopback+policy ile sınırlı) |
+| [`McpOAuthAuthorizationCoordinator.cs:253`](../../../src/AgentPrism.Mcp/McpOAuthAuthorizationCoordinator.cs) | O `Error`'ın kaynağı: `TrySetResult((false, ex.Message))` — OAuth token-exchange bacağının ham exception'ı |
 
 **Kapsamın kanıtı:** `ContentGuardPipeline`'ın `src/` içinde yalnız iki çağrı
 yeri var — `ContentGuardingChatClient` ve `HATA-S3-006` düzeltmesi
@@ -85,8 +85,8 @@ yerde zaten taşıyor ve ikisi de bu fazın temelidir:
 
 | Var olan | Kuralı |
 |---|---|
-| [`ToolFailureText.cs:6-11`](../src/AgentPrism.Core/Tools/ToolFailureText.cs) | `AgentPrismException` → mesaj korunur (bizim, kontrollü); yabancı exception → `$"Tool failed with {Type.Name}."` |
-| [`ProviderFailureNormalizer.cs`](../src/AgentPrism.Core/Models/ProviderFailureNormalizer.cs) | Model çağrısı sınırında yabancı hatayı sabit `UpstreamMessage`'a indirger, tam detayı `Log(...)`'a verir |
+| [`ToolFailureText.cs:6-11`](../../../src/AgentPrism.Core/Tools/ToolFailureText.cs) | `AgentPrismException` → mesaj korunur (bizim, kontrollü); yabancı exception → `$"Tool failed with {Type.Name}."` |
+| [`ProviderFailureNormalizer.cs`](../../../src/AgentPrism.Core/Models/ProviderFailureNormalizer.cs) | Model çağrısı sınırında yabancı hatayı sabit `UpstreamMessage`'a indirger, tam detayı `Log(...)`'a verir |
 
 **Neden `ContentGuardPipeline` DEĞİL:** content guard'lar **opt-in** ve
 varsayılan kayıtlı guard sayısı **sıfırdır**
@@ -148,8 +148,8 @@ Tool failed with HttpRequestException. (ref: 7f3a9c21)
 
 Yazı tek başına yetmez; bu sınıf zaten bir kez yazıyla kapatılıp tekrarladı.
 Repo'da üç emsali olan **cırcır (ratchet) kapısı** deseni uygulanır:
-[`AmbientWriteSiteTests`](../tests/AgentPrism.Core.UnitTests/Architecture/AmbientWriteSiteTests.cs) ·
-[`PlaywrightLocatorTests`](../tests/AgentPrism.Core.UnitTests/Architecture/PlaywrightLocatorTests.cs) ·
+[`AmbientWriteSiteTests`](../../../tests/AgentPrism.Core.UnitTests/Architecture/AmbientWriteSiteTests.cs) ·
+[`PlaywrightLocatorTests`](../../../tests/AgentPrism.Core.UnitTests/Architecture/PlaywrightLocatorTests.cs) ·
 `SourceLanguageTests`.
 
 Kapı `src/` içinde ham exception metninin kalıcı/dışa açık bir sink'e aktığı
@@ -245,7 +245,7 @@ tests/AgentPrism.Core.UnitTests/Architecture/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -302,7 +302,7 @@ yazımı düşerse redaksiyon yine de uygulanır — güvenlik log'a bağlanmaz)
 ## Bitiş Ölçütleri (DoD)
 
 - [x] §16'daki **21 vakanın tamamı** kapatıldı; her biri için `dosya:satır` ile kapanış kaydı yazıldı — ayrıca uygulama sırasında **5 ek vaka** bulunup kapatıldı (toplam 26): `EgressAddressValidator.cs:290`, `ConversationBranchService.cs:146`, `RetentionJobHandler.cs:35`, `RetentionExecutor.cs:202`, `ModelRunJudge.cs:255`
-- [x] Yargı gerektiren 5 kalem (§16 sonu) ölçüldü; her biri "düzeltildi" veya "gerekçeyle kapsam dışı" olarak kaydedildi — bkz. [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §16 sonu, sonuç tablosu
+- [x] Yargı gerektiren 5 kalem (§16 sonu) ölçüldü; her biri "düzeltildi" veya "gerekçeyle kapsam dışı" olarak kaydedildi — bkz. [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §16 sonu, sonuç tablosu
 - [x] `RawExceptionTextSiteTests` cırcır kapısı yeşil; taban çizgisi dosyası repo'da (`tests/AgentPrism.Core.UnitTests/Architecture/raw-exception-text-baseline.txt`, tek gerekçeli girdi: `OpenAIResponsesEndpoints.cs:HandleAsync`); gerçek bir sızıntı eklenip kapının kırdığı elle doğrulandı (MT-OBS-058)
 - [x] Fırlatan sahte handler/exception ile: `jobs.error_message` ham metin taşımıyor, log tam detayı **aynı korelasyon kimliğiyle** taşıyor — `JobWorkerBackgroundServiceTests.A_throwing_handlers_own_message_never_reaches_jobs_error_message` (gerçek `InMemoryJobStore` + gerçek arka plan döngüsü + gerçek `ILoggerProvider` yakalayıcı, aynı `(ref: ...)` hem `jobs.error_message`'ta hem log kaydında bulundu)
 - [x] Webhook payload'ı dış uçta yakalandı; ham provider metni içermediği doğrulandı — `WebhookDeliveryRedactionTests` (gövde + `HttpRequestException` iki ayrı vaka, gerçek `WebhookHttpClient`/`HttpMessageHandler` boru hattı)
@@ -313,7 +313,7 @@ yazımı düşerse redaksiyon yine de uygulanır — güvenlik log'a bağlanmaz)
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi; otomatikleştirilebilenler koşuldu — `12-GOZLEMLENEBILIRLIK-MALIYET.md`'ye MT-OBS-054..058 eklendi; MT-OBS-058 gerçekten koşuldu (2026-08-27), 054-057 gerçek sağlayıcı anahtarı/webhook hedefi gerektirdiği için 👤 koşulmadı
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. Denetim Bulguları
 - [x] `docs-site/` hata sözleşmesi bölümü güncellendi; `npm run check` (content+build+links+weight) temiz — `concepts/runs.md` yeni "§ error message is safe to display" bölümü, `http-api.md` ve `concepts/workflows.md`'den ona çapraz referans
-- [x] [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §4 ve §16 güncellendi (BL-027/BL-037 kapandı, K-640 eklendi)
+- [x] [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §4 ve §16 güncellendi (BL-027/BL-037 kapandı, K-640 eklendi)
 
 ### Doğrulama komutları
 
@@ -537,7 +537,7 @@ yok, 4 🟡, 0 🟢. Tam çözüm derlendi, `RawExceptionTextSiteTests` yeşildi
 
 ## Sonraki Faza Devir Notu
 
-**Faz 120 ([`120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md))
+**Faz 120 ([`120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](../../120-JOB-SOZLESMESI-AT-LEAST-ONCE.md))
 bu fazdan sonra gelir ve AYNI dosyalara dokunur** — `IJobHandler.cs`,
 `AgentBatchJobHandler.cs`, `WorkflowJobHandler.cs`, `EvalJobHandler.cs`. Faz
 120'ye başlarken:
