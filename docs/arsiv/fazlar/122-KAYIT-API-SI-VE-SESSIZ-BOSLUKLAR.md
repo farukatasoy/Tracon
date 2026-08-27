@@ -1,13 +1,13 @@
 # Faz 122 — Kayıt API'si ve Sessiz Boşluklar
 
 > **Durum:** ✅ Tamamlandı (2026-08-28)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) §13 — **kulvar 2** (BL-008 · BL-019 · BL-034 · BL-050 · 🟢 BL-016) + **kulvar 6** (BL-018 · BL-033 · BL-039 · BL-051)
-> **Önkoşul:** [Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md) — seam sözleşme standardını ve metin kapısı desenini kurdu; bu faz aynı kapıyı bir boyut daha ile genişletir
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §13 — **kulvar 2** (BL-008 · BL-019 · BL-034 · BL-050 · 🟢 BL-016) + **kulvar 6** (BL-018 · BL-033 · BL-039 · BL-051)
+> **Önkoşul:** [Faz 121](121-SEAM-SOZLESME-DOKUMANI.md) — seam sözleşme standardını ve metin kapısı desenini kurdu; bu faz aynı kapıyı bir boyut daha ile genişletir
 > **Paketler:** `AgentPrism.Core` (birincil), `AgentPrism.Workflows`, `AgentPrism.Abstractions` (yalnız XML)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Büyüdü** — 5 yeni kayıt overload'ı (`AddAgentDecorator` üçlüsü, `AddContentGuard` instance/factory, `AddModelProvider<T>()`). Ölçüldü: `PublicAPI.Shipped.txt` **0 satır** (17 dosya), yani bugün eklemek ucuz, GA'dan sonra kırıcı
 > **Tüketici yüzeyi:** `docs-site/src/content/docs/guides/write-your-own-agent-decorator.md` (yeni — plan `extend/` diyordu, gerçek konvansiyon `guides/write-your-own-*` idi, bkz. Plandan Sapmalar) · `api/*` **üretildi** · sevk edilen: `IAgentPrismBuilder`'ın XML `<example>`'ı **düzeltildi**
-> **Manuel test alanı:** [`docs/manuel-test/`](manuel-test/00-INDEKS.md) — başlangıç uyarısı case'leri (MT-DIAG-055..057) gerçek `samples/AgentPrism.Api`'ye karşı koşuldu
+> **Manuel test alanı:** [`docs/manuel-test/`](../../manuel-test/00-INDEKS.md) — başlangıç uyarısı case'leri (MT-DIAG-055..057) gerçek `samples/AgentPrism.Api`'ye karşı koşuldu
 
 ---
 
@@ -25,7 +25,7 @@
    tuzağı), **K-643** (Faz 121'in iki mekanizmalı kapısı — bu faz onu genişletir),
    **K-320** (planın YAPISAL iddiasını kabul etme, grep'le ölç),
    **K-218** (tool'un gördüğü servis sağlayıcı boştur — kayıt zamanı bağımlılık)
-3. [`arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md`](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md)
+3. [`arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md`](121-SEAM-SOZLESME-DOKUMANI.md)
    — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md
@@ -33,13 +33,13 @@
    `seam-contract-baseline.txt` 174 satır bilinen borç taşıyor; bu faz o dosyaya
    **dokunmaz** ama aynı kapı sınıfını kullanır.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (kayıt sırası ve
-   `TryAdd` semantiği) · [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md)
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (kayıt sırası ve
+   `TryAdd` semantiği) · [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md)
    (**metin kapısı tuzağı zorunlu**) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (yalnız `CompositeAgentCatalog`/decorator yoluna dokunurken)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md) — decorator seam'i
+   [`MAF-GENISLEME-NOKTALARI.md`](../../MAF-GENISLEME-NOKTALARI.md) — decorator seam'i
 
 ---
 
@@ -65,13 +65,13 @@ geçer ve yalnız üretimde fark edilir.
 | `TryAddEnumerable` taraması | Tüketiciye dönük **çoklu** seam yalnız 5: `IJobHandler`, `IContentGuard`, `IAgentSource`, `IAgentDecorator`, `IRunJudge`. Dördünde kayıt API'si var, **`IAgentDecorator`'da yok** |
 | `grep -E "^\s*services\.Add(Singleton\|Scoped\|Transient)<\s*I[A-Z]"` (TryAdd hariç) | **0 eşleşme** — AgentPrism'in her servisi `TryAdd*` ile kayıtlı, yani "önce kaydet kazanır" sözleşmesi 60 tekil seam'in **hepsinde** tutuyor |
 | Çalışma anı probu (`IAuditActorResolver`, 2026-08-28) | `AddAgentPrism()` **sonra** `AddSingleton` → `GetService` tüketiciyi verir ama `GetServices` **2 kayıt** döner. `AddSingleton` **önce** → 1 kayıt. Çoklu seam'lerde bu fark davranıştır, tekil seam'lerde artıktır |
-| [`IAgentPrismBuilder.cs:19-28`](../src/AgentPrism.Core/IAgentPrismBuilder.cs) | 🚨 Cümle *"a registration made **before** `AddAgentPrism()` wins"* diyor; hemen altındaki `<example>` **sonra** kaydediyor. Doküman kendi kuralıyla çelişiyor — K-642'nin sınıfı, en çok okunan extension yüzeyinde |
+| [`IAgentPrismBuilder.cs:19-28`](../../../src/AgentPrism.Core/IAgentPrismBuilder.cs) | 🚨 Cümle *"a registration made **before** `AddAgentPrism()` wins"* diyor; hemen altındaki `<example>` **sonra** kaydediyor. Doküman kendi kuralıyla çelişiyor — K-642'nin sınıfı, en çok okunan extension yüzeyinde |
 | `grep -rn "services.Replace\|ServiceDescriptor" docs-site/src/content/docs` | **0 eşleşme** — override deseni sevk edilen dokümanda hiç anlatılmıyor |
-| [`WorkflowCatalog.cs:43-45`](../src/AgentPrism.Workflows/Internal/WorkflowCatalog.cs) | `codeWorkflows.ToDictionary(r => r.Name, StringComparer.Ordinal)` — aynı adlı iki kod-tanımlı workflow ham `System.ArgumentException` fırlatır. Kardeşi [`WorkflowFunctionRegistry.cs:48`](../src/AgentPrism.Workflows/Internal/WorkflowFunctionRegistry.cs) aynı durumda temiz `AgentPrismException` fırlatıyor |
-| [`CompositeAgentCatalog.cs`](../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) — `decorator.Decorate(...)` | `try/catch` yok; iki satır üstteki `source` çağrısı `HandleSourceFailure` ile sarılı. **Ölçüldü (2026-08-27): HTTP sızıntısı YOK** — AgentPrism global handler kaydetmiyor (`grep` yalnız `JsonBindingProblemMiddleware.cs:16` yorumunu buluyor), Production'da ASP.NET Core varsayılanı gövdesiz `500` döner. Kalan kusur **tutarlılık**: üçüncü taraf decorator hatası sınıflandırılmış hata yerine çıplak `500` verir |
-| [`...Registration.Operations.cs:96-99`](../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.Registration.Operations.cs) | Kod yorumu fail-open'ı açıkça yazıyor ("when no `IContentGuard` is registered they are never read at all"). Başlangıç uyarısı **yok** |
+| [`WorkflowCatalog.cs:43-45`](../../../src/AgentPrism.Workflows/Internal/WorkflowCatalog.cs) | `codeWorkflows.ToDictionary(r => r.Name, StringComparer.Ordinal)` — aynı adlı iki kod-tanımlı workflow ham `System.ArgumentException` fırlatır. Kardeşi [`WorkflowFunctionRegistry.cs:48`](../../../src/AgentPrism.Workflows/Internal/WorkflowFunctionRegistry.cs) aynı durumda temiz `AgentPrismException` fırlatıyor |
+| [`CompositeAgentCatalog.cs`](../../../src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs) — `decorator.Decorate(...)` | `try/catch` yok; iki satır üstteki `source` çağrısı `HandleSourceFailure` ile sarılı. **Ölçüldü (2026-08-27): HTTP sızıntısı YOK** — AgentPrism global handler kaydetmiyor (`grep` yalnız `JsonBindingProblemMiddleware.cs:16` yorumunu buluyor), Production'da ASP.NET Core varsayılanı gövdesiz `500` döner. Kalan kusur **tutarlılık**: üçüncü taraf decorator hatası sınıflandırılmış hata yerine çıplak `500` verir |
+| [`...Registration.Operations.cs:96-99`](../../../src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.Registration.Operations.cs) | Kod yorumu fail-open'ı açıkça yazıyor ("when no `IContentGuard` is registered they are never read at all"). Başlangıç uyarısı **yok** |
 | `src/AgentPrism.Core/Retention/` | Başlangıç uyarısı servisi **yok** (yalnız `RetentionExecutor`'da çalışma anı `LogWarning`). "Politika yok = sonsuza kadar sakla" kasıtlı varsayılan, ama sessiz |
-| [`NonPersistentStorageWarningService.cs`](../src/AgentPrism.Core/Storage/NonPersistentStorageWarningService.cs) | **Emsal mevcut:** yalnız Production'da uyarır · asla fırlatmaz · yalnız container kayıtlarına bakar, veritabanı açmaz · `IHostEnvironment` yoksa susar |
+| [`NonPersistentStorageWarningService.cs`](../../../src/AgentPrism.Core/Storage/NonPersistentStorageWarningService.cs) | **Emsal mevcut:** yalnız Production'da uyarır · asla fırlatmaz · yalnız container kayıtlarına bakar, veritabanı açmaz · `IHostEnvironment` yoksa susar |
 
 > Kanıtlar 2026-08-28 tarihinde doğrulandı.
 >
@@ -272,7 +272,7 @@ uygulanmaz; **boş/aşırı girdi** → `null` decorator/guard için
 
 - [x] `AddAgentDecorator` üçlüsü var; üç decorator kaydedildiğinde **üçü de** zincirde ve `Order` sırasına uyuyor (fonksiyonel testle ölçüldü — `AgentDecoratorRegistrationTests.Three_registered_decorators_all_run_in_order_order`)
 - [x] `AddContentGuard` instance/factory ve `AddModelProvider<T>()` var; hepsi `TryAddEnumerable`/`TryAdd*` kullanıyor
-- [x] [`IAgentPrismBuilder.cs`](../src/AgentPrism.Core/IAgentPrismBuilder.cs)'ın `<example>`'ı **önce** kaydeden hâle geldi; iki sıranın farkı XML'de yazılı
+- [x] [`IAgentPrismBuilder.cs`](../../../src/AgentPrism.Core/IAgentPrismBuilder.cs)'ın `<example>`'ı **önce** kaydeden hâle geldi; iki sıranın farkı XML'de yazılı
 - [x] Metin kapısına yeni satır eklendi ve **kasıtlı bozmayla kırmızı verdiği ölçüldü**; çıktı belgeye yazıldı (K-642 tuzağı) — `OrderingContractDocumentationTests`
 - [x] Override sözleşmesi bölümü var; tekil/çoklu seam farkı tablo olarak anlatılıyor — `docs-site/guides/write-your-own-agent-decorator.md` (plan `extend/` diyordu, bkz. Plandan Sapmalar)
 - [x] Production'da `IContentGuard` kayıtsızken **bir kez** uyarı; Development'ta ve ortam yokken **sessiz** — üçü de testle ölçüldü (`SilentGapWarningTests` x2 + `SilentGapWarningRegistrationTests`) + gerçek `samples/AgentPrism.Api`'de doğrulandı (MT-DIAG-055/056)
