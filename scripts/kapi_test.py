@@ -75,7 +75,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("dotnet build AgentPrism.slnx -c Release", rendered)
         self.assertIn("dotnet test AgentPrism.slnx -c Release --no-build -maxcpucount:1", rendered)
         self.assertIn("dotnet pack AgentPrism.slnx -c Release --no-build", rendered)
-        self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes --no-restore", rendered)
+        self.assertIn("dotnet format AgentPrism.slnx --verify-no-changes", rendered)
 
     def test_kapanis_performans_adimini_kosullu_ekler(self):
         with_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=True)]

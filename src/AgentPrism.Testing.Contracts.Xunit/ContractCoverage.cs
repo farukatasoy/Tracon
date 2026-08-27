@@ -42,6 +42,9 @@ public static class ContractCoverage
     /// <summary>The namespace holding custom tool contracts.</summary>
     public const string ToolContracts = "AgentPrism.Testing.Contracts.Tools";
 
+    /// <summary>The namespace holding job handler contracts.</summary>
+    public const string SchedulingContracts = "AgentPrism.Testing.Contracts.Scheduling";
+
     /// <summary>
     /// The contract classes this package ships for one family: every
     /// non-generic <see langword="public abstract"/> type in

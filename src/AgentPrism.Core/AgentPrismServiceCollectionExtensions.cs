@@ -78,7 +78,11 @@ public static partial class AgentPrismServiceCollectionExtensions
     /// <remarks>
     /// Evaluation registers its own handler with this method.
     /// <c>TryAddEnumerable</c> is used: if the same type is added twice, only
-    /// the first counts.
+    /// the first counts. The worker dispatches by <see cref="IJobHandler.Kind"/>
+    /// using the first registered handler for that value, so a handler added
+    /// after <c>AddAgentPrism()</c> for a <see cref="JobKind"/> that already
+    /// has a built-in handler (every value does today) is registered but
+    /// never runs; register it before <c>AddAgentPrism()</c> instead.
     /// <example>
     /// <code>
     /// builder.Services.AddJobHandler&lt;NightlyReportJobHandler&gt;();

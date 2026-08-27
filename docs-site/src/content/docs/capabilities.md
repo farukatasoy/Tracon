@@ -132,7 +132,7 @@ and a store failure never gets permission to stop the run itself.
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again |
 | Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
 | Job queue | Registered by `AddAgentPrism()` | Leases, retries, items, status, cancellation, and handler dispatch |
-| Custom jobs | `IServiceCollection.AddJobHandler<THandler>()` | Your handler receives a durable job kind without changing the core queue |
+| Custom jobs | `IServiceCollection.AddJobHandler<THandler>()` | Your handler receives a durable job kind without changing the core queue; execution is at-least-once, see [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` | A typed function runs as a graph node without an agent of its own |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
