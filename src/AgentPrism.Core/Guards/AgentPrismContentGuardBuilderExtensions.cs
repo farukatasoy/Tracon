@@ -99,4 +99,44 @@ public static class AgentPrismContentGuardBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>Registers a configured <see cref="IContentGuard"/> instance.</summary>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="guard">The guard instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// Multiple guards can be registered; all of them run in sequence and
+    /// the strictest decision wins. The caller owns the instance and any
+    /// resources it holds.
+    /// </remarks>
+    public static IAgentPrismBuilder AddContentGuard(this IAgentPrismBuilder builder, IContentGuard guard)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(guard);
+
+        builder.Services.AddSingleton(guard);
+
+        return builder;
+    }
+
+    /// <summary>Registers an <see cref="IContentGuard"/> factory.</summary>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="factory">The factory that creates the guard.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// The container owns the produced singleton. The factory must not capture
+    /// a scoped dependency because the result outlives that scope.
+    /// </remarks>
+    public static IAgentPrismBuilder AddContentGuard(
+        this IAgentPrismBuilder builder, Func<IServiceProvider, IContentGuard> factory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        builder.Services.AddSingleton(factory);
+
+        return builder;
+    }
 }

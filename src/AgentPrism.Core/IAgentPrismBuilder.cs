@@ -17,14 +17,30 @@ public interface IAgentPrismBuilder
 {
     /// <summary>The underlying service collection.</summary>
     /// <remarks>
-    /// The escape hatch: anything AgentPrism does not model is registered here,
-    /// and a registration made before <c>AddAgentPrism()</c> wins over
-    /// AgentPrism's own, because every AgentPrism service is registered with
-    /// <c>TryAdd</c>.
+    /// <para>
+    /// The escape hatch: anything AgentPrism does not model is registered here.
+    /// Every AgentPrism service is registered with <c>TryAdd</c>, so registration
+    /// ORDER decides who wins, and the two seam shapes behave differently.
+    /// </para>
+    /// <para>
+    /// For a single-instance seam (for example <see cref="ITenantContext"/>): a
+    /// registration made before <c>AddAgentPrism()</c> wins outright, and only
+    /// one registration remains. A registration made after <c>AddAgentPrism()</c>
+    /// also wins for a direct resolve, but AgentPrism's own registration is not
+    /// removed - it stays behind as a second, unused entry.
+    /// </para>
+    /// <para>
+    /// For a multi-registration seam (for example <see cref="IAgentDecorator"/>):
+    /// a registration made before <c>AddAgentPrism()</c> joins the list alongside
+    /// the built-in ones. A registration made after <c>AddAgentPrism()</c> also
+    /// joins the list - the built-in implementation keeps running too, which is a
+    /// real behavior difference from the single-instance case above.
+    /// </para>
     /// <example>
     /// <code>
-    /// builder.AddAgentPrism()
-    ///        .Services.AddSingleton&lt;IOrderGateway, OrderGateway&gt;();
+    /// // Runs before AddAgentPrism(), so this registration wins outright.
+    /// builder.Services.AddSingleton(new OrderGateway());
+    /// builder.AddAgentPrism();
     /// </code>
     /// </example>
     /// </remarks>
@@ -218,6 +234,34 @@ public interface IAgentPrismBuilder
     /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddAgentSource(Func<IServiceProvider, IAgentSource> factory);
 
+    /// <summary>Registers a custom agent decorator as a singleton.</summary>
+    /// <typeparam name="TDecorator">The decorator implementation type.</typeparam>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Calling this method more than once for the same decorator type has no
+    /// effect. The decorator joins the pipeline alongside AgentPrism's own
+    /// (run recording, telemetry, tool approval); see
+    /// <see cref="IAgentDecorator.Order"/> for where it lands. It must be
+    /// thread-safe because the catalog can decorate agents concurrently.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddAgentDecorator&lt;AuditingAgentDecorator&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    IAgentPrismBuilder AddAgentDecorator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDecorator>() where TDecorator : class, IAgentDecorator;
+
+    /// <summary>Registers a configured custom agent decorator as a singleton.</summary>
+    /// <param name="decorator">The decorator instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    IAgentPrismBuilder AddAgentDecorator(IAgentDecorator decorator);
+
+    /// <summary>Registers a custom agent-decorator factory as a singleton.</summary>
+    /// <param name="factory">The factory that creates the decorator.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    IAgentPrismBuilder AddAgentDecorator(Func<IServiceProvider, IAgentDecorator> factory);
+
     /// <summary>Registers a custom run judge as a singleton.</summary>
     /// <typeparam name="TJudge">The judge implementation type.</typeparam>
     /// <returns>The chain, for further configuration.</returns>
@@ -254,6 +298,23 @@ public interface IAgentPrismBuilder
     /// factories and configured results are preserved.
     /// </remarks>
     IAgentPrismBuilder AddRunJudge(Func<IServiceProvider, IRunJudge> factory);
+
+    /// <summary>Registers a custom model provider as a singleton.</summary>
+    /// <typeparam name="TProvider">The provider implementation type.</typeparam>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// Calling this method more than once for the same provider type has no
+    /// effect. Prefer this overload when the provider has no state to
+    /// configure by hand; use <see cref="AddModelProvider(IModelProvider)"/>
+    /// or the factory overload when it does.
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .AddModelProvider&lt;OnPremiseModelProvider&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    IAgentPrismBuilder AddModelProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>() where TProvider : class, IModelProvider;
 
     /// <summary>Registers a model provider.</summary>
     /// <param name="provider">The provider.</param>

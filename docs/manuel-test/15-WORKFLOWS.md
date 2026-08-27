@@ -2227,3 +2227,35 @@ korunduğunu tamamlar.
 - Koşu `Failed` biter; `error.message` fonksiyonun gerçek istisna metnini
   taşır (metin eşleştirmesi değil, tipli sağlayıcı hatası sınıflandırması —
   Faz 44).
+
+---
+
+### MT-WF-119 — Aynı adda iki kod-tanımlı workflow: `AgentPrismException`, ham `ArgumentException` DEĞİL (BL-039, Faz 122)
+
+**Gerçekten koşuldu ve doğrulandı** —
+`WorkflowCatalogTests.Duplicate_code_workflow_names_throw_an_AgentPrismException`
+iki `CodeWorkflowRegistration`'ı aynı adla kaydedip `WorkflowCatalog`'un
+kurucusunun `AgentPrismException` (mesajda çakışan ad adı geçen) fırlattığını
+ölçer — eskiden `Dictionary.ToDictionary` ham `System.ArgumentException`
+fırlatıyordu, kardeşi `WorkflowFunctionRegistry`'nin zaten kullandığı desenle
+hizalandı.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 122 |
+| **İlgili karar** | — |
+
+**Adımlar (elle koşum için)**
+1. `AddWorkflow<T>()` veya eşdeğer bir kod-tanımlı workflow kaydını AYNI ada
+   sahip **iki** kez çağır (örnek uygulamaya geçici bir ikinci `.AddWorkflow(...)`
+   satırı ekleyerek).
+2. Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Uygulama `AgentPrismException` ile başlangıçta düşer; mesaj çakışan workflow
+  adını **iki kez de değil, en az bir kez** adlandırır ve "Workflow names must
+  be unique." cümlesini taşır.
+- Ham `System.ArgumentException` (`"An item with the same key has already
+  been added"` metni) **hiçbir zaman** görünmez.

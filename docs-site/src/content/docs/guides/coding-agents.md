@@ -1,6 +1,6 @@
 ---
 title: Coding agents
-description: Teach the coding agent working in your repository what AgentPrism already does, through a generated capability map, a local reference file, and build-time diagnostics.
+description: Teach a coding agent what AgentPrism already does, via the capability map, a local reference file, and build-time diagnostics.
 slug: guides/coding-agents
 ---
 

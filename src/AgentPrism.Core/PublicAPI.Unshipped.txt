@@ -92,6 +92,9 @@ const AgentPrism.AgentPrismDiagnostics.Tags.AgentSourceOperation = "agentprism.a
 AgentPrism.IAgentPrismBuilder.AddAgentSource(AgentPrism.IAgentSource! source) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgentSource(System.Func<System.IServiceProvider!, AgentPrism.IAgentSource!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddAgentSource<TSource>() -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddAgentDecorator(AgentPrism.IAgentDecorator! decorator) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddAgentDecorator(System.Func<System.IServiceProvider!, AgentPrism.IAgentDecorator!>! factory) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddAgentDecorator<TDecorator>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddRunJudge(AgentPrism.IRunJudge! judge) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddRunJudge(System.Func<System.IServiceProvider!, AgentPrism.IRunJudge!>! factory) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddRunJudge<TJudge>() -> AgentPrism.IAgentPrismBuilder!
@@ -459,6 +462,7 @@ AgentPrism.IAgentPrismBuilder.AddAgent(string! name, System.Func<System.IService
 AgentPrism.IAgentPrismBuilder.AddEvalCheck(string! kind, Microsoft.Agents.AI.EvalCheck! check) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider(AgentPrism.IModelProvider! provider) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddModelProvider(System.Func<System.IServiceProvider!, AgentPrism.IModelProvider!>! factory) -> AgentPrism.IAgentPrismBuilder!
+AgentPrism.IAgentPrismBuilder.AddModelProvider<TProvider>() -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.IAgentPrismBuilder.AddSkill(AgentPrism.AgentSkillDefinition! skill) -> AgentPrism.IAgentPrismBuilder!
 AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.get -> bool
 AgentPrism.AgentPrismToolOptions.AllowUnverifiedToolRegistry.set -> void
@@ -1026,6 +1030,8 @@ static AgentPrism.AgentCallGraph.ValidateDetailed(string! agentName, System.Coll
 static AgentPrism.AgentCallGraphProblem.operator !=(AgentPrism.AgentCallGraphProblem left, AgentPrism.AgentCallGraphProblem right) -> bool
 static AgentPrism.AgentCallGraphProblem.operator ==(AgentPrism.AgentCallGraphProblem left, AgentPrism.AgentCallGraphProblem right) -> bool
 static AgentPrism.AgentPrismClientToolExtensions.AddClientTool(this AgentPrism.IAgentPrismBuilder! builder, string! name, string! description, System.Text.Json.JsonElement jsonSchema) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismContentGuardBuilderExtensions.AddContentGuard(this AgentPrism.IAgentPrismBuilder! builder, AgentPrism.IContentGuard! guard) -> AgentPrism.IAgentPrismBuilder!
+static AgentPrism.AgentPrismContentGuardBuilderExtensions.AddContentGuard(this AgentPrism.IAgentPrismBuilder! builder, System.Func<System.IServiceProvider!, AgentPrism.IContentGuard!>! factory) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismContentGuardBuilderExtensions.AddContentGuard<TGuard>(this AgentPrism.IAgentPrismBuilder! builder) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismContentGuardBuilderExtensions.AddPatternContentGuard(this AgentPrism.IAgentPrismBuilder! builder, System.Action<AgentPrism.PatternContentGuardOptions!>? configure = null) -> AgentPrism.IAgentPrismBuilder!
 static AgentPrism.AgentPrismEvalCheckRegistration.operator !=(AgentPrism.AgentPrismEvalCheckRegistration? left, AgentPrism.AgentPrismEvalCheckRegistration? right) -> bool

@@ -154,14 +154,7 @@ internal sealed class RunContinuationJobHandler(
     }
 
     private Microsoft.Agents.AI.AIAgent Decorate(Microsoft.Agents.AI.AIAgent agent, AgentDescriptor descriptor)
-    {
-        foreach (var decorator in _decorators)
-        {
-            agent = decorator.Decorate(agent, descriptor);
-        }
-
-        return agent;
-    }
+        => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
         => new()

@@ -369,6 +369,18 @@ public static partial class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<ISessionStore>(),
                 provider.GetRequiredService<ILogger<NonPersistentStorageWarningService>>())));
 
+        // Reports two other Production silent gaps: no IContentGuard registered
+        // (content moderation never runs) and data retention left disabled from
+        // configuration (rows accumulate indefinitely unless a database policy
+        // exists). Same explicit-factory rationale as the warning above -
+        // IHostEnvironment is host-provided and optional here.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, SilentGapWarningService>(
+            static provider => new SilentGapWarningService(
+                provider.GetService<IHostEnvironment>(),
+                provider.GetServices<IContentGuard>(),
+                provider.GetRequiredService<IOptions<AgentPrismRetentionOptions>>(),
+                provider.GetRequiredService<ILogger<SilentGapWarningService>>())));
+
         // Wrappers. Application order is determined by Order:
         // run recording (0) → telemetry (10) → tool approval (20) → agent.
         //

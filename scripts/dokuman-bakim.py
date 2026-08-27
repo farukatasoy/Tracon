@@ -83,7 +83,7 @@ def _faz_no(p: pathlib.Path) -> int:
 # tutuldu -- butce BUYUTULMEDI, bolunme derinlestirildi. Yeni kural: butcenin
 # EN AZ %15'i bos kalmali (58.0'in tum sicak yol dosyalarina koydugu hedef);
 # esik bu orani saglayacak sekilde secilir, dosya butceye DAYANDIGINDA degil.
-ARSIV_ESIK = 115
+ARSIV_ESIK = 114
 
 BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,
