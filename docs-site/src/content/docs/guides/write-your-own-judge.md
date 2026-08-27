@@ -45,11 +45,13 @@ has already started.
 and contain only letters, digits, `.`, `_`, or `-`. AgentPrism uses it in metric
 tags and writes scores with `judge:{Name}` as the source and author.
 
-A judge can be called again for the same run when a different judge makes the
-online-evaluation job retry. Make side effects idempotent. Return a score from 0
-to 100, or `null` when no decision is possible. Do not return `0` for an unknown
-result. Scores outside that range are rejected and do not retry. `Reason` is
-optional and is stored at a maximum of 4000 characters.
+A judge can still be called again for the same run: manual re-scoring always
+reruns it, and a queued job retry (triggered when a *different* judge fails)
+reruns every judge that has not yet written a score for that run — a judge
+that already wrote one is skipped on that retry. Make side effects idempotent.
+Return a score from 0 to 100, or `null` when no decision is possible. Do not
+return `0` for an unknown result. Scores outside that range are rejected and
+do not retry. `Reason` is optional and is stored at a maximum of 4000 characters.
 
 The cancellation token is the call budget. AgentPrism applies `JudgeTimeout` to
 each judge call, which defaults to 60 seconds. Propagate a real cancellation. Do

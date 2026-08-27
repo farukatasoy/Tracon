@@ -1,6 +1,6 @@
 # Faz 118 — Yargıç Başına Checkpoint
 
-> **Durum:** 📋 Planlandı (2026-08-26)
+> **Durum:** ✅ Tamamlandı (2026-08-27)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-152**
 > **Önkoşul:** Faz 49 (çevrimiçi değerlendirme) ve Faz 103 (`JudgeTimeout` wait cutoff, K-621) — ikisi de arşivde
 > **Paketler:** `AgentPrism.Core` (yalnız `Evaluation/`)
@@ -308,23 +308,23 @@ koşar; hata loglanır, iş durmaz.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] İki yargıçlı bir işte biri ilk denemede başarılı olursa, yeniden denemede **çağrılmaz** (çağrı sayacı ile kanıtlanır)
-- [ ] Başarısız, timeout'a düşen ve çekimser yargıçlar yeniden denemede **koşar**
-- [ ] İlk denemede hiçbir yargıç atlanmaz — bugünkü davranış bit-bit aynı
-- [ ] `POST /api/runs/{id}/judge` davranışı **değişmedi**; elle yeniden yargılama gerçekten yeniden koşuyor
-- [ ] Başka kiracının skor satırı checkpoint sayılmıyor — sözleşme testi dört koşumda yeşil
-- [ ] `ListAsync` hata verirse iş **durmuyor**; atlama yapılmıyor, tüm yargıçlar koşuyor
-- [ ] Tüm yargıçlar atlanınca iş **tamamlanıyor**, sonsuz yeniden deneme yok
-- [ ] `judge:` öneki **tek bir sabitten** üretiliyor
-- [ ] Yeni tablo **yok**, migration **yok** (`ls src/AgentPrism.*/Migrations/` değişmedi)
-- [ ] `PublicAPI.*.txt` dosyaları **değişmedi**
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/guides/write-your-own-judge.md` retry davranışını doğru anlatıyor; `npm run build` + `check-links.mjs` temiz
-- [ ] K-621'in "yeni katman eklenmedi" cevabı karar defterine kaydedildi
+- [x] İki yargıçlı bir işte biri ilk denemede başarılı olursa, yeniden denemede **çağrılmaz** (çağrı sayacı ile kanıtlanır) — `OnlineEvalCheckpointTests`, `OnlineEvalRetryTests.Successful_judges_are_not_re_invoked_when_a_queued_job_retries`
+- [x] Başarısız, timeout'a düşen ve çekimser yargıçlar yeniden denemede **koşar** — `OnlineEvalCheckpointTests` (üç ayrı test)
+- [x] İlk denemede hiçbir yargıç atlanmaz — bugünkü davranış bit-bit aynı — `ExecuteAsync_does_not_skip_on_the_first_attempt_even_if_a_score_already_exists`
+- [x] `POST /api/runs/{id}/judge` davranışı **değişmedi**; elle yeniden yargılama gerçekten yeniden koşuyor — `OnlineEvalRetryTests.Manual_scoring_still_reruns_a_judge_that_already_scored_the_run` VE canlı doğrulama: `samples/AgentPrism.Api`'de aynı run'a arka arkaya iki `POST /judge` çağrısı, skor `12 → 20` değişti (gerçek model her iki kez de çağrıldı)
+- [x] Başka kiracının skor satırı checkpoint sayılmıyor — sözleşme testi dört koşumda yeşil — `RunScoreStoreContract.Another_tenants_score_is_not_visible` (mevcut, değişmedi; checkpoint'in okuduğu `ListAsync` zaten bu sözleşmeye tabi)
+- [x] `ListAsync` hata verirse iş **durmuyor**; atlama yapılmıyor, tüm yargıçlar koşuyor — `A_score_read_failure_does_not_skip_any_judge_and_does_not_fail_the_call`
+- [x] Tüm yargıçlar atlanınca iş **tamamlanıyor**, sonsuz yeniden deneme yok — `ExecuteAsync_completes_the_item_when_every_judge_is_already_scored_on_retry`
+- [x] `judge:` öneki **tek bir sabitten** üretiliyor — `OnlineEvalJobHandler.JudgeAuthorPrefix`
+- [x] Yeni tablo **yok**, migration **yok** (`ls src/AgentPrism.*/Migrations/` değişmedi) — doğrulandı
+- [x] `PublicAPI.*.txt` dosyaları **değişmedi** — `git diff --stat` boş döndü
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban ca1b2c0` yeşil (588 test + tam matris + format + pack, docs-site `check:content` düzeltmesiyle birlikte)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — gerçek PostgreSQL + gerçek OpenAI-uyumlu model + gerçek `ModelRunJudge` ile: run `01a041c8-0c4a-7f96-9dd1-7eb459bc79c1`, `/judge` çağrısı skor `12` ("A resposta apenas repete...") üretti, ikinci çağrı skor `20`'ye güncelledi — manuel uç retry-checkpoint'ten etkilenmiyor. Otomatik retry-skip senaryosu (sahte "flaky" yargıçla) `openAiEnabled` bu ortamda `dotnet user-secrets` ile `AgentPrism:OnlineEvaluation` açılmadığı için canlı tetiklenmedi; o senaryo `OnlineEvalRetryTests`'te gerçek `IJobStore` + DI'dan çözülen gerçek `OnlineEvalJobHandler` ile kanıtlandı.
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
+- [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu — EVAL-105..111; EVAL-107/108'in otomatik karşılığı yukarıdaki test dosyalarında zaten yeşil
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. § Denetim Bulguları
+- [x] `docs-site/guides/write-your-own-judge.md` retry davranışını doğru anlatıyor; `npm run build` + `check-links.mjs` temiz — `npm run check` (content+build+links+weight) tam yeşil
+- [x] K-621'in "yeni katman eklenmedi" cevabı karar defterine kaydedildi — K-638
 
 ### Doğrulama komutları
 
@@ -359,24 +359,72 @@ git diff --stat src/*/PublicAPI.Unshipped.txt
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+1. **Parametre sırası plandan farklı.** Plan `JudgeRunAsync(RunRecord run, CancellationToken cancellationToken, bool skipAlreadyScored = false)` gösteriyordu. Gerçek imza `JudgeRunAsync(RunRecord run, bool skipAlreadyScored = false, CancellationToken cancellationToken = default)` oldu — CA1068 analyzer kuralı (`CancellationToken` son parametre olmalı) planın taslağını ihlal ediyordu (derleme hatası). `cancellationToken`'ın varsayılanı (`= default`) da korundu; plan bunu düşürüyordu ama düşürmek mevcut çağrı sitelerini (testler, `EvalEndpoints`) gereksiz yere kırardı — `internal` bir tip için faydasız bir kırılma.
+2. **`{ Length: > JudgeAuthorPrefix.Length }` örüntüsü derlenmedi** (CS9135 — ilişkisel örüntü sabit gerektirir, `const string`'in `.Length`'i sabit sayılmaz). `StartsWith(JudgeAuthorPrefix, Ordinal)` + alt dizgi kesme ile değiştirildi.
+3. **"Başka kiracının skor satırı checkpoint sayılmaz" için YENİ bir sözleşme testi yazılmadı.** Checkpoint okuması `IRunScoreStore.ListAsync` üzerinden gider ve bu metot zaten `RunScoreStoreContract.Another_tenants_score_is_not_visible` ile dört store'da (in-memory, PostgreSQL, SQL Server, SQLite) kanıtlanmıştı; bu faz o sözleşmeyi değiştirmedi. DoD satırı bu mevcut kapsamaya EVAL-109'da açıkça bağlanır.
+4. **"Tüm yargıçlar atlanınca iş tamamlanır" case'i fonksiyonel değil birim seviyesinde kanıtlandı** (`OnlineEvalCheckpointTests.ExecuteAsync_completes_the_item_when_every_judge_is_already_scored_on_retry`). Bu durum (`Attempt > 1` VE tüm yargıçlar zaten skorlu) `ExecuteAsync`'in kendi retry tetikleyicisiyle asla doğal olarak üretilemez — yalnız harici bir zorlamayla (operatör müdahalesi, kira zaman aşımı çifte-lease'i) oluşur. Gerçek kuyruk üzerinden bunu ZORLAMAK ek güven katmıyordu; birim seviyesi aynı iddiayı daha deterministik kanıtladı.
+5. **`OnlineEvalRetryTests`'teki fonksiyonel test gerçek `JobWorkerBackgroundService`'i çalıştırmıyor**, `IJobStore`'u elle sürüyor (Lease → MarkRunning → `ExecuteAsync` → `JobRetryException` yakalanırsa `ReleaseForRetryAsync(retryAfter: TimeSpan.Zero)`). Gerekçe: gerçek backoff (`BackoffFor` ilk denemede 30 sn) ya gerçek 30+ saniye beklemeyi ya da tüm konağa global bir `FakeTimeProvider` enjekte etmeyi gerektirirdi (yeni paket + geniş yan etki riski). Gerçek `IJobStore` sözleşmesi (kira/attempt artışı/item'lar) ve DI'dan çözülen gerçek `OnlineEvalJobHandler` yine de çalışır — atlanan yalnız worker'ın kendi poll döngüsü ve backoff bekleme kodudur.
+6. **Manuel kabul case'leri `MT-EVAL-NNN` değil `EVAL-NNN` numaralandırmasıyla eklendi** (EVAL-105..111) — dosyanın en son eklenen kalemleri (Faz 102/103/104) zaten bu daha hafif biçime geçmişti; tutarlılık için o desen sürdürüldü.
+7. **`docs-site/public/llms-full.txt` yeniden üretildi** (`node docs-site/scripts/build-agent-map.mjs`) — `write-your-own-judge.md` düzenlemesi bu üretilen dosyayı bayatlattı; `npm run check` bunu `check:content` adımında yakaladı ve düzeltme kapanıştan önce uygulandı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+- **K-638** — Checkpoint mevcut `run_scores` satırlarından okunur, yeni tablo/migration açılmadı; K-621'in "sonraki adım" sorusuna (F-152 timeout modeline yeni katman ekler mi) HAYIR cevabı verildi. Bkz. `docs/KARARLAR.md`.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+**Değişmedi** (`PublicAPI.*.txt` dosyaları aynı — bkz. doğrulama komutları). Değişen tek şey `internal` `OnlineEvalJobHandler`:
+
+```csharp
+internal sealed class OnlineEvalJobHandler
+{
+    private const string JudgeAuthorPrefix = "judge:";
+
+    public async ValueTask<(IReadOnlyList<RunScore> Scores, IReadOnlyList<JudgeFailure> Failures)> JudgeRunAsync(
+        RunRecord run,
+        bool skipAlreadyScored = false,      // yeni; varsayılan bugünkü davranış
+        CancellationToken cancellationToken = default);
+}
+```
+
+`ExecuteAsync` çağrısı: `JudgeRunAsync(run, skipAlreadyScored: context.Job.Attempt > 1, cancellationToken)`.
+`EvalEndpoints.JudgeRunAsync` (manuel uç) çağrısı: `jobHandler.JudgeRunAsync(run, cancellationToken: cancellationToken)` — `skipAlreadyScored` hiç geçmiyor, varsayılan `false` kalıyor.
+
+`IRunJudge.cs`'de yalnız XML doküman remarks'ı güncellendi (imza değişmedi): retry'de artık yalnız henüz skorlamamış yargıçların yeniden çağrıldığı açıkça yazıldı.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs                     (değişti)
+src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs                        (değişti — yalnız XML doküman)
+src/AgentPrism.AspNetCore/Endpoints/EvalEndpoints.cs                       (değişti — adlandırılmış argüman)
+tests/AgentPrism.Core.UnitTests/Evaluation/OnlineEvalJobHandlerTests.cs    (değişti — bir çağrı sitesi)
+tests/AgentPrism.Core.UnitTests/Evaluation/OnlineEvalCheckpointTests.cs    (YENİ — 12 birim testi)
+tests/AgentPrism.AspNetCore.FunctionalTests/OnlineEvalRetryTests.cs        (YENİ — 2 fonksiyonel test)
+docs-site/src/content/docs/guides/write-your-own-judge.md                 (değişti — retry cümlesi)
+docs-site/public/llms-full.txt                                            (üretildi)
+docs/manuel-test/17-EVAL-VE-DENEYLER.md                                   (değişti — EVAL-105..111)
+docs/KARARLAR.md                                                           (değişti — K-638)
+```
+
+Planlanan `tests/AgentPrism.Core.UnitTests/Evaluation/OnlineEvalCheckpointTests.cs` ve `tests/AgentPrism.AspNetCore.FunctionalTests/OnlineEvalRetryTests.cs` planla birebir örtüşüyor.
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı.
+Bağımsız denetçi (taze bağlam, `git diff ca1b2c0` + bizzat koşulan testler) 🔴/🟡 bulgu üretmedi. On maddelik kontrol listesinin tamamı (Attempt→skip bağlantısı, manuel uç etkilenmemesi, `judge:` sabiti tekliği ve `:` içeren isim ayrıştırması, `OperationCanceledException` yutulmaması, okuma hatasında atlama kapanması, skip dalının `Scores`'a eklenip metrik/summary'e tekrar sayılmaması, testlerin gerçek olması, dört-store sözleşme testi, XML/site metin tutarlılığı, DoD) kod okuması ve/veya bizzat koşulan testlerle doğrulandı.
+
+Üç 🟢 gözlem, ikisi kapanışta doğrudan düzeltildi:
+
+1. **Kapatıldı** — `docs/manuel-test/17-EVAL-VE-DENEYLER.md` başlığındaki `Faz:` listesi 103/118 ile güncellenmemişti; eklendi.
+2. **Kapatıldı** — `judge_contract` (aralık dışı skor) durumu için ayrı bir retry-checkpoint testi yoktu (yalnız `judge_failed`/`judge_timeout`/çekimser test edilmişti); `A_judge_with_an_out_of_range_score_is_not_checkpointed_and_runs_again_when_skipping_is_requested` eklendi.
+3. **Gerekçelendi, devredilmedi** — atlanan bir yargıcın skorunun `AgentPrismMetrics.RecordJudgeScore`/`OnlineEvalSummaryService.RecordScoreAsync`'e tekrar SAYILMADIĞI yalnız kod okumasıyla kanıtlanıyor (skip dalı `JudgeOneAsync`'e hiç girmiyor, bu iki çağrı yalnız o metodun içinde) — doğrudan bir spy/sayaç testi yok. Bu iki sınıf `sealed` ve arayüzsüzdür; bu, fazdan ÖNCE de var olan bir test edilebilirlik boşluğudur (`OnlineEvalJobHandlerTests.cs` da bu bağımlılıkları hiç test etmiyordu), fazın kendisi bir gerileme getirmedi. Planın kendi risk tablosu bu satır için "kodda açık ayrım" istiyordu ("test kanıtı" değil) — bu karşılandı. `AgentPrismMetrics`/`OnlineEvalSummaryService`'i arayüz arkasına almak ayrı, ölçülmesi gereken bir kapsam genişletmesi olur; bu fazın dar hedefine (§ 118.5) sessizce eklenmedi.
+
+Denetim sırasında agent'ın kendi `git stash`/`pop` turu `docs-site/public/llms-full.txt`'i (üretilmiş dosya) bir defa daha bayatlattı — kapanıştan önce `node docs-site/scripts/build-agent-map.mjs` ile ikinci kez düzeltildi ve `npm run check` yeniden tam yeşil koşuldu.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+- **Devraldığı sözleşme**: `OnlineEvalJobHandler.JudgeRunAsync(RunRecord, bool skipAlreadyScored = false, CancellationToken cancellationToken = default)` — `skipAlreadyScored: true` yalnız kuyruklu işin `Attempt > 1` yolunda geçilir; başka hiçbir çağrı sitesi bunu `true` geçmemelidir.
+- **`judge:` öneki artık davranış taşır** (`OnlineEvalJobHandler.JudgeAuthorPrefix`, private const). Bir gün bu önek public bir sözleşmeye taşınırsa (Açık Soru 1'in B seçeneği), okuma VE yazma tarafının aynı sabitten türediğinden emin ol.
+- **Çekimser yargıcın (`Score is null`) checkpoint'lenmemesi bilinçli bir boşluktur** (§ 118.3) — ölçülmüş bir vaka doğarsa ayrı bir aday (F-NN) olarak ele alınmalı, bu fazın kapsamına sessizce eklenmemeli.
+- **Timeout'a düşen yargıcın geç sonucunun kurtarılması** K-621'in bilinçli kararıdır ve bu faz onu tersine çevirmedi; retry'de böyle bir yargıç her zaman yeniden koşar.
+- Bu ortamda `AgentPrism:OnlineEvaluation` `dotnet user-secrets` ile açılmadığı sürece varsayılan kapalıdır (K1) — canlı bir retry senaryosunu uçtan uca gözlemlemek isteyen sonraki oturum önce bunu açmalı.

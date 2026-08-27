@@ -278,7 +278,7 @@ public sealed class OnlineEvalJobHandlerTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
-        await Should.ThrowAsync<OperationCanceledException>(() => handler.JudgeRunAsync(run!, cancellation.Token).AsTask());
+        await Should.ThrowAsync<OperationCanceledException>(() => handler.JudgeRunAsync(run!, cancellationToken: cancellation.Token).AsTask());
     }
 
     private static async Task<Guid> SeedRunAsync(

@@ -1,6 +1,6 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118
 > **Kaynak:** `src/AgentPrism.Abstractions/Evaluation/` (tümü) ·
 > `src/AgentPrism.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
@@ -2110,6 +2110,137 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 **Beklenen sonuç**
 - Contract, registration ve gerçek run/evaluation testleri geçer.
 - `IRunScoreStore` üzerinden `judge:response-quality` score satırı, value/comment/tenant/run kimliğiyle doğrulanır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+## Yargıç Başına Checkpoint (Faz 118)
+
+`OnlineEvalJobHandler.JudgeRunAsync`'in `skipAlreadyScored` parametresi:
+kuyruklu bir `OnlineEval` işi yeniden denendiğinde (`context.Job.Attempt > 1`),
+bu run için zaten bir `run_scores` satırı yazmış bir yargıç **tekrar
+çağrılmaz**; `POST /api/runs/{id}/judge` ise hep hepsini yeniden çağırır.
+Aşağıdaki case'ler bunu doğrular; ikisi (105, 111) yargıç çağrı **sayacı**
+veya log gözlemi gerektirdiği için 👤 insan gerekir.
+
+### EVAL-105 — Başarılı yargıç yeniden denemede tekrar ÇAĞRILMAZ 👤
+
+**Ön koşul**
+- İki `IRunJudge` kayıtlı: `a` (her zaman `Score` döner) ve `b` (ilk
+  çağrıda `throw`, ikinci çağrıda `Score` döner) — her ikisi de kendi çağrı
+  sayısını loglar veya artırır (geçici test kodu).
+- `AgentPrism:OnlineEvaluation:Enabled=true`, `SampleRate=1.0`.
+
+**Adımlar**
+1. `support` agent'ına gerçek bir run gönder, tamamlanmasını bekle.
+2. `jobs` tablosunda oluşan `OnlineEval` işinin `attempt=1`'de
+   `Pending`'e döndüğünü (yani `b` yüzünden retry edildiğini), sonra
+   `attempt=2`'de `Completed` olduğunu izle.
+
+**Beklenen sonuç**
+- `a`'nın çağrı sayacı **1**'de kalır — ikinci denemede tekrar çağrılmamıştır.
+- `b`'nin çağrı sayacı **2**'dir — ilk denemede başarısız olduğu için
+  ikinci denemede tekrar çağrılmıştır.
+
+---
+
+### EVAL-106 — Aynı kurulumda `run_scores`'ta ikinci satır OLUŞMAZ
+
+**Ön koşul**
+- EVAL-105 koşuldu, `RUN_ID` biliniyor.
+
+**Doğrulama sorgusu**
+```sql
+SELECT source, author FROM agentprism.run_scores WHERE run_id = '<RUN_ID>';
+```
+
+**Beklenen sonuç**
+- Tam olarak iki satır: `judge:a` ve `judge:b`. Her biri bir kez;
+  `a`'nın ikinci denemede atlanması ikinci bir satır **üretmemiştir**
+  (zaten üretmeyecekti — upsert tekilliği MT-EVAL-045'te de kanıtlanmıştı
+  — buradaki fark yargıcın hiç **çağrılmamış** olmasıdır).
+
+---
+
+### EVAL-107 — Tek yargıç, hep başarılı: ilk denemede tamamlanır, gerileme YOK
+
+**Ön koşul**
+- Yalnız `a` (her zaman başarılı) kayıtlı.
+
+**Adımlar**
+1. `support` agent'ına bir run gönder, örneklenmesini bekle.
+
+**Beklenen sonuç**
+- İş `attempt=1`'de `Completed` olur — bugünküyle bit-bit aynı davranış;
+  checkpoint mantığı ilk denemede hiçbir şeyi değiştirmez.
+
+---
+
+### EVAL-108 — Skoru zaten yazılmış bir run'ı ELLE yeniden yargılamak GERÇEKTEN yeniden koşar
+
+Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
+**çağrı sayısı** ilerler, sadece satır değeri değişmez.
+
+**Ön koşul**
+- MT-EVAL-043/045 zaten koşuldu; `a` yargıcı kendi çağrı sayısını loglar.
+
+**Adımlar**
+1. Aynı `RUN_ID` için `POST /api/runs/{id}/judge` çağrısını bir kez daha yap.
+
+**Beklenen sonuç**
+- `HTTP: 200`, yargıcın çağrı sayacı bir artar — kuyruklu işteki
+  checkpoint elle yargılama ucunu **etkilemez** (§118.5).
+
+---
+
+### EVAL-109 — Başka kiracının skor satırı checkpoint sayılmaz
+
+**Ön koşul**
+- Kiracı `default`'ta bir run + iş kuyruğa alınmış, henüz tamamlanmamış.
+- Aynı `run_id` değeriyle (elle SQL veya ikinci bir kiracı bağlamıyla)
+  başka bir kiracıya (`other`) ait bir `run_scores` satırı var.
+
+**Beklenen sonuç**
+- `default` kiracısının işi çalıştığında, `other`'ın satırı okunmaz
+  (`ListAsync` zaten kiracı filtreler) — yargıç yine de çağrılır, atlanmaz.
+- Otomatik karşılığı: `RunScoreStoreContract.Another_tenants_score_is_not_visible`
+  dört store'da (in-memory, PostgreSQL, SQL Server, SQLite) zaten yeşildir.
+
+---
+
+### EVAL-110 — Tüm yargıçların skoru zaten varken yeniden deneme İŞİ TAMAMLAR, sonsuz döngü YOK
+
+**Ön koşul**
+- EVAL-105/106'daki gibi bir run, her iki yargıç da başarıyla skorlamış.
+
+**Adımlar**
+1. İşin `jobs` satırını elle `status='Pending', attempt=<mevcut>,
+   scheduled_for=now()` yaparak (veya worker'ı yeniden başlatarak) bir
+   deneme daha zorla.
+
+**Beklenen sonuç**
+- İş **tamamlanır** (`Completed`) — her iki yargıç da atlanır, hiçbir
+  yargıç çağrılmaz, iş asla `Pending`'e geri dönmez.
+
+---
+
+### EVAL-111 — Skor deposu okunamazsa iş DÜŞMEZ, hiçbir yargıç atlanmaz 👤
+
+**Ön koşul**
+- `IRunScoreStore.ListAsync` geçici olarak hata fırlatacak şekilde
+  değiştirilmiş bir derleme (geliştirici ortamı) — üretimde bu, veritabanı
+  bağlantısının geçici kesilmesine karşılık gelir.
+
+**Adımlar**
+1. Zaten skorlanmış bir run için işi yeniden denet (`attempt > 1`).
+2. Uygulama loglarını gözle.
+
+**Beklenen sonuç**
+- İş **düşmez**; her iki yargıç da (skorları zaten var olsa bile) yeniden
+  çağrılır — "gözlemlenebilirlik işlevselliği bozmaz" kuralı burada da
+  geçerlidir.
+- Log satırında okuma hatası `Warning` seviyesinde görünür.
 
 **Alan kodu:** `EVAL`
 
