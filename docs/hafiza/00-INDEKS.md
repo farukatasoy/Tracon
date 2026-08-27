@@ -40,5 +40,6 @@
 | `IChatClient` dekoratörü, devre kesici | [model-boru-hatti](model-boru-hatti.md) |
 | Ses tool'ları, konuşma katmanı | [ses-ve-konusma](ses-ve-konusma.md) |
 | Dışa açılan MCP/A2A sunucusu | [mcp-a2a-sunucu](mcp-a2a-sunucu.md) |
-| Sevk edilen doküman metni, kapılar, ekran görüntüsü | [dokumantasyon](dokumantasyon.md) |
+| Sevk edilen doküman metni, metin kapısı yazımı, ekran görüntüsü | [dokumantasyon](dokumantasyon.md) |
+| Site üretim betikleri (`build-agent-map.mjs`, `docfx`) ve kapıları | [site-uretim-kapilari](site-uretim-kapilari.md) |
 | Site yayını (`site-deploy.sh`), Starlight teması | [site-yayin-ve-tema](site-yayin-ve-tema.md) |

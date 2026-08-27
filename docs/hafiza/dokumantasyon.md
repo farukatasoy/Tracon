@@ -1,10 +1,12 @@
 # Dokumantasyon Tuzaklari
 
-> Sevk edilen dokumantasyon (paketlenen XML, paket README'leri, paketlenen
-> OpenAPI belgesi) ve `docs-site/` ureteclerinin tuzaklari.
+> Sevk edilen dokumantasyonun DOGRULUGU (paketlenen XML, paket README'leri,
+> paketlenen OpenAPI belgesi, metin kapisi yazma tuzaklari).
 >
 > Site YAYIN hatti ve Starlight temasi AYRI dosyadadir:
-> [`site-yayin-ve-tema.md`](site-yayin-ve-tema.md).
+> [`site-yayin-ve-tema.md`](site-yayin-ve-tema.md). Site UREtim betikleri
+> (`build-agent-map.mjs`, `docfx`) ve onlarin kapi davranisi da AYRI dosyadadir:
+> [`site-uretim-kapilari.md`](site-uretim-kapilari.md) (Faz 122'de ayrildi).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
 > Sinir: **nasil paketlenir** sorusu
@@ -55,17 +57,6 @@ ASP.NET Core'un XML dokuman ureteci `<see cref="X"/>`'i cumlenin ortasina
 kopyasi bunu bir suzgecle siliyordu, paketlenen kopya silmiyordu. OpenAPI'nin
 seri hale getirdigi sozlesme tiplerinde `<c>UyeAdi</c>` yaz; ic tiplerde
 `<see cref>` IDE gezinmesi icin kalir.
-
-## Uretilen sayfa ve onbellek tuzaklari
-
-- **`docs-site/src/content/docs/{api,http-api}/` ve `public/openapi/` GITIGNORE'dur.**
-  Commit edilmezler; her yayinda uretilirler. `git status` temiz gorunurken
-  uretilen icerik bayat olabilir.
-- **🚨 `--skip-docfx` BAYAT onbellek okur.** `docfx/api-md` bir onceki kosumdan
-  kalir; kaynak degistiyse `--skip-docfx` eski metni uretir ve olcumunu
-  yaniltir. Kaynak XML'i degistiren her turda TAM kosum gerekir.
-- **`dotnet build` sonrasi kosmayi unutma**: docfx `artifacts/bin/*/release_net10.0/*.xml`
-  okur; derlemeden once kosarsan onceki surumun metnini alirsin.
 
 ## Ekran goruntusu ureteci
 
@@ -172,18 +163,6 @@ tabloyu kesen boş satırı ve sıra dışı numarayı **hata** olarak bildirir.
 çıkarsa tarih kuralı uygulanır — **önce tahsis edilen numarayı korur**; sonraki
 taşınır ve o fazın dokümanındaki referansları da taşınır.
 
-## 🚨 `build-agent-map.mjs`'in "Rule:" satırı tablo ÖNCESİ paragrafı da toplar (Faz 85)
-
-`section.prose` bir bölümün tablo dışındaki TÜM satırlarını sırayla biriktirir
-— tablo öncesi bir lead-in cümle de, tablo sonrası kural cümlesi de. `Rule:`
-satırı bu birikmiş metnin `firstSentence()`'ıdır, yani tablo öncesine bir
-paragraf eklersen üreteç SESSİZCE o cümleyi kural sanır ve doğru kural asla
-görünmez. Ölçüldü: "Embedding points" bölümüne tablo öncesi bir açıklama
-eklenince map bunu "Rule:" olarak bastı, gerçek kural cümlesi (tablo sonrası)
-hiç görünmedi — hiçbir kapı bunu yakalamadı çünkü üreteç GEÇERLİ bir metin
-üretti, yalnız yanlış cümleyi seçti. Var olan HER bölüm heading→table→(yalnız)
-kural paragrafı sırasını izler; yeni bölüm de bunu izlemeli.
-
 ## 🚨 `faz-arsivle` kendi bağlantı onarımını kaçırabilir — koştuktan SONRA denetle (Faz 104)
 
 Skill "tek bir yeni kırık bağlantı üretirse taşımayı geri alır" diyor. Faz
@@ -194,38 +173,6 @@ zaten `docs/arsiv/fazlar/` içine taşındığı için doğru yol yalnız
 kullanmış. Kural: `faz-arsivle` koştuktan sonra `dokuman-bakim.py --denetle`
 çıktısındaki **Kırık bağlantı** satırını oku; sıfır değilse elle düzelt.
 Aynı ağaçtaki kardeş faza verilen bağlantılar en riskli olanlardır.
-
-## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98 · onarım 2026-08-26)
-
-`docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek
-18 assembly'yi açıkça seçiyordu. `references` ise `artifacts/bin` altındaki test,
-örnek ve paket çıktılarının tüm DLL'lerini yüklüyordu. Bu dizinler aynı
-AgentPrism assembly'sinin çok sayıda kopyasını taşır. Roslyn aynı basit adlı
-assembly'leri birlikte görünce **360 `CS1704`** üretti. Hatanın çalışma ağacı
-tabanında da görülmesinin nedeni birikmiş çıktı ağacıydı.
-
-`references.exclude` kök çözüm değildir. Denemelerde hata sayısı değişmedi;
-yalnız çakışma mesajında adı geçen assembly değişti. Explicit `src` assembly'leri
-bağımlılıklarını kendi `.deps.json` dosyalarından ve NuGet cache'inden çözer.
-Bu nedenle `docfx.json` içindeki `references` girdisi tamamen kaldırıldı. Aynı
-birikmiş `artifacts/bin` ağacında metadata üretimi 0 warning ve 0 error ile
-bitti; 678 API Markdown dosyası üretildi.
-
-`DocfxConfigurationTests`, assembly metadata girdisine yeniden `references`
-eklenmesini yasaklar. Mutation koşumunda yalnız boş bir `references` dizisi
-eklemek bile testi düşürdü. Yeni bir proje için bağımlılık çözümleme sorunu
-çıkarsa önce explicit `src` girdisini ve assembly'nin `.deps.json` dosyasını
-incele; geniş bir artifacts globu ekleme.
-
-## 🚨 `dotnet format --verify-no-changes` ve `docfx metadata`, DEBUG yapılandırmasının `obj/` çıktısını okur — yalnız Release derlemesi yeterli DEĞİL (Faz 98)
-
-Her iki araç da MSBuildWorkspace/Roslyn analiz motorunu kullanır ve varsayılan
-olarak **Debug** yapılandırmasının `GeneratedMSBuildEditorConfig.editorconfig`
-ve referans bilgilerini arar. `dotnet build ... -c Release` çalıştırılmış ama
-`-c Debug` hiç çalıştırılmamış YENİ bir proje için bu iki araç `CS0246`
-("tip bulunamadı") üretir — proje aslında derlenir, yalnız bu iki aracın
-okuduğu `obj/` klasörü boştur. Çözüm: yeni bir proje eklerken kapanış
-kapılarından ÖNCE hem `-c Release` hem `-c Debug` ile bir kez derle.
 
 ## Sevk edilen XML dokumani kendi kapisina takilir (Faz 99)
 
@@ -265,21 +212,6 @@ tablosuna satır ekle (K-642).
 YEŞİL geçti — aynı özetin ilerisindeki ikinci bir "lower" kontrolü kurtarıyordu.
 Metin kapısı **bağlı tek ifade** aramalıdır, parça parça değil; ve her vakada
 ayrı ayrı kırmızı verdiğini ölç.
-
-## 🚨 `capabilities.md`'ye satır eklemek `llms.txt`'in ÜÇÜNCÜ sütununu okumaz (Faz 122)
-
-`docs-site/scripts/build-agent-map.mjs`'in `renderRow` fonksiyonu bir
-capability tablosundan yalnız **başlığı** `registration|enable|surface|
-definition|choice|where|output` desenine uyan sütunu (genelde 2. sütun) ve o
-hücredeki **ilk iki backtick-kod parçasını** alır — üçüncü sütunun ("Boundary"
-veya "Important behavior") metni ne kadar uzun/kısa olursa olsun üretilen
-`llms.txt`/`AgentPrism.AgentMap.md` boyutunu **hiç etkilemez**. `llms.txt`
-20480 B bütçesini aşınca üçüncü sütunu kısaltmak zaman kaybıdır — gerçek
-boyut kaynağı ya 2. sütundaki kod parçaları ya da `renderIndex`'in okuduğu
-sayfa `description`'ları (`guides/*.md`'nin frontmatter'ı, her hand-written
-sayfa için tek satır). Bütçe aşımında önce `node docs-site/scripts/
-build-agent-map.mjs --check`'in verdiği GERÇEK boyutla iterasyon yap, sütun
-metnini gözle kısaltıp tahmin etme.
 
 ## 🚨 Bir arayüzün "kendi dokümanı" başlığıyla sınırlı değildir (Faz 121, K-643)
 
