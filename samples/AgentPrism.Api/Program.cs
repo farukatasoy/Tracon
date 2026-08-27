@@ -176,8 +176,13 @@ var agentPrism = builder.AddAgentPrism()
     // outside. "summarizer" is chosen deliberately: it carries no tool, so it
     // never touches the approval boundary. Default MaxDepth=1: an inbound
     // call can delegate at most one level further (the same depth check as
-    // ChildAgentInvoker).
-    .UseMcpServer(o => o.ExposedAgents.Add("summarizer"))
+    // ChildAgentInvoker). EnableTasks is off by default; the sample turns it
+    // on to demonstrate the MCP Tasks extension end to end.
+    .UseMcpServer(o =>
+    {
+        o.ExposedAgents.Add("summarizer");
+        o.EnableTasks = true;
+    })
     .UseA2A(o => o.ExposedAgents.Add("summarizer"))
     // The workflow execution engine. Agents in the catalog are wired together
     // with ready-made patterns. If the engine is not registered, definitions

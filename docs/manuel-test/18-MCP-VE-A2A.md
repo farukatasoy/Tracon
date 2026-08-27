@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı)
 > **Kaynak:** `src/AgentPrism.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/AgentPrism.AspNetCore/McpServer/`
 > (tümü — AgentPrism'i MCP sunucusu olarak dışa açma) ·
@@ -1531,3 +1531,126 @@ curl -s "$BASE/api/runs/$RUN_ID/events" -H "$APB" \
 - 🚨 Bu case atlanırsa ve MCP zincirine yeni bir sarmalayıcı eklenmesi
   unutulursa, MCP tool'ları sınırsız kalır ve bu sessizce fark edilmez —
   kod-tanımlı tool'ların case'i (MT-OBS-048) bu boşluğu KANITLAMAZ.
+
+### MT-MCP-061 — `EnableTasks=false` (varsayılan): task-aware istemciyle bile davranış senkron kalır (Faz 117)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. `EnableTasks` ayarlanmadan (varsayılan `false`) bir agent'ı MCP tool olarak aç.
+2. Tasks capability'sini beyan eden, 2026-07-28 protokolünü tercih eden gerçek bir istemciyle (`CallToolAsTaskAsync`) çağır.
+
+**Beklenen sonuç**
+- `IsTask=false`; sonuç doğrudan döner, hiçbir `TaskId` üretilmez.
+- Otomatikleştirildi: `McpTasksEndpointTests.EnableTasks_false_still_answers_synchronously`.
+
+### MT-MCP-062 — `EnableTasks=true`: task id run kimliğine eşit, `tasks/get` Working→Completed geçişini doğru izler (Faz 117)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. `EnableTasks=true` ile bir agent'ı MCP tool olarak aç, `CallToolAsTaskAsync` ile çağır.
+2. Dönen `TaskId`'yi `GET /api/runs/{id}` ile sorgula.
+3. `tasks/get`'i terminal duruma kadar poll et.
+
+**Beklenen sonuç**
+- `TaskId`, `/api/runs/{TaskId}` altında GÖRÜNEN gerçek bir run kimliğidir; `agentName` doğru.
+- `tasks/get` önce `Working`, sonra `Completed` döner; sonuç metni gerçek agent çıktısını taşır.
+- Otomatikleştirildi: `McpTasksEndpointTests.EnableTasks_true_creates_a_task_whose_id_is_the_run_id`, `Tasks_get_transitions_from_working_to_completed_with_the_run_output`. Gerçek `samples/AgentPrism.Api` koşumu: bkz. faz dokümanı § "Gerçek sunucu koşumu".
+
+### MT-MCP-063 — `tasks/cancel`: koşan bir task'ı GERÇEKTEN iptal eder, kuyruklu (henüz başlamamış) task'ı doğrudan kapatır (Faz 117)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+
+**Adımlar**
+1. Gerçekten uzun süren (engelleyen) bir tool taşıyan agent'ı task modunda çağır; run'ın `Running`'e geçtiğini doğrula.
+2. `tasks/cancel` gönder.
+3. Ayrıca: henüz `Queued` durumdaki (arka plan yürütmesi başlamamış) bir task için de `tasks/cancel` dene.
+
+**Beklenen sonuç**
+- Koşan task: `tasks/get` `Cancelled` döner; `GET /api/runs/{id}` `Canceled` gösterir.
+- Kuyruklu task: aynı sonuç, doğrudan kapatma yoluyla.
+- İkinci bir iptal modeli yoktur — `RunEndpoints.CancelRunAsync`'in izdüşümüdür.
+- Otomatikleştirildi: `McpTasksEndpointTests.Tasks_cancel_of_a_running_task_actually_cancels_the_in_flight_tool_call` (gerçek engelleyen tool + `SemaphoreSlim`, `Task.Delay` YOK), `Tasks_cancel_of_a_queued_task_closes_the_row_directly`.
+
+### MT-MCP-064 — 🚨 Onay isteyen tool sonradan eklenmiş agent, task modunda `InputRequired` DEĞİL `Completed`(hata) döner (Faz 117, K-103)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili karar** | K-103, K-637 |
+
+**Ön koşul**
+Onay gerektiren bir tool kodda kayıtlı; agent önce bu tool OLMADAN dışa açık, sonra `PUT /api/agents/{name}` ile tool eklenir (dinamik katalog).
+
+**Adımlar**
+1. Agent'ı task modunda, onaylı tool'u tetikleyecek bir mesajla çağır.
+2. `tasks/get`'i terminal duruma kadar poll et.
+
+**Beklenen sonuç**
+- Task **hiçbir zaman** `InputRequired` görünmez.
+- Aynı örnekte poll ediliyorsa: `Completed`, mesaj bugünkü senkron yoldaki inline metnin AYNISI (tool adını taşır).
+- FARKLI bir örnekte poll ediliyorsa: `Completed`, GENEL bir ret metni (tool adı YOK — `IRunStore`'dan kurtarılamaz, bilinçli fark).
+- Otomatikleştirildi: `McpTasksEndpointTests.Approval_requiring_tool_added_after_exposure_rejects_the_task_with_todays_inline_message` (aynı-örnek), `McpTaskCrossInstanceTests.Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording` (çapraz-örnek).
+
+### MT-MCP-065 — Başka kiracının task id'si okunamaz; iptal edebilir ama ASLA okuyamaz (Faz 117)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili karar** | K-637 |
+
+**Adımlar**
+1. Kiracı A olarak bir task oluştur.
+2. Kiracı B olarak AYNI task id ile `tasks/get` çağır.
+3. Kiracı B olarak AYNI task id ile `tasks/cancel` çağır, sonra tekrar A olarak `tasks/get` çağır.
+
+**Beklenen sonuç**
+- Adım 2: "Unknown task" (kiracı A'nın verisi hiçbir koşulda B'ye sızmaz).
+- Adım 3: 🚨 SDK'nin kendi `tasks/cancel`'ı KOŞULSUZ ack döner VE run'ı GERÇEKTEN iptal edebilir (kapatılamayan bir SDK sınırı, K-637) — ama kiracı A'nın kendi görünümü hâlâ DOĞRU ve OKUNABİLİR kalır (asla `Working` durumunda takılı kalmaz).
+- Otomatikleştirildi: `McpTaskTenantIsolationTests` (2 test).
+
+### MT-MCP-066 — İki AgentPrism örneği, tek veritabanı: task ikinci örnekten okunur (Faz 117)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+
+**Adımlar**
+1. Örnek A'da (SQLite/PostgreSQL, paylaşılan dosya/sunucu) bir task oluştur ve tamamlanmasını bekle.
+2. Örnek B'yi AYNI veritabanına bağla; AYNI task id ile `tasks/get` çağır.
+
+**Beklenen sonuç**
+- Örnek B, hiç görmediği bir task'ı `IRunStore`'dan doğru şekilde yeniden inşa eder — bellek içi bir önbelleğe bağlı değildir.
+- Otomatikleştirildi: `McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database` — plan bunu 👤 elle koşulacak bir case sayıyordu, iki gerçek `AgentPrismTestHost` + tek SQLite dosyasıyla otomatikleştirildi.
+
+### MT-MCP-067 — 👤 `TaskTimeToLive` dolunca `tasks/get` hâlâ okunur (Faz 117, Açık Soru 2)
+
+| | |
+|---|---|
+| **İzlek** | A (izole — insan gerekir, gerçek zaman aralığı) |
+| **Önem** | Düşük |
+
+**Ön koşul**
+`TaskTimeToLive` kısa bir değere ayarlanmış (`TimeSpan.FromSeconds(5)` gibi).
+
+**Adımlar**
+1. Bir task oluştur, tamamlanmasını bekle.
+2. `TaskTimeToLive`'dan uzun süre bekle (TTL'in üstünde).
+3. `tasks/get` çağır.
+
+**Beklenen sonuç**
+- Task hâlâ okunur, doğru terminal durumu ve sonucu taşır. `TaskTimeToLive` yalnız istemciye tavsiyedir; run kaydının ömrünü saklama politikası (Faz 25) yönetir, MCP ikinci bir silme takvimi AÇMAZ (Açık Soru 2, Seçenek A).
+- Not: `RunBackedMcpTaskStore`'un KENDİ bellek-içi önbelleği TTL'den sonra opportunistic olarak tahliye edilir (30 sn'de bir taranan bir sweep) — bu, yalnız aynı-örnek hızlı yolu etkiler, yukarıdaki davranışı DEĞİŞTİRMEZ (yeniden inşa yoluna düşer).

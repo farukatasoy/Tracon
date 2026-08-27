@@ -67,6 +67,7 @@ Microsoft.ML.Tokenizers.Data.O200kBase
 ModelContextProtocol
 ModelContextProtocol.AspNetCore
 ModelContextProtocol.Core
+ModelContextProtocol.Extensions.Tasks
 Npgsql
 OpenAI
 OpenTelemetry.Api
