@@ -17,9 +17,17 @@ namespace AgentPrism;
 public interface IAgentDecorator
 {
     /// <summary>
-    /// Gets the order of application. A lower value wraps <em>inside</em>, a higher value
-    /// wraps <em>outside</em>. Run recording uses 0, which makes it the outermost decorator.
+    /// Gets the order of application. A lower value wraps <em>outside</em>, a higher value
+    /// wraps <em>inside</em>. Run recording uses 0, which makes it the outermost decorator.
     /// </summary>
+    /// <remarks>
+    /// The direction follows from how the pipeline applies decorators: it sorts by
+    /// descending order and each step wraps the agent the previous step produced, so the
+    /// highest value is applied first and every later decorator wraps it. Place a decorator
+    /// that has to observe or veto everything below it at a <em>low</em> value, and one
+    /// that has to sit close to the agent's own calls at a <em>high</em> value - which is
+    /// why run recording is 0 and the tool-approval gate is 20.
+    /// </remarks>
     int Order { get; }
 
     /// <summary>Decorates the agent.</summary>
