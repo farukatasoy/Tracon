@@ -429,6 +429,9 @@ AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_does
 AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.Tenant_reads_its_own_record() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.TenantIsolationContract<TStore>.UseAmbientTenant(AgentPrism.Testing.Contracts.Storage.MutableTenantContext! tenant) -> void
 AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract
+AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_is_deleted_whatever_case_the_caller_uses() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_saved_under_a_different_case_replaces_the_existing_one() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_provider_name_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Endpoint_is_optional() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Listing_returns_every_provider_binding_of_the_tenant() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Missing_binding_returns_null() -> System.Threading.Tasks.Task!

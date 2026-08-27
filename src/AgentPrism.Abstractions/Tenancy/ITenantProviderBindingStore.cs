@@ -2,9 +2,28 @@ namespace AgentPrism;
 
 /// <summary>The store for per-tenant model provider bindings (BYOK).</summary>
 /// <remarks>
+/// <para>
 /// This store never writes or reads a secret value, only the
 /// <strong>name</strong> of the configuration key the value is read from at
 /// call time.
+/// </para>
+/// <para>
+/// <strong>Provider names are matched case-insensitively.</strong> An
+/// implementation must pass every provider name it writes, and every
+/// provider name it is queried with, through
+/// <see cref="TenantProviderBinding.NormalizeProviderName"/>. This is not a
+/// convenience: the provider registry, the tenant egress policy and the admin
+/// endpoint all match the name case-insensitively, so a case-sensitive store
+/// turns a binding saved as <c>"OpenAI"</c> into a MISS for an agent whose
+/// definition says <c>"openai"</c> — and a miss falls through to the global
+/// setup credential silently, billing the wrong tenant with no error raised.
+/// <c>TenantProviderBindingStoreContract</c> proves this for every
+/// implementation.
+/// </para>
+/// <para>
+/// An implementation is registered as a <em>singleton</em> and must be safe
+/// under concurrent calls from unrelated tenants.
+/// </para>
 /// </remarks>
 public interface ITenantProviderBindingStore
 {

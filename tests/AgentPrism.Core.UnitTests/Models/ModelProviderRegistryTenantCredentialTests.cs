@@ -123,6 +123,44 @@ public sealed class ModelProviderRegistryTenantCredentialTests
         provider.LastBinding.ShouldBeNull();
     }
 
+    [Theory]
+    [InlineData("OpenAI", "openai")]
+    [InlineData("openai", "OpenAI")]
+    [InlineData("OPENAI", "openai")]
+    public async Task A_binding_saved_under_a_different_letter_case_is_still_the_tenants_binding(
+        string savedAs,
+        string requestedAs)
+    {
+        // 🚨 The provider name is matched case-insensitively EVERYWHERE else:
+        // the registry's own provider dictionary, the egress policy check, and
+        // the admin endpoint. If the binding store alone were case-sensitive,
+        // an admin who saved "OpenAI" while the agent definition says "openai"
+        // would get a silent MISS -- and the run would quietly bill the global
+        // setup credential instead of the tenant's own. That is the exact
+        // failure the comment above ResolveTenantCredentialAsync forbids.
+        var provider = new FakeModelProvider(name: "openai");
+        var bindings = new InMemoryTenantProviderBindingStore();
+
+        await bindings.UpsertAsync(new TenantProviderBinding
+        {
+            TenantId = Tenant,
+            ProviderName = savedAs,
+            ApiKeyConfigurationName = "AgentPrism:ProviderKeys:Acme:OpenAI",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var registry = CreateRegistry(
+            provider,
+            new FixedTenantContext(Tenant),
+            bindings,
+            configuration: BuildConfiguration(("AgentPrism:ProviderKeys:Acme:OpenAI", "sk-tenant-key")));
+
+        await registry.CreateChatClientAsync(TestData.Binding(provider: requestedAs));
+
+        provider.LastCredential.ShouldNotBeNull();
+        provider.LastCredential.ApiKey.ShouldBe("sk-tenant-key");
+    }
+
     [Fact]
     public async Task Egress_policy_rejects_a_provider_not_in_the_allowed_list()
     {

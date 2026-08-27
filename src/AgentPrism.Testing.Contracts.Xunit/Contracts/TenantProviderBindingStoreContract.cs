@@ -59,6 +59,46 @@ public abstract class TenantProviderBindingStoreContract : TenantIsolationContra
     public async Task Missing_binding_returns_null()
         => (await Store.GetAsync(Tenant, "unknown")).ShouldBeNull();
 
+    [Theory]
+    [InlineData("OpenAI", "openai")]
+    [InlineData("openai", "OpenAI")]
+    [InlineData("OPENAI", "openai")]
+    public async Task A_provider_name_is_matched_case_insensitively(string savedAs, string requestedAs)
+    {
+        // 🚨 A case-sensitive store is a SECURITY defect, not an ergonomic one.
+        // The provider registry, the egress policy and the admin endpoint all
+        // match the name case-insensitively. A store that does not turns an
+        // existing tenant binding into a silent MISS -- and a miss falls back
+        // to the global setup credential, billing the wrong tenant with no
+        // error raised.
+        await Store.UpsertAsync(Binding(Tenant, savedAs));
+
+        (await Store.GetAsync(Tenant, requestedAs)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task A_binding_saved_under_a_different_case_replaces_the_existing_one()
+    {
+        await Store.UpsertAsync(Binding(Tenant, "openai", "AgentPrism:ProviderKeys:Test:First"));
+        await Store.UpsertAsync(Binding(Tenant, "OpenAI", "AgentPrism:ProviderKeys:Test:Second"));
+
+        // One binding, not two: otherwise which of the pair wins at resolution
+        // time depends on the storage engine's collation.
+        var bindings = await Store.ListAsync(Tenant);
+
+        bindings.Count.ShouldBe(1);
+        bindings[0].ApiKeyConfigurationName.ShouldBe("AgentPrism:ProviderKeys:Test:Second");
+    }
+
+    [Fact]
+    public async Task A_binding_is_deleted_whatever_case_the_caller_uses()
+    {
+        await Store.UpsertAsync(Binding(Tenant, "openai"));
+
+        (await Store.DeleteAsync(Tenant, "OpenAI")).ShouldBeTrue();
+        (await Store.GetAsync(Tenant, "openai")).ShouldBeNull();
+    }
+
     [Fact]
     public async Task Upsert_replaces_the_existing_binding_for_the_same_tenant_and_provider()
     {

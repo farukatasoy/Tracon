@@ -2936,6 +2936,7 @@ AgentPrism.TenantProviderBinding.Endpoint.get -> string?
 AgentPrism.TenantProviderBinding.Endpoint.init -> void
 AgentPrism.TenantProviderBinding.Equals(AgentPrism.TenantProviderBinding? other) -> bool
 AgentPrism.TenantProviderBinding.ProviderName.get -> string!
+static AgentPrism.TenantProviderBinding.NormalizeProviderName(string! providerName) -> string!
 AgentPrism.TenantProviderBinding.ProviderName.init -> void
 AgentPrism.TenantProviderBinding.TenantId.get -> string!
 AgentPrism.TenantProviderBinding.TenantId.init -> void

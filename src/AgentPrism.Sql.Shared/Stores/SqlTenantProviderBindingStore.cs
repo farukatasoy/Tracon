@@ -37,7 +37,7 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
 
         var command = CreateCommand(_sql.SelectTenantProviderBinding);
         DbHelpers.Add(command, "tenant_id", tenantId);
-        DbHelpers.Add(command, "provider_name", providerName);
+        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
 
         return await DbHelpers.ReadSingleAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
     }
@@ -60,7 +60,7 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
 
         var command = CreateCommand(_sql.UpsertTenantProviderBinding);
         DbHelpers.Add(command, "tenant_id", binding.TenantId);
-        DbHelpers.Add(command, "provider_name", binding.ProviderName);
+        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(binding.ProviderName));
         DbHelpers.Add(command, "api_key_configuration_name", binding.ApiKeyConfigurationName);
         Dialect.AddText(command, "endpoint", binding.Endpoint);
         Dialect.AddTimestamp(command, "updated_at", _timeProvider.GetUtcNow());
@@ -76,7 +76,7 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
 
         var command = CreateCommand(_sql.DeleteTenantProviderBinding);
         DbHelpers.Add(command, "tenant_id", tenantId);
-        DbHelpers.Add(command, "provider_name", providerName);
+        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(providerName));
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }

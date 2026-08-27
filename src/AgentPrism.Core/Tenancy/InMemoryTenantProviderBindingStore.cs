@@ -21,7 +21,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        _bindings.TryGetValue((tenantId, providerName), out var binding);
+        _bindings.TryGetValue((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out var binding);
         return ValueTask.FromResult(binding);
     }
 
@@ -43,7 +43,14 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        _bindings[(binding.TenantId, binding.ProviderName)] = binding with { UpdatedAt = _timeProvider.GetUtcNow() };
+        var providerName = TenantProviderBinding.NormalizeProviderName(binding.ProviderName);
+
+        _bindings[(binding.TenantId, providerName)] = binding with
+        {
+            ProviderName = providerName,
+            UpdatedAt = _timeProvider.GetUtcNow(),
+        };
+
         return ValueTask.CompletedTask;
     }
 
@@ -53,6 +60,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        return ValueTask.FromResult(_bindings.TryRemove((tenantId, providerName), out _));
+        return ValueTask.FromResult(
+            _bindings.TryRemove((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out _));
     }
 }

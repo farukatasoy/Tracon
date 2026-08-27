@@ -126,3 +126,41 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   ile bir kez tara** — dogrudan parametre DI'nin coz(emey)ecegi bir seyi
   build zamanina degil calisma zamanina tasir, hata mesaji "circular dependency"
   gibi acik olabilir ama DAHA COK sessizce StackOverflow'a da donusebilir.
+
+## Bir mantiksal adin KARSILASTIRICISI katmanlar arasi ayrisirsa BYOK sessizce global anahtara duser (Yayin denetimi 2026-08-27, dusun testle yeniden uretildi)
+
+- **🚨 `provider` adi sistemde YEDI yerde `OrdinalIgnoreCase` ile eslesir, TEK
+  yerde `Ordinal` ile eslesiyordu** — `ModelProviderRegistry` sozlugu (satir 135),
+  kiracı egress politikasi (296/305/364/373), yonetim ucu
+  (`TenantProviderEndpoints:169`), fiyat override'lari, saglik onbellegi ve
+  eszamanlilik sinirlayicisi hepsi case duyarsiz; yalniz
+  `InMemoryTenantProviderBindingStore`'un `(TenantId, ProviderName)` demet
+  anahtari ve SQL store'un ciplak `=` yuklemi degildi.
+- **Bedeli:** yonetici baglantiyi `"OpenAI"` diye kaydedip agent tanimi
+  `"openai"` derse, PostgreSQL/SQLite'ta arama ISKALAR. Iskalama `null` doner ve
+  `ResolveTenantCredentialAsync` bunu "bu kiracinin BYOK'u yok" sayip **global
+  setup credential'ina duser** — kiracinin kendi anahtari hic kullanilmaz,
+  fatura yanlis tarafa yazilir ve **hicbir hata uretilmez**. Bu, ayni metodun
+  330-332. satirindaki "bu SESSIZCE global anahtara DUSMEMELIDIR" yorumunun tam
+  olarak yasakladigi senaryodur; o koruma yalnizca "baglanti VAR ama degeri yok"
+  dalini kapatiyordu, "baglanti hic bulunamadi" dalini degil.
+- **Cozum, karsilastiriciyi degistirmek DEGIL, DEGERI normallestirmektir**
+  (`TenantProviderBinding.NormalizeProviderName`, invariant kucuk harf; store
+  hem yazarken hem sorgularken uygular). Gerekce: `LOWER(...)` yuklemi indeksi
+  kullanilamaz hale getirir ve **birincil anahtari uc motorda ayrisik birakir** —
+  PostgreSQL/SQLite `"OpenAI"` ve `"openai"` satirlarinin IKISINI birden kabul
+  ederdi, SQL Server (varsayilan CI collation) ikincisini reddederdi. Degeri
+  normallestirince duz `=` uc motorda da ayni davranir.
+- **🚨 SQL Server migration'inda `COLLATE Latin1_General_BIN2` tasiyicidir:**
+  varsayilan CI collation altinda `provider_name <> LOWER(provider_name)` HER
+  ZAMAN false doner — karsilastirmanin kendisi, bulmasi gereken case farkini yok
+  sayar — ve UPDATE sessizce sifir satir gunceller.
+- **Kural:** bir mantiksal ad hem bir depoda ANAHTAR hem de calisma aninda
+  COZUMLEME girdisiyse, karsilastiricisini tek bir yerde sabitle ve
+  `grep -rn "OrdinalIgnoreCase" src/` ile ayni adin diger kullanimlarina bak.
+  Tarama sonucu: `Experiment`/`AgentDefinition` adlari her katmanda `Ordinal`,
+  `Idempotency-Key` opak token (HTTP standardi geregi byte-tam), `Session.Id`
+  sunucu uretimli — **dordu de tutarli, yalniz `provider` outlier'di.**
+- **Kapi:** `TenantProviderBindingStoreContract`'in uc yeni case-mismatch
+  case'i (dort implementasyonun HEPSINDE kosar) + registry seviyesinde
+  `A_binding_saved_under_a_different_letter_case_is_still_the_tenants_binding`.
