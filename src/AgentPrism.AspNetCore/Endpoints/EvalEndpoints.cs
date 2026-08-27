@@ -603,7 +603,7 @@ internal static class EvalEndpoints
             return RunNotFoundForPromotion(runId);
         }
 
-        var (scores, failures) = await jobHandler.JudgeRunAsync(run, cancellationToken).ConfigureAwait(false);
+        var (scores, failures) = await jobHandler.JudgeRunAsync(run, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (scores.Count == 0 && failures.Count > 0)
         {

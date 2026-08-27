@@ -10,10 +10,14 @@ namespace AgentPrism;
 /// in instance fields.
 /// </para>
 /// <para>
-/// A call can be repeated for the same run when another judge causes a retry.
-/// Implementations must make side effects idempotent. <see cref="Name"/> is a
-/// stable low-cardinality identifier. It must match <c>[A-Za-z0-9._-]{1,64}</c>
-/// and is used in metric tags and score fields.
+/// A call can still be repeated for the same run: once when another judge
+/// causes the whole job to retry (a judge that already wrote a score for this
+/// run is NOT called again on that retry — only a judge that has not yet
+/// scored the run runs), and always when a caller re-triggers manual scoring
+/// via <c>POST /api/runs/{id}/judge</c>. Implementations must make side
+/// effects idempotent. <see cref="Name"/> is a stable low-cardinality
+/// identifier. It must match <c>[A-Za-z0-9._-]{1,64}</c> and is used in metric
+/// tags and score fields.
 /// </para>
 /// <para>
 /// The supplied cancellation token is the call budget. Do not throw an

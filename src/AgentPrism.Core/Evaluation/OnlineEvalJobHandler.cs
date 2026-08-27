@@ -27,6 +27,14 @@ namespace AgentPrism;
 /// (<c>POST /api/runs/{id}/judge</c>); it SKIPS sampling and expects a
 /// <see cref="RunRecord"/> the caller has already resolved.
 /// </para>
+/// <para>
+/// On a retry attempt (<see cref="JobRecord.Attempt"/> &gt; 1), a judge that
+/// already wrote a score for this run in an earlier attempt is NOT called
+/// again; its existing row is read back and returned unchanged. This is a
+/// per-judge durable checkpoint built on the <c>run_scores</c> uniqueness
+/// constraint described above, not a new table. The manual scoring endpoint
+/// never skips: a caller invoking it has explicitly asked for a fresh score.
+/// </para>
 /// </remarks>
 internal sealed class OnlineEvalJobHandler(
     IRunStore runStore,
@@ -40,6 +48,14 @@ internal sealed class OnlineEvalJobHandler(
     ILogger<OnlineEvalJobHandler>? logger = null,
     IOptionsMonitor<OnlineEvaluationOptions>? optionsMonitor = null) : IJobHandler
 {
+    /// <summary>
+    /// The prefix written into <see cref="RunScore.Author"/> and
+    /// <see cref="RunScore.Source"/> for every judge-authored score. Also the
+    /// marker <see cref="ReadAlreadyScoredJudgesAsync"/> uses to recognize a
+    /// judge's own row among a run's scores (as opposed to a human's).
+    /// </summary>
+    private const string JudgeAuthorPrefix = "judge:";
+
     /// <inheritdoc />
     public JobKind Kind => JobKind.OnlineEval;
 
@@ -63,7 +79,7 @@ internal sealed class OnlineEvalJobHandler(
             return;
         }
 
-        var (_, failures) = await JudgeRunAsync(run, cancellationToken).ConfigureAwait(false);
+        var (_, failures) = await JudgeRunAsync(run, skipAlreadyScored: context.Job.Attempt > 1, cancellationToken).ConfigureAwait(false);
 
         var retryableFailures = failures.Where(static failure => failure.IsRetryable).ToArray();
 
@@ -93,6 +109,17 @@ internal sealed class OnlineEvalJobHandler(
     /// Scores the given run with every registered <see cref="IRunJudge"/>.
     /// </summary>
     /// <param name="run">The run to score. The caller must have already performed the tenant/entity check.</param>
+    /// <param name="skipAlreadyScored">
+    /// When <see langword="true"/>, a judge that already has a
+    /// <c>run_scores</c> row for this run (written by an earlier attempt) is
+    /// not called again; its existing row is read back and returned instead.
+    /// Pass <see langword="true"/> only for a retry attempt
+    /// (<see cref="JobRecord.Attempt"/> &gt; 1); the manual scoring endpoint
+    /// leaves this <see langword="false"/> so a caller-requested re-judgment
+    /// always runs. If reading existing scores fails, the failure is logged
+    /// and every judge runs, matching the rule that observability must not
+    /// break functionality.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>
     /// The scores written, and the name/message of any judges that failed.
@@ -101,6 +128,7 @@ internal sealed class OnlineEvalJobHandler(
     /// </returns>
     public async ValueTask<(IReadOnlyList<RunScore> Scores, IReadOnlyList<JudgeFailure> Failures)> JudgeRunAsync(
         RunRecord run,
+        bool skipAlreadyScored = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(run);
@@ -144,13 +172,56 @@ internal sealed class OnlineEvalJobHandler(
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         var scores = new List<RunScore>();
         var failures = new List<JudgeFailure>();
+        var alreadyScored = skipAlreadyScored
+            ? await ReadAlreadyScoredJudgesAsync(run, cancellationToken).ConfigureAwait(false)
+            : new Dictionary<string, RunScore>(StringComparer.Ordinal);
 
         foreach (var judge in judgeList)
         {
+            if (alreadyScored.TryGetValue(judge.Name, out var existing))
+            {
+                scores.Add(existing);
+                logger?.LogDebug("Judge '{Judge}' already scored run {RunId} in an earlier attempt; skipping.", judge.Name, run.Id);
+                continue;
+            }
+
             await JudgeOneAsync(judge, judgeContext, run, now, scores, failures, cancellationToken).ConfigureAwait(false);
         }
 
         return (scores, failures);
+    }
+
+    /// <summary>
+    /// Reads a run's existing <see cref="RunScore"/> rows and returns the
+    /// judges that already scored it, keyed by <see cref="IRunJudge.Name"/>.
+    /// </summary>
+    /// <remarks>
+    /// If the read fails, the failure is logged and an empty map is returned
+    /// so every judge runs — a checkpoint read must not make the job brittle.
+    /// A caller-requested cancellation is NOT swallowed here.
+    /// </remarks>
+    private async ValueTask<Dictionary<string, RunScore>> ReadAlreadyScoredJudgesAsync(RunRecord run, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var existingScores = await scoreStore.ListAsync(tenantContext.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
+            var result = new Dictionary<string, RunScore>(StringComparer.Ordinal);
+
+            foreach (var score in existingScores)
+            {
+                if (!string.IsNullOrEmpty(score.Author) && score.Author.StartsWith(JudgeAuthorPrefix, StringComparison.Ordinal))
+                {
+                    result[score.Author[JudgeAuthorPrefix.Length..]] = score;
+                }
+            }
+
+            return result;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger?.LogWarning(exception, "Failed to read existing scores for run {RunId}; no judge will be skipped.", run.Id);
+            return new Dictionary<string, RunScore>(StringComparer.Ordinal);
+        }
     }
 
     private async ValueTask JudgeOneAsync(
@@ -232,8 +303,8 @@ internal sealed class OnlineEvalJobHandler(
                 Kind = RunScoreKind.Numeric,
                 Value = score,
                 Comment = reason,
-                Source = $"judge:{judge.Name}",
-                Author = $"judge:{judge.Name}",
+                Source = $"{JudgeAuthorPrefix}{judge.Name}",
+                Author = $"{JudgeAuthorPrefix}{judge.Name}",
                 CreatedAt = now,
             },
             cancellationToken).ConfigureAwait(false);
