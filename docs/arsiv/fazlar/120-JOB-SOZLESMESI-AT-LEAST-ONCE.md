@@ -11,212 +11,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula.
-
-1. Bu doküman
-2. Kararlar — yalnız bu kalemi grep'le:
-   ```bash
-   grep -n "K-138" docs/KARARLAR.md
-   ```
-   **K-138** (zamanlama benzersizlik kısıtı — job tekrarının bugün zaten
-   kapatılmış olan **ayrı** bir yüzü; bu fazla karıştırılmamalı)
-3. [`119-HATA-METNI-SIZINTISI.md`](119-HATA-METNI-SIZINTISI.md) — yalnız devir notu
-   (aynı dosyaya dokunur)
-4. Alan hafızası: bu faz **kod davranışı değiştirmez**, sözleşme yazar — alan
-   hafızası okuması gerekmiyor
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 94e0b19:docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md
+> ```
+>
+> Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-`IJobHandler` üçüncü tarafın yazacağı bir genişleme noktasıdır. Bugün onun
-sözleşmesi, **bir handler'ın aynı iş için birden fazla kez çağrılabileceğini
-hiç söylemiyor.** Yerleşik üç handler bunu savunmacı bir kontrolle kendi
-içinde çözüyor; kural yalnız o üç dosyanın yorumunda yaşıyor.
-
-- **BL-041** — job yürütmesinin **at-least-once** olduğu arayüz sözleşmesine
-  yazılır ve bir contract testiyle kilitlenir.
-
-### 🚨 Denetimin çerçevesi düzeltildi
-
-Yayın denetimi bu kalemi "`IIdempotencyStore` — amacına rağmen job dispatch
-loop'unda hiç çağrılmıyor" diye kaydetmişti. **Ölçüldü, çerçeve yanlış:**
-
-| İddia | Ölçüm |
-|---|---|
-| `IIdempotencyStore` job yürütmesi için var | **Hayır.** Kendi XML dokümanı (`IIdempotencyStore.cs:6-14`) onu açıkça HTTP `Idempotency-Key` başlığı mekanizması olarak tanımlar ("exactly as the HTTP `Idempotency-Key` standard prescribes"). Tüketicileri `IdempotencyFilter` (HTTP) ve `InboundTriggerDispatcher`'dır |
-| Job loop'unda tekrar koruması yok | **Var.** `JobItemStatus.Pending` kontrolü item başına dedup sağlar ve üç yerleşik handler'ın hepsinde koşar |
-
-Yani job loop'una `IIdempotencyStore` bağlamak **gereksiz ikinci bir
-mekanizmadır** ve bu faz onu yapmaz. Geriye kalan gerçek kusur tektir ve
-dardır: **sözleşme bu davranışı söylemiyor.**
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`Scheduling/IJobHandler.cs`](../../../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) | `ExecuteAsync`'in `<remarks>`'i yalnız "handler fırlatırsa retry edilir veya `Failed` işaretlenir" der. Retry'de `context.Items`'ın **tamamının** — zaten `Completed` olanlar dahil — geri geleceğini **söylemez** |
-| [`Scheduling/IJobHandler.cs`](../../../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) — `JobContext.Items` | "The job's items, by sequence number" — durum süzgeci uygulanmadığı belirtilmez |
-| [`AgentBatchJobHandler.cs:35-39`](../../../src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs) | Kural burada yorumla yaşıyor: *"Retry scenario: when the lease expires and the job is claimed again, items already processed successfully do not run again."* |
-| [`WorkflowJobHandler.cs:41-46`](../../../src/AgentPrism.Core/Scheduling/WorkflowJobHandler.cs) | Aynı savunmacı kontrol, yorumsuz |
-| [`EvalJobHandler.cs:150-155`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs) | Aynı kontrol, aynı gerekçe yorumu |
-| `grep -c "IdempotencyStore" JobWorkerBackgroundService.cs` | **0** — doğrulandı; ama yukarıdaki gerekçeyle bu bir kusur değildir |
-
-> Kanıtlar 2026-08-27 tarihinde doğrulandı.
-
-**Tüketici etkisi:** Arayüz dokümanını okuyup kendi `IJobHandler`'ını yazan bir
-geliştirici, `context.Items` üzerinde durum kontrolü yapmaz — doküman ona böyle
-bir kontrolün gerektiğini söylemez. Lease süresi dolduğunda veya süreç
-çöktüğünde handler yeniden çağrılır ve **yan etki ikinci kez çalışır**
-(e-posta ikinci kez gider, ödeme ikinci kez denenir).
-
----
-
-## 120.1 — Sözleşme: at-least-once yazılı hale gelir
-
-`IJobHandler.ExecuteAsync` ve `JobContext.Items` dokümanı üç şeyi açıkça söyler:
-
-1. **Çağrı at-least-once'tır.** Lease süresi dolarsa, süreç çökerse veya
-   handler fırlatırsa aynı job yeniden çağrılır.
-2. **`Items` süzülmemiş gelir.** Zaten `Completed`/`Failed` olan item'lar da
-   listede olur; handler `Status != Pending` olanı **atlamalıdır**.
-3. **Yan etkisi olan handler idempotent olmalıdır** ya da bu kontrolü
-   yapmalıdır.
-
-Yerleşik handler'ların yorumundaki bilgi arayüze taşınır; yorumlar kalır ama
-artık sözleşmenin tekrarı olurlar, tek kaynağı değil.
-
-## 120.2 — Kural bir contract testiyle kilitlenir
-
-Yazı yetmez — bu repoda sözleşme testi, üçüncü taraf implementasyonun
-davranışını kanıtlayan mekanizmadır (`AgentSourceContract`,
-`ModelProviderContract`, `RunJudgeContract` emsalleri).
-
-`JobHandlerContract` eklenir. En az şunu kanıtlar:
-
-- Handler, zaten `Completed` olan bir item taşıyan bir `JobContext` ile
-  çağrıldığında o item'ı **yeniden işlemez**.
-- İkinci çağrıda yalnız `Pending` item'lar işlenir.
-- İptal (`IsCancelledAsync`) item'lar arasında gözlenir.
-
-🚨 Contract'ın **gerçek bir consumer'ı olmalıdır** — yayın denetimi
-(`nuget-danismani` Adım 5) "hiç consumer'ı olmayan contract" durumunu test
-tiyatrosu olarak sayar. Üç yerleşik handler bu contract'ı türetir; en az biri
-`samples/` altında dış bir sample olarak da koşar.
-
----
-
-## Planlanan Public API
-
-> Taslak imzalardır.
-
-```csharp
-// AgentPrism.Testing.Contracts.Xunit
-namespace AgentPrism.Testing.Contracts.Scheduling;
-
-/// <summary>Behavior tests for the <see cref="IJobHandler"/> contract.</summary>
-public abstract class JobHandlerContract
-{
-    protected abstract IJobHandler Handler { get; }
-
-    // Türeyen sınıf, kendi JobKind'ine uygun item üretir.
-    protected abstract JobItemRecord CreateItem(int sequence, JobItemStatus status);
-
-    [Fact] public Task Completed_items_are_not_processed_again();
-    [Fact] public Task Only_pending_items_are_processed_on_a_retry();
-    [Fact] public Task Cancellation_is_observed_between_items();
-}
-```
-
-`AgentPrism.Abstractions` tarafında **yeni tip yoktur** — yalnız mevcut
-`IJobHandler` ve `JobContext` üyelerinin XML dokümanı değişir. Doküman
-değişikliği `PublicAPI.*.txt`'yi etkilemez.
-
-### HTTP `endpoint`'leri
-
-Yok. Bu faz çalışma anı davranışını **değiştirmez**.
-
-### Arayüz payı
-
-Yok.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/AgentPrism.Abstractions/
-└── Scheduling/IJobHandler.cs                 (yalnız XML dokümanı)
-
-src/AgentPrism.Testing.Contracts.Xunit/
-├── Contracts/Scheduling/JobHandlerContract.cs (yeni)
-└── PublicAPI.Unshipped.txt                    (yeni contract üyeleri)
-
-tests/AgentPrism.Core.UnitTests/Contracts/
-└── JobHandlerContractTests.cs                 (üç yerleşik handler türetir)
-
-samples/
-└── <mevcut bir sample'a veya yeniye> custom IJobHandler + contract koşumu
-```
-
----
-
-## Hata Modları ve Testler
-
-| Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|
-| Üçüncü taraf handler tamamlanmış item'ı yeniden işler | Sözleşme (`JobHandlerContract`) | üç yerleşik + bir dış sample'da koşar |
-| Yerleşik handler'ın savunmacı kontrolü ileride silinir | Sözleşme | aynı contract — regresyon kapısı |
-| Lease süresi dolunca job gerçekten yeniden çağrılıyor mu (sözleşmenin dayanağı) | Fonksiyonel (depo sınırı) | `JobLeaseExpiryTests` — **iddia edilen davranışın kendisi ölçülür** |
-| İptal item'lar arasında gözlenmiyor | Sözleşme | `JobHandlerContract` |
-| Boş `Items` listesi | Birim | `JobHandlerContract` |
-| Başka kiracının job'u görünür | Sözleşme (`TenantIsolationContract`) | mevcut suite — regresyon |
-
-🚨 Üçüncü satır atlanamaz: bu faz bir davranışı **dokümante ediyor**. O
-davranışın gerçekten var olduğu (lease dolunca handler'ın tam `Items`
-listesiyle yeniden çağrıldığı) fonksiyonel olarak ölçülmeden dokümante
-edilirse, doküman runtime'dan güçlü bir garanti vermiş olur — yayın
-danışmanının "en tehlikeli drift" dediği durum budur.
-
-Beş soru: **iptal** (contract'ta) · **eşzamanlılık** (iki worker aynı job'u
-lease edemez — `IJobStore` sözleşmesi, mevcut) · **boş/aşırı girdi** (boş
-`Items`) · **başka kiracı** (regresyon) · **alt sistem hatası** (depo düşerse
-job retry'e döner — mevcut davranış).
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Çok item'lı bir batch job, kısa lease süresi | Job'u başlat, ilk item işlendikten sonra worker'ı öldür, yeniden başlat | İkinci koşumda **yalnız kalan item'lar** işlenir; ilk item'ın yan etkisi tekrarlamaz |
-| 2 | Dokümanı izleyerek yazılmış dış bir `IJobHandler` (sample) | `JobHandlerContract` koşumu | Üç case de geçer |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Contract yalnız item bazlı mı, job bazlı tekrarı da kapsasın mı? | A: yalnız item · B: job bazlı senaryo da | **A** — item durumu bugünkü gerçek mekanizmadır; job bazlı dedup için ayrı, ölçülmüş bir ihtiyaç yok (YAGNI) |
-| 2 | Dış sample yeni bir proje mi olsun, mevcut bir sample'a mı eklensin? | A: yeni `samples/AgentPrism.Samples.CustomJobHandler` · B: mevcut sample'a ek | **A** — diğer seam'lerin (`CustomTool`, `CustomRunJudge`, `CustomAgentSource`) hepsi ayrı sample; tutarlılık ve `PackageReference` ile koşum kolaylığı |
-
----
-
-### `--site-gerekce-yazildi` gerekçesi
-
-`dokuman-bakim.py --site-denetle`, `src/AgentPrism.Abstractions/`
-değiştiğinde `concepts/` altında bir sayfanın da değişmesini bekleyen
-kasıtlı-geniş `cekirdek-kavram` kuralını tetikledi. Bu sitede jobs/scheduling
-konusu `concepts/` altında değil `guides/background-work.md`'de yaşıyor —
-`concepts/` sekiz sayfadan hiçbiri (agents, evaluation, governance, index,
-runs, sessions, tools, workflows) job kuyruğunu konu almıyor. Bu fazın
-dokunduğu tek `concepts/`-benzeri davranış zaten `guides/background-work.md`
-(at-least-once notu + yeni "Read next" bağlantısı) ve yeni
-`guides/write-your-own-job-handler.md`'de güncellendi. Kural bu yüzden
-`--site-gerekce-yazildi` ile geçilir.
+`IJobHandler` üçüncü tarafın yazacağı bir genişleme noktasıdır. Bugün onun sözleşmesi, **bir handler'ın aynı iş için birden fazla kez çağrılabileceğini hiç söylemiyor.** Yerleşik üç handler bunu savunmacı bir kontrolle kendi içinde çözüyor; kural yalnız o üç dosyanın yorumunda yaşıyor.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -241,21 +53,6 @@ dokunduğu tek `concepts/`-benzeri davranış zaten `guides/background-work.md`
 
 ---
 
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| **Doküman runtime'dan güçlü garanti verir** — at-least-once yazılır ama ölçülmez | `JobLeaseExpiryTests` DoD'de ayrı satır; davranış dokümante edilmeden önce ölçülür |
-| Contract'ın gerçek consumer'ı olmaz (test tiyatrosu) | DoD üç yerleşik handler + bir dış sample şartı koyar |
-| Faz 119 ile aynı dosyada çakışma | 119 önce kapanır; bu fazın önkoşul satırı bunu söyler |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
-
 ## Plandan Sapmalar
 
 - **`JobHandlerContract`'ın taslak imzası gerçekleşmedi, aynı ailedeki emsallerin (`AgentSourceContract`, `RunJudgeContract`) desenine geçti.** Plan yalnız `protected abstract IJobHandler Handler { get; }` + `CreateItem(...)` öngörüyordu. Gerçekte: `IAsyncLifetime` tabanlı, `CreateHandlerAsync()` (async kurulum — Eval kendi suite/case/run kaydını burada yapıyor), `JobId` (paylaşılan job kimliği; Eval kendi run kaydını buna bağlıyor) ve `virtual CreateJob(items)` (hedef ad/payload override'ı) eklendi. Sebep: `EvalJobHandler` bir suite + case + run kaydı olmadan çalışamıyor, bu kurulum async ve tek bir `Handler` property'sine sığmıyor.
@@ -267,78 +64,6 @@ dokunduğu tek `concepts/`-benzeri davranış zaten `guides/background-work.md`
 ## Bu Fazda Verilen Kararlar
 
 - **K-641** — `IJobHandler`'ın at-least-once yürütme sözleşmesi public XML dokümana yazılır ve `JobHandlerContract` ile kilitlenir; `IIdempotencyStore`'u job dispatch loop'una bağlamak reddedilir (bkz. `docs/KARARLAR.md`).
-
-## Gerçekleşen Public API
-
-`AgentPrism.Abstractions` tarafında **yeni tip yok** — yalnız `IJobHandler.ExecuteAsync`, `JobContext.Items` ve `AgentPrismServiceCollectionExtensions.AddJobHandler<T>()`'ın XML dokümanı değişti (public API yüzeyi etkilenmedi, `PublicAPI.*.txt` bu paket için değişmedi).
-
-`AgentPrism.Testing.Contracts.Xunit` içinde yeni namespace ve tip (`PublicAPI.Unshipped.txt`'ye eklendi, `public-surface-baseline.txt` 45→46 güncellendi):
-
-```csharp
-namespace AgentPrism.Testing.Contracts.Scheduling;
-
-public abstract class JobHandlerContract : IAsyncLifetime
-{
-    protected IJobHandler Handler { get; }                                     // get-only, InitializeAsync'te set edilir
-    protected Guid JobId { get; }                                              // = Guid.NewGuid(), tüm test boyunca sabit
-
-    protected abstract ValueTask<IJobHandler> CreateHandlerAsync();
-    protected abstract JobItemRecord CreateItem(int sequence, JobItemStatus status);
-    protected virtual JobRecord CreateJob(IReadOnlyList<JobItemRecord> items);  // varsayılan: TenantId="contract-tenant" vb.
-
-    [Fact] public Task Completed_items_are_not_processed_again();
-    [Fact] public Task Only_pending_items_are_processed_on_a_retry();
-    [Fact] public Task Cancellation_is_observed_between_items();
-}
-```
-
-`AgentPrism.Testing.Contracts.ContractCoverage.SchedulingContracts` sabiti eklendi (`"AgentPrism.Testing.Contracts.Scheduling"`).
-
-**`samples/AgentPrism.Api` koşum notu:** Uygulama `dotnet run --no-build -c Release` ile PostgreSQL bağlantısıyla (mevcut `user-secrets`) başlatıldı, `AgentPrism__Scheduling__PollInterval=00:00:02`/`LeaseDuration=00:00:10` ile. Uygulama hatasız açıldı, `GET /agentprism/api/agents` yetkisiz istekte `401` döndü (auth doğru çalışıyor, regresyon yok). Tam canlı "worker öldür, yeniden başlat, yalnız kalan item işlenir" senaryosu (MT-JOB-103) yönetim API kimlik doğrulaması ve gerçek bir agent tanımı gerektirir; bu oturumda koşulmadı — bu davranış zaten `JobLeaseExpiryTests` ile `InMemoryJobStore` sınırında fonksiyonel olarak ölçüldü (bkz. DoD). MT-JOB-103 bir sonraki `manuel-test-kosumu` turunda 👤 gerektirir olarak işaretlenmiştir.
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs         (yalnız XML dokümanı)
-src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs  (yalnız AddJobHandler<T>()'ın XML dokümanı)
-
-src/AgentPrism.Testing.Contracts.Xunit/
-├── Contracts/Scheduling/JobHandlerContract.cs                (yeni)
-├── ContractCoverage.cs                                       (SchedulingContracts sabiti)
-└── PublicAPI.Unshipped.txt
-
-tests/AgentPrism.Core.UnitTests/
-├── Contracts/JobHandlerContractTests.cs                      (üç yerleşik handler + coverage testi)
-├── Scheduling/JobLeaseExpiryTests.cs                         (yeni — fonksiyonel, depo sınırı)
-└── Architecture/public-surface-baseline.txt                  (45→46)
-
-samples/AgentPrism.Samples.CustomJobHandler/
-├── NightlyReportJobHandler.cs
-├── NightlyReportJobHandlerRegistrationExtensions.cs
-└── AgentPrism.Samples.CustomJobHandler.csproj
-
-samples/AgentPrism.Samples.CustomJobHandler.Tests/
-├── NightlyReportJobHandlerContractTests.cs
-├── NightlyReportJobHandlerRegistrationTests.cs
-└── AgentPrism.Samples.CustomJobHandler.Tests.csproj
-
-AgentPrism.slnx                                                (iki yeni sample proje girdisi)
-
-docs-site/src/content/docs/
-├── guides/write-your-own-job-handler.md                       (yeni)
-├── guides/background-work.md                                  (at-least-once notu + Read next)
-├── capabilities.md                                             (Custom jobs satırı)
-docs-site/src/sidebar.mjs                                       (yeni rehber girdisi)
-docs-site/public/llms.txt, llms-full.txt                        (üretilmiş)
-
-docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md                  (MT-JOB-103, MT-JOB-104)
-docs/manuel-test/00-INDEKS.md                                   (satır 16 güncellendi)
-docs/YAYIN-HAZIRLIK.md                                          (BL-041/RK-010 kapandı, KG-015)
-docs/KARARLAR.md                                                (K-641)
-docs/hafiza/aspnetcore-di.md                                    (FirstOrDefault dispatch tuzağı)
-
-scripts/kapi.py, scripts/kapi_test.py                           (kapsam dışı: dotnet format --no-restore düzeltmesi)
-```
 
 ## Denetim Bulguları
 
