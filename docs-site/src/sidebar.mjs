@@ -78,6 +78,7 @@ export const sidebar = [
       { label: 'Write your own store', slug: 'guides/write-your-own-store' },
       { label: 'Write your own judge', slug: 'guides/write-your-own-judge' },
       { label: 'Write your own agent source', slug: 'guides/write-your-own-agent-source' },
+      { label: 'Write your own agent decorator', slug: 'guides/write-your-own-agent-decorator' },
       { label: 'Write your own tool', slug: 'guides/write-your-own-tool' },
       { label: 'Write your own error classifier', slug: 'guides/write-your-own-error-classifier' },
       { label: 'Write your own job handler', slug: 'guides/write-your-own-job-handler' },

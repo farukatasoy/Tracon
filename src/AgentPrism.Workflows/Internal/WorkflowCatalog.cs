@@ -27,6 +27,7 @@ internal sealed class WorkflowCatalog
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="services">The service provider used by code factories.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The same code-defined workflow name is registered more than once.</exception>
     public WorkflowCatalog(
         IEnumerable<CodeWorkflowRegistration> codeWorkflows,
         IWorkflowDefinitionStore store,
@@ -40,9 +41,18 @@ internal sealed class WorkflowCatalog
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(services);
 
-        _codeWorkflows = codeWorkflows.ToDictionary(
-            static registration => registration.Name,
-            StringComparer.Ordinal);
+        _codeWorkflows = new Dictionary<string, CodeWorkflowRegistration>(StringComparer.Ordinal);
+
+        foreach (var registration in codeWorkflows)
+        {
+            if (!_codeWorkflows.TryAdd(registration.Name, registration))
+            {
+                throw new AgentPrismException(
+                    $"More than one code-defined workflow is registered with name '{registration.Name}'. " +
+                    "Workflow names must be unique.");
+            }
+        }
+
         _store = store;
         _compiler = compiler;
         _tenantContext = tenantContext;

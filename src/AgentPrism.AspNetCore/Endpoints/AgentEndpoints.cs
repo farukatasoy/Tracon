@@ -773,6 +773,20 @@ internal static class AgentEndpoints
         }
         catch (AgentPrismException ex)
         {
+            // 🚨 A parameterized run bypasses IAgentCatalog entirely (see the
+            // remark above), so a decorator or source failure here never
+            // passes through CompositeAgentCatalog.HandleSourceFailure - the
+            // one place that already logs and records the
+            // agentprism.agent_source.failures metric for the same
+            // exception type. Without this, the failure is silently
+            // swallowed into a 400 with no server-side trace at all.
+            if (ex is AgentPrismAgentSourceException)
+            {
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AgentPrism.AgentEndpoints")
+                    .LogError(ex, "Decorating a parameterized run of agent '{AgentName}' failed.", name);
+            }
+
             return Results.Problem(
                 title: "Agent compilation failed",
                 detail: ex.Message,

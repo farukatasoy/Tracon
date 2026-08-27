@@ -92,6 +92,100 @@ public sealed class AgentSourceFaultIsolationTests
             async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
     }
 
+    // --- Decorator failure normalization (BL-033, phase 122) ---
+
+    [Fact]
+    public async Task A_throwing_decorator_is_normalized_the_same_way_as_a_source_failure()
+    {
+        var healthy = new HealthySource("code", priority: 0, "alpha");
+        var decorator = new ThrowingDecorator(new InvalidOperationException("raw decorator failure with a secret"));
+        var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
+
+        var exception = await Should.ThrowAsync<AgentPrismAgentSourceException>(
+            async () => await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None));
+
+        exception.SourceName.ShouldBe("code");
+        exception.ErrorType.ShouldBe(AgentPrismAgentSourceException.SourceFailedErrorType);
+        exception.Message.ShouldNotContain("raw decorator failure");
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task A_real_cancellation_from_a_decorator_is_not_normalized()
+    {
+        var healthy = new HealthySource("code", priority: 0, "alpha");
+        var decorator = new ThrowingDecorator(new OperationCanceledException());
+        var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None));
+    }
+
+    private sealed class ThrowingDecorator(Exception exception) : IAgentDecorator
+    {
+        public int Order => 0;
+
+        public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor) => throw exception;
+    }
+
+    // --- Decorator failure normalization on the VERSIONED resolve overload (BL-033 class scan) ---
+
+    [Fact]
+    public async Task A_throwing_decorator_is_normalized_on_the_versioned_resolve_overload_too()
+    {
+        var source = new HealthyVersionedSource("database", priority: 100, "beta", 1);
+        var decorator = new ThrowingDecorator(new InvalidOperationException("raw decorator failure with a secret"));
+        var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
+
+        var exception = await Should.ThrowAsync<AgentPrismAgentSourceException>(
+            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
+
+        exception.SourceName.ShouldBe("database");
+        exception.ErrorType.ShouldBe(AgentPrismAgentSourceException.SourceFailedErrorType);
+        exception.Message.ShouldNotContain("raw decorator failure");
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task A_real_cancellation_from_a_decorator_on_the_versioned_overload_is_not_normalized()
+    {
+        var source = new HealthyVersionedSource("database", priority: 100, "beta", 1);
+        var decorator = new ThrowingDecorator(new OperationCanceledException());
+        var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
+    }
+
+    private sealed class HealthyVersionedSource(string name, int priority, string agentName, params int[] versions) : IVersionedAgentSource
+    {
+        private readonly HashSet<int> _versions = [.. versions];
+
+        public string Name { get; } = name;
+
+        public int Priority { get; } = priority;
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)
+            [
+                new AgentDescriptor { Name = agentName, Origin = AgentDefinitionOrigin.Database, SourceName = Name },
+            ]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName2, string? culture = null, CancellationToken cancellationToken = default)
+            => ResolveVersionAsync(agentName2, _versions.Max(), culture, cancellationToken);
+
+        public ValueTask<AIAgent?> ResolveVersionAsync(string agentName2, int version, string? culture = null, CancellationToken cancellationToken = default)
+        {
+            if (!string.Equals(agentName2, agentName, StringComparison.Ordinal) || !_versions.Contains(version))
+            {
+                return new ValueTask<AIAgent?>((AIAgent?)null);
+            }
+
+            var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
+            return new ValueTask<AIAgent?>(compiler.Compile(TestData.Definition(agentName2) with { Version = version }));
+        }
+    }
+
     private sealed class ThrowingSource(string name, int priority, Exception? listException = null, Exception? resolveException = null) : IAgentSource
     {
         public string Name { get; } = name;

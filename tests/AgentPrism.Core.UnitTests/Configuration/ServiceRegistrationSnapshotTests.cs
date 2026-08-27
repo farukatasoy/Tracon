@@ -221,6 +221,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.AgentSourceValidationService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | AgentPrism.ToolRegistrationValidationService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Factory",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | Factory",
         "AgentPrism.IAgentDecorator | Singleton | Factory",
         "AgentPrism.IAgentDecorator | Singleton | AgentPrism.OpenTelemetryAgentDecorator",
         "AgentPrism.IAgentDecorator | Singleton | AgentPrism.ToolApprovalAgentDecorator",
