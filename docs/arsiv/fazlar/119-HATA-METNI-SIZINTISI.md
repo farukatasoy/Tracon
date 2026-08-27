@@ -126,7 +126,7 @@ yok, 4 🟡, 0 🟢. Tam çözüm derlendi, `RawExceptionTextSiteTests` yeşildi
 
 ## Sonraki Faza Devir Notu
 
-**Faz 120 ([`120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](../../120-JOB-SOZLESMESI-AT-LEAST-ONCE.md))
+**Faz 120 ([`120-JOB-SOZLESMESI-AT-LEAST-ONCE.md`](120-JOB-SOZLESMESI-AT-LEAST-ONCE.md))
 bu fazdan sonra gelir ve AYNI dosyalara dokunur** — `IJobHandler.cs`,
 `AgentBatchJobHandler.cs`, `WorkflowJobHandler.cs`, `EvalJobHandler.cs`. Faz
 120'ye başlarken:

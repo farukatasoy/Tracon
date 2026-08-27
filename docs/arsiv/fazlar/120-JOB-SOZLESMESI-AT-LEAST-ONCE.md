@@ -1,8 +1,8 @@
 # Faz 120 — `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) — BL-041 (yayın denetimi bulgusu, aday listesinden değil)
-> **Önkoşul:** Yok — [Faz 119](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) ile aynı dosyaya (`JobWorkerBackgroundService.cs`) dokunur; **119 önce kapanırsa çakışma olmaz**
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) — BL-041 (yayın denetimi bulgusu, aday listesinden değil)
+> **Önkoşul:** Yok — [Faz 119](119-HATA-METNI-SIZINTISI.md) ile aynı dosyaya (`JobWorkerBackgroundService.cs`) dokunur; **119 önce kapanırsa çakışma olmaz**
 > **Paketler:** `AgentPrism.Abstractions`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — yalnız `Testing.Contracts.Xunit` içinde yeni contract sınıfı
@@ -22,7 +22,7 @@
    ```
    **K-138** (zamanlama benzersizlik kısıtı — job tekrarının bugün zaten
    kapatılmış olan **ayrı** bir yüzü; bu fazla karıştırılmamalı)
-3. [`119-HATA-METNI-SIZINTISI.md`](arsiv/fazlar/119-HATA-METNI-SIZINTISI.md) — yalnız devir notu
+3. [`119-HATA-METNI-SIZINTISI.md`](119-HATA-METNI-SIZINTISI.md) — yalnız devir notu
    (aynı dosyaya dokunur)
 4. Alan hafızası: bu faz **kod davranışı değiştirmez**, sözleşme yazar — alan
    hafızası okuması gerekmiyor
@@ -57,11 +57,11 @@ dardır: **sözleşme bu davranışı söylemiyor.**
 
 | Kanıt | Gözlem |
 |---|---|
-| [`Scheduling/IJobHandler.cs`](../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) | `ExecuteAsync`'in `<remarks>`'i yalnız "handler fırlatırsa retry edilir veya `Failed` işaretlenir" der. Retry'de `context.Items`'ın **tamamının** — zaten `Completed` olanlar dahil — geri geleceğini **söylemez** |
-| [`Scheduling/IJobHandler.cs`](../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) — `JobContext.Items` | "The job's items, by sequence number" — durum süzgeci uygulanmadığı belirtilmez |
-| [`AgentBatchJobHandler.cs:35-39`](../src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs) | Kural burada yorumla yaşıyor: *"Retry scenario: when the lease expires and the job is claimed again, items already processed successfully do not run again."* |
-| [`WorkflowJobHandler.cs:41-46`](../src/AgentPrism.Core/Scheduling/WorkflowJobHandler.cs) | Aynı savunmacı kontrol, yorumsuz |
-| [`EvalJobHandler.cs:150-155`](../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs) | Aynı kontrol, aynı gerekçe yorumu |
+| [`Scheduling/IJobHandler.cs`](../../../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) | `ExecuteAsync`'in `<remarks>`'i yalnız "handler fırlatırsa retry edilir veya `Failed` işaretlenir" der. Retry'de `context.Items`'ın **tamamının** — zaten `Completed` olanlar dahil — geri geleceğini **söylemez** |
+| [`Scheduling/IJobHandler.cs`](../../../src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs) — `JobContext.Items` | "The job's items, by sequence number" — durum süzgeci uygulanmadığı belirtilmez |
+| [`AgentBatchJobHandler.cs:35-39`](../../../src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs) | Kural burada yorumla yaşıyor: *"Retry scenario: when the lease expires and the job is claimed again, items already processed successfully do not run again."* |
+| [`WorkflowJobHandler.cs:41-46`](../../../src/AgentPrism.Core/Scheduling/WorkflowJobHandler.cs) | Aynı savunmacı kontrol, yorumsuz |
+| [`EvalJobHandler.cs:150-155`](../../../src/AgentPrism.Core/Evaluation/EvalJobHandler.cs) | Aynı kontrol, aynı gerekçe yorumu |
 | `grep -c "IdempotencyStore" JobWorkerBackgroundService.cs` | **0** — doğrulandı; ama yukarıdaki gerekçeyle bu bir kusur değildir |
 
 > Kanıtlar 2026-08-27 tarihinde doğrulandı.
@@ -230,7 +230,7 @@ dokunduğu tek `concepts/`-benzeri davranış zaten `guides/background-work.md`
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi — `MT-JOB-103`, `MT-JOB-104` (`16-IS-KUYRUGU-VE-ZAMANLAMA.md`)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 3× 🟡 kapatıldı, 2× 🟢 not edildi (bkz. § *Denetim Bulguları*)
 - [x] `docs-site/` job/scheduling rehberi at-least-once'ı anlatıyor — yeni `guides/write-your-own-job-handler.md` + `background-work.md` güncellemesi
-- [x] [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) güncellendi (BL-041 kapandı)
+- [x] [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) güncellendi (BL-041 kapandı)
 
 ### Doğrulama komutları
 
