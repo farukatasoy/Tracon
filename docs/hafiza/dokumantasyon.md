@@ -266,6 +266,21 @@ YEŞİL geçti — aynı özetin ilerisindeki ikinci bir "lower" kontrolü kurta
 Metin kapısı **bağlı tek ifade** aramalıdır, parça parça değil; ve her vakada
 ayrı ayrı kırmızı verdiğini ölç.
 
+## 🚨 `capabilities.md`'ye satır eklemek `llms.txt`'in ÜÇÜNCÜ sütununu okumaz (Faz 122)
+
+`docs-site/scripts/build-agent-map.mjs`'in `renderRow` fonksiyonu bir
+capability tablosundan yalnız **başlığı** `registration|enable|surface|
+definition|choice|where|output` desenine uyan sütunu (genelde 2. sütun) ve o
+hücredeki **ilk iki backtick-kod parçasını** alır — üçüncü sütunun ("Boundary"
+veya "Important behavior") metni ne kadar uzun/kısa olursa olsun üretilen
+`llms.txt`/`AgentPrism.AgentMap.md` boyutunu **hiç etkilemez**. `llms.txt`
+20480 B bütçesini aşınca üçüncü sütunu kısaltmak zaman kaybıdır — gerçek
+boyut kaynağı ya 2. sütundaki kod parçaları ya da `renderIndex`'in okuduğu
+sayfa `description`'ları (`guides/*.md`'nin frontmatter'ı, her hand-written
+sayfa için tek satır). Bütçe aşımında önce `node docs-site/scripts/
+build-agent-map.mjs --check`'in verdiği GERÇEK boyutla iterasyon yap, sütun
+metnini gözle kısaltıp tahmin etme.
+
 ## 🚨 Bir arayüzün "kendi dokümanı" başlığıyla sınırlı değildir (Faz 121, K-643)
 
 `SeamContractDocumentationTests` ilk sürümü yalnız `public interface I...`
