@@ -14,6 +14,12 @@ namespace AgentPrism;
 /// layer triggers the refresh but does not depend on the <c>AgentPrism.Mcp</c>
 /// package: MCP stays an optional package.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. The same instance also
+/// runs the background, fixed-interval refresh, so an implementation must be
+/// safe under a concurrent on-demand <see cref="RefreshAsync"/> call.
+/// </para>
 /// </remarks>
 public interface IMcpToolRefresher
 {

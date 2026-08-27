@@ -13,6 +13,27 @@ namespace AgentPrism;
 /// same rule: observability does not break behaviour.
 /// </para>
 /// <para>There is a read endpoint only; there is no delete or edit endpoint, and there will not be one.</para>
+/// <para>
+/// <strong>DI lifetime.</strong> Registered as a <em>singleton</em> with <c>TryAdd</c>;
+/// a consumer's own registration wins. An implementation must be safe under concurrent
+/// calls and must not capture or depend on a scoped service.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — EXPECTED tenant, with an AMBIENT fallback.</strong>
+/// <see cref="WriteAsync"/> is scoped by the entry's own <c>AuditEntry.TenantId</c>
+/// field — an explicit, EXPECTED tenant that is never inferred. <see cref="QueryAsync"/>
+/// and <see cref="VerifyChainAsync"/> accept an explicit <c>TenantId</c> override
+/// (<see cref="AuditQuery.TenantId"/>, <see cref="AuditChainQuery.TenantId"/>) and fall
+/// back to the AMBIENT <see cref="ITenantContext.TenantId"/> ONLY when that override is
+/// <see langword="null"/> or empty. A <see langword="null"/> <c>TenantId</c> is a
+/// <strong>contract, not a convenience</strong>: it MUST resolve to the single ambient
+/// tenant, never to "every tenant". An implementation that treats a missing filter as "no
+/// filter" returns every tenant's records to whoever leaves the field unset — this is
+/// exactly the shape <c>AuditLogContract</c>'s ambient-fallback scenarios (BL-046) guard
+/// against; the built-in <c>InMemoryAuditLog</c> and <c>SqlAuditLog</c> both resolve the
+/// fallback through an injected <see cref="ITenantContext"/>, the same pattern
+/// <c>IRunStore</c>'s AMBIENT methods use.
+/// </para>
 /// </remarks>
 public interface IAuditLog
 {

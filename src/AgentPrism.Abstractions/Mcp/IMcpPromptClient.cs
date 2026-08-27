@@ -97,6 +97,11 @@ public sealed record McpPromptContent
 /// background. This lets an administrator see a fresh prompt list at any
 /// moment — it does not wait for the refresh interval.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. Per-call connections
+/// (above) mean the implementation itself carries no per-run state.
+/// </para>
 /// </remarks>
 public interface IMcpPromptClient
 {

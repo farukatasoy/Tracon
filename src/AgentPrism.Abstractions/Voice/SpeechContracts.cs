@@ -13,6 +13,16 @@ namespace AgentPrism;
 /// endpoints, but it CANNOT reference <c>AgentPrism.Voice</c> (the package
 /// direction rule). The same pattern was applied to the MCP abstractions —.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> The provider and
+/// its credentials are configured once, process-wide — voice is not part of
+/// the per-tenant BYOK credential system the text model providers use; no
+/// member here takes a tenant parameter.
+/// </para>
 /// </remarks>
 public interface ISpeechSynthesizer
 {
@@ -65,8 +75,19 @@ public interface ISpeechSynthesizer
 
 /// <summary>A provider that transcribes speech to text.</summary>
 /// <remarks>
+/// <para>
 /// The contract is single-shot. The <em>incremental</em> resolution the live conversation layer
 /// will need should be a separate interface; adding a member here breaks consumer implementations.
+/// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> Same reasoning as
+/// <see cref="ISpeechSynthesizer"/>: the provider is configured process-wide,
+/// not per tenant.
+/// </para>
 /// </remarks>
 public interface ISpeechTranscriber
 {
@@ -90,11 +111,22 @@ public interface ISpeechTranscriber
 /// Reads the configured voice model's pricing.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The HTTP layer uses this abstraction to show voice pricing; pricing
 /// resolution is inside <c>AgentPrism.Voice</c>, and the HTTP layer cannot
 /// reference that package (the package direction rule). AgentPrism does not
 /// fabricate a price: if there is no match, <see langword="null"/> is
 /// returned — <strong>not</strong> zero.
+/// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> Pricing is
+/// configured process-wide, not per tenant; no member here takes a tenant
+/// parameter.
+/// </para>
 /// </remarks>
 public interface IVoicePricingReader
 {
@@ -152,6 +184,17 @@ public sealed record SpeakResponse
 }
 
 /// <summary>Checks the voice provider's reachability.</summary>
+/// <remarks>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> Same reasoning as
+/// <see cref="ISpeechSynthesizer"/>: the provider is configured process-wide,
+/// not per tenant.
+/// </para>
+/// </remarks>
 public interface IVoiceHealthCheck
 {
     /// <summary>Checks access to the provider.</summary>

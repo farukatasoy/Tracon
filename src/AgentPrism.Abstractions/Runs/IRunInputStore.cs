@@ -24,6 +24,12 @@ namespace AgentPrism;
 /// path (<c>RunRecordingAgent</c>) catches and logs the error; observability
 /// must not break functionality.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior — EXPECTED tenant, uniformly.</strong>
+/// <see cref="SaveAsync"/> reads it from <see cref="RunInputRecord.TenantId"/>;
+/// <see cref="GetAsync"/> takes it as a parameter. The ambient tenant is
+/// never consulted.
+/// </para>
 /// </remarks>
 public interface IRunInputStore
 {

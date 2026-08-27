@@ -1,6 +1,14 @@
 namespace AgentPrism;
 
 /// <summary>The store for a tenant's run-time skill definitions.</summary>
+/// <remarks>
+/// <strong>Tenant behavior — EXPECTED tenant, uniformly, with NO ambient
+/// fallback.</strong> Every member takes <c>tenantId</c> as an explicit
+/// parameter; an implementation does not read <c>ITenantContext</c> at all.
+/// This differs from the neighboring <see cref="IAgentDefinitionStore"/>,
+/// which reads the ambient tenant internally instead — see that interface's
+/// remarks for why the shape is not uniform across the cluster.
+/// </remarks>
 public interface IAgentSkillStore
 {
     /// <summary>Lists all of a tenant's skills.</summary>

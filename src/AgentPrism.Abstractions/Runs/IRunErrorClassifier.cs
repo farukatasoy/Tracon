@@ -13,6 +13,11 @@ namespace AgentPrism;
 /// class or clustering rule. Registered with <c>TryAddSingleton</c>, so the
 /// consumer's registration wins.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> <see cref="Classify"/>
+/// is a pure function of <see cref="RunError"/>, which carries no tenant field;
+/// the same taxonomy applies identically to every tenant's errors.
+/// </para>
 /// </remarks>
 public interface IRunErrorClassifier
 {

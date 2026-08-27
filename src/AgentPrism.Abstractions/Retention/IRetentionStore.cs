@@ -26,6 +26,10 @@ namespace AgentPrism;
 /// always returns empty/zero: retention is meaningful only when a SQL
 /// provider is enabled.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
 /// </remarks>
 public interface IRetentionStore
 {
@@ -128,6 +132,13 @@ public interface IRetentionStore
 /// <para>
 /// If none is registered, a policy with <c>archive = true</c> deletes NO
 /// row — data that cannot be archived is never dropped. This prevents silent data loss.
+/// </para>
+/// <para>
+/// <strong>DI lifetime — singleton, optional.</strong> No default implementation is
+/// registered. A consumer that registers one must register it as a singleton — it is
+/// resolved once, as a constructor parameter of the singleton
+/// <c>RetentionExecutor</c>, via <c>IServiceProvider.GetService&lt;IArchiveSink&gt;()</c>.
+/// A scoped registration would be a captive dependency.
 /// </para>
 /// </remarks>
 public interface IArchiveSink

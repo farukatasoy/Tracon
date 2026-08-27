@@ -1,6 +1,10 @@
 namespace AgentPrism;
 
 /// <summary>The store for evaluation (eval) suites, cases, and runs.</summary>
+/// <remarks>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </remarks>
 public interface IEvalStore
 {
     /// <summary>Lists all of a tenant's suites.</summary>
