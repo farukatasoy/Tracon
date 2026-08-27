@@ -28,7 +28,7 @@ public interface IAgentSource
 
     /// <summary>
     /// Gets the resolution priority. A lower value is tried first. When two agents share
-    /// a name, the source with priority wins.
+    /// a name, the source with the <em>lower</em> value wins and the other one is dropped.
     /// </summary>
     /// <remarks>
     /// <see cref="AgentSourcePriority.Code"/> and <see cref="AgentSourcePriority.Database"/>
