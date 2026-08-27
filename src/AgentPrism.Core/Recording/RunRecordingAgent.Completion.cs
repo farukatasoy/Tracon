@@ -273,12 +273,12 @@ public sealed partial class RunRecordingAgent
     // AgentPrism exceptions can carry their own stable error type name (for example
     // content_filtered). The default value is still the full name of the type, so the shape
     // of the existing records does not change.
-    private static RunError ToRunError(Exception exception)
+    private static RunError ToRunError(Exception exception, string correlationId)
         => new()
         {
             Type = exception is AgentPrismException prismException
                 ? prismException.ErrorType
                 : exception.GetType().FullName ?? exception.GetType().Name,
-            Message = exception.Message,
+            Message = SafeErrorText.ForPersistence(exception, correlationId),
         };
 }

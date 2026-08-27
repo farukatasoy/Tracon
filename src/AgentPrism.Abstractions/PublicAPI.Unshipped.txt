@@ -4873,3 +4873,6 @@ AgentPrism.ProviderRetryDecision
 AgentPrism.ProviderRetryDecision.DoNotRetry = 2 -> AgentPrism.ProviderRetryDecision
 AgentPrism.ProviderRetryDecision.Retry = 1 -> AgentPrism.ProviderRetryDecision
 AgentPrism.ProviderRetryDecision.Unknown = 0 -> AgentPrism.ProviderRetryDecision
+AgentPrism.SafeErrorText
+static AgentPrism.SafeErrorText.ForPersistence(System.Exception! exception, string! correlationId) -> string!
+static AgentPrism.SafeErrorText.NewCorrelationId() -> string!

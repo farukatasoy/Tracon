@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -232,9 +234,15 @@ internal static class OpenAIResponsesEndpoints
             // derives DIRECTLY from Exception, NOT from HttpRequestException)
             // slip through uncaught and leak into ASP.NET Core's generic
             // handler, producing a bare 500. Nothing goes uncaught here.
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("AgentPrism.OpenAICompat")
+                .LogError(ex, "Responses run for agent '{AgentName}' failed. (ref: {CorrelationId})", agentName, correlationId);
+
             return OpenAICompatSupport.Error(
                 StatusCodes.Status502BadGateway,
-                ex.Message,
+                SafeErrorText.ForPersistence(ex, correlationId),
                 type: "upstream_error");
         }
     }
@@ -393,8 +401,14 @@ internal static class OpenAIResponsesEndpoints
                 // exception filter would let real provider SDK exceptions slip
                 // through and close the connection WITHOUT producing an 'error'
                 // frame. Here EVERY exception turns into a frame.
+                var correlationId = SafeErrorText.NewCorrelationId();
+
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AgentPrism.OpenAICompat")
+                    .LogError(ex, "Streaming Responses run {ResponseId} failed. (ref: {CorrelationId})", responseId, correlationId);
+
                 var payload = JsonSerializer.Serialize(
-                    new ResponsesStreamError("error", ex.Message),
+                    new ResponsesStreamError("error", SafeErrorText.ForPersistence(ex, correlationId)),
                     OpenAICompatSupport.JsonOptions);
 
                 await writer.WriteRawAsync($"event: error\ndata: {payload}\n\n", CancellationToken.None)

@@ -249,10 +249,12 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         }
         catch (Exception ex)
         {
-            pending.AuthorizationUriReady.TrySetException(ex);
-            pending.Completed.TrySetResult((false, ex.Message));
+            var correlationId = SafeErrorText.NewCorrelationId();
 
-            _logger.LogWarning(ex, "OAuth authorization for MCP server '{ServerName}' failed.", server.Name);
+            pending.AuthorizationUriReady.TrySetException(ex);
+            pending.Completed.TrySetResult((false, SafeErrorText.ForPersistence(ex, correlationId)));
+
+            _logger.LogWarning(ex, "OAuth authorization for MCP server '{ServerName}' failed. (ref: {CorrelationId})", server.Name, correlationId);
         }
         finally
         {

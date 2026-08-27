@@ -244,6 +244,23 @@ Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
 
+### The error message is safe to display, not safe to debug from
+
+`error.message` is deliberately shallow. When the failure is AgentPrism's own —
+a content filter, a blocked guard, a quota — the message is the same stable text
+you'd write in a UI. When the failure comes from somewhere else (a provider SDK,
+a webhook target, an MCP connection), the message carries only the exception's
+type name and a correlation id, for example `HttpRequestException failed. (ref:
+7f3a9c21)`: a foreign exception's own text can carry a request detail, an internal
+address, or a partial credential, and none of that belongs in a persisted field or
+an HTTP response. The full detail, matched to the same correlation id, goes to
+your server's own log — that is where you debug a specific failure from, not from
+the run record.
+
+This applies everywhere a run, job, or webhook delivery can fail: the
+`error`/`error_message` field on a run, job, or webhook delivery, and the error
+body of the HTTP, SSE, and MCP endpoints, all follow the same rule.
+
 ## Replay and comparison
 
 - `GET /api/runs/{runId}/input` — the recorded input, when input recording is on

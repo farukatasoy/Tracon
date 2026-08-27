@@ -1129,10 +1129,16 @@ internal static class AgentEndpoints
                 // producing an 'error' frame, and the client would mistake this for
                 // silent success. Nothing goes uncaught here: the client ALWAYS
                 // receives an 'error' frame.
+                var correlationId = SafeErrorText.NewCorrelationId();
+                var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("AgentPrism.AgentEndpoints");
+                logger.LogError(ex, "Streaming agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+
                 await writer.WriteEventAsync(
                     sequence,
                     "error",
-                    JsonSerializer.Serialize(new AgentRunFailed(ex.GetType().Name, ex.Message), JsonOptions),
+                    JsonSerializer.Serialize(
+                        new AgentRunFailed(ex.GetType().Name, SafeErrorText.ForPersistence(ex, correlationId)),
+                        JsonOptions),
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -1228,9 +1234,13 @@ internal static class AgentEndpoints
                 // generic handler and producing a bare 500. Nothing goes uncaught
                 // here — OperationCanceledException and the more specific
                 // AgentPrism exceptions already have their own catch blocks above.
+                var correlationId = SafeErrorText.NewCorrelationId();
+                var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("AgentPrism.AgentEndpoints");
+                logger.LogError(ex, "Agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+
                 await Results.Problem(
                         title: "Agent run failed",
-                        detail: ex.Message,
+                        detail: SafeErrorText.ForPersistence(ex, correlationId),
                         statusCode: StatusCodes.Status502BadGateway)
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
             }

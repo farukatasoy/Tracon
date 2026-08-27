@@ -4,7 +4,8 @@
 > 35 (maliyet/kota metrikleri — OTel enstrümanları),
 > 68 (çalıştırma kimliği + token kırılımı ve cache fiyatı),
 > 88 (görsel üretim ölçümü), 89 (tool çıktısı boyut sınırı),
-> 113 (§ `IRunErrorClassifier` kompozisyonu ve `RunErrorFingerprint`)
+> 113 (§ `IRunErrorClassifier` kompozisyonu ve `RunErrorFingerprint`),
+> 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`)
 > **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -20,7 +21,8 @@
 > `src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs` (yalnız Faz 35'in
 > ölçerleri — bkz. Sınır) · `src/AgentPrism.Core/Models/RunPricingResolver.cs` ·
 > `src/AgentPrism.Core/Storage/InMemoryRunStore.cs` (`GetTimeSeriesAsync`,
-> `GetToolUsageAsync`).
+> `GetToolUsageAsync`) · `src/AgentPrism.Abstractions/Diagnostics/SafeErrorText.cs`
+> (Faz 119 — hata metni redaksiyon kuralı; 26 çağrı yeri `docs/119-HATA-METNI-SIZINTISI.md`'de).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -1574,5 +1576,135 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   `"The registered IRunErrorClassifier threw while classifying a run error;
   falling back to the built-in classifier."` ve altında gerçek istisna
   (`InvalidOperationException`) durur.
+
+---
+
+### MT-OBS-054 — 🚨 Geçersiz sağlayıcı kimlik bilgisiyle çalışan bir `run`, ham sağlayıcı metnini `error.message`'a yazmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 119 |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- `samples/AgentPrism.Api` — `openai`/`anthropic`/`google` sağlayıcılarından
+  birine **geçersiz** bir API anahtarı ver (`dotnet user-secrets set
+  "AgentPrism:Providers:OpenAI:ApiKey" "sk-gecersiz"`).
+
+**Adımlar**
+1. O sağlayıcıya bağlı bir agent'ı çalıştır (`POST /api/agents/{ad}/run`).
+2. `GET /api/runs/{runId}` ile `error.message`'ı ve `error.type`'ı oku.
+3. Sunucu konsol logunu aynı isteğin zaman aralığında tara.
+
+**Beklenen sonuç**
+- Adım 2: `error.message` ham sağlayıcı metnini (401 gövdesi, anahtar öneki,
+  sağlayıcının kendi hata cümlesi) **taşımaz**. Sözleşme zaten
+  `ProviderFailureNormalizer` ile sabit `"The model provider request failed."`
+  metnine iner (`error.type` = `upstream_error`) — bu Faz 119'dan önce de
+  doğruydu, bu case regresyon olmadığını doğrular.
+- Adım 3: Tam sağlayıcı hatası (`ex.ToString()`) `AgentPrism.ModelProvider`
+  kategorisiyle loglanmıştır.
+
+### MT-OBS-055 — 🚨 Kuyruklu (`respond-async`) bir `run`'ın oturum açma hatası, `jobs.error_message`'a ham metin sızdırmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 119 |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- `samples/AgentPrism.Api`, kalıcı bir SQL sağlayıcısı (`UsePostgreSql`/
+  `UseSqlite`) ile çalışıyor — `jobs` tablosunu okumak için gerekli.
+
+**Adımlar**
+1. `Prefer: respond-async` başlığıyla bir agent çalıştır, aynı anda
+   `sessionId` alanına oturum deposunun reddedeceği (aşırı uzun, örn.
+   300 karakter) bir değer ver.
+2. `GET /api/jobs/{jobId}` (veya doğrudan `jobs` tablosu) ile `errorMessage`'ı oku.
+3. Sunucu logunu `"Queued run"` + `"(ref:"` için tara.
+
+**Beklenen sonuç**
+- Adım 2: `errorMessage` yabancı exception'ın (ör. depo sürücüsünün SQL
+  hatası) ham metnini taşımaz; `"{TypeName} failed. (ref: {kimlik})"` biçiminde,
+  tip adı + korelasyon kimliği taşır.
+- Adım 3: Aynı korelasyon kimliğiyle **tam** exception detayı (`ex.ToString()`)
+  bulunur — `AgentRunJobHandler.FailQueuedRunAsync` bu tam detayı
+  `_logger.LogError` ile aynı `correlationId` ile yazar.
+
+### MT-OBS-056 — Hata döndüren bir webhook hedefi, gövdesini `webhook_deliveries.error`'a yazdırmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 119 |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- Bir webhook subscription kaydet, hedef adres iç ayrıntı (örn. bir
+  `Authorization` başlığı yankısı) döndüren bir gövdeyle `500` yanıtlayan bir
+  test endpoint'i olsun (örn. `webhook.site` yerine yerel bir `httpbin`/basit
+  `nc` dinleyicisi).
+
+**Adımlar**
+1. Bir `run.completed` olayı tetikle.
+2. Teslimat başarısız olduktan sonra `GET /api/webhooks/{id}/deliveries`
+   ile `error` alanını oku.
+
+**Beklenen sonuç**
+- `error` yalnız `"HTTP 500"` biçimindedir — hedefin döndürdüğü gövde
+  **hiçbir baytı** ile görünmez. Durum kodu teşhis için yeterlidir
+  (119.3 Açık Soru #3, seçenek A).
+
+### MT-OBS-057 — MCP `tools/call` üzerinden çalıştırılan bozuk bir agent, ham hata metnini `CallToolResult`'a yazmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 119 |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- MCP sunucusu açık (`UseMcpServer`), MT-OBS-054'ün geçersiz anahtarlı
+  agent'ı dışa açık.
+
+**Adımlar**
+1. MCP istemcisinden (`ozetleyici` veya eşdeğeri) `tools/call` gönder.
+2. Dönen `CallToolResult`'ın metnini oku.
+
+**Beklenen sonuç**
+- Metin `"'{agent}' could not be run: {güvenli metin}"` biçimindedir; güvenli
+  metin tip adı + `(ref: ...)` taşır, sağlayıcının ham hata cümlesini taşımaz.
+
+### MT-OBS-058 — 👤 Mimari cırcır kapısı: yeni bir `catch (Exception` bloğunun `.Message`'ı taban çizgisi dışında kalırsa build kırılır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 119 |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- Geliştirme ortamı; `src/` içine geçici bir dosya eklenecek.
+
+**Adımlar**
+1. `src/AgentPrism.Core/` altına, bir `catch (Exception exception)` bloğu
+   içinde `context.Something = exception.Message;` yazan geçici bir dosya ekle.
+2. `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+   --filter-method "*RawExceptionTextSite*"` çalıştır (derlenmiş ikili ile).
+3. Geçici dosyayı sil.
+
+**Beklenen sonuç (2026-08-27'de ölçüldü)**
+- Adım 2: `RawExceptionTextSiteTests.Raw_exception_text_sites_match_the_baseline`
+  **kırmızı** döner; hata mesajı yeni siteyi `<dosya>:<metot>` biçiminde adlandırır
+  ve `AGENTPRISM_RAW_EXCEPTION_TEXT_REFRESH=1` ile nasıl kapatılacağını söyler.
+  Gerçek çıktı: `"+ src/AgentPrism.Core/__RatchetProbeTemp.cs:Probe: new raw-exception-text
+  site, not in the baseline"`. Dosya silinip yeniden koşulduğunda yeşile döndü.
 
 ---

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -630,10 +632,20 @@ internal static class WorkflowEndpoints
             }
             catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
             {
+                // InvalidOperationException and HttpRequestException are foreign here (the
+                // latter can carry a host:port); only AgentPrismException's own message is ours.
+                var correlationId = SafeErrorText.NewCorrelationId();
+
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AgentPrism.WorkflowEndpoints")
+                    .LogError(ex, "Streaming workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+
                 await writer.WriteEventAsync(
                     sequence,
                     "error",
-                    JsonSerializer.Serialize(new WorkflowRunFailed(ex.GetType().Name, ex.Message), JsonOptions),
+                    JsonSerializer.Serialize(
+                        new WorkflowRunFailed(ex.GetType().Name, SafeErrorText.ForPersistence(ex, correlationId)),
+                        JsonOptions),
                     CancellationToken.None).ConfigureAwait(false);
             }
         }

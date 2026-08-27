@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace AgentPrism;
 
 /// <summary>Runs a retention sweep (<see cref="JobKind.Retention"/>).</summary>
@@ -6,7 +8,9 @@ namespace AgentPrism;
 /// value or <c>"*"</c>, which processes all active policies. The job has one item.
 /// It reports the item when the entire run succeeds or fails.
 /// </remarks>
-internal sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHandler
+internal sealed class RetentionJobHandler(
+    RetentionExecutor executor,
+    ILogger<RetentionJobHandler>? logger = null) : IJobHandler
 {
     /// <inheritdoc />
     public JobKind Kind => JobKind.Retention;
@@ -24,6 +28,13 @@ internal sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHand
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(exception, "Retention job {JobId} failed. (ref: {CorrelationId})", context.Job.Id, correlationId);
+            }
+
             if (context.Items.Count > 0)
             {
                 await context.ReportItemAsync(
@@ -32,7 +43,7 @@ internal sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHand
                         JobId = context.Job.Id,
                         Seq = context.Items[0].Seq,
                         Status = JobItemStatus.Failed,
-                        Error = exception.Message,
+                        Error = SafeErrorText.ForPersistence(exception, correlationId),
                     },
                     cancellationToken).ConfigureAwait(false);
             }

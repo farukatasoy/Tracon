@@ -312,9 +312,11 @@ internal sealed class RunReconciliationService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var correlationId = SafeErrorText.NewCorrelationId();
+
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Could not enqueue continuation for run {RunId}.", record.Id);
+                logger.LogWarning(exception, "Could not enqueue continuation for run {RunId}. (ref: {CorrelationId})", record.Id, correlationId);
             }
 
             try
@@ -325,7 +327,11 @@ internal sealed class RunReconciliationService(
                         RunId = continuationRunId,
                         Status = RunStatus.Failed,
                         CompletedAt = _clock.GetUtcNow(),
-                        Error = new RunError { Type = exception.GetType().Name, Message = exception.Message },
+                        Error = new RunError
+                        {
+                            Type = exception.GetType().Name,
+                            Message = SafeErrorText.ForPersistence(exception, correlationId),
+                        },
                         TenantId = tenantId,
                     },
                     cancellationToken).ConfigureAwait(false);
