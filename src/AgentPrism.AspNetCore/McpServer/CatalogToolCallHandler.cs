@@ -38,6 +38,20 @@ internal static class CatalogToolCallHandler
         var services = CatalogToolListHandler.RequireServices(request);
         var options = services.GetRequiredService<IOptionsMonitor<AgentPrismMcpServerOptions>>().CurrentValue;
 
+        // 🚨 A task-mode call runs on a background Task.Run the SDK schedules
+        // off the app's ROOT provider — no HttpContext, so the HTTP-based
+        // ITenantContext falls back to the default tenant instead of the
+        // caller's. Same shape as JobWorkerBackgroundService wrapping each
+        // queued job in AmbientTenantScope.Begin(job.TenantId): the tenant
+        // the ORIGINAL inbound request resolved is threaded through
+        // McpTaskRunAmbient (captured before the SDK ever detaches from that
+        // request) and re-asserted here. A real HttpContext (the synchronous
+        // path) resolves correctly on its own and takes precedence over this
+        // — see AmbientTenantScope's own contract — so this is a no-op there.
+        using var tenantScope = McpTaskRunAmbient.Current is { } provisioning
+            ? AmbientTenantScope.Begin(provisioning.TenantId)
+            : null;
+
         var toolName = request.Params?.Name;
 
         if (string.IsNullOrEmpty(toolName) ||
@@ -64,7 +78,13 @@ internal static class CatalogToolCallHandler
 
         var runOptions = new AgentPrismRunOptions
         {
-            RunId = AgentPrismId.NewId(),
+            // Reuses the id AgentPrism's task-provisioning filter already
+            // minted for this call (Phase 117) when one is flowing — task
+            // mode needs the run id fixed BEFORE this handler runs, since
+            // RunBackedMcpTaskStore already promised it as the MCP task id.
+            // Falls back to a fresh id so this handler still works when
+            // called directly (tests) or outside that pipeline.
+            RunId = McpTaskRunAmbient.Current?.RunId ?? AgentPrismId.NewId(),
             Budget = new AgentRunBudget
             {
                 MaxDepth = options.Budget.MaxDepth,

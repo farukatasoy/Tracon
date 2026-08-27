@@ -87,7 +87,9 @@ only the runtime never takes one.
 
 `MapAgentPrismMcpServer()` exposes your agents as MCP tools, and `MapAgentPrismA2A()`
 speaks the agent-to-agent protocol. Both must be mapped **after** `MapAgentPrism` so
-they inherit its access settings.
+they inherit its access settings. Set `AgentPrismMcpServerOptions.EnableTasks` to
+serve a long-running MCP call as a pollable task instead of holding the connection
+open; it defaults to `false`.
 
 ## Compatibility
 

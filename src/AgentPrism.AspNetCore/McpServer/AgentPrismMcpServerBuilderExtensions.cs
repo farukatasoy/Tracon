@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using ModelContextProtocol.Extensions.Tasks;
+using ModelContextProtocol.Server;
 
 namespace AgentPrism;
 
@@ -29,6 +32,17 @@ public static class AgentPrismMcpServerBuilderExtensions
     /// <see cref="AgentPrismMcpServerOptions.ExposedAgents"/> or
     /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/>.
     /// </para>
+    /// <para>
+    /// Also registers the MCP Tasks extension, gated OFF by default
+    /// through <see cref="AgentPrismMcpServerOptions.EnableTasks"/>: the
+    /// execution-mode selector returns <see cref="McpTaskExecutionMode.Synchronous"/>
+    /// when it is off, which is the SDK's own fast path back to today's
+    /// behavior — <c>CreateTaskAsync</c> is never called. The task-provisioning
+    /// filter (<see cref="McpTaskRunProvisioningFilter"/>) is still registered
+    /// unconditionally; it is value-transparent when tasks are off, since it
+    /// only replaces <see cref="CatalogToolCallHandler"/>'s own id-minting with
+    /// an equivalent one handed down ambiently.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
@@ -41,6 +55,7 @@ public static class AgentPrismMcpServerBuilderExtensions
     /// </code>
     /// </example>
     /// </remarks>
+#pragma warning disable MCPEXP002
     public static IAgentPrismBuilder UseMcpServer(
         this IAgentPrismBuilder builder,
         Action<AgentPrismMcpServerOptions>? configure = null)
@@ -56,11 +71,35 @@ public static class AgentPrismMcpServerBuilderExtensions
             services.Configure(configure);
         }
 
+        // Registered BEFORE .WithTasks(...) below: McpRequestFilters.CallToolWithAlternateFilters
+        // runs in registration order, so this filter (which provisions the run
+        // id every task-mode call will use) runs ahead of the Tasks
+        // extension's own filter, which is exactly what CreateTaskAsync needs.
+        services.Configure<McpServerOptions>(McpTaskRunProvisioningFilter.Register);
+
+        var taskStore = new RunBackedMcpTaskStore();
+        services.AddSingleton(taskStore);
+
         services.AddMcpServer()
             .WithHttpTransport()
             .WithListToolsHandler(CatalogToolListHandler.HandleAsync)
-            .WithCallToolHandler(CatalogToolCallHandler.HandleAsync);
+            .WithCallToolHandler(CatalogToolCallHandler.HandleAsync)
+            .WithTasks(taskStore, taskOptions => taskOptions.ExecutionModeSelector = SelectExecutionMode);
 
         return builder;
     }
+
+    private static McpTaskExecutionMode SelectExecutionMode(RequestContext<ModelContextProtocol.Protocol.CallToolRequestParams> request)
+    {
+        var services = CatalogToolListHandler.RequireServices(request);
+        var enabled = services.GetRequiredService<IOptionsMonitor<AgentPrismMcpServerOptions>>().CurrentValue.EnableTasks;
+
+        // K1: a new expansion point defaults off, zero surprises.
+        // Optional, not Required, once enabled: Required would break a client
+        // that never opted into the tasks capability; Optional keeps today's
+        // synchronous response for such a client while still letting a
+        // task-aware client opt into polling (Open Question 3, option A).
+        return enabled ? McpTaskExecutionMode.Optional : McpTaskExecutionMode.Synchronous;
+    }
 }
+#pragma warning restore MCPEXP002

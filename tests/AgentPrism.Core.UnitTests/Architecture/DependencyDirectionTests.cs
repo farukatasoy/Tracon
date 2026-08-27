@@ -139,10 +139,12 @@ public sealed class DependencyDirectionTests
         // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore packages.
         // K-057's dependency direction must not break: these packages live
         // only inside AgentPrism.AspNetCore; AgentPrism.Mcp (the client) stays
-        // on the `.Core` line and takes NONE of them.
+        // on the `.Core` line and takes NONE of them. Phase 117 added the MCP
+        // Tasks extension to the same server-only list.
         var forbidden = new[]
         {
             "ModelContextProtocol.AspNetCore",
+            "ModelContextProtocol.Extensions.Tasks",
             "Microsoft.Agents.AI.Hosting.A2A",
             "Microsoft.Agents.AI.Hosting.AspNetCore",
             "A2A.AspNetCore",
