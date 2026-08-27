@@ -81,3 +81,13 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   kendi maliyeti (izole ölçüldü, kaynağı bulunamadı; her koşumda sabit ve
   deterministik). Kural: `GetOrAdd(key, _ => ...)` yazarken önce
   `TryGetValue(key, out var existing)` dene, yalnız KAÇIRINCA `GetOrAdd`'a düş.
+- **🚨 `RunRecordingAgent.ToRunError`'un `Message = exception.Message` satırı
+  yıllarca "zaten redakte ediyor" sanılan ama redakte ETMEYEN bir kod yoluydu**
+  (2026-08-27, Faz 119, K-640). `Type` alanı `AgentPrismException.ErrorType`
+  ile zaten stabil bir kod taşıyordu — bu, okuyana "hata sınıflandırması
+  yapılıyor, güvenli" izlenimi veriyordu, ama `Message` alanı HER ZAMAN ham
+  `exception.Message`'ı yazıyordu, `Type` ayrımından bağımsız. Bir alanın
+  güvenli görünmesi (stabil kod, sınıflandırılmış tip) komşu alanın da güvenli
+  olduğunu KANITLAMAZ — ikisi ayrı ayrı denetlenir. Düzeltme:
+  `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artık
+  `static` değil, `_logger.LogError` çağırabilmek için instance metot.

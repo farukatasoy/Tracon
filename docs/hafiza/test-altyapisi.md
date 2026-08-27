@@ -162,3 +162,17 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   kullanım), bunun yerine ya `ServiceProvider` kurup gerçek `.GetType()`'ı
   resolve et ya da farkı basitçe kabul edip testin XML dokümanına yaz — kırılgan
   bir ayrım, kapattığı boşluktan daha pahalıdır.
+- **🚨 Satır-bazlı bir mimari cırcır taraması, ÇOK SATIRLI bir yapıyı sessizce
+  yanlış kapsar — çökmez, olduğundan FAZLA eşleşir** (2026-08-27, Faz 119):
+  `RawExceptionTextSiteTests`'in blok-sonu bulucusu "`catch` satırından sonraki
+  ilk satır `{` mi" varsayıyordu. `WorkflowNodeRetry.cs`'deki çok satırlı
+  `catch (Exception exception) when (...)` şeklinde açılış `{` üç satır sonra
+  geliyordu; bulucu onu bulamayınca "fallback: dosya sonuna kadar" moduna
+  düşüyor ve kategorik olarak ilgisiz bir metodun `.Message` satırını da aynı
+  "catch bloğu" sanıyordu — sahte pozitif, ama SESSİZ (test hâlâ çalışıyor,
+  yalnız yanlış siteyi raporluyor). Bir line-based tarayıcı yazarken "imzanın
+  tamamı tek satırda" varsayımını asla yapma; gerçek repo kod stilinde çok
+  koşullu `when`/`if` neredeyse her zaman çok satırlıdır. Tarayıcının kendi
+  regresyon testleri de tek-satır örnek kullandığı için bunu yakalamadı —
+  gerçek `src/` ağacında REFRESH koşup çıkan siteleri tek tek okumak asıl
+  yakalayan adımdı.

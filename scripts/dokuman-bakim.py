@@ -178,7 +178,13 @@ DIZIN_BUTCESI = {
     # SONUNDAKI boyuta gore konur (58.4 kalibrasyonu, `dokuman-bakim.py:105`
     # bu hata sinifini Faz 58 vakasi olarak zaten anlatiyor). Bu bir BUYUTME
     # degil, ilk kez konan sinirin dogru olculmesidir -- bagimsiz denetim, 🟡 8.
-    ("docs/arsiv", True, False):      3_040_000,    # YENI; kapanista olculen 2_579_731
+    # Faz 119 kapanisi: onceki sinir (3_040_000, Faz 90'da 2_579_731 olculerek
+    # konmustu) boslugu tukendi -- arsiv normal faz-basi buyumeyle (~9 KB/faz)
+    # ~4 gunde/~29 fazda doldu, bu bir hata degil ongorulen buyume egrisiydi
+    # (yukaridaki not zaten "arsiv faz basina ~9 KB buyur" diyor). K-214'un
+    # kurali sinirin BUYUTULMEMESI degil, KEYFI BUYUTULMEMESIDIR -- burada da
+    # ayni kalibrasyon formulu (olculen deger + %15 bosluk) yeniden uygulandi.
+    ("docs/arsiv", True, False):      3_590_000,    # YENIDEN KALIBRE; kapanista olculen 3_051_285
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
     ("docs/kesif", True, False):        260_000,    # YENI; olculen 219_746
 }
