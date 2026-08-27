@@ -17,6 +17,28 @@ namespace AgentPrism;
 /// default) this store is never called — a single-instance setup pays no extra database
 /// round trip.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> A lease name identifies a
+/// protected JOB (<c>"mcp-discovery"</c>, a health-probe job id), not a tenant; leases
+/// are not scoped by tenant at all.
+/// </para>
+/// <para>
+/// <strong>Guarantee limit: this lease is eventually correct, NOT strictly
+/// exclusive.</strong> It gives no hard mutual-exclusion guarantee the way a
+/// database advisory lock or session lock would — this is deliberate (SQLite has no
+/// session-lock equivalent, so the lease had to be a plain table row instead). A lease
+/// owner that freezes past its own <c>duration</c> without releasing it — a GC pause,
+/// thread starvation, or a network partition that cuts it off from the store — leaves a
+/// narrow split-brain window: <see cref="TryAcquireAsync"/> lets a SECOND instance take
+/// the same lease once it expires, while the frozen first owner may resume and believe
+/// it still holds it, until its own next <see cref="RenewAsync"/> call (correctly)
+/// reports it lost the lease. A consumer whose protected job is not idempotent under a
+/// brief overlap must not rely on this store alone.
+/// </para>
 /// </remarks>
 public interface ISingletonLeaseStore
 {

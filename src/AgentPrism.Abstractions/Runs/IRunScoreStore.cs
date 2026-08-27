@@ -4,10 +4,19 @@ namespace AgentPrism;
 /// The store for run and message scores (<see cref="RunScore"/>).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Not added as a member to <see cref="IRunStore"/>: a score follows a
 /// different lifecycle (written rarely, whereas <see cref="IRunStore"/> is on
 /// the hot path written on every run), and a separate interface fits better
 /// with the rule that every extension point must be replaceable.
+/// </para>
+/// <para>
+/// <strong>Tenant behavior — EXPECTED tenant, uniformly.</strong> Every
+/// member is scoped by an explicit tenant: <see cref="UpsertAsync"/> reads it
+/// from <see cref="RunScore.TenantId"/>, <see cref="ListAsync"/> and
+/// <see cref="DeleteAsync"/> take it as a parameter. The ambient tenant is
+/// never consulted.
+/// </para>
 /// </remarks>
 public interface IRunScoreStore
 {

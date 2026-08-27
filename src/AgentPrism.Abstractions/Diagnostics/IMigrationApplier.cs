@@ -21,6 +21,10 @@ namespace AgentPrism;
 /// identically by all three, so <c>IServiceProvider.GetRequiredService&lt;IMigrationApplier&gt;()</c>
 /// resolves without needing to know which provider is active.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>Replace</c> by whichever SQL provider is active.
+/// </para>
 /// </remarks>
 public interface IMigrationApplier
 {

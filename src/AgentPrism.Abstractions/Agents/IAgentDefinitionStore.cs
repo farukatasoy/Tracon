@@ -5,6 +5,27 @@ namespace AgentPrism;
 /// support are required: every save produces a new version, and old versions are
 /// not deleted.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Tenant behavior — AMBIENT tenant.</strong> No member takes a tenant
+/// parameter; every method filters by the current <c>ITenantContext</c>
+/// internally.
+/// </para>
+/// <para>
+/// <strong>Why this differs from <c>IAgentSkillStore</c>/<c>ISkillScriptGrantStore</c>.</strong>
+/// Those two sibling stores (added later, for the skills feature) take an
+/// EXPECTED tenant as an explicit parameter on every method instead. Both
+/// shapes filter correctly — there is no known cross-tenant leak from either
+/// one — and there is no deeper design rule that decides which a given store
+/// should use: this is a generational split, not a principled one. This store
+/// followed the earlier convention shared with <c>IRunStore</c> and
+/// <c>ISessionStore</c> (read <c>ITenantContext</c> internally); the skills
+/// stores followed the convention shared with most later admin-CRUD stores
+/// (an explicit parameter, no ambient fallback at all). A third-party
+/// implementer must read each interface's OWN tenant-mode remarks rather than
+/// assume consistency across a cluster.
+/// </para>
+/// </remarks>
 public interface IAgentDefinitionStore
 {
     /// <summary>Returns the current version of the definition with the given name.</summary>

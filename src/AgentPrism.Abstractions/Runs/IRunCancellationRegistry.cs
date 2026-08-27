@@ -18,6 +18,16 @@ namespace AgentPrism;
 /// record under the same <c>RootRunId</c>. Cancelling a single child run
 /// affects neither sibling branches nor the root.
 /// </para>
+/// <para>
+/// <strong>Tenant behavior.</strong>
+/// <see cref="Register"/> and <see cref="TryCancel"/> take an EXPECTED
+/// tenant as an explicit parameter — never the ambient tenant, since the
+/// caller's own thread may not belong to the run's tenant.
+/// <see cref="ActiveCount"/> and <see cref="ActiveRunIds"/> are
+/// TENANT-INDEPENDENT: this is in-process diagnostic state covering every
+/// tenant's runs on this instance at once, by design (<c>RunHeartbeatWriter</c>
+/// needs the whole set, not one tenant's slice).
+/// </para>
 /// </remarks>
 public interface IRunCancellationRegistry
 {
@@ -40,6 +50,19 @@ public interface IRunCancellationRegistry
     /// <param name="runId">The identifier of the run whose cancellation is requested.</param>
     /// <param name="tenantId">The requesting tenant. If it does not match the record's tenant, the request is ignored.</param>
     /// <returns><see langword="true"/> if the cancellation request reached a record.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Guarantee limit: cancellation is cooperative, not forced.</strong> This
+    /// method only calls <see cref="System.Threading.CancellationTokenSource.Cancel()"/>
+    /// on the token registered with the matching <see cref="Register"/> call; it does
+    /// not force the run's body to stop. A <see langword="true"/> return means the
+    /// signal reached a registered record, NOT that the run has actually stopped — a
+    /// run body that reads its token late, catches
+    /// <see cref="OperationCanceledException"/>, or ignores the token altogether keeps
+    /// running (and, if it calls a billed model provider, keeps accruing cost) until it
+    /// chooses to observe the cancellation.
+    /// </para>
+    /// </remarks>
     bool TryCancel(Guid runId, string? tenantId);
 
     /// <summary>The number of runs in progress on this instance. For diagnostics and tests.</summary>

@@ -134,6 +134,12 @@ public sealed record McpServerDefinition
 }
 
 /// <summary>The store for registered MCP servers.</summary>
+/// <remarks>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. An implementation must
+/// be safe under concurrent calls and must not capture or depend on a
+/// scoped service.
+/// </remarks>
 public interface IMcpServerStore
 {
     /// <summary>Lists a tenant's servers, ordered by name.</summary>

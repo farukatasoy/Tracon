@@ -125,6 +125,61 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
         found.Actor.ShouldBeNull();
     }
 
+    // --- Ambient-tenant fallback (BL-046, Phase 121) ---
+    // AuditQuery.TenantId == null / AuditChainQuery.TenantId == null is a CONTRACT,
+    // not a convenience: it MUST resolve to the caller's own ambient tenant, never to
+    // "every tenant". IAuditLog's own remarks make this explicit; these three scenarios
+    // are what would fail if an implementation instead treated a missing filter as "no
+    // filter" (the shape InMemoryAuditLog had before this defect was closed).
+
+    [Fact]
+    public async Task Null_tenant_resolves_to_the_ambient_tenant_and_does_not_leak_others()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        await Log.WriteAsync(Entry(TenantA, "agent.update", "agent:mine"));
+        await Log.WriteAsync(Entry(TenantB, "agent.update", "agent:theirs"));
+
+        var entries = await Log.QueryAsync(new AuditQuery { TenantId = null });
+
+        // Both directions, same reasoning as TenantIsolationContract: a query that
+        // silently returns nothing would also "not leak" without proving the fallback
+        // actually reached tenant A's own data.
+        entries.ShouldHaveSingleItem().Entity.ShouldBe("agent:mine");
+    }
+
+    [Fact]
+    public async Task Null_tenant_follows_the_ambient_tenant_when_it_changes()
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Log.WriteAsync(Entry(TenantA, "agent.update", "agent:a-owned"));
+
+        AmbientTenant.TenantId = TenantB;
+        await Log.WriteAsync(Entry(TenantB, "agent.update", "agent:b-owned"));
+
+        // The store must consult the CURRENT ambient tenant on every call, not one
+        // captured when the store was constructed.
+        var entries = await Log.QueryAsync(new AuditQuery { TenantId = null });
+
+        entries.ShouldHaveSingleItem().Entity.ShouldBe("agent:b-owned");
+    }
+
+    [Fact]
+    public async Task VerifyChainAsync_with_null_tenant_checks_the_ambient_tenants_own_chain()
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Log.WriteAsync(Entry(TenantA, "agent.update", "agent:mine"));
+
+        AmbientTenant.TenantId = TenantB;
+        await Log.WriteAsync(Entry(TenantB, "agent.update", "agent:theirs"));
+
+        AmbientTenant.TenantId = TenantA;
+        var result = await Log.VerifyChainAsync(new AuditChainQuery { TenantId = null });
+
+        result.Status.ShouldBe(AuditChainStatus.Valid);
+        result.EntriesChecked.ShouldBe(1, "the null-tenant chain walk must scope to tenant A alone, not every tenant's entries.");
+    }
+
     // --- Raw-storage tamper hooks (phase 64) ---
     // IAuditLog has (deliberately, "there is no delete or edit endpoint, and
     // there will not be one") no way to alter or remove a written entry, so

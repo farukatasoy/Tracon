@@ -14,6 +14,12 @@ namespace AgentPrism;
 /// package: MCP stays an optional package. Same rationale as
 /// <see cref="IMcpToolRefresher"/>.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. <see cref="Create"/>
+/// itself is a pure factory call — the returned <see cref="AIContextProvider"/>
+/// carries the per-agent state, not this factory.
+/// </para>
 /// </remarks>
 public interface IMcpResourceContextProviderFactory
 {

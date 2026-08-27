@@ -4,6 +4,12 @@ namespace AgentPrism;
 /// Computes the cost from a model+usage pair. Pricing order: the model
 /// catalog, then the <c>AgentPrism:Pricing</c> configuration.
 /// </summary>
+/// <remarks>
+/// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> <see cref="Resolve"/>
+/// is a pure function of provider, model and usage; the pricing catalog and
+/// configuration it reads from are global, not per-tenant, so the same price
+/// applies regardless of which tenant's run is being costed.
+/// </remarks>
 public interface IRunPricingResolver
 {
     /// <summary>Resolves the cost.</summary>

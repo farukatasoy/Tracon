@@ -13,6 +13,10 @@ namespace AgentPrism;
 /// The check is a <strong>lightweight connection probe</strong>, similar to
 /// <c>SELECT 1</c>. It applies no migration and changes no data.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>Replace</c> by whichever SQL provider is active.
+/// </para>
 /// </remarks>
 public interface ISqlPersistenceDiagnostics
 {

@@ -3,7 +3,12 @@ namespace AgentPrism;
 /// <summary>The criteria that scope a hash chain verification.</summary>
 public sealed record AuditChainQuery
 {
-    /// <summary>Gets the tenant id. The tenant of the caller is used when it is <see langword="null"/>.</summary>
+    /// <summary>
+    /// Gets the tenant id. AMBIENT fallback: the caller's OWN
+    /// <see cref="ITenantContext.TenantId"/> is used when this is
+    /// <see langword="null"/> or empty — never "every tenant". See
+    /// <see cref="IAuditLog"/>'s remarks for the full contract.
+    /// </summary>
     public string? TenantId { get; init; }
 
     /// <summary>Gets the lower bound: entries written at or after this time are checked.</summary>

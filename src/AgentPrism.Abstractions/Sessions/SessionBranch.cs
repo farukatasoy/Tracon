@@ -69,6 +69,10 @@ public sealed record SessionBranchResult
 /// sequence number. The endpoint returns <c>501</c> in this case — it does
 /// not silently copy the whole thing.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins.
+/// </para>
 /// </remarks>
 public interface IConversationBranchStore
 {

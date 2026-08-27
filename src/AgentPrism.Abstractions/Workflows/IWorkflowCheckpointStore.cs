@@ -19,6 +19,17 @@ namespace AgentPrism;
 /// checkpoint carries the entire execution state; another tenant's
 /// checkpoint returns <em>not found</em> — not even "unauthorized" is said, its existence is not leaked.
 /// </para>
+/// <para>
+/// <strong>Delivery guarantee — AT-LEAST-ONCE.</strong> <see cref="CreateAsync"/>
+/// can be called more than once for what is logically the SAME super-step: when
+/// <c>IWorkflowRunner.ResumeStreamingAsync</c> resumes from an EARLIER checkpoint
+/// (a real crash-recovery resume, not the "already completed" case), every
+/// super-step from that point forward is replayed and each one writes a NEW
+/// checkpoint record again. This store does not deduplicate those writes — each
+/// call to <see cref="CreateAsync"/> is a plain append, and a caller reading the
+/// list back via <see cref="ListAsync"/>/<see cref="ListByRunAsync"/> sees every
+/// one of them, including ones written by a step that has now run twice.
+/// </para>
 /// </remarks>
 public interface IWorkflowCheckpointStore
 {

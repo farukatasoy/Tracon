@@ -3,7 +3,12 @@ namespace AgentPrism;
 /// <summary>The criteria that filter an audit trail query.</summary>
 public sealed record AuditQuery
 {
-    /// <summary>Gets the tenant id. The tenant of the caller is used when it is <see langword="null"/>.</summary>
+    /// <summary>
+    /// Gets the tenant id. AMBIENT fallback: the caller's OWN
+    /// <see cref="ITenantContext.TenantId"/> is used when this is
+    /// <see langword="null"/> or empty — never "every tenant". See
+    /// <see cref="IAuditLog"/>'s remarks for the full contract.
+    /// </summary>
     public string? TenantId { get; init; }
 
     /// <summary>Gets the actor filter. <see langword="null"/> includes every actor.</summary>

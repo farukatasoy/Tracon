@@ -45,16 +45,24 @@ internal sealed class SqlAuditLog : IAuditLog
 
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
+    private readonly ITenantContext _tenantContext;
 
     /// <summary>Creates a new audit trail ledger.</summary>
     /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">
+    /// Resolves the AMBIENT tenant for <see cref="QueryAsync"/> and
+    /// <see cref="VerifyChainAsync"/> when their query's <c>TenantId</c> is
+    /// <see langword="null"/> or empty — the same pattern <c>SqlRunStore</c> uses.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public SqlAuditLog(SqlStoreContext context)
+    public SqlAuditLog(SqlStoreContext context, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(tenantContext);
 
         _context = context;
         _sql = context.Sql;
+        _tenantContext = tenantContext;
     }
 
     /// <summary>The gateway for provider-specific behavior.</summary>
@@ -133,7 +141,7 @@ internal sealed class SqlAuditLog : IAuditLog
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectAuditLog);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? string.Empty);
+        DbHelpers.Add(command, "tenant_id", ResolveTenantId(query.TenantId));
         AddNullableText(command, "actor", query.Actor);
         AddNullableText(command, "action", query.Action);
         AddNullableText(command, "entity", query.Entity);
@@ -152,7 +160,7 @@ internal sealed class SqlAuditLog : IAuditLog
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectAuditChain);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? string.Empty);
+        DbHelpers.Add(command, "tenant_id", ResolveTenantId(query.TenantId));
         Dialect.AddTimestamp(command, "started_after", query.After);
         Dialect.AddTimestamp(command, "started_before", query.Before);
 
@@ -160,6 +168,13 @@ internal sealed class SqlAuditLog : IAuditLog
 
         return AuditChainWalker.Verify(entries, hasLowerBound: query.After is not null);
     }
+
+    /// <summary>
+    /// Resolves the AMBIENT fallback (see <see cref="IAuditLog"/>'s remarks): an empty
+    /// or missing override tenant resolves to the caller's OWN tenant, never to "every
+    /// tenant".
+    /// </summary>
+    private string ResolveTenantId(string? tenantId) => tenantId is { Length: > 0 } ? tenantId : _tenantContext.TenantId;
 
     private async ValueTask<string?> ReadLastHashAsync(string tenantId, CancellationToken cancellationToken)
     {

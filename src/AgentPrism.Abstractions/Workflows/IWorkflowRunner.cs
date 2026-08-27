@@ -17,6 +17,19 @@ namespace AgentPrism;
 /// through AgentPrism's own <see cref="RunEvent"/> type; the conversion from
 /// MAF events happens inside <c>AgentPrism.Workflows</c>.
 /// </para>
+/// <para>
+/// <strong>Delivery guarantee — AT-LEAST-ONCE, on <see cref="ResumeStreamingAsync"/>
+/// specifically.</strong> Resuming from a run's LATEST checkpoint after it has
+/// already completed does not re-run anything — there is nothing left to do. But
+/// resuming from an EARLIER checkpoint (the shape a real crash recovery takes)
+/// replays every super-step from that point forward, including any
+/// <c>AddWorkflowFunction&lt;T&gt;()</c> handler node in them, with the SAME
+/// input — this is exactly the reason a workflow function handler with a real
+/// side effect must be idempotent (see <c>AddWorkflowFunction&lt;T&gt;()</c>'s
+/// own remarks, where this was originally documented). <see cref="RunStreamingAsync"/>
+/// and <see cref="RespondStreamingAsync"/> carry no such guarantee of their own:
+/// each opens a fresh run and does not replay prior work.
+/// </para>
 /// </remarks>
 public interface IWorkflowRunner
 {

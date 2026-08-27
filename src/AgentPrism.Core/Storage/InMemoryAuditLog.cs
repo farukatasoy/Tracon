@@ -19,6 +19,19 @@ namespace AgentPrism;
 internal sealed class InMemoryAuditLog : IAuditLog
 {
     private readonly ConcurrentDictionary<string, List<AuditEntry>> _byTenant = new(StringComparer.Ordinal);
+    private readonly ITenantContext _tenantContext;
+
+    /// <summary>Creates a new in-memory audit log.</summary>
+    /// <param name="tenantContext">
+    /// Resolves the AMBIENT tenant for <see cref="QueryAsync"/> and
+    /// <see cref="VerifyChainAsync"/> when their query's <c>TenantId</c> is
+    /// <see langword="null"/> or empty. Defaults to
+    /// <see cref="FixedTenantContext.Default"/> when constructed outside DI.
+    /// </param>
+    public InMemoryAuditLog(ITenantContext? tenantContext = null)
+    {
+        _tenantContext = tenantContext ?? FixedTenantContext.Default;
+    }
 
     /// <inheritdoc />
     public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
@@ -54,7 +67,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        IEnumerable<AuditEntry> matches = SnapshotAll(query.TenantId);
+        IEnumerable<AuditEntry> matches = SnapshotOne(ResolveTenantId(query.TenantId));
 
         if (query.After is { } after)
         {
@@ -81,7 +94,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        IEnumerable<AuditEntry> matches = SnapshotAll(query.TenantId);
+        IEnumerable<AuditEntry> matches = SnapshotOne(ResolveTenantId(query.TenantId));
 
         if (query.Actor is { Length: > 0 } actor)
         {
@@ -117,29 +130,11 @@ internal sealed class InMemoryAuditLog : IAuditLog
     }
 
     /// <summary>
-    /// Takes a consistent snapshot of one tenant's chain, or of every tenant's when
-    /// <paramref name="tenantId"/>
-    /// is empty.
+    /// Resolves the AMBIENT fallback (see <see cref="IAuditLog"/>'s remarks): an empty
+    /// or missing override tenant resolves to the caller's OWN tenant, never to "every
+    /// tenant" — there is no code path in this store that scans across tenants.
     /// </summary>
-    private List<AuditEntry> SnapshotAll(string? tenantId)
-    {
-        if (tenantId is { Length: > 0 })
-        {
-            return SnapshotOne(tenantId);
-        }
-
-        var all = new List<AuditEntry>();
-
-        foreach (var chain in _byTenant.Values)
-        {
-            lock (chain)
-            {
-                all.AddRange(chain);
-            }
-        }
-
-        return all;
-    }
+    private string ResolveTenantId(string? tenantId) => tenantId is { Length: > 0 } ? tenantId : _tenantContext.TenantId;
 
     private List<AuditEntry> SnapshotOne(string tenantId)
     {

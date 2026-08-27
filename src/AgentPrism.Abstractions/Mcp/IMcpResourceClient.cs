@@ -63,6 +63,11 @@ public sealed record McpResourceContent
 /// <see cref="McpOperationStatus.UriNotDeclared"/>. Otherwise this would be an
 /// SSRF tool.
 /// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. Each call opens its own
+/// short-lived connection, so the implementation carries no per-run state.
+/// </para>
 /// </remarks>
 public interface IMcpResourceClient
 {

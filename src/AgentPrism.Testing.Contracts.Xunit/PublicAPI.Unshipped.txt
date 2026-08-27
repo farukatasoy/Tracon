@@ -109,10 +109,13 @@ AgentPrism.Testing.Contracts.Storage.AuditLogContract.First_entry_of_a_tenant_ca
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Limit_constrains_the_result() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Log.get -> AgentPrism.IAuditLog!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.No_leakage_between_tenants() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.AuditLogContract.Null_tenant_follows_the_ambient_tenant_when_it_changes() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.AuditLogContract.Null_tenant_resolves_to_the_ambient_tenant_and_does_not_leak_others() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Second_entry_links_to_the_first() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Tampering_a_row_directly_is_detected_as_broken() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Two_tenants_chains_verify_independently() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_reports_valid_for_a_normally_written_chain() -> System.Threading.Tasks.Task!
+AgentPrism.Testing.Contracts.Storage.AuditLogContract.VerifyChainAsync_with_null_tenant_checks_the_ambient_tenants_own_chain() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.AuditLogContract.Written_entry_round_trips() -> System.Threading.Tasks.Task!
 AgentPrism.Testing.Contracts.Storage.EvalStoreContract
 AgentPrism.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_assigns_seq_atomically() -> System.Threading.Tasks.Task!

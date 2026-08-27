@@ -4,9 +4,18 @@ namespace AgentPrism;
 
 /// <summary>The store for serialized agent sessions.</summary>
 /// <remarks>
+/// <para>
 /// Session state is the serialized form of Microsoft Agent Framework's
 /// <c>AgentSession</c> object and is treated as <strong>opaque</strong>. Its
 /// content is not interpreted; it is only stored and restored.
+/// </para>
+/// <para>
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
+/// <c>TryAdd</c>; a consumer's own registration wins. An implementation must
+/// be safe under concurrent calls and must not capture or depend on a
+/// scoped service. <see cref="TryCreateAsync"/> specifically must be
+/// GENUINELY atomic, not check-then-create — see that member's own remarks.
+/// </para>
 /// </remarks>
 public interface ISessionStore
 {

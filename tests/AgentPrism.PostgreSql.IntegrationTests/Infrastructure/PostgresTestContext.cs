@@ -80,7 +80,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         McpServers = new SqlMcpServerStore(wrapped);
         Tenants = new SqlTenantStore(wrapped);
         ChatHistory = new SqlChatHistoryProvider(wrapped, TenantContext);
-        AuditLog = new SqlAuditLog(wrapped);
+        AuditLog = new SqlAuditLog(wrapped, TenantContext);
         SkillScriptGrants = new SqlSkillScriptGrantStore(wrapped);
         AgentSkills = new SqlAgentSkillStore(wrapped);
         Attachments = new SqlAttachmentStore(wrapped);

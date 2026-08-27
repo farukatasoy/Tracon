@@ -62,7 +62,7 @@ public sealed class InMemoryAuditLogContractTests : AuditLogContract
 {
     /// <inheritdoc />
     protected override ValueTask<IAuditLog> CreateStoreAsync()
-        => ValueTask.FromResult<IAuditLog>(new InMemoryAuditLog());
+        => ValueTask.FromResult<IAuditLog>(new InMemoryAuditLog(AmbientTenant));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
