@@ -126,6 +126,63 @@ The consequence: the title, version, and server list in the published snapshot c
 from the host that generated it. In **your** document they come from your application.
 The paths, schemas, and descriptions are the same.
 
+Because AgentPrism maps plain minimal API endpoints on your own
+`IEndpointRouteBuilder`, they are also picked up by **your** OpenAPI/Swagger
+generator, right alongside your own endpoints — no separate setup on AgentPrism's
+side turns this on or off.
+
+```mermaid
+flowchart LR
+    accTitle: How AgentPrism endpoints reach your OpenAPI document
+    accDescr: AgentPrism endpoints and your own endpoints both sit in your route table and both flow into your OpenAPI generator; a ShouldInclude or DocInclusionPredicate filter on the AgentPrism tag decides what reaches the document it produces.
+    subgraph routes["Your route table"]
+        agentprism["AgentPrism endpoints<br/>(tag: AgentPrism)"]
+        yours["Your own endpoints"]
+    end
+    generator["Your AddOpenApi() /<br/>AddSwaggerGen() call"]
+    doc["Document your generator<br/>produces"]
+
+    agentprism --> generator
+    yours --> generator
+    generator -->|"ShouldInclude /<br/>DocInclusionPredicate"| doc
+```
+
+### Excluding AgentPrism from your document
+
+Every AgentPrism endpoint carries the `AgentPrism` tag. If your document should not
+describe AgentPrism's operations — for example, one you publish to external
+partners — filter on that tag in your own OpenAPI setup; AgentPrism has no
+built-in switch for this.
+
+With `Microsoft.AspNetCore.OpenApi`:
+
+```csharp
+using Microsoft.AspNetCore.Http.Metadata;
+
+builder.Services.AddOpenApi(options =>
+{
+    options.ShouldInclude = description =>
+        !description.ActionDescriptor.EndpointMetadata
+            .OfType<ITagsMetadata>()
+            .Any(tags => tags.Tags.Contains("AgentPrism"));
+});
+```
+
+With Swashbuckle:
+
+```csharp
+builder.Services.AddSwaggerGen(options =>
+{
+    options.DocInclusionPredicate((_, apiDescription) =>
+        !apiDescription.ActionDescriptor.EndpointMetadata
+            .OfType<ITagsMetadata>()
+            .Any(tags => tags.Tags.Contains("AgentPrism")));
+});
+```
+
+The filter only changes what your document *describes*. AgentPrism's endpoints stay
+reachable; they just stop appearing in your Swagger UI or generated document.
+
 ## Read next
 
 - [HTTP API reference](/http-api/) — every operation, grouped by tag
