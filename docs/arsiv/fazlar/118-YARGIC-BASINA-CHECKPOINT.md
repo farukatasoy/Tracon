@@ -1,7 +1,7 @@
 # Faz 118 — Yargıç Başına Checkpoint
 
 > **Durum:** ✅ Tamamlandı (2026-08-27)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-152**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-152**
 > **Önkoşul:** Faz 49 (çevrimiçi değerlendirme) ve Faz 103 (`JudgeTimeout` wait cutoff, K-621) — ikisi de arşivde
 > **Paketler:** `AgentPrism.Core` (yalnız `Evaluation/`)
 > **Yeni paket:** Yok · **Migration:** **Yok** — checkpoint bugünkü `run_scores` satırlarından okunur (§ 118.2)
@@ -27,8 +27,8 @@
    "Sonraki adım" sütunu tam olarak bu fazı işaret ediyor ve fazın en ince
    etkileşimi orada — § 118.4.
 3. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (eval, skor, iş kuyruğu ayarları)
-4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](MIMARI.md) — iş kuyruğu bölümü
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (eval, skor, iş kuyruğu ayarları)
+4. Gerektiğinde, tamamı değil ilgili bölümü: [`MIMARI.md`](../../MIMARI.md) — iş kuyruğu bölümü
 
 ---
 
@@ -49,10 +49,10 @@ tekrar çağrılmaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`OnlineEvalJobHandler.cs:148-151`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `foreach (var judge in judgeList)` — **koşulsuz**. Her çağrışta tüm yargıçlar döner |
-| [`OnlineEvalJobHandler.cs:66-81`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Tek bir retryable failure **tüm işi** `JobRetryException` ile yeniden denetir |
-| [`OnlineEvalJobHandler.cs:227-241`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `scoreStore.UpsertAsync` **yargıç başına** ve o yargıç başarılı olur olmaz çağrılır; satır `Author = "judge:{ad}"` taşır |
-| [`OnlineEvalJobHandler.cs:17-22`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) (XML) | Benzersizlik kısıtının **görünür** tekrarı engellediği açıkça yazılı; çağrının kendisi için bir söz yok |
+| [`OnlineEvalJobHandler.cs:148-151`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `foreach (var judge in judgeList)` — **koşulsuz**. Her çağrışta tüm yargıçlar döner |
+| [`OnlineEvalJobHandler.cs:66-81`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | Tek bir retryable failure **tüm işi** `JobRetryException` ile yeniden denetir |
+| [`OnlineEvalJobHandler.cs:227-241`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) | `scoreStore.UpsertAsync` **yargıç başına** ve o yargıç başarılı olur olmaz çağrılır; satır `Author = "judge:{ad}"` taşır |
+| [`OnlineEvalJobHandler.cs:17-22`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) (XML) | Benzersizlik kısıtının **görünür** tekrarı engellediği açıkça yazılı; çağrının kendisi için bir söz yok |
 
 > Kanıtlar 2026-08-26 tarihinde doğrulandı.
 
@@ -65,8 +65,8 @@ sağlayıcı migration'ı gerekir**."* Ölçüm bunun gereksiz olduğunu göster
 |---|---|
 | `UpsertAsync` nerede çağrılıyor | Yargıç **başına**, döngünün içinde — toplu değil |
 | Satır kimliği | `Author = "judge:{ad}"`, benzersizlik `(tenant_id, run_id, message_id, author)` |
-| Okuma yüzeyi | [`IRunScoreStore.ListAsync(tenantId, runId)`](../src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs) **zaten var** |
-| Deneme sayacı | [`JobRecord.Attempt`](../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) **zaten var**, `context.Job.Attempt` ile erişilir |
+| Okuma yüzeyi | [`IRunScoreStore.ListAsync(tenantId, runId)`](../../../src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs) **zaten var** |
+| Deneme sayacı | [`JobRecord.Attempt`](../../../src/AgentPrism.Abstractions/Scheduling/JobRecord.cs) **zaten var**, `context.Job.Attempt` ile erişilir |
 
 ∴ **Checkpoint bugün zaten veride duruyor.** Başarılı bir yargıç, adıyla
 etiketlenmiş kalıcı bir satır bırakıyor. Eksik olan tek şey, döngünün o satırı
@@ -149,7 +149,7 @@ Bu fazın sınırı budur ve gizlenmez:
 | Yargıç **çekimser kaldı** (`Score is null`) | ❌ Hayır | Yeniden koşar — 🚨 kabul edilen boşluk |
 | Yargıç aralık dışı skor verdi (`judge_contract`) | ❌ Hayır | Yeniden koşar (iş başka bir yargıç yüzünden denenirse) |
 
-Dördüncü satır bilinçli bir kabuldür. [`OnlineEvalJobHandler.cs:212-216`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs)
+Dördüncü satır bilinçli bir kabuldür. [`OnlineEvalJobHandler.cs:212-216`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs)
 şunu yazıyor: *"a silent 0 is NOT written. A zero is a measurement, not the
 absence of one."* Çekimser yargıcı checkpoint'lemek, tam da o kararın
 gerektirmediği yeni bir kalıcı durum ister. Ölçülmüş bir vaka doğarsa ayrı
@@ -187,7 +187,7 @@ Bu, adayın tarif ettiği sorunu tam hedefleyen **en dar** değişikliktir. Baş
 hiçbir yol davranış değiştirmez; sessiz bir gerileme yüzeyi açılmaz.
 
 `JudgeRunAsync` iki çağrışın ortak çekirdeğidir
-([`OnlineEvalJobHandler.cs:25-29`](../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) XML),
+([`OnlineEvalJobHandler.cs:25-29`](../../../src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs) XML),
 bu yüzden atlama bir **parametre** olur; çekirdeğin içine gömülmez.
 
 ## 118.6 — Kapsam dışı
@@ -249,7 +249,7 @@ tests/AgentPrism.AspNetCore.FunctionalTests/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
